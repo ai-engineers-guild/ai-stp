@@ -22,6 +22,7 @@ const props = {
     job_title_name: null,
     state: "active" as const,
     revision: 4,
+    available_actions: [],
   },
 };
 afterEach(() => {

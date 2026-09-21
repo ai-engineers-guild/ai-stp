@@ -1,18 +1,21 @@
 "use client";
 
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
-import {
-  createContext,
-  useContext,
-  useState,
-  useSyncExternalStore,
-  useTransition,
-  type ReactNode,
-} from "react";
+import { createContext, useContext, useState, useTransition, type ReactNode } from "react";
 import { toast } from "sonner";
 
+import { corporateAssignContextAction, type CorporateAssignContext } from "@/actions/corporate";
 import { Button } from "@/components/atoms/button";
 import { ContactReportDialog } from "@/components/organisms/contact-report-dialog";
+import { CorporateAssignDialog } from "@/components/organisms/corporate-assign-dialog";
+import {
+  ObjectVisibilityDialog,
+  PrivilegedObjectMenuItems,
+} from "@/components/organisms/object-menu-privileged";
+import {
+  CorporateCatalogOwnerDialog,
+  type CorporateCatalogOwnerEdit,
+} from "@/components/organisms/corporate-catalog-owner-editor";
 import { updateCatalogReaction } from "@/lib/actions/catalog-reactions";
 import { Link } from "@/lib/i18n/navigation";
 import { UI } from "@/lib/ui-selectors";
@@ -30,7 +33,32 @@ export type ObjectActionLabels = {
   unlikeMenu?: string;
   more: string;
   report: string;
+  openDetails?: string;
   editPresentation?: string;
+  edit?: string;
+  manageAccess?: string;
+  delete?: string;
+  confirmDelete?: string;
+  deleted?: string;
+};
+
+export type ObjectVisibilityEdit = {
+  csrfToken: string;
+  deviceId: string;
+  version: string;
+  name: string;
+  visibility: "public" | "private";
+  labels: {
+    goPublic: string;
+    removeFromPublic: string;
+    title: string;
+    description: string;
+    typeObjectName?: string;
+    confirm: string;
+    cancel: string;
+    busy: string;
+    failed: string;
+  };
 };
 
 export type ObjectActionProps = {
@@ -41,9 +69,15 @@ export type ObjectActionProps = {
   initiallyLiked?: boolean;
   labels: ObjectActionLabels;
   reportHref: string | undefined;
+  openHref?: string;
   editHref?: string;
+  manageAccessHref?: string;
   cliCommand?: string;
   canonicalUrl?: string;
+  objectName?: string;
+  ownerEdit?: CorporateCatalogOwnerEdit;
+  visibilityEdit?: ObjectVisibilityEdit;
+  objectDelete?: { csrfToken: string; locale: string; catalogHref: string };
 };
 
 type LikeState = {
@@ -144,6 +178,7 @@ export function ObjectLikeControl({
   );
 }
 
+// eslint-disable-next-line max-lines-per-function
 export function ObjectOverflowMenu({
   stableId,
   objectKind = "component",
@@ -151,12 +186,21 @@ export function ObjectOverflowMenu({
   likesCount,
   initiallyLiked = false,
   labels,
-  reportHref,
+  openHref,
   editHref,
+  manageAccessHref,
   cliCommand,
   canonicalUrl,
+  objectName,
+  ownerEdit,
+  visibilityEdit,
+  objectDelete,
 }: ObjectActionProps) {
   const [reportOpen, setReportOpen] = useState(false);
+  const [assignCtx, setAssignCtx] = useState<CorporateAssignContext | null>(null);
+  const [assignOpen, setAssignOpen] = useState(false);
+  const [ownerOpen, setOwnerOpen] = useState(false);
+  const [visibilityOpen, setVisibilityOpen] = useState(false);
   const like = useLikeState({
     stableId,
     objectKind,
@@ -166,14 +210,8 @@ export function ObjectOverflowMenu({
   });
   const likeMenu = labels.likeMenu ?? labels.like;
   const unlikeMenu = labels.unlikeMenu ?? "Unlike";
-
-  // Whether the browser has a share sheet is a fact about the browser, not a
-  // state this component transitions through. The server cannot know it, so
-  // the server snapshot is `false` and the answer arrives with hydration.
-  const supportsNativeShare = useSyncExternalStore(
-    () => () => {},
-    () => browserShare() !== null,
-    () => false,
+  const hasPrivileged = Boolean(
+    editHref || manageAccessHref || ownerEdit || visibilityEdit || assignCtx?.ok || objectDelete,
   );
 
   async function copy(value: string) {
@@ -197,7 +235,14 @@ export function ObjectOverflowMenu({
 
   return (
     <>
-      <DropdownMenu.Root modal={false}>
+      <DropdownMenu.Root
+        modal={false}
+        onOpenChange={(open) => {
+          if (open && assignCtx === null) {
+            void corporateAssignContextAction().then(setAssignCtx);
+          }
+        }}
+      >
         <DropdownMenu.Trigger asChild>
           <Button
             type="button"
@@ -215,6 +260,14 @@ export function ObjectOverflowMenu({
             sideOffset={4}
             className="border-border bg-popover z-30 max-w-[min(20rem,calc(100vw-1.5rem))] min-w-52 rounded-lg border p-1 shadow-md"
           >
+            {openHref ? (
+              <DropdownMenu.Item asChild>
+                <Link href={openHref} className={itemClassName} prefetch={false}>
+                  <Icon name="eye" size="sm" />
+                  {labels.openDetails ?? "Open details"}
+                </Link>
+              </DropdownMenu.Item>
+            ) : null}
             <DropdownMenu.Item
               className={itemClassName}
               disabled={like.pending}
@@ -225,6 +278,7 @@ export function ObjectOverflowMenu({
               <Icon name="heart" size="sm" fill={like.liked ? "currentColor" : "none"} />
               {like.liked ? unlikeMenu : likeMenu}
             </DropdownMenu.Item>
+            <DropdownMenu.Separator className="border-border my-1 border-t" />
             <DropdownMenu.Item
               className={itemClassName}
               onSelect={() => {
@@ -237,11 +291,11 @@ export function ObjectOverflowMenu({
             <DropdownMenu.Item
               className={itemClassName}
               onSelect={() => {
-                void share();
+                void copy(canonicalUrl ?? new URL(sharePath, location.origin).toString());
               }}
             >
               <Icon name="link" size="sm" />
-              {supportsNativeShare ? labels.share : labels.copyUrl}
+              {labels.copyUrl}
             </DropdownMenu.Item>
             {cliCommand ? (
               <DropdownMenu.Item
@@ -250,38 +304,83 @@ export function ObjectOverflowMenu({
                   void copy(cliCommand);
                 }}
               >
-                <Icon name="copy" size="sm" />
+                <Icon name="code" size="sm" />
                 {labels.copyCli ?? "Copy CLI command"}
               </DropdownMenu.Item>
             ) : null}
-            {editHref ? (
-              <DropdownMenu.Item asChild>
-                <Link href={editHref} className={itemClassName}>
-                  <Icon name="edit" size="sm" />
-                  {labels.editPresentation ?? "Edit bio and media"}
-                </Link>
-              </DropdownMenu.Item>
+            <DropdownMenu.Item
+              className={itemClassName}
+              onSelect={() => {
+                void share();
+              }}
+            >
+              <Icon name="link" size="sm" />
+              {labels.share}
+            </DropdownMenu.Item>
+            {hasPrivileged ? (
+              <DropdownMenu.Separator className="border-border my-1 border-t" />
             ) : null}
-            {reportHref ? (
-              <>
-                <DropdownMenu.Separator className="border-border my-1 border-t" />
-                <DropdownMenu.Item
-                  className={itemClassName}
-                  onSelect={() => {
-                    setReportOpen(true);
-                  }}
-                >
-                  <Icon name="flag" size="sm" />
-                  {labels.report}
-                </DropdownMenu.Item>
-              </>
-            ) : null}
+            <PrivilegedObjectMenuItems
+              labels={labels}
+              editHref={editHref}
+              manageAccessHref={manageAccessHref}
+              hasOwnerEdit={Boolean(ownerEdit)}
+              onOwnerOpen={() => {
+                setOwnerOpen(true);
+              }}
+              visibilityEdit={visibilityEdit}
+              onVisibilityOpen={() => {
+                setVisibilityOpen(true);
+              }}
+              assignCtx={assignCtx}
+              onAssignOpen={() => {
+                setAssignOpen(true);
+              }}
+              objectDelete={objectDelete ? { ...objectDelete, stableId } : undefined}
+              objectKind={objectKind}
+            />
+            <DropdownMenu.Separator className="border-border my-1 border-t" />
+            <DropdownMenu.Item
+              className={itemClassName}
+              onSelect={() => {
+                setReportOpen(true);
+              }}
+            >
+              <Icon name="flag" size="sm" />
+              {labels.report}
+            </DropdownMenu.Item>
           </DropdownMenu.Content>
         </DropdownMenu.Portal>
       </DropdownMenu.Root>
-      {reportHref ? (
+      {assignCtx?.ok ? (
+        <CorporateAssignDialog
+          open={assignOpen}
+          onOpenChange={setAssignOpen}
+          context={assignCtx}
+          objectKind={objectKind}
+          stableId={stableId}
+          objectName={objectName ?? stableId}
+        />
+      ) : null}
+      {ownerEdit ? (
+        <CorporateCatalogOwnerDialog
+          open={ownerOpen}
+          onOpenChange={setOwnerOpen}
+          ownerEdit={ownerEdit}
+        />
+      ) : null}
+      {visibilityEdit ? (
+        <ObjectVisibilityDialog
+          open={visibilityOpen}
+          onOpenChange={setVisibilityOpen}
+          edit={visibilityEdit}
+          objectKind={objectKind}
+          stableId={stableId}
+        />
+      ) : null}
+      {reportOpen ? (
         <ContactReportDialog
-          kind={reportHref.includes("setup") ? "setup" : "component"}
+          kind={objectKind}
           target={stableId}
           label={labels.report}
           open={reportOpen}

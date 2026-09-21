@@ -6,9 +6,12 @@ import { HistoryBackButton } from "@/components/molecules/history-back-button";
 import { LocalizedResourceDeleteMenuItem } from "@/components/organisms/localized-corporate-resource-actions";
 import { CorporateCatalogAssignments } from "@/components/organisms/corporate-catalog-assignments";
 import { CorporateRelationSection } from "@/components/organisms/corporate-relation-section";
+import { relationSectionLabels } from "@/components/organisms/corporate-directory-types";
 import { CorporateEmployeeDetail } from "@/components/organisms/corporate-employee-detail";
 import { corporateEmployeeDetailLabels } from "@/components/organisms/corporate-employee-labels";
 import { CorporateEntityDetail } from "@/components/organisms/corporate-entity-detail";
+import { assignmentCardItem } from "@/lib/assignment-card";
+import type { OwnerCardItem } from "@/components/organisms/object-card";
 import { readCorporatePresentation } from "@/lib/api/corporate-detail";
 import {
   assembleCorporateEmployeePresentation,
@@ -19,6 +22,7 @@ import { readCorporateResource, readCorporateCatalogAssignments } from "@/lib/ap
 import { readProjectTechnologyDetail } from "@/lib/api/technology";
 import { requireSession, sessionCookieValue } from "@/lib/auth/require-session";
 import { readCsrfToken } from "@/lib/auth/session";
+import { mapPool, readAssignedObjectSummary } from "@/lib/catalog-load";
 import { safeCorporateQuery } from "@/lib/corporate-routes";
 
 type PageProps = {
@@ -179,6 +183,22 @@ export default async function CorporateResourcePage({ params, searchParams }: Pa
         resourceId,
       )
     : null;
+  const assignmentSummaries = assignments
+    ? await mapPool(assignments.items, 6, (item) => readAssignedObjectSummary(item, session))
+    : [];
+  const assignmentCards: Record<string, OwnerCardItem> = Object.fromEntries(
+    (assignments?.items ?? []).map((item, index) => {
+      const summary = assignmentSummaries[index] ?? null;
+      return [
+        item.assignment_id,
+        {
+          ...assignmentCardItem(item),
+          catalog_item: summary,
+          latest_version: summary?.latest_version ?? item.version,
+        },
+      ];
+    }),
+  );
 
   const parentHref =
     resource === "roles"
@@ -275,7 +295,13 @@ export default async function CorporateResourcePage({ params, searchParams }: Pa
     : team?.description || detail.description;
   const csrfToken = (await readCsrfToken()) ?? "";
   const actionSet =
-    resource === "teams" ? (team?.available_actions ?? []) : workspace.context.capabilities;
+    resource === "teams"
+      ? (team?.available_actions ?? [])
+      : resource === "members"
+        ? (member?.available_actions ?? workspace.context.capabilities)
+        : resource === "projects"
+          ? (project?.available_actions ?? workspace.context.capabilities)
+          : workspace.context.capabilities;
   const canDelete = actionSet.includes(
     `${resource === "members" ? "member" : resource === "roles" ? "role" : resource.slice(0, -1)}.delete`,
   );
@@ -315,7 +341,7 @@ export default async function CorporateResourcePage({ params, searchParams }: Pa
                   id: item.account_id,
                   name: item.display_name ?? h("employees"),
                 }))}
-                labels={relationLabels(h)}
+                labels={relationSectionLabels(h)}
                 api={{ resource: "members", filters: { team_ids: [team.team_id] } }}
               />
             ) : null}
@@ -328,7 +354,7 @@ export default async function CorporateResourcePage({ params, searchParams }: Pa
                   id: project.project_id,
                   name: project.name,
                 }))}
-                labels={relationLabels(h)}
+                labels={relationSectionLabels(h)}
                 api={{ resource: "projects", filters: { team_ids: [team.team_id] } }}
               />
             ) : null}
@@ -343,6 +369,7 @@ export default async function CorporateResourcePage({ params, searchParams }: Pa
         {assignments && subjectKind && (
           <CorporateCatalogAssignments
             items={assignments.items}
+            cards={assignmentCards}
             organizationId={workspace.organization.organization_id}
             subjectKind={subjectKind}
             subjectId={resourceId}
@@ -358,35 +385,4 @@ export default async function CorporateResourcePage({ params, searchParams }: Pa
       </CorporateEntityDetail>
     </article>
   );
-}
-
-function relationLabels(h: (key: string) => string) {
-  return {
-    filters: h("filters"),
-    filterTitle: h("filterTitle"),
-    filterHint: h("filterHint"),
-    reset: h("clearFilters"),
-    close: h("closeFilters"),
-    search: h("search"),
-    apply: h("applyFilters"),
-    previous: h("previous"),
-    next: h("next"),
-    page: h("page"),
-    noMatches: h("noMatches"),
-    moreActions: h("moreActions"),
-    owner: h("owner"),
-    operationalOwner: h("operationalOwner"),
-    teams: h("teams"),
-    projects: h("projects"),
-    technologies: h("technologies"),
-    categories: h("categories"),
-    teamLeads: h("teamLeads"),
-    team: h("team"),
-    employee: h("employee"),
-    author: h("author"),
-    type: h("type"),
-    lead: h("lead"),
-    unknownEmployee: h("unknownEmployee"),
-    notAvailable: h("notAvailable"),
-  };
 }

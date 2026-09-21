@@ -28,6 +28,7 @@ import { ObjectDetailFrame } from "@/components/organisms/object-detail-frame";
 import { ObjectDetailHeader } from "@/components/organisms/object-detail-header";
 import { ComponentMediaGallery } from "@/components/organisms/component-media-gallery";
 import { CorporateCatalogUsage } from "@/components/organisms/corporate-catalog-usage";
+import { usageSectionLabels } from "@/components/organisms/corporate-directory-types";
 import { CorporateCatalogOwnerEditor } from "@/components/organisms/corporate-catalog-owner-editor";
 import { SetupComposition } from "@/components/organisms/setup-composition";
 import { SetupFamilyBlock, setupFamilyLabels } from "@/components/molecules/setup-family";
@@ -46,11 +47,14 @@ import {
 } from "@/lib/api/corporate-catalog-ownership";
 import { listCatalogReactions } from "@/lib/api/reactions";
 import { readCorporateContext } from "@/lib/api/corporate";
+import { readOwnerObjectActions } from "@/lib/api/owner";
+import { objectActionLabels } from "@/lib/object-action-labels";
 import { readPublisherProfile, type PublicProfileProjection } from "@/lib/api/public-profile";
 import { sessionCookieValue } from "@/lib/auth/require-session";
 import { readCsrfToken } from "@/lib/auth/session";
 import { asAccountId, asComponentId, asVersionId, tryAsSetupId } from "@/lib/brands";
-import { installStart, registryVersion } from "@/lib/cli-copy";
+import { registryVersion } from "@/lib/cli-copy";
+import { isFeatureEnabled } from "@/lib/features/gate";
 import { buildDeepLink, normalizeTarget } from "@/lib/deep-links";
 import { publicOrigin } from "@/lib/site";
 import { SeoJsonLd } from "@/components/molecules/seo-json-ld";
@@ -101,6 +105,7 @@ export default async function SetupDetailPage({ params, searchParams }: PageProp
 
   const t = await getTranslations("catalog");
   const th = await getTranslations("hub");
+  const to = await getTranslations("objects");
   const tc = await getTranslations("common");
   const tCli = await getTranslations("cli");
   const reportLabel = t("reportSetup");
@@ -168,9 +173,10 @@ export default async function SetupDetailPage({ params, searchParams }: PageProp
           corporateContext.organization.organization_id,
           "setup",
           setupId,
-          asVersionId(summary.latest_version),
         )
       : null;
+  const objectActions = token ? await readOwnerObjectActions(token, "setup", stableId) : null;
+  const deleteCsrfToken = objectActions?.canDelete ? ((await readCsrfToken()) ?? "") : "";
   const reportHref = latest?.passport_digest
     ? `/${locale}/reports?object_kind=setup&stable_id=${encodeURIComponent(stableId)}&version=${encodeURIComponent(summary.latest_version)}&digest=${encodeURIComponent(latest.passport_digest)}`
     : undefined;
@@ -238,21 +244,34 @@ export default async function SetupDetailPage({ params, searchParams }: PageProp
           likesCount: summary.likes_count,
           initiallyLiked,
           reportHref,
+          ...(objectActions?.canEdit
+            ? { editHref: `/objects/setup/${stableId}/edit` }
+            : {}),
+          ...(objectActions?.canDelete
+            ? { objectDelete: { csrfToken: deleteCsrfToken, locale, catalogHref: "/catalog" } }
+            : {}),
+          ...(corporateOwnership?.ownership.can_edit && corporateOwnership.members
+            ? {
+                ownerEdit: {
+                  ownership: corporateOwnership.ownership,
+                  objectKind: "setup" as const,
+                  stableId,
+                  version: summary.latest_version,
+                  organizationId: corporateOwnership.ownership.organization_id,
+                  authorizationRevision: corporateOwnership.authorizationRevision,
+                  csrfToken: corporateCsrfToken,
+                  members: corporateOwnership.members,
+                },
+              }
+            : {}),
           cliCommand,
           canonicalUrl: canonical.web_url,
-          labels: {
-            copyUrl: t("copyUrl"),
-            share: t("share"),
-            copyId: t("copyId"),
-            copyCli: t("copyCli"),
-            copied: t("copied"),
-            like: t("like"),
-            unlike: t("unlike"),
-            likeMenu: t("likeMenu"),
-            unlikeMenu: t("unlikeMenu"),
-            more: t("moreActions"),
+          labels: objectActionLabels({
+            catalog: t,
+            objects: to,
+            hub: th,
             report: reportLabel,
-          },
+          }),
         }}
       />
 
@@ -331,6 +350,12 @@ export default async function SetupDetailPage({ params, searchParams }: PageProp
                 labels={requirementLabels(t, tc)}
               />
             ) : null}
+            {corporateUsage ? (
+              <CorporateCatalogUsage
+                items={corporateUsage.items}
+                labels={usageSectionLabels(th, t)}
+              />
+            ) : null}
           </>
         }
         rail={
@@ -345,63 +370,26 @@ export default async function SetupDetailPage({ params, searchParams }: PageProp
               headingId="setup-author-heading"
             />
             {corporateOwnership ? (
-              <CorporateCatalogOwnerEditor
-                ownership={corporateOwnership.ownership}
-                objectKind="setup"
-                stableId={stableId}
-                version={summary.latest_version}
-                organizationId={corporateOwnership.ownership.organization_id}
-                authorizationRevision={corporateOwnership.authorizationRevision}
-                csrfToken={corporateCsrfToken}
-                members={corporateOwnership.members}
-              />
+              <CorporateCatalogOwnerEditor ownership={corporateOwnership.ownership} />
             ) : null}
-            {corporateUsage ? (
-              <CorporateCatalogUsage
-                items={corporateUsage.items}
-                total={corporateUsage.total}
-                labels={{
-                  title: th("catalogUsageTitle"),
-                  summary: th("catalogUsageSummary", { count: corporateUsage.total }),
-                  direct: th("directAssignment"),
-                  effective: th("effectiveAssignment"),
-                  subjectKinds: {
-                    employee: th("employee"),
-                    team: th("team"),
-                    project: th("project"),
-                    technology: th("technologies"),
-                  },
-                }}
-              />
+            {isFeatureEnabled("catalog_usage_metrics") && summary.usage_metrics != null ? (
+              <div className="border-border bg-card rounded-lg border p-4 shadow-sm">
+                <CatalogUsageStats
+                  metrics={summary.usage_metrics}
+                  locale={locale}
+                  viewsLabel={t("detailViews")}
+                  downloadsLabel={t("artifactDownloads")}
+                />
+              </div>
             ) : null}
-            <div className="border-border bg-card rounded-lg border p-4 shadow-sm">
-              <CatalogUsageStats
-                metrics={summary.usage_metrics}
-                locale={locale}
-                viewsLabel={t("detailViews")}
-                downloadsLabel={t("artifactDownloads")}
-              />
-            </div>
             <ContextBudgetPanel
               budget={budget}
               failure={budgetFailure}
               labels={contextBudgetLabels(t, tCli)}
             />
             <CliCopyBlock
-              command={installStart()}
-              title={tCli("useTitle")}
-              description={tCli("useBody")}
-              copyLabel={tCli("copy")}
-              copiedLabel={tCli("copied")}
-              errorLabel={tCli("copyError")}
-              docsLabel={tCli("docs")}
-              visibility="public"
-              publicLabel={t("public")}
-              privateLabel={t("private")}
-            />
-            <CliCopyBlock
               command={cliCommand}
-              title={tCli("inspectTitle")}
+              title={tCli("useTitle")}
               description={tCli("inspectBody")}
               copyLabel={tCli("copy")}
               copiedLabel={tCli("copied")}

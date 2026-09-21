@@ -134,6 +134,7 @@ def _view(
     owner_id: str | None,
     owner_display_name: str | None,
     can_edit: bool,
+    capabilities: list[str] | None = None,
 ) -> CorporateCatalogOwnership:
     return CorporateCatalogOwnership(
         organization_id=organization_id,
@@ -147,6 +148,7 @@ def _view(
         revision=row.revision if row else 0,
         owner_display_name=owner_display_name,
         can_edit=can_edit,
+        capabilities=capabilities or [],
     )
 
 
@@ -185,6 +187,15 @@ async def read_ownership(
             request_id=request_id,
             can_edit=can_edit,
         )
+    from ai_stp_api.slices.corporate.subject_access import catalog_object_capabilities
+
+    capabilities = await catalog_object_capabilities(
+        db,
+        account_id=ctx.account_id,
+        organization_id=organization_id,
+        object_kind=subject.object_kind,
+        stable_id=subject.stable_id,
+    )
     return _view(
         organization_id,
         subject,
@@ -193,6 +204,7 @@ async def read_ownership(
         owner_id=owner_id,
         owner_display_name=owner_display_name,
         can_edit=can_edit,
+        capabilities=capabilities,
     )
 
 
@@ -259,6 +271,15 @@ async def write_ownership(
         row.owner_account_id = owner_id if owner_kind == "employee" else None
         row.revision += 1
     await db.flush()
+    from ai_stp_api.slices.corporate.subject_access import catalog_object_capabilities
+
+    capabilities = await catalog_object_capabilities(
+        db,
+        account_id=ctx.account_id,
+        organization_id=organization_id,
+        object_kind=payload.object_kind,
+        stable_id=payload.stable_id,
+    )
     response = _view(
         organization_id,
         payload,
@@ -267,6 +288,7 @@ async def write_ownership(
         owner_id=owner_id,
         owner_display_name=owner_display_name,
         can_edit=True,
+        capabilities=capabilities,
     )
     await service.store_mutation_receipt(
         db,

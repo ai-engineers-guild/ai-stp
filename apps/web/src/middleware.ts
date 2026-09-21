@@ -129,8 +129,15 @@ export default function middleware(request: NextRequest) {
   }
   const parsed = parseProjectionRoute(sharedPath ?? pathname);
 
+  // The corporate hub is fully authenticated: only the login surfaces stay
+  // public. Session expiry is validated server-side in the site layout.
+  const corporateSessionRequired =
+    COMPILED_FEATURE_PROFILE === "corporate_hub" &&
+    parsed.canonicalPage !== "login" &&
+    parsed.canonicalPage !== "device-login";
+
   // A projection never changes access: private routes keep one session gate.
-  if (parsed.isProtected) {
+  if (parsed.isProtected || corporateSessionRequired) {
     const raw = request.cookies.get(SESSION_COOKIE)?.value;
     if (!raw) {
       const loginUrl = requestOriginUrl(request);
@@ -148,6 +155,7 @@ export default function middleware(request: NextRequest) {
     request.nextUrl.search,
     parsed.locale,
   );
+  requestHeaders.set("x-ai-stp-request-pathname", pathname);
 
   if (sharedPath) {
     const url = requestOriginUrl(request);

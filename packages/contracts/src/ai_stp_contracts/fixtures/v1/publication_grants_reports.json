@@ -602,6 +602,25 @@
       }
     },
     {
+      "case_id": "readOwnerObjectCapabilities.author",
+      "operation_id": "readOwnerObjectCapabilities",
+      "kind": "positive",
+      "why": "The author of an unpublished object holds edit and delete capabilities.",
+      "request": {
+        "path_params": {
+          "object_kind": "component",
+          "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "object_kind": "component",
+        "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "capabilities": ["edit", "edit_presentation", "delete"]
+      }
+    },
+    {
       "case_id": "readOwnerVersion.detail",
       "operation_id": "readOwnerVersion",
       "kind": "positive",

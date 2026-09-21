@@ -7,6 +7,7 @@ import { CorporateEntityDetail } from "@/components/organisms/corporate-entity-d
 import { CorporateCatalogAssignments } from "@/components/organisms/corporate-catalog-assignments";
 import { LocalizedResourceDeleteMenuItem } from "@/components/organisms/localized-corporate-resource-actions";
 import { CorporateRelationSection } from "@/components/organisms/corporate-relation-section";
+import { relationSectionLabels } from "@/components/organisms/corporate-directory-types";
 import { readCorporatePresentation } from "@/lib/api/corporate-detail";
 import { readCorporateCatalogAssignments, readCorporateContext } from "@/lib/api/corporate";
 import { readTechnologyDetail } from "@/lib/api/technology";
@@ -69,7 +70,7 @@ export default async function TechnologyDetailPage({
         resourceId={technologyId}
         title={technology.name}
         adminMenu={
-          workspace.capabilities.includes("technology.delete") ? (
+          technology.available_actions.includes("technology.delete") ? (
             <LocalizedResourceDeleteMenuItem
               csrfToken={(await readCsrfToken()) ?? ""}
               organizationId={organizationId}
@@ -92,7 +93,7 @@ export default async function TechnologyDetailPage({
             title: h("projects"),
             empty: h("empty"),
             unavailable: t("unavailable"),
-            relation: technologyRelationLabels(h),
+            relation: relationSectionLabels(h),
           }}
         />
         <CorporateCatalogAssignments
@@ -206,7 +207,7 @@ function TechnologyProjectsPanel({
     title: string;
     empty: string;
     unavailable: string;
-    relation: ReturnType<typeof technologyRelationLabels>;
+    relation: ReturnType<typeof relationSectionLabels>;
   };
 }) {
   if (!projects || projects.status === "empty" || projects.status === "loading") return null;
@@ -229,37 +230,6 @@ function TechnologyProjectsPanel({
       <p className="text-muted-foreground text-sm">{labels.empty}</p>
     </DetailAccordion>
   );
-}
-
-function technologyRelationLabels(h: (key: string) => string) {
-  return {
-    filters: h("filters"),
-    filterTitle: h("filterTitle"),
-    filterHint: h("filterHint"),
-    reset: h("clearFilters"),
-    close: h("closeFilters"),
-    search: h("search"),
-    apply: h("applyFilters"),
-    previous: h("previous"),
-    next: h("next"),
-    page: h("page"),
-    noMatches: h("noMatches"),
-    moreActions: h("moreActions"),
-    owner: h("owner"),
-    operationalOwner: h("operationalOwner"),
-    teams: h("teams"),
-    projects: h("projects"),
-    technologies: h("technologies"),
-    categories: h("categories"),
-    teamLeads: h("teamLeads"),
-    team: h("team"),
-    employee: h("employee"),
-    author: h("author"),
-    type: h("type"),
-    lead: h("lead"),
-    unknownEmployee: h("unknownEmployee"),
-    notAvailable: h("notAvailable"),
-  };
 }
 
 async function TechnologyGovernancePanel({
@@ -331,7 +301,7 @@ async function TechnologyGovernancePanel({
               title={labels.responsibilities}
               resource="teams"
               references={refs}
-              labels={technologyRelationLabels(h)}
+              labels={relationSectionLabels(h)}
               api={{ resource: "teams", filters: { technology_ids: [technologyId] } }}
             />
           ) : null;

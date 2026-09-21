@@ -6,7 +6,7 @@ import hashlib
 import json
 import re
 import unicodedata
-from collections.abc import Mapping
+from collections.abc import Awaitable, Callable, Mapping
 from datetime import UTC, datetime
 from typing import Literal, cast
 
@@ -175,10 +175,14 @@ ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
     "lead": frozenset(
         {
             "organization.read",
+            "member.read",
+            "member.update",
+            "member.delete",
             "project.read",
-            "project.update",
             "project.list",
             "team.read",
+            "team.update",
+            "team.delete",
             "team.list",
         }
     ),
@@ -196,6 +200,7 @@ GOVERNANCE_PERMISSIONS = frozenset(
     {
         "catalog_object.read",
         "catalog_object.edit",
+        "catalog_object.delete",
         "catalog_object.publish",
         "catalog_object.verify",
         "catalog_object.assign",
@@ -209,7 +214,7 @@ GOVERNANCE_PERMISSIONS = frozenset(
 ROLE_PERMISSIONS["superadmin"] |= (
     TECHNOLOGY_PERMISSIONS | RELATION_PERMISSIONS | GOVERNANCE_PERMISSIONS
 )
-ROLE_PERMISSIONS["lead"] |= {"catalog_object.read"}
+ROLE_PERMISSIONS["lead"] |= {"catalog_object.read", "catalog_object.assign"}
 ROLE_PERMISSIONS["staff"] |= {"catalog_object.read"}
 
 _ROLE_NAME_RE = re.compile(r"^[a-z][a-z0-9_-]{0,63}$")
@@ -524,12 +529,23 @@ async def team_view(
             action
             for action, permission in (
                 ("team.update", "team.update"),
+                ("team.delete", "team.delete"),
                 ("assignment.manage", "catalog_object.assign"),
                 ("maintainer.manage", "catalog_object.maintainer"),
                 ("audit.explain", "catalog_object.explain"),
             )
             if permission in effective_permissions
         ]
+        from ai_stp_api.slices.corporate.entity_profiles import can_edit_profile
+
+        if await can_edit_profile(
+            db,
+            ctx=ctx,
+            organization_id=row.organization_id,
+            subject_kind="team",
+            subject_id=row.id,
+        ):
+            available_actions.append("entity_profile.update")
         history_rows = list(
             (
                 await db.scalars(
@@ -781,6 +797,7 @@ async def authorize(
     scope_kind: str = "organization",
     scope_id: str | None = None,
     authorization_revision: int | None = None,
+    extra_grant: Callable[[], Awaitable[bool]] | None = None,
 ) -> tuple[Organization, OrganizationMembership]:
     organization, membership = await _organization_and_membership(
         db, ctx=ctx, organization_id=organization_id
@@ -813,6 +830,20 @@ async def authorize(
         scope_kind=scope_kind,
         scope_id=scope,
     )
+    if not allowed and scope_kind == "member":
+        # Organization-wide member administration keeps working for org-scoped
+        # roles; scoped (team) grants already matched inside the evaluator.
+        allowed = await has_corporate_permission(
+            db,
+            organization_id=organization_id,
+            principal_type="user",
+            principal_id=ctx.account_id,
+            permission=permission,
+            scope_kind="organization",
+            scope_id=organization_id,
+        )
+    if not allowed and extra_grant is not None:
+        allowed = await extra_grant()
     if not allowed:
         raise ApiError(ErrorCategory.PERMISSION, "capability is forbidden")
     return organization, membership
@@ -1010,6 +1041,7 @@ async def authorize_idempotent(
     scope_kind: str = "organization",
     scope_id: str | None = None,
     legacy_fingerprint: str | None = None,
+    extra_grant: Callable[[], Awaitable[bool]] | None = None,
 ) -> tuple[Organization, CorporateMutationReceipt | None]:
     organization, membership = await authorize(
         db,
@@ -1018,6 +1050,7 @@ async def authorize_idempotent(
         permission=permission,
         scope_kind=scope_kind,
         scope_id=scope_id,
+        extra_grant=extra_grant,
     )
     # ponytail: per-tenant mutation lock; split locks if measured throughput needs it.
     locked = await db.scalar(
@@ -1035,6 +1068,7 @@ async def authorize_idempotent(
         permission=permission,
         scope_kind=scope_kind,
         scope_id=scope_id,
+        extra_grant=extra_grant,
     )
     receipt = await db.get(CorporateMutationReceipt, (organization_id, idempotency_key))
     if receipt is not None:
@@ -1784,6 +1818,8 @@ async def update_member(
         ctx=ctx,
         organization_id=organization_id,
         permission="member.update",
+        scope_kind="member",
+        scope_id=account_id,
         authorization_revision=payload.authorization_revision,
         idempotency_key=payload.idempotency_key,
         operation="member.update",
@@ -1807,6 +1843,19 @@ async def update_member(
         raise ApiError(ErrorCategory.INTERNAL, "member account is missing")
     if row.revision != payload.expected_revision:
         raise ApiError(ErrorCategory.CONFLICT, "member revision changed")
+    org_admin = await has_corporate_permission(
+        db,
+        organization_id=organization_id,
+        principal_type="user",
+        principal_id=ctx.account_id,
+        permission="member.update",
+        scope_kind="organization",
+        scope_id=organization_id,
+    )
+    if not org_admin and (row.role == "superadmin" or payload.role != row.role):
+        # Scoped (team) member administration cannot change organization roles
+        # or touch a superadmin membership.
+        raise ApiError(ErrorCategory.PERMISSION, "member role change is forbidden")
     await _ensure_role_exists(db, organization_id=organization_id, role=payload.role)
     await _ensure_current_job_title(
         db, organization_id=organization_id, job_title_id=payload.job_title_id
@@ -1908,6 +1957,8 @@ async def delete_member(
         ctx=ctx,
         organization_id=organization_id,
         permission="member.delete",
+        scope_kind="member",
+        scope_id=account_id,
         authorization_revision=payload.authorization_revision,
         idempotency_key=payload.idempotency_key,
         operation="member.delete",
@@ -1928,6 +1979,17 @@ async def delete_member(
         raise ApiError(ErrorCategory.PERMISSION, "member access denied")
     if row.revision != payload.expected_revision:
         raise ApiError(ErrorCategory.CONFLICT, "member revision changed")
+    org_admin = await has_corporate_permission(
+        db,
+        organization_id=organization_id,
+        principal_type="user",
+        principal_id=ctx.account_id,
+        permission="member.delete",
+        scope_kind="organization",
+        scope_id=organization_id,
+    )
+    if not org_admin and row.role == "superadmin":
+        raise ApiError(ErrorCategory.PERMISSION, "member delete is forbidden")
     if row.role == "superadmin" and row.state == "active":
         active_superadmins = await db.scalar(
             select(func.count())
@@ -1997,7 +2059,14 @@ async def read_member(
     account_id: str,
     request_id: str | None,
 ) -> CorporateMember:
-    await authorize(db, ctx=ctx, organization_id=organization_id, permission="member.read")
+    await authorize(
+        db,
+        ctx=ctx,
+        organization_id=organization_id,
+        permission="member.read",
+        scope_kind="member",
+        scope_id=account_id,
+    )
     result = await db.execute(
         select(OrganizationMembership, Account)
         .join(Account, Account.id == OrganizationMembership.account_id)
@@ -2018,7 +2087,16 @@ async def read_member(
         target_id=account_id,
         request_id=request_id,
     )
-    return member_view(*row)
+    from ai_stp_api.slices.corporate.subject_access import subject_available_actions
+
+    actions = await subject_available_actions(
+        db,
+        account_id=ctx.account_id,
+        organization_id=organization_id,
+        subject_kind="employee",
+        subject_id=account_id,
+    )
+    return member_view(*row).model_copy(update={"available_actions": actions})
 
 
 async def create_binding(
@@ -2526,7 +2604,16 @@ async def read_project(
         target_id=project_id,
         request_id=request_id,
     )
-    return _project_view(row)
+    from ai_stp_api.slices.corporate.subject_access import subject_available_actions
+
+    actions = await subject_available_actions(
+        db,
+        account_id=ctx.account_id,
+        organization_id=organization_id,
+        subject_kind="project",
+        subject_id=project_id,
+    )
+    return _project_view(row).model_copy(update={"available_actions": actions})
 
 
 async def update_project(

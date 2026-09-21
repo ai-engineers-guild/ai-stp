@@ -22,6 +22,7 @@ import {
 } from "@/lib/catalog-query";
 import { defaultCatalogQuery } from "@/lib/catalog-query-defaults";
 import { RefineSurface } from "@/components/molecules/filter-surface";
+import { NavPendingRegion } from "@/components/molecules/nav-pending-region";
 import { Link, useRouter } from "@/lib/i18n/navigation";
 import { UI } from "@/lib/ui-selectors";
 import { Icon } from "@/theme";
@@ -120,6 +121,8 @@ export function CatalogFilters({
 }: CatalogFiltersProps) {
   const [searchOpen, setSearchOpen] = useState(!hideSearch && Boolean(query.q));
   const [filtersOpen, setFiltersOpen] = useState(false);
+  // Remounts the panel only on explicit reset: apply keeps group/scroll state.
+  const [resetNonce, setResetNonce] = useState(0);
   const [optimisticReset, setOptimisticReset] = useState<{
     sourceKey: string;
     query: ParsedCatalogQuery;
@@ -140,138 +143,154 @@ export function CatalogFilters({
   }
 
   return (
-    <CatalogSearchForm
-      id="catalog-search-form"
-      className="w-full"
-      {...(labels.updatingLabel ? { updatingLabel: labels.updatingLabel } : {})}
-    >
-      <input type="hidden" name="page_size" value={String(displayedQuery.pageSize)} />
-      {Object.entries(catalogQueryToRecord(displayedQuery))
-        .filter(([key]) => !hiddenOmit.has(key))
-        .map(([key, value]) => (
-          <input key={key} type="hidden" name={key} value={value} />
-        ))}
-      {!filtersOpen ? (
-        <input type="hidden" name="resource" value={displayedQuery.resource} />
-      ) : null}
-      <div className="grid min-w-0 items-start gap-4 md:grid-cols-[minmax(0,1fr)_auto]">
-        <p className="text-muted-foreground max-w-3xl min-w-0 text-sm leading-relaxed">{intro}</p>
-        <div className="flex min-w-0 flex-wrap items-center gap-2 md:justify-end">
-          {!hideSearch ? (
-            <DisclosureButton
-              open={searchOpen}
-              controls="catalog-text-search"
-              ui={UI.catalog.search}
-              label={labels.search}
-              onToggle={() => {
-                setSearchOpen((value) => !value);
-              }}
-            >
-              <Icon name="search" size="sm" />
-            </DisclosureButton>
-          ) : null}
-          <DisclosureButton
-            open={filtersOpen}
-            controls="catalog-refine"
-            ui={UI.catalog.filters}
-            label={`${labels.refineButton ?? labels.filtersButton}${appliedCount ? ` (${appliedCount})` : ""}`}
-            onToggle={() => {
-              setFiltersOpen((value) => !value);
-            }}
-          >
-            <Icon name="controls" size="sm" />
-          </DisclosureButton>
-          <CatalogDisplayControls query={displayedQuery} labels={labels} basePath={basePath} />
-        </div>
-      </div>
-
-      <div className="relative mt-4 min-w-0 space-y-3">
-        {searchOpen ? (
-          <section
-            id="catalog-text-search"
-            className="border-border bg-card min-w-0 overflow-x-hidden rounded-lg border p-4 sm:p-5"
-          >
-            <CatalogQueryField
-              label={labels.search}
-              placeholder={labels.searchPlaceholder}
-              submitLabel={labels.search}
-              defaultValue={displayedQuery.q}
-              correctionLabel={labels.queryCorrection ?? "Did you mean"}
-              fieldsLabel={labels.queryFields ?? "Fields"}
-              operatorsLabel={labels.queryOperators ?? "Operators"}
-              literalHint={
-                labels.queryLiteralHint ?? 'Quotes search a reserved word as text: "AND".'
-              }
-            />
-            <p className="text-muted-foreground mt-2 max-w-3xl text-xs leading-relaxed">
-              {labels.searchHelp}
-            </p>
-          </section>
+    <NavPendingRegion label={labels.updatingLabel ?? "Updating results"}>
+      <CatalogSearchForm
+        id="catalog-search-form"
+        className="w-full"
+        {...(labels.updatingLabel ? { updatingLabel: labels.updatingLabel } : {})}
+      >
+        <input type="hidden" name="page_size" value={String(displayedQuery.pageSize)} />
+        {Object.entries(catalogQueryToRecord(displayedQuery))
+          .filter(([key]) => !hiddenOmit.has(key))
+          .map(([key, value]) => (
+            <input key={key} type="hidden" name={key} value={value} />
+          ))}
+        {!filtersOpen ? (
+          <input type="hidden" name="resource" value={displayedQuery.resource} />
         ) : null}
-        {filtersOpen ? (
-          <RefineSurface
-            labels={labels}
-            onClose={() => {
-              setFiltersOpen(false);
-            }}
-          >
-            <CatalogFilterPanel
-              key={JSON.stringify(displayedQuery)}
-              query={displayedQuery}
-              labels={labels}
-              services={services}
-              authors={authors}
-              locale={locale}
-              hideAuthorFilter={hideAuthorFilter}
-              corporateFacets={corporateFacets}
-            />
-            <div className="border-border bg-card sticky bottom-0 mt-6 flex flex-wrap items-center justify-between gap-3 border-t py-5">
-              <button
-                type="button"
-                className="text-muted-foreground inline-flex min-h-11 items-center text-sm underline underline-offset-4"
-                onClick={() => {
-                  setOptimisticReset({ sourceKey: queryKey, query: defaultCatalogQuery() });
-                  router.push(resetHref);
+        <div className="grid min-w-0 items-start gap-4 md:grid-cols-[minmax(0,1fr)_auto]">
+          <p className="text-muted-foreground max-w-3xl min-w-0 text-sm leading-relaxed">{intro}</p>
+          <div className="flex min-w-0 flex-wrap items-center gap-2 md:justify-end">
+            {!hideSearch ? (
+              <DisclosureButton
+                open={searchOpen}
+                controls="catalog-text-search"
+                ui={UI.catalog.search}
+                label={labels.search}
+                onToggle={() => {
+                  setSearchOpen((value) => !value);
                 }}
               >
-                {labels.resetAll}
-              </button>
-              <Button type="submit" className="min-h-11 w-full sm:w-auto">
-                <Icon name="filter" size="sm" />
-                {labels.applyFilters}
-              </Button>
-            </div>
-          </RefineSurface>
-        ) : null}
-      </div>
-
-      {chips.length ? (
-        <div className="mt-3 flex min-w-0 flex-wrap gap-2" aria-label={labels.filtersButton}>
-          {chips.map((chip) => (
-            <Link
-              key={chip.key}
-              href={hrefFor(chip.without, basePath)}
-              prefetch={false}
-              className="border-border bg-muted inline-flex min-h-11 max-w-full items-center rounded-md border px-3 py-1 font-mono text-xs break-all"
+                <Icon name="search" size="sm" />
+              </DisclosureButton>
+            ) : null}
+            <DisclosureButton
+              open={filtersOpen}
+              controls="catalog-refine"
+              ui={UI.catalog.filters}
+              label={`${labels.refineButton ?? labels.filtersButton}${appliedCount ? ` (${appliedCount})` : ""}`}
+              onToggle={() => {
+                setFiltersOpen((value) => !value);
+              }}
             >
-              {chip.key.startsWith("author:") ? (
-                <AuthorChipContent
-                  accountId={chip.key.slice("author:".length)}
-                  fallback={chipLabel(chip.key, chip.label, labels)}
-                  authors={authors}
-                />
-              ) : (
-                chipLabel(chip.key, chip.label, labels)
-              )}{" "}
-              ×
-            </Link>
-          ))}
+              <Icon name="controls" size="sm" />
+            </DisclosureButton>
+            <CatalogDisplayControls query={displayedQuery} labels={labels} basePath={basePath} />
+          </div>
         </div>
-      ) : null}
-      {fixedAuthors.map((author) => (
-        <input key={author} type="hidden" name="authors" value={author} />
-      ))}
-    </CatalogSearchForm>
+
+        <div className="relative mt-4 min-w-0 space-y-3">
+          {searchOpen ? (
+            <section
+              id="catalog-text-search"
+              className="border-border bg-card min-w-0 overflow-x-hidden rounded-lg border p-4 sm:p-5"
+            >
+              <CatalogQueryField
+                label={labels.search}
+                placeholder={labels.searchPlaceholder}
+                submitLabel={labels.search}
+                defaultValue={displayedQuery.q}
+                correctionLabel={labels.queryCorrection ?? "Did you mean"}
+                fieldsLabel={labels.queryFields ?? "Fields"}
+                operatorsLabel={labels.queryOperators ?? "Operators"}
+                literalHint={
+                  labels.queryLiteralHint ?? 'Quotes search a reserved word as text: "AND".'
+                }
+              />
+              <p className="text-muted-foreground mt-2 max-w-3xl text-xs leading-relaxed">
+                {labels.searchHelp}
+              </p>
+            </section>
+          ) : null}
+          {filtersOpen ? (
+            <RefineSurface
+              labels={labels}
+              onClose={() => {
+                setFiltersOpen(false);
+              }}
+            >
+              <CatalogFilterPanel
+                key={resetNonce}
+                query={displayedQuery}
+                labels={labels}
+                services={services}
+                authors={authors}
+                locale={locale}
+                hideAuthorFilter={hideAuthorFilter}
+                corporateFacets={corporateFacets}
+              />
+              <div className="border-border bg-card sticky bottom-0 mt-6 flex flex-wrap items-center justify-between gap-3 border-t py-5">
+                <button
+                  type="button"
+                  className="text-muted-foreground inline-flex min-h-11 items-center text-sm underline underline-offset-4"
+                  onClick={() => {
+                    setOptimisticReset({ sourceKey: queryKey, query: defaultCatalogQuery() });
+                    setResetNonce((nonce) => nonce + 1);
+                    router.push(resetHref);
+                  }}
+                >
+                  {labels.resetAll}
+                </button>
+                <Button type="submit" className="min-h-11 w-full sm:w-auto">
+                  <Icon name="filter" size="sm" />
+                  {labels.applyFilters}
+                </Button>
+              </div>
+            </RefineSurface>
+          ) : null}
+        </div>
+
+        {chips.length ? (
+          <div className="mt-3 flex min-w-0 flex-wrap gap-2" aria-label={labels.filtersButton}>
+            {chips.map((chip) => {
+              const fallbackLabel = chipLabel(chip.key, chip.label, labels);
+              const text = chip.key.startsWith("author:")
+                ? authorDisplayName(chip.key.slice("author:".length), authors, fallbackLabel)
+                : fallbackLabel;
+              return (
+                <span
+                  key={chip.key}
+                  className="border-border bg-muted inline-flex min-h-11 max-w-full items-center gap-1 rounded-md border py-1 pr-1 pl-3 font-mono text-xs transition-shadow hover:shadow-md"
+                >
+                  <span className="min-w-0 break-all">
+                    {chip.key.startsWith("author:") ? (
+                      <AuthorChipContent
+                        accountId={chip.key.slice("author:".length)}
+                        displayName={text}
+                        authors={authors}
+                      />
+                    ) : (
+                      text
+                    )}
+                  </span>
+                  <Link
+                    href={hrefFor(chip.without, basePath)}
+                    prefetch={false}
+                    aria-label={`${labels.dismissFilter}: ${text}`}
+                    className="text-muted-foreground hover:bg-background hover:text-foreground focus-visible:ring-ring inline-flex size-9 shrink-0 items-center justify-center rounded-md transition-colors focus-visible:ring-2 focus-visible:outline-none"
+                  >
+                    <Icon name="close" size="sm" />
+                  </Link>
+                </span>
+              );
+            })}
+          </div>
+        ) : null}
+        {fixedAuthors.map((author) => (
+          <input key={author} type="hidden" name="authors" value={author} />
+        ))}
+      </CatalogSearchForm>
+    </NavPendingRegion>
   );
 }
 
@@ -347,20 +366,29 @@ function chipLabel(key: string, label: string, labels: CatalogFiltersProps["labe
   return label;
 }
 
+function authorDisplayName(
+  accountId: string,
+  authors: readonly CatalogAuthorOption[],
+  fallback: string,
+): string {
+  const author = authors.find((item) => item.account_id === accountId);
+  return (
+    author?.display_name ||
+    [author?.first_name, author?.last_name].filter(Boolean).join(" ") ||
+    fallback
+  );
+}
+
 function AuthorChipContent({
   accountId,
-  fallback,
+  displayName,
   authors,
 }: {
   accountId: string;
-  fallback: string;
+  displayName: string;
   authors: readonly CatalogAuthorOption[];
 }) {
   const author = authors.find((item) => item.account_id === accountId);
-  const displayName =
-    author?.display_name ||
-    [author?.first_name, author?.last_name].filter(Boolean).join(" ") ||
-    fallback;
   return (
     <span className="inline-flex min-w-0 items-center gap-2">
       <AvatarImage

@@ -50,6 +50,7 @@ const sample: TechnologyLandscapeView = {
         revision: 2,
         redirect_id: null,
         provenance: "manual",
+        available_actions: [],
       },
       project_count: 1,
       proposed_project_count: 0,

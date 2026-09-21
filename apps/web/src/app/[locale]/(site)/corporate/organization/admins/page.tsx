@@ -69,6 +69,14 @@ export default async function CorporateAdministrationPage({ params }: PageProps)
             {technology("categories")}
           </Link>
         )}
+        {context.capabilities.includes("role.list") && (
+          <Link
+            href="/corporate/organization/admins/access"
+            className="inline-flex min-h-11 items-center underline underline-offset-4"
+          >
+            {t("accessMatrix")}
+          </Link>
+        )}
         {context.capabilities.includes("job_title.list") && (
           <Link
             href="/corporate/organization/admins/job-titles"

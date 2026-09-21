@@ -66,3 +66,11 @@ def test_catalog_usage_query_keeps_object_identity_typed() -> None:
             stable_id=new_id("component"),
             version="1.0",
         )
+
+
+def test_catalog_usage_query_allows_omitted_version() -> None:
+    query = CorporateCatalogUsageQuery(
+        object_kind="component",
+        stable_id=new_id("component"),
+    )
+    assert query.version is None

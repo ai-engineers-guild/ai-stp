@@ -29,6 +29,8 @@ async def update_member_profile(
         ctx=ctx,
         organization_id=organization_id,
         permission="member.update",
+        scope_kind="member",
+        scope_id=account_id,
         authorization_revision=payload.authorization_revision,
         idempotency_key=payload.idempotency_key,
         operation="member.profile.update",

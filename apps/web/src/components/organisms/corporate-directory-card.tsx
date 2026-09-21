@@ -35,6 +35,7 @@ type Labels = {
   unknownEmployee: string;
   notAvailable: string;
   copyId?: string;
+  copyUrl?: string;
   share?: string;
   report?: string;
   publicVisibility?: string;
@@ -230,6 +231,7 @@ function DirectoryActions({
       entityId={item.id}
       shareHref={baseHref}
       copyIdLabel={labels.copyId}
+      copyUrlLabel={labels.copyUrl}
       shareLabel={labels.share}
       reportLabel={labels.report}
       reportTarget={`corporate:${resource}:${item.id}`}

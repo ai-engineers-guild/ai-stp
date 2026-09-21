@@ -2,16 +2,23 @@
 
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
+import { getTranslations } from "next-intl/server";
 
 import { ApiError } from "@/lib/api/errors";
 import { fieldErrorsFromDetails, type FieldErrors } from "@/lib/api/field-errors";
 import { privateApiRequest, type PrivateRequestOptions } from "@/lib/api/http";
-import { corporateAuditFilters, type CorporateAuditFilterValues } from "@/lib/api/corporate";
+import {
+  corporateAuditFilters,
+  readCorporateContext,
+  type CorporateAuditFilterValues,
+} from "@/lib/api/corporate";
 import { assertCsrf, readCsrfToken, readSession, SESSION_COOKIE } from "@/lib/auth/session";
+import { COMPILED_FEATURE_PROFILE } from "@/lib/features/compiled";
 
 import type {
   CorporateAuditExport,
   CorporateContext,
+  CorporateDirectoryView,
   TechnologyMergePlanView,
   ProjectTechnologyView,
   SetupListResponse,
@@ -262,6 +269,117 @@ export async function corporateAuditExportAction(
       { sessionToken, query: corporateAuditFilters(filters) },
     );
     return { ok: true, data };
+  } catch (error) {
+    return {
+      ok: false,
+      message: error instanceof ApiError ? error.message : "request failed",
+    };
+  }
+}
+
+export type CorporateAssignLabels = {
+  assign: string;
+  dialogTitle: string;
+  version: string;
+  latest: string;
+  search: string;
+  closeFilters: string;
+  loading: string;
+  assignPartial: string;
+  assignFailed: string;
+  employee: string;
+  team: string;
+  project: string;
+  technologies: string;
+};
+
+export type CorporateAssignContext =
+  | {
+      ok: true;
+      organizationId: string;
+      authorizationRevision: number;
+      csrfToken: string;
+      labels: CorporateAssignLabels;
+    }
+  | { ok: false };
+
+/** Read-only context probe for the catalog assign dialog; safe without CSRF. */
+export async function corporateAssignContextAction(): Promise<CorporateAssignContext> {
+  try {
+    if (COMPILED_FEATURE_PROFILE !== "corporate_hub") return { ok: false };
+    const sessionToken = (await cookies()).get(SESSION_COOKIE)?.value;
+    if (!sessionToken || !(await readSession())) return { ok: false };
+    const context = await readCorporateContext(sessionToken);
+    if (!context?.capabilities.includes("catalog_object.assign")) return { ok: false };
+    const csrfToken = await readCsrfToken();
+    if (!csrfToken) return { ok: false };
+    const t = await getTranslations("hub");
+    return {
+      ok: true,
+      organizationId: context.organization.organization_id,
+      authorizationRevision: context.organization.authorization_revision,
+      csrfToken,
+      labels: {
+        assign: t("assign"),
+        dialogTitle: t("assignDialogTitle"),
+        version: t("assignVersion"),
+        latest: t("latestVersion"),
+        search: t("search"),
+        closeFilters: t("closeFilters"),
+        loading: t("loading"),
+        assignPartial: String(t.raw("assignPartial")),
+        assignFailed: t("assignFailed"),
+        employee: t("employee"),
+        team: t("team"),
+        project: t("project"),
+        technologies: t("technologies"),
+      },
+    };
+  } catch (error) {
+    console.error("corporateAssignContextAction failed:", error);
+    return { ok: false };
+  }
+}
+
+export type CorporateAssignSubjectKind = "employee" | "team" | "project" | "technology";
+
+const ASSIGN_DIRECTORY_RESOURCE: Record<CorporateAssignSubjectKind, string> = {
+  employee: "members",
+  team: "teams",
+  project: "projects",
+  technology: "technologies",
+};
+
+export async function corporateSubjectSearchAction(input: {
+  organizationId: string;
+  kind: CorporateAssignSubjectKind;
+  query?: string;
+  csrfToken: string;
+}): Promise<
+  { ok: true; items: { value: string; label: string }[] } | { ok: false; message: string }
+> {
+  if (!/^organization_[A-Za-z0-9_-]{20,80}$/.test(input.organizationId)) {
+    return { ok: false, message: "invalid corporate target" };
+  }
+  try {
+    assertCsrf(input.csrfToken, await readCsrfToken());
+    const sessionToken = (await cookies()).get(SESSION_COOKIE)?.value;
+    if (!sessionToken || !(await readSession())) return { ok: false, message: "not signed in" };
+    const data = await privateApiRequest<CorporateDirectoryView>(
+      `/v1/corporate/organizations/${input.organizationId}/directory`,
+      {
+        sessionToken,
+        query: {
+          resource: ASSIGN_DIRECTORY_RESOURCE[input.kind],
+          ...(input.query ? { query: input.query } : {}),
+          limit: 128,
+        },
+      },
+    );
+    return {
+      ok: true,
+      items: data.items.map((item) => ({ value: item.id, label: item.name || item.id })),
+    };
   } catch (error) {
     return {
       ok: false,

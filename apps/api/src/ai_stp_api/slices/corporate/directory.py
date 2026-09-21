@@ -63,6 +63,7 @@ def select_directory(
                 or (item.job_title is not None and item.job_title.id in query.job_title_ids)
             )
             and (query.is_lead is None or item.is_lead == query.is_lead)
+            and (not query.subject_ids or item.id in query.subject_ids)
         )
 
     items = [item for item in organization.items if matches(item)]

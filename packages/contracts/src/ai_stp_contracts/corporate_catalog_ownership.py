@@ -71,3 +71,4 @@ class CorporateCatalogOwnership(BaseModel):
     revision: Annotated[int, Field(ge=0)]
     owner_display_name: str | None
     can_edit: bool
+    capabilities: Annotated[list[str], Field(max_length=16)] = []

@@ -249,6 +249,7 @@ class TechnologyView(TechnologyMetadata):
     revision: Annotated[int, Field(ge=1)]
     redirect_id: TechnologyId | None = None
     provenance: Annotated[str, Field(max_length=256)]
+    available_actions: Annotated[list[str], Field(max_length=128)] = []
 
 
 class TechnologyMutation(BaseModel):

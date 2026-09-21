@@ -1478,7 +1478,16 @@ async def read_technology(
         target_id=technology_id,
         request_id=request_id,
     )
-    return await technology_view(db, row)
+    from ai_stp_api.slices.corporate.subject_access import subject_available_actions
+
+    actions = await subject_available_actions(
+        db,
+        account_id=ctx.account_id,
+        organization_id=organization_id,
+        subject_kind="technology",
+        subject_id=technology_id,
+    )
+    return (await technology_view(db, row)).model_copy(update={"available_actions": actions})
 
 
 async def list_technologies(
@@ -1798,6 +1807,23 @@ async def write_technology(
     if technology_id is None and payload.expected_revision != 0:
         raise ApiError(ErrorCategory.VALIDATION, "creation requires expected revision zero")
     operation = "technology.create" if payload.expected_revision == 0 else "technology.update"
+
+    async def _owner_grant() -> bool:
+        if technology_id is None or operation != "technology.update":
+            return False
+        return (
+            await db.scalar(
+                select(Technology.id).where(
+                    Technology.organization_id == organization_id,
+                    Technology.id == technology_id,
+                    Technology.owner_account_id == ctx.account_id,
+                    Technology.redirect_id.is_(None),
+                    Technology.lifecycle != "archived",
+                )
+            )
+            is not None
+        )
+
     organization, receipt = await authorize_idempotent(
         db,
         ctx=ctx,
@@ -1810,6 +1836,7 @@ async def write_technology(
         operation=operation,
         fingerprint=mutation_effect(payload, target),
         request_id=request_id,
+        extra_grant=_owner_grant,
     )
     if receipt is not None:
         return TechnologyView.model_validate(receipt.response_body)

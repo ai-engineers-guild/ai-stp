@@ -135,6 +135,12 @@ not redesign administration or Technology Landscape. Dashboard is an empty route
   existing typed stable identities, including the historical `operation_` team
   namespace; do not replace IDs with a second UUID scheme. Additive migrations
   precede contract/API/Web rollout and retain old data on application rollback.
+- `REQ-8316`: The administration section links an access page rendering the
+  permission matrix: every known permission grouped by its domain, mapped to the
+  roles that grant it, plus the caller's effective permissions with scope kind,
+  scope id, and source roles from `permissions/matrix`. Subject detail pages
+  render edit, presentation, and delete affordances from the subject's own
+  `available_actions` instead of organization-wide capabilities.
 
 The extension is accepted only after route/build-profile assertions, PostgreSQL
 tenant/RBAC/media tests, generated-contract checks, and desktop/mobile browser
@@ -147,10 +153,13 @@ SaaS navigation. A green narrow directory test does not prove the entire extensi
 
 `GET /v1/corporate/organizations/{organization_id}/directory` initially serves
 `resource=teams|projects`. It returns named cards, complete readable facets and
-filtered total; query, lead_ids, team_ids and technology_ids use OR within
-each selected dimension and AND across dimensions. Authorization precedes facets,
-filters, sorting and offset/limit pagination. Team team_ids matches other teams
-sharing a readable current project. Project team_ids matches its related teams.
+filtered total; query, lead_ids, team_ids, technology_ids and subject_ids use OR
+within each selected dimension and AND across dimensions; subject_ids restricts
+items to the listed subject identities so callers can scope a section to a set
+resolved elsewhere (for example, catalog-assignment subjects). Authorization
+precedes facets, filters, sorting and offset/limit pagination. Team team_ids
+matches other teams sharing a readable current project. Project team_ids
+matches its related teams.
 Team technology tags combine current technology responsibility and usage of its
 readable current projects. Technology names require technology read and canonical
 relation read/list permissions. Archived roots retain identity/revision but do not

@@ -191,6 +191,26 @@ by this specification.
   expected and observed digests, classifications, timestamps, and evidence
   references only - never repository contents, prompts, secrets, complete
   files, or absolute local paths.
+- `REQ-8524`: `GET /v1/owner/objects/{object_kind}/{stable_id}/capabilities`
+  reports the caller's management capabilities on one catalog object without
+  requiring a published version: `edit` and `edit_presentation` for the
+  author, the operational owner (employee, lead of the owning team, lead of a
+  project-owning team, or technology owner), and holders of
+  `catalog_object.edit`; `delete` additionally for the author and holders of
+  `catalog_object.delete` while no published version exists. Corporate
+  editors manage content and presentation through the author's account
+  namespace; the object never changes authorship.
+- `REQ-8525`: `DELETE /v1/owner/objects/{object_kind}/{stable_id}` removes a
+  catalog object only while no version is published. The author or a holder
+  of `catalog_object.delete` may delete; published objects are immutable and
+  reject deletion. Deletion removes dependent assignments, ownership,
+  maintainers, media, metadata, and the catalog identity, and records one
+  `catalog_object.delete` audit event.
+- `REQ-8526`: Corporate subject detail projections for employees, teams,
+  projects, and technologies expose `available_actions` computed against the
+  specific subject scope - not the caller's organization-wide capability
+  list - so presentation and deletion affordances follow the same scoped
+  decision as the mutation endpoints.
 
 ## States and errors
 
@@ -278,3 +298,6 @@ schemas and clients are updated only by repository generators.
 | `REQ-8521` | CLI verification tests cover setup and component coordinate checks, modified/missing/extra managed paths, and the expected-change verdict for a later authorized installation on the same provider target. |
 | `REQ-8522` | CLI verification tests cover verdict precedence (proven drift over policy states), offline and unreachable-layer behavior, and the revoked/outdated/unsupported/not-enrolled outcomes. |
 | `REQ-8523` | CLI verification tests assert the operation log and target bytes are untouched and the rendered result carries no local paths or file content; contract tests pin the generated verdict schema. |
+| `REQ-8524` | `tests/api/platform/test_corporate_subject_rbac.py::test_catalog_object_capabilities_and_draft_delete` covers author, superadmin, and operational-owner capability sets plus the unpublished draft probe. |
+| `REQ-8525` | `tests/api/platform/test_corporate_subject_rbac.py::test_catalog_object_capabilities_and_draft_delete` covers published immutability, non-owner denial, successful draft removal, and ownership cleanup. |
+| `REQ-8526` | `tests/api/platform/test_corporate_subject_rbac.py::test_team_lead_manages_own_team_members_only` asserts `available_actions` on member detail for a scoped lead; generated contract tests pin the response fields. |

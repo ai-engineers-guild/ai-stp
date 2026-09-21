@@ -81,6 +81,7 @@ const members: CorporateMember[] = employeeNodes.map((item, index) => ({
   job_title_id: null,
   job_title_name: null,
   revision: 1,
+  available_actions: [],
 }));
 const memberDescriptions = [
   "Corporate team lead for the shared Core platform.",
@@ -139,6 +140,7 @@ const projectViews: CorporateProjectView[] = projectNodes.map((item) => ({
   state: "active",
   lifecycle: "active",
   revision: 1,
+  available_actions: [],
 }));
 const member = members[0]!;
 const technologySpecs = [
@@ -185,6 +187,7 @@ const technologies: TechnologyView[] = technologySpecs.map(([id, name, category]
   redirect_id: null,
   revision: 1,
   provenance: "manual",
+  available_actions: [],
 }));
 const technologyById = new Map(technologies.map((item) => [item.technology_id, item]));
 const projectTeamPairs = [

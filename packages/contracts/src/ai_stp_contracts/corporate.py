@@ -134,7 +134,7 @@ class CorporateCatalogUsageQuery(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
     object_kind: Literal["setup", "component"]
     stable_id: Annotated[str, Field(min_length=1, max_length=64)]
-    version: Annotated[str, Field(pattern=VERSION_PATTERN)]
+    version: Annotated[str, Field(pattern=VERSION_PATTERN)] | None = None
     offset: Annotated[int, Field(ge=0)] = 0
     limit: Annotated[int, Field(ge=1, le=256)] = 128
 
@@ -152,7 +152,8 @@ class CorporateCatalogUsage(BaseModel):
     assignment_id: Annotated[str, Field(min_length=1, max_length=64)]
     object_kind: Literal["setup", "component"]
     stable_id: str
-    version: Annotated[str, Field(pattern=VERSION_PATTERN)]
+    selector: AssignmentSelector = "exact"
+    version: Annotated[str, Field(pattern=VERSION_PATTERN)] | None = None
     subject_kind: Literal["employee", "team", "project", "technology"]
     subject_id: str
     subject_name: str
@@ -509,6 +510,7 @@ class CorporateMember(BaseModel):
     revision: Annotated[int, Field(ge=1)]
     job_title_id: JobTitleId | None = None
     job_title_name: str | None = None
+    available_actions: Annotated[list[str], Field(max_length=128)] = []
 
 
 class CorporateMemberList(BaseModel):
@@ -674,6 +676,7 @@ class CorporateProjectView(BaseModel):
     lifecycle: ProjectLifecycle | None = None
     restore_lifecycle: Literal["active", "deprecated"] | None = None
     revision: Annotated[int, Field(ge=1)]
+    available_actions: Annotated[list[str], Field(max_length=128)] = []
 
 
 class CorporateProjectLifecycleRequest(BaseModel):

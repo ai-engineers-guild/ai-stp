@@ -1,6 +1,7 @@
 import { apiRequest, apiRequestWithMeta } from "@/lib/api/http";
 import type { ExternalProduct } from "@/lib/api/catalog";
 import type {
+  OwnerObjectCapabilities,
   OwnerObjectDetail,
   OwnerObjectListResponse,
   OwnerVersionDetail,
@@ -41,6 +42,43 @@ export async function readOwnerObject(
   stableId: string,
 ): Promise<OwnerObjectDetail> {
   return apiRequest<OwnerObjectDetail>(`/v1/owner/objects/${objectKind}/${stableId}`, {
+    sessionToken,
+  });
+}
+
+export async function readOwnerObjectCapabilities(
+  sessionToken: string,
+  objectKind: "component" | "setup",
+  stableId: string,
+): Promise<OwnerObjectCapabilities> {
+  return apiRequest(`/v1/owner/objects/${objectKind}/${stableId}/capabilities`, {
+    sessionToken,
+  });
+}
+
+export async function readOwnerObjectActions(
+  sessionToken: string,
+  objectKind: "component" | "setup",
+  stableId: string,
+): Promise<{ canEdit: boolean; canDelete: boolean } | null> {
+  const result = await readOwnerObjectCapabilities(sessionToken, objectKind, stableId).catch(
+    () => null,
+  );
+  if (!result) return null;
+  return {
+    canEdit:
+      result.capabilities.includes("edit") || result.capabilities.includes("edit_presentation"),
+    canDelete: result.capabilities.includes("delete"),
+  };
+}
+
+export async function deleteOwnerObject(
+  sessionToken: string,
+  objectKind: "component" | "setup",
+  stableId: string,
+): Promise<void> {
+  await apiRequest(`/v1/owner/objects/${objectKind}/${stableId}`, {
+    method: "DELETE",
     sessionToken,
   });
 }

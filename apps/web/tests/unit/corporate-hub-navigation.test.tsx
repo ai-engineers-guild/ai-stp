@@ -18,10 +18,13 @@ afterEach(() => {
   route.path = "/corporate/teams/operation_mobile";
 });
 
-it("does not duplicate the primary navigation on Overview", () => {
+it("shows the organization tabs on Overview", () => {
   route.path = "/corporate/overview";
   render(<CorporateHubNavigation capabilities={["team.list"]} />);
-  expect(screen.queryByRole("navigation")).not.toBeInTheDocument();
+  const links = [...screen.getByRole("navigation").querySelectorAll("a")].map(
+    (link) => link.textContent,
+  );
+  expect(links).toContain("teams");
 });
 
 it("hides secondary tabs on entity detail pages", () => {

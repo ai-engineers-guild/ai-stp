@@ -294,7 +294,7 @@ def host_home() -> Path:
     try:
         import pwd
 
-        return Path(pwd.getpwuid(os.getuid()).pw_dir)
+        return Path(pwd.getpwuid(os.getuid()).pw_dir)  # pyright: ignore[reportUnknownMemberType, reportAttributeAccessIssue, reportUnknownArgumentType]
     except (ImportError, KeyError, OSError):
         return Path.home()
 

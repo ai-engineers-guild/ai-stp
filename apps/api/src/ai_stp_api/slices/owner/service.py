@@ -35,6 +35,7 @@ from ai_stp_contracts.owner import (
     OwnerExternalProductCreateRequest,
     OwnerLifecycleRequest,
     OwnerLifecycleResponse,
+    OwnerObjectCapabilities,
     OwnerObjectDetail,
     OwnerObjectListResponse,
     OwnerObjectSummary,
@@ -76,12 +77,13 @@ async def read_owner_presentation(
     stable_id: str,
     object_kind: Literal["component", "setup"] = "component",
 ) -> OwnerPresentationResponse:
+    owner_id = await _object_namespace(db, ctx=ctx, stable_id=stable_id, object_kind=object_kind)
     rows = list(
         (
             await db.execute(
                 select(CatalogMetadata)
                 .where(
-                    CatalogMetadata.owner_account_id == ctx.account_id,
+                    CatalogMetadata.owner_account_id == owner_id,
                     CatalogMetadata.object_kind == object_kind,
                     CatalogMetadata.stable_id == stable_id,
                 )
@@ -103,7 +105,7 @@ async def read_owner_presentation(
             await db.execute(
                 select(ComponentMedia)
                 .where(
-                    ComponentMedia.owner_account_id == ctx.account_id,
+                    ComponentMedia.owner_account_id == owner_id,
                     ComponentMedia.stable_id == stable_id,
                     ComponentMedia.state == "ready",
                 )
@@ -198,11 +200,18 @@ async def replace_object_external_products(
     stable_id: str,
     body: OwnerExternalProductAttachRequest,
 ) -> ExternalProductListResponse:
+    owner_id = await _object_namespace(
+        db,
+        ctx=ctx,
+        stable_id=stable_id,
+        object_kind=cast(Literal["component", "setup"], object_kind),
+        capability="edit",
+    )
     rows = list(
         (
             await db.execute(
                 select(CatalogMetadata).where(
-                    CatalogMetadata.owner_account_id == ctx.account_id,
+                    CatalogMetadata.owner_account_id == owner_id,
                     CatalogMetadata.object_kind == object_kind,
                     CatalogMetadata.stable_id == stable_id,
                 )
@@ -289,11 +298,18 @@ async def replace_object_external_products(
 async def read_object_external_products(
     db: AsyncSession, *, ctx: AuthContext, object_kind: str, stable_id: str
 ) -> ExternalProductListResponse:
+    owner_id = await _object_namespace(
+        db,
+        ctx=ctx,
+        stable_id=stable_id,
+        object_kind=cast(Literal["component", "setup"], object_kind),
+        capability="edit",
+    )
     metadata_ids = list(
         (
             await db.execute(
                 select(CatalogMetadata.id).where(
-                    CatalogMetadata.owner_account_id == ctx.account_id,
+                    CatalogMetadata.owner_account_id == owner_id,
                     CatalogMetadata.object_kind == object_kind,
                     CatalogMetadata.stable_id == stable_id,
                 )
@@ -335,22 +351,63 @@ async def read_object_external_products(
     )
 
 
-async def _require_owned_object(
+async def _object_namespace(
     db: AsyncSession,
     *,
     ctx: AuthContext,
     stable_id: str,
     object_kind: Literal["component", "setup"],
-) -> None:
+    capability: str = "edit_presentation",
+) -> str:
+    """Return the object's author account when the caller may manage the object.
+
+    The author always manages the object; otherwise a tenant capability
+    (operational ownership, owning-team lead, catalog_object.edit) applies.
+    Media and metadata stay under the author's account namespace.
+    """
+    from ai_stp_platform.models import CatalogIdentity
+
+    identity = await db.get(CatalogIdentity, stable_id)
+    author_id = identity.owner_account_id if identity is not None else None
+    organization_id = identity.organization_id if identity is not None else None
+    if author_id is None or organization_id is None:
+        metadata_owner = (
+            await db.execute(
+                select(CatalogMetadata.owner_account_id, CatalogMetadata.organization_id).where(
+                    CatalogMetadata.object_kind == object_kind,
+                    CatalogMetadata.stable_id == stable_id,
+                )
+            )
+        ).first()
+        if metadata_owner is None:
+            raise ApiError(ErrorCategory.NOT_FOUND, "object not found")
+        author_id = author_id or metadata_owner.owner_account_id
+        organization_id = organization_id or metadata_owner.organization_id
     owned = await db.scalar(
         select(CatalogMetadata.id).where(
-            CatalogMetadata.owner_account_id == ctx.account_id,
+            CatalogMetadata.owner_account_id == author_id,
             CatalogMetadata.object_kind == object_kind,
             CatalogMetadata.stable_id == stable_id,
         )
     )
     if owned is None:
         raise ApiError(ErrorCategory.NOT_FOUND, "object not found")
+    if author_id == ctx.account_id:
+        return author_id
+    if organization_id is None:
+        raise ApiError(ErrorCategory.PERMISSION, "object management is forbidden")
+    from ai_stp_api.slices.corporate.subject_access import catalog_object_capabilities
+
+    capabilities = await catalog_object_capabilities(
+        db,
+        account_id=ctx.account_id,
+        organization_id=organization_id,
+        object_kind=object_kind,
+        stable_id=stable_id,
+    )
+    if capability in capabilities or "edit" in capabilities:
+        return author_id
+    raise ApiError(ErrorCategory.PERMISSION, "object management is forbidden")
 
 
 async def upload_owner_component_media(
@@ -363,8 +420,8 @@ async def upload_owner_component_media(
     payload: bytes,
     object_kind: Literal["component", "setup"] = "component",
 ) -> dict[str, Any]:
-    """Store author upload and return a ready public media path for the editor."""
-    await _require_owned_object(db, ctx=ctx, stable_id=stable_id, object_kind=object_kind)
+    """Store an object-media upload and return a ready public path for the editor."""
+    owner_id = await _object_namespace(db, ctx=ctx, stable_id=stable_id, object_kind=object_kind)
     try:
         kind = validate_component_media_upload(
             content_type=content_type,
@@ -388,7 +445,7 @@ async def upload_owner_component_media(
         (
             await db.execute(
                 select(ComponentMedia.position).where(
-                    ComponentMedia.owner_account_id == ctx.account_id,
+                    ComponentMedia.owner_account_id == owner_id,
                     ComponentMedia.stable_id == stable_id,
                 )
             )
@@ -406,7 +463,7 @@ async def upload_owner_component_media(
             asset_id=media_id,
             payload=payload,
             content_type=content_type,
-            owner_account_id=ctx.account_id,
+            owner_account_id=owner_id,
             namespace=f"components/{stable_id}/media",
         )
     except Exception as exc:
@@ -418,7 +475,7 @@ async def upload_owner_component_media(
         ComponentMedia(
             id=media_id,
             stable_id=stable_id,
-            owner_account_id=ctx.account_id,
+            owner_account_id=owner_id,
             position=free_position,
             kind=kind,
             source_type="upload",
@@ -493,6 +550,34 @@ async def read_component_media_bytes(
             )
             is not None
         )
+    if not authorized and account_id is not None:
+        # Corporate editors preview media of objects they manage.
+        from ai_stp_api.slices.corporate.subject_access import (
+            catalog_object_capabilities,
+        )
+        from ai_stp_platform.models import CatalogIdentity
+
+        identity = await db.get(CatalogIdentity, row.stable_id)
+        organization_id = identity.organization_id if identity is not None else None
+        if organization_id is None:
+            organization_id = await db.scalar(
+                select(CatalogMetadata.organization_id)
+                .where(
+                    CatalogMetadata.stable_id == row.stable_id,
+                    CatalogMetadata.owner_account_id == row.owner_account_id,
+                )
+                .limit(1)
+            )
+        if organization_id is not None:
+            authorized = bool(
+                await catalog_object_capabilities(
+                    db,
+                    account_id=account_id,
+                    organization_id=organization_id,
+                    object_kind=object_kind,
+                    stable_id=row.stable_id,
+                )
+            )
     if not authorized:
         return None
     try:
@@ -516,11 +601,11 @@ async def update_owner_presentation(
     body: OwnerPresentationUpdateRequest,
     object_kind: Literal["component", "setup"] = "component",
 ) -> OwnerPresentationResponse:
-    await _require_owned_object(db, ctx=ctx, stable_id=stable_id, object_kind=object_kind)
+    owner_id = await _object_namespace(db, ctx=ctx, stable_id=stable_id, object_kind=object_kind)
     await db.execute(
         update(CatalogMetadata)
         .where(
-            CatalogMetadata.owner_account_id == ctx.account_id,
+            CatalogMetadata.owner_account_id == owner_id,
             CatalogMetadata.object_kind == object_kind,
             CatalogMetadata.stable_id == stable_id,
         )
@@ -530,7 +615,7 @@ async def update_owner_presentation(
         (
             await db.execute(
                 select(ComponentMedia).where(
-                    ComponentMedia.owner_account_id == ctx.account_id,
+                    ComponentMedia.owner_account_id == owner_id,
                     ComponentMedia.stable_id == stable_id,
                 )
             )
@@ -546,7 +631,7 @@ async def update_owner_presentation(
                 ComponentMedia(
                     id=f"media_{uuid4().hex}",
                     stable_id=stable_id,
-                    owner_account_id=ctx.account_id,
+                    owner_account_id=owner_id,
                     position=position,
                     kind="youtube",
                     source_type="youtube",
@@ -563,7 +648,7 @@ async def update_owner_presentation(
             previous = existing_by_id.get(media_id)
             if (
                 previous is None
-                or previous.owner_account_id != ctx.account_id
+                or previous.owner_account_id != owner_id
                 or previous.stable_id != stable_id
                 or previous.source_type != "upload"
                 or not previous.object_key
@@ -575,7 +660,7 @@ async def update_owner_presentation(
                 ComponentMedia(
                     id=media_id,
                     stable_id=stable_id,
-                    owner_account_id=ctx.account_id,
+                    owner_account_id=owner_id,
                     position=position,
                     kind=item.kind,
                     source_type="upload",
@@ -594,7 +679,7 @@ async def update_owner_presentation(
             ComponentMedia(
                 id=f"media_{uuid4().hex}",
                 stable_id=stable_id,
-                owner_account_id=ctx.account_id,
+                owner_account_id=owner_id,
                 position=position,
                 kind=item.kind,
                 source_type="github",
@@ -607,7 +692,7 @@ async def update_owner_presentation(
         )
     await db.execute(
         delete(ComponentMedia).where(
-            ComponentMedia.owner_account_id == ctx.account_id,
+            ComponentMedia.owner_account_id == owner_id,
             ComponentMedia.stable_id == stable_id,
         )
     )
@@ -624,6 +709,244 @@ async def update_owner_presentation(
         stable_id=stable_id,
         bio=body.bio,
         media=list(body.media),
+    )
+
+
+async def read_owner_object_capabilities(
+    db: AsyncSession,
+    *,
+    ctx: AuthContext,
+    object_kind: Literal["component", "setup"],
+    stable_id: str,
+) -> OwnerObjectCapabilities:
+    """Resolve which management capabilities the caller holds on the object."""
+    from ai_stp_api.slices.corporate.subject_access import catalog_object_capabilities
+    from ai_stp_platform.models import CatalogIdentity
+
+    identity = await db.get(CatalogIdentity, stable_id)
+    organization_id = identity.organization_id if identity is not None else None
+    author_id = identity.owner_account_id if identity is not None else None
+    if organization_id is None or author_id is None:
+        metadata_owner = (
+            await db.execute(
+                select(CatalogMetadata.owner_account_id, CatalogMetadata.organization_id).where(
+                    CatalogMetadata.object_kind == object_kind,
+                    CatalogMetadata.stable_id == stable_id,
+                )
+            )
+        ).first()
+        if metadata_owner is None:
+            raise ApiError(ErrorCategory.NOT_FOUND, "object not found")
+        author_id = author_id or metadata_owner.owner_account_id
+        organization_id = organization_id or metadata_owner.organization_id
+    if organization_id is None:
+        # Legacy pre-scope rows belong to the author only.
+        if author_id != ctx.account_id:
+            raise ApiError(ErrorCategory.NOT_FOUND, "object not found")
+        published = await db.scalar(
+            select(CatalogMetadata.id).where(
+                CatalogMetadata.stable_id == stable_id,
+                CatalogMetadata.published_at.is_not(None),
+            )
+        )
+        capabilities: list[str] = ["edit", "edit_presentation"]
+        if published is None:
+            capabilities.append("delete")
+        return OwnerObjectCapabilities(
+            schema_version=1,
+            object_kind=object_kind,
+            stable_id=stable_id,
+            capabilities=cast(list[Literal["edit", "edit_presentation", "delete"]], capabilities),
+        )
+    capabilities = await catalog_object_capabilities(
+        db,
+        account_id=ctx.account_id,
+        organization_id=organization_id,
+        object_kind=object_kind,
+        stable_id=stable_id,
+    )
+    return OwnerObjectCapabilities(
+        schema_version=1,
+        object_kind=object_kind,
+        stable_id=stable_id,
+        capabilities=cast(list[Literal["edit", "edit_presentation", "delete"]], capabilities),
+    )
+
+
+async def delete_owner_object(
+    db: AsyncSession,
+    *,
+    ctx: AuthContext,
+    stable_id: str,
+    object_kind: Literal["component", "setup"],
+    request_id: str | None = None,
+) -> None:
+    """Hard-delete an unpublished object; published versions are immutable."""
+    from ai_stp_platform.catalog_ownership_models import (
+        CorporateCatalogOwnership,
+    )
+    from ai_stp_platform.corporate_authorization import has_corporate_permission
+    from ai_stp_platform.models import CatalogIdentity
+    from ai_stp_platform.organization_models import CorporateCatalogAssignment
+
+    identity = await db.get(CatalogIdentity, stable_id)
+    author_id = identity.owner_account_id if identity is not None else None
+    organization_id = identity.organization_id if identity is not None else None
+    if author_id is None or organization_id is None:
+        metadata_owner = (
+            await db.execute(
+                select(CatalogMetadata.owner_account_id, CatalogMetadata.organization_id).where(
+                    CatalogMetadata.object_kind == object_kind,
+                    CatalogMetadata.stable_id == stable_id,
+                )
+            )
+        ).first()
+        if metadata_owner is None:
+            raise ApiError(ErrorCategory.NOT_FOUND, "object not found")
+        author_id = author_id or metadata_owner.owner_account_id
+        organization_id = organization_id or metadata_owner.organization_id
+    rows = list(
+        (
+            await db.scalars(
+                select(CatalogMetadata).where(
+                    CatalogMetadata.owner_account_id == author_id,
+                    CatalogMetadata.object_kind == object_kind,
+                    CatalogMetadata.stable_id == stable_id,
+                )
+            )
+        ).all()
+    )
+    if not rows:
+        raise ApiError(ErrorCategory.NOT_FOUND, "object not found")
+    if author_id != ctx.account_id:
+        if organization_id is None:
+            raise ApiError(ErrorCategory.NOT_FOUND, "object not found")
+        allowed = await has_corporate_permission(
+            db,
+            organization_id=organization_id,
+            principal_type="user",
+            principal_id=ctx.account_id,
+            permission="catalog_object.delete",
+            scope_kind="organization",
+            scope_id=organization_id,
+        )
+        if not allowed:
+            raise ApiError(ErrorCategory.PERMISSION, "object delete is forbidden")
+    if any(row.published_at is not None for row in rows):
+        raise ApiError(
+            ErrorCategory.CONFLICT,
+            "published objects are immutable; retire them instead",
+        )
+    from ai_stp_platform.github_models import DistributionVisibilityPlan
+    from ai_stp_platform.models import (
+        CatalogExternalProduct,
+        CatalogReaction,
+        CatalogUsageAggregate,
+        GrantInvitation,
+        OfficialUpstreamSource,
+        OwnershipClaim,
+        OwnershipRevision,
+        PublicationPlan,
+        SetupFamilyMember,
+    )
+
+    metadata_ids = [row.id for row in rows]
+    await db.execute(
+        delete(DistributionVisibilityPlan).where(
+            DistributionVisibilityPlan.metadata_id.in_(metadata_ids)
+        )
+    )
+    await db.execute(
+        delete(CatalogExternalProduct).where(
+            CatalogExternalProduct.catalog_metadata_id.in_(metadata_ids)
+        )
+    )
+    await db.execute(delete(OwnershipRevision).where(OwnershipRevision.stable_id == stable_id))
+    await db.execute(delete(OwnershipClaim).where(OwnershipClaim.stable_id == stable_id))
+    await db.execute(
+        delete(GrantInvitation).where(
+            GrantInvitation.object_kind == object_kind,
+            GrantInvitation.stable_id == stable_id,
+        )
+    )
+    await db.execute(
+        delete(AccessGrant).where(
+            AccessGrant.object_kind == object_kind,
+            AccessGrant.stable_id == stable_id,
+        )
+    )
+    await db.execute(
+        delete(PublicationPlan).where(
+            PublicationPlan.object_kind == object_kind,
+            PublicationPlan.stable_id == stable_id,
+        )
+    )
+    await db.execute(
+        delete(CatalogReaction).where(
+            CatalogReaction.object_kind == object_kind,
+            CatalogReaction.stable_id == stable_id,
+        )
+    )
+    await db.execute(
+        delete(CatalogUsageAggregate).where(CatalogUsageAggregate.stable_id == stable_id)
+    )
+    await db.execute(
+        delete(OfficialUpstreamSource).where(OfficialUpstreamSource.stable_id == stable_id)
+    )
+    await db.execute(delete(SetupFamilyMember).where(SetupFamilyMember.stable_id == stable_id))
+    await db.execute(
+        delete(CorporateCatalogAssignment).where(
+            CorporateCatalogAssignment.organization_id == organization_id,
+            CorporateCatalogAssignment.object_kind == object_kind,
+            CorporateCatalogAssignment.stable_id == stable_id,
+        )
+    )
+    await db.execute(
+        delete(CorporateCatalogOwnership).where(
+            CorporateCatalogOwnership.organization_id == organization_id,
+            CorporateCatalogOwnership.object_kind == object_kind,
+            CorporateCatalogOwnership.stable_id == stable_id,
+        )
+    )
+    from ai_stp_platform.organization_models import (
+        CorporateCatalogMaintainer,
+        CorporateCatalogVerification,
+    )
+
+    await db.execute(
+        delete(CorporateCatalogMaintainer).where(
+            CorporateCatalogMaintainer.organization_id == organization_id,
+            CorporateCatalogMaintainer.object_kind == object_kind,
+            CorporateCatalogMaintainer.stable_id == stable_id,
+        )
+    )
+    await db.execute(
+        delete(CorporateCatalogVerification).where(
+            CorporateCatalogVerification.organization_id == organization_id,
+            CorporateCatalogVerification.object_kind == object_kind,
+            CorporateCatalogVerification.stable_id == stable_id,
+        )
+    )
+    await db.execute(
+        delete(ComponentMedia).where(
+            ComponentMedia.owner_account_id == author_id,
+            ComponentMedia.stable_id == stable_id,
+        )
+    )
+    for row in rows:
+        await db.delete(row)
+    if identity is not None:
+        await db.delete(identity)
+    await db.flush()
+    await emit_audit(
+        db,
+        actor_account_id=ctx.account_id,
+        organization_id=organization_id,
+        action="catalog_object.delete",
+        target_table="catalog_metadata",
+        target_id=stable_id,
+        request_id=request_id,
+        payload={"object_kind": object_kind, "versions": len(rows)},
     )
 
 
@@ -744,12 +1067,19 @@ async def read_owner_object(
     object_kind: str,
     stable_id: str,
 ) -> OwnerObjectDetail:
+    owner_id = await _object_namespace(
+        db,
+        ctx=ctx,
+        stable_id=stable_id,
+        object_kind=cast(Literal["component", "setup"], object_kind),
+        capability="edit",
+    )
     rows = list(
         (
             await db.execute(
                 select(CatalogMetadata)
                 .where(
-                    CatalogMetadata.owner_account_id == ctx.account_id,
+                    CatalogMetadata.owner_account_id == owner_id,
                     CatalogMetadata.object_kind == object_kind,
                     CatalogMetadata.stable_id == stable_id,
                 )

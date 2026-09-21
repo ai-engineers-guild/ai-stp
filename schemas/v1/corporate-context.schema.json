@@ -261,6 +261,15 @@
           "title": "Account Id",
           "type": "string"
         },
+        "available_actions": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 128,
+          "title": "Available Actions",
+          "type": "array"
+        },
         "display_name": {
           "anyOf": [
             {
@@ -327,6 +336,7 @@
       },
       "required": [
         "account_id",
+        "available_actions",
         "display_name",
         "job_title_id",
         "job_title_name",
@@ -383,6 +393,15 @@
     "CorporateProjectView": {
       "additionalProperties": true,
       "properties": {
+        "available_actions": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 128,
+          "title": "Available Actions",
+          "type": "array"
+        },
         "lifecycle": {
           "anyOf": [
             {
@@ -451,6 +470,7 @@
         }
       },
       "required": [
+        "available_actions",
         "name",
         "organization_id",
         "project_id",

@@ -158,6 +158,38 @@ async def get_component_media(
     )
 
 
+@router.delete("/owner/objects/{object_kind}/{stable_id}", response_model=None)
+async def delete_owner_object(
+    object_kind: Literal["component", "setup"],
+    stable_id: str,
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    ctx: Annotated[AuthContext, Depends(require_auth)],
+) -> Response:
+    await service.delete_owner_object(
+        db,
+        ctx=ctx,
+        object_kind=object_kind,
+        stable_id=stable_id,
+        request_id=getattr(request.state, "request_id", None),
+    )
+    await db.commit()
+    return Response(status_code=204)
+
+
+@router.get("/owner/objects/{object_kind}/{stable_id}/capabilities", response_model=None)
+async def read_owner_object_capabilities(
+    object_kind: Literal["component", "setup"],
+    stable_id: str,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    ctx: Annotated[AuthContext, Depends(require_auth)],
+) -> JSONResponse:
+    result = await service.read_owner_object_capabilities(
+        db, ctx=ctx, object_kind=object_kind, stable_id=stable_id
+    )
+    return _resource(result)
+
+
 @router.get("/owner/objects/{object_kind}/{stable_id}", response_model=None)
 async def read_owner_object(
     object_kind: Literal["component", "setup"],

@@ -24,6 +24,7 @@ export type CorporateCatalogOwnershipData = {
 
 const corporateCatalogOwnershipSchema = z.object({
   can_edit: z.boolean(),
+  capabilities: z.array(z.string()).default([]),
   object_kind: z.enum(["setup", "component"]),
   organization_id: z.string(),
   owner_id: z.string().nullable(),
@@ -120,7 +121,6 @@ export async function readCorporateCatalogUsage(
   organizationId: string,
   objectKind: CorporateCatalogObjectKind,
   stableId: ComponentId | SetupId,
-  version: VersionId,
 ): Promise<CorporateCatalogUsageList | null> {
   const validStableId =
     objectKind === "component" ? tryAsComponentId(stableId) : tryAsSetupId(stableId);
@@ -130,7 +130,7 @@ export async function readCorporateCatalogUsage(
       `/v1/corporate/organizations/${organizationId}/catalog-usage`,
       {
         sessionToken,
-        query: { object_kind: objectKind, stable_id: stableId, version, limit: 100 },
+        query: { object_kind: objectKind, stable_id: stableId, limit: 100 },
       },
     );
   } catch (error) {

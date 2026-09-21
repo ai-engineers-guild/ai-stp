@@ -5,6 +5,14 @@ import { useTranslations } from "next-intl";
 import { z } from "zod";
 import { corporateMutationAction } from "@/actions/corporate";
 import { Button } from "@/components/atoms/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/atoms/dialog";
 import { Label } from "@/components/atoms/label";
 import type {
   CorporateCatalogObjectKind,
@@ -28,16 +36,7 @@ const ownershipSchema = z.object({
   stable_id: z.string(),
 });
 
-export function CorporateCatalogOwnerEditor({
-  ownership,
-  objectKind,
-  stableId,
-  version,
-  organizationId,
-  authorizationRevision,
-  csrfToken,
-  members,
-}: {
+export type CorporateCatalogOwnerEdit = {
   ownership: CorporateCatalogOwnership;
   objectKind: CorporateCatalogObjectKind;
   stableId: string;
@@ -45,11 +44,75 @@ export function CorporateCatalogOwnerEditor({
   organizationId: string;
   authorizationRevision: number;
   csrfToken: string;
-  members: readonly CorporateCatalogOwnerMember[] | null;
+  members: readonly CorporateCatalogOwnerMember[];
+};
+
+export function CorporateCatalogOwnerEditor({
+  ownership,
+}: {
+  ownership: CorporateCatalogOwnership;
+}) {
+  const h = useTranslations("hub");
+  return (
+    <section className="border-border bg-card space-y-3 rounded-lg border p-4 shadow-sm">
+      <div>
+        <p className="text-muted-foreground text-xs font-medium tracking-[0.14em] uppercase">
+          {h("operationalOwner")}
+        </p>
+        <p className="mt-1 font-medium">{ownership.owner_display_name ?? h("ownerUnassigned")}</p>
+      </div>
+    </section>
+  );
+}
+
+export function CorporateCatalogOwnerDialog({
+  open,
+  onOpenChange,
+  ownerEdit,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  ownerEdit: CorporateCatalogOwnerEdit;
+}) {
+  const h = useTranslations("hub");
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{h("edit")}</DialogTitle>
+          <DialogDescription>{ownerEdit.stableId}</DialogDescription>
+        </DialogHeader>
+        <OwnerEditForm
+          ownerEdit={ownerEdit}
+          onDone={() => {
+            onOpenChange(false);
+          }}
+        />
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function OwnerEditForm({
+  ownerEdit,
+  onDone,
+}: {
+  ownerEdit: CorporateCatalogOwnerEdit;
+  onDone: () => void;
 }) {
   const h = useTranslations("hub");
   const c = useTranslations("corporate");
   const router = useRouter();
+  const {
+    ownership,
+    objectKind,
+    stableId,
+    version,
+    organizationId,
+    authorizationRevision,
+    csrfToken,
+    members,
+  } = ownerEdit;
   const [owner, setOwner] = useState(ownership.owner_account_id ?? "");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -96,55 +159,53 @@ export function CorporateCatalogOwnerEditor({
         return;
       }
       receipt.current = null;
+      onDone();
       router.refresh();
     });
   }
 
   return (
-    <section className="border-border bg-card space-y-3 rounded-lg border p-4 shadow-sm">
-      <div>
-        <p className="text-muted-foreground text-xs font-medium tracking-[0.14em] uppercase">
-          {h("operationalOwner")}
-        </p>
-        <p className="mt-1 font-medium">{ownership.owner_display_name ?? h("ownerUnassigned")}</p>
-      </div>
-      {ownership.can_edit && members ? (
-        <form
-          className="space-y-3"
-          onSubmit={(event) => {
-            event.preventDefault();
-            save();
+    <form
+      className="space-y-4"
+      onSubmit={(event) => {
+        event.preventDefault();
+        save();
+      }}
+    >
+      <div className="space-y-2 text-sm">
+        <Label htmlFor={`${objectKind}-catalog-owner`}>{h("operationalOwner")}</Label>
+        <select
+          id={`${objectKind}-catalog-owner`}
+          className="border-input bg-background min-h-11 w-full rounded-sm border px-3 text-sm"
+          disabled={pending}
+          value={owner}
+          onChange={(event) => {
+            setOwner(event.target.value);
           }}
         >
-          <Label htmlFor={`${objectKind}-catalog-owner`}>{h("operationalOwner")}</Label>
-          <select
-            id={`${objectKind}-catalog-owner`}
-            className="border-input bg-background min-h-11 w-full rounded-sm border px-3 text-sm"
-            disabled={pending}
-            value={owner}
-            onChange={(event) => {
-              setOwner(event.target.value);
-            }}
-          >
-            <option value="">{h("ownerUnassigned")}</option>
-            {members
-              .filter((member) => member.state === "active")
-              .map((member) => (
-                <option key={member.id} value={member.id}>
-                  {member.name}
-                </option>
-              ))}
-          </select>
-          {error ? (
-            <p role="alert" className="text-destructive text-sm">
-              {error}
-            </p>
-          ) : null}
-          <Button type="submit" disabled={pending || owner === (ownership.owner_account_id ?? "")}>
-            {pending ? c("saving") : h("save")}
-          </Button>
-        </form>
+          <option value="">{h("ownerUnassigned")}</option>
+          {members
+            .filter((member) => member.state === "active")
+            .map((member) => (
+              <option key={member.id} value={member.id}>
+                {member.name}
+              </option>
+            ))}
+        </select>
+      </div>
+      {error ? (
+        <p role="alert" className="text-destructive text-sm">
+          {error}
+        </p>
       ) : null}
-    </section>
+      <DialogFooter>
+        <Button type="button" variant="outline" disabled={pending} onClick={onDone}>
+          {h("cancel")}
+        </Button>
+        <Button type="submit" disabled={pending || owner === (ownership.owner_account_id ?? "")}>
+          {pending ? c("saving") : h("save")}
+        </Button>
+      </DialogFooter>
+    </form>
   );
 }

@@ -123,6 +123,7 @@ function directoryLabels(
     edit: t("edit"),
     editPresentation,
     copyId: t("copyId"),
+    copyUrl: t("copyUrl"),
     share,
     report,
     unknownEmployee: t("unknownEmployee"),

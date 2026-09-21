@@ -3,7 +3,7 @@
 from collections.abc import Sequence
 from typing import Literal, cast
 
-from sqlalchemy import and_, or_, select
+from sqlalchemy import and_, or_, select, true
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import InstrumentedAttribute
 from sqlalchemy.sql.elements import ColumnElement
@@ -482,6 +482,14 @@ async def list_usage(
         organization_id=organization_id,
         permission="catalog_object.read",
     )
+    version_predicate: ColumnElement[bool] = cast(ColumnElement[bool], true())
+    if query.version is not None:
+        # A `latest` row governs the whole line: it applies to whichever
+        # version resolves at evaluation time, including the requested one.
+        version_predicate = or_(
+            AssignmentRow.version == query.version,
+            and_(AssignmentRow.version.is_(None), AssignmentRow.selector == "latest"),
+        )
     rows = (
         await db.scalars(
             select(AssignmentRow)
@@ -489,12 +497,21 @@ async def list_usage(
                 AssignmentRow.organization_id == organization_id,
                 AssignmentRow.object_kind == query.object_kind,
                 AssignmentRow.stable_id == query.stable_id,
-                AssignmentRow.version == query.version,
+                version_predicate,
                 AssignmentRow.state == "current",
             )
             .order_by(AssignmentRow.id)
         )
     ).all()
+    latest_version: str | None = None
+    if any(row.version is None for row in rows):
+        eligible = await _eligible_versions(
+            db,
+            object_kind=query.object_kind,
+            stable_id=query.stable_id,
+            account_id=ctx.account_id,
+        )
+        latest_version = eligible[-1][0] if eligible else None
     team_ids = {row.team_id for row in rows if row.team_id is not None}
     account_ids = {row.account_id for row in rows if row.account_id is not None}
     if team_ids:
@@ -575,7 +592,7 @@ async def list_usage(
                 organization_id=organization_id,
                 principal_type="user",
                 principal_id=ctx.account_id,
-                permission=f"{kind}.read",
+                permission="member.read" if kind == "employee" else f"{kind}.read",
                 scope_kind="organization" if kind == "employee" else kind,
                 scope_id=organization_id if kind == "employee" else identity,
             )
@@ -594,10 +611,10 @@ async def list_usage(
 
     items: list[CorporateCatalogUsage] = []
     for row in rows:
-        # The usage view answers for one exact version; `latest` rows resolve
-        # only at evaluation time and have no stored coordinate to list.
-        if row.version is None:
-            continue
+        # `latest` rows carry no stored coordinate; the resolved version is
+        # display-only context, the selector stays the assignment's own.
+        row_version = row.version if row.version is not None else latest_version
+        selector = cast(AssignmentSelector, row.selector)
         identity = subject(row)
         if identity is not None and await readable(identity[0], identity[1]):
             items.append(
@@ -606,7 +623,8 @@ async def list_usage(
                     assignment_id=row.id,
                     object_kind=query.object_kind,
                     stable_id=row.stable_id,
-                    version=row.version,
+                    selector=selector,
+                    version=row_version,
                     subject_kind=identity[0],
                     subject_id=identity[1],
                     subject_name=identity[2],
@@ -625,7 +643,8 @@ async def list_usage(
                     assignment_id=row.id,
                     object_kind=query.object_kind,
                     stable_id=row.stable_id,
-                    version=row.version,
+                    selector=selector,
+                    version=row_version,
                     subject_kind="employee",
                     subject_id=member.account_id,
                     subject_name=member_name,

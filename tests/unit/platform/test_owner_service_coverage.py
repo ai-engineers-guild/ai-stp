@@ -32,6 +32,17 @@ def _ctx(account_id: str = "account_test") -> AuthContext:
     )
 
 
+def _author_get(account_id: str = "account_test") -> AsyncMock:
+    """db.get stub resolving CatalogIdentity to the caller as the author."""
+
+    def _get(model: object, pk: object) -> object:
+        if getattr(model, "__tablename__", "") == "catalog_identity":
+            return SimpleNamespace(owner_account_id=account_id, organization_id="org_test")
+        return None
+
+    return AsyncMock(side_effect=_get)
+
+
 def test_ts_and_install_eligible_helpers() -> None:
     assert owner_service._ts(None) is None
     naive = datetime(2026, 1, 2, 3, 4, 5, 123456)
@@ -73,9 +84,13 @@ def test_ts_and_install_eligible_helpers() -> None:
 @pytest.mark.asyncio
 async def test_require_owned_component_missing() -> None:
     db = AsyncMock()
+    db.get = AsyncMock(return_value=None)
     db.scalar = AsyncMock(return_value=None)
+    empty = MagicMock()
+    empty.first = MagicMock(return_value=None)
+    db.execute = AsyncMock(return_value=empty)
     with pytest.raises(ApiError):
-        await owner_service._require_owned_object(
+        await owner_service._object_namespace(
             db, ctx=_ctx(), stable_id="component_missing", object_kind="component"
         )
 
@@ -205,6 +220,7 @@ async def test_read_owner_presentation_with_media() -> None:
         caption="",
     )
     db = AsyncMock()
+    db.get = _author_get()
     # first execute: versions; second: media
     db.execute = AsyncMock(
         side_effect=[_result_scalars([version]), _result_scalars([media, media2])]
@@ -214,7 +230,10 @@ async def test_read_owner_presentation_with_media() -> None:
     assert len(out.media) == 2
     assert out.media[0].url == "dQw4w9WgXcQ"
 
-    db.execute = AsyncMock(return_value=_result_scalars([]))
+    empty = _result_scalars([])
+    empty.first = MagicMock(return_value=None)
+    db.execute = AsyncMock(return_value=empty)
+    db.get = AsyncMock(return_value=None)
     with pytest.raises(ApiError):
         await owner_service.read_owner_presentation(db, ctx=_ctx(), stable_id="missing")
 
@@ -222,6 +241,7 @@ async def test_read_owner_presentation_with_media() -> None:
 @pytest.mark.asyncio
 async def test_upload_owner_component_media_validation() -> None:
     db = AsyncMock()
+    db.get = _author_get()
     store = AsyncMock()
     db.scalar = AsyncMock(return_value="owned")
     db.execute = AsyncMock(return_value=_result_scalars([0, 1, 2, 3, 4]))
@@ -292,6 +312,7 @@ async def test_upload_owner_component_media_validation() -> None:
 @pytest.mark.asyncio
 async def test_update_owner_presentation_media_kinds() -> None:
     db = AsyncMock()
+    db.get = _author_get()
     db.scalar = AsyncMock(return_value="owned")
     existing = SimpleNamespace(
         id="media_upload1",
@@ -386,6 +407,7 @@ async def test_read_owner_object_and_version_and_start() -> None:
         },
     )
     db = AsyncMock()
+    db.get = _author_get()
     db.execute = AsyncMock(return_value=_result_scalars([row, SimpleNamespace(version=None)]))
     detail = await owner_service.read_owner_object(
         db, ctx=_ctx(), object_kind="component", stable_id="component_zzzz"

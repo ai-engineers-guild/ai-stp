@@ -26,6 +26,7 @@ import {
 } from "@/components/molecules/component-target-matrix";
 import { ComponentMediaGallery } from "@/components/organisms/component-media-gallery";
 import { CorporateCatalogUsage } from "@/components/organisms/corporate-catalog-usage";
+import { usageSectionLabels } from "@/components/organisms/corporate-directory-types";
 import { CorporateCatalogOwnerEditor } from "@/components/organisms/corporate-catalog-owner-editor";
 import { contextBudgetLabels } from "@/components/organisms/context-budget-labels";
 import { ComponentContextBudgetPanel } from "@/components/organisms/context-budget-panel";
@@ -44,7 +45,8 @@ import {
   readCorporateCatalogOwnership,
   readCorporateCatalogUsage,
 } from "@/lib/api/corporate-catalog-ownership";
-import { readOwnerObject } from "@/lib/api/owner";
+import { readOwnerObjectActions } from "@/lib/api/owner";
+import { objectActionLabels } from "@/lib/object-action-labels";
 import { readCorporateContext } from "@/lib/api/corporate";
 import { listCatalogReactions } from "@/lib/api/reactions";
 import { readPublisherProfile } from "@/lib/api/public-profile";
@@ -52,7 +54,8 @@ import { sessionCookieValue } from "@/lib/auth/require-session";
 import { readCsrfToken } from "@/lib/auth/session";
 import { asAccountId, asVersionId, tryAsComponentId } from "@/lib/brands";
 import { namedHarnesses } from "@/lib/catalog-harnesses";
-import { installStart, registryVersion } from "@/lib/cli-copy";
+import { registryVersion } from "@/lib/cli-copy";
+import { isFeatureEnabled } from "@/lib/features/gate";
 import { buildDeepLink, normalizeTarget } from "@/lib/deep-links";
 import { publicOrigin } from "@/lib/site";
 import { UI } from "@/lib/ui-selectors";
@@ -144,10 +147,12 @@ export default async function ComponentDetailPage({ params, searchParams }: Page
           corporateContext.organization.organization_id,
           "component",
           componentId,
-          asVersionId(summary.latest_version),
         )
       : null;
-  const isOwner = token ? await canEditComponent(token, stableId) : false;
+  const objectActions = token
+    ? await readOwnerObjectActions(token, "component", stableId)
+    : null;
+  const deleteCsrfToken = objectActions?.canDelete ? ((await readCsrfToken()) ?? "") : "";
   const initiallyLiked = token ? await isLiked(token, "component", stableId) : false;
   const metadata = await readComponentGithubMetadata(
     componentId,
@@ -219,23 +224,29 @@ export default async function ComponentDetailPage({ params, searchParams }: Page
           likesCount: summary.likes_count,
           initiallyLiked,
           reportHref,
-          ...(isOwner ? { editHref: `/objects/component/${stableId}/edit` } : {}),
+          ...(objectActions?.canEdit
+            ? { editHref: `/objects/component/${stableId}/edit` }
+            : {}),
+          ...(objectActions?.canDelete
+            ? { objectDelete: { csrfToken: deleteCsrfToken, locale, catalogHref: "/catalog" } }
+            : {}),
+          ...(corporateOwnership?.ownership.can_edit && corporateOwnership.members
+            ? {
+                ownerEdit: {
+                  ownership: corporateOwnership.ownership,
+                  objectKind: "component" as const,
+                  stableId,
+                  version: summary.latest_version,
+                  organizationId: corporateOwnership.ownership.organization_id,
+                  authorizationRevision: corporateOwnership.authorizationRevision,
+                  csrfToken: corporateCsrfToken,
+                  members: corporateOwnership.members,
+                },
+              }
+            : {}),
           cliCommand,
           canonicalUrl: canonical.web_url,
-          labels: {
-            copyUrl: t("copyUrl"),
-            share: t("share"),
-            copyId: t("copyId"),
-            copyCli: t("copyCli"),
-            copied: t("copied"),
-            like: t("like"),
-            unlike: t("unlike"),
-            likeMenu: t("likeMenu"),
-            unlikeMenu: t("unlikeMenu"),
-            more: t("moreActions"),
-            report: t("report"),
-            editPresentation: to("editPresentation"),
-          },
+          labels: objectActionLabels({ catalog: t, objects: to, hub: th, report: t("report") }),
         }}
       />
 
@@ -314,6 +325,12 @@ export default async function ComponentDetailPage({ params, searchParams }: Page
               <RequirementsSummary requirements={passport} labels={requirementLabels(t, tc)} />
             ) : null}
             <ComponentTargetMatrix matrix={targetMatrix ?? null} labels={targetMatrixLabels(t)} />
+            {corporateUsage ? (
+              <CorporateCatalogUsage
+                items={corporateUsage.items}
+                labels={usageSectionLabels(th, t)}
+              />
+            ) : null}
           </>
         }
         rail={
@@ -327,69 +344,32 @@ export default async function ComponentDetailPage({ params, searchParams }: Page
               authorLabel={t("author")}
             />
             {corporateOwnership ? (
-              <CorporateCatalogOwnerEditor
-                ownership={corporateOwnership.ownership}
-                objectKind="component"
-                stableId={stableId}
-                version={summary.latest_version}
-                organizationId={corporateOwnership.ownership.organization_id}
-                authorizationRevision={corporateOwnership.authorizationRevision}
-                csrfToken={corporateCsrfToken}
-                members={corporateOwnership.members}
-              />
+              <CorporateCatalogOwnerEditor ownership={corporateOwnership.ownership} />
             ) : null}
-            {corporateUsage ? (
-              <CorporateCatalogUsage
-                items={corporateUsage.items}
-                total={corporateUsage.total}
-                labels={{
-                  title: th("catalogUsageTitle"),
-                  summary: th("catalogUsageSummary", { count: corporateUsage.total }),
-                  direct: th("directAssignment"),
-                  effective: th("effectiveAssignment"),
-                  subjectKinds: {
-                    employee: th("employee"),
-                    team: th("team"),
-                    project: th("project"),
-                    technology: th("technologies"),
-                  },
-                }}
-              />
+            {isFeatureEnabled("catalog_usage_metrics") && summary.usage_metrics != null ? (
+              <div className="border-border bg-card rounded-lg border p-4 shadow-sm">
+                <CatalogUsageStats
+                  metrics={summary.usage_metrics}
+                  locale={locale}
+                  viewsLabel={t("detailViews")}
+                  downloadsLabel={t("artifactDownloads")}
+                />
+              </div>
             ) : null}
-            <div className="border-border bg-card rounded-lg border p-4 shadow-sm">
-              <CatalogUsageStats
-                metrics={summary.usage_metrics}
-                locale={locale}
-                viewsLabel={t("detailViews")}
-                downloadsLabel={t("artifactDownloads")}
-              />
-            </div>
             <ComponentContextBudgetPanel
               budget={budget}
               failure={budgetFailure}
               labels={contextBudgetLabels(t, tCli)}
             />
             <CliCopyBlock
-              command={installStart()}
-              title={tCli("useTitle")}
-              description={tCli("useBody")}
-              copyLabel={tCli("copy")}
-              copiedLabel={tCli("copied")}
-              errorLabel={tCli("copyError")}
-              docsLabel={tCli("docs")}
-              visibility={passport?.visibility === "private" ? "private" : "public"}
-              publicLabel={t("public")}
-              privateLabel={t("private")}
-            />
-            <CliCopyBlock
               command={cliCommand}
-              title={tCli("inspectTitle")}
+              title={tCli("useTitle")}
               description={tCli("inspectBody")}
               copyLabel={tCli("copy")}
               copiedLabel={tCli("copied")}
               errorLabel={tCli("copyError")}
               docsLabel={tCli("docs")}
-              visibility={passport?.visibility === "private" ? "private" : "public"}
+              visibility={isPrivate ? "private" : "public"}
               publicLabel={t("public")}
               privateLabel={t("private")}
             />
@@ -443,15 +423,6 @@ async function readAuthor(accountId: string) {
     return await readPublisherProfile(asAccountId(accountId));
   } catch {
     return null;
-  }
-}
-
-async function canEditComponent(token: string, stableId: string) {
-  try {
-    await readOwnerObject(token, "component", stableId);
-    return true;
-  } catch {
-    return false;
   }
 }
 
