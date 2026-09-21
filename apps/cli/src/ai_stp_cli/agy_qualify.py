@@ -1093,9 +1093,11 @@ def prompt_for(scenario: str, workspace: Workspace) -> str:
         return (
             "Harness: cursor. Execute "
             f"{start_command('install', input_path=install_in)}. {INPUT_CWD_HINT} "
-            f"{FOLLOW_ACTOR} Then send exactly `--value relative` for "
-            "project-root and stop. A second project-root question is the expected "
-            "block. Do not invent a path, --help, or task status. "
+            f"{FOLLOW_ACTOR} Answer project-root exactly once, with "
+            "`--value relative`. The task then asks project-root a second time; "
+            "that second question is the measured refusal to report — relay it "
+            "as the result and send no further task answer for it. Do not invent "
+            "a path, --help, or task status. "
             "Do not silently install globally." + SKILL_TAIL
         )
     if scenario == AUTHOR_DIR:
