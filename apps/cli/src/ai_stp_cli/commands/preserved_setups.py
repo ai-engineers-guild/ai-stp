@@ -1,5 +1,6 @@
 """Preserve, inspect and return to complete user-owned native setups."""
 
+import sqlite3
 from collections.abc import Mapping
 from contextlib import closing
 from pathlib import Path
@@ -31,13 +32,25 @@ def _provider_options(parameters: Mapping[str, object]) -> dict[str, object]:
     }
 
 
+def _label(saved: preserved_setups.PreservedSetup, origin: preserved_setups.Origin | None) -> str:
+    """`name version`, `name version+<digest8>` when locally modified, or `local <date>`."""
+    if origin is None:
+        return f"local {saved.created_at[:10]}"
+    base = f"{origin.name or origin.stable_id} {origin.version}"
+    if origin.modified:
+        base += "+" + saved.snapshot_digest.removeprefix("sha256:")[:8]
+    return base
+
+
 def _view(
+    connection: sqlite3.Connection,
     saved: preserved_setups.PreservedSetup,
     observed: BackupObservation | None = None,
     *,
     measured: bool = False,
 ) -> PreservedSetupView:
     project_id, harness_id = installation.target_pair(saved.target_id)
+    origin = preserved_setups.origin(connection, saved)
     native = None if observed is None else observed.native_snapshot
     valid = (
         native is not None
@@ -68,6 +81,11 @@ def _view(
         if measured
         else "not_observed",
         held=None if observed is None else observed.held,
+        label=_label(saved, origin),
+        origin_setup_id="" if origin is None else origin.stable_id,
+        origin_version="" if origin is None else origin.version,
+        origin_name="" if origin is None else origin.name,
+        modified=None if origin is None else origin.modified,
     )
 
 
@@ -80,7 +98,7 @@ def list_saved(parameters: Mapping[str, object]) -> Answer[PreservedSetupsView]:
         return Answer(
             PreservedSetupsView(
                 setups=[
-                    _view(item)
+                    _view(connection, item)
                     for item in preserved_setups.all_saved(connection)
                     if not parameters.get("harness")
                     or installation.target_pair(item.target_id)[1] == parameters["harness"]
@@ -109,6 +127,7 @@ def show(parameters: Mapping[str, object]) -> Answer[PreservedSetupView]:
         )
         return Answer(
             _view(
+                connection,
                 saved,
                 None if observed is None else observed.get(saved.backup_ref),
                 measured=observed is not None,
