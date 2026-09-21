@@ -90,6 +90,7 @@ The closed authoring loop of setup systems is a check and coordination loop: it 
   native executable; later trust checks verify that same index evidence instead
   of requiring a GitHub verifier. Program install/update creates missing explicit
   target and prefix directories after provider trust is established.
+- `REQ-854`: `install plan --setup <id>@<X.Y> --component <id>@<X.Y>` installs exact standalone components alongside the named prepared SetupVersion. Each extra must resolve to one held component passport; it joins the resolved closure and the bundle manifest without changing which SetupVersion the operation verifies as, so a managed assignment mixing a setup with loose components can reach a verified baseline that covers all of them. Naming a component without a prepared setup, alongside a proposal, or under a sourceless action is a validation refusal; a duplicate of a graph member at identical coordinates is a no-op and at different coordinates a refusal.
 
 ## States and errors
 
@@ -160,3 +161,4 @@ The version of the contract is agreed upon before the operation. The old provide
 | `REQ-851` | Four fixtures — absent provenance, a bundle that fails verification, a publisher outside policy, an index answering 404 for every file — each report `unverified`, and each runs beside a passing control in the same test, so a check that accepted everything would fail rather than pass silently. |
 | `REQ-852` | Golden `/2` vectors bind profile, scope and sorted component adaptations; changing or removing each identity, owner and member path produces its named refusal before serialization, `/1` golden bytes remain unchanged during rollout, and released-provider conformance later repeats every negative vector before `/1` is deleted. |
 | `REQ-853` | Missing-provider plan/install acquires through mocked `GithubReleases` and remembers the bound artifact; explicit, configured, remembered and discovered providers are not fetched; ambiguity, unverified-without-path, attestation failure and platform miss remain typed refusals with `provider fetch` as a next action. |
+| `REQ-854` | A prepared setup installed with two held standalone components verifies with the named SetupVersion as baseline while the stored bundle manifest lists both extras; malformed, unheld, non-component and duplicate references refuse by name, as do `--component` without `--setup`, beside `--proposal`, and under `backup`/`rollback`. |

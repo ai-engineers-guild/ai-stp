@@ -27,14 +27,17 @@ from ai_stp_cli.local import (
     components,
     composition,
     content,
+    graph,
     installation,
     journal,
+    managed_diff,
     passports,
     project_passport,
     provider_installations,
     provider_releases,
     revisions,
     selection,
+    targets,
     versions,
 )
 from ai_stp_cli.local.database import configured_path, open_registry
@@ -202,27 +205,22 @@ def _provider(
     return str(place)
 
 
-def _confirmed(
+def _component_version(
     registry: sqlite3.Connection,
-    tmp_path: Path,
     suffix: str,
     *,
-    requires_authorization: str = "none",
     harness_id: str = "claude-code",
     component_type: str = "skill",
     scope: str = "global",
     required_env: tuple[str, ...] = (),
+    requires_authorization: str = "none",
     source: tuple[str, str, str] | None = None,
+    managed_name: str = "component",
 ) -> str:
-    """One confirmed composition, which is the only thing installable."""
-    passports.init_developer(registry, device_id=DEVICE)
-    passports.ensure_device(registry, device_id=DEVICE)
-    found = project_passport.scan(registry, tmp_path)
-    project_passport.record(registry, found, device_id=DEVICE)
-
+    """One recorded component version, held by the registry on its own."""
     rule = composition.rule_for(component_type, harness_id, scope=scope)
     native_path = (
-        rule.relative if rule is not None and rule.shape == "file" else "skills/component.md"
+        rule.relative if rule is not None and rule.shape == "file" else f"skills/{managed_name}.md"
     )
 
     stable_id = f"component_01J0000000000000000000000{suffix}"
@@ -269,7 +267,7 @@ def _confirmed(
                 "observed_at": MOMENT,
             },
             "source_name": {
-                "value": "component.md",
+                "value": f"{managed_name}.md",
                 "origin": "observed",
                 "confirmation": "none",
                 "observed_at": MOMENT,
@@ -370,6 +368,43 @@ def _confirmed(
         revision_id=revision_id,
         at=MOMENT,
     )
+    # `install plan` reads through a second connection on the same store: an
+    # uncommitted component would be invisible to it.
+    registry.commit()
+    return stable_id
+
+
+def _confirmed(
+    registry: sqlite3.Connection,
+    tmp_path: Path,
+    suffix: str,
+    *,
+    requires_authorization: str = "none",
+    harness_id: str = "claude-code",
+    component_type: str = "skill",
+    scope: str = "global",
+    required_env: tuple[str, ...] = (),
+    source: tuple[str, str, str] | None = None,
+) -> str:
+    """One confirmed composition, which is the only thing installable."""
+    passports.init_developer(registry, device_id=DEVICE)
+    passports.ensure_device(registry, device_id=DEVICE)
+    found = project_passport.scan(registry, tmp_path)
+    project_passport.record(registry, found, device_id=DEVICE)
+
+    stable_id = _component_version(
+        registry,
+        suffix,
+        harness_id=harness_id,
+        component_type=component_type,
+        scope=scope,
+        required_env=required_env,
+        requires_authorization=requires_authorization,
+        source=source,
+    )
+    recorded = versions.held(registry, stable_id, "1.0")
+    assert recorded is not None
+    digest = recorded.passport_digest
 
     from ai_stp_cli.local import selection
 
@@ -1244,6 +1279,144 @@ def test_v3_prepared_and_newly_composed_sources_bind_the_same_harness_bundle(
     assert prepared.bundle_artifact_digest == composed.bundle_artifact_digest
     assert prepared.bundle_size == composed.bundle_size
     assert prepared.target_id == composed.target_id
+
+
+def test_v3_standalone_components_ride_on_the_named_setup_baseline(
+    registry: sqlite3.Connection,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A managed assignment of loose components must reach `verify=pass`.
+
+    The verified baseline stays the named SetupVersion — installing the same
+    members as a new private setup would displace it and turn the assigned
+    setup `missing` — while the bundle manifest covers every extra component,
+    which is exactly what managed verification reads back.
+    """
+    proposal_id = _confirmed(registry, tmp_path, "S")
+    held = selection.held(registry, proposal_id)
+    assert held is not None and held.confirmed_stable_id is not None
+    extra_id = _component_version(registry, "X", managed_name="extra")
+    second_id = _component_version(registry, "Y", managed_name="extra2")
+    executable = _provider(tmp_path, "v3-extras-provider")
+    _v3_test_invoker(monkeypatch, target=tmp_path)
+
+    planned = install.plan(
+        {
+            "setup": f"{held.confirmed_stable_id}@{held.confirmed_version}",
+            "project": str(tmp_path),
+            "component": (f"{extra_id}@1.0", f"{second_id}@1.0"),
+            "provider": executable,
+            "protocol-version": 3,
+            "unverified-provider": True,
+            "target": str(tmp_path),
+        }
+    ).payload
+    install.approve({"operation": planned.operation_id, "plan-digest": planned.plan_digest})
+    done = install.apply({"operation": planned.operation_id, "provider": executable}).payload
+    assert done.state == "verified"
+
+    archive = cache.stored_raw_artifact(planned.bundle_artifact_digest)
+    assert archive is not None
+    overview = managed_diff.bundle_overview(archive)
+    assert {extra_id, second_id} <= {item.stable_id for item in overview.components}
+    assert overview.setup_stable_id == held.confirmed_stable_id
+
+    recorded = targets.verified(registry, project_id=held.project_id, harness_id=held.harness_id)
+    assert [item.setup_stable_id for item in recorded] == [held.confirmed_stable_id]
+
+
+def test_standalone_components_require_a_prepared_setup(
+    registry: sqlite3.Connection, tmp_path: Path
+) -> None:
+    proposal_id = _confirmed(registry, tmp_path, "C")
+    executable = _provider(tmp_path, "v3-extras-validation")
+
+    with pytest.raises(CliFailure) as raised:
+        install.plan({"component": ("component_x@1.0",), "provider": executable})
+    assert raised.value.code == "AI_STP_VALIDATION_ERROR"
+
+    with pytest.raises(CliFailure) as raised:
+        install.plan({"proposal": proposal_id, "component": ("component_x@1.0",)})
+    assert raised.value.code == "AI_STP_VALIDATION_ERROR"
+
+    with pytest.raises(CliFailure) as raised:
+        install.plan(
+            {
+                "setup": "setup_x@1.0",
+                "component": ("component_x@1.0",),
+                "action": "backup",
+            }
+        )
+    assert raised.value.code == "AI_STP_VALIDATION_ERROR"
+
+
+def test_standalone_component_references_must_be_exact_held_components(
+    registry: sqlite3.Connection, tmp_path: Path
+) -> None:
+    proposal_id = _confirmed(registry, tmp_path, "D")
+    held = selection.held(registry, proposal_id)
+    assert held is not None and held.confirmed_stable_id is not None
+
+    with pytest.raises(CliFailure) as raised:
+        install._standalone_component_refs(registry, ("not-a-ref",))  # pyright: ignore[reportPrivateUsage]
+    assert raised.value.code == "AI_STP_VALIDATION_ERROR"
+
+    with pytest.raises(CliFailure) as raised:
+        install._standalone_component_refs(registry, ("missing_x@1.0",))  # pyright: ignore[reportPrivateUsage]
+    assert raised.value.code == "AI_STP_NOT_FOUND"
+    assert raised.value.next_actions == ["registry acquire --id missing_x --version 1.0 --json"]
+
+    # A held object of the wrong kind is a conflict, not a component.
+    with pytest.raises(CliFailure) as raised:
+        install._standalone_component_refs(  # pyright: ignore[reportPrivateUsage]
+            registry, (f"{held.confirmed_stable_id}@{held.confirmed_version}",)
+        )
+    assert raised.value.code == "AI_STP_CONFLICT"
+
+    member = held.members[0]
+    with pytest.raises(CliFailure) as raised:
+        install._standalone_component_refs(  # pyright: ignore[reportPrivateUsage]
+            registry, (f"{member.stable_id}@1.0", f"{member.stable_id}@1.0")
+        )
+    assert raised.value.code == "AI_STP_VALIDATION_ERROR"
+
+
+def test_prepared_setup_source_merges_standalone_components_once(
+    registry: sqlite3.Connection, tmp_path: Path
+) -> None:
+    proposal_id = _confirmed(registry, tmp_path, "E")
+    held = selection.held(registry, proposal_id)
+    assert held is not None and held.confirmed_stable_id is not None
+    reference = f"{held.confirmed_stable_id}@{held.confirmed_version}"
+    extra_id = _component_version(registry, "F", managed_name="extra")
+    extra_recorded = versions.held(registry, extra_id, "1.0")
+    assert extra_recorded is not None
+    extra = graph.Reference(extra_id, "1.0", extra_recorded.passport_digest)
+
+    prepared = install._prepared_setup_source(  # pyright: ignore[reportPrivateUsage]
+        registry, reference, str(tmp_path), extra_components=(extra,)
+    )
+    assert extra_id in {item.stable_id for item in prepared.members}
+    assert prepared.confirmed_stable_id == held.confirmed_stable_id
+
+    # A member of the setup graph named again at the same coordinates is a
+    # no-op; at different ones it is a refusal, not a second entry.
+    member = held.members[0]
+    same = graph.Reference(member.stable_id, member.version, member.passport_digest)
+    again = install._prepared_setup_source(  # pyright: ignore[reportPrivateUsage]
+        registry, reference, str(tmp_path), extra_components=(extra, same)
+    )
+    assert len(again.members) == len(prepared.members)
+
+    with pytest.raises(CliFailure) as raised:
+        install._prepared_setup_source(  # pyright: ignore[reportPrivateUsage]
+            registry,
+            reference,
+            str(tmp_path),
+            extra_components=(graph.Reference(member.stable_id, "9.9", "sha256:" + "0" * 64),),
+        )
+    assert raised.value.code == "AI_STP_VALIDATION_ERROR"
 
 
 def test_a_refused_postcondition_leaves_the_operation_resumable(

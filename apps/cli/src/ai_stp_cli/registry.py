@@ -2969,6 +2969,15 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 "An immutable prepared SetupVersion as <stable_id>@<X.Y>.",
             ),
             option(
+                "component",
+                "string",
+                "An exact standalone component as <stable_id>@<X.Y>, repeatable. "
+                "Installed alongside the named prepared SetupVersion so a "
+                "managed assignment of loose components can reach a verified "
+                "baseline; the bundle manifest covers each one.",
+                repeatable=True,
+            ),
+            option(
                 "project",
                 "string",
                 "Local project root that binds a catalogue setup to the current context.",
