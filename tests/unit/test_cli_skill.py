@@ -1,5 +1,6 @@
 """Delivering the Agent Skill: shipped, owned, and never taking over a file."""
 
+import json
 import re
 from pathlib import Path
 
@@ -107,6 +108,43 @@ def test_removing_takes_back_only_what_was_installed(tmp_path: Path) -> None:
 
     # Removing what is not there is the state the caller asked for.
     assert skill.remove(tmp_path).state == "absent"
+
+
+def test_removing_preserves_files_the_manifest_never_claimed(tmp_path: Path) -> None:
+    skill.install(tmp_path, "codex")
+    theirs = tmp_path / "references" / "my-own-notes.md"
+    theirs.write_text("added after install", encoding="utf-8")
+
+    assert skill.remove(tmp_path).state == "absent"
+    # The claim list is the whole ownership evidence; an unlisted file inside
+    # references/ is theirs, and its presence keeps the directory in place.
+    assert theirs.read_text(encoding="utf-8") == "added after install"
+    assert (tmp_path / "references").is_dir()
+
+
+def test_a_claim_path_cannot_leave_the_package(tmp_path: Path) -> None:
+    outside = tmp_path.parent / f"{tmp_path.name}-outside.md"
+    outside.write_text("not ours", encoding="utf-8")
+    try:
+        skill.install(tmp_path, None)
+        claim = json.loads((tmp_path / skill.MANIFEST).read_text(encoding="utf-8"))
+        claim["files"] = ["../" + outside.name, "references/install.md"]
+        (tmp_path / skill.MANIFEST).write_text(json.dumps(claim), encoding="utf-8")
+
+        skill.remove(tmp_path)
+        assert outside.read_text(encoding="utf-8") == "not ours"
+    finally:
+        outside.unlink(missing_ok=True)
+
+
+def test_a_claim_path_using_backslashes_stays_inside_the_package(tmp_path: Path) -> None:
+    skill.install(tmp_path, None)
+    claim = json.loads((tmp_path / skill.MANIFEST).read_text(encoding="utf-8"))
+    claim["files"] = ["references\\..\\escape.md"]
+    (tmp_path / skill.MANIFEST).write_text(json.dumps(claim), encoding="utf-8")
+
+    skill.remove(tmp_path)
+    assert not (tmp_path.parent / "escape.md").exists()
 
 
 @pytest.mark.parametrize("damaged", ["{not json", '["a list"]'])

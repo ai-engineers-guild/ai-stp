@@ -45,6 +45,8 @@ not type `ai-stp`. Do not start `account`.
    Start already advanced the task. Do not insert
    `task continue` when `actor` is `human` or when there are no continuations.
    Do not invent `task status`, `task info`, or `task get`.
+   A lost task reference is recovered through `task list`: it returns only
+   tasks that have not settled, each with the id and revision a resume needs.
    Wait for each `ai-stp` JSON envelope on stdout. Foreground the CLI; do not background it. A backgrounded invocation is a failed turn.
 3. Stop when there are no continuations. If `error.details.state` is
    `failed`, the task is settled; do not type `task get`. Report payload

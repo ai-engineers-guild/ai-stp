@@ -74,16 +74,21 @@ The machine-help shape is declared with the wire models rather than inside the a
 The command list belongs to the registry and grows with implemented tasks. It is not duplicated here: a copy in this document would diverge from the implementation on the first change, while the Skill reads the implementation.
 
 Durable agent journeys start at `task intents --json`, then `task start`,
-`task answer`, `task continue`, `task status`, and `task cancel`. The five
-lifecycle verbs keep result schema `cli-task`. Compact discovery is
+`task answer`, `task continue`, `task status`, `task cancel`, and `task
+list`. The five lifecycle verbs keep result schema `cli-task`; `task list`
+reads `cli-task-list` and answers the unsettled durable tasks — id, revision,
+intent, state, binding context and open question ids — most recently touched
+first, so a caller that lost its reference resumes instead of starting a
+second task on a bound target. Compact discovery is
 `cli-task-intents`. `help --agent` remains the full registry. Shipped intents
 are `inspect`, `initialize`, `install`, `change`, `author`, `switch`,
 `account`, and `publish`. Inspect stores doctor plus slim
 orientation (no `command_paths`). Unshipped intent names are refused. There is no
 stored current-task pointer. `task answer --json` or `task continue --json`
 without `--task` emits that unique blocked human question's answer argv when
-exactly one unsettled task exists; the same verbs with `--task` and without
-`--revision` emit that named task's answer argv. Otherwise they list
+exactly one unsettled task exists, and the `task list` argv when several are
+open; the same verbs with `--task` and without
+`--revision` emit that named task's answer argv. With none unsettled they list
 `task intents`. The continuation still names `--task` and `--revision`.
 `task start --json` without `--intent`, and `task start --intent` with a
 name that is not shipped, list `task intents` and do not echo Click's

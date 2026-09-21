@@ -11,7 +11,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from importlib import resources
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Final, cast
 
 from ai_stp_cli.errors import CliFailure
@@ -163,13 +163,12 @@ def remove(target: Path) -> Installed:
             details={"path": redact_home(target)},
             next_actions=["skill status --target <path> --json"],
         )
-    listed = _claim_file_list(target)
-    for relative in listed:
-        (target / relative).unlink(missing_ok=True)
+    for relative in _claim_file_list(target):
+        claimed = target / relative
+        if claimed.is_file() or claimed.is_symlink():
+            claimed.unlink(missing_ok=True)
     references = target / "references"
-    if references.is_dir():
-        for child in tuple(references.iterdir()):
-            child.unlink(missing_ok=True)
+    if references.is_dir() and not any(references.iterdir()):
         references.rmdir()
     (target / SKILL_FILENAME).unlink(missing_ok=True)
     (target / MANIFEST).unlink(missing_ok=True)
@@ -217,8 +216,17 @@ def _claim_file_list(target: Path) -> tuple[str, ...]:
     for item in cast(list[object], raw_files):
         if not isinstance(item, str):
             return ()
-        names.append(item)
+        if _claimable(item):
+            names.append(item)
     return tuple(names)
+
+
+def _claimable(name: str) -> bool:
+    """A manifest entry names one file inside the package, never outside it."""
+    if not name or name.endswith("/") or "\\" in name or ":" in name:
+        return False
+    candidate = PurePosixPath(name)
+    return not candidate.is_absolute() and ".." not in candidate.parts
 
 
 def _claimed_files(target: Path) -> dict[str, bytes]:
