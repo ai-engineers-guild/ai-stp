@@ -490,6 +490,27 @@ def test_an_unusable_provider_is_refused(given: object) -> None:
         auth.begin({"provider": given})
 
 
+def test_a_second_begin_warns_that_the_first_code_is_orphaned(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """`auth login` twice: the second pending record overwrites the first, and
+    `auth complete` will only ever exchange the newest code. The caller has to
+    be told, or someone approves the code that no longer completes anything."""
+    from ai_stp_cli.application import auth
+
+    monkeypatch.setattr(login, "local_identity", lambda: (new_id("device"), "public-key", None))
+
+    def start(_endpoint: Endpoint, _provider: object) -> login.Started:
+        return _started("code")
+
+    monkeypatch.setattr(login, "start", start)
+    monkeypatch.setattr(auth, "endpoint", lambda: MOCK)
+    first = auth.begin({"provider": "github"})
+    assert not any("replaced" in warning for warning in first.warnings)
+    second = auth.begin({"provider": "github"})
+    assert any("replaced" in warning for warning in second.warnings)
+
+
 def _hold_session(token: str = "a") -> None:
     """Give this installation a usable cloud session to sign out of."""
     store, _warning = open_store()
@@ -569,6 +590,25 @@ def test_logging_out_revokes_the_session_on_the_server(monkeypatch: pytest.Monke
     assert not any(_SESSION_SURVIVED in item for item in answer.warnings)
     store, _warning = open_store()
     assert session.load(store) is None
+
+
+def test_logging_out_drops_an_in_flight_sign_in(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A pending approval left behind would let `auth complete` materialize
+    the session this logout just ended."""
+    from ai_stp_cli.application import auth
+
+    _hold_session()
+    store, _warning = open_store()
+    session.save_pending(
+        store,
+        session.Pending(provider="github", device_code="code", interval=5, expires_in=600),
+    )
+    _logout_endpoint(
+        monkeypatch,
+        lambda _request: httpx.Response(200, json={"schema_version": 1, "revoked": True}),
+    )
+    auth.logout({})
+    assert session.load_pending(store) is None
 
 
 def test_logging_out_offline_still_forgets_the_credential_and_says_so(

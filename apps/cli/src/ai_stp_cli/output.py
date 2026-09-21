@@ -25,6 +25,7 @@ from ai_stp_foundation.envelope import (
     Continuation,
     ErrorEnvelope,
     SuccessEnvelope,
+    continuation_command,
 )
 from ai_stp_foundation.ids import new_id
 
@@ -85,6 +86,7 @@ def render_success(
     for warning in warnings or []:
         out.write(f"warning: {warning}\n")
     out.write(_as_text(data) + "\n")
+    _write_next(out, continuations, next_actions)
 
 
 def render_failure(
@@ -118,7 +120,32 @@ def render_failure(
         out.write(json.dumps(envelope.model_dump(mode="json"), ensure_ascii=False) + "\n")
     else:
         out.write(f"{failure.code}: {failure.message}\n")
+        _write_next(out, failure.continuations, failure.next_actions)
     return failure.exit_code
+
+
+def _write_next(
+    out: TextIO,
+    continuations: list[Continuation] | tuple[Continuation, ...] | None,
+    actions: list[str] | tuple[str, ...] | None,
+) -> None:
+    """Human-mode rendering of the same follow-ups the envelope carries.
+
+    Machine callers read `continuations`/`next_actions` from the JSON object;
+    a person at a terminal used to see none of them, so `auth login` printed a
+    code and never named the second phase (#359). Each string is written once:
+    `next_actions` is usually the display form of the same continuations.
+    """
+    shown: set[str] = set()
+    for item in continuations or []:
+        command = continuation_command(bind_continuation(item))
+        if command not in shown:
+            shown.add(command)
+            out.write(f"next: {command}\n")
+    for action in actions or []:
+        if action not in shown:
+            shown.add(action)
+            out.write(f"next: {action}\n")
 
 
 def _as_text(value: JsonValue, indent: int = 0) -> str:

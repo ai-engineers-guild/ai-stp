@@ -2670,6 +2670,19 @@ def provider_fetch(parameters: Mapping[str, object]) -> Answer[ProviderBoundRele
             "provider fetch source must be github or index",
             details={"source": source},
         )
+    # Fetched bytes are discoverable, not bound (REQ-8013): initialize reads
+    # only chosen or configured providers, so a fetch that leaves the harness
+    # unbound names the bind step while the artifact path is still in hand.
+    from ai_stp_cli.application.initialize import bound_executable
+
+    warning: str | None = None
+    if bound_executable(harness) is None:
+        warning = (
+            f"{harness} has no bound provider; the fetched artifact is "
+            f"discoverable but not chosen. `config set` `provider.paths."
+            f"{harness}` to the artifact path binds it, or an install chooses "
+            "what it uses."
+        )
     return Answer(
         ProviderBoundRelease(
             harness_id=bound.harness_id,
@@ -2685,5 +2698,6 @@ def provider_fetch(parameters: Mapping[str, object]) -> Answer[ProviderBoundRele
             artifact_digest=bound.artifact_digest,
             artifact_url=bound.artifact_url,
             trust_level=bound.trust_level,
-        )
+        ),
+        warnings=() if warning is None else (warning,),
     )
