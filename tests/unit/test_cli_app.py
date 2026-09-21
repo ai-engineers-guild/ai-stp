@@ -280,7 +280,7 @@ def test_task_lifecycle_without_task_resumes_the_unique_blocked_question(
 
 
 @pytest.mark.parametrize("verb", ["answer", "continue"])
-def test_task_lifecycle_without_task_lists_intents_when_two_are_open(
+def test_task_lifecycle_without_task_lists_open_tasks_when_two_are_open(
     verb: str, capsys: pytest.CaptureFixture[str]
 ) -> None:
     from ai_stp_cli.commands import task as task_command
@@ -292,10 +292,10 @@ def test_task_lifecycle_without_task_lists_intents_when_two_are_open(
     assert err == ""
     envelope = _envelope(out)
     assert envelope["ok"] is False
-    assert envelope["next_actions"] == ["task intents --json"]
+    assert envelope["next_actions"] == ["task list --json"]
     first = envelope["continuations"][0]
     assert isinstance(first, dict)
-    assert first["argv"] == ["task", "intents", "--json"]
+    assert first["argv"] == ["task", "list", "--json"]
     assert "needs the open question" not in out
 
 
@@ -351,7 +351,7 @@ def test_an_invented_task_verb_lists_intents_not_help_agent(
     envelope = _envelope(out)
     assert envelope["ok"] is False
     assert envelope["error"]["code"] == "AI_STP_VALIDATION_ERROR"  # pyright: ignore[reportIndexIssue]
-    assert "start, answer, continue, status, and cancel" in envelope["error"]["message"]  # pyright: ignore[reportIndexIssue, reportOperatorIssue]
+    assert "start, answer, continue, status, cancel, and list" in envelope["error"]["message"]  # pyright: ignore[reportIndexIssue, reportOperatorIssue]
     assert envelope["next_actions"] == ["task intents --json"]
     held = envelope["continuations"]
     assert isinstance(held, list) and held

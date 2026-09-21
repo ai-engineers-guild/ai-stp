@@ -870,7 +870,7 @@ def _task_intents_failure(message: str) -> CliFailure:
 
 def _invented_task_verb_failure() -> CliFailure:
     return _task_intents_failure(
-        "the task engine verbs are start, answer, continue, status, and cancel"
+        "the task engine verbs are start, answer, continue, status, cancel, and list"
     )
 
 

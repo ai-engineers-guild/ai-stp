@@ -304,7 +304,7 @@ def test_task_help_shows_only_lifecycle_leaves(home: Path) -> None:
     result = run("task", "--help", home=home)
     assert result.returncode == 0
     names = _group_command_names(result.stdout)
-    assert names == {"start", "answer", "continue", "intents"}
+    assert names == {"start", "answer", "continue", "intents", "list"}
     assert names.isdisjoint({"status", "info", "get", "cancel"})
 
 
