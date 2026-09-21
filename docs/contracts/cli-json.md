@@ -46,6 +46,11 @@ newline. Colors, control sequences, and additional text are prohibited. The
 error stream is used only for a failure before the envelope is constructed and
 contains no secrets.
 
+In human mode the same facts are plain text: each warning prints as a
+`warning:` line before the payload, and each distinct `next_actions` or
+`continuations` command prints once as a `next:` line after it, so the second
+phase of a two-command flow is named rather than discovered by trial.
+
 `ok` is true only when the requested effect completed. A warning does not
 change `ok` when that result was obtained in full. A partial or compensated
 mutating operation returns an error and `operation_id` rather than being
