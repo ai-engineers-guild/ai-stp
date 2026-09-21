@@ -59,8 +59,8 @@
       "anyOf": [
         {
           "enum": [
-            "pull",
-            "push"
+            "push",
+            "pull"
           ],
           "type": "string"
         },
