@@ -86,6 +86,55 @@ def test_sign_in_pending_then_approved(
     assert logout.revoked is True
 
 
+def test_a_foreign_device_key_names_the_rebind_reason(
+    cli_server: SyncAsgiServer,
+    cli_endpoint: Endpoint,
+    web_approver: ApproverFactory,
+) -> None:
+    """The exchange qualifies a foreign key so the CLI can name the rebind.
+
+    `reason=device_key_foreign` is the detail `_way_back_for` keys the
+    `device reset` recovery on (#359); an unqualified denial suggests none.
+    This covers the exchange leg; `test_devices_lifecycle` covers
+    `POST /v1/devices`.
+    """
+    from ai_stp_platform.models import Account, Device
+
+    foreign_owner = new_id("account")
+    sessionmaker = cli_server.app.state.sessionmaker
+
+    async def seed() -> None:
+        async with sessionmaker() as db:
+            db.add(Account(id=foreign_owner))
+            db.add(
+                Device(
+                    id=new_id("device"),
+                    account_id=foreign_owner,
+                    public_key=PUBLIC_KEY,
+                    state="active",
+                )
+            )
+            await db.commit()
+
+    cli_server.call(seed)
+
+    approver = web_approver()
+    started = login.start(cli_endpoint, "github")
+    assert approver.approve(started.user_code).status_code == 200
+
+    with pytest.raises(CliFailure) as raised:
+        login.exchange(
+            cli_endpoint,
+            started,
+            device_id=DEVICE_ID,
+            public_key=PUBLIC_KEY,
+            display_name="boundary-test",
+        )
+    assert raised.value.code == "AI_STP_PERMISSION_DENIED"
+    assert raised.value.details.get("reason") == "device_key_foreign"
+    assert any("device reset" in action for action in raised.value.next_actions)
+
+
 def test_approve_with_an_unknown_code_is_a_typed_answer(
     web_approver: ApproverFactory,
 ) -> None:
