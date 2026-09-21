@@ -39,6 +39,8 @@ from ai_stp_cli.yaml_documents import DuplicateKeyError, UniqueSafeLoader
 from ai_stp_contracts.machine_help import (
     TaskInspectOutcome,
     TaskIntentsCatalog,
+    TaskListEntry,
+    TaskListView,
     TaskOutcome,
     TaskView,
 )
@@ -68,6 +70,13 @@ _TASK_NEXT_ACTIONS: Final[tuple[str, ...]] = (
     "task start",
     "task answer",
     "task intents",
+    "task list",
+)
+_TASK_LIST_CONTINUATION: Final[Continuation] = Continuation(
+    kind="inspect",
+    path=["task", "list"],
+    argv=["task", "list", "--json"],
+    actor="cli",
 )
 
 
@@ -86,6 +95,14 @@ def missing_answer_hint(task_id: str | None = None) -> CliFailure | None:
                 rows = agent_tasks.unsettled(connection)
     except CliFailure:
         return None
+    if len(rows) > 1:
+        return CliFailure(
+            "AI_STP_VALIDATION_ERROR",
+            "more than one task is still open; pick one by id",
+            details={"tasks": str(len(rows))},
+            continuations=[_TASK_LIST_CONTINUATION],
+            next_actions=["task list --json"],
+        )
     if len(rows) != 1:
         return None
     view = agent_tasks.view_of(rows[0])
@@ -406,6 +423,52 @@ def cancel(parameters: Mapping[str, object]) -> Answer[TaskView]:
         )
     updated = _commit_if_current(row, agent_tasks.cancelled(row, at=moment()))
     return _answer(agent_tasks.view_of(updated))
+
+
+def list_pending(_parameters: Mapping[str, object]) -> Answer[TaskListView]:
+    """The unsettled tasks, so a caller that lost a reference can resume.
+
+    Settled rows are history reached through `task status`, never a resume
+    choice, so they are never listed. A registry that does not exist yet holds
+    no tasks — an empty list, not a failure. Any other failure to open it is
+    reported, not mistaken for empty.
+    """
+    try:
+        with closing(open_registry(configured_path(), create=False)) as connection:
+            rows = agent_tasks.unsettled(connection)
+    except CliFailure as error:
+        if error.code != "AI_STP_NOT_FOUND":
+            raise
+        rows = ()
+    entries = [
+        TaskListEntry(
+            task_id=row.task_id,  # pyright: ignore[reportArgumentType]
+            revision=row.revision,
+            intent=row.intent,  # pyright: ignore[reportArgumentType]
+            state=row.state,  # pyright: ignore[reportArgumentType]
+            harness_id=row.harness_id,
+            project_root=row.project_root,
+            scope=row.scope,
+            open_question_ids=_open_question_ids(row),
+            updated_at=row.updated_at,
+        )
+        for row in sorted(rows, key=lambda item: (item.updated_at, item.task_id), reverse=True)
+    ]
+    return Answer(TaskListView(tasks=entries))
+
+
+def _open_question_ids(row: StoredTask) -> list[str]:
+    parsed: object = json.loads(row.questions_json)
+    if not isinstance(parsed, list):
+        return []
+    ids: list[str] = []
+    for item in cast(list[object], parsed):
+        if not isinstance(item, dict):
+            continue
+        question_id = cast(dict[object, object], item).get("question_id")
+        if isinstance(question_id, str):
+            ids.append(question_id)
+    return ids
 
 
 def _facts_of(row: StoredTask) -> dict[str, JsonValue]:

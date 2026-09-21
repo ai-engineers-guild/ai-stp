@@ -4209,6 +4209,13 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         next_actions=("help --path task --json",),
     ),
     Declaration(
+        path=["task", "list"],
+        summary="List durable tasks that have not settled, most recent first.",
+        result_schema="urn:ai-stp:schema:v1:cli-task-list",
+        handler="task:list_",
+        next_actions=("help --path task --json",),
+    ),
+    Declaration(
         path=["version"],
         summary="Report the running build and the contract versions it speaks.",
         result_schema="urn:ai-stp:schema:v1:cli-version-report",
