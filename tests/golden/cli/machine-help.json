@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "cli_version": "0.0.0-pinned",
-  "registry_digest": "sha256:ba9f3b4f27f2369640312b9d6ba35b374b1b82f184896ce8876ceb2abeda580c",
+  "registry_digest": "sha256:09d0bc240049f87c6cb80a74b720d90888e735a33ce3c7246c8bae381de7076e",
   "global_options": [
     {
       "name": "json",
@@ -221,6 +221,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-device-approval",
       "next_actions": [
+        "auth complete --json",
         "help --path auth --json"
       ]
     },

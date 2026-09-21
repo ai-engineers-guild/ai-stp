@@ -42,9 +42,21 @@ def test_sign_in_pending_then_approved(
     passport.developer_init({})
     before = passport.developer_show({}).payload
 
-    approval = auth.begin({"provider": "github"}).payload
+    answer = auth.begin({"provider": "github"})
+    approval = answer.payload
     assert approval.user_code
     assert approval.browser_opened is False
+    # The second phase is not discoverable from the payload alone (#359): the
+    # answer names the task surface that finishes the pending approval.
+    assert answer.continuations[0].argv[1:4] == ["start", "--intent", "account"]
+
+    store, _warning = open_store()
+    held_pending = session.load_pending(store)
+    assert held_pending is not None
+    # The display fields ride along so a task opened after `auth login` can
+    # still show the code (#359).
+    assert held_pending.user_code == approval.user_code
+    assert held_pending.verification_uri == approval.verification_uri
 
     # Not yet approved: a typed answer, the pending record stays.
     with pytest.raises(CliFailure) as pending:
@@ -64,7 +76,6 @@ def test_sign_in_pending_then_approved(
     assert after.owner_id != before.owner_id
     assert after.parent_revision_ids == [before.revision_id]
 
-    store, _warning = open_store()
     # The pending record is consumed, not left to be polled again.
     assert session.load_pending(store) is None
 

@@ -54,11 +54,16 @@ def begin(parameters: Mapping[str, object]) -> Answer[DeviceApproval]:
             device_code=started.device_code,
             interval=started.interval,
             expires_in=started.expires_in,
+            user_code=started.user_code,
+            verification_uri=started.verification_uri,
         ),
     )
     # Only when asked. See `login.open_browser` for why this is not automatic.
     opened = login.open_browser(started) if bool(parameters.get("open-browser")) else False
-    return with_warning(
+    # The second phase is not discoverable from this payload alone (#359):
+    # hand callers the task surface that finishes the pending approval.
+    held = warning or store_warning
+    return Answer(
         DeviceApproval(
             provider=provider,
             user_code=started.user_code,
@@ -68,7 +73,8 @@ def begin(parameters: Mapping[str, object]) -> Answer[DeviceApproval]:
             browser_opened=opened,
             device_id=device_id,
         ),
-        warning or store_warning,
+        warnings=() if held is None else (held,),
+        continuations=tuple(login_continuations()),
     )
 
 
