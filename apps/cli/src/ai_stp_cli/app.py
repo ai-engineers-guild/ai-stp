@@ -123,7 +123,13 @@ def _everyday_success_envelope(
     A plan that already named `install apply` used to skip rewrite because
     continuations were non-empty. FOLLOW_ACTOR would then type the leaf.
     Terminal apply is still not started again: that would loop.
+
+    Paths the everyday journeys do not cover have no guided alternative to
+    route around leaf commands with — stripping their continuations would
+    return an empty envelope, so an inspect/expert answer keeps what it bound.
     """
+    if everyday_intent(path) is None:
+        return continuations, actions
     kept_continuations = [
         item
         for item in continuations

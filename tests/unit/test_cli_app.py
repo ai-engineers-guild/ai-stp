@@ -625,6 +625,30 @@ def test_everyday_success_strips_forbidden_continuations_then_starts() -> None:
     assert "install apply" not in " ".join(actions)
 
 
+def test_an_uncovered_path_keeps_bound_continuations() -> None:
+    """`corporate assignment verify` names `install plan` as its remediation.
+
+    Outside the everyday journeys there is no guided alternative the strip
+    could route to, so dropping the leaf continuation would return an empty
+    envelope for a perfectly executable next step.
+    """
+    from ai_stp_foundation.envelope import Continuation
+
+    remediation = Continuation(
+        kind="advance",
+        path=["install", "plan"],
+        arguments={"setup": "setup_x@1.0", "component": ["component_y@2.0"]},
+    )
+    continuations, actions = app._everyday_success_envelope(
+        ("corporate", "assignment", "verify"),
+        "read",
+        [remediation],
+        ["install plan --setup setup_x@1.0 --component component_y@2.0"],
+    )
+    assert continuations == [remediation]
+    assert actions == ["install plan --setup setup_x@1.0 --component component_y@2.0"]
+
+
 def test_terminal_apply_success_keeps_allowed_continuations() -> None:
     from ai_stp_foundation.envelope import Continuation
 
