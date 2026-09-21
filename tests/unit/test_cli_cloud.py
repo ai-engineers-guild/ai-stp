@@ -592,6 +592,25 @@ def test_logging_out_revokes_the_session_on_the_server(monkeypatch: pytest.Monke
     assert session.load(store) is None
 
 
+def test_logging_out_drops_an_in_flight_sign_in(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A pending approval left behind would let `auth complete` materialize
+    the session this logout just ended."""
+    from ai_stp_cli.application import auth
+
+    _hold_session()
+    store, _warning = open_store()
+    session.save_pending(
+        store,
+        session.Pending(provider="github", device_code="code", interval=5, expires_in=600),
+    )
+    _logout_endpoint(
+        monkeypatch,
+        lambda _request: httpx.Response(200, json={"schema_version": 1, "revoked": True}),
+    )
+    auth.logout({})
+    assert session.load_pending(store) is None
+
+
 def test_logging_out_offline_still_forgets_the_credential_and_says_so(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

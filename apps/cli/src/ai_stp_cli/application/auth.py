@@ -227,5 +227,8 @@ def logout(_parameters: Mapping[str, object]) -> Answer[AuthStatus]:
                     "device from the web to end it now"
                 )
     session.clear(store)
+    # A pending authorization left behind would let `auth complete` materialize
+    # the very session this call just ended.
+    session.clear_pending(store)
     report, _warning = session.status()
     return Answer(report, warnings=tuple(warnings))
