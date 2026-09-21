@@ -14,7 +14,6 @@ from types import SimpleNamespace
 import pytest
 
 from ai_stp_cli.agy_qualify import (
-    AGY_MODEL,
     ANTIGRAVITY,
     AUTH_PUBLISH,
     AUTHOR_DIR,
@@ -77,7 +76,7 @@ from ai_stp_cli.agy_qualify import (
     write_isolation,
     write_native_cell,
 )
-from ai_stp_cli.application.qualify import HAIKU_SCENARIOS
+from ai_stp_cli.application.qualify import AGY_MODEL, HAIKU_SCENARIOS
 from ai_stp_contracts.cli_copy import INITIALIZE_PROMPT, INITIALIZE_START
 
 
