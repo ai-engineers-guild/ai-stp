@@ -162,6 +162,9 @@ async def test_device_register_idempotent_and_unique(
     )
     assert denied.status_code == 403
     assert denied.json()["error"]["code"] == "AI_STP_PERMISSION_DENIED"
+    # The qualified reason is the signal the CLI keys its `device reset`
+    # recovery on (#359); a bare denial must not suggest it.
+    assert denied.json()["error"]["details"]["reason"] == "device_key_foreign"
     # Redaction: response must not echo the public challenge nonce value as a secret leak
     # (nonce may appear in request only; error message stays generic).
     assert "challenge" not in denied.json()["error"]["message"] or True

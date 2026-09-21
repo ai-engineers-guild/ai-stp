@@ -74,7 +74,13 @@ async def register_device(
         )
     )
     if foreign.scalar_one_or_none() is not None:
-        raise ApiError(ErrorCategory.PERMISSION, "device key belongs to another account")
+        # `reason` reaches the CLI through its forwarded-details allowlist and
+        # names the rebind path; an unqualified denial must not (#359).
+        raise ApiError(
+            ErrorCategory.PERMISSION,
+            "device key belongs to another account",
+            details={"reason": "device_key_foreign"},
+        )
 
     existing = await db.execute(
         select(Device).where(

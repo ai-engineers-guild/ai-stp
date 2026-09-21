@@ -102,7 +102,7 @@ def ensure_session(facts: Mapping[str, JsonValue]) -> DrainResult | AuthStatus:
         return complete_once()
     except CliFailure as failure:
         if failure.code == _PENDING:
-            return _authorization_block(facts, approval=None)
+            return _authorization_block(facts, approval=None, pending=pending)
         raise
 
 
@@ -194,16 +194,27 @@ def drain(facts: Mapping[str, JsonValue]) -> DrainResult:
 def _authorization_block(
     facts: Mapping[str, JsonValue],
     approval: DeviceApproval | None,
+    pending: session.Pending | None = None,
 ) -> DrainResult:
     held: dict[str, JsonValue] = dict(facts)
-    user_code = approval.user_code if approval is not None else _text(facts.get("user_code"))
-    verification_uri = (
-        approval.verification_uri if approval is not None else _text(facts.get("verification_uri"))
-    )
+    if approval is not None:
+        user_code = approval.user_code
+        verification_uri = approval.verification_uri
+    elif pending is not None and pending.user_code:
+        # `auth login` keeps the code in the pending record so a task opened
+        # afterwards can still show it (#359).
+        user_code = pending.user_code
+        verification_uri = pending.verification_uri
+    else:
+        user_code = _text(facts.get("user_code"))
+        verification_uri = _text(facts.get("verification_uri"))
     if approval is not None:
         held["provider"] = approval.provider
         held["user_code"] = approval.user_code
         held["verification_uri"] = approval.verification_uri
+    elif pending is not None and pending.user_code:
+        held["user_code"] = pending.user_code
+        held["verification_uri"] = pending.verification_uri
     prompt = "Approve the user code at the verification URI, then continue this task."
     if user_code and verification_uri:
         prompt = f"Approve {user_code} at {verification_uri}, then continue this task."

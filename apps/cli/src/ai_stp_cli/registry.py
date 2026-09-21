@@ -790,6 +790,8 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         summary="Start a sign-in and report the code the user must approve.",
         result_schema="urn:ai-stp:schema:v1:cli-device-approval",
         handler="auth:begin",
+        # The pending record is only the first half; without `auth complete`
+        # naming the second, callers discovered the pair by trial (#359).
         # It records a pending authorization, which is durable state.
         mutability="apply",
         parameters=(
@@ -806,7 +808,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 "Also open the approval page in the desktop default browser.",
             ),
         ),
-        next_actions=("help --path auth --json",),
+        next_actions=("auth complete --json", "help --path auth --json"),
     ),
     Declaration(
         path=["auth", "logout"],

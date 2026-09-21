@@ -148,7 +148,14 @@ async def exchange_device_code(
         select(Device).where(Device.public_key == pk, Device.account_id != row.account_id)
     )
     if foreign.scalar_one_or_none() is not None:
-        raise ApiError(ErrorCategory.PERMISSION, "device key belongs to another account")
+        # `reason` survives the wire through the client's forwarded-details
+        # allowlist; the recovery it names is `device reset`, which a generic
+        # PERMISSION_DENIED must not suggest (#359).
+        raise ApiError(
+            ErrorCategory.PERMISSION,
+            "device key belongs to another account",
+            details={"reason": "device_key_foreign"},
+        )
 
     existing = await db.execute(
         select(Device).where(Device.account_id == row.account_id, Device.public_key == pk)

@@ -275,6 +275,20 @@ def test_omitted_hooks_block_like_an_empty_provider() -> None:
     assert result.questions[0].question_id == "provider-too-old"
 
 
+def test_an_unbound_provider_is_not_told_to_upgrade() -> None:
+    """`provider-too-old` used to say "upgrade it" with no provider bound.
+
+    Nothing is configured or remembered in the isolated test home, so the
+    blocker is the missing binding, not a version — and the prompt has to say
+    so, because the remedies are different commands.
+    """
+    result = drain({"harness_id": "claude-code"})
+    prompt = result.questions[0].prompt
+    assert "No provider is bound" in prompt
+    assert "provider.paths.claude-code" in prompt
+    assert "Upgrade" not in prompt
+
+
 def test_task_engine_initialize_writes_custom_codex_home_via_hooks(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -457,6 +471,8 @@ def test_discovered_provider_is_not_a_bind(tmp_path: Path, monkeypatch: pytest.M
     result = drain({"harness_id": "claude-code"})
     assert result.outcome is None
     assert result.questions[0].question_id == "provider-too-old"
+    # Discovered-but-unbound must not be told to upgrade a provider it never had.
+    assert "No provider is bound" in result.questions[0].prompt
 
 
 def test_remembered_provider_without_patch_stays_too_old(
@@ -475,6 +491,9 @@ def test_remembered_provider_without_patch_stays_too_old(
     result = drain({"harness_id": "claude-code"})
     assert result.outcome is None
     assert result.questions[0].question_id == "provider-too-old"
+    prompt = result.questions[0].prompt
+    assert PATCH_OPERATION.value in prompt
+    assert "Upgrade" in prompt
 
 
 def test_remembered_provider_without_instruction_section_stays_too_old(
@@ -493,6 +512,10 @@ def test_remembered_provider_without_instruction_section_stays_too_old(
     result = drain({"harness_id": "claude-code"})
     assert result.outcome is None
     assert result.questions[0].question_id == "provider-too-old"
+    # A third case: the operation is there, the request field is not.
+    prompt = result.questions[0].prompt
+    assert "instruction_section" in prompt
+    assert "Upgrade" in prompt
 
 
 def test_bound_provider_declaring_both_invokes_the_region_patch(
