@@ -1,6 +1,6 @@
 ---
 description: "SPEC-015: Canonical data, identifiers, and hashes."
-last_verified: "2026-08-03"
+last_verified: "2026-09-20"
 ---
 
 # SPEC-015: Canonical data, identifiers, and hashes

@@ -361,7 +361,7 @@
   "$id": "urn:ai-stp:schema:v1:corporate-assignment-plan",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": true,
-  "description": "The deterministic install/update plan for one context (ADR-0196).\n\nItems are sorted by object kind and stable identity; the response carries\nno wall-clock field so identical policy and materialized inputs produce an\nidentical plan.",
+  "description": "The deterministic install/update plan for one context (ADR-0197).\n\nItems are sorted by object kind and stable identity; the response carries\nno wall-clock field so identical policy and materialized inputs produce an\nidentical plan.",
   "properties": {
     "account_id": {
       "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",

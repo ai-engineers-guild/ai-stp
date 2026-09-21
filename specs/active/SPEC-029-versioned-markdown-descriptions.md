@@ -1,6 +1,6 @@
 ---
 description: "SPEC-029: Immutable safe Markdown descriptions for versions."
-last_verified: "2026-08-09"
+last_verified: "2026-09-20"
 ---
 
 # SPEC-029: Immutable safe Markdown descriptions for versions
@@ -47,9 +47,14 @@ HTML, remote images, and attachment uploads are excluded.
 - `REQ-2907`: The excerpt is extracted from text and code tokens, collapses
   whitespace, is limited to 240 Unicode code points, and ends truncated text
   with `…`.
-- `REQ-2908`: API, CLI, and web use one versioned positive/malicious corpus; any
-  difference in accepted/rejected results, HTML, or excerpt is a contract
-  failure.
+- `REQ-2908`: The strict profile has one versioned positive/malicious corpus
+  (`ai_stp_passports.fixtures` `safe-markdown-v1.json`) consumed without copies
+  by the Python owner (`ai_stp_passports.markdown`) and the web owner
+  (`apps/web` `lib/markdown/passport.ts`, used for passport descriptions on
+  catalog pages). Any difference in accepted/rejected results, HTML, or excerpt
+  is a contract failure. Operator-authored documents and SEO sections use the
+  separate documents profile (`ai_stp_contracts.safe_markdown`), which permits
+  tables and heading anchors — outside this corpus (SPEC-031 `REQ-3106`).
 - `REQ-2909`: Changing the description of a published version does not rewrite
   the passport and creates a new `X.Y` version under the general registry rules.
 - `REQ-2910`: An unsupported `description_format` or renderer version is not

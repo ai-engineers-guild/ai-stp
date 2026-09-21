@@ -1,11 +1,15 @@
 # Development frontend image (SPEC-024 REQ-2403, ADR-0044).
 # Bun installs deps; real Node runs Next.js (Bun's node shim lacks async_hooks
 # and makes next dev multi-second even for warm routes).
-# Base tags are pinned; bump only via a separate reviewed change.
+# Same digest as the production web base: a dev image resolving a different
+# build could not reproduce what production runs.
 
-FROM oven/bun:1.4.0-alpine
+FROM oven/bun:1.4.0-alpine@sha256:07235578f79ef8c6f97d94aee7938e76f5cdba5f21ae5dbfdd3d3d38058437eb
 
 # Real Node for the Next.js server process (not Bun's node fallback symlink).
+# Alpine keeps no version history, so an `=` pin breaks the build the day the
+# index rolls; this dev-only image takes the index's nodejs over a dead pin.
+# hadolint ignore=DL3018
 RUN apk add --no-cache nodejs
 
 WORKDIR /app

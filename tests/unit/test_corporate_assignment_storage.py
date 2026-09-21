@@ -69,7 +69,7 @@ def test_distribution_storage_is_derived_and_never_copies_policy() -> None:
     }
     # Derived rows must not duplicate the source assignment's policy fields:
     # the source row stays the single owner of selector, coordinate, and
-    # condition (ADR-0195).
+    # condition (ADR-0196).
     for copied in ("selector", "version", "passport_digest", "harness", "object_kind"):
         assert copied not in table.c
     checks = {

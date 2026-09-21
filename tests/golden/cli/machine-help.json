@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "cli_version": "0.0.0-pinned",
-  "registry_digest": "sha256:db7a4668af98ad80a7b68db7e4abaa2bb844119a87593e52d1313485afb8514d",
+  "registry_digest": "sha256:cdf908f9cb320afadb91c0c56dfa53ab43b6eb2bef5924c38666de604410c6bd",
   "global_options": [
     {
       "name": "json",
@@ -3891,6 +3891,15 @@
           "repeatable": false,
           "summary": "Return only the commands under this path, e.g. 'project sync'. Omitted, the whole registry. The answer always names the build it describes, so a scoped read stays comparable to a full one.",
           "choices": []
+        },
+        {
+          "name": "find",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Keep only commands whose path or summary mentions this text, within the --path scope when both are given.",
+          "choices": []
         }
       ],
       "parameter_rules": [],
@@ -4157,6 +4166,15 @@
           "required": false,
           "repeatable": false,
           "summary": "Provider-declared execution posture, separate from setup identity.",
+          "choices": []
+        },
+        {
+          "name": "allow-permission",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": true,
+          "summary": "A permission this target grants the composition, spelled family:value as the component passport declares it, such as process:git or filesystem:.herdr/**. Repeatable. Without a grant the target permits nothing and the plan refuses.",
           "choices": []
         },
         {
@@ -4543,6 +4561,15 @@
           "required": false,
           "repeatable": false,
           "summary": "Use a previously verified release.",
+          "choices": []
+        },
+        {
+          "name": "allow-permission",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": true,
+          "summary": "A permission each child target grants the composition, spelled family:value. Repeatable; forwarded to every child plan.",
           "choices": []
         }
       ],
@@ -7351,6 +7378,56 @@
     },
     {
       "path": [
+        "schema",
+        "list"
+      ],
+      "summary": "List every exported schema id this build resolves.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "find",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Keep only schema names containing this text.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-schema-index",
+      "next_actions": [
+        "schema show --id cli-task-intents --json"
+      ]
+    },
+    {
+      "path": [
+        "schema",
+        "show"
+      ],
+      "summary": "Resolve one schema id, URN or generated file name to its JSON Schema.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Schema name, urn:ai-stp:schema:v1:… URN, or *.schema.json file name.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-schema-document",
+      "next_actions": [
+        "schema list --json"
+      ]
+    },
+    {
+      "path": [
         "select",
         "blast-radius"
       ],
@@ -9715,7 +9792,7 @@
           "value_type": "string",
           "required": false,
           "repeatable": false,
-          "summary": "JSON object file, or - for stdin.",
+          "summary": "JSON or YAML object file, or - for stdin.",
           "choices": []
         }
       ],
@@ -9811,6 +9888,21 @@
     {
       "path": [
         "task",
+        "list"
+      ],
+      "summary": "List durable tasks that have not settled, most recent first.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-task-list",
+      "next_actions": [
+        "help --path task --json"
+      ]
+    },
+    {
+      "path": [
+        "task",
         "start"
       ],
       "summary": "Create a durable agent task for one closed intent.",
@@ -9850,7 +9942,7 @@
           "value_type": "string",
           "required": false,
           "repeatable": false,
-          "summary": "JSON object file, or - for stdin.",
+          "summary": "JSON or YAML object file, or - for stdin.",
           "choices": []
         }
       ],

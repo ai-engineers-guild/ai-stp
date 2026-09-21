@@ -7,7 +7,7 @@ last_verified: "2026-09-18"
 
 Status: accepted. Extended by ADR-0193 for canonical corporate routing, bounded card
 projections, technology-category filtering, and organization usage; extended by
-ADR-0194 for effective assignment selection.
+ADR-0195 for effective assignment selection.
 
 ## Decision
 

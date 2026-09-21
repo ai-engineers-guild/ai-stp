@@ -28,7 +28,11 @@ not type `ai-stp`. Do not start `account`.
 
 1. Run `ai-stp task intents --json` and pick one shipped intent. If the
    executable is missing, follow [bootstrap](references/bootstrap.md).
-2. Call `ai-stp task start` for that intent.
+2. Call `ai-stp task start` for that intent. The descriptor's `input_fields`
+   names every field `--input` accepts; `--input` is a JSON or YAML object
+   file or `-` for stdin. `schema show` resolves the full JSON Schema behind
+   an `input_schema` id when a field's shape is unclear, and a validation
+   refusal's `details.errors` names each rejected field with its issue.
    `envelope.continuations[0].actor` is a JSON field, not the user's identity.
    When that field is `cli`, execute `argv` with your tools. When it is
    `human`, do not execute that `argv` as printed (the value is missing on
@@ -41,6 +45,8 @@ not type `ai-stp`. Do not start `account`.
    Start already advanced the task. Do not insert
    `task continue` when `actor` is `human` or when there are no continuations.
    Do not invent `task status`, `task info`, or `task get`.
+   A lost task reference is recovered through `task list`: it returns only
+   tasks that have not settled, each with the id and revision a resume needs.
    Wait for each `ai-stp` JSON envelope on stdout. Foreground the CLI; do not background it. A backgrounded invocation is a failed turn.
 3. Stop when there are no continuations. If `error.details.state` is
    `failed`, the task is settled; do not type `task get`. Report payload

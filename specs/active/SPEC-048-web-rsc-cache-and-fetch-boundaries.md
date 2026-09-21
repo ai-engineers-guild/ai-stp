@@ -1,6 +1,6 @@
 ---
 description: "SPEC-048: Fast RSC catalog, explicit public/private fetch boundaries, and controlled prefetch."
-last_verified: "2026-08-15"
+last_verified: "2026-09-20"
 ---
 
 # SPEC-048: Web RSC cache and fetch boundaries

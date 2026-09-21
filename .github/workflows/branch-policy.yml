@@ -24,8 +24,8 @@ jobs:
         run: |
           set -euo pipefail
           if [ "${EVENT}" = pull_request ] && [ "${BASE}" = main ]; then
-            test "${HEAD}" = dev && test "${SOURCE_REPOSITORY}" = "${REPOSITORY}" || {
+            if [ "${HEAD}" != dev ] || [ "${SOURCE_REPOSITORY}" != "${REPOSITORY}" ]; then
               echo 'main requires same-repository dev; administrators may bypass.' >&2
               exit 1
-            }
+            fi
           fi

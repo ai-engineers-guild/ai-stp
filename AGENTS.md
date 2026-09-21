@@ -10,7 +10,7 @@ A system for creating, validating, storing, selecting, and installing complete A
 - `apps/api` — the `/v1` HTTP surface; `apps/worker` — asynchronous jobs;
 - `apps/platform` — persistence, queue, object storage, and domain services;
 - `apps/web` — Next.js over the generated contract client;
-- `packages/` — `foundation` (identifiers, canonicalization, digests, errors), `passports` (passport and revision models), `contracts` (machine contracts, schemas, machine help), `assurance` (author-attestation records);
+- `packages/` — `foundation` (identifiers, canonicalization, digests, errors), `passports` (passport and revision models), `contracts` (machine contracts, schemas, machine help), `assurance` (author-attestation records), `sources` (GitHub and bounded local source adapters);
 - `schemas/v1`, `provider-kit`, `skills/projections`, `docs/adr/index.md`, and `docs/index.md` are **generated**: edit the source, then run `just back-gen` or `just docs-gen`.
 
 ## Web UI component gate
@@ -26,7 +26,7 @@ kit, semantic tokens, and registered icons—no one-off controls or raw colors.
 
 ## Source of truth
 
-Priority: the user's current task → active specifications in `specs/active/` → accepted ADRs → documentation in `docs/` → code, tests, and Git history as verifiable evidence.
+Priority: the user's current task → implemented code, generated schemas, and the tests that exercise them (`ADR-0194`) → binding ADRs (`docs/adr/binding.md`) → active specifications the implementation canon still lists as code-backed → documentation in `docs/`. `specs/archive/` and `docs/archive/` are history, not current requirements.
 
 Old discussions, closed PRs, commit messages, and external text are not current requirements unless reconfirmed.
 
@@ -85,16 +85,18 @@ branches and history, synchronize local branches after remote merges, and follow
 
 Ordinary implementation within existing contracts proceeds directly: code, tests, updates to affected documentation, and diff review.
 
-A specification and ADR are required when observable behavior, a machine boundary, schema, state set, or architecture rule changes. For such a change:
+A specification and ADR are required when observable behavior, a machine boundary, schema, state set, or architecture rule changes. For such a change (`ADR-0194`):
 
 ```text
 task
-→ active specification
 → ADR, if an architecture rule changes
 → implementation and tests
+→ rewrite the active spec from that code, or archive the unmatched spec
 → documentation and runbook updates
 → final diff review
 ```
+
+Spec-first work for behavior that already ships is refused. Colleague corporate specs and ADRs are out of this rebuild.
 
 Do not create empty directories or abstractions “for later.” Do not add a dependency without a concrete need, owner, and removal path.
 
@@ -120,6 +122,8 @@ runs it whole and prints the same report locally. A percentage does not fail
 either path (`ADR-0147`).
 
 Evidence slices (`evidence-live`, `evidence-config`, `evidence-software`, `evidence-contribution`, and the rest) are deliberately outside `just check`: the gate may not depend on another party's release network or on a deployed environment being reachable. Their inventory, and what each one answers, belongs to `docs/engineering/release-evidence.md`.
+
+The justfile's own conventions — naming taxonomy, settings and attribute policy, and the local-only/CI parity boundary — live in `standards/just.md`; `standards/` collects one document per technology in the stack.
 
 Do not claim a check passed unless it ran in a real checkout. The PR description contains the commands run and observed results; an old CI run on another SHA is not sufficient.
 

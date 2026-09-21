@@ -1,4 +1,10 @@
-"""CLI publication transport preserves exact plans, auth and recovery."""
+"""CLI publication transport: wire, retry and local confirmation seams.
+
+The create/bind/confirm journeys live in `tests/api/cli/test_publication.py`
+against the real `/v1` app; what remains here is what a mock legitimately
+owns — dropped-answer retries, refusal mapping, contract-version rejection,
+command declarations and the local explicit-decision gate.
+"""
 
 import json
 import sqlite3
@@ -11,7 +17,6 @@ from ai_stp_cli.cloud import publication, session
 from ai_stp_cli.cloud.client import Endpoint
 from ai_stp_cli.errors import CliFailure
 from ai_stp_contracts.publication import (
-    PublicationConfirmRequest,
     PublicationPlanCreateRequest,
     PublicationPlanResponse,
 )
@@ -44,118 +49,6 @@ def _response(state: str = "ready") -> dict[str, object]:
         "evidence": [],
         "effects": ["validate exact digest"],
     }
-
-
-def test_plan_status_and_confirm_use_the_authenticated_contract_paths() -> None:
-    seen: list[tuple[str, str, str | None, dict[str, object] | None]] = []
-
-    def route(request: httpx.Request) -> httpx.Response:
-        body = None if not request.content else json.loads(request.content)
-        seen.append((request.method, request.url.path, request.headers.get("Authorization"), body))
-        state = "validating" if request.url.path.endswith("/confirm") else "ready"
-        return httpx.Response(201 if request.method == "POST" else 200, json=_response(state))
-
-    endpoint = Endpoint(BASE, transport=httpx.MockTransport(route))
-    create = PublicationPlanCreateRequest(
-        object_kind="component",
-        stable_id=STABLE,
-        version="1.0",
-        content_digest=DIGEST,
-        artifact_inventory=[],
-        passport={"schema_version": 1},
-        attestations=[],
-        idempotency_key="create-key-012345",
-        device_id=DEVICE,
-    )
-    planned = publication.create(endpoint, "secret-token", create)
-    shown = publication.status(endpoint, "secret-token", planned.plan_id)
-    confirmed = publication.confirm(
-        endpoint,
-        "secret-token",
-        planned.plan_id,
-        PublicationConfirmRequest(
-            plan_hash=planned.plan_hash,
-            confirmed=True,
-            idempotency_key="confirm-key-012345",
-        ),
-    )
-
-    assert shown.plan_hash == planned.plan_hash
-    assert confirmed.state == "validating"
-    assert [item[:2] for item in seen] == [
-        ("POST", "/v1/publications/plans"),
-        ("GET", f"/v1/publications/plans/{PLAN}"),
-        ("POST", f"/v1/publications/plans/{PLAN}/confirm"),
-    ]
-    assert all(item[2] == "Bearer secret-token" for item in seen)
-    assert seen[0][3] is not None and seen[0][3]["content_digest"] == DIGEST
-    assert seen[2][3] is not None and seen[2][3]["plan_hash"] == PLAN_HASH
-
-
-def test_bind_puts_exact_artifact_bytes_on_the_plan() -> None:
-    seen: list[tuple[str, str, str | None, bytes]] = []
-    payload = b"exact-first-party-bytes"
-
-    def route(request: httpx.Request) -> httpx.Response:
-        seen.append(
-            (
-                request.method,
-                request.url.path,
-                request.headers.get("Authorization"),
-                request.content,
-            )
-        )
-        assert request.headers.get("Content-Type") == "application/octet-stream"
-        return httpx.Response(200, json=_response("ready"))
-
-    bound = publication.bind(
-        Endpoint(BASE, transport=httpx.MockTransport(route)),
-        "secret-token",
-        PLAN,
-        payload,
-        pause=lambda _seconds: None,
-    )
-
-    assert bound.plan_id == PLAN
-    assert seen == [
-        ("PUT", f"/v1/publications/plans/{PLAN}/artifact", "Bearer secret-token", payload)
-    ]
-
-
-def test_bind_projection_puts_exact_artifact_bytes_on_declared_digest() -> None:
-    seen: list[tuple[str, str, str | None, bytes]] = []
-    payload = b"exact-projection-bytes"
-    projection_digest = "sha256:" + "a" * 64
-
-    def route(request: httpx.Request) -> httpx.Response:
-        seen.append(
-            (
-                request.method,
-                request.url.path,
-                request.headers.get("Authorization"),
-                request.content,
-            )
-        )
-        return httpx.Response(200, json=_response("ready"))
-
-    bound = publication.bind_projection(
-        Endpoint(BASE, transport=httpx.MockTransport(route)),
-        "secret-token",
-        PLAN,
-        projection_digest,
-        payload,
-        pause=lambda _seconds: None,
-    )
-
-    assert bound.plan_id == PLAN
-    assert seen == [
-        (
-            "PUT",
-            f"/v1/publications/plans/{PLAN}/artifacts/{projection_digest}",
-            "Bearer secret-token",
-            payload,
-        )
-    ]
 
 
 def test_bind_retries_the_same_bytes_when_the_first_answer_is_lost() -> None:

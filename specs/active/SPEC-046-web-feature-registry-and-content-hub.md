@@ -1,6 +1,6 @@
 ---
 description: "SPEC-046: Typed web deploy profiles and a disableable content hub."
-last_verified: "2026-08-29"
+last_verified: "2026-09-20"
 ---
 
 # SPEC-046: Web feature registry and content hub

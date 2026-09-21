@@ -15,6 +15,7 @@ records what the catalogue said instead of adding a check.
 from __future__ import annotations
 
 import sqlite3
+from contextlib import closing
 from pathlib import Path
 
 from ai_stp_cli.local import acquired_trust, database, search
@@ -25,23 +26,23 @@ def _registry(tmp_path: Path) -> sqlite3.Connection:
 
 
 def test_a_recorded_verdict_survives_a_round_trip(tmp_path: Path) -> None:
-    connection = _registry(tmp_path)
-    connection.execute(
-        "INSERT INTO entity (stable_id, kind, created_at) VALUES (?, 'component', ?)",
-        ("component_01TESTACQUIRED0000000000", "2026-08-29T00:00:00.000Z"),
-    )
-    acquired_trust.record(
-        connection,
-        stable_id="component_01TESTACQUIRED0000000000",
-        version="1.0",
-        passport_digest="sha256:" + "a" * 64,
-        verdict=acquired_trust.Verdict(
-            trust_lane="experimental", author_verified=False, component_verified=True
-        ),
-        at="2026-08-29T00:00:00.000Z",
-    )
+    with closing(_registry(tmp_path)) as connection:
+        connection.execute(
+            "INSERT INTO entity (stable_id, kind, created_at) VALUES (?, 'component', ?)",
+            ("component_01TESTACQUIRED0000000000", "2026-08-29T00:00:00.000Z"),
+        )
+        acquired_trust.record(
+            connection,
+            stable_id="component_01TESTACQUIRED0000000000",
+            version="1.0",
+            passport_digest="sha256:" + "a" * 64,
+            verdict=acquired_trust.Verdict(
+                trust_lane="experimental", author_verified=False, component_verified=True
+            ),
+            at="2026-08-29T00:00:00.000Z",
+        )
 
-    held = acquired_trust.verdicts(connection)
+        held = acquired_trust.verdicts(connection)
     assert held[("component_01TESTACQUIRED0000000000", "1.0")] == acquired_trust.Verdict(
         trust_lane="experimental", author_verified=False, component_verified=True
     )
@@ -49,23 +50,23 @@ def test_a_recorded_verdict_survives_a_round_trip(tmp_path: Path) -> None:
 
 def test_recording_the_same_exact_version_twice_is_a_replay(tmp_path: Path) -> None:
     """A published `X.Y` is immutable, so it cannot carry two verdicts."""
-    connection = _registry(tmp_path)
-    connection.execute(
-        "INSERT INTO entity (stable_id, kind, created_at) VALUES (?, 'component', ?)",
-        ("component_01TESTACQUIRED0000000000", "2026-08-29T00:00:00.000Z"),
-    )
-    for lane in ("experimental", "authoritative"):
-        acquired_trust.record(
-            connection,
-            stable_id="component_01TESTACQUIRED0000000000",
-            version="1.0",
-            passport_digest="sha256:" + "a" * 64,
-            verdict=acquired_trust.Verdict(
-                trust_lane=lane, author_verified=False, component_verified=False
-            ),
-            at="2026-08-29T00:00:00.000Z",
+    with closing(_registry(tmp_path)) as connection:
+        connection.execute(
+            "INSERT INTO entity (stable_id, kind, created_at) VALUES (?, 'component', ?)",
+            ("component_01TESTACQUIRED0000000000", "2026-08-29T00:00:00.000Z"),
         )
-    held = acquired_trust.verdicts(connection)
+        for lane in ("experimental", "authoritative"):
+            acquired_trust.record(
+                connection,
+                stable_id="component_01TESTACQUIRED0000000000",
+                version="1.0",
+                passport_digest="sha256:" + "a" * 64,
+                verdict=acquired_trust.Verdict(
+                    trust_lane=lane, author_verified=False, component_verified=False
+                ),
+                at="2026-08-29T00:00:00.000Z",
+            )
+        held = acquired_trust.verdicts(connection)
     assert len(held) == 1
     assert held[("component_01TESTACQUIRED0000000000", "1.0")].trust_lane == "experimental"
 

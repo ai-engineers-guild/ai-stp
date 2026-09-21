@@ -3977,7 +3977,7 @@
       },
       "CorporateAssignmentPlan": {
         "additionalProperties": true,
-        "description": "The deterministic install/update plan for one context (ADR-0196).\n\nItems are sorted by object kind and stable identity; the response carries\nno wall-clock field so identical policy and materialized inputs produce an\nidentical plan.",
+        "description": "The deterministic install/update plan for one context (ADR-0197).\n\nItems are sorted by object kind and stable identity; the response carries\nno wall-clock field so identical policy and materialized inputs produce an\nidentical plan.",
         "properties": {
           "account_id": {
             "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
@@ -4270,7 +4270,7 @@
       },
       "CorporateAssignmentPlanRequest": {
         "additionalProperties": false,
-        "description": "Evaluate the deterministic install/update plan for one context (ADR-0196).\n\nThe request names the authenticated employee context, the optional project\nand technology coordinates, the target harness, and the exact coordinates\nthe caller reports as materialized. It never mutates assignments,\ndistribution rows, or provider-owned state.",
+        "description": "Evaluate the deterministic install/update plan for one context (ADR-0197).\n\nThe request names the authenticated employee context, the optional project\nand technology coordinates, the target harness, and the exact coordinates\nthe caller reports as materialized. It never mutates assignments,\ndistribution rows, or provider-owned state.",
         "properties": {
           "account_id": {
             "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",

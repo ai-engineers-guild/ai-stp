@@ -979,7 +979,7 @@ class CorporateCatalogAssignment(Base):
 
 
 class CorporateAssignmentDistribution(Base):
-    """Derived per-target result of one bulk assign/revoke operation (ADR-0195).
+    """Derived per-target result of one bulk assign/revoke operation (ADR-0196).
 
     Keyed by source assignment, target, and the source assignment's operation
     revision at distribution time. The row records the outcome and a safe

@@ -1,6 +1,6 @@
 ---
 description: "Current ai_stp status and the ordered plan for remaining work."
-last_verified: "2026-09-08"
+last_verified: "2026-09-20"
 ---
 
 # Current status and plan
@@ -15,7 +15,30 @@ scopes, and native MCP/agent/hook/plugin transforms landed in `#145` / `#147` /
 The `#146`/`#155` platform closeout is implemented in this tree; GitHub issue
 state remains a separate maintainer action. Merged PRs are not the OBT release.
 
-## Active full-beta execution — September 8
+## Current checkpoint — 2026-09-20
+
+Tracked line: GitHub `main` promotes to `deploy/prod`; the host timer pulls
+that ref. Production identity is `GET https://ai-stp.aiguild.space/v1/system/version`
+(`git_commit`). User docs are `https://docs.nddev.asia`. API package version
+and CLI version are independent; do not treat `0.0.16` on the API as a CLI
+drift.
+
+On `main` now, and not in the September 8 snapshot below:
+
+- Agent-first CLI: eight drained intents ([#297](https://github.com/ai-engineers-guild/ai-stp/pull/297)); `ai-stp-cli` `0.0.23` on PyPI ([#302](https://github.com/ai-engineers-guild/ai-stp/pull/302) / [#303](https://github.com/ai-engineers-guild/ai-stp/pull/303))
+- `branch-policy.yml` SC2015 ([#304](https://github.com/ai-engineers-guild/ai-stp/pull/304))
+- `standards/just.md` and `standards/docker.md` ([#306](https://github.com/ai-engineers-guild/ai-stp/pull/306)–[#308](https://github.com/ai-engineers-guild/ai-stp/pull/308)); `infra-*` is outside `just check`
+- Deploy secret preflight, least-privilege compose env, docs origin probe ([#309](https://github.com/ai-engineers-guild/ai-stp/pull/309) / [#311](https://github.com/ai-engineers-guild/ai-stp/pull/311))
+- Host `.env.prod` must name `AI_STP_STORAGE_ARTIFACT_BUCKET` and `AI_STP_STORAGE_ASSET_BUCKET` (they may equal the existing `AI_STP_STORAGE_BUCKET` during upgrade)
+- Consumer kit in this tree is `0.2.13`. Public `NDDev-OpenNetwork/*-setup-system` tags are `0.0.73` and vendor that kit
+- Observed live 2026-09-20: `GET /v1/system/version` `git_commit` matched `origin/main` and `origin/deploy/prod` (`34dde4bb`); API package `0.0.16`; `/v1/health/ready` 200; `https://docs.nddev.asia` 200
+
+Still open on this owner's line: Agent UX epic [#261](https://github.com/ai-engineers-guild/ai-stp/issues/261)–#275 (Haiku qualify, native win/mac), setup-systems #316. Corporate / `feat/milestone-6-b2b-03` is a colleague scope — do not close those issues from this plan.
+
+The September 8 table below is a historical snapshot. Its CLI `0.0.21` and
+production SHA are not current.
+
+## Active full-beta execution — September 8 (historical)
 
 The user selected seven harnesses on three required platforms: Linux x86_64,
 Windows x86_64 and macOS arm64. Linux arm64, Windows arm64 and macOS x86_64

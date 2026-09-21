@@ -1,6 +1,6 @@
 ---
 description: "CLI machine help as the source of available commands and schemas."
-last_verified: "2026-09-18"
+last_verified: "2026-09-20"
 ---
 
 # Machine help
@@ -40,6 +40,23 @@ each error code, it provides the exit class, a brief meaning, and initial Agent
 `handling`. The response is considerably larger. An unknown `--path` lists
 `task intents` instead of dumping that registry. An unscoped dump still carries
 a `task intents` continuation so the everyday catalog is the next argv.
+`help --find <text>` keeps only the commands whose path or summary mentions the
+text — inside the `--path` scope when both are given — so a caller that does not
+know the family name reaches the same descriptors without the full dump.
+
+`schema list` and `schema show --id <name|urn|file>` answer **what shape a
+payload or task input has**: every `result_schema` and `input_schema` URN the
+CLI emits resolves through them at runtime to the same JSON Schema the
+`schemas/v1` gate publishes. `schema list --find <text>` keeps only the names
+containing the text; a `schema show` miss names the closest ids in
+`details.candidates`. A bare `schema` or an invented `schema` verb steers to
+`schema list`. A `task intents` descriptor also carries
+`input_fields`, the flat name/required/choices list derived from the same
+validation model, so choosing an intent and shaping `--input` take one call.
+`--input` itself accepts a JSON or YAML object with duplicate keys refused; a
+validation refusal names the rejected fields and carries `details.errors` —
+`{pointer, issue, detail}` entries in the RFC 9457 `errors[]` shape, never the
+rejected values — and continues to the matching `schema show` argv.
 
 Both responses are assembled from the same registry in `apps/cli`, so they cannot disagree about which commands exist.
 
@@ -57,16 +74,21 @@ The machine-help shape is declared with the wire models rather than inside the a
 The command list belongs to the registry and grows with implemented tasks. It is not duplicated here: a copy in this document would diverge from the implementation on the first change, while the Skill reads the implementation.
 
 Durable agent journeys start at `task intents --json`, then `task start`,
-`task answer`, `task continue`, `task status`, and `task cancel`. The five
-lifecycle verbs keep result schema `cli-task`. Compact discovery is
+`task answer`, `task continue`, `task status`, `task cancel`, and `task
+list`. The five lifecycle verbs keep result schema `cli-task`; `task list`
+reads `cli-task-list` and answers the unsettled durable tasks — id, revision,
+intent, state, binding context and open question ids — most recently touched
+first, so a caller that lost its reference resumes instead of starting a
+second task on a bound target. Compact discovery is
 `cli-task-intents`. `help --agent` remains the full registry. Shipped intents
 are `inspect`, `initialize`, `install`, `change`, `author`, `switch`,
 `account`, and `publish`. Inspect stores doctor plus slim
 orientation (no `command_paths`). Unshipped intent names are refused. There is no
 stored current-task pointer. `task answer --json` or `task continue --json`
 without `--task` emits that unique blocked human question's answer argv when
-exactly one unsettled task exists; the same verbs with `--task` and without
-`--revision` emit that named task's answer argv. Otherwise they list
+exactly one unsettled task exists, and the `task list` argv when several are
+open; the same verbs with `--task` and without
+`--revision` emit that named task's answer argv. With none unsettled they list
 `task intents`. The continuation still names `--task` and `--revision`.
 `task start --json` without `--intent`, and `task start --intent` with a
 name that is not shipped, list `task intents` and do not echo Click's

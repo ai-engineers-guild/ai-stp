@@ -37,8 +37,40 @@
           "default": null,
           "title": "Held"
         },
+        "label": {
+          "default": "",
+          "title": "Label",
+          "type": "string"
+        },
+        "modified": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Modified"
+        },
         "operation_id": {
           "title": "Operation Id",
+          "type": "string"
+        },
+        "origin_name": {
+          "default": "",
+          "title": "Origin Name",
+          "type": "string"
+        },
+        "origin_setup_id": {
+          "default": "",
+          "title": "Origin Setup Id",
+          "type": "string"
+        },
+        "origin_version": {
+          "default": "",
+          "title": "Origin Version",
           "type": "string"
         },
         "project_id": {

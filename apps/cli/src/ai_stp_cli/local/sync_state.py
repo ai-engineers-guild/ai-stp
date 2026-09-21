@@ -8,9 +8,17 @@ from typing import cast
 
 from ai_stp_cli.cloud import login
 from ai_stp_cli.errors import CliFailure
-from ai_stp_cli.local import lifecycle, revisions, sync_versions
+from ai_stp_cli.local import consent, lifecycle, revisions, sync_versions
 from ai_stp_cli.local.database import transaction
-from ai_stp_contracts.sync import SyncEvent, SyncEventReceipt, SyncPullResponse, SyncStreamEvent
+from ai_stp_contracts.identity import DeviceSummary
+from ai_stp_contracts.sync import (
+    ConsentTombstonePayload,
+    ConsentUpsertPayload,
+    SyncEvent,
+    SyncEventReceipt,
+    SyncPullResponse,
+    SyncStreamEvent,
+)
 from ai_stp_contracts.sync_payload import SyncPayloadRejection, check_sync_payload
 from ai_stp_contracts.sync_versions import VersionBindingError, validate_payload
 from ai_stp_foundation.canonical import JsonValue, canonize
@@ -41,6 +49,11 @@ _KIND = {
     "component": "component_private",
     "setup": "setup_private",
 }
+
+#: Entity kinds whose payload is a local passport revision. The contract's two
+#: remaining kinds are not passports: `device_summary` is a foreign device's
+#: permitted projection and `unverified_consent` is a consent record.
+_PASSPORT_ENTITY_KINDS = frozenset(_KIND.values())
 
 
 def _validate_payload(value: object) -> None:
@@ -386,6 +399,103 @@ def prepare_tombstone(
     return Pending(request, "pending")
 
 
+def prepare_event(
+    connection: sqlite3.Connection,
+    *,
+    account_id: str,
+    device_id: str,
+    entity_id: str,
+    entity_kind: str,
+    operation: str,
+    payload: dict[str, object],
+    created_at: str,
+    local_revision_id: str | None = None,
+) -> Pending:
+    """Retain one exact event for an entity with no local revision graph.
+
+    `device_summary` and `unverified_consent` are a projection and a record,
+    not passport revisions: the remote parent is the entity's remote head and
+    equal content replays to the stored event. The durable row still lands
+    before any network call (REQ-3902), and a tombstone without an accepted
+    remote head is refused for the same reason `prepare_tombstone` refuses.
+    """
+    _validate_payload(payload)
+    head = connection.execute(
+        "SELECT remote_revision_id FROM sync_remote_head WHERE account_id = ? AND entity_id = ?",
+        (account_id, entity_id),
+    ).fetchone()
+    remote_head = None if head is None else str(head[0])
+    if operation == "tombstone" and remote_head is None:
+        raise CliFailure(
+            "AI_STP_PRECONDITION_FAILED",
+            "the entity must be accepted remotely before its tombstone can be pushed",
+        )
+    sealed: dict[str, JsonValue] = {
+        "schema_version": 1,
+        "entity_id": entity_id,
+        "entity_kind": entity_kind,
+        "parent_revision_ids": cast(list[JsonValue], [] if remote_head is None else [remote_head]),
+        "operation": operation,
+        "payload": cast(JsonValue, payload),
+        "device_id": device_id,
+        "actor_id": account_id,
+        "created_at": created_at,
+    }
+    sync_key = revision_id(sealed)
+    known = connection.execute(
+        "SELECT request_json, state FROM sync_event WHERE account_id = ? AND sync_key = ? "
+        "AND direction = 'push'",
+        (account_id, sync_key),
+    ).fetchone()
+    if known is not None:
+        return Pending(SyncEvent.model_validate_json(str(known[0])), str(known[1]))
+    accepted = connection.execute(
+        "SELECT request_json FROM sync_event WHERE account_id = ? AND entity_id = ? "
+        "AND direction = 'push' AND state = 'accepted' ORDER BY rowid DESC",
+        (account_id, entity_id),
+    ).fetchall()
+    for row in accepted:
+        request = SyncEvent.model_validate_json(str(row[0]))
+        if request.operation == operation and canonize(
+            cast(JsonValue, request.payload)
+        ) == canonize(cast(JsonValue, payload)):
+            return Pending(request, "accepted")
+    request = SyncEvent(
+        event_id=f"event_{uuid.uuid4().hex}",
+        entity_id=entity_id,
+        entity_kind=entity_kind,  # pyright: ignore[reportArgumentType]
+        revision_id=revision_id(sealed),
+        parent_revision_ids=[] if remote_head is None else [remote_head],
+        device_id=device_id,
+        actor_id=account_id,
+        operation=operation,  # pyright: ignore[reportArgumentType]
+        content_digest=digest_canonical("ai-stp:revision:v1", cast(JsonValue, payload)),
+        created_at=created_at,
+        idempotency_key=login.new_idempotency_key(),
+        expected_head_revision_id=remote_head,
+        payload=payload,
+    )
+    rendered = canonize(cast(JsonValue, request.model_dump(mode="json"))).decode("utf-8")
+    with transaction(connection):
+        connection.execute(
+            "INSERT INTO sync_event "
+            "(account_id, event_id, sync_key, local_revision_id, remote_revision_id, entity_id, "
+            "direction, request_json, state, receipt_json, created_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, 'push', ?, 'pending', NULL, ?)",
+            (
+                account_id,
+                request.event_id,
+                sync_key,
+                local_revision_id,
+                request.revision_id,
+                entity_id,
+                rendered,
+                created_at,
+            ),
+        )
+    return Pending(request, "pending")
+
+
 def record_receipt(
     connection: sqlite3.Connection, *, account_id: str, receipt: SyncEventReceipt
 ) -> None:
@@ -459,6 +569,61 @@ def cursor(connection: sqlite3.Connection, account_id: str) -> str | None:
     return None if row is None or row[0] is None else str(row[0])
 
 
+def _check_device_summary(payload: object) -> None:
+    """Validate a foreign device's permitted summary; it is never stored locally.
+
+    REQ-911 keeps one device passport per installation and forbids a shared
+    environment view, so the summary only advances the stream — but a payload
+    that is not the closed summary document still refuses the page, as a
+    malformed contract event is not something to acknowledge.
+    """
+    try:
+        DeviceSummary.model_validate(payload)
+    except ValueError as error:
+        raise CliFailure(
+            "AI_STP_VALIDATION_ERROR",
+            "a pulled device summary is not the closed summary document",
+        ) from error
+
+
+def _apply_consent(connection: sqlite3.Connection, event: SyncStreamEvent) -> None:
+    """Apply the account's consent record the event carries.
+
+    `unverified-consent.md` makes consent records ordinary synchronized
+    entities: a grant made on one device covers this one, and a revocation
+    withdraws it here. The payload models are the same contract the server
+    enforces at intake, so a record the contract does not define cannot be
+    smuggled in by sync — and `consent.grant` enforces the scope set again.
+    """
+    try:
+        if event.operation == "tombstone":
+            record = ConsentTombstonePayload.model_validate(event.payload)
+            consent.revoke(
+                connection,
+                scope=record.scope,
+                target=record.target,
+                at=record.revoked_at or event.created_at,
+            )
+            return
+        record = ConsentUpsertPayload.model_validate(event.payload)
+    except ValueError as error:
+        raise CliFailure(
+            "AI_STP_VALIDATION_ERROR",
+            "a pulled consent record is not the declared record shape",
+        ) from error
+    consent.grant(
+        connection,
+        consent_id=event.entity_id,
+        scope=record.scope,
+        target=record.target,
+        fingerprint=record.fingerprint,
+        observed=tuple(record.observed),
+        decided_by=record.decided_by,
+        origin=record.origin,
+        at=record.created_at,
+    )
+
+
 def _apply_event(
     connection: sqlite3.Connection,
     *,
@@ -511,7 +676,16 @@ def _apply_event(
         _advance_remote_head(connection, account_id, event.entity_id, event.revision_id, ancestry)
         return "replayed"
     local_revision_id: str | None = None
-    if event.operation == "upsert":
+    if event.entity_kind not in _PASSPORT_ENTITY_KINDS:
+        # The contract's non-passport kinds: a foreign device's summary is
+        # validated and acknowledged in the stream but never stored (REQ-911 —
+        # one device passport per installation, no shared environment), and a
+        # consent record applies to the account's consent table on this device.
+        if event.entity_kind == "unverified_consent":
+            _apply_consent(connection, event)
+        elif event.operation == "upsert":
+            _check_device_summary(event.payload)
+    elif event.operation == "upsert":
         payload = dict(event.payload)
         raw_versions_value = payload.pop("sync_released_versions", [])
         if not isinstance(raw_versions_value, list):

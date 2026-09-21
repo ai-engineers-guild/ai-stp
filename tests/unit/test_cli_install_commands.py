@@ -212,6 +212,7 @@ def _confirmed(
     component_type: str = "skill",
     scope: str = "global",
     required_env: tuple[str, ...] = (),
+    source: tuple[str, str, str] | None = None,
 ) -> str:
     """One confirmed composition, which is the only thing installable."""
     passports.init_developer(registry, device_id=DEVICE)
@@ -328,6 +329,34 @@ def _confirmed(
             },
         },
     }
+    if source is not None:
+        # Publication requires provenance: these facts materialize as
+        # passport.source (repository/commit/path) plus the artifact size.
+        cast(dict[str, JsonValue], document["facts"]).update(
+            {
+                "source_repository": {
+                    "value": source[0],
+                    "origin": "declared",
+                    "confirmation": "user_confirmed",
+                },
+                "source_revision": {
+                    "value": source[1],
+                    "origin": "declared",
+                    "confirmation": "user_confirmed",
+                },
+                "source_subpath": {
+                    "value": source[2],
+                    "origin": "declared",
+                    "confirmation": "user_confirmed",
+                },
+                "byte_length": {
+                    "value": artifact.byte_length,
+                    "origin": "observed",
+                    "confirmation": "none",
+                    "observed_at": MOMENT,
+                },
+            }
+        )
     revisions.commit(registry, document, device_id=DEVICE)
     passport, revision_id = component_passports.materialize_version_passport(
         registry, stable_id, "1.0", device_id=DEVICE, at=MOMENT
@@ -2223,7 +2252,7 @@ def test_plan_refuses_an_unpinned_release_before_the_provider_is_spawned(
         )
 
     assert raised.value.code == "AI_STP_PRECONDITION_FAILED"
-    assert "release_not_pinned" in raised.value.details["refusals"]
+    assert "release_not_pinned" in str(raised.value.details["refusals"])
 
 
 def test_resume_refuses_a_release_unpinned_after_the_plan_before_provider_spawn(
@@ -2270,7 +2299,7 @@ def test_resume_refuses_a_release_unpinned_after_the_plan_before_provider_spawn(
         install.resume({"operation": planned.operation_id, "provider": executable})
 
     assert raised.value.code == "AI_STP_PRECONDITION_FAILED"
-    assert "release_not_pinned" in raised.value.details["refusals"]
+    assert "release_not_pinned" in str(raised.value.details["refusals"])
 
 
 def test_resume_refuses_a_release_revoked_after_the_plan_before_provider_spawn(

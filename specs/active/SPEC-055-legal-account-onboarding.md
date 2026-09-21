@@ -1,6 +1,6 @@
 ---
 description: "SPEC-055: Versioned legal policies and required account onboarding."
-last_verified: "2026-08-31"
+last_verified: "2026-09-20"
 ---
 
 # SPEC-055: Legal account onboarding

@@ -44,6 +44,7 @@ from ai_stp_foundation.digests import DIGEST_PATTERN
 from ai_stp_foundation.errors import ErrorHandling, ExitClass
 from ai_stp_foundation.harnesses import HarnessId
 from ai_stp_foundation.ids import stable_id_pattern
+from ai_stp_foundation.versioning import VERSION_PATTERN
 from ai_stp_passports.versions import ComponentType
 
 #: State effects are independent of task authority and the confirmation binding
@@ -218,6 +219,42 @@ class Capabilities(BaseModel):
     catalog_enabled: bool
     sync_enabled: bool
     command_paths: Annotated[list[str], Field(min_length=1)]
+
+
+class CliSchemaEntry(BaseModel):
+    """One exported schema id this build resolves."""
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+
+    name: Annotated[str, Field(min_length=1)]
+    urn: Annotated[str, Field(min_length=1)]
+
+
+class CliSchemaIndex(BaseModel):
+    """Every exported schema id this build resolves.
+
+    `input_schema` and `result_schema` URNs inside machine payloads name
+    entries in this index; `schema show` resolves one id to its document, so
+    every URN the CLI emits is answerable through the CLI itself.
+    """
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+
+    schema_version: Literal[1] = 1
+    cli_version: Annotated[str, Field(min_length=1)]
+    schemas: list[CliSchemaEntry]
+
+
+class CliSchemaDocument(BaseModel):
+    """One exported schema resolved to its JSON Schema document."""
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+
+    schema_version: Literal[1] = 1
+    cli_version: Annotated[str, Field(min_length=1)]
+    name: Annotated[str, Field(min_length=1)]
+    urn: Annotated[str, Field(min_length=1)]
+    document: dict[str, JsonValue]
 
 
 class SyncPreview(BaseModel):
@@ -400,8 +437,8 @@ class TaskInstallInput(BaseModel):
     schema_version: Literal[1] = 1
     harness_id: HarnessId | None = None
     project_root: str | None = None
-    setup_id: str | None = None
-    setup_version: str | None = None
+    setup_id: Annotated[str, Field(pattern=stable_id_pattern("setup"))] | None = None
+    setup_version: Annotated[str, Field(pattern=VERSION_PATTERN)] | None = None
     #: Explicit `family:value` grants the caller gives the install target, in
     #: the spelling component passports use. Without a grant the target permits
     #: nothing and the plan refuses an escalating composition.
@@ -416,10 +453,10 @@ class TaskChangeInput(BaseModel):
     schema_version: Literal[1] = 1
     harness_id: HarnessId | None = None
     project_root: str | None = None
-    setup_id: str | None = None
-    setup_version: str | None = None
-    component_id: str | None = None
-    component_version: str | None = None
+    setup_id: Annotated[str, Field(pattern=stable_id_pattern("setup"))] | None = None
+    setup_version: Annotated[str, Field(pattern=VERSION_PATTERN)] | None = None
+    component_id: Annotated[str, Field(pattern=stable_id_pattern("component"))] | None = None
+    component_version: Annotated[str, Field(pattern=VERSION_PATTERN)] | None = None
     action: Literal["add", "remove"] | None = None
 
 
@@ -444,7 +481,7 @@ class TaskSwitchInput(BaseModel):
     schema_version: Literal[1] = 1
     harness_id: HarnessId | None = None
     project_root: str | None = None
-    preserved_setup_id: str | None = None
+    preserved_setup_id: Annotated[str, Field(pattern=stable_id_pattern("setup"))] | None = None
     reload_session: str | None = None
 
 
@@ -467,10 +504,28 @@ class TaskPublishInput(BaseModel):
 
     schema_version: Literal[1] = 1
     object_id: str | None = None
-    object_version: str | None = None
+    object_version: Annotated[str, Field(pattern=VERSION_PATTERN)] | None = None
     visibility: Literal["public", "private"] | None = None
     directory: str | None = None
     provider: Literal["google", "github"] | None = None
+
+
+class TaskInputField(BaseModel):
+    """One field of one intent's `--input` document, flattened for callers.
+
+    `input_schema` names the authoritative JSON Schema, resolvable through
+    `schema show`; this flat list exists so choosing an intent takes one call,
+    not two. It is derived from the same model, so the two cannot disagree.
+    """
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+
+    name: Annotated[str, Field(pattern=r"^[a-z][a-z0-9_]*$")]
+    required: bool
+    value_type: ParameterType
+    #: Closed value set when the field is an enum, e.g. `action` on account.
+    #: Empty means the value is free-form.
+    choices: list[str] = []
 
 
 class TaskIntentDescriptor(BaseModel):
@@ -481,6 +536,7 @@ class TaskIntentDescriptor(BaseModel):
     name: Annotated[str, Field(pattern=r"^[a-z][a-z0-9_]*$")]
     when: Annotated[str, Field(min_length=1)]
     input_schema: Annotated[str, Field(min_length=1)]
+    input_fields: list[TaskInputField]
 
 
 class TaskIntentsCatalog(BaseModel):
@@ -641,6 +697,41 @@ class TaskView(BaseModel):
     questions: list[TaskQuestion]
     outcome: TaskOutcome | None
     child_operation_ids: list[str]
+
+
+class TaskListEntry(BaseModel):
+    """One unsettled durable task — enough to choose it and resume.
+
+    A caller that lost its task reference (process restart, compaction) lists
+    these instead of starting a second task on a target another open task
+    already owns. `task list` never returns settled rows; history is a status
+    read, not a resume choice.
+    """
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+
+    task_id: TaskId
+    revision: Annotated[int, Field(ge=1)]
+    intent: TaskIntent
+    state: Literal["planned", "blocked", "running"]
+    #: The binding context the task claims — two open mutating tasks cannot
+    #: share all three, so these fields are how a caller tells them apart.
+    harness_id: str = ""
+    project_root: str = ""
+    scope: str = ""
+    #: Ids of questions still open; empty means the task waits on CLI or
+    #: external progress, not on an answer.
+    open_question_ids: list[str]
+    updated_at: Timestamp
+
+
+class TaskListView(BaseModel):
+    """The unsettled durable tasks, most recently touched first."""
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+
+    schema_version: Literal[1] = 1
+    tasks: list[TaskListEntry]
 
 
 class VersionReport(BaseModel):
@@ -1880,6 +1971,11 @@ class ConsentRecord(BaseModel):
 
     schema_version: Literal[1] = 1
     consent_id: Annotated[str, Field(min_length=1)]
+
+    #: The `unverified_consent` sync entity this record answers to — derived
+    #: from scope and target, so it is identical on every device of the
+    #: account. `sync push --id` takes it.
+    sync_entity_id: Annotated[str, Field(min_length=1)]
 
     #: Three forms and no fourth. "Everything unverified, forever" does not
     #: exist: `task` names the authorized full-auto profile, not a wildcard.
@@ -3444,6 +3540,19 @@ class PreservedSetupView(BaseModel):
     verification: Literal["recorded_verified", "verified", "unavailable"] = "recorded_verified"
     target_state: Literal["not_observed", "matches", "differs", "unavailable"] = "not_observed"
     held: bool | None = None
+    #: A legible name derived at read time: the applied setup's name and
+    #: version, `local <date>` when no verified install preceded the capture.
+    label: str = ""
+    #: The verified setup version that stood on the target when the snapshot
+    #: was taken. Empty when the captured state was never installed by a
+    #: recorded operation — a hand-built configuration.
+    origin_setup_id: str = ""
+    origin_version: str = ""
+    origin_name: str = ""
+    #: True when the captured bytes differ from the origin version's recorded
+    #: target digest — the user modified what was installed. None when no
+    #: reference digest was recorded to compare against.
+    modified: bool | None = None
 
 
 class EnvironmentRequirement(BaseModel):

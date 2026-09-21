@@ -3,9 +3,9 @@ description: "Idempotent, observable bulk distribution of corporate assignments.
 last_verified: "2026-09-19"
 ---
 
-# ADR-0195: Bulk corporate distribution
+# ADR-0196: Bulk corporate distribution
 
-Status: accepted. Extends ADR-0194; extended by ADR-0196, ADR-0197.
+Status: accepted. Extends ADR-0195; extended by ADR-0197, ADR-0198.
 
 ## Context
 

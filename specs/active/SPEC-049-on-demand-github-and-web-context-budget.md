@@ -1,6 +1,6 @@
 ---
 description: "SPEC-049: On-demand GitHub metadata, CLI-only blast radius, and an honest context budget in Web."
-last_verified: "2026-08-16"
+last_verified: "2026-09-20"
 ---
 
 # SPEC-049: On-demand GitHub metadata and Web context budget

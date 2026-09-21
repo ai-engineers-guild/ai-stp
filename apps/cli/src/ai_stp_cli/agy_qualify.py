@@ -13,6 +13,7 @@ import subprocess
 import sys
 import time
 from collections.abc import Mapping, Sequence
+from contextlib import closing
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Final, cast
@@ -482,7 +483,7 @@ def task_snapshots(home: Path) -> tuple[dict[str, object], ...]:
     place = registry_path(home)
     if not place.is_file():
         return ()
-    with sqlite3.connect(place) as connection:
+    with closing(sqlite3.connect(place)) as connection:
         names = {str(row[1]) for row in connection.execute("PRAGMA table_info(agent_task)")}
         if "intent" not in names:
             return ()

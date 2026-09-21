@@ -97,6 +97,13 @@ Includes installation and initial setup, strict JSON, feature and schema help, p
   request includes preserving or reusing existing components. Installing a
   ready setup does not require adopting every discovered component. The Skill
   does not scan the home directory by default or ask again for known roots.
+- `REQ-1133`: Removing the installed skill package deletes only the files the
+  ownership record claims. An unclaimed file inside `references/` or elsewhere
+  in the destination survives removal, and the claimed `references/` directory
+  is removed only once empty. A claim entry is treated as a package path only
+  when it is relative, carries no `..` segment, no drive or anchor and no `\`
+  separator, so a manipulated record can neither delete nor read a file
+  outside the package.
 
 ## States and errors
 
@@ -146,3 +153,4 @@ Machine JSON, help and skill projection have versions. Unknown optional fields a
 | `REQ-1130` | A scoped read returns one family and fewer commands than the full registry while carrying the same fingerprint, options and error codes; an unknown path is refused as not found. |
 | `REQ-1131` | Envelope unit and compatibility tests accept an old document without `continuations`; a live pointer never contains `...`; a continuation with `missing` and empty `argv` renders as scoped help; explicit `argv` is kept when `missing` is non-empty; `continuation_command` is quoted display. |
 | `REQ-1132` | Compensated and recovery-required multi-root apply/recover and single-root apply/resume raise registered failures with `operation_id`; a handler `Answer` without continuations emits empty envelope actions; `doctor` stays `ok`. |
+| `REQ-1133` | A file the manifest never claimed, placed inside `references/`, survives `skill remove` and keeps the directory in place; manifest entries `../name`, `a\b` and anchored paths are ignored, and a file outside the package is byte-identical afterwards. |

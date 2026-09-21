@@ -1,0 +1,11 @@
+# hadolint policy for every Dockerfile in this repository.
+#
+# `warning` and above fail `just infra-static`; `info` findings still print but
+# do not fail — DL3066 (named user may not resolve on the host) fires on every
+# `USER appuser` here, and the named user is deliberate: uid 10001 is fixed at
+# useradd, and no host is expected to resolve it.
+#
+# A warning that is deliberate is silenced inline at the instruction with
+# `# hadolint ignore=<RULE> — <reason>`, never globally, so the next
+# Dockerfile inherits no one's exception.
+failure-threshold: warning

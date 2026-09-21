@@ -3,9 +3,9 @@ description: "Deterministic install/update planning over effective corporate ass
 last_verified: "2026-09-20"
 ---
 
-# ADR-0196: Corporate assignment plan
+# ADR-0197: Corporate assignment plan
 
-Status: accepted. Extends ADR-0194 and ADR-0195; extended by ADR-0197.
+Status: accepted. Extends ADR-0195 and ADR-0196; extended by ADR-0198.
 
 ## Context
 
@@ -23,7 +23,7 @@ catalog line carrying an assignment applicable to the named context -
 organization, the member's active teams, the optional project and technology,
 and the employee - plus every exact coordinate the caller reports as
 materialized. Evaluation reuses the effective-assignment precedence of
-ADR-0194, including harness conditions, explicit employee exceptions, and
+ADR-0195, including harness conditions, explicit employee exceptions, and
 `latest` resolution against the employee's eligible published versions.
 
 Per line the plan reports the effective state (`assigned`, `revoked`,

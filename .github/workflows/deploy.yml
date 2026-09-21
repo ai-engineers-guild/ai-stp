@@ -195,6 +195,7 @@ jobs:
       - name: Prove the target deployed the promoted commit
         env:
           ORIGIN: ${{ vars.AI_STP_PUBLIC_ORIGIN }}
+          DOCS_ORIGIN: ${{ vars.AI_STP_DOCS_ORIGIN }}
           HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
           # Which commit contains which is asked of GitHub, because this
           # checkout is shallow and pinned to `HEAD_SHA`: the commit that
@@ -203,8 +204,10 @@ jobs:
         run: |
           set -euo pipefail
           test -n "${ORIGIN}"
+          test -n "${DOCS_ORIGIN}"
           python3 deploy/verify_public.py \
             --origin "${ORIGIN}" \
+            --docs-origin "${DOCS_ORIGIN}" \
             --expected-commit "${HEAD_SHA}" \
             --repository "${GITHUB_REPOSITORY}" \
             --migrations-dir migrations/versions \

@@ -1,6 +1,6 @@
 ---
 description: "Rules for branches, commits, pull requests, and cross-repository changes."
-last_verified: "2026-09-12"
+last_verified: "2026-09-20"
 ---
 
 # Git workflow

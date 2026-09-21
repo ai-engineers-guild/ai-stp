@@ -3,9 +3,9 @@ description: "Deterministic effective corporate catalog assignments and exact in
 last_verified: "2026-09-19"
 ---
 
-# ADR-0194: Effective corporate catalog assignments
+# ADR-0195: Effective corporate catalog assignments
 
-Status: accepted. Supersedes ADR-0185; extends ADR-0191; extended by ADR-0195, ADR-0196, ADR-0197
+Status: accepted. Supersedes ADR-0185; extends ADR-0191; extended by ADR-0196, ADR-0197, ADR-0198
 for bulk corporate distribution.
 
 ## Context

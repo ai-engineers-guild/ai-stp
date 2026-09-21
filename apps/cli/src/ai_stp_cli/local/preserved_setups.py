@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from typing import cast
 
 from ai_stp_cli.errors import CliFailure
-from ai_stp_cli.local import installation
+from ai_stp_cli.local import installation, revisions, versions
 from ai_stp_cli.local.database import transaction
 from ai_stp_cli.provider.status import BackupObservation
 from ai_stp_foundation.canonical import JsonValue
@@ -70,6 +70,58 @@ def latest_for(connection: sqlite3.Connection, target_id: str) -> PreservedSetup
     """The most recent user working config for one target. Never an upstream default."""
     held = all_saved(connection, target_id)
     return held[-1] if held else None
+
+
+@dataclass(frozen=True)
+class Origin:
+    """The verified setup version this snapshot's target held when it was captured.
+
+    `modified` is None when the preserving operation recorded no reference
+    digest to compare the snapshot against.
+    """
+
+    stable_id: str
+    version: str
+    name: str
+    modified: bool | None
+
+
+def origin(connection: sqlite3.Connection, saved: PreservedSetup) -> Origin | None:
+    """Derive which recorded setup the captured native state was, if any.
+
+    The fact is read rather than stored: `operation_plan` already names the
+    verified setup version that stood on the target when the preserving
+    operation started, and the snapshot digest either equals that plan's
+    reference digest — the bytes are that setup, untouched — or does not,
+    which is the local modification marker.
+    """
+    prior = connection.execute(
+        "SELECT p.setup_stable_id, p.setup_version, "
+        "       COALESCE(p.verified_target_digest, p.expected_target_digest) "
+        "FROM operation_plan AS p "
+        "JOIN operation AS o ON o.operation_id = p.operation_id "
+        "WHERE p.target_id = ? AND o.state = ? AND p.setup_stable_id <> '' "
+        "  AND o.started_at < (SELECT started_at FROM operation WHERE operation_id = ?) "
+        "ORDER BY o.started_at DESC, p.operation_id DESC LIMIT 1",
+        (saved.target_id, installation.STATE_VERIFIED, saved.operation_id),
+    ).fetchone()
+    if prior is None:
+        return None
+    stable_id, version = str(prior[0]), str(prior[1])
+    name = ""
+    recorded = versions.held(connection, stable_id, version)
+    if recorded is not None:
+        revision = revisions.get(connection, recorded.revision_id)
+        extra = None if revision is None else revision.envelope.model_extra
+        if extra:
+            name = str(extra.get("name") or "")
+    reference = prior[2]
+    modified = (
+        None
+        if not isinstance(reference, str) or not reference
+        else saved.snapshot_digest != reference
+    )
+    return Origin(stable_id=stable_id, version=version, name=name, modified=modified)
 
 
 def register(

@@ -348,7 +348,7 @@ class CorporatePlanMaterializedItem(BaseModel):
 
 
 class CorporateAssignmentPlanRequest(BaseModel):
-    """Evaluate the deterministic install/update plan for one context (ADR-0196).
+    """Evaluate the deterministic install/update plan for one context (ADR-0197).
 
     The request names the authenticated employee context, the optional project
     and technology coordinates, the target harness, and the exact coordinates
@@ -395,7 +395,7 @@ class CorporateAssignmentPlanItem(BaseModel):
 
 
 class CorporateAssignmentPlan(BaseModel):
-    """The deterministic install/update plan for one context (ADR-0196).
+    """The deterministic install/update plan for one context (ADR-0197).
 
     Items are sorted by object kind and stable identity; the response carries
     no wall-clock field so identical policy and materialized inputs produce an

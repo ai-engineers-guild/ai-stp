@@ -56,6 +56,19 @@ def test_the_flag_may_be_written_before_the_command(capsys: pytest.CaptureFixtur
     assert _envelope(out)["ok"] is True
 
 
+@pytest.mark.parametrize("argv", [["schema", "--json"], ["schema", "bogus", "--json"]])
+def test_a_schema_group_miss_lists_the_schema_verbs(
+    argv: list[str], capsys: pytest.CaptureFixture[str]
+) -> None:
+    code, out, err = _run(argv, capsys)
+    assert code == 2
+    assert err == ""
+    envelope = _envelope(out)
+    assert envelope["ok"] is False
+    assert envelope["error"]["message"] == "the schema verbs are list and show"  # pyright: ignore[reportIndexIssue]
+    assert envelope["continuations"][0]["argv"] == ["schema", "list", "--json"]  # pyright: ignore[reportIndexIssue]
+
+
 @pytest.mark.parametrize(
     ("argv", "message"),
     [
@@ -267,7 +280,7 @@ def test_task_lifecycle_without_task_resumes_the_unique_blocked_question(
 
 
 @pytest.mark.parametrize("verb", ["answer", "continue"])
-def test_task_lifecycle_without_task_lists_intents_when_two_are_open(
+def test_task_lifecycle_without_task_lists_open_tasks_when_two_are_open(
     verb: str, capsys: pytest.CaptureFixture[str]
 ) -> None:
     from ai_stp_cli.commands import task as task_command
@@ -279,10 +292,10 @@ def test_task_lifecycle_without_task_lists_intents_when_two_are_open(
     assert err == ""
     envelope = _envelope(out)
     assert envelope["ok"] is False
-    assert envelope["next_actions"] == ["task intents --json"]
+    assert envelope["next_actions"] == ["task list --json"]
     first = envelope["continuations"][0]
     assert isinstance(first, dict)
-    assert first["argv"] == ["task", "intents", "--json"]
+    assert first["argv"] == ["task", "list", "--json"]
     assert "needs the open question" not in out
 
 
@@ -338,7 +351,7 @@ def test_an_invented_task_verb_lists_intents_not_help_agent(
     envelope = _envelope(out)
     assert envelope["ok"] is False
     assert envelope["error"]["code"] == "AI_STP_VALIDATION_ERROR"  # pyright: ignore[reportIndexIssue]
-    assert "start, answer, continue, status, and cancel" in envelope["error"]["message"]  # pyright: ignore[reportIndexIssue, reportOperatorIssue]
+    assert "start, answer, continue, status, cancel, and list" in envelope["error"]["message"]  # pyright: ignore[reportIndexIssue, reportOperatorIssue]
     assert envelope["next_actions"] == ["task intents --json"]
     held = envelope["continuations"]
     assert isinstance(held, list) and held
@@ -1292,7 +1305,14 @@ def test_a_refused_parameter_is_a_validation_error_not_an_internal_one() -> None
         raise AssertionError("the model accepted an empty value")
 
     assert failure.code == "AI_STP_VALIDATION_ERROR"
-    assert failure.details == {"fields": "q"}
+    assert failure.details["fields"] == "q"
+    assert failure.details["errors"] == [
+        {
+            "pointer": "#/q",
+            "issue": "string_too_short",
+            "detail": "String should have at least 1 character",
+        }
+    ]
     assert failure.next_actions == []
 
 
@@ -1312,7 +1332,14 @@ def test_a_refused_value_never_reaches_the_message_or_details() -> None:
 
     assert secret not in failure.message
     assert secret not in str(failure.details)
-    assert failure.details == {"fields": "token"}
+    assert failure.details["fields"] == "token"
+    assert failure.details["errors"] == [
+        {
+            "pointer": "#/token",
+            "issue": "string_too_long",
+            "detail": "String should have at most 4 characters",
+        }
+    ]
 
 
 def test_output_survives_a_stream_that_defaults_to_a_legacy_code_page(

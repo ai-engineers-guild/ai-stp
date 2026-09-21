@@ -15,8 +15,16 @@ ENV PYTHONUNBUFFERED=1 \
 # proved it with; a contract test holds the two together.
 COPY --from=ghcr.io/astral-sh/uv:0.12.1@sha256:cf4eedcaa81655197f625739489effcbe71b61ceb1506f332c3facae5deceded /uv /bin/uv
 WORKDIR /app
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends git
+# Same apt discipline as the api stage in `Dockerfile`: a dated snapshot plus an
+# exact version is the only form of apt install that is reproducible from the
+# commit. `git` exists here for the dev target's volume-mounted rebuilds.
+RUN sed -i \
+      -e 's|http://deb.debian.org/debian-security|https://snapshot.debian.org/archive/debian-security/20260822T000000Z|g' \
+      -e 's|http://deb.debian.org/debian|https://snapshot.debian.org/archive/debian/20260822T000000Z|g' \
+      /etc/apt/sources.list.d/debian.sources \
+    && apt-get -o Acquire::Check-Valid-Until=false update \
+    && apt-get install -y --no-install-recommends git=1:2.47.3-0+deb13u1 \
+    && rm -rf /var/lib/apt/lists/*
 
 COPY pyproject.toml uv.lock ./
 COPY packages ./packages

@@ -1,6 +1,6 @@
 ---
 description: "SPEC-050: Safe catalog enrichment with observable metadata from external catalogs."
-last_verified: "2026-08-16"
+last_verified: "2026-09-20"
 ---
 
 # SPEC-050: External Catalog Enrichment

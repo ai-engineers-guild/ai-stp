@@ -18,6 +18,7 @@ Nothing in this module can express otherwise, which is the point of it not
 returning a trust lane.
 """
 
+import hashlib
 import json
 import sqlite3
 from dataclasses import dataclass
@@ -196,6 +197,24 @@ def active(connection: sqlite3.Connection) -> tuple[Record, ...]:
         "SELECT * FROM consent WHERE revoked_at IS NULL ORDER BY created_at, consent_id"
     ).fetchall()
     return tuple(_decode(row) for row in rows)
+
+
+def all_records(connection: sqlite3.Connection) -> tuple[Record, ...]:
+    """Every record, withdrawn ones included — sync resolves entities from it."""
+    rows = connection.execute("SELECT * FROM consent ORDER BY created_at, consent_id").fetchall()
+    return tuple(_decode(row) for row in rows)
+
+
+def entity_id(scope: str, target: str) -> str:
+    """The consent record's sync entity: identical on every device of one account.
+
+    The wire identity of a consent is a property of the account and its target,
+    not of the installation that recorded it first, so it is derived rather
+    than minted. `unverified-consent.md` makes records ordinary synchronized
+    entities, and the server accepts `consent_`-prefixed entity ids.
+    """
+    digest = hashlib.sha256(f"{scope}\x00{target}".encode()).hexdigest()[:32]
+    return f"consent_{digest}"
 
 
 def covers(record: Record, candidate: dict[str, JsonValue], *, major: int | None = None) -> Verdict:

@@ -119,6 +119,7 @@ export default async function ComponentDetailPage({ params, searchParams }: Page
     token,
   );
   const passport = latest?.passport;
+  const documentDescription = detail.presentation_bio ?? seo?.profile.summary;
   const sourceLinks = sourceLinksFor(passport?.source, passport?.facts).map((item) => ({
     ...item,
     label: item.provider === "Source" ? t("viewSource") : `${t("viewSourceOn")} ${item.provider}`,
@@ -264,12 +265,8 @@ export default async function ComponentDetailPage({ params, searchParams }: Page
       <ObjectDetailFrame
         description={
           <MarkdownDescription
-            source={
-              detail.presentation_bio ??
-              seo?.profile.summary ??
-              passport?.description ??
-              summary.latest_description
-            }
+            variant={documentDescription != null ? "document" : "passport"}
+            source={documentDescription ?? passport?.description ?? summary.latest_description}
             heading={t("description")}
           />
         }

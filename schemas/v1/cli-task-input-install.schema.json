@@ -65,6 +65,7 @@
     "setup_id": {
       "anyOf": [
         {
+          "pattern": "^setup_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
           "type": "string"
         },
         {
@@ -77,6 +78,7 @@
     "setup_version": {
       "anyOf": [
         {
+          "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
           "type": "string"
         },
         {

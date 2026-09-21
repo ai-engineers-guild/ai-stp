@@ -1535,7 +1535,7 @@ def test_an_answered_refusal_carries_the_reason_the_provider_gave(tmp_path: Path
             expires_at=expiry,
         )
     assert raised.value.details["reason"] == "unsupported_operation"
-    assert "does not know what it wrote" in raised.value.details["detail"]
+    assert "does not know what it wrote" in str(raised.value.details["detail"])
     # A shape that is not an answer keeps the sentence about shapes.
     with pytest.raises(CliFailure) as broken:
         operation_v3.require_plan(
@@ -1594,7 +1594,7 @@ def test_an_apply_refusal_is_a_decision_with_a_reason_not_an_unknown_state(
             bundle=bound,
         )
     assert raised.value.details["reason"] == "unsupported_operation"
-    assert "no setup" in raised.value.details["detail"]
+    assert "no setup" in str(raised.value.details["detail"])
     assert (
         operation_v3.require_applied(
             {"state": "refused", "reason": "stale"}, plan=plan, bundle=bound

@@ -3,9 +3,9 @@ description: "Read-only verification that a managed target still carries the org
 last_verified: "2026-09-20"
 ---
 
-# ADR-0197: Managed installation verification
+# ADR-0198: Managed installation verification
 
-Status: accepted. Extends ADR-0194, ADR-0195, and ADR-0196.
+Status: accepted. Extends ADR-0195, ADR-0196, and ADR-0197.
 
 ## Context
 
@@ -34,7 +34,7 @@ Each setup and component line carries its exact coordinates and one
 classification: `unchanged`, `locally_modified`, `missing`, `extra`,
 `unverifiable`, or `expected_change`; drifted member paths attribute a line
 to its component. When the assignment layer answers, the same plan contract
-from ADR-0196 evaluates the materialized coordinates, and per-line outcomes
+from ADR-0197 evaluates the materialized coordinates, and per-line outcomes
 join the evidence. One verdict summarizes the check: `fail` for any proven
 local difference, then `revoked`, `unsupported`, `outdated`, or `not_enrolled`
 from policy outcomes, then `unverifiable` whenever evidence is missing or the

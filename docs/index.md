@@ -12,6 +12,7 @@ last_verified: "2026-08-03"
 | [adr/](adr/index.md) | Принятые архитектурные решения и их последствия. | 2026-08-03 |
 | [agent/](agent/index.md) | How the Agent uses the CLI, remaining stops, and machine confirmation. | 2026-08-03 |
 | [architecture/](architecture/index.md) | Product architecture, responsibility boundaries, and key contracts. | 2026-08-03 |
+| [archive/](archive/index.md) | Historical plans, prototypes, and checkpoints retained without semantic edits. | 2026-09-20 |
 | [contracts/](contracts/index.md) | Machine-readable boundaries for the CLI, API, synchronization, passports, and providers. | 2026-08-03 |
 | [documentation/](documentation/index.md) | Rules for maintaining the knowledge base, indexes, and automated checks. | 2026-08-03 |
 | [engineering/](engineering/index.md) | Stack, structure, roadmap, schemas, dependencies, tests, and release gates. | 2026-08-03 |

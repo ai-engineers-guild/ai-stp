@@ -14,7 +14,14 @@ import pytest
 from ai_stp_cli.application import install
 from ai_stp_cli.commands import preserved_setups as commands
 from ai_stp_cli.errors import CliFailure
-from ai_stp_cli.local import installation, passports, preserved_setups, project_passport
+from ai_stp_cli.local import (
+    installation,
+    passports,
+    preserved_setups,
+    project_passport,
+    revisions,
+    versions,
+)
 from ai_stp_cli.local.database import configured_path, open_registry
 from ai_stp_cli.local.passports import moment
 from ai_stp_cli.provider import conformance, invocation
@@ -24,7 +31,9 @@ from ai_stp_foundation.canonical import JsonValue
 from ai_stp_foundation.ids import new_id
 
 
-def _capture(target: Path) -> tuple[installation.Plan, dict[str, JsonValue], BackupObservation]:
+def _capture(
+    target: Path, target_id: str | None = None
+) -> tuple[installation.Plan, dict[str, JsonValue], BackupObservation]:
     captured_at = moment()
     identity = "sha256:" + sha256(b"original").hexdigest()
     with closing(open_registry(configured_path())) as connection:
@@ -32,7 +41,7 @@ def _capture(target: Path) -> tuple[installation.Plan, dict[str, JsonValue], Bac
             connection,
             action="backup",
             author=new_id("account"),
-            target_id=f"{new_id('project')}:claude-code",
+            target_id=target_id or f"{new_id('project')}:claude-code",
             expected_target_digest=identity,
             provider_version="1.0.0",
             effects=("preserve the complete native setup",),
@@ -84,6 +93,86 @@ def test_preserved_identity_survives_reopening_and_retry(tmp_path: Path) -> None
     assert [item.stable_id for item in listed] == [saved.stable_id]
     assert listed[0].verification == "recorded_verified"
     assert listed[0].target_state == "not_observed"
+    assert listed[0].label == f"local {saved.created_at[:10]}"
+    assert listed[0].origin_setup_id == ""
+    assert listed[0].modified is None
+
+
+@pytest.mark.parametrize("modified", [False, True])
+def test_preserved_setup_names_the_verified_setup_it_was_captured_over(
+    tmp_path: Path, modified: bool
+) -> None:
+    target_id = f"{new_id('project')}:claude-code"
+    setup_id = new_id("setup")
+    identity = "sha256:" + sha256(b"original").hexdigest()
+    reference = identity if not modified else "sha256:" + sha256(b"installed").hexdigest()
+    with closing(open_registry(configured_path())) as connection:
+        stored = revisions.commit(
+            connection,
+            {
+                "schema_version": 1,
+                "kind": "setup",
+                "stable_id": setup_id,
+                "owner_id": new_id("account"),
+                "created_at": "2026-01-01T00:00:00.000Z",
+                "visibility": "private",
+                "parent_revision_ids": [],
+                "facts": {},
+                "name": "web development setup",
+            },
+            device_id=new_id("device"),
+        )
+        versions.record(
+            connection,
+            stable_id=setup_id,
+            version="1.4",
+            passport_digest="sha256:" + sha256(b"passport").hexdigest(),
+            revision_id=stored.revision_id,
+            at="2026-01-01T00:00:00.000Z",
+        )
+        prior = installation.propose(
+            connection,
+            action="install",
+            author=new_id("account"),
+            target_id=target_id,
+            expected_target_digest=reference,
+            provider_version="1.0.0",
+            effects=("install the selected setup",),
+            recovery_action="restore the captured setup",
+            idempotency_key=new_id("operation"),
+            at="2026-01-01T00:00:01.000Z",
+            expires_at="2099-01-01T00:00:00.000Z",
+            provider_target=str(tmp_path),
+            setup_stable_id=setup_id,
+            setup_version="1.4",
+        )
+        connection.execute(
+            "UPDATE operation SET state = ? WHERE operation_id = ?",
+            (installation.STATE_VERIFIED, prior.operation_id),
+        )
+        connection.execute(
+            "UPDATE operation_plan SET verified_target_digest = ? WHERE operation_id = ?",
+            (reference, prior.operation_id),
+        )
+    plan, artifact, observed = _capture(tmp_path, target_id)
+    with closing(open_registry(configured_path())) as connection:
+        saved = preserved_setups.register(
+            connection,
+            plan=plan,
+            artifact=artifact,
+            observed=observed,
+            provider_id="claude-code",
+            at=moment(),
+        )
+    listed = commands.list_saved({}).payload.setups
+    assert [item.stable_id for item in listed] == [saved.stable_id]
+    view = listed[0]
+    assert view.origin_setup_id == setup_id
+    assert view.origin_version == "1.4"
+    assert view.origin_name == "web development setup"
+    assert view.modified is modified
+    suffix = f"+{identity.removeprefix('sha256:')[:8]}" if modified else ""
+    assert view.label == f"web development setup 1.4{suffix}"
 
 
 @pytest.mark.parametrize(

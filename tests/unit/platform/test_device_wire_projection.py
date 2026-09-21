@@ -27,23 +27,30 @@ def _device() -> Device:
     )
 
 
-def test_device_record_projects_display_summary_and_normalizes_timestamp(
+def test_device_record_never_fabricates_a_summary(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     device = _device()
-    record = router._device_record(  # pyright: ignore[reportPrivateUsage]
-        device, display_name="workstation"
-    )
+    record = router._device_record(device)  # pyright: ignore[reportPrivateUsage]
 
-    assert record["summary"] == {
+    # A device that has not published a `device_summary` answers `null`, not an
+    # invented operating system or toolchain.
+    assert record["summary"] is None
+
+    published: dict[str, object] = {
         "schema_version": 1,
         "display_name": "workstation",
-        "operating_system": "linux",
-        "architecture": "x86_64",
-        "detected_harnesses": [],
-        "toolchain_profile_version": "unknown",
+        "operating_system": "macos",
+        "architecture": "arm64",
+        "detected_harnesses": [{"harness_id": "claude-code", "version": "2.0.0"}],
+        "toolchain_profile_version": "base-2026.09",
         "summary_updated_at": "2026-08-10T12:00:00.000Z",
     }
+    synced = router._device_record(  # pyright: ignore[reportPrivateUsage]
+        device, summary=published
+    )
+    # The stored document is served as published — not rewritten.
+    assert synced["summary"] == published
     east = timezone(timedelta(hours=3))
     assert (
         router._wire_ts(  # pyright: ignore[reportPrivateUsage]

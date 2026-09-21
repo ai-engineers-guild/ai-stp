@@ -1,6 +1,6 @@
 ---
 description: "SPEC-012: Uninstallation, full cleanup, and recovery."
-last_verified: "2026-08-03"
+last_verified: "2026-09-20"
 ---
 
 # SPEC-012: Uninstallation, full cleanup, and recovery

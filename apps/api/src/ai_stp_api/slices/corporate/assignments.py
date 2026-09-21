@@ -72,7 +72,7 @@ from ai_stp_platform.technology_models import (
 
 UsageSubjectKind = Literal["employee", "team", "project", "technology"]
 
-#: Deterministic effective-assignment precedence (ADR-0194): the lower the
+#: Deterministic effective-assignment precedence (ADR-0195): the lower the
 #: rank, the stronger the scope. An explicit employee decision always outranks
 #: every inherited assignment.
 _SCOPE_RANK: dict[str, int] = {
@@ -719,7 +719,7 @@ async def _evaluate_assignment_line(
 ) -> CorporateEffectiveAssignment:
     """Evaluate the winning assignment for one employee and one catalog line.
 
-    Deterministic order (ADR-0194): employee, project, technology, team,
+    Deterministic order (ADR-0195): employee, project, technology, team,
     organization; inside one scope a harness-specific assignment outranks an
     unrestricted one; an explicit employee decision - current or retired -
     outranks every inherited assignment. `latest` resolves at evaluation time
@@ -852,7 +852,7 @@ async def resolve_effective(
     query: CorporateEffectiveAssignmentQuery,
     request_id: str | None,
 ) -> CorporateEffectiveAssignment:
-    """Authorize the member read and evaluate one catalog line (ADR-0194)."""
+    """Authorize the member read and evaluate one catalog line (ADR-0195)."""
     await service.read_member(
         db,
         ctx=ctx,
@@ -1081,7 +1081,7 @@ async def plan_assignments(
     payload: CorporateAssignmentPlanRequest,
     request_id: str | None,
 ) -> CorporateAssignmentPlan:
-    """Evaluate the deterministic install/update plan for one context (ADR-0196).
+    """Evaluate the deterministic install/update plan for one context (ADR-0197).
 
     Every catalog line carrying an assignment applicable to the context - plus
     every materialized coordinate the caller reports - is evaluated through the
@@ -1193,7 +1193,7 @@ async def plan_assignments(
     )
 
 
-# ADR-0195: per-source-scope write authorization for distribution.
+# ADR-0196: per-source-scope write authorization for distribution.
 _DISTRIBUTE_PERMISSIONS = {
     "employee": ("member.manage", "organization"),
     "team": ("team.update", "team"),
@@ -1431,7 +1431,7 @@ async def distribute_assignment(
     payload: CorporateDistributionRequest,
     request_id: str | None,
 ) -> CorporateDistributionResult:
-    """Preview or apply one bulk assignment distribution (ADR-0195).
+    """Preview or apply one bulk assignment distribution (ADR-0196).
 
     Expansion, exclusion, override, per-target authorization, and result
     classification are identical for dry-run and apply; apply additionally
@@ -1508,7 +1508,7 @@ async def distribute_assignment(
     )
     # Individual overrides: rows at the target's own scope for the same line.
     # A NULL-harness override applies unconditionally; a conditional one only
-    # conflicts when it matches the source condition (ADR-0194/ADR-0195).
+    # conflicts when it matches the source condition (ADR-0195/ADR-0196).
     scope_clauses: list[ColumnElement[bool]] = []
     if members:
         scope_clauses.append(AssignmentRow.account_id.in_(members))

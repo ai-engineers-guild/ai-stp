@@ -32,6 +32,7 @@
     "preserved_setup_id": {
       "anyOf": [
         {
+          "pattern": "^setup_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
           "type": "string"
         },
         {

@@ -7,7 +7,8 @@
 # public DNS or TLS: `verify_public.py` proves those from the deployment runner.
 set -euo pipefail
 
-readonly ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+readonly ROOT
 cd "${ROOT}"
 
 if [[ -f "${ROOT}/.deploy-env" ]]; then
@@ -21,6 +22,7 @@ fi
 # what it can see, and `verify_public.py` proves those from the deployment runner.
 readonly API_BASE="${AI_STP_VERIFY_API_URL:-http://127.0.0.1:58082}"
 readonly WEB_BASE="${AI_STP_VERIFY_WEB_URL:-http://127.0.0.1:58081}"
+readonly DOCS_BASE="${AI_STP_VERIFY_DOCS_URL:-http://127.0.0.1:58083}"
 
 probe() {
   curl -sS --max-time 15 -o /dev/null -w '%{http_code}' "${API_BASE}$1" || echo "000"
@@ -40,6 +42,16 @@ web="$(
 )"
 printf '  %-20s %s\n' "/ (web)" "${web}"
 [[ "${web}" == "200" ]] || failed=1
+
+# The docs site is a published service too: nginx in front routes a whole
+# hostname to it, and a wedged container answers the same silence a missing
+# deployment does. It serves static files, so one request is the whole proof.
+docs="$(
+  curl -sS --max-time 10 --retry 3 --retry-all-errors --retry-delay 2 \
+    --retry-max-time 20 -o /dev/null -w '%{http_code}' "${DOCS_BASE}/" || echo "000"
+)"
+printf '  %-20s %s\n' "/ (docs)" "${docs}"
+[[ "${docs}" == "200" ]] || failed=1
 
 # The worker publishes nothing over HTTP, so the probes above cannot see it —
 # and it is the service that decides whether anything may be published at all.
@@ -110,4 +122,4 @@ if [[ "${failed}" -ne 0 ]]; then
   echo "verify: the deployed stack did not answer as expected" >&2
   exit 1
 fi
-echo "verify: api and worker are current at ${API_BASE}; web is current at ${WEB_BASE}"
+echo "verify: api and worker are current at ${API_BASE}; web is current at ${WEB_BASE}; docs is current at ${DOCS_BASE}"

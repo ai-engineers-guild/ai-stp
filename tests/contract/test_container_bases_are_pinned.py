@@ -35,9 +35,16 @@ _PINNED_COMPOSE = ("docker-compose.prod.yml",)
 
 _IMAGE = re.compile(r"^\s+image:\s+(?P<ref>[^\s@]+)(?P<digest>@sha256:[0-9a-f]{64})?\s*$")
 
+#: `image: ${VAR:-<default>}` — the default behind an overridable reference.
+#: The variable belongs to whoever sets it; the default belongs to this tree.
+_IMAGE_DEFAULT = re.compile(r"^\s+image:\s+\$\{[A-Z0-9_]+:-(?P<default>[^}]+)\}\s*$")
+
 
 def _dockerfiles() -> list[Path]:
-    return sorted(Path().glob("Dockerfile*"))
+    # The web image lives under apps/ because it is the app's build file, not
+    # the platform's — the rule it must answer is the same one, so the glob
+    # reaches it rather than trusting a second copy of the rule to remember.
+    return sorted(Path().glob("Dockerfile*")) + sorted(Path("apps/web").glob("Dockerfile*"))
 
 
 def test_every_container_base_is_pinned_by_digest() -> None:
@@ -63,6 +70,23 @@ def test_production_compose_images_are_pinned_by_digest() -> None:
             if found.group("ref").startswith("${"):
                 continue
             unpinned.append(f"{path}:{number} {found.group('ref')}")
+    assert not unpinned, unpinned
+
+
+def test_compose_image_defaults_are_pinned_by_digest() -> None:
+    """`image: ${VAR:-name:tag}` is only overridable; its default is ours.
+
+    The seo-enrichment overlay keeps its third-party images behind variables so
+    a server can substitute its own. The default inside that expression is the
+    reference a checkout resolves with no environment at all, and it was a tag
+    alone — overridable by accident, moving by design.
+    """
+    unpinned: list[str] = []
+    for path in sorted(Path().glob("docker-compose.*.yml")):
+        for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+            found = _IMAGE_DEFAULT.match(line)
+            if found and "@sha256:" not in found.group("default"):
+                unpinned.append(f"{path}:{number} {found.group('default')}")
     assert not unpinned, unpinned
 
 
