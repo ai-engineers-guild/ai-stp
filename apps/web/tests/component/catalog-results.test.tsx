@@ -38,6 +38,7 @@ vi.mock("@/lib/i18n/navigation", () => ({
       </a>
     );
   },
+  usePathname: () => "/catalog",
 }));
 
 const { CatalogResults } = await import("@/components/organisms/catalog-results");

@@ -122,6 +122,17 @@
           "default": null,
           "title": "Display Name"
         },
+        "harness": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/HarnessId"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
         "object_kind": {
           "enum": [
             "setup",
@@ -135,6 +146,19 @@
           "title": "Organization Id",
           "type": "string"
         },
+        "passport_digest": {
+          "anyOf": [
+            {
+              "pattern": "^sha256:[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Passport Digest"
+        },
         "revision": {
           "minimum": 1,
           "title": "Revision",
@@ -145,6 +169,15 @@
           "default": 1,
           "title": "Schema Version",
           "type": "integer"
+        },
+        "selector": {
+          "default": "exact",
+          "enum": [
+            "exact",
+            "latest"
+          ],
+          "title": "Selector",
+          "type": "string"
         },
         "source_team_id": {
           "anyOf": [
@@ -180,24 +213,36 @@
             "employee",
             "team",
             "project",
-            "technology"
+            "technology",
+            "organization"
           ],
           "title": "Subject Kind",
           "type": "string"
         },
         "version": {
-          "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
-          "title": "Version",
-          "type": "string"
+          "anyOf": [
+            {
+              "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Version"
         }
       },
       "required": [
         "assignment_id",
         "display_name",
+        "harness",
         "object_kind",
         "organization_id",
+        "passport_digest",
         "revision",
         "schema_version",
+        "selector",
         "source_team_id",
         "stable_id",
         "state",
@@ -215,6 +260,15 @@
           "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
           "title": "Account Id",
           "type": "string"
+        },
+        "available_actions": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 128,
+          "title": "Available Actions",
+          "type": "array"
         },
         "display_name": {
           "anyOf": [
@@ -282,6 +336,7 @@
       },
       "required": [
         "account_id",
+        "available_actions",
         "display_name",
         "job_title_id",
         "job_title_name",
@@ -338,6 +393,15 @@
     "CorporateProjectView": {
       "additionalProperties": true,
       "properties": {
+        "available_actions": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 128,
+          "title": "Available Actions",
+          "type": "array"
+        },
         "lifecycle": {
           "anyOf": [
             {
@@ -406,6 +470,7 @@
         }
       },
       "required": [
+        "available_actions",
         "name",
         "organization_id",
         "project_id",
@@ -650,6 +715,18 @@
       ],
       "title": "CorporateTeamView",
       "type": "object"
+    },
+    "HarnessId": {
+      "enum": [
+        "claude-code",
+        "codex",
+        "pi",
+        "opencode",
+        "grok-build",
+        "cursor",
+        "antigravity"
+      ],
+      "type": "string"
     }
   },
   "$id": "urn:ai-stp:schema:v1:corporate-context",

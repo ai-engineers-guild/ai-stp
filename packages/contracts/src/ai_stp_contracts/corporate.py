@@ -7,6 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from pydantic.json_schema import JsonSchemaValue
 
 from ai_stp_contracts.http import IdempotencyKey, Timestamp, open_wire_object, strict_request_object
+from ai_stp_foundation.harnesses import HarnessId
 from ai_stp_foundation.ids import stable_id_pattern
 from ai_stp_foundation.versioning import VERSION_PATTERN
 
@@ -26,6 +27,10 @@ CorporateRole = Annotated[
     ),
 ]
 CorporateState = Literal["active", "suspended"]
+AssignmentSubjectKind = Literal["employee", "team", "project", "technology", "organization"]
+AssignmentSelector = Literal["exact", "latest"]
+AssignmentState = Literal["current", "retired"]
+DigestValue = Annotated[str, Field(pattern=r"^sha256:[0-9a-f]{64}$")]
 JobTitleState = Literal["current", "retired"]
 ProjectState = Literal["active", "archived"]
 ProjectLifecycle = Literal["active", "deprecated", "archived", "deleted"]
@@ -35,16 +40,19 @@ ScopeKind = Literal[
 
 
 class CorporateCatalogAssignmentRequest(BaseModel):
-    """Assign a readable exact catalog version without granting access or installing it."""
+    """Assign a stable catalog line without granting access or installing it."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
     schema_version: Literal[1] = 1
-    subject_kind: Literal["employee", "team", "project", "technology"]
+    subject_kind: AssignmentSubjectKind
     subject_id: Annotated[str, Field(min_length=1, max_length=64)]
     object_kind: Literal["setup", "component"]
     stable_id: Annotated[str, Field(min_length=1, max_length=64)]
-    version: Annotated[str, Field(pattern=VERSION_PATTERN)]
-    state: Literal["current", "retired"] = "current"
+    selector: AssignmentSelector = "exact"
+    version: Annotated[str, Field(pattern=VERSION_PATTERN)] | None = None
+    passport_digest: DigestValue | None = None
+    harness: HarnessId | None = None
+    state: AssignmentState = "current"
     expected_revision: Annotated[int, Field(ge=0)]
     authorization_revision: Annotated[int, Field(ge=1)]
     idempotency_key: IdempotencyKey
@@ -56,12 +64,20 @@ class CorporateCatalogAssignmentRequest(BaseModel):
             "team": "operation",
             "project": "remote_project",
             "technology": "technology",
+            "organization": "organization",
         }[self.subject_kind]
         subject_pattern = stable_id_pattern(subject_prefix)
         if not re.fullmatch(subject_pattern, self.subject_id):
             raise ValueError("subject identity does not match its kind")
         if not re.fullmatch(stable_id_pattern(self.object_kind), self.stable_id):
             raise ValueError("catalog identity does not match its kind")
+        if self.selector == "exact" and self.version is None:
+            raise ValueError("an exact selector requires an immutable version")
+        if self.selector == "latest":
+            if self.version is not None:
+                raise ValueError("a latest selector cannot pin a version")
+            if self.passport_digest is not None:
+                raise ValueError("a latest selector cannot pin a digest")
         if self.state == "retired" and self.expected_revision == 0:
             raise ValueError("retiring an assignment requires its current revision")
         return self
@@ -72,12 +88,15 @@ class CorporateCatalogAssignment(BaseModel):
     schema_version: Literal[1] = 1
     assignment_id: Annotated[str, Field(min_length=1, max_length=64)]
     organization_id: OrganizationId
-    subject_kind: Literal["employee", "team", "project", "technology"]
+    subject_kind: AssignmentSubjectKind
     subject_id: str
     object_kind: Literal["setup", "component"]
     stable_id: str
-    version: Annotated[str, Field(pattern=VERSION_PATTERN)]
-    state: Literal["current", "retired"]
+    selector: AssignmentSelector = "exact"
+    version: Annotated[str, Field(pattern=VERSION_PATTERN)] | None = None
+    passport_digest: DigestValue | None = None
+    harness: HarnessId | None = None
+    state: AssignmentState
     revision: Annotated[int, Field(ge=1)]
     source_team_id: Annotated[str, Field(pattern=stable_id_pattern("operation"))] | None = None
     display_name: str | None = None
@@ -97,7 +116,7 @@ class CorporateTeamCatalogObject(BaseModel):
 
 class CorporateCatalogAssignmentQuery(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
-    subject_kind: Literal["employee", "team", "project", "technology"]
+    subject_kind: AssignmentSubjectKind
     subject_id: Annotated[str, Field(min_length=1, max_length=64)]
     include_retired: bool = False
     offset: Annotated[int, Field(ge=0)] = 0
@@ -115,7 +134,7 @@ class CorporateCatalogUsageQuery(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
     object_kind: Literal["setup", "component"]
     stable_id: Annotated[str, Field(min_length=1, max_length=64)]
-    version: Annotated[str, Field(pattern=VERSION_PATTERN)]
+    version: Annotated[str, Field(pattern=VERSION_PATTERN)] | None = None
     offset: Annotated[int, Field(ge=0)] = 0
     limit: Annotated[int, Field(ge=1, le=256)] = 128
 
@@ -133,7 +152,8 @@ class CorporateCatalogUsage(BaseModel):
     assignment_id: Annotated[str, Field(min_length=1, max_length=64)]
     object_kind: Literal["setup", "component"]
     stable_id: str
-    version: Annotated[str, Field(pattern=VERSION_PATTERN)]
+    selector: AssignmentSelector = "exact"
+    version: Annotated[str, Field(pattern=VERSION_PATTERN)] | None = None
     subject_kind: Literal["employee", "team", "project", "technology"]
     subject_id: str
     subject_name: str
@@ -146,6 +166,251 @@ class CorporateCatalogUsageList(BaseModel):
     schema_version: Literal[1] = 1
     items: list[CorporateCatalogUsage]
     total: Annotated[int, Field(ge=0)]
+
+
+class CorporateEffectiveAssignmentQuery(BaseModel):
+    """Authorized effective-assignment evaluation for one employee and catalog line."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
+    account_id: AccountId
+    object_kind: Literal["setup", "component"]
+    stable_id: Annotated[str, Field(min_length=1, max_length=64)]
+    project_id: ProjectId | None = None
+    technology_id: TechnologyId | None = None
+    harness: HarnessId | None = None
+
+    @model_validator(mode="after")
+    def typed_catalog_identity(self) -> Self:
+        if not re.fullmatch(stable_id_pattern(self.object_kind), self.stable_id):
+            raise ValueError("catalog identity does not match its kind")
+        return self
+
+
+class CorporateEffectiveAssignmentCandidate(BaseModel):
+    """One assignment row considered by the deterministic effective evaluation."""
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+    schema_version: Literal[1] = 1
+    assignment_id: Annotated[str, Field(min_length=1, max_length=64)]
+    scope: AssignmentSubjectKind
+    subject_id: str
+    selector: AssignmentSelector
+    version: Annotated[str, Field(pattern=VERSION_PATTERN)] | None = None
+    harness: HarnessId | None = None
+    state: AssignmentState
+    revision: Annotated[int, Field(ge=1)]
+    outcome: Literal["winner", "overridden", "revoked", "inapplicable"]
+    resolved_version: Annotated[str, Field(pattern=VERSION_PATTERN)] | None = None
+    resolved_digest: DigestValue | None = None
+
+
+class CorporateEffectiveAssignment(BaseModel):
+    """The winning assignment, its source, and the exact resolved coordinate."""
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+    schema_version: Literal[1] = 1
+    organization_id: OrganizationId
+    account_id: AccountId
+    object_kind: Literal["setup", "component"]
+    stable_id: str
+    state: Literal["assigned", "revoked", "unassigned"]
+    assignment_id: Annotated[str, Field(min_length=1, max_length=64)] | None = None
+    source_scope: AssignmentSubjectKind | None = None
+    source_subject_id: str | None = None
+    selector: AssignmentSelector | None = None
+    version: Annotated[str, Field(pattern=VERSION_PATTERN)] | None = None
+    passport_digest: DigestValue | None = None
+    harness: HarnessId | None = None
+    candidates: Annotated[list[CorporateEffectiveAssignmentCandidate], Field(max_length=256)] = []
+
+
+DistributionAction = Literal["assign", "revoke"]
+DistributionTargetKind = Literal["employee", "project"]
+DistributionTargetResult = Literal["applied", "skipped", "conflicted", "denied", "failed"]
+DistributionLifecycle = Literal["pending", "installed", "outdated", "failed", "revoked"]
+
+
+class CorporateDistributionRequest(BaseModel):
+    """Preview or apply one bulk assign/revoke over a source assignment's targets."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
+    schema_version: Literal[1] = 1
+    source_assignment_id: Annotated[str, Field(min_length=1, max_length=64)]
+    action: DistributionAction
+    dry_run: bool = False
+    expected_revision: Annotated[int, Field(ge=1)]
+    authorization_revision: Annotated[int, Field(ge=1)]
+    idempotency_key: IdempotencyKey
+
+
+class CorporateDistributionTargetResult(BaseModel):
+    """One resolved target's durable result and derived distribution state."""
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+    target_kind: DistributionTargetKind
+    target_id: str
+    result: DistributionTargetResult
+    state: DistributionLifecycle | None = None
+    diagnostic: str | None = None
+    overriding_assignment_id: Annotated[str, Field(min_length=1, max_length=64)] | None = None
+
+
+class CorporateDistributionExclusion(BaseModel):
+    """A member or project considered during expansion and excluded with a reason."""
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+    target_kind: DistributionTargetKind
+    target_id: str
+    reason: str
+
+
+class CorporateDistributionCounts(BaseModel):
+    """Per-result totals across the resolved target set."""
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+    applied: Annotated[int, Field(ge=0)] = 0
+    skipped: Annotated[int, Field(ge=0)] = 0
+    conflicted: Annotated[int, Field(ge=0)] = 0
+    denied: Annotated[int, Field(ge=0)] = 0
+    failed: Annotated[int, Field(ge=0)] = 0
+
+
+class CorporateDistributionResult(BaseModel):
+    """Preview or durable outcome of one bulk distribution request."""
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+    schema_version: Literal[1] = 1
+    distribution_id: Annotated[str, Field(min_length=1, max_length=64)] | None = None
+    organization_id: OrganizationId
+    source_assignment_id: str
+    action: DistributionAction
+    dry_run: bool
+    source_revision: Annotated[int, Field(ge=1)]
+    targets: Annotated[list[CorporateDistributionTargetResult], Field(max_length=1024)] = []
+    exclusions: Annotated[list[CorporateDistributionExclusion], Field(max_length=1024)] = []
+    counts: CorporateDistributionCounts = CorporateDistributionCounts()
+
+
+class CorporateDistributionStateQuery(BaseModel):
+    """Bounded read of one source assignment's per-target distribution state."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
+    source_assignment_id: Annotated[str, Field(min_length=1, max_length=64)]
+    offset: Annotated[int, Field(ge=0)] = 0
+    limit: Annotated[int, Field(ge=1, le=256)] = 128
+
+
+class CorporateDistributionState(BaseModel):
+    """Current derived distribution state for one member or project target."""
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+    target_kind: DistributionTargetKind
+    target_id: str
+    result: DistributionTargetResult
+    state: DistributionLifecycle | None = None
+    operation_revision: Annotated[int, Field(ge=1)]
+    diagnostic: str | None = None
+
+
+class CorporateDistributionStateList(BaseModel):
+    """Per-target distribution state for one source assignment."""
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+    schema_version: Literal[1] = 1
+    organization_id: OrganizationId
+    source_assignment_id: str
+    source_revision: Annotated[int, Field(ge=1)]
+    source_state: AssignmentState
+    items: list[CorporateDistributionState]
+    total: Annotated[int, Field(ge=0)]
+
+
+PlanAction = Literal["install", "update", "remove", "none"]
+PlanOutcome = Literal[
+    "missing", "installed", "outdated", "revoked", "unassigned", "unsupported", "conflicting"
+]
+
+
+class CorporatePlanMaterializedItem(BaseModel):
+    """One exact coordinate the caller reports as currently materialized."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
+    object_kind: Literal["setup", "component"]
+    stable_id: Annotated[str, Field(min_length=1, max_length=64)]
+    version: Annotated[str, Field(pattern=VERSION_PATTERN)]
+    passport_digest: DigestValue | None = None
+
+    @model_validator(mode="after")
+    def typed_catalog_identity(self) -> Self:
+        if not re.fullmatch(stable_id_pattern(self.object_kind), self.stable_id):
+            raise ValueError("catalog identity does not match its kind")
+        return self
+
+
+class CorporateAssignmentPlanRequest(BaseModel):
+    """Evaluate the deterministic install/update plan for one context (ADR-0197).
+
+    The request names the authenticated employee context, the optional project
+    and technology coordinates, the target harness, and the exact coordinates
+    the caller reports as materialized. It never mutates assignments,
+    distribution rows, or provider-owned state.
+    """
+
+    model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
+    schema_version: Literal[1] = 1
+    account_id: AccountId
+    harness: HarnessId
+    project_id: ProjectId | None = None
+    technology_id: TechnologyId | None = None
+    materialized: Annotated[list[CorporatePlanMaterializedItem], Field(max_length=1024)] = []
+
+    @model_validator(mode="after")
+    def distinct_materialized(self) -> Self:
+        keys = {(item.object_kind, item.stable_id) for item in self.materialized}
+        if len(keys) != len(self.materialized):
+            raise ValueError("materialized coordinates must be distinct per catalog line")
+        return self
+
+
+class CorporateAssignmentPlanItem(BaseModel):
+    """One catalog line's effective assignment and the planned action."""
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+    object_kind: Literal["setup", "component"]
+    stable_id: str
+    state: Literal["assigned", "revoked", "unassigned"]
+    outcome: PlanOutcome
+    action: PlanAction
+    assignment_id: Annotated[str, Field(min_length=1, max_length=64)] | None = None
+    source_scope: AssignmentSubjectKind | None = None
+    source_subject_id: str | None = None
+    selector: AssignmentSelector | None = None
+    version: Annotated[str, Field(pattern=VERSION_PATTERN)] | None = None
+    passport_digest: DigestValue | None = None
+    harness: HarnessId | None = None
+    installed_version: Annotated[str, Field(pattern=VERSION_PATTERN)] | None = None
+    installed_passport_digest: DigestValue | None = None
+    diagnostic: str | None = None
+    candidates: Annotated[list[CorporateEffectiveAssignmentCandidate], Field(max_length=256)] = []
+
+
+class CorporateAssignmentPlan(BaseModel):
+    """The deterministic install/update plan for one context (ADR-0197).
+
+    Items are sorted by object kind and stable identity; the response carries
+    no wall-clock field so identical policy and materialized inputs produce an
+    identical plan.
+    """
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+    schema_version: Literal[1] = 1
+    organization_id: OrganizationId
+    account_id: AccountId
+    harness: HarnessId
+    project_id: ProjectId | None = None
+    technology_id: TechnologyId | None = None
+    items: Annotated[list[CorporateAssignmentPlanItem], Field(max_length=1024)] = []
+    total: Annotated[int, Field(ge=0)] = 0
 
 
 class CorporateBootstrapRequest(BaseModel):
@@ -245,6 +510,7 @@ class CorporateMember(BaseModel):
     revision: Annotated[int, Field(ge=1)]
     job_title_id: JobTitleId | None = None
     job_title_name: str | None = None
+    available_actions: Annotated[list[str], Field(max_length=128)] = []
 
 
 class CorporateMemberList(BaseModel):
@@ -410,6 +676,7 @@ class CorporateProjectView(BaseModel):
     lifecycle: ProjectLifecycle | None = None
     restore_lifecycle: Literal["active", "deprecated"] | None = None
     revision: Annotated[int, Field(ge=1)]
+    available_actions: Annotated[list[str], Field(max_length=128)] = []
 
 
 class CorporateProjectLifecycleRequest(BaseModel):

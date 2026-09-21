@@ -75,6 +75,9 @@ export function AccountMenu() {
           <AccountMenuLink href="/objects" icon="objects" ui={UI.navigation.objects}>
             {t("myObjects")}
           </AccountMenuLink>
+          <AccountMenuLink href="/assigned" icon="team">
+            {t("assignedToMe")}
+          </AccountMenuLink>
           <AccountMenuLink href="/likes" icon="heart">
             {t("myLikes")}
           </AccountMenuLink>

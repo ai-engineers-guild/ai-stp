@@ -860,8 +860,13 @@ class CorporateCatalogAssignment(Base):
             "(CASE WHEN account_id IS NULL THEN 0 ELSE 1 END + "
             "CASE WHEN team_id IS NULL THEN 0 ELSE 1 END + "
             "CASE WHEN project_id IS NULL THEN 0 ELSE 1 END + "
-            "CASE WHEN technology_id IS NULL THEN 0 ELSE 1 END) = 1",
+            "CASE WHEN technology_id IS NULL THEN 0 ELSE 1 END) <= 1",
             name="ck_corporate_assignment_subject",
+        ),
+        CheckConstraint("selector in ('exact','latest')", name="ck_corporate_assignment_selector"),
+        CheckConstraint(
+            "selector = 'latest' OR version IS NOT NULL",
+            name="ck_corporate_assignment_selector_version",
         ),
         ForeignKeyConstraint(
             ["organization_id", "account_id"],
@@ -898,6 +903,7 @@ class CorporateCatalogAssignment(Base):
             "object_kind",
             "stable_id",
             "version",
+            "harness",
             name="uq_corporate_assignment_account",
         ),
         UniqueConstraint(
@@ -906,6 +912,7 @@ class CorporateCatalogAssignment(Base):
             "object_kind",
             "stable_id",
             "version",
+            "harness",
             name="uq_corporate_assignment_team",
         ),
         UniqueConstraint(
@@ -914,6 +921,7 @@ class CorporateCatalogAssignment(Base):
             "object_kind",
             "stable_id",
             "version",
+            "harness",
             name="uq_corporate_assignment_project",
         ),
         UniqueConstraint(
@@ -922,7 +930,25 @@ class CorporateCatalogAssignment(Base):
             "object_kind",
             "stable_id",
             "version",
+            "harness",
             name="uq_corporate_assignment_technology",
+        ),
+        Index(
+            "uq_corporate_assignment_organization",
+            "organization_id",
+            "object_kind",
+            "stable_id",
+            "version",
+            "harness",
+            unique=True,
+            postgresql_where=text(
+                "account_id IS NULL AND team_id IS NULL "
+                "AND project_id IS NULL AND technology_id IS NULL"
+            ),
+            sqlite_where=text(
+                "account_id IS NULL AND team_id IS NULL "
+                "AND project_id IS NULL AND technology_id IS NULL"
+            ),
         ),
     )
 
@@ -936,11 +962,76 @@ class CorporateCatalogAssignment(Base):
     technology_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
     object_kind: Mapped[str] = mapped_column(String(32), nullable=False)
     stable_id: Mapped[str] = mapped_column(String(64), nullable=False)
-    version: Mapped[str] = mapped_column(String(32), nullable=False)
+    selector: Mapped[str] = mapped_column(
+        String(8), nullable=False, default="exact", server_default="exact"
+    )
+    version: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    passport_digest: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    harness: Mapped[str | None] = mapped_column(String(64), nullable=True)
     state: Mapped[str] = mapped_column(
         String(16), nullable=False, default="current", server_default="current"
     )
     revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class CorporateAssignmentDistribution(Base):
+    """Derived per-target result of one bulk assign/revoke operation (ADR-0196).
+
+    Keyed by source assignment, target, and the source assignment's operation
+    revision at distribution time. The row records the outcome and a safe
+    diagnostic only; the source assignment remains the policy, so no selector,
+    version, or harness field is duplicated here.
+    """
+
+    __tablename__ = "corporate_assignment_distribution"
+    __table_args__ = (
+        PrimaryKeyConstraint(
+            "organization_id",
+            "source_assignment_id",
+            "target_kind",
+            "target_id",
+            "operation_revision",
+        ),
+        CheckConstraint(
+            "target_kind in ('employee','project')", name="ck_distribution_target_kind"
+        ),
+        CheckConstraint("action in ('assign','revoke')", name="ck_distribution_action"),
+        CheckConstraint(
+            "result in ('applied','skipped','conflicted','denied','failed')",
+            name="ck_distribution_result",
+        ),
+        CheckConstraint(
+            "state in ('pending','installed','outdated','failed','revoked')",
+            name="ck_distribution_state",
+        ),
+        CheckConstraint("operation_revision >= 1", name="ck_distribution_operation_revision"),
+        ForeignKeyConstraint(
+            ["source_assignment_id"],
+            ["corporate_catalog_assignment.id"],
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["organization_id"],
+            ["organization.id"],
+            ondelete="RESTRICT",
+        ),
+    )
+
+    organization_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    source_assignment_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    target_kind: Mapped[str] = mapped_column(String(16), nullable=False)
+    target_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    operation_revision: Mapped[int] = mapped_column(Integer, nullable=False)
+    action: Mapped[str] = mapped_column(String(8), nullable=False)
+    result: Mapped[str] = mapped_column(String(16), nullable=False)
+    #: NULL when the target has no distribution lifecycle (skipped/conflicted/denied).
+    state: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    diagnostic: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    overriding_assignment_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()

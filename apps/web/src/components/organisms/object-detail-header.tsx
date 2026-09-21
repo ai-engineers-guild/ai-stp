@@ -65,7 +65,7 @@ export function ObjectDetailHeader({
                 privateLabel={privateVisibilityLabel}
               />
             ) : null}
-            <div data-ui={UI.component.overflow} className="absolute top-0 right-0">
+            <div data-ui={UI.component.overflow} className="relative top-0 right-0">
               <ObjectOverflowMenu {...like} />
             </div>
           </div>

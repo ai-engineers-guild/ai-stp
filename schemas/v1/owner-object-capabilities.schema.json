@@ -1,0 +1,54 @@
+{
+  "$defs": {
+    "ObjectKind": {
+      "enum": [
+        "component",
+        "setup"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:owner-object-capabilities",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "Management capabilities the caller holds on one catalog object.",
+  "properties": {
+    "capabilities": {
+      "default": [],
+      "items": {
+        "enum": [
+          "edit",
+          "edit_presentation",
+          "delete"
+        ],
+        "type": "string"
+      },
+      "maxItems": 8,
+      "title": "Capabilities",
+      "type": "array"
+    },
+    "object_kind": {
+      "$ref": "#/$defs/ObjectKind"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "stable_id": {
+      "maxLength": 64,
+      "minLength": 8,
+      "title": "Stable Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "capabilities",
+    "object_kind",
+    "schema_version",
+    "stable_id"
+  ],
+  "title": "OwnerObjectCapabilities",
+  "type": "object"
+}

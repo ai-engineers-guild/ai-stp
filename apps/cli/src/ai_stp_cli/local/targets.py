@@ -335,6 +335,46 @@ def verified(
     )
 
 
+def verified_for_target(
+    connection: sqlite3.Connection, *, provider_target: str
+) -> tuple[Verified, ...]:
+    """Every verified installation on one provider target, oldest first.
+
+    One provider target can be shared by more than one (project, harness)
+    pair, so the newest record here may belong to a different pair than the
+    caller's — which is exactly how a later authorized installation explains
+    content the caller's own record would flag as drift.
+    """
+    rows = connection.execute(
+        """
+        SELECT p.operation_id, p.setup_stable_id, p.setup_version,
+               p.verified_target_digest, o.finished_at
+        FROM operation_plan AS p
+        JOIN operation AS o ON o.operation_id = p.operation_id
+        JOIN operation_event AS e
+          ON e.operation_id = p.operation_id AND e.state_after = ?
+        WHERE p.provider_target = ? AND o.state = ?
+        ORDER BY e.global_sequence
+        """,
+        (
+            installation.STATE_VERIFIED,
+            provider_target,
+            installation.STATE_VERIFIED,
+        ),
+    ).fetchall()
+    return tuple(
+        Verified(
+            operation_id=str(row["operation_id"]),
+            setup_stable_id=str(row["setup_stable_id"] or ""),
+            setup_version=str(row["setup_version"] or ""),
+            target_digest=str(row["verified_target_digest"] or ""),
+            at=str(row["finished_at"] or ""),
+        )
+        for row in rows
+        if row["setup_version"]
+    )
+
+
 def backups(
     connection: sqlite3.Connection, *, project_id: str, harness_id: str
 ) -> tuple[Backup, ...]:

@@ -122,6 +122,7 @@ describe("manual registry creation", () => {
       revision: 3,
       provenance: "manual",
       redirect_id: null,
+      available_actions: [],
     };
     const target: TechnologyView = {
       ...source,
@@ -230,6 +231,7 @@ describe("manual registry creation", () => {
           lifecycle: "deleted",
           restore_lifecycle: "deprecated",
           revision: 6,
+          available_actions: [],
         }}
       />,
     );
@@ -288,6 +290,7 @@ describe("manual registry creation", () => {
       revision: 3,
       provenance: "manual",
       redirect_id: null,
+      available_actions: [],
     };
     const { container, rerender } = render(
       <TechnologyRegistryCreate kind="technology" {...props} initial={initial} />,
@@ -329,6 +332,7 @@ describe("manual registry creation", () => {
       revision: 7,
       provenance: "manual",
       redirect_id: null,
+      available_actions: [],
     };
     render(
       <TechnologyLifecycleControls

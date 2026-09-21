@@ -1,0 +1,122 @@
+{
+  "$defs": {
+    "CorporatePlanMaterializedItem": {
+      "additionalProperties": false,
+      "description": "One exact coordinate the caller reports as currently materialized.",
+      "properties": {
+        "object_kind": {
+          "enum": [
+            "setup",
+            "component"
+          ],
+          "title": "Object Kind",
+          "type": "string"
+        },
+        "passport_digest": {
+          "anyOf": [
+            {
+              "pattern": "^sha256:[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Passport Digest"
+        },
+        "stable_id": {
+          "maxLength": 64,
+          "minLength": 1,
+          "title": "Stable Id",
+          "type": "string"
+        },
+        "version": {
+          "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "object_kind",
+        "stable_id",
+        "version"
+      ],
+      "title": "CorporatePlanMaterializedItem",
+      "type": "object"
+    },
+    "HarnessId": {
+      "enum": [
+        "claude-code",
+        "codex",
+        "pi",
+        "opencode",
+        "grok-build",
+        "cursor",
+        "antigravity"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:corporate-assignment-plan-request",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Evaluate the deterministic install/update plan for one context (ADR-0197).\n\nThe request names the authenticated employee context, the optional project\nand technology coordinates, the target harness, and the exact coordinates\nthe caller reports as materialized. It never mutates assignments,\ndistribution rows, or provider-owned state.",
+  "properties": {
+    "account_id": {
+      "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "title": "Account Id",
+      "type": "string"
+    },
+    "harness": {
+      "$ref": "#/$defs/HarnessId"
+    },
+    "materialized": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/CorporatePlanMaterializedItem"
+      },
+      "maxItems": 1024,
+      "title": "Materialized",
+      "type": "array"
+    },
+    "project_id": {
+      "anyOf": [
+        {
+          "pattern": "^remote_project_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Project Id"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "technology_id": {
+      "anyOf": [
+        {
+          "pattern": "^technology_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Technology Id"
+    }
+  },
+  "required": [
+    "account_id",
+    "harness"
+  ],
+  "title": "CorporateAssignmentPlanRequest",
+  "type": "object"
+}

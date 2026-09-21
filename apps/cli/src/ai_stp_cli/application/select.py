@@ -20,7 +20,7 @@ invisible cannot be checked, and this stage exists precisely to be checkable.
 
 import platform
 import sqlite3
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from contextlib import closing
 from datetime import timedelta
 from pathlib import Path, PurePosixPath
@@ -1169,12 +1169,18 @@ def reports(parameters: Mapping[str, object]) -> Answer[CompositionReports]:
 
 
 def _composition_target(
-    harness: str, surfaces: tuple[composition.Surface, ...] = (), *, scope: str = "global"
+    harness: str,
+    surfaces: tuple[composition.Surface, ...] = (),
+    *,
+    scope: str = "global",
+    allowed_permissions: Iterable[str] = (),
 ) -> composition.Target:
     """What this machine allows a composition to need.
 
-    Permissions and entitlements start empty: nothing has granted any yet, and
-    an empty set refuses honestly rather than permitting by default.
+    Permissions start empty: nothing has granted any yet, and an empty set
+    refuses honestly rather than permitting by default. A caller that collected
+    an explicit grant passes it in as `family:value` strings, the same spelling
+    `_surfaces` gives `Surface.permissions`, because the comparison is exact.
 
     The declared environment is the **composition's**, which is what
     `composition._environment` says it checks — and it read
@@ -1199,6 +1205,7 @@ def _composition_target(
         declared_endpoints=frozenset(
             endpoint for item in surfaces for endpoint in item.external_endpoints
         ),
+        allowed_permissions=frozenset(allowed_permissions),
         supported_platforms=frozenset(),
         scope=scope,
         for_redistribution=False,
@@ -1451,6 +1458,7 @@ def compile_harness_bundle(
     host_root: Path | None = None,
     *,
     scope: str = "global",
+    allowed_permissions: Iterable[str] = (),
 ) -> bundle.Bundle:
     """Compile exact bytes for a confirmed proposal without opening another registry."""
     proposal = selection.held(connection, proposal_id)
@@ -1481,6 +1489,7 @@ def compile_harness_bundle(
         members=proposal.members,
         host_root=host_root,
         scope=scope,
+        allowed_permissions=allowed_permissions,
     )
 
 
@@ -1493,6 +1502,7 @@ def compile_setup_version_bundle(
     members: tuple[selection.Member, ...] = (),
     host_root: Path | None = None,
     scope: str = "global",
+    allowed_permissions: Iterable[str] = (),
 ) -> bundle.Bundle:
     """Compile one stored immutable SetupVersion through the canonical bundle path.
 
@@ -1561,7 +1571,9 @@ def compile_setup_version_bundle(
             "the setup has no components for the requested harness scope",
             details={"harness_id": harness, "scope": scope},
         )
-    target = _composition_target(harness, surfaces, scope=scope)
+    target = _composition_target(
+        harness, surfaces, scope=scope, allowed_permissions=allowed_permissions
+    )
     composed = composition.compose(surfaces, target)
     if composed.blocked:
         raise CliFailure(

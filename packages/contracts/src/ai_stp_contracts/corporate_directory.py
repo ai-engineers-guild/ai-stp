@@ -94,6 +94,7 @@ class CorporateDirectoryQuery(BaseModel):
     project_ids: Annotated[list[ProjectId], Field(max_length=64)] = []
     category_ids: Annotated[list[CategoryId], Field(max_length=32)] = []
     job_title_ids: Annotated[list[str], Field(max_length=64)] = []
+    subject_ids: Annotated[list[str], Field(max_length=256)] = []
     is_lead: bool | None = None
     sort: Literal["name", "name_desc"] = "name"
     offset: Annotated[int, Field(ge=0)] = 0

@@ -86,6 +86,37 @@ def test_filters_are_or_within_and_across_then_paginated() -> None:
     )
 
 
+def test_subject_ids_restrict_to_listed_subjects() -> None:
+    items = [
+        CorporateDirectoryItem(kind="team", id=new_id("operation"), name=name, revision=1)
+        for name in ("A", "B", "C")
+    ]
+    source = CorporateDirectoryView(
+        organization=organization(),
+        resource="teams",
+        items=items,
+        total=3,
+        facets=CorporateDirectoryFacets(leads=[], teams=[], technologies=[]),
+    )
+    result = directory.select_directory(
+        source,
+        CorporateDirectoryQuery(resource="teams", subject_ids=[items[0].id, items[2].id]),
+    )
+    assert result.total == 2 and [item.name for item in result.items] == ["A", "C"]
+    assert (
+        directory.select_directory(
+            source, CorporateDirectoryQuery(resource="teams", subject_ids=[])
+        ).total
+        == 3
+    )
+    assert (
+        directory.select_directory(
+            source, CorporateDirectoryQuery(resource="teams", subject_ids=["missing"])
+        ).total
+        == 0
+    )
+
+
 def test_directory_rejects_wrong_id_namespace_and_owner() -> None:
     assert "state" not in CorporateDirectoryItem.model_fields
     assert "state" not in CorporateDirectoryQuery.model_fields

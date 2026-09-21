@@ -1,7 +1,19 @@
-import { listExternalProducts, searchComponents, searchSetups } from "@/lib/api/catalog";
-import type { ComponentListResponse, SetupListResponse } from "@/lib/api/generated/types.gen";
+import {
+  listExternalProducts,
+  readComponent,
+  readSetup,
+  searchComponents,
+  searchSetups,
+} from "@/lib/api/catalog";
+import type {
+  ComponentListResponse,
+  ComponentSummary,
+  CorporateCatalogAssignment,
+  SetupListResponse,
+  SetupSummary,
+} from "@/lib/api/generated/types.gen";
 import { readPublisherProfile } from "@/lib/api/public-profile";
-import { asAccountId, type AccountId } from "@/lib/brands";
+import { asAccountId, tryAsComponentId, tryAsSetupId, type AccountId } from "@/lib/brands";
 import type { ParsedCatalogQuery } from "@/lib/catalog-query";
 
 export const PUBLISHER_PROFILE_CONCURRENCY = 6;
@@ -147,6 +159,26 @@ export async function mapPool<T, R>(
   const workers = Array.from({ length: Math.min(limit, items.length) }, () => worker());
   await Promise.all(workers);
   return results;
+}
+
+/**
+ * Resolves the catalog summary behind an assignment so assigned rows render
+ * with the standard card metadata. Missing or unreadable objects yield null.
+ */
+export async function readAssignedObjectSummary(
+  item: Pick<CorporateCatalogAssignment, "object_kind" | "stable_id">,
+  sessionToken: string,
+): Promise<ComponentSummary | SetupSummary | null> {
+  try {
+    if (item.object_kind === "component") {
+      const id = tryAsComponentId(item.stable_id);
+      return id ? (await readComponent(id, sessionToken)).summary : null;
+    }
+    const id = tryAsSetupId(item.stable_id);
+    return id ? (await readSetup(id, sessionToken)).summary : null;
+  } catch {
+    return null;
+  }
 }
 
 export async function loadPublisherProfiles(

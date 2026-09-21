@@ -1873,18 +1873,22 @@ export type ContextDelta = {
  *
  * One next step with bound values, and the names still missing.
  *
- * ``next_actions`` remains the argv an older caller runs. This object is the
- * canonical form: a path this build declares, arguments already known, and
- * ``missing`` for anything the caller must still supply. A command that still
- * has holes is not emitted as runnable-looking argv.
+ * ``argv`` is the execution form. ``continuation_command`` is a quoted display
+ * string and is never eval input. ``next_actions`` remains that display string
+ * for older callers.
  */
 export type Continuation = {
+  actor?: ContinuationActor;
   /**
    * Arguments
    */
   arguments?: {
-    [key: string]: string;
+    [key: string]: PydanticTypesJsonValue;
   };
+  /**
+   * Argv
+   */
+  argv?: Array<string>;
   /**
    * Kind
    */
@@ -1897,6 +1901,163 @@ export type Continuation = {
    * Path
    */
   path: Array<string>;
+  [key: string]: unknown;
+};
+
+export const ContinuationActor = {
+  HUMAN: "human",
+  AGENT: "agent",
+  CLI: "cli",
+  EXTERNAL: "external",
+} as const;
+
+export type ContinuationActor = (typeof ContinuationActor)[keyof typeof ContinuationActor];
+
+/**
+ * CorporateAssignmentPlan
+ *
+ * The deterministic install/update plan for one context (ADR-0197).
+ *
+ * Items are sorted by object kind and stable identity; the response carries
+ * no wall-clock field so identical policy and materialized inputs produce an
+ * identical plan.
+ */
+export type CorporateAssignmentPlan = {
+  /**
+   * Account Id
+   */
+  account_id: string;
+  harness: HarnessId;
+  /**
+   * Items
+   */
+  items: Array<CorporateAssignmentPlanItem>;
+  /**
+   * Organization Id
+   */
+  organization_id: string;
+  /**
+   * Project Id
+   */
+  project_id: string | null;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  /**
+   * Technology Id
+   */
+  technology_id: string | null;
+  /**
+   * Total
+   */
+  total: number;
+  [key: string]: unknown;
+};
+
+/**
+ * CorporateAssignmentPlanItem
+ *
+ * One catalog line's effective assignment and the planned action.
+ */
+export type CorporateAssignmentPlanItem = {
+  /**
+   * Action
+   */
+  action: "install" | "update" | "remove" | "none";
+  /**
+   * Assignment Id
+   */
+  assignment_id: string | null;
+  /**
+   * Candidates
+   */
+  candidates: Array<CorporateEffectiveAssignmentCandidate>;
+  /**
+   * Diagnostic
+   */
+  diagnostic: string | null;
+  harness: HarnessId | null;
+  /**
+   * Installed Passport Digest
+   */
+  installed_passport_digest: string | null;
+  /**
+   * Installed Version
+   */
+  installed_version: string | null;
+  /**
+   * Object Kind
+   */
+  object_kind: "setup" | "component";
+  /**
+   * Outcome
+   */
+  outcome:
+    "missing" | "installed" | "outdated" | "revoked" | "unassigned" | "unsupported" | "conflicting";
+  /**
+   * Passport Digest
+   */
+  passport_digest: string | null;
+  /**
+   * Selector
+   */
+  selector: "exact" | "latest" | null;
+  /**
+   * Source Scope
+   */
+  source_scope: "employee" | "team" | "project" | "technology" | "organization" | null;
+  /**
+   * Source Subject Id
+   */
+  source_subject_id: string | null;
+  /**
+   * Stable Id
+   */
+  stable_id: string;
+  /**
+   * State
+   */
+  state: "assigned" | "revoked" | "unassigned";
+  /**
+   * Version
+   */
+  version: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * CorporateAssignmentPlanRequest
+ *
+ * Evaluate the deterministic install/update plan for one context (ADR-0197).
+ *
+ * The request names the authenticated employee context, the optional project
+ * and technology coordinates, the target harness, and the exact coordinates
+ * the caller reports as materialized. It never mutates assignments,
+ * distribution rows, or provider-owned state.
+ */
+export type CorporateAssignmentPlanRequest = {
+  /**
+   * Account Id
+   */
+  account_id: string;
+  harness: HarnessId;
+  /**
+   * Materialized
+   */
+  materialized?: Array<CorporatePlanMaterializedItem>;
+  /**
+   * Project Id
+   */
+  project_id?: string | null;
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
+  /**
+   * Technology Id
+   */
+  technology_id?: string | null;
 };
 
 /**
@@ -2196,6 +2357,7 @@ export type CorporateCatalogAssignment = {
    * Display Name
    */
   display_name: string | null;
+  harness: HarnessId | null;
   /**
    * Object Kind
    */
@@ -2205,6 +2367,10 @@ export type CorporateCatalogAssignment = {
    */
   organization_id: string;
   /**
+   * Passport Digest
+   */
+  passport_digest: string | null;
+  /**
    * Revision
    */
   revision: number;
@@ -2212,6 +2378,10 @@ export type CorporateCatalogAssignment = {
    * Schema Version
    */
   schema_version: 1;
+  /**
+   * Selector
+   */
+  selector: "exact" | "latest";
   /**
    * Source Team Id
    */
@@ -2231,11 +2401,11 @@ export type CorporateCatalogAssignment = {
   /**
    * Subject Kind
    */
-  subject_kind: "employee" | "team" | "project" | "technology";
+  subject_kind: "employee" | "team" | "project" | "technology" | "organization";
   /**
    * Version
    */
-  version: string;
+  version: string | null;
   [key: string]: unknown;
 };
 
@@ -2281,13 +2451,13 @@ export type CorporateCatalogAssignmentQuery = {
   /**
    * Subject Kind
    */
-  subject_kind: "employee" | "team" | "project" | "technology";
+  subject_kind: "employee" | "team" | "project" | "technology" | "organization";
 };
 
 /**
  * CorporateCatalogAssignmentRequest
  *
- * Assign a readable exact catalog version without granting access or installing it.
+ * Assign a stable catalog line without granting access or installing it.
  */
 export type CorporateCatalogAssignmentRequest = {
   /**
@@ -2298,15 +2468,24 @@ export type CorporateCatalogAssignmentRequest = {
    * Expected Revision
    */
   expected_revision: number;
+  harness?: HarnessId | null;
   idempotency_key: IdempotencyKey;
   /**
    * Object Kind
    */
   object_kind: "setup" | "component";
   /**
+   * Passport Digest
+   */
+  passport_digest?: string | null;
+  /**
    * Schema Version
    */
   schema_version?: 1;
+  /**
+   * Selector
+   */
+  selector?: "exact" | "latest";
   /**
    * Stable Id
    */
@@ -2322,11 +2501,11 @@ export type CorporateCatalogAssignmentRequest = {
   /**
    * Subject Kind
    */
-  subject_kind: "employee" | "team" | "project" | "technology";
+  subject_kind: "employee" | "team" | "project" | "technology" | "organization";
   /**
    * Version
    */
-  version: string;
+  version?: string | null;
 };
 
 /**
@@ -2566,6 +2745,10 @@ export type CorporateCatalogOwnership = {
    */
   can_edit: boolean;
   /**
+   * Capabilities
+   */
+  capabilities: Array<string>;
+  /**
    * Object Kind
    */
   object_kind: "setup" | "component";
@@ -2686,6 +2869,10 @@ export type CorporateCatalogUsage = {
    */
   schema_version: 1;
   /**
+   * Selector
+   */
+  selector: "exact" | "latest";
+  /**
    * Source
    */
   source: "direct" | "effective";
@@ -2712,7 +2899,7 @@ export type CorporateCatalogUsage = {
   /**
    * Version
    */
-  version: string;
+  version: string | null;
   [key: string]: unknown;
 };
 
@@ -2758,7 +2945,7 @@ export type CorporateCatalogUsageQuery = {
   /**
    * Version
    */
-  version: string;
+  version?: string | null;
 };
 
 /**
@@ -3052,6 +3239,10 @@ export type CorporateDirectoryQuery = {
    */
   sort?: "name" | "name_desc";
   /**
+   * Subject Ids
+   */
+  subject_ids?: Array<string>;
+  /**
    * Team Ids
    */
   team_ids?: Array<string>;
@@ -3103,6 +3294,403 @@ export type CorporateDirectoryView = {
    */
   total: number;
   [key: string]: unknown;
+};
+
+/**
+ * CorporateDistributionCounts
+ *
+ * Per-result totals across the resolved target set.
+ */
+export type CorporateDistributionCounts = {
+  /**
+   * Applied
+   */
+  applied: number;
+  /**
+   * Conflicted
+   */
+  conflicted: number;
+  /**
+   * Denied
+   */
+  denied: number;
+  /**
+   * Failed
+   */
+  failed: number;
+  /**
+   * Skipped
+   */
+  skipped: number;
+  [key: string]: unknown;
+};
+
+/**
+ * CorporateDistributionExclusion
+ *
+ * A member or project considered during expansion and excluded with a reason.
+ */
+export type CorporateDistributionExclusion = {
+  /**
+   * Reason
+   */
+  reason: string;
+  /**
+   * Target Id
+   */
+  target_id: string;
+  /**
+   * Target Kind
+   */
+  target_kind: "employee" | "project";
+  [key: string]: unknown;
+};
+
+/**
+ * CorporateDistributionRequest
+ *
+ * Preview or apply one bulk assign/revoke over a source assignment's targets.
+ */
+export type CorporateDistributionRequest = {
+  /**
+   * Action
+   */
+  action: "assign" | "revoke";
+  /**
+   * Authorization Revision
+   */
+  authorization_revision: number;
+  /**
+   * Dry Run
+   */
+  dry_run?: boolean;
+  /**
+   * Expected Revision
+   */
+  expected_revision: number;
+  idempotency_key: IdempotencyKey;
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
+  /**
+   * Source Assignment Id
+   */
+  source_assignment_id: string;
+};
+
+/**
+ * CorporateDistributionResult
+ *
+ * Preview or durable outcome of one bulk distribution request.
+ */
+export type CorporateDistributionResult = {
+  /**
+   * Action
+   */
+  action: "assign" | "revoke";
+  counts: CorporateDistributionCounts;
+  /**
+   * Distribution Id
+   */
+  distribution_id: string | null;
+  /**
+   * Dry Run
+   */
+  dry_run: boolean;
+  /**
+   * Exclusions
+   */
+  exclusions: Array<CorporateDistributionExclusion>;
+  /**
+   * Organization Id
+   */
+  organization_id: string;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  /**
+   * Source Assignment Id
+   */
+  source_assignment_id: string;
+  /**
+   * Source Revision
+   */
+  source_revision: number;
+  /**
+   * Targets
+   */
+  targets: Array<CorporateDistributionTargetResult>;
+  [key: string]: unknown;
+};
+
+/**
+ * CorporateDistributionState
+ *
+ * Current derived distribution state for one member or project target.
+ */
+export type CorporateDistributionState = {
+  /**
+   * Diagnostic
+   */
+  diagnostic: string | null;
+  /**
+   * Operation Revision
+   */
+  operation_revision: number;
+  /**
+   * Result
+   */
+  result: "applied" | "skipped" | "conflicted" | "denied" | "failed";
+  /**
+   * State
+   */
+  state: "pending" | "installed" | "outdated" | "failed" | "revoked" | null;
+  /**
+   * Target Id
+   */
+  target_id: string;
+  /**
+   * Target Kind
+   */
+  target_kind: "employee" | "project";
+  [key: string]: unknown;
+};
+
+/**
+ * CorporateDistributionStateList
+ *
+ * Per-target distribution state for one source assignment.
+ */
+export type CorporateDistributionStateList = {
+  /**
+   * Items
+   */
+  items: Array<CorporateDistributionState>;
+  /**
+   * Organization Id
+   */
+  organization_id: string;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  /**
+   * Source Assignment Id
+   */
+  source_assignment_id: string;
+  /**
+   * Source Revision
+   */
+  source_revision: number;
+  /**
+   * Source State
+   */
+  source_state: "current" | "retired";
+  /**
+   * Total
+   */
+  total: number;
+  [key: string]: unknown;
+};
+
+/**
+ * CorporateDistributionStateQuery
+ *
+ * Bounded read of one source assignment's per-target distribution state.
+ */
+export type CorporateDistributionStateQuery = {
+  /**
+   * Limit
+   */
+  limit?: number;
+  /**
+   * Offset
+   */
+  offset?: number;
+  /**
+   * Source Assignment Id
+   */
+  source_assignment_id: string;
+};
+
+/**
+ * CorporateDistributionTargetResult
+ *
+ * One resolved target's durable result and derived distribution state.
+ */
+export type CorporateDistributionTargetResult = {
+  /**
+   * Diagnostic
+   */
+  diagnostic: string | null;
+  /**
+   * Overriding Assignment Id
+   */
+  overriding_assignment_id: string | null;
+  /**
+   * Result
+   */
+  result: "applied" | "skipped" | "conflicted" | "denied" | "failed";
+  /**
+   * State
+   */
+  state: "pending" | "installed" | "outdated" | "failed" | "revoked" | null;
+  /**
+   * Target Id
+   */
+  target_id: string;
+  /**
+   * Target Kind
+   */
+  target_kind: "employee" | "project";
+  [key: string]: unknown;
+};
+
+/**
+ * CorporateEffectiveAssignment
+ *
+ * The winning assignment, its source, and the exact resolved coordinate.
+ */
+export type CorporateEffectiveAssignment = {
+  /**
+   * Account Id
+   */
+  account_id: string;
+  /**
+   * Assignment Id
+   */
+  assignment_id: string | null;
+  /**
+   * Candidates
+   */
+  candidates: Array<CorporateEffectiveAssignmentCandidate>;
+  harness: HarnessId | null;
+  /**
+   * Object Kind
+   */
+  object_kind: "setup" | "component";
+  /**
+   * Organization Id
+   */
+  organization_id: string;
+  /**
+   * Passport Digest
+   */
+  passport_digest: string | null;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  /**
+   * Selector
+   */
+  selector: "exact" | "latest" | null;
+  /**
+   * Source Scope
+   */
+  source_scope: "employee" | "team" | "project" | "technology" | "organization" | null;
+  /**
+   * Source Subject Id
+   */
+  source_subject_id: string | null;
+  /**
+   * Stable Id
+   */
+  stable_id: string;
+  /**
+   * State
+   */
+  state: "assigned" | "revoked" | "unassigned";
+  /**
+   * Version
+   */
+  version: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * CorporateEffectiveAssignmentCandidate
+ *
+ * One assignment row considered by the deterministic effective evaluation.
+ */
+export type CorporateEffectiveAssignmentCandidate = {
+  /**
+   * Assignment Id
+   */
+  assignment_id: string;
+  harness: HarnessId | null;
+  /**
+   * Outcome
+   */
+  outcome: "winner" | "overridden" | "revoked" | "inapplicable";
+  /**
+   * Resolved Digest
+   */
+  resolved_digest: string | null;
+  /**
+   * Resolved Version
+   */
+  resolved_version: string | null;
+  /**
+   * Revision
+   */
+  revision: number;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  /**
+   * Scope
+   */
+  scope: "employee" | "team" | "project" | "technology" | "organization";
+  /**
+   * Selector
+   */
+  selector: "exact" | "latest";
+  /**
+   * State
+   */
+  state: "current" | "retired";
+  /**
+   * Subject Id
+   */
+  subject_id: string;
+  /**
+   * Version
+   */
+  version: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * CorporateEffectiveAssignmentQuery
+ *
+ * Authorized effective-assignment evaluation for one employee and catalog line.
+ */
+export type CorporateEffectiveAssignmentQuery = {
+  /**
+   * Account Id
+   */
+  account_id: string;
+  harness?: HarnessId | null;
+  /**
+   * Object Kind
+   */
+  object_kind: "setup" | "component";
+  /**
+   * Project Id
+   */
+  project_id?: string | null;
+  /**
+   * Stable Id
+   */
+  stable_id: string;
+  /**
+   * Technology Id
+   */
+  technology_id?: string | null;
 };
 
 /**
@@ -3245,6 +3833,10 @@ export type CorporateMember = {
    */
   account_id: string;
   /**
+   * Available Actions
+   */
+  available_actions: Array<string>;
+  /**
    * Display Name
    */
   display_name: string | null;
@@ -3341,7 +3933,7 @@ export type CorporateMemberCreateRequest = {
   /**
    * Team Ids
    */
-  team_ids: Array<string>;
+  team_ids?: Array<string>;
 };
 
 /**
@@ -3633,6 +4225,30 @@ export type CorporatePermissionMatrix = {
 };
 
 /**
+ * CorporatePlanMaterializedItem
+ *
+ * One exact coordinate the caller reports as currently materialized.
+ */
+export type CorporatePlanMaterializedItem = {
+  /**
+   * Object Kind
+   */
+  object_kind: "setup" | "component";
+  /**
+   * Passport Digest
+   */
+  passport_digest?: string | null;
+  /**
+   * Stable Id
+   */
+  stable_id: string;
+  /**
+   * Version
+   */
+  version: string;
+};
+
+/**
  * CorporateProjectCreateRequest
  */
 export type CorporateProjectCreateRequest = {
@@ -3732,6 +4348,10 @@ export type CorporateProjectUpdateRequest = {
  * CorporateProjectView
  */
 export type CorporateProjectView = {
+  /**
+   * Available Actions
+   */
+  available_actions: Array<string>;
   /**
    * Lifecycle
    */
@@ -5981,6 +6601,28 @@ export type OwnerMediaUploadResponse = {
    * State
    */
   state: "ready";
+  [key: string]: unknown;
+};
+
+/**
+ * OwnerObjectCapabilities
+ *
+ * Management capabilities the caller holds on one catalog object.
+ */
+export type OwnerObjectCapabilities = {
+  /**
+   * Capabilities
+   */
+  capabilities: Array<"edit" | "edit_presentation" | "delete">;
+  object_kind: ObjectKind;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  /**
+   * Stable Id
+   */
+  stable_id: string;
   [key: string]: unknown;
 };
 
@@ -11059,6 +11701,10 @@ export type TechnologyView = {
    */
   aliases: Array<string>;
   /**
+   * Available Actions
+   */
+  available_actions: Array<string>;
+  /**
    * Category Ids
    */
   category_ids: Array<string>;
@@ -14868,7 +15514,7 @@ export type ListCorporateCatalogAssignmentsData = {
     /**
      * Subject Kind
      */
-    subject_kind: "employee" | "team" | "project" | "technology";
+    subject_kind: "employee" | "team" | "project" | "technology" | "organization";
   };
   url: "/v1/corporate/organizations/{organization_id}/catalog-assignments";
 };
@@ -14971,13 +15617,288 @@ export type WriteCorporateCatalogAssignmentError =
 
 export type WriteCorporateCatalogAssignmentResponses = {
   /**
-   * Assign or retire an exact catalog version without granting access.
+   * Assign or retire a catalog line with an exact or latest selector, without granting access.
    */
   200: CorporateCatalogAssignment;
 };
 
 export type WriteCorporateCatalogAssignmentResponse =
   WriteCorporateCatalogAssignmentResponses[keyof WriteCorporateCatalogAssignmentResponses];
+
+export type ReadCorporateAssignmentDistributionData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+  };
+  query: {
+    /**
+     * Limit
+     */
+    limit?: number;
+    /**
+     * Offset
+     */
+    offset?: number;
+    /**
+     * Source Assignment Id
+     */
+    source_assignment_id: string;
+  };
+  url: "/v1/corporate/organizations/{organization_id}/catalog-assignments/distribution";
+};
+
+export type ReadCorporateAssignmentDistributionErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ReadCorporateAssignmentDistributionError =
+  ReadCorporateAssignmentDistributionErrors[keyof ReadCorporateAssignmentDistributionErrors];
+
+export type ReadCorporateAssignmentDistributionResponses = {
+  /**
+   * Read per-target distribution state for one source assignment.
+   */
+  200: CorporateDistributionStateList;
+};
+
+export type ReadCorporateAssignmentDistributionResponse =
+  ReadCorporateAssignmentDistributionResponses[keyof ReadCorporateAssignmentDistributionResponses];
+
+export type DistributeCorporateCatalogAssignmentData = {
+  body: CorporateDistributionRequest;
+  headers: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+    /**
+     * Client-chosen key; a retry must not become a second effect.
+     */
+    "Idempotency-Key": string;
+    /**
+     * Expected ETag. A stale value fails AI_STP_PRECONDITION_FAILED.
+     */
+    "If-Match": string;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/catalog-assignments/distribution";
+};
+
+export type DistributeCorporateCatalogAssignmentErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type DistributeCorporateCatalogAssignmentError =
+  DistributeCorporateCatalogAssignmentErrors[keyof DistributeCorporateCatalogAssignmentErrors];
+
+export type DistributeCorporateCatalogAssignmentResponses = {
+  /**
+   * Preview or apply one bulk assign/revoke distribution across the source assignment scope.
+   */
+  200: CorporateDistributionResult;
+};
+
+export type DistributeCorporateCatalogAssignmentResponse =
+  DistributeCorporateCatalogAssignmentResponses[keyof DistributeCorporateCatalogAssignmentResponses];
+
+export type ReadCorporateEffectiveAssignmentData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+  };
+  query: {
+    /**
+     * Account Id
+     */
+    account_id: string;
+    harness?: HarnessId | null;
+    /**
+     * Object Kind
+     */
+    object_kind: "setup" | "component";
+    /**
+     * Project Id
+     */
+    project_id?: string | null;
+    /**
+     * Stable Id
+     */
+    stable_id: string;
+    /**
+     * Technology Id
+     */
+    technology_id?: string | null;
+  };
+  url: "/v1/corporate/organizations/{organization_id}/catalog-assignments/effective";
+};
+
+export type ReadCorporateEffectiveAssignmentErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ReadCorporateEffectiveAssignmentError =
+  ReadCorporateEffectiveAssignmentErrors[keyof ReadCorporateEffectiveAssignmentErrors];
+
+export type ReadCorporateEffectiveAssignmentResponses = {
+  /**
+   * Resolve the winning applicable assignment for one employee and catalog line.
+   */
+  200: CorporateEffectiveAssignment;
+};
+
+export type ReadCorporateEffectiveAssignmentResponse =
+  ReadCorporateEffectiveAssignmentResponses[keyof ReadCorporateEffectiveAssignmentResponses];
+
+export type PlanCorporateAssignmentData = {
+  body: CorporateAssignmentPlanRequest;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/catalog-assignments/plan";
+};
+
+export type PlanCorporateAssignmentErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type PlanCorporateAssignmentError =
+  PlanCorporateAssignmentErrors[keyof PlanCorporateAssignmentErrors];
+
+export type PlanCorporateAssignmentResponses = {
+  /**
+   * Evaluate the deterministic install/update plan for one employee context, target harness, and reported materialized state.
+   */
+  200: CorporateAssignmentPlan;
+};
+
+export type PlanCorporateAssignmentResponse =
+  PlanCorporateAssignmentResponses[keyof PlanCorporateAssignmentResponses];
 
 export type WriteCorporateCatalogLifecycleData = {
   body: CorporateCatalogLifecycleRequest;
@@ -15411,7 +16332,7 @@ export type ListCorporateCatalogUsageData = {
     /**
      * Version
      */
-    version: string;
+    version?: string | null;
   };
   url: "/v1/corporate/organizations/{organization_id}/catalog-usage";
 };
@@ -15573,6 +16494,10 @@ export type ReadCorporateDirectoryData = {
      * Sort
      */
     sort?: "name" | "name_desc";
+    /**
+     * Subject Ids
+     */
+    subject_ids?: Array<string>;
     /**
      * Team Ids
      */
@@ -22018,6 +22943,71 @@ export type ListOwnershipRevisionsResponses = {
 export type ListOwnershipRevisionsResponse =
   ListOwnershipRevisionsResponses[keyof ListOwnershipRevisionsResponses];
 
+export type DeleteOwnerObjectData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path: {
+    /**
+     * component or setup
+     */
+    object_kind: string;
+    /**
+     * Typed stable identifier of the owned object.
+     */
+    stable_id: string;
+  };
+  query?: never;
+  url: "/v1/owner/objects/{object_kind}/{stable_id}";
+};
+
+export type DeleteOwnerObjectErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_NOT_FOUND.
+   */
+  404: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type DeleteOwnerObjectError = DeleteOwnerObjectErrors[keyof DeleteOwnerObjectErrors];
+
+export type DeleteOwnerObjectResponses = {
+  /**
+   * Delete an unpublished catalog object as its author or a governing administrator.
+   */
+  204: Blob | File;
+};
+
+export type DeleteOwnerObjectResponse =
+  DeleteOwnerObjectResponses[keyof DeleteOwnerObjectResponses];
+
 export type ReadOwnerObjectData = {
   body?: never;
   headers?: {
@@ -22081,6 +23071,72 @@ export type ReadOwnerObjectResponses = {
 };
 
 export type ReadOwnerObjectResponse = ReadOwnerObjectResponses[keyof ReadOwnerObjectResponses];
+
+export type ReadOwnerObjectCapabilitiesData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path: {
+    /**
+     * Catalog object kind.
+     */
+    object_kind: string;
+    /**
+     * Typed stable identifier of the catalog object.
+     */
+    stable_id: string;
+  };
+  query?: never;
+  url: "/v1/owner/objects/{object_kind}/{stable_id}/capabilities";
+};
+
+export type ReadOwnerObjectCapabilitiesErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_NOT_FOUND.
+   */
+  404: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ReadOwnerObjectCapabilitiesError =
+  ReadOwnerObjectCapabilitiesErrors[keyof ReadOwnerObjectCapabilitiesErrors];
+
+export type ReadOwnerObjectCapabilitiesResponses = {
+  /**
+   * Read the caller's capabilities on a catalog object, including drafts.
+   */
+  200: OwnerObjectCapabilities;
+};
+
+export type ReadOwnerObjectCapabilitiesResponse =
+  ReadOwnerObjectCapabilitiesResponses[keyof ReadOwnerObjectCapabilitiesResponses];
 
 export type ReadOwnerPresentationData = {
   body?: never;

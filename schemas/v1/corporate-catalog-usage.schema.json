@@ -28,6 +28,15 @@
       "title": "Schema Version",
       "type": "integer"
     },
+    "selector": {
+      "default": "exact",
+      "enum": [
+        "exact",
+        "latest"
+      ],
+      "title": "Selector",
+      "type": "string"
+    },
     "source": {
       "enum": [
         "direct",
@@ -72,9 +81,17 @@
       "type": "string"
     },
     "version": {
-      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
-      "title": "Version",
-      "type": "string"
+      "anyOf": [
+        {
+          "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Version"
     }
   },
   "required": [
@@ -82,6 +99,7 @@
     "object_kind",
     "organization_id",
     "schema_version",
+    "selector",
     "source",
     "source_team_id",
     "stable_id",

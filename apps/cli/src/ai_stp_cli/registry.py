@@ -640,6 +640,218 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         next_actions=("help --path grant --json",),
     ),
     Declaration(
+        path=["corporate", "assignment", "distribute"],
+        summary=(
+            "Preview or apply one bulk assign/revoke distribution across the "
+            "member and project targets of a source assignment. Dry-run "
+            "reports targets, exclusions, and per-target results without "
+            "mutating anything."
+        ),
+        result_schema="urn:ai-stp:schema:v1:corporate-distribution-result",
+        handler="corporate:distribute",
+        mutability="apply",
+        confirmation="explicit_flag",
+        parameters=(
+            option("organization", "string", "Organization identifier.", required=True),
+            option(
+                "source",
+                "string",
+                "Source assignment identifier whose scope is expanded.",
+                required=True,
+            ),
+            option(
+                "action",
+                "string",
+                "Bulk action to distribute.",
+                required=True,
+                choices=("assign", "revoke"),
+            ),
+            option(
+                "dry-run",
+                "boolean",
+                "Preview targets and results without mutation.",
+            ),
+            option(
+                "confirm",
+                "boolean",
+                "Confirm applying the distribution. Required without --dry-run.",
+            ),
+            option(
+                "expected-revision",
+                "integer",
+                "Expected source assignment revision.",
+                required=True,
+            ),
+            option(
+                "authorization-revision",
+                "integer",
+                "Expected organization authorization revision.",
+                required=True,
+            ),
+            option(
+                "idempotency-key",
+                "string",
+                "Durable idempotency key for the distribution.",
+                required=True,
+            ),
+        ),
+        next_actions=("help --path corporate --json",),
+    ),
+    Declaration(
+        path=["corporate", "assignment", "distribution"],
+        summary=(
+            "Read the latest per-target distribution state for one source "
+            "assignment, including pending, installed, outdated, failed, and "
+            "revoked lifecycle."
+        ),
+        result_schema="urn:ai-stp:schema:v1:corporate-distribution-state-list",
+        handler="corporate:distribution",
+        parameters=(
+            option("organization", "string", "Organization identifier.", required=True),
+            option(
+                "source",
+                "string",
+                "Source assignment identifier.",
+                required=True,
+            ),
+            option("offset", "integer", "Zero-based result offset."),
+            option("limit", "integer", "Maximum targets to return."),
+        ),
+        next_actions=("help --path corporate --json",),
+    ),
+    Declaration(
+        path=["corporate", "assignment", "effective"],
+        summary=(
+            "Resolve the winning corporate assignment for one employee and "
+            "catalog line, including the exact coordinates a latest selector "
+            "evaluates to."
+        ),
+        result_schema="urn:ai-stp:schema:v1:corporate-effective-assignment",
+        handler="corporate:effective",
+        parameters=(
+            option("organization", "string", "Organization identifier.", required=True),
+            option("account", "string", "Employee account identifier.", required=True),
+            option(
+                "kind",
+                "string",
+                "Catalog object kind.",
+                required=True,
+                choices=("component", "setup"),
+            ),
+            option("id", "string", "Stable catalog line identifier.", required=True),
+            option("project", "string", "Corporate project context."),
+            option("technology", "string", "Corporate technology context."),
+            option(
+                "harness",
+                "string",
+                "Harness the assignment may be conditioned on.",
+                choices=tuple(sorted(HARNESS_IDS)),
+            ),
+        ),
+        next_actions=("help --path corporate --json",),
+    ),
+    Declaration(
+        path=["corporate", "assignment", "plan"],
+        summary=(
+            "Evaluate the deterministic corporate install/update plan for the "
+            "authenticated context, target harness, and reported materialized "
+            "state. Plans are exact and write nothing; install consumes them."
+        ),
+        result_schema="urn:ai-stp:schema:v1:corporate-assignment-plan",
+        handler="corporate:plan",
+        mutability="plan",
+        parameters=(
+            option("organization", "string", "Organization identifier.", required=True),
+            option(
+                "account",
+                "string",
+                "Employee account identifier. Defaults to the signed-in account.",
+            ),
+            option(
+                "harness",
+                "string",
+                "Target harness the plan is evaluated for.",
+                required=True,
+                choices=tuple(sorted(HARNESS_IDS)),
+            ),
+            option("project", "string", "Corporate project context."),
+            option("technology", "string", "Corporate technology context."),
+            option(
+                "local-project",
+                "string",
+                "Local project identifier whose provider-verified target state "
+                "is reported as materialized.",
+            ),
+            option(
+                "materialized",
+                "string",
+                "Reported materialized coordinate as <kind>:<stable_id>@<version>.",
+                repeatable=True,
+            ),
+        ),
+        next_actions=("help --path corporate --json", "help --path install --json"),
+    ),
+    Declaration(
+        path=["corporate", "assignment", "verify"],
+        summary=(
+            "Verify that a managed target still carries exactly the "
+            "organization-approved setup and components. Compares the verified "
+            "installation record, the cached bundle manifest, and the live "
+            "provider status against the corporate assignment plan, classifies "
+            "every difference, and changes nothing."
+        ),
+        result_schema="urn:ai-stp:schema:v1:cli-managed-verification",
+        handler="corporate:verify",
+        parameters=(
+            option("organization", "string", "Organization identifier.", required=True),
+            option(
+                "account",
+                "string",
+                "Employee account identifier. Defaults to the signed-in account.",
+            ),
+            option(
+                "harness",
+                "string",
+                "Target harness the verification is evaluated for.",
+                required=True,
+                choices=tuple(sorted(HARNESS_IDS)),
+            ),
+            option(
+                "local-project",
+                "string",
+                "Local project identifier or root whose managed target is verified.",
+                required=True,
+            ),
+            option("project", "string", "Corporate project context."),
+            option("technology", "string", "Corporate technology context."),
+            option(
+                "offline",
+                "boolean",
+                "Skip the corporate assignment evaluation; verify local "
+                "evidence only. The verdict can then be at most unverifiable.",
+            ),
+            option(
+                "provider",
+                "string",
+                "Provider executable whose status observation is included when available.",
+            ),
+            option(
+                "protocol-version",
+                "integer",
+                "Provider protocol version for the status observation.",
+            ),
+            option(
+                "unverified-provider",
+                "boolean",
+                "Accept a provider that carries no signed release manifest.",
+            ),
+        ),
+        next_actions=(
+            "target diff --project <id> --harness <id> --json",
+            "corporate assignment plan --organization <id> --harness <id> --json",
+        ),
+    ),
+    Declaration(
         path=["report", "preview"],
         summary="Prepare and show the exact bounded report payload without sending it.",
         result_schema="urn:ai-stp:schema:v1:cli-report-preview",
@@ -2834,6 +3046,15 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 "Provider-declared execution posture, separate from setup identity.",
             ),
             option(
+                "allow-permission",
+                "string",
+                "A permission this target grants the composition, spelled "
+                "family:value as the component passport declares it, such as "
+                "process:git or filesystem:.herdr/**. Repeatable. Without a "
+                "grant the target permits nothing and the plan refuses.",
+                repeatable=True,
+            ),
+            option(
                 "scope",
                 "string",
                 "Projection scope the plan installs into: the harness home (global), "
@@ -2957,6 +3178,13 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 "unverified-provider", "boolean", "Explicitly use an unverified local provider."
             ),
             option("provider-release-recovery", "boolean", "Use a previously verified release."),
+            option(
+                "allow-permission",
+                "string",
+                "A permission each child target grants the composition, spelled "
+                "family:value. Repeatable; forwarded to every child plan.",
+                repeatable=True,
+            ),
         ),
         next_actions=("help --path install --json",),
     ),

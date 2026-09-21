@@ -21,6 +21,14 @@ from ai_stp_foundation.ids import new_id
 from ai_stp_platform.models import Account
 
 
+@pytest.fixture(autouse=True)
+def stub_object_capabilities(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "ai_stp_api.slices.corporate.subject_access.catalog_object_capabilities",
+        AsyncMock(return_value=[]),
+    )
+
+
 def payload(**changes: object) -> CorporateCatalogOwnershipRequest:
     return CorporateCatalogOwnershipRequest.model_validate(
         {

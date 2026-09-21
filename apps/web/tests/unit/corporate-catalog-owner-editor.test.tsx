@@ -12,7 +12,7 @@ vi.mock("@/actions/corporate", () => ({ corporateMutationAction: mutation }));
 vi.mock("@/lib/i18n/navigation", () => ({ useRouter: () => ({ refresh }) }));
 vi.mock("next-intl", () => ({ useTranslations: () => (key: string) => key }));
 
-import { CorporateCatalogOwnerEditor } from "@/components/organisms/corporate-catalog-owner-editor";
+import { CorporateCatalogOwnerDialog } from "@/components/organisms/corporate-catalog-owner-editor";
 
 const stableId = "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z";
 const organizationId = "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z";
@@ -29,6 +29,7 @@ const members = [
 const props = {
   ownership: {
     can_edit: true,
+    capabilities: [],
     object_kind: "component" as const,
     organization_id: organizationId,
     owner_id: ownerId,
@@ -62,7 +63,7 @@ describe("corporate catalog owner editor", () => {
     mutation
       .mockResolvedValueOnce({ ok: false, message: "Conflict" })
       .mockResolvedValueOnce({ ok: true, data: props.ownership });
-    render(<CorporateCatalogOwnerEditor {...props} />);
+    render(<CorporateCatalogOwnerDialog open onOpenChange={() => {}} ownerEdit={props} />);
 
     expect(screen.queryByRole("option", { name: "Suspended employee" })).toBeNull();
     fireEvent.change(screen.getByLabelText("operationalOwner"), { target: { value: "" } });
@@ -106,7 +107,7 @@ describe("corporate catalog owner editor", () => {
       ok: true,
       data: { ...props.ownership, stable_id: "component_01JQZK7B8N4M6P2R9T5V0X3Y8A" },
     });
-    render(<CorporateCatalogOwnerEditor {...props} />);
+    render(<CorporateCatalogOwnerDialog open onOpenChange={() => {}} ownerEdit={props} />);
 
     fireEvent.change(screen.getByLabelText("operationalOwner"), { target: { value: "" } });
     fireEvent.click(screen.getByRole("button", { name: "save" }));

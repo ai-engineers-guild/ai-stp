@@ -5,6 +5,7 @@ import {
   readCorporateContext,
   readCorporateAudit,
   readCorporateMemberAccess,
+  readCorporateWorkspace,
 } from "@/lib/api/corporate";
 import { ApiError } from "@/lib/api/errors";
 import {
@@ -119,6 +120,23 @@ export const TECHNOLOGY_ROUTES: MachineRoute[] = [
           },
         ],
         emptyMessage: t("noAudit"),
+      });
+    },
+  },
+  {
+    pattern: "corporate/organization/admins/access",
+    resolve: async () => {
+      const t = await getTranslations("corporate");
+      const workspace = await readCorporateWorkspace((await sessionCookieValue()) ?? "").catch(
+        () => null,
+      );
+      const roles = workspace?.roles?.items ?? [];
+      return presentPage({
+        title: t("accessMatrix"),
+        summary: t("accessMatrixBody"),
+        fields: roles.map((role) => [role.name, role.permissions.join(", ")] as const),
+        emptyMessage: t("noRoles"),
+        links: [[t("backToWorkspace"), "/corporate/organization/admins"]],
       });
     },
   },

@@ -14,6 +14,7 @@ from ai_stp_platform.organization_models import (
     CorporateRolePermission,
     CorporateServicePrincipal,
     CorporateTeam,
+    CorporateTeamMember,
     Organization,
     OrganizationMembership,
     ProjectIdentity,
@@ -202,6 +203,23 @@ async def has_corporate_permission(
         ) | (
             (CorporateRoleBinding.scope_kind == "team")
             & CorporateRoleBinding.scope_id.in_(technology_teams)
+        )
+    elif scope_kind == "member":
+        member_teams = (
+            select(CorporateTeamMember.team_id)
+            .join(
+                CorporateTeam,
+                (CorporateTeam.organization_id == CorporateTeamMember.organization_id)
+                & (CorporateTeam.id == CorporateTeamMember.team_id),
+            )
+            .where(
+                CorporateTeamMember.organization_id == organization_id,
+                CorporateTeamMember.account_id == scope,
+                CorporateTeam.state == "active",
+            )
+        )
+        scope_clause |= (CorporateRoleBinding.scope_kind == "team") & (
+            CorporateRoleBinding.scope_id.in_(member_teams)
         )
     bindings = await session.scalars(
         select(CorporateRoleBinding.role)

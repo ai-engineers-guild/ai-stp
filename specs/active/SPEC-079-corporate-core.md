@@ -52,10 +52,11 @@ are follow-up scope.
 ## Terms
 
 - `superadmin` — organization-wide administrator and the only initial bootstrap role.
-- `lead` — administrator within explicitly bound team or project scopes.
+- `lead` — administrator within explicitly bound team or project scopes,
+  including the members of those teams.
 - `staff` — member with explicitly granted read or work permissions.
 - `scope` — one of `system`, `organization`, `team`, `project`, `technology`,
-  `catalog_object`, or `telemetry`, optionally naming one resource.
+  `catalog_object`, `member`, or `telemetry`, optionally naming one resource.
 - `authorization revision` — the monotonic organization policy revision used as a
   mutation precondition.
 
@@ -80,6 +81,13 @@ are follow-up scope.
   archive or restore projects.
 - `REQ-7905`: A lead can act only inside explicitly bound team or project scopes. Staff
   cannot mutate organization structure, another member, or another member's access.
+  A `member` scope resolves through the member's current team memberships: a
+  team-scoped lead binding covers `member.read`, `member.update`, and
+  `member.delete` for members of that team and nothing outside it. The
+  organization-scoped grant keeps working as the tenant-wide fallback.
+  Member mutations authorized through a scoped grant cannot change the
+  organization role or suspend, demote, or remove a `superadmin` membership;
+  those effects require the organization-scoped permission.
 - `REQ-7905a`: A superadmin can create and suspend tenant-owned service principals.
   User and service-principal bindings are mutually exclusive and both use the same
   evaluator, permission rows, scopes, policy revision, and audit actor model.
@@ -191,7 +199,7 @@ stored with PostgreSQL microsecond precision.
 | `REQ-7902` | Migration and evaluator tests cover every initial role, permission, CRUDL action, scope, and deny-by-default result. |
 | `REQ-7903` | One authorization matrix exercises routes, direct services, collection filters, delayed jobs, and projections with the same fixtures. |
 | `REQ-7904` | API tests execute the role, member, binding, team, project, assignment, and service-principal lifecycle as a superadmin. |
-| `REQ-7905` | Lead and staff tests prove scoped allowance and organization-wide denial. |
+| `REQ-7905` | Lead and staff tests prove scoped allowance and organization-wide denial; `tests/api/platform/test_corporate_subject_rbac.py` covers member-scope resolution through team membership, the role-change and superadmin guards, and the organization-scope fallback. |
 | `REQ-7906` | Concurrency, stale-revision, idempotency, and last-superadmin tests observe no partial mutation. |
 | `REQ-7907` | A provisioned account's first context response contains only its organization, scopes, and visible projects; identity linking preserves them. |
 | `REQ-7908` | Database constraints, a non-privileged FORCE-RLS probe, and hostile integration tests cover cross-tenant read, write, relationship, list, count, introduced-job, audit-read, and object-key boundaries. #212, #247, #52, #218, #219, #18, #213, #207, #208, #222, #215, and #230 add equivalent hostile tests for their follow-up surfaces before claiming them. |

@@ -1,0 +1,136 @@
+{
+  "$defs": {
+    "CorporateDistributionState": {
+      "additionalProperties": true,
+      "description": "Current derived distribution state for one member or project target.",
+      "properties": {
+        "diagnostic": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Diagnostic"
+        },
+        "operation_revision": {
+          "minimum": 1,
+          "title": "Operation Revision",
+          "type": "integer"
+        },
+        "result": {
+          "enum": [
+            "applied",
+            "skipped",
+            "conflicted",
+            "denied",
+            "failed"
+          ],
+          "title": "Result",
+          "type": "string"
+        },
+        "state": {
+          "anyOf": [
+            {
+              "enum": [
+                "pending",
+                "installed",
+                "outdated",
+                "failed",
+                "revoked"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "State"
+        },
+        "target_id": {
+          "title": "Target Id",
+          "type": "string"
+        },
+        "target_kind": {
+          "enum": [
+            "employee",
+            "project"
+          ],
+          "title": "Target Kind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "diagnostic",
+        "operation_revision",
+        "result",
+        "state",
+        "target_id",
+        "target_kind"
+      ],
+      "title": "CorporateDistributionState",
+      "type": "object"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:corporate-distribution-state-list",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "Per-target distribution state for one source assignment.",
+  "properties": {
+    "items": {
+      "items": {
+        "$ref": "#/$defs/CorporateDistributionState"
+      },
+      "title": "Items",
+      "type": "array"
+    },
+    "organization_id": {
+      "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "title": "Organization Id",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "source_assignment_id": {
+      "title": "Source Assignment Id",
+      "type": "string"
+    },
+    "source_revision": {
+      "minimum": 1,
+      "title": "Source Revision",
+      "type": "integer"
+    },
+    "source_state": {
+      "enum": [
+        "current",
+        "retired"
+      ],
+      "title": "Source State",
+      "type": "string"
+    },
+    "total": {
+      "minimum": 0,
+      "title": "Total",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "items",
+    "organization_id",
+    "schema_version",
+    "source_assignment_id",
+    "source_revision",
+    "source_state",
+    "total"
+  ],
+  "title": "CorporateDistributionStateList",
+  "type": "object"
+}

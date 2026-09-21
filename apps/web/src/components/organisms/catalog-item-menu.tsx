@@ -4,8 +4,10 @@ import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { useState, useTransition, type ReactNode } from "react";
 import { toast } from "sonner";
 
+import { corporateAssignContextAction, type CorporateAssignContext } from "@/actions/corporate";
 import { Button } from "@/components/atoms/button";
 import { ContactReportDialog } from "@/components/organisms/contact-report-dialog";
+import { CorporateAssignDialog } from "@/components/organisms/corporate-assign-dialog";
 import { updateCatalogReaction } from "@/lib/actions/catalog-reactions";
 import { registryCommand } from "@/lib/cli-copy";
 import { buildDeepLink, normalizeTarget } from "@/lib/deep-links";
@@ -18,6 +20,7 @@ type CatalogItemMenuProps = {
   href: string;
   initiallyLiked?: boolean;
   leadingItems?: ReactNode[];
+  objectName?: string;
   labels: {
     more: string;
     copyUrl: string;
@@ -41,8 +44,11 @@ export function CatalogItemMenu({
   initiallyLiked = false,
   leadingItems,
   labels,
+  objectName,
 }: CatalogItemMenuProps) {
   const [reportOpen, setReportOpen] = useState(false);
+  const [assignCtx, setAssignCtx] = useState<CorporateAssignContext | null>(null);
+  const [assignOpen, setAssignOpen] = useState(false);
   const [liked, setLiked] = useState(initiallyLiked);
   const [pending, startTransition] = useTransition();
   const cliCommand = registryCommand(stableId);
@@ -68,7 +74,14 @@ export function CatalogItemMenu({
 
   return (
     <>
-      <DropdownMenu.Root modal={false}>
+      <DropdownMenu.Root
+        modal={false}
+        onOpenChange={(open) => {
+          if (open && assignCtx === null) {
+            void corporateAssignContextAction().then(setAssignCtx);
+          }
+        }}
+      >
         <DropdownMenu.Trigger asChild>
           <Button
             type="button"
@@ -138,6 +151,17 @@ export function CatalogItemMenu({
               <Icon name="heart" size="sm" fill={liked ? "currentColor" : "none"} />
               {liked ? labels.unlike : labels.like}
             </DropdownMenu.Item>
+            {assignCtx?.ok ? (
+              <DropdownMenu.Item
+                className={itemClassName}
+                onSelect={() => {
+                  setAssignOpen(true);
+                }}
+              >
+                <Icon name="team" size="sm" />
+                {assignCtx.labels.assign}
+              </DropdownMenu.Item>
+            ) : null}
             <DropdownMenu.Item
               className={itemClassName}
               onSelect={() => {
@@ -150,6 +174,16 @@ export function CatalogItemMenu({
           </DropdownMenu.Content>
         </DropdownMenu.Portal>
       </DropdownMenu.Root>
+      {assignCtx?.ok ? (
+        <CorporateAssignDialog
+          open={assignOpen}
+          onOpenChange={setAssignOpen}
+          context={assignCtx}
+          objectKind={kind}
+          stableId={stableId}
+          objectName={objectName ?? stableId}
+        />
+      ) : null}
       <ContactReportDialog
         kind={kind}
         target={`${stableId}${version ? `@${version}` : ""}`}

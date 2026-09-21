@@ -16,38 +16,16 @@ import { Link, useRouter } from "@/lib/i18n/navigation";
 import type {
   CorporateCatalogAssignment,
   CorporateCatalogAssignmentRequest,
-  OwnerObjectSummary,
 } from "@/lib/api/generated/types.gen";
-import { ObjectCard } from "@/components/organisms/object-card";
+import { CatalogItemMenu } from "@/components/organisms/catalog-item-menu";
+import { ObjectCard, type OwnerCardItem } from "@/components/organisms/object-card";
+import { assignmentCardItem } from "@/lib/assignment-card";
 import { Icon } from "@/theme";
-
-const assignmentCardLabels = {
-  harness: "",
-  tags: "",
-  publicVisibility: "Public",
-  privateVisibility: "Private",
-} satisfies Parameters<typeof ObjectCard>[0]["labels"];
-
-function assignmentCardItem(item: CorporateCatalogAssignment): OwnerObjectSummary {
-  return {
-    schema_version: 1,
-    author_verified: false,
-    component_verified: false,
-    catalog_item: null,
-    latest_version: item.version,
-    lifecycle_state: "active",
-    name: item.display_name ?? item.stable_id,
-    object_kind: item.object_kind,
-    stable_id: item.stable_id,
-    trust_lane: null,
-    updated_at: "1970-01-01T00:00:00Z",
-    visibility: "private",
-  };
-}
 
 // eslint-disable-next-line max-lines-per-function
 export function CorporateCatalogAssignments({
   items,
+  cards,
   organizationId,
   subjectKind,
   subjectId,
@@ -56,6 +34,8 @@ export function CorporateCatalogAssignments({
   canManage,
 }: {
   items: CorporateCatalogAssignment[];
+  /** Resolved catalog cards keyed by assignment_id; falls back to identity-only rows. */
+  cards?: Record<string, OwnerCardItem>;
   organizationId: string;
   subjectKind: "employee" | "team" | "project" | "technology";
   subjectId: string;
@@ -64,6 +44,7 @@ export function CorporateCatalogAssignments({
   canManage: boolean;
 }) {
   const h = useTranslations("hub");
+  const tc = useTranslations("catalog");
   const router = useRouter();
   const [adding, setAdding] = useState(false);
   const [kind, setKind] = useState<"setup" | "component">("setup");
@@ -226,48 +207,91 @@ export function CorporateCatalogAssignments({
           </div>
         </RefineSurface>
       ) : null}
-      <ul className="divide-border divide-y">
-        {filteredItems.map((item) => (
-          <li
-            key={`${item.assignment_id}/${item.subject_id}/${item.source_team_id ?? "direct"}`}
-            className="py-3"
-          >
-            <ObjectCard
-              kind={item.object_kind}
-              item={assignmentCardItem(item)}
-              href={`/catalog/${item.object_kind === "setup" ? "setups" : "components"}/${item.stable_id}`}
-              labels={assignmentCardLabels}
-              view="list"
-              ownerActions={
-                <div className="flex min-w-0 flex-wrap items-center justify-end gap-3">
-                  <span className="text-muted-foreground text-sm">
+      <ul className="border-border divide-border grid min-w-0 divide-y overflow-hidden rounded-lg border">
+        {filteredItems.map((item) => {
+          const card = cards?.[item.assignment_id] ?? assignmentCardItem(item);
+          const version =
+            card.catalog_item &&
+            "latest_version" in card.catalog_item &&
+            typeof card.catalog_item.latest_version === "string"
+              ? card.catalog_item.latest_version
+              : item.version;
+          return (
+            <li
+              key={`${item.assignment_id}/${item.subject_id}/${item.source_team_id ?? "direct"}`}
+              className="min-w-0"
+            >
+              <ObjectCard
+                kind={item.object_kind}
+                item={card}
+                href={`/catalog/${item.object_kind === "setup" ? "setups" : "components"}/${item.stable_id}`}
+                labels={{
+                  version: tc("version"),
+                  harness: tc("harness"),
+                  tags: tc("tags"),
+                  type: tc("type"),
+                  publisher: tc("publisher"),
+                  likes: tc("likes"),
+                  componentKind: tc("componentKind"),
+                  setupKind: tc("setupKind"),
+                  moreActions: tc("moreActions"),
+                  copyCli: tc("copyCli"),
+                  copyId: tc("copyId"),
+                  copyUrl: tc("copyUrl"),
+                  copied: tc("copied"),
+                  report: tc("report"),
+                  reportSetup: tc("reportSetup"),
+                  like: tc("likeMenu"),
+                  unlike: tc("unlikeMenu"),
+                  publicVisibility: tc("public"),
+                  privateVisibility: tc("private"),
+                }}
+                view="list"
+                ownerActions={
+                  <div className="flex min-w-0 flex-wrap items-center justify-end gap-3">
                     {item.source_team_id ? (
                       <Link
                         href={`/corporate/teams/${item.source_team_id}`}
-                        className="underline underline-offset-4"
+                        className="text-muted-foreground text-sm underline underline-offset-4"
                       >
                         {h("viaTeam")}
                       </Link>
-                    ) : (
-                      h("directAssignment")
-                    )}
-                  </span>
-                  {canManage && !item.source_team_id ? (
-                    <Button
-                      variant="outline"
-                      disabled={busy}
-                      onClick={() => {
-                        void save(item);
+                    ) : null}
+                    {canManage && !item.source_team_id ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={busy}
+                        onClick={() => {
+                          void save(item);
+                        }}
+                      >
+                        {h("unlink")}
+                      </Button>
+                    ) : null}
+                    <CatalogItemMenu
+                      kind={item.object_kind}
+                      stableId={item.stable_id}
+                      version={version}
+                      href={`/catalog/${item.object_kind === "setup" ? "setups" : "components"}/${item.stable_id}`}
+                      objectName={card.name}
+                      labels={{
+                        more: tc("moreActions"),
+                        copyUrl: tc("copyUrl"),
+                        copyCli: tc("copyCli"),
+                        copyId: tc("copyId"),
+                        copied: tc("copied"),
+                        report: item.object_kind === "setup" ? tc("reportSetup") : tc("report"),
+                        like: tc("likeMenu"),
+                        unlike: tc("unlikeMenu"),
                       }}
-                    >
-                      {h("unlink")}
-                    </Button>
-                  ) : null}
-                </div>
-              }
-            />
-          </li>
-        ))}
+                    />
+                  </div>
+                }
+              />
+            </li>
+          );
+        })}
       </ul>
       {!filteredItems.length && (
         <p className="text-muted-foreground text-sm">{h("noAssignments")}</p>

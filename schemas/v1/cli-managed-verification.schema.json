@@ -1,0 +1,306 @@
+{
+  "$defs": {
+    "HarnessId": {
+      "enum": [
+        "claude-code",
+        "codex",
+        "pi",
+        "opencode",
+        "grok-build",
+        "cursor",
+        "antigravity"
+      ],
+      "type": "string"
+    },
+    "ManagedVerificationItem": {
+      "additionalProperties": false,
+      "description": "One managed line or drifted path, classified against authorized records.\n\nSetup and component items carry the expected coordinates; path items carry\nthe file-level proof. Coordinates, relative paths and digests only — never\nfile content, never an absolute local path.",
+      "properties": {
+        "change": {
+          "default": "",
+          "enum": [
+            "",
+            "added",
+            "modified",
+            "deleted"
+          ],
+          "title": "Change",
+          "type": "string"
+        },
+        "classification": {
+          "enum": [
+            "unchanged",
+            "locally_modified",
+            "missing",
+            "extra",
+            "unverifiable",
+            "expected_change"
+          ],
+          "title": "Classification",
+          "type": "string"
+        },
+        "component_kind": {
+          "default": "",
+          "title": "Component Kind",
+          "type": "string"
+        },
+        "diagnostic": {
+          "default": "",
+          "title": "Diagnostic",
+          "type": "string"
+        },
+        "expected_digest": {
+          "default": "",
+          "title": "Expected Digest",
+          "type": "string"
+        },
+        "observed_digest": {
+          "default": "",
+          "title": "Observed Digest",
+          "type": "string"
+        },
+        "outcome": {
+          "anyOf": [
+            {
+              "enum": [
+                "missing",
+                "installed",
+                "outdated",
+                "revoked",
+                "unassigned",
+                "unsupported",
+                "conflicting"
+              ],
+              "type": "string"
+            },
+            {
+              "const": "",
+              "type": "string"
+            }
+          ],
+          "default": "",
+          "title": "Outcome"
+        },
+        "passport_digest": {
+          "default": "",
+          "title": "Passport Digest",
+          "type": "string"
+        },
+        "path": {
+          "default": "",
+          "title": "Path",
+          "type": "string"
+        },
+        "revision_id": {
+          "default": "",
+          "title": "Revision Id",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "stable_id": {
+          "default": "",
+          "title": "Stable Id",
+          "type": "string"
+        },
+        "subject": {
+          "enum": [
+            "setup",
+            "component",
+            "path"
+          ],
+          "title": "Subject",
+          "type": "string"
+        },
+        "version": {
+          "default": "",
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "subject",
+        "classification"
+      ],
+      "title": "ManagedVerificationItem",
+      "type": "object"
+    },
+    "ShadowedSurface": {
+      "additionalProperties": false,
+      "description": "A name the product reads that the provider does not own.",
+      "properties": {
+        "effect": {
+          "minLength": 1,
+          "title": "Effect",
+          "type": "string"
+        },
+        "name": {
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "over": {
+          "minLength": 1,
+          "title": "Over",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "name",
+        "over",
+        "effect"
+      ],
+      "title": "ShadowedSurface",
+      "type": "object"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:cli-managed-verification",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "Whether a managed target still matches its authorized installed record.\n\n`status` is the one verdict a CI gate reads; `items` is the evidence behind\nit. The answer binds the check to tenant, account, project, context and\nharness, and carries coordinates, digests and timestamps only — a\nverification report must never contain file content.",
+  "properties": {
+    "account_id": {
+      "default": "",
+      "title": "Account Id",
+      "type": "string"
+    },
+    "checked_at": {
+      "default": "",
+      "title": "Checked At",
+      "type": "string"
+    },
+    "corporate": {
+      "default": "evaluated",
+      "enum": [
+        "evaluated",
+        "offline",
+        "unavailable"
+      ],
+      "title": "Corporate",
+      "type": "string"
+    },
+    "diagnostics": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Diagnostics",
+      "type": "array"
+    },
+    "harness_id": {
+      "$ref": "#/$defs/HarnessId"
+    },
+    "items": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/ManagedVerificationItem"
+      },
+      "title": "Items",
+      "type": "array"
+    },
+    "observed_target_digest": {
+      "default": "",
+      "title": "Observed Target Digest",
+      "type": "string"
+    },
+    "operation_id": {
+      "default": "",
+      "title": "Operation Id",
+      "type": "string"
+    },
+    "organization_id": {
+      "default": "",
+      "title": "Organization Id",
+      "type": "string"
+    },
+    "project_id": {
+      "minLength": 1,
+      "title": "Project Id",
+      "type": "string"
+    },
+    "remote_project_id": {
+      "default": "",
+      "title": "Remote Project Id",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "shadowed_surfaces": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/ShadowedSurface"
+      },
+      "title": "Shadowed Surfaces",
+      "type": "array"
+    },
+    "status": {
+      "enum": [
+        "pass",
+        "fail",
+        "outdated",
+        "revoked",
+        "unsupported",
+        "not_enrolled",
+        "unverifiable"
+      ],
+      "title": "Status",
+      "type": "string"
+    },
+    "target_id": {
+      "default": "",
+      "title": "Target Id",
+      "type": "string"
+    },
+    "technology_id": {
+      "default": "",
+      "title": "Technology Id",
+      "type": "string"
+    },
+    "verified_at": {
+      "default": "",
+      "title": "Verified At",
+      "type": "string"
+    },
+    "verified_target_digest": {
+      "default": "",
+      "title": "Verified Target Digest",
+      "type": "string"
+    }
+  },
+  "required": [
+    "account_id",
+    "checked_at",
+    "corporate",
+    "diagnostics",
+    "harness_id",
+    "items",
+    "observed_target_digest",
+    "operation_id",
+    "organization_id",
+    "project_id",
+    "remote_project_id",
+    "schema_version",
+    "shadowed_surfaces",
+    "status",
+    "target_id",
+    "technology_id",
+    "verified_at",
+    "verified_target_digest"
+  ],
+  "title": "ManagedVerification",
+  "type": "object"
+}

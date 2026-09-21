@@ -137,12 +137,18 @@ import type {
   DeleteCorporateTeamData,
   DeleteCorporateTeamErrors,
   DeleteCorporateTeamResponses,
+  DeleteOwnerObjectData,
+  DeleteOwnerObjectErrors,
+  DeleteOwnerObjectResponses,
   DeleteStaffContentData,
   DeleteStaffContentErrors,
   DeleteStaffContentResponses,
   DisconnectGithubData,
   DisconnectGithubErrors,
   DisconnectGithubResponses,
+  DistributeCorporateCatalogAssignmentData,
+  DistributeCorporateCatalogAssignmentErrors,
+  DistributeCorporateCatalogAssignmentResponses,
   ExchangeDeviceCodeData,
   ExchangeDeviceCodeErrors,
   ExchangeDeviceCodeResponses,
@@ -275,6 +281,9 @@ import type {
   PatchOwnerSetupFamilyData,
   PatchOwnerSetupFamilyErrors,
   PatchOwnerSetupFamilyResponses,
+  PlanCorporateAssignmentData,
+  PlanCorporateAssignmentErrors,
+  PlanCorporateAssignmentResponses,
   PlanGithubActionData,
   PlanGithubActionErrors,
   PlanGithubActionResponses,
@@ -338,6 +347,9 @@ import type {
   ReadContentRepositoryStateErrors,
   ReadContentRepositoryStateResponses,
   ReadContentResponses,
+  ReadCorporateAssignmentDistributionData,
+  ReadCorporateAssignmentDistributionErrors,
+  ReadCorporateAssignmentDistributionResponses,
   ReadCorporateBindingData,
   ReadCorporateBindingErrors,
   ReadCorporateBindingResponses,
@@ -353,6 +365,9 @@ import type {
   ReadCorporateDirectoryData,
   ReadCorporateDirectoryErrors,
   ReadCorporateDirectoryResponses,
+  ReadCorporateEffectiveAssignmentData,
+  ReadCorporateEffectiveAssignmentErrors,
+  ReadCorporateEffectiveAssignmentResponses,
   ReadCorporateEntityProfileData,
   ReadCorporateEntityProfileErrors,
   ReadCorporateEntityProfileResponses,
@@ -395,6 +410,9 @@ import type {
   ReadOrganizationCapabilitiesData,
   ReadOrganizationCapabilitiesErrors,
   ReadOrganizationCapabilitiesResponses,
+  ReadOwnerObjectCapabilitiesData,
+  ReadOwnerObjectCapabilitiesErrors,
+  ReadOwnerObjectCapabilitiesResponses,
   ReadOwnerObjectData,
   ReadOwnerObjectErrors,
   ReadOwnerObjectResponses,
@@ -1564,7 +1582,7 @@ export const listCorporateCatalogAssignments = <ThrowOnError extends boolean = f
   });
 
 /**
- * Assign or retire an exact catalog version without granting access.
+ * Assign or retire a catalog line with an exact or latest selector, without granting access.
  */
 export const writeCorporateCatalogAssignment = <ThrowOnError extends boolean = false>(
   options: Options<WriteCorporateCatalogAssignmentData, ThrowOnError>,
@@ -1580,6 +1598,90 @@ export const writeCorporateCatalogAssignment = <ThrowOnError extends boolean = f
   >({
     security: [{ scheme: "bearer", type: "http" }],
     url: "/v1/corporate/organizations/{organization_id}/catalog-assignments",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Read per-target distribution state for one source assignment.
+ */
+export const readCorporateAssignmentDistribution = <ThrowOnError extends boolean = false>(
+  options: Options<ReadCorporateAssignmentDistributionData, ThrowOnError>,
+): RequestResult<
+  ReadCorporateAssignmentDistributionResponses,
+  ReadCorporateAssignmentDistributionErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).get<
+    ReadCorporateAssignmentDistributionResponses,
+    ReadCorporateAssignmentDistributionErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/catalog-assignments/distribution",
+    ...options,
+  });
+
+/**
+ * Preview or apply one bulk assign/revoke distribution across the source assignment scope.
+ */
+export const distributeCorporateCatalogAssignment = <ThrowOnError extends boolean = false>(
+  options: Options<DistributeCorporateCatalogAssignmentData, ThrowOnError>,
+): RequestResult<
+  DistributeCorporateCatalogAssignmentResponses,
+  DistributeCorporateCatalogAssignmentErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).post<
+    DistributeCorporateCatalogAssignmentResponses,
+    DistributeCorporateCatalogAssignmentErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/catalog-assignments/distribution",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Resolve the winning applicable assignment for one employee and catalog line.
+ */
+export const readCorporateEffectiveAssignment = <ThrowOnError extends boolean = false>(
+  options: Options<ReadCorporateEffectiveAssignmentData, ThrowOnError>,
+): RequestResult<
+  ReadCorporateEffectiveAssignmentResponses,
+  ReadCorporateEffectiveAssignmentErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).get<
+    ReadCorporateEffectiveAssignmentResponses,
+    ReadCorporateEffectiveAssignmentErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/catalog-assignments/effective",
+    ...options,
+  });
+
+/**
+ * Evaluate the deterministic install/update plan for one employee context, target harness, and reported materialized state.
+ */
+export const planCorporateAssignment = <ThrowOnError extends boolean = false>(
+  options: Options<PlanCorporateAssignmentData, ThrowOnError>,
+): RequestResult<PlanCorporateAssignmentResponses, PlanCorporateAssignmentErrors, ThrowOnError> =>
+  (options.client ?? client).post<
+    PlanCorporateAssignmentResponses,
+    PlanCorporateAssignmentErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/catalog-assignments/plan",
     ...options,
     headers: {
       "Content-Type": "application/json",
@@ -3563,6 +3665,22 @@ export const listOwnershipRevisions = <ThrowOnError extends boolean = false>(
   });
 
 /**
+ * Delete an unpublished catalog object as its author or a governing administrator.
+ */
+export const deleteOwnerObject = <ThrowOnError extends boolean = false>(
+  options: Options<DeleteOwnerObjectData, ThrowOnError>,
+): RequestResult<DeleteOwnerObjectResponses, DeleteOwnerObjectErrors, ThrowOnError> =>
+  (options.client ?? client).delete<
+    DeleteOwnerObjectResponses,
+    DeleteOwnerObjectErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/owner/objects/{object_kind}/{stable_id}",
+    ...options,
+  });
+
+/**
  * Read one owned object and its versions.
  */
 export const readOwnerObject = <ThrowOnError extends boolean = false>(
@@ -3571,6 +3689,26 @@ export const readOwnerObject = <ThrowOnError extends boolean = false>(
   (options.client ?? client).get<ReadOwnerObjectResponses, ReadOwnerObjectErrors, ThrowOnError>({
     security: [{ scheme: "bearer", type: "http" }],
     url: "/v1/owner/objects/{object_kind}/{stable_id}",
+    ...options,
+  });
+
+/**
+ * Read the caller's capabilities on a catalog object, including drafts.
+ */
+export const readOwnerObjectCapabilities = <ThrowOnError extends boolean = false>(
+  options: Options<ReadOwnerObjectCapabilitiesData, ThrowOnError>,
+): RequestResult<
+  ReadOwnerObjectCapabilitiesResponses,
+  ReadOwnerObjectCapabilitiesErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).get<
+    ReadOwnerObjectCapabilitiesResponses,
+    ReadOwnerObjectCapabilitiesErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/owner/objects/{object_kind}/{stable_id}/capabilities",
     ...options,
   });
 

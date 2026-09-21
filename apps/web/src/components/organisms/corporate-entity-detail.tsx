@@ -89,6 +89,7 @@ export function CorporateEntityDetail({
             entityId={resourceId}
             shareHref={detailHref}
             copyIdLabel={h("copyId")}
+            copyUrlLabel={h("copyUrl")}
             shareLabel={h("share")}
             reportLabel={h("report")}
             reportTarget={`corporate:${canonicalResource}:${resourceId}`}

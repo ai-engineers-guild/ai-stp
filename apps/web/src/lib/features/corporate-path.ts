@@ -1,7 +1,7 @@
 import { COMPILED_FEATURE_PROFILE } from "./compiled";
 
 const SHARED_PAGE =
-  /^\/(catalog|account|objects|likes|devices|access|reports|publications|invitations|onboarding|publishers|login|device-login)(?:\/|[?#]|$)/;
+  /^\/(catalog|account|objects|assigned|likes|devices|access|reports|publications|invitations|onboarding|publishers|login|device-login)(?:\/|[?#]|$)/;
 
 /** Keep shared pages in the corporate URL space without duplicating their UI. */
 export function corporateHref(href: string): string {

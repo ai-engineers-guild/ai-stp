@@ -3,6 +3,15 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": true,
   "properties": {
+    "available_actions": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "maxItems": 128,
+      "title": "Available Actions",
+      "type": "array"
+    },
     "lifecycle": {
       "anyOf": [
         {
@@ -71,6 +80,7 @@
     }
   },
   "required": [
+    "available_actions",
     "name",
     "organization_id",
     "project_id",

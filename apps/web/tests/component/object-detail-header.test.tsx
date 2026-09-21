@@ -56,10 +56,11 @@ describe("object detail header and frame", () => {
     );
     const header = container.querySelector('[data-ui="component-detail-header"]');
     const overflow = container.querySelector('[data-ui="component-overflow"]');
+    const pinned = overflow?.closest(".absolute");
     expect(header).not.toBeNull();
-    expect(overflow?.className).toContain("absolute");
-    expect(overflow?.className).toContain("top-0");
-    expect(overflow?.className).toContain("right-0");
+    expect(pinned?.className).toContain("absolute");
+    expect(pinned?.className).toContain("top-0");
+    expect(pinned?.className).toContain("right-0");
     expect(header?.contains(overflow)).toBe(true);
 
     const more = screen.getByRole("button", { name: "More actions" });

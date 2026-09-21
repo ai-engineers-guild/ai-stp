@@ -338,6 +338,79 @@ def test_promotion_surfaces_a_widened_file_rather_than_masking_it(
         secrets.promote(store, "thing")
 
 
+def _refusing_keyring(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A backend that answers the small probe but refuses real entries.
+
+    Windows Credential Manager rejects blobs past its cap, so the failure
+    arrives at write/read time on a store that selected cleanly.
+    """
+
+    import sys
+
+    class DeleteRefused(Exception):
+        pass
+
+    class Refusing:
+        errors = type("errors", (), {"PasswordDeleteError": DeleteRefused})
+
+        @staticmethod
+        def get_password(service: str, name: str) -> str | None:
+            return None
+
+        @staticmethod
+        def set_password(service: str, name: str, value: str) -> None:
+            raise RuntimeError("blob too large")
+
+        @staticmethod
+        def delete_password(service: str, name: str) -> None:
+            raise DeleteRefused
+
+    monkeypatch.setitem(sys.modules, "keyring", Refusing)
+
+
+def test_a_store_write_refusal_keeps_the_secret_in_the_file_tier(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _refusing_keyring(monkeypatch)
+    store = secrets.KeyringStore("keyring.backends.Windows.WinVaultKeyring")
+
+    secrets.store_json(store, "thing", {"a": "1"})
+
+    assert secrets.FileStore().get("thing") == '{"a": "1"}'
+    assert secrets.load_json(store, "thing") == {"a": "1"}
+
+
+def test_a_store_read_refusal_still_sees_the_file_copy(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import sys
+
+    class Deaf:
+        errors = type("errors", (), {"PasswordDeleteError": Exception})
+
+        @staticmethod
+        def get_password(service: str, name: str) -> str | None:
+            raise RuntimeError("store went away")
+
+    monkeypatch.setitem(sys.modules, "keyring", Deaf)
+    secrets.FileStore().put("thing", '{"a": "1"}')
+    store = secrets.KeyringStore("keyring.backends.Windows.WinVaultKeyring")
+
+    assert secrets.load_json(store, "thing") == {"a": "1"}
+
+
+def test_promotion_keeps_the_file_copy_when_the_store_refuses_it(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    secrets.FileStore().put("thing", "value")
+    _refusing_keyring(monkeypatch)
+    store = secrets.KeyringStore("keyring.backends.Windows.WinVaultKeyring")
+
+    secrets.promote(store, "thing")
+
+    assert secrets.FileStore().get("thing") == "value"
+
+
 def test_a_selected_store_that_does_not_answer_falls_back_and_says_so(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

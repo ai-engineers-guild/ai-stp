@@ -37,8 +37,88 @@ class Manifest:
     target_scope: str = "global"
 
 
+@dataclass(frozen=True)
+class ComponentBinding:
+    """One component the verified bundle was built from.
+
+    `member_paths` names the managed files the component projection wrote, so
+    verification can say which component a drifted path belongs to instead of
+    only that a path drifted.
+    """
+
+    stable_id: str
+    version: str
+    passport_digest: str
+    component_kind: str
+    member_paths: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class BundleOverview:
+    """The verifiable identity of one verified HarnessBundle."""
+
+    manifest: Manifest
+    setup_stable_id: str = ""
+    setup_version: str = ""
+    setup_passport_digest: str = ""
+    components: tuple[ComponentBinding, ...] = ()
+
+
 def bundle_manifest(archive: Path) -> Manifest:
     """Read the exact managed file records from a verified cached bundle."""
+    return _manifest(_bundle_document(archive))
+
+
+def bundle_overview(archive: Path) -> BundleOverview:
+    """The manifest plus the setup and component coordinates it was built from."""
+    document = _bundle_document(archive)
+    manifest = _manifest(document)
+    setup = document.get("setup")
+    held_setup = cast(dict[str, object], setup) if isinstance(setup, dict) else {}
+    stable_id = held_setup.get("stable_id")
+    version = held_setup.get("version")
+    passport_digest = held_setup.get("passport_digest")
+    bindings: list[ComponentBinding] = []
+    adaptations = document.get("component_adaptations")
+    if adaptations is not None:
+        if not isinstance(adaptations, list):
+            raise _failure("the verified HarnessBundle component bindings are invalid")
+        adaptation_items = cast(list[object], adaptations)
+        if len(adaptation_items) > MAX_MANAGED_FILES:
+            raise _failure("the verified HarnessBundle component bindings are invalid")
+        for raw_binding in adaptation_items:
+            binding = cast(dict[str, object], raw_binding) if isinstance(raw_binding, dict) else {}
+            member_paths = binding.get("member_paths")
+            members = cast(list[object], member_paths) if isinstance(member_paths, list) else []
+            if (
+                not isinstance(binding.get("stable_id"), str)
+                or not isinstance(binding.get("version"), str)
+                or not isinstance(binding.get("passport_digest"), str)
+                or not isinstance(binding.get("provider_component_kind"), str)
+                or not isinstance(member_paths, list)
+                or len(members) > MAX_MANAGED_FILES
+                or any(not isinstance(member, str) or not _safe(member) for member in members)
+            ):
+                raise _failure("the verified HarnessBundle component bindings are invalid")
+            bindings.append(
+                ComponentBinding(
+                    stable_id=str(binding["stable_id"]),
+                    version=str(binding["version"]),
+                    passport_digest=str(binding["passport_digest"]),
+                    component_kind=str(binding["provider_component_kind"]),
+                    member_paths=tuple(str(member) for member in members),
+                )
+            )
+    return BundleOverview(
+        manifest,
+        setup_stable_id=stable_id if isinstance(stable_id, str) else "",
+        setup_version=version if isinstance(version, str) else "",
+        setup_passport_digest=passport_digest if isinstance(passport_digest, str) else "",
+        components=tuple(bindings),
+    )
+
+
+def _bundle_document(archive: Path) -> dict[str, object]:
     try:
         with zipfile.ZipFile(archive) as held:
             info = held.getinfo("bundle.json")
@@ -53,9 +133,12 @@ def bundle_manifest(archive: Path) -> Manifest:
         raise _failure("the verified HarnessBundle manifest is invalid") from error
     if not isinstance(document, dict):
         raise _failure("the verified HarnessBundle manifest is not an object")
-    held_document = cast(dict[str, object], document)
-    files = held_document.get("files")
-    managed = held_document.get("managed_paths")
+    return cast(dict[str, object], document)
+
+
+def _manifest(document: dict[str, object]) -> Manifest:
+    files = document.get("files")
+    managed = document.get("managed_paths")
     if not isinstance(files, list) or not isinstance(managed, list):
         raise _failure("the verified HarnessBundle has no managed file manifest")
     file_items = cast(list[object], files)
@@ -83,7 +166,7 @@ def bundle_manifest(archive: Path) -> Manifest:
         root in records and any(path.startswith(f"{root}/") for path in records) for root in roots
     ):
         raise _failure("the verified HarnessBundle has colliding managed roots")
-    scope = held_document.get("target_scope")
+    scope = document.get("target_scope")
     return Manifest(
         records, roots, target_scope=scope if isinstance(scope, str) and scope else "global"
     )
