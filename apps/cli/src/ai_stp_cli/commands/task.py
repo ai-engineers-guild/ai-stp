@@ -4,7 +4,7 @@ from collections.abc import Mapping
 
 from ai_stp_cli.answer import Answer
 from ai_stp_cli.application import task as task_service
-from ai_stp_contracts.machine_help import TaskIntentsCatalog, TaskView
+from ai_stp_contracts.machine_help import TaskIntentsCatalog, TaskListView, TaskView
 
 
 def intents(parameters: Mapping[str, object]) -> Answer[TaskIntentsCatalog]:
@@ -29,3 +29,7 @@ def status(parameters: Mapping[str, object]) -> Answer[TaskView]:
 
 def cancel(parameters: Mapping[str, object]) -> Answer[TaskView]:
     return task_service.cancel(parameters)
+
+
+def list_(parameters: Mapping[str, object]) -> Answer[TaskListView]:
+    return task_service.list_pending(parameters)

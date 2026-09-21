@@ -1,0 +1,114 @@
+{
+  "$defs": {
+    "TaskId": {
+      "pattern": "^task_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "type": "string"
+    },
+    "TaskIntent": {
+      "enum": [
+        "inspect",
+        "initialize",
+        "install",
+        "change",
+        "author",
+        "switch",
+        "account",
+        "publish"
+      ],
+      "type": "string"
+    },
+    "TaskListEntry": {
+      "additionalProperties": true,
+      "description": "One unsettled durable task — enough to choose it and resume.\n\nA caller that lost its task reference (process restart, compaction) lists\nthese instead of starting a second task on a target another open task\nalready owns. `task list` never returns settled rows; history is a status\nread, not a resume choice.",
+      "properties": {
+        "harness_id": {
+          "default": "",
+          "title": "Harness Id",
+          "type": "string"
+        },
+        "intent": {
+          "$ref": "#/$defs/TaskIntent"
+        },
+        "open_question_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Open Question Ids",
+          "type": "array"
+        },
+        "project_root": {
+          "default": "",
+          "title": "Project Root",
+          "type": "string"
+        },
+        "revision": {
+          "minimum": 1,
+          "title": "Revision",
+          "type": "integer"
+        },
+        "scope": {
+          "default": "",
+          "title": "Scope",
+          "type": "string"
+        },
+        "state": {
+          "enum": [
+            "planned",
+            "blocked",
+            "running"
+          ],
+          "title": "State",
+          "type": "string"
+        },
+        "task_id": {
+          "$ref": "#/$defs/TaskId"
+        },
+        "updated_at": {
+          "$ref": "#/$defs/Timestamp"
+        }
+      },
+      "required": [
+        "harness_id",
+        "intent",
+        "open_question_ids",
+        "project_root",
+        "revision",
+        "scope",
+        "state",
+        "task_id",
+        "updated_at"
+      ],
+      "title": "TaskListEntry",
+      "type": "object"
+    },
+    "Timestamp": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:cli-task-list",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "The unsettled durable tasks, most recently touched first.",
+  "properties": {
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "tasks": {
+      "items": {
+        "$ref": "#/$defs/TaskListEntry"
+      },
+      "title": "Tasks",
+      "type": "array"
+    }
+  },
+  "required": [
+    "schema_version",
+    "tasks"
+  ],
+  "title": "TaskListView",
+  "type": "object"
+}
