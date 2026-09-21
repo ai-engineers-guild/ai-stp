@@ -694,6 +694,41 @@ class TaskView(BaseModel):
     child_operation_ids: list[str]
 
 
+class TaskListEntry(BaseModel):
+    """One unsettled durable task — enough to choose it and resume.
+
+    A caller that lost its task reference (process restart, compaction) lists
+    these instead of starting a second task on a target another open task
+    already owns. `task list` never returns settled rows; history is a status
+    read, not a resume choice.
+    """
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+
+    task_id: TaskId
+    revision: Annotated[int, Field(ge=1)]
+    intent: TaskIntent
+    state: Literal["planned", "blocked", "running"]
+    #: The binding context the task claims — two open mutating tasks cannot
+    #: share all three, so these fields are how a caller tells them apart.
+    harness_id: str = ""
+    project_root: str = ""
+    scope: str = ""
+    #: Ids of questions still open; empty means the task waits on CLI or
+    #: external progress, not on an answer.
+    open_question_ids: list[str]
+    updated_at: Timestamp
+
+
+class TaskListView(BaseModel):
+    """The unsettled durable tasks, most recently touched first."""
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+
+    schema_version: Literal[1] = 1
+    tasks: list[TaskListEntry]
+
+
 class VersionReport(BaseModel):
     """Which build is running, and which contracts it speaks."""
 

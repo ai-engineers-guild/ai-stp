@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import time
 from contextlib import closing
 from io import StringIO
 from pathlib import Path
@@ -530,12 +531,56 @@ def test_task_answer_without_task_resumes_the_unique_blocked_question() -> None:
     assert "--value" not in hinted.continuations[0].argv
 
 
-def test_task_answer_without_task_is_silent_when_two_are_open() -> None:
+def test_task_answer_without_task_lists_open_tasks_when_two_are_open() -> None:
     from ai_stp_cli.application.task import missing_answer_hint
 
     task_command.start({"intent": "initialize", "idempotency-key": "initialize-hint-x-0001"})
     task_command.start({"intent": "initialize", "idempotency-key": "initialize-hint-y-0001"})
-    assert missing_answer_hint() is None
+    hinted = missing_answer_hint()
+    assert hinted is not None
+    assert hinted.continuations[0].argv == ["task", "list", "--json"]
+    assert hinted.continuations[0].actor == "cli"
+
+
+def test_task_list_returns_only_unsettled_tasks_newest_first() -> None:
+    task_command.start({"intent": "inspect", "idempotency-key": "inspect-list-0000001"})
+    time.sleep(0.01)
+    held = task_command.start({"intent": "initialize", "idempotency-key": "initialize-list-a-0001"})
+
+    listed = task_command.list_({})
+    assert [entry.task_id for entry in listed.payload.tasks] == [held.payload.task_id]
+    entry = listed.payload.tasks[0]
+    assert entry.intent == "initialize"
+    assert entry.state == "blocked"
+    assert entry.open_question_ids
+    assert entry.revision == held.payload.revision
+
+
+def test_task_list_on_a_fresh_registry_is_empty() -> None:
+    assert task_command.list_({}).payload.tasks == []
+
+
+def test_task_list_reports_an_unreadable_registry(monkeypatch: pytest.MonkeyPatch) -> None:
+    def refused(_path: Path, *, create: bool = True) -> object:
+        raise CliFailure("AI_STP_VALIDATION_ERROR", "the task input is not valid")
+
+    monkeypatch.setattr("ai_stp_cli.application.task.open_registry", refused)
+    with pytest.raises(CliFailure) as raised:
+        task_command.list_({})
+    assert raised.value.code == "AI_STP_VALIDATION_ERROR"
+
+
+def test_task_list_orders_by_updated_at_descending() -> None:
+    first = task_command.start(
+        {"intent": "initialize", "idempotency-key": "initialize-list-ord-01"}
+    )
+    time.sleep(0.01)
+    second = task_command.start(
+        {"intent": "initialize", "idempotency-key": "initialize-list-ord-02"}
+    )
+    listed = task_command.list_({})
+    ids = [entry.task_id for entry in listed.payload.tasks]
+    assert ids.index(second.payload.task_id) < ids.index(first.payload.task_id)
 
 
 def test_task_answer_without_revision_resumes_the_named_task() -> None:
@@ -547,7 +592,9 @@ def test_task_answer_without_revision_resumes_the_named_task() -> None:
     other = task_command.start(
         {"intent": "initialize", "idempotency-key": "initialize-hint-rev-02"}
     )
-    assert missing_answer_hint() is None
+    ambiguous = missing_answer_hint()
+    assert ambiguous is not None
+    assert ambiguous.continuations[0].argv == ["task", "list", "--json"]
     hinted = missing_answer_hint(task_id=started.payload.task_id)
     assert hinted is not None
     assert hinted.details["task"] == started.payload.task_id

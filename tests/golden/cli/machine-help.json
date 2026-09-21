@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "cli_version": "0.0.0-pinned",
-  "registry_digest": "sha256:756916f3cd28a5c9cde38689acef9dc092f0266ccff31616f80ad9392acf0eb0",
+  "registry_digest": "sha256:ba9f3b4f27f2369640312b9d6ba35b374b1b82f184896ce8876ceb2abeda580c",
   "global_options": [
     {
       "name": "json",
@@ -9422,6 +9422,21 @@
       "parameters": [],
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-task-intents",
+      "next_actions": [
+        "help --path task --json"
+      ]
+    },
+    {
+      "path": [
+        "task",
+        "list"
+      ],
+      "summary": "List durable tasks that have not settled, most recent first.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-task-list",
       "next_actions": [
         "help --path task --json"
       ]
