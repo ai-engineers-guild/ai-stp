@@ -98,6 +98,7 @@ def test_a_foreign_device_key_names_the_rebind_reason(
     This covers the exchange leg; `test_devices_lifecycle` covers
     `POST /v1/devices`.
     """
+    from ai_stp_api.slices.devices.crypto import normalize_public_key
     from ai_stp_platform.models import Account, Device
 
     foreign_owner = new_id("account")
@@ -110,7 +111,9 @@ def test_a_foreign_device_key_names_the_rebind_reason(
                 Device(
                     id=new_id("device"),
                     account_id=foreign_owner,
-                    public_key=PUBLIC_KEY,
+                    # The lookup compares the canonical form; seeding the raw
+                    # padded key would never match.
+                    public_key=normalize_public_key(PUBLIC_KEY),
                     state="active",
                 )
             )
