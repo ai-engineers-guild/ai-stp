@@ -295,6 +295,30 @@ def test_auth_status_reports_a_held_credential() -> None:
     assert "secret-" not in answer.payload.model_dump_json()
 
 
+def test_auth_status_names_a_pending_sign_in() -> None:
+    from ai_stp_cli.cloud import session
+    from ai_stp_cli.commands import auth_status
+    from ai_stp_cli.secrets import open_store
+
+    store, _warning = open_store()
+    session.save_pending(
+        store,
+        session.Pending(
+            provider="github",
+            device_code="device-code",
+            interval=5,
+            expires_in=900,
+            user_code="ABCD-EFGH",
+            verification_uri="https://example.test/device",
+        ),
+    )
+    answer = auth_status.run({})
+    # The state set is closed — the pending approval is a warning, not a
+    # fifth state, and it names the command that finishes it.
+    assert answer.payload.state == "local_only"
+    assert any("auth complete" in warning for warning in answer.warnings)
+
+
 def test_doctor_reports_the_credential_store_it_would_actually_use(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

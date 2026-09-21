@@ -261,6 +261,49 @@ def test_provider_fetch_command_binds_into_the_named_directory(
     assert view.manifest.endswith("release.json")
 
 
+def test_provider_fetch_names_the_bind_step_while_unbound(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """REQ-8013 keeps fetched bytes discoverable rather than chosen — so the
+    answer names the step that binds them instead of letting `initialize`
+    discover the gap on its own."""
+    _attest(monkeypatch)
+    payload = _info()
+    monkeypatch.setattr(attested_bind, "GithubReleases", lambda: _Github())
+
+    def inspect(executable: Path) -> protocol_v3.ProviderCapabilities:
+        return protocol_v3.parse_capabilities(payload)
+
+    monkeypatch.setattr(attested_bind, "inspect_provider", inspect)
+    answer = select.provider_fetch(
+        {"harness": "pi", "tag": "0.0.1", "directory": str(tmp_path), "source": "github"}
+    )
+    assert any("provider.paths.pi" in warning for warning in answer.warnings)
+
+
+def test_provider_fetch_stays_quiet_once_bound(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from ai_stp_cli.config import set_values
+
+    _attest(monkeypatch)
+    payload = _info()
+    monkeypatch.setattr(attested_bind, "GithubReleases", lambda: _Github())
+
+    def inspect(executable: Path) -> protocol_v3.ProviderCapabilities:
+        return protocol_v3.parse_capabilities(payload)
+
+    monkeypatch.setattr(attested_bind, "inspect_provider", inspect)
+    first = select.provider_fetch(
+        {"harness": "pi", "tag": "0.0.1", "directory": str(tmp_path), "source": "github"}
+    ).payload
+    set_values({"provider.paths.pi": first.artifact})
+    second = select.provider_fetch(
+        {"harness": "pi", "tag": "0.0.1", "directory": str(tmp_path), "source": "github"}
+    )
+    assert not any("provider.paths.pi" in warning for warning in second.warnings)
+
+
 def test_fetch_runs_provider_info_only_after_attestation(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

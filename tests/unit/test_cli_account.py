@@ -122,6 +122,59 @@ def test_a_task_opened_after_auth_login_shows_the_pending_code(
     assert question.recommended == "WXYZ-1234"
 
 
+def test_a_pending_record_without_a_code_restarts_the_flow(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A record written before the display fields were kept cannot be approved:
+    the code the person must type is not in it. The task drops the husk and
+    starts an authorization that can actually complete."""
+    store, _warning = open_store()
+    session.save_pending(
+        store,
+        session.Pending(provider="google", device_code="old", interval=5, expires_in=600),
+    )
+    begun: list[str] = []
+
+    def begin(provider: str) -> DeviceApproval:
+        begun.append(provider)
+        session.save_pending(
+            store,
+            session.Pending(
+                provider=provider,
+                device_code="new",
+                interval=5,
+                expires_in=600,
+                user_code="ABCD-EFGH",
+                verification_uri="https://example.test/device",
+            ),
+        )
+        return _approval(provider)
+
+    def complete_once() -> AuthStatus:
+        raise CliFailure("AI_STP_AUTHORIZATION_PENDING", "authorization pending")
+
+    monkeypatch.setattr(account_service, "begin", begin)
+    monkeypatch.setattr(account_service, "complete_once", complete_once)
+    started = task_command.start(
+        {
+            "intent": "account",
+            "idempotency-key": "account-login-codeless-0001",
+            "input": _facts(tmp_path, {"action": "login", "provider": "google"}),
+        }
+    )
+    continued = task_command.continue_(
+        {"task": started.payload.task_id, "revision": started.payload.revision}
+    )
+    # The husk was dropped and a completable authorization began instead of
+    # the task trying to complete a code nobody was ever shown.
+    assert begun == ["google"]
+    question = continued.payload.questions[0]
+    assert question.question_id == "authorization"
+    assert "ABCD-EFGH" in question.prompt
+    pending = session.load_pending(store)
+    assert pending is not None and pending.device_code == "new"
+
+
 def test_already_signed_in_login_skips_device_code(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

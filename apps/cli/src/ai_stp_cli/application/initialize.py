@@ -331,8 +331,10 @@ def _provider_block_prompt(
     if not bound:
         return (
             f"No provider is bound for {harness_id}, so nothing here declares "
-            f"{PATCH_OPERATION.value}. Configure provider.paths.{harness_id} or "
-            "install a setup for this harness, then continue."
+            f"{PATCH_OPERATION.value}. `provider fetch --harness {harness_id}` "
+            f"downloads an attested one and reports its artifact path; setting "
+            f"`provider.paths.{harness_id}` to that path binds it — or install "
+            "a setup for this harness, which binds what it uses — then continue."
         )
     if surface_missing:
         return (

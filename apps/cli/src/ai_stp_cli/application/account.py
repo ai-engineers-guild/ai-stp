@@ -94,6 +94,12 @@ def ensure_session(facts: Mapping[str, JsonValue]) -> DrainResult | AuthStatus:
         )
     store, _store_warning = open_store()
     pending = session.load_pending(store)
+    if pending is not None and not pending.user_code:
+        # Records written before the display fields were kept carry no code —
+        # and a code nobody can see is a pending approval nobody can give.
+        # Drop it and start one that can be completed (#359).
+        session.clear_pending(store)
+        pending = None
     already_begun = pending is not None or bool(_text(facts.get("user_code")))
     if not already_begun:
         approval = begin(provider)

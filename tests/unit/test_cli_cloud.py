@@ -490,6 +490,27 @@ def test_an_unusable_provider_is_refused(given: object) -> None:
         auth.begin({"provider": given})
 
 
+def test_a_second_begin_warns_that_the_first_code_is_orphaned(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """`auth login` twice: the second pending record overwrites the first, and
+    `auth complete` will only ever exchange the newest code. The caller has to
+    be told, or someone approves the code that no longer completes anything."""
+    from ai_stp_cli.application import auth
+
+    monkeypatch.setattr(login, "local_identity", lambda: (new_id("device"), "public-key", None))
+
+    def start(_endpoint: Endpoint, _provider: object) -> login.Started:
+        return _started("code")
+
+    monkeypatch.setattr(login, "start", start)
+    monkeypatch.setattr(auth, "endpoint", lambda: MOCK)
+    first = auth.begin({"provider": "github"})
+    assert not any("replaced" in warning for warning in first.warnings)
+    second = auth.begin({"provider": "github"})
+    assert any("replaced" in warning for warning in second.warnings)
+
+
 def _hold_session(token: str = "a") -> None:
     """Give this installation a usable cloud session to sign out of."""
     store, _warning = open_store()
