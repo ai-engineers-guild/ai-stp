@@ -616,9 +616,9 @@ Slice status on this work tree:
 
 | Slice | Status |
 | --- | --- |
-| 0 | Commits on this branch; **not** merged to `origin/dev`. Do not merge from this agent |
-| 1–8 | Implemented in the work tree (uncommitted). Live CLI: eight intents, root `--help` is `task` only |
-| 9 | Overlay **49 pass / 0 fail / 51 unrun** (2026-09-18). Gates not met (change 2/5, switch 3/5, no wheel, no PyPI). Native linux-x86_64 7/7. win/mac `not_run`. Fill still 1-wide |
+| 0 | Merged to `main` and deployed (PRs #279/#280 chain completed) |
+| 1–8 | Shipped on `main`. Live CLI: eight intents, root `--help` is `task` only |
+| 9 | Deterministic argv driver green for all 20 scenarios. Haiku overlay `claude-haiku-4-5`: **99 pass / 1 fail / 100 cells** under Docker ENFORCED (2026-09-21, PR #356 + prompt-clarity rerun) — `unsupported-project-local` 4/5 (cell 4 sent `.` not `relative`), all other scenarios 5/5, gates met. gpt-oss overlay: 89 measured pass + native linux-x86_64 7/7. win/mac `not_run`; wheel/extra `not_built`; promote not run |
 
 Each slice: spec/ADR as in §2.14, `just back-gen` if schemas move,
 `just docs-gen` if docs move, i18n for user-visible questions, issue

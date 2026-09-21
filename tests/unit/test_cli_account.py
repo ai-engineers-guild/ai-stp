@@ -79,6 +79,49 @@ def test_declined_login_fails_the_task(tmp_path: Path, monkeypatch: pytest.Monke
     assert status.payload.state == "failed"
 
 
+def test_a_task_opened_after_auth_login_shows_the_pending_code(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`auth login` then a task start: the code must survive the handoff.
+
+    Without the display fields on the pending record, the task could only say
+    "approve at the verification URI" — the code the person must type was gone
+    from every surface the task owns (#359).
+    """
+    store, _warning = open_store()
+    session.save_pending(
+        store,
+        session.Pending(
+            provider="google",
+            device_code="the-device-code",
+            interval=5,
+            expires_in=600,
+            user_code="WXYZ-1234",
+            verification_uri="https://example.test/device",
+        ),
+    )
+
+    def complete_once() -> AuthStatus:
+        raise CliFailure("AI_STP_AUTHORIZATION_PENDING", "authorization pending")
+
+    monkeypatch.setattr(account_service, "complete_once", complete_once)
+    started = task_command.start(
+        {
+            "intent": "account",
+            "idempotency-key": "account-login-pending-0001",
+            "input": _facts(tmp_path, {"action": "login", "provider": "google"}),
+        }
+    )
+    continued = task_command.continue_(
+        {"task": started.payload.task_id, "revision": started.payload.revision}
+    )
+    question = continued.payload.questions[0]
+    assert question.question_id == "authorization"
+    assert question.actor == "external"
+    assert "WXYZ-1234" in question.prompt
+    assert question.recommended == "WXYZ-1234"
+
+
 def test_already_signed_in_login_skips_device_code(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

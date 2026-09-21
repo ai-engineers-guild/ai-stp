@@ -1083,7 +1083,7 @@ class DeviceApproval(BaseModel):
     human decision — a command that polled until someone walked to their browser
     would hang in CI and in a container, which is the same reason the sign-in is
     a device-code flow and not a loopback redirect. So this is the first half of
-    the answer, and `auth login --await` is the second.
+    the answer, and `auth complete --wait` is the second.
 
     No secret is representable here. The device code the client polls with is
     kept in the credential store, not published: it is the bearer of the
