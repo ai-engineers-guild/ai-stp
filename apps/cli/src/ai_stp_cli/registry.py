@@ -3336,6 +3336,18 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 when_values=["install", "update", "remove"],
             ),
             CommandParameterRule(
+                kind="at_most_one",
+                parameters=["proposal", "setup"],
+                when_parameter="action",
+                when_values=["backup", "rollback"],
+            ),
+            CommandParameterRule(
+                kind="forbidden_when",
+                parameters=["component"],
+                when_parameter="action",
+                when_values=["backup", "rollback"],
+            ),
+            CommandParameterRule(
                 kind="required_when",
                 parameters=["project"],
                 when_parameter="setup",

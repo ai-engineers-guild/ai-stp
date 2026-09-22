@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "cli_version": "0.0.0-pinned",
-  "registry_digest": "sha256:dc3e084b1c2ad92c7496995b58c0c16732f6259383d6f1b010c8096920f74bb4",
+  "registry_digest": "sha256:07447762f069c2d7f22a1629295df10e94cee0602406203e9c7fbe664af0dd5e",
   "global_options": [
     {
       "name": "json",
@@ -4263,6 +4263,29 @@
             "install",
             "update",
             "remove"
+          ]
+        },
+        {
+          "kind": "at_most_one",
+          "parameters": [
+            "proposal",
+            "setup"
+          ],
+          "when_parameter": "action",
+          "when_values": [
+            "backup",
+            "rollback"
+          ]
+        },
+        {
+          "kind": "forbidden_when",
+          "parameters": [
+            "component"
+          ],
+          "when_parameter": "action",
+          "when_values": [
+            "backup",
+            "rollback"
           ]
         },
         {

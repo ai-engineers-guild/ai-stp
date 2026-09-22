@@ -219,6 +219,7 @@
   "attestation signing requires confirmation of the exact local evidence": "attestation signing requires confirmation of the exact local evidence",
   "auth commands start with 'auth login'": "auth commands start with 'auth login'",
   "auth login requires --provider": "auth login requires --provider",
+  "backup and rollback install no graph, so components do not apply": "backup and rollback install no graph, so components do not apply",
   "baseline id and version must be supplied together": "baseline id and version must be supplied together",
   "both a scope and a target are required": "both a scope and a target are required",
   "cached private version identity does not match": "cached private version identity does not match",
