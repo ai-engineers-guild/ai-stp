@@ -300,6 +300,20 @@ def test_root_help_hides_the_registry_dump_command(home: Path) -> None:
     assert doctor.returncode == 0
 
 
+def test_root_help_names_the_machine_surface(home: Path) -> None:
+    """An agent's first touch is `--help`; it must point at the registry.
+
+    Haiku qualification of 0.0.24 found the machine surface only by
+    accident: nothing on the human page named `help --json` or
+    `capabilities`, so discovery depended on error continuations. The
+    commands stay out of the Commands listing; the epilog names them.
+    """
+    result = run("--help", home=home)
+    assert result.returncode == 0
+    assert "ai-stp help --json" in result.stdout
+    assert "ai-stp capabilities --json" in result.stdout
+
+
 def test_task_help_shows_only_lifecycle_leaves(home: Path) -> None:
     result = run("task", "--help", home=home)
     assert result.returncode == 0
