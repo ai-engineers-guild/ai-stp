@@ -916,6 +916,20 @@ def _schema_verbs_failure() -> CliFailure:
     )
 
 
+def _version_flag_failure(detail: str) -> CliFailure:
+    """`--version` is the reflex every CLI reader carries; `version` is ours."""
+    continuation = Continuation(
+        kind="inspect",
+        path=["version"],
+        actor="cli",
+    )
+    return CliFailure(
+        "AI_STP_VALIDATION_ERROR",
+        detail,
+        continuations=[continuation],
+    )
+
+
 def _start_intent_parse_failure(command_words: Sequence[str], message: str) -> CliFailure | None:
     """A start without a shipped intent lists the catalog, not Click's choice dump."""
     if _declared_path(_leading_words(command_words)) != ("task", "start"):
@@ -930,6 +944,65 @@ def _start_intent_parse_failure(command_words: Sequence[str], message: str) -> C
             return _task_intents_failure("task start needs an intent")
         return _task_intents_failure("the task intent is not supported")
     return None
+
+
+def _missing_required_options(path: tuple[str, ...], command_words: Sequence[str]) -> list[str]:
+    """Every required option the call lacks, not only the first Click tripped on.
+
+    Click raises `MissingParameter` for one option at a time, so an agent that
+    fixed `--id` met `--version` on the next call — one refusal per flag for a
+    fact the descriptor already knows in full. The answer names the whole set.
+    """
+    descriptor = next(
+        (command.descriptor for command in COMMANDS if tuple(command.descriptor.path) == path),
+        None,
+    )
+    if descriptor is None:
+        return []
+    supplied = {word.split("=", 1)[0] for word in command_words if word.startswith("--")}
+    return [
+        parameter.name
+        for parameter in descriptor.parameters
+        if parameter.required and f"--{parameter.name}" not in supplied
+    ]
+
+
+def _leaf_parse_failure(
+    path: tuple[str, ...], command_words: Sequence[str], failure: click.ClickException
+) -> CliFailure:
+    """A declared leaf's parse failure points at its own machine help.
+
+    The correction is `help --path <leaf>` rather than the intent catalog: the
+    caller already picked the command and only its declaration can repair the
+    call. A missing required option additionally carries the full missing set
+    in `details.options`, so one refusal replaces one refusal per flag.
+    """
+    joined = " ".join(path)
+    continuation = Continuation(
+        kind="inspect",
+        path=["help"],
+        arguments={"path": joined},
+        actor="cli",
+    )
+    if isinstance(failure, click.MissingParameter) and isinstance(failure.param, click.Option):
+        missing = _missing_required_options(path, command_words)
+        if missing:
+            return CliFailure(
+                "AI_STP_VALIDATION_ERROR",
+                (
+                    "a required option was not supplied"
+                    if len(missing) == 1
+                    else "required options were not supplied"
+                ),
+                details={"options": [f"--{name}" for name in missing]},
+                continuations=[continuation],
+            )
+    detail = failure.format_message() or "a supplied value is not valid for this command"
+    return CliFailure(
+        "AI_STP_VALIDATION_ERROR",
+        detail,
+        continuations=[continuation],
+    )
 
 
 def _click_failure(arguments: list[str], failure: click.ClickException) -> CliFailure:
@@ -970,6 +1043,11 @@ def _click_failure(arguments: list[str], failure: click.ClickException) -> CliFa
     covered = _covered_leaf_intent(arguments)
     if covered is not None:
         return _intent_start_failure(covered)
+    path = _declared_path(words)
+    if path is not None and isinstance(failure, click.UsageError):
+        return _leaf_parse_failure(path, command_words, failure)
     if _is_click_usage(detail):
         detail = INCOMPLETE_GROUP_MESSAGE
+    if path is None and not words and "--version" in command_words:
+        return _version_flag_failure(detail)
     return unknown_command(detail)

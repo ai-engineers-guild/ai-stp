@@ -39,6 +39,15 @@ last_verified: "2026-09-16"
 }
 ```
 
+A parse failure on a declared command names every required option the call
+lacks in `error.details.options` (in declared order, with the `--` prefix), and
+its continuation is an `inspect` step to `help --path "<command path>" --json`.
+An agent therefore repairs the call in one retry rather than meeting one
+refusal per flag. The same leaf-scoped continuation answers other parse
+failures on a declared command — an unknown option or an invalid value — while
+commands covered by a task intent still answer with that intent's start, and an
+unknown command or bare group still answers with the intent catalog.
+
 ## Output
 
 In machine mode, standard output contains exactly one JSON object followed by a
