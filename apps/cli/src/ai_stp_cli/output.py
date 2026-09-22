@@ -38,10 +38,14 @@ JSON_FLAG: Final[str] = "--json"
 def wants_machine_mode(argv: list[str]) -> bool:
     """Whether this invocation asked for machine output.
 
-    Read straight from argv rather than from parsed options: an unknown option
-    aborts parsing, and that is exactly the moment a machine caller most needs
-    its envelope instead of a usage message.
+    Read from argv rather than from parsed options: an unknown option aborts
+    parsing, and that is exactly the moment a machine caller most needs its
+    envelope instead of a usage message. Everything after `--` is operand text
+    the command forwards, so a `--json` there belongs to the invoked program,
+    not to this CLI.
     """
+    if "--" in argv:
+        argv = argv[: argv.index("--")]
     return JSON_FLAG in argv
 
 
