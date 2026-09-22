@@ -114,7 +114,7 @@
     },
     "CommandParameterRule": {
       "additionalProperties": false,
-      "description": "A cross-parameter invocation rule that consumers must not parse from prose.",
+      "description": "A cross-parameter invocation rule that consumers must not parse from prose.\n\n`exactly_one` of the named parameters must be present; `required_when`\nmakes the named parameters required. A rule carrying `when_parameter`\nand `when_values` applies only while that parameter takes one of those\nvalues — `install plan`'s source rule holds for `install`, `update` and\n`remove`, and stops applying to `backup` and `rollback`, which name no\nsource at all (`REQ-1207`).",
       "properties": {
         "kind": {
           "enum": [

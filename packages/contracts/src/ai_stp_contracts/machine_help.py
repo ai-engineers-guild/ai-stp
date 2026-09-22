@@ -97,7 +97,15 @@ class CommandParameter(BaseModel):
 
 
 class CommandParameterRule(BaseModel):
-    """A cross-parameter invocation rule that consumers must not parse from prose."""
+    """A cross-parameter invocation rule that consumers must not parse from prose.
+
+    `exactly_one` of the named parameters must be present; `required_when`
+    makes the named parameters required. A rule carrying `when_parameter`
+    and `when_values` applies only while that parameter takes one of those
+    values — `install plan`'s source rule holds for `install`, `update` and
+    `remove`, and stops applying to `backup` and `rollback`, which name no
+    source at all (`REQ-1207`).
+    """
 
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
 
@@ -138,15 +146,17 @@ class CommandDescriptor(BaseModel):
         for rule in self.parameter_rules:
             if not set(rule.parameters) <= names:
                 raise ValueError("parameter rule names an undeclared parameter")
-            if rule.kind == "exactly_one":
-                if len(rule.parameters) < 2 or rule.when_parameter or rule.when_values:
-                    raise ValueError("exactly_one requires two or more parameter names only")
-            elif (
+            conditional = bool(rule.when_parameter or rule.when_values)
+            if rule.kind == "exactly_one" and len(rule.parameters) < 2:
+                raise ValueError("exactly_one requires two or more parameter names")
+            if rule.kind == "required_when" and not conditional:
+                raise ValueError("required_when has an invalid condition")
+            if conditional and (
                 rule.when_parameter not in names
                 or not rule.when_values
                 or rule.when_parameter in rule.parameters
             ):
-                raise ValueError("required_when has an invalid condition")
+                raise ValueError("parameter rule has an invalid condition")
         return self
 
 
