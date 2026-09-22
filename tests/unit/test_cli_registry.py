@@ -163,6 +163,18 @@ def test_update_plan_cross_parameter_rules_are_structured() -> None:
             "when_values": ["install", "update", "remove"],
         },
         {
+            "kind": "at_most_one",
+            "parameters": ["proposal", "setup"],
+            "when_parameter": "action",
+            "when_values": ["backup", "rollback"],
+        },
+        {
+            "kind": "forbidden_when",
+            "parameters": ["component"],
+            "when_parameter": "action",
+            "when_values": ["backup", "rollback"],
+        },
+        {
             "kind": "required_when",
             "parameters": ["project"],
             "when_parameter": "setup",
@@ -260,6 +272,39 @@ def test_an_exactly_one_rule_may_be_scoped_to_action_values() -> None:
     )
 
     assert descriptor.parameter_rules[0].when_parameter == "action"
+
+
+def test_an_at_most_one_rule_may_be_scoped_to_action_values() -> None:
+    # `install plan` relaxes the source XOR to `at most one` on `backup` and
+    # `rollback`: neither is the common case, both is a contradiction the
+    # handler refuses (`REQ-1207`-`REQ-1210`).
+    descriptor = _descriptor_with_rules(
+        [
+            CommandParameterRule(
+                kind="at_most_one",
+                parameters=["proposal", "setup"],
+                when_parameter="action",
+                when_values=["backup"],
+            )
+        ]
+    )
+
+    assert descriptor.parameter_rules[0].kind == "at_most_one"
+
+
+def test_an_at_most_one_rule_needs_two_parameters() -> None:
+    with pytest.raises(ValueError, match="at_most_one requires two or more"):
+        _descriptor_with_rules([CommandParameterRule(kind="at_most_one", parameters=["proposal"])])
+
+
+def test_an_unconditional_forbidden_rule_is_refused() -> None:
+    # A parameter forbidden under every condition is not a rule but a
+    # parameter that should not exist, so `forbidden_when` requires a
+    # condition the way `required_when` does.
+    with pytest.raises(ValueError, match="forbidden_when has an invalid condition"):
+        _descriptor_with_rules(
+            [CommandParameterRule(kind="forbidden_when", parameters=["proposal"])]
+        )
 
 
 @pytest.mark.parametrize(

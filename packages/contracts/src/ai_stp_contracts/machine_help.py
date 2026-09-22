@@ -99,17 +99,19 @@ class CommandParameter(BaseModel):
 class CommandParameterRule(BaseModel):
     """A cross-parameter invocation rule that consumers must not parse from prose.
 
-    `exactly_one` of the named parameters must be present; `required_when`
-    makes the named parameters required. A rule carrying `when_parameter`
-    and `when_values` applies only while that parameter takes one of those
-    values — `install plan`'s source rule holds for `install`, `update` and
-    `remove`, and stops applying to `backup` and `rollback`, which name no
-    source at all (`REQ-1207`).
+    `exactly_one` of the named parameters must be present; `at_most_one`
+    allows none but refuses two; `required_when` makes the named parameters
+    required; `forbidden_when` refuses the named parameters while its
+    condition holds. A rule carrying `when_parameter` and `when_values`
+    applies only while that parameter takes one of those values —
+    `install plan`'s source rule holds for `install`, `update` and `remove`,
+    and on `backup` and `rollback` the same pair relaxes to `at_most_one`,
+    because those actions bind to a target, not to a graph (`REQ-1207`).
     """
 
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
 
-    kind: Literal["exactly_one", "required_when"]
+    kind: Literal["exactly_one", "at_most_one", "required_when", "forbidden_when"]
     parameters: Annotated[list[str], Field(min_length=1)]
     when_parameter: str = ""
     when_values: list[str] = []
@@ -147,10 +149,10 @@ class CommandDescriptor(BaseModel):
             if not set(rule.parameters) <= names:
                 raise ValueError("parameter rule names an undeclared parameter")
             conditional = bool(rule.when_parameter or rule.when_values)
-            if rule.kind == "exactly_one" and len(rule.parameters) < 2:
-                raise ValueError("exactly_one requires two or more parameter names")
-            if rule.kind == "required_when" and not conditional:
-                raise ValueError("required_when has an invalid condition")
+            if rule.kind in {"exactly_one", "at_most_one"} and len(rule.parameters) < 2:
+                raise ValueError(f"{rule.kind} requires two or more parameter names")
+            if rule.kind in {"required_when", "forbidden_when"} and not conditional:
+                raise ValueError(f"{rule.kind} has an invalid condition")
             if conditional and (
                 rule.when_parameter not in names
                 or not rule.when_values
