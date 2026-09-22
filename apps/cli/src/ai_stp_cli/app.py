@@ -123,7 +123,13 @@ def _everyday_success_envelope(
     A plan that already named `install apply` used to skip rewrite because
     continuations were non-empty. FOLLOW_ACTOR would then type the leaf.
     Terminal apply is still not started again: that would loop.
+
+    Paths the everyday journeys do not cover have no guided alternative to
+    route around leaf commands with — stripping their continuations would
+    return an empty envelope, so an inspect/expert answer keeps what it bound.
     """
+    if everyday_intent(path) is None:
+        return continuations, actions
     kept_continuations = [
         item
         for item in continuations
@@ -339,6 +345,12 @@ _GROUP_SUMMARIES: Final[dict[tuple[str, ...], str]] = {
     ("project", "link", "plan"): "Plan a project link without changing local or remote state.",
     ("project", "revision"): "Publish and read organization project-ledger revisions.",
     ("project", "sync"): "Plan and apply one explicit project synchronization decision.",
+    ("project", "technology"): "Detect, review and publish one project's technology usage.",
+    (
+        "project",
+        "technology",
+        "mappings",
+    ): "Cached organization technology-mapping snapshots.",
     ("project", "unlink-plan"): "Plan removal of one project link without changing state.",
     ("provider",): "Inspect the setup manager that writes the harness.",
     ("publication",): "Start the publish intent. Expert plan/confirm remain for recovery.",

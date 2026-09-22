@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "cli_version": "0.0.0-pinned",
-  "registry_digest": "sha256:66501083ff1eb4bc04c710476bdc2e5a23273d4f563d7fad37df7753a51583dd",
+  "registry_digest": "sha256:771e02ab68731902089c37a3315a7c6e50ca6c73d02de64b96b3de1304ea7ad4",
   "global_options": [
     {
       "name": "json",
@@ -4039,6 +4039,15 @@
           "choices": []
         },
         {
+          "name": "component",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": true,
+          "summary": "An exact standalone component as <stable_id>@<X.Y>, repeatable. Installed alongside the named prepared SetupVersion so a managed assignment of loose components can reach a verified baseline; the bundle manifest covers each one.",
+          "choices": []
+        },
+        {
           "name": "project",
           "kind": "option",
           "value_type": "string",
@@ -4978,6 +4987,40 @@
     {
       "path": [
         "project",
+        "detect"
+      ],
+      "summary": "Detect the technology coordinates one project root uses. Reads only the bounded index; stores findings locally and publishes nothing.",
+      "mutability": "apply",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "root",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Exact project root to scan.",
+          "choices": []
+        },
+        {
+          "name": "scope",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Named scan scope findings belong to. Defaults to 'repository'.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-technology-scan",
+      "next_actions": [
+        "project technologies --project <id> --json"
+      ]
+    },
+    {
+      "path": [
+        "project",
         "discover"
       ],
       "summary": "List the projects inside a directory you name. Scans nothing else.",
@@ -5661,6 +5704,556 @@
       "result_schema": "urn:ai-stp:schema:v1:project-sync-plan-response",
       "next_actions": [
         "help --path project --json"
+      ]
+    },
+    {
+      "path": [
+        "project",
+        "technologies"
+      ],
+      "summary": "List the stored technology findings for one local project.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "project",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Stable local project identifier.",
+          "choices": []
+        },
+        {
+          "name": "root",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Project root to resolve the identifier from.",
+          "choices": []
+        },
+        {
+          "name": "scope",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Only findings recorded under this scan scope.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [
+        {
+          "kind": "exactly_one",
+          "parameters": [
+            "project",
+            "root"
+          ],
+          "when_parameter": "",
+          "when_values": []
+        }
+      ],
+      "result_schema": "urn:ai-stp:schema:v1:cli-technology-findings",
+      "next_actions": [
+        "project detect --root <path> --json"
+      ]
+    },
+    {
+      "path": [
+        "project",
+        "technology",
+        "confirm"
+      ],
+      "summary": "Confirm one finding: it is a real usage of what it names.",
+      "mutability": "apply",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "project",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Stable local project identifier.",
+          "choices": []
+        },
+        {
+          "name": "root",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Project root to resolve the identifier from.",
+          "choices": []
+        },
+        {
+          "name": "finding",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Finding coordinate as <kind>:<coordinate>, e.g. package:django.",
+          "choices": []
+        },
+        {
+          "name": "context",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Usage context when the coordinate exists in more than one.",
+          "choices": [
+            "production",
+            "development",
+            "testing",
+            "browser_support"
+          ]
+        },
+        {
+          "name": "scope",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Named scan scope the finding belongs to. Defaults to 'repository'.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [
+        {
+          "kind": "exactly_one",
+          "parameters": [
+            "project",
+            "root"
+          ],
+          "when_parameter": "",
+          "when_values": []
+        }
+      ],
+      "result_schema": "urn:ai-stp:schema:v1:cli-technology-review",
+      "next_actions": [
+        "project technologies --project <id> --json"
+      ]
+    },
+    {
+      "path": [
+        "project",
+        "technology",
+        "mappings",
+        "fetch"
+      ],
+      "summary": "Fetch one organization mapping snapshot by exact version and cache it.",
+      "mutability": "apply",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "organization",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Explicit remote organization.",
+          "choices": []
+        },
+        {
+          "name": "version",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Exact published mapping snapshot version.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-technology-mappings",
+      "next_actions": [
+        "project technology mappings list --organization <id> --json"
+      ]
+    },
+    {
+      "path": [
+        "project",
+        "technology",
+        "mappings",
+        "list"
+      ],
+      "summary": "List the organization technology-mapping snapshots cached locally.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "organization",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Explicit remote organization.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-technology-mappings",
+      "next_actions": [
+        "project technology mappings fetch --organization <id> --version <v> --json"
+      ]
+    },
+    {
+      "path": [
+        "project",
+        "technology",
+        "override"
+      ],
+      "summary": "Override one finding's resolved identity with a canonical technology.",
+      "mutability": "apply",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "project",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Stable local project identifier.",
+          "choices": []
+        },
+        {
+          "name": "root",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Project root to resolve the identifier from.",
+          "choices": []
+        },
+        {
+          "name": "finding",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Finding coordinate as <kind>:<coordinate>, e.g. package:django.",
+          "choices": []
+        },
+        {
+          "name": "technology",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Canonical technology_<ulid> the coordinate resolves to.",
+          "choices": []
+        },
+        {
+          "name": "version",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Corrected version the usage carries.",
+          "choices": []
+        },
+        {
+          "name": "context",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Usage context when the coordinate exists in more than one.",
+          "choices": [
+            "production",
+            "development",
+            "testing",
+            "browser_support"
+          ]
+        },
+        {
+          "name": "scope",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Named scan scope the finding belongs to. Defaults to 'repository'.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [
+        {
+          "kind": "exactly_one",
+          "parameters": [
+            "project",
+            "root"
+          ],
+          "when_parameter": "",
+          "when_values": []
+        }
+      ],
+      "result_schema": "urn:ai-stp:schema:v1:cli-technology-review",
+      "next_actions": [
+        "project technologies --project <id> --json"
+      ]
+    },
+    {
+      "path": [
+        "project",
+        "technology",
+        "publish"
+      ],
+      "summary": "Publish the stored findings of a linked project as a scan handoff.",
+      "mutability": "apply",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "project",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Stable local project identifier.",
+          "choices": []
+        },
+        {
+          "name": "root",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Project root to resolve the identifier from.",
+          "choices": []
+        },
+        {
+          "name": "organization",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Explicit remote organization.",
+          "choices": []
+        },
+        {
+          "name": "scope",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Named scan scope the findings belong to. Defaults to 'repository'.",
+          "choices": []
+        },
+        {
+          "name": "scan",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Exact stored scan to publish. Defaults to the latest.",
+          "choices": []
+        },
+        {
+          "name": "mapping-version",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Exact organization mapping snapshot. Defaults to the latest cached.",
+          "choices": []
+        },
+        {
+          "name": "expected-revision",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Remote project revision the scan is based on. Defaults to the link's.",
+          "choices": []
+        },
+        {
+          "name": "authorization-revision",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Revision from the selected capability projection.",
+          "choices": []
+        },
+        {
+          "name": "idempotency-key",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Stable key for this exact publication.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [
+        {
+          "kind": "exactly_one",
+          "parameters": [
+            "project",
+            "root"
+          ],
+          "when_parameter": "",
+          "when_values": []
+        }
+      ],
+      "result_schema": "urn:ai-stp:schema:v1:technology-scan-result",
+      "next_actions": [
+        "project technologies --project <id> --json"
+      ]
+    },
+    {
+      "path": [
+        "project",
+        "technology",
+        "reject"
+      ],
+      "summary": "Reject one finding: not a usage; it stays out of publication.",
+      "mutability": "apply",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "project",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Stable local project identifier.",
+          "choices": []
+        },
+        {
+          "name": "root",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Project root to resolve the identifier from.",
+          "choices": []
+        },
+        {
+          "name": "finding",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Finding coordinate as <kind>:<coordinate>, e.g. package:django.",
+          "choices": []
+        },
+        {
+          "name": "context",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Usage context when the coordinate exists in more than one.",
+          "choices": [
+            "production",
+            "development",
+            "testing",
+            "browser_support"
+          ]
+        },
+        {
+          "name": "scope",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Named scan scope the finding belongs to. Defaults to 'repository'.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [
+        {
+          "kind": "exactly_one",
+          "parameters": [
+            "project",
+            "root"
+          ],
+          "when_parameter": "",
+          "when_values": []
+        }
+      ],
+      "result_schema": "urn:ai-stp:schema:v1:cli-technology-review",
+      "next_actions": [
+        "project technologies --project <id> --json"
+      ]
+    },
+    {
+      "path": [
+        "project",
+        "technology",
+        "retire"
+      ],
+      "summary": "Retire one finding: it was a usage and no longer is.",
+      "mutability": "apply",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "project",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Stable local project identifier.",
+          "choices": []
+        },
+        {
+          "name": "root",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Project root to resolve the identifier from.",
+          "choices": []
+        },
+        {
+          "name": "finding",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Finding coordinate as <kind>:<coordinate>, e.g. package:django.",
+          "choices": []
+        },
+        {
+          "name": "context",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Usage context when the coordinate exists in more than one.",
+          "choices": [
+            "production",
+            "development",
+            "testing",
+            "browser_support"
+          ]
+        },
+        {
+          "name": "scope",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Named scan scope the finding belongs to. Defaults to 'repository'.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [
+        {
+          "kind": "exactly_one",
+          "parameters": [
+            "project",
+            "root"
+          ],
+          "when_parameter": "",
+          "when_values": []
+        }
+      ],
+      "result_schema": "urn:ai-stp:schema:v1:cli-technology-review",
+      "next_actions": [
+        "project technologies --project <id> --json"
       ]
     },
     {

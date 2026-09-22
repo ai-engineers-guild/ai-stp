@@ -1,0 +1,672 @@
+{
+  "$defs": {
+    "CliTechnologyClaim": {
+      "additionalProperties": true,
+      "description": "One version claim inside a finding, with its evidence.",
+      "properties": {
+        "evidence": {
+          "items": {
+            "$ref": "#/$defs/CliTechnologyEvidence"
+          },
+          "title": "Evidence",
+          "type": "array"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Version"
+        },
+        "version_kind": {
+          "enum": [
+            "unknown",
+            "declared_range",
+            "observed_version"
+          ],
+          "title": "Version Kind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "evidence",
+        "schema_version",
+        "version",
+        "version_kind"
+      ],
+      "title": "CliTechnologyClaim",
+      "type": "object"
+    },
+    "CliTechnologyEvidence": {
+      "additionalProperties": true,
+      "description": "One evidence trace of a local technology finding (issue #222).",
+      "properties": {
+        "confidence": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Confidence",
+          "type": "number"
+        },
+        "path": {
+          "minLength": 1,
+          "title": "Path",
+          "type": "string"
+        },
+        "reference": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reference"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "source": {
+          "enum": [
+            "declared",
+            "configured",
+            "observed"
+          ],
+          "title": "Source",
+          "type": "string"
+        }
+      },
+      "required": [
+        "confidence",
+        "path",
+        "reference",
+        "schema_version",
+        "source"
+      ],
+      "title": "CliTechnologyEvidence",
+      "type": "object"
+    },
+    "CliTechnologyFinding": {
+      "additionalProperties": true,
+      "description": "One stored technology finding and its review state (issue #222).\n\n`technology_id` is the resolved canonical identity when the mapping in\neffect covers the coordinate, else `null` — an unmapped finding is a fact\nto report, not an identity to invent.",
+      "properties": {
+        "claims": {
+          "items": {
+            "$ref": "#/$defs/CliTechnologyClaim"
+          },
+          "title": "Claims",
+          "type": "array"
+        },
+        "context": {
+          "enum": [
+            "production",
+            "development",
+            "testing",
+            "browser_support"
+          ],
+          "title": "Context",
+          "type": "string"
+        },
+        "coordinate": {
+          "minLength": 1,
+          "title": "Coordinate",
+          "type": "string"
+        },
+        "effective_technology_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Effective Technology Id"
+        },
+        "first_seen_scan": {
+          "minLength": 1,
+          "title": "First Seen Scan",
+          "type": "string"
+        },
+        "freshness": {
+          "enum": [
+            "current",
+            "stale",
+            "absent",
+            "unknown"
+          ],
+          "title": "Freshness",
+          "type": "string"
+        },
+        "key": {
+          "minLength": 1,
+          "title": "Key",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "package",
+            "image",
+            "executable",
+            "configuration",
+            "alias"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "last_seen_scan": {
+          "minLength": 1,
+          "title": "Last Seen Scan",
+          "type": "string"
+        },
+        "override_technology_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Override Technology Id"
+        },
+        "override_version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Override Version"
+        },
+        "review": {
+          "enum": [
+            "proposed",
+            "confirmed",
+            "rejected",
+            "overridden",
+            "retired"
+          ],
+          "title": "Review",
+          "type": "string"
+        },
+        "reviewed_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reviewed At"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "technology_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Technology Id"
+        },
+        "version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Version"
+        },
+        "version_kind": {
+          "enum": [
+            "unknown",
+            "declared_range",
+            "observed_version"
+          ],
+          "title": "Version Kind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "claims",
+        "context",
+        "coordinate",
+        "effective_technology_id",
+        "first_seen_scan",
+        "freshness",
+        "key",
+        "kind",
+        "last_seen_scan",
+        "override_technology_id",
+        "override_version",
+        "review",
+        "reviewed_at",
+        "schema_version",
+        "technology_id",
+        "version",
+        "version_kind"
+      ],
+      "title": "CliTechnologyFinding",
+      "type": "object"
+    },
+    "TechnologyEvidence": {
+      "additionalProperties": false,
+      "properties": {
+        "confidence": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Confidence"
+        },
+        "detector_version": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9._+-]+$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Detector Version"
+        },
+        "mapping_version": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9._+-]+$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Mapping Version"
+        },
+        "observed_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "path": {
+          "anyOf": [
+            {
+              "maxLength": 1024,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Path"
+        },
+        "reference": {
+          "anyOf": [
+            {
+              "maxLength": 256,
+              "pattern": "^[A-Za-z0-9._:/+-]+$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reference"
+        },
+        "source": {
+          "enum": [
+            "manual",
+            "declared",
+            "configured",
+            "observed",
+            "forge_language"
+          ],
+          "title": "Source",
+          "type": "string"
+        },
+        "source_revision": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "pattern": "^[A-Za-z0-9._+-]+$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Revision"
+        }
+      },
+      "required": [
+        "source",
+        "observed_at"
+      ],
+      "title": "TechnologyEvidence",
+      "type": "object"
+    },
+    "TechnologyObservation": {
+      "additionalProperties": false,
+      "properties": {
+        "fact": {
+          "$ref": "#/$defs/TechnologyUsageFact"
+        },
+        "technology_id": {
+          "pattern": "^technology_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+          "title": "Technology Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "technology_id",
+        "fact"
+      ],
+      "title": "TechnologyObservation",
+      "type": "object"
+    },
+    "TechnologyScanHandoff": {
+      "additionalProperties": false,
+      "properties": {
+        "complete": {
+          "title": "Complete",
+          "type": "boolean"
+        },
+        "detector_version": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9._+-]+$",
+          "title": "Detector Version",
+          "type": "string"
+        },
+        "local_project_id": {
+          "anyOf": [
+            {
+              "pattern": "^project_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Local Project Id"
+        },
+        "mapping_version": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9._+-]+$",
+          "title": "Mapping Version",
+          "type": "string"
+        },
+        "observations": {
+          "items": {
+            "$ref": "#/$defs/TechnologyObservation"
+          },
+          "maxItems": 4096,
+          "title": "Observations",
+          "type": "array"
+        },
+        "organization_id": {
+          "anyOf": [
+            {
+              "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Organization Id"
+        },
+        "project_id": {
+          "anyOf": [
+            {
+              "pattern": "^remote_project_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Project Id"
+        },
+        "scan_id": {
+          "pattern": "^scan_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+          "title": "Scan Id",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "scope": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9._/-]+$",
+          "title": "Scope",
+          "type": "string"
+        }
+      },
+      "required": [
+        "scan_id",
+        "scope",
+        "complete",
+        "detector_version",
+        "mapping_version",
+        "observations"
+      ],
+      "title": "TechnologyScanHandoff",
+      "type": "object"
+    },
+    "TechnologyUsageFact": {
+      "additionalProperties": false,
+      "properties": {
+        "context": {
+          "enum": [
+            "production",
+            "development",
+            "testing",
+            "browser_support"
+          ],
+          "title": "Context",
+          "type": "string"
+        },
+        "evidence": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/TechnologyEvidence"
+          },
+          "maxItems": 64,
+          "title": "Evidence",
+          "type": "array"
+        },
+        "version": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Version"
+        },
+        "version_kind": {
+          "default": "unknown",
+          "enum": [
+            "unknown",
+            "declared_range",
+            "observed_version"
+          ],
+          "title": "Version Kind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "context"
+      ],
+      "title": "TechnologyUsageFact",
+      "type": "object"
+    },
+    "Timestamp": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:cli-technology-scan",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "The result of `project detect`: one stored scan over one root.\n\n`handoff` resolves findings the way publication does — against the\nfetched organization snapshot when one is cached, else the bundled\ntable — so an agent can inspect what would travel before anything does.\n`unmapped` names the coordinates that resolution cannot carry.",
+  "properties": {
+    "detector_version": {
+      "minLength": 1,
+      "title": "Detector Version",
+      "type": "string"
+    },
+    "findings": {
+      "items": {
+        "$ref": "#/$defs/CliTechnologyFinding"
+      },
+      "title": "Findings",
+      "type": "array"
+    },
+    "handoff": {
+      "$ref": "#/$defs/TechnologyScanHandoff"
+    },
+    "mapping_version": {
+      "minLength": 1,
+      "title": "Mapping Version",
+      "type": "string"
+    },
+    "observations": {
+      "minimum": 0,
+      "title": "Observations",
+      "type": "integer"
+    },
+    "project_id": {
+      "pattern": "^project_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "title": "Project Id",
+      "type": "string"
+    },
+    "root": {
+      "minLength": 1,
+      "title": "Root",
+      "type": "string"
+    },
+    "scan_id": {
+      "pattern": "^scan_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "title": "Scan Id",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "scope": {
+      "minLength": 1,
+      "title": "Scope",
+      "type": "string"
+    },
+    "state": {
+      "enum": [
+        "complete",
+        "partial"
+      ],
+      "title": "State",
+      "type": "string"
+    },
+    "stopped_by": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Stopped By"
+    },
+    "unmapped": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Unmapped",
+      "type": "array"
+    }
+  },
+  "required": [
+    "detector_version",
+    "findings",
+    "handoff",
+    "mapping_version",
+    "observations",
+    "project_id",
+    "root",
+    "scan_id",
+    "schema_version",
+    "scope",
+    "state",
+    "stopped_by",
+    "unmapped"
+  ],
+  "title": "CliTechnologyScan",
+  "type": "object"
+}

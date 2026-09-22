@@ -1387,6 +1387,60 @@ MIGRATIONS: Final[tuple[Migration, ...]] = (
             "ALTER TABLE agent_task DROP COLUMN harness_id",
         ),
     ),
+    Migration(
+        version=44,
+        summary="local technology detection: immutable scans, reviewed findings, mapping cache",
+        up=(
+            """
+            CREATE TABLE tech_scan (
+                scan_id TEXT PRIMARY KEY,
+                project_id TEXT NOT NULL,
+                scope TEXT NOT NULL,
+                complete INTEGER NOT NULL,
+                stopped_by TEXT NOT NULL DEFAULT '',
+                detector_version TEXT NOT NULL,
+                mapping_version TEXT NOT NULL,
+                created_at TEXT NOT NULL
+            )
+            """,
+            "CREATE INDEX tech_scan_project ON tech_scan(project_id, scope, created_at)",
+            """
+            CREATE TABLE tech_finding (
+                project_id TEXT NOT NULL,
+                scope TEXT NOT NULL,
+                kind TEXT NOT NULL,
+                coordinate TEXT NOT NULL,
+                context TEXT NOT NULL,
+                claims TEXT NOT NULL,
+                technology_id TEXT,
+                review TEXT NOT NULL DEFAULT 'proposed',
+                freshness TEXT NOT NULL DEFAULT 'current',
+                override_technology_id TEXT,
+                override_version TEXT,
+                first_seen_scan TEXT NOT NULL,
+                last_seen_scan TEXT NOT NULL,
+                reviewed_at TEXT,
+                updated_at TEXT NOT NULL,
+                PRIMARY KEY (project_id, scope, kind, coordinate, context)
+            )
+            """,
+            """
+            CREATE TABLE tech_mapping_cache (
+                organization_id TEXT NOT NULL,
+                version TEXT NOT NULL,
+                digest TEXT NOT NULL,
+                entries TEXT NOT NULL,
+                fetched_at TEXT NOT NULL,
+                PRIMARY KEY (organization_id, version)
+            )
+            """,
+        ),
+        down=(
+            "DROP TABLE IF EXISTS tech_mapping_cache",
+            "DROP TABLE IF EXISTS tech_finding",
+            "DROP TABLE IF EXISTS tech_scan",
+        ),
+    ),
 )
 
 #: Names for nested savepoints. A counter rather than a fixed name: two nested

@@ -47,6 +47,10 @@ def begin(parameters: Mapping[str, object]) -> Answer[DeviceApproval]:
     device_id, _public_key, warning = login.local_identity()
     started = login.start(endpoint(), provider)
     store, store_warning = open_store()
+    # A second `auth login` orphans the earlier code: its server-side
+    # authorization stays live until it expires, but `auth complete` will only
+    # ever exchange the code this call returns.
+    replaced = session.load_pending(store) is not None
     session.save_pending(
         store,
         session.Pending(
@@ -62,7 +66,19 @@ def begin(parameters: Mapping[str, object]) -> Answer[DeviceApproval]:
     opened = login.open_browser(started) if bool(parameters.get("open-browser")) else False
     # The second phase is not discoverable from this payload alone (#359):
     # hand callers the task surface that finishes the pending approval.
-    held = warning or store_warning
+    warnings = [
+        item
+        for item in (
+            warning or store_warning,
+            (
+                "a previous pending sign-in was replaced; approve the code in "
+                "this answer, not the earlier one"
+            )
+            if replaced
+            else None,
+        )
+        if item is not None
+    ]
     return Answer(
         DeviceApproval(
             provider=provider,
@@ -73,7 +89,7 @@ def begin(parameters: Mapping[str, object]) -> Answer[DeviceApproval]:
             browser_opened=opened,
             device_id=device_id,
         ),
-        warnings=() if held is None else (held,),
+        warnings=tuple(warnings),
         continuations=tuple(login_continuations()),
     )
 
@@ -211,5 +227,8 @@ def logout(_parameters: Mapping[str, object]) -> Answer[AuthStatus]:
                     "device from the web to end it now"
                 )
     session.clear(store)
+    # A pending authorization left behind would let `auth complete` materialize
+    # the very session this call just ended.
+    session.clear_pending(store)
     report, _warning = session.status()
     return Answer(report, warnings=tuple(warnings))
