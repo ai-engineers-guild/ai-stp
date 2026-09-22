@@ -761,3 +761,34 @@ def test_publish_refuses_a_non_integer_authorization_revision(
             _publish_parameters(project_id, **{"authorization-revision": "corporate-style"})
         )
     assert raised.value.code == "AI_STP_VALIDATION_ERROR"
+
+
+def test_commands_refuse_project_and_root_together(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, project: Path
+) -> None:
+    registry_path = tmp_path / "registry.sqlite"
+    with closing(open_registry(registry_path, create=True)) as connection:
+        project_id, _record = _scan_project(connection, project)
+    _patch_target(monkeypatch, registry_path)
+    with pytest.raises(CliFailure) as raised:
+        project_commands.technologies({"project": project_id, "root": str(project)})
+    assert raised.value.code == "AI_STP_VALIDATION_ERROR"
+    with pytest.raises(CliFailure) as review:
+        project_commands.technology_confirm(
+            {"project": project_id, "root": str(project), "finding": "package:django"}
+        )
+    assert review.value.code == "AI_STP_VALIDATION_ERROR"
+
+
+def test_technologies_refuses_a_scope_the_wire_cannot_carry(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, project: Path
+) -> None:
+    registry_path = tmp_path / "registry.sqlite"
+    with closing(open_registry(registry_path, create=True)) as connection:
+        project_id, _record = _scan_project(connection, project)
+    _patch_target(monkeypatch, registry_path)
+    with pytest.raises(CliFailure) as raised:
+        project_commands.technologies({"project": project_id, "scope": "my scope"})
+    assert raised.value.code == "AI_STP_VALIDATION_ERROR"
+    answer = project_commands.technologies({"project": project_id})
+    assert answer.payload.findings

@@ -329,6 +329,7 @@
   "only provider protocol version 1, 2 or 3 can be checked": "проверять можно только версии протокола провайдера 1, 2 или 3",
   "only the exact planned multi-root transaction can be approved": "подтвердить можно только точную запланированную multi-root транзакцию",
   "package index URLs must be HTTPS without credentials": "URL индекса пакетов должны быть HTTPS без учётных данных",
+  "pass either --project or --root, not both": "передайте либо --project, либо --root, но не оба",
   "pipx is not on PATH; it owns this installation": "pipx нет в PATH; он владеет этой установкой",
   "prepared SetupVersion installation requires provider protocol v3": "установка подготовленного SetupVersion требует протокол провайдера v3",
   "previous CLI version was not restored": "предыдущая версия CLI не восстановлена",

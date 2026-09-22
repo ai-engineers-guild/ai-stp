@@ -1240,6 +1240,12 @@ def _project_id_for(connection: sqlite3.Connection, parameters: Mapping[str, obj
     """The local project identity: explicit `--project`, or resolved from `--root`."""
     project_id = _optional(parameters, "project")
     if project_id is not None:
+        if _optional(parameters, "root") is not None:
+            raise CliFailure(
+                "AI_STP_VALIDATION_ERROR",
+                "pass either --project or --root, not both",
+                details={"option": "--project"},
+            )
         if not is_valid_id(project_id, "project"):
             raise CliFailure(
                 "AI_STP_VALIDATION_ERROR",
@@ -1429,7 +1435,7 @@ def detect(parameters: Mapping[str, object]) -> Answer[CliTechnologyScan]:
 
 def technologies(parameters: Mapping[str, object]) -> Answer[CliTechnologyFindings]:
     """List the stored technology findings for one local project."""
-    scope = _optional(parameters, "scope")
+    scope = _scan_scope(parameters) if _optional(parameters, "scope") is not None else None
 
     def work(connection: sqlite3.Connection) -> CliTechnologyFindings:
         project_id = _project_id_for(connection, parameters)
