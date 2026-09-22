@@ -73,7 +73,7 @@ def test_a_schema_group_miss_lists_the_schema_verbs(
     ("argv", "message"),
     [
         (["--json"], "no command given"),
-        (["registry", "show", "--json"], "Missing option"),
+        (["registry", "show", "--json"], "required options were not supplied"),
         (["nope", "--json"], "No such command"),
         (["version", "--nosuch", "--json"], "No such option"),
         (["config", "--json"], "incomplete command group"),
@@ -94,6 +94,71 @@ def test_a_refused_invocation_is_a_validation_error_with_exit_class_two(
     else:
         assert message in err
         assert not out
+
+
+def test_a_declared_leaf_lists_every_missing_required_option(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """`component fork` needs `--id` and `--version`; the refusal names both.
+
+    Click reports the first missing option only, so an agent used to fix one
+    flag and meet the next refusal. `details.options` carries the whole set
+    and the continuation is that leaf's own machine help, not the catalog.
+    """
+    code, out, err = _run(["component", "fork", "--json"], capsys)
+    assert code == 2
+    assert err == ""
+    envelope = _envelope(out)
+    assert envelope["error"]["code"] == "AI_STP_VALIDATION_ERROR"  # pyright: ignore[reportIndexIssue]
+    assert envelope["error"]["message"] == "required options were not supplied"  # pyright: ignore[reportIndexIssue]
+    assert envelope["error"]["details"]["options"] == ["--id", "--version"]  # pyright: ignore[reportIndexIssue]
+    first = envelope["continuations"][0]
+    assert first["kind"] == "inspect"
+    assert first["argv"] == ["help", "--path", "component fork", "--json"]
+    assert envelope["next_actions"] == ["help --path 'component fork' --json"]
+
+
+def test_a_declared_leaf_names_the_single_missing_option(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    code, out, _ = _run(["component", "fork", "--id", "x", "--json"], capsys)
+    assert code == 2
+    envelope = _envelope(out)
+    assert envelope["error"]["message"] == "a required option was not supplied"  # pyright: ignore[reportIndexIssue]
+    assert envelope["error"]["details"]["options"] == ["--version"]  # pyright: ignore[reportIndexIssue]
+
+
+def test_an_unknown_option_on_a_declared_leaf_points_at_its_help(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    code, out, _ = _run(["component", "fork", "--bogus", "--json"], capsys)
+    assert code == 2
+    envelope = _envelope(out)
+    assert "No such option" in envelope["error"]["message"]  # pyright: ignore[reportIndexIssue, reportOperatorIssue]
+    first = envelope["continuations"][0]
+    assert first["argv"] == ["help", "--path", "component fork", "--json"]
+
+
+def test_a_json_flag_after_double_dash_is_operand_text(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """`--` opens operand text; a `--json` there belongs to the forwarded call."""
+    code, out, err = _run(["version", "--", "--json"], capsys)
+    assert code == 2
+    assert out == ""
+    assert "unexpected extra argument" in err
+
+
+def test_a_root_version_flag_corrects_to_the_version_command(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """`--version` is the reflex every CLI reader carries; `version` is ours."""
+    code, out, err = _run(["--version", "--json"], capsys)
+    assert code == 2
+    assert err == ""
+    envelope = _envelope(out)
+    assert envelope["continuations"][0]["argv"] == ["version", "--json"]
+    assert envelope["next_actions"] == ["version --json"]
 
 
 @pytest.mark.parametrize(

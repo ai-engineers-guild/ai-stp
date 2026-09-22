@@ -369,6 +369,7 @@
   "replace every TODO(ai-stp-scaffold) marker before release": "замените каждый маркер TODO(ai-stp-scaffold) перед выпуском",
   "report submission requires confirmation of the exact preview digest": "отправка жалобы требует подтверждения точного digest предпросмотра",
   "required environment entries must be uppercase variable names, never NAME=value": "записи required environment должны быть именами переменных в верхнем регистре, никогда NAME=value",
+  "required options were not supplied": "обязательные опции не переданы",
   "resetting the device identity discards its key and cannot be undone": "сброс идентичности устройства уничтожает её ключ и необратим",
   "rollback artifact identity changed": "идентичность артефакта отката изменилась",
   "rollback artifact receipt is absent": "нет записи идентичности артефакта отката",
