@@ -105,6 +105,13 @@ async def test_untrusted_metadata_and_path_traversal_do_not_escape() -> None:
         await client.repository(42, token="x")
     with pytest.raises(GitLabError, match="gitlab_branch_invalid"):
         await client.head_revision(42, "../private", token="x")
+    for path in (
+        "//evil.invalid",
+        "projects/42/../../admin",
+        "projects/42/repository/commits/main%2F..",
+    ):
+        with pytest.raises(GitLabError, match="gitlab_path_invalid"):
+            await client._get(path, token="x")  # pyright: ignore[reportPrivateUsage]
 
 
 def test_discovery_mutations_have_no_credential_or_source_field() -> None:

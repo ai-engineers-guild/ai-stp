@@ -9,7 +9,7 @@ from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import cast
-from urllib.parse import quote, urlsplit
+from urllib.parse import quote, unquote, urlsplit
 
 import httpx
 
@@ -37,6 +37,10 @@ _PATH = re.compile(r"^[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)+$")
 _LANGUAGE = re.compile(r"^[A-Za-z0-9+#._ -]{1,64}$")
 _REVISION = re.compile(r"^[0-9a-f]{40}$")
 _BRANCH = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/-]{0,127}$")
+_API_PATH = re.compile(
+    r"projects(?:/[1-9][0-9]{0,15}(?:/languages|/repository/commits/"
+    r"(?:[A-Za-z0-9._-]|%2F){1,384})?)?"
+)
 
 
 def gitlab_base_url(value: str, *, allowed_hosts: Iterable[str]) -> str:
@@ -144,6 +148,11 @@ class GitLabClient:
     ) -> object:
         if not token or any(ord(character) < 33 or ord(character) > 126 for character in token):
             raise GitLabError("gitlab_credential_unavailable")
+        if not _API_PATH.fullmatch(path) or (
+            "/repository/commits/" in path
+            and not _valid_branch(unquote(path.split("/repository/commits/", 1)[1]))
+        ):
+            raise GitLabError("gitlab_path_invalid")
         url = f"{self.base_url}/api/v4/{path}"
         try:
             async with (
