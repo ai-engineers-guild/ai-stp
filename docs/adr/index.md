@@ -197,6 +197,7 @@ last_verified: "2026-08-03"
 | [ADR-0197-corporate-assignment-plan.md](ADR-0197-corporate-assignment-plan.md) | Deterministic install/update planning over effective corporate assignments. | 2026-09-20 |
 | [ADR-0198-managed-installation-verification.md](ADR-0198-managed-installation-verification.md) | Read-only verification that a managed target still carries the organization-approved setup and components. | 2026-09-20 |
 | [ADR-0199-standalone-components-extend-a-prepared-setup-bundle.md](ADR-0199-standalone-components-extend-a-prepared-setup-bundle.md) | Standalone exact components extend one prepared setup bundle without changing the verified baseline. | 2026-09-20 |
+| [ADR-0200-local-technology-detection-coordinates-not-identities.md](ADR-0200-local-technology-detection-coordinates-not-identities.md) | The local detector emits coordinates; only a versioned mapping snapshot may resolve them to canonical technology identities. | 2026-09-20 |
 | [binding.md](binding.md) | Which accepted ADRs still constrain non-corporate work; default is binding. | 2026-09-20 |
 | [template.md](template.md) | Architecture decision record template. | 2026-08-03 |
 

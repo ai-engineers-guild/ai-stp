@@ -5,8 +5,13 @@ last_verified: "2026-09-21"
 
 # Local technology detection plan (#222)
 
-This document is a **target execution plan**, not a description of current
-behavior. The live requirement is
+**Status: implemented.** `local/tech_detect.py`, `local/tech_findings.py`,
+`cloud/technology.py`, migration 44, and the `project detect|technologies|
+technology confirm|reject|override|retire|technology mappings|technology
+publish` surface now ship the local half. The normative record lives in
+SPEC-081 REQ-8212–8216 and ADR-0200;
+this document keeps the reasoning and the roadmap it was executed under. The
+live requirement is
 [ai-stp#222](https://github.com/ai-engineers-guild/ai-stp/issues/222); the
 server half it feeds is already shipped under SPEC-081/082 and ADR-0182.
 
@@ -57,24 +62,36 @@ publish leg. Everything below is new code.
    `expected_revision`, linked remote project via `project link`) is an
    explicit flag or a later command, never implicit in scanning.
 
-## Command surface (registry, project group)
+## Command surface (registry, project group) — as shipped
 
 - `project detect --root <path>` — bounded scan, stores the scan record and
-  findings, returns the finding list + handoff-shaped payload.
-- `project technologies` — current findings for a project with review and
-  freshness.
-- `project technology confirm|reject|override` — local review decisions that
-  survive rescans.
-- `project detect --publish` — emit `POST …/technology-scans` for the linked
-  remote project; refuses offline or unlinked honestly.
-- `project technology mappings` — the snapshot in effect and its provenance.
+  findings, returns the finding list, the unmapped coordinates, and the exact
+  `TechnologyScanHandoff` that publication would send.
+- `project technologies` — stored findings for a project with review and
+  freshness, per scan scope.
+- `project technology confirm|reject|override|retire` — local review on the
+  stable `kind:coordinate:context` key that survives rescans; `override`
+  requires an explicit `--technology`.
+- `project technology mappings list --organization <o>` — every snapshot
+  cached for one organization with version, digest and entry count.
+- `project technology mappings fetch --organization <o> --version <v>` — fetch
+  and digest-cache one exact snapshot. The API exposes exact-version reads, so
+  the version is an explicit argument, not "latest".
+- `project technology publish --organization <o>` — separate act, separate
+  command: projects current publishable findings into the version-1 handoff
+  and sends it with `--authorization-revision`, `--idempotency-key`, and
+  `--expected-revision` (defaulting to the cached link's remote revision).
+  Refuses an unlinked project, a mismatched organization, and a missing
+  fetched snapshot before demanding a session.
 
-## Schema
+## Schema — as shipped
 
 Registry migration 44: `tech_scan` (immutable scan records: scan_id,
-local_project_id, scope, complete, detector_version, mapping_version,
-handoff JSON, observed_at) and `tech_finding` (per project+coordinate+
-technology+context: review, freshness, evidence JSON, last scan).
+local_project_id, scope, complete, stopped_by, detector_version,
+mapping_version, observed_at), `tech_finding` (per project+scope+kind+
+coordinate+context: claims JSON, resolved and override technology IDs,
+review, freshness, first/last scan), and `tech_mapping_cache` (per
+organization+version: digest, entries JSON, fetched_at).
 
 ## Increments
 
