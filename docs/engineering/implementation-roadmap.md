@@ -25,13 +25,15 @@ drift.
 
 On `main` now, and not in the September 8 snapshot below:
 
-- Agent-first CLI: eight drained intents ([#297](https://github.com/ai-engineers-guild/ai-stp/pull/297)); `ai-stp-cli` `0.0.23` on PyPI ([#302](https://github.com/ai-engineers-guild/ai-stp/pull/302) / [#303](https://github.com/ai-engineers-guild/ai-stp/pull/303))
+- Agent-first CLI: eight drained intents ([#297](https://github.com/ai-engineers-guild/ai-stp/pull/297)); `ai-stp-cli` `0.0.24` on PyPI ([#369](https://github.com/ai-engineers-guild/ai-stp/pull/369) / [#370](https://github.com/ai-engineers-guild/ai-stp/pull/370))
+- Local technology detection, review, and scan publication ([#366](https://github.com/ai-engineers-guild/ai-stp/pull/366)); `--project`/`--root` declared `exactly_one` in machine help ([#367](https://github.com/ai-engineers-guild/ai-stp/pull/367)); Haiku 4.5 agent qualification recorded ([#368](https://github.com/ai-engineers-guild/ai-stp/pull/368))
 - `branch-policy.yml` SC2015 ([#304](https://github.com/ai-engineers-guild/ai-stp/pull/304))
 - `standards/just.md` and `standards/docker.md` ([#306](https://github.com/ai-engineers-guild/ai-stp/pull/306)–[#308](https://github.com/ai-engineers-guild/ai-stp/pull/308)); `infra-*` is outside `just check`
 - Deploy secret preflight, least-privilege compose env, docs origin probe ([#309](https://github.com/ai-engineers-guild/ai-stp/pull/309) / [#311](https://github.com/ai-engineers-guild/ai-stp/pull/311))
 - Host `.env.prod` must name `AI_STP_STORAGE_ARTIFACT_BUCKET` and `AI_STP_STORAGE_ASSET_BUCKET` (they may equal the existing `AI_STP_STORAGE_BUCKET` during upgrade)
 - Consumer kit in this tree is `0.2.13`. Public `NDDev-OpenNetwork/*-setup-system` tags are `0.0.73` and vendor that kit
 - Observed live 2026-09-20: `GET /v1/system/version` `git_commit` matched `origin/main` and `origin/deploy/prod` (`34dde4bb`); API package `0.0.16`; `/v1/health/ready` 200; `https://docs.nddev.asia` 200
+- Observed live 2026-09-22: `GET /v1/system/version` `git_commit` `6f9ef8f5` matches `origin/main` and `origin/deploy/prod` (tag `v0.0.24`); API package `0.0.16`; `/v1/health/live` and `/v1/health/ready` 200
 
 Still open on this owner's line: Agent UX epic [#261](https://github.com/ai-engineers-guild/ai-stp/issues/261)–#275 (Haiku qualify, native win/mac), setup-systems #316. Corporate / `feat/milestone-6-b2b-03` is a colleague scope — do not close those issues from this plan.
 
