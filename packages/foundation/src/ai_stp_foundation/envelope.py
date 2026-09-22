@@ -78,7 +78,7 @@ def continuation_argv(item: Continuation) -> list[str]:
     if item.argv:
         return list(item.argv)
     if item.missing:
-        return ["help", "--path", item.path[0], "--json"]
+        return ["help", "--path", " ".join(item.path), "--json"]
     tokens = list(item.path)
     for name, value in item.arguments.items():
         tokens.extend(_argument_tokens(name, value))
