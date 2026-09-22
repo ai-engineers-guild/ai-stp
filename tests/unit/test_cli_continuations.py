@@ -201,4 +201,4 @@ def test_an_unknown_path_keeps_the_foundation_derivation() -> None:
 
 def test_missing_arguments_still_render_the_help_fallback() -> None:
     item = Continuation(kind="blocked", path=["task", "start"], missing=["intent"])
-    assert bind_continuation(item).argv == ["help", "--path", "task", "--json"]
+    assert bind_continuation(item).argv == ["help", "--path", "task start", "--json"]
