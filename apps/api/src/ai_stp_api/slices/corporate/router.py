@@ -15,6 +15,7 @@ from ai_stp_api.settings import Settings
 from ai_stp_api.slices.corporate import (
     assignments,
     directory,
+    gitlab,
     governance,
     heartbeat,
     overview,
@@ -95,6 +96,7 @@ router.include_router(permissions.router)
 router.include_router(telemetry_policy.router)
 router.include_router(telemetry_rights.router)
 router.include_router(heartbeat.router)
+router.include_router(gitlab.router)
 router.include_router(usage_events.router)
 router.include_router(usage_reports.router)
 

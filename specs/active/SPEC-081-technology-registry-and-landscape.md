@@ -17,7 +17,8 @@ coordinate mappings, usage evidence and review semantics, and landscape projecti
 SPEC-082 owns all team/project/technology links and responsibility. A technology
 usage is evidence and a review decision attached to SPEC-082's single canonical
 project–technology relation, not a second independently editable relationship.
-Detector execution and forge enrichment remain #222/#208 responsibilities.
+Local detector execution is owned by #222; SPEC-090 covers the shipped GitLab
+language enrichment path over this specification's proposed-fact service.
 SPEC-086 owns consistent owner/category presentation and corporate catalog category
 filtering without changing these registry and relation semantics.
 

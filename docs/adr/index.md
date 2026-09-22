@@ -203,6 +203,7 @@ last_verified: "2026-08-03"
 | [ADR-0203-telemetry-privacy.md](ADR-0203-telemetry-privacy.md) | Corporate telemetry is allowed only behind a closed field boundary, tenant isolation, retention, subject rights, and a dedicated governance audit trail. | 2026-09-22 |
 | [ADR-0204-authenticated-installation-heartbeats.md](ADR-0204-authenticated-installation-heartbeats.md) | Installation heartbeats ride the authenticated corporate channel; identity comes from the session, writes coalesce by checked_at. | 2026-09-22 |
 | [ADR-0205-read-time-installation-health.md](ADR-0205-read-time-installation-health.md) | Installation health is a deterministic read-time projection with an injectable clock; nothing mutates rows to mark them stale. | 2026-09-22 |
+| [ADR-0206-gitlab-discovery-retains-provider-identity.md](ADR-0206-gitlab-discovery-retains-provider-identity.md) | GitLab discovery records provider observations on canonical project identities without creating project links. | 2026-09-22 |
 | [binding.md](binding.md) | Which accepted ADRs still constrain non-corporate work; default is binding. | 2026-09-20 |
 | [template.md](template.md) | Architecture decision record template. | 2026-08-03 |
 

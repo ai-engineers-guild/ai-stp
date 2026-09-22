@@ -2,7 +2,9 @@
 
 import httpx
 import pytest
+from pydantic import ValidationError
 
+from ai_stp_contracts.gitlab import GitLabMutationRequest
 from ai_stp_platform.gitlab_client import GitLabClient, GitLabError, gitlab_base_url
 
 REPOSITORY = {
@@ -64,7 +66,9 @@ async def test_read_only_metadata_languages_and_revision() -> None:
 
     client = GitLabClient("https://gitlab.com", transport=httpx.MockTransport(respond))
     assert [row.repository_id for row in await client.list_repositories(token="x")] == [42]
-    assert (await client.repository(42, token="x")).namespace_id == 7
+    repository = await client.repository(42, token="x")
+    assert repository.namespace_id == 7
+    assert repository.last_activity_at == "2026-09-01T00:00:00.000Z"
     assert await client.languages(42, token="x") == {"Python": 70.5, "HTML": 29.5}
     assert await client.head_revision(42, "main", token="x") == "a" * 40
     assert len(paths) == 4
@@ -101,3 +105,16 @@ async def test_untrusted_metadata_and_path_traversal_do_not_escape() -> None:
         await client.repository(42, token="x")
     with pytest.raises(GitLabError, match="gitlab_branch_invalid"):
         await client.head_revision(42, "../private", token="x")
+
+
+def test_discovery_mutations_have_no_credential_or_source_field() -> None:
+    safe = {
+        "authorization_revision": "corporate:organization_test:1:1",
+        "expected_revision": 0,
+        "idempotency_key": "register-test-12345678",
+    }
+    assert GitLabMutationRequest.model_validate(safe).expected_revision == 0
+    with pytest.raises(ValidationError):
+        GitLabMutationRequest.model_validate(
+            {**safe, "repository_contents": "untrusted source bytes"}
+        )

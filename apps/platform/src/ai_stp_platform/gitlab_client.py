@@ -7,10 +7,13 @@ import json
 import re
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from typing import cast
 from urllib.parse import quote, urlsplit
 
 import httpx
+
+from ai_stp_foundation.timestamps import format_timestamp
 
 
 class GitLabError(RuntimeError):
@@ -50,6 +53,7 @@ def gitlab_base_url(value: str, *, allowed_hosts: Iterable[str]) -> str:
         or not _HOST.fullmatch(host)
         or host.startswith(".")
         or ".." in host
+        or len(host) > 120
         or port not in {None, 443}
         or parsed.username is not None
         or parsed.password is not None
@@ -78,6 +82,20 @@ def _valid_branch(value: object) -> bool:
     return isinstance(value, str) and bool(_BRANCH.fullmatch(value)) and ".." not in value
 
 
+def _activity(value: object) -> str | None:
+    if value is None:
+        return None
+    if not isinstance(value, str) or len(value) > 40:
+        raise GitLabError("invalid_gitlab_response")
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        raise GitLabError("invalid_gitlab_response") from None
+    if parsed.tzinfo is None:
+        raise GitLabError("invalid_gitlab_response")
+    return format_timestamp(parsed.astimezone(UTC))
+
+
 def _repository(value: object, *, base_url: str) -> GitLabRepository:
     if not isinstance(value, dict):
         raise GitLabError("invalid_gitlab_response")
@@ -98,7 +116,6 @@ def _repository(value: object, *, base_url: str) -> GitLabRepository:
         or url != f"{base_url}/{path}"
         or not isinstance(namespace, dict)
         or (branch is not None and not _valid_branch(branch))
-        or (activity is not None and (not isinstance(activity, str) or len(activity) > 40))
     ):
         raise GitLabError("invalid_gitlab_response")
     return GitLabRepository(
@@ -107,7 +124,7 @@ def _repository(value: object, *, base_url: str) -> GitLabRepository:
         path_with_namespace=path,
         repository_url=url,
         default_branch=cast(str | None, branch),
-        last_activity_at=activity,
+        last_activity_at=_activity(activity),
     )
 
 

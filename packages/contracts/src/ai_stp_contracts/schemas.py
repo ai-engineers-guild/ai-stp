@@ -223,6 +223,12 @@ from ai_stp_contracts.github_connector import (
     GitHubSourcePrepareRequest,
 )
 from ai_stp_contracts.github_evidence import GitHubArchiveEvidence, GitHubArchiveHistory
+from ai_stp_contracts.gitlab import (
+    GitLabEnrichRequest,
+    GitLabMutationRequest,
+    GitLabRepositoryList,
+    GitLabRepositoryView,
+)
 from ai_stp_contracts.grants import (
     AccessGrantResponse,
     CliGrantAccessView,
@@ -816,6 +822,10 @@ HTTP_MODELS: Final[dict[str, ExportedSchema]] = {
     "installation-heartbeat": InstallationHeartbeat,
     "installation-heartbeat-status": InstallationHeartbeatStatus,
     "installation-heartbeat-list": InstallationHeartbeatList,
+    "gitlab-mutation-request": GitLabMutationRequest,
+    "gitlab-enrich-request": GitLabEnrichRequest,
+    "gitlab-repository-view": GitLabRepositoryView,
+    "gitlab-repository-list": GitLabRepositoryList,
     "runtime-usage-event": RuntimeUsageEvent,
     "runtime-usage-event-batch": RuntimeUsageEventBatch,
     "runtime-usage-ingest-result": RuntimeUsageIngestResult,

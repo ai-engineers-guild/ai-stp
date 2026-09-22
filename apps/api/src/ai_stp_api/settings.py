@@ -11,7 +11,7 @@ from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as installed_version
 from pathlib import Path
 
-from pydantic import AliasChoices, Field, field_validator, model_validator
+from pydantic import AliasChoices, BaseModel, Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from ai_stp_contracts.catalog import (
@@ -280,6 +280,18 @@ class CorporateSettings(BaseSettings):
     bootstrap_secret: str = Field(default="")
 
 
+class GitLabConnection(BaseModel):
+    base_url: str
+    token: SecretStr
+    allowed_hosts: list[str] = Field(default_factory=list)
+
+
+class GitLabSettings(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix="AI_STP_GITLAB_", extra="ignore")
+
+    connections: dict[str, GitLabConnection] = Field(default_factory=dict)
+
+
 @dataclass(frozen=True)
 class Settings:
     """Bundle of the independently sourced settings groups."""
@@ -293,6 +305,7 @@ class Settings:
     corporate: CorporateSettings = field(default_factory=CorporateSettings)
     content: ContentSettings = field(default_factory=ContentSettings)
     github_connector: GitHubConnectorSettings = field(default_factory=GitHubConnectorSettings)
+    gitlab: GitLabSettings = field(default_factory=GitLabSettings)
 
 
 def load_settings() -> Settings:
@@ -307,4 +320,5 @@ def load_settings() -> Settings:
         corporate=CorporateSettings(),
         content=ContentSettings(),
         github_connector=GitHubConnectorSettings(),
+        gitlab=GitLabSettings(),
     )

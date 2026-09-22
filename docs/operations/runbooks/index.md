@@ -17,6 +17,7 @@ last_verified: "2026-08-03"
 | [external-catalog-requests.md](external-catalog-requests.md) | Review and apply service and country request cases without an HTTP administration API. | 2026-09-04 |
 | [first-party-launch-publication.md](first-party-launch-publication.md) | Runbook: publishing the first-party launch corpus through the standard pipeline. | 2026-08-25 |
 | [github-repository-metrics.md](github-repository-metrics.md) | Runbook: best-effort GitHub stars cache for the public catalog. | 2026-09-03 |
+| [gitlab-discovery.md](gitlab-discovery.md) | Operate per-tenant GitLab discovery and retained provider observations. | 2026-09-22 |
 | [installation-recovery.md](installation-recovery.md) | Runbook: installation recovery. | 2026-08-03 |
 | [macos-evidence.md](macos-evidence.md) | Collecting CLI/package evidence on a standard GitHub-hosted macOS runner. | 2026-08-18 |
 | [official-upstream-components.md](official-upstream-components.md) | Runbook: operator-managed official GitHub and package upstream component snapshots. | 2026-09-04 |

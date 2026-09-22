@@ -39,6 +39,7 @@ last_verified: "2026-08-03"
 | [federated-sources.md](federated-sources.md) | Machine contract for shared descriptors used by local ports and metadata adapters. | 2026-08-16 |
 | [fixture-corpus.md](fixture-corpus.md) | Shared /v1 fixture corpus: case kinds, invariants, and usage by both sides. | 2026-08-05 |
 | [github-archive-evidence.md](github-archive-evidence.md) | Machine contract for local GitHub archive evidence and observation history. | 2026-08-15 |
+| [gitlab-discovery.md](gitlab-discovery.md) | GitLab discovery routes and their provider identity boundary. | 2026-09-22 |
 | [harness-bundle.md](harness-bundle.md) | Bounded deterministic package for a public harness provider. | 2026-09-01 |
 | [http-api.md](http-api.md) | HTTP API versioning, authorization, idempotency, and concurrency. | 2026-09-15 |
 | [native-component-discovery.md](native-component-discovery.md) | Machine contract for read-only discovery of native components in supported harnesses. | 2026-09-05 |
