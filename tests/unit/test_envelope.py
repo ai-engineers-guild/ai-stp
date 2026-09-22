@@ -85,8 +85,8 @@ def test_an_incomplete_continuation_points_at_scoped_help() -> None:
         arguments={"confirm": ""},
         missing=["component-root"],
     )
-    assert continuation_command(item) == "help --path attestation --json"
-    assert continuation_argv(item) == ["help", "--path", "attestation", "--json"]
+    assert continuation_command(item) == "help --path 'attestation sign' --json"
+    assert continuation_argv(item) == ["help", "--path", "attestation sign", "--json"]
 
 
 def test_explicit_argv_is_kept_when_missing_is_non_empty() -> None:
