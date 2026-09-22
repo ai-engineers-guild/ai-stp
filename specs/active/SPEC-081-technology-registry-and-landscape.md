@@ -267,7 +267,10 @@ collapses into a second identity on rescan.
 `project technology confirm|reject|override|retire` records a local review on
 the stable key; `override` without an explicit `--technology` identity is
 refused, and reviewing a key the store does not hold is `NOT_FOUND`, not a
-silent create.
+silent create. Every command that reads or publishes a local project resolves
+it through exactly one of `--project` or `--root`; passing both, or neither,
+is a validation refusal, and machine help carries the rule as a declared
+`parameter_rules` entry rather than prose.
 
 `project technology mappings fetch --organization <o> --version <v>` downloads
 one exact snapshot and caches it digest-addressed; `mappings list` shows every

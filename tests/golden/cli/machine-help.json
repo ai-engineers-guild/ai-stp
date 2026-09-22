@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "cli_version": "0.0.0-pinned",
-  "registry_digest": "sha256:add616e0536fdd3351514a3964913ece1de4cbae39ad42a509cd539ff9c6eb27",
+  "registry_digest": "sha256:771e02ab68731902089c37a3315a7c6e50ca6c73d02de64b96b3de1304ea7ad4",
   "global_options": [
     {
       "name": "json",
@@ -5743,7 +5743,17 @@
           "choices": []
         }
       ],
-      "parameter_rules": [],
+      "parameter_rules": [
+        {
+          "kind": "exactly_one",
+          "parameters": [
+            "project",
+            "root"
+          ],
+          "when_parameter": "",
+          "when_values": []
+        }
+      ],
       "result_schema": "urn:ai-stp:schema:v1:cli-technology-findings",
       "next_actions": [
         "project detect --root <path> --json"
@@ -5810,7 +5820,17 @@
           "choices": []
         }
       ],
-      "parameter_rules": [],
+      "parameter_rules": [
+        {
+          "kind": "exactly_one",
+          "parameters": [
+            "project",
+            "root"
+          ],
+          "when_parameter": "",
+          "when_values": []
+        }
+      ],
       "result_schema": "urn:ai-stp:schema:v1:cli-technology-review",
       "next_actions": [
         "project technologies --project <id> --json"
@@ -5958,7 +5978,17 @@
           "choices": []
         }
       ],
-      "parameter_rules": [],
+      "parameter_rules": [
+        {
+          "kind": "exactly_one",
+          "parameters": [
+            "project",
+            "root"
+          ],
+          "when_parameter": "",
+          "when_values": []
+        }
+      ],
       "result_schema": "urn:ai-stp:schema:v1:cli-technology-review",
       "next_actions": [
         "project technologies --project <id> --json"
@@ -6056,7 +6086,17 @@
           "choices": []
         }
       ],
-      "parameter_rules": [],
+      "parameter_rules": [
+        {
+          "kind": "exactly_one",
+          "parameters": [
+            "project",
+            "root"
+          ],
+          "when_parameter": "",
+          "when_values": []
+        }
+      ],
       "result_schema": "urn:ai-stp:schema:v1:technology-scan-result",
       "next_actions": [
         "project technologies --project <id> --json"
@@ -6123,7 +6163,17 @@
           "choices": []
         }
       ],
-      "parameter_rules": [],
+      "parameter_rules": [
+        {
+          "kind": "exactly_one",
+          "parameters": [
+            "project",
+            "root"
+          ],
+          "when_parameter": "",
+          "when_values": []
+        }
+      ],
       "result_schema": "urn:ai-stp:schema:v1:cli-technology-review",
       "next_actions": [
         "project technologies --project <id> --json"
@@ -6190,7 +6240,17 @@
           "choices": []
         }
       ],
-      "parameter_rules": [],
+      "parameter_rules": [
+        {
+          "kind": "exactly_one",
+          "parameters": [
+            "project",
+            "root"
+          ],
+          "when_parameter": "",
+          "when_values": []
+        }
+      ],
       "result_schema": "urn:ai-stp:schema:v1:cli-technology-review",
       "next_actions": [
         "project technologies --project <id> --json"

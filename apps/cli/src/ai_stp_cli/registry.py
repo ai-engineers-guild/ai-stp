@@ -2351,6 +2351,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         summary="List the stored technology findings for one local project.",
         result_schema="urn:ai-stp:schema:v1:cli-technology-findings",
         handler="project:technologies",
+        parameter_rules=(CommandParameterRule(kind="exactly_one", parameters=["project", "root"]),),
         parameters=(
             option("project", "string", "Stable local project identifier."),
             option("root", "string", "Project root to resolve the identifier from."),
@@ -2364,6 +2365,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         result_schema="urn:ai-stp:schema:v1:cli-technology-review",
         handler="project:technology_confirm",
         mutability="apply",
+        parameter_rules=(CommandParameterRule(kind="exactly_one", parameters=["project", "root"]),),
         parameters=(
             option("project", "string", "Stable local project identifier."),
             option("root", "string", "Project root to resolve the identifier from."),
@@ -2393,6 +2395,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         result_schema="urn:ai-stp:schema:v1:cli-technology-review",
         handler="project:technology_reject",
         mutability="apply",
+        parameter_rules=(CommandParameterRule(kind="exactly_one", parameters=["project", "root"]),),
         parameters=(
             option("project", "string", "Stable local project identifier."),
             option("root", "string", "Project root to resolve the identifier from."),
@@ -2422,6 +2425,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         result_schema="urn:ai-stp:schema:v1:cli-technology-review",
         handler="project:technology_override",
         mutability="apply",
+        parameter_rules=(CommandParameterRule(kind="exactly_one", parameters=["project", "root"]),),
         parameters=(
             option("project", "string", "Stable local project identifier."),
             option("root", "string", "Project root to resolve the identifier from."),
@@ -2458,6 +2462,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         result_schema="urn:ai-stp:schema:v1:cli-technology-review",
         handler="project:technology_retire",
         mutability="apply",
+        parameter_rules=(CommandParameterRule(kind="exactly_one", parameters=["project", "root"]),),
         parameters=(
             option("project", "string", "Stable local project identifier."),
             option("root", "string", "Project root to resolve the identifier from."),
@@ -2511,6 +2516,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         result_schema="urn:ai-stp:schema:v1:technology-scan-result",
         handler="project:technology_publish",
         mutability="apply",
+        parameter_rules=(CommandParameterRule(kind="exactly_one", parameters=["project", "root"]),),
         parameters=(
             option("project", "string", "Stable local project identifier."),
             option("root", "string", "Project root to resolve the identifier from."),
