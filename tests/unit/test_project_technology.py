@@ -253,7 +253,7 @@ def test_override_replaces_the_resolved_identity(
         at=AT,
     )
     assert held.effective_technology_id == "technology_00000000000000000000000042"
-    with pytest.raises(CliFailure):
+    with pytest.raises(CliFailure) as refused:
         tech_findings.review(
             registry,
             project_id=project_id,
@@ -265,6 +265,7 @@ def test_override_replaces_the_resolved_identity(
             override_technology_id=None,
             at=AT,
         )
+    assert refused.value.code == "AI_STP_VALIDATION_ERROR"
 
 
 def test_absent_requires_a_complete_scan(registry: sqlite3.Connection, project: Path) -> None:
