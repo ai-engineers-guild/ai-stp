@@ -108,6 +108,19 @@ organization+version: digest, entries JSON, fetched_at).
    (detector consumes the index; mapping snapshots; local review mirrors
    server merge), i18n catalogs, machine-help golden, e2e fixture journey.
 
+## Agent qualification — observed
+
+A weak-model agent (Claude Code, Haiku 4.5, driven through herdr panes)
+completed `help` discovery → `project detect` → `technology confirm` →
+`technologies` end to end in under a minute, and on the publish leg read
+`AI_STP_PRECONDITION_FAILED`, located the link path, checked auth on its own
+and stopped at the real blocker without fabricating a workaround. Its single
+confusion report — `--project` vs `--root` read as interchangeable — shipped
+the `parameter_rules` `exactly_one` declaration plus both-given refusal in
+PR #367; the same agent then quoted the rule back and received the named
+refusal. Qualification criterion: the surface must be learnable from machine
+help alone by a model with no prior exposure.
+
 ## Explicit non-goals
 
 No code execution, no dependency installation, no network reads inside a
