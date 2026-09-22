@@ -6,7 +6,7 @@ last_verified: "2026-09-22"
 # CLI installation heartbeat
 
 The requirements owner is `SPEC-087` (`REQ-8701`–`REQ-8709`); the decision is
-`ADR-0199`. This document defines the machine boundary: the field list, the
+`ADR-0204`. This document defines the machine boundary: the field list, the
 commands, and the sending rules. This channel is unrelated to the anonymous
 consented ping (`cli-telemetry.md`, ADR-0112), which is untouched.
 

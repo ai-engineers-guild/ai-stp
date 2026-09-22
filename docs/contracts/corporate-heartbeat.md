@@ -5,8 +5,8 @@ last_verified: "2026-09-22"
 
 # Corporate installation heartbeat
 
-The requirements owner is `SPEC-087`; the decisions are `ADR-0199` and
-`ADR-0200`. All routes are authenticated, under
+The requirements owner is `SPEC-087`; the decisions are `ADR-0204` and
+`ADR-0205`. All routes are authenticated, under
 `/v1/corporate/organizations/{organization_id}/telemetry/`, and tenant-scoped
 by row-level security on `installation_heartbeat`.
 
@@ -33,7 +33,7 @@ plus the evaluated `health_state`.
 ## Health states
 
 Closed set: `active`, `stale`, `failing`, `disabled`, `unknown`. Computed at
-read time (`ADR-0200`): no row → `unknown`; reported `disabled` → `disabled`;
+read time (`ADR-0205`): no row → `unknown`; reported `disabled` → `disabled`;
 `received_at` older than `stale_after_seconds` → `stale`; reported `failing` →
 `failing`; otherwise `active`. Responses echo `stale_after_seconds` and
 `evaluated_at` so the applied threshold is visible. The organization-level

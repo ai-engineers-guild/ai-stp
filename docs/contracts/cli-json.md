@@ -46,6 +46,11 @@ newline. Colors, control sequences, and additional text are prohibited. The
 error stream is used only for a failure before the envelope is constructed and
 contains no secrets.
 
+In human mode the same facts are plain text: each warning prints as a
+`warning:` line before the payload, and each distinct `next_actions` or
+`continuations` command prints once as a `next:` line after it, so the second
+phase of a two-command flow is named rather than discovered by trial.
+
 `ok` is true only when the requested effect completed. A warning does not
 change `ok` when that result was obtained in full. A partial or compensated
 mutating operation returns an error and `operation_id` rather than being
@@ -114,9 +119,13 @@ An integration first reads `help --agent --json`, selects a command by its exact
 `commands[].path`, and builds argv from `parameters`: `required` defines whether
 a parameter is mandatory, `value_type` defines the value form, `repeatable`
 defines repeatability, `choices` is a closed vocabulary, and `parameter_rules`
-defines the `exactly_one` and `required_when` relationships between parameters.
-The special `present` value in `when_values` means that the parameter is present
-regardless of its value. `summary` fields are not parsed as a contract. A
+defines the `exactly_one`, `at_most_one`, `required_when` and `forbidden_when`
+relationships between parameters.
+A rule carrying `when_parameter` and `when_values` applies only while that
+parameter takes one of those values; the special `present` value in
+`when_values` means that the parameter is present regardless of its value, and
+an empty `when_parameter` means the rule always applies. `summary` fields are
+not parsed as a contract. A
 successful response payload is validated against `result_schema`; a failure is
 validated against the common error-envelope schema and the exact `error.code`
 from `error_codes`.
@@ -135,8 +144,8 @@ is possible: a backup reference is not setup identity (`REQ-814`), and combining
 them in one response would erase the very boundary for which both requirements
 exist. Recovery remains the standard sequence
 `install plan --action rollback --backup-ref` → `install approve` with the exact
-`plan_digest` → `install apply`; for `backup` and `rollback`, specifying
-`--setup` or `--proposal` is unnecessary because these operations are bound to
-the target and backup, not to the setup graph.
+`plan_digest` → `install apply`; for `backup` and `rollback`, at most one of
+`--setup` or `--proposal` may be named and neither is required, because these
+operations bind to the target and backup, not to the setup graph (`REQ-1207`).
 Thus, a web/desktop/agent consumer does not extract flags, enums, or action order
 from Russian or English prose.

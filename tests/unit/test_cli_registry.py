@@ -14,7 +14,11 @@ from ai_stp_cli.registry import (
     descriptors,
     reserved_option_names,
 )
-from ai_stp_contracts.machine_help import CommandParameter
+from ai_stp_contracts.machine_help import (
+    CommandDescriptor,
+    CommandParameter,
+    CommandParameterRule,
+)
 from ai_stp_foundation.errors import ERROR_CODES
 from ai_stp_foundation.harnesses import HARNESS_IDS
 
@@ -155,13 +159,31 @@ def test_update_plan_cross_parameter_rules_are_structured() -> None:
         {
             "kind": "exactly_one",
             "parameters": ["proposal", "setup"],
-            "when_parameter": "",
-            "when_values": [],
+            "when_parameter": "action",
+            "when_values": ["install", "update", "remove"],
+        },
+        {
+            "kind": "at_most_one",
+            "parameters": ["proposal", "setup"],
+            "when_parameter": "action",
+            "when_values": ["backup", "rollback"],
+        },
+        {
+            "kind": "forbidden_when",
+            "parameters": ["component"],
+            "when_parameter": "action",
+            "when_values": ["backup", "rollback"],
         },
         {
             "kind": "required_when",
             "parameters": ["project"],
             "when_parameter": "setup",
+            "when_values": ["present"],
+        },
+        {
+            "kind": "required_when",
+            "parameters": ["setup"],
+            "when_parameter": "component",
             "when_values": ["present"],
         },
         {
@@ -177,6 +199,145 @@ def test_update_plan_cross_parameter_rules_are_structured() -> None:
             "when_values": ["project", "user_root"],
         },
     ]
+
+
+def test_select_graph_declares_the_source_xor_it_enforces() -> None:
+    # `select graph` refuses one proposal together with members and refuses
+    # neither, but until the rule was declared an agent had to discover the
+    # XOR by failing. The declaration and the handler now say the same thing.
+    descriptor = next(item for item in descriptors() if item.path == ["select", "graph"])
+
+    assert [item.model_dump(mode="json") for item in descriptor.parameter_rules] == [
+        {
+            "kind": "exactly_one",
+            "parameters": ["proposal", "member"],
+            "when_parameter": "",
+            "when_values": [],
+        }
+    ]
+
+
+def _descriptor_with_rules(rules: list[CommandParameterRule]) -> CommandDescriptor:
+    return CommandDescriptor(
+        path=["test", "command"],
+        summary="A descriptor that exists only to carry parameter rules.",
+        mutability="read",
+        confirmation="none",
+        parameters=[
+            CommandParameter(
+                name="action",
+                kind="option",
+                value_type="string",
+                required=False,
+                repeatable=False,
+                summary="Which operation.",
+                choices=["install", "backup"],
+            ),
+            CommandParameter(
+                name="proposal",
+                kind="option",
+                value_type="string",
+                required=False,
+                repeatable=False,
+                summary="A proposal source.",
+            ),
+            CommandParameter(
+                name="setup",
+                kind="option",
+                value_type="string",
+                required=False,
+                repeatable=False,
+                summary="A setup source.",
+            ),
+        ],
+        parameter_rules=rules,
+        result_schema=None,
+        next_actions=[],
+    )
+
+
+def test_an_exactly_one_rule_may_be_scoped_to_action_values() -> None:
+    # `install plan` needs this shape: the source XOR holds while `action`
+    # installs a graph and stops applying to `backup`/`rollback`, which name
+    # no source at all (`REQ-1207`).
+    descriptor = _descriptor_with_rules(
+        [
+            CommandParameterRule(
+                kind="exactly_one",
+                parameters=["proposal", "setup"],
+                when_parameter="action",
+                when_values=["install"],
+            )
+        ]
+    )
+
+    assert descriptor.parameter_rules[0].when_parameter == "action"
+
+
+def test_an_at_most_one_rule_may_be_scoped_to_action_values() -> None:
+    # `install plan` relaxes the source XOR to `at most one` on `backup` and
+    # `rollback`: neither is the common case, both is a contradiction the
+    # handler refuses (`REQ-1207`-`REQ-1210`).
+    descriptor = _descriptor_with_rules(
+        [
+            CommandParameterRule(
+                kind="at_most_one",
+                parameters=["proposal", "setup"],
+                when_parameter="action",
+                when_values=["backup"],
+            )
+        ]
+    )
+
+    assert descriptor.parameter_rules[0].kind == "at_most_one"
+
+
+def test_an_at_most_one_rule_needs_two_parameters() -> None:
+    with pytest.raises(ValueError, match="at_most_one requires two or more"):
+        _descriptor_with_rules([CommandParameterRule(kind="at_most_one", parameters=["proposal"])])
+
+
+def test_an_unconditional_forbidden_rule_is_refused() -> None:
+    # A parameter forbidden under every condition is not a rule but a
+    # parameter that should not exist, so `forbidden_when` requires a
+    # condition the way `required_when` does.
+    with pytest.raises(ValueError, match="forbidden_when has an invalid condition"):
+        _descriptor_with_rules(
+            [CommandParameterRule(kind="forbidden_when", parameters=["proposal"])]
+        )
+
+
+@pytest.mark.parametrize(
+    "rule",
+    [
+        # A condition on a name the command never declared.
+        CommandParameterRule(
+            kind="exactly_one",
+            parameters=["proposal", "setup"],
+            when_parameter="mystery",
+            when_values=["install"],
+        ),
+        # A conditional rule whose condition sits inside its own parameter
+        # list would be self-referential: `action` cannot constrain itself.
+        CommandParameterRule(
+            kind="exactly_one",
+            parameters=["proposal", "action"],
+            when_parameter="action",
+            when_values=["install"],
+        ),
+        # A named condition parameter with no values is not a condition.
+        CommandParameterRule(
+            kind="exactly_one",
+            parameters=["proposal", "setup"],
+            when_parameter="action",
+        ),
+    ],
+)
+def test_a_conditional_rule_with_a_broken_condition_is_refused(
+    rule: CommandParameterRule,
+) -> None:
+    with pytest.raises(ValueError, match=r"invalid condition|undeclared parameter"):
+        _descriptor_with_rules([rule])
 
 
 def test_read_commands_never_ask_for_confirmation() -> None:

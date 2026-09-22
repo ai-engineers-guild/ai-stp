@@ -1500,6 +1500,7 @@ def compile_setup_version_bundle(
     *,
     expected_harness: str | None = None,
     members: tuple[selection.Member, ...] = (),
+    extra_components: tuple[graph.Reference, ...] = (),
     host_root: Path | None = None,
     scope: str = "global",
     allowed_permissions: Iterable[str] = (),
@@ -1509,6 +1510,10 @@ def compile_setup_version_bundle(
     Prepared and newly composed setups meet here.  The former names this exact
     version directly; the latter reaches it through its confirmed proposal.
     Nothing below consults mutable entity heads.
+
+    `extra_components` are standalone exact references installed alongside the
+    graph: they extend the resolved closure and the bundle manifest without
+    changing which SetupVersion the result verifies as.
     """
     setup_version = versions.held(connection, stable_id, version)
     if setup_version is None:  # pragma: no cover - confirmation is atomic
@@ -1556,6 +1561,10 @@ def compile_setup_version_bundle(
                 passport_digest=str(item.get("passport_digest") or ""),
             )
         )
+    # Standalone extras are extra roots, not a second graph: `resolve`
+    # collapses one named identically and refuses one named at different
+    # coordinates, which is the same rule the setup's own members live under.
+    roots.extend(extra_components)
     closure = graph.resolve(connection, tuple(roots))
     if not closure.resolved:
         raise CliFailure(
@@ -2670,6 +2679,19 @@ def provider_fetch(parameters: Mapping[str, object]) -> Answer[ProviderBoundRele
             "provider fetch source must be github or index",
             details={"source": source},
         )
+    # Fetched bytes are discoverable, not bound (REQ-8013): initialize reads
+    # only chosen or configured providers, so a fetch that leaves the harness
+    # unbound names the bind step while the artifact path is still in hand.
+    from ai_stp_cli.application.initialize import bound_executable
+
+    warning: str | None = None
+    if bound_executable(harness) is None:
+        warning = (
+            f"{harness} has no bound provider; the fetched artifact is "
+            f"discoverable but not chosen. `config set` `provider.paths."
+            f"{harness}` to the artifact path binds it, or an install chooses "
+            "what it uses."
+        )
     return Answer(
         ProviderBoundRelease(
             harness_id=bound.harness_id,
@@ -2685,5 +2707,6 @@ def provider_fetch(parameters: Mapping[str, object]) -> Answer[ProviderBoundRele
             artifact_digest=bound.artifact_digest,
             artifact_url=bound.artifact_url,
             trust_level=bound.trust_level,
-        )
+        ),
+        warnings=() if warning is None else (warning,),
     )

@@ -115,6 +115,35 @@ filtering without changing these registry and relation semantics.
   legacy integer policy counters remain accepted for compatibility. Both are
   checked under the tenant mutation lock; opaque revisions bind the organization
   and membership revision and are never parsed by Web.
+- `REQ-8212`: The local detector is a pure function of one bounded project index
+  (`SPEC-004`). It performs no second filesystem traversal, executes no project
+  code, re-verifies each file digest the index recorded before parsing, reports
+  an honestly incomplete scan when the index stopped, and emits a deterministic
+  ordering. Source contents never leave the device.
+- `REQ-8213`: Detection emits ecosystem coordinates — `package`, `image`,
+  `executable`, `configuration`, `alias` — never canonical technology
+  identities. A versioned mapping snapshot resolves coordinates to identities;
+  a coordinate the mapping does not cover stays explicitly unmapped rather than
+  borrowing an identity. The bundled mapping ships with the CLI, carries its
+  own version, and resolves only identities the canonical seed already owns;
+  organization snapshots fetched from the platform overlay it on coordinate
+  collision.
+- `REQ-8214`: Local review attaches to the stable finding key
+  `kind:coordinate:context` — deliberately without version, so a rescan that
+  moves a version retains the decision. States are proposed, confirmed,
+  rejected, overridden, and retired; an override names an explicit technology
+  identity and never fabricates evidence for it. Rejected and retired findings
+  do not reach a handoff.
+- `REQ-8215`: Local freshness is `current`, `absent`, `stale`, or `unknown`.
+  Only a complete scan of the same scope marks a previously seen finding
+  absent; an incomplete scan marks unseen findings stale, because not seen is
+  not not present. Only current findings reach a handoff.
+- `REQ-8216`: Publication requires an explicitly linked project (the cached
+  link names organization and remote project — identity is never inferred from
+  content), a fetched organization mapping snapshot — the bundled table alone
+  cannot publish — and a current session. Local preconditions are evaluated
+  before the session is demanded. Each observation carries this scan's detector
+  and mapping versions on every evidence item.
 
 ## States and errors
 
@@ -223,6 +252,35 @@ Known-ID `GET` on the project's `/technology-scans/{scan_id}` path exposes the
 immutable handoff and effect/disagreement report under independent project,
 canonical-pair and original/current technology read permissions. Historical
 reads remain available for retained archived/deleted project identities.
+
+### Local detection, review and publication
+
+`project detect` builds the one bounded `SPEC-004` index and runs the detector
+over it. Detections persist per project and scan scope with their claims —
+version and version kind — and the evidence that produced them: a safe
+repository-relative path, an optional reference, the detection source,
+confidence, and the detector and mapping versions that saw them. A scan records
+its own stable scan ID, completeness and stop reason; the same scan never
+collapses into a second identity on rescan.
+
+`project technologies` lists stored findings with review and freshness.
+`project technology confirm|reject|override|retire` records a local review on
+the stable key; `override` without an explicit `--technology` identity is
+refused, and reviewing a key the store does not hold is `NOT_FOUND`, not a
+silent create. Every command that reads or publishes a local project resolves
+it through exactly one of `--project` or `--root`; passing both, or neither,
+is a validation refusal, and machine help carries the rule as a declared
+`parameter_rules` entry rather than prose.
+
+`project technology mappings fetch --organization <o> --version <v>` downloads
+one exact snapshot and caches it digest-addressed; `mappings list` shows every
+snapshot cached for one organization. `project technology publish` projects
+current, publishable findings into the version-1 handoff — one observation per
+canonical technology/context, the strongest version claim winning (observed
+over declared over unknown) — and sends it under an explicit idempotency key,
+authorization revision, and expected project revision. The published artifact
+is exactly what `project detect` already exposed; nothing extra is minted on
+the wire.
 
 ### Landscape query and projection
 
@@ -358,3 +416,8 @@ downgrade requires a verified backup and is not an ordinary rollback.
 | `REQ-8209` | Shared-filter table/grouped/drill-down tests count distinct authorized projects despite duplicate evidence and multiple teams. |
 | `REQ-8210` | Deterministic activity-threshold/override/unknown/history/source-state and adoption-policy tests. |
 | `REQ-8211` | Hostile tenant/scope, concurrent revision, idempotency, audit and every introduced infrastructure-surface test. |
+| `REQ-8212` | Detection fixtures over ten named technologies run deterministic, digest-verified scans; a file changed after indexing contributes nothing, secrets never reach evidence, and no second traversal occurs. |
+| `REQ-8213` | Bundled-mapping fixtures resolve only seed identities; unmapped coordinates stay unmapped and an organization snapshot overlays bundled entries on collision. |
+| `REQ-8214` | Confirm/reject/override decisions survive a rescan that moves the version; an override without an explicit identity and review of an unknown key are refused. |
+| `REQ-8215` | Complete-scan fixtures mark unseen findings absent while a partial scan marks them stale; only current findings appear in the projected handoff. |
+| `REQ-8216` | Publication fixtures refuse an unlinked project, a mismatched organization, and a missing fetched snapshot before demanding a session; a wired mock server receives the exact contract-shaped handoff. |

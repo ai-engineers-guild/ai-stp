@@ -3,7 +3,7 @@ description: "Installation heartbeats ride the authenticated corporate channel; 
 last_verified: "2026-09-22"
 ---
 
-# ADR-0199: Authenticated installation heartbeats
+# ADR-0204: Authenticated installation heartbeats
 
 Status: accepted. Relates to ADR-0112 (anonymous ping), ADR-0039 (corporate
 authorization).

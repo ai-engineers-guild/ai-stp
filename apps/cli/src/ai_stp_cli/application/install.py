@@ -40,6 +40,7 @@ from ai_stp_cli.local import (
     bundle,
     cache,
     composition,
+    graph,
     harnesses,
     installation,
     journal,
@@ -138,8 +139,73 @@ def _require_independent_operation(connection: sqlite3.Connection, operation_id:
         )
 
 
+def _raw_strings(value: object) -> tuple[str, ...]:
+    if value is None:
+        return ()
+    if isinstance(value, list | tuple):
+        return tuple(str(item) for item in cast(list[object], value))
+    return (str(value),)
+
+
+def _standalone_component_refs(
+    connection: sqlite3.Connection, raw: tuple[str, ...]
+) -> tuple[graph.Reference, ...]:
+    """Resolve each `--component <stable_id>@<X.Y>` to one exact held reference.
+
+    A standalone component is only installable from this registry, so a name
+    that resolves to nothing — or to something that is not a component — is a
+    refusal named here rather than a deeper failure inside graph resolution.
+    """
+    refs: list[graph.Reference] = []
+    seen: set[str] = set()
+    for item in raw:
+        stable_id, separator, version = item.partition("@")
+        if not separator or not stable_id or not version:
+            raise CliFailure(
+                "AI_STP_VALIDATION_ERROR",
+                "a standalone component is named as <stable_id>@<X.Y>",
+                details={"component": item},
+            )
+        if stable_id in seen:
+            raise CliFailure(
+                "AI_STP_VALIDATION_ERROR",
+                "the same standalone component was named twice",
+                details={"stable_id": stable_id},
+            )
+        seen.add(stable_id)
+        recorded = versions.held(connection, stable_id, version)
+        if recorded is None:
+            raise CliFailure(
+                "AI_STP_NOT_FOUND",
+                "the exact standalone component is not held by this registry",
+                details={"stable_id": stable_id, "version": version},
+                next_actions=[
+                    f"registry acquire --id {stable_id} --version {version} --json",
+                ],
+            )
+        stored = revisions.get(connection, recorded.revision_id)
+        if stored is None or stored.envelope.kind != "component":
+            raise CliFailure(
+                "AI_STP_CONFLICT",
+                "a standalone install member must resolve to one component passport",
+                details={"stable_id": stable_id, "version": version},
+            )
+        refs.append(
+            graph.Reference(
+                stable_id=stable_id,
+                version=version,
+                passport_digest=recorded.passport_digest,
+            )
+        )
+    return tuple(refs)
+
+
 def _prepared_setup_source(
-    connection: sqlite3.Connection, reference: str, project: str
+    connection: sqlite3.Connection,
+    reference: str,
+    project: str,
+    *,
+    extra_components: tuple[graph.Reference, ...] = (),
 ) -> selection.Proposal:
     """Represent one immutable prepared SetupVersion as an installation source.
 
@@ -200,6 +266,32 @@ def _prepared_setup_source(
                 lane_reason="stored immutable SetupVersion selected explicitly",
             )
         )
+    held_members = {item.stable_id: item for item in members}
+    for extra in extra_components:
+        existing = held_members.get(extra.stable_id)
+        if existing is not None:
+            if existing.version == extra.version and existing.passport_digest == (
+                extra.passport_digest
+            ):
+                continue
+            raise CliFailure(
+                "AI_STP_VALIDATION_ERROR",
+                "a standalone component duplicates a setup member at another exact version",
+                details={
+                    "stable_id": extra.stable_id,
+                    "setup_version": existing.version,
+                    "named_version": extra.version,
+                },
+            )
+        members.append(
+            selection.Member(
+                stable_id=extra.stable_id,
+                version=extra.version,
+                passport_digest=extra.passport_digest,
+                lane="prepared_standalone",
+                lane_reason="exact standalone component named on install plan",
+            )
+        )
     if project:
         context = select_command.context_for_project(connection, harness_id, Path(project))
         project_id = context.project_id
@@ -257,6 +349,30 @@ def plan(parameters: Mapping[str, object]) -> Answer[InstallationView]:
     proposal_id = str(parameters.get("proposal") or "")
     prepared_ref = str(parameters.get("setup") or "")
     action = str(parameters.get("action") or "install")
+    raw_components = _raw_strings(parameters.get("component"))
+    # Standalone components ride on an exact prepared graph: they extend the
+    # bundle, not the baseline, so the verified target still records the named
+    # SetupVersion while the manifest covers every assigned component. A
+    # proposal is composed elsewhere — adding members after confirm would make
+    # the bundle differ from what confirmation froze. Sourceless actions build
+    # no graph at all, so a component named for one would go nowhere — and the
+    # refusal says so, rather than pointing at the setup the caller may well
+    # have passed.
+    if raw_components and action in _SOURCELESS_ACTIONS:
+        raise CliFailure(
+            "AI_STP_VALIDATION_ERROR",
+            "backup and rollback install no graph, so components do not apply",
+            details={"action": action},
+        )
+    if raw_components and not prepared_ref:
+        raise CliFailure(
+            "AI_STP_VALIDATION_ERROR",
+            "standalone components install alongside a prepared exact SetupVersion",
+            details={"action": action},
+            next_actions=[
+                "install plan --setup <id>@<X.Y> --component <id>@<X.Y> --json",
+            ],
+        )
     # `backup` and `rollback` do not install a graph, so naming a source for
     # them meant naming one the operation would not use. It forced the current
     # or a past version into an operation that binds to a `BackupRef` and a
@@ -287,10 +403,16 @@ def plan(parameters: Mapping[str, object]) -> Answer[InstallationView]:
 
     def work(connection: sqlite3.Connection) -> InstallationView:
         named_source = bool(proposal_id or prepared_ref)
+        extra_components = (
+            _standalone_component_refs(connection, raw_components) if raw_components else ()
+        )
         held = (
             (
                 _prepared_setup_source(
-                    connection, prepared_ref, str(parameters.get("project") or "")
+                    connection,
+                    prepared_ref,
+                    str(parameters.get("project") or ""),
+                    extra_components=extra_components,
                 )
                 if prepared_ref
                 else selection.held(connection, proposal_id)
@@ -368,6 +490,7 @@ def plan(parameters: Mapping[str, object]) -> Answer[InstallationView]:
                 pair=pair,
                 proposal=held,
                 action=action,
+                extra_components=extra_components,
                 provider_target=provider_target,
                 info=info,
                 invoke=invoke,
@@ -474,6 +597,7 @@ def _plan_v3(
     pair: _Pair,
     proposal: selection.Proposal | None,
     action: str,
+    extra_components: tuple[graph.Reference, ...],
     provider_target: str,
     info: dict[str, JsonValue],
     invoke: conformance.Invoker,
@@ -565,6 +689,7 @@ def _plan_v3(
             proposal.confirmed_stable_id,
             proposal.confirmed_version,
             expected_harness=pair.harness_id,
+            extra_components=extra_components,
             host_root=Path(provider_target),
             scope=str(parameters.get("scope") or "global"),
             allowed_permissions=_allowed_permissions(parameters),

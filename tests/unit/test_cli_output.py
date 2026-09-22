@@ -87,6 +87,39 @@ def test_human_failure_prints_the_code_and_the_message() -> None:
     assert code == 2
 
 
+def test_human_success_names_each_continuation_once() -> None:
+    # `next_actions` is already the display form of the same continuations, so
+    # the person sees the command exactly once even though it arrives twice.
+    stream = io.StringIO()
+    render_success(
+        PAYLOAD,
+        machine=False,
+        request_id=REQUEST_ID,
+        stream=stream,
+        continuations=[Continuation(kind="advance", path=["task", "list"])],
+        next_actions=["task list --json"],
+    )
+    written = stream.getvalue()
+    assert written.count("next:") == 1
+    assert "next: task list --json" in written
+
+
+def test_human_failure_names_the_recovery_actions() -> None:
+    # Recovery hints were machine-only; a person hitting a foreign device key
+    # saw "permission denied" and nothing about `device reset` (#359).
+    stream = io.StringIO()
+    failure = CliFailure(
+        "AI_STP_PERMISSION_DENIED",
+        "device key belongs to another account",
+        next_actions=["device reset --confirm --json", "auth login --provider github --json"],
+    )
+    render_failure(failure, machine=False, request_id=REQUEST_ID, stream=stream)
+    written = stream.getvalue()
+    assert "AI_STP_PERMISSION_DENIED: device key belongs to another account" in written
+    assert "next: device reset --confirm --json" in written
+    assert "next: auth login --provider github --json" in written
+
+
 def test_nested_and_empty_values_render_readably() -> None:
     stream = io.StringIO()
     render_success(

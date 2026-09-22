@@ -430,6 +430,116 @@ def test_policy_states_map_to_verdicts(
     assert result.status == expected
 
 
+def test_a_missing_assigned_component_names_the_install_plan(
+    tmp_path: Path,
+    connection: sqlite3.Connection,
+    corporate_plan: dict[str, object],
+) -> None:
+    """The verdict names the one command that closes the gap (#358).
+
+    `install plan --setup <assigned> --component <assigned>` installs the
+    exact assigned set onto the named baseline — the continuation carries
+    executable arguments, not a command the caller must reassemble.
+    """
+    target = tmp_path / "target"
+    (target / "skills" / "review").mkdir(parents=True)
+    (target / "skills" / "review" / "SKILL.md").write_bytes(b"expected\n")
+    _verified_installation(
+        connection,
+        target=target,
+        bundle=_bundle_bytes({"skills/review/SKILL.md": b"expected\n"}),
+    )
+    corporate_plan["response"] = CorporateAssignmentPlan.model_validate(
+        {
+            "schema_version": 1,
+            "organization_id": ORGANIZATION,
+            "account_id": ACCOUNT,
+            "harness": HARNESS,
+            "items": [
+                {
+                    "object_kind": "setup",
+                    "stable_id": SETUP_ID,
+                    "state": "assigned",
+                    "outcome": "installed",
+                    "action": "none",
+                    "version": "1.0",
+                },
+                {
+                    "object_kind": "component",
+                    "stable_id": "component_extra",
+                    "state": "assigned",
+                    "outcome": "missing",
+                    "action": "install",
+                    "version": "2.0",
+                },
+            ],
+            "total": 2,
+        }
+    )
+
+    answer = managed_verify.verify_managed(
+        _parameters(),
+        endpoint_url=ENDPOINT,
+        access_token="bearer",
+        account_id=ACCOUNT,
+    )
+
+    assert answer.payload.status == "outdated"
+    assert len(answer.continuations) == 1
+    remediation = answer.continuations[0]
+    assert remediation.path == ["install", "plan"]
+    assert remediation.arguments["setup"] == f"{SETUP_ID}@1.0"
+    assert remediation.arguments["component"] == ["component_extra@2.0"]
+    assert remediation.arguments["project"] == PROJECT
+
+
+def test_a_components_only_gap_names_no_install_plan(
+    tmp_path: Path,
+    connection: sqlite3.Connection,
+    corporate_plan: dict[str, object],
+) -> None:
+    """Standalone components bind to an exact setup graph — without an
+    assigned setup line there is no honest command to print."""
+    target = tmp_path / "target"
+    (target / "skills" / "review").mkdir(parents=True)
+    (target / "skills" / "review" / "SKILL.md").write_bytes(b"expected\n")
+    _verified_installation(
+        connection,
+        target=target,
+        bundle=_bundle_bytes({"skills/review/SKILL.md": b"expected\n"}),
+    )
+    corporate_plan["response"] = CorporateAssignmentPlan.model_validate(
+        {
+            "schema_version": 1,
+            "organization_id": ORGANIZATION,
+            "account_id": ACCOUNT,
+            "harness": HARNESS,
+            "items": [
+                {
+                    "object_kind": "component",
+                    "stable_id": "component_extra",
+                    "state": "assigned",
+                    "outcome": "missing",
+                    "action": "install",
+                    "version": "2.0",
+                },
+            ],
+            "total": 1,
+        }
+    )
+
+    answer = managed_verify.verify_managed(
+        _parameters(),
+        endpoint_url=ENDPOINT,
+        access_token="bearer",
+        account_id=ACCOUNT,
+    )
+
+    # A plan silent on the materialized setup is not a verdict to pass on.
+    assert answer.payload.status == "unverifiable"
+    assert answer.continuations == ()
+
+
 def test_a_pair_with_no_verified_installation_is_not_enrolled(
     connection: sqlite3.Connection,
     corporate_plan: dict[str, object],

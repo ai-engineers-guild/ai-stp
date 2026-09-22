@@ -3,9 +3,9 @@ description: "Installation health is a deterministic read-time projection with a
 last_verified: "2026-09-22"
 ---
 
-# ADR-0200: Read-time installation health
+# ADR-0205: Read-time installation health
 
-Status: accepted. Builds on ADR-0199.
+Status: accepted. Builds on ADR-0204.
 
 ## Context
 

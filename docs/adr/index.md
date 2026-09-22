@@ -196,11 +196,13 @@ last_verified: "2026-08-03"
 | [ADR-0196-bulk-corporate-distribution.md](ADR-0196-bulk-corporate-distribution.md) | Idempotent, observable bulk distribution of corporate assignments. | 2026-09-19 |
 | [ADR-0197-corporate-assignment-plan.md](ADR-0197-corporate-assignment-plan.md) | Deterministic install/update planning over effective corporate assignments. | 2026-09-20 |
 | [ADR-0198-managed-installation-verification.md](ADR-0198-managed-installation-verification.md) | Read-only verification that a managed target still carries the organization-approved setup and components. | 2026-09-20 |
-| [ADR-0199-authenticated-installation-heartbeats.md](ADR-0199-authenticated-installation-heartbeats.md) | Installation heartbeats ride the authenticated corporate channel; identity comes from the session, writes coalesce by checked_at. | 2026-09-22 |
-| [ADR-0200-read-time-installation-health.md](ADR-0200-read-time-installation-health.md) | Installation health is a deterministic read-time projection with an injectable clock; nothing mutates rows to mark them stale. | 2026-09-22 |
+| [ADR-0199-standalone-components-extend-a-prepared-setup-bundle.md](ADR-0199-standalone-components-extend-a-prepared-setup-bundle.md) | Standalone exact components extend one prepared setup bundle without changing the verified baseline. | 2026-09-20 |
+| [ADR-0200-local-technology-detection-coordinates-not-identities.md](ADR-0200-local-technology-detection-coordinates-not-identities.md) | The local detector emits coordinates; only a versioned mapping snapshot may resolve them to canonical technology identities. | 2026-09-20 |
 | [ADR-0201-runtime-usage-events.md](ADR-0201-runtime-usage-events.md) | Corporate runtime component-usage events: closed coordinates on the authenticated channel, a bounded local outbox, and scoped aggregate reporting. | 2026-09-22 |
 | [ADR-0202-runtime-usage-visibility.md](ADR-0202-runtime-usage-visibility.md) | Runtime usage visibility: identity bound to the caller, team-scoped narrowing, separately permissioned drill-down, digested export receipts, and the retention seam delegated to SPEC-089. | 2026-09-22 |
 | [ADR-0203-telemetry-privacy.md](ADR-0203-telemetry-privacy.md) | Corporate telemetry is allowed only behind a closed field boundary, tenant isolation, retention, subject rights, and a dedicated governance audit trail. | 2026-09-22 |
+| [ADR-0204-authenticated-installation-heartbeats.md](ADR-0204-authenticated-installation-heartbeats.md) | Installation heartbeats ride the authenticated corporate channel; identity comes from the session, writes coalesce by checked_at. | 2026-09-22 |
+| [ADR-0205-read-time-installation-health.md](ADR-0205-read-time-installation-health.md) | Installation health is a deterministic read-time projection with an injectable clock; nothing mutates rows to mark them stale. | 2026-09-22 |
 | [binding.md](binding.md) | Which accepted ADRs still constrain non-corporate work; default is binding. | 2026-09-20 |
 | [template.md](template.md) | Architecture decision record template. | 2026-08-03 |
 

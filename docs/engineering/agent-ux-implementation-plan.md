@@ -22,7 +22,7 @@ composition, backup, plan, approve, apply, verify, retries, and recovery.
 
 Eight drained intents are on GitHub `main` (PR
 [#297](https://github.com/ai-engineers-guild/ai-stp/pull/297) merged
-2026-09-19). Source and PyPI `ai-stp-cli` are `0.0.23`. Epic #261–#275 stay
+2026-09-19). Source and PyPI `ai-stp-cli` are `0.0.24`. Epic #261–#275 stay
 OPEN. Do not touch colleague issues (#254, #256) or
 `feat/milestone-6-b2b-03`.
 
@@ -30,7 +30,7 @@ OPEN. Do not touch colleague issues (#254, #256) or
 | --- | --- |
 | Line | GitHub `main` / `dev`. Work branch `feat/agent-task-lifecycle` is gone |
 | PR | [#297](https://github.com/ai-engineers-guild/ai-stp/pull/297) merged into `dev`, then promoted |
-| Released CLI | `0.0.23` on PyPI (`apps/cli/pyproject.toml` matches) |
+| Released CLI | `0.0.26` on PyPI (`apps/cli/pyproject.toml` matches) |
 | Provider kit | `0.2.13` in `tests/golden/provider-kit/identity-ledger.json` |
 | Issues | #261–#275 OPEN. setup-systems #316 OPEN. Never close #256. Draft #254: do not touch |
 | Haiku 20×5 | last overlay 53 pass / 0 fail / 47 unrun. No ≥95/100 claim. Not a ship gate |
@@ -59,7 +59,7 @@ measurement): 5/5 initialize/install-pin/install-open/change/login-skipped/login
 
 1. **Slice 9 Haiku**: ≥95/100, no scenario <4/5, 5/5 on initialize / install / change / switch.
 2. **Native win/mac** stay `not_run` here. Docker ENFORCED is the isolation path on this host.
-3. **Next CLI cut** after qualify of clean bytes. `0.0.23` is already on PyPI from #302/#303; do not treat that cut as Haiku-qualified.
+3. **Next CLI cut** after qualify of clean bytes. `0.0.26` is on PyPI from #381/#382 and carries the completed `parameter_rules` vocabulary (#375, #380) plus the Haiku 4.5 qualification record (#368).
 4. **setup-systems #316** stays OPEN. Public `NDDev-OpenNetwork/*-setup-system` tags are `0.0.73` (2026-09-19) and vendor kit `0.2.13` (same aggregate digest as this tree). A local `0.0.72` install is not the public tag. Do not close #316 from this plan.
 5. Issue comments with SHA; close only for measured scope. **Never close #256**. Do not touch #254.
 6. `component publish` stays `task_pending`. Do not compact `help --agent`. Do not shrink capabilities `command_paths` (REQ-8006).
@@ -92,7 +92,7 @@ External practice used (not copied as a second normative system):
 | Work branch | `feat/agent-task-lifecycle` @ `6f19972f` (gone; kernel is on `main` via #297) |
 | `origin/dev` then | `de37d6f3` after #277 (typed continuations exist; **no** PyPI cut at that date) |
 | Open PRs then | [#279](https://github.com/ai-engineers-guild/ai-stp/pull/279) envelope truth; [#280](https://github.com/ai-engineers-guild/ai-stp/pull/280) inspect engine (contains #279) |
-| Released CLI then | `0.0.22`. Current PyPI is `0.0.23` |
+| Released CLI then | `0.0.22`. Current PyPI is `0.0.26` |
 | Issues | #261–#275 OPEN. setup-systems #316 OPEN. #256 OPEN (never close from this epic). Draft #254 colleague / B2B: do not touch |
 
 Kernel that already exists and must be **evolved**, not replaced:
@@ -324,7 +324,7 @@ Skill + website rewrite ships in the **same wheel** as all of:
 
 Until a Haiku-qualified wheel exists, keep current Skill playbooks so
 pre-task-engine installs are not stranded on an inspect-only surface.
-`0.0.23` on PyPI is the current reader, not that qualify gate.
+`0.0.26` on PyPI is the current reader, and it carries the Haiku 4.5 qualification recorded in #368 plus the completed parameter_rules vocabulary (#375, #380).
 
 ### 2.7 Derived setups
 

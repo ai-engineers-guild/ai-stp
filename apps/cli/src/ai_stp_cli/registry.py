@@ -1228,6 +1228,9 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 "Add every remaining concrete harness the type can project without loss.",
             ),
         ),
+        parameter_rules=(
+            CommandParameterRule(kind="exactly_one", parameters=["harness", "all-missing"]),
+        ),
         next_actions=("help --path component --json",),
     ),
     Declaration(
@@ -1263,6 +1266,9 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 "boolean",
                 "Fork a private overlay instead of minting the next owner version.",
             ),
+        ),
+        parameter_rules=(
+            CommandParameterRule(kind="exactly_one", parameters=["to-harness", "all-missing"]),
         ),
         next_actions=("help --path component --json",),
     ),
@@ -1305,6 +1311,9 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 "expected-plan-digest", "string", "Exact digest returned by plan.", required=True
             ),
         ),
+        parameter_rules=(
+            CommandParameterRule(kind="exactly_one", parameters=["to-harness", "all-missing"]),
+        ),
         next_actions=(
             "help --path eval --json",
             "help --path select --json",
@@ -1339,6 +1348,9 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 choices=HARNESS_ID_ORDER,
             ),
             option("overlay-id", "string", "Overlay id returned by an earlier plan."),
+        ),
+        parameter_rules=(
+            CommandParameterRule(kind="exactly_one", parameters=["to-harness", "all-missing"]),
         ),
         next_actions=("help --path component --json",),
     ),
@@ -1375,6 +1387,9 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             option(
                 "expected-plan-digest", "string", "Exact digest returned by plan.", required=True
             ),
+        ),
+        parameter_rules=(
+            CommandParameterRule(kind="exactly_one", parameters=["to-harness", "all-missing"]),
         ),
         next_actions=(
             "help --path select --json",
@@ -2327,6 +2342,229 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         next_actions=("help --path project --json",),
     ),
     Declaration(
+        path=["project", "detect"],
+        summary=(
+            "Detect the technology coordinates one project root uses. Reads only "
+            "the bounded index; stores findings locally and publishes nothing."
+        ),
+        result_schema="urn:ai-stp:schema:v1:cli-technology-scan",
+        handler="project:detect",
+        # Records an immutable scan and merges findings in the local registry.
+        mutability="apply",
+        parameters=(
+            option("root", "string", "Exact project root to scan.", required=True),
+            option(
+                "scope",
+                "string",
+                "Named scan scope findings belong to. Defaults to 'repository'.",
+            ),
+        ),
+        next_actions=("project technologies --project <id> --json",),
+    ),
+    Declaration(
+        path=["project", "technologies"],
+        summary="List the stored technology findings for one local project.",
+        result_schema="urn:ai-stp:schema:v1:cli-technology-findings",
+        handler="project:technologies",
+        parameter_rules=(CommandParameterRule(kind="exactly_one", parameters=["project", "root"]),),
+        parameters=(
+            option("project", "string", "Stable local project identifier."),
+            option("root", "string", "Project root to resolve the identifier from."),
+            option("scope", "string", "Only findings recorded under this scan scope."),
+        ),
+        next_actions=("project detect --root <path> --json",),
+    ),
+    Declaration(
+        path=["project", "technology", "confirm"],
+        summary="Confirm one finding: it is a real usage of what it names.",
+        result_schema="urn:ai-stp:schema:v1:cli-technology-review",
+        handler="project:technology_confirm",
+        mutability="apply",
+        parameter_rules=(CommandParameterRule(kind="exactly_one", parameters=["project", "root"]),),
+        parameters=(
+            option("project", "string", "Stable local project identifier."),
+            option("root", "string", "Project root to resolve the identifier from."),
+            option(
+                "finding",
+                "string",
+                "Finding coordinate as <kind>:<coordinate>, e.g. package:django.",
+                required=True,
+            ),
+            option(
+                "context",
+                "string",
+                "Usage context when the coordinate exists in more than one.",
+                choices=("production", "development", "testing", "browser_support"),
+            ),
+            option(
+                "scope",
+                "string",
+                "Named scan scope the finding belongs to. Defaults to 'repository'.",
+            ),
+        ),
+        next_actions=("project technologies --project <id> --json",),
+    ),
+    Declaration(
+        path=["project", "technology", "reject"],
+        summary="Reject one finding: not a usage; it stays out of publication.",
+        result_schema="urn:ai-stp:schema:v1:cli-technology-review",
+        handler="project:technology_reject",
+        mutability="apply",
+        parameter_rules=(CommandParameterRule(kind="exactly_one", parameters=["project", "root"]),),
+        parameters=(
+            option("project", "string", "Stable local project identifier."),
+            option("root", "string", "Project root to resolve the identifier from."),
+            option(
+                "finding",
+                "string",
+                "Finding coordinate as <kind>:<coordinate>, e.g. package:django.",
+                required=True,
+            ),
+            option(
+                "context",
+                "string",
+                "Usage context when the coordinate exists in more than one.",
+                choices=("production", "development", "testing", "browser_support"),
+            ),
+            option(
+                "scope",
+                "string",
+                "Named scan scope the finding belongs to. Defaults to 'repository'.",
+            ),
+        ),
+        next_actions=("project technologies --project <id> --json",),
+    ),
+    Declaration(
+        path=["project", "technology", "override"],
+        summary="Override one finding's resolved identity with a canonical technology.",
+        result_schema="urn:ai-stp:schema:v1:cli-technology-review",
+        handler="project:technology_override",
+        mutability="apply",
+        parameter_rules=(CommandParameterRule(kind="exactly_one", parameters=["project", "root"]),),
+        parameters=(
+            option("project", "string", "Stable local project identifier."),
+            option("root", "string", "Project root to resolve the identifier from."),
+            option(
+                "finding",
+                "string",
+                "Finding coordinate as <kind>:<coordinate>, e.g. package:django.",
+                required=True,
+            ),
+            option(
+                "technology",
+                "string",
+                "Canonical technology_<ulid> the coordinate resolves to.",
+                required=True,
+            ),
+            option("version", "string", "Corrected version the usage carries."),
+            option(
+                "context",
+                "string",
+                "Usage context when the coordinate exists in more than one.",
+                choices=("production", "development", "testing", "browser_support"),
+            ),
+            option(
+                "scope",
+                "string",
+                "Named scan scope the finding belongs to. Defaults to 'repository'.",
+            ),
+        ),
+        next_actions=("project technologies --project <id> --json",),
+    ),
+    Declaration(
+        path=["project", "technology", "retire"],
+        summary="Retire one finding: it was a usage and no longer is.",
+        result_schema="urn:ai-stp:schema:v1:cli-technology-review",
+        handler="project:technology_retire",
+        mutability="apply",
+        parameter_rules=(CommandParameterRule(kind="exactly_one", parameters=["project", "root"]),),
+        parameters=(
+            option("project", "string", "Stable local project identifier."),
+            option("root", "string", "Project root to resolve the identifier from."),
+            option(
+                "finding",
+                "string",
+                "Finding coordinate as <kind>:<coordinate>, e.g. package:django.",
+                required=True,
+            ),
+            option(
+                "context",
+                "string",
+                "Usage context when the coordinate exists in more than one.",
+                choices=("production", "development", "testing", "browser_support"),
+            ),
+            option(
+                "scope",
+                "string",
+                "Named scan scope the finding belongs to. Defaults to 'repository'.",
+            ),
+        ),
+        next_actions=("project technologies --project <id> --json",),
+    ),
+    Declaration(
+        path=["project", "technology", "mappings", "list"],
+        summary="List the organization technology-mapping snapshots cached locally.",
+        result_schema="urn:ai-stp:schema:v1:cli-technology-mappings",
+        handler="project:technology_mappings",
+        parameters=(
+            option("organization", "string", "Explicit remote organization.", required=True),
+        ),
+        next_actions=(
+            "project technology mappings fetch --organization <id> --version <v> --json",
+        ),
+    ),
+    Declaration(
+        path=["project", "technology", "mappings", "fetch"],
+        summary="Fetch one organization mapping snapshot by exact version and cache it.",
+        result_schema="urn:ai-stp:schema:v1:cli-technology-mappings",
+        handler="project:technology_mapping_fetch",
+        mutability="apply",
+        parameters=(
+            option("organization", "string", "Explicit remote organization.", required=True),
+            option("version", "string", "Exact published mapping snapshot version.", required=True),
+        ),
+        next_actions=("project technology mappings list --organization <id> --json",),
+    ),
+    Declaration(
+        path=["project", "technology", "publish"],
+        summary="Publish the stored findings of a linked project as a scan handoff.",
+        result_schema="urn:ai-stp:schema:v1:technology-scan-result",
+        handler="project:technology_publish",
+        mutability="apply",
+        parameter_rules=(CommandParameterRule(kind="exactly_one", parameters=["project", "root"]),),
+        parameters=(
+            option("project", "string", "Stable local project identifier."),
+            option("root", "string", "Project root to resolve the identifier from."),
+            option("organization", "string", "Explicit remote organization.", required=True),
+            option(
+                "scope",
+                "string",
+                "Named scan scope the findings belong to. Defaults to 'repository'.",
+            ),
+            option("scan", "string", "Exact stored scan to publish. Defaults to the latest."),
+            option(
+                "mapping-version",
+                "string",
+                "Exact organization mapping snapshot. Defaults to the latest cached.",
+            ),
+            option(
+                "expected-revision",
+                "string",
+                "Remote project revision the scan is based on. Defaults to the link's.",
+            ),
+            option(
+                "authorization-revision",
+                "string",
+                "Revision from the selected capability projection.",
+                required=True,
+            ),
+            option(
+                "idempotency-key", "string", "Stable key for this exact publication.", required=True
+            ),
+        ),
+        next_actions=("project technologies --project <id> --json",),
+    ),
+    Declaration(
         path=["harness", "install"],
         summary="Install the harness program itself under an exact prefix.",
         result_schema="urn:ai-stp:schema:v1:cli-harness-program",
@@ -2826,6 +3064,20 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             ),
             option("price-profile", "string", "Explicit local token-price profile JSON file."),
         ),
+        parameter_rules=(
+            CommandParameterRule(
+                kind="required_when",
+                parameters=["against-setup-version"],
+                when_parameter="against-setup-id",
+                when_values=["present"],
+            ),
+            CommandParameterRule(
+                kind="required_when",
+                parameters=["against-setup-id"],
+                when_parameter="against-setup-version",
+                when_values=["present"],
+            ),
+        ),
         next_actions=("help --path select --json",),
     ),
     Declaration(
@@ -2868,6 +3120,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 "Compose a setup that projects no files. Refuses alongside --member.",
             ),
         ),
+        parameter_rules=(CommandParameterRule(kind="exactly_one", parameters=["member", "empty"]),),
         next_actions=("help --path select --json",),
     ),
     Declaration(
@@ -2905,6 +3158,9 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 "One exact root as <stable_id>@<X.Y>. Repeat for each. Use instead of --proposal.",
                 repeatable=True,
             ),
+        ),
+        parameter_rules=(
+            CommandParameterRule(kind="exactly_one", parameters=["proposal", "member"]),
         ),
         next_actions=("help --path select --json",),
     ),
@@ -2967,6 +3223,15 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 "setup",
                 "string",
                 "An immutable prepared SetupVersion as <stable_id>@<X.Y>.",
+            ),
+            option(
+                "component",
+                "string",
+                "An exact standalone component as <stable_id>@<X.Y>, repeatable. "
+                "Installed alongside the named prepared SetupVersion so a "
+                "managed assignment of loose components can reach a verified "
+                "baseline; the bundle manifest covers each one.",
+                repeatable=True,
             ),
             option(
                 "project",
@@ -3064,11 +3329,34 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             ),
         ),
         parameter_rules=(
-            CommandParameterRule(kind="exactly_one", parameters=["proposal", "setup"]),
+            CommandParameterRule(
+                kind="exactly_one",
+                parameters=["proposal", "setup"],
+                when_parameter="action",
+                when_values=["install", "update", "remove"],
+            ),
+            CommandParameterRule(
+                kind="at_most_one",
+                parameters=["proposal", "setup"],
+                when_parameter="action",
+                when_values=["backup", "rollback"],
+            ),
+            CommandParameterRule(
+                kind="forbidden_when",
+                parameters=["component"],
+                when_parameter="action",
+                when_values=["backup", "rollback"],
+            ),
             CommandParameterRule(
                 kind="required_when",
                 parameters=["project"],
                 when_parameter="setup",
+                when_values=["present"],
+            ),
+            CommandParameterRule(
+                kind="required_when",
+                parameters=["setup"],
+                when_parameter="component",
                 when_values=["present"],
             ),
             CommandParameterRule(
