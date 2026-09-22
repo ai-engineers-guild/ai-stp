@@ -470,7 +470,15 @@ def build_group() -> click.Group:
     root = _group(
         PROGRAM_NAME,
         "Manage AI harness setups through a strict machine contract.",
-        epilog=("First run:\n  ai-stp task intents --json"),
+        epilog=(
+            "\b\n"
+            "First run:\n"
+            "  ai-stp task intents --json\n"
+            "\b\n"
+            "Agents:\n"
+            "  ai-stp help --json          command registry as data\n"
+            "  ai-stp capabilities --json  what this installation can do"
+        ),
     )
 
     for command in sorted(COMMANDS, key=lambda item: item.name):
