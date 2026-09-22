@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "cli_version": "0.0.0-pinned",
-  "registry_digest": "sha256:771e02ab68731902089c37a3315a7c6e50ca6c73d02de64b96b3de1304ea7ad4",
+  "registry_digest": "sha256:dc3e084b1c2ad92c7496995b58c0c16732f6259383d6f1b010c8096920f74bb4",
   "global_options": [
     {
       "name": "json",
@@ -315,7 +315,17 @@
           "choices": []
         }
       ],
-      "parameter_rules": [],
+      "parameter_rules": [
+        {
+          "kind": "exactly_one",
+          "parameters": [
+            "harness",
+            "all-missing"
+          ],
+          "when_parameter": "",
+          "when_values": []
+        }
+      ],
       "result_schema": "urn:ai-stp:schema:v1:cli-component-scaffold",
       "next_actions": [
         "help --path component --json"
@@ -687,7 +697,17 @@
           "choices": []
         }
       ],
-      "parameter_rules": [],
+      "parameter_rules": [
+        {
+          "kind": "exactly_one",
+          "parameters": [
+            "to-harness",
+            "all-missing"
+          ],
+          "when_parameter": "",
+          "when_values": []
+        }
+      ],
       "result_schema": "urn:ai-stp:schema:v1:cli-component-materialize-result",
       "next_actions": [
         "help --path eval --json",
@@ -785,7 +805,17 @@
           "choices": []
         }
       ],
-      "parameter_rules": [],
+      "parameter_rules": [
+        {
+          "kind": "exactly_one",
+          "parameters": [
+            "to-harness",
+            "all-missing"
+          ],
+          "when_parameter": "",
+          "when_values": []
+        }
+      ],
       "result_schema": "urn:ai-stp:schema:v1:cli-component-materialize-plan",
       "next_actions": [
         "help --path component --json"
@@ -1047,7 +1077,17 @@
           "choices": []
         }
       ],
-      "parameter_rules": [],
+      "parameter_rules": [
+        {
+          "kind": "exactly_one",
+          "parameters": [
+            "to-harness",
+            "all-missing"
+          ],
+          "when_parameter": "",
+          "when_values": []
+        }
+      ],
       "result_schema": "urn:ai-stp:schema:v1:cli-component-materialize-result",
       "next_actions": [
         "help --path select --json",
@@ -1135,7 +1175,17 @@
           "choices": []
         }
       ],
-      "parameter_rules": [],
+      "parameter_rules": [
+        {
+          "kind": "exactly_one",
+          "parameters": [
+            "to-harness",
+            "all-missing"
+          ],
+          "when_parameter": "",
+          "when_values": []
+        }
+      ],
       "result_schema": "urn:ai-stp:schema:v1:cli-component-materialize-plan",
       "next_actions": [
         "help --path component --json"
@@ -4208,8 +4258,12 @@
             "proposal",
             "setup"
           ],
-          "when_parameter": "",
-          "when_values": []
+          "when_parameter": "action",
+          "when_values": [
+            "install",
+            "update",
+            "remove"
+          ]
         },
         {
           "kind": "required_when",
@@ -4217,6 +4271,16 @@
             "project"
           ],
           "when_parameter": "setup",
+          "when_values": [
+            "present"
+          ]
+        },
+        {
+          "kind": "required_when",
+          "parameters": [
+            "setup"
+          ],
+          "when_parameter": "component",
           "when_values": [
             "present"
           ]
@@ -8316,7 +8380,17 @@
           "choices": []
         }
       ],
-      "parameter_rules": [],
+      "parameter_rules": [
+        {
+          "kind": "exactly_one",
+          "parameters": [
+            "proposal",
+            "member"
+          ],
+          "when_parameter": "",
+          "when_values": []
+        }
+      ],
       "result_schema": "urn:ai-stp:schema:v1:cli-setup-graph",
       "next_actions": [
         "help --path select --json"
@@ -8398,7 +8472,28 @@
           "choices": []
         }
       ],
-      "parameter_rules": [],
+      "parameter_rules": [
+        {
+          "kind": "required_when",
+          "parameters": [
+            "against-setup-version"
+          ],
+          "when_parameter": "against-setup-id",
+          "when_values": [
+            "present"
+          ]
+        },
+        {
+          "kind": "required_when",
+          "parameters": [
+            "against-setup-id"
+          ],
+          "when_parameter": "against-setup-version",
+          "when_values": [
+            "present"
+          ]
+        }
+      ],
       "result_schema": "urn:ai-stp:schema:v1:cli-selection-impact-report",
       "next_actions": [
         "help --path select --json"
@@ -8450,7 +8545,17 @@
           "choices": []
         }
       ],
-      "parameter_rules": [],
+      "parameter_rules": [
+        {
+          "kind": "exactly_one",
+          "parameters": [
+            "member",
+            "empty"
+          ],
+          "when_parameter": "",
+          "when_values": []
+        }
+      ],
       "result_schema": "urn:ai-stp:schema:v1:cli-proposal-session",
       "next_actions": [
         "help --path select --json"

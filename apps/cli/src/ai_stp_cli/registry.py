@@ -1228,6 +1228,9 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 "Add every remaining concrete harness the type can project without loss.",
             ),
         ),
+        parameter_rules=(
+            CommandParameterRule(kind="exactly_one", parameters=["harness", "all-missing"]),
+        ),
         next_actions=("help --path component --json",),
     ),
     Declaration(
@@ -1263,6 +1266,9 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 "boolean",
                 "Fork a private overlay instead of minting the next owner version.",
             ),
+        ),
+        parameter_rules=(
+            CommandParameterRule(kind="exactly_one", parameters=["to-harness", "all-missing"]),
         ),
         next_actions=("help --path component --json",),
     ),
@@ -1305,6 +1311,9 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 "expected-plan-digest", "string", "Exact digest returned by plan.", required=True
             ),
         ),
+        parameter_rules=(
+            CommandParameterRule(kind="exactly_one", parameters=["to-harness", "all-missing"]),
+        ),
         next_actions=(
             "help --path eval --json",
             "help --path select --json",
@@ -1339,6 +1348,9 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 choices=HARNESS_ID_ORDER,
             ),
             option("overlay-id", "string", "Overlay id returned by an earlier plan."),
+        ),
+        parameter_rules=(
+            CommandParameterRule(kind="exactly_one", parameters=["to-harness", "all-missing"]),
         ),
         next_actions=("help --path component --json",),
     ),
@@ -1375,6 +1387,9 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             option(
                 "expected-plan-digest", "string", "Exact digest returned by plan.", required=True
             ),
+        ),
+        parameter_rules=(
+            CommandParameterRule(kind="exactly_one", parameters=["to-harness", "all-missing"]),
         ),
         next_actions=(
             "help --path select --json",
@@ -3049,6 +3064,20 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             ),
             option("price-profile", "string", "Explicit local token-price profile JSON file."),
         ),
+        parameter_rules=(
+            CommandParameterRule(
+                kind="required_when",
+                parameters=["against-setup-version"],
+                when_parameter="against-setup-id",
+                when_values=["present"],
+            ),
+            CommandParameterRule(
+                kind="required_when",
+                parameters=["against-setup-id"],
+                when_parameter="against-setup-version",
+                when_values=["present"],
+            ),
+        ),
         next_actions=("help --path select --json",),
     ),
     Declaration(
@@ -3091,6 +3120,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 "Compose a setup that projects no files. Refuses alongside --member.",
             ),
         ),
+        parameter_rules=(CommandParameterRule(kind="exactly_one", parameters=["member", "empty"]),),
         next_actions=("help --path select --json",),
     ),
     Declaration(
@@ -3128,6 +3158,9 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 "One exact root as <stable_id>@<X.Y>. Repeat for each. Use instead of --proposal.",
                 repeatable=True,
             ),
+        ),
+        parameter_rules=(
+            CommandParameterRule(kind="exactly_one", parameters=["proposal", "member"]),
         ),
         next_actions=("help --path select --json",),
     ),
@@ -3296,11 +3329,22 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             ),
         ),
         parameter_rules=(
-            CommandParameterRule(kind="exactly_one", parameters=["proposal", "setup"]),
+            CommandParameterRule(
+                kind="exactly_one",
+                parameters=["proposal", "setup"],
+                when_parameter="action",
+                when_values=["install", "update", "remove"],
+            ),
             CommandParameterRule(
                 kind="required_when",
                 parameters=["project"],
                 when_parameter="setup",
+                when_values=["present"],
+            ),
+            CommandParameterRule(
+                kind="required_when",
+                parameters=["setup"],
+                when_parameter="component",
                 when_values=["present"],
             ),
             CommandParameterRule(

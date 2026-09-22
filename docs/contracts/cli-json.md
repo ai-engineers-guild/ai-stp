@@ -120,8 +120,11 @@ An integration first reads `help --agent --json`, selects a command by its exact
 a parameter is mandatory, `value_type` defines the value form, `repeatable`
 defines repeatability, `choices` is a closed vocabulary, and `parameter_rules`
 defines the `exactly_one` and `required_when` relationships between parameters.
-The special `present` value in `when_values` means that the parameter is present
-regardless of its value. `summary` fields are not parsed as a contract. A
+A rule carrying `when_parameter` and `when_values` applies only while that
+parameter takes one of those values; the special `present` value in
+`when_values` means that the parameter is present regardless of its value, and
+an empty `when_parameter` means the rule always applies. `summary` fields are
+not parsed as a contract. A
 successful response payload is validated against `result_schema`; a failure is
 validated against the common error-envelope schema and the exact `error.code`
 from `error_codes`.
