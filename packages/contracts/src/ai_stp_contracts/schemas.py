@@ -238,6 +238,12 @@ from ai_stp_contracts.grants import (
     GrantRevokeResponse,
 )
 from ai_stp_contracts.health import LivenessResponse, ReadinessResponse
+from ai_stp_contracts.heartbeat import (
+    InstallationHeartbeat,
+    InstallationHeartbeatList,
+    InstallationHeartbeatRequest,
+    InstallationHeartbeatStatus,
+)
 from ai_stp_contracts.http import PageInfo
 from ai_stp_contracts.identity import (
     AccountIdentityUpdate,
@@ -413,6 +419,20 @@ from ai_stp_contracts.reports import (
     StaffLifecycleRequest,
     StaffTriageRequest,
 )
+from ai_stp_contracts.runtime_usage import (
+    RuntimeUsageEvent,
+    RuntimeUsageEventBatch,
+    RuntimeUsageEventList,
+    RuntimeUsageEventQuery,
+    RuntimeUsageExportRequest,
+    RuntimeUsageExportView,
+    RuntimeUsageFlushResult,
+    RuntimeUsageIngestResult,
+    RuntimeUsageOutboxStatus,
+    RuntimeUsageRecordResult,
+    RuntimeUsageReport,
+    RuntimeUsageReportQuery,
+)
 from ai_stp_contracts.seo import (
     SeoCatalogPage,
     SeoCatalogQuery,
@@ -483,6 +503,31 @@ from ai_stp_contracts.technology import (
     TechnologyTeamWriteRequest,
     TechnologyView,
     TechnologyWriteRequest,
+)
+from ai_stp_contracts.telemetry_privacy import (
+    CorporateTelemetryAggregate,
+    CorporateTelemetryAggregateList,
+    CorporateTelemetryAggregateQuery,
+    CorporateTelemetryAuditList,
+    CorporateTelemetryAuditQuery,
+    CorporateTelemetryAuditView,
+    CorporateTelemetryDeleteRequest,
+    CorporateTelemetryDeleteResult,
+    CorporateTelemetryEventBatchRequest,
+    CorporateTelemetryEventBatchResult,
+    CorporateTelemetryEventList,
+    CorporateTelemetryEventQuery,
+    CorporateTelemetryEventRequest,
+    CorporateTelemetryEventView,
+    CorporateTelemetryExport,
+    CorporateTelemetryExportQuery,
+    CorporateTelemetryHeartbeatEvent,
+    CorporateTelemetryInvocationEvent,
+    CorporateTelemetryPolicyRequest,
+    CorporateTelemetryPolicyView,
+    CorporateTelemetryRevokeRequest,
+    CorporateTelemetryRightRequest,
+    CorporateTelemetryRightView,
 )
 from ai_stp_foundation.canonical import JsonValue
 from ai_stp_foundation.schemas import ExportedSchema, check, schema_id, write
@@ -763,6 +808,42 @@ HTTP_MODELS: Final[dict[str, ExportedSchema]] = {
     "staff-content-unpublish-request": StaffContentUnpublishRequest,
     "staff-content-unpublish-response": StaffContentUnpublishResponse,
     "seo-rollback-response": SeoRollbackResponse,
+    "installation-heartbeat-request": InstallationHeartbeatRequest,
+    "installation-heartbeat": InstallationHeartbeat,
+    "installation-heartbeat-status": InstallationHeartbeatStatus,
+    "installation-heartbeat-list": InstallationHeartbeatList,
+    "runtime-usage-event": RuntimeUsageEvent,
+    "runtime-usage-event-batch": RuntimeUsageEventBatch,
+    "runtime-usage-ingest-result": RuntimeUsageIngestResult,
+    "runtime-usage-report-query": RuntimeUsageReportQuery,
+    "runtime-usage-report": RuntimeUsageReport,
+    "runtime-usage-event-query": RuntimeUsageEventQuery,
+    "runtime-usage-event-list": RuntimeUsageEventList,
+    "runtime-usage-export-request": RuntimeUsageExportRequest,
+    "runtime-usage-export-view": RuntimeUsageExportView,
+    "corporate-telemetry-heartbeat-event": CorporateTelemetryHeartbeatEvent,
+    "corporate-telemetry-invocation-event": CorporateTelemetryInvocationEvent,
+    "corporate-telemetry-event-request": CorporateTelemetryEventRequest,
+    "corporate-telemetry-event-view": CorporateTelemetryEventView,
+    "corporate-telemetry-event-query": CorporateTelemetryEventQuery,
+    "corporate-telemetry-event-list": CorporateTelemetryEventList,
+    "corporate-telemetry-event-batch-request": CorporateTelemetryEventBatchRequest,
+    "corporate-telemetry-event-batch-result": CorporateTelemetryEventBatchResult,
+    "corporate-telemetry-aggregate": CorporateTelemetryAggregate,
+    "corporate-telemetry-aggregate-query": CorporateTelemetryAggregateQuery,
+    "corporate-telemetry-aggregate-list": CorporateTelemetryAggregateList,
+    "corporate-telemetry-export-query": CorporateTelemetryExportQuery,
+    "corporate-telemetry-export": CorporateTelemetryExport,
+    "corporate-telemetry-policy-view": CorporateTelemetryPolicyView,
+    "corporate-telemetry-policy-request": CorporateTelemetryPolicyRequest,
+    "corporate-telemetry-right-view": CorporateTelemetryRightView,
+    "corporate-telemetry-right-request": CorporateTelemetryRightRequest,
+    "corporate-telemetry-revoke-request": CorporateTelemetryRevokeRequest,
+    "corporate-telemetry-delete-request": CorporateTelemetryDeleteRequest,
+    "corporate-telemetry-delete-result": CorporateTelemetryDeleteResult,
+    "corporate-telemetry-audit-view": CorporateTelemetryAuditView,
+    "corporate-telemetry-audit-query": CorporateTelemetryAuditQuery,
+    "corporate-telemetry-audit-list": CorporateTelemetryAuditList,
 }
 
 #: The agent-to-CLI boundary (issue #72). Published under the same gate and for
@@ -911,6 +992,9 @@ CLI_MODELS: Final[dict[str, ExportedSchema]] = {
     "cli-version-report": VersionReport,
     "cli-standard-inventory": StandardInventory,
     "cli-first-party-catalog-identity": FirstPartyCatalogIdentity,
+    "runtime-usage-record-result": RuntimeUsageRecordResult,
+    "runtime-usage-outbox-status": RuntimeUsageOutboxStatus,
+    "runtime-usage-flush-result": RuntimeUsageFlushResult,
 }
 
 CONTRACT_MODELS: Final[dict[str, ExportedSchema]] = {**HTTP_MODELS, **CLI_MODELS}

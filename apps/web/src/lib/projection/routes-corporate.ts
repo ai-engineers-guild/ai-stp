@@ -47,4 +47,18 @@ export const CORPORATE_ROUTES: MachineRoute[] = [
       });
     },
   },
+  {
+    pattern: "corporate/installations",
+    resolve: async () => {
+      const t = await getTranslations("installations");
+      return presentPage({ title: t("title"), summary: t("unavailable") });
+    },
+  },
+  {
+    pattern: "corporate/usage",
+    resolve: async () => {
+      const t = await getTranslations("hub");
+      return presentPage({ title: t("usage"), summary: t("usageViewBody") });
+    },
+  },
 ];

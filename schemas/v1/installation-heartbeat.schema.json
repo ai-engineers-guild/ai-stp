@@ -1,0 +1,115 @@
+{
+  "$defs": {
+    "Timestamp": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:installation-heartbeat",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "Stored heartbeat plus the health state evaluated at read time.",
+  "properties": {
+    "account_id": {
+      "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "title": "Account Id",
+      "type": "string"
+    },
+    "capabilities": {
+      "items": {
+        "maxLength": 128,
+        "pattern": "^[a-z0-9][a-z0-9._-]{0,63}(@[A-Za-z0-9][A-Za-z0-9.+_-]{0,63})?$",
+        "type": "string"
+      },
+      "maxItems": 64,
+      "title": "Capabilities",
+      "type": "array"
+    },
+    "checked_at": {
+      "$ref": "#/$defs/Timestamp"
+    },
+    "cli_version": {
+      "maxLength": 64,
+      "minLength": 1,
+      "title": "Cli Version",
+      "type": "string"
+    },
+    "device_id": {
+      "pattern": "^device_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "title": "Device Id",
+      "type": "string"
+    },
+    "health_state": {
+      "enum": [
+        "active",
+        "stale",
+        "failing",
+        "disabled",
+        "unknown"
+      ],
+      "title": "Health State",
+      "type": "string"
+    },
+    "last_sync_at": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Timestamp"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "organization_id": {
+      "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "title": "Organization Id",
+      "type": "string"
+    },
+    "received_at": {
+      "$ref": "#/$defs/Timestamp"
+    },
+    "reported_state": {
+      "enum": [
+        "active",
+        "failing",
+        "disabled"
+      ],
+      "title": "Reported State",
+      "type": "string"
+    },
+    "revision": {
+      "minimum": 1,
+      "title": "Revision",
+      "type": "integer"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "stale_after_seconds": {
+      "minimum": 1,
+      "title": "Stale After Seconds",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "account_id",
+    "capabilities",
+    "checked_at",
+    "cli_version",
+    "device_id",
+    "health_state",
+    "last_sync_at",
+    "organization_id",
+    "received_at",
+    "reported_state",
+    "revision",
+    "schema_version",
+    "stale_after_seconds"
+  ],
+  "title": "InstallationHeartbeat",
+  "type": "object"
+}

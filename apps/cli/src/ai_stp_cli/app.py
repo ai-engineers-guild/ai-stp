@@ -321,6 +321,7 @@ _GROUP_SUMMARIES: Final[dict[tuple[str, ...], str]] = {
     ("eval",): "Score a setup against a profile before installing it.",
     ("eval", "component"): "Score every advertised adaptation of one component version.",
     ("harness",): "Install, update and remove the harness program itself.",
+    ("heartbeat",): "Corporate installation health: this device reports, the organization reads.",
     ("grant",): "Share a private object with another account.",
     ("grant", "invitation"): "Invitations offered but not yet accepted.",
     ("github",): "Read selected GitHub repositories through the connected App.",
@@ -367,6 +368,7 @@ _GROUP_SUMMARIES: Final[dict[tuple[str, ...], str]] = {
     ("telemetry",): "The anonymous install ping, and whether it is on.",
     ("toolchain",): "Harnesses this machine can reach, and the tools they need.",
     ("update",): "Check, plan and apply a replacement of this CLI distribution.",
+    ("usage",): "Corporate runtime usage: buffer invocations, read scoped reports, export.",
 }
 
 #: Groups worth showing by example rather than by sentence alone.

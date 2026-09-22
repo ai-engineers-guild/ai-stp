@@ -1,0 +1,124 @@
+{
+  "$defs": {
+    "RuntimeUsageEventView": {
+      "additionalProperties": true,
+      "description": "The redacted drill-down row: identities and coordinates, nothing else.",
+      "properties": {
+        "component_kind": {
+          "title": "Component Kind",
+          "type": "string"
+        },
+        "component_stable_id": {
+          "title": "Component Stable Id",
+          "type": "string"
+        },
+        "component_version": {
+          "title": "Component Version",
+          "type": "string"
+        },
+        "device_id": {
+          "title": "Device Id",
+          "type": "string"
+        },
+        "employee_id": {
+          "title": "Employee Id",
+          "type": "string"
+        },
+        "event_id": {
+          "title": "Event Id",
+          "type": "string"
+        },
+        "harness": {
+          "title": "Harness",
+          "type": "string"
+        },
+        "invoked_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "outcome": {
+          "enum": [
+            "succeeded",
+            "failed",
+            "cancelled"
+          ],
+          "title": "Outcome",
+          "type": "string"
+        },
+        "project_id": {
+          "title": "Project Id",
+          "type": "string"
+        },
+        "setup_stable_id": {
+          "title": "Setup Stable Id",
+          "type": "string"
+        },
+        "setup_version": {
+          "title": "Setup Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "component_kind",
+        "component_stable_id",
+        "component_version",
+        "device_id",
+        "employee_id",
+        "event_id",
+        "harness",
+        "invoked_at",
+        "outcome",
+        "project_id",
+        "setup_stable_id",
+        "setup_version"
+      ],
+      "title": "RuntimeUsageEventView",
+      "type": "object"
+    },
+    "Timestamp": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:runtime-usage-event-list",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "properties": {
+    "events": {
+      "items": {
+        "$ref": "#/$defs/RuntimeUsageEventView"
+      },
+      "title": "Events",
+      "type": "array"
+    },
+    "limit": {
+      "minimum": 1,
+      "title": "Limit",
+      "type": "integer"
+    },
+    "offset": {
+      "minimum": 0,
+      "title": "Offset",
+      "type": "integer"
+    },
+    "organization_id": {
+      "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "title": "Organization Id",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "events",
+    "limit",
+    "offset",
+    "organization_id",
+    "schema_version"
+  ],
+  "title": "RuntimeUsageEventList",
+  "type": "object"
+}

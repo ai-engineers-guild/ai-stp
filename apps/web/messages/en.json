@@ -87,6 +87,8 @@
     "technologies": "Technologies",
     "job_titles": "Job titles",
     "categories": "Technology categories",
+    "installations": "Installations",
+    "usage": "Usage",
     "overviewBody": "Explore your organization and its technology landscape.",
     "organizationBody": "Manage employees, projects, teams, and their connections.",
     "browseProjects": "Browse projects in your organization.",
@@ -138,6 +140,19 @@
     "assignPartial": "{saved} saved, {failed} failed.",
     "assignFailed": "Assignment failed.",
     "loading": "Loading…"
+  },
+  "installations": {
+    "account": "Account",
+    "device": "Device",
+    "cli": "CLI",
+    "lastSync": "Last sync",
+    "health": "Health",
+    "never": "never",
+    "emptyOrganization": "No corporate organization",
+    "unavailable": "Installation health is unavailable",
+    "empty": "No installations have reported",
+    "emptyDescription": "CLI installations appear here after their first heartbeat.",
+    "title": "Installations"
   },
   "technology": {
     "mergeTitle": "Deliberate technology merge",

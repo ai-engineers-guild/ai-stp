@@ -19,6 +19,7 @@ last_verified: "2026-08-03"
 | [cli-config.md](cli-config.md) | Global CLI configuration fields, defaults, and source precedence. | 2026-09-08 |
 | [cli-copy-templates.md](cli-copy-templates.md) | Canonical CLI templates for web UI copy blocks (SPEC-037). | 2026-09-18 |
 | [cli-grants.md](cli-grants.md) | Client sequence for issuing, accepting, and revoking access grants. | 2026-08-13 |
+| [cli-heartbeat.md](cli-heartbeat.md) | Closed heartbeat payload the CLI sends for its corporate installation, and the command behavior around it. | 2026-09-22 |
 | [cli-json.md](cli-json.md) | JSON envelope, error classes, and CLI machine-output rules. | 2026-09-16 |
 | [cli-owner-objects.md](cli-owner-objects.md) | Authorized reading of owner objects through the CLI. | 2026-08-13 |
 | [cli-publication.md](cli-publication.md) | Client-side publication plan sequence and the boundary of transmitted data. | 2026-09-08 |
@@ -29,6 +30,7 @@ last_verified: "2026-08-03"
 | [component-presentation.md](component-presentation.md) | Mutable component and setup presentation in the catalog without changing the version passport. | 2026-09-04 |
 | [component-setup-passports.md](component-setup-passports.md) | Component and setup version passports, component types, and dependencies. | 2026-09-05 |
 | [composition-reports.md](composition-reports.md) | Composition and conversion reports: closed conflict classes, permitted compiler operations, and loss states. | 2026-08-28 |
+| [corporate-heartbeat.md](corporate-heartbeat.md) | Corporate installation heartbeat HTTP routes, authorization, and the closed health-state set. | 2026-09-22 |
 | [deep-links.md](deep-links.md) | Grammar of canonical URLs and CLI references for component, setup, publisher, and report intent. | 2026-08-15 |
 | [device-passport.md](device-passport.md) | Device passport fields, privacy, and the permitted summary for the server and web. | 2026-08-04 |
 | [eligibility-constraints.md](eligibility-constraints.md) | Mechanical constraints before agent selection: a closed list of rejection reasons, check order, and two independent eligibility axes. | 2026-09-03 |
@@ -51,6 +53,7 @@ last_verified: "2026-08-03"
 | [provider-release.md](provider-release.md) | Provider release manifest, trust, verification, and rollback protection. | 2026-09-04 |
 | [public-profile.md](public-profile.md) | Public profile fields, revisions, avatar, and separation from the developer passport. | 2026-09-04 |
 | [report-case.md](report-case.md) | Private report case: allowed content, preview, states, and auditable moderator actions. | 2026-09-04 |
+| [runtime-usage-events.md](runtime-usage-events.md) | Runtime usage event ingestion, scoped reports, drill-down, and export routes for corporate telemetry. | 2026-09-22 |
 | [selection-impact.md](selection-impact.md) | Machine contract for the local context budget, capability delta, and blast radius. | 2026-08-15 |
 | [selection-proposal.md](selection-proposal.md) | Ephemeral composition proposal, its confirmation, and atomic persistence of a SetupVersion. | 2026-08-25 |
 | [seo-publication-projection.md](seo-publication-projection.md) | Machine boundary for server-side SEO revisions, discovery documents, and model enrichment. | 2026-08-29 |
@@ -64,6 +67,7 @@ last_verified: "2026-08-03"
 | [sync-event.md](sync-event.md) | Synchronization event fields, responses, retries, and conflicts. | 2026-09-08 |
 | [tag-vocabulary.md](tag-vocabulary.md) | Tag vocabulary format, validation, limit, and search behavior. | 2026-09-04 |
 | [target-assessments.md](target-assessments.md) | Exact target assessment identity, conservative projection, and concurrent ingestion contract. | 2026-09-07 |
+| [telemetry-privacy.md](telemetry-privacy.md) | Telemetry privacy contract: closed event boundary, policy, rights, retention, audit, and deletion routes. | 2026-09-22 |
 | [unverified-consent.md](unverified-consent.md) | Session-scoped consent marker for unverified objects and durable records by publisher, major line, and authorized task profile. | 2026-09-05 |
 | [validation-policy.md](validation-policy.md) | Mandatory checks by component type, MCP class, and setup. | 2026-09-08 |
 | [web-cookie-consent.md](web-cookie-consent.md) | Cookie categories and the rule for starting optional Web integrations. | 2026-08-22 |

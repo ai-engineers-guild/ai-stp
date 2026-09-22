@@ -1,0 +1,37 @@
+{
+  "$id": "urn:ai-stp:schema:v1:runtime-usage-flush-result",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "One drain attempt over the local outbox.",
+  "properties": {
+    "dead": {
+      "minimum": 0,
+      "title": "Dead",
+      "type": "integer"
+    },
+    "remaining": {
+      "minimum": 0,
+      "title": "Remaining",
+      "type": "integer"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "sent": {
+      "minimum": 0,
+      "title": "Sent",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "dead",
+    "remaining",
+    "schema_version",
+    "sent"
+  ],
+  "title": "RuntimeUsageFlushResult",
+  "type": "object"
+}

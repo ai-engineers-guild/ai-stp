@@ -1,0 +1,37 @@
+{
+  "$id": "urn:ai-stp:schema:v1:runtime-usage-ingest-result",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "Per-batch bookkeeping; the server never returns event content.",
+  "properties": {
+    "accepted": {
+      "minimum": 0,
+      "title": "Accepted",
+      "type": "integer"
+    },
+    "duplicates": {
+      "minimum": 0,
+      "title": "Duplicates",
+      "type": "integer"
+    },
+    "rejected": {
+      "minimum": 0,
+      "title": "Rejected",
+      "type": "integer"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "accepted",
+    "duplicates",
+    "rejected",
+    "schema_version"
+  ],
+  "title": "RuntimeUsageIngestResult",
+  "type": "object"
+}

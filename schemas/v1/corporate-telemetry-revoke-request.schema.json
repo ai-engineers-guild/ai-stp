@@ -1,0 +1,45 @@
+{
+  "$defs": {
+    "IdempotencyKey": {
+      "pattern": "^[A-Za-z0-9._~-]{16,128}$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:corporate-telemetry-revoke-request",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "anonymize": {
+      "default": true,
+      "title": "Anonymize",
+      "type": "boolean"
+    },
+    "authorization_revision": {
+      "minimum": 1,
+      "title": "Authorization Revision",
+      "type": "integer"
+    },
+    "idempotency_key": {
+      "$ref": "#/$defs/IdempotencyKey"
+    },
+    "reason": {
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Reason",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "reason",
+    "authorization_revision",
+    "idempotency_key"
+  ],
+  "title": "CorporateTelemetryRevokeRequest",
+  "type": "object"
+}

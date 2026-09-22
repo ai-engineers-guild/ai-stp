@@ -1,0 +1,145 @@
+{
+  "$defs": {
+    "Timestamp": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:corporate-telemetry-right-view",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "properties": {
+    "anonymized_at": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Timestamp"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "deleted_at": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Timestamp"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "deletion_requested_at": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Timestamp"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "legal_basis": {
+      "anyOf": [
+        {
+          "enum": [
+            "consent",
+            "contract",
+            "legitimate_interest"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Legal Basis"
+    },
+    "notice_acknowledged_at": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Timestamp"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "notice_revision": {
+      "default": 0,
+      "minimum": 0,
+      "title": "Notice Revision",
+      "type": "integer"
+    },
+    "organization_id": {
+      "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "title": "Organization Id",
+      "type": "string"
+    },
+    "revoked_at": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Timestamp"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "state": {
+      "enum": [
+        "active",
+        "revoked",
+        "deleted"
+      ],
+      "title": "State",
+      "type": "string"
+    },
+    "subject_id": {
+      "maxLength": 64,
+      "minLength": 1,
+      "title": "Subject Id",
+      "type": "string"
+    },
+    "subject_kind": {
+      "enum": [
+        "account",
+        "device"
+      ],
+      "title": "Subject Kind",
+      "type": "string"
+    },
+    "updated_at": {
+      "$ref": "#/$defs/Timestamp"
+    }
+  },
+  "required": [
+    "anonymized_at",
+    "deleted_at",
+    "deletion_requested_at",
+    "legal_basis",
+    "notice_acknowledged_at",
+    "notice_revision",
+    "organization_id",
+    "revoked_at",
+    "schema_version",
+    "state",
+    "subject_id",
+    "subject_kind",
+    "updated_at"
+  ],
+  "title": "CorporateTelemetryRightView",
+  "type": "object"
+}

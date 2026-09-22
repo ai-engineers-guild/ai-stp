@@ -116,6 +116,9 @@ def no_real_credential_store(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setitem(sys.modules, "keyring", module)
     monkeypatch.setitem(sys.modules, "keyring.errors", errors)
     monkeypatch.setattr("ai_stp_cli.secrets.selected_backend", lambda: None)
+    # A developer shell may pin the file tier for real work; tests select the
+    # store deliberately and must not inherit that pin.
+    monkeypatch.delenv("AI_STP_FORCE_FILE_CREDENTIAL_STORE", raising=False)
 
 
 def _permission_denial_is_unconstructible() -> str | None:

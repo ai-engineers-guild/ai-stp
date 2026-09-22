@@ -1,0 +1,351 @@
+{
+  "$defs": {
+    "CorporateTelemetryHeartbeatEvent": {
+      "additionalProperties": false,
+      "description": "One corporate heartbeat; the field list is closed and enumerable.",
+      "properties": {
+        "account_id": {
+          "anyOf": [
+            {
+              "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Account Id"
+        },
+        "capabilities": {
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[^\\x00-\\x1f]+$",
+            "type": "string"
+          },
+          "maxItems": 32,
+          "title": "Capabilities",
+          "type": "array"
+        },
+        "device_id": {
+          "anyOf": [
+            {
+              "maxLength": 64,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Device Id"
+        },
+        "event_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Event Id",
+          "type": "string"
+        },
+        "harness": {
+          "maxLength": 64,
+          "minLength": 1,
+          "title": "Harness",
+          "type": "string"
+        },
+        "harness_version": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[^\\x00-\\x1f]+$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Harness Version"
+        },
+        "health": {
+          "default": "unknown",
+          "enum": [
+            "active",
+            "stale",
+            "failing",
+            "disabled",
+            "unknown"
+          ],
+          "title": "Health",
+          "type": "string"
+        },
+        "kind": {
+          "const": "heartbeat",
+          "default": "heartbeat",
+          "title": "Kind",
+          "type": "string"
+        },
+        "last_sync_at": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "occurred_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "provider_name": {
+          "anyOf": [
+            {
+              "maxLength": 64,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Provider Name"
+        },
+        "provider_version": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[^\\x00-\\x1f]+$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Provider Version"
+        }
+      },
+      "required": [
+        "event_id",
+        "harness",
+        "occurred_at"
+      ],
+      "title": "CorporateTelemetryHeartbeatEvent",
+      "type": "object"
+    },
+    "CorporateTelemetryInvocationEvent": {
+      "additionalProperties": false,
+      "description": "One corporate component invocation; prompts and content have no fields.",
+      "properties": {
+        "account_id": {
+          "anyOf": [
+            {
+              "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Account Id"
+        },
+        "component_kind": {
+          "anyOf": [
+            {
+              "maxLength": 64,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Component Kind"
+        },
+        "component_stable_id": {
+          "anyOf": [
+            {
+              "maxLength": 64,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Component Stable Id"
+        },
+        "component_version": {
+          "anyOf": [
+            {
+              "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Component Version"
+        },
+        "device_id": {
+          "anyOf": [
+            {
+              "maxLength": 64,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Device Id"
+        },
+        "event_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Event Id",
+          "type": "string"
+        },
+        "harness": {
+          "maxLength": 64,
+          "minLength": 1,
+          "title": "Harness",
+          "type": "string"
+        },
+        "harness_version": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[^\\x00-\\x1f]+$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Harness Version"
+        },
+        "kind": {
+          "const": "invocation",
+          "default": "invocation",
+          "title": "Kind",
+          "type": "string"
+        },
+        "occurred_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "outcome": {
+          "default": "unknown",
+          "enum": [
+            "succeeded",
+            "failed",
+            "denied",
+            "unknown"
+          ],
+          "title": "Outcome",
+          "type": "string"
+        },
+        "project_id": {
+          "anyOf": [
+            {
+              "maxLength": 64,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Project Id"
+        },
+        "setup_id": {
+          "anyOf": [
+            {
+              "maxLength": 64,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Setup Id"
+        }
+      },
+      "required": [
+        "event_id",
+        "harness",
+        "occurred_at"
+      ],
+      "title": "CorporateTelemetryInvocationEvent",
+      "type": "object"
+    },
+    "IdempotencyKey": {
+      "pattern": "^[A-Za-z0-9._~-]{16,128}$",
+      "type": "string"
+    },
+    "Timestamp": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:corporate-telemetry-event-request",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "authorization_revision": {
+      "minimum": 1,
+      "title": "Authorization Revision",
+      "type": "integer"
+    },
+    "event": {
+      "discriminator": {
+        "mapping": {
+          "heartbeat": "#/$defs/CorporateTelemetryHeartbeatEvent",
+          "invocation": "#/$defs/CorporateTelemetryInvocationEvent"
+        },
+        "propertyName": "kind"
+      },
+      "oneOf": [
+        {
+          "$ref": "#/$defs/CorporateTelemetryHeartbeatEvent"
+        },
+        {
+          "$ref": "#/$defs/CorporateTelemetryInvocationEvent"
+        }
+      ],
+      "title": "Event"
+    },
+    "idempotency_key": {
+      "$ref": "#/$defs/IdempotencyKey"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "event",
+    "authorization_revision",
+    "idempotency_key"
+  ],
+  "title": "CorporateTelemetryEventRequest",
+  "type": "object"
+}

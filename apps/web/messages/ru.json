@@ -87,6 +87,8 @@
     "technologies": "Технологии",
     "job_titles": "Должности",
     "categories": "Категории технологий",
+    "installations": "Установки",
+    "usage": "Использование",
     "overviewBody": "Организация и её технологический ландшафт.",
     "organizationBody": "Сотрудники, проекты, команды и связи между ними.",
     "browseProjects": "Проекты вашей организации.",
@@ -138,6 +140,19 @@
     "assignPartial": "Сохранено: {saved}, ошибок: {failed}.",
     "assignFailed": "Назначение не выполнено.",
     "loading": "Загрузка…"
+  },
+  "installations": {
+    "account": "Аккаунт",
+    "device": "Устройство",
+    "cli": "CLI",
+    "lastSync": "Последняя синхронизация",
+    "health": "Состояние",
+    "never": "никогда",
+    "emptyOrganization": "Нет корпоративной организации",
+    "unavailable": "Состояние установок недоступно",
+    "empty": "Нет установок с heartbeat",
+    "emptyDescription": "Установки CLI появятся здесь после первого heartbeat.",
+    "title": "Установки"
   },
   "technology": {
     "mergeTitle": "Явное объединение технологий",

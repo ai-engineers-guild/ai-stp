@@ -95,5 +95,8 @@ last_verified: "2026-08-03"
 | [SPEC-084-corporate-entity-profiles.md](SPEC-084-corporate-entity-profiles.md) | SPEC-084: Persistent tenant presentation and independent technology ownership. | 2026-09-18 |
 | [SPEC-085-milestone-5-corporate-governance-and-catalog.md](SPEC-085-milestone-5-corporate-governance-and-catalog.md) | SPEC-085: Corporate governance lifecycle, team profile, and catalog context. | 2026-09-19 |
 | [SPEC-086-corporate-workspace-consolidation.md](SPEC-086-corporate-workspace-consolidation.md) | SPEC-086: Corporate workspace identity, directory, catalog, and detail consolidation. | 2026-09-18 |
+| [SPEC-087-cli-heartbeat-and-installation-health.md](SPEC-087-cli-heartbeat-and-installation-health.md) | SPEC-087: Authenticated CLI installation heartbeats and read-time installation health for corporate tenants. | 2026-09-22 |
+| [SPEC-088-runtime-usage-events.md](SPEC-088-runtime-usage-events.md) | SPEC-088: Corporate runtime component-usage events, scoped reports, and bounded export. | 2026-09-22 |
+| [SPEC-089-telemetry-privacy.md](SPEC-089-telemetry-privacy.md) | SPEC-089: Corporate telemetry privacy boundary, retention, access, and data rights. | 2026-09-22 |
 
 <!-- END CONTENTS -->

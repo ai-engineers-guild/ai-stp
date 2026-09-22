@@ -1,0 +1,89 @@
+{
+  "$defs": {
+    "IdempotencyKey": {
+      "pattern": "^[A-Za-z0-9._~-]{16,128}$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:corporate-telemetry-policy-request",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "aggregate_retention_days": {
+      "default": 365,
+      "maximum": 3650,
+      "minimum": 1,
+      "title": "Aggregate Retention Days",
+      "type": "integer"
+    },
+    "authorization_revision": {
+      "minimum": 1,
+      "title": "Authorization Revision",
+      "type": "integer"
+    },
+    "expected_policy_revision": {
+      "minimum": 0,
+      "title": "Expected Policy Revision",
+      "type": "integer"
+    },
+    "idempotency_key": {
+      "$ref": "#/$defs/IdempotencyKey"
+    },
+    "legal_basis": {
+      "enum": [
+        "consent",
+        "contract",
+        "legitimate_interest"
+      ],
+      "title": "Legal Basis",
+      "type": "string"
+    },
+    "notice_revision": {
+      "minimum": 0,
+      "title": "Notice Revision",
+      "type": "integer"
+    },
+    "notice_text": {
+      "anyOf": [
+        {
+          "maxLength": 4000,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Notice Text"
+    },
+    "raw_retention_days": {
+      "maximum": 3650,
+      "minimum": 1,
+      "title": "Raw Retention Days",
+      "type": "integer"
+    },
+    "reason": {
+      "default": "telemetry policy",
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Reason",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "raw_retention_days",
+    "legal_basis",
+    "notice_revision",
+    "expected_policy_revision",
+    "authorization_revision",
+    "idempotency_key"
+  ],
+  "title": "CorporateTelemetryPolicyRequest",
+  "type": "object"
+}
