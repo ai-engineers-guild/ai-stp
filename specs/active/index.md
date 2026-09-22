@@ -99,5 +99,6 @@ last_verified: "2026-08-03"
 | [SPEC-088-runtime-usage-events.md](SPEC-088-runtime-usage-events.md) | SPEC-088: Corporate runtime component-usage events, scoped reports, and bounded export. | 2026-09-22 |
 | [SPEC-089-telemetry-privacy.md](SPEC-089-telemetry-privacy.md) | SPEC-089: Corporate telemetry privacy boundary, retention, access, and data rights. | 2026-09-22 |
 | [SPEC-090-gitlab-project-discovery.md](SPEC-090-gitlab-project-discovery.md) | SPEC-090: Tenant-scoped GitLab repository observation over canonical project identity. | 2026-09-22 |
+| [SPEC-091-corporate-health-dashboards.md](SPEC-091-corporate-health-dashboards.md) | SPEC-091: Authorized Corporate Hub health aggregation and saved dashboard views. | 2026-09-22 |
 
 <!-- END CONTENTS -->

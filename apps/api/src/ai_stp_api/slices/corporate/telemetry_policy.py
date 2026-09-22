@@ -443,13 +443,6 @@ async def list_telemetry_audit(
         organization_id=organization_id,
         permission="telemetry.list",
     )
-    rows = await list_privileged_access(
-        db,
-        organization_id=organization.id,
-        before_id=query.before_id,
-        limit=query.limit,
-    )
-    page = rows[: query.limit]
     await record_privileged_access(
         db,
         organization_id=organization.id,
@@ -458,8 +451,15 @@ async def list_telemetry_audit(
         target_table="telemetry_audit",
         target_id=organization.id,
         request_id=_request_id(request),
-        detail={"returned": len(page)},
+        detail={"limit": query.limit},
     )
+    rows = await list_privileged_access(
+        db,
+        organization_id=organization.id,
+        before_id=query.before_id,
+        limit=query.limit,
+    )
+    page = rows[: query.limit]
     return CorporateTelemetryAuditList(
         organization_id=organization.id,
         items=[_audit_view(row) for row in page],

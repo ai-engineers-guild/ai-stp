@@ -17,6 +17,8 @@ observation includes the current namespace, URL, default branch, and head
 revision. A rename changes these mutable fields without changing the provider
 project ID. To make the repository part of a corporate project, follow the
 explicit project creation and SPEC-078 linking flow; discovery does not infer it.
+After an explicit link, register/refresh updates the linked project's repository
+activity and source availability; an unlinked observation cannot update it.
 After linking, publish an immutable technology mapping snapshot and call the
 language enrichment route with the current project revision and a stable scan ID.
 Inspect the proposed facts and review them through the existing technology

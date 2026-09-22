@@ -57,6 +57,36 @@ def test_migrations_upgrade_repeat_downgrade_and_upgrade_again(
     assert _version(isolated_database_url) == head
 
 
+def test_dashboard_migration_has_tenant_policies_and_downgrades(
+    isolated_database_url: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("AI_STP_DB_URL", isolated_database_url)
+    config = Config("alembic.ini")
+    command.upgrade(config, "0092_corporate_dashboard")
+    for table in ("corporate_ci_check", "corporate_dashboard_view"):
+        assert (
+            asyncio.run(_scalar(isolated_database_url, f"SELECT to_regclass('public.{table}')"))
+            == table
+        )
+        assert (
+            asyncio.run(
+                _scalar(
+                    isolated_database_url,
+                    "SELECT relrowsecurity AND relforcerowsecurity "
+                    f"FROM pg_class WHERE relname = '{table}'",
+                )
+            )
+            is True
+        )
+    command.downgrade(config, "0091_gitlab_project_observations")
+    for table in ("corporate_ci_check", "corporate_dashboard_view"):
+        assert (
+            asyncio.run(_scalar(isolated_database_url, f"SELECT to_regclass('public.{table}')"))
+            is None
+        )
+
+
 def test_job_title_migrations_upgrade_and_downgrade_cleanly(
     isolated_database_url: str,
     monkeypatch: pytest.MonkeyPatch,

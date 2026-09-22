@@ -30,6 +30,7 @@ last_verified: "2026-08-03"
 | [component-presentation.md](component-presentation.md) | Mutable component and setup presentation in the catalog without changing the version passport. | 2026-09-04 |
 | [component-setup-passports.md](component-setup-passports.md) | Component and setup version passports, component types, and dependencies. | 2026-09-05 |
 | [composition-reports.md](composition-reports.md) | Composition and conversion reports: closed conflict classes, permitted compiler operations, and loss states. | 2026-08-28 |
+| [corporate-dashboards.md](corporate-dashboards.md) | Corporate dashboard query, CI check, and saved-view HTTP contracts. | 2026-09-22 |
 | [corporate-heartbeat.md](corporate-heartbeat.md) | Corporate installation heartbeat HTTP routes, authorization, and the closed health-state set. | 2026-09-22 |
 | [deep-links.md](deep-links.md) | Grammar of canonical URLs and CLI references for component, setup, publisher, and report intent. | 2026-08-15 |
 | [device-passport.md](device-passport.md) | Device passport fields, privacy, and the permitted summary for the server and web. | 2026-08-04 |

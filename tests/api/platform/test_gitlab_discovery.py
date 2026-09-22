@@ -383,3 +383,21 @@ async def test_linked_gitlab_languages_publish_only_proposed_canonical_facts(
         assert fact.review == "proposed"
         assert fact.evidence[0]["source"] == "forge_language"
         assert fact.evidence[0]["source_revision"] == "a" * 40
+    FakeGitLabClient.unavailable = False
+    refreshed = await client.post(
+        f"{base}/observations/{provider_id}/refresh",
+        json={
+            "authorization_revision": await _revision(sessionmaker, organization_id),
+            "expected_revision": 1,
+            "idempotency_key": "activity-" + uuid.uuid4().hex,
+        },
+        headers=auth,
+    )
+    assert refreshed.status_code == 200, refreshed.text
+    async with sessionmaker() as db:
+        project = await db.get(CorporateProject, remote_id)
+        assert project is not None
+        assert project.source_availability == "available"
+        assert project.repository_activity_at is not None
+        assert project.repository_activity_at.year == 2026
+        assert project.revision == 3

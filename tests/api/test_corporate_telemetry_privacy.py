@@ -15,7 +15,7 @@ from pathlib import Path
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from tests.support.api_settings import make_settings
 from tests.support.postgres import migrated_database, migrated_template
@@ -264,6 +264,7 @@ async def test_tenant_and_role_isolation(
     # A staff member of the tenant without telemetry permissions.
     staff_id, staff_token = await _account_token(sessionmaker)
     async with sessionmaker() as db:
+        await set_tenant_scope(db, organization_id)
         db.add(
             OrganizationMembership(
                 organization_id=organization_id,
@@ -301,6 +302,11 @@ async def test_tenant_and_role_isolation(
         await db.commit()
     async with sessionmaker() as db:
         await set_tenant_scope(db, other_id)
+        bypasses_rls = await db.scalar(
+            text("SELECT rolsuper OR rolbypassrls FROM pg_roles WHERE rolname = current_user")
+        )
+        if bypasses_rls:
+            await db.execute(text("SET LOCAL ROLE pg_read_all_data"))
         visible = (
             await db.scalars(
                 select(TelemetryEvent).where(TelemetryEvent.organization_id == organization_id)

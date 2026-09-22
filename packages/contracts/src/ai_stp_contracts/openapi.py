@@ -196,6 +196,15 @@ from ai_stp_contracts.corporate_profiles import (
     EntityProfileWriteRequest,
     TechnologyOwnerRequest,
 )
+from ai_stp_contracts.dashboard import (
+    CorporateCiCheckRequest,
+    CorporateCiCheckView,
+    DashboardQueryRequest,
+    DashboardResult,
+    DashboardView,
+    DashboardViewList,
+    DashboardViewRequest,
+)
 from ai_stp_contracts.families import (
     SetupFamilyCreateRequest,
     SetupFamilyOwner,
@@ -214,6 +223,12 @@ from ai_stp_contracts.github_connector import (
     GitHubDisconnectRequest,
     GitHubSourcePrepared,
     GitHubSourcePrepareRequest,
+)
+from ai_stp_contracts.gitlab import (
+    GitLabEnrichRequest,
+    GitLabMutationRequest,
+    GitLabRepositoryList,
+    GitLabRepositoryView,
 )
 from ai_stp_contracts.grants import (
     AccessGrantResponse,
@@ -576,6 +591,17 @@ _TELEMETRY_SUBJECT_ID = PathParam(
 )
 _TELEMETRY_EXPORT_ID = PathParam(
     "export_id", "Bounded telemetry export identifier.", r"^[A-Za-z0-9_.:-]{1,128}$"
+)
+_PROVIDER_PROJECT_ID = PathParam(
+    "provider_project_id",
+    "Retained provider repository identity.",
+    stable_id_pattern("provider_project"),
+)
+_GITLAB_REPOSITORY_ID = PathParam(
+    "repository_id", "Immutable GitLab repository ID.", r"^[1-9][0-9]{0,15}$"
+)
+_DASHBOARD_VIEW_ID = PathParam(
+    "view_id", "Saved dashboard view identity.", stable_id_pattern("dashboard_view")
 )
 
 OPERATIONS: Final[tuple[Operation, ...]] = (
@@ -3178,6 +3204,122 @@ OPERATIONS: Final[tuple[Operation, ...]] = (
             ),
         ),
         errors=("AI_STP_NOT_FOUND", "AI_STP_VALIDATION_ERROR"),
+    ),
+    Operation(
+        method="get",
+        path="/corporate/organizations/{organization_id}/gitlab/repositories",
+        operation_id="listGitLabRepositories",
+        summary="List bounded repositories visible to the configured GitLab connection.",
+        response=GitLabRepositoryList,
+        path_params=(_ORGANIZATION_ID,),
+        authenticated=True,
+    ),
+    Operation(
+        method="post",
+        path="/corporate/organizations/{organization_id}/gitlab/repositories/{repository_id}",
+        operation_id="registerGitLabRepository",
+        summary="Retain one GitLab repository observation without creating a project link.",
+        response=GitLabRepositoryView,
+        body=GitLabMutationRequest,
+        path_params=(_ORGANIZATION_ID, _GITLAB_REPOSITORY_ID),
+        authenticated=True,
+        idempotent_mutation=True,
+    ),
+    Operation(
+        method="post",
+        path="/corporate/organizations/{organization_id}/gitlab/observations/{provider_project_id}/refresh",
+        operation_id="refreshGitLabRepository",
+        summary="Refresh bounded GitLab metadata by immutable repository identity.",
+        response=GitLabRepositoryView,
+        body=GitLabMutationRequest,
+        path_params=(_ORGANIZATION_ID, _PROVIDER_PROJECT_ID),
+        authenticated=True,
+        idempotent_mutation=True,
+    ),
+    Operation(
+        method="post",
+        path="/corporate/organizations/{organization_id}/gitlab/observations/{provider_project_id}/disconnect",
+        operation_id="disconnectGitLabRepository",
+        summary="Disconnect a GitLab observation while retaining identity and project links.",
+        response=GitLabRepositoryView,
+        body=GitLabMutationRequest,
+        path_params=(_ORGANIZATION_ID, _PROVIDER_PROJECT_ID),
+        authenticated=True,
+        idempotent_mutation=True,
+    ),
+    Operation(
+        method="post",
+        path="/corporate/organizations/{organization_id}/gitlab/observations/{provider_project_id}/projects/{project_id}/enrich",
+        operation_id="enrichGitLabLanguages",
+        summary="Publish mapped GitLab languages as proposed project facts.",
+        response=TechnologyScanResult,
+        body=GitLabEnrichRequest,
+        path_params=(_ORGANIZATION_ID, _PROVIDER_PROJECT_ID, _CORPORATE_PROJECT_ID),
+        authenticated=True,
+        idempotent_mutation=True,
+    ),
+    Operation(
+        method="post",
+        path="/corporate/organizations/{organization_id}/github/observations/{provider_project_id}/projects/{project_id}/enrich",
+        operation_id="enrichGitHubLanguages",
+        summary="Publish selected GitHub repository languages as proposed project facts.",
+        response=TechnologyScanResult,
+        body=GitLabEnrichRequest,
+        path_params=(_ORGANIZATION_ID, _PROVIDER_PROJECT_ID, _CORPORATE_PROJECT_ID),
+        authenticated=True,
+        idempotent_mutation=True,
+    ),
+    Operation(
+        method="put",
+        path="/corporate/organizations/{organization_id}/dashboard/ci-check",
+        operation_id="writeCorporateCiCheck",
+        summary="Coalesce one device-bound CI verdict for a corporate project.",
+        response=CorporateCiCheckView,
+        body=CorporateCiCheckRequest,
+        path_params=(_ORGANIZATION_ID,),
+        authenticated=True,
+        idempotent_mutation=True,
+    ),
+    Operation(
+        method="post",
+        path="/corporate/organizations/{organization_id}/dashboard/query",
+        operation_id="queryCorporateDashboard",
+        summary="Aggregate a bounded authorized health dataset.",
+        response=DashboardResult,
+        body=DashboardQueryRequest,
+        path_params=(_ORGANIZATION_ID,),
+        authenticated=True,
+    ),
+    Operation(
+        method="get",
+        path="/corporate/organizations/{organization_id}/dashboard/views",
+        operation_id="listCorporateDashboardViews",
+        summary="List saved views visible in the caller's scope.",
+        response=DashboardViewList,
+        path_params=(_ORGANIZATION_ID,),
+        authenticated=True,
+    ),
+    Operation(
+        method="post",
+        path="/corporate/organizations/{organization_id}/dashboard/views",
+        operation_id="createCorporateDashboardView",
+        summary="Save one bounded dashboard query in a permitted scope.",
+        response=DashboardView,
+        body=DashboardViewRequest,
+        path_params=(_ORGANIZATION_ID,),
+        authenticated=True,
+        idempotent_mutation=True,
+    ),
+    Operation(
+        method="put",
+        path="/corporate/organizations/{organization_id}/dashboard/views/{view_id}",
+        operation_id="updateCorporateDashboardView",
+        summary="Update a saved dashboard query without changing its scope.",
+        response=DashboardView,
+        body=DashboardViewRequest,
+        path_params=(_ORGANIZATION_ID, _DASHBOARD_VIEW_ID),
+        authenticated=True,
+        idempotent_mutation=True,
     ),
     Operation(
         method="put",

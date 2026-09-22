@@ -10,6 +10,9 @@ from sqlalchemy import Connection
 from sqlalchemy.ext.asyncio import create_async_engine
 
 from ai_stp_platform import (
+    dashboard_models as _dashboard_models,  # noqa: F401 register B2B-06 metadata
+)
+from ai_stp_platform import (
     heartbeat_models as _heartbeat_models,  # noqa: F401 register B2B-04 metadata
 )
 from ai_stp_platform import models as _platform_models  # noqa: F401  register Sprint-1 metadata

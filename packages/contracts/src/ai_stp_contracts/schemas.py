@@ -187,6 +187,15 @@ from ai_stp_contracts.corporate_profiles import (
     EntityProfileWriteRequest,
     TechnologyOwnerRequest,
 )
+from ai_stp_contracts.dashboard import (
+    CorporateCiCheckRequest,
+    CorporateCiCheckView,
+    DashboardQueryRequest,
+    DashboardResult,
+    DashboardView,
+    DashboardViewList,
+    DashboardViewRequest,
+)
 from ai_stp_contracts.deep_links import DeepLinkView
 from ai_stp_contracts.estate_release import EstateRelease
 from ai_stp_contracts.evaluation import (
@@ -822,6 +831,13 @@ HTTP_MODELS: Final[dict[str, ExportedSchema]] = {
     "installation-heartbeat": InstallationHeartbeat,
     "installation-heartbeat-status": InstallationHeartbeatStatus,
     "installation-heartbeat-list": InstallationHeartbeatList,
+    "corporate-ci-check-request": CorporateCiCheckRequest,
+    "corporate-ci-check-view": CorporateCiCheckView,
+    "dashboard-query-request": DashboardQueryRequest,
+    "dashboard-result": DashboardResult,
+    "dashboard-view-request": DashboardViewRequest,
+    "dashboard-view": DashboardView,
+    "dashboard-view-list": DashboardViewList,
     "gitlab-mutation-request": GitLabMutationRequest,
     "gitlab-enrich-request": GitLabEnrichRequest,
     "gitlab-repository-view": GitLabRepositoryView,

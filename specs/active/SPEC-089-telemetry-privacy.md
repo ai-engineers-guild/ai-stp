@@ -69,14 +69,18 @@ governed HTTP surface under `/v1/corporate/organizations/{id}/telemetry/*`.
   employee notice shown for the telemetry context.
 - `REQ-8909`: Every privileged operation appends both a platform `audit_event`
   row and a `telemetry_audit` row whose detail contains only counts, kinds,
-  and identifiers.
+  and identifiers. An audit-list read records its own access before selecting
+  the page, so its first page includes that read event.
 
 ## Boundaries
 
 - The anonymous consented ping of ADR-0112 is untouched; corporate telemetry
   is an authenticated, tenant-scoped channel under `/v1`.
 - Heartbeats and provider health checks emit no usage events.
-- Aggregates group by day/kind/outcome only; subject identifiers never group.
+- General telemetry aggregates group by day/kind/outcome only. The Corporate
+  dashboard's separately authorized health query (SPEC-091) may group by
+  permissioned account/device/team IDs; it audits each read and never returns
+  event payloads.
 
 ## States and errors
 

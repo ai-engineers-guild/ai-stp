@@ -16,6 +16,7 @@ from ai_stp_api.session import AuthContext
 from ai_stp_api.settings import Settings
 from ai_stp_api.slices.corporate import service
 from ai_stp_api.slices.technology import detection
+from ai_stp_api.slices.technology.forge import language_handoff
 from ai_stp_contracts.context import ProviderProjectId, RemoteProjectId
 from ai_stp_contracts.corporate import OrganizationId
 from ai_stp_contracts.gitlab import (
@@ -25,18 +26,20 @@ from ai_stp_contracts.gitlab import (
     GitLabRepositoryView,
 )
 from ai_stp_contracts.technology import (
-    TechnologyEvidence,
-    TechnologyObservation,
     TechnologyScanHandoff,
     TechnologyScanRequest,
     TechnologyScanResult,
-    TechnologyUsageFact,
 )
 from ai_stp_foundation.ids import new_id
-from ai_stp_foundation.timestamps import format_timestamp
+from ai_stp_foundation.timestamps import format_timestamp, parse_timestamp
 from ai_stp_platform.gitlab_client import GitLabClient, GitLabError, GitLabRepository
-from ai_stp_platform.organization_models import Organization, ProjectIdentity, ProjectLink
-from ai_stp_platform.technology_models import TechnologyCoordinateMapping, TechnologyScan
+from ai_stp_platform.organization_models import (
+    CorporateProject,
+    Organization,
+    ProjectIdentity,
+    ProjectLink,
+)
+from ai_stp_platform.technology_models import TechnologyScan
 
 router = APIRouter(tags=["corporate"])
 
@@ -267,6 +270,12 @@ async def register_repository(
     identity.observed_at = datetime.now(UTC)
     identity.provider_default_branch = repository.default_branch
     identity.provider_observed_revision = revision
+    await _sync_linked_activity(
+        db,
+        organization_id=organization_id,
+        provider_project_id=identity.id,
+        repository=repository,
+    )
     organization.policy_revision += 1
     await db.flush()
     response = _view(organization_id, repository, identity)
@@ -297,6 +306,40 @@ async def _identity(
     ):
         raise ApiError(ErrorCategory.PERMISSION, "GitLab repository is unavailable")
     return row
+
+
+async def _sync_linked_activity(
+    db: AsyncSession,
+    *,
+    organization_id: str,
+    provider_project_id: str,
+    repository: GitLabRepository,
+) -> None:
+    """Refresh canonical landscape activity only for explicit project links."""
+    projects = await db.scalars(
+        select(CorporateProject)
+        .join(
+            ProjectLink,
+            (ProjectLink.organization_id == CorporateProject.organization_id)
+            & (ProjectLink.remote_project_id == CorporateProject.id),
+        )
+        .where(
+            CorporateProject.organization_id == organization_id,
+            ProjectLink.provider_project_id == provider_project_id,
+            ProjectLink.state == "linked",
+        )
+    )
+    for project in projects:
+        activity_at = (
+            parse_timestamp(repository.last_activity_at) if repository.last_activity_at else None
+        )
+        if (
+            project.repository_activity_at != activity_at
+            or project.source_availability != "available"
+        ):
+            project.repository_activity_at = activity_at
+            project.source_availability = "available"
+            project.revision += 1
 
 
 @router.post(
@@ -356,6 +399,12 @@ async def refresh_repository(
     row.provider_default_branch = repository.default_branch
     row.provider_observed_revision = revision
     row.revision += 1
+    await _sync_linked_activity(
+        db,
+        organization_id=organization_id,
+        provider_project_id=provider_project_id,
+        repository=repository,
+    )
     organization.policy_revision += 1
     await db.flush()
     response = _view(organization_id, repository, row)
@@ -486,7 +535,10 @@ async def enrich_languages(
         raise ApiError(ErrorCategory.PRECONDITION, "GitLab default branch has no observed revision")
     if identity.immutable_repository_id is None or identity.observed_at is None:
         raise ApiError(ErrorCategory.CONFLICT, "GitLab observation is incomplete")
-    repository_id = int(identity.immutable_repository_id)
+    try:
+        repository_id = int(identity.immutable_repository_id)
+    except ValueError:
+        raise ApiError(ErrorCategory.CONFLICT, "GitLab repository identity is incomplete") from None
     expected_identity_revision = identity.revision
     try:
         head = await client.head_revision(
@@ -511,52 +563,18 @@ async def enrich_languages(
         or link.state != "linked"
     ):
         raise ApiError(ErrorCategory.PRECONDITION, "GitLab observation or project link changed")
-    mappings = await db.scalars(
-        select(TechnologyCoordinateMapping).where(
-            TechnologyCoordinateMapping.organization_id == organization_id,
-            TechnologyCoordinateMapping.version == payload.mapping_version,
-            TechnologyCoordinateMapping.kind == "alias",
-        )
-    )
-    alias_ids: dict[str, str] = {}
-    for mapping in mappings:
-        key = mapping.coordinate.casefold()
-        if key in alias_ids and alias_ids[key] != mapping.technology_id:
-            raise ApiError(ErrorCategory.CONFLICT, "GitLab language mapping is ambiguous")
-        alias_ids[key] = mapping.technology_id
-    observed_at = format_timestamp(identity.observed_at)
-    evidence_by_id: dict[str, list[TechnologyEvidence]] = {}
-    for language, share in sorted(languages.items()):
-        technology_id = alias_ids.get(language.casefold())
-        if technology_id is None or share <= 0:
-            continue
-        evidence_by_id.setdefault(technology_id, []).append(
-            TechnologyEvidence(
-                source="forge_language",
-                reference=f"gitlab:{repository_id}",
-                observed_at=observed_at,
-                source_revision=head,
-                confidence=0.9,
-                detector_version="gitlab-languages-v1",
-                mapping_version=payload.mapping_version,
-            )
-        )
-    observations = [
-        TechnologyObservation(
-            technology_id=technology_id,
-            fact=TechnologyUsageFact(context="development", evidence=evidence),
-        )
-        for technology_id, evidence in sorted(evidence_by_id.items())
-    ]
-    handoff = TechnologyScanHandoff(
+    handoff = await language_handoff(
+        db,
         organization_id=organization_id,
         project_id=project_id,
         scan_id=payload.scan_id,
-        scope=f"gitlab/{provider_project_id}",
-        complete=True,
-        detector_version="gitlab-languages-v1",
         mapping_version=payload.mapping_version,
-        observations=observations,
+        provider="gitlab",
+        provider_project_id=provider_project_id,
+        repository_id=repository_id,
+        head=head,
+        observed_at=format_timestamp(identity.observed_at),
+        languages=languages,
     )
     result = await detection.publish_scan(
         db,

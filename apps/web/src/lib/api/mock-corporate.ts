@@ -36,6 +36,8 @@ import type {
   CorporateCatalogAssignment,
   CorporateDirectoryItem,
   CorporateDirectoryReference,
+  DashboardQuery,
+  DashboardView,
 } from "./generated/types.gen";
 import type { WorkspaceMockResult } from "./mock-workspace";
 
@@ -343,6 +345,7 @@ const context: CorporateContext = {
   bindings: [],
   capabilities,
 };
+const dashboardViews: DashboardView[] = [];
 type CorporateResource = {
   id: string;
   name: string;
@@ -927,6 +930,91 @@ export function corporateHandlers(
     return ok({ schema_version: 1, authorization_revision: "1", capabilities });
   if (!path.startsWith(`${base}/`)) return error(404, "AI_STP_NOT_FOUND");
   const suffix = path.slice(base.length + 1);
+  if (suffix === "dashboard/views" && method === "GET")
+    return ok({
+      schema_version: 1,
+      organization_id: organization.organization_id,
+      items: dashboardViews,
+    });
+  if (suffix === "dashboard/views" && method === "POST") {
+    const request = body as {
+      name: string;
+      scope: DashboardView["scope"];
+      scope_id: string;
+      query: DashboardQuery;
+    };
+    const view: DashboardView = {
+      schema_version: 1,
+      id: "dashboard_view_01K6DASHBOARDMOCK00000000",
+      organization_id: organization.organization_id,
+      owner_account_id: member.account_id,
+      name: request.name,
+      scope: request.scope,
+      scope_id: request.scope_id,
+      query: request.query,
+      revision: 1,
+    };
+    dashboardViews.splice(0, dashboardViews.length, view);
+    return ok(view);
+  }
+  if (suffix.startsWith("dashboard/views/") && method === "PUT") {
+    const request = body as { name: string; query: DashboardQuery };
+    const view = dashboardViews[0];
+    if (!view) return error(404, "AI_STP_NOT_FOUND");
+    const updated = {
+      ...view,
+      name: request.name,
+      query: request.query,
+      revision: view.revision + 1,
+    };
+    dashboardViews[0] = updated;
+    return ok(updated);
+  }
+  if (suffix === "dashboard/query" && method === "POST") {
+    const request = body as { query: DashboardQuery };
+    const selected = [
+      ...new Set([
+        ...(request.query.dimensions ?? []),
+        ...(request.query.group_by ?? []),
+        ...(request.query.pivot_rows ?? []),
+        ...(request.query.pivot_columns ?? []),
+      ]),
+    ];
+    const source = {
+      state: request.query.dataset === "ci" ? "fail" : "stale",
+      project: projectViews[0]?.project_id ?? "",
+      team: teamViews[0]?.team_id ?? "",
+      account: member.account_id,
+      device: "device_mock",
+      harness: "codex",
+      setup: "",
+      provider: "mock-provider",
+      day: "2026-09-22",
+      checked_at: "2026-09-22T12:00:00Z",
+      reason: "target_drift",
+    };
+    const matches = (request.query.filters ?? []).every((filter) =>
+      filter.values.includes(source[filter.dimension]),
+    );
+    return ok({
+      schema_version: 1,
+      organization_id: organization.organization_id,
+      query: request.query,
+      evaluated_at: "2026-09-22T12:00:00Z",
+      total_source_rows: matches ? 1 : 0,
+      total_groups: matches ? 1 : 0,
+      items: matches
+        ? [
+            {
+              dimensions: Object.fromEntries(selected.map((key) => [key, source[key]])),
+              measures: Object.fromEntries(
+                (request.query.measures ?? ["count"]).map((key) => [key, 1]),
+              ),
+            },
+          ]
+        : [],
+    });
+  }
   const target = resourceEntries()
     .flatMap(([, items]) => items)
     .find((item) => suffix === `entity-profiles/${item.kind}/${item.id}`);
