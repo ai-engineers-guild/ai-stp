@@ -1,0 +1,413 @@
+{
+  "schema_version": 1,
+  "cases": [
+    {
+      "case_id": "listGitLabRepositories.discoveryDashboard",
+      "operation_id": "listGitLabRepositories",
+      "kind": "positive",
+      "why": "Representative tenant-scoped response for the operation.",
+      "request": {
+        "path_params": {
+          "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "total": 0,
+        "items": []
+      }
+    },
+    {
+      "case_id": "registerGitLabRepository.discoveryDashboard",
+      "operation_id": "registerGitLabRepository",
+      "kind": "positive",
+      "why": "Representative tenant-scoped response for the operation.",
+      "request": {
+        "path_params": {
+          "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "repository_id": "42"
+        },
+        "body": {
+          "schema_version": 1,
+          "authorization_revision": "corporate:organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z:1:1",
+          "expected_revision": 0,
+          "idempotency_key": "gitlab-register-0001"
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "repository_id": 42,
+        "namespace_id": 7,
+        "path_with_namespace": "platform/service",
+        "repository_url": "https://gitlab.example/platform/service",
+        "default_branch": "main",
+        "last_activity_at": "2026-09-22T11:00:00.000Z",
+        "observed_revision": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "observed_at": "2026-09-22T11:00:00.000Z",
+        "provider_project_id": "provider_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "connected": false,
+        "identity_revision": 1
+      }
+    },
+    {
+      "case_id": "refreshGitLabRepository.discoveryDashboard",
+      "operation_id": "refreshGitLabRepository",
+      "kind": "positive",
+      "why": "Representative tenant-scoped response for the operation.",
+      "request": {
+        "path_params": {
+          "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "provider_project_id": "provider_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        },
+        "body": {
+          "schema_version": 1,
+          "authorization_revision": "corporate:organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z:1:1",
+          "expected_revision": 1,
+          "idempotency_key": "gitlab-refresh-0001"
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "repository_id": 42,
+        "namespace_id": 7,
+        "path_with_namespace": "platform/service",
+        "repository_url": "https://gitlab.example/platform/service",
+        "default_branch": "main",
+        "last_activity_at": "2026-09-22T11:00:00.000Z",
+        "observed_revision": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "observed_at": "2026-09-22T11:00:00.000Z",
+        "provider_project_id": "provider_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "connected": true,
+        "identity_revision": 1
+      }
+    },
+    {
+      "case_id": "disconnectGitLabRepository.discoveryDashboard",
+      "operation_id": "disconnectGitLabRepository",
+      "kind": "positive",
+      "why": "Representative tenant-scoped response for the operation.",
+      "request": {
+        "path_params": {
+          "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "provider_project_id": "provider_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        },
+        "body": {
+          "schema_version": 1,
+          "authorization_revision": "corporate:organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z:1:1",
+          "expected_revision": 1,
+          "idempotency_key": "gitlab-disconnect-0001"
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "repository_id": 42,
+        "namespace_id": 7,
+        "path_with_namespace": "platform/service",
+        "repository_url": "https://gitlab.example/platform/service",
+        "default_branch": "main",
+        "last_activity_at": "2026-09-22T11:00:00.000Z",
+        "observed_revision": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "observed_at": "2026-09-22T11:00:00.000Z",
+        "provider_project_id": "provider_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "connected": false,
+        "identity_revision": 1
+      }
+    },
+    {
+      "case_id": "enrichGitLabLanguages.discoveryDashboard",
+      "operation_id": "enrichGitLabLanguages",
+      "kind": "positive",
+      "why": "Representative tenant-scoped response for the operation.",
+      "request": {
+        "path_params": {
+          "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "provider_project_id": "provider_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "project_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        },
+        "body": {
+          "schema_version": 1,
+          "authorization_revision": "corporate:organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z:1:1",
+          "expected_revision": 1,
+          "idempotency_key": "gitlab-enrich-0001",
+          "scan_id": "scan_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "mapping_version": "v1"
+        }
+      },
+      "status": 200,
+      "body": {
+        "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "project_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "scan_id": "scan_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "project_revision": 1,
+        "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "usages": [],
+        "disagreements": [],
+        "created_relation_ids": []
+      }
+    },
+    {
+      "case_id": "enrichGitHubLanguages.discoveryDashboard",
+      "operation_id": "enrichGitHubLanguages",
+      "kind": "positive",
+      "why": "Representative tenant-scoped response for the operation.",
+      "request": {
+        "path_params": {
+          "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "provider_project_id": "provider_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "project_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        },
+        "body": {
+          "schema_version": 1,
+          "authorization_revision": "corporate:organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z:1:1",
+          "expected_revision": 1,
+          "idempotency_key": "github-enrich-0001",
+          "scan_id": "scan_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "mapping_version": "v1"
+        }
+      },
+      "status": 200,
+      "body": {
+        "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "project_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "scan_id": "scan_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "project_revision": 1,
+        "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "usages": [],
+        "disagreements": [],
+        "created_relation_ids": []
+      }
+    },
+    {
+      "case_id": "writeCorporateCiCheck.discoveryDashboard",
+      "operation_id": "writeCorporateCiCheck",
+      "kind": "positive",
+      "why": "Representative tenant-scoped response for the operation.",
+      "request": {
+        "path_params": {
+          "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        },
+        "body": {
+          "schema_version": 1,
+          "project_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "harness": "codex",
+          "setup_id": null,
+          "status": "pass",
+          "reason": "none",
+          "checked_at": "2026-09-22T11:00:00.000Z"
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "project_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "harness": "codex",
+        "setup_id": null,
+        "status": "pass",
+        "reason": "none",
+        "checked_at": "2026-09-22T11:00:00.000Z",
+        "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "received_at": "2026-09-22T11:00:00.000Z",
+        "revision": 1
+      }
+    },
+    {
+      "case_id": "queryCorporateDashboard.discoveryDashboard",
+      "operation_id": "queryCorporateDashboard",
+      "kind": "positive",
+      "why": "Representative tenant-scoped response for the operation.",
+      "request": {
+        "path_params": {
+          "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        },
+        "body": {
+          "schema_version": 1,
+          "query": {
+            "dataset": "ci",
+            "dimensions": [
+              "state"
+            ],
+            "measures": [
+              "count"
+            ],
+            "group_by": [
+              "state"
+            ],
+            "sort_by": "count",
+            "view": "bar"
+          }
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "query": {
+          "dataset": "ci",
+          "dimensions": [
+            "state"
+          ],
+          "measures": [
+            "count"
+          ],
+          "group_by": [
+            "state"
+          ],
+          "sort_by": "count",
+          "view": "bar"
+        },
+        "evaluated_at": "2026-09-22T11:00:00.000Z",
+        "total_source_rows": 0,
+        "total_groups": 0,
+        "items": []
+      }
+    },
+    {
+      "case_id": "listCorporateDashboardViews.discoveryDashboard",
+      "operation_id": "listCorporateDashboardViews",
+      "kind": "positive",
+      "why": "Representative tenant-scoped response for the operation.",
+      "request": {
+        "path_params": {
+          "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "items": []
+      }
+    },
+    {
+      "case_id": "createCorporateDashboardView.discoveryDashboard",
+      "operation_id": "createCorporateDashboardView",
+      "kind": "positive",
+      "why": "Representative tenant-scoped response for the operation.",
+      "request": {
+        "path_params": {
+          "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        },
+        "body": {
+          "schema_version": 1,
+          "name": "CI health",
+          "scope": "user",
+          "scope_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "query": {
+            "dataset": "ci",
+            "dimensions": [
+              "state"
+            ],
+            "measures": [
+              "count"
+            ],
+            "group_by": [
+              "state"
+            ],
+            "sort_by": "count",
+            "view": "bar"
+          },
+          "authorization_revision": 1,
+          "expected_revision": 0,
+          "idempotency_key": "dashboard-create-0001"
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "id": "dashboard_view_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "name": "CI health",
+        "scope": "user",
+        "scope_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "owner_account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "query": {
+          "dataset": "ci",
+          "dimensions": [
+            "state"
+          ],
+          "measures": [
+            "count"
+          ],
+          "group_by": [
+            "state"
+          ],
+          "sort_by": "count",
+          "view": "bar"
+        },
+        "revision": 1
+      }
+    },
+    {
+      "case_id": "updateCorporateDashboardView.discoveryDashboard",
+      "operation_id": "updateCorporateDashboardView",
+      "kind": "positive",
+      "why": "Representative tenant-scoped response for the operation.",
+      "request": {
+        "path_params": {
+          "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "view_id": "dashboard_view_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        },
+        "body": {
+          "schema_version": 1,
+          "name": "CI health",
+          "scope": "user",
+          "scope_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "query": {
+            "dataset": "ci",
+            "dimensions": [
+              "state"
+            ],
+            "measures": [
+              "count"
+            ],
+            "group_by": [
+              "state"
+            ],
+            "sort_by": "count",
+            "view": "bar"
+          },
+          "authorization_revision": 1,
+          "expected_revision": 1,
+          "idempotency_key": "dashboard-update-0001"
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "id": "dashboard_view_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "name": "CI health",
+        "scope": "user",
+        "scope_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "owner_account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "query": {
+          "dataset": "ci",
+          "dimensions": [
+            "state"
+          ],
+          "measures": [
+            "count"
+          ],
+          "group_by": [
+            "state"
+          ],
+          "sort_by": "count",
+          "view": "bar"
+        },
+        "revision": 2
+      }
+    }
+  ]
+}

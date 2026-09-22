@@ -17,7 +17,8 @@ coordinate mappings, usage evidence and review semantics, and landscape projecti
 SPEC-082 owns all team/project/technology links and responsibility. A technology
 usage is evidence and a review decision attached to SPEC-082's single canonical
 project–technology relation, not a second independently editable relationship.
-Detector execution and forge enrichment remain #222/#208 responsibilities.
+Local detector execution is owned by #222; SPEC-090 covers the shipped GitLab
+language enrichment path over this specification's proposed-fact service.
 SPEC-086 owns consistent owner/category presentation and corporate catalog category
 filtering without changing these registry and relation semantics.
 
@@ -421,3 +422,15 @@ downgrade requires a verified backup and is not an ordinary rollback.
 | `REQ-8214` | Confirm/reject/override decisions survive a rescan that moves the version; an override without an explicit identity and review of an unknown key are refused. |
 | `REQ-8215` | Complete-scan fixtures mark unseen findings absent while a partial scan marks them stale; only current findings appear in the projected handoff. |
 | `REQ-8216` | Publication fixtures refuse an unlinked project, a mismatched organization, and a missing fetched snapshot before demanding a session; a wired mock server receives the exact contract-shaped handoff. |
+
+## Bounded forge language enrichment
+
+For an explicitly linked provider project, GitHub and GitLab language endpoints
+provide bounded read-only observations. The backend uses a current immutable
+technology mapping snapshot and the canonical scan publication service. Each
+mapped language becomes a proposed finding with commit revision, source scope,
+confidence, and detector/mapping versions. Unmapped names do not create
+technology IDs. The existing confirm/reject/override path is the only way for
+an observation to become an accepted project/landscape fact. A retained scan
+replay does not require another forge read. No source archive or code execution
+is involved.

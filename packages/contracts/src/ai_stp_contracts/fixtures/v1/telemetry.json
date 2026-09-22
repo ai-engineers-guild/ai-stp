@@ -1,0 +1,176 @@
+{
+  "schema_version": 1,
+  "cases": [
+    {
+      "case_id": "writeInstallationHeartbeat.telemetry",
+      "operation_id": "writeInstallationHeartbeat",
+      "kind": "positive",
+      "why": "An authenticated installation heartbeat is stored and evaluated.",
+      "request": {"path_params": {"organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z"}, "body": {"schema_version": 1, "account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "cli_version": "1.0.0", "capabilities": ["cli.heartbeat"], "last_sync_at": null, "health_state": "active", "checked_at": "2026-09-22T11:00:00.000Z"}},
+      "status": 200,
+      "body": {"schema_version": 1, "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "cli_version": "1.0.0", "capabilities": ["cli.heartbeat"], "last_sync_at": null, "reported_state": "active", "health_state": "active", "checked_at": "2026-09-22T11:00:00.000Z", "received_at": "2026-09-22T11:00:00.000Z", "revision": 1, "stale_after_seconds": 86400}
+    },
+    {
+      "case_id": "readInstallationHeartbeat.telemetry",
+      "operation_id": "readInstallationHeartbeat",
+      "kind": "positive",
+      "why": "A caller can read the evaluated health of its own installation.",
+      "request": {"path_params": {"organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z"}},
+      "status": 200,
+      "body": {"schema_version": 1, "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "health_state": "unknown", "evaluated_at": "2026-09-22T11:00:00.000Z", "stale_after_seconds": 86400, "heartbeat": null}
+    },
+    {
+      "case_id": "listInstallationHeartbeats.telemetry",
+      "operation_id": "listInstallationHeartbeats",
+      "kind": "positive",
+      "why": "Installation health listing is bounded and tenant scoped.",
+      "request": {"path_params": {"organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z"}, "query": {}},
+      "status": 200,
+      "body": {"schema_version": 1, "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "evaluated_at": "2026-09-22T11:00:00.000Z", "stale_after_seconds": 86400, "total": 0, "items": []}
+    },
+    {
+      "case_id": "recordCorporateTelemetryEvent.telemetry",
+      "operation_id": "recordCorporateTelemetryEvent",
+      "kind": "positive",
+      "why": "One governed heartbeat event is accepted idempotently.",
+      "request": {"path_params": {"organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z"}, "body": {"schema_version": 1, "event": {"kind": "heartbeat", "event_id": "heartbeat-00000001", "account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "harness": "codex", "harness_version": "1.0.0", "provider_name": "devin", "provider_version": "1.0.0", "capabilities": ["cli.heartbeat"], "last_sync_at": null, "health": "active", "occurred_at": "2026-09-22T11:00:00.000Z"}, "authorization_revision": 1, "idempotency_key": "telemetry-event-0001"}},
+      "status": 200,
+      "body": {"schema_version": 1, "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "kind": "heartbeat", "event_id": "heartbeat-00000001", "account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "project_id": null, "harness": "codex", "harness_version": "1.0.0", "provider_name": "devin", "provider_version": "1.0.0", "capabilities": ["cli.heartbeat"], "last_sync_at": null, "health": "active", "setup_id": null, "component_kind": null, "component_stable_id": null, "component_version": null, "outcome": null, "subject_state": "active", "occurred_at": "2026-09-22T11:00:00.000Z", "received_at": "2026-09-22T11:00:00.000Z"}
+    },
+    {
+      "case_id": "recordCorporateTelemetryEventBatch.telemetry",
+      "operation_id": "recordCorporateTelemetryEventBatch",
+      "kind": "positive",
+      "why": "A bounded governed event batch returns accepted rows.",
+      "request": {"path_params": {"organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z"}, "body": {"schema_version": 1, "events": [{"kind": "heartbeat", "event_id": "heartbeat-00000002", "account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "harness": "codex", "harness_version": "1.0.0", "provider_name": "devin", "provider_version": "1.0.0", "capabilities": [], "last_sync_at": null, "health": "active", "occurred_at": "2026-09-22T11:00:00.000Z"}], "authorization_revision": 1, "idempotency_key": "telemetry-batch-0001"}},
+      "status": 200,
+      "body": {"schema_version": 1, "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "accepted": 1, "deduplicated": 0, "items": []}
+    },
+    {
+      "case_id": "listCorporateTelemetryEvents.telemetry",
+      "operation_id": "listCorporateTelemetryEvents",
+      "kind": "positive",
+      "why": "Governed event reads are bounded and cursorable.",
+      "request": {"path_params": {"organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z"}, "query": {}},
+      "status": 200,
+      "body": {"schema_version": 1, "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "items": [], "next_before_occurred_at": null, "next_before_id": null}
+    },
+    {
+      "case_id": "listCorporateTelemetryAggregates.telemetry",
+      "operation_id": "listCorporateTelemetryAggregates",
+      "kind": "positive",
+      "why": "Aggregate telemetry is returned without raw event content.",
+      "request": {"path_params": {"organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z"}, "query": {}},
+      "status": 200,
+      "body": {"schema_version": 1, "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "items": []}
+    },
+    {
+      "case_id": "exportCorporateTelemetry.telemetry",
+      "operation_id": "exportCorporateTelemetry",
+      "kind": "positive",
+      "why": "The bounded telemetry export contains only governed event views.",
+      "request": {"path_params": {"organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z"}, "query": {}},
+      "status": 200,
+      "body": {"schema_version": 1, "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "exported_at": "2026-09-22T11:00:00.000Z", "items": []}
+    },
+    {
+      "case_id": "listCorporateTelemetryAudit.telemetry",
+      "operation_id": "listCorporateTelemetryAudit",
+      "kind": "positive",
+      "why": "Governance audit rows are bounded and payload-free.",
+      "request": {"path_params": {"organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z"}, "query": {}},
+      "status": 200,
+      "body": {"schema_version": 1, "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "items": [], "next_before_id": null}
+    },
+    {
+      "case_id": "readCorporateTelemetryPolicy.telemetry",
+      "operation_id": "readCorporateTelemetryPolicy",
+      "kind": "positive",
+      "why": "The active telemetry policy is readable as a typed view.",
+      "request": {"path_params": {"organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z"}},
+      "status": 200,
+      "body": {"schema_version": 1, "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "raw_retention_days": 30, "aggregate_retention_days": 365, "legal_basis": "consent", "notice_text": "telemetry", "notice_revision": 1, "policy_version": 1, "updated_at": "2026-09-22T11:00:00.000Z"}
+    },
+    {
+      "case_id": "writeCorporateTelemetryPolicy.telemetry",
+      "operation_id": "writeCorporateTelemetryPolicy",
+      "kind": "positive",
+      "why": "A policy replacement carries an explicit revision and idempotency key.",
+      "request": {"path_params": {"organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z"}, "body": {"schema_version": 1, "raw_retention_days": 30, "aggregate_retention_days": 365, "legal_basis": "consent", "notice_text": "telemetry", "notice_revision": 1, "expected_policy_revision": 0, "authorization_revision": 1, "reason": "telemetry policy", "idempotency_key": "telemetry-policy-0001"}},
+      "status": 200,
+      "body": {"schema_version": 1, "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "raw_retention_days": 30, "aggregate_retention_days": 365, "legal_basis": "consent", "notice_text": "telemetry", "notice_revision": 1, "policy_version": 1, "updated_at": "2026-09-22T11:00:00.000Z"}
+    },
+    {
+      "case_id": "recordCorporateTelemetryRight.telemetry",
+      "operation_id": "recordCorporateTelemetryRight",
+      "kind": "positive",
+      "why": "A subject notice acknowledgement is stored as a typed right.",
+      "request": {"path_params": {"organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z"}, "body": {"schema_version": 1, "subject_kind": "account", "subject_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "legal_basis": "consent", "notice_revision": 1, "authorization_revision": 1, "idempotency_key": "telemetry-right-0001"}},
+      "status": 200,
+      "body": {"schema_version": 1, "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "subject_kind": "account", "subject_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "state": "active", "legal_basis": "consent", "notice_revision": 1, "notice_acknowledged_at": "2026-09-22T11:00:00.000Z", "revoked_at": null, "deletion_requested_at": null, "anonymized_at": null, "deleted_at": null, "updated_at": "2026-09-22T11:00:00.000Z"}
+    },
+    {
+      "case_id": "revokeCorporateTelemetrySubject.telemetry",
+      "operation_id": "revokeCorporateTelemetrySubject",
+      "kind": "positive",
+      "why": "Revocation is explicit, idempotent, and scoped to one subject.",
+      "request": {"path_params": {"organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "subject_kind": "account", "subject_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z"}, "body": {"schema_version": 1, "anonymize": true, "reason": "privacy request", "authorization_revision": 1, "idempotency_key": "telemetry-revoke-0001"}},
+      "status": 200,
+      "body": {"schema_version": 1, "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "subject_kind": "account", "subject_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "state": "revoked", "legal_basis": null, "notice_revision": 1, "notice_acknowledged_at": null, "revoked_at": "2026-09-22T11:00:00.000Z", "deletion_requested_at": null, "anonymized_at": null, "deleted_at": null, "updated_at": "2026-09-22T11:00:00.000Z"}
+    },
+    {
+      "case_id": "deleteCorporateTelemetrySubject.telemetry",
+      "operation_id": "deleteCorporateTelemetrySubject",
+      "kind": "positive",
+      "why": "A deletion result reports bounded affected rows and final state.",
+      "request": {"path_params": {"organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z"}, "body": {"schema_version": 1, "subject_kind": "account", "subject_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "mode": "delete", "reason": "privacy request", "authorization_revision": 1, "idempotency_key": "telemetry-delete-0001"}},
+      "status": 200,
+      "body": {"schema_version": 1, "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "subject_kind": "account", "subject_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "mode": "delete", "affected_events": 0, "state": "deleted", "processed_at": "2026-09-22T11:00:00.000Z"}
+    },
+    {
+      "case_id": "ingestRuntimeUsageEvents.telemetry",
+      "operation_id": "ingestRuntimeUsageEvents",
+      "kind": "positive",
+      "why": "A bounded runtime usage batch returns durable counts.",
+      "request": {"path_params": {"organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z"}, "body": {"schema_version": 1, "events": [{"schema_version": 1, "event_id": "usage-evt-00000001", "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "employee_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "project_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "harness": "codex", "setup": {"stable_id": "setup_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "version": "1.0", "passport_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000"}, "component": {"kind": "skill", "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "version": "1.0", "passport_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000"}, "invoked_at": "2026-09-22T11:00:00.000Z", "outcome": "succeeded"}] }},
+      "status": 200,
+      "body": {"schema_version": 1, "accepted": 1, "duplicates": 0, "rejected": 0}
+    },
+    {
+      "case_id": "listRuntimeUsageEvents.telemetry",
+      "operation_id": "listRuntimeUsageEvents",
+      "kind": "positive",
+      "why": "Redacted runtime usage events are bounded by caller scope.",
+      "request": {"path_params": {"organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z"}, "query": {}},
+      "status": 200,
+      "body": {"schema_version": 1, "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "offset": 0, "limit": 128, "events": []}
+    },
+    {
+      "case_id": "readRuntimeUsageReport.telemetry",
+      "operation_id": "readRuntimeUsageReport",
+      "kind": "positive",
+      "why": "Aggregate runtime usage includes installed-versus-invoked rows.",
+      "request": {"path_params": {"organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z"}, "query": {}},
+      "status": 200,
+      "body": {"schema_version": 1, "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "generated_at": "2026-09-22T11:00:00.000Z", "invoked_from": null, "invoked_to": null, "group_by": "component", "total_events": 0, "rows": [], "installed": []}
+    },
+    {
+      "case_id": "createRuntimeUsageExport.telemetry",
+      "operation_id": "createRuntimeUsageExport",
+      "kind": "positive",
+      "why": "Runtime usage export returns a bounded auditable receipt.",
+      "request": {"path_params": {"organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z"}, "body": {"schema_version": 1, "query": {}, "authorization_revision": 1, "idempotency_key": "usage-export-0001"}},
+      "status": 200,
+      "body": {"schema_version": 1, "export_id": "usage-export-0001", "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "created_at": "2026-09-22T11:00:00.000Z", "row_count": 0, "content_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000", "state": "completed"}
+    },
+    {
+      "case_id": "readRuntimeUsageExport.telemetry",
+      "operation_id": "readRuntimeUsageExport",
+      "kind": "positive",
+      "why": "An authorized caller can read one export receipt by id.",
+      "request": {"path_params": {"organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "export_id": "usage-export-0001"}},
+      "status": 200,
+      "body": {"schema_version": 1, "export_id": "usage-export-0001", "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "created_at": "2026-09-22T11:00:00.000Z", "row_count": 0, "content_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000", "state": "completed"}
+    }
+  ]
+}

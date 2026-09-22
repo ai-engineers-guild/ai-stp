@@ -1,0 +1,45 @@
+{
+  "$id": "urn:ai-stp:schema:v1:corporate-telemetry-aggregate",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "properties": {
+    "day": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+      "title": "Day",
+      "type": "string"
+    },
+    "event_count": {
+      "minimum": 0,
+      "title": "Event Count",
+      "type": "integer"
+    },
+    "event_kind": {
+      "enum": [
+        "heartbeat",
+        "invocation"
+      ],
+      "title": "Event Kind",
+      "type": "string"
+    },
+    "outcome": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Outcome"
+    }
+  },
+  "required": [
+    "day",
+    "event_count",
+    "event_kind",
+    "outcome"
+  ],
+  "title": "CorporateTelemetryAggregate",
+  "type": "object"
+}

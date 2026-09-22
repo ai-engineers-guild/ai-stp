@@ -56,6 +56,9 @@ import type {
   CreateCorporateBindingData,
   CreateCorporateBindingErrors,
   CreateCorporateBindingResponses,
+  CreateCorporateDashboardViewData,
+  CreateCorporateDashboardViewErrors,
+  CreateCorporateDashboardViewResponses,
   CreateCorporateJobTitleData,
   CreateCorporateJobTitleErrors,
   CreateCorporateJobTitleResponses,
@@ -110,6 +113,9 @@ import type {
   CreateRequestCaseData,
   CreateRequestCaseErrors,
   CreateRequestCaseResponses,
+  CreateRuntimeUsageExportData,
+  CreateRuntimeUsageExportErrors,
+  CreateRuntimeUsageExportResponses,
   CreateTechnologyCategoryData,
   CreateTechnologyCategoryErrors,
   CreateTechnologyCategoryResponses,
@@ -137,6 +143,9 @@ import type {
   DeleteCorporateTeamData,
   DeleteCorporateTeamErrors,
   DeleteCorporateTeamResponses,
+  DeleteCorporateTelemetrySubjectData,
+  DeleteCorporateTelemetrySubjectErrors,
+  DeleteCorporateTelemetrySubjectResponses,
   DeleteOwnerObjectData,
   DeleteOwnerObjectErrors,
   DeleteOwnerObjectResponses,
@@ -146,15 +155,27 @@ import type {
   DisconnectGithubData,
   DisconnectGithubErrors,
   DisconnectGithubResponses,
+  DisconnectGitLabRepositoryData,
+  DisconnectGitLabRepositoryErrors,
+  DisconnectGitLabRepositoryResponses,
   DistributeCorporateCatalogAssignmentData,
   DistributeCorporateCatalogAssignmentErrors,
   DistributeCorporateCatalogAssignmentResponses,
+  EnrichGitHubLanguagesData,
+  EnrichGitHubLanguagesErrors,
+  EnrichGitHubLanguagesResponses,
+  EnrichGitLabLanguagesData,
+  EnrichGitLabLanguagesErrors,
+  EnrichGitLabLanguagesResponses,
   ExchangeDeviceCodeData,
   ExchangeDeviceCodeErrors,
   ExchangeDeviceCodeResponses,
   ExportCorporateAuditData,
   ExportCorporateAuditErrors,
   ExportCorporateAuditResponses,
+  ExportCorporateTelemetryData,
+  ExportCorporateTelemetryErrors,
+  ExportCorporateTelemetryResponses,
   HealthLiveData,
   HealthLiveErrors,
   HealthLiveResponses,
@@ -167,6 +188,9 @@ import type {
   ImportTechnologySeedData,
   ImportTechnologySeedErrors,
   ImportTechnologySeedResponses,
+  IngestRuntimeUsageEventsData,
+  IngestRuntimeUsageEventsErrors,
+  IngestRuntimeUsageEventsResponses,
   IngestTargetAssessmentData,
   IngestTargetAssessmentErrors,
   IngestTargetAssessmentResponses,
@@ -194,6 +218,9 @@ import type {
   ListCorporateCatalogUsageData,
   ListCorporateCatalogUsageErrors,
   ListCorporateCatalogUsageResponses,
+  ListCorporateDashboardViewsData,
+  ListCorporateDashboardViewsErrors,
+  ListCorporateDashboardViewsResponses,
   ListCorporateJobTitlesData,
   ListCorporateJobTitlesErrors,
   ListCorporateJobTitlesResponses,
@@ -218,15 +245,30 @@ import type {
   ListCorporateTeamsData,
   ListCorporateTeamsErrors,
   ListCorporateTeamsResponses,
+  ListCorporateTelemetryAggregatesData,
+  ListCorporateTelemetryAggregatesErrors,
+  ListCorporateTelemetryAggregatesResponses,
+  ListCorporateTelemetryAuditData,
+  ListCorporateTelemetryAuditErrors,
+  ListCorporateTelemetryAuditResponses,
+  ListCorporateTelemetryEventsData,
+  ListCorporateTelemetryEventsErrors,
+  ListCorporateTelemetryEventsResponses,
   ListDevicesData,
   ListDevicesErrors,
   ListDevicesResponses,
   ListEmployeeTechnologiesData,
   ListEmployeeTechnologiesErrors,
   ListEmployeeTechnologiesResponses,
+  ListGitLabRepositoriesData,
+  ListGitLabRepositoriesErrors,
+  ListGitLabRepositoriesResponses,
   ListGrantsData,
   ListGrantsErrors,
   ListGrantsResponses,
+  ListInstallationHeartbeatsData,
+  ListInstallationHeartbeatsErrors,
+  ListInstallationHeartbeatsResponses,
   ListOrganizationsData,
   ListOrganizationsErrors,
   ListOrganizationsResponses,
@@ -248,6 +290,9 @@ import type {
   ListRequestCasesData,
   ListRequestCasesErrors,
   ListRequestCasesResponses,
+  ListRuntimeUsageEventsData,
+  ListRuntimeUsageEventsErrors,
+  ListRuntimeUsageEventsResponses,
   ListStaffReportsData,
   ListStaffReportsErrors,
   ListStaffReportsResponses,
@@ -311,6 +356,9 @@ import type {
   PutStaffContentData,
   PutStaffContentErrors,
   PutStaffContentResponses,
+  QueryCorporateDashboardData,
+  QueryCorporateDashboardErrors,
+  QueryCorporateDashboardResponses,
   ReadAccessComponentVersionData,
   ReadAccessComponentVersionErrors,
   ReadAccessComponentVersionResponses,
@@ -395,12 +443,18 @@ import type {
   ReadCorporateTeamData,
   ReadCorporateTeamErrors,
   ReadCorporateTeamResponses,
+  ReadCorporateTelemetryPolicyData,
+  ReadCorporateTelemetryPolicyErrors,
+  ReadCorporateTelemetryPolicyResponses,
   ReadGithubActionData,
   ReadGithubActionErrors,
   ReadGithubActionResponses,
   ReadGithubConnectorData,
   ReadGithubConnectorErrors,
   ReadGithubConnectorResponses,
+  ReadInstallationHeartbeatData,
+  ReadInstallationHeartbeatErrors,
+  ReadInstallationHeartbeatResponses,
   ReadLegalOnboardingData,
   ReadLegalOnboardingErrors,
   ReadLegalOnboardingResponses,
@@ -452,6 +506,12 @@ import type {
   ReadRequestCaseData,
   ReadRequestCaseErrors,
   ReadRequestCaseResponses,
+  ReadRuntimeUsageExportData,
+  ReadRuntimeUsageExportErrors,
+  ReadRuntimeUsageExportResponses,
+  ReadRuntimeUsageReportData,
+  ReadRuntimeUsageReportErrors,
+  ReadRuntimeUsageReportResponses,
   ReadSelectionImpactData,
   ReadSelectionImpactErrors,
   ReadSelectionImpactResponses,
@@ -521,9 +581,24 @@ import type {
   ReadVisibilityPlanData,
   ReadVisibilityPlanErrors,
   ReadVisibilityPlanResponses,
+  RecordCorporateTelemetryEventBatchData,
+  RecordCorporateTelemetryEventBatchErrors,
+  RecordCorporateTelemetryEventBatchResponses,
+  RecordCorporateTelemetryEventData,
+  RecordCorporateTelemetryEventErrors,
+  RecordCorporateTelemetryEventResponses,
+  RecordCorporateTelemetryRightData,
+  RecordCorporateTelemetryRightErrors,
+  RecordCorporateTelemetryRightResponses,
+  RefreshGitLabRepositoryData,
+  RefreshGitLabRepositoryErrors,
+  RefreshGitLabRepositoryResponses,
   RegisterDeviceData,
   RegisterDeviceErrors,
   RegisterDeviceResponses,
+  RegisterGitLabRepositoryData,
+  RegisterGitLabRepositoryErrors,
+  RegisterGitLabRepositoryResponses,
   RemoveTechnologyCategoryData,
   RemoveTechnologyCategoryErrors,
   RemoveTechnologyCategoryResponses,
@@ -533,6 +608,9 @@ import type {
   RevokeAccessGrantData,
   RevokeAccessGrantErrors,
   RevokeAccessGrantResponses,
+  RevokeCorporateTelemetrySubjectData,
+  RevokeCorporateTelemetrySubjectErrors,
+  RevokeCorporateTelemetrySubjectResponses,
   RevokeDeviceData,
   RevokeDeviceErrors,
   RevokeDeviceResponses,
@@ -584,6 +662,9 @@ import type {
   UpdateCorporateBindingData,
   UpdateCorporateBindingErrors,
   UpdateCorporateBindingResponses,
+  UpdateCorporateDashboardViewData,
+  UpdateCorporateDashboardViewErrors,
+  UpdateCorporateDashboardViewResponses,
   UpdateCorporateJobTitleData,
   UpdateCorporateJobTitleErrors,
   UpdateCorporateJobTitleResponses,
@@ -629,15 +710,24 @@ import type {
   WriteCorporateCatalogVerificationData,
   WriteCorporateCatalogVerificationErrors,
   WriteCorporateCatalogVerificationResponses,
+  WriteCorporateCiCheckData,
+  WriteCorporateCiCheckErrors,
+  WriteCorporateCiCheckResponses,
   WriteCorporateEntityProfileData,
   WriteCorporateEntityProfileErrors,
   WriteCorporateEntityProfileResponses,
   WriteCorporateProjectActivityData,
   WriteCorporateProjectActivityErrors,
   WriteCorporateProjectActivityResponses,
+  WriteCorporateTelemetryPolicyData,
+  WriteCorporateTelemetryPolicyErrors,
+  WriteCorporateTelemetryPolicyResponses,
   WriteEmployeeTechnologyData,
   WriteEmployeeTechnologyErrors,
   WriteEmployeeTechnologyResponses,
+  WriteInstallationHeartbeatData,
+  WriteInstallationHeartbeatErrors,
+  WriteInstallationHeartbeatResponses,
   WriteProjectTeamData,
   WriteProjectTeamErrors,
   WriteProjectTeamResponses,
@@ -1862,6 +1952,114 @@ export const readCorporateContext = <ThrowOnError extends boolean = false>(
   });
 
 /**
+ * Coalesce one device-bound CI verdict for a corporate project.
+ */
+export const writeCorporateCiCheck = <ThrowOnError extends boolean = false>(
+  options: Options<WriteCorporateCiCheckData, ThrowOnError>,
+): RequestResult<WriteCorporateCiCheckResponses, WriteCorporateCiCheckErrors, ThrowOnError> =>
+  (options.client ?? client).put<
+    WriteCorporateCiCheckResponses,
+    WriteCorporateCiCheckErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/dashboard/ci-check",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Aggregate a bounded authorized health dataset.
+ */
+export const queryCorporateDashboard = <ThrowOnError extends boolean = false>(
+  options: Options<QueryCorporateDashboardData, ThrowOnError>,
+): RequestResult<QueryCorporateDashboardResponses, QueryCorporateDashboardErrors, ThrowOnError> =>
+  (options.client ?? client).post<
+    QueryCorporateDashboardResponses,
+    QueryCorporateDashboardErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/dashboard/query",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * List saved views visible in the caller's scope.
+ */
+export const listCorporateDashboardViews = <ThrowOnError extends boolean = false>(
+  options: Options<ListCorporateDashboardViewsData, ThrowOnError>,
+): RequestResult<
+  ListCorporateDashboardViewsResponses,
+  ListCorporateDashboardViewsErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).get<
+    ListCorporateDashboardViewsResponses,
+    ListCorporateDashboardViewsErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/dashboard/views",
+    ...options,
+  });
+
+/**
+ * Save one bounded dashboard query in a permitted scope.
+ */
+export const createCorporateDashboardView = <ThrowOnError extends boolean = false>(
+  options: Options<CreateCorporateDashboardViewData, ThrowOnError>,
+): RequestResult<
+  CreateCorporateDashboardViewResponses,
+  CreateCorporateDashboardViewErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).post<
+    CreateCorporateDashboardViewResponses,
+    CreateCorporateDashboardViewErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/dashboard/views",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Update a saved dashboard query without changing its scope.
+ */
+export const updateCorporateDashboardView = <ThrowOnError extends boolean = false>(
+  options: Options<UpdateCorporateDashboardViewData, ThrowOnError>,
+): RequestResult<
+  UpdateCorporateDashboardViewResponses,
+  UpdateCorporateDashboardViewErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).put<
+    UpdateCorporateDashboardViewResponses,
+    UpdateCorporateDashboardViewErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/dashboard/views/{view_id}",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
  * Read authorized named cards and facets; filter before pagination.
  */
 export const readCorporateDirectory = <ThrowOnError extends boolean = false>(
@@ -1934,6 +2132,126 @@ export const writeCorporateEntityProfile = <ThrowOnError extends boolean = false
   >({
     security: [{ scheme: "bearer", type: "http" }],
     url: "/v1/corporate/organizations/{organization_id}/entity-profiles/{subject_kind}/{subject_id}",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Publish selected GitHub repository languages as proposed project facts.
+ */
+export const enrichGitHubLanguages = <ThrowOnError extends boolean = false>(
+  options: Options<EnrichGitHubLanguagesData, ThrowOnError>,
+): RequestResult<EnrichGitHubLanguagesResponses, EnrichGitHubLanguagesErrors, ThrowOnError> =>
+  (options.client ?? client).post<
+    EnrichGitHubLanguagesResponses,
+    EnrichGitHubLanguagesErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/github/observations/{provider_project_id}/projects/{project_id}/enrich",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Disconnect a GitLab observation while retaining identity and project links.
+ */
+export const disconnectGitLabRepository = <ThrowOnError extends boolean = false>(
+  options: Options<DisconnectGitLabRepositoryData, ThrowOnError>,
+): RequestResult<
+  DisconnectGitLabRepositoryResponses,
+  DisconnectGitLabRepositoryErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).post<
+    DisconnectGitLabRepositoryResponses,
+    DisconnectGitLabRepositoryErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/gitlab/observations/{provider_project_id}/disconnect",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Publish mapped GitLab languages as proposed project facts.
+ */
+export const enrichGitLabLanguages = <ThrowOnError extends boolean = false>(
+  options: Options<EnrichGitLabLanguagesData, ThrowOnError>,
+): RequestResult<EnrichGitLabLanguagesResponses, EnrichGitLabLanguagesErrors, ThrowOnError> =>
+  (options.client ?? client).post<
+    EnrichGitLabLanguagesResponses,
+    EnrichGitLabLanguagesErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/gitlab/observations/{provider_project_id}/projects/{project_id}/enrich",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Refresh bounded GitLab metadata by immutable repository identity.
+ */
+export const refreshGitLabRepository = <ThrowOnError extends boolean = false>(
+  options: Options<RefreshGitLabRepositoryData, ThrowOnError>,
+): RequestResult<RefreshGitLabRepositoryResponses, RefreshGitLabRepositoryErrors, ThrowOnError> =>
+  (options.client ?? client).post<
+    RefreshGitLabRepositoryResponses,
+    RefreshGitLabRepositoryErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/gitlab/observations/{provider_project_id}/refresh",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * List bounded repositories visible to the configured GitLab connection.
+ */
+export const listGitLabRepositories = <ThrowOnError extends boolean = false>(
+  options: Options<ListGitLabRepositoriesData, ThrowOnError>,
+): RequestResult<ListGitLabRepositoriesResponses, ListGitLabRepositoriesErrors, ThrowOnError> =>
+  (options.client ?? client).get<
+    ListGitLabRepositoriesResponses,
+    ListGitLabRepositoriesErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/gitlab/repositories",
+    ...options,
+  });
+
+/**
+ * Retain one GitLab repository observation without creating a project link.
+ */
+export const registerGitLabRepository = <ThrowOnError extends boolean = false>(
+  options: Options<RegisterGitLabRepositoryData, ThrowOnError>,
+): RequestResult<RegisterGitLabRepositoryResponses, RegisterGitLabRepositoryErrors, ThrowOnError> =>
+  (options.client ?? client).post<
+    RegisterGitLabRepositoryResponses,
+    RegisterGitLabRepositoryErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/gitlab/repositories/{repository_id}",
     ...options,
     headers: {
       "Content-Type": "application/json",
@@ -3332,6 +3650,398 @@ export const importTechnologySeed = <ThrowOnError extends boolean = false>(
       "Content-Type": "application/json",
       ...options.headers,
     },
+  });
+
+/**
+ * Read bounded corporate telemetry aggregates.
+ */
+export const listCorporateTelemetryAggregates = <ThrowOnError extends boolean = false>(
+  options: Options<ListCorporateTelemetryAggregatesData, ThrowOnError>,
+): RequestResult<
+  ListCorporateTelemetryAggregatesResponses,
+  ListCorporateTelemetryAggregatesErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).get<
+    ListCorporateTelemetryAggregatesResponses,
+    ListCorporateTelemetryAggregatesErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/telemetry/aggregates",
+    ...options,
+  });
+
+/**
+ * Read the governed telemetry audit trail.
+ */
+export const listCorporateTelemetryAudit = <ThrowOnError extends boolean = false>(
+  options: Options<ListCorporateTelemetryAuditData, ThrowOnError>,
+): RequestResult<
+  ListCorporateTelemetryAuditResponses,
+  ListCorporateTelemetryAuditErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).get<
+    ListCorporateTelemetryAuditResponses,
+    ListCorporateTelemetryAuditErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/telemetry/audit",
+    ...options,
+  });
+
+/**
+ * Apply a governed telemetry deletion request.
+ */
+export const deleteCorporateTelemetrySubject = <ThrowOnError extends boolean = false>(
+  options: Options<DeleteCorporateTelemetrySubjectData, ThrowOnError>,
+): RequestResult<
+  DeleteCorporateTelemetrySubjectResponses,
+  DeleteCorporateTelemetrySubjectErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).post<
+    DeleteCorporateTelemetrySubjectResponses,
+    DeleteCorporateTelemetrySubjectErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/telemetry/deletions",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * List governed corporate telemetry events.
+ */
+export const listCorporateTelemetryEvents = <ThrowOnError extends boolean = false>(
+  options: Options<ListCorporateTelemetryEventsData, ThrowOnError>,
+): RequestResult<
+  ListCorporateTelemetryEventsResponses,
+  ListCorporateTelemetryEventsErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).get<
+    ListCorporateTelemetryEventsResponses,
+    ListCorporateTelemetryEventsErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/telemetry/events",
+    ...options,
+  });
+
+/**
+ * Record one governed corporate telemetry event.
+ */
+export const recordCorporateTelemetryEvent = <ThrowOnError extends boolean = false>(
+  options: Options<RecordCorporateTelemetryEventData, ThrowOnError>,
+): RequestResult<
+  RecordCorporateTelemetryEventResponses,
+  RecordCorporateTelemetryEventErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).post<
+    RecordCorporateTelemetryEventResponses,
+    RecordCorporateTelemetryEventErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/telemetry/events",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Record a bounded batch of governed telemetry events.
+ */
+export const recordCorporateTelemetryEventBatch = <ThrowOnError extends boolean = false>(
+  options: Options<RecordCorporateTelemetryEventBatchData, ThrowOnError>,
+): RequestResult<
+  RecordCorporateTelemetryEventBatchResponses,
+  RecordCorporateTelemetryEventBatchErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).post<
+    RecordCorporateTelemetryEventBatchResponses,
+    RecordCorporateTelemetryEventBatchErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/telemetry/events/batch",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Export a bounded governed telemetry view.
+ */
+export const exportCorporateTelemetry = <ThrowOnError extends boolean = false>(
+  options: Options<ExportCorporateTelemetryData, ThrowOnError>,
+): RequestResult<ExportCorporateTelemetryResponses, ExportCorporateTelemetryErrors, ThrowOnError> =>
+  (options.client ?? client).get<
+    ExportCorporateTelemetryResponses,
+    ExportCorporateTelemetryErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/telemetry/export",
+    ...options,
+  });
+
+/**
+ * Read the caller's evaluated installation health.
+ */
+export const readInstallationHeartbeat = <ThrowOnError extends boolean = false>(
+  options: Options<ReadInstallationHeartbeatData, ThrowOnError>,
+): RequestResult<
+  ReadInstallationHeartbeatResponses,
+  ReadInstallationHeartbeatErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).get<
+    ReadInstallationHeartbeatResponses,
+    ReadInstallationHeartbeatErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/telemetry/heartbeat",
+    ...options,
+  });
+
+/**
+ * Record the authenticated installation heartbeat.
+ */
+export const writeInstallationHeartbeat = <ThrowOnError extends boolean = false>(
+  options: Options<WriteInstallationHeartbeatData, ThrowOnError>,
+): RequestResult<
+  WriteInstallationHeartbeatResponses,
+  WriteInstallationHeartbeatErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).put<
+    WriteInstallationHeartbeatResponses,
+    WriteInstallationHeartbeatErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/telemetry/heartbeat",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * List installation health visible to the caller.
+ */
+export const listInstallationHeartbeats = <ThrowOnError extends boolean = false>(
+  options: Options<ListInstallationHeartbeatsData, ThrowOnError>,
+): RequestResult<
+  ListInstallationHeartbeatsResponses,
+  ListInstallationHeartbeatsErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).get<
+    ListInstallationHeartbeatsResponses,
+    ListInstallationHeartbeatsErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/telemetry/heartbeats",
+    ...options,
+  });
+
+/**
+ * Read the organization's telemetry policy.
+ */
+export const readCorporateTelemetryPolicy = <ThrowOnError extends boolean = false>(
+  options: Options<ReadCorporateTelemetryPolicyData, ThrowOnError>,
+): RequestResult<
+  ReadCorporateTelemetryPolicyResponses,
+  ReadCorporateTelemetryPolicyErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).get<
+    ReadCorporateTelemetryPolicyResponses,
+    ReadCorporateTelemetryPolicyErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/telemetry/policy",
+    ...options,
+  });
+
+/**
+ * Replace the organization's telemetry policy.
+ */
+export const writeCorporateTelemetryPolicy = <ThrowOnError extends boolean = false>(
+  options: Options<WriteCorporateTelemetryPolicyData, ThrowOnError>,
+): RequestResult<
+  WriteCorporateTelemetryPolicyResponses,
+  WriteCorporateTelemetryPolicyErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).put<
+    WriteCorporateTelemetryPolicyResponses,
+    WriteCorporateTelemetryPolicyErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/telemetry/policy",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Record a telemetry notice or data-right state.
+ */
+export const recordCorporateTelemetryRight = <ThrowOnError extends boolean = false>(
+  options: Options<RecordCorporateTelemetryRightData, ThrowOnError>,
+): RequestResult<
+  RecordCorporateTelemetryRightResponses,
+  RecordCorporateTelemetryRightErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).post<
+    RecordCorporateTelemetryRightResponses,
+    RecordCorporateTelemetryRightErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/telemetry/rights",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Revoke telemetry collection for one subject.
+ */
+export const revokeCorporateTelemetrySubject = <ThrowOnError extends boolean = false>(
+  options: Options<RevokeCorporateTelemetrySubjectData, ThrowOnError>,
+): RequestResult<
+  RevokeCorporateTelemetrySubjectResponses,
+  RevokeCorporateTelemetrySubjectErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).post<
+    RevokeCorporateTelemetrySubjectResponses,
+    RevokeCorporateTelemetrySubjectErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/telemetry/rights/{subject_kind}/{subject_id}/revocation",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Read redacted runtime usage events within caller scope.
+ */
+export const listRuntimeUsageEvents = <ThrowOnError extends boolean = false>(
+  options: Options<ListRuntimeUsageEventsData, ThrowOnError>,
+): RequestResult<ListRuntimeUsageEventsResponses, ListRuntimeUsageEventsErrors, ThrowOnError> =>
+  (options.client ?? client).get<
+    ListRuntimeUsageEventsResponses,
+    ListRuntimeUsageEventsErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/telemetry/usage-events",
+    ...options,
+  });
+
+/**
+ * Ingest a bounded batch of runtime usage events.
+ */
+export const ingestRuntimeUsageEvents = <ThrowOnError extends boolean = false>(
+  options: Options<IngestRuntimeUsageEventsData, ThrowOnError>,
+): RequestResult<IngestRuntimeUsageEventsResponses, IngestRuntimeUsageEventsErrors, ThrowOnError> =>
+  (options.client ?? client).post<
+    IngestRuntimeUsageEventsResponses,
+    IngestRuntimeUsageEventsErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/telemetry/usage-events",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Create a bounded auditable runtime usage export.
+ */
+export const createRuntimeUsageExport = <ThrowOnError extends boolean = false>(
+  options: Options<CreateRuntimeUsageExportData, ThrowOnError>,
+): RequestResult<CreateRuntimeUsageExportResponses, CreateRuntimeUsageExportErrors, ThrowOnError> =>
+  (options.client ?? client).post<
+    CreateRuntimeUsageExportResponses,
+    CreateRuntimeUsageExportErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/telemetry/usage-exports",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Read one authorized runtime usage export receipt.
+ */
+export const readRuntimeUsageExport = <ThrowOnError extends boolean = false>(
+  options: Options<ReadRuntimeUsageExportData, ThrowOnError>,
+): RequestResult<ReadRuntimeUsageExportResponses, ReadRuntimeUsageExportErrors, ThrowOnError> =>
+  (options.client ?? client).get<
+    ReadRuntimeUsageExportResponses,
+    ReadRuntimeUsageExportErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/telemetry/usage-exports/{export_id}",
+    ...options,
+  });
+
+/**
+ * Read aggregate runtime usage within caller scope.
+ */
+export const readRuntimeUsageReport = <ThrowOnError extends boolean = false>(
+  options: Options<ReadRuntimeUsageReportData, ThrowOnError>,
+): RequestResult<ReadRuntimeUsageReportResponses, ReadRuntimeUsageReportErrors, ThrowOnError> =>
+  (options.client ?? client).get<
+    ReadRuntimeUsageReportResponses,
+    ReadRuntimeUsageReportErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/telemetry/usage-reports",
+    ...options,
   });
 
 /**

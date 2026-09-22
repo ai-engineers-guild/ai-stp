@@ -946,6 +946,7 @@
   "unknown sign-in provider": "unknown sign-in provider",
   "update continuation could not start": "update continuation could not start",
   "usage text is not machine readable": "usage text is not machine readable",
+  "creating a usage export records an auditable receipt and needs confirmation": "creating a usage export records an auditable receipt and needs confirmation",
   "use provider-for to select separate harness providers": "use provider-for to select separate harness providers",
   "uv is not on PATH; it owns this installation": "uv is not on PATH; it owns this installation",
   "verified catalogue bytes changed before local materialization": "verified catalogue bytes changed before local materialization",

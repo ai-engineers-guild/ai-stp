@@ -1,0 +1,289 @@
+{
+  "$defs": {
+    "DashboardFilter": {
+      "additionalProperties": false,
+      "properties": {
+        "dimension": {
+          "enum": [
+            "state",
+            "project",
+            "team",
+            "account",
+            "device",
+            "harness",
+            "setup",
+            "provider",
+            "day",
+            "checked_at",
+            "reason"
+          ],
+          "title": "Dimension",
+          "type": "string"
+        },
+        "values": {
+          "items": {
+            "pattern": "^[A-Za-z0-9_.:-]{1,128}$",
+            "type": "string"
+          },
+          "maxItems": 16,
+          "minItems": 1,
+          "title": "Values",
+          "type": "array"
+        }
+      },
+      "required": [
+        "dimension",
+        "values"
+      ],
+      "title": "DashboardFilter",
+      "type": "object"
+    },
+    "DashboardQuery": {
+      "additionalProperties": false,
+      "properties": {
+        "dataset": {
+          "enum": [
+            "ci",
+            "heartbeat",
+            "provider"
+          ],
+          "title": "Dataset",
+          "type": "string"
+        },
+        "dimensions": {
+          "items": {
+            "enum": [
+              "state",
+              "project",
+              "team",
+              "account",
+              "device",
+              "harness",
+              "setup",
+              "provider",
+              "day",
+              "checked_at",
+              "reason"
+            ],
+            "type": "string"
+          },
+          "maxItems": 8,
+          "title": "Dimensions",
+          "type": "array"
+        },
+        "filters": {
+          "items": {
+            "$ref": "#/$defs/DashboardFilter"
+          },
+          "maxItems": 8,
+          "title": "Filters",
+          "type": "array"
+        },
+        "group_by": {
+          "items": {
+            "enum": [
+              "state",
+              "project",
+              "team",
+              "account",
+              "device",
+              "harness",
+              "setup",
+              "provider",
+              "day",
+              "checked_at",
+              "reason"
+            ],
+            "type": "string"
+          },
+          "maxItems": 2,
+          "title": "Group By",
+          "type": "array"
+        },
+        "limit": {
+          "default": 100,
+          "maximum": 200,
+          "minimum": 1,
+          "title": "Limit",
+          "type": "integer"
+        },
+        "measures": {
+          "items": {
+            "enum": [
+              "count",
+              "devices",
+              "projects"
+            ],
+            "type": "string"
+          },
+          "maxItems": 3,
+          "minItems": 1,
+          "title": "Measures",
+          "type": "array"
+        },
+        "pivot_columns": {
+          "items": {
+            "enum": [
+              "state",
+              "project",
+              "team",
+              "account",
+              "device",
+              "harness",
+              "setup",
+              "provider",
+              "day",
+              "checked_at",
+              "reason"
+            ],
+            "type": "string"
+          },
+          "maxItems": 2,
+          "title": "Pivot Columns",
+          "type": "array"
+        },
+        "pivot_rows": {
+          "items": {
+            "enum": [
+              "state",
+              "project",
+              "team",
+              "account",
+              "device",
+              "harness",
+              "setup",
+              "provider",
+              "day",
+              "checked_at",
+              "reason"
+            ],
+            "type": "string"
+          },
+          "maxItems": 2,
+          "title": "Pivot Rows",
+          "type": "array"
+        },
+        "sort_by": {
+          "anyOf": [
+            {
+              "enum": [
+                "state",
+                "project",
+                "team",
+                "account",
+                "device",
+                "harness",
+                "setup",
+                "provider",
+                "day",
+                "checked_at",
+                "reason"
+              ],
+              "type": "string"
+            },
+            {
+              "enum": [
+                "count",
+                "devices",
+                "projects"
+              ],
+              "type": "string"
+            }
+          ],
+          "default": "count",
+          "title": "Sort By"
+        },
+        "sort_order": {
+          "default": "desc",
+          "enum": [
+            "asc",
+            "desc"
+          ],
+          "title": "Sort Order",
+          "type": "string"
+        },
+        "view": {
+          "default": "table",
+          "enum": [
+            "table",
+            "bar",
+            "line",
+            "pie",
+            "heatmap"
+          ],
+          "title": "View",
+          "type": "string"
+        }
+      },
+      "required": [
+        "dataset"
+      ],
+      "title": "DashboardQuery",
+      "type": "object"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:dashboard-view",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "properties": {
+    "id": {
+      "pattern": "^dashboard_view_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "title": "Id",
+      "type": "string"
+    },
+    "name": {
+      "title": "Name",
+      "type": "string"
+    },
+    "organization_id": {
+      "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "title": "Organization Id",
+      "type": "string"
+    },
+    "owner_account_id": {
+      "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "title": "Owner Account Id",
+      "type": "string"
+    },
+    "query": {
+      "$ref": "#/$defs/DashboardQuery"
+    },
+    "revision": {
+      "minimum": 1,
+      "title": "Revision",
+      "type": "integer"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "scope": {
+      "enum": [
+        "user",
+        "team",
+        "organization"
+      ],
+      "title": "Scope",
+      "type": "string"
+    },
+    "scope_id": {
+      "title": "Scope Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "name",
+    "organization_id",
+    "owner_account_id",
+    "query",
+    "revision",
+    "schema_version",
+    "scope",
+    "scope_id"
+  ],
+  "title": "DashboardView",
+  "type": "object"
+}

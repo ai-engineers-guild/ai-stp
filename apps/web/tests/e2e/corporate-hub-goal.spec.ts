@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- integrated corporate browser journey intentionally shares one authenticated fixture. */
 import { mkdir } from "node:fs/promises";
 import path from "node:path";
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
@@ -118,6 +119,36 @@ test.describe("original Corporate Hub goal: integrated browser workflow", () => 
     !mode,
     "Opt in after integration with AI_STP_CORPORATE_E2E=offline or live; this skip is not corporate verification",
   );
+
+  test("dashboard constructor renders bounded health results and saved views", async ({ page }) => {
+    test.skip(
+      mode !== "offline",
+      "The live dashboard scenario requires read-only operational fixtures",
+    );
+    await authenticate(page);
+    await page.goto("/en/corporate/dashboard");
+    await expect(page.getByRole("heading", { name: "Health dashboards" })).toBeVisible();
+    await page.getByRole("button", { name: "Run query" }).click();
+    await expect(page.getByRole("table", { name: "Results" })).toContainText("fail");
+    await page.getByRole("button", { name: "CI details" }).click();
+    await page.getByRole("button", { name: "Run query" }).click();
+    await expect(page.getByRole("table", { name: "Results" })).toContainText(
+      "2026-09-22T12:00:00Z",
+    );
+    await page.getByLabel("Dataset").selectOption("provider");
+    await page.getByRole("button", { name: "Run query" }).click();
+    await expect(page.getByRole("table", { name: "Results" })).toContainText("stale");
+    await page.getByLabel("Exact values").fill("active");
+    await page.getByRole("button", { name: "Add filter" }).click();
+    await page.getByRole("button", { name: "Run query" }).click();
+    await expect(page.getByText("No matching health records")).toBeVisible();
+    await page.getByLabel("View name").fill("Operations health");
+    await page.getByRole("button", { name: "Save view" }).click();
+    await expect(page.getByLabel("Open view")).toHaveValue(
+      "dashboard_view_01K6DASHBOARDMOCK00000000",
+    );
+    await fitsViewport(page);
+  });
 
   test("anonymous overview keeps the session gate", async ({ browser, baseURL }, info) => {
     expect(["offline", "live"]).toContain(mode);

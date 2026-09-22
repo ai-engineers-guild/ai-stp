@@ -118,6 +118,9 @@ TASK_PENDING: Final[frozenset[tuple[str, ...]]] = _paths(
     "device init",
     "device show",
     "environment plan",
+    "heartbeat installations",
+    "heartbeat send",
+    "heartbeat status",
     "install transaction apply",
     "install transaction approve",
     "install transaction cancel",
@@ -201,6 +204,12 @@ TASK_PENDING: Final[frozenset[tuple[str, ...]]] = _paths(
     "target diff",
     "target rollback",
     "target status",
+    "usage events",
+    "usage export",
+    "usage flush",
+    "usage outbox",
+    "usage record",
+    "usage report",
 )
 
 #: Everyday journeys named in the agent-UX plan §2.4. None may be `expert`.

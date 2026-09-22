@@ -1,0 +1,57 @@
+{
+  "$defs": {
+    "Timestamp": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:runtime-usage-export-view",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "The export receipt: what was produced, bounded and digested.",
+  "properties": {
+    "content_digest": {
+      "title": "Content Digest",
+      "type": "string"
+    },
+    "created_at": {
+      "$ref": "#/$defs/Timestamp"
+    },
+    "export_id": {
+      "title": "Export Id",
+      "type": "string"
+    },
+    "organization_id": {
+      "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "title": "Organization Id",
+      "type": "string"
+    },
+    "row_count": {
+      "minimum": 0,
+      "title": "Row Count",
+      "type": "integer"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "state": {
+      "const": "completed",
+      "title": "State",
+      "type": "string"
+    }
+  },
+  "required": [
+    "content_digest",
+    "created_at",
+    "export_id",
+    "organization_id",
+    "row_count",
+    "schema_version",
+    "state"
+  ],
+  "title": "RuntimeUsageExportView",
+  "type": "object"
+}

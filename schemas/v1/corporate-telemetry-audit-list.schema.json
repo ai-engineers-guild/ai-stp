@@ -1,0 +1,130 @@
+{
+  "$defs": {
+    "CorporateTelemetryAuditView": {
+      "additionalProperties": true,
+      "description": "One governance audit row; `detail` carries counts and ids, no payloads.",
+      "properties": {
+        "action": {
+          "title": "Action",
+          "type": "string"
+        },
+        "actor_account_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Actor Account Id"
+        },
+        "audit_id": {
+          "title": "Audit Id",
+          "type": "integer"
+        },
+        "created_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "detail": {
+          "additionalProperties": true,
+          "title": "Detail",
+          "type": "object"
+        },
+        "organization_id": {
+          "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+          "title": "Organization Id",
+          "type": "string"
+        },
+        "request_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Request Id"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "target_id": {
+          "title": "Target Id",
+          "type": "string"
+        },
+        "target_table": {
+          "title": "Target Table",
+          "type": "string"
+        }
+      },
+      "required": [
+        "action",
+        "actor_account_id",
+        "audit_id",
+        "created_at",
+        "detail",
+        "organization_id",
+        "request_id",
+        "schema_version",
+        "target_id",
+        "target_table"
+      ],
+      "title": "CorporateTelemetryAuditView",
+      "type": "object"
+    },
+    "Timestamp": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:corporate-telemetry-audit-list",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "properties": {
+    "items": {
+      "items": {
+        "$ref": "#/$defs/CorporateTelemetryAuditView"
+      },
+      "title": "Items",
+      "type": "array"
+    },
+    "next_before_id": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Next Before Id"
+    },
+    "organization_id": {
+      "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "title": "Organization Id",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "items",
+    "next_before_id",
+    "organization_id",
+    "schema_version"
+  ],
+  "title": "CorporateTelemetryAuditList",
+  "type": "object"
+}

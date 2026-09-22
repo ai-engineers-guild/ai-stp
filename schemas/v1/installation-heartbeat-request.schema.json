@@ -1,0 +1,79 @@
+{
+  "$defs": {
+    "Timestamp": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:installation-heartbeat-request",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "One CLI heartbeat write. Replayed or delayed writes coalesce.",
+  "properties": {
+    "account_id": {
+      "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "title": "Account Id",
+      "type": "string"
+    },
+    "capabilities": {
+      "items": {
+        "maxLength": 128,
+        "pattern": "^[a-z0-9][a-z0-9._-]{0,63}(@[A-Za-z0-9][A-Za-z0-9.+_-]{0,63})?$",
+        "type": "string"
+      },
+      "maxItems": 64,
+      "title": "Capabilities",
+      "type": "array"
+    },
+    "checked_at": {
+      "$ref": "#/$defs/Timestamp"
+    },
+    "cli_version": {
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9.+_-]{0,63}$",
+      "title": "Cli Version",
+      "type": "string"
+    },
+    "device_id": {
+      "pattern": "^device_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "title": "Device Id",
+      "type": "string"
+    },
+    "health_state": {
+      "enum": [
+        "active",
+        "failing",
+        "disabled"
+      ],
+      "title": "Health State",
+      "type": "string"
+    },
+    "last_sync_at": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Timestamp"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "account_id",
+    "device_id",
+    "cli_version",
+    "health_state",
+    "checked_at"
+  ],
+  "title": "InstallationHeartbeatRequest",
+  "type": "object"
+}

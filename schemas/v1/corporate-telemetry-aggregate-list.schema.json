@@ -1,0 +1,77 @@
+{
+  "$defs": {
+    "CorporateTelemetryAggregate": {
+      "additionalProperties": true,
+      "properties": {
+        "day": {
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+          "title": "Day",
+          "type": "string"
+        },
+        "event_count": {
+          "minimum": 0,
+          "title": "Event Count",
+          "type": "integer"
+        },
+        "event_kind": {
+          "enum": [
+            "heartbeat",
+            "invocation"
+          ],
+          "title": "Event Kind",
+          "type": "string"
+        },
+        "outcome": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Outcome"
+        }
+      },
+      "required": [
+        "day",
+        "event_count",
+        "event_kind",
+        "outcome"
+      ],
+      "title": "CorporateTelemetryAggregate",
+      "type": "object"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:corporate-telemetry-aggregate-list",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "properties": {
+    "items": {
+      "items": {
+        "$ref": "#/$defs/CorporateTelemetryAggregate"
+      },
+      "title": "Items",
+      "type": "array"
+    },
+    "organization_id": {
+      "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "title": "Organization Id",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "items",
+    "organization_id",
+    "schema_version"
+  ],
+  "title": "CorporateTelemetryAggregateList",
+  "type": "object"
+}
