@@ -74,7 +74,7 @@ def test_artifact_identities_are_content_hashes_not_release_claims() -> None:
     assert identities["provider_kit_aggregate"].startswith("sha256:")
     assert identities["agents_md"].startswith("sha256:")
     assert identities["cli_version"]
-    assert "0.0.24" not in identities["cli_version"]
+    assert "0.0.25" not in identities["cli_version"]
     assert kit["kit_version"] != ""
 
 
@@ -96,7 +96,7 @@ def test_wheel_and_extra_are_not_built() -> None:
     if not dist.is_dir():
         return
     names = [path.name for path in dist.iterdir()]
-    assert not any("0.0.24" in name for name in names)
+    assert not any("0.0.25" in name for name in names)
 
 
 def test_measured_overlay_does_not_fill_unrun_cells(tmp_path: Path) -> None:
