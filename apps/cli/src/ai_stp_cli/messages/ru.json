@@ -219,6 +219,7 @@
   "attestation signing requires confirmation of the exact local evidence": "подпись attestation требует подтверждения точных локальных доказательств",
   "auth commands start with 'auth login'": "команды auth начинаются с 'auth login'",
   "auth login requires --provider": "auth login требует --provider",
+  "backup and rollback install no graph, so components do not apply": "backup и rollback не устанавливают граф, поэтому компоненты не применяются",
   "baseline id and version must be supplied together": "идентификатор и версия baseline должны быть указаны вместе",
   "both a scope and a target are required": "нужны и scope, и target",
   "cached private version identity does not match": "Идентичность приватной версии в кэше не совпадает",

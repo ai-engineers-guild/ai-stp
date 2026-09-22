@@ -355,8 +355,16 @@ def plan(parameters: Mapping[str, object]) -> Answer[InstallationView]:
     # SetupVersion while the manifest covers every assigned component. A
     # proposal is composed elsewhere — adding members after confirm would make
     # the bundle differ from what confirmation froze. Sourceless actions build
-    # no graph at all, so a component named for one would go nowhere.
-    if raw_components and (not prepared_ref or action in _SOURCELESS_ACTIONS):
+    # no graph at all, so a component named for one would go nowhere — and the
+    # refusal says so, rather than pointing at the setup the caller may well
+    # have passed.
+    if raw_components and action in _SOURCELESS_ACTIONS:
+        raise CliFailure(
+            "AI_STP_VALIDATION_ERROR",
+            "backup and rollback install no graph, so components do not apply",
+            details={"action": action},
+        )
+    if raw_components and not prepared_ref:
         raise CliFailure(
             "AI_STP_VALIDATION_ERROR",
             "standalone components install alongside a prepared exact SetupVersion",
