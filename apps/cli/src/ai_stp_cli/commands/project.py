@@ -1627,7 +1627,7 @@ def technology_publish(parameters: Mapping[str, object]) -> Answer[TechnologySca
                 "AI_STP_PRECONDITION_FAILED",
                 "an older scan cannot be published with current findings",
                 details={"scan": chosen.scan_id},
-                next_actions=["project technology publish --project <id> --json"],
+                next_actions=["project detect --root <path> --json"],
             )
         built = tech_findings.build_handoff(
             project_findings=stored,

@@ -135,6 +135,7 @@ async def test_dashboard_ci_provider_heartbeat_and_saved_views(
         f"{root}/ci-check", json={**ci_body, "status": "pass"}, headers=auth
     )
     assert stale_write.status_code == 200 and stale_write.json()["status"] == "fail"
+    assert stale_write.json()["revision"] == 1
 
     query = {
         "dataset": "ci",
