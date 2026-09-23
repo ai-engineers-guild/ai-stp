@@ -48,6 +48,13 @@ failures on a declared command — an unknown option or an invalid value — whi
 commands covered by a task intent still answer with that intent's start, and an
 unknown command or bare group still answers with the intent catalog.
 
+Selector mistakes reported by a handler follow the same shape: when a command
+declares `exactly_one` over its selectors, supplying several or none returns
+`error.details.options` naming the selector set and a leaf-scoped
+`help --path "<command path>" --json` continuation, in addition to any
+command-specific next action (for example `project detect` when no local
+project exists yet).
+
 ## Output
 
 In machine mode, standard output contains exactly one JSON object followed by a
