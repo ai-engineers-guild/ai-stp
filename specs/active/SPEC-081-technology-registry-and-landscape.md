@@ -1,6 +1,6 @@
 ---
 description: "SPEC-081: Governed technology metadata, usage facts, detection handoff, and authorized landscape projections."
-last_verified: "2026-09-18"
+last_verified: "2026-09-23"
 ---
 
 # SPEC-081: Technology registry and landscape
@@ -144,7 +144,11 @@ filtering without changing these registry and relation semantics.
   content), a fetched organization mapping snapshot — the bundled table alone
   cannot publish — and a current session. Local preconditions are evaluated
   before the session is demanded. Each observation carries this scan's detector
-  and mapping versions on every evidence item.
+  and mapping versions on every evidence item. The bounded project index digest
+  is retained with the immutable local scan and travels as each evidence item's
+  source revision; old scans without that field remain readable. Publication
+  refuses an older local scan because the standing findings reflect the latest
+  detector pass and cannot be relabeled as a historical scan.
 
 ## States and errors
 

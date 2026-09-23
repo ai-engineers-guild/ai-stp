@@ -12,7 +12,7 @@ last_verified: "2026-08-03"
 | [author-verification.md](author-verification.md) | Runbook: granting and revoking author_verified. | 2026-08-22 |
 | [bootstrap.md](bootstrap.md) | Runbook: bootstrap. | 2026-08-03 |
 | [corporate-bootstrap.md](corporate-bootstrap.md) | Create the one initial corporate organization and superadmin safely. | 2026-09-12 |
-| [corporate-dashboards.md](corporate-dashboards.md) | Operate and troubleshoot Corporate Hub health dashboards. | 2026-09-22 |
+| [corporate-dashboards.md](corporate-dashboards.md) | Operate and troubleshoot Corporate Hub health dashboards. | 2026-09-23 |
 | [database-migration.md](database-migration.md) | Runbook: database migration. | 2026-08-05 |
 | [deploy.md](deploy.md) | Runbook: reproducible deployment with a web tier, backups, and rollback. | 2026-09-20 |
 | [external-catalog-requests.md](external-catalog-requests.md) | Review and apply service and country request cases without an HTTP administration API. | 2026-09-04 |

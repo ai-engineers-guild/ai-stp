@@ -329,17 +329,13 @@ async def _sync_linked_activity(
             ProjectLink.state == "linked",
         )
     )
-    for project in projects:
+    for project in projects.unique():
         activity_at = (
             parse_timestamp(repository.last_activity_at) if repository.last_activity_at else None
         )
-        if (
-            project.repository_activity_at != activity_at
-            or project.source_availability != "available"
-        ):
-            project.repository_activity_at = activity_at
-            project.source_availability = "available"
-            project.revision += 1
+        project.repository_activity_at = activity_at
+        project.source_availability = "available"
+        project.revision += 1
 
 
 @router.post(

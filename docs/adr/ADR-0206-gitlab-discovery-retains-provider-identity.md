@@ -28,6 +28,9 @@ and observed name; two additive columns retain default branch and observed
 revision. Register and refresh never create or alter `ProjectLink`. Connecting a
 provider observation to a corporate project still uses the explicit SPEC-078
 link plan.
+An authorized corporate project read projects bounded repository metadata from
+linked GitLab identities; it does not copy provider observations into another
+writable passport or infer links.
 
 Register, refresh, and disconnect use tenant authorization, a checked capability
 revision, expected identity revision, idempotency receipt, and audit event.

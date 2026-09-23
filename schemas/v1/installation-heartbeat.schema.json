@@ -42,6 +42,7 @@
     "health_state": {
       "enum": [
         "active",
+        "partial",
         "stale",
         "failing",
         "disabled",
@@ -72,6 +73,7 @@
     "reported_state": {
       "enum": [
         "active",
+        "partial",
         "failing",
         "disabled"
       ],

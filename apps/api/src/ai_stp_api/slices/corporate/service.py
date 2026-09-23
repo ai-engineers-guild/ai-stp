@@ -46,6 +46,7 @@ from ai_stp_contracts.corporate import (
     CorporateProjectCreateRequest,
     CorporateProjectLifecycleRequest,
     CorporateProjectList,
+    CorporateProjectRepository,
     CorporateProjectUpdateRequest,
     CorporateProjectView,
     CorporateRoleCreateRequest,
@@ -89,6 +90,7 @@ from ai_stp_platform.organization_models import (
     Organization,
     OrganizationMembership,
     ProjectIdentity,
+    ProjectLink,
 )
 from ai_stp_platform.organization_models import (
     CorporateCatalogAssignment as CorporateCatalogAssignmentRow,
@@ -312,6 +314,14 @@ def _project_view(row: CorporateProject) -> CorporateProjectView:
         lifecycle=cast(ProjectLifecycle, row.lifecycle),
         restore_lifecycle=cast("Literal['active','deprecated']", row.restore_lifecycle),
         revision=row.revision,
+        repository_activity_at=(
+            format_timestamp(row.repository_activity_at.replace(tzinfo=UTC))
+            if row.repository_activity_at is not None
+            else None
+        ),
+        source_availability=cast(
+            "Literal['unknown', 'available', 'unavailable']", row.source_availability
+        ),
     )
 
 
@@ -2634,7 +2644,44 @@ async def read_project(
         subject_kind="project",
         subject_id=project_id,
     )
-    return _project_view(row).model_copy(update={"available_actions": actions})
+    linked = list(
+        (
+            await db.scalars(
+                select(ProjectIdentity)
+                .join(
+                    ProjectLink,
+                    (ProjectLink.organization_id == ProjectIdentity.organization_id)
+                    & (ProjectLink.provider_project_id == ProjectIdentity.id),
+                )
+                .where(
+                    ProjectLink.organization_id == organization_id,
+                    ProjectLink.remote_project_id == project_id,
+                    ProjectLink.state == "linked",
+                    ProjectIdentity.provider_kind == "gitlab",
+                )
+                .distinct()
+                .order_by(ProjectIdentity.id)
+                .limit(257)
+            )
+        ).all()
+    )
+    if len(linked) > 256:
+        raise ApiError(ErrorCategory.VALIDATION, "project repository limit exceeded")
+    repositories = [
+        CorporateProjectRepository(
+            provider_project_id=identity.id,
+            namespace=identity.observed_name or identity.display_name,
+            repository_url=identity.current_url,
+            default_branch=identity.provider_default_branch,
+            observed_revision=identity.provider_observed_revision,
+            observed_at=format_timestamp(identity.observed_at) if identity.observed_at else None,
+        )
+        for identity in linked
+        if identity.current_url is not None
+    ]
+    return _project_view(row).model_copy(
+        update={"available_actions": actions, "repositories": repositories}
+    )
 
 
 async def update_project(

@@ -1441,6 +1441,12 @@ MIGRATIONS: Final[tuple[Migration, ...]] = (
             "DROP TABLE IF EXISTS tech_scan",
         ),
     ),
+    Migration(
+        version=45,
+        summary="retain the source index revision for local technology scans",
+        up=("ALTER TABLE tech_scan ADD COLUMN source_revision TEXT NOT NULL DEFAULT ''",),
+        down=("ALTER TABLE tech_scan DROP COLUMN source_revision",),
+    ),
 )
 
 #: Names for nested savepoints. A counter rather than a fixed name: two nested

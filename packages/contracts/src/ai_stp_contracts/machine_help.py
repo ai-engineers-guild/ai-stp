@@ -1352,6 +1352,7 @@ class CliTechnologyFinding(BaseModel):
     override_version: str | None = None
     first_seen_scan: Annotated[str, Field(min_length=1)]
     last_seen_scan: Annotated[str, Field(min_length=1)]
+    source_revision: Annotated[str | None, Field(pattern=r"^[0-9a-f]{64}$")] = None
     reviewed_at: str | None = None
 
 
@@ -1375,6 +1376,7 @@ class CliTechnologyScan(BaseModel):
     stopped_by: str | None = None
     detector_version: Annotated[str, Field(min_length=1)]
     mapping_version: Annotated[str, Field(min_length=1)]
+    source_revision: Annotated[str | None, Field(pattern=r"^[0-9a-f]{64}$")] = None
     findings: list[CliTechnologyFinding]
     unmapped: list[str]
     observations: Annotated[int, Field(ge=0)]

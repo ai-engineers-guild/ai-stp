@@ -12,7 +12,7 @@ can never fit inside a capability string.
 import re
 
 CAPABILITY_TOKEN = re.compile(r"^[a-z0-9][a-z0-9._-]{0,63}(@[A-Za-z0-9][A-Za-z0-9.+_-]{0,63})?$")
-REPORTED_STATES = ("active", "failing", "disabled")
+REPORTED_STATES = ("active", "partial", "failing", "disabled")
 MAX_CAPABILITIES = 64
 
 

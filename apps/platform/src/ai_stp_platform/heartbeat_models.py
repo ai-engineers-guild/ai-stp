@@ -19,7 +19,7 @@ class InstallationHeartbeat(Base):
     __tablename__ = "installation_heartbeat"
     __table_args__ = (
         CheckConstraint(
-            "reported_state in ('active', 'failing', 'disabled')",
+            "reported_state in ('active', 'partial', 'failing', 'disabled')",
             name="ck_installation_heartbeat_reported_state",
         ),
         CheckConstraint("revision >= 1", name="ck_installation_heartbeat_revision"),
