@@ -14,7 +14,7 @@ from ai_stp_cli.cloud import context as cloud_context
 from ai_stp_cli.cloud import technology as cloud_technology
 from ai_stp_cli.commands import cloud_auth
 from ai_stp_cli.commands.auth import endpoint
-from ai_stp_cli.errors import CliFailure
+from ai_stp_cli.errors import CliFailure, leaf_help_continuation
 from ai_stp_cli.local import (
     harnesses,
     importing,
@@ -1236,7 +1236,9 @@ def _scan_scope(parameters: Mapping[str, object]) -> str:
     return scope
 
 
-def _project_id_for(connection: sqlite3.Connection, parameters: Mapping[str, object]) -> str:
+def _project_id_for(
+    connection: sqlite3.Connection, parameters: Mapping[str, object], *, path: tuple[str, ...]
+) -> str:
     """The local project identity: explicit `--project`, or resolved from `--root`."""
     project_id = _optional(parameters, "project")
     if project_id is not None:
@@ -1244,7 +1246,8 @@ def _project_id_for(connection: sqlite3.Connection, parameters: Mapping[str, obj
             raise CliFailure(
                 "AI_STP_VALIDATION_ERROR",
                 "pass either --project or --root, not both",
-                details={"option": "--project"},
+                details={"options": ["--project", "--root"]},
+                continuations=[leaf_help_continuation(path)],
             )
         if not is_valid_id(project_id, "project"):
             raise CliFailure(
@@ -1258,7 +1261,8 @@ def _project_id_for(connection: sqlite3.Connection, parameters: Mapping[str, obj
         raise CliFailure(
             "AI_STP_VALIDATION_ERROR",
             "a local project is required",
-            details={"option": "--project or --root"},
+            details={"options": ["--project", "--root"]},
+            continuations=[leaf_help_continuation(path)],
             next_actions=["project detect --root <path> --json"],
         )
     resolved = Path(root).resolve()
@@ -1442,7 +1446,7 @@ def technologies(parameters: Mapping[str, object]) -> Answer[CliTechnologyFindin
     scope = _scan_scope(parameters) if _optional(parameters, "scope") is not None else None
 
     def work(connection: sqlite3.Connection) -> CliTechnologyFindings:
-        project_id = _project_id_for(connection, parameters)
+        project_id = _project_id_for(connection, parameters, path=("project", "technologies"))
         stored = tech_findings.findings(connection, project_id=project_id, scope=scope)
         return CliTechnologyFindings(
             project_id=project_id,
@@ -1454,13 +1458,13 @@ def technologies(parameters: Mapping[str, object]) -> Answer[CliTechnologyFindin
 
 
 def _technology_decision(
-    parameters: Mapping[str, object], decision: str
+    parameters: Mapping[str, object], decision: str, path: tuple[str, ...]
 ) -> Answer[CliTechnologyReview]:
     scope = _scan_scope(parameters)
     at = moment()
 
     def work(connection: sqlite3.Connection) -> CliTechnologyReview:
-        project_id = _project_id_for(connection, parameters)
+        project_id = _project_id_for(connection, parameters, path=path)
         kind, coordinate, context = _parse_finding_key(
             connection,
             project_id=project_id,
@@ -1491,22 +1495,22 @@ def _technology_decision(
 
 def technology_confirm(parameters: Mapping[str, object]) -> Answer[CliTechnologyReview]:
     """Confirm one finding: it is a real usage of the technology it names."""
-    return _technology_decision(parameters, "confirmed")
+    return _technology_decision(parameters, "confirmed", ("project", "technology", "confirm"))
 
 
 def technology_reject(parameters: Mapping[str, object]) -> Answer[CliTechnologyReview]:
     """Reject one finding: it is not a usage, and stays out of publication."""
-    return _technology_decision(parameters, "rejected")
+    return _technology_decision(parameters, "rejected", ("project", "technology", "reject"))
 
 
 def technology_override(parameters: Mapping[str, object]) -> Answer[CliTechnologyReview]:
     """Override one finding's resolved identity with a canonical technology id."""
-    return _technology_decision(parameters, "overridden")
+    return _technology_decision(parameters, "overridden", ("project", "technology", "override"))
 
 
 def technology_retire(parameters: Mapping[str, object]) -> Answer[CliTechnologyReview]:
     """Retire one finding: it was a usage and no longer is."""
-    return _technology_decision(parameters, "retired")
+    return _technology_decision(parameters, "retired", ("project", "technology", "retire"))
 
 
 def technology_mappings(parameters: Mapping[str, object]) -> Answer[CliTechnologyMappings]:
@@ -1574,7 +1578,9 @@ def technology_publish(parameters: Mapping[str, object]) -> Answer[TechnologySca
     scope = _scan_scope(parameters)
 
     with closing(open_registry(configured_path(), create=False)) as connection:
-        project_id = _project_id_for(connection, parameters)
+        project_id = _project_id_for(
+            connection, parameters, path=("project", "technology", "publish")
+        )
         link = project_links.cached_link(connection, local_project_id=project_id)
         if link is None or link.state != "linked":
             raise CliFailure(
