@@ -32,7 +32,9 @@ from ai_stp_contracts.corporate import (
     CorporateEffectiveAssignmentQuery,
     CorporatePlanMaterializedItem,
 )
+from ai_stp_contracts.dashboard import CiReason, CorporateCiCheckRequest
 from ai_stp_contracts.machine_help import ManagedVerification
+from ai_stp_foundation.ids import is_valid_id
 
 
 def _required(parameters: Mapping[str, object], name: str) -> str:
@@ -245,13 +247,72 @@ def verify(parameters: Mapping[str, object]) -> Answer[ManagedVerification]:
 
     Compares the verified installation record, the cached bundle manifest and
     the provider's own status against the corporate assignment plan, and
-    classifies what it finds. It reads and reports; it never repairs,
-    reinstalls, or asks a provider to write.
+    classifies what it finds and reports a closed CI verdict for an explicit
+    corporate project. It never repairs, reinstalls, or changes a provider.
     """
     held = _session("corporate assignment verify")
-    return managed_verify.verify_managed(
+    answer = managed_verify.verify_managed(
         parameters,
         endpoint_url=endpoint(),
         access_token=held.access_token,
         account_id=_optional(parameters, "account") or held.account_id,
     )
+    result = answer.payload
+    if parameters.get("offline") is True:
+        return answer
+    if not result.remote_project_id or result.account_id != held.account_id:
+        skip_reason = (
+            "no corporate project was selected"
+            if not result.remote_project_id
+            else "the verified account differs from the signed-in account"
+        )
+        return Answer(
+            result,
+            warnings=(*answer.warnings, f"CI dashboard was not updated: {skip_reason}"),
+            operation_id=answer.operation_id,
+            continuations=answer.continuations,
+        )
+    setup_id = next(
+        (
+            item.stable_id
+            for item in result.items
+            if item.subject == "setup" and is_valid_id(item.stable_id, "setup")
+        ),
+        None,
+    )
+    reason: CiReason = (
+        "none"
+        if result.status == "pass"
+        else "target_drift"
+        if result.status == "outdated"
+        or (
+            result.status == "fail"
+            and any(
+                item.classification in {"locally_modified", "missing", "extra"}
+                for item in result.items
+            )
+        )
+        else "check_failed"
+        if result.status == "fail"
+        else "unsupported"
+        if result.status == "unsupported"
+        else "source_unavailable"
+        if result.status == "unverifiable" and result.corporate == "unavailable"
+        else "unknown"
+    )
+    corporate.report_ci_check(
+        endpoint(),
+        held.access_token,
+        result.organization_id,
+        CorporateCiCheckRequest(
+            project_id=result.remote_project_id,
+            account_id=held.account_id,
+            device_id=held.device_id,
+            harness=result.harness_id,
+            setup_id=setup_id,
+            status=result.status,
+            reason=reason,
+            checked_at=result.checked_at,
+        ),
+    )
+    return answer

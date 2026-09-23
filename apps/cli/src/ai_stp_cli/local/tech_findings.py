@@ -81,6 +81,7 @@ class Finding:
     override_version: str | None
     first_seen_scan: str
     last_seen_scan: str
+    source_revision: str | None
     reviewed_at: str | None
     updated_at: str
 
@@ -131,6 +132,7 @@ class ScanRecord:
     stopped_by: str | None
     detector_version: str
     mapping_version: str
+    source_revision: str | None
     created_at: str
 
 
@@ -213,6 +215,7 @@ def _finding(row: sqlite3.Row) -> Finding:
         override_version=row["override_version"],
         first_seen_scan=str(row["first_seen_scan"]),
         last_seen_scan=str(row["last_seen_scan"]),
+        source_revision=str(row["source_revision"] or "") or None,
         reviewed_at=row["reviewed_at"],
         updated_at=str(row["updated_at"]),
     )
@@ -226,6 +229,7 @@ def record_scan(
     detected: tech_detect.DetectedScan,
     mapping: tech_detect.MappingSnapshot,
     at: str,
+    source_revision: str | None = None,
 ) -> ScanRecord:
     """Store one scan and merge its detections into findings.
 
@@ -240,13 +244,15 @@ def record_scan(
             "letters, digits, dot, underscore, dash or slash",
             details={"option": "--scope"},
         )
+    if source_revision is not None and re.fullmatch(r"[0-9a-f]{64}", source_revision) is None:
+        raise ValueError("source revision must be an index digest")
     scan_id = new_id("scan")
     connection.execute(
         """
         INSERT INTO tech_scan (
             scan_id, project_id, scope, complete, stopped_by,
-            detector_version, mapping_version, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            detector_version, mapping_version, source_revision, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             scan_id,
@@ -256,6 +262,7 @@ def record_scan(
             detected.stopped_by or "",
             tech_detect.DETECTOR_VERSION,
             mapping.version,
+            source_revision or "",
             at,
         ),
     )
@@ -353,6 +360,7 @@ def record_scan(
         stopped_by=detected.stopped_by,
         detector_version=tech_detect.DETECTOR_VERSION,
         mapping_version=mapping.version,
+        source_revision=source_revision,
         created_at=at,
     )
 
@@ -365,14 +373,18 @@ def findings(
 ) -> list[Finding]:
     if scope is None:
         rows = connection.execute(
-            "SELECT * FROM tech_finding WHERE project_id = ? ORDER BY kind, coordinate, context",
+            """SELECT f.*, s.source_revision FROM tech_finding AS f
+            JOIN tech_scan AS s ON s.scan_id = f.last_seen_scan
+            WHERE f.project_id = ? ORDER BY f.kind, f.coordinate, f.context""",
             (project_id,),
         ).fetchall()
     else:
         rows = connection.execute(
             """
-            SELECT * FROM tech_finding WHERE project_id = ? AND scope = ?
-            ORDER BY kind, coordinate, context
+            SELECT f.*, s.source_revision FROM tech_finding AS f
+            JOIN tech_scan AS s ON s.scan_id = f.last_seen_scan
+            WHERE f.project_id = ? AND f.scope = ?
+            ORDER BY f.kind, f.coordinate, f.context
             """,
             (project_id, scope),
         ).fetchall()
@@ -381,7 +393,7 @@ def findings(
 
 def scans(connection: sqlite3.Connection, *, project_id: str) -> list[ScanRecord]:
     rows = connection.execute(
-        "SELECT * FROM tech_scan WHERE project_id = ? ORDER BY created_at, scan_id",
+        "SELECT * FROM tech_scan WHERE project_id = ? ORDER BY rowid",
         (project_id,),
     ).fetchall()
     return [
@@ -393,6 +405,7 @@ def scans(connection: sqlite3.Connection, *, project_id: str) -> list[ScanRecord
             stopped_by=row["stopped_by"] or None,
             detector_version=str(row["detector_version"]),
             mapping_version=str(row["mapping_version"]),
+            source_revision=str(row["source_revision"]) or None,
             created_at=str(row["created_at"]),
         )
         for row in rows
@@ -410,8 +423,10 @@ def find(
 ) -> Finding | None:
     row = connection.execute(
         """
-        SELECT * FROM tech_finding
-        WHERE project_id = ? AND scope = ? AND kind = ? AND coordinate = ? AND context = ?
+        SELECT f.*, s.source_revision FROM tech_finding AS f
+        JOIN tech_scan AS s ON s.scan_id = f.last_seen_scan
+        WHERE f.project_id = ? AND f.scope = ? AND f.kind = ?
+          AND f.coordinate = ? AND f.context = ?
         """,
         (project_id, scope, kind, coordinate, context),
     ).fetchone()
@@ -627,6 +642,7 @@ def build_handoff(
     organization_id: str | None = None,
     remote_project_id: str | None = None,
     at: str,
+    source_revision: str | None = None,
 ) -> HandoffResult:
     """Project stored findings into one `TechnologyScanHandoff`.
 
@@ -664,6 +680,7 @@ def build_handoff(
                     path=trace.path,
                     reference=trace.reference,
                     observed_at=at,
+                    source_revision=source_revision,
                     confidence=trace.confidence,
                     detector_version=tech_detect.DETECTOR_VERSION,
                     mapping_version=mapping.version,

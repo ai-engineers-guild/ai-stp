@@ -4422,6 +4422,34 @@ export type CorporateProjectList = {
 };
 
 /**
+ * CorporateProjectRepository
+ */
+export type CorporateProjectRepository = {
+  /**
+   * Default Branch
+   */
+  default_branch: string | null;
+  /**
+   * Namespace
+   */
+  namespace: string;
+  observed_at: Timestamp | null;
+  /**
+   * Observed Revision
+   */
+  observed_revision: string | null;
+  /**
+   * Provider Project Id
+   */
+  provider_project_id: string;
+  /**
+   * Repository Url
+   */
+  repository_url: string;
+  [key: string]: unknown;
+};
+
+/**
  * CorporateProjectUpdateRequest
  */
 export type CorporateProjectUpdateRequest = {
@@ -4473,6 +4501,11 @@ export type CorporateProjectView = {
    */
   project_id: string;
   /**
+   * Repositories
+   */
+  repositories?: Array<CorporateProjectRepository>;
+  repository_activity_at?: Timestamp | null;
+  /**
    * Restore Lifecycle
    */
   restore_lifecycle?: "active" | "deprecated" | null;
@@ -4484,6 +4517,10 @@ export type CorporateProjectView = {
    * Schema Version
    */
   schema_version: 1;
+  /**
+   * Source Availability
+   */
+  source_availability?: "unknown" | "available" | "unavailable";
   /**
    * State
    */
@@ -7468,7 +7505,7 @@ export type InstallationHeartbeat = {
   /**
    * Health State
    */
-  health_state: "active" | "stale" | "failing" | "disabled" | "unknown";
+  health_state: "active" | "partial" | "stale" | "failing" | "disabled" | "unknown";
   last_sync_at: Timestamp | null;
   /**
    * Organization Id
@@ -7478,7 +7515,7 @@ export type InstallationHeartbeat = {
   /**
    * Reported State
    */
-  reported_state: "active" | "failing" | "disabled";
+  reported_state: "active" | "partial" | "failing" | "disabled";
   /**
    * Revision
    */
@@ -7550,7 +7587,7 @@ export type InstallationHeartbeatRequest = {
   /**
    * Health State
    */
-  health_state: "active" | "failing" | "disabled";
+  health_state: "active" | "partial" | "failing" | "disabled";
   last_sync_at?: Timestamp | null;
   /**
    * Schema Version
@@ -7572,7 +7609,7 @@ export type InstallationHeartbeatStatus = {
   /**
    * Health State
    */
-  health_state: "active" | "stale" | "failing" | "disabled" | "unknown";
+  health_state: "active" | "partial" | "stale" | "failing" | "disabled" | "unknown";
   heartbeat: InstallationHeartbeat | null;
   /**
    * Organization Id

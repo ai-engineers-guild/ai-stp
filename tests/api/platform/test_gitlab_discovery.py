@@ -394,6 +394,22 @@ async def test_linked_gitlab_languages_publish_only_proposed_canonical_facts(
         headers=auth,
     )
     assert refreshed.status_code == 200, refreshed.text
+    project_view = await client.get(
+        f"/v1/corporate/organizations/{organization_id}/projects/{remote_id}", headers=auth
+    )
+    assert project_view.status_code == 200, project_view.text
+    assert project_view.json()["source_availability"] == "available"
+    assert project_view.json()["repository_activity_at"] is not None
+    assert project_view.json()["repositories"] == [
+        {
+            "provider_project_id": provider_id,
+            "namespace": "team/service",
+            "repository_url": "https://gitlab.com/team/service",
+            "default_branch": "main",
+            "observed_revision": "a" * 40,
+            "observed_at": refreshed.json()["observed_at"],
+        }
+    ]
     async with sessionmaker() as db:
         project = await db.get(CorporateProject, remote_id)
         assert project is not None
@@ -401,3 +417,20 @@ async def test_linked_gitlab_languages_publish_only_proposed_canonical_facts(
         assert project.repository_activity_at is not None
         assert project.repository_activity_at.year == 2026
         assert project.revision == 3
+    FakeGitLabClient.path = "renamed/service"
+    renamed = await client.post(
+        f"{base}/observations/{provider_id}/refresh",
+        json={
+            "authorization_revision": await _revision(sessionmaker, organization_id),
+            "expected_revision": 2,
+            "idempotency_key": "rename-" + uuid.uuid4().hex,
+        },
+        headers=auth,
+    )
+    assert renamed.status_code == 200, renamed.text
+    renamed_project = await client.get(
+        f"/v1/corporate/organizations/{organization_id}/projects/{remote_id}", headers=auth
+    )
+    assert renamed_project.status_code == 200, renamed_project.text
+    assert renamed_project.json()["revision"] == 4
+    assert renamed_project.json()["repositories"][0]["namespace"] == "renamed/service"

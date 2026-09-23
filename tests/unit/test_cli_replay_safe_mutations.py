@@ -39,6 +39,10 @@ NATURALLY_REPLAY_SAFE: Final[dict[str, str]] = {
     "/corporate/organizations/{organization_id}/catalog-assignments/plan": (
         "the plan endpoint is a read-only POST: retrying evaluation creates no durable effect"
     ),
+    "/corporate/organizations/{organization_id}/dashboard/ci-check": (
+        "the latest CI verdict coalesces by project/device/harness and strictly newer checked_at; "
+        "a retry with the same checked_at leaves the verdict unchanged"
+    ),
     "/sync/push": (
         "the key is per event inside the envelope, not per request: "
         "SyncEvent.event_id is what the server deduplicates"

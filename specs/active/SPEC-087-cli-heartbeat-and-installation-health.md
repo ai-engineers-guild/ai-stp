@@ -28,9 +28,9 @@ policy, retention, and revocation surfaces belong to the privacy stream.
 - `Heartbeat` — one write of the closed installation fact set: account and
   device references, `cli_version`, `capabilities`, `last_sync_at`, reported
   `health_state`, and `checked_at`.
-- `Reported state` — what the installation declares: `active`, `failing`, or
+- `Reported state` — what the installation declares: `active`, `partial`, `failing`, or
   `disabled`. `stale` and `unknown` are never reported.
-- `Health state` — the read-time projection: `active`, `stale`, `failing`,
+- `Health state` — the read-time projection: `active`, `partial`, `stale`, `failing`,
   `disabled`, or `unknown`.
 - `Staleness threshold` — the duration after which an installation that has not
   reported is projected `stale`; organization-configurable, default 24 hours.
@@ -53,7 +53,8 @@ policy, retention, and revocation surfaces belong to the privacy stream.
 - `REQ-8704`: Health is a deterministic read-time projection: `disabled` is
   reported state and survives the stale window; a `received_at` older than the
   staleness threshold projects `stale`; a fresh `failing` report projects
-  `failing`; a fresh `active` report projects `active`; no row projects
+  `failing`; a fresh `partial` report projects `partial`; a fresh `active`
+  report projects `active`; no row projects
   `unknown`. No worker job rewrites rows to `stale`.
 - `REQ-8705`: Stored and returned fields carry no secrets, credentials, local
   paths, prompts, model inputs or outputs, or invocation payloads. Capability
@@ -75,7 +76,7 @@ policy, retention, and revocation surfaces belong to the privacy stream.
 
 ## States and errors
 
-Reported states are `active`, `failing`, and `disabled`; reads additionally
+Reported states are `active`, `partial`, `failing`, and `disabled`; reads additionally
 project `stale` and `unknown`. Invalid identity, capability, timestamp, or
 permission input is rejected before mutation. Equal or older heartbeats are
 successful no-ops, while offline writes return the existing typed transport
@@ -91,7 +92,9 @@ data. Heartbeats are not runtime usage events.
 ## Compatibility and migration
 
 Heartbeat storage and permission seeds are additive migrations. Existing
-clients may omit the heartbeat surface and continue using the anonymous
+rows remain valid when migration 0093 adds `partial` to the heartbeat check.
+Downgrade rejects while partial rows exist rather than changing their meaning.
+Clients may omit the heartbeat surface and continue using the anonymous
 consented ping unchanged. Rollback disables the new routes and controls while
 preserving existing installation data and audit history.
 
@@ -102,7 +105,7 @@ preserving existing installation data and audit history.
 | `REQ-8701` | Heartbeat unit and corporate API tests prove the authenticated route is separate from anonymous telemetry. |
 | `REQ-8702` | Authorization tests reject foreign account, device, and unbound-session claims. |
 | `REQ-8703` | Platform tests cover coalescing, ordering, clock skew, and no-op replay. |
-| `REQ-8704` | Health projection tests cover active, failing, disabled, stale, and unknown semantics without worker mutation. |
+| `REQ-8704` | Health projection tests cover active, partial, failing, disabled, stale, and unknown semantics without worker mutation. |
 | `REQ-8705` | Contract and heartbeat tests reject extra fields and unsafe capability or payload values. |
 | `REQ-8706` | Usage integration tests prove heartbeat writes do not create runtime usage events. |
 | `REQ-8707` | Authorization tests cover member self-read and permission-gated organization listings. |

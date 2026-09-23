@@ -228,6 +228,19 @@
           "title": "Schema Version",
           "type": "integer"
         },
+        "source_revision": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Revision"
+        },
         "technology_id": {
           "anyOf": [
             {
@@ -277,6 +290,7 @@
         "review",
         "reviewed_at",
         "schema_version",
+        "source_revision",
         "technology_id",
         "version",
         "version_kind"

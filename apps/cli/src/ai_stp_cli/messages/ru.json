@@ -199,6 +199,7 @@
   "an installation reaches verified only through applied_unverified": "установка становится verified только через applied_unverified",
   "an object identifier and a version are both required": "нужны и идентификатор объекта, и версия",
   "an object identifier is required": "нужен идентификатор объекта",
+  "an older scan cannot be published with current findings": "старый скан нельзя опубликовать с результатами текущего сканирования",
   "an operation whose effect already happened cannot be recorded as a plain failure": "операцию, чей эффект уже случился, нельзя записать как простой отказ",
   "an organization mapping snapshot is required before publishing": "перед публикацией требуется снапшот маппинга организации",
   "an overlay must name both its source and the base it was applied to": "overlay должен назвать и источник, и базу, к которой его применили",

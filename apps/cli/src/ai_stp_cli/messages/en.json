@@ -199,6 +199,7 @@
   "an installation reaches verified only through applied_unverified": "an installation reaches verified only through applied_unverified",
   "an object identifier and a version are both required": "an object identifier and a version are both required",
   "an object identifier is required": "an object identifier is required",
+  "an older scan cannot be published with current findings": "an older scan cannot be published with current findings",
   "an operation whose effect already happened cannot be recorded as a plain failure": "an operation whose effect already happened cannot be recorded as a plain failure",
   "an organization mapping snapshot is required before publishing": "an organization mapping snapshot is required before publishing",
   "an overlay must name both its source and the base it was applied to": "an overlay must name both its source and the base it was applied to",

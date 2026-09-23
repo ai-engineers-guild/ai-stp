@@ -17,6 +17,7 @@ from ai_stp_contracts.corporate import (
     CorporateEffectiveAssignment,
     CorporateEffectiveAssignmentQuery,
 )
+from ai_stp_contracts.dashboard import CorporateCiCheckRequest, CorporateCiCheckView
 
 
 def effective_assignment(
@@ -86,6 +87,24 @@ def assignment_plan(
             "POST",
             f"/corporate/organizations/{organization_id}/catalog-assignments/plan",
             CorporateAssignmentPlan,
+            body=request,
+            attempts=endpoint.max_attempts,
+        )
+
+
+def report_ci_check(
+    endpoint: Endpoint,
+    access_token: str,
+    organization_id: str,
+    request: CorporateCiCheckRequest,
+) -> CorporateCiCheckView:
+    """Persist the closed verdict; local diagnostic details never cross the wire."""
+    with open_client(endpoint, access_token=access_token) as client:
+        return call(
+            client,
+            "PUT",
+            f"/corporate/organizations/{organization_id}/dashboard/ci-check",
+            CorporateCiCheckView,
             body=request,
             attempts=endpoint.max_attempts,
         )

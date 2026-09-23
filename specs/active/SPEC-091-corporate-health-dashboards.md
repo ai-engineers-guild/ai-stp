@@ -1,6 +1,6 @@
 ---
 description: "SPEC-091: Authorized Corporate Hub health aggregation and saved dashboard views."
-last_verified: "2026-09-22"
+last_verified: "2026-09-23"
 ---
 
 # SPEC-091: Corporate health dashboards
@@ -34,6 +34,14 @@ heartbeat state, SPEC-089 owns provider telemetry and privileged-access audit.
   session; the project is active and readable. Writes accept strictly newer
   `checked_at` values and coalesce equal or older reports. No prompt, source
   content, path, credential, or environment value is accepted.
+- `REQ-9108`: Online `corporate assignment verify` reports its closed verdict
+  when an explicit corporate project is selected and the verified account is
+  the signed-in account. It sends the session device, an observed setup ID when
+  valid, and a closed reason code; it never sends local diagnostics, paths, or
+  source content. Offline, unscoped, and other-account checks do not report.
+  A failed report fails the online command rather than claiming the dashboard
+  was updated. The command's machine mutability is `apply` because it writes
+  this observation, while the provider target remains unchanged.
 - `REQ-9102`: Reads require active tenant membership and a `lead` or
   `superadmin` role. A superadmin with `telemetry.read` sees the organization.
   A lead sees only members for whom `telemetry.read` is granted in a team for
@@ -45,9 +53,11 @@ heartbeat state, SPEC-089 owns provider telemetry and privileged-access audit.
   returns at most 200 groups. There is no arbitrary SQL or source payload.
 - `REQ-9104`: CI state retains `pass`, `fail`, `outdated`, `revoked`,
   `unsupported`, `not_enrolled`, and `unverifiable`; heartbeat/provider health
-  retains `active`, `stale`, `failing`, `disabled`, and `unknown`. Staleness is
+  retains `active`, `stale`, `failing`, `disabled`, and `unknown`; installation
+  heartbeat health also retains `partial`. Staleness is
   evaluated at read time from server receipt time. An empty selection returns
-  an empty result. A partial install is not fabricated as a CI verdict.
+  an empty result. A partial install is reported through its installation
+  heartbeat, not fabricated as a CI verdict.
 - `REQ-9105`: `reason` selection or filtering requires `audit.read`; all
   dashboard queries emit platform audit and telemetry privileged-access audit.
   Returned rows contain IDs and closed states only. No export route exists.
@@ -87,9 +97,10 @@ a backup and explicit operational decision.
 | Requirement | Executable oracle |
 |---|---|
 | `REQ-9101` | API tests reject unsafe fields and another device, and coalesce equal check time. |
+| `REQ-9108` | CLI unit tests prove closed report shape, source detail exclusion, and offline/unscoped/other-account refusal; API tests prove session binding. |
 | `REQ-9102` | API tests reject another tenant and unauthorized membership/scope. |
 | `REQ-9103` | Contract and API tests reject unknown dimensions and cost limits. |
-| `REQ-9104` | API tests observe stale installation and failing provider health plus empty selection. |
+| `REQ-9104` | API tests observe stale and partial installation health, failing provider health, and empty selection. |
 | `REQ-9105` | API tests assert reason permission and privileged audit. |
 | `REQ-9106` | API tests assert saved-view replay, scope immutability, and revision checks. |
 | `REQ-9107` | Browser scenario exercises dataset switch, result, filter, empty state, and save. |

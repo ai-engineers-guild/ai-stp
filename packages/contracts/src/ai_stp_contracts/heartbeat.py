@@ -20,8 +20,8 @@ DeviceId = Annotated[str, Field(pattern=stable_id_pattern("device"))]
 
 # What an installation reports about itself. `stale` and `unknown` are never
 # reported: they are read-time projections of freshness, not claims.
-HeartbeatReportedState = Literal["active", "failing", "disabled"]
-HeartbeatHealthState = Literal["active", "stale", "failing", "disabled", "unknown"]
+HeartbeatReportedState = Literal["active", "partial", "failing", "disabled"]
+HeartbeatHealthState = Literal["active", "partial", "stale", "failing", "disabled", "unknown"]
 
 # `name` or `name@version`; no whitespace or path separators.
 CAPABILITY_TOKEN_PATTERN: Final = r"^[a-z0-9][a-z0-9._-]{0,63}(@[A-Za-z0-9][A-Za-z0-9.+_-]{0,63})?$"

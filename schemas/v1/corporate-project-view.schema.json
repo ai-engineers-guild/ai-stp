@@ -1,4 +1,72 @@
 {
+  "$defs": {
+    "CorporateProjectRepository": {
+      "additionalProperties": true,
+      "properties": {
+        "default_branch": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Default Branch"
+        },
+        "namespace": {
+          "title": "Namespace",
+          "type": "string"
+        },
+        "observed_at": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "observed_revision": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Observed Revision"
+        },
+        "provider_project_id": {
+          "title": "Provider Project Id",
+          "type": "string"
+        },
+        "repository_url": {
+          "title": "Repository Url",
+          "type": "string"
+        }
+      },
+      "required": [
+        "default_branch",
+        "namespace",
+        "observed_at",
+        "observed_revision",
+        "provider_project_id",
+        "repository_url"
+      ],
+      "title": "CorporateProjectRepository",
+      "type": "object"
+    },
+    "Timestamp": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$",
+      "type": "string"
+    }
+  },
   "$id": "urn:ai-stp:schema:v1:corporate-project-view",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": true,
@@ -43,6 +111,26 @@
       "title": "Project Id",
       "type": "string"
     },
+    "repositories": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/CorporateProjectRepository"
+      },
+      "maxItems": 256,
+      "title": "Repositories",
+      "type": "array"
+    },
+    "repository_activity_at": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Timestamp"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
     "restore_lifecycle": {
       "anyOf": [
         {
@@ -69,6 +157,16 @@
       "default": 1,
       "title": "Schema Version",
       "type": "integer"
+    },
+    "source_availability": {
+      "default": "unknown",
+      "enum": [
+        "unknown",
+        "available",
+        "unavailable"
+      ],
+      "title": "Source Availability",
+      "type": "string"
     },
     "state": {
       "enum": [

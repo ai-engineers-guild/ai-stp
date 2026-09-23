@@ -1,6 +1,6 @@
 ---
 description: "The local detector emits coordinates; only a versioned mapping snapshot may resolve them to canonical technology identities."
-last_verified: "2026-09-20"
+last_verified: "2026-09-23"
 ---
 
 # ADR-0200: Local technology detection emits coordinates, not identities
@@ -54,7 +54,12 @@ marks a previously seen finding absent. Publication projects current,
 publishable findings into the version-1 `TechnologyScanHandoff` — one
 observation per canonical technology/context, strongest version claim winning —
 and requires an explicitly linked project plus a fetched organization snapshot
-before a session is demanded.
+before a session is demanded. The source revision is the digest of the same
+bounded project index the detector consumed. Local scan history retains that
+digest (registry migration 45), and publication includes it on each evidence
+item; neither a source file nor a machine path travels with it.
+Only the latest local scan can be published: the standing findings are current
+state, so an older scan ID would mislabel their evidence.
 
 ## Consequences
 

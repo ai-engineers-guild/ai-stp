@@ -33,4 +33,7 @@ facts remain governed by the existing review endpoints.
 
 The provider observation is not a corporate project. Create or select the remote
 project and use the explicit SPEC-078 link plan when the two identities should be
-related. Inaccessible upstream repositories do not erase prior observations.
+related. The authorized project read includes the linked repository's retained
+namespace, URL, default branch, and observed revision, plus source availability
+and activity. It returns at most 256 linked GitLab identities. Inaccessible
+upstream repositories do not erase prior observations.
