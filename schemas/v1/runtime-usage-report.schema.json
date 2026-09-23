@@ -1,0 +1,294 @@
+{
+  "$defs": {
+    "RuntimeUsageInstalledRow": {
+      "additionalProperties": true,
+      "description": "One currently assigned object and whether it was ever invoked.",
+      "properties": {
+        "invocations": {
+          "minimum": 0,
+          "title": "Invocations",
+          "type": "integer"
+        },
+        "last_invoked_at": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "object_kind": {
+          "enum": [
+            "setup",
+            "component"
+          ],
+          "title": "Object Kind",
+          "type": "string"
+        },
+        "stable_id": {
+          "title": "Stable Id",
+          "type": "string"
+        },
+        "state": {
+          "enum": [
+            "invoked",
+            "not_invoked"
+          ],
+          "title": "State",
+          "type": "string"
+        },
+        "version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Version"
+        }
+      },
+      "required": [
+        "invocations",
+        "last_invoked_at",
+        "object_kind",
+        "stable_id",
+        "state",
+        "version"
+      ],
+      "title": "RuntimeUsageInstalledRow",
+      "type": "object"
+    },
+    "RuntimeUsageReportRow": {
+      "additionalProperties": true,
+      "description": "One deterministic aggregate bucket over a defined window.",
+      "properties": {
+        "cancelled": {
+          "minimum": 0,
+          "title": "Cancelled",
+          "type": "integer"
+        },
+        "component_kind": {
+          "anyOf": [
+            {
+              "enum": [
+                "instruction",
+                "skill",
+                "mcp",
+                "hook",
+                "command",
+                "agent",
+                "plugin",
+                "setting",
+                "cli"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Component Kind"
+        },
+        "component_stable_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Component Stable Id"
+        },
+        "component_version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Component Version"
+        },
+        "devices": {
+          "minimum": 0,
+          "title": "Devices",
+          "type": "integer"
+        },
+        "employees": {
+          "minimum": 0,
+          "title": "Employees",
+          "type": "integer"
+        },
+        "failed": {
+          "minimum": 0,
+          "title": "Failed",
+          "type": "integer"
+        },
+        "first_invoked_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "group_value": {
+          "title": "Group Value",
+          "type": "string"
+        },
+        "invocations": {
+          "minimum": 0,
+          "title": "Invocations",
+          "type": "integer"
+        },
+        "last_invoked_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "setup_stable_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Setup Stable Id"
+        },
+        "setup_version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Setup Version"
+        },
+        "succeeded": {
+          "minimum": 0,
+          "title": "Succeeded",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "cancelled",
+        "component_kind",
+        "component_stable_id",
+        "component_version",
+        "devices",
+        "employees",
+        "failed",
+        "first_invoked_at",
+        "group_value",
+        "invocations",
+        "last_invoked_at",
+        "setup_stable_id",
+        "setup_version",
+        "succeeded"
+      ],
+      "title": "RuntimeUsageReportRow",
+      "type": "object"
+    },
+    "Timestamp": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:runtime-usage-report",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "The aggregate answer plus the installed-vs-invoked comparison.",
+  "properties": {
+    "generated_at": {
+      "$ref": "#/$defs/Timestamp"
+    },
+    "group_by": {
+      "enum": [
+        "component",
+        "setup",
+        "employee",
+        "device",
+        "project",
+        "harness",
+        "outcome"
+      ],
+      "title": "Group By",
+      "type": "string"
+    },
+    "installed": {
+      "items": {
+        "$ref": "#/$defs/RuntimeUsageInstalledRow"
+      },
+      "title": "Installed",
+      "type": "array"
+    },
+    "invoked_from": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Timestamp"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "invoked_to": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Timestamp"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "organization_id": {
+      "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "title": "Organization Id",
+      "type": "string"
+    },
+    "rows": {
+      "items": {
+        "$ref": "#/$defs/RuntimeUsageReportRow"
+      },
+      "title": "Rows",
+      "type": "array"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "total_events": {
+      "minimum": 0,
+      "title": "Total Events",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "generated_at",
+    "group_by",
+    "installed",
+    "invoked_from",
+    "invoked_to",
+    "organization_id",
+    "rows",
+    "schema_version",
+    "total_events"
+  ],
+  "title": "RuntimeUsageReport",
+  "type": "object"
+}

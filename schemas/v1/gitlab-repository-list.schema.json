@@ -1,0 +1,179 @@
+{
+  "$defs": {
+    "GitLabRepositoryView": {
+      "additionalProperties": true,
+      "properties": {
+        "connected": {
+          "default": false,
+          "title": "Connected",
+          "type": "boolean"
+        },
+        "default_branch": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Default Branch"
+        },
+        "identity_revision": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Identity Revision"
+        },
+        "last_activity_at": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "namespace_id": {
+          "minimum": 1,
+          "title": "Namespace Id",
+          "type": "integer"
+        },
+        "observed_at": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "observed_revision": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Observed Revision"
+        },
+        "organization_id": {
+          "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+          "title": "Organization Id",
+          "type": "string"
+        },
+        "path_with_namespace": {
+          "maxLength": 200,
+          "minLength": 3,
+          "title": "Path With Namespace",
+          "type": "string"
+        },
+        "provider_project_id": {
+          "anyOf": [
+            {
+              "pattern": "^provider_project_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Provider Project Id"
+        },
+        "repository_id": {
+          "minimum": 1,
+          "title": "Repository Id",
+          "type": "integer"
+        },
+        "repository_url": {
+          "maxLength": 512,
+          "minLength": 12,
+          "title": "Repository Url",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "connected",
+        "default_branch",
+        "identity_revision",
+        "last_activity_at",
+        "namespace_id",
+        "observed_at",
+        "observed_revision",
+        "organization_id",
+        "path_with_namespace",
+        "provider_project_id",
+        "repository_id",
+        "repository_url",
+        "schema_version"
+      ],
+      "title": "GitLabRepositoryView",
+      "type": "object"
+    },
+    "Timestamp": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:gitlab-repository-list",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "properties": {
+    "items": {
+      "items": {
+        "$ref": "#/$defs/GitLabRepositoryView"
+      },
+      "maxItems": 500,
+      "title": "Items",
+      "type": "array"
+    },
+    "organization_id": {
+      "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "title": "Organization Id",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "total": {
+      "minimum": 0,
+      "title": "Total",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "items",
+    "organization_id",
+    "schema_version",
+    "total"
+  ],
+  "title": "GitLabRepositoryList",
+  "type": "object"
+}

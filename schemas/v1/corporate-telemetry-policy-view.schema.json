@@ -1,0 +1,83 @@
+{
+  "$defs": {
+    "Timestamp": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:corporate-telemetry-policy-view",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "properties": {
+    "aggregate_retention_days": {
+      "maximum": 3650,
+      "minimum": 1,
+      "title": "Aggregate Retention Days",
+      "type": "integer"
+    },
+    "legal_basis": {
+      "enum": [
+        "consent",
+        "contract",
+        "legitimate_interest"
+      ],
+      "title": "Legal Basis",
+      "type": "string"
+    },
+    "notice_revision": {
+      "minimum": 0,
+      "title": "Notice Revision",
+      "type": "integer"
+    },
+    "notice_text": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Notice Text"
+    },
+    "organization_id": {
+      "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "title": "Organization Id",
+      "type": "string"
+    },
+    "policy_version": {
+      "minimum": 1,
+      "title": "Policy Version",
+      "type": "integer"
+    },
+    "raw_retention_days": {
+      "maximum": 3650,
+      "minimum": 1,
+      "title": "Raw Retention Days",
+      "type": "integer"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "updated_at": {
+      "$ref": "#/$defs/Timestamp"
+    }
+  },
+  "required": [
+    "aggregate_retention_days",
+    "legal_basis",
+    "notice_revision",
+    "notice_text",
+    "organization_id",
+    "policy_version",
+    "raw_retention_days",
+    "schema_version",
+    "updated_at"
+  ],
+  "title": "CorporateTelemetryPolicyView",
+  "type": "object"
+}

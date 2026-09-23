@@ -170,6 +170,16 @@ ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
             "job_title.read",
             "job_title.update",
             "job_title.list",
+            "telemetry.write",
+            "telemetry.read",
+            "telemetry.list",
+            "telemetry.export",
+            "telemetry.manage",
+            "telemetry.delete",
+            "telemetry_usage.ingest",
+            "telemetry_usage.read",
+            "telemetry_usage.events",
+            "telemetry_usage.export",
         }
     ),
     "lead": frozenset(
@@ -185,10 +195,20 @@ ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
             "team.update",
             "team.delete",
             "team.list",
+            "telemetry.read",
+            "telemetry_usage.ingest",
+            "telemetry_usage.read",
         }
     ),
     "staff": frozenset(
-        {"organization.read", "project.read", "project.list", "team.read", "team.list"}
+        {
+            "organization.read",
+            "project.read",
+            "project.list",
+            "team.read",
+            "team.list",
+            "telemetry_usage.ingest",
+        }
     ),
 }
 

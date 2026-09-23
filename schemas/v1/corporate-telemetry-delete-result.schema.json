@@ -1,0 +1,73 @@
+{
+  "$defs": {
+    "Timestamp": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:corporate-telemetry-delete-result",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "properties": {
+    "affected_events": {
+      "minimum": 0,
+      "title": "Affected Events",
+      "type": "integer"
+    },
+    "mode": {
+      "enum": [
+        "anonymize",
+        "delete"
+      ],
+      "title": "Mode",
+      "type": "string"
+    },
+    "organization_id": {
+      "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "title": "Organization Id",
+      "type": "string"
+    },
+    "processed_at": {
+      "$ref": "#/$defs/Timestamp"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "state": {
+      "enum": [
+        "active",
+        "revoked",
+        "deleted"
+      ],
+      "title": "State",
+      "type": "string"
+    },
+    "subject_id": {
+      "title": "Subject Id",
+      "type": "string"
+    },
+    "subject_kind": {
+      "enum": [
+        "account",
+        "device"
+      ],
+      "title": "Subject Kind",
+      "type": "string"
+    }
+  },
+  "required": [
+    "affected_events",
+    "mode",
+    "organization_id",
+    "processed_at",
+    "schema_version",
+    "state",
+    "subject_id",
+    "subject_kind"
+  ],
+  "title": "CorporateTelemetryDeleteResult",
+  "type": "object"
+}

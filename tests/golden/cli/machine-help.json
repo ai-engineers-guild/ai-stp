@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "cli_version": "0.0.0-pinned",
-  "registry_digest": "sha256:07447762f069c2d7f22a1629295df10e94cee0602406203e9c7fbe664af0dd5e",
+  "registry_digest": "sha256:7fc6198f5dcc8e2bd923d05b8507a852843e5f5894353814fd44fb4ea43827b5",
   "global_options": [
     {
       "name": "json",
@@ -3915,6 +3915,118 @@
       "result_schema": "urn:ai-stp:schema:v1:cli-harness-program",
       "next_actions": [
         "help --path toolchain --json"
+      ]
+    },
+    {
+      "path": [
+        "heartbeat",
+        "installations"
+      ],
+      "summary": "Installation health visible to the caller's role.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "organization",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Organization whose installations to list.",
+          "choices": []
+        },
+        {
+          "name": "health",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Filter by evaluated health state.",
+          "choices": [
+            "active",
+            "stale",
+            "failing",
+            "disabled",
+            "unknown"
+          ]
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:installation-heartbeat-list",
+      "next_actions": [
+        "help --path heartbeat --json"
+      ]
+    },
+    {
+      "path": [
+        "heartbeat",
+        "send"
+      ],
+      "summary": "Write this installation's heartbeat for one organization.",
+      "mutability": "apply",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "organization",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Organization the installation reports to.",
+          "choices": []
+        },
+        {
+          "name": "state",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Reported health.",
+          "choices": [
+            "active",
+            "failing",
+            "disabled"
+          ]
+        },
+        {
+          "name": "last-sync-at",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "RFC 3339 timestamp of the last successful sync.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:installation-heartbeat",
+      "next_actions": [
+        "help --path heartbeat --json"
+      ]
+    },
+    {
+      "path": [
+        "heartbeat",
+        "status"
+      ],
+      "summary": "This installation's evaluated health state.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "organization",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Organization to read health from.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:installation-heartbeat-status",
+      "next_actions": [
+        "help --path heartbeat --json"
       ]
     },
     {
@@ -11033,6 +11145,681 @@
       "result_schema": "urn:ai-stp:schema:v1:cli-self-update-status",
       "next_actions": [
         "help --path update --json"
+      ]
+    },
+    {
+      "path": [
+        "usage",
+        "events"
+      ],
+      "summary": "The separately permissioned, redacted event-level drill-down.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "organization",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Organization to read events from.",
+          "choices": []
+        },
+        {
+          "name": "employee",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Filter by employee account.",
+          "choices": []
+        },
+        {
+          "name": "team",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Filter by team.",
+          "choices": []
+        },
+        {
+          "name": "device",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Filter by device.",
+          "choices": []
+        },
+        {
+          "name": "project",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Filter by project.",
+          "choices": []
+        },
+        {
+          "name": "technology",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Filter by technology.",
+          "choices": []
+        },
+        {
+          "name": "harness",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Filter by harness.",
+          "choices": []
+        },
+        {
+          "name": "setup",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Filter by setup stable identifier.",
+          "choices": []
+        },
+        {
+          "name": "component",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Filter by component stable identifier.",
+          "choices": []
+        },
+        {
+          "name": "kind",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Filter by component kind.",
+          "choices": []
+        },
+        {
+          "name": "outcome",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Filter by outcome.",
+          "choices": [
+            "succeeded",
+            "failed",
+            "cancelled"
+          ]
+        },
+        {
+          "name": "from",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "RFC 3339 lower bound on invocation time.",
+          "choices": []
+        },
+        {
+          "name": "to",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "RFC 3339 upper bound on invocation time.",
+          "choices": []
+        },
+        {
+          "name": "offset",
+          "kind": "option",
+          "value_type": "integer",
+          "required": false,
+          "repeatable": false,
+          "summary": "Rows to skip.",
+          "choices": []
+        },
+        {
+          "name": "limit",
+          "kind": "option",
+          "value_type": "integer",
+          "required": false,
+          "repeatable": false,
+          "summary": "Rows to return.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:runtime-usage-event-list",
+      "next_actions": [
+        "help --path usage --json"
+      ]
+    },
+    {
+      "path": [
+        "usage",
+        "export"
+      ],
+      "summary": "Create a bounded, digested export receipt. Audited.",
+      "mutability": "apply",
+      "confirmation": "explicit_flag",
+      "parameters": [
+        {
+          "name": "organization",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Organization to export from.",
+          "choices": []
+        },
+        {
+          "name": "authorization-revision",
+          "kind": "option",
+          "value_type": "integer",
+          "required": true,
+          "repeatable": false,
+          "summary": "Policy revision the export is authorized under.",
+          "choices": []
+        },
+        {
+          "name": "idempotency-key",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Export idempotency key.",
+          "choices": []
+        },
+        {
+          "name": "confirm",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": true,
+          "repeatable": false,
+          "summary": "Required; the export is audited.",
+          "choices": []
+        },
+        {
+          "name": "employee",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Filter by employee account.",
+          "choices": []
+        },
+        {
+          "name": "team",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Filter by team.",
+          "choices": []
+        },
+        {
+          "name": "device",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Filter by device.",
+          "choices": []
+        },
+        {
+          "name": "project",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Filter by project.",
+          "choices": []
+        },
+        {
+          "name": "technology",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Filter by technology.",
+          "choices": []
+        },
+        {
+          "name": "harness",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Filter by harness.",
+          "choices": []
+        },
+        {
+          "name": "setup",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Filter by setup stable identifier.",
+          "choices": []
+        },
+        {
+          "name": "component",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Filter by component stable identifier.",
+          "choices": []
+        },
+        {
+          "name": "kind",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Filter by component kind.",
+          "choices": []
+        },
+        {
+          "name": "outcome",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Filter by outcome.",
+          "choices": [
+            "succeeded",
+            "failed",
+            "cancelled"
+          ]
+        },
+        {
+          "name": "from",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "RFC 3339 lower bound on invocation time.",
+          "choices": []
+        },
+        {
+          "name": "to",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "RFC 3339 upper bound on invocation time.",
+          "choices": []
+        },
+        {
+          "name": "group-by",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Grouping axis.",
+          "choices": [
+            "component",
+            "setup"
+          ]
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:runtime-usage-export-view",
+      "next_actions": [
+        "help --path usage --json"
+      ]
+    },
+    {
+      "path": [
+        "usage",
+        "flush"
+      ],
+      "summary": "Drain due buffered events over the authenticated corporate channel.",
+      "mutability": "apply",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "organization",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Organization the events belong to.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:runtime-usage-flush-result",
+      "next_actions": [
+        "help --path usage --json"
+      ]
+    },
+    {
+      "path": [
+        "usage",
+        "outbox"
+      ],
+      "summary": "Inspect the local usage-event buffer. Sends nothing.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:runtime-usage-outbox-status",
+      "next_actions": [
+        "help --path usage --json"
+      ]
+    },
+    {
+      "path": [
+        "usage",
+        "record"
+      ],
+      "summary": "Buffer one accepted component invocation for later delivery.",
+      "mutability": "apply",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "organization",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Organization the event belongs to.",
+          "choices": []
+        },
+        {
+          "name": "project",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Project the invocation ran under.",
+          "choices": []
+        },
+        {
+          "name": "harness",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Harness that ran the invocation.",
+          "choices": []
+        },
+        {
+          "name": "setup",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Setup stable identifier.",
+          "choices": []
+        },
+        {
+          "name": "setup-version",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Setup version (X.Y).",
+          "choices": []
+        },
+        {
+          "name": "setup-digest",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Setup passport digest.",
+          "choices": []
+        },
+        {
+          "name": "kind",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Component kind.",
+          "choices": []
+        },
+        {
+          "name": "component",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Component stable identifier.",
+          "choices": []
+        },
+        {
+          "name": "component-version",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Component version (X.Y).",
+          "choices": []
+        },
+        {
+          "name": "component-digest",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Component passport digest.",
+          "choices": []
+        },
+        {
+          "name": "invoked-at",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "RFC 3339 invocation timestamp.",
+          "choices": []
+        },
+        {
+          "name": "outcome",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Invocation outcome.",
+          "choices": [
+            "succeeded",
+            "failed",
+            "cancelled"
+          ]
+        },
+        {
+          "name": "event-id",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Idempotency key; generated when omitted.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:runtime-usage-record-result",
+      "next_actions": [
+        "help --path usage --json"
+      ]
+    },
+    {
+      "path": [
+        "usage",
+        "report"
+      ],
+      "summary": "Scoped aggregate report: frequency, first/last, installed state.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "organization",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Organization to report on.",
+          "choices": []
+        },
+        {
+          "name": "employee",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Filter by employee account.",
+          "choices": []
+        },
+        {
+          "name": "team",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Filter by team.",
+          "choices": []
+        },
+        {
+          "name": "device",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Filter by device.",
+          "choices": []
+        },
+        {
+          "name": "project",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Filter by project.",
+          "choices": []
+        },
+        {
+          "name": "technology",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Filter by technology.",
+          "choices": []
+        },
+        {
+          "name": "harness",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Filter by harness.",
+          "choices": []
+        },
+        {
+          "name": "setup",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Filter by setup stable identifier.",
+          "choices": []
+        },
+        {
+          "name": "component",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Filter by component stable identifier.",
+          "choices": []
+        },
+        {
+          "name": "kind",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Filter by component kind.",
+          "choices": []
+        },
+        {
+          "name": "outcome",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Filter by outcome.",
+          "choices": [
+            "succeeded",
+            "failed",
+            "cancelled"
+          ]
+        },
+        {
+          "name": "from",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "RFC 3339 lower bound on invocation time.",
+          "choices": []
+        },
+        {
+          "name": "to",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "RFC 3339 upper bound on invocation time.",
+          "choices": []
+        },
+        {
+          "name": "group-by",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Grouping axis.",
+          "choices": [
+            "component",
+            "setup"
+          ]
+        },
+        {
+          "name": "offset",
+          "kind": "option",
+          "value_type": "integer",
+          "required": false,
+          "repeatable": false,
+          "summary": "Rows to skip.",
+          "choices": []
+        },
+        {
+          "name": "limit",
+          "kind": "option",
+          "value_type": "integer",
+          "required": false,
+          "repeatable": false,
+          "summary": "Rows to return.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:runtime-usage-report",
+      "next_actions": [
+        "help --path usage --json"
       ]
     },
     {

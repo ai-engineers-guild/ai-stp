@@ -5,7 +5,7 @@ last_verified: "2026-08-21"
 
 # ADR-0112: Client egress is one GET after consent
 
-Status: accepted.
+Status: accepted. Extended by ADR-0203: the anonymous ping stays unchanged while corporate telemetry is a separate authenticated, tenant-governed channel.
 
 ## Context
 

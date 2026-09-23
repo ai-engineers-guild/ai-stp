@@ -3031,6 +3031,110 @@ export type CorporateCatalogVerificationRequest = {
 };
 
 /**
+ * CorporateCiCheckRequest
+ */
+export type CorporateCiCheckRequest = {
+  /**
+   * Account Id
+   */
+  account_id: string;
+  checked_at: Timestamp;
+  /**
+   * Device Id
+   */
+  device_id: string;
+  /**
+   * Harness
+   */
+  harness: string;
+  /**
+   * Project Id
+   */
+  project_id: string;
+  /**
+   * Reason
+   */
+  reason?:
+    | "none"
+    | "check_failed"
+    | "target_drift"
+    | "source_unavailable"
+    | "permission_denied"
+    | "unsupported"
+    | "unknown";
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
+  /**
+   * Setup Id
+   */
+  setup_id?: string | null;
+  /**
+   * Status
+   */
+  status:
+    "pass" | "fail" | "outdated" | "revoked" | "unsupported" | "not_enrolled" | "unverifiable";
+};
+
+/**
+ * CorporateCiCheckView
+ */
+export type CorporateCiCheckView = {
+  /**
+   * Account Id
+   */
+  account_id: string;
+  checked_at: Timestamp;
+  /**
+   * Device Id
+   */
+  device_id: string;
+  /**
+   * Harness
+   */
+  harness: string;
+  /**
+   * Organization Id
+   */
+  organization_id: string;
+  /**
+   * Project Id
+   */
+  project_id: string;
+  /**
+   * Reason
+   */
+  reason:
+    | "none"
+    | "check_failed"
+    | "target_drift"
+    | "source_unavailable"
+    | "permission_denied"
+    | "unsupported"
+    | "unknown";
+  received_at: Timestamp;
+  /**
+   * Revision
+   */
+  revision: number;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  /**
+   * Setup Id
+   */
+  setup_id: string | null;
+  /**
+   * Status
+   */
+  status:
+    "pass" | "fail" | "outdated" | "revoked" | "unsupported" | "not_enrolled" | "unverifiable";
+  [key: string]: unknown;
+};
+
+/**
  * CorporateContext
  */
 export type CorporateContext = {
@@ -4796,6 +4900,729 @@ export type CorporateTeamView = {
   [key: string]: unknown;
 };
 
+/**
+ * CorporateTelemetryAggregate
+ */
+export type CorporateTelemetryAggregate = {
+  /**
+   * Day
+   */
+  day: string;
+  /**
+   * Event Count
+   */
+  event_count: number;
+  /**
+   * Event Kind
+   */
+  event_kind: "heartbeat" | "invocation";
+  /**
+   * Outcome
+   */
+  outcome: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * CorporateTelemetryAggregateList
+ */
+export type CorporateTelemetryAggregateList = {
+  /**
+   * Items
+   */
+  items: Array<CorporateTelemetryAggregate>;
+  /**
+   * Organization Id
+   */
+  organization_id: string;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  [key: string]: unknown;
+};
+
+/**
+ * CorporateTelemetryAggregateQuery
+ */
+export type CorporateTelemetryAggregateQuery = {
+  occurred_from?: Timestamp | null;
+  occurred_to?: Timestamp | null;
+};
+
+/**
+ * CorporateTelemetryAuditList
+ */
+export type CorporateTelemetryAuditList = {
+  /**
+   * Items
+   */
+  items: Array<CorporateTelemetryAuditView>;
+  /**
+   * Next Before Id
+   */
+  next_before_id: number | null;
+  /**
+   * Organization Id
+   */
+  organization_id: string;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  [key: string]: unknown;
+};
+
+/**
+ * CorporateTelemetryAuditQuery
+ */
+export type CorporateTelemetryAuditQuery = {
+  /**
+   * Before Id
+   */
+  before_id?: number | null;
+  /**
+   * Limit
+   */
+  limit?: number;
+};
+
+/**
+ * CorporateTelemetryAuditView
+ *
+ * One governance audit row; `detail` carries counts and ids, no payloads.
+ */
+export type CorporateTelemetryAuditView = {
+  /**
+   * Action
+   */
+  action: string;
+  /**
+   * Actor Account Id
+   */
+  actor_account_id: string | null;
+  /**
+   * Audit Id
+   */
+  audit_id: number;
+  created_at: Timestamp;
+  /**
+   * Detail
+   */
+  detail: {
+    [key: string]: unknown;
+  };
+  /**
+   * Organization Id
+   */
+  organization_id: string;
+  /**
+   * Request Id
+   */
+  request_id: string | null;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  /**
+   * Target Id
+   */
+  target_id: string;
+  /**
+   * Target Table
+   */
+  target_table: string;
+  [key: string]: unknown;
+};
+
+/**
+ * CorporateTelemetryDeleteRequest
+ */
+export type CorporateTelemetryDeleteRequest = {
+  /**
+   * Authorization Revision
+   */
+  authorization_revision: number;
+  idempotency_key: IdempotencyKey;
+  /**
+   * Mode
+   */
+  mode?: "anonymize" | "delete";
+  /**
+   * Reason
+   */
+  reason: string;
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
+  /**
+   * Subject Id
+   */
+  subject_id: string;
+  /**
+   * Subject Kind
+   */
+  subject_kind?: "account" | "device";
+};
+
+/**
+ * CorporateTelemetryDeleteResult
+ */
+export type CorporateTelemetryDeleteResult = {
+  /**
+   * Affected Events
+   */
+  affected_events: number;
+  /**
+   * Mode
+   */
+  mode: "anonymize" | "delete";
+  /**
+   * Organization Id
+   */
+  organization_id: string;
+  processed_at: Timestamp;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  /**
+   * State
+   */
+  state: "active" | "revoked" | "deleted";
+  /**
+   * Subject Id
+   */
+  subject_id: string;
+  /**
+   * Subject Kind
+   */
+  subject_kind: "account" | "device";
+  [key: string]: unknown;
+};
+
+/**
+ * CorporateTelemetryEventBatchRequest
+ */
+export type CorporateTelemetryEventBatchRequest = {
+  /**
+   * Authorization Revision
+   */
+  authorization_revision: number;
+  /**
+   * Events
+   */
+  events: Array<CorporateTelemetryHeartbeatEvent | CorporateTelemetryInvocationEvent>;
+  idempotency_key: IdempotencyKey;
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
+};
+
+/**
+ * CorporateTelemetryEventBatchResult
+ */
+export type CorporateTelemetryEventBatchResult = {
+  /**
+   * Accepted
+   */
+  accepted: number;
+  /**
+   * Deduplicated
+   */
+  deduplicated: number;
+  /**
+   * Items
+   */
+  items: Array<CorporateTelemetryEventView>;
+  /**
+   * Organization Id
+   */
+  organization_id: string;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  [key: string]: unknown;
+};
+
+/**
+ * CorporateTelemetryEventList
+ */
+export type CorporateTelemetryEventList = {
+  /**
+   * Items
+   */
+  items: Array<CorporateTelemetryEventView>;
+  /**
+   * Next Before Id
+   */
+  next_before_id: string | null;
+  next_before_occurred_at: Timestamp | null;
+  /**
+   * Organization Id
+   */
+  organization_id: string;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  [key: string]: unknown;
+};
+
+/**
+ * CorporateTelemetryEventQuery
+ */
+export type CorporateTelemetryEventQuery = {
+  /**
+   * Account Id
+   */
+  account_id?: string | null;
+  /**
+   * Before Id
+   */
+  before_id?: string | null;
+  before_occurred_at?: Timestamp | null;
+  /**
+   * Event Kind
+   */
+  event_kind?: "heartbeat" | "invocation" | null;
+  /**
+   * Limit
+   */
+  limit?: number;
+};
+
+/**
+ * CorporateTelemetryEventRequest
+ */
+export type CorporateTelemetryEventRequest = {
+  /**
+   * Authorization Revision
+   */
+  authorization_revision: number;
+  /**
+   * Event
+   */
+  event:
+    | ({
+        kind: "heartbeat";
+      } & CorporateTelemetryHeartbeatEvent)
+    | ({
+        kind: "invocation";
+      } & CorporateTelemetryInvocationEvent);
+  idempotency_key: IdempotencyKey;
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
+};
+
+/**
+ * CorporateTelemetryEventView
+ */
+export type CorporateTelemetryEventView = {
+  /**
+   * Account Id
+   */
+  account_id: string | null;
+  /**
+   * Capabilities
+   */
+  capabilities: Array<string>;
+  /**
+   * Component Kind
+   */
+  component_kind: string | null;
+  /**
+   * Component Stable Id
+   */
+  component_stable_id: string | null;
+  /**
+   * Component Version
+   */
+  component_version: string | null;
+  /**
+   * Device Id
+   */
+  device_id: string | null;
+  /**
+   * Event Id
+   */
+  event_id: string;
+  /**
+   * Harness
+   */
+  harness: string;
+  /**
+   * Harness Version
+   */
+  harness_version: string | null;
+  /**
+   * Health
+   */
+  health: "active" | "stale" | "failing" | "disabled" | "unknown" | null;
+  /**
+   * Kind
+   */
+  kind: "heartbeat" | "invocation";
+  last_sync_at: Timestamp | null;
+  occurred_at: Timestamp;
+  /**
+   * Organization Id
+   */
+  organization_id: string;
+  /**
+   * Outcome
+   */
+  outcome: "succeeded" | "failed" | "denied" | "unknown" | null;
+  /**
+   * Project Id
+   */
+  project_id: string | null;
+  /**
+   * Provider Name
+   */
+  provider_name: string | null;
+  /**
+   * Provider Version
+   */
+  provider_version: string | null;
+  received_at: Timestamp;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  /**
+   * Setup Id
+   */
+  setup_id: string | null;
+  /**
+   * Subject State
+   */
+  subject_state: "active" | "anonymized";
+  [key: string]: unknown;
+};
+
+/**
+ * CorporateTelemetryExport
+ */
+export type CorporateTelemetryExport = {
+  exported_at: Timestamp;
+  /**
+   * Items
+   */
+  items: Array<CorporateTelemetryEventView>;
+  /**
+   * Organization Id
+   */
+  organization_id: string;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  [key: string]: unknown;
+};
+
+/**
+ * CorporateTelemetryExportQuery
+ */
+export type CorporateTelemetryExportQuery = {
+  /**
+   * Limit
+   */
+  limit?: number;
+  occurred_from?: Timestamp | null;
+  occurred_to?: Timestamp | null;
+};
+
+/**
+ * CorporateTelemetryHeartbeatEvent
+ *
+ * One corporate heartbeat; the field list is closed and enumerable.
+ */
+export type CorporateTelemetryHeartbeatEvent = {
+  /**
+   * Account Id
+   */
+  account_id?: string | null;
+  /**
+   * Capabilities
+   */
+  capabilities?: Array<string>;
+  /**
+   * Device Id
+   */
+  device_id?: string | null;
+  /**
+   * Event Id
+   */
+  event_id: string;
+  /**
+   * Harness
+   */
+  harness: string;
+  /**
+   * Harness Version
+   */
+  harness_version?: string | null;
+  /**
+   * Health
+   */
+  health?: "active" | "stale" | "failing" | "disabled" | "unknown";
+  /**
+   * Kind
+   */
+  kind?: "heartbeat";
+  last_sync_at?: Timestamp | null;
+  occurred_at: Timestamp;
+  /**
+   * Provider Name
+   */
+  provider_name?: string | null;
+  /**
+   * Provider Version
+   */
+  provider_version?: string | null;
+};
+
+/**
+ * CorporateTelemetryInvocationEvent
+ *
+ * One corporate component invocation; prompts and content have no fields.
+ */
+export type CorporateTelemetryInvocationEvent = {
+  /**
+   * Account Id
+   */
+  account_id?: string | null;
+  /**
+   * Component Kind
+   */
+  component_kind?: string | null;
+  /**
+   * Component Stable Id
+   */
+  component_stable_id?: string | null;
+  /**
+   * Component Version
+   */
+  component_version?: string | null;
+  /**
+   * Device Id
+   */
+  device_id?: string | null;
+  /**
+   * Event Id
+   */
+  event_id: string;
+  /**
+   * Harness
+   */
+  harness: string;
+  /**
+   * Harness Version
+   */
+  harness_version?: string | null;
+  /**
+   * Kind
+   */
+  kind?: "invocation";
+  occurred_at: Timestamp;
+  /**
+   * Outcome
+   */
+  outcome?: "succeeded" | "failed" | "denied" | "unknown";
+  /**
+   * Project Id
+   */
+  project_id?: string | null;
+  /**
+   * Setup Id
+   */
+  setup_id?: string | null;
+};
+
+/**
+ * CorporateTelemetryPolicyRequest
+ */
+export type CorporateTelemetryPolicyRequest = {
+  /**
+   * Aggregate Retention Days
+   */
+  aggregate_retention_days?: number;
+  /**
+   * Authorization Revision
+   */
+  authorization_revision: number;
+  /**
+   * Expected Policy Revision
+   */
+  expected_policy_revision: number;
+  idempotency_key: IdempotencyKey;
+  /**
+   * Legal Basis
+   */
+  legal_basis: "consent" | "contract" | "legitimate_interest";
+  /**
+   * Notice Revision
+   */
+  notice_revision: number;
+  /**
+   * Notice Text
+   */
+  notice_text?: string | null;
+  /**
+   * Raw Retention Days
+   */
+  raw_retention_days: number;
+  /**
+   * Reason
+   */
+  reason?: string;
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
+};
+
+/**
+ * CorporateTelemetryPolicyView
+ */
+export type CorporateTelemetryPolicyView = {
+  /**
+   * Aggregate Retention Days
+   */
+  aggregate_retention_days: number;
+  /**
+   * Legal Basis
+   */
+  legal_basis: "consent" | "contract" | "legitimate_interest";
+  /**
+   * Notice Revision
+   */
+  notice_revision: number;
+  /**
+   * Notice Text
+   */
+  notice_text: string | null;
+  /**
+   * Organization Id
+   */
+  organization_id: string;
+  /**
+   * Policy Version
+   */
+  policy_version: number;
+  /**
+   * Raw Retention Days
+   */
+  raw_retention_days: number;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  updated_at: Timestamp;
+  [key: string]: unknown;
+};
+
+/**
+ * CorporateTelemetryRevokeRequest
+ */
+export type CorporateTelemetryRevokeRequest = {
+  /**
+   * Anonymize
+   */
+  anonymize?: boolean;
+  /**
+   * Authorization Revision
+   */
+  authorization_revision: number;
+  idempotency_key: IdempotencyKey;
+  /**
+   * Reason
+   */
+  reason: string;
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
+};
+
+/**
+ * CorporateTelemetryRightRequest
+ */
+export type CorporateTelemetryRightRequest = {
+  /**
+   * Authorization Revision
+   */
+  authorization_revision: number;
+  idempotency_key: IdempotencyKey;
+  /**
+   * Legal Basis
+   */
+  legal_basis: "consent" | "contract" | "legitimate_interest";
+  /**
+   * Notice Revision
+   */
+  notice_revision: number;
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
+  /**
+   * Subject Id
+   */
+  subject_id: string;
+  /**
+   * Subject Kind
+   */
+  subject_kind?: "account" | "device";
+};
+
+/**
+ * CorporateTelemetryRightView
+ */
+export type CorporateTelemetryRightView = {
+  anonymized_at: Timestamp | null;
+  deleted_at: Timestamp | null;
+  deletion_requested_at: Timestamp | null;
+  /**
+   * Legal Basis
+   */
+  legal_basis: "consent" | "contract" | "legitimate_interest" | null;
+  notice_acknowledged_at: Timestamp | null;
+  /**
+   * Notice Revision
+   */
+  notice_revision: number;
+  /**
+   * Organization Id
+   */
+  organization_id: string;
+  revoked_at: Timestamp | null;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  /**
+   * State
+   */
+  state: "active" | "revoked" | "deleted";
+  /**
+   * Subject Id
+   */
+  subject_id: string;
+  /**
+   * Subject Kind
+   */
+  subject_kind: "account" | "device";
+  updated_at: Timestamp;
+  [key: string]: unknown;
+};
+
 export type CountryCode = string;
 
 export type CountryFilterValue = string;
@@ -4821,6 +5648,293 @@ export type CountryRequest = {
 };
 
 export type Cursor = string;
+
+/**
+ * DashboardCell
+ */
+export type DashboardCell = {
+  /**
+   * Dimensions
+   */
+  dimensions: {
+    [key: string]: string;
+  };
+  /**
+   * Measures
+   */
+  measures: {
+    [key: string]: number;
+  };
+  [key: string]: unknown;
+};
+
+/**
+ * DashboardFilter
+ */
+export type DashboardFilter = {
+  /**
+   * Dimension
+   */
+  dimension:
+    | "state"
+    | "project"
+    | "team"
+    | "account"
+    | "device"
+    | "harness"
+    | "setup"
+    | "provider"
+    | "day"
+    | "checked_at"
+    | "reason";
+  /**
+   * Values
+   */
+  values: Array<string>;
+};
+
+/**
+ * DashboardQuery
+ */
+export type DashboardQuery = {
+  /**
+   * Dataset
+   */
+  dataset: "ci" | "heartbeat" | "provider";
+  /**
+   * Dimensions
+   */
+  dimensions?: Array<
+    | "state"
+    | "project"
+    | "team"
+    | "account"
+    | "device"
+    | "harness"
+    | "setup"
+    | "provider"
+    | "day"
+    | "checked_at"
+    | "reason"
+  >;
+  /**
+   * Filters
+   */
+  filters?: Array<DashboardFilter>;
+  /**
+   * Group By
+   */
+  group_by?: Array<
+    | "state"
+    | "project"
+    | "team"
+    | "account"
+    | "device"
+    | "harness"
+    | "setup"
+    | "provider"
+    | "day"
+    | "checked_at"
+    | "reason"
+  >;
+  /**
+   * Limit
+   */
+  limit?: number;
+  /**
+   * Measures
+   */
+  measures?: Array<"count" | "devices" | "projects">;
+  /**
+   * Pivot Columns
+   */
+  pivot_columns?: Array<
+    | "state"
+    | "project"
+    | "team"
+    | "account"
+    | "device"
+    | "harness"
+    | "setup"
+    | "provider"
+    | "day"
+    | "checked_at"
+    | "reason"
+  >;
+  /**
+   * Pivot Rows
+   */
+  pivot_rows?: Array<
+    | "state"
+    | "project"
+    | "team"
+    | "account"
+    | "device"
+    | "harness"
+    | "setup"
+    | "provider"
+    | "day"
+    | "checked_at"
+    | "reason"
+  >;
+  /**
+   * Sort By
+   */
+  sort_by?:
+    | "state"
+    | "project"
+    | "team"
+    | "account"
+    | "device"
+    | "harness"
+    | "setup"
+    | "provider"
+    | "day"
+    | "checked_at"
+    | "reason"
+    | "count"
+    | "devices"
+    | "projects";
+  /**
+   * Sort Order
+   */
+  sort_order?: "asc" | "desc";
+  /**
+   * View
+   */
+  view?: "table" | "bar" | "line" | "pie" | "heatmap";
+};
+
+/**
+ * DashboardQueryRequest
+ */
+export type DashboardQueryRequest = {
+  query: DashboardQuery;
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
+};
+
+/**
+ * DashboardResult
+ */
+export type DashboardResult = {
+  evaluated_at: Timestamp;
+  /**
+   * Items
+   */
+  items: Array<DashboardCell>;
+  /**
+   * Organization Id
+   */
+  organization_id: string;
+  query: DashboardQuery;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  /**
+   * Total Groups
+   */
+  total_groups: number;
+  /**
+   * Total Source Rows
+   */
+  total_source_rows: number;
+  [key: string]: unknown;
+};
+
+/**
+ * DashboardView
+ */
+export type DashboardView = {
+  /**
+   * Id
+   */
+  id: string;
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Organization Id
+   */
+  organization_id: string;
+  /**
+   * Owner Account Id
+   */
+  owner_account_id: string;
+  query: DashboardQuery;
+  /**
+   * Revision
+   */
+  revision: number;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  /**
+   * Scope
+   */
+  scope: "user" | "team" | "organization";
+  /**
+   * Scope Id
+   */
+  scope_id: string;
+  [key: string]: unknown;
+};
+
+/**
+ * DashboardViewList
+ */
+export type DashboardViewList = {
+  /**
+   * Items
+   */
+  items: Array<DashboardView>;
+  /**
+   * Organization Id
+   */
+  organization_id: string;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  [key: string]: unknown;
+};
+
+/**
+ * DashboardViewRequest
+ */
+export type DashboardViewRequest = {
+  /**
+   * Authorization Revision
+   */
+  authorization_revision: number;
+  /**
+   * Expected Revision
+   */
+  expected_revision?: number;
+  idempotency_key: IdempotencyKey;
+  /**
+   * Name
+   */
+  name: string;
+  query: DashboardQuery;
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
+  /**
+   * Scope
+   */
+  scope: "user" | "team" | "organization";
+  /**
+   * Scope Id
+   */
+  scope_id: string;
+};
 
 export type DescriptionExcerpt = string;
 
@@ -6030,6 +7144,128 @@ export type GitHubSourcePrepared = {
 export type GitHubUsername = string;
 
 /**
+ * GitLabEnrichRequest
+ */
+export type GitLabEnrichRequest = {
+  /**
+   * Authorization Revision
+   */
+  authorization_revision: string;
+  /**
+   * Expected Revision
+   */
+  expected_revision: number;
+  idempotency_key: IdempotencyKey;
+  /**
+   * Mapping Version
+   */
+  mapping_version: string;
+  /**
+   * Scan Id
+   */
+  scan_id: string;
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
+};
+
+/**
+ * GitLabMutationRequest
+ */
+export type GitLabMutationRequest = {
+  /**
+   * Authorization Revision
+   */
+  authorization_revision: string;
+  /**
+   * Expected Revision
+   */
+  expected_revision: number;
+  idempotency_key: IdempotencyKey;
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
+};
+
+/**
+ * GitLabRepositoryList
+ */
+export type GitLabRepositoryList = {
+  /**
+   * Items
+   */
+  items: Array<GitLabRepositoryView>;
+  /**
+   * Organization Id
+   */
+  organization_id: string;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  /**
+   * Total
+   */
+  total: number;
+  [key: string]: unknown;
+};
+
+/**
+ * GitLabRepositoryView
+ */
+export type GitLabRepositoryView = {
+  /**
+   * Connected
+   */
+  connected: boolean;
+  /**
+   * Default Branch
+   */
+  default_branch: string | null;
+  /**
+   * Identity Revision
+   */
+  identity_revision: number | null;
+  last_activity_at: Timestamp | null;
+  /**
+   * Namespace Id
+   */
+  namespace_id: number;
+  observed_at: Timestamp | null;
+  /**
+   * Observed Revision
+   */
+  observed_revision: string | null;
+  /**
+   * Organization Id
+   */
+  organization_id: string;
+  /**
+   * Path With Namespace
+   */
+  path_with_namespace: string;
+  /**
+   * Provider Project Id
+   */
+  provider_project_id: string | null;
+  /**
+   * Repository Id
+   */
+  repository_id: number;
+  /**
+   * Repository Url
+   */
+  repository_url: string;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  [key: string]: unknown;
+};
+
+/**
  * GitSource
  *
  * Exact public origin: repository, commit and component root subpath.
@@ -6205,6 +7441,153 @@ export type IdempotencyKey = string;
 export const ImplementationMode = { DERIVED: "derived", NATIVE: "native" } as const;
 
 export type ImplementationMode = (typeof ImplementationMode)[keyof typeof ImplementationMode];
+
+/**
+ * InstallationHeartbeat
+ *
+ * Stored heartbeat plus the health state evaluated at read time.
+ */
+export type InstallationHeartbeat = {
+  /**
+   * Account Id
+   */
+  account_id: string;
+  /**
+   * Capabilities
+   */
+  capabilities: Array<string>;
+  checked_at: Timestamp;
+  /**
+   * Cli Version
+   */
+  cli_version: string;
+  /**
+   * Device Id
+   */
+  device_id: string;
+  /**
+   * Health State
+   */
+  health_state: "active" | "stale" | "failing" | "disabled" | "unknown";
+  last_sync_at: Timestamp | null;
+  /**
+   * Organization Id
+   */
+  organization_id: string;
+  received_at: Timestamp;
+  /**
+   * Reported State
+   */
+  reported_state: "active" | "failing" | "disabled";
+  /**
+   * Revision
+   */
+  revision: number;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  /**
+   * Stale After Seconds
+   */
+  stale_after_seconds: number;
+  [key: string]: unknown;
+};
+
+/**
+ * InstallationHeartbeatList
+ *
+ * Installation health rows visible to the caller's role.
+ */
+export type InstallationHeartbeatList = {
+  evaluated_at: Timestamp;
+  /**
+   * Items
+   */
+  items: Array<InstallationHeartbeat>;
+  /**
+   * Organization Id
+   */
+  organization_id: string;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  /**
+   * Stale After Seconds
+   */
+  stale_after_seconds: number;
+  /**
+   * Total
+   */
+  total: number;
+  [key: string]: unknown;
+};
+
+/**
+ * InstallationHeartbeatRequest
+ *
+ * One CLI heartbeat write. Replayed or delayed writes coalesce.
+ */
+export type InstallationHeartbeatRequest = {
+  /**
+   * Account Id
+   */
+  account_id: string;
+  /**
+   * Capabilities
+   */
+  capabilities?: Array<string>;
+  checked_at: Timestamp;
+  /**
+   * Cli Version
+   */
+  cli_version: string;
+  /**
+   * Device Id
+   */
+  device_id: string;
+  /**
+   * Health State
+   */
+  health_state: "active" | "failing" | "disabled";
+  last_sync_at?: Timestamp | null;
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
+};
+
+/**
+ * InstallationHeartbeatStatus
+ *
+ * The caller's own installation health; `unknown` before the first beat.
+ */
+export type InstallationHeartbeatStatus = {
+  /**
+   * Device Id
+   */
+  device_id: string;
+  evaluated_at: Timestamp;
+  /**
+   * Health State
+   */
+  health_state: "active" | "stale" | "failing" | "disabled" | "unknown";
+  heartbeat: InstallationHeartbeat | null;
+  /**
+   * Organization Id
+   */
+  organization_id: string;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  /**
+   * Stale After Seconds
+   */
+  stale_after_seconds: number;
+  [key: string]: unknown;
+};
 
 export const InvitationState = {
   PENDING: "pending",
@@ -8663,6 +10046,534 @@ export const RequestTopic = {
 export type RequestTopic = (typeof RequestTopic)[keyof typeof RequestTopic];
 
 export type RevisionId = string;
+
+/**
+ * RuntimeUsageComponentCoordinate
+ *
+ * The exact component that was invoked, kind-qualified.
+ */
+export type RuntimeUsageComponentCoordinate = {
+  /**
+   * Kind
+   */
+  kind:
+    "instruction" | "skill" | "mcp" | "hook" | "command" | "agent" | "plugin" | "setting" | "cli";
+  /**
+   * Passport Digest
+   */
+  passport_digest: string;
+  /**
+   * Stable Id
+   */
+  stable_id: string;
+  /**
+   * Version
+   */
+  version: string;
+};
+
+/**
+ * RuntimeUsageEvent
+ *
+ * One component invocation. The closed field set is the contract.
+ */
+export type RuntimeUsageEvent = {
+  component: RuntimeUsageComponentCoordinate;
+  /**
+   * Device Id
+   */
+  device_id: string;
+  /**
+   * Employee Id
+   */
+  employee_id: string;
+  /**
+   * Event Id
+   */
+  event_id: string;
+  harness: HarnessId;
+  invoked_at: Timestamp;
+  /**
+   * Organization Id
+   */
+  organization_id: string;
+  /**
+   * Outcome
+   */
+  outcome: "succeeded" | "failed" | "cancelled";
+  /**
+   * Project Id
+   */
+  project_id: string;
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
+  setup: RuntimeUsageSetupCoordinate;
+};
+
+/**
+ * RuntimeUsageEventBatch
+ *
+ * A bounded outbox drain: the only ingestion envelope.
+ */
+export type RuntimeUsageEventBatch = {
+  /**
+   * Events
+   */
+  events: Array<RuntimeUsageEvent>;
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
+};
+
+/**
+ * RuntimeUsageEventList
+ */
+export type RuntimeUsageEventList = {
+  /**
+   * Events
+   */
+  events: Array<RuntimeUsageEventView>;
+  /**
+   * Limit
+   */
+  limit: number;
+  /**
+   * Offset
+   */
+  offset: number;
+  /**
+   * Organization Id
+   */
+  organization_id: string;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  [key: string]: unknown;
+};
+
+/**
+ * RuntimeUsageEventQuery
+ *
+ * Drill-down filters over redacted event rows; separately permissioned.
+ */
+export type RuntimeUsageEventQuery = {
+  /**
+   * Component Kind
+   */
+  component_kind?:
+    | "instruction"
+    | "skill"
+    | "mcp"
+    | "hook"
+    | "command"
+    | "agent"
+    | "plugin"
+    | "setting"
+    | "cli"
+    | null;
+  /**
+   * Component Stable Id
+   */
+  component_stable_id?: string | null;
+  /**
+   * Device Id
+   */
+  device_id?: string | null;
+  /**
+   * Employee Id
+   */
+  employee_id?: string | null;
+  harness?: HarnessId | null;
+  invoked_from?: Timestamp | null;
+  invoked_to?: Timestamp | null;
+  /**
+   * Limit
+   */
+  limit?: number;
+  /**
+   * Offset
+   */
+  offset?: number;
+  /**
+   * Outcome
+   */
+  outcome?: "succeeded" | "failed" | "cancelled" | null;
+  /**
+   * Project Id
+   */
+  project_id?: string | null;
+  /**
+   * Setup Stable Id
+   */
+  setup_stable_id?: string | null;
+  /**
+   * Team Id
+   */
+  team_id?: string | null;
+  /**
+   * Technology Id
+   */
+  technology_id?: string | null;
+};
+
+/**
+ * RuntimeUsageEventView
+ *
+ * The redacted drill-down row: identities and coordinates, nothing else.
+ */
+export type RuntimeUsageEventView = {
+  /**
+   * Component Kind
+   */
+  component_kind: string;
+  /**
+   * Component Stable Id
+   */
+  component_stable_id: string;
+  /**
+   * Component Version
+   */
+  component_version: string;
+  /**
+   * Device Id
+   */
+  device_id: string;
+  /**
+   * Employee Id
+   */
+  employee_id: string;
+  /**
+   * Event Id
+   */
+  event_id: string;
+  /**
+   * Harness
+   */
+  harness: string;
+  invoked_at: Timestamp;
+  /**
+   * Outcome
+   */
+  outcome: "succeeded" | "failed" | "cancelled";
+  /**
+   * Project Id
+   */
+  project_id: string;
+  /**
+   * Setup Stable Id
+   */
+  setup_stable_id: string;
+  /**
+   * Setup Version
+   */
+  setup_version: string;
+  [key: string]: unknown;
+};
+
+/**
+ * RuntimeUsageExportRequest
+ *
+ * A bounded, auditable export of the aggregate report surface.
+ */
+export type RuntimeUsageExportRequest = {
+  /**
+   * Authorization Revision
+   */
+  authorization_revision: number;
+  idempotency_key: IdempotencyKey;
+  query?: RuntimeUsageReportQuery;
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
+};
+
+/**
+ * RuntimeUsageExportView
+ *
+ * The export receipt: what was produced, bounded and digested.
+ */
+export type RuntimeUsageExportView = {
+  /**
+   * Content Digest
+   */
+  content_digest: string;
+  created_at: Timestamp;
+  /**
+   * Export Id
+   */
+  export_id: string;
+  /**
+   * Organization Id
+   */
+  organization_id: string;
+  /**
+   * Row Count
+   */
+  row_count: number;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  /**
+   * State
+   */
+  state: "completed";
+  [key: string]: unknown;
+};
+
+/**
+ * RuntimeUsageIngestResult
+ *
+ * Per-batch bookkeeping; the server never returns event content.
+ */
+export type RuntimeUsageIngestResult = {
+  /**
+   * Accepted
+   */
+  accepted: number;
+  /**
+   * Duplicates
+   */
+  duplicates: number;
+  /**
+   * Rejected
+   */
+  rejected: number;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  [key: string]: unknown;
+};
+
+/**
+ * RuntimeUsageInstalledRow
+ *
+ * One currently assigned object and whether it was ever invoked.
+ */
+export type RuntimeUsageInstalledRow = {
+  /**
+   * Invocations
+   */
+  invocations: number;
+  last_invoked_at: Timestamp | null;
+  /**
+   * Object Kind
+   */
+  object_kind: "setup" | "component";
+  /**
+   * Stable Id
+   */
+  stable_id: string;
+  /**
+   * State
+   */
+  state: "invoked" | "not_invoked";
+  /**
+   * Version
+   */
+  version: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * RuntimeUsageReport
+ *
+ * The aggregate answer plus the installed-vs-invoked comparison.
+ */
+export type RuntimeUsageReport = {
+  generated_at: Timestamp;
+  /**
+   * Group By
+   */
+  group_by: "component" | "setup" | "employee" | "device" | "project" | "harness" | "outcome";
+  /**
+   * Installed
+   */
+  installed: Array<RuntimeUsageInstalledRow>;
+  invoked_from: Timestamp | null;
+  invoked_to: Timestamp | null;
+  /**
+   * Organization Id
+   */
+  organization_id: string;
+  /**
+   * Rows
+   */
+  rows: Array<RuntimeUsageReportRow>;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  /**
+   * Total Events
+   */
+  total_events: number;
+  [key: string]: unknown;
+};
+
+/**
+ * RuntimeUsageReportQuery
+ *
+ * Aggregate report filters. Every field narrows; none widens.
+ */
+export type RuntimeUsageReportQuery = {
+  /**
+   * Component Kind
+   */
+  component_kind?:
+    | "instruction"
+    | "skill"
+    | "mcp"
+    | "hook"
+    | "command"
+    | "agent"
+    | "plugin"
+    | "setting"
+    | "cli"
+    | null;
+  /**
+   * Component Stable Id
+   */
+  component_stable_id?: string | null;
+  /**
+   * Device Id
+   */
+  device_id?: string | null;
+  /**
+   * Employee Id
+   */
+  employee_id?: string | null;
+  /**
+   * Group By
+   */
+  group_by?: "component" | "setup" | "employee" | "device" | "project" | "harness" | "outcome";
+  harness?: HarnessId | null;
+  invoked_from?: Timestamp | null;
+  invoked_to?: Timestamp | null;
+  /**
+   * Limit
+   */
+  limit?: number;
+  /**
+   * Offset
+   */
+  offset?: number;
+  /**
+   * Outcome
+   */
+  outcome?: "succeeded" | "failed" | "cancelled" | null;
+  /**
+   * Project Id
+   */
+  project_id?: string | null;
+  /**
+   * Setup Stable Id
+   */
+  setup_stable_id?: string | null;
+  /**
+   * Team Id
+   */
+  team_id?: string | null;
+  /**
+   * Technology Id
+   */
+  technology_id?: string | null;
+};
+
+/**
+ * RuntimeUsageReportRow
+ *
+ * One deterministic aggregate bucket over a defined window.
+ */
+export type RuntimeUsageReportRow = {
+  /**
+   * Cancelled
+   */
+  cancelled: number;
+  /**
+   * Component Kind
+   */
+  component_kind:
+    | "instruction"
+    | "skill"
+    | "mcp"
+    | "hook"
+    | "command"
+    | "agent"
+    | "plugin"
+    | "setting"
+    | "cli"
+    | null;
+  /**
+   * Component Stable Id
+   */
+  component_stable_id: string | null;
+  /**
+   * Component Version
+   */
+  component_version: string | null;
+  /**
+   * Devices
+   */
+  devices: number;
+  /**
+   * Employees
+   */
+  employees: number;
+  /**
+   * Failed
+   */
+  failed: number;
+  first_invoked_at: Timestamp;
+  /**
+   * Group Value
+   */
+  group_value: string;
+  /**
+   * Invocations
+   */
+  invocations: number;
+  last_invoked_at: Timestamp;
+  /**
+   * Setup Stable Id
+   */
+  setup_stable_id: string | null;
+  /**
+   * Setup Version
+   */
+  setup_version: string | null;
+  /**
+   * Succeeded
+   */
+  succeeded: number;
+  [key: string]: unknown;
+};
+
+/**
+ * RuntimeUsageSetupCoordinate
+ *
+ * The exact setup the invoked component belongs to.
+ */
+export type RuntimeUsageSetupCoordinate = {
+  /**
+   * Passport Digest
+   */
+  passport_digest: string;
+  /**
+   * Stable Id
+   */
+  stable_id: string;
+  /**
+   * Version
+   */
+  version: string;
+};
 
 export type SafeText160 = string;
 
@@ -16435,6 +18346,312 @@ export type ReadCorporateContextResponses = {
 export type ReadCorporateContextResponse =
   ReadCorporateContextResponses[keyof ReadCorporateContextResponses];
 
+export type WriteCorporateCiCheckData = {
+  body: CorporateCiCheckRequest;
+  headers: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+    /**
+     * Client-chosen key; a retry must not become a second effect.
+     */
+    "Idempotency-Key": string;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/dashboard/ci-check";
+};
+
+export type WriteCorporateCiCheckErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type WriteCorporateCiCheckError =
+  WriteCorporateCiCheckErrors[keyof WriteCorporateCiCheckErrors];
+
+export type WriteCorporateCiCheckResponses = {
+  /**
+   * Coalesce one device-bound CI verdict for a corporate project.
+   */
+  200: CorporateCiCheckView;
+};
+
+export type WriteCorporateCiCheckResponse =
+  WriteCorporateCiCheckResponses[keyof WriteCorporateCiCheckResponses];
+
+export type QueryCorporateDashboardData = {
+  body: DashboardQueryRequest;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/dashboard/query";
+};
+
+export type QueryCorporateDashboardErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type QueryCorporateDashboardError =
+  QueryCorporateDashboardErrors[keyof QueryCorporateDashboardErrors];
+
+export type QueryCorporateDashboardResponses = {
+  /**
+   * Aggregate a bounded authorized health dataset.
+   */
+  200: DashboardResult;
+};
+
+export type QueryCorporateDashboardResponse =
+  QueryCorporateDashboardResponses[keyof QueryCorporateDashboardResponses];
+
+export type ListCorporateDashboardViewsData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/dashboard/views";
+};
+
+export type ListCorporateDashboardViewsErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ListCorporateDashboardViewsError =
+  ListCorporateDashboardViewsErrors[keyof ListCorporateDashboardViewsErrors];
+
+export type ListCorporateDashboardViewsResponses = {
+  /**
+   * List saved views visible in the caller's scope.
+   */
+  200: DashboardViewList;
+};
+
+export type ListCorporateDashboardViewsResponse =
+  ListCorporateDashboardViewsResponses[keyof ListCorporateDashboardViewsResponses];
+
+export type CreateCorporateDashboardViewData = {
+  body: DashboardViewRequest;
+  headers: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+    /**
+     * Client-chosen key; a retry must not become a second effect.
+     */
+    "Idempotency-Key": string;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/dashboard/views";
+};
+
+export type CreateCorporateDashboardViewErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type CreateCorporateDashboardViewError =
+  CreateCorporateDashboardViewErrors[keyof CreateCorporateDashboardViewErrors];
+
+export type CreateCorporateDashboardViewResponses = {
+  /**
+   * Save one bounded dashboard query in a permitted scope.
+   */
+  200: DashboardView;
+};
+
+export type CreateCorporateDashboardViewResponse =
+  CreateCorporateDashboardViewResponses[keyof CreateCorporateDashboardViewResponses];
+
+export type UpdateCorporateDashboardViewData = {
+  body: DashboardViewRequest;
+  headers: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+    /**
+     * Client-chosen key; a retry must not become a second effect.
+     */
+    "Idempotency-Key": string;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+    /**
+     * Saved dashboard view identity.
+     */
+    view_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/dashboard/views/{view_id}";
+};
+
+export type UpdateCorporateDashboardViewErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type UpdateCorporateDashboardViewError =
+  UpdateCorporateDashboardViewErrors[keyof UpdateCorporateDashboardViewErrors];
+
+export type UpdateCorporateDashboardViewResponses = {
+  /**
+   * Update a saved dashboard query without changing its scope.
+   */
+  200: DashboardView;
+};
+
+export type UpdateCorporateDashboardViewResponse =
+  UpdateCorporateDashboardViewResponses[keyof UpdateCorporateDashboardViewResponses];
+
 export type ReadCorporateDirectoryData = {
   body?: never;
   headers?: {
@@ -16751,6 +18968,402 @@ export type WriteCorporateEntityProfileResponses = {
 
 export type WriteCorporateEntityProfileResponse =
   WriteCorporateEntityProfileResponses[keyof WriteCorporateEntityProfileResponses];
+
+export type EnrichGitHubLanguagesData = {
+  body: GitLabEnrichRequest;
+  headers: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+    /**
+     * Client-chosen key; a retry must not become a second effect.
+     */
+    "Idempotency-Key": string;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+    /**
+     * Retained provider repository identity.
+     */
+    provider_project_id: string;
+    /**
+     * Typed corporate project identifier.
+     */
+    project_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/github/observations/{provider_project_id}/projects/{project_id}/enrich";
+};
+
+export type EnrichGitHubLanguagesErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type EnrichGitHubLanguagesError =
+  EnrichGitHubLanguagesErrors[keyof EnrichGitHubLanguagesErrors];
+
+export type EnrichGitHubLanguagesResponses = {
+  /**
+   * Publish selected GitHub repository languages as proposed project facts.
+   */
+  200: TechnologyScanResult;
+};
+
+export type EnrichGitHubLanguagesResponse =
+  EnrichGitHubLanguagesResponses[keyof EnrichGitHubLanguagesResponses];
+
+export type DisconnectGitLabRepositoryData = {
+  body: GitLabMutationRequest;
+  headers: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+    /**
+     * Client-chosen key; a retry must not become a second effect.
+     */
+    "Idempotency-Key": string;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+    /**
+     * Retained provider repository identity.
+     */
+    provider_project_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/gitlab/observations/{provider_project_id}/disconnect";
+};
+
+export type DisconnectGitLabRepositoryErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type DisconnectGitLabRepositoryError =
+  DisconnectGitLabRepositoryErrors[keyof DisconnectGitLabRepositoryErrors];
+
+export type DisconnectGitLabRepositoryResponses = {
+  /**
+   * Disconnect a GitLab observation while retaining identity and project links.
+   */
+  200: GitLabRepositoryView;
+};
+
+export type DisconnectGitLabRepositoryResponse =
+  DisconnectGitLabRepositoryResponses[keyof DisconnectGitLabRepositoryResponses];
+
+export type EnrichGitLabLanguagesData = {
+  body: GitLabEnrichRequest;
+  headers: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+    /**
+     * Client-chosen key; a retry must not become a second effect.
+     */
+    "Idempotency-Key": string;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+    /**
+     * Retained provider repository identity.
+     */
+    provider_project_id: string;
+    /**
+     * Typed corporate project identifier.
+     */
+    project_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/gitlab/observations/{provider_project_id}/projects/{project_id}/enrich";
+};
+
+export type EnrichGitLabLanguagesErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type EnrichGitLabLanguagesError =
+  EnrichGitLabLanguagesErrors[keyof EnrichGitLabLanguagesErrors];
+
+export type EnrichGitLabLanguagesResponses = {
+  /**
+   * Publish mapped GitLab languages as proposed project facts.
+   */
+  200: TechnologyScanResult;
+};
+
+export type EnrichGitLabLanguagesResponse =
+  EnrichGitLabLanguagesResponses[keyof EnrichGitLabLanguagesResponses];
+
+export type RefreshGitLabRepositoryData = {
+  body: GitLabMutationRequest;
+  headers: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+    /**
+     * Client-chosen key; a retry must not become a second effect.
+     */
+    "Idempotency-Key": string;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+    /**
+     * Retained provider repository identity.
+     */
+    provider_project_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/gitlab/observations/{provider_project_id}/refresh";
+};
+
+export type RefreshGitLabRepositoryErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type RefreshGitLabRepositoryError =
+  RefreshGitLabRepositoryErrors[keyof RefreshGitLabRepositoryErrors];
+
+export type RefreshGitLabRepositoryResponses = {
+  /**
+   * Refresh bounded GitLab metadata by immutable repository identity.
+   */
+  200: GitLabRepositoryView;
+};
+
+export type RefreshGitLabRepositoryResponse =
+  RefreshGitLabRepositoryResponses[keyof RefreshGitLabRepositoryResponses];
+
+export type ListGitLabRepositoriesData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/gitlab/repositories";
+};
+
+export type ListGitLabRepositoriesErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ListGitLabRepositoriesError =
+  ListGitLabRepositoriesErrors[keyof ListGitLabRepositoriesErrors];
+
+export type ListGitLabRepositoriesResponses = {
+  /**
+   * List bounded repositories visible to the configured GitLab connection.
+   */
+  200: GitLabRepositoryList;
+};
+
+export type ListGitLabRepositoriesResponse =
+  ListGitLabRepositoriesResponses[keyof ListGitLabRepositoriesResponses];
+
+export type RegisterGitLabRepositoryData = {
+  body: GitLabMutationRequest;
+  headers: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+    /**
+     * Client-chosen key; a retry must not become a second effect.
+     */
+    "Idempotency-Key": string;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+    /**
+     * Immutable GitLab repository ID.
+     */
+    repository_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/gitlab/repositories/{repository_id}";
+};
+
+export type RegisterGitLabRepositoryErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type RegisterGitLabRepositoryError =
+  RegisterGitLabRepositoryErrors[keyof RegisterGitLabRepositoryErrors];
+
+export type RegisterGitLabRepositoryResponses = {
+  /**
+   * Retain one GitLab repository observation without creating a project link.
+   */
+  200: GitLabRepositoryView;
+};
+
+export type RegisterGitLabRepositoryResponse =
+  RegisterGitLabRepositoryResponses[keyof RegisterGitLabRepositoryResponses];
 
 export type ListCorporateJobTitlesData = {
   body?: never;
@@ -21765,6 +24378,1309 @@ export type ImportTechnologySeedResponses = {
 
 export type ImportTechnologySeedResponse =
   ImportTechnologySeedResponses[keyof ImportTechnologySeedResponses];
+
+export type ListCorporateTelemetryAggregatesData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+  };
+  query?: {
+    occurred_from?: Timestamp | null;
+    occurred_to?: Timestamp | null;
+  };
+  url: "/v1/corporate/organizations/{organization_id}/telemetry/aggregates";
+};
+
+export type ListCorporateTelemetryAggregatesErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ListCorporateTelemetryAggregatesError =
+  ListCorporateTelemetryAggregatesErrors[keyof ListCorporateTelemetryAggregatesErrors];
+
+export type ListCorporateTelemetryAggregatesResponses = {
+  /**
+   * Read bounded corporate telemetry aggregates.
+   */
+  200: CorporateTelemetryAggregateList;
+};
+
+export type ListCorporateTelemetryAggregatesResponse =
+  ListCorporateTelemetryAggregatesResponses[keyof ListCorporateTelemetryAggregatesResponses];
+
+export type ListCorporateTelemetryAuditData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+  };
+  query?: {
+    /**
+     * Before Id
+     */
+    before_id?: number | null;
+    /**
+     * Limit
+     */
+    limit?: number;
+  };
+  url: "/v1/corporate/organizations/{organization_id}/telemetry/audit";
+};
+
+export type ListCorporateTelemetryAuditErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ListCorporateTelemetryAuditError =
+  ListCorporateTelemetryAuditErrors[keyof ListCorporateTelemetryAuditErrors];
+
+export type ListCorporateTelemetryAuditResponses = {
+  /**
+   * Read the governed telemetry audit trail.
+   */
+  200: CorporateTelemetryAuditList;
+};
+
+export type ListCorporateTelemetryAuditResponse =
+  ListCorporateTelemetryAuditResponses[keyof ListCorporateTelemetryAuditResponses];
+
+export type DeleteCorporateTelemetrySubjectData = {
+  body: CorporateTelemetryDeleteRequest;
+  headers: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+    /**
+     * Client-chosen key; a retry must not become a second effect.
+     */
+    "Idempotency-Key": string;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/telemetry/deletions";
+};
+
+export type DeleteCorporateTelemetrySubjectErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type DeleteCorporateTelemetrySubjectError =
+  DeleteCorporateTelemetrySubjectErrors[keyof DeleteCorporateTelemetrySubjectErrors];
+
+export type DeleteCorporateTelemetrySubjectResponses = {
+  /**
+   * Apply a governed telemetry deletion request.
+   */
+  200: CorporateTelemetryDeleteResult;
+};
+
+export type DeleteCorporateTelemetrySubjectResponse =
+  DeleteCorporateTelemetrySubjectResponses[keyof DeleteCorporateTelemetrySubjectResponses];
+
+export type ListCorporateTelemetryEventsData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+  };
+  query?: {
+    /**
+     * Account Id
+     */
+    account_id?: string | null;
+    /**
+     * Before Id
+     */
+    before_id?: string | null;
+    before_occurred_at?: Timestamp | null;
+    /**
+     * Event Kind
+     */
+    event_kind?: "heartbeat" | "invocation" | null;
+    /**
+     * Limit
+     */
+    limit?: number;
+  };
+  url: "/v1/corporate/organizations/{organization_id}/telemetry/events";
+};
+
+export type ListCorporateTelemetryEventsErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ListCorporateTelemetryEventsError =
+  ListCorporateTelemetryEventsErrors[keyof ListCorporateTelemetryEventsErrors];
+
+export type ListCorporateTelemetryEventsResponses = {
+  /**
+   * List governed corporate telemetry events.
+   */
+  200: CorporateTelemetryEventList;
+};
+
+export type ListCorporateTelemetryEventsResponse =
+  ListCorporateTelemetryEventsResponses[keyof ListCorporateTelemetryEventsResponses];
+
+export type RecordCorporateTelemetryEventData = {
+  body: CorporateTelemetryEventRequest;
+  headers: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+    /**
+     * Client-chosen key; a retry must not become a second effect.
+     */
+    "Idempotency-Key": string;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/telemetry/events";
+};
+
+export type RecordCorporateTelemetryEventErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type RecordCorporateTelemetryEventError =
+  RecordCorporateTelemetryEventErrors[keyof RecordCorporateTelemetryEventErrors];
+
+export type RecordCorporateTelemetryEventResponses = {
+  /**
+   * Record one governed corporate telemetry event.
+   */
+  200: CorporateTelemetryEventView;
+};
+
+export type RecordCorporateTelemetryEventResponse =
+  RecordCorporateTelemetryEventResponses[keyof RecordCorporateTelemetryEventResponses];
+
+export type RecordCorporateTelemetryEventBatchData = {
+  body: CorporateTelemetryEventBatchRequest;
+  headers: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+    /**
+     * Client-chosen key; a retry must not become a second effect.
+     */
+    "Idempotency-Key": string;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/telemetry/events/batch";
+};
+
+export type RecordCorporateTelemetryEventBatchErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type RecordCorporateTelemetryEventBatchError =
+  RecordCorporateTelemetryEventBatchErrors[keyof RecordCorporateTelemetryEventBatchErrors];
+
+export type RecordCorporateTelemetryEventBatchResponses = {
+  /**
+   * Record a bounded batch of governed telemetry events.
+   */
+  200: CorporateTelemetryEventBatchResult;
+};
+
+export type RecordCorporateTelemetryEventBatchResponse =
+  RecordCorporateTelemetryEventBatchResponses[keyof RecordCorporateTelemetryEventBatchResponses];
+
+export type ExportCorporateTelemetryData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+  };
+  query?: {
+    /**
+     * Limit
+     */
+    limit?: number;
+    occurred_from?: Timestamp | null;
+    occurred_to?: Timestamp | null;
+  };
+  url: "/v1/corporate/organizations/{organization_id}/telemetry/export";
+};
+
+export type ExportCorporateTelemetryErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ExportCorporateTelemetryError =
+  ExportCorporateTelemetryErrors[keyof ExportCorporateTelemetryErrors];
+
+export type ExportCorporateTelemetryResponses = {
+  /**
+   * Export a bounded governed telemetry view.
+   */
+  200: CorporateTelemetryExport;
+};
+
+export type ExportCorporateTelemetryResponse =
+  ExportCorporateTelemetryResponses[keyof ExportCorporateTelemetryResponses];
+
+export type ReadInstallationHeartbeatData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/telemetry/heartbeat";
+};
+
+export type ReadInstallationHeartbeatErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ReadInstallationHeartbeatError =
+  ReadInstallationHeartbeatErrors[keyof ReadInstallationHeartbeatErrors];
+
+export type ReadInstallationHeartbeatResponses = {
+  /**
+   * Read the caller's evaluated installation health.
+   */
+  200: InstallationHeartbeatStatus;
+};
+
+export type ReadInstallationHeartbeatResponse =
+  ReadInstallationHeartbeatResponses[keyof ReadInstallationHeartbeatResponses];
+
+export type WriteInstallationHeartbeatData = {
+  body: InstallationHeartbeatRequest;
+  headers: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+    /**
+     * Client-chosen key; a retry must not become a second effect.
+     */
+    "Idempotency-Key": string;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/telemetry/heartbeat";
+};
+
+export type WriteInstallationHeartbeatErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type WriteInstallationHeartbeatError =
+  WriteInstallationHeartbeatErrors[keyof WriteInstallationHeartbeatErrors];
+
+export type WriteInstallationHeartbeatResponses = {
+  /**
+   * Record the authenticated installation heartbeat.
+   */
+  200: InstallationHeartbeat;
+};
+
+export type WriteInstallationHeartbeatResponse =
+  WriteInstallationHeartbeatResponses[keyof WriteInstallationHeartbeatResponses];
+
+export type ListInstallationHeartbeatsData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/telemetry/heartbeats";
+};
+
+export type ListInstallationHeartbeatsErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ListInstallationHeartbeatsError =
+  ListInstallationHeartbeatsErrors[keyof ListInstallationHeartbeatsErrors];
+
+export type ListInstallationHeartbeatsResponses = {
+  /**
+   * List installation health visible to the caller.
+   */
+  200: InstallationHeartbeatList;
+};
+
+export type ListInstallationHeartbeatsResponse =
+  ListInstallationHeartbeatsResponses[keyof ListInstallationHeartbeatsResponses];
+
+export type ReadCorporateTelemetryPolicyData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/telemetry/policy";
+};
+
+export type ReadCorporateTelemetryPolicyErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ReadCorporateTelemetryPolicyError =
+  ReadCorporateTelemetryPolicyErrors[keyof ReadCorporateTelemetryPolicyErrors];
+
+export type ReadCorporateTelemetryPolicyResponses = {
+  /**
+   * Read the organization's telemetry policy.
+   */
+  200: CorporateTelemetryPolicyView;
+};
+
+export type ReadCorporateTelemetryPolicyResponse =
+  ReadCorporateTelemetryPolicyResponses[keyof ReadCorporateTelemetryPolicyResponses];
+
+export type WriteCorporateTelemetryPolicyData = {
+  body: CorporateTelemetryPolicyRequest;
+  headers: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+    /**
+     * Client-chosen key; a retry must not become a second effect.
+     */
+    "Idempotency-Key": string;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/telemetry/policy";
+};
+
+export type WriteCorporateTelemetryPolicyErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type WriteCorporateTelemetryPolicyError =
+  WriteCorporateTelemetryPolicyErrors[keyof WriteCorporateTelemetryPolicyErrors];
+
+export type WriteCorporateTelemetryPolicyResponses = {
+  /**
+   * Replace the organization's telemetry policy.
+   */
+  200: CorporateTelemetryPolicyView;
+};
+
+export type WriteCorporateTelemetryPolicyResponse =
+  WriteCorporateTelemetryPolicyResponses[keyof WriteCorporateTelemetryPolicyResponses];
+
+export type RecordCorporateTelemetryRightData = {
+  body: CorporateTelemetryRightRequest;
+  headers: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+    /**
+     * Client-chosen key; a retry must not become a second effect.
+     */
+    "Idempotency-Key": string;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/telemetry/rights";
+};
+
+export type RecordCorporateTelemetryRightErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type RecordCorporateTelemetryRightError =
+  RecordCorporateTelemetryRightErrors[keyof RecordCorporateTelemetryRightErrors];
+
+export type RecordCorporateTelemetryRightResponses = {
+  /**
+   * Record a telemetry notice or data-right state.
+   */
+  200: CorporateTelemetryRightView;
+};
+
+export type RecordCorporateTelemetryRightResponse =
+  RecordCorporateTelemetryRightResponses[keyof RecordCorporateTelemetryRightResponses];
+
+export type RevokeCorporateTelemetrySubjectData = {
+  body: CorporateTelemetryRevokeRequest;
+  headers: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+    /**
+     * Client-chosen key; a retry must not become a second effect.
+     */
+    "Idempotency-Key": string;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+    /**
+     * Telemetry subject kind.
+     */
+    subject_kind: string;
+    /**
+     * Tenant-local telemetry subject identifier.
+     */
+    subject_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/telemetry/rights/{subject_kind}/{subject_id}/revocation";
+};
+
+export type RevokeCorporateTelemetrySubjectErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type RevokeCorporateTelemetrySubjectError =
+  RevokeCorporateTelemetrySubjectErrors[keyof RevokeCorporateTelemetrySubjectErrors];
+
+export type RevokeCorporateTelemetrySubjectResponses = {
+  /**
+   * Revoke telemetry collection for one subject.
+   */
+  200: CorporateTelemetryRightView;
+};
+
+export type RevokeCorporateTelemetrySubjectResponse =
+  RevokeCorporateTelemetrySubjectResponses[keyof RevokeCorporateTelemetrySubjectResponses];
+
+export type ListRuntimeUsageEventsData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+  };
+  query?: {
+    /**
+     * Component Kind
+     */
+    component_kind?:
+      | "instruction"
+      | "skill"
+      | "mcp"
+      | "hook"
+      | "command"
+      | "agent"
+      | "plugin"
+      | "setting"
+      | "cli"
+      | null;
+    /**
+     * Component Stable Id
+     */
+    component_stable_id?: string | null;
+    /**
+     * Device Id
+     */
+    device_id?: string | null;
+    /**
+     * Employee Id
+     */
+    employee_id?: string | null;
+    harness?: HarnessId | null;
+    invoked_from?: Timestamp | null;
+    invoked_to?: Timestamp | null;
+    /**
+     * Limit
+     */
+    limit?: number;
+    /**
+     * Offset
+     */
+    offset?: number;
+    /**
+     * Outcome
+     */
+    outcome?: "succeeded" | "failed" | "cancelled" | null;
+    /**
+     * Project Id
+     */
+    project_id?: string | null;
+    /**
+     * Setup Stable Id
+     */
+    setup_stable_id?: string | null;
+    /**
+     * Team Id
+     */
+    team_id?: string | null;
+    /**
+     * Technology Id
+     */
+    technology_id?: string | null;
+  };
+  url: "/v1/corporate/organizations/{organization_id}/telemetry/usage-events";
+};
+
+export type ListRuntimeUsageEventsErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ListRuntimeUsageEventsError =
+  ListRuntimeUsageEventsErrors[keyof ListRuntimeUsageEventsErrors];
+
+export type ListRuntimeUsageEventsResponses = {
+  /**
+   * Read redacted runtime usage events within caller scope.
+   */
+  200: RuntimeUsageEventList;
+};
+
+export type ListRuntimeUsageEventsResponse =
+  ListRuntimeUsageEventsResponses[keyof ListRuntimeUsageEventsResponses];
+
+export type IngestRuntimeUsageEventsData = {
+  body: RuntimeUsageEventBatch;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/telemetry/usage-events";
+};
+
+export type IngestRuntimeUsageEventsErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type IngestRuntimeUsageEventsError =
+  IngestRuntimeUsageEventsErrors[keyof IngestRuntimeUsageEventsErrors];
+
+export type IngestRuntimeUsageEventsResponses = {
+  /**
+   * Ingest a bounded batch of runtime usage events.
+   */
+  200: RuntimeUsageIngestResult;
+};
+
+export type IngestRuntimeUsageEventsResponse =
+  IngestRuntimeUsageEventsResponses[keyof IngestRuntimeUsageEventsResponses];
+
+export type CreateRuntimeUsageExportData = {
+  body: RuntimeUsageExportRequest;
+  headers: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+    /**
+     * Client-chosen key; a retry must not become a second effect.
+     */
+    "Idempotency-Key": string;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/telemetry/usage-exports";
+};
+
+export type CreateRuntimeUsageExportErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type CreateRuntimeUsageExportError =
+  CreateRuntimeUsageExportErrors[keyof CreateRuntimeUsageExportErrors];
+
+export type CreateRuntimeUsageExportResponses = {
+  /**
+   * Create a bounded auditable runtime usage export.
+   */
+  200: RuntimeUsageExportView;
+};
+
+export type CreateRuntimeUsageExportResponse =
+  CreateRuntimeUsageExportResponses[keyof CreateRuntimeUsageExportResponses];
+
+export type ReadRuntimeUsageExportData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+    /**
+     * Bounded telemetry export identifier.
+     */
+    export_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/telemetry/usage-exports/{export_id}";
+};
+
+export type ReadRuntimeUsageExportErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ReadRuntimeUsageExportError =
+  ReadRuntimeUsageExportErrors[keyof ReadRuntimeUsageExportErrors];
+
+export type ReadRuntimeUsageExportResponses = {
+  /**
+   * Read one authorized runtime usage export receipt.
+   */
+  200: RuntimeUsageExportView;
+};
+
+export type ReadRuntimeUsageExportResponse =
+  ReadRuntimeUsageExportResponses[keyof ReadRuntimeUsageExportResponses];
+
+export type ReadRuntimeUsageReportData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+  };
+  query?: {
+    /**
+     * Component Kind
+     */
+    component_kind?:
+      | "instruction"
+      | "skill"
+      | "mcp"
+      | "hook"
+      | "command"
+      | "agent"
+      | "plugin"
+      | "setting"
+      | "cli"
+      | null;
+    /**
+     * Component Stable Id
+     */
+    component_stable_id?: string | null;
+    /**
+     * Device Id
+     */
+    device_id?: string | null;
+    /**
+     * Employee Id
+     */
+    employee_id?: string | null;
+    /**
+     * Group By
+     */
+    group_by?: "component" | "setup" | "employee" | "device" | "project" | "harness" | "outcome";
+    harness?: HarnessId | null;
+    invoked_from?: Timestamp | null;
+    invoked_to?: Timestamp | null;
+    /**
+     * Limit
+     */
+    limit?: number;
+    /**
+     * Offset
+     */
+    offset?: number;
+    /**
+     * Outcome
+     */
+    outcome?: "succeeded" | "failed" | "cancelled" | null;
+    /**
+     * Project Id
+     */
+    project_id?: string | null;
+    /**
+     * Setup Stable Id
+     */
+    setup_stable_id?: string | null;
+    /**
+     * Team Id
+     */
+    team_id?: string | null;
+    /**
+     * Technology Id
+     */
+    technology_id?: string | null;
+  };
+  url: "/v1/corporate/organizations/{organization_id}/telemetry/usage-reports";
+};
+
+export type ReadRuntimeUsageReportErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ReadRuntimeUsageReportError =
+  ReadRuntimeUsageReportErrors[keyof ReadRuntimeUsageReportErrors];
+
+export type ReadRuntimeUsageReportResponses = {
+  /**
+   * Read aggregate runtime usage within caller scope.
+   */
+  200: RuntimeUsageReport;
+};
+
+export type ReadRuntimeUsageReportResponse =
+  ReadRuntimeUsageReportResponses[keyof ReadRuntimeUsageReportResponses];
 
 export type ListDevicesData = {
   body?: never;

@@ -1,0 +1,289 @@
+{
+  "$defs": {
+    "CorporateTelemetryEventView": {
+      "additionalProperties": true,
+      "properties": {
+        "account_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Account Id"
+        },
+        "capabilities": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Capabilities",
+          "type": "array"
+        },
+        "component_kind": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Component Kind"
+        },
+        "component_stable_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Component Stable Id"
+        },
+        "component_version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Component Version"
+        },
+        "device_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Device Id"
+        },
+        "event_id": {
+          "title": "Event Id",
+          "type": "string"
+        },
+        "harness": {
+          "title": "Harness",
+          "type": "string"
+        },
+        "harness_version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Harness Version"
+        },
+        "health": {
+          "anyOf": [
+            {
+              "enum": [
+                "active",
+                "stale",
+                "failing",
+                "disabled",
+                "unknown"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Health"
+        },
+        "kind": {
+          "enum": [
+            "heartbeat",
+            "invocation"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "last_sync_at": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "occurred_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "organization_id": {
+          "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+          "title": "Organization Id",
+          "type": "string"
+        },
+        "outcome": {
+          "anyOf": [
+            {
+              "enum": [
+                "succeeded",
+                "failed",
+                "denied",
+                "unknown"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Outcome"
+        },
+        "project_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Project Id"
+        },
+        "provider_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Provider Name"
+        },
+        "provider_version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Provider Version"
+        },
+        "received_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "setup_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Setup Id"
+        },
+        "subject_state": {
+          "enum": [
+            "active",
+            "anonymized"
+          ],
+          "title": "Subject State",
+          "type": "string"
+        }
+      },
+      "required": [
+        "account_id",
+        "capabilities",
+        "component_kind",
+        "component_stable_id",
+        "component_version",
+        "device_id",
+        "event_id",
+        "harness",
+        "harness_version",
+        "health",
+        "kind",
+        "last_sync_at",
+        "occurred_at",
+        "organization_id",
+        "outcome",
+        "project_id",
+        "provider_name",
+        "provider_version",
+        "received_at",
+        "schema_version",
+        "setup_id",
+        "subject_state"
+      ],
+      "title": "CorporateTelemetryEventView",
+      "type": "object"
+    },
+    "Timestamp": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:corporate-telemetry-export",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "properties": {
+    "exported_at": {
+      "$ref": "#/$defs/Timestamp"
+    },
+    "items": {
+      "items": {
+        "$ref": "#/$defs/CorporateTelemetryEventView"
+      },
+      "title": "Items",
+      "type": "array"
+    },
+    "organization_id": {
+      "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "title": "Organization Id",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "exported_at",
+    "items",
+    "organization_id",
+    "schema_version"
+  ],
+  "title": "CorporateTelemetryExport",
+  "type": "object"
+}

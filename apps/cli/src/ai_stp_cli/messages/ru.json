@@ -946,6 +946,7 @@
   "unknown sign-in provider": "неизвестный провайдер входа",
   "update continuation could not start": "не удалось запустить продолжение обновления",
   "usage text is not machine readable": "текст справки не машиночитаем",
+  "creating a usage export records an auditable receipt and needs confirmation": "создание экспорта использования записывает аудируемую квитанцию и требует подтверждения",
   "use provider-for to select separate harness providers": "Используйте provider-for для выбора отдельного провайдера каждого харнесса.",
   "uv is not on PATH; it owns this installation": "uv нет в PATH; он владеет этой установкой",
   "verified catalogue bytes changed before local materialization": "проверенные байты каталога изменились до локальной материализации",

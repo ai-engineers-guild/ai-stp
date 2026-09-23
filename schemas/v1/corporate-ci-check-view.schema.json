@@ -1,0 +1,111 @@
+{
+  "$defs": {
+    "Timestamp": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:corporate-ci-check-view",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "properties": {
+    "account_id": {
+      "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "title": "Account Id",
+      "type": "string"
+    },
+    "checked_at": {
+      "$ref": "#/$defs/Timestamp"
+    },
+    "device_id": {
+      "pattern": "^device_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "title": "Device Id",
+      "type": "string"
+    },
+    "harness": {
+      "pattern": "^[a-z0-9][a-z0-9_-]{0,63}$",
+      "title": "Harness",
+      "type": "string"
+    },
+    "organization_id": {
+      "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "title": "Organization Id",
+      "type": "string"
+    },
+    "project_id": {
+      "pattern": "^remote_project_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "title": "Project Id",
+      "type": "string"
+    },
+    "reason": {
+      "default": "none",
+      "enum": [
+        "none",
+        "check_failed",
+        "target_drift",
+        "source_unavailable",
+        "permission_denied",
+        "unsupported",
+        "unknown"
+      ],
+      "title": "Reason",
+      "type": "string"
+    },
+    "received_at": {
+      "$ref": "#/$defs/Timestamp"
+    },
+    "revision": {
+      "minimum": 1,
+      "title": "Revision",
+      "type": "integer"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "setup_id": {
+      "anyOf": [
+        {
+          "pattern": "^setup_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Setup Id"
+    },
+    "status": {
+      "enum": [
+        "pass",
+        "fail",
+        "outdated",
+        "revoked",
+        "unsupported",
+        "not_enrolled",
+        "unverifiable"
+      ],
+      "title": "Status",
+      "type": "string"
+    }
+  },
+  "required": [
+    "account_id",
+    "checked_at",
+    "device_id",
+    "harness",
+    "organization_id",
+    "project_id",
+    "reason",
+    "received_at",
+    "revision",
+    "schema_version",
+    "setup_id",
+    "status"
+  ],
+  "title": "CorporateCiCheckView",
+  "type": "object"
+}

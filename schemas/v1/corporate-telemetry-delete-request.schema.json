@@ -1,0 +1,65 @@
+{
+  "$defs": {
+    "IdempotencyKey": {
+      "pattern": "^[A-Za-z0-9._~-]{16,128}$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:corporate-telemetry-delete-request",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "authorization_revision": {
+      "minimum": 1,
+      "title": "Authorization Revision",
+      "type": "integer"
+    },
+    "idempotency_key": {
+      "$ref": "#/$defs/IdempotencyKey"
+    },
+    "mode": {
+      "default": "delete",
+      "enum": [
+        "anonymize",
+        "delete"
+      ],
+      "title": "Mode",
+      "type": "string"
+    },
+    "reason": {
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Reason",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "subject_id": {
+      "maxLength": 64,
+      "minLength": 1,
+      "title": "Subject Id",
+      "type": "string"
+    },
+    "subject_kind": {
+      "default": "account",
+      "enum": [
+        "account",
+        "device"
+      ],
+      "title": "Subject Kind",
+      "type": "string"
+    }
+  },
+  "required": [
+    "subject_id",
+    "reason",
+    "authorization_revision",
+    "idempotency_key"
+  ],
+  "title": "CorporateTelemetryDeleteRequest",
+  "type": "object"
+}

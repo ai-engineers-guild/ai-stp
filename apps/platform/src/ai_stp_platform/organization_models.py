@@ -570,6 +570,8 @@ class ProjectIdentity(Base):
     current_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
     observed_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
     observed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    provider_default_branch: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    provider_observed_revision: Mapped[str | None] = mapped_column(String(128), nullable=True)
     revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
     state: Mapped[str] = mapped_column(String(16), nullable=False, default="active")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

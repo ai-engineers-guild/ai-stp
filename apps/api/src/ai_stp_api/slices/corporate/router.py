@@ -14,12 +14,20 @@ from ai_stp_api.session import AuthContext
 from ai_stp_api.settings import Settings
 from ai_stp_api.slices.corporate import (
     assignments,
+    dashboard,
     directory,
+    github_languages,
+    gitlab,
     governance,
+    heartbeat,
     overview,
     permissions,
     profiles,
     service,
+    telemetry_policy,
+    telemetry_rights,
+    usage_events,
+    usage_reports,
 )
 from ai_stp_api.slices.corporate.profile_router import router as profile_router
 from ai_stp_contracts.corporate import (
@@ -87,6 +95,14 @@ router = APIRouter(tags=["corporate"])
 router.include_router(profile_router)
 router.include_router(governance.router)
 router.include_router(permissions.router)
+router.include_router(telemetry_policy.router)
+router.include_router(telemetry_rights.router)
+router.include_router(heartbeat.router)
+router.include_router(dashboard.router)
+router.include_router(gitlab.router)
+router.include_router(github_languages.router)
+router.include_router(usage_events.router)
+router.include_router(usage_reports.router)
 
 
 @router.get(

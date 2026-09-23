@@ -95,6 +95,8 @@ export const PAGE_INVENTORY: readonly PageInventoryEntry[] = [
   // Compatibility page is redirected by middleware; keep the machine inventory
   // paired with the physical page until the compatibility window is removed.
   { pattern: "corporate/components", access: "session", presenter: "domain" },
+  { pattern: "corporate/installations", access: "session", presenter: "domain" },
+  { pattern: "corporate/usage", access: "session", presenter: "domain" },
   { pattern: "corporate/technologies", access: "session", presenter: "domain" },
   { pattern: "corporate/technologies/new", access: "session", presenter: "domain" },
   { pattern: "corporate/categories", access: "session", presenter: "domain" },

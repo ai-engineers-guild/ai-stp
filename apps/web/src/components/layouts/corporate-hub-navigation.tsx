@@ -11,6 +11,8 @@ const organization = [
   { key: "teams", href: "/corporate/teams" },
   { key: "employees", href: "/corporate/employees" },
   { key: "technologies", href: "/corporate/technologies" },
+  { key: "installations", href: "/corporate/installations" },
+  { key: "usage", href: "/corporate/usage" },
 ] as const;
 const landscape = [
   { key: "components", href: "/corporate/catalog" },
@@ -24,7 +26,9 @@ export function CorporateHubNavigation({ capabilities }: { capabilities: readonl
   if (path === "/corporate") return null;
   const inLandscape = /\/corporate\/(catalog|categories|technology-landscape)(?:\/|$)/.test(path);
   const inOrganization =
-    /\/corporate\/(organization|employees|projects|teams|technologies)(?:\/|$)/.test(path);
+    /\/corporate\/(organization|employees|projects|teams|technologies|installations|usage)(?:\/|$)/.test(
+      path,
+    );
   const isOverview = path === "/corporate/overview";
   const activeSection =
     path === "/corporate/dashboard" ? "dashboard" : inLandscape ? "landscape" : "organization";
