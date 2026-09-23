@@ -7,7 +7,7 @@ the public one — `SPEC-011` REQ-1102 makes the classes stable, so they cannot 
 whatever Click happened to raise.
 """
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from typing import Final
 
 from pydantic import ValidationError
@@ -136,4 +136,18 @@ def unknown_command(detail: str) -> CliFailure:
         detail,
         continuations=[continuation],
         next_actions=["task intents --json"],
+    )
+
+
+def leaf_help_continuation(path: Sequence[str]) -> Continuation:
+    """An `inspect` step to the calling leaf's own machine help.
+
+    Handler-raised selector refusals carry the same correction a parse-level
+    refusal does: the declaration that repairs the call.
+    """
+    return Continuation(
+        kind="inspect",
+        path=["help"],
+        arguments={"path": " ".join(path)},
+        actor="cli",
     )
