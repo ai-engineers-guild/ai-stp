@@ -108,6 +108,7 @@ const nextConfig: NextConfig = {
   // Tree-shake icon/UI packages; client router cache for snappy soft navigations.
   // Next 15 defaults dynamic staleTime to 0 (always re-fetch RSC on every click).
   experimental: {
+    globalNotFound: true,
     optimizePackageImports: ["lucide-react", "@radix-ui/react-slot", "sonner"],
     staleTimes: {
       dynamic: 30,

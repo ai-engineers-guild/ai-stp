@@ -1,3 +1,6 @@
+import { existsSync } from "node:fs";
+import path from "node:path";
+
 import { createValidFileMatcher } from "next/dist/server/lib/find-page-file";
 import { describe, expect, it, vi } from "vitest";
 
@@ -18,6 +21,14 @@ const publicPages = [
 ];
 
 describe("native build route isolation (REQ-8309)", () => {
+  it("serves unmatched routes without requiring the locale root layout", async () => {
+    vi.resetModules();
+    const { default: config } = await import("../../next.config");
+    expect(config.experimental?.globalNotFound).toBe(true);
+    expect(existsSync(path.join(process.cwd(), "src/app/global-not-found.tsx"))).toBe(true);
+    expect(existsSync(path.join(process.cwd(), "src/app/not-found.tsx"))).toBe(false);
+  });
+
   it.each(["public_saas", "self_hosted", "corporate_hub"])(
     "only disables middleware URL normalization in %s",
     async (profile) => {
