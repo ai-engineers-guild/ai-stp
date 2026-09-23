@@ -15,7 +15,7 @@ from typing import Any, Literal, cast
 
 from ai_stp_cli import config, identity
 from ai_stp_cli.answer import Answer
-from ai_stp_cli.errors import CliFailure
+from ai_stp_cli.errors import CliFailure, leaf_help_continuation
 from ai_stp_cli.local import (
     acquired_trust,
     authoring,
@@ -215,16 +215,24 @@ def adaptation_add(parameters: Mapping[str, object]) -> Answer[ComponentScaffold
     root = Path(_required(parameters, "root", "an authoring directory is required")).expanduser()
     all_missing = parameters.get("all-missing") is True
     harness = str(parameters.get("harness") or "")
+    leaf = ("component", "adaptation", "add")
     if all_missing and harness:
         raise CliFailure(
             "AI_STP_VALIDATION_ERROR",
             "all-missing cannot be combined with an explicit target harness",
+            details={"options": ["--all-missing", "--harness"]},
+            continuations=[leaf_help_continuation(leaf)],
         )
     if all_missing:
         written = authoring.add_missing_adaptations(root)
     else:
         if not harness:
-            raise CliFailure("AI_STP_VALIDATION_ERROR", "a concrete harness is required")
+            raise CliFailure(
+                "AI_STP_VALIDATION_ERROR",
+                "a concrete harness is required",
+                details={"options": ["--all-missing", "--harness"]},
+                continuations=[leaf_help_continuation(leaf)],
+            )
         written = authoring.add_adaptation(root, harness)
     template = json.loads((root / ".ai-stp-template.json").read_text(encoding="utf-8"))
     return Answer(
