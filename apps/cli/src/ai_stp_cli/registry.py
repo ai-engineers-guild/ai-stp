@@ -798,10 +798,12 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             "organization-approved setup and components. Compares the verified "
             "installation record, the cached bundle manifest, and the live "
             "provider status against the corporate assignment plan, classifies "
-            "every difference, and changes nothing."
+            "every difference, and reports a closed CI verdict when an online "
+            "corporate project context is supplied. It never changes the target."
         ),
         result_schema="urn:ai-stp:schema:v1:cli-managed-verification",
         handler="corporate:verify",
+        mutability="apply",
         parameters=(
             option("organization", "string", "Organization identifier.", required=True),
             option(
@@ -822,7 +824,11 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 "Local project identifier or root whose managed target is verified.",
                 required=True,
             ),
-            option("project", "string", "Corporate project context."),
+            option(
+                "project",
+                "string",
+                "Corporate project context; online verification reports its CI verdict here.",
+            ),
             option("technology", "string", "Corporate technology context."),
             option(
                 "offline",
@@ -3810,7 +3816,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 "state",
                 "string",
                 "Reported health.",
-                choices=("active", "failing", "disabled"),
+                choices=("active", "partial", "failing", "disabled"),
             ),
             option(
                 "last-sync-at",
@@ -3851,7 +3857,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 "health",
                 "string",
                 "Filter by evaluated health state.",
-                choices=("active", "stale", "failing", "disabled", "unknown"),
+                choices=("active", "partial", "stale", "failing", "disabled", "unknown"),
             ),
         ),
         next_actions=("help --path heartbeat --json",),

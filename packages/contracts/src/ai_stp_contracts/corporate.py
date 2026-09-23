@@ -660,10 +660,29 @@ class CorporateProjectUpdateRequest(BaseModel):
 
 def _project_wire_object(schema: JsonSchemaValue) -> None:
     open_wire_object(schema)
-    # ADR-0183: absence means an older writer, never an invented lifecycle.
+    # Older writers may omit lifecycle and repository observations.
     schema["required"] = [
-        name for name in schema["required"] if name not in {"lifecycle", "restore_lifecycle"}
+        name
+        for name in schema["required"]
+        if name
+        not in {
+            "lifecycle",
+            "restore_lifecycle",
+            "repository_activity_at",
+            "source_availability",
+            "repositories",
+        }
     ]
+
+
+class CorporateProjectRepository(BaseModel):
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+    provider_project_id: str
+    namespace: str
+    repository_url: str
+    default_branch: str | None = None
+    observed_revision: str | None = None
+    observed_at: Timestamp | None = None
 
 
 class CorporateProjectView(BaseModel):
@@ -676,6 +695,9 @@ class CorporateProjectView(BaseModel):
     lifecycle: ProjectLifecycle | None = None
     restore_lifecycle: Literal["active", "deprecated"] | None = None
     revision: Annotated[int, Field(ge=1)]
+    repository_activity_at: Timestamp | None = None
+    source_availability: Literal["unknown", "available", "unavailable"] = "unknown"
+    repositories: Annotated[list[CorporateProjectRepository], Field(max_length=256)] = []
     available_actions: Annotated[list[str], Field(max_length=128)] = []
 
 

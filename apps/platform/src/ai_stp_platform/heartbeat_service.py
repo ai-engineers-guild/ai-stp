@@ -34,8 +34,8 @@ DEFAULT_STALE_AFTER: Final = timedelta(hours=24)
 # skewed client cannot poison the ordering key and block later real beats.
 MAX_FUTURE_SKEW: Final = timedelta(minutes=5)
 
-REPORTED_STATES: Final = frozenset({"active", "failing", "disabled"})
-HEALTH_STATES: Final = frozenset({"active", "stale", "failing", "disabled", "unknown"})
+REPORTED_STATES: Final = frozenset({"active", "partial", "failing", "disabled"})
+HEALTH_STATES: Final = frozenset({"active", "partial", "stale", "failing", "disabled", "unknown"})
 
 
 class HeartbeatRejected(ValueError):
@@ -67,6 +67,8 @@ def evaluate_health(
         return "stale"
     if reported_state == "failing":
         return "failing"
+    if reported_state == "partial":
+        return "partial"
     return "active"
 
 

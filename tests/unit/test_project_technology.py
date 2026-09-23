@@ -100,6 +100,7 @@ def _scan_project(
         detected=detected,
         mapping=tech_detect.bundled_mapping(),
         at=AT,
+        source_revision=found.index_digest.removeprefix("sha256:"),
     )
     return found.stable_id, record
 
@@ -143,6 +144,25 @@ def test_detection_is_deterministic(project: Path) -> None:
     ] == [(d.kind, d.coordinate, d.context, d.version, d.version_kind) for d in second.detections]
     for one, two in zip(first.detections, second.detections, strict=True):
         assert one.traces == two.traces
+
+
+def test_detect_machine_output_pins_the_same_index_revision(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, project: Path
+) -> None:
+    _patch_target(monkeypatch, tmp_path / "registry.sqlite")
+    first = project_commands.detect({"root": str(project)}).payload
+    second = project_commands.detect({"root": str(project)}).payload
+    assert first.source_revision == second.source_revision
+    assert first.source_revision is not None and len(first.source_revision) == 64
+    assert {item.source_revision for item in second.findings} == {first.source_revision}
+    assert [(item.key, item.claims) for item in first.findings] == [
+        (item.key, item.claims) for item in second.findings
+    ]
+    assert all(
+        evidence.source_revision == first.source_revision
+        for observation in second.handoff.observations
+        for evidence in observation.fact.evidence
+    )
 
 
 def test_version_kinds_separate_declaration_from_observation(project: Path) -> None:
@@ -505,14 +525,35 @@ def test_migration_44_rolls_back_cleanly(registry: sqlite3.Connection) -> None:
     assert {"tech_scan", "tech_finding", "tech_mapping_cache"} <= names
 
 
-def test_source_revision_and_machine_identity_stay_out(
+def test_migration_45_keeps_source_revisions_reversible(registry: sqlite3.Connection) -> None:
+    from ai_stp_cli.local.database import MIGRATIONS
+
+    migration = next(item for item in MIGRATIONS if item.version == 45)
+    assert "source_revision" in {
+        str(row[1]) for row in registry.execute("PRAGMA table_info(tech_scan)")
+    }
+    for statement in migration.down:
+        registry.execute(statement)
+    assert "source_revision" not in {
+        str(row[1]) for row in registry.execute("PRAGMA table_info(tech_scan)")
+    }
+    for statement in migration.up:
+        registry.execute(statement)
+
+
+def test_source_revision_is_index_digest_and_remote_identity_stays_out(
     registry: sqlite3.Connection, project: Path
 ) -> None:
-    # Nothing in local detection may mint or infer remote identity: the link
-    # is an explicit act, and evidence carries only what the files said.
-    _scan_project(registry, project)
+    # Local evidence pins the indexed input but never infers remote identity.
+    _project_id, recorded = _scan_project(registry, project)
     project_id = project_passport.stable_id_for(registry, project.resolve())
     assert project_id is not None
+    assert recorded.source_revision == project_passport.scan(
+        registry, project
+    ).index_digest.removeprefix("sha256:")
+    assert tech_findings.scans(registry, project_id=project_id)[0].source_revision == (
+        recorded.source_revision
+    )
     built = tech_findings.build_handoff(
         project_findings=tech_findings.findings(
             registry, project_id=project_id, scope="repository"
@@ -523,11 +564,13 @@ def test_source_revision_and_machine_identity_stay_out(
         mapping=tech_detect.bundled_mapping(),
         local_project_id=project_id,
         at=AT,
+        source_revision=recorded.source_revision,
     )
     assert built.handoff.organization_id is None
     for item in built.handoff.observations:
         for evidence in item.fact.evidence:
             assert evidence.source != "manual"
+            assert evidence.source_revision == recorded.source_revision
 
 
 # --------------------------------------------------------------------------
@@ -611,12 +654,37 @@ def test_publish_refuses_without_a_fetched_snapshot(
     assert raised.value.code == "AI_STP_PRECONDITION_FAILED"
 
 
+def test_publish_refuses_to_label_current_findings_as_an_older_scan(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, project: Path
+) -> None:
+    registry_path = tmp_path / "registry.sqlite"
+    with closing(open_registry(registry_path, create=True)) as connection:
+        project_id = _linked_project(connection, project)
+        first_scan = tech_findings.scans(connection, project_id=project_id)[0].scan_id
+        _scan_project(connection, project)
+        tech_findings.cache_mapping(
+            connection,
+            organization_id=ORGANIZATION,
+            version="v3",
+            digest="sha256:" + "c" * 64,
+            entries=[("package", "django", "technology_00000000000000000000000042")],
+            at=AT,
+        )
+    _patch_target(monkeypatch, registry_path)
+    with pytest.raises(CliFailure) as raised:
+        project_commands.technology_publish(
+            _publish_parameters(project_id, **{"mapping-version": "v3", "scan": first_scan})
+        )
+    assert raised.value.code == "AI_STP_PRECONDITION_FAILED"
+
+
 def test_publish_sends_the_handoff_the_contract_shaped(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, project: Path
 ) -> None:
     registry_path = tmp_path / "registry.sqlite"
     with closing(open_registry(registry_path, create=True)) as connection:
         project_id = _linked_project(connection, project)
+        source_revision = tech_findings.scans(connection, project_id=project_id)[0].source_revision
         tech_findings.cache_mapping(
             connection,
             organization_id=ORGANIZATION,
@@ -696,6 +764,7 @@ def test_publish_sends_the_handoff_the_contract_shaped(
             evidence = cast(dict[str, object], raw_evidence)
             assert evidence["detector_version"] == handoff["detector_version"]
             assert evidence["mapping_version"] == "v3"
+            assert evidence["source_revision"] == source_revision
             assert evidence["source"] != "manual"
             # The evidence was observed when the scan ran, not when it published.
             assert evidence["observed_at"] == AT

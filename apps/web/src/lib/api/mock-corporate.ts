@@ -142,6 +142,9 @@ const projectViews: CorporateProjectView[] = projectNodes.map((item) => ({
   state: "active",
   lifecycle: "active",
   revision: 1,
+  repository_activity_at: null,
+  source_availability: "unknown",
+  repositories: [],
   available_actions: [],
 }));
 const member = members[0]!;

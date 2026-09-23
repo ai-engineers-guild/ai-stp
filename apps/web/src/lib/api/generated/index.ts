@@ -512,6 +512,7 @@ export {
   type CorporateProjectCreateRequest,
   type CorporateProjectLifecycleRequest,
   type CorporateProjectList,
+  type CorporateProjectRepository,
   type CorporateProjectUpdateRequest,
   type CorporateProjectView,
   type CorporateRoleCreateRequest,

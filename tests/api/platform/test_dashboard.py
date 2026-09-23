@@ -135,6 +135,7 @@ async def test_dashboard_ci_provider_heartbeat_and_saved_views(
         f"{root}/ci-check", json={**ci_body, "status": "pass"}, headers=auth
     )
     assert stale_write.status_code == 200 and stale_write.json()["status"] == "fail"
+    assert stale_write.json()["revision"] == 1
 
     query = {
         "dataset": "ci",
@@ -236,6 +237,20 @@ async def test_dashboard_ci_provider_heartbeat_and_saved_views(
     )
     assert heartbeat.status_code == 200, heartbeat.text
     assert heartbeat.json()["items"][0]["dimensions"]["state"] == "stale"
+    async with sessionmaker() as db:
+        await set_tenant_scope(db, org)
+        beat = await db.get(InstallationHeartbeat, (org, device_id))
+        assert beat is not None
+        beat.reported_state = "partial"
+        beat.received_at = now
+        await db.commit()
+    partial = await client.post(
+        f"{root}/query",
+        json={"query": {"dataset": "heartbeat", "dimensions": ["state"]}},
+        headers=auth,
+    )
+    assert partial.status_code == 200, partial.text
+    assert partial.json()["items"][0]["dimensions"]["state"] == "partial"
     provider = await client.post(
         f"{root}/query",
         json={"query": {"dataset": "provider", "dimensions": ["state"]}},

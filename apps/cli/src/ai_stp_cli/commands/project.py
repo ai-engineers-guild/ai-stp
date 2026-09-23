@@ -1305,6 +1305,7 @@ def _finding_view(held: tech_findings.Finding) -> CliTechnologyFinding:
         override_version=held.override_version,
         first_seen_scan=held.first_seen_scan,
         last_seen_scan=held.last_seen_scan,
+        source_revision=held.source_revision,
         reviewed_at=held.reviewed_at,
     )
 
@@ -1389,6 +1390,7 @@ def detect(parameters: Mapping[str, object]) -> Answer[CliTechnologyScan]:
             detected=detected,
             mapping=mapping,
             at=at,
+            source_revision=found.index_digest.removeprefix("sha256:"),
         )
         stored = tech_findings.findings(connection, project_id=found.stable_id, scope=scope)
         # The wire preview resolves the way publication does: the platform
@@ -1410,6 +1412,7 @@ def detect(parameters: Mapping[str, object]) -> Answer[CliTechnologyScan]:
             organization_id=link.organization_id if link is not None else None,
             remote_project_id=link.remote_project_id if link is not None else None,
             at=at,
+            source_revision=record.source_revision,
         )
         return CliTechnologyScan(
             scan_id=record.scan_id,
@@ -1420,6 +1423,7 @@ def detect(parameters: Mapping[str, object]) -> Answer[CliTechnologyScan]:
             stopped_by=record.stopped_by,
             detector_version=record.detector_version,
             mapping_version=mapping.version,
+            source_revision=record.source_revision,
             findings=[_finding_view(item) for item in stored],
             unmapped=list(handoff.unmapped),
             observations=len(handoff.handoff.observations),
@@ -1618,6 +1622,13 @@ def technology_publish(parameters: Mapping[str, object]) -> Answer[TechnologySca
                 details={"scope": scope, "scan": scan_id or "latest"},
                 next_actions=["project detect --root <path> --json"],
             )
+        if chosen.scan_id != recorded[-1].scan_id:
+            raise CliFailure(
+                "AI_STP_PRECONDITION_FAILED",
+                "an older scan cannot be published with current findings",
+                details={"scan": chosen.scan_id},
+                next_actions=["project detect --root <path> --json"],
+            )
         built = tech_findings.build_handoff(
             project_findings=stored,
             scan_id=chosen.scan_id,
@@ -1628,6 +1639,7 @@ def technology_publish(parameters: Mapping[str, object]) -> Answer[TechnologySca
             organization_id=organization,
             remote_project_id=link.remote_project_id,
             at=chosen.created_at,
+            source_revision=chosen.source_revision,
         )
     expected = _optional(parameters, "expected-revision")
     try:

@@ -9006,6 +9006,68 @@
         "title": "CorporateProjectList",
         "type": "object"
       },
+      "CorporateProjectRepository": {
+        "additionalProperties": true,
+        "properties": {
+          "default_branch": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Default Branch"
+          },
+          "namespace": {
+            "title": "Namespace",
+            "type": "string"
+          },
+          "observed_at": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Timestamp"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "observed_revision": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Observed Revision"
+          },
+          "provider_project_id": {
+            "title": "Provider Project Id",
+            "type": "string"
+          },
+          "repository_url": {
+            "title": "Repository Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "default_branch",
+          "namespace",
+          "observed_at",
+          "observed_revision",
+          "provider_project_id",
+          "repository_url"
+        ],
+        "title": "CorporateProjectRepository",
+        "type": "object"
+      },
       "CorporateProjectUpdateRequest": {
         "additionalProperties": false,
         "properties": {
@@ -9096,6 +9158,26 @@
             "title": "Project Id",
             "type": "string"
           },
+          "repositories": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/CorporateProjectRepository"
+            },
+            "maxItems": 256,
+            "title": "Repositories",
+            "type": "array"
+          },
+          "repository_activity_at": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Timestamp"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
           "restore_lifecycle": {
             "anyOf": [
               {
@@ -9122,6 +9204,16 @@
             "default": 1,
             "title": "Schema Version",
             "type": "integer"
+          },
+          "source_availability": {
+            "default": "unknown",
+            "enum": [
+              "unknown",
+              "available",
+              "unavailable"
+            ],
+            "title": "Source Availability",
+            "type": "string"
           },
           "state": {
             "enum": [
@@ -14863,6 +14955,7 @@
           "health_state": {
             "enum": [
               "active",
+              "partial",
               "stale",
               "failing",
               "disabled",
@@ -14893,6 +14986,7 @@
           "reported_state": {
             "enum": [
               "active",
+              "partial",
               "failing",
               "disabled"
             ],
@@ -15019,6 +15113,7 @@
           "health_state": {
             "enum": [
               "active",
+              "partial",
               "failing",
               "disabled"
             ],
@@ -15068,6 +15163,7 @@
           "health_state": {
             "enum": [
               "active",
+              "partial",
               "stale",
               "failing",
               "disabled",

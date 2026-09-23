@@ -56,9 +56,11 @@ existing proposed-fact publication service.
   language names never create technology IDs. A replay with the same scan ID and
   idempotency key returns the retained result without another upstream read.
 - `REQ-9007`: Register and refresh update repository activity and source
-  availability and advance the project revision on change, on an explicitly
-  linked corporate project only. An unlinked observation never creates a
-  project or changes its activity/passport.
+  availability and advance the project revision on each successful observation
+  for an explicitly linked corporate project only. The authorized project read
+  projects the linked GitLab repository namespace, URL, default branch, and observed revision from
+  the retained provider identity, bounded to 256 identities. An unlinked
+  observation never creates a project or changes its activity/passport.
 
 ## States and errors
 
@@ -93,4 +95,4 @@ database downgrade drops only the two new metadata columns.
 | `REQ-9004` | API and migration tests cover register, rename refresh, exact identity retention, and absence of implicit links. |
 | `REQ-9005` | API tests cover inaccessible refresh, disconnect retention, and refusal to refresh disconnected observations. |
 | `REQ-9006` | API tests cover explicit-link enforcement, mapped proposed facts, evidence provenance, and network-free replay. |
-| `REQ-9007` | API tests cover linked activity and source availability without implicit link creation. |
+| `REQ-9007` | API tests cover linked activity, source availability, and project read metadata without implicit link creation. |

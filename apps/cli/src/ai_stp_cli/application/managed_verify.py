@@ -38,6 +38,7 @@ from ai_stp_contracts.machine_help import (
     ShadowedSurface,
 )
 from ai_stp_foundation.envelope import Continuation
+from ai_stp_foundation.timestamps import format_timestamp
 
 #: Path evidence stays bounded even when a target is heavily drifted; the
 #: classification already says what happened, and a CI gate does not need ten
@@ -96,7 +97,7 @@ def verify_managed(
     remote_project = _optional(parameters, "project")
     technology = _optional(parameters, "technology")
     offline = _flag(parameters, "offline")
-    checked_at = datetime.now(UTC).isoformat()
+    checked_at = format_timestamp(datetime.now(UTC))
 
     diagnostics: list[str] = []
     registry = configured_path()

@@ -72,6 +72,10 @@ def test_request_accepts_the_closed_field_set() -> None:
     request = InstallationHeartbeatRequest.model_validate(_request())
     assert request.health_state == "active"
     assert request.schema_version == 1
+    assert (
+        InstallationHeartbeatRequest.model_validate(_request(health_state="partial")).health_state
+        == "partial"
+    )
 
 
 def test_request_rejects_extra_fields() -> None:
@@ -121,6 +125,8 @@ def test_evaluate_health_is_deterministic_over_the_closed_state_set() -> None:
         (("active", old), "stale"),
         (("failing", fresh), "failing"),
         (("failing", old), "stale"),
+        (("partial", fresh), "partial"),
+        (("partial", old), "stale"),
         (("disabled", fresh), "disabled"),
         (("disabled", old), "disabled"),
     ]

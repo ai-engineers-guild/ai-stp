@@ -92,6 +92,10 @@ mapping_version, observed_at), `tech_finding` (per project+scope+kind+
 coordinate+context: claims JSON, resolved and override technology IDs,
 review, freshness, first/last scan), and `tech_mapping_cache` (per
 organization+version: digest, entries JSON, fetched_at).
+Migration 45 adds the bounded project index digest as `tech_scan.source_revision`;
+old scan rows retain an empty revision and new scans publish it in evidence.
+Publication accepts the latest local scan only, since standing findings do not
+snapshot historical scan contents.
 
 ## Increments
 
