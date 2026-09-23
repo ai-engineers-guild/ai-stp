@@ -25,7 +25,7 @@ drift.
 
 On `main` now, and not in the September 8 snapshot below:
 
-- Agent-first CLI: eight drained intents ([#297](https://github.com/ai-engineers-guild/ai-stp/pull/297)); `ai-stp-cli` `0.0.27` on PyPI ([#386](https://github.com/ai-engineers-guild/ai-stp/pull/386) / [#387](https://github.com/ai-engineers-guild/ai-stp/pull/387))
+- Agent-first CLI: eight drained intents ([#297](https://github.com/ai-engineers-guild/ai-stp/pull/297)); `ai-stp-cli` `0.0.28` on PyPI ([#386](https://github.com/ai-engineers-guild/ai-stp/pull/386) / [#387](https://github.com/ai-engineers-guild/ai-stp/pull/387))
 - Local technology detection, review, and scan publication ([#366](https://github.com/ai-engineers-guild/ai-stp/pull/366)); `--project`/`--root` declared `exactly_one` in machine help ([#367](https://github.com/ai-engineers-guild/ai-stp/pull/367)); Haiku 4.5 agent qualification recorded ([#368](https://github.com/ai-engineers-guild/ai-stp/pull/368))
 - Machine-help contract audit: `install plan` source XOR conditional on `action` (`REQ-1207`), and eight handler-enforced rules declared (`select graph`, `select propose`, `select impact-report`, `component adaptation add`, `component materialize plan|apply`, `component portability plan|apply`) ([#375](https://github.com/ai-engineers-guild/ai-stp/pull/375)); `at_most_one`/`forbidden_when` kinds close the sourceless-action declarations on `install plan` ([#380](https://github.com/ai-engineers-guild/ai-stp/pull/380))
 - Parse-failure contract: declared leaves list every missing required option in `error.details.options` and correct to their own `help --path`; `--version` corrects to `version`; continuations join the full path; `--` marks operand text ([#385](https://github.com/ai-engineers-guild/ai-stp/pull/385))
