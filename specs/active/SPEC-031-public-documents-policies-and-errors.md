@@ -63,6 +63,8 @@ acceptance workflow, or arbitrary remote Markdown.
   catalog, documentation, and home. Root `global-error` is a minimal 500 page
   that does not disclose the error message/stack, with retry, a request/correlation reference
   when available, and safe support/docs links. Both are available without a session.
+  An unmatched route outside a locale uses the layout-independent English
+  `global-not-found` document, since the locale segment owns the root layout.
 - `REQ-3108`: The site footer links to current published policy revisions and the
   licensing page. Links are visible on public and authenticated surfaces; locale
   parity and archive history are preserved.
@@ -98,5 +100,5 @@ decision for new-account onboarding only.
 | `REQ-3103`–`REQ-3105` | Contract/storage tests prove locale handling, immutable revisions, fallback, and draft redaction. |
 | `REQ-3104` | Storage test proves revision immutability, digest, source ref, and supersession link. |
 | `REQ-3106` | Markdown/a11y snapshots verify the ToC, anchors, and renderer policy. |
-| `REQ-3107` | Browser tests prove the locale 404, root 500, retry, and absence of stack data. |
+| `REQ-3107` | Browser tests prove the locale 404, root 500, retry, and absence of stack data; the route-surface test checks the layout-independent root 404. |
 | `REQ-3108` | Route test verifies footer links to published policy revisions in RU/EN. |
