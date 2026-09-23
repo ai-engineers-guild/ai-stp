@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "cli_version": "0.0.0-pinned",
-  "registry_digest": "sha256:07447762f069c2d7f22a1629295df10e94cee0602406203e9c7fbe664af0dd5e",
+  "registry_digest": "sha256:5d2941afe7042a5692fd964b9e259d4ddd646c011038c851724199c789b9488f",
   "global_options": [
     {
       "name": "json",
@@ -10736,7 +10736,17 @@
           "choices": []
         }
       ],
-      "parameter_rules": [],
+      "parameter_rules": [
+        {
+          "kind": "exactly_one",
+          "parameters": [
+            "accept",
+            "decline"
+          ],
+          "when_parameter": "",
+          "when_values": []
+        }
+      ],
       "result_schema": "urn:ai-stp:schema:v1:cli-telemetry-status",
       "next_actions": [
         "help --path telemetry --json"

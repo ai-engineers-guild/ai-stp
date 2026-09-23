@@ -11,7 +11,7 @@ from typing import Literal, cast
 
 from ai_stp_cli import config, telemetry
 from ai_stp_cli.answer import Answer
-from ai_stp_cli.errors import CliFailure
+from ai_stp_cli.errors import CliFailure, leaf_help_continuation
 from ai_stp_contracts.machine_help import TelemetryStatus
 
 
@@ -40,6 +40,8 @@ def consent(parameters: Mapping[str, object]) -> Answer[TelemetryStatus]:
         raise CliFailure(
             "AI_STP_VALIDATION_ERROR",
             "answer the telemetry screen with exactly one of accept or decline",
+            details={"options": ["--accept", "--decline"]},
+            continuations=[leaf_help_continuation(("telemetry", "consent"))],
             next_actions=[
                 "telemetry consent --accept --confirm --json",
                 "telemetry consent --decline --confirm --json",
