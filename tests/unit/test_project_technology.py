@@ -842,11 +842,35 @@ def test_commands_refuse_project_and_root_together(
     with pytest.raises(CliFailure) as raised:
         project_commands.technologies({"project": project_id, "root": str(project)})
     assert raised.value.code == "AI_STP_VALIDATION_ERROR"
+    assert raised.value.details == {"options": ["--project", "--root"]}
+    assert [(item.path, item.arguments) for item in raised.value.continuations] == [
+        (["help"], {"path": "project technologies"})
+    ]
     with pytest.raises(CliFailure) as review:
         project_commands.technology_confirm(
             {"project": project_id, "root": str(project), "finding": "package:django"}
         )
     assert review.value.code == "AI_STP_VALIDATION_ERROR"
+    assert [(item.path, item.arguments) for item in review.value.continuations] == [
+        (["help"], {"path": "project technology confirm"})
+    ]
+
+
+def test_commands_require_a_project_selector(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, project: Path
+) -> None:
+    registry_path = tmp_path / "registry.sqlite"
+    with closing(open_registry(registry_path, create=True)) as connection:
+        _scan_project(connection, project)
+    _patch_target(monkeypatch, registry_path)
+    with pytest.raises(CliFailure) as raised:
+        project_commands.technologies({})
+    assert raised.value.code == "AI_STP_VALIDATION_ERROR"
+    assert raised.value.details == {"options": ["--project", "--root"]}
+    assert [(item.path, item.arguments) for item in raised.value.continuations] == [
+        (["help"], {"path": "project technologies"})
+    ]
+    assert "project detect --root <path> --json" in raised.value.next_actions
 
 
 def test_technologies_refuses_a_scope_the_wire_cannot_carry(

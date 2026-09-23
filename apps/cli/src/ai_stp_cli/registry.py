@@ -3797,6 +3797,9 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             option("decline", "boolean", "Refuse it. Nothing asks again."),
             option("confirm", "boolean", "Required by both answers.", required=True),
         ),
+        parameter_rules=(
+            CommandParameterRule(kind="exactly_one", parameters=["accept", "decline"]),
+        ),
         next_actions=("help --path telemetry --json",),
     ),
     Declaration(

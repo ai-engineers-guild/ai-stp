@@ -28,7 +28,7 @@ from typing import Final, cast
 
 from ai_stp_cli.answer import Answer
 from ai_stp_cli.config import effective_config
-from ai_stp_cli.errors import CliFailure
+from ai_stp_cli.errors import CliFailure, leaf_help_continuation
 from ai_stp_cli.local import (
     acquired_trust,
     bundle,
@@ -987,6 +987,8 @@ def dependency_graph(parameters: Mapping[str, object]) -> Answer[SetupGraph]:
         raise CliFailure(
             "AI_STP_VALIDATION_ERROR",
             "name either one proposal or one or more members, not both and not neither",
+            details={"options": ["--proposal", "--member"]},
+            continuations=[leaf_help_continuation(("select", "graph"))],
             next_actions=["select session --harness <id> --json"],
         )
 
