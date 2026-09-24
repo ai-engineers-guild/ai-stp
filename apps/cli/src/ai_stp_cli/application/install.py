@@ -2866,7 +2866,7 @@ def target_diff(parameters: Mapping[str, object]) -> Answer[TargetDiff]:
         managed_changes: list[ManagedPathChange] = []
         if targets.STATE_LOCAL_DRIFT in found.states:
             managed_detail, managed_changes = _managed_target_changes(
-                connection, project_id=project_id, harness_id=harness
+                connection, project_id=resolved, harness_id=harness
             )
         return Answer(
             TargetDiff(

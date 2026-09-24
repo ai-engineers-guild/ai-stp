@@ -51,7 +51,7 @@ last_verified: "2026-08-03"
 | [preserved-setups.md](preserved-setups.md) | Local setup identities, verified native recovery bindings and CLI selection. | 2026-09-07 |
 | [private-distribution.md](private-distribution.md) | Private upload, exact access reads and owner visibility plans shared with the platform owner. | 2026-09-24 |
 | [project-discovery.md](project-discovery.md) | Machine form of complete project discovery within an explicitly named scope. | 2026-08-09 |
-| [provider-protocol.md](provider-protocol.md) | Commands, execution boundary, and state mapping of a public provider. | 2026-09-16 |
+| [provider-protocol.md](provider-protocol.md) | Commands, execution boundary, and state mapping of a public provider. | 2026-09-24 |
 | [provider-release.md](provider-release.md) | Provider release manifest, trust, verification, and rollback protection. | 2026-09-04 |
 | [public-profile.md](public-profile.md) | Public profile fields, revisions, avatar, and separation from the developer passport. | 2026-09-04 |
 | [report-case.md](report-case.md) | Private report case: allowed content, preview, states, and auditable moderator actions. | 2026-09-04 |

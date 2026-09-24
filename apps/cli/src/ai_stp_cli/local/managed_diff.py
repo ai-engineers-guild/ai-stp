@@ -161,15 +161,75 @@ def _manifest(document: dict[str, object]) -> Manifest:
         records[path] = digest
     if sorted(item for item in managed_items if isinstance(item, str)) != sorted(records):
         raise _failure("the verified HarnessBundle managed paths disagree with its files")
-    roots = tuple(sorted({PurePosixPath(path).parts[0] for path in records}))
     if any(
-        root in records and any(path.startswith(f"{root}/") for path in records) for root in roots
+        parent.as_posix() in records for path in records for parent in PurePosixPath(path).parents
     ):
         raise _failure("the verified HarnessBundle has colliding managed roots")
     scope = document.get("target_scope")
     return Manifest(
-        records, roots, target_scope=scope if isinstance(scope, str) and scope else "global"
+        records,
+        _managed_roots(document, records),
+        target_scope=scope if isinstance(scope, str) and scope else "global",
     )
+
+
+def _managed_roots(document: dict[str, object], records: dict[str, str]) -> tuple[str, ...]:
+    """Use the exact bundle's projection surfaces, never their shared parents.
+
+    A nested settings file does not own its parent's logs or conversations.
+    Without a conversion report, only the recorded files have known ownership.
+    """
+    report = document.get("conversion_report")
+    if report is None:
+        return tuple(sorted(records))
+    if not isinstance(report, dict):
+        raise _failure("the verified HarnessBundle conversion report is invalid")
+    entries = cast(dict[str, object], report).get("entries")
+    if not isinstance(entries, list):
+        raise _failure("the verified HarnessBundle conversion entries are invalid")
+    entry_items = cast(list[object], entries)
+    if len(entry_items) > MAX_MANAGED_FILES:
+        raise _failure("the verified HarnessBundle conversion entries are invalid")
+    surfaces: set[str] = set()
+    for entry in entry_items:
+        if not isinstance(entry, dict):
+            raise _failure("the verified HarnessBundle conversion entry is invalid")
+        held = cast(dict[str, object], entry)
+        surface = held.get("native_surface")
+        if surface == "" and held.get("state") == "unsupported":
+            continue
+        if not isinstance(surface, str) or not _safe(surface):
+            raise _failure("the verified HarnessBundle native surface is invalid")
+        if any(path == surface or path.startswith(f"{surface}/") for path in records):
+            surfaces.add(surface)
+    roots = surfaces | {
+        path
+        for path in records
+        if not any(path == surface or path.startswith(f"{surface}/") for surface in surfaces)
+    }
+    return tuple(
+        sorted(
+            root
+            for root in roots
+            if not any(p.as_posix() in roots for p in PurePosixPath(root).parents)
+        )
+    )
+
+
+def _unsafe_parent(target: Path, root: str) -> bool:
+    """Nested projection roots must not traverse links above the leaf."""
+    parent = target
+    for part in ("", *PurePosixPath(root).parts[:-1]):
+        parent = parent / part
+        try:
+            mode = parent.lstat().st_mode
+        except FileNotFoundError:
+            return False
+        except OSError as error:
+            raise _failure("a managed target parent could not be inspected") from error
+        if not stat.S_ISDIR(mode) or stat.S_ISLNK(mode):
+            return True
+    return False
 
 
 def compare(target: Path, manifest: Manifest) -> tuple[Change, ...]:
@@ -178,6 +238,11 @@ def compare(target: Path, manifest: Manifest) -> tuple[Change, ...]:
     files = 0
     total = 0
     for root in manifest.roots:
+        if _unsafe_parent(target, root):
+            for path in manifest.expected:
+                if path == root or path.startswith(f"{root}/"):
+                    current[path] = "unsafe"
+            continue
         root_path = target / root
         expected_root_file = root in manifest.expected
         try:
@@ -296,8 +361,11 @@ def _safe(value: str) -> bool:
     path = PurePosixPath(value)
     return (
         bool(value)
+        and bool(path.parts)
+        and value == path.as_posix()
         and not value.startswith(("/", "~"))
         and "\\" not in value
+        and ":" not in value
         and all(part not in {"", ".", ".."} for part in path.parts)
     )
 
