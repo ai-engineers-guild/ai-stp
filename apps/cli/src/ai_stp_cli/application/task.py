@@ -510,6 +510,7 @@ def _failed_drain(
         action
         for action in error.next_actions
         if any(token in action for token in _TASK_NEXT_ACTIONS)
+        or (row.intent == ACCOUNT_INTENT and action == "config set --set sync.enabled=true --json")
     ]
     _commit_if_current(row, agent_tasks.failed(row, at=at, child_operation_ids=child_operation_ids))
 

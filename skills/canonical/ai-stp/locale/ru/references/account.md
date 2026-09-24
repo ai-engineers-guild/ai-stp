@@ -26,7 +26,12 @@ sync, не набирайте `ai-stp` и не стартуйте `account`.
 [decisions](decisions.md).
 
 Явный sync — это `account` с `action=sync` и `scope` `push` или `pull`.
-Не набирайте `sync push` или `sync pull`. Push требует абсолютный `project_root`.
+Не набирайте `sync push` или `sync pull`. Push требует точный локальный `stable_id`
+для developer, component, setup, device summary или consent. Если идентификатор
+не указан или не поддерживается, задача задаёт вопрос `stable-id`; `project_root`
+не является объектом синхронизации. Паспорта проектов и абсолютные локальные пути
+остаются на устройстве. Если sync отключён, выполните возвращённое исправление
+конфигурации перед запуском новой задачи синхронизации.
 История связанного проекта — ledger организации, не account sync.
 Не набирайте `project passport`. Не набирайте `project revision push`.
 Не набирайте `project revision pull`, `project sync plan` или `project sync apply`.

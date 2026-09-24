@@ -1343,5 +1343,5 @@ def _hold_session() -> None:
     )
 
 
-def _forbid_sync(*, scope: str, project_root: str) -> object:
-    raise AssertionError(f"login must not sync ({scope}, {project_root})")
+def _forbid_sync(*, scope: str, stable_id: str) -> object:
+    raise AssertionError(f"login must not sync ({scope}, {stable_id})")

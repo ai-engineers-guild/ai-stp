@@ -506,7 +506,11 @@ class TaskAccountInput(BaseModel):
     schema_version: Literal[1] = 1
     action: Literal["login", "logout", "sync"] | None = None
     provider: Literal["google", "github"] | None = None
-    project_root: str | None = None
+    stable_id: str | None = Field(default=None, description="Exact local account-sync entity id.")
+    project_root: str | None = Field(
+        default=None,
+        description="Legacy input retained for replay; project passports do not sync to accounts.",
+    )
     scope: Literal["push", "pull"] | None = None
 
 

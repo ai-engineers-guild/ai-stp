@@ -24,7 +24,11 @@ argv, environment, logs or reports. Do not sign into someone else's account.
 Existing-object visibility and access changes follow [decisions](decisions.md).
 
 Explicit sync is `account` with `action=sync` and `scope` `push` or `pull`.
-Do not type `sync push` or `sync pull`. Push needs the absolute `project_root`.
+Do not type `sync push` or `sync pull`. Push needs the exact local `stable_id`
+for a developer, component, setup, device summary, or consent. The task asks
+`stable-id` if it is missing or unsupported; a `project_root` is not a sync entity.
+Project passports and absolute local paths stay on the device. If sync is disabled,
+use the returned configuration repair before starting a new sync task.
 Linked project history is the organization ledger, not account sync.
 Do not type `project passport`. Do not type `project revision push`.
 Do not type `project revision pull`, `project sync plan`, or `project sync apply`.

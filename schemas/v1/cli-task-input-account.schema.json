@@ -31,6 +31,7 @@
         }
       ],
       "default": null,
+      "description": "Legacy input retained for replay; project passports do not sync to accounts.",
       "title": "Project Root"
     },
     "provider": {
@@ -70,6 +71,19 @@
       ],
       "default": null,
       "title": "Scope"
+    },
+    "stable_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Exact local account-sync entity id.",
+      "title": "Stable Id"
     }
   },
   "title": "TaskAccountInput",

@@ -232,8 +232,11 @@ def test_explicit_sync_is_not_implied_by_login(
     assert finished.payload.outcome.synced is False
 
 
-def test_explicit_sync_push_asks_for_project_root(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+@pytest.mark.parametrize(
+    "supplied", [{}, {"project_root": "/tmp/project"}, {"stable_id": "project_bad"}]
+)
+def test_explicit_sync_push_asks_for_a_syncable_entity(
+    supplied: dict[str, str], tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setattr(account_service, "sync_now", _forbid_sync)
     _hold_session()
@@ -241,22 +244,36 @@ def test_explicit_sync_push_asks_for_project_root(
         {
             "intent": "account",
             "idempotency-key": "account-sync-root-0001",
-            "input": _facts(tmp_path, {"action": "sync", "scope": "push"}),
+            "input": _facts(tmp_path, {"action": "sync", "scope": "push", **supplied}),
         }
     )
     continued = task_command.continue_(
         {"task": started.payload.task_id, "revision": started.payload.revision}
     )
-    assert continued.payload.questions[0].question_id == "project-root"
+    assert continued.payload.questions[0].question_id == "stable-id"
+
+
+def test_disabled_account_sync_retains_the_configuration_repair(tmp_path: Path) -> None:
+    _hold_session()
+    with pytest.raises(CliFailure) as raised:
+        task_command.start(
+            {
+                "intent": "account",
+                "idempotency-key": "account-disabled-sync-01",
+                "input": _facts(tmp_path, {"action": "sync", "scope": "pull"}),
+            }
+        )
+    assert raised.value.code == "AI_STP_PRECONDITION_FAILED"
+    assert raised.value.next_actions == ["config set --set sync.enabled=true --json"]
 
 
 def test_explicit_sync_calls_sync_now_once(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     calls: list[tuple[str, str]] = []
 
-    def sync_now(*, scope: str, project_root: str) -> SyncPushView:
-        calls.append((scope, project_root))
+    def sync_now(*, scope: str, stable_id: str) -> SyncPushView:
+        calls.append((scope, stable_id))
         return SyncPushView(
-            stable_id=new_id("project"),
+            stable_id=stable_id,
             processed_events=1,
             local_revision_id="local-revision",
             event_id="event-00000001",
@@ -268,12 +285,12 @@ def test_explicit_sync_calls_sync_now_once(tmp_path: Path, monkeypatch: pytest.M
 
     monkeypatch.setattr(account_service, "sync_now", sync_now)
     _hold_session()
-    root = str(tmp_path.resolve())
+    stable_id = new_id("component")
     started = task_command.start(
         {
             "intent": "account",
             "idempotency-key": "account-sync-push-0001",
-            "input": _facts(tmp_path, {"action": "sync", "scope": "push", "project_root": root}),
+            "input": _facts(tmp_path, {"action": "sync", "scope": "push", "stable_id": stable_id}),
         }
     )
     finished = task_command.continue_(
@@ -286,7 +303,7 @@ def test_explicit_sync_calls_sync_now_once(tmp_path: Path, monkeypatch: pytest.M
     assert outcome.action == "sync"
     assert outcome.synced is True
     assert outcome.login_uploaded is False
-    assert calls == [("push", root)]
+    assert calls == [("push", stable_id)]
 
 
 def test_account_module_does_not_poll_or_spawn_nested_cli() -> None:
@@ -331,7 +348,7 @@ def test_account_push_preserves_the_receipt_and_only_acceptance_satisfies_the_go
     _hold_session()
     receipt = SyncPushView.model_validate(
         {
-            "stable_id": new_id("project"),
+            "stable_id": new_id("component"),
             "processed_events": 1,
             "local_revision_id": "local-revision",
             "event_id": "event-00000001",
@@ -353,7 +370,7 @@ def test_account_push_preserves_the_receipt_and_only_acceptance_satisfies_the_go
             "idempotency-key": "account-push-receipt-0001",
             "input": _facts(
                 tmp_path,
-                {"action": "sync", "scope": "push", "project_root": str(tmp_path)},
+                {"action": "sync", "scope": "push", "stable_id": new_id("component")},
             ),
         }
     )
@@ -460,8 +477,8 @@ def _authenticated(*, state: str = "authenticated") -> AuthStatus:
     )
 
 
-def _forbid_sync(*, scope: str, project_root: str) -> object:
-    raise AssertionError(f"login must not sync ({scope}, {project_root})")
+def _forbid_sync(*, scope: str, stable_id: str) -> object:
+    raise AssertionError(f"login must not sync ({scope}, {stable_id})")
 
 
 def _hold_session() -> None:

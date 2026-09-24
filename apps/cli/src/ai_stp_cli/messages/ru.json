@@ -289,7 +289,6 @@
   "no executable sits at that path": "по этому пути нет исполняемого файла",
   "no exported schema has that id": "ни одна экспортированная схема не имеет такого идентификатора",
   "no exported schema name mentions that text": "ни одно имя экспортированной схемы не содержит этот текст",
-  "no local project passport for this root": "для этого корня нет локального паспорта проекта",
   "no multi-root transaction with that identifier is recorded": "multi-root транзакция с таким идентификатором не записана",
   "no object is stored at that address": "по этому адресу нет объекта",
   "no operation with that identifier is recorded": "операция с таким идентификатором не записана",

@@ -264,6 +264,10 @@ a CLI language rewrite, and a PyPI CLI cut are excluded.
 - `REQ-8018`: Intent `account` drains `application.account`. Device-code
   login uses `actor=external`, one exchange per continue, and never
   `login.poll`. Login never uploads. Already signed-in login skips begin.
+  Sync push selects an existing syncable local entity by `stable_id`; a missing
+  or unsupported identifier asks `stable-id`. Project roots are not account-sync
+  entities, and local project passports remain on the device. A disabled-sync
+  failure retains its exact configuration repair without enabling sync implicitly.
   Sync is explicit only; the selected action supplies the internal confirmation
   for both push and pull. Its typed `sync_result` preserves the underlying
   receipt, including conflicts and missing version coordinates. `synced` and

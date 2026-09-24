@@ -17,6 +17,7 @@ local registry is a scratch file — exactly what a second machine is.
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import cast
 
@@ -28,9 +29,11 @@ from ai_stp_cli.cloud import sync as cloud_sync
 from ai_stp_cli.cloud.client import Endpoint
 from ai_stp_cli.cloud.session import Session as CliSession
 from ai_stp_cli.commands import config_show
+from ai_stp_cli.commands import task as task_command
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import passports, revisions, sync_state
 from ai_stp_cli.local.database import configured_path, open_registry
+from ai_stp_contracts.machine_help import SyncPushView
 from ai_stp_contracts.sync import SyncEvent, SyncPullQuery, SyncPushRequest
 from ai_stp_foundation.canonical import JsonValue
 from ai_stp_foundation.ids import new_id
@@ -156,7 +159,7 @@ def test_push_then_pull_round_trips_the_event_to_a_second_device(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    """`sync push` writes the account outbox; a second device reads it back."""
+    """An account task writes the outbox; a second device reads exact bytes."""
     _enable(monkeypatch, cli_endpoint)
     account_id = device_session.account_id
     stable_id = new_id("component")
@@ -170,8 +173,26 @@ def test_push_then_pull_round_trips_the_event_to_a_second_device(
             device_id=device_session.device_id,
         )
 
-    pushed = sync_commands.push({"id": stable_id, "confirm": True}).payload
+    facts = tmp_path / "account-push.json"
+    facts.write_text(json.dumps({"action": "sync", "scope": "push", "stable_id": stable_id}))
+    started = task_command.start(
+        {
+            "intent": "account",
+            "idempotency-key": "account-real-push-0001",
+            "input": str(facts),
+        }
+    )
+    assert started.payload.goal_satisfied
+    outcome = started.payload.outcome
+    assert outcome is not None and outcome.kind == "account"
+    pushed = outcome.sync_result
+    assert isinstance(pushed, SyncPushView)
     assert pushed.state == "accepted"
+    assert pushed.stable_id == stable_id
+    replay = task_command.continue_(
+        {"task": started.payload.task_id, "revision": started.payload.revision}
+    )
+    assert replay.payload == started.payload
 
     device_b, token_b = _second_device(cli_server, account_id)
     del device_b
