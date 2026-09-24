@@ -140,7 +140,7 @@ def drain(
 def _drain_setup(
     stable_id: str, version: str, *, visibility: str, previous: TaskPublishOutcome | None
 ) -> DrainResult:
-    from ai_stp_cli.commands import setup_publication
+    from ai_stp_cli.application import setup_publication
 
     held = previous.publication_set if previous is not None else None
     if held is None:

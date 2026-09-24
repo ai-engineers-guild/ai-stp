@@ -393,7 +393,7 @@ def test_change_adds_a_locally_authored_component_without_cloud(
     assert finished.payload.outcome.source_setup_id == pin.setup_id
     assert finished.payload.outcome.setup_id != pin.setup_id
     assert finished.payload.outcome.minted is True
-    from ai_stp_cli.commands.setup_publication import (
+    from ai_stp_cli.application.setup_publication import (
         _catalog_pins,  # pyright: ignore[reportPrivateUsage]
     )
     from ai_stp_cli.local import content

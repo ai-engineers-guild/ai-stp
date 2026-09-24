@@ -34,7 +34,7 @@ DIGEST = "sha256:" + "b" * 64
 def test_setup_publication_checkpoints_the_exact_set_and_preserves_its_receipt(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, terminal: str
 ) -> None:
-    from ai_stp_cli.commands import setup_publication
+    from ai_stp_cli.application import setup_publication
 
     monkeypatch.setattr(account_service, "ensure_session", _signed_in)
     setup_id = new_id("setup")

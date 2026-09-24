@@ -19,7 +19,7 @@ from typing import Any, cast
 
 import pytest
 
-from ai_stp_cli.commands import setup_publication
+from ai_stp_cli.application import setup_publication
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import (
     component_passports,
