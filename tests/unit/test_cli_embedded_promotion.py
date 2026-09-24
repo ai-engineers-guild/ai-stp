@@ -9,7 +9,8 @@ from typing import cast
 
 import pytest
 
-from ai_stp_cli.commands import component_publish, setup_publication
+from ai_stp_cli.application import setup_publication
+from ai_stp_cli.commands import component_publish
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import cache, content, embedded_promotion, revisions, versions
 from ai_stp_cli.local.database import configured_path, open_registry
