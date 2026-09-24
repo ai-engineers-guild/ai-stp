@@ -33,10 +33,12 @@ unreachable until that revision is in the ledger. The plan's `local_revision`
 is the ledger `revision_id` from the push receipt, not the passport's own
 `revision_id`.
 
-When pull reports `partial`, inspect `pending_version_count` and the returned
+Read `outcome.sync_result`, not envelope `ok`, for the actual sync receipt.
+Rejected, conflicting, or superseded pushes do not satisfy the sync goal.
+When pull reports `partial`, inspect its `pending_version_count` and returned
 version coordinates. A device retaining those exact snapshots can send them
 with an updated CLI; pull then materializes them without changing the draft.
-Continue through nonempty pages. If an empty page still reports missing
+Follow the same task's CLI continuations through progressing pages. If an empty page still reports missing
 snapshots, retain that result and continue unrelated authorized work instead of
 polling an unchanged stream. Report which source data is needed; neither an
 invented snapshot nor skipping history proves complete synchronization.

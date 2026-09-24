@@ -19,6 +19,8 @@ from ai_stp_contracts.auth import OAUTH_PROVIDERS
 from ai_stp_contracts.machine_help import (
     AuthStatus,
     DeviceApproval,
+    SyncPullView,
+    SyncPushView,
     TaskAccountOutcome,
     TaskQuestion,
 )
@@ -35,6 +37,7 @@ class DrainResult:
     questions: tuple[TaskQuestion, ...] = ()
     child_operation_ids: tuple[str, ...] = ()
     facts: dict[str, JsonValue] | None = None
+    advance: bool = False
 
 
 def begin(provider: str) -> DeviceApproval:
@@ -52,12 +55,12 @@ def logout() -> AuthStatus:
     return logout_session({}).payload
 
 
-def sync_now(*, scope: str, project_root: str) -> object:
+def sync_now(*, scope: str, project_root: str) -> SyncPushView | SyncPullView:
     """Explicit private-registry sync. Never implied by login. Tests may stub this."""
     from ai_stp_cli.application import sync as sync_commands
 
     if scope == "pull":
-        return sync_commands.pull({}).payload
+        return sync_commands.pull({"confirm": True}).payload
     root = Path(project_root).expanduser()
     if not root.is_absolute():
         root = Path.cwd() / root
@@ -114,7 +117,9 @@ def ensure_session(facts: Mapping[str, JsonValue]) -> DrainResult | AuthStatus:
         raise
 
 
-def drain(facts: Mapping[str, JsonValue]) -> DrainResult:
+def drain(
+    facts: Mapping[str, JsonValue], *, previous: TaskAccountOutcome | None = None
+) -> DrainResult:
     """Advance account until a boundary. Never shells out to `ai-stp`. Never polls."""
     action = facts.get("action")
     if not isinstance(action, str) or action not in _ACTIONS:
@@ -185,7 +190,21 @@ def drain(facts: Mapping[str, JsonValue]) -> DrainResult:
                 ),
             )
         )
-    sync_now(scope=scope, project_root=project_root if isinstance(project_root, str) else "")
+    receipt = sync_now(
+        scope=scope, project_root=project_root if isinstance(project_root, str) else ""
+    )
+    synced = receipt.state == ("accepted" if isinstance(receipt, SyncPushView) else "up_to_date")
+    previous_receipt = previous.sync_result if previous is not None else None
+    previous_cursor = (
+        previous_receipt.next_cursor if isinstance(previous_receipt, SyncPullView) else None
+    )
+    advance = (
+        isinstance(receipt, SyncPullView)
+        and not synced
+        and receipt.received > 0
+        and receipt.next_cursor is not None
+        and receipt.next_cursor != previous_cursor
+    )
     provider = facts.get("provider")
     return DrainResult(
         outcome=TaskAccountOutcome(
@@ -193,9 +212,11 @@ def drain(facts: Mapping[str, JsonValue]) -> DrainResult:
             authenticated=True,
             provider=provider if isinstance(provider, str) else "",
             session_state=gate.state,
-            synced=True,
+            synced=synced,
             scope=scope,
-        )
+            sync_result=receipt,
+        ),
+        advance=advance,
     )
 
 

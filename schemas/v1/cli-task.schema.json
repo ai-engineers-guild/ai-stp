@@ -98,6 +98,208 @@
       ],
       "type": "string"
     },
+    "SyncPendingVersion": {
+      "additionalProperties": false,
+      "description": "An exact legacy version reference whose snapshot is not available yet.",
+      "properties": {
+        "event_id": {
+          "title": "Event Id",
+          "type": "string"
+        },
+        "passport_digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Passport Digest",
+          "type": "string"
+        },
+        "revision_id": {
+          "title": "Revision Id",
+          "type": "string"
+        },
+        "stable_id": {
+          "title": "Stable Id",
+          "type": "string"
+        },
+        "version": {
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "stable_id",
+        "version",
+        "passport_digest",
+        "revision_id",
+        "event_id"
+      ],
+      "title": "SyncPendingVersion",
+      "type": "object"
+    },
+    "SyncPullView": {
+      "additionalProperties": false,
+      "description": "One atomically applied page from the private account stream.",
+      "properties": {
+        "applied": {
+          "minimum": 0,
+          "title": "Applied",
+          "type": "integer"
+        },
+        "next_cursor": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Next Cursor"
+        },
+        "pending_version_count": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Pending Version Count",
+          "type": "integer"
+        },
+        "pending_versions": {
+          "items": {
+            "$ref": "#/$defs/SyncPendingVersion"
+          },
+          "maxItems": 128,
+          "title": "Pending Versions",
+          "type": "array"
+        },
+        "received": {
+          "minimum": 0,
+          "title": "Received",
+          "type": "integer"
+        },
+        "replayed": {
+          "minimum": 0,
+          "title": "Replayed",
+          "type": "integer"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "skipped": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 64,
+          "title": "Skipped",
+          "type": "array"
+        },
+        "state": {
+          "default": "pulling",
+          "enum": [
+            "pulling",
+            "up_to_date",
+            "partial"
+          ],
+          "title": "State",
+          "type": "string"
+        }
+      },
+      "required": [
+        "received",
+        "applied",
+        "replayed",
+        "next_cursor"
+      ],
+      "title": "SyncPullView",
+      "type": "object"
+    },
+    "SyncPushView": {
+      "additionalProperties": false,
+      "description": "Durable outcome of pushing one exact local revision.",
+      "properties": {
+        "conflict_fields": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Conflict Fields",
+          "type": "array"
+        },
+        "conflicting_entity_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Conflicting Entity Id"
+        },
+        "event_id": {
+          "minLength": 8,
+          "title": "Event Id",
+          "type": "string"
+        },
+        "local_revision_id": {
+          "minLength": 1,
+          "title": "Local Revision Id",
+          "type": "string"
+        },
+        "processed_events": {
+          "minimum": 1,
+          "title": "Processed Events",
+          "type": "integer"
+        },
+        "remote_revision_id": {
+          "minLength": 1,
+          "title": "Remote Revision Id",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "server_head_revision_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Server Head Revision Id"
+        },
+        "stable_id": {
+          "minLength": 1,
+          "title": "Stable Id",
+          "type": "string"
+        },
+        "state": {
+          "enum": [
+            "accepted",
+            "rejected",
+            "conflict",
+            "superseded"
+          ],
+          "title": "State",
+          "type": "string"
+        }
+      },
+      "required": [
+        "stable_id",
+        "processed_events",
+        "local_revision_id",
+        "event_id",
+        "remote_revision_id",
+        "state",
+        "server_head_revision_id",
+        "conflicting_entity_id"
+      ],
+      "title": "SyncPushView",
+      "type": "object"
+    },
     "TaskAccountOutcome": {
       "additionalProperties": true,
       "description": "Account drained in-process. Login never uploads; sync is a separate explicit step.",
@@ -142,6 +344,21 @@
           "title": "Session State",
           "type": "string"
         },
+        "sync_result": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SyncPushView"
+            },
+            {
+              "$ref": "#/$defs/SyncPullView"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sync Result"
+        },
         "synced": {
           "default": false,
           "title": "Synced",
@@ -156,6 +373,7 @@
         "provider",
         "scope",
         "session_state",
+        "sync_result",
         "synced"
       ],
       "title": "TaskAccountOutcome",

@@ -264,7 +264,14 @@ a CLI language rewrite, and a PyPI CLI cut are excluded.
 - `REQ-8018`: Intent `account` drains `application.account`. Device-code
   login uses `actor=external`, one exchange per continue, and never
   `login.poll`. Login never uploads. Already signed-in login skips begin.
-  Sync is explicit only. Login does not call `/publications`, `/sync-plans`,
+  Sync is explicit only; the selected action supplies the internal confirmation
+  for both push and pull. Its typed `sync_result` preserves the underlying
+  receipt, including conflicts and missing version coordinates. `synced` and
+  the task goal are true only for an accepted push or an up-to-date pull.
+  A nonempty pull page with a new cursor checkpoints its receipt in the same
+  task at `planned` and emits a CLI continuation for the next page. Empty
+  partial pages and repeated cursors settle without claiming the goal or
+  polling unchanged data. Login does not call `/publications`, `/sync-plans`,
   `/revisions`, or catalog PUT.
 - `REQ-8019`: Intent `publish` drains `application.publish`. Visibility
   defaults to private. The plan omits `source_binding_id` and uses

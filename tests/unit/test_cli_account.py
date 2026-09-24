@@ -17,10 +17,14 @@ import pytest
 
 from ai_stp_cli.application import account as account_service
 from ai_stp_cli.cloud import session
+from ai_stp_cli.cloud import sync as cloud_sync
+from ai_stp_cli.commands import config_show
 from ai_stp_cli.commands import task as task_command
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.secrets import open_store
-from ai_stp_contracts.machine_help import AuthStatus, DeviceApproval
+from ai_stp_contracts.http import PageInfo
+from ai_stp_contracts.machine_help import AuthStatus, DeviceApproval, SyncPullView, SyncPushView
+from ai_stp_contracts.sync import SyncPullResponse
 from ai_stp_foundation.ids import new_id
 
 
@@ -249,9 +253,18 @@ def test_explicit_sync_push_asks_for_project_root(
 def test_explicit_sync_calls_sync_now_once(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     calls: list[tuple[str, str]] = []
 
-    def sync_now(*, scope: str, project_root: str) -> object:
+    def sync_now(*, scope: str, project_root: str) -> SyncPushView:
         calls.append((scope, project_root))
-        return object()
+        return SyncPushView(
+            stable_id=new_id("project"),
+            processed_events=1,
+            local_revision_id="local-revision",
+            event_id="event-00000001",
+            remote_revision_id="local-revision",
+            state="accepted",
+            server_head_revision_id="local-revision",
+            conflicting_entity_id=None,
+        )
 
     monkeypatch.setattr(account_service, "sync_now", sync_now)
     _hold_session()
@@ -283,6 +296,147 @@ def test_account_module_does_not_poll_or_spawn_nested_cli() -> None:
     assert "login.poll" not in source
     assert '"wait"' not in source
     assert "open-browser" not in source
+
+
+def test_explicit_pull_reaches_the_sync_transport_without_a_second_confirmation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _hold_session()
+    config_show.set_({"set": ("sync.enabled=true",)})
+    calls: list[object] = []
+
+    def pull(*args: object) -> SyncPullResponse:
+        calls.append(args[-1])
+        return SyncPullResponse(items=[], page=PageInfo(next_cursor=None, page_size=20))
+
+    monkeypatch.setattr(cloud_sync, "pull", pull)
+    started = task_command.start(
+        {
+            "intent": "account",
+            "idempotency-key": "account-real-pull-0001",
+            "input": _facts(tmp_path, {"action": "sync", "scope": "pull"}),
+        }
+    )
+    assert started.payload.goal_satisfied
+    assert len(calls) == 1
+    outcome = started.payload.outcome
+    assert outcome is not None and outcome.kind == "account"
+    assert outcome.model_dump()["sync_result"]["state"] == "up_to_date"
+
+
+@pytest.mark.parametrize("state", ["accepted", "rejected", "conflict", "superseded"])
+def test_account_push_preserves_the_receipt_and_only_acceptance_satisfies_the_goal(
+    state: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _hold_session()
+    receipt = SyncPushView.model_validate(
+        {
+            "stable_id": new_id("project"),
+            "processed_events": 1,
+            "local_revision_id": "local-revision",
+            "event_id": "event-00000001",
+            "remote_revision_id": "remote-revision",
+            "state": state,
+            "server_head_revision_id": "remote-revision",
+            "conflict_fields": ["/facts/name"] if state == "conflict" else [],
+            "conflicting_entity_id": None,
+        }
+    )
+
+    def sync_now(**_kwargs: object) -> SyncPushView:
+        return receipt
+
+    monkeypatch.setattr(account_service, "sync_now", sync_now)
+    started = task_command.start(
+        {
+            "intent": "account",
+            "idempotency-key": "account-push-receipt-0001",
+            "input": _facts(
+                tmp_path,
+                {"action": "sync", "scope": "push", "project_root": str(tmp_path)},
+            ),
+        }
+    )
+    outcome = started.payload.outcome
+    assert outcome is not None and outcome.kind == "account"
+    assert outcome.synced is (state == "accepted")
+    assert started.payload.goal_satisfied is (state == "accepted")
+    assert outcome.model_dump()["sync_result"] == receipt.model_dump()
+
+
+@pytest.mark.parametrize("terminal", ["up_to_date", "partial", "repeated-cursor"])
+@pytest.mark.parametrize("first_state", ["pulling", "partial"])
+def test_account_pull_exposes_progress_and_stops_on_empty_or_unchanged_pages(
+    terminal: str, first_state: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _hold_session()
+    first = SyncPullView.model_validate(
+        {
+            "received": 1,
+            "applied": 1,
+            "replayed": 0,
+            "state": first_state,
+            "next_cursor": "cursor-1",
+        }
+    )
+    last = (
+        first
+        if terminal == "repeated-cursor"
+        else SyncPullView.model_validate(
+            {
+                "received": 0,
+                "applied": 0,
+                "replayed": 0,
+                "state": terminal,
+                "next_cursor": "cursor-1",
+                "pending_version_count": 1 if terminal == "partial" else 0,
+                "pending_versions": [
+                    {
+                        "stable_id": new_id("setup"),
+                        "version": "1.0",
+                        "passport_digest": "sha256:" + "a" * 64,
+                        "revision_id": "missing-revision",
+                        "event_id": "legacy-event",
+                    }
+                ]
+                if terminal == "partial"
+                else [],
+            }
+        )
+    )
+    calls: list[object] = []
+
+    def sync_now(**_kwargs: object) -> SyncPullView:
+        calls.append(None)
+        return first if len(calls) == 1 else last
+
+    monkeypatch.setattr(account_service, "sync_now", sync_now)
+    started = task_command.start(
+        {
+            "intent": "account",
+            "idempotency-key": "account-pull-pages-0001",
+            "input": _facts(tmp_path, {"action": "sync", "scope": "pull"}),
+        }
+    )
+    assert started.payload.state == "planned"
+    assert not started.payload.goal_satisfied
+    assert started.continuations[0].actor == "cli"
+    assert started.continuations[0].argv[1] == "continue"
+    finished = task_command.continue_(
+        {"task": started.payload.task_id, "revision": started.payload.revision}
+    )
+    assert finished.payload.state == "completed"
+    assert finished.payload.goal_satisfied is (terminal == "up_to_date")
+    assert not finished.continuations
+    outcome = finished.payload.outcome
+    assert outcome is not None and outcome.kind == "account"
+    assert outcome.synced is (terminal == "up_to_date")
+    assert outcome.model_dump()["sync_result"] == last.model_dump()
+    replay = task_command.continue_(
+        {"task": finished.payload.task_id, "revision": finished.payload.revision}
+    )
+    assert replay.payload == finished.payload
+    assert len(calls) == 2
 
 
 def _approval(_provider: str = "google") -> DeviceApproval:

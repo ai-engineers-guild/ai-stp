@@ -38,6 +38,7 @@ from ai_stp_cli.local.passports import moment
 from ai_stp_cli.yaml_documents import DuplicateKeyError, UniqueSafeLoader
 from ai_stp_contracts.http import IDEMPOTENCY_KEY_PATTERN
 from ai_stp_contracts.machine_help import (
+    TaskAccountOutcome,
     TaskInspectOutcome,
     TaskIntentsCatalog,
     TaskListEntry,
@@ -751,8 +752,11 @@ def _drain(row: StoredTask) -> Answer[TaskView]:
         return _answer(agent_tasks.view_of(updated))
     if row.intent == ACCOUNT_INTENT:
         facts = _facts_of(row)
+        previous = agent_tasks.view_of(row).outcome
         try:
-            result = drain_account(facts)
+            result = drain_account(
+                facts, previous=previous if isinstance(previous, TaskAccountOutcome) else None
+            )
         except CliFailure as error:
             _failed_drain(row, error, at=at)
             raise
@@ -763,7 +767,8 @@ def _drain(row: StoredTask) -> Answer[TaskView]:
                     row,
                     result.outcome,
                     at=at,
-                    goal_satisfied=True,
+                    goal_satisfied=result.outcome.action != "sync" or result.outcome.synced,
+                    state="planned" if result.advance else "completed",
                     child_operation_ids=result.child_operation_ids,
                 ),
             )

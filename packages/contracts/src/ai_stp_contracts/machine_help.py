@@ -664,6 +664,7 @@ class TaskAccountOutcome(BaseModel):
     session_state: str = ""
     synced: bool = False
     scope: str = ""
+    sync_result: SyncPushView | SyncPullView | None = None
 
 
 class TaskPublishOutcome(BaseModel):
