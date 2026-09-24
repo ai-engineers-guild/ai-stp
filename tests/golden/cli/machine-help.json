@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "cli_version": "0.0.0-pinned",
-  "registry_digest": "sha256:b5abcda27f1e5cf57ec57cbbfbb72e03e26cec04a23f97455c963aae3dc3952c",
+  "registry_digest": "sha256:960a20bf95b0ccec7d55c421985bb8c692c9edfd63ac242c70002484c43ebc33",
   "global_options": [
     {
       "name": "json",
@@ -4011,6 +4011,31 @@
     {
       "path": [
         "heartbeat",
+        "local-status"
+      ],
+      "summary": "Read local heartbeat opt-in and scheduler state without network access.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "organization",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Local organization subscription.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:installation-heartbeat-subscription",
+      "next_actions": [
+        "help --path heartbeat --json"
+      ]
+    },
+    {
+      "path": [
+        "heartbeat",
         "send"
       ],
       "summary": "Write this installation's heartbeat for one organization.",
@@ -4077,6 +4102,31 @@
       ],
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:installation-heartbeat-status",
+      "next_actions": [
+        "help --path heartbeat --json"
+      ]
+    },
+    {
+      "path": [
+        "heartbeat",
+        "tick"
+      ],
+      "summary": "Check and send a due heartbeat for one locally opted-in organization.",
+      "mutability": "apply",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "organization",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Local organization subscription.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:installation-heartbeat-subscription",
       "next_actions": [
         "help --path heartbeat --json"
       ]

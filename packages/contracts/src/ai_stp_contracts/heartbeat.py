@@ -123,6 +123,9 @@ class InstallationHeartbeatSubscription(BaseModel):
     organization_id: OrganizationId
     enabled: bool
     next_attempt_at: Timestamp | None = None
+    last_attempt_at: Timestamp | None = None
+    last_success_at: Timestamp | None = None
+    scheduler_registered: bool | None = None
 
 
 class InstallationHeartbeatList(BaseModel):

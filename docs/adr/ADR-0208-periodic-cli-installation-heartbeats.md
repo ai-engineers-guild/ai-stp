@@ -6,7 +6,7 @@ last_verified: "2026-09-24"
 # ADR-0208: Periodic CLI installation heartbeats
 
 Status: accepted. Builds on ADR-0204 and ADR-0205; governed by SPEC-013 and
-SPEC-089.
+SPEC-089. ADR-0209 extends its invocation-only trigger with per-user OS wakeups.
 
 ## Context
 
@@ -69,8 +69,9 @@ component invocation events and emit no usage event.
 
 ## Consequences
 
-- A device reports only while `ai-stp` is invoked and its local subscription is
-  enabled. A quiet device becomes `stale`; there is no background service.
+- Without an OS wakeup, a device reports only while `ai-stp` is invoked and its
+  local subscription is enabled. ADR-0209 adds a per-user wakeup for idle CLI
+  installations; there is still no always-running Python daemon.
 - Local opt-out is explicit and reversible. Organization policy can stop all
   further reporting and controls timing and retention centrally.
 - Provider readiness claims are bounded to verified on-disk evidence; no

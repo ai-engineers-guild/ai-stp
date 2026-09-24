@@ -641,6 +641,7 @@
   "the native configuration changed after the import plan was reviewed": "the native configuration changed after the import plan was reviewed",
   "the object is larger than the local store accepts": "the object is larger than the local store accepts",
   "the operating system credential store could not be used": "the operating system credential store could not be used",
+  "the operating system heartbeat scheduler is unavailable": "the operating system heartbeat scheduler is unavailable",
   "the operation already preserved a different native setup": "the operation already preserved a different native setup",
   "the operation has no native capture binding": "the operation has no native capture binding",
   "the operation is not a child of this transaction": "the operation is not a child of this transaction",

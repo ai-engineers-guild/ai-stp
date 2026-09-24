@@ -74,7 +74,8 @@ are owned by SPEC-089.
   migration for `superadmin` and `lead` roles; the authorization evaluator is
   unchanged.
 - `REQ-8709`: The CLI exposes `heartbeat send`, `heartbeat status`,
-  `heartbeat installations`, `heartbeat enable`, and `heartbeat disable`.
+  `heartbeat installations`, `heartbeat enable`, `heartbeat disable`,
+  `heartbeat tick`, and `heartbeat local-status`.
   Explicit writes and reads use the held device-bound session. Automatic
   reporting is off until `heartbeat enable --organization <id>` succeeds for
   an organization whose policy permits reporting. `heartbeat disable` removes
@@ -101,6 +102,21 @@ are owned by SPEC-089.
   payload or credentials, and sends the last successful sync time only when it
   exists in the local sync cursor. A subscription is discarded if the held
   account or device no longer matches its opt-in identity.
+- `REQ-8714`: After policy and device-bound authentication checks,
+  `heartbeat enable` registers an hourly per-user OS wakeup for that
+  organization before saving local opt-in. Windows uses an interactive-user
+  Task Scheduler task with missed-run catch-up; macOS uses a LaunchAgent with
+  an hourly calendar trigger; Linux uses a user systemd timer with persistent
+  catch-up; WSL uses a Windows task that invokes the named WSL distribution and
+  user. `heartbeat tick` checks only the named subscription using the same
+  due-claim sender; it cannot create an opt-in. `heartbeat disable` removes
+  local opt-in before removing the wakeup. Repeating `enable` repairs the task
+  target path. Scheduler failure is typed and cannot claim successful
+  autonomous enrollment.
+- `REQ-8715`: `heartbeat local-status` is offline and reports local opt-in,
+  scheduler registration, next attempt, last attempt, and last success. The
+  scheduler and local opt-out do not emit a server-side `disabled` report:
+  absence of future beats projects as `stale` after the organization threshold.
 
 ## States and errors
 
@@ -149,3 +165,5 @@ preserving existing installation data and audit history.
 | `REQ-8711` | Policy contract, API, and health projection tests cover defaults, bounds, enablement, and configurable staleness. |
 | `REQ-8712` | Provider installation tests cover resolved digest-matched manifests and payload redaction. |
 | `REQ-8713` | CLI tests prove idempotent opt-in, account/device rebinding, opt-out, and the absence of a stored payload. |
+| `REQ-8714` | CLI and scheduler adapter tests cover the targeted due claim, per-user task definitions, catch-up, and WSL host wakeup. |
+| `REQ-8715` | CLI tests cover local subscription and scheduler status without network access. |

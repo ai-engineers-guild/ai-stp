@@ -641,6 +641,7 @@
   "the native configuration changed after the import plan was reviewed": "нативная конфигурация изменилась после просмотра плана импорта",
   "the object is larger than the local store accepts": "объект больше, чем принимает локальное хранилище",
   "the operating system credential store could not be used": "хранилище учётных данных операционной системы недоступно",
+  "the operating system heartbeat scheduler is unavailable": "системный планировщик heartbeat недоступен",
   "the operation already preserved a different native setup": "Эта операция уже сохранила другой нативный сетап.",
   "the operation has no native capture binding": "В операции нет привязки к нативному снимку.",
   "the operation is not a child of this transaction": "операция не является дочерней для этой транзакции",

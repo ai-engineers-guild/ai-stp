@@ -51,6 +51,9 @@ def enable(parameters: Mapping[str, object]) -> Answer[InstallationHeartbeatSubs
             "AI_STP_PRECONDITION_FAILED",
             "the organization has disabled installation heartbeat reporting",
         )
+    from ai_stp_cli.application import heartbeat_schedule
+
+    heartbeat_schedule.install(organization_id)
     return Answer(
         heartbeat.enable_subscription(
             organization_id,
@@ -62,7 +65,24 @@ def enable(parameters: Mapping[str, object]) -> Answer[InstallationHeartbeatSubs
 
 def disable(parameters: Mapping[str, object]) -> Answer[InstallationHeartbeatSubscription]:
     """Opt this CLI installation out without contacting the organization."""
-    return Answer(heartbeat.disable_subscription(_required(parameters, "organization")))
+    organization_id = _required(parameters, "organization")
+    heartbeat.disable_subscription(organization_id)
+    from ai_stp_cli.application import heartbeat_schedule
+
+    heartbeat_schedule.remove(organization_id)
+    return Answer(heartbeat.subscription_status(organization_id))
+
+
+def tick(parameters: Mapping[str, object]) -> Answer[InstallationHeartbeatSubscription]:
+    """Run one scheduled due check for this local organization subscription."""
+    organization_id = _required(parameters, "organization")
+    heartbeat.maybe_send_due(organization_id=organization_id)
+    return Answer(heartbeat.subscription_status(organization_id))
+
+
+def local_status(parameters: Mapping[str, object]) -> Answer[InstallationHeartbeatSubscription]:
+    """Read local opt-in, scheduler registration, and recent attempt times."""
+    return Answer(heartbeat.subscription_status(_required(parameters, "organization")))
 
 
 def status(parameters: Mapping[str, object]) -> Answer[InstallationHeartbeatStatus]:

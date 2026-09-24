@@ -263,16 +263,28 @@ def subscription_status(organization_id: str) -> InstallationHeartbeatSubscripti
     """Read the local automatic-reporting schedule for one organization."""
     registry = configured_path()
     if not registry.exists():
-        return InstallationHeartbeatSubscription(organization_id=organization_id, enabled=False)
+        from ai_stp_cli.application import heartbeat_schedule
+
+        return InstallationHeartbeatSubscription(
+            organization_id=organization_id,
+            enabled=False,
+            scheduler_registered=heartbeat_schedule.present(organization_id),
+        )
     with closing(open_registry(registry, create=False)) as connection:
         row = connection.execute(
-            "SELECT next_attempt_at FROM heartbeat_subscription WHERE organization_id = ?",
+            "SELECT next_attempt_at, last_attempt_at, last_success_at "
+            "FROM heartbeat_subscription WHERE organization_id = ?",
             (organization_id,),
         ).fetchone()
+    from ai_stp_cli.application import heartbeat_schedule
+
     return InstallationHeartbeatSubscription(
         organization_id=organization_id,
         enabled=row is not None,
         next_attempt_at=None if row is None else str(row["next_attempt_at"]),
+        last_attempt_at=None if row is None else row["last_attempt_at"],
+        last_success_at=None if row is None else row["last_success_at"],
+        scheduler_registered=heartbeat_schedule.present(organization_id),
     )
 
 
@@ -287,7 +299,9 @@ def _schedule_connection() -> sqlite3.Connection | None:
     return connection
 
 
-def _claim_due_subscription(now: datetime) -> tuple[str, str, str, str] | None:
+def _claim_due_subscription(
+    now: datetime, *, organization_id: str | None = None
+) -> tuple[str, str, str, str] | None:
     try:
         connection = _schedule_connection()
     except Exception:
@@ -299,8 +313,9 @@ def _claim_due_subscription(now: datetime) -> tuple[str, str, str, str] | None:
         row = connection.execute(
             "SELECT organization_id, account_id, device_id "
             "FROM heartbeat_subscription "
-            "WHERE next_attempt_at <= ? ORDER BY next_attempt_at, organization_id LIMIT 1",
-            (format_timestamp(now),),
+            "WHERE next_attempt_at <= ? AND (? IS NULL OR organization_id = ?) "
+            "ORDER BY next_attempt_at, organization_id LIMIT 1",
+            (format_timestamp(now), organization_id, organization_id),
         ).fetchone()
         if row is None:
             connection.execute("COMMIT")
@@ -425,11 +440,11 @@ def _finish_attempt(
         connection.close()
 
 
-def maybe_send_due(*, now: datetime | None = None) -> None:
+def maybe_send_due(*, now: datetime | None = None, organization_id: str | None = None) -> None:
     """Attempt one due opt-in heartbeat after a successful ordinary invocation."""
     moment = now or datetime.now(UTC)
     try:
-        claimed = _claim_due_subscription(moment)
+        claimed = _claim_due_subscription(moment, organization_id=organization_id)
     except Exception:
         return
     if claimed is None:
