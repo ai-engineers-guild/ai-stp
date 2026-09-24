@@ -36,6 +36,7 @@ from ai_stp_cli.local.agent_tasks import StoredTask
 from ai_stp_cli.local.database import configured_path, open_registry, transaction
 from ai_stp_cli.local.passports import moment
 from ai_stp_cli.yaml_documents import DuplicateKeyError, UniqueSafeLoader
+from ai_stp_contracts.http import IDEMPOTENCY_KEY_PATTERN
 from ai_stp_contracts.machine_help import (
     TaskInspectOutcome,
     TaskIntentsCatalog,
@@ -61,7 +62,7 @@ SUPPORTED_INTENTS = SHIPPED_INTENT_NAMES
 SETTLED = frozenset({"completed", "failed", "cancelled"})
 RUNNING_JOIN_SECONDS: Final[float] = 180.0
 RUNNING_JOIN_POLL_SECONDS: Final[float] = 0.25
-_IDEMPOTENCY_KEY = re.compile(r"^[A-Za-z0-9._~-]{16,128}$")
+_IDEMPOTENCY_KEY = re.compile(IDEMPOTENCY_KEY_PATTERN)
 _INPUT_LIMIT: Final[int] = 65_536
 _TASK_NEXT_ACTIONS: Final[tuple[str, ...]] = (
     "install recover",
@@ -142,7 +143,20 @@ def start(parameters: Mapping[str, object]) -> Answer[TaskView]:
         )
     key = str(parameters.get("idempotency-key") or "")
     if _IDEMPOTENCY_KEY.fullmatch(key) is None:
-        raise CliFailure("AI_STP_VALIDATION_ERROR", "the idempotency key is not a valid key")
+        raise CliFailure(
+            "AI_STP_VALIDATION_ERROR",
+            "the idempotency key must contain 16 to 128 ASCII letters, "
+            "digits, '.', '_', '~', or '-'",
+            details={"field": "idempotency-key", "pattern": IDEMPOTENCY_KEY_PATTERN},
+            continuations=[
+                Continuation(
+                    kind="inspect",
+                    path=["help"],
+                    arguments={"path": "task start"},
+                    actor="cli",
+                )
+            ],
+        )
     facts = _input_document(parameters)
     model = INTENT_INPUT_MODELS[intent]
     try:

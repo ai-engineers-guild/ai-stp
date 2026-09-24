@@ -110,7 +110,12 @@ a CLI language rewrite, and a PyPI CLI cut are excluded.
   `command_paths`. Completing inspect satisfies the task goal even when the
   doctor report is not `ready`.
 - `REQ-8007`: `task start` is idempotent on the pair of `idempotency-key` and
-  the canonical document of intent plus `--input` body. Drain may enrich
+  the canonical document of intent plus `--input` body. Keys use the shared
+  HTTP-contract pattern: 16 to 128 ASCII letters, digits, `.`, `_`, `~`, or
+  `-`. Start help names that constraint and the requirement to reuse a key
+  only for the same request. An invalid key is refused before task creation;
+  its error names the field and pattern without echoing the rejected value
+  and points to scoped `task start` help. Drain may enrich
   `payload_json` with checkpoint facts (switch restore ids, account device
   code). Replay of the original `--input` still joins that row; only a
   contradictory user key is `AI_STP_CONFLICT`. After minting, start
@@ -350,6 +355,9 @@ a CLI language rewrite, and a PyPI CLI cut are excluded.
   `task start --json` without `--intent`, `task start --intent` without a
   value, and `task start --intent` with a name that is not shipped list
   `task intents` and do not echo Click's missing-option or choice dump.
+  A missing intent, including a positional intent after `task start`, names
+  the required `--intent NAME` form in the refusal; it does not execute the
+  guessed operation or accept a new positional form.
   `help --path` with no matching family lists `task intents` and does not
   send the full registry dump. An unscoped `help --agent --json` dump still
   carries a `cli` continuation whose argv is `task intents --json`. A scoped
