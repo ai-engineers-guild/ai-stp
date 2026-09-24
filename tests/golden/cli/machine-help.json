@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "cli_version": "0.0.0-pinned",
-  "registry_digest": "sha256:6c8f34d116b31c040647c03462e3541ad2e8c465b9e25acbc57d0cb195482359",
+  "registry_digest": "sha256:e13fdcb2a1e15c317275ba3c2a56c7b04a735f73cf052f9b0512a2eff98697dc",
   "global_options": [
     {
       "name": "json",
@@ -3915,6 +3915,56 @@
       "result_schema": "urn:ai-stp:schema:v1:cli-harness-program",
       "next_actions": [
         "help --path toolchain --json"
+      ]
+    },
+    {
+      "path": [
+        "heartbeat",
+        "disable"
+      ],
+      "summary": "Stop automatic heartbeats from this CLI installation.",
+      "mutability": "apply",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "organization",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Organization to stop reporting to.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:installation-heartbeat-subscription",
+      "next_actions": [
+        "help --path heartbeat --json"
+      ]
+    },
+    {
+      "path": [
+        "heartbeat",
+        "enable"
+      ],
+      "summary": "Opt this CLI installation into automatic heartbeats for one organization.",
+      "mutability": "apply",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "organization",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Organization this installation may report to.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:installation-heartbeat-subscription",
+      "next_actions": [
+        "help --path heartbeat --json"
       ]
     },
     {

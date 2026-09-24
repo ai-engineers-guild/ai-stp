@@ -645,6 +645,7 @@
   "the operation has no native capture binding": "the operation has no native capture binding",
   "the operation is not a child of this transaction": "the operation is not a child of this transaction",
   "the operation must be named": "the operation must be named",
+  "the organization has disabled installation heartbeat reporting": "the organization has disabled installation heartbeat reporting",
   "the overlay identity already belongs to a different origin": "the overlay identity already belongs to a different origin",
   "the overlay record vanished after being written": "the overlay record vanished after being written",
   "the overlay version vanished after being written": "the overlay version vanished after being written",

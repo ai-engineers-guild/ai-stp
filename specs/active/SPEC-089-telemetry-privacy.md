@@ -1,6 +1,6 @@
 ---
 description: "SPEC-089: Corporate telemetry privacy boundary, retention, access, and data rights."
-last_verified: "2026-09-22"
+last_verified: "2026-09-24"
 ---
 
 # SPEC-089: Telemetry privacy and governance
@@ -29,6 +29,8 @@ governed HTTP surface under `/v1/corporate/organizations/{id}/telemetry/*`.
   storage layers.
 - `Policy` — per-tenant `raw_retention_days`, `aggregate_retention_days`,
   `legal_basis`, `notice_text`, `notice_revision`, monotonic `policy_version`.
+  It also owns heartbeat enablement, send interval, retry bounds, and the
+  read-time stale threshold.
 - `Revocation` — per-subject (`account` or `device`) record of notice, legal
   basis, and the `active`/`revoked`/`deleted` state machine.
 - `Telemetry audit` — append-only `telemetry_audit` row for every privileged
@@ -51,13 +53,16 @@ governed HTTP surface under `/v1/corporate/organizations/{id}/telemetry/*`.
   machinery.
 - `REQ-8905`: Retention deletes raw events older than the tenant
   `raw_retention_days` (default 90 when no policy exists) across every
-  governed raw-event table (`telemetry_event` and stream-owned
-  `runtime_usage_event`); the pass is idempotent and runnable per tenant or
-  as a worker sweep. `installation_heartbeat` holds current installation
-  state, not raw events, and is not swept.
+  governed raw table: `telemetry_event`, stream-owned `runtime_usage_event`,
+  and coalesced `installation_heartbeat` rows. Event tables use their
+  occurrence/invocation timestamp; installation heartbeats use `received_at`.
+  Tenants with only heartbeat rows are included in the sweep. The pass is
+  idempotent and runnable per tenant or as a worker sweep; deleting an old
+  installation row makes its
+  status project `unknown` and never writes `stale`.
 - `REQ-8906`: Revocation of an account or device subject blocks subsequent
-  ingestion for that subject; optional anonymization strips subject
-  identifiers while preserving aggregate counts.
+  telemetry event and installation-heartbeat writes for that subject; optional
+  anonymization strips subject identifiers while preserving aggregate counts.
 - `REQ-8907`: Erasure supports `delete` (physical row removal) and
   `anonymize` (identifier stripping); both are idempotent and terminal for
   the subject record. In stream-owned tables whose subject columns are NOT
@@ -87,7 +92,10 @@ governed HTTP surface under `/v1/corporate/organizations/{id}/telemetry/*`.
 Policies use monotonically increasing revisions. Subjects move from `active` to
 `revoked` or terminal `deleted`; repeated rights requests are idempotent.
 Retention, policy, authorization, boundary, and revision failures reject
-before protected data changes and preserve the append-only audit trail.
+before protected data changes and preserve the append-only audit trail. A
+heartbeat policy update preserves any field omitted by a legacy client; the
+heartbeat defaults are enabled, 21600-second interval, retry delays of 60 to
+3600 seconds, and a 86400-second stale threshold.
 
 ## Security and privacy
 
@@ -100,9 +108,11 @@ returned by governance endpoints.
 ## Compatibility and migration
 
 Privacy tables, policies, permissions, and audit columns are additive
-migrations. Tenants without a policy use the 90-day default, so existing data
-remains readable under bounded retention. Rollback disables new governance
-routes while retaining prior rows and audit evidence.
+migrations. Migration 0094 adds heartbeat settings to `telemetry_policy` with
+defaults that preserve existing behavior. Tenants without a policy use the
+90-day retention default and heartbeat defaults, so existing data remains
+readable under bounded retention. Rollback refuses customized heartbeat policy
+values before removing those fields.
 
 ## Acceptance criteria
 
@@ -112,8 +122,8 @@ routes while retaining prior rows and audit evidence.
 | `REQ-8902` | Storage and response tests prove forbidden prompt, model, repository, credential, path, and environment data is absent. |
 | `REQ-8903` | API authorization and migration tests cover tenant membership, permission checks, and organization isolation. |
 | `REQ-8904` | Ingestion and idempotency tests prove repeated event identifiers return the stored row without duplication. |
-| `REQ-8905` | Retention tests cover default and tenant windows, both raw tables, repeat runs, and heartbeat exclusion. |
-| `REQ-8906` | Revocation tests block subsequent subject ingestion and preserve aggregate counts during anonymization. |
+| `REQ-8905` | Retention tests cover default and tenant windows, all raw tables, heartbeat rows, repeat runs, and sweep tenant discovery. |
+| `REQ-8906` | Revocation tests block subsequent event and heartbeat writes and preserve aggregate counts during anonymization. |
 | `REQ-8907` | Rights tests cover terminal delete and anonymize behavior, including stream-owned physical erasure. |
-| `REQ-8908` | Policy API tests cover expected revision, notice text, notice revision, and optimistic conflicts. |
+| `REQ-8908` | Policy API tests cover expected revision, notice text, notice revision, heartbeat settings, and optimistic conflicts. |
 | `REQ-8909` | Audit tests prove every privileged operation writes both platform and telemetry audit rows with redacted details. |

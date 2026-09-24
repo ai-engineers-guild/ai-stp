@@ -27,6 +27,7 @@ from ai_stp_foundation.timestamps import format_timestamp
 from ai_stp_platform.heartbeat_models import InstallationHeartbeat
 from ai_stp_platform.models import Account, Device
 from ai_stp_platform.organization_models import OrganizationMembership
+from ai_stp_platform.telemetry_policy_models import TelemetryPolicy, TelemetryRevocation
 from ai_stp_platform.tenant_scope import set_tenant_scope
 
 pytestmark = pytest.mark.platform
@@ -185,6 +186,86 @@ async def test_heartbeat_health_states_and_staleness_read_time(
     )
     assert disabled.status_code == 200, disabled.text
     assert disabled.json()["health_state"] == "disabled"
+
+
+async def test_organization_policy_controls_cadence_staleness_and_revocation(
+    heartbeat_client: tuple[AsyncClient, async_sessionmaker[AsyncSession]],
+) -> None:
+    client, sessionmaker = heartbeat_client
+    account_id, device_id, token = await _account_with_device(sessionmaker)
+    organization_id = await _bootstrap(client, account_id, "hb-policy-scenario-0005")
+    auth = {"Authorization": f"Bearer {token}"}
+    write_path = f"/v1/corporate/organizations/{organization_id}/telemetry/heartbeat"
+    policy_path = f"/v1/corporate/organizations/{organization_id}/telemetry/heartbeat/policy"
+
+    async with sessionmaker() as db:
+        await set_tenant_scope(db, organization_id)
+        db.add(
+            TelemetryPolicy(
+                organization_id=organization_id,
+                raw_retention_days=90,
+                aggregate_retention_days=365,
+                legal_basis="consent",
+                notice_revision=0,
+                heartbeat_interval_seconds=900,
+                heartbeat_stale_after_seconds=3600,
+                policy_version=1,
+            )
+        )
+        await db.commit()
+
+    settings = await client.get(policy_path, headers=auth)
+    assert settings.status_code == 200, settings.text
+    assert settings.json()["interval_seconds"] == 900
+    assert settings.json()["stale_after_seconds"] == 3600
+
+    written = await client.put(write_path, json=_payload(account_id, device_id), headers=auth)
+    assert written.status_code == 200, written.text
+    async with sessionmaker() as db:
+        await set_tenant_scope(db, organization_id)
+        row = await db.get(InstallationHeartbeat, (organization_id, device_id))
+        assert row is not None
+        row.received_at = _now() - timedelta(hours=2)
+        await db.commit()
+    stale = await client.get(write_path, headers=auth)
+    assert stale.json()["health_state"] == "stale"
+    assert stale.json()["stale_after_seconds"] == 3600
+
+    async with sessionmaker() as db:
+        await set_tenant_scope(db, organization_id)
+        policy_row = await db.get(TelemetryPolicy, organization_id)
+        assert policy_row is not None
+        policy_row.heartbeat_enabled = False
+        await db.commit()
+    disabled = await client.put(
+        write_path,
+        json=_payload(account_id, device_id, checked_at=_now() + timedelta(minutes=1)),
+        headers=auth,
+    )
+    assert disabled.status_code == 403
+
+    async with sessionmaker() as db:
+        await set_tenant_scope(db, organization_id)
+        policy_row = await db.get(TelemetryPolicy, organization_id)
+        assert policy_row is not None
+        policy_row.heartbeat_enabled = True
+        db.add(
+            TelemetryRevocation(
+                organization_id=organization_id,
+                subject_kind="account",
+                subject_id=account_id,
+                state="revoked",
+                legal_basis="consent",
+                notice_revision=0,
+            )
+        )
+        await db.commit()
+    revoked = await client.put(
+        write_path,
+        json=_payload(account_id, device_id, checked_at=_now() + timedelta(minutes=2)),
+        headers=auth,
+    )
+    assert revoked.status_code == 403
 
 
 async def test_heartbeat_rejects_foreign_identity_and_deviceless_sessions(

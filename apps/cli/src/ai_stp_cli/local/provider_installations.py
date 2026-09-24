@@ -260,6 +260,29 @@ class Resolution:
     reason: str = ""
 
 
+@dataclass(frozen=True)
+class ManifestIdentity:
+    """Manifest identity only when it names the executable's exact bytes."""
+
+    provider_id: str
+    provider_version: str
+
+
+def manifest_identity(executable: Path) -> ManifestIdentity | None:
+    """Read a digest-matched release manifest without running the executable."""
+    from ai_stp_cli.provider import attested_bind, release
+
+    manifest_path = executable.parent / attested_bind.MANIFEST_NAME
+    try:
+        manifest = release.parse_manifest(manifest_path.read_text("utf-8"))
+        observed, _size = release.artifact_identity(executable)
+    except (OSError, CliFailure):
+        return None
+    if observed != manifest.artifact_digest:
+        return None
+    return ManifestIdentity(manifest.provider_id, manifest.provider_version)
+
+
 def resolve(
     connection: sqlite3.Connection | None,
     harness_id: str,

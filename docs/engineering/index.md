@@ -32,8 +32,8 @@ last_verified: "2026-08-03"
 | [schema-evolution.md](schema-evolution.md) | Versioning, compatibility, and migration of persisted and transmitted schemas. | 2026-08-03 |
 | [tech-debt-rules.md](tech-debt-rules.md) | Rules for registering temporary compromises. | 2026-08-03 |
 | [tech-stack.md](tech-stack.md) | Target MVP stack and rules for choosing dependencies. | 2026-08-05 |
-| [telemetry-heartbeat.md](telemetry-heartbeat.md) | Engineering notes for the corporate installation heartbeat stream (t-heartbeat, GitHub #215). | 2026-09-22 |
-| [telemetry-privacy.md](telemetry-privacy.md) | Operator notes for the telemetry privacy boundary: storage, retention sweeps, subject rights, and audit. | 2026-09-22 |
+| [telemetry-heartbeat.md](telemetry-heartbeat.md) | Engineering notes for the corporate installation heartbeat stream (t-heartbeat, GitHub #215). | 2026-09-24 |
+| [telemetry-privacy.md](telemetry-privacy.md) | Operator notes for the telemetry privacy boundary: storage, retention sweeps, subject rights, and audit. | 2026-09-24 |
 | [telemetry-usage.md](telemetry-usage.md) | Operator notes for runtime usage telemetry: outbox, ingestion, scoped reports, and export receipts. | 2026-09-22 |
 | [testing.md](testing.md) | Test strategy for passports, builds, sync, providers, and platform. | 2026-09-10 |
 | [web-quality.md](web-quality.md) | Web operating rules: SEO, machine discovery, browser storage, selectors, and quality gates. | 2026-08-29 |

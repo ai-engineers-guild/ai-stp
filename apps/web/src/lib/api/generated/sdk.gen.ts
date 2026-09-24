@@ -454,6 +454,9 @@ import type {
   ReadGithubConnectorResponses,
   ReadInstallationHeartbeatData,
   ReadInstallationHeartbeatErrors,
+  ReadInstallationHeartbeatPolicyData,
+  ReadInstallationHeartbeatPolicyErrors,
+  ReadInstallationHeartbeatPolicyResponses,
   ReadInstallationHeartbeatResponses,
   ReadLegalOnboardingData,
   ReadLegalOnboardingErrors,
@@ -3842,6 +3845,26 @@ export const writeInstallationHeartbeat = <ThrowOnError extends boolean = false>
       "Content-Type": "application/json",
       ...options.headers,
     },
+  });
+
+/**
+ * Read the organization's heartbeat cadence and enablement.
+ */
+export const readInstallationHeartbeatPolicy = <ThrowOnError extends boolean = false>(
+  options: Options<ReadInstallationHeartbeatPolicyData, ThrowOnError>,
+): RequestResult<
+  ReadInstallationHeartbeatPolicyResponses,
+  ReadInstallationHeartbeatPolicyErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).get<
+    ReadInstallationHeartbeatPolicyResponses,
+    ReadInstallationHeartbeatPolicyErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/telemetry/heartbeat/policy",
+    ...options,
   });
 
 /**

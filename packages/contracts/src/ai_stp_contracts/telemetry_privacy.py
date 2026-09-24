@@ -175,6 +175,11 @@ class CorporateTelemetryPolicyView(BaseModel):
     legal_basis: TelemetryLegalBasis
     notice_text: str | None = None
     notice_revision: Annotated[int, Field(ge=0)]
+    heartbeat_enabled: bool = True
+    heartbeat_interval_seconds: Annotated[int, Field(ge=300, le=2_592_000)] = 21_600
+    heartbeat_retry_base_seconds: Annotated[int, Field(ge=30, le=86_400)] = 60
+    heartbeat_retry_max_seconds: Annotated[int, Field(ge=60, le=604_800)] = 3_600
+    heartbeat_stale_after_seconds: Annotated[int, Field(ge=60, le=31_536_000)] = 86_400
     policy_version: Annotated[int, Field(ge=1)]
     updated_at: Timestamp
 
@@ -187,10 +192,25 @@ class CorporateTelemetryPolicyRequest(BaseModel):
     legal_basis: TelemetryLegalBasis
     notice_text: Annotated[str, Field(max_length=4000)] | None = None
     notice_revision: Annotated[int, Field(ge=0)]
+    heartbeat_enabled: bool | None = None
+    heartbeat_interval_seconds: Annotated[int, Field(ge=300, le=2_592_000)] | None = None
+    heartbeat_retry_base_seconds: Annotated[int, Field(ge=30, le=86_400)] | None = None
+    heartbeat_retry_max_seconds: Annotated[int, Field(ge=60, le=604_800)] | None = None
+    heartbeat_stale_after_seconds: Annotated[int, Field(ge=60, le=31_536_000)] | None = None
     expected_policy_revision: Annotated[int, Field(ge=0)]
     authorization_revision: Annotated[int, Field(ge=1)]
     reason: _SAFE_TEXT = "telemetry policy"
     idempotency_key: IdempotencyKey
+
+    @model_validator(mode="after")
+    def heartbeat_retry_bounds(self) -> "CorporateTelemetryPolicyRequest":
+        if (
+            self.heartbeat_retry_base_seconds is not None
+            and self.heartbeat_retry_max_seconds is not None
+            and self.heartbeat_retry_max_seconds < self.heartbeat_retry_base_seconds
+        ):
+            raise ValueError("heartbeat retry maximum must be at least the retry base")
+        return self
 
 
 class CorporateTelemetryRightView(BaseModel):

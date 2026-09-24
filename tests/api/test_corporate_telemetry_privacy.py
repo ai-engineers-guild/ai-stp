@@ -25,7 +25,8 @@ from ai_stp_api.session import issue_session
 from ai_stp_api.settings import Settings
 from ai_stp_api.slices.corporate import telemetry_policy, telemetry_rights
 from ai_stp_foundation.ids import new_id
-from ai_stp_platform.models import Account, AuditEvent
+from ai_stp_platform.heartbeat_models import InstallationHeartbeat as InstallationHeartbeatRow
+from ai_stp_platform.models import Account, AuditEvent, Device
 from ai_stp_platform.organization_models import Organization, OrganizationMembership
 from ai_stp_platform.telemetry_policy_models import TelemetryAudit, TelemetryEvent
 from ai_stp_platform.telemetry_retention import apply_retention
@@ -474,16 +475,50 @@ async def test_policy_rights_revocation_and_retention(
         _heartbeat("evt-old-0001", occurred_at="2026-08-01T10:00:00.000Z"),
         "tp-old-key-1-xxx",
     )
+    old_received = datetime(2026, 8, 1, 10, tzinfo=UTC)
+    device_id = new_id("device")
+    async with sessionmaker() as db:
+        await set_tenant_scope(db, organization_id)
+        db.add(
+            Device(
+                id=device_id,
+                account_id=account_id,
+                public_key=f"telemetry-retention-{device_id}",
+                state="active",
+            )
+        )
+        db.add(
+            InstallationHeartbeatRow(
+                organization_id=organization_id,
+                device_id=device_id,
+                account_id=account_id,
+                cli_version="1.4.2",
+                capabilities=["cli.heartbeat"],
+                reported_state="active",
+                checked_at=old_received,
+                received_at=old_received,
+                revision=1,
+            )
+        )
+        await db.commit()
     async with sessionmaker() as db:
         await set_tenant_scope(db, organization_id)
         removed = await apply_retention(db, organization_id=organization_id, now=datetime.now(UTC))
-        assert removed == 1
+        assert removed == 2
         remaining = (
             await db.scalars(
                 select(TelemetryEvent).where(TelemetryEvent.organization_id == organization_id)
             )
         ).all()
         assert all(row.event_id != "evt-old-0001" for row in remaining)
+        heartbeats = (
+            await db.scalars(
+                select(InstallationHeartbeatRow).where(
+                    InstallationHeartbeatRow.organization_id == organization_id
+                )
+            )
+        ).all()
+        assert all(row.device_id != device_id for row in heartbeats)
         await db.rollback()
 
 

@@ -156,6 +156,13 @@ def _callback_for(command: Command) -> Any:
         declared = _as_declared(command, parameters)
         _require_declared_flags(command, declared)
         answer = command.handler(declared)
+        if command.descriptor.path[0] not in {"auth", "heartbeat"}:
+            try:
+                from ai_stp_cli.application.heartbeat import maybe_send_due
+
+                maybe_send_due()
+            except Exception:
+                pass
         extra_warnings: tuple[str, ...] = ()
         extra_actions: tuple[str, ...] = ()
         try:
