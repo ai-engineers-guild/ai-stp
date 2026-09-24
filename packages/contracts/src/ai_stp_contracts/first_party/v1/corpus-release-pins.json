@@ -1,9 +1,9 @@
 {
   "antigravity": {
-    "artifact_digest": "sha256:87b132deac7ef834f0a56336ddbe6d1e378b25d2b0f21e6205fc2f703fb832a5",
-    "commit": "b3ebf52ee6d91e023bf4456a4977be4bea82cdaf",
+    "artifact_digest": "sha256:90f2c7f6342d88eddc6d5795a5095be5679604dfeeaa31d4aa381458449aaf5e",
+    "commit": "8e6d20e7f8b5d63f397a9f3520e22d84a7fc5e27",
     "repository": "github.com/NDDev-OpenNetwork/antigravity-setup-system",
-    "tag": "0.0.67",
+    "tag": "0.0.74",
     "trust_level": "verified_publisher"
   },
   "claude-code": {
