@@ -494,6 +494,7 @@
   "the cloud session and local signing identity name different devices": "облачный сеанс и локальная подписывающая идентичность называют разные устройства",
   "the compiled bundle has no conversion entries": "у собранного пакета нет записей преобразования",
   "the compiled bundle has no conversion report": "у собранного пакета нет отчёта преобразования",
+  "the setup bundle could not be compiled": "не удалось собрать пакет конфигурации",
   "the compiled bundle profile differs from the provider profile": "профиль собранного пакета отличается от профиля провайдера",
   "the compiled conversion entry is malformed": "запись преобразования в собранном пакете повреждена",
   "the component artifact does not contain exactly its declared managed paths": "артефакт компонента не содержит в точности заявленные managed_paths",

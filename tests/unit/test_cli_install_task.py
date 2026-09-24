@@ -252,9 +252,34 @@ def test_account_synced_pin_retains_immutable_pre_login_owner(
 
     monkeypatch.setattr(catalog_service, "acquire", acquire)
     install_task_service.acquire_pin(authored.setup_id, authored.setup_version)
-    assert calls == (
-        [] if case == "accepted" else [{"id": authored.setup_id, "version": authored.setup_version}]
+    expected: dict[str, object] = {"id": authored.setup_id, "version": authored.setup_version}
+    if case == "without-artifact":
+        expected["private"] = True
+    assert calls == ([] if case == "accepted" else [expected])
+
+
+def test_owned_private_pin_missing_artifact_uses_authenticated_acquisition(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    tree = tmp_path / "local-skill"
+    tree.mkdir()
+    (tree / "SKILL.md").write_text("# Local skill\n", encoding="utf-8")
+    authored = author_service.persist(
+        directory=tree,
+        harness_id="antigravity",
+        component_type="skill",
+        name="local-skill",
+        license_spdx="MIT",
     )
+    with closing(open_registry(configured_path(), create=True)) as connection:
+        stored = revisions.head(connection, authored.setup_id)
+        assert stored is not None
+        digest = stored.envelope.model_dump()["artifact"]["digest"]
+        connection.execute("DELETE FROM content WHERE digest = ?", (digest,))
+    calls: list[Mapping[str, object]] = []
+    monkeypatch.setattr(catalog_service, "acquire", calls.append)
+    install_task_service.acquire_pin(authored.setup_id, authored.setup_version)
+    assert calls == [{"id": authored.setup_id, "version": authored.setup_version, "private": True}]
 
 
 def test_every_harness_has_one_baseline_pin() -> None:

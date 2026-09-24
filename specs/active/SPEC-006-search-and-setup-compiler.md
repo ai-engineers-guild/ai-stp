@@ -39,7 +39,7 @@ Trust lines under `ADR-0016`:
 - `REQ-605`: An arbitrary graph supports exact dependencies and bounded overlays with `derived_from`.
 - `REQ-606`: The setup compiler detects conflicts in paths, identifiers, versions, instructions, hooks, MCP, commands, plugins, authority, network, and licenses.
 - `REQ-607`: The same canonical input always produces the same order, reports, and package hash.
-- `REQ-608`: An unresolved conflict or unsupported native surface blocks the package.
+- `REQ-608`: An unresolved conflict or unsupported native surface blocks the package. Every explicitly declared content path must be present; a hook's implicit sibling ownership reservation does not require handler files for an inline command. Supplied sibling handlers remain covered and ownership collisions remain blocked.
 - `REQ-609`: The package contains a composition report and a loss-aware conversion report.
 - `REQ-610`: Deterministic search order is the mandatory result order; additional candidate scoring is optional and may be absent.
 - `REQ-611`: If scoring is computed, it is decomposed by criterion, explainable, and versioned; popularity does not change trust and is used only as the final deterministic tie-breaker.

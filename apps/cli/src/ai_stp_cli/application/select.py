@@ -2271,9 +2271,17 @@ def _declared_covers(
     for item in surfaces:
         if item.managed_paths:
             for path in item.managed_paths:
-                covers.update(
-                    composition.claimed_paths(path) if item.component_type == "hook" else (path,)
-                )
+                covers.add(path)
+                if item.component_type == "hook":
+                    # Ownership reserves the sibling handler directory even
+                    # for inline commands. It is required content only when
+                    # explicitly declared or supplied by this component.
+                    sibling = composition.hook_sibling_directory(path)
+                    if sibling and any(
+                        composition.path_covers(sibling, source)
+                        for source in by_owner.get(item.stable_id, ())
+                    ):
+                        covers.add(sibling)
         else:
             covers.update(by_owner.get(item.stable_id, ()))
     return frozenset(covers)
