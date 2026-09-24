@@ -3862,6 +3862,27 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         next_actions=("help --path heartbeat --json",),
     ),
     Declaration(
+        path=["heartbeat", "tick"],
+        summary="Check and send a due heartbeat for one locally opted-in organization.",
+        result_schema="urn:ai-stp:schema:v1:installation-heartbeat-subscription",
+        handler="heartbeat:tick",
+        mutability="apply",
+        parameters=(
+            option("organization", "string", "Local organization subscription.", required=True),
+        ),
+        next_actions=("help --path heartbeat --json",),
+    ),
+    Declaration(
+        path=["heartbeat", "local-status"],
+        summary="Read local heartbeat opt-in and scheduler state without network access.",
+        result_schema="urn:ai-stp:schema:v1:installation-heartbeat-subscription",
+        handler="heartbeat:local_status",
+        parameters=(
+            option("organization", "string", "Local organization subscription.", required=True),
+        ),
+        next_actions=("help --path heartbeat --json",),
+    ),
+    Declaration(
         path=["heartbeat", "status"],
         summary="This installation's evaluated health state.",
         result_schema="urn:ai-stp:schema:v1:installation-heartbeat-status",

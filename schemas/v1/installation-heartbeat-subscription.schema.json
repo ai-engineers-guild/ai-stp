@@ -14,6 +14,28 @@
       "title": "Enabled",
       "type": "boolean"
     },
+    "last_attempt_at": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Timestamp"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "last_success_at": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Timestamp"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
     "next_attempt_at": {
       "anyOf": [
         {
@@ -30,6 +52,18 @@
       "title": "Organization Id",
       "type": "string"
     },
+    "scheduler_registered": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Scheduler Registered"
+    },
     "schema_version": {
       "const": 1,
       "default": 1,
@@ -39,8 +73,11 @@
   },
   "required": [
     "enabled",
+    "last_attempt_at",
+    "last_success_at",
     "next_attempt_at",
     "organization_id",
+    "scheduler_registered",
     "schema_version"
   ],
   "title": "InstallationHeartbeatSubscription",

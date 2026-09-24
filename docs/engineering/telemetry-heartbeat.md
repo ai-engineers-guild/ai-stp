@@ -19,9 +19,10 @@ last_verified: "2026-09-24"
 - `apps/cli/src/ai_stp_cli/heartbeat.py` — payload vocabulary and token
   validation; `application/heartbeat.py` — report assembly, provider evidence,
   policy lookup, local subscription scheduling, and transport;
-  `commands/heartbeat.py` — `send`, `enable`, `disable`, `status`, and
-  `installations` handlers. `app.py` invokes the sender after a successful
-  non-auth, non-heartbeat CLI command.
+  `application/heartbeat_schedule.py` — per-user OS wakeups; and
+  `commands/heartbeat.py` — lifecycle, tick, local status, and remote read
+  handlers. `app.py` invokes the sender after a successful non-auth,
+  non-heartbeat CLI command.
 - `apps/cli/src/ai_stp_cli/local/provider_installations.py` — resolves provider
   identity only when executable bytes match its local release manifest;
   heartbeat collection never executes provider code.
@@ -51,13 +52,25 @@ oldest first. A 120-second lease lets another invocation recover after a
 process stops during a send. Policy lookup and send each use one attempt with
 a two-second timeout. A fresh report is built for each attempt, and exponential
 retries are capped by the organization retry maximum. Session or network
-failure leaves the primary command result unchanged. There is no daemon or OS
-scheduler, so a CLI that is not invoked eventually becomes stale.
+failure leaves the primary command result unchanged. An hourly per-user OS
+task also invokes `heartbeat tick --organization <id>` through a launcher that
+restores the enrolled XDG config/data directories. The tick uses the same due
+claim and policy. The task is not a resident Python daemon.
 
 `heartbeat enable` requires a device-bound authenticated session and an
-enabled organization policy. `heartbeat disable` removes the local row without
-network access. If the held account or device differs from the enrolled
-identity, the subscription is removed and must be explicitly enabled again.
+enabled organization policy, registers the OS wakeup, then stores local opt-in.
+`heartbeat disable` removes the local row without network access before
+removing the OS wakeup. `heartbeat local-status` reports whether the task is
+registered and the last/next attempt times. If the held account or device
+differs from the enrolled identity, the subscription is removed and must be
+explicitly enabled again. A remaining OS task cannot send after opt-out.
+
+For Windows inspect the named task in Task Scheduler; for macOS inspect the
+LaunchAgent under `~/Library/LaunchAgents`; for Linux use
+`systemctl --user list-timers`; for WSL inspect the task on the Windows host.
+Tasks run in the user's login context so they can access the same credential
+store as interactive CLI commands. A powered-off or logged-out machine may
+miss sends and become stale; `stale` does not prove uninstall or opt-out.
 
 ## Health
 
@@ -70,7 +83,7 @@ defaults to `DEFAULT_STALE_AFTER` (24h).
 
 - `slices/corporate/router.py`: import `heartbeat`, `include_router`.
 - `migrations/env.py`: import `heartbeat_models` for metadata registration.
-- CLI dispatch/registry: map `heartbeat send|enable|disable|status|installations`.
+- CLI dispatch/registry: map `heartbeat send|enable|disable|tick|local-status|status|installations`.
 - `service.py` role matrix: add `telemetry.read` to seeded superadmin/lead
   permissions for organizations bootstrapped after 0085.
 - contracts `__init__` / generated schema exports for the new module.
