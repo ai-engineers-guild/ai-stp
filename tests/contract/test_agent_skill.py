@@ -92,7 +92,11 @@ def test_the_canonical_skill_starts_from_task_intents() -> None:
     assert "printed command is not a completed operation" in beginning
     assert "Start already advanced the task" in beginning
     assert "Do not invent `task status`" in beginning
-    assert "do not background it" in beginning
+    normalized = " ".join(beginning.split())
+    assert "Do not deliberately background the CLI" in normalized
+    assert "tool's completed output before the next CLI call" in normalized
+    assert "Its handle is not an ai-stp task id" in normalized
+    assert "report success before reading its envelope" in normalized
     assert "already signed in" in beginning
     assert "ai-stp doctor --json" not in beginning
     assert "help --agent" not in beginning

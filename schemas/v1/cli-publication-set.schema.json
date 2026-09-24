@@ -1,5 +1,94 @@
 {
   "$defs": {
+    "EvidenceBindingView": {
+      "additionalProperties": true,
+      "description": "One accepted evidence binding on a snapshot.",
+      "properties": {
+        "check_id": {
+          "title": "Check Id",
+          "type": "string"
+        },
+        "expires_at": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "finding_summary": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SafetyFindingSummary"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reason"
+        },
+        "result": {
+          "$ref": "#/$defs/ai_stp_contracts__publication__CheckResult"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "source": {
+          "$ref": "#/$defs/EvidenceSource"
+        }
+      },
+      "required": [
+        "check_id",
+        "expires_at",
+        "finding_summary",
+        "reason",
+        "result",
+        "schema_version",
+        "source"
+      ],
+      "title": "EvidenceBindingView",
+      "type": "object"
+    },
+    "EvidenceSource": {
+      "enum": [
+        "author_attested",
+        "platform_digest_verified",
+        "platform_structure_verified",
+        "platform_safety_scan",
+        "provider_installation_tested",
+        "runtime_tested"
+      ],
+      "type": "string"
+    },
+    "FindingSeverity": {
+      "enum": [
+        "info",
+        "low",
+        "medium",
+        "high",
+        "critical"
+      ],
+      "type": "string"
+    },
     "ObjectKind": {
       "enum": [
         "component",
@@ -15,6 +104,25 @@
           "default": false,
           "title": "Already Published",
           "type": "boolean"
+        },
+        "error_code": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Error Code"
+        },
+        "evidence": {
+          "items": {
+            "$ref": "#/$defs/EvidenceBindingView"
+          },
+          "title": "Evidence",
+          "type": "array"
         },
         "object_kind": {
           "$ref": "#/$defs/ObjectKind"
@@ -70,6 +178,8 @@
       },
       "required": [
         "already_published",
+        "error_code",
+        "evidence",
         "object_kind",
         "plan_hash",
         "plan_id",
@@ -83,8 +193,87 @@
       "title": "PublicationSetMemberView",
       "type": "object"
     },
+    "SafetyFindingSummary": {
+      "additionalProperties": true,
+      "description": "Bounded public identifiers for findings; never scanned content.",
+      "properties": {
+        "count": {
+          "minimum": 1,
+          "title": "Count",
+          "type": "integer"
+        },
+        "paths": {
+          "items": {
+            "maxLength": 240,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 16,
+          "title": "Paths",
+          "type": "array"
+        },
+        "rule_ids": {
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 16,
+          "title": "Rule Ids",
+          "type": "array"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "severity_max": {
+          "$ref": "#/$defs/FindingSeverity"
+        },
+        "truncated": {
+          "default": false,
+          "title": "Truncated",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "count",
+        "paths",
+        "rule_ids",
+        "schema_version",
+        "severity_max",
+        "truncated"
+      ],
+      "title": "SafetyFindingSummary",
+      "type": "object"
+    },
     "Timestamp": {
       "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$",
+      "type": "string"
+    },
+    "ai_stp_contracts__publication__CheckResult": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ai_stp_contracts__safety_checks__CheckResult"
+        },
+        {
+          "const": "expired",
+          "type": "string"
+        }
+      ]
+    },
+    "ai_stp_contracts__safety_checks__CheckResult": {
+      "enum": [
+        "passed",
+        "warning",
+        "failed",
+        "degraded",
+        "not_run",
+        "not_applicable",
+        "skipped",
+        "running"
+      ],
       "type": "string"
     }
   },

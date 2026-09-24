@@ -36,12 +36,15 @@ from ai_stp_cli.local.agent_tasks import StoredTask
 from ai_stp_cli.local.database import configured_path, open_registry, transaction
 from ai_stp_cli.local.passports import moment
 from ai_stp_cli.yaml_documents import DuplicateKeyError, UniqueSafeLoader
+from ai_stp_contracts.http import IDEMPOTENCY_KEY_PATTERN
 from ai_stp_contracts.machine_help import (
+    TaskAccountOutcome,
     TaskInspectOutcome,
     TaskIntentsCatalog,
     TaskListEntry,
     TaskListView,
     TaskOutcome,
+    TaskPublishOutcome,
     TaskView,
 )
 from ai_stp_foundation.canonical import JsonValue
@@ -61,7 +64,7 @@ SUPPORTED_INTENTS = SHIPPED_INTENT_NAMES
 SETTLED = frozenset({"completed", "failed", "cancelled"})
 RUNNING_JOIN_SECONDS: Final[float] = 180.0
 RUNNING_JOIN_POLL_SECONDS: Final[float] = 0.25
-_IDEMPOTENCY_KEY = re.compile(r"^[A-Za-z0-9._~-]{16,128}$")
+_IDEMPOTENCY_KEY = re.compile(IDEMPOTENCY_KEY_PATTERN)
 _INPUT_LIMIT: Final[int] = 65_536
 _TASK_NEXT_ACTIONS: Final[tuple[str, ...]] = (
     "install recover",
@@ -142,7 +145,20 @@ def start(parameters: Mapping[str, object]) -> Answer[TaskView]:
         )
     key = str(parameters.get("idempotency-key") or "")
     if _IDEMPOTENCY_KEY.fullmatch(key) is None:
-        raise CliFailure("AI_STP_VALIDATION_ERROR", "the idempotency key is not a valid key")
+        raise CliFailure(
+            "AI_STP_VALIDATION_ERROR",
+            "the idempotency key must contain 16 to 128 ASCII letters, "
+            "digits, '.', '_', '~', or '-'",
+            details={"field": "idempotency-key", "pattern": IDEMPOTENCY_KEY_PATTERN},
+            continuations=[
+                Continuation(
+                    kind="inspect",
+                    path=["help"],
+                    arguments={"path": "task start"},
+                    actor="cli",
+                )
+            ],
+        )
     facts = _input_document(parameters)
     model = INTENT_INPUT_MODELS[intent]
     try:
@@ -320,6 +336,11 @@ def continue_task(parameters: Mapping[str, object]) -> Answer[TaskView]:
             details={"task": row.task_id, "state": row.state},
         )
     claimed = _commit_if_current(row, agent_tasks.claim(row, at=moment()))
+    return _drain_claimed(claimed)
+
+
+def _drain_claimed(claimed: StoredTask) -> Answer[TaskView]:
+    """Preserve recovery after either an explicit continue or an answered question."""
     try:
         return _drain(claimed)
     except CliFailure:
@@ -397,7 +418,7 @@ def answer_task(parameters: Mapping[str, object]) -> Answer[TaskView]:
         updated_at=row.updated_at,
     )
     claimed = _commit_if_current(row, agent_tasks.claim(holding, at=moment()))
-    return _drain(claimed)
+    return _drain_claimed(claimed)
 
 
 def status(parameters: Mapping[str, object]) -> Answer[TaskView]:
@@ -490,6 +511,7 @@ def _failed_drain(
         action
         for action in error.next_actions
         if any(token in action for token in _TASK_NEXT_ACTIONS)
+        or (row.intent == ACCOUNT_INTENT and action == "config set --set sync.enabled=true --json")
     ]
     _commit_if_current(row, agent_tasks.failed(row, at=at, child_operation_ids=child_operation_ids))
 
@@ -549,11 +571,21 @@ def _input_document(parameters: Mapping[str, object]) -> dict[str, JsonValue]:
         path = Path(locator)
         try:
             body = path.read_text(encoding="utf-8")
-        except OSError as error:
+        except (OSError, UnicodeError, ValueError) as error:
             raise CliFailure(
                 "AI_STP_VALIDATION_ERROR",
-                "the task input file could not be read",
-                details={"input": locator, "reason": type(error).__name__},
+                "the task input file could not be read; --input expects a JSON/YAML file path "
+                "or '-' for stdin",
+                details={"field": "input", "reason": type(error).__name__},
+                continuations=[
+                    Continuation(
+                        kind="inspect",
+                        path=["help"],
+                        arguments={"path": "task start"},
+                        argv=["help", "--path", "task start", "--json"],
+                        actor="cli",
+                    )
+                ],
             ) from error
     if len(body) > _INPUT_LIMIT:
         raise CliFailure(
@@ -722,8 +754,11 @@ def _drain(row: StoredTask) -> Answer[TaskView]:
         return _answer(agent_tasks.view_of(updated))
     if row.intent == ACCOUNT_INTENT:
         facts = _facts_of(row)
+        previous = agent_tasks.view_of(row).outcome
         try:
-            result = drain_account(facts)
+            result = drain_account(
+                facts, previous=previous if isinstance(previous, TaskAccountOutcome) else None
+            )
         except CliFailure as error:
             _failed_drain(row, error, at=at)
             raise
@@ -734,7 +769,8 @@ def _drain(row: StoredTask) -> Answer[TaskView]:
                     row,
                     result.outcome,
                     at=at,
-                    goal_satisfied=True,
+                    goal_satisfied=result.outcome.action != "sync" or result.outcome.synced,
+                    state="planned" if result.advance else "completed",
                     child_operation_ids=result.child_operation_ids,
                 ),
             )
@@ -752,8 +788,11 @@ def _drain(row: StoredTask) -> Answer[TaskView]:
         return _answer(agent_tasks.view_of(updated))
     if row.intent == PUBLISH_INTENT:
         facts = _facts_of(row)
+        previous = agent_tasks.view_of(row).outcome
         try:
-            result = drain_publish(facts)
+            result = drain_publish(
+                facts, previous=previous if isinstance(previous, TaskPublishOutcome) else None
+            )
         except CliFailure as error:
             _failed_drain(row, error, at=at)
             raise
@@ -765,6 +804,7 @@ def _drain(row: StoredTask) -> Answer[TaskView]:
                     result.outcome,
                     at=at,
                     goal_satisfied=result.outcome.readable,
+                    state="planned" if result.advance else "completed",
                     child_operation_ids=result.child_operation_ids,
                 ),
             )
@@ -930,7 +970,7 @@ def _attach_running_continue(failure: CliFailure, task_id: str) -> CliFailure:
 
 
 def _answer(view: TaskView) -> Answer[TaskView]:
-    if view.state == "planned":
+    if view.state in {"planned", "running"}:
         return Answer(
             view,
             continuations=(

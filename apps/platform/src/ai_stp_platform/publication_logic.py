@@ -60,7 +60,7 @@ from ai_stp_platform.safety.percent import build_checks_summary
 from ai_stp_platform.safety.policy import POLICY_VERSION, SafetyProfile
 from ai_stp_platform.safety.types import SafetyScanResult
 from ai_stp_platform.storage.object_store import ImmutableObjectStore, ObjectIntegrityError
-from ai_stp_sources.definition import definition_has_embedded
+from ai_stp_sources.definition import definition_has_embedded, try_parse_setup_definition
 
 #: Minimal mandatory credential-free checks for the server barrier.
 MANDATORY_PLATFORM_CHECKS: tuple[str, ...] = (
@@ -464,6 +464,7 @@ async def execute_validate(
 
     owned_store: ImmutableObjectStore | None = None
     setup_pin_context: list[dict[str, Any]] | None = None
+    resolved_bytes: bytes | None = None
     try:
         if not skip_safety:
             policy_ver = plan.policy_version or POLICY_VERSION
@@ -493,7 +494,6 @@ async def execute_validate(
                         allow_legacy_public=legacy_public,
                     )
 
-            resolved_bytes: bytes | None = None
             fetch_failed = False
             if source is not None:
                 try:
@@ -633,7 +633,11 @@ async def execute_validate(
         await close_env_object_store(owned_store)
 
     if plan.object_kind == "setup":
-        bindings.extend(await _exact_adaptation_bindings(session, dict(plan.passport or {})))
+        bindings.extend(
+            await _exact_adaptation_bindings(
+                session, dict(plan.passport or {}), definition_bytes=resolved_bytes
+            )
+        )
     state, component_verified = snapshot_outcome(bindings)
     summary = build_checks_summary(bindings)
     if plan.object_kind == "component" and bound_passport_digest:
@@ -1198,7 +1202,7 @@ async def _record_component_projection_assessments(
 
 
 async def _exact_adaptation_bindings(
-    session: AsyncSession, passport: dict[str, object]
+    session: AsyncSession, passport: dict[str, object], *, definition_bytes: bytes | None = None
 ) -> list[dict[str, Any]]:
     """Fail public setup publication when a pin has no exact harness adaptation."""
     if passport.get("kind") != "setup":
@@ -1238,6 +1242,30 @@ async def _exact_adaptation_bindings(
             )
         except ValidationError:
             continue
+    if (
+        definition_bytes is not None
+        and len(definition_bytes) == setup.artifact.size_bytes
+        and digest_bytes("ai-stp:artifact:v1", definition_bytes) == setup.artifact.digest
+    ):
+        definition = try_parse_setup_definition(definition_bytes)
+        if definition is not None and (
+            definition.get("stable_id"),
+            definition.get("version"),
+            definition.get("harness_id"),
+        ) == (setup.stable_id, setup.version, setup.harness_id):
+            pins = {ref.stable_id: ref for ref in setup.components}
+            embedded = definition.get("embedded", [])
+            assert isinstance(embedded, list)
+            for record in embedded:
+                assert isinstance(record, dict)
+                component = ComponentVersionPassport.model_validate(record["passport"])
+                ref = pins.get(component.stable_id)
+                if (
+                    ref is not None
+                    and component.version == ref.version
+                    and record["passport_digest"] == ref.passport_digest
+                ):
+                    components[component.stable_id] = component
     from ai_stp_platform.catalog_targets import missing_exact_adaptation_pins
 
     missing = missing_exact_adaptation_pins(setup, components)
