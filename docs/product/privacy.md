@@ -1,6 +1,6 @@
 ---
 description: "What leaves the user's machine, what never leaves it, and how to answer questions about telemetry."
-last_verified: "2026-09-01"
+last_verified: "2026-09-24"
 ---
 
 # CLI privacy
@@ -21,6 +21,19 @@ If you consent, one anonymous request leaves the machine for each
 installed component. It says that “a particular publicly named component
 of a particular version was installed on a particular harness on a particular OS.” It does not say who
 did it.
+
+## Corporate installation heartbeats
+
+Corporate installation health is a separate, authenticated channel. It starts
+only after you explicitly run `ai-stp heartbeat enable --organization <id>`;
+the local opt-in is tied to the signed-in account and device. The CLI sends a
+small snapshot of its version, locally detected harnesses, digest-matched
+provider versions, and last successful sync time when the organization policy
+says a report is due and you use the CLI. It never sends prompts, command
+arguments, repository contents, local paths, environment values, or credentials.
+Use `ai-stp heartbeat disable --organization <id>` to stop local reporting. No
+daemon runs while the CLI is idle, so an unused installation eventually reads
+as `stale`.
 
 ## What never leaves
 

@@ -26,6 +26,74 @@
       "title": "Expected Policy Revision",
       "type": "integer"
     },
+    "heartbeat_enabled": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Heartbeat Enabled"
+    },
+    "heartbeat_interval_seconds": {
+      "anyOf": [
+        {
+          "maximum": 2592000,
+          "minimum": 300,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Heartbeat Interval Seconds"
+    },
+    "heartbeat_retry_base_seconds": {
+      "anyOf": [
+        {
+          "maximum": 86400,
+          "minimum": 30,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Heartbeat Retry Base Seconds"
+    },
+    "heartbeat_retry_max_seconds": {
+      "anyOf": [
+        {
+          "maximum": 604800,
+          "minimum": 60,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Heartbeat Retry Max Seconds"
+    },
+    "heartbeat_stale_after_seconds": {
+      "anyOf": [
+        {
+          "maximum": 31536000,
+          "minimum": 60,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Heartbeat Stale After Seconds"
+    },
     "idempotency_key": {
       "$ref": "#/$defs/IdempotencyKey"
     },

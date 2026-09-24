@@ -50,6 +50,7 @@ from ai_stp_platform.telemetry_policy_models import (
 from ai_stp_platform.telemetry_privacy_service import (
     TelemetryBoundaryError,
     TelemetryPolicyConflictError,
+    TelemetryPolicyValidationError,
     TelemetrySubjectRevokedError,
     aggregate_events,
     export_events,
@@ -115,6 +116,11 @@ def _policy_view(row: TelemetryPolicy) -> CorporateTelemetryPolicyView:
         legal_basis=cast(TelemetryLegalBasis, row.legal_basis),
         notice_text=row.notice_text,
         notice_revision=row.notice_revision,
+        heartbeat_enabled=row.heartbeat_enabled,
+        heartbeat_interval_seconds=row.heartbeat_interval_seconds,
+        heartbeat_retry_base_seconds=row.heartbeat_retry_base_seconds,
+        heartbeat_retry_max_seconds=row.heartbeat_retry_max_seconds,
+        heartbeat_stale_after_seconds=row.heartbeat_stale_after_seconds,
         policy_version=row.policy_version,
         updated_at=_ts(row.updated_at) or "",
     )
@@ -522,11 +528,18 @@ async def write_telemetry_policy(
             legal_basis=payload.legal_basis,
             notice_text=payload.notice_text,
             notice_revision=payload.notice_revision,
+            heartbeat_enabled=payload.heartbeat_enabled,
+            heartbeat_interval_seconds=payload.heartbeat_interval_seconds,
+            heartbeat_retry_base_seconds=payload.heartbeat_retry_base_seconds,
+            heartbeat_retry_max_seconds=payload.heartbeat_retry_max_seconds,
+            heartbeat_stale_after_seconds=payload.heartbeat_stale_after_seconds,
             expected_policy_revision=payload.expected_policy_revision,
             updated_by=ctx.account_id,
         )
     except TelemetryPolicyConflictError as error:
         raise ApiError(ErrorCategory.CONFLICT, str(error)) from error
+    except TelemetryPolicyValidationError as error:
+        raise ApiError(ErrorCategory.VALIDATION, str(error)) from error
     view = _policy_view(row)
     await emit_audit(
         db,

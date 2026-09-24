@@ -11260,6 +11260,74 @@
             "title": "Expected Policy Revision",
             "type": "integer"
           },
+          "heartbeat_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Heartbeat Enabled"
+          },
+          "heartbeat_interval_seconds": {
+            "anyOf": [
+              {
+                "maximum": 2592000,
+                "minimum": 300,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Heartbeat Interval Seconds"
+          },
+          "heartbeat_retry_base_seconds": {
+            "anyOf": [
+              {
+                "maximum": 86400,
+                "minimum": 30,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Heartbeat Retry Base Seconds"
+          },
+          "heartbeat_retry_max_seconds": {
+            "anyOf": [
+              {
+                "maximum": 604800,
+                "minimum": 60,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Heartbeat Retry Max Seconds"
+          },
+          "heartbeat_stale_after_seconds": {
+            "anyOf": [
+              {
+                "maximum": 31536000,
+                "minimum": 60,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Heartbeat Stale After Seconds"
+          },
           "idempotency_key": {
             "$ref": "#/components/schemas/IdempotencyKey"
           },
@@ -11330,6 +11398,39 @@
             "title": "Aggregate Retention Days",
             "type": "integer"
           },
+          "heartbeat_enabled": {
+            "default": true,
+            "title": "Heartbeat Enabled",
+            "type": "boolean"
+          },
+          "heartbeat_interval_seconds": {
+            "default": 21600,
+            "maximum": 2592000,
+            "minimum": 300,
+            "title": "Heartbeat Interval Seconds",
+            "type": "integer"
+          },
+          "heartbeat_retry_base_seconds": {
+            "default": 60,
+            "maximum": 86400,
+            "minimum": 30,
+            "title": "Heartbeat Retry Base Seconds",
+            "type": "integer"
+          },
+          "heartbeat_retry_max_seconds": {
+            "default": 3600,
+            "maximum": 604800,
+            "minimum": 60,
+            "title": "Heartbeat Retry Max Seconds",
+            "type": "integer"
+          },
+          "heartbeat_stale_after_seconds": {
+            "default": 86400,
+            "maximum": 31536000,
+            "minimum": 60,
+            "title": "Heartbeat Stale After Seconds",
+            "type": "integer"
+          },
           "legal_basis": {
             "enum": [
               "consent",
@@ -11384,6 +11485,11 @@
         },
         "required": [
           "aggregate_retention_days",
+          "heartbeat_enabled",
+          "heartbeat_interval_seconds",
+          "heartbeat_retry_base_seconds",
+          "heartbeat_retry_max_seconds",
+          "heartbeat_stale_after_seconds",
           "legal_basis",
           "notice_revision",
           "notice_text",
@@ -15074,6 +15180,67 @@
           "total"
         ],
         "title": "InstallationHeartbeatList",
+        "type": "object"
+      },
+      "InstallationHeartbeatPolicy": {
+        "additionalProperties": true,
+        "description": "The organization-owned cadence and enablement visible to members.",
+        "properties": {
+          "enabled": {
+            "default": true,
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "interval_seconds": {
+            "default": 21600,
+            "maximum": 2592000,
+            "minimum": 300,
+            "title": "Interval Seconds",
+            "type": "integer"
+          },
+          "organization_id": {
+            "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "title": "Organization Id",
+            "type": "string"
+          },
+          "retry_base_seconds": {
+            "default": 60,
+            "maximum": 86400,
+            "minimum": 30,
+            "title": "Retry Base Seconds",
+            "type": "integer"
+          },
+          "retry_max_seconds": {
+            "default": 3600,
+            "maximum": 604800,
+            "minimum": 60,
+            "title": "Retry Max Seconds",
+            "type": "integer"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "stale_after_seconds": {
+            "default": 86400,
+            "maximum": 31536000,
+            "minimum": 60,
+            "title": "Stale After Seconds",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "enabled",
+          "interval_seconds",
+          "organization_id",
+          "retry_base_seconds",
+          "retry_max_seconds",
+          "schema_version",
+          "stale_after_seconds"
+        ],
+        "title": "InstallationHeartbeatPolicy",
         "type": "object"
       },
       "InstallationHeartbeatRequest": {
@@ -67278,6 +67445,188 @@
         "summary": "Record the authenticated installation heartbeat."
       }
     },
+    "/v1/corporate/organizations/{organization_id}/telemetry/heartbeat/policy": {
+      "get": {
+        "operationId": "readInstallationHeartbeatPolicy",
+        "parameters": [
+          {
+            "description": "Explicit remote organization selected for this request.",
+            "in": "path",
+            "name": "organization_id",
+            "required": true,
+            "schema": {
+              "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "readInstallationHeartbeatPolicy.telemetry": {
+                    "summary": "An installation reads its organization's opt-in and retry cadence.",
+                    "value": {
+                      "enabled": true,
+                      "interval_seconds": 21600,
+                      "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "retry_base_seconds": 60,
+                      "retry_max_seconds": 3600,
+                      "schema_version": 1,
+                      "stale_after_seconds": 86400
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/InstallationHeartbeatPolicy"
+                }
+              }
+            },
+            "description": "Read the organization's heartbeat cadence and enablement.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Read the organization's heartbeat cadence and enablement."
+      }
+    },
     "/v1/corporate/organizations/{organization_id}/telemetry/heartbeats": {
       "get": {
         "operationId": "listInstallationHeartbeats",
@@ -67493,6 +67842,11 @@
                     "summary": "The active telemetry policy is readable as a typed view.",
                     "value": {
                       "aggregate_retention_days": 365,
+                      "heartbeat_enabled": true,
+                      "heartbeat_interval_seconds": 21600,
+                      "heartbeat_retry_base_seconds": 60,
+                      "heartbeat_retry_max_seconds": 3600,
+                      "heartbeat_stale_after_seconds": 86400,
                       "legal_basis": "consent",
                       "notice_revision": 1,
                       "notice_text": "telemetry",
@@ -67685,6 +68039,11 @@
                     "aggregate_retention_days": 365,
                     "authorization_revision": 1,
                     "expected_policy_revision": 0,
+                    "heartbeat_enabled": true,
+                    "heartbeat_interval_seconds": 21600,
+                    "heartbeat_retry_base_seconds": 60,
+                    "heartbeat_retry_max_seconds": 3600,
+                    "heartbeat_stale_after_seconds": 86400,
                     "idempotency_key": "telemetry-policy-0001",
                     "legal_basis": "consent",
                     "notice_revision": 1,
@@ -67711,6 +68070,11 @@
                     "summary": "A policy replacement carries an explicit revision and idempotency key.",
                     "value": {
                       "aggregate_retention_days": 365,
+                      "heartbeat_enabled": true,
+                      "heartbeat_interval_seconds": 21600,
+                      "heartbeat_retry_base_seconds": 60,
+                      "heartbeat_retry_max_seconds": 3600,
+                      "heartbeat_stale_after_seconds": 86400,
                       "legal_basis": "consent",
                       "notice_revision": 1,
                       "notice_text": "telemetry",

@@ -11,10 +11,25 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import BigInteger, CheckConstraint, DateTime, ForeignKey, Integer, String, func
+from sqlalchemy import (
+    BigInteger,
+    Boolean,
+    CheckConstraint,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    func,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.types import JSON
 
+from ai_stp_contracts.heartbeat import (
+    DEFAULT_HEARTBEAT_INTERVAL_SECONDS,
+    DEFAULT_HEARTBEAT_RETRY_BASE_SECONDS,
+    DEFAULT_HEARTBEAT_RETRY_MAX_SECONDS,
+    DEFAULT_HEARTBEAT_STALE_AFTER_SECONDS,
+)
 from ai_stp_platform.db import Base
 
 TELEMETRY_GOVERNED_TABLES: tuple[str, ...] = (
@@ -92,6 +107,26 @@ class TelemetryPolicy(Base):
         ),
         CheckConstraint("notice_revision >= 0", name="ck_telemetry_policy_notice"),
         CheckConstraint("policy_version >= 1", name="ck_telemetry_policy_version"),
+        CheckConstraint(
+            "heartbeat_interval_seconds between 300 and 2592000",
+            name="ck_telemetry_policy_heartbeat_interval",
+        ),
+        CheckConstraint(
+            "heartbeat_retry_base_seconds between 30 and 86400",
+            name="ck_telemetry_policy_heartbeat_retry_base",
+        ),
+        CheckConstraint(
+            "heartbeat_retry_max_seconds between 60 and 604800",
+            name="ck_telemetry_policy_heartbeat_retry_max",
+        ),
+        CheckConstraint(
+            "heartbeat_retry_max_seconds >= heartbeat_retry_base_seconds",
+            name="ck_telemetry_policy_heartbeat_retry_order",
+        ),
+        CheckConstraint(
+            "heartbeat_stale_after_seconds between 60 and 31536000",
+            name="ck_telemetry_policy_heartbeat_stale_after",
+        ),
     )
 
     organization_id: Mapped[str] = mapped_column(
@@ -104,6 +139,33 @@ class TelemetryPolicy(Base):
     legal_basis: Mapped[str] = mapped_column(String(32), nullable=False)
     notice_text: Mapped[str | None] = mapped_column(String(4000), nullable=True)
     notice_revision: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    heartbeat_enabled: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True, server_default="true"
+    )
+    heartbeat_interval_seconds: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=DEFAULT_HEARTBEAT_INTERVAL_SECONDS,
+        server_default=str(DEFAULT_HEARTBEAT_INTERVAL_SECONDS),
+    )
+    heartbeat_retry_base_seconds: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=DEFAULT_HEARTBEAT_RETRY_BASE_SECONDS,
+        server_default=str(DEFAULT_HEARTBEAT_RETRY_BASE_SECONDS),
+    )
+    heartbeat_retry_max_seconds: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=DEFAULT_HEARTBEAT_RETRY_MAX_SECONDS,
+        server_default=str(DEFAULT_HEARTBEAT_RETRY_MAX_SECONDS),
+    )
+    heartbeat_stale_after_seconds: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=DEFAULT_HEARTBEAT_STALE_AFTER_SECONDS,
+        server_default=str(DEFAULT_HEARTBEAT_STALE_AFTER_SECONDS),
+    )
     policy_version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     updated_by: Mapped[str | None] = mapped_column(String(64), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

@@ -529,6 +529,7 @@ def test_migration_45_keeps_source_revisions_reversible(registry: sqlite3.Connec
     from ai_stp_cli.local.database import MIGRATIONS
 
     migration = next(item for item in MIGRATIONS if item.version == 45)
+    assert migration.down is not None
     assert "source_revision" in {
         str(row[1]) for row in registry.execute("PRAGMA table_info(tech_scan)")
     }

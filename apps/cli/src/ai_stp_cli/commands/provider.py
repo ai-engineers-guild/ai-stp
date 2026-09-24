@@ -126,43 +126,9 @@ def check(parameters: Mapping[str, object]) -> Answer[ProviderInstallationReport
     return Answer(ProviderInstallationReport(installations=checks, source_consulted=consulted))
 
 
-@dataclass(frozen=True)
-class _ManifestIdentity:
-    """A provider's identity taken from its manifest rather than from itself."""
-
-    provider_id: str
-    provider_version: str
-
-
-def _manifest_identity(executable: Path) -> _ManifestIdentity | None:
-    """Who this executable is, proved by bytes and read from disk. Runs nothing.
-
-    `provider fetch` writes `release.json` beside every provider it installs,
-    and that manifest names the exact artifact digest it covers. So the question
-    "are these the bytes we installed, and what are they" is answerable by
-    hashing the file and reading the file next to it — which is what a read-only
-    command is entitled to do.
-
-    `None` is the honest answer for everything else: a path with no manifest, a
-    manifest that does not parse, and — most importantly — a manifest whose
-    digest does not match the file. That last one is a managed provider that has
-    been replaced, and it is precisely the case where running the executable to
-    ask what it is would be running the substitute.
-    """
-    manifest_path = executable.parent / attested_bind.MANIFEST_NAME
-    try:
-        manifest = release.parse_manifest(manifest_path.read_text("utf-8"))
-    except (OSError, CliFailure):
-        return None
-    try:
-        observed, _ = release.artifact_identity(executable)
-    except CliFailure:
-        return None
-    if observed != manifest.artifact_digest:
-        return None
-    return _ManifestIdentity(
-        provider_id=manifest.provider_id, provider_version=manifest.provider_version
-    )
+def _manifest_identity(executable: Path) -> installations.ManifestIdentity | None:
+    """Who the digest-matched manifest says this provider is, without running it."""
+    return installations.manifest_identity(executable)
 
 
 def _check_one(

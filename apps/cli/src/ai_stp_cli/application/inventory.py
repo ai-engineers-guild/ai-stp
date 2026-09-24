@@ -118,6 +118,8 @@ TASK_PENDING: Final[frozenset[tuple[str, ...]]] = _paths(
     "device init",
     "device show",
     "environment plan",
+    "heartbeat disable",
+    "heartbeat enable",
     "heartbeat installations",
     "heartbeat send",
     "heartbeat status",

@@ -17,18 +17,27 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ai_stp_contracts.heartbeat import (
+    DEFAULT_HEARTBEAT_INTERVAL_SECONDS,
+    DEFAULT_HEARTBEAT_RETRY_BASE_SECONDS,
+    DEFAULT_HEARTBEAT_RETRY_MAX_SECONDS,
+    DEFAULT_HEARTBEAT_STALE_AFTER_SECONDS,
     HeartbeatHealthState,
     HeartbeatReportedState,
     InstallationHeartbeat,
+    InstallationHeartbeatPolicy,
     InstallationHeartbeatRequest,
     InstallationHeartbeatStatus,
 )
 from ai_stp_foundation.timestamps import format_timestamp, parse_timestamp
 from ai_stp_platform.heartbeat_models import InstallationHeartbeat as HeartbeatRow
+from ai_stp_platform.telemetry_policy_models import TelemetryPolicy
+from ai_stp_platform.telemetry_privacy_service import (
+    TelemetrySubjectRevokedError,
+    require_subject_active,
+)
 from ai_stp_platform.tenant_scope import set_tenant_scope
 
-# The privacy stream owns the organization-configurable override; until that
-# surface lands the threshold is this default injected into every read.
+# Compatibility default when a tenant has no explicit telemetry policy.
 DEFAULT_STALE_AFTER: Final = timedelta(hours=24)
 # A checked_at ahead of the server clock beyond this bound is rejected, so a
 # skewed client cannot poison the ordering key and block later real beats.
@@ -42,8 +51,44 @@ class HeartbeatRejected(ValueError):
     """A heartbeat write that must not land."""
 
 
+class HeartbeatPolicyDisabled(ValueError):
+    """The organization has disabled installation heartbeat writes."""
+
+
+class HeartbeatSubjectRevoked(ValueError):
+    """The installation's account or device revoked telemetry processing."""
+
+
 def utcnow() -> datetime:
     return datetime.now(UTC)
+
+
+async def organization_policy(
+    db: AsyncSession, *, organization_id: str
+) -> InstallationHeartbeatPolicy:
+    """Return the tenant's public heartbeat settings or compatibility defaults."""
+    await set_tenant_scope(db, organization_id)
+    row = await db.get(TelemetryPolicy, organization_id)
+    return InstallationHeartbeatPolicy(
+        organization_id=organization_id,
+        enabled=True if row is None else row.heartbeat_enabled,
+        interval_seconds=(
+            DEFAULT_HEARTBEAT_INTERVAL_SECONDS if row is None else row.heartbeat_interval_seconds
+        ),
+        retry_base_seconds=(
+            DEFAULT_HEARTBEAT_RETRY_BASE_SECONDS
+            if row is None
+            else row.heartbeat_retry_base_seconds
+        ),
+        retry_max_seconds=(
+            DEFAULT_HEARTBEAT_RETRY_MAX_SECONDS if row is None else row.heartbeat_retry_max_seconds
+        ),
+        stale_after_seconds=(
+            DEFAULT_HEARTBEAT_STALE_AFTER_SECONDS
+            if row is None
+            else row.heartbeat_stale_after_seconds
+        ),
+    )
 
 
 def evaluate_health(
@@ -138,7 +183,7 @@ async def record_heartbeat(
     organization_id: str,
     report: InstallationHeartbeatRequest,
     now: datetime | None = None,
-    stale_after: timedelta = DEFAULT_STALE_AFTER,
+    stale_after: timedelta | None = None,
 ) -> InstallationHeartbeat:
     """Coalesce one heartbeat onto the (organization, device) row.
 
@@ -147,6 +192,21 @@ async def record_heartbeat(
     view carries the evaluated health for `now`.
     """
     now = now or utcnow()
+    policy = await organization_policy(db, organization_id=organization_id)
+    if not policy.enabled:
+        raise HeartbeatPolicyDisabled("heartbeat reporting is disabled for this organization")
+    try:
+        await require_subject_active(
+            db,
+            organization_id=organization_id,
+            account_id=report.account_id,
+            device_id=report.device_id,
+        )
+    except TelemetrySubjectRevokedError as error:
+        raise HeartbeatSubjectRevoked(
+            "telemetry processing was revoked for this installation"
+        ) from error
+    stale_after = stale_after or timedelta(seconds=policy.stale_after_seconds)
     checked_at = parse_timestamp(report.checked_at)
     if checked_at > now + MAX_FUTURE_SKEW:
         raise HeartbeatRejected("checked_at is beyond the accepted clock skew")

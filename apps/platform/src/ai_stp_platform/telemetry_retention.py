@@ -12,9 +12,10 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import delete as sql_delete
-from sqlalchemy import select
+from sqlalchemy import select, union
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ai_stp_platform.heartbeat_models import InstallationHeartbeat
 from ai_stp_platform.runtime_usage_models import RuntimeUsageEvent
 from ai_stp_platform.telemetry_policy_models import TelemetryEvent, TelemetryPolicy
 from ai_stp_platform.tenant_scope import set_tenant_scope
@@ -27,8 +28,8 @@ async def apply_retention(session: AsyncSession, *, organization_id: str, now: d
 
     The sweep covers every governed raw-event table: the generic
     `telemetry_event` boundary store and the usage stream's
-    `runtime_usage_event`. `installation_heartbeat` holds current state, not
-    raw events, so retention does not apply to it.
+    `runtime_usage_event`, and `installation_heartbeat`. Old coalesced rows
+    disappear and project as `unknown`; retention never writes `stale`.
     """
     await set_tenant_scope(session, organization_id)
     policy = await session.get(TelemetryPolicy, organization_id)
@@ -44,6 +45,10 @@ async def apply_retention(session: AsyncSession, *, organization_id: str, now: d
             RuntimeUsageEvent.organization_id == organization_id,
             RuntimeUsageEvent.invoked_at < cutoff,
         ),
+        sql_delete(InstallationHeartbeat).where(
+            InstallationHeartbeat.organization_id == organization_id,
+            InstallationHeartbeat.received_at < cutoff,
+        ),
     ):
         result = await session.execute(statement)
         rowcount = getattr(result, "rowcount", 0)
@@ -53,8 +58,15 @@ async def apply_retention(session: AsyncSession, *, organization_id: str, now: d
 
 
 async def retention_tenants(session: AsyncSession) -> list[str]:
-    """Return organization ids that have an explicit telemetry policy."""
-    rows = await session.scalars(select(TelemetryPolicy.organization_id))
+    """Return every tenant with policy or governed data, including defaults."""
+    rows = await session.scalars(
+        union(
+            select(TelemetryPolicy.organization_id),
+            select(TelemetryEvent.organization_id),
+            select(RuntimeUsageEvent.organization_id),
+            select(InstallationHeartbeat.organization_id),
+        )
+    )
     return list(rows.all())
 
 

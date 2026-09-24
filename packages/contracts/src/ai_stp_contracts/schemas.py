@@ -256,8 +256,10 @@ from ai_stp_contracts.health import LivenessResponse, ReadinessResponse
 from ai_stp_contracts.heartbeat import (
     InstallationHeartbeat,
     InstallationHeartbeatList,
+    InstallationHeartbeatPolicy,
     InstallationHeartbeatRequest,
     InstallationHeartbeatStatus,
+    InstallationHeartbeatSubscription,
 )
 from ai_stp_contracts.http import PageInfo
 from ai_stp_contracts.identity import (
@@ -831,6 +833,7 @@ HTTP_MODELS: Final[dict[str, ExportedSchema]] = {
     "installation-heartbeat": InstallationHeartbeat,
     "installation-heartbeat-status": InstallationHeartbeatStatus,
     "installation-heartbeat-list": InstallationHeartbeatList,
+    "installation-heartbeat-policy": InstallationHeartbeatPolicy,
     "corporate-ci-check-request": CorporateCiCheckRequest,
     "corporate-ci-check-view": CorporateCiCheckView,
     "dashboard-query-request": DashboardQueryRequest,
@@ -886,6 +889,7 @@ CLI_MODELS: Final[dict[str, ExportedSchema]] = {
     "cli-self-update-plan": CliSelfUpdatePlan,
     "cli-self-update-result": CliSelfUpdateResult,
     "cli-self-update-status": CliSelfUpdateStatus,
+    "installation-heartbeat-subscription": InstallationHeartbeatSubscription,
     "cli-owner-object-list": CliOwnerObjectListView,
     "cli-owner-object-detail": CliOwnerObjectDetailView,
     "cli-owner-version-detail": CliOwnerVersionDetailView,

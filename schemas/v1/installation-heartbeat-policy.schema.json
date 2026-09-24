@@ -1,0 +1,63 @@
+{
+  "$id": "urn:ai-stp:schema:v1:installation-heartbeat-policy",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "The organization-owned cadence and enablement visible to members.",
+  "properties": {
+    "enabled": {
+      "default": true,
+      "title": "Enabled",
+      "type": "boolean"
+    },
+    "interval_seconds": {
+      "default": 21600,
+      "maximum": 2592000,
+      "minimum": 300,
+      "title": "Interval Seconds",
+      "type": "integer"
+    },
+    "organization_id": {
+      "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "title": "Organization Id",
+      "type": "string"
+    },
+    "retry_base_seconds": {
+      "default": 60,
+      "maximum": 86400,
+      "minimum": 30,
+      "title": "Retry Base Seconds",
+      "type": "integer"
+    },
+    "retry_max_seconds": {
+      "default": 3600,
+      "maximum": 604800,
+      "minimum": 60,
+      "title": "Retry Max Seconds",
+      "type": "integer"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "stale_after_seconds": {
+      "default": 86400,
+      "maximum": 31536000,
+      "minimum": 60,
+      "title": "Stale After Seconds",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "enabled",
+    "interval_seconds",
+    "organization_id",
+    "retry_base_seconds",
+    "retry_max_seconds",
+    "schema_version",
+    "stale_after_seconds"
+  ],
+  "title": "InstallationHeartbeatPolicy",
+  "type": "object"
+}

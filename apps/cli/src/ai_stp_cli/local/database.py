@@ -34,10 +34,9 @@ class Migration:
     summary: str
     up: tuple[str, ...]
 
-    #: Declared only where it is honest. Dropping a table reverses creating one;
-    #: nothing reverses discarding rows, so such a migration declares no down
-    #: step and `downgrade` refuses rather than pretending.
-    down: tuple[str, ...] = ()
+    #: `None` means no safe reverse is declared. An empty tuple is an explicit
+    #: compatible version rollback that leaves additive state in place.
+    down: tuple[str, ...] | None = None
 
 
 MIGRATIONS: Final[tuple[Migration, ...]] = (
@@ -1447,6 +1446,27 @@ MIGRATIONS: Final[tuple[Migration, ...]] = (
         up=("ALTER TABLE tech_scan ADD COLUMN source_revision TEXT NOT NULL DEFAULT ''",),
         down=("ALTER TABLE tech_scan DROP COLUMN source_revision",),
     ),
+    Migration(
+        version=46,
+        summary="durable per-organization heartbeat opt-in and retry timing",
+        up=(
+            """
+            CREATE TABLE IF NOT EXISTS heartbeat_subscription (
+                organization_id TEXT PRIMARY KEY,
+                account_id TEXT NOT NULL,
+                device_id TEXT NOT NULL,
+                next_attempt_at TEXT NOT NULL,
+                attempts INTEGER NOT NULL DEFAULT 0 CHECK (attempts >= 0),
+                last_attempt_at TEXT,
+                last_success_at TEXT,
+                attempt_token TEXT
+            ) STRICT
+            """,
+        ),
+        # Older CLIs ignore this additive table; keeping it preserves opt-in
+        # state across a binary rollback and makes the next upgrade idempotent.
+        down=(),
+    ),
 )
 
 #: Names for nested savepoints. A counter rather than a fixed name: two nested
@@ -1679,7 +1699,7 @@ def downgrade(connection: sqlite3.Connection, target: int) -> None:
     for migration in reversed(MIGRATIONS):
         if migration.version <= target or migration.version > schema_version(connection):
             continue
-        if not migration.down:
+        if migration.down is None:
             raise CliFailure(
                 "AI_STP_UNSUPPORTED_APPLY",
                 "this migration declares no reverse and will not be guessed",

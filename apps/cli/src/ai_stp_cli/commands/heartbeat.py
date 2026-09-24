@@ -11,6 +11,7 @@ from ai_stp_contracts.heartbeat import (
     InstallationHeartbeat,
     InstallationHeartbeatList,
     InstallationHeartbeatStatus,
+    InstallationHeartbeatSubscription,
 )
 
 
@@ -34,10 +35,34 @@ def send(parameters: Mapping[str, object]) -> Answer[InstallationHeartbeat]:
     held = cloud_auth.required("installation heartbeat")
     report = heartbeat.build_report(
         held,
-        health_state=str(parameters.get("state") or "active"),
+        health_state=str(parameters.get("state") or "") or None,
         last_sync_at=str(parameters.get("last-sync-at") or "") or None,
     )
     return Answer(heartbeat.send(endpoint(), held, _required(parameters, "organization"), report))
+
+
+def enable(parameters: Mapping[str, object]) -> Answer[InstallationHeartbeatSubscription]:
+    """Opt this CLI installation into automatic heartbeats for one organization."""
+    held = cloud_auth.required("automatic installation heartbeat")
+    organization_id = _required(parameters, "organization")
+    policy = heartbeat.policy(endpoint(), held, organization_id)
+    if not policy.enabled:
+        raise CliFailure(
+            "AI_STP_PRECONDITION_FAILED",
+            "the organization has disabled installation heartbeat reporting",
+        )
+    return Answer(
+        heartbeat.enable_subscription(
+            organization_id,
+            account_id=held.account_id,
+            device_id=held.device_id,
+        )
+    )
+
+
+def disable(parameters: Mapping[str, object]) -> Answer[InstallationHeartbeatSubscription]:
+    """Opt this CLI installation out without contacting the organization."""
+    return Answer(heartbeat.disable_subscription(_required(parameters, "organization")))
 
 
 def status(parameters: Mapping[str, object]) -> Answer[InstallationHeartbeatStatus]:

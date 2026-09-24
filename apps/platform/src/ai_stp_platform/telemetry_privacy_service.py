@@ -23,6 +23,12 @@ from sqlalchemy import Select, func, select, update
 from sqlalchemy import delete as sql_delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ai_stp_contracts.heartbeat import (
+    DEFAULT_HEARTBEAT_INTERVAL_SECONDS,
+    DEFAULT_HEARTBEAT_RETRY_BASE_SECONDS,
+    DEFAULT_HEARTBEAT_RETRY_MAX_SECONDS,
+    DEFAULT_HEARTBEAT_STALE_AFTER_SECONDS,
+)
 from ai_stp_platform.heartbeat_models import InstallationHeartbeat
 from ai_stp_platform.runtime_usage_models import RuntimeUsageEvent
 from ai_stp_platform.telemetry_policy_models import (
@@ -156,6 +162,10 @@ class TelemetryPolicyConflictError(ValueError):
     """The policy write did not carry the current policy revision."""
 
 
+class TelemetryPolicyValidationError(ValueError):
+    """A combination of policy values violates a cross-field invariant."""
+
+
 class TelemetryRightStateError(ValueError):
     """The requested right transition is not legal from the current state."""
 
@@ -261,6 +271,18 @@ async def _subject_blocked(
             raise TelemetrySubjectRevokedError(f"{kind}:{subject_id}")
 
 
+async def require_subject_active(
+    session: AsyncSession, *, organization_id: str, account_id: str, device_id: str
+) -> None:
+    """Reject heartbeat writes for an account or device whose telemetry was revoked."""
+    await set_tenant_scope(session, organization_id)
+    await _subject_blocked(
+        session,
+        organization_id=organization_id,
+        columns={"account_id": account_id, "device_id": device_id},
+    )
+
+
 async def ingest_event(
     session: AsyncSession,
     *,
@@ -326,11 +348,36 @@ async def write_policy(
     legal_basis: str,
     notice_text: str | None,
     notice_revision: int,
+    heartbeat_enabled: bool | None = None,
+    heartbeat_interval_seconds: int | None = None,
+    heartbeat_retry_base_seconds: int | None = None,
+    heartbeat_retry_max_seconds: int | None = None,
+    heartbeat_stale_after_seconds: int | None = None,
     expected_policy_revision: int,
     updated_by: str | None,
 ) -> TelemetryPolicy:
     await set_tenant_scope(session, organization_id)
     row = await session.get(TelemetryPolicy, organization_id)
+    retry_base = (
+        heartbeat_retry_base_seconds
+        if heartbeat_retry_base_seconds is not None
+        else (
+            row.heartbeat_retry_base_seconds
+            if row is not None
+            else DEFAULT_HEARTBEAT_RETRY_BASE_SECONDS
+        )
+    )
+    retry_max = (
+        heartbeat_retry_max_seconds
+        if heartbeat_retry_max_seconds is not None
+        else (
+            row.heartbeat_retry_max_seconds
+            if row is not None
+            else DEFAULT_HEARTBEAT_RETRY_MAX_SECONDS
+        )
+    )
+    if retry_max < retry_base:
+        raise TelemetryPolicyValidationError("heartbeat retry maximum must cover its retry base")
     if row is None:
         if expected_policy_revision != 0:
             raise TelemetryPolicyConflictError("telemetry policy does not exist")
@@ -341,6 +388,27 @@ async def write_policy(
             legal_basis=legal_basis,
             notice_text=notice_text,
             notice_revision=notice_revision,
+            heartbeat_enabled=(True if heartbeat_enabled is None else heartbeat_enabled),
+            heartbeat_interval_seconds=(
+                DEFAULT_HEARTBEAT_INTERVAL_SECONDS
+                if heartbeat_interval_seconds is None
+                else heartbeat_interval_seconds
+            ),
+            heartbeat_retry_base_seconds=(
+                DEFAULT_HEARTBEAT_RETRY_BASE_SECONDS
+                if heartbeat_retry_base_seconds is None
+                else heartbeat_retry_base_seconds
+            ),
+            heartbeat_retry_max_seconds=(
+                DEFAULT_HEARTBEAT_RETRY_MAX_SECONDS
+                if heartbeat_retry_max_seconds is None
+                else heartbeat_retry_max_seconds
+            ),
+            heartbeat_stale_after_seconds=(
+                DEFAULT_HEARTBEAT_STALE_AFTER_SECONDS
+                if heartbeat_stale_after_seconds is None
+                else heartbeat_stale_after_seconds
+            ),
             policy_version=1,
             updated_by=updated_by,
         )
@@ -354,6 +422,16 @@ async def write_policy(
     row.legal_basis = legal_basis
     row.notice_text = notice_text
     row.notice_revision = notice_revision
+    if heartbeat_enabled is not None:
+        row.heartbeat_enabled = heartbeat_enabled
+    if heartbeat_interval_seconds is not None:
+        row.heartbeat_interval_seconds = heartbeat_interval_seconds
+    if heartbeat_retry_base_seconds is not None:
+        row.heartbeat_retry_base_seconds = heartbeat_retry_base_seconds
+    if heartbeat_retry_max_seconds is not None:
+        row.heartbeat_retry_max_seconds = heartbeat_retry_max_seconds
+    if heartbeat_stale_after_seconds is not None:
+        row.heartbeat_stale_after_seconds = heartbeat_stale_after_seconds
     row.policy_version += 1
     row.updated_by = updated_by
     await session.flush()
@@ -693,6 +771,7 @@ __all__ = [
     "TelemetryBoundaryError",
     "TelemetryEventKind",
     "TelemetryPolicyConflictError",
+    "TelemetryPolicyValidationError",
     "TelemetryRightStateError",
     "TelemetrySubjectKind",
     "TelemetrySubjectRevokedError",
@@ -708,6 +787,7 @@ __all__ = [
     "read_policy",
     "record_privileged_access",
     "record_right",
+    "require_subject_active",
     "revoke_subject",
     "validate_event_fields",
     "write_policy",

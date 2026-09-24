@@ -1,8 +1,11 @@
+# pyright: reportPrivateUsage=false
 """Heartbeat contract, ordering, and health projection (t-heartbeat, #215)."""
 
 from __future__ import annotations
 
+import sqlite3
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from types import SimpleNamespace
 from typing import cast
 
@@ -14,6 +17,7 @@ from ai_stp_cli.application import heartbeat as heartbeat_app
 from ai_stp_cli.cloud.session import Session
 from ai_stp_cli.errors import CliFailure
 from ai_stp_contracts.heartbeat import (
+    InstallationHeartbeatPolicy,
     InstallationHeartbeatRequest,
     InstallationHeartbeatStatus,
 )
@@ -150,6 +154,118 @@ def test_staleness_threshold_is_injectable() -> None:
     assert (
         heartbeat_service.evaluate_health("active", received, now=NOW, stale_after=short) == "stale"
     )
+
+
+def test_policy_rejects_a_retry_cap_below_its_base() -> None:
+    with pytest.raises(ValidationError):
+        InstallationHeartbeatPolicy(
+            organization_id=new_id("organization"),
+            retry_base_seconds=120,
+            retry_max_seconds=60,
+        )
+
+
+def test_subscription_claim_lease_and_retry_backoff(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    path = tmp_path / "registry.sqlite"
+    with sqlite3.connect(path) as connection:
+        connection.execute(
+            "CREATE TABLE heartbeat_subscription ("
+            "organization_id TEXT PRIMARY KEY, account_id TEXT NOT NULL, "
+            "device_id TEXT NOT NULL, next_attempt_at TEXT NOT NULL, "
+            "attempts INTEGER NOT NULL DEFAULT 0, last_attempt_at TEXT, "
+            "last_success_at TEXT, attempt_token TEXT)"
+        )
+        connection.execute(
+            "INSERT INTO heartbeat_subscription "
+            "(organization_id, account_id, device_id, next_attempt_at) VALUES (?, ?, ?, ?)",
+            (
+                "org_due",
+                new_id("account"),
+                new_id("device"),
+                format_timestamp(NOW - timedelta(seconds=1)),
+            ),
+        )
+    monkeypatch.setattr(heartbeat_app, "configured_path", lambda: path)
+
+    claimed = heartbeat_app._claim_due_subscription(NOW)
+    assert claimed is not None
+    organization_id, _account_id, _device_id, token = claimed
+    assert organization_id == "org_due"
+    assert heartbeat_app._claim_due_subscription(NOW) is None
+
+    heartbeat_app._finish_attempt(
+        organization_id,
+        token,
+        now=NOW,
+        retry_base_seconds=60,
+        retry_max_seconds=90,
+    )
+    with sqlite3.connect(path) as connection:
+        attempts, next_attempt, token = connection.execute(
+            "SELECT attempts, next_attempt_at, attempt_token FROM heartbeat_subscription"
+        ).fetchone()
+    assert attempts == 1
+    assert next_attempt == format_timestamp(NOW + timedelta(seconds=60))
+    assert token is None
+    assert heartbeat_app._claim_due_subscription(NOW + timedelta(seconds=59)) is None
+
+    claimed = heartbeat_app._claim_due_subscription(NOW + timedelta(seconds=60))
+    assert claimed is not None
+    heartbeat_app._finish_attempt(
+        claimed[0],
+        claimed[3],
+        now=NOW + timedelta(seconds=60),
+        retry_base_seconds=60,
+        retry_max_seconds=90,
+    )
+    with sqlite3.connect(path) as connection:
+        attempts, next_attempt = connection.execute(
+            "SELECT attempts, next_attempt_at FROM heartbeat_subscription"
+        ).fetchone()
+    assert attempts == 2
+    assert next_attempt == format_timestamp(NOW + timedelta(seconds=150))
+
+
+def test_local_subscription_is_explicit_idempotent_and_device_bound(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    path = tmp_path / "registry.sqlite"
+    organization_id = new_id("organization")
+    account_id = new_id("account")
+    device_id = new_id("device")
+    monkeypatch.setattr(heartbeat_app, "configured_path", lambda: path)
+
+    enabled = heartbeat_app.enable_subscription(
+        organization_id, account_id=account_id, device_id=device_id, now=NOW
+    )
+    repeated = heartbeat_app.enable_subscription(
+        organization_id,
+        account_id=account_id,
+        device_id=device_id,
+        now=NOW + timedelta(hours=1),
+    )
+    assert enabled.enabled and repeated.enabled
+    assert repeated.next_attempt_at == format_timestamp(NOW)
+
+    next_account_id = new_id("account")
+    next_device_id = new_id("device")
+    heartbeat_app.enable_subscription(
+        organization_id,
+        account_id=next_account_id,
+        device_id=next_device_id,
+        now=NOW + timedelta(hours=1),
+    )
+    with sqlite3.connect(path) as connection:
+        account_id, device_id, next_attempt = connection.execute(
+            "SELECT account_id, device_id, next_attempt_at FROM heartbeat_subscription"
+        ).fetchone()
+    assert (account_id, device_id) == (next_account_id, next_device_id)
+    assert next_attempt == format_timestamp(NOW + timedelta(hours=1))
+
+    disabled = heartbeat_app.disable_subscription(organization_id)
+    assert not disabled.enabled
 
 
 def test_accepts_update_orders_on_checked_at() -> None:
