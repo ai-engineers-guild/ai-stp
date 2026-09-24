@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import base64
+import io
 import json
+import zipfile
 from contextlib import closing
 from pathlib import Path
 
@@ -12,7 +15,7 @@ from ai_stp_cli import identity
 from ai_stp_cli.application import author as author_service
 from ai_stp_cli.commands import task as task_command
 from ai_stp_cli.errors import CliFailure
-from ai_stp_cli.local import passports, setup_author, versions
+from ai_stp_cli.local import content, passports, revisions, setup_author, versions
 from ai_stp_cli.local.database import configured_path, open_registry
 from ai_stp_passports.versions import COMPONENT_TYPES
 
@@ -195,6 +198,103 @@ def test_author_drains_without_returning_to_the_model(tmp_path: Path) -> None:
     assert outcome.component_id.startswith("component_")
     assert outcome.minted is True
     assert not continued.continuations
+
+
+@pytest.mark.parametrize("with_script", [False, True])
+def test_authored_antigravity_skill_preserves_native_files(
+    tmp_path: Path, with_script: bool
+) -> None:
+    tree = _skill_tree(tmp_path)
+    expected = {"config/skills/demo/SKILL.md": (tree / "SKILL.md").read_bytes()}
+    if with_script:
+        (tree / "scripts").mkdir()
+        (tree / "scripts" / "check.py").write_bytes(b"print('checked')\n")
+        expected["config/skills/demo/scripts/check.py"] = b"print('checked')\n"
+    (tree / "GENERATED.md").write_text("Generated source notes.\n", encoding="utf-8")
+    authored = author_service.persist(
+        directory=tree,
+        harness_id="antigravity",
+        component_type="skill",
+        name="demo",
+        license_spdx="MIT",
+    )
+    with closing(open_registry(configured_path(), create=True)) as connection:
+        held = versions.held(connection, authored.setup_id, authored.setup_version)
+        assert held is not None
+        stored = revisions.get(connection, held.revision_id)
+        assert stored is not None
+        definition = content.get(connection, stored.envelope.model_dump()["artifact"]["digest"])
+        assert definition is not None
+        embedded = json.loads(definition)["embedded"][0]
+        artifact = base64.urlsafe_b64decode(embedded["artifact_b64"] + "===")
+        with zipfile.ZipFile(io.BytesIO(artifact)) as archive:
+            assert {name: archive.read(name) for name in archive.namelist()} == expected
+    replay = author_service.persist(
+        directory=tree,
+        harness_id="antigravity",
+        component_type="skill",
+        name="demo",
+        license_spdx="MIT",
+    )
+    assert replay.setup_id == authored.setup_id
+    assert replay.component_id == authored.component_id
+    assert replay.minted is False
+
+
+def test_author_refuses_multiple_files_for_a_single_file_surface(tmp_path: Path) -> None:
+    tree = tmp_path / "settings"
+    tree.mkdir()
+    (tree / "settings.json").write_text("{}\n", encoding="utf-8")
+    (tree / "other.json").write_text("{}\n", encoding="utf-8")
+    with pytest.raises(CliFailure) as raised:
+        task_command.start(
+            {
+                "intent": "author",
+                "idempotency-key": "author-file-surface-0001",
+                "input": _facts(
+                    tmp_path,
+                    {
+                        "directory": str(tree),
+                        "harness_id": "antigravity",
+                        "component_type": "setting",
+                        "name": "demo",
+                        "license_spdx": "MIT",
+                    },
+                ),
+            }
+        )
+    assert raised.value.code == "AI_STP_VALIDATION_ERROR"
+    assert "one source file" in raised.value.message
+    status = task_command.status({"task": raised.value.details["task"]})
+    assert status.payload.state == "failed"
+
+
+@pytest.mark.parametrize("name", ["..", "../outside", "nested/name", "nested\\name"])
+def test_author_refuses_names_that_are_not_native_path_segments(tmp_path: Path, name: str) -> None:
+    with pytest.raises(CliFailure, match="one native path segment"):
+        author_service.persist(
+            directory=_skill_tree(tmp_path),
+            harness_id="antigravity",
+            component_type="skill",
+            name=name,
+            license_spdx="MIT",
+        )
+
+
+def test_author_refuses_a_tree_with_only_generated_notes(tmp_path: Path) -> None:
+    tree = tmp_path / "notes"
+    tree.mkdir()
+    (tree / "GENERATED.md").write_text("Generated notes.\n", encoding="utf-8")
+    with pytest.raises(CliFailure) as raised:
+        author_service.persist(
+            directory=tree,
+            harness_id="antigravity",
+            component_type="skill",
+            name="demo",
+            license_spdx="MIT",
+        )
+    assert raised.value.code == "AI_STP_VALIDATION_ERROR"
+    assert raised.value.details["source_code"] == "incomplete_passport"
 
 
 def test_author_refuses_a_kind_without_a_native_surface(tmp_path: Path) -> None:
