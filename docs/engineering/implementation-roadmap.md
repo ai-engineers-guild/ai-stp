@@ -69,18 +69,23 @@ reproductions before implementation. That review added A3: two distinct file
 trees currently produce the same qualification digest without a SHA-256
 collision. It also expanded A2 to native/isolation writers and invalidation,
 which can relabel existing model results even without running another model.
+The release-ledger review then reproduced A3b: the artifact validator skipped
+a second conflicting digest for the same filename, while duplicate provider
+repositories with different source commits could still produce `complete`.
+This extends the evidence-identity repair before final integration.
 
 | Order | Work and code owner | Acceptance and dependencies |
 | --- | --- | --- |
 | A1 | Preserve measured model identity in `application/qualify.py:report` | A Haiku overlay reports Haiku, not the GPT-OSS default; absent identity is not invented for measured cells |
 | A2 | Keep each scored overlay bound to one model in `agy_qualify.py` | Reject mixed-model scoring/fill before workspace or model effects; native/isolation updates and invalidation preserve existing attribution; rejection preserves original bytes; same-model replay is idempotent |
 | A3 | Unambiguously frame `application/qualify.py:tree_digest` | A one-file payload containing another entry's delimiters cannot equal the digest of a two-file tree; rename/content changes change identity; traversal order does not; retain old measurements as historical |
+| A3b | Reject contradictory estate identities in `ai_stp_contracts.estate_release` | One provider repository appears once; a filename cannot claim different digests across consumer distributions, native artifacts or provider wheels; real-file validator regressions refuse the contradictory records before a complete verdict |
 | A4 | Reconcile this roadmap and Agent UX checkpoint with source and retained evidence | One current checkpoint, explicit model/date/limits, no stale next-release instruction, no unsupported native or release pass |
 | A5 | Verify actual services and full gate | `just docs-check`, `just back-static`, `just back-test` with disposable PostgreSQL, `just web-check`, plus resource/build/install regression and security recipes; explain each environment skip; use pinned Bun without changing the user's installation; dispatch existing platform/configuration/software evidence workflows on the work SHA after verifying seven exact provider tags |
 | A6 | Review, integrate and verify | Explicit-path staging, exact-SHA PR into `dev`, promotion into `main` after checks, served-SHA readback, synchronize permanent local branches; a green historical SHA is not the final gate |
 
-A1–A3 change qualification evidence handling, not provider ownership or task
-architecture. Update SPEC-080 REQ-8020 from the implemented regression tests;
+A1–A3b change qualification evidence handling, not provider ownership or task
+architecture. Update SPEC-080 REQ-8020 and SPEC-061 from the implemented regression tests;
 no new architecture rule or dependency is needed. Regenerate affected sources
 and indexes through their owners. Before each remote mutation, re-read the
 source/head SHA and PR state. Re-running scoring with the same model/key must
