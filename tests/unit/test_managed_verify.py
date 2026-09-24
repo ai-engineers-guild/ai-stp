@@ -57,6 +57,7 @@ def _bundle_bytes(
     document: dict[str, object] = {
         "managed_paths": sorted(files),
         "files": records,
+        "conversion_report": {"entries": [{"native_surface": "skills"}]},
         "setup": {
             "stable_id": SETUP_ID,
             "version": setup_version,

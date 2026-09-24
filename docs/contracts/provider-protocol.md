@@ -1,6 +1,6 @@
 ---
 description: "Commands, execution boundary, and state mapping of a public provider."
-last_verified: "2026-09-16"
+last_verified: "2026-09-24"
 ---
 
 # Provider protocol
@@ -120,8 +120,14 @@ HarnessBundle. On `local_drift`, `target diff` compares them with the
 relative path, and SHA-256 evidence; an unsafe link is marked
 `observed_digest=unsafe`.
 
-Inspection is limited to managed roots, does not follow symbolic links, does not
-show an absolute local path, and does not modify the target. Loss of the exact
+Project roots and stable project IDs resolve to the same verified operation and
+managed detail. Inspection uses native surfaces in the exact bundle's conversion
+report: a nested settings file owns that file, not its parent's logs or caches;
+a directory surface includes added files within that namespace. Paths without
+projection evidence are compared as exact files, without inferring ownership of
+their parents. Nested roots also check their parent directories for links.
+Inspection does not follow symbolic links, show an absolute local path, or modify
+the target. Loss of the exact
 bundle, target binding, or verified history is not guessed from the current
 directory and instead fails closed with `unavailable`. The result is evidence for the
 user and plan; it does not automatically start recovery or cleanup.
