@@ -87,6 +87,7 @@ def acquire_pin(setup_id: str, setup_version: str) -> None:
     """Use an exact owned or account-synced setup; otherwise acquire its graph."""
     from ai_stp_cli.application import catalog as catalog_service
 
+    include_private = False
     with closing(open_registry(configured_path(), create=True)) as connection:
         held = versions.held(connection, setup_id, setup_version)
         stored = revisions.get(connection, held.revision_id) if held is not None else None
@@ -109,13 +110,20 @@ def acquire_pin(setup_id: str, setup_version: str) -> None:
                     raise
                 # Sync retains passports, not distribution artifacts. A private
                 # publication can provide the missing exact bytes through acquire.
+                include_private = passport.visibility == "private"
             else:
                 if try_parse_setup_definition(payload) is not None:
                     setup_compose.retain_embedded(
                         connection, payload, device_id=stored.device_id, at=stored.created_at
                     )
                 return
-    catalog_service.acquire({"id": setup_id, "version": setup_version})
+    catalog_service.acquire(
+        {
+            "id": setup_id,
+            "version": setup_version,
+            **({"private": True} if include_private else {}),
+        }
+    )
 
 
 def ensure_local_context(root: Path) -> None:

@@ -41,7 +41,7 @@ last_verified: "2026-08-03"
 | [fixture-corpus.md](fixture-corpus.md) | Shared /v1 fixture corpus: case kinds, invariants, and usage by both sides. | 2026-08-05 |
 | [github-archive-evidence.md](github-archive-evidence.md) | Machine contract for local GitHub archive evidence and observation history. | 2026-08-15 |
 | [gitlab-discovery.md](gitlab-discovery.md) | GitLab discovery routes and their provider identity boundary. | 2026-09-22 |
-| [harness-bundle.md](harness-bundle.md) | Bounded deterministic package for a public harness provider. | 2026-09-01 |
+| [harness-bundle.md](harness-bundle.md) | Bounded deterministic package for a public harness provider. | 2026-09-24 |
 | [http-api.md](http-api.md) | HTTP API versioning, authorization, idempotency, and concurrency. | 2026-09-15 |
 | [native-component-discovery.md](native-component-discovery.md) | Machine contract for read-only discovery of native components in supported harnesses. | 2026-09-05 |
 | [offline-capability.md](offline-capability.md) | What works without the network after initial setup and what requires connectivity. | 2026-08-13 |
@@ -49,7 +49,7 @@ last_verified: "2026-08-03"
 | [passport-envelope.md](passport-envelope.md) | Canonical passport envelope and fact provenance. | 2026-08-04 |
 | [path-inventory.md](path-inventory.md) | Machine contract for passport-first inventory of one explicit authoring root. | 2026-09-05 |
 | [preserved-setups.md](preserved-setups.md) | Local setup identities, verified native recovery bindings and CLI selection. | 2026-09-07 |
-| [private-distribution.md](private-distribution.md) | Private upload, exact access reads and owner visibility plans shared with the platform owner. | 2026-09-08 |
+| [private-distribution.md](private-distribution.md) | Private upload, exact access reads and owner visibility plans shared with the platform owner. | 2026-09-24 |
 | [project-discovery.md](project-discovery.md) | Machine form of complete project discovery within an explicitly named scope. | 2026-08-09 |
 | [provider-protocol.md](provider-protocol.md) | Commands, execution boundary, and state mapping of a public provider. | 2026-09-16 |
 | [provider-release.md](provider-release.md) | Provider release manifest, trust, verification, and rollback protection. | 2026-09-04 |

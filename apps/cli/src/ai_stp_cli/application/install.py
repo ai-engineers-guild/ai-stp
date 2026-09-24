@@ -522,6 +522,7 @@ def plan(parameters: Mapping[str, object]) -> Answer[InstallationView]:
             Path(provider_target),
             allowed_permissions=_allowed_permissions(parameters),
         )
+        _require_compiled_bundle(compiled)
         compiled_format = str(compiled.manifest.get("bundle_format") or "")
         _supports_bundle(info, held.harness_id, compiled_format)
         bundle_path = cache.store_raw_artifact_bytes(compiled.archive, compiled.artifact_digest)
@@ -694,6 +695,7 @@ def _plan_v3(
             scope=str(parameters.get("scope") or "global"),
             allowed_permissions=_allowed_permissions(parameters),
         )
+        _require_compiled_bundle(compiled)
         planned_scope = _v3_profile_accepts(capabilities, compiled).scope
         compiled_format = str(compiled.manifest.get("bundle_format") or "")
         status_tail = operation_v3.status_arguments(capabilities, planned_scope)
@@ -732,6 +734,7 @@ def _plan_v3(
             scope=planned_scope,
         )
         if compiled is not None:
+            _require_compiled_bundle(compiled)
             bundle_path = cache.store_raw_artifact_bytes(compiled.archive, compiled.artifact_digest)
             bound_bundle = bundle_protocol.binding(
                 bundle_path,
@@ -1948,6 +1951,21 @@ def _profile_for_graph(
         details={"scope": scope, "provider": capabilities.provider_id},
         next_actions=["provider conformance --harness <id> --executable <path> --json"],
     )
+
+
+def _require_compiled_bundle(compiled: bundle.Bundle) -> None:
+    """Keep compiler refusals before reading a manifest that refusal omits."""
+    if not compiled.compiled:
+        raise CliFailure(
+            "AI_STP_PRECONDITION_FAILED",
+            "the setup bundle could not be compiled",
+            details={
+                "refusals": [
+                    {"code": item.code, "summary": item.summary, "details": dict(item.details)}
+                    for item in compiled.refusals
+                ]
+            },
+        )
 
 
 def _v3_profile_accepts(

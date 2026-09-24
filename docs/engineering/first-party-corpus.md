@@ -1,6 +1,6 @@
 ---
 description: "Rebuilding and publishing the first-party corpus from exact attested setup-system releases."
-last_verified: "2026-09-07"
+last_verified: "2026-09-24"
 ---
 
 # First-party launch corpus
@@ -37,6 +37,21 @@ passports. Platform support comes from the verified provider capability declarat
 The builder uses `composition.rule_for`; an unrouted path is reported instead of
 being silently relabeled. Native Codex agent roles are supported by the current
 projection registry. The full report must be reviewed before importing a capture.
+
+A focused `--harness` build emits only the requested families. When importing
+that capture into the complete corpus, preserve every other family's manifest
+entry, release pin and artifact. Compare their sealed passports and artifact
+bytes with the previous snapshot before accepting the import. A provider
+release does not itself update the packaged corpus or publish its objects.
+
+The 2026-09-25 Antigravity capture binds release `0.0.74` at commit
+`8e6d20e7f8b5d63f397a9f3520e22d84a7fc5e27`. Its unchanged minimal family keeps
+its versions; changed baseline, full-auto and nddev-builder content advances
+the affected component and setup versions. Other harness families retain
+their previous passports, artifacts and release pins. The captured setting
+includes `allowNonWorkspaceAccess`, which native Antigravity CLI 1.2.10 read
+as enabled in the isolated user journey. Capture and publication readback
+remain separate evidence.
 
 ## Identity, versions, and provenance
 

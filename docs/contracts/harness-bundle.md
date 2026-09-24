@@ -1,6 +1,6 @@
 ---
 description: "Bounded deterministic package for a public harness provider."
-last_verified: "2026-09-01"
+last_verified: "2026-09-24"
 ---
 
 # Harness bundle
@@ -151,6 +151,18 @@ bundle had been silently weakened.
 A declared path is also a root here, as in `composition-reports.md`:
 `skills/foo` covers `skills/foo/SKILL.md` and is not `path_undeclared`. A root
 under which no file arrived remains `declared_path_absent`.
+
+Hook ownership also reserves the directory beside `hooks.json`, but an inline
+command does not require a bundled handler there. Compilation requires every
+explicit passport path; it includes the implicit sibling cover only when that
+component supplies files below it. Collision detection retains the complete
+ownership claim, including the reserved sibling directory.
+
+An installation receiving a refused compiler result returns
+`AI_STP_PRECONDITION_FAILED` with the original `refusals` entries (`code`,
+`summary`, and `details`). It does not read the absent manifest or pass an empty
+archive to the provider. This applies to installation, replacement and a
+removal that compiles withdrawal content.
 
 A path is not silently repaired. Normalization that resolves a collision by
 choosing a winner is precisely the automatic conflict resolution that `REQ-626`
