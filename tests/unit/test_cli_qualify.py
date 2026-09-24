@@ -161,6 +161,36 @@ def test_native_bytes_oracle_matches_written_tree_and_detects_drift(
     assert tree_digest(root) != reported
 
 
+def test_native_tree_digest_frames_file_boundaries(tmp_path: Path) -> None:
+    one = tmp_path / "one"
+    two = tmp_path / "two"
+    one.mkdir()
+    two.mkdir()
+    (one / "first").write_bytes(b"x\nsecond\0y")
+    (two / "second").write_bytes(b"y")
+    (two / "first").write_bytes(b"x")
+    assert tree_digest(one) != tree_digest(two)
+    (one / "first").write_bytes(b"x")
+    (one / "second").write_bytes(b"y")
+    assert tree_digest(one) == tree_digest(two)
+    (one / "second").rename(one / "renamed")
+    assert tree_digest(one) != tree_digest(two)
+
+
+@pytest.mark.parametrize("model", ["claude-haiku-4-5", "gpt-oss-120b-medium", None, "", 12])
+def test_report_preserves_measured_model_identity(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, model: object
+) -> None:
+    place = tmp_path / "measured.json"
+    place.write_text(
+        json.dumps({"agy_model": model, "haiku": {"no-reinit-on-coding:0": "pass"}}),
+        encoding="utf-8",
+    )
+    monkeypatch.setenv(MEASURED_ENV, str(place))
+    shown = report()
+    assert shown["agy_model"] == (model if isinstance(model, str) and model else None)
+
+
 def test_native_config_root_honours_opencode_xdg(tmp_path: Path) -> None:
     home = tmp_path / "home"
     xdg = tmp_path / "xdg"

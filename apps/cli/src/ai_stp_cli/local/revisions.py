@@ -118,7 +118,22 @@ def _ancestor_distances(connection: sqlite3.Connection, revision_id: str) -> dic
 
 def is_ancestor(connection: sqlite3.Connection, ancestor: str, descendant: str) -> bool:
     """Whether both revisions exist and ``ancestor`` is in ``descendant``'s graph."""
-    return ancestor in _ancestor_distances(connection, descendant)
+    stored = get(connection, descendant)
+    if stored is None:
+        return False
+    if ancestor == descendant:
+        return True
+    seen = {descendant}
+    frontier = deque(stored.parents)
+    while frontier:
+        current = frontier.popleft()
+        if current == ancestor:
+            return True
+        if current in seen:
+            continue
+        seen.add(current)
+        frontier.extend(_parents_of(connection, current))
+    return False
 
 
 def common_ancestor(connection: sqlite3.Connection, left: str, right: str) -> StoredRevision | None:

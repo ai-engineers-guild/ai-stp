@@ -1465,6 +1465,27 @@ def _haiku_map(body: Mapping[str, object]) -> dict[str, object]:
     return {str(key): value for key, value in raw_items.items()}
 
 
+def _model_overlay(path: Path, model: str) -> dict[str, object]:
+    """Refuse to attribute existing scored cells to a different or unknown model."""
+    if not model.strip():
+        raise ValueError("--model must name the model being measured")
+    body = _overlay_body(path)
+    if body.get("agy_model") != model and any(
+        value in ("pass", "fail") for value in _haiku_map(body).values()
+    ):
+        raise ValueError(
+            "measured overlay contains cells from a different or unknown model; "
+            "use a separate --measured path for this model"
+        )
+    return body
+
+
+def _preserve_overlay_model(body: dict[str, object], model: str) -> None:
+    """Native probes and invalidation cannot relabel retained model results."""
+    if not _haiku_map(body):
+        body.setdefault("agy_model", model)
+
+
 def unrun_cells(haiku: Mapping[str, object]) -> tuple[tuple[str, int], ...]:
     """Missing and not_run only. Scored pass/fail stay put."""
     held: list[tuple[str, int]] = []
@@ -1506,7 +1527,9 @@ def write_cell(
 ) -> None:
     if scenario not in HAIKU_SCENARIOS:
         raise ValueError(scenario)
-    body = _overlay_body(path)
+    if run < 0 or run >= HAIKU_RUNS:
+        raise ValueError(run)
+    body = _model_overlay(path, model)
     haiku = _haiku_map(body)
     haiku[f"{scenario}:{run}"] = status
     body["haiku"] = haiku
@@ -1533,7 +1556,7 @@ def write_native_cell(
         native = {str(key): value for key, value in raw_items.items()}
     native[f"{harness}:{platform}"] = status
     body["native"] = native
-    body["agy_model"] = model
+    _preserve_overlay_model(body, model)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(body, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
@@ -1568,7 +1591,7 @@ def write_isolation(
 ) -> None:
     body = _overlay_body(path)
     body["isolation"] = dict(snapshot)
-    body["agy_model"] = model
+    _preserve_overlay_model(body, model)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(body, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
@@ -1682,7 +1705,7 @@ def clear_cell(path: Path, scenario: str, run: int, *, model: str = AGY_MODEL) -
         return
     haiku.pop(key, None)
     body["haiku"] = haiku
-    body["agy_model"] = model
+    _preserve_overlay_model(body, model)
     path.write_text(json.dumps(body, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
@@ -1701,7 +1724,7 @@ def invalidate_scenario(path: Path, scenario: str, *, model: str = AGY_MODEL) ->
             haiku.pop(key)
             dropped += 1
     body["haiku"] = haiku
-    body["agy_model"] = model
+    _preserve_overlay_model(body, model)
     path.write_text(json.dumps(body, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     return dropped
 
@@ -1721,7 +1744,7 @@ def invalidate_cell(path: Path, scenario: str, run: int, *, model: str = AGY_MOD
         return 0
     haiku.pop(key)
     body["haiku"] = haiku
-    body["agy_model"] = model
+    _preserve_overlay_model(body, model)
     path.write_text(json.dumps(body, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     return 1
 
@@ -1845,6 +1868,8 @@ def qualify_one(
     model: str = AGY_MODEL,
     docker_image: str | None = None,
 ) -> int:
+    if measured is not None:
+        _model_overlay(measured, model)
     if probe and not capacity_probe(agy, model=model):
         print(
             json.dumps(
@@ -1919,6 +1944,7 @@ def fill_unrun(
     docker_image: str | None = None,
 ) -> int:
     """One cell at a time. 503 stays unrun; the next attempt may take a different cell."""
+    _model_overlay(measured, model)
     passed = 0
     skipped: set[tuple[str, int]] = set()
     last: tuple[str, int] | None = None
@@ -2015,6 +2041,21 @@ def main(arguments: list[str] | None = None) -> int:
     )
     options = parser.parse_args(arguments)
     docker_image = options.docker_image or os.environ.get(DOCKER_IMAGE_ENV) or None
+    scoring = not (
+        options.record_isolation
+        or options.native_cell is not None
+        or options.native_drive is not None
+    ) and (
+        options.fill
+        or options.root is not None
+        or not (options.invalidate or options.invalidate_stale_verified)
+    )
+    if scoring and options.measured is not None:
+        try:
+            _model_overlay(options.measured, options.model)
+        except (OSError, ValueError) as error:
+            print(str(error), file=sys.stderr)
+            return 2
     if options.invalidate_stale_verified:
         options.invalidate.extend(STALE_VERIFIED_SCENARIOS)
     if options.invalidate:

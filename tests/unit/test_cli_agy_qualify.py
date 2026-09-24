@@ -76,7 +76,7 @@ from ai_stp_cli.agy_qualify import (
     write_isolation,
     write_native_cell,
 )
-from ai_stp_cli.application.qualify import AGY_MODEL, HAIKU_SCENARIOS
+from ai_stp_cli.application.qualify import AGY_MODEL, HAIKU_RUNS, HAIKU_SCENARIOS
 from ai_stp_contracts.cli_copy import INITIALIZE_PROMPT, INITIALIZE_START
 
 
@@ -1039,11 +1039,72 @@ def test_write_cell_records_the_model_that_drove_it(tmp_path: Path) -> None:
     measured = tmp_path / "measured.json"
     write_cell(measured, NO_REINIT, 0, "pass")
     assert json.loads(measured.read_text(encoding="utf-8"))["agy_model"] == AGY_MODEL
-    write_cell(measured, NO_REINIT, 1, "pass", model="claude-haiku-4-5")
+    before = measured.read_bytes()
+    with pytest.raises(ValueError, match="separate --measured"):
+        write_cell(measured, NO_REINIT, 1, "pass", model="claude-haiku-4-5")
+    assert measured.read_bytes() == before
+    write_cell(measured, NO_REINIT, 1, "pass")
     body = json.loads(measured.read_text(encoding="utf-8"))
-    assert body["agy_model"] == "claude-haiku-4-5"
+    assert body["agy_model"] == AGY_MODEL
     assert body["haiku"][f"{NO_REINIT}:0"] == "pass"
     assert body["haiku"][f"{NO_REINIT}:1"] == "pass"
+    before = measured.read_bytes()
+    write_cell(measured, NO_REINIT, 1, "pass")
+    assert measured.read_bytes() == before
+
+
+@pytest.mark.parametrize("fill", [False, True])
+@pytest.mark.parametrize("invalidate", [False, True])
+def test_model_mismatch_is_rejected_before_qualification_effects(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], fill: bool, invalidate: bool
+) -> None:
+    measured = tmp_path / "measured.json"
+    write_cell(measured, NO_REINIT, 0, "pass", model="claude-haiku-4-5")
+    before = measured.read_bytes()
+    root = tmp_path / "must-not-be-created"
+    argv = ["--root", str(root), "--measured", str(measured), "--agy", "absent-driver"]
+    if fill:
+        argv.append("--fill")
+    if invalidate:
+        argv.extend(["--invalidate", NO_REINIT])
+    assert main(argv) == 2
+    assert "separate --measured" in capsys.readouterr().err
+    assert not root.exists()
+    assert measured.read_bytes() == before
+
+
+def test_unattributed_cells_cannot_acquire_a_model_label(tmp_path: Path) -> None:
+    measured = tmp_path / "measured.json"
+    measured.write_text(json.dumps({"haiku": {f"{NO_REINIT}:0": "pass"}}), encoding="utf-8")
+    before = measured.read_bytes()
+    with pytest.raises(ValueError, match="unknown model"):
+        write_cell(measured, NO_REINIT, 1, "pass")
+    assert measured.read_bytes() == before
+    write_isolation(measured, {"status": "enforced"})
+    assert "agy_model" not in json.loads(measured.read_text(encoding="utf-8"))
+
+
+def test_native_probes_and_invalidation_preserve_model_attribution(tmp_path: Path) -> None:
+    measured = tmp_path / "measured.json"
+    for run in range(3):
+        write_cell(measured, NO_REINIT, run, "pass", model="claude-haiku-4-5")
+    write_isolation(measured, {"status": "enforced"})
+    write_native_cell(measured, "cursor", "linux-x86_64", "pass")
+    clear_cell(measured, NO_REINIT, 4)
+    assert invalidate_cell(measured, NO_REINIT, 1) == 1
+    body = json.loads(measured.read_text(encoding="utf-8"))
+    assert body["agy_model"] == "claude-haiku-4-5"
+    assert body["haiku"] == {f"{NO_REINIT}:0": "pass", f"{NO_REINIT}:2": "pass"}
+    assert invalidate_scenario(measured, NO_REINIT) == 2
+    assert json.loads(measured.read_text(encoding="utf-8"))["agy_model"] == "claude-haiku-4-5"
+
+
+@pytest.mark.parametrize("run", [-1, HAIKU_RUNS])
+def test_write_cell_refuses_out_of_matrix_runs(tmp_path: Path, run: int) -> None:
+    measured = tmp_path / "measured.json"
+    with pytest.raises(ValueError):
+        write_cell(measured, NO_REINIT, run, "pass")
+    assert not measured.exists()
 
 
 def test_unavailable_markers_cover_claude_overload() -> None:

@@ -131,8 +131,19 @@ class EstateRelease(BaseModel):
     def _closed_refs(self) -> EstateRelease:
         _forbid_floating(self.consumer.tag)
         _forbid_floating(self.consumer.release_url)
+        repositories: set[str] = set()
+        claims = [(item.filename, item.digest) for item in self.distributions]
         for provider in self.providers:
             _forbid_floating(provider.tag)
+            if provider.repository in repositories:
+                raise ValueError(f"duplicate estate provider repository: {provider.repository}")
+            repositories.add(provider.repository)
+            claims.extend((item.filename, item.digest) for item in provider.native_artifacts)
+            claims.extend((item.filename, item.digest) for item in provider.wheels)
+        digests: dict[str, str] = {}
+        for filename, digest in claims:
+            if digests.setdefault(filename, digest) != digest:
+                raise ValueError(f"conflicting estate artifact digests for {filename}")
         return self
 
 

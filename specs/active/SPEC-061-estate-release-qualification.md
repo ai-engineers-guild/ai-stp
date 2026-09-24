@@ -1,6 +1,6 @@
 ---
 description: "SPEC-061: Estate-release complete requires the seven-harness launch matrix."
-last_verified: "2026-09-08"
+last_verified: "2026-09-24"
 ---
 
 # SPEC-061: Estate-release qualification
@@ -45,6 +45,12 @@ seven attested OpenNetwork repositories. Excluded: tagging 0.1.0 or
   identity. A launch row's `provider_tag` must match that provider's
   recorded tag. Historical records without `provider` remain parseable and
   cannot become `complete` without the matrix.
+- `REQ-6105`: An estate record contains each provider repository once.
+  Repeated repository entries are rejected, including conflicting source
+  commits. One artifact filename has one digest across consumer distributions,
+  provider native artifacts and provider wheels. Conflicting claims are
+  rejected before verdict recomputation or file lookup; repeated references
+  to identical bytes remain valid.
 
 ## States and errors
 
@@ -73,3 +79,4 @@ tags are not rewritten.
 | `REQ-6102` | Unit test: omitting Antigravity, skipping Antigravity, or writing launch rows with an empty `provider` is `incomplete`. |
 | `REQ-6103` | Unit test: failed Antigravity launch with a known-limitation string is `failed`; the same limitation with omitted cells is `incomplete`. |
 | `REQ-6104` | Schema and model accept `provider`; a launch tag that does not match the named provider does not fill the cell. |
+| `REQ-6105` | `test_estate_release` rejects repeated provider identities and conflicting distribution/native/wheel digests against real files, including metadata-only validation; shared references with identical digests validate. |

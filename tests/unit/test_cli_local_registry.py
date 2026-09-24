@@ -376,6 +376,51 @@ def test_revision_graph_finds_fast_forward_and_the_nearest_common_ancestor(
     assert ancestor.revision_id == root.revision_id
     assert revisions.common_ancestor(registry, left.revision_id, left.revision_id) == left
     assert revisions.common_ancestor(registry, left.revision_id, "revision_" + "0" * 64) is None
+    merged = revisions.commit(
+        registry,
+        _content(
+            developer,
+            owner,
+            at,
+            parent_revision_ids=[left.revision_id, right.revision_id],
+        ),
+        device_id=DEVICE,
+    )
+    for parent in (root, left, right, merged):
+        assert revisions.is_ancestor(registry, parent.revision_id, merged.revision_id)
+    unknown = "revision_" + "0" * 64
+    assert not revisions.is_ancestor(registry, unknown, merged.revision_id)
+    assert not revisions.is_ancestor(registry, unknown, unknown)
+
+
+def test_immediate_ancestor_lookup_does_not_read_the_entire_history(
+    registry: sqlite3.Connection,
+) -> None:
+    owner, developer = new_id("account"), new_id("developer")
+    at = passports.moment()
+    chain: list[revisions.StoredRevision] = []
+    for _ in range(100):
+        chain.append(
+            revisions.commit(
+                registry,
+                _content(
+                    developer,
+                    owner,
+                    at,
+                    parent_revision_ids=[chain[-1].revision_id] if chain else [],
+                ),
+                device_id=DEVICE,
+            )
+        )
+    before = registry.serialize()
+    statements: list[str] = []
+    registry.set_trace_callback(statements.append)
+    try:
+        assert revisions.is_ancestor(registry, chain[-2].revision_id, chain[-1].revision_id)
+    finally:
+        registry.set_trace_callback(None)
+    assert len(statements) <= 3
+    assert registry.serialize() == before
 
 
 def test_reads_never_write(registry: sqlite3.Connection) -> None:
