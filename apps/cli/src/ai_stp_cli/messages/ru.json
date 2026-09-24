@@ -840,6 +840,7 @@
   "the sync receipt does not match the sent event": "квитанция sync не совпадает с отправленным событием",
   "the sync receipt names no pending local event": "квитанция sync не называет ожидающего локального события",
   "the sync was applied; recording the receipt failed": "синхронизация применена; записать квитанцию не удалось",
+  "the target harness version cannot consume this bundle": "целевая версия harness не может использовать этот bundle",
   "the target changed since this plan was made": "цель изменилась с момента составления этого плана",
   "the target harness has no native surface for a chosen component": "у целевого харнесса нет нативной поверхности для выбранного компонента",
   "the target harness is required": "нужен целевой харнесс",

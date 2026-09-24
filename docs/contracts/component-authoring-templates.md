@@ -86,7 +86,11 @@ to replace the old member in a derived setup.
 Native source syntax remains the author's responsibility. For example,
 Antigravity modular rules require valid trigger frontmatter. A verified provider
 operation proves installed bytes; a fresh native session must separately prove
-discovery and behavior.
+discovery and behavior. Antigravity CLI `1.2.10` cannot execute the legacy
+workflow slash surface; selection and new installation refuse that combination
+with `provider_surface_unavailable`. Author a separate `skill` when that is
+the intended native interface. Existing command objects and recovery history
+are retained.
 
 1. Run `component scaffold plan`, review the descriptor, every file, and digest,
    then pass unchanged inputs to `component scaffold apply` with the exact plan

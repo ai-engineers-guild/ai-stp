@@ -674,6 +674,12 @@ def _provider(candidate: CandidateFacts, target: Target) -> list[Refusal]:
             )
         )
 
+    native_refusal = native_version_refusal(
+        candidate.component_type, target.harness_id, target.harness_version
+    )
+    if native_refusal is not None and _fits_harness(candidate, target):
+        found.append(native_refusal)
+
     platform = f"{target.os}/{target.arch}"
     if target.provider_platforms and platform not in target.provider_platforms:
         found.append(
@@ -738,6 +744,31 @@ def _major(version: str) -> str:
 
 def _range(lowest: str, highest: str) -> str:
     return f"{lowest or 'any'}..{highest or 'any'}"
+
+
+def native_version_refusal(
+    component_type: str, harness_id: str, harness_version: str
+) -> Refusal | None:
+    """Known native runtime incompatibilities, shared with exact-bundle installation."""
+    # 1.2.10 reads the legacy directory but exposes no command invocation.
+    # Keep historical artifacts; lift this exclusion only with native execution
+    # evidence. It is not a claim about other, unmeasured native versions.
+    if (
+        harness_id == "antigravity"
+        and component_type == "command"
+        and _reading(harness_version) == ((1, 2, 10), 1)
+    ):
+        return _refuse(
+            "provider_surface_unavailable",
+            "this harness version does not expose legacy workflows as native commands",
+            {
+                "harness_id": harness_id,
+                "harness_version": harness_version,
+                "component_type": component_type,
+                "native_path": "config/global_workflows",
+            },
+        )
+    return None
 
 
 def _reading(text: str) -> tuple[tuple[int, ...], int] | None:

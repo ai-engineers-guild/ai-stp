@@ -24,6 +24,7 @@ import platform
 import re
 import sqlite3
 import subprocess
+import zipfile
 from collections.abc import Generator, Mapping, Sequence
 from contextlib import closing, contextmanager
 from contextvars import ContextVar
@@ -40,6 +41,7 @@ from ai_stp_cli.local import (
     bundle,
     cache,
     composition,
+    eligibility,
     graph,
     harnesses,
     installation,
@@ -523,6 +525,8 @@ def plan(parameters: Mapping[str, object]) -> Answer[InstallationView]:
             allowed_permissions=_allowed_permissions(parameters),
         )
         _require_compiled_bundle(compiled)
+        if action in {"install", "update"}:
+            _require_native_runtime(held.harness_id, tuple(item.path for item in compiled.files))
         compiled_format = str(compiled.manifest.get("bundle_format") or "")
         _supports_bundle(info, held.harness_id, compiled_format)
         bundle_path = cache.store_raw_artifact_bytes(compiled.archive, compiled.artifact_digest)
@@ -696,6 +700,7 @@ def _plan_v3(
             allowed_permissions=_allowed_permissions(parameters),
         )
         _require_compiled_bundle(compiled)
+        _require_native_runtime(pair.harness_id, tuple(item.path for item in compiled.files))
         planned_scope = _v3_profile_accepts(capabilities, compiled).scope
         compiled_format = str(compiled.manifest.get("bundle_format") or "")
         status_tail = operation_v3.status_arguments(capabilities, planned_scope)
@@ -952,6 +957,22 @@ def apply(parameters: Mapping[str, object]) -> Answer[InstallationView]:
             if held.provider_protocol_version == protocol_v3.VERSION
             else _bound_bundle(held)
         )
+        current = journal.get(connection, operation_id)
+        if (
+            harness_id == "antigravity"
+            and held.action in {"install", "update"}
+            and bound_bundle is not None
+            and current is not None
+            and current.state == installation.STATE_APPROVED
+        ):
+            # Revalidate runtime compatibility from the exact approved archive;
+            # a native program may have changed after planning. Recovery and
+            # observation of an existing installation are not new writes.
+            with zipfile.ZipFile(bound_bundle.path) as archive:
+                _require_native_runtime(
+                    harness_id,
+                    tuple(name.removeprefix("files/") for name in archive.namelist()),
+                )
         info = _object(invoke("provider-info", ()))
         _speaks(info, held.provider_protocol_version)
         if held.provider_protocol_version == protocol_v3.VERSION:
@@ -1951,6 +1972,33 @@ def _profile_for_graph(
         details={"scope": scope, "provider": capabilities.provider_id},
         next_actions=["provider conformance --harness <id> --executable <path> --json"],
     )
+
+
+def _require_native_runtime(harness_id: str, paths: Sequence[str]) -> None:
+    if harness_id != "antigravity" or not any(
+        path.startswith("config/global_workflows/") for path in paths
+    ):
+        return
+    refusal = eligibility.native_version_refusal(
+        "command", harness_id, _observed_harness_version(harness_id)
+    )
+    if refusal is not None:
+        raise CliFailure(
+            "AI_STP_PRECONDITION_FAILED",
+            "the target harness version cannot consume this bundle",
+            details={
+                "refusals": cast(
+                    JsonValue,
+                    [
+                        {
+                            "code": refusal.code,
+                            "summary": refusal.summary,
+                            "details": refusal.details,
+                        }
+                    ],
+                )
+            },
+        )
 
 
 def _require_compiled_bundle(compiled: bundle.Bundle) -> None:

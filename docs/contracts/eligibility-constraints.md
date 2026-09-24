@@ -141,7 +141,15 @@ rejected for this reason.
 |---|---|
 | `provider_unavailable` | no released provider exists for the harness |
 | `provider_platform_unsupported` | the released provider does not support the target system or architecture |
-| `provider_surface_unavailable` | the harness has no native surface for the component type, so the provider cannot project it |
+| `provider_surface_unavailable` | the harness has no usable native surface for the component type, including a measured incompatibility of the detected native version |
+
+Antigravity CLI `1.2.10` is a measured exclusion for legacy `command`
+workflows at `config/global_workflows`: the CLI reads the file but does not
+execute the named slash invocation. The refusal names the exact harness
+version, kind, and native path, and applies even with task authority. Other
+versions are not denied by this exclusion; that is not execution evidence for
+them. Historical objects remain immutable. A separately authored `skill` is
+a distinct object, never an implicit conversion.
 
 ## What is not a rejection
 
