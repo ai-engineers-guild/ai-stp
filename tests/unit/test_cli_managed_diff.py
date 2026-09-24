@@ -142,8 +142,10 @@ def test_overlapping_surfaces_compare_each_namespace_once(tmp_path: Path) -> Non
 def test_bundle_manifest_refuses_unsafe_conversion_surfaces(tmp_path: Path, surface: str) -> None:
     archive = tmp_path / "bundle.zip"
     _bundle(archive, {"config/plugins/base/plugin.json": b"expected\n"}, surfaces=(surface,))
-    with pytest.raises(CliFailure):
+    with pytest.raises(CliFailure) as raised:
         managed_diff.bundle_manifest(archive)
+    assert raised.value.code == "AI_STP_PRECONDITION_FAILED"
+    assert "native surface is invalid" in raised.value.message
 
 
 def test_compare_does_not_follow_links_or_change_the_target(tmp_path: Path) -> None:
