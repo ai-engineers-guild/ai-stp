@@ -1,6 +1,6 @@
 ---
 description: "Target implementation plan for the agent-first CLI: weakest-model loop, shared task engine, and the website-to-native journeys in epic #261."
-last_verified: "2026-09-20"
+last_verified: "2026-09-24"
 ---
 
 # Agent UX implementation plan
@@ -18,11 +18,11 @@ prompt, a Haiku-class agent operates ai-stp. The agent picks an intent,
 relays answers, and reports verification. The CLI owns acquisition,
 composition, backup, plan, approve, apply, verify, retries, and recovery.
 
-## Checkpoint (2026-09-20)
+## Checkpoint (2026-09-24)
 
 Eight drained intents are on GitHub `main` (PR
 [#297](https://github.com/ai-engineers-guild/ai-stp/pull/297) merged
-2026-09-19). Source and PyPI `ai-stp-cli` are `0.0.24`. Epic #261–#275 stay
+2026-09-19). Source and the released `ai-stp-cli` line are `0.0.28`. Epic #261–#275 stay
 OPEN. Do not touch colleague issues (#254, #256) or
 `feat/milestone-6-b2b-03`.
 
@@ -33,7 +33,7 @@ OPEN. Do not touch colleague issues (#254, #256) or
 | Released CLI | `0.0.28` on PyPI (`apps/cli/pyproject.toml` matches) |
 | Provider kit | `0.2.13` in `tests/golden/provider-kit/identity-ledger.json` |
 | Issues | #261–#275 OPEN. setup-systems #316 OPEN. Never close #256. Draft #254: do not touch |
-| Haiku 20×5 | last overlay 53 pass / 0 fail / 47 unrun. No ≥95/100 claim. Not a ship gate |
+| Haiku 20×5 | Retained `claude-haiku-4-5` overlay: 99 pass / 1 fail, measured 2026-09-21; historical model threshold met, not current candidate/native qualification |
 | Branch-policy SC2015 | closed in [#304](https://github.com/ai-engineers-guild/ai-stp/pull/304) |
 
 ### Live CLI
@@ -49,17 +49,24 @@ OPEN. Do not touch colleague issues (#254, #256) or
 | Slice | Code | Qualify / ship |
 | --- | --- | --- |
 | 0 land kernel | on `main` via #297 | done |
-| 1–8 | on `main` | Haiku overlay 53/100; fill not a current gate |
-| 9 qualify + next cut | runner exists | no ≥95/100; native win/mac `not_run`; next wheel after qualify of clean bytes |
+| 1–8 | on `main` | Deterministic journeys implemented; retained Haiku overlay 99/100 |
+| 9 qualify + next cut | runner exists | Historical model threshold met; native win/mac and current candidate binding remain unverified |
 
-Last scored Haiku cells (overlay `.tmp/qualify-measured.json`, still the last
-measurement): 5/5 initialize/install-pin/install-open/change/login-skipped/login-idle/publish-private/author; switch 4/5; no-reinit 4/5; publish-public 3/5; relative-root 2/5; eight scenarios at 0/5.
+The retained `.tmp/qualify-measured-haiku.json` names `claude-haiku-4-5`:
+`unsupported-project-local` is 4/5; all other scenarios are 5/5. The separate
+`.tmp/qualify-measured.json` names `gpt-oss-120b-medium`: 89 pass and 11 unrun,
+plus seven Linux native cells. The files were read again on 2026-09-24;
+the model and native scenarios were not re-executed by that read. Blocked
+authorization scenarios prove truthful refusal, not successful publication.
+An overlay alone does not bind a current wheel, all provider artifacts or
+fresh-session loading. Do not combine these model scores or carry them forward
+as measurements of a later source tree.
 
 ### Remaining to close the epic (do not shrink)
 
-1. **Slice 9 Haiku**: ≥95/100, no scenario <4/5, 5/5 on initialize / install / change / switch.
+1. **Slice 9 Haiku**: retain the historical 99/100 result; any new candidate claim needs ≥95/100, no scenario <4/5, 5/5 on initialize / install / change / switch at its own identities.
 2. **Native win/mac** stay `not_run` here. Docker ENFORCED is the isolation path on this host.
-3. **Next CLI cut** after qualify of clean bytes. `0.0.28` is on PyPI from #397/#398 and carries the completed `parameter_rules` vocabulary (#375, #380, plus telemetry consent in #396), the leaf-scoped parse-failure contract with the full missing-options set (#385), the selector-refusal `details.options` + leaf-continuation shape (#396), plus the Haiku 4.5 qualification record (#368).
+3. **Next CLI cut** after qualify of clean bytes. `0.0.28` is on PyPI from #397/#398 and carries the completed `parameter_rules` vocabulary (#375, #380, plus telemetry consent in #396), the leaf-scoped parse-failure contract with the full missing-options set (#385), and the selector-refusal `details.options` + leaf-continuation shape (#396). The qualification record in #368 is retained history, not a rerun of those later bytes.
 4. **setup-systems #316** stays OPEN. Public `NDDev-OpenNetwork/*-setup-system` tags are `0.0.73` (2026-09-19) and vendor kit `0.2.13` (same aggregate digest as this tree). A local `0.0.72` install is not the public tag. Do not close #316 from this plan.
 5. Issue comments with SHA; close only for measured scope. **Never close #256**. Do not touch #254.
 6. `component publish` stays `task_pending`. Do not compact `help --agent`. Do not shrink capabilities `command_paths` (REQ-8006).
@@ -324,7 +331,7 @@ Skill + website rewrite ships in the **same wheel** as all of:
 
 Until a Haiku-qualified wheel exists, keep current Skill playbooks so
 pre-task-engine installs are not stranded on an inspect-only surface.
-`0.0.28` on PyPI is the current reader, and it carries the Haiku 4.5 qualification recorded in #368, the completed parameter_rules vocabulary (#375, #380, #396), and the leaf-scoped parse-failure contract (#385), and the selector-refusal options+continuation shape (#396).
+`0.0.28` on PyPI is the current reader. The Haiku 4.5 record in #368 is historical evidence; later reader changes include the completed parameter_rules vocabulary (#375, #380, #396), and the leaf-scoped parse-failure contract (#385), and the selector-refusal options+continuation shape (#396).
 
 ### 2.7 Derived setups
 
@@ -596,7 +603,7 @@ process loaded them. Do not kill the caller.
 | Application | install + change + author + switch + account + publish + coordinator extracted; select/catalog/auth/sync/publication live in `application/`; Click facades; unlabeled leftover = 0 | `component publish` stays `task_pending` |
 | Task row | Full-input idempotency; `kind`-discriminated outcome; `task start` drains once; leftover `planned` replay drains; leftover `running` replay joins (no empty-continuation success); same-key insert race joins; continue claims `running`; install child resume; schema 43 overlap columns; one mutating task per bound `(harness_id, project_root, scope)` | — |
 | Init | `initialize` + catalog surfaces + optional op; task-engine fake-provider hooks; bound chosen/configured lookup; kit `0.2.13` accepts `instruction_section` and sends `--instruction-section` only when the bound provider declares both; drain `CliFailure` keeps `details.task`, `details.state=failed`, and drops expert `next_actions`. setup-systems kernel on `feat/patch-instruction-region` plan/apply/withdraw preserves `:::begin-ai-stp` / `:::end-ai-stp`; empty first write keeps bytes before markers; argv accepts YAML `---` as the section value; YAML frontmatter survives setup replace/withdraw of the attachment. Live Docker ENFORCED initialize against bound debug cursor/claude/codex/pi/opencode/grok-build writes catalogued surfaces (`alwaysApply` on cursor). Installed `0.0.72` omits the op. Antigravity lists the field and not the op | tag/publish providers only after CLI `0.0.23`; do not install over `0.0.72`; host bwrap denied |
-| Qualify | identities hashed; default report all `not_run`; measured overlay cannot fill unrun cells; isolated `agy_qualify` prompt/score covers all 20 names; linux providers on PATH but v3 local phases refuse without network isolation; overlay `isolation` may record `unavailable` without filling native cells; `--native-drive` scores verified + catalogued config-root `tree_digest`; wheel/extra `not_built`; overlay 100 pass on `gpt-oss-120b-medium` (install/change/switch/custom-home/pending-reload 5/5 truthful Docker+Haiku; initialize 5/5 truthful limitation outcome; author/relative/login-idle 5/5 truthful; publish trio 5/5 truthful blocked authorization; login-skipped 5/5 no CLI); wrapper/score path jail; empty-log 503 does not retry; `--probe` is opt-in; `--fill` walks unrun cells one-at-a-time with a 90s gap and does not overwrite scored pass/fail; start-only 503 retries a clean attempt; `--fill` skips a 503 empty-log cell to the next unrun cell; remaining follow-through names are not a verified native-bytes claim; install/change/switch overlay score requires completed+verified (verified start with empty continuations is pass); custom-home overlay score requires completed initialize `wrote` for codex and markers at `CODEX_HOME/AGENTS.md`; relative `--root` is resolved so seed/wrapper exec; those four mutating prompts include `VERIFIED_DRAIN`; opt-in `--docker-image` execs the isolated CLI inside privileged Docker; change loads locally authored embedded members; task-drain failures drop `provider network` and attach `details.state=failed`; harness config roots are not `project_root`; score fails `task answer` without `--value` and `task get`; `FOLLOW_ACTOR` stops when continuations are empty and `actor=human` is not wait; choreography ignores `--value` payloads | native linux-x86_64 7/7 executed under Docker ENFORCED; win/mac `not_run`; wheel/extra from a clean tree |
+| Qualify | identities hashed; default report all `not_run`; measured overlay cannot fill unrun cells; isolated `agy_qualify` prompt/score covers all 20 names; linux providers on PATH but v3 local phases refuse without network isolation; overlay `isolation` may record `unavailable` without filling native cells; `--native-drive` scores verified + catalogued config-root `tree_digest`; wheel/extra `not_built`; retained overlay 89 pass / 11 unrun on `gpt-oss-120b-medium` (install/change/switch/custom-home/pending-reload 5/5 truthful Docker+Haiku; initialize 5/5 truthful limitation outcome; author/relative/login-idle 5/5 truthful; publish trio 5/5 truthful blocked authorization; login-skipped 5/5 no CLI); wrapper/score path jail; empty-log 503 does not retry; `--probe` is opt-in; `--fill` walks unrun cells one-at-a-time with a 90s gap and does not overwrite scored pass/fail; start-only 503 retries a clean attempt; `--fill` skips a 503 empty-log cell to the next unrun cell; remaining follow-through names are not a verified native-bytes claim; install/change/switch overlay score requires completed+verified (verified start with empty continuations is pass); custom-home overlay score requires completed initialize `wrote` for codex and markers at `CODEX_HOME/AGENTS.md`; relative `--root` is resolved so seed/wrapper exec; those four mutating prompts include `VERIFIED_DRAIN`; opt-in `--docker-image` execs the isolated CLI inside privileged Docker; change loads locally authored embedded members; task-drain failures drop `provider network` and attach `details.state=failed`; harness config roots are not `project_root`; score fails `task answer` without `--value` and `task get`; `FOLLOW_ACTOR` stops when continuations are empty and `actor=human` is not wait; choreography ignores `--value` payloads | native linux-x86_64 7/7 executed under Docker ENFORCED; win/mac `not_run`; wheel/extra from a clean tree |
 | Recommend | one first-party `baseline` pin | — |
 | Derive | `change` mints setup id + `fork_origin` + `related_setup_ids`; `switch` restores last user `preserved_setup` | — |
 | Publish | `publish` drains no-binding publication plan | — |
@@ -827,12 +834,15 @@ must be able to skip/remove its marked section without deleting the rest
 of the instruction file. Provider optional-op: old providers simply do
 not declare it.
 
-## 11. First action when execution is approved
+## 11. Next execution
 
-1. Re-read this file against `HEAD` and the work tree (they have moved).
-2. Slice 0 remains an owner merge of this branch into `origin/dev`.
-3. Keep #254, #256 F10/R05, and PyPI 0.0.23 off the branch until slice 9
-   qualify of **clean** bytes.
+The current ordered work belongs to
+[the session-audit checkpoint](implementation-roadmap.md#session-audit-and-execution-plan-2026-09-24).
+Revalidate exact source, candidate, model and provider identities before new
+qualification. Slice 0 and the `0.0.23` release are historical completed steps.
+Native Windows/macOS, fresh-session loading, live authenticated journeys and
+the final estate record retain their separate acceptance criteria. The colleague
+issues #254 and #256 remain outside this epic's closure authority.
 4. Do not mark native Linux cells `pass` without network isolation.
    Privileged Docker ENFORCED (bwrap) is isolation for those cells; the
    host overlay stays `unavailable` while this host's bwrap is denied.

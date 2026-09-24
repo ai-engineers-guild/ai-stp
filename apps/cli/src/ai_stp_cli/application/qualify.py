@@ -134,14 +134,15 @@ def content_digest(payload: bytes) -> str:
 
 
 def tree_digest(root: Path) -> str:
-    """Ordered content hash of every file under *root*."""
-    parts: list[bytes] = []
+    """Hash ordered, unambiguously framed paths and file content identities."""
+    parts: list[tuple[str, str]] = []
     for path in sorted(root.rglob("*")):
         if not path.is_file():
             continue
-        relative = path.relative_to(root).as_posix().encode("utf-8")
-        parts.append(relative + b"\0" + path.read_bytes())
-    return content_digest(b"\n".join(parts))
+        relative = path.relative_to(root).as_posix()
+        parts.append((relative, content_digest(path.read_bytes())))
+    framed = json.dumps(parts, ensure_ascii=True, separators=(",", ":")).encode("utf-8")
+    return content_digest(b"ai-stp-qualify-tree/2\0" + framed)
 
 
 def native_platform(*, system: str | None = None, machine: str | None = None) -> str | None:
@@ -250,6 +251,9 @@ def report() -> dict[str, object]:
     native = native_cells(measured=native_from_document(document))
     haiku = haiku_cells(measured=haiku_from_document(document))
     promotion = promotion_status(measured=promotion_from_document(document))
+    model = document.get("agy_model")
+    if not isinstance(model, str) or not model.strip():
+        model = None if haiku_from_document(document) else AGY_MODEL
     return {
         "native": {
             f"{harness}:{platform}": status for (harness, platform), status in native.items()
@@ -259,5 +263,5 @@ def report() -> dict[str, object]:
         "isolation": isolation_from_document(document),
         "wheel": wheel_status(),
         "extra": extra_status(),
-        "agy_model": AGY_MODEL,
+        "agy_model": model,
     }

@@ -1,6 +1,6 @@
 ---
 description: "Immutable estate release record binding one consumer cut to exact provider evidence."
-last_verified: "2026-09-08"
+last_verified: "2026-09-24"
 ---
 
 # Estate release
@@ -40,6 +40,12 @@ The document is a closed JSON object. Required root fields:
 Optional identities (`web`, `provider_kit`, `checksums_digest`, `sbom_digest`,
 `record_provenance`) are recorded when present. Their absence does not invent
 values.
+
+Each provider repository appears once. A filename has one digest across all
+consumer and provider artifact references. Conflicting digests or repeated
+provider identities are invalid records, including during metadata-only
+validation; a later entry cannot replace an earlier identity. Multiple
+references to the same filename and digest remain valid.
 
 Every digest is `sha256:` plus 64 lowercase hex characters. `latest`, `main`,
 `master`, and `head` are refused as tags, commits, URLs, and image names.

@@ -1,6 +1,6 @@
 ---
 description: "SPEC-005: Registry, variants, and object versions."
-last_verified: "2026-09-05"
+last_verified: "2026-09-24"
 ---
 
 # SPEC-005: Registry, Variants, and Object Versions
@@ -77,7 +77,7 @@ Private bytes are not embedded in a public derived object. License and access ri
 
 ## Compatibility and migration
 
-Minor versions are available to the owner of the major line; a new major line is not opened automatically. A conflict caused by assigning the same number concurrently on two offline devices is resolved by reissuing under `SPEC-009` REQ-912; a published number never moves. A passport schema change requires a transformation report. An older client reads known fields and preserves unknown optional fields without overwriting the published snapshot.
+Minor versions are available to the owner of the major line; a new major line is not opened automatically. A conflict caused by assigning the same number concurrently on two offline devices refuses the incoming sync page under `SPEC-009` REQ-912, preserving local versions and the previous cursor. No automatic reissue occurs, and a published number never moves. A passport schema change requires a transformation report. An older client reads known fields and preserves unknown optional fields without overwriting the published snapshot.
 
 ## Acceptance criteria
 

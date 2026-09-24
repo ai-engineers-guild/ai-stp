@@ -9,7 +9,7 @@ last_verified: "2026-08-03"
 
 | Document | Description | Verified |
 | -------- | ----- | ------- |
-| [agent-ux-implementation-plan.md](agent-ux-implementation-plan.md) | Target implementation plan for the agent-first CLI: weakest-model loop, shared task engine, and the website-to-native journeys in epic #261. | 2026-09-20 |
+| [agent-ux-implementation-plan.md](agent-ux-implementation-plan.md) | Target implementation plan for the agent-first CLI: weakest-model loop, shared task engine, and the website-to-native journeys in epic #261. | 2026-09-24 |
 | [catalog-search-benchmark.md](catalog-search-benchmark.md) | How to measure catalog search latency on PostgreSQL 16 without a new harness. | 2026-09-04 |
 | [cli-performance.md](cli-performance.md) | Measured CLI command costs, resolved bottlenecks, and budgets. | 2026-08-29 |
 | [coding-rules.md](coding-rules.md) | Rules for errors, I/O, security, and predictable behavior. | 2026-08-03 |
@@ -23,11 +23,11 @@ last_verified: "2026-08-03"
 | [git-workflow.md](git-workflow.md) | Rules for branches, commits, pull requests, and cross-repository changes. | 2026-09-20 |
 | [github-connector-operations.md](github-connector-operations.md) | Operator runbook for the single GitHub App used by source access and repository actions. | 2026-09-09 |
 | [implementation-canon.md](implementation-canon.md) | Classification of specs, docs, and tests against implemented non-corporate code. | 2026-09-20 |
-| [implementation-roadmap.md](implementation-roadmap.md) | Current ai_stp status and the ordered plan for remaining work. | 2026-09-20 |
+| [implementation-roadmap.md](implementation-roadmap.md) | Current ai_stp status and the ordered plan for remaining work. | 2026-09-24 |
 | [local-technology-detection-plan.md](local-technology-detection-plan.md) | Implementation plan for issue #222: deterministic local technology-stack detection in the CLI producing the versioned TechnologyScanHandoff. | 2026-09-21 |
 | [quality-gates.md](quality-gates.md) | Required checks and release evidence. | 2026-09-20 |
 | [real-provider-evidence.md](real-provider-evidence.md) | How to run the full lifecycle against released providers and what is checked in the process. | 2026-08-29 |
-| [release-evidence.md](release-evidence.md) | Required release evidence for the CLI, platform, and providers. | 2026-09-08 |
+| [release-evidence.md](release-evidence.md) | Required release evidence for the CLI, platform, and providers. | 2026-09-24 |
 | [repository-structure.md](repository-structure.md) | Target monorepository structure and code ownership rules. | 2026-09-20 |
 | [schema-evolution.md](schema-evolution.md) | Versioning, compatibility, and migration of persisted and transmitted schemas. | 2026-08-03 |
 | [tech-debt-rules.md](tech-debt-rules.md) | Rules for registering temporary compromises. | 2026-08-03 |

@@ -31,6 +31,7 @@ import sys
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any, Final, cast
+from uuid import uuid4
 
 from release_scripts._evidence import (
     EvidenceError,
@@ -38,7 +39,9 @@ from release_scripts._evidence import (
     data,
     error_code,
     login_commands,
+    release_draft_update_arguments,
     without_credentials,
+    write_release_draft_patch,
 )
 from release_scripts._evidence import origin as bare_origin
 
@@ -208,14 +211,13 @@ def verify_sync_slice(
 _PROBE = "sync-collision-probe"
 
 
-def _seed_component(home: Path, *, python: str) -> str:
+def _seed_component(home: Path, *, python: str, peer_home: Path | None = None) -> str:
     """Scaffold, discover and adopt one component in this home, and return its id."""
-    project = home / "work"
-    scaffold = home / "scaffold" / _PROBE
-    target = project / ".claude" / "skills" / _PROBE
+    # Each run deliberately diverges this object. Reusing its native path can
+    # reopen a previous conflict before the new collision has even been seeded.
+    probe = f"{_PROBE}-{uuid4().hex}"
+    scaffold = home / "scaffold" / probe
     scaffold.parent.mkdir(parents=True, exist_ok=True)
-    if scaffold.exists():
-        shutil.rmtree(scaffold)
     planned = data(
         cli(
             [
@@ -229,7 +231,7 @@ def _seed_component(home: Path, *, python: str) -> str:
                 "--harness",
                 "portable",
                 "--name",
-                _PROBE,
+                probe,
                 "--output",
                 str(scaffold),
             ],
@@ -250,7 +252,7 @@ def _seed_component(home: Path, *, python: str) -> str:
             "--harness",
             "portable",
             "--name",
-            _PROBE,
+            probe,
             "--output",
             str(scaffold),
             "--expected-plan-digest",
@@ -259,13 +261,25 @@ def _seed_component(home: Path, *, python: str) -> str:
         home=home,
         python=python,
     )
-    target.parent.mkdir(parents=True, exist_ok=True)
-    if target.exists():
-        shutil.rmtree(target)
     # Portable skill scaffolds own their adoptable native files under source/.
     native = scaffold / "source"
     if not (native / "SKILL.md").is_file():
         raise EvidenceError(f"the scaffold at {scaffold} has no source/SKILL.md to adopt")
+    identifier = _adopt_probe(home, native, probe, python=python)
+    if peer_home is not None:
+        # Sync carries passports and released snapshots, not draft source bytes.
+        # Local adoption fills the peer's content store through the real CLI;
+        # its auxiliary identity is never pushed. The shared identity arrives
+        # through sync before the peer independently releases its version.
+        _adopt_probe(peer_home, native, probe, python=python)
+    return identifier
+
+
+def _adopt_probe(home: Path, native: Path, probe: str, *, python: str) -> str:
+    """Retain the native source and prepare a release through public commands."""
+    project = home / "work"
+    target = project / ".claude" / "skills" / probe
+    target.parent.mkdir(parents=True, exist_ok=True)
     shutil.copytree(native, target)
     adopted = data(
         cli(
@@ -275,7 +289,18 @@ def _seed_component(home: Path, *, python: str) -> str:
         ),
         "component adopt",
     )
-    return str(adopted["stable_id"])
+    identifier = str(adopted["stable_id"])
+    shown = data(
+        cli(["component", "passport", "show", "--id", identifier], home=home, python=python),
+        "component passport show",
+    )
+    patch = write_release_draft_patch(project / f"{probe}-release-draft.json", name=probe)
+    cli(
+        release_draft_update_arguments(identifier, str(shown["revision_id"]), patch),
+        home=home,
+        python=python,
+    )
+    return identifier
 
 
 def _release(home: Path, stable_id: str, *, python: str) -> str:
@@ -340,7 +365,7 @@ def _version_collision(
     carries a different `1.0`, and an immutable number cannot mean two documents
     — so the whole page rolls back and the cursor stays where it was.
     """
-    stable_id = _seed_component(home_a, python=python)
+    stable_id = _seed_component(home_a, python=python, peer_home=home_b)
     seeded = _push(home_a, stable_id, python=python)
     if seeded.get("state") != "accepted":
         return {
@@ -412,25 +437,38 @@ def _run_scenarios(
     pushed = _push(home_a, stable_id, python=python)
     pulled = _pull(home_b, python=python, skip=skip)
     head_a = _head(home_a, python=python)
+    head_b = _head(home_b, python=python)
     # `ok` is the envelope, not the outcome. A refused push answers ok with a
     # receipt state of `conflict`, and asserting on the envelope reported this
     # scenario verified while nothing had been fast-forwarded. The receipt
     # state is the claim, so the receipt state is what is checked.
     scenarios["fast_forward"] = {
         "state": "verified"
-        if pushed.get("state") == "accepted" and (pulled.get("applied") or 0) >= 1
+        if pushed.get("state") == "accepted"
+        and pulled.get("ok")
+        and (pulled.get("applied") or 0) >= 1
+        and head_a == head_b
         else "failed",
         "stable_id": stable_id,
         "push_state": pushed.get("state"),
         "pull_applied": pulled.get("applied"),
         "head_after_push": head_a,
+        "head_after_pull": head_b,
     }
 
     replayed = _push(home_a, stable_id, python=python)
+    after_replay = _pull(home_b, python=python, skip=skip)
     scenarios["replay"] = {
-        "state": "verified" if replayed.get("state") == "accepted" else "failed",
+        "state": "verified"
+        if replayed.get("state") == "accepted"
+        and after_replay.get("ok")
+        and after_replay.get("applied") == 0
+        and after_replay.get("replayed") == 0
+        and after_replay.get("next_cursor") == pulled.get("next_cursor")
+        else "failed",
         "push_state": replayed.get("state"),
         "processed_events": replayed.get("processed_events"),
+        "pull_after_replay": after_replay,
         "note": "a push with nothing new must be accepted and must not create a second event",
     }
 
@@ -485,7 +523,9 @@ def _run_scenarios(
         after = {"ok": False, "error_code": "merge not offered"}
     scenarios["merge"] = {
         "state": "verified"
-        if pulled.get("ok") and preview.get("state") == "merge_ready" and after.get("ok")
+        if pulled.get("ok")
+        and preview.get("state") == "merge_ready"
+        and after.get("state") == "accepted"
         else "failed",
         "pull_state": "accepted" if pulled.get("ok") else pulled.get("error_code"),
         "pull_applied": pulled.get("applied"),
