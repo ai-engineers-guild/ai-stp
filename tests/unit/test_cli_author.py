@@ -242,6 +242,117 @@ def test_authored_antigravity_skill_preserves_native_files(
     assert replay.minted is False
 
 
+@pytest.mark.parametrize("kind,root", [("instruction", "rules"), ("command", "global_workflows")])
+def test_authored_antigravity_document_is_a_named_immediate_markdown_child(
+    tmp_path: Path, kind: str, root: str
+) -> None:
+    tree = tmp_path / "native-document"
+    tree.mkdir()
+    payload = b"---\ntrigger: always_on\ndescription: Native probe\n---\n# Probe\nKeep this text.\n"
+    (tree / "entry.md").write_bytes(payload)
+    authored = author_service.persist(
+        directory=tree,
+        harness_id="antigravity",
+        component_type=kind,
+        name="native-probe",
+        license_spdx="MIT",
+    )
+    with closing(open_registry(configured_path(), create=True)) as connection:
+        compiled = select_service.compile_setup_version_bundle(
+            connection, authored.setup_id, authored.setup_version, expected_harness="antigravity"
+        )
+        assert compiled.compiled, compiled.refusals
+        assert [item.path for item in compiled.files] == [f"config/{root}/native-probe.md"]
+        with zipfile.ZipFile(io.BytesIO(compiled.archive)) as archive:
+            assert any(
+                name.endswith(f"config/{root}/native-probe.md") and archive.read(name) == payload
+                for name in archive.namelist()
+            )
+    replay = author_service.persist(
+        directory=tree,
+        harness_id="antigravity",
+        component_type=kind,
+        name="native-probe",
+        license_spdx="MIT",
+    )
+    assert replay.setup_id == authored.setup_id
+    assert replay.minted is False
+    renamed = author_service.persist(
+        directory=tree,
+        harness_id="antigravity",
+        component_type=kind,
+        name="another-probe",
+        license_spdx="MIT",
+    )
+    assert renamed.setup_id != authored.setup_id
+
+
+def test_corrected_document_authoring_preserves_the_legacy_immutable_projection(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    tree = tmp_path / "native-document"
+    tree.mkdir()
+    (tree / "entry.md").write_text("---\ntrigger: always_on\n---\n# Probe\n", encoding="utf-8")
+
+    def legacy_paths(*_args: object) -> tuple[str, ...]:
+        return ("config/rules/native-probe/entry.md",)
+
+    def legacy_directory(*_args: object) -> bool:
+        return False
+
+    with monkeypatch.context() as legacy:
+        legacy.setattr(setup_author, "_named_document", legacy_directory)
+        legacy.setattr(setup_author, "_managed_files", legacy_paths)
+        old = author_service.persist(
+            directory=tree,
+            harness_id="antigravity",
+            component_type="instruction",
+            name="native-probe",
+            license_spdx="MIT",
+        )
+    with closing(open_registry(configured_path(), create=True)) as connection:
+        old_record = versions.held(connection, old.setup_id, old.setup_version)
+    corrected = author_service.persist(
+        directory=tree,
+        harness_id="antigravity",
+        component_type="instruction",
+        name="native-probe",
+        license_spdx="MIT",
+    )
+    assert corrected.minted is True
+    assert corrected.setup_id != old.setup_id
+    with closing(open_registry(configured_path(), create=True)) as connection:
+        assert versions.held(connection, old.setup_id, old.setup_version) == old_record
+        old_bundle = select_service.compile_setup_version_bundle(
+            connection, old.setup_id, old.setup_version, expected_harness="antigravity"
+        )
+        new_bundle = select_service.compile_setup_version_bundle(
+            connection, corrected.setup_id, corrected.setup_version, expected_harness="antigravity"
+        )
+        assert [item.path for item in old_bundle.files] == ["config/rules/native-probe/entry.md"]
+        assert [item.path for item in new_bundle.files] == ["config/rules/native-probe.md"]
+
+
+@pytest.mark.parametrize("kind", ["instruction", "command"])
+@pytest.mark.parametrize("extra_file", [True, False])
+def test_authored_antigravity_document_refuses_to_drop_additional_source_files(
+    tmp_path: Path, kind: str, extra_file: bool
+) -> None:
+    tree = tmp_path / "native-document"
+    tree.mkdir()
+    if extra_file:
+        (tree / "entry.md").write_text("# Probe\n", encoding="utf-8")
+    (tree / "helper.txt").write_text("Preserve this file.\n", encoding="utf-8")
+    with pytest.raises(CliFailure, match="exactly one Markdown file"):
+        author_service.persist(
+            directory=tree,
+            harness_id="antigravity",
+            component_type=kind,
+            name="native-probe",
+            license_spdx="MIT",
+        )
+
+
 @pytest.mark.parametrize("kind", ["skill", "setting"])
 def test_authored_setup_compiles_immediately_without_a_change_task(
     tmp_path: Path, kind: str

@@ -1,6 +1,6 @@
 ---
 description: "Versioned scaffold plans and safe projection of component authoring templates."
-last_verified: "2026-09-06"
+last_verified: "2026-09-24"
 ---
 
 # Component authoring templates
@@ -72,6 +72,21 @@ Unsupported type/harness combinations are rejected instead of being converted in
 another type.
 
 ## Author path
+
+The shipped `author` task also registers an existing source directory directly.
+For Antigravity rules (`instruction`) and workflows (`command`), that directory
+must contain exactly one `.md` file, excluding GENERATED.md notes. Its bytes
+are preserved at `config/rules/<name>.md` or
+`config/global_workflows/<name>.md`. Extra source files are refused; multi-file
+skill directories retain their nested assets. The native label participates in
+these document identities. Reauthoring an older nested document creates a new
+setup and component without changing its immutable predecessor; use `change`
+to replace the old member in a derived setup.
+
+Native source syntax remains the author's responsibility. For example,
+Antigravity modular rules require valid trigger frontmatter. A verified provider
+operation proves installed bytes; a fresh native session must separately prove
+discovery and behavior.
 
 1. Run `component scaffold plan`, review the descriptor, every file, and digest,
    then pass unchanged inputs to `component scaffold apply` with the exact plan

@@ -247,12 +247,21 @@ a CLI language rewrite, and a PyPI CLI cut are excluded.
 - `REQ-8016`: Intent `author` drains `application.author`. It registers one
   directory as one embedded component and one setup identity. It asks
   directory, harness, kind, and name at most once each. Replay of the same
-  bytes reuses the identity. A kind with no native surface for that harness
-  is refused. Directory surfaces retain each source file's relative path
+  bytes and native document path reuses the identity. A kind with no native
+  surface for that harness is refused. Directory containers retain each source
+  file's relative path
   under the named native component directory, including nested scripts;
   GENERATED.md source notes are excluded from the native projection.
-  A single-file surface requires exactly one source file. Names must be
-  single native path segments. Unprojectable source trees return
+  A single-file surface requires exactly one source file. Antigravity
+  `instruction` and `command` each
+  require exactly one `.md` source file and preserve its bytes at
+  `config/rules/<name>.md` and `config/global_workflows/<name>.md`, respectively.
+  They reject additional source files rather than dropping content or hiding
+  it inside an unread nested directory. Their deterministic setup and embedded
+  component identities bind the native path: reauthoring a legacy nested
+  projection or choosing another native name mints new identities, leaving
+  the old immutable versions unchanged. Other author identities retain their
+  existing derivation. Names must be single native path segments. Unprojectable source trees return
   `AI_STP_VALIDATION_ERROR`, not an internal error. Author does not install
   and does not mutate a saved setup.
   Authoring retains validated embedded component bytes and immutable snapshots
@@ -555,7 +564,7 @@ and a partial unique index on an open mutating binding.
 | `REQ-8013` | `test_cli_initialize` asserts the section contract, catalog surfaces including custom `CODEX_HOME`, preserve-outside-markers, idempotent no-write, Cursor `alwaysApply` `.mdc`, HTML-comment refusal, antigravity limitation, that `application/initialize.py` contains no file-write verbs, that omitted drain kwargs with no bind stay `provider-too-old`, that a remembered chosen provider without the op or without `instruction_section` stays too-old, that a discovered row is not a bind, that declaring both invokes the provider path, that `--instruction-section` is on plan argv only then, and that a drain `CliFailure` keeps `details.task` and drops expert `next_actions` such as `provider network`. Fake-provider tests still replace `provider_operations` / `patch_via_provider`. `test_cli_plan_request_fields` accepts `instruction_section` on `plan_request_fields` and sends `--instruction-section` only for `patch_instruction_region` when that field is declared. `test_cli_task_driver` continues a `provider-too-old` block without writing. Skill and qualify treat `provider-too-old` as not login. |
 | `REQ-8014` | `test_cli_install_task` asks harness/setup-ref/project-root once, drains plan→approve→apply in one start, maps compensated and partial apply to `CliFailure` with task `failed`, resumes a held child after a killed start, refuses a relative project root, re-asks when `project_root` is a catalogued harness config directory, mints missing developer/device/project passports before plan, passes the catalogued harness config root as `target`, and strips expert `next_actions` such as `provider network` from drain failures. |
 | `REQ-8015` | `test_cli_change` mints a new setup id with `fork_origin` and `related_setup_ids`, keeps the source id held, skips minting on a no-op member set, drains derive→install in one continue, maps compensated apply to `CliFailure`, mints missing context passports before plan, and adds a locally authored embedded component without catalog acquire. |
-| `REQ-8016` | `test_cli_author` registers a directory as one component plus one setup identity, asks typed questions once, reuses the identity on replay of the same bytes, verifies exact Antigravity skill archive paths and bytes for single-file and nested-script trees, omits generated notes, refuses invalid names and multiple files on a single-file surface, reports unprojectable trees as validation errors, refuses a kind with no native surface, and contains no nested CLI process. |
+| `REQ-8016` | `test_cli_author` registers a directory as one component plus one setup identity, asks typed questions once, reuses the identity on replay of the same bytes, verifies exact Antigravity skill archive paths and bytes for single-file and nested-script trees, omits generated notes, refuses invalid names and multiple files on a single-file surface, verifies immediate named Antigravity Markdown projections and unchanged payloads, replays the same native name, forks changed names and legacy nested identities without overwriting either version, reports unprojectable trees as validation errors, refuses a kind with no native surface, and contains no nested CLI process. |
 | `REQ-8017` | `test_cli_switch` restores the newest user `preserved_setup`, refuses a missing snapshot without a catalog fallback, asks for an absolute project directory rather than a harness config root, re-asks when `project_root` is inside a catalogued harness config directory, captures drift then asks `reload-session`, replays the original `--input` onto that blocked row without a second restore, maps compensated restore to task `failed`, and never kills the caller or claims `session_loaded`. |
 | `REQ-8018` | `test_cli_account` drains device-code login with `actor=external`, one exchange per continue, no `/publications` `/sync-plans` `/revisions` or catalog PUT on login, skipped begin when already signed in, explicit sync only, and never `login.poll`. |
 | `REQ-8019` | `test_cli_publish` defaults visibility to private, omits `source_binding_id`, treats worker `validating` as not readable, treats `published` as readable, blocks missing auth with one user code, and refuses a bound git plan. |

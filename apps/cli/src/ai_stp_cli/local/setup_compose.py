@@ -168,6 +168,7 @@ def compose(
     created_at: str,
     snapshots: Sequence[tuple[ComposeComponent, SourceSnapshot]],
     catalog: Sequence[CatalogMaterial],
+    embedded_identity_scope: str = "",
 ) -> ResolvedComposition:
     if not is_valid_id(setup_id, "setup"):
         raise CliFailure("AI_STP_VALIDATION_ERROR", "a valid setup id is required")
@@ -196,7 +197,7 @@ def compose(
                 for harness in sorted(HARNESS_IDS)
                 if rule_for(cast(str, item.component_type), harness) is not None
             ),
-            stable_id=_embedded_id(publisher_id, snapshot),
+            stable_id=_embedded_id(publisher_id, snapshot, scope=embedded_identity_scope),
         )
         for item, snapshot in snapshots
     )
@@ -228,10 +229,12 @@ def compose(
     return ResolvedComposition(manifest, frozen, tuple(catalog), plan_digest, created_at)
 
 
-def _embedded_id(publisher_id: str, snapshot: SourceSnapshot) -> str:
-    """Stable opaque identity for the same publisher and exact source bytes."""
+def _embedded_id(publisher_id: str, snapshot: SourceSnapshot, *, scope: str = "") -> str:
+    """Stable source identity, optionally scoped to a distinct authored projection."""
     artifact_digest = digest_bytes(ARTIFACT_DOMAIN, pack_component_tree(snapshot.files))
     material = (f"{publisher_id}\0{snapshot.canonical_coordinate}\0{artifact_digest}").encode()
+    if scope:
+        material += f"\0identity_scope\0{scope}".encode()
     return f"component_{ULID.from_bytes(hashlib.sha256(material).digest()[:16])}"
 
 
