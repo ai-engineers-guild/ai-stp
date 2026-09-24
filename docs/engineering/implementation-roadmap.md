@@ -1,6 +1,6 @@
 ---
 description: "Current ai_stp status and the ordered plan for remaining work."
-last_verified: "2026-09-20"
+last_verified: "2026-09-24"
 ---
 
 # Current status and plan
@@ -15,7 +15,105 @@ scopes, and native MCP/agent/hook/plugin transforms landed in `#145` / `#147` /
 The `#146`/`#155` platform closeout is implemented in this tree; GitHub issue
 state remains a separate maintainer action. Merged PRs are not the OBT release.
 
-## Current checkpoint — 2026-09-20
+## Session audit and execution plan — 2026-09-24
+
+This checkpoint supersedes the dated execution orders below. Baseline:
+`dev` commit `b9555283fec772996b09d6243ec84a7d5b5eedbb`, tree
+`3f0594cf580727b644fc4ae4dd1b62a8d8cc5e66`; `main` and the live API report
+`0bc51644a2de42ea2e8b7b5770d8f747770f5c52`. The working tree was clean.
+The heartbeat change in #404 is integrated into `dev`, not yet promoted.
+Work proceeds on `fix/session-audit-closeout`, created from that `dev`.
+
+### Session coverage and interpretation
+
+Local project records were inspected read-only: four Cursor transcripts
+(two principal sessions and two historical investigations), three Claude Code
+records (one substantive conversation, one local-command record, one without
+conversation), nine Grok conversations (including historical child sessions),
+and two Devin conversations. Codex contains the current project session;
+no earlier project-specific Codex rollout was found in the available store.
+Cursor also retains one empty CLI session. Cloud-only, removed, and older
+unsynchronized histories cannot be certified from these local records.
+Six additional Claude qualification replay records were compared with their
+retained CLI logs. The failing `unsupported-project-local:4` cell used `.`
+instead of the requested `relative`, matching the stored failure. A Cursor
+host-recovery conversation mentions this project but contains no additional
+project implementation task.
+
+The local audit inventory digest is
+`sha256:90a7906ec4f9d36223274c0e35eeea8756470243ee5ee264780df16864091cb4`.
+Raw conversations, tool output, credentials, and personal data are not copied
+into this repository. Historical promises are leads to check, not authority
+to reinstate superseded behavior.
+
+| Historical lead | Current code or evidence | Disposition |
+| --- | --- | --- |
+| Cursor: one-intent kernel, missing stdin, missing control attachment, failed #297 | `application/task.py`, `application/initialize.py`, `app.py`, `test_cli_task_driver.py`; eight shipped intents and merged #297 | Implemented; retain regressions, do not rebuild the kernel |
+| Claude: sync-plan digest disagreement and receipt loss | `tests/unit/test_cli_project_sync_apply.py`, `tests/unit/test_cli_project_revision.py`, project sync and revision services; #255–#277 | Repairs shipped; live two-device evidence remains distinct |
+| Grok: classify the canon, archive stale plans, replace fake CLI/API journeys | `implementation-canon.md`, `docs/archive/`, `tests/api/cli/`, `tests/support/postgres.py` | Implemented by surface; no arbitrary document-count target or mass deletion |
+| Devin: just/Docker/Rust provider standards | `standards/just.md`, `standards/docker.md`, `standards/setup-systems.md` | Present; provider-source changes belong to their own repository |
+| Devin: selector errors, parse failures, machine parameter rules | `errors.py`, `app.py`, registry declarations, release `0.0.28` | Shipped; current registry includes subsequent corporate commands |
+| Repeated claim that PostgreSQL cannot run on this workstation | Docker and a local PostgreSQL 16 image are available | Obsolete environment claim; run real isolated database tests |
+| Agent UX checkpoint says 53/100; later text says 100/100 | Retained Haiku overlay: 99 pass, 1 fail; GPT-OSS overlay: 89 pass, 11 unrun | Correct dated records; neither overlay qualifies the current candidate |
+
+Paths in the table are relative to their owning CLI application or test tree
+where shortened. The audit covers CLI, contracts, API/platform/worker, web,
+generated artifacts, deployment state and their checks. Corporate code is
+included in regression execution; colleague specifications, ADRs and issue
+ownership remain unchanged.
+
+### Verified defects and ordered work
+
+The plan was checked a second time against actual functions and temporary-file
+reproductions before implementation. That review added A3: two distinct file
+trees currently produce the same qualification digest without a SHA-256
+collision. It also expanded A2 to native/isolation writers and invalidation,
+which can relabel existing model results even without running another model.
+
+| Order | Work and code owner | Acceptance and dependencies |
+| --- | --- | --- |
+| A1 | Preserve measured model identity in `application/qualify.py:report` | A Haiku overlay reports Haiku, not the GPT-OSS default; absent identity is not invented for measured cells |
+| A2 | Keep each scored overlay bound to one model in `agy_qualify.py` | Reject mixed-model scoring/fill before workspace or model effects; native/isolation updates and invalidation preserve existing attribution; rejection preserves original bytes; same-model replay is idempotent |
+| A3 | Unambiguously frame `application/qualify.py:tree_digest` | A one-file payload containing another entry's delimiters cannot equal the digest of a two-file tree; rename/content changes change identity; traversal order does not; retain old measurements as historical |
+| A4 | Reconcile this roadmap and Agent UX checkpoint with source and retained evidence | One current checkpoint, explicit model/date/limits, no stale next-release instruction, no unsupported native or release pass |
+| A5 | Verify actual services and full gate | `just docs-check`, `just back-static`, `just back-test` with disposable PostgreSQL, `just web-check`, plus resource/build/install regression and security recipes; explain each environment skip; use pinned Bun without changing the user's installation; dispatch existing platform/configuration/software evidence workflows on the work SHA after verifying seven exact provider tags |
+| A6 | Review, integrate and verify | Explicit-path staging, exact-SHA PR into `dev`, promotion into `main` after checks, served-SHA readback, synchronize permanent local branches; a green historical SHA is not the final gate |
+
+A1–A3 change qualification evidence handling, not provider ownership or task
+architecture. Update SPEC-080 REQ-8020 from the implemented regression tests;
+no new architecture rule or dependency is needed. Regenerate affected sources
+and indexes through their owners. Before each remote mutation, re-read the
+source/head SHA and PR state. Re-running scoring with the same model/key must
+not duplicate a cell. Rollback is a revert of the work merge; keep all older
+evidence files and do not rewrite published artifacts or tags.
+
+Observed during this audit: baseline `just docs-check` and `just back-static`
+passed; `just security` reported no vulnerabilities in 1,013 web dependencies.
+The real RustFS owner/bucket-isolation test passed against a separate disposable
+container. `just evidence-live` passed anonymously against `0bc51644`, listing
+187 components and 28 setups and checking exact-version, machine-projection
+and offline-cache parity. Its login/revocation scenarios remain `not_verified`.
+The initial web command correctly refused installed Bun 1.4.2; subsequent web
+checks use the repository pin 1.4.0 from a temporary tool directory.
+Full-suite and final-SHA results belong to the work PR, not this baseline.
+
+### Remainders that this audit must not erase
+
+| Remainder | Next concrete proof or owner |
+| --- | --- |
+| Agent UX #261–#275 and setup-systems #316 | Retain implementation evidence per child issue; native Windows x86_64/macOS arm64 and fresh-session loading must be measured against exact candidate/provider bytes before epic closure |
+| Full-beta 28 setups × 3 required platforms | Follow SPEC-061 and ADR-0172, including retained evidence files and artifact binding; Linux arm64, Windows arm64 and macOS x86_64 remain optional, not release blockers |
+| Account/private publication/grants/two-device journeys | Use isolated authenticated devices and explicit test objects; anonymous health and local API tests do not prove these live journeys |
+| #256 estate ledger, ancestry performance and promotion policy | Existing owner; keep the issue open and its missing measurements visible; do not narrow deployment checks to make an audit green |
+| #358 standalone corporate component assignments and other corporate backlog | Colleague scope; do not equate task-based component installation with corporate assignment verification |
+| Old PyPI internal-project cleanup (#100) | Recheck existence; deletion has no recovery path and is not part of reversible code repair |
+| Rust rewrites, new component kinds, new integrations | Backlog proposals, not defects inferred from old session requests |
+
+Completion of A1–A6 is a code-audit closeout. It is not completion of the full
+beta or proof that every possible defect has been found. Evidence gaps remain
+named until their own acceptance runs exist.
+
+## Previous checkpoint — 2026-09-20
 
 Tracked line: GitHub `main` promotes to `deploy/prod`; the host timer pulls
 that ref. Production identity is `GET https://ai-stp.aiguild.space/v1/system/version`
@@ -195,7 +293,7 @@ follow from finding an incomplete deployed user flow.
   provenance, and compatibility remain mechanical integrity constraints without
   creating an additional approval round.
 
-## Implemented
+## Implemented surfaces (release coordinates in the current checkpoint)
 
 | Area | Observable state |
 |---|---|
@@ -203,7 +301,7 @@ follow from finding an incomplete deployed user flow.
 | Platform | `/v1`, PostgreSQL, object storage, queue, authentication/devices, sync, publication, grants/reports, public catalog, article, and SEO projections |
 | Web | Landing, catalog/detail, account/device/owner surfaces, content hub, machine projections, and a three-OS test matrix |
 | Providers | Seven provider integrations with native configuration, backup/recovery and software lifecycle interfaces. Current consumer contracts still name protocol v3; per-provider launch completeness requires G4/G5 evidence. |
-| Release | Published consumer line is `ai-stp-cli==0.0.20` (`ADR-0146`, tag `v0.0.20`, main `185b4549`). The user PATH command was still `0.0.17` on 2026-09-08. GitHub attested acquisition remains the default provider path; PyPI provenance is a second, explicit path (`ADR-0141`). Self-update of the CLI wheel is `SPEC-072` / `ADR-0170`. |
+| Release | Released consumer line is `ai-stp-cli==0.0.28`. GitHub attested acquisition remains the default provider path; PyPI provenance is a second, explicit path (`ADR-0141`). Self-update of the CLI wheel is `SPEC-072` / `ADR-0170`. Source integration, package publication and installed PATH identity are separate observations. |
 | Catalog | The canonical first-party corpus models seven harness families and four postures. Identity projection, exact target assurance, and normal-path publication/readback evidence are implemented in the current platform closeout for `#146`/`#155`. |
 | OBT support tiers | All seven harnesses are `beta` (`SUPPORT_TIERS`, `SPEC-033` REQ-3315). `primary` remains a valid later GA label with no current members |
 
@@ -298,7 +396,7 @@ measurement. Different slices have different denominators: configuration and
 program each had 42 cells, workspace 12, user-root 30, and contribution 4.
 Do not summarize those distinct measurements as every slice passing 42/42.
 
-## Remaining work
+## Earlier remaining-work assessment (historical)
 
 Do not carry forward blanket closure of A01–A22 or B01–B04. Current source
 contains substantive repairs, including multi-root cancellation/compensation,
@@ -325,7 +423,7 @@ reopened merely because a new cut is needed. Their results also do not prove
 the latest provider releases, current installed software, or G5's 42 launch
 cells. Re-read current release coordinates before executing the next cut.
 
-### OBT remaining — CLI and providers (this side)
+### OBT assessment — CLI and providers (September 8)
 
 Ordered. Each item is one PR-sized slice unless a later item names a
 dependency.
@@ -337,7 +435,7 @@ dependency.
 | G2 | First-run skill and inventory closure | Inventory continuation keeps authoring `covered` and caps directory listings. Bootstrap uses already-named roots and asks only when none were named. | Provided roots need no repeat question; paged and unpaged fixtures return the same owned objects exactly once, with bounded traversal |
 | G3 | Cross-harness component adaptations and executable lifecycle | Component materialize, per-adaptation eval, claimed-portable overlay, and shared `cli` program lifecycle are in tree (`#151`, prefix containment `#152`). Occupied next-minor and overlay identities refuse a different intended passport; install/invoke/status bind to installed bytes and the requested version, not a newer registry `current` or first ZIP member. Setup eval is the setup harness only; `eval component` enumerates every advertised adaptation. `--all-missing` stamps every remaining derivable harness in one owner version. Overlay stays private. Pi MCP packages remain blocked without a measured package transform. | Native format-specific positive and negative controls; one shared executable with verified install/invoke/remove; no sevenfold runtime duplication |
 | G4 | Antigravity launch against the documented home | Public `antigravity-setup-system` `main` (`#113`, merge `a4e817de`) declares `LaunchBinding::DocumentedHome`; `config_home_env` stays empty. Six siblings received the shared runtime on the same render. Native `can_launch` against `~/.gemini` is still an evidence run, not this merge. Do not invent `ANTIGRAVITY_*`. | `can_launch` true for the documented home on the published public tree; alternate-root launch still refused by name |
-| G5 | Native 7 × 3 OS × x86/arm qualification | Estate record `ai-stp-estate-release/1` already refuses `complete` without 42 launch cells. Installed-artifact and launched-process rows remain `NOT_MEASURED` on current main. | Filled estate record with retained evidence; skipped cells keep the verdict `incomplete` |
+| G5 | Native qualification | Historical `/1` records required 42 launch cells. Current `ai-stp-estate-release/2` requires seven providers on three primary pairs (21 launch cells), per ADR-0172; full setup coverage is 28 × 3. Historical missing rows do not establish the current candidate's result. | Filled estate record with retained evidence; skipped required cells keep the verdict `incomplete` |
 | G6 | Coordinated 0.1.0 / OBT cut | Published consumer `0.0.20`, providers `0.0.68`; corpus pins may still name `0.0.67` when bytes are unchanged. Re-resolve those coordinates, then coordinate ai-stp and all seven providers after G0–G5, B01–B08, and the platform dependencies. One standard family is not a relabel of old numbers (`ADR-0154`). | Matching tags, wheel digest, seven provider artifact digests, catalog readback, estate verdict derived from those rows |
 
 ### 8 September 2026 CLI beta remainder
@@ -469,8 +567,8 @@ current product and a new active specification.
 
 ## Done
 
-Work is complete when current public/private bytes are synchronized, the stated
-six-leg evidence is executed on exact releases, live slices refer to the
+Work is complete when current public/private bytes are synchronized, the required
+three-platform evidence is executed on exact releases, live slices refer to the
 deployed SHA, documentation is generated from its owners, and the final diff and
 Git state are clean. `not_verified` is an honest remaining result, not a reason
 to add a manual approval or hide a matrix row.
