@@ -513,13 +513,65 @@ def test_the_device_passport_holds_the_environment_and_the_developer_does_not() 
     assert raised.value.details["owner"] == "device"
 
 
-def test_a_rescan_that_found_nothing_new_writes_nothing() -> None:
+@pytest.mark.parametrize(
+    "versions",
+    [
+        ("1.2.3", "1.2.3"),
+        ("unknown", "unknown"),
+        ("1.2.3", "1.2.4"),
+        ("1.2.3", "unknown"),
+        ("unknown", "1.2.3"),
+    ],
+)
+def test_device_refresh_records_only_changed_observations(
+    versions: tuple[str, str], tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     from ai_stp_cli.commands import passport
+    from ai_stp_cli.local import harnesses, passports
 
+    # Real version probes can time out between scans. That is a changed
+    # observation, not an idempotency failure; detector subprocess behavior
+    # has its own coverage in test_cli_harnesses.py.
+    observations = iter(versions)
+
+    def detect_all() -> tuple[harnesses.Found, ...]:
+        version = next(observations)
+        known = version != "unknown"
+        return (
+            harnesses.Found(
+                harness_id="codex",
+                title="Codex",
+                support="beta",
+                state="installed" if known else "unknown_version",
+                installations=(
+                    harnesses.Installation(
+                        path=str(tmp_path / "codex"),
+                        version=version,
+                        reason="test observation",
+                        version_source="process" if known else "unavailable",
+                        normalized_version=version if known else "",
+                    ),
+                ),
+                configuration=None,
+                reason="test observation",
+            ),
+        )
+
+    monkeypatch.setattr(harnesses, "detect_all", detect_all)
+    monkeypatch.setattr(passports, "moment", lambda: "2026-09-24T12:00:00.000Z")
     first = passport.device_refresh({}).payload
+    monkeypatch.setattr(passports, "moment", lambda: "2026-09-24T12:00:01.000Z")
     second = passport.device_refresh({}).payload
-    assert first.revision_id == second.revision_id
-    assert second.parent_revision_ids == []
+    facts = cast(dict[str, dict[str, object]], second.facts)
+    assert facts["harness_versions"]["value"] == [f"codex={versions[1]}"]
+    if versions[0] == versions[1]:
+        assert first.revision_id == second.revision_id
+        assert second.parent_revision_ids == []
+        assert facts["harness_versions"]["observed_at"] == "2026-09-24T12:00:00.000Z"
+    else:
+        assert first.revision_id != second.revision_id
+        assert second.parent_revision_ids == [first.revision_id]
+        assert facts["harness_versions"]["observed_at"] == "2026-09-24T12:00:01.000Z"
 
 
 def test_a_malformed_declaration_is_refused() -> None:

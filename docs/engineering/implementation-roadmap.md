@@ -85,6 +85,7 @@ This extends the evidence-identity repair before final integration.
 | A5b | Repair the live sync collision fixture in `release_scripts/verify_sync_slice.py` | The authenticated run reproduced a release refusal: adoption alone omits required declared metadata. Reuse the evidence helper and prove the fixture releases through real CLI commands. A repeat also reused the previous divergent probe; give each run a separate native path and prove adoption does not reopen the previous object. Seed the native source through adoption on both devices: passport sync does not transfer the source bytes required for each offline release. Preserve earlier fixtures, then repeat all five live scenarios with two isolated authenticated homes; do not weaken release or conflict validation |
 | A5c | Verify effects in the live sync verdict | The replay receipt may count previously processed events, so receipt acceptance alone does not prove absence of duplicates. Require equal device heads after fast-forward, an empty peer pull with unchanged cursor after replay, and an accepted receipt after the merged push; regression fixtures must reject each false-positive case |
 | A5d | Stop boolean ancestry lookup once the ancestor is found in `local/revisions.py:is_ancestor` | The 10,000-revision measurement performed 10,002 SQL statements for an immediate parent. Bound that case independently of history length; retain correct self, unknown, unrelated and multi-parent results and read-only behavior. Keep deterministic `common_ancestor` selection unchanged; remeasure the retained database |
+| A5e | Isolate the unchanged-device rescan regression from workstation version probes in `test_cli_commands.py` | The full local run exposed a test assumption: repeated live OpenCode probes changed from a reported version to `unknown`, which correctly creates a revision. Retained repeat snapshots reproduce that transition. Supply deterministic detector observations; unchanged known or unknown versions retain the revision despite a later observation time, while version changes and transitions to or from `unknown` create one child revision. Keep real detector subprocess coverage and runtime timeouts unchanged |
 | A6 | Review, integrate and verify | Explicit-path staging, exact-SHA PR into `dev`, promotion into `main` after checks, served-SHA readback, synchronize permanent local branches; a green historical SHA is not the final gate |
 
 A1–A3b change qualification evidence handling, not provider ownership or task
@@ -144,6 +145,24 @@ statements at 100, 1,000 and 10,000 revisions (about 0.0002 s at 10,000 in the
 repeat). A distant root still requires a full traversal. A real-registry
 regression bounds the query count and checks that reads do not alter the
 database; branching and unknown-revision cases retain their verdicts.
+
+A later complete local run on `9eaf3964` finished with 7,853 passed, one failed
+and 100 conditional skips (87.40% coverage). The unchanged-device rescan test
+assumed that real workstation probes always return the same answer. An
+instrumented repetition reproduced four failures in twelve attempts: OpenCode
+and Cursor version observations changed to or from `unknown`. Creating a child
+revision for those changed facts is correct. A5e makes that regression's inputs
+deterministic and checks both stable observations and changed versions, without
+changing detection deadlines or runtime behavior. Final checks after this test
+repair remain owned by the work PR.
+
+The exact installed `9eaf3964` wheel also passed all 20 first-pass GPT OSS
+scenarios through Herdr/agy, including the three earlier control scenarios.
+The expanded overlay digest is
+`sha256:deb37cbc3c1f4e7e274e338ce5b1c6767e832439bd4f44e2a9690d7f94496293`.
+It is separate from the earlier `f64befa0` 23/24 sample and leaves 80 of the
+100 qualification cells unrun; neither the initial failure nor that remaining
+qualification work is erased.
 
 ### Remainders that this audit must not erase
 
