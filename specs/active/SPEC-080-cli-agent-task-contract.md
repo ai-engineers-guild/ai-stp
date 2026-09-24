@@ -152,9 +152,16 @@ a CLI language rewrite, and a PyPI CLI cut are excluded.
   start completes in the first envelope. A blocked human question binds
   `question-id` and leaves `value` missing; argv is
   `task answer` without that value (`REQ-1131`).
+  The control Skill distinguishes a harness shell task handle from an ai-stp
+  task id. If the shell tool yields before stdout is available, the agent
+  retrieves its completed output before another CLI invocation; a timer or
+  shell-task status does not establish a CLI outcome.
 - `REQ-8011`: `task start` and `task answer` accept `--input <file|->`. The
   file or stdin is a JSON or YAML object parsed into the same typed model;
-  duplicate keys are refused rather than last-wins, in either spelling. Flags
+  unreadable paths and invalid UTF-8 return a validation error naming the
+  file-or-stdin interface and scoped start help, without echoing the supplied
+  input locator. An inline JSON argument remains a refused file locator.
+  Duplicate keys are refused rather than last-wins, in either spelling. Flags
   win over keys
   in that object. Inspect rejects a non-empty input object. A schema
   validation refusal is `AI_STP_VALIDATION_ERROR` whose `details.fields`
@@ -200,6 +207,12 @@ a CLI language rewrite, and a PyPI CLI cut are excluded.
   under task authority, and apply in one `task continue`. The model does not
   type those expert leaves. Omitted `setup_id`/`setup_version` becomes one
   justified first-party `baseline` pin for the harness, acquired in-process.
+  Only omission of both fields selects that baseline. Supplying either field
+  alone blocks on `setup-ref` until the exact pair is known. An exact setup
+  already held under the current owner's identity proceeds to the same
+  checked install plan without fetching it from the public catalog. A missing
+  version or another owner's setup still uses catalog acquisition; local
+  ownership does not bypass graph, artifact, compatibility or provider checks.
   If no justified pin exists, one `setup-ref` question. The CLI does not quiz
   the catalog. Omitted `project_root` is one absolute-path question.
   A catalogued harness config directory (or a path inside one) is not a
@@ -217,7 +230,11 @@ a CLI language rewrite, and a PyPI CLI cut are excluded.
   resumes or applies the held operation instead of planning a second one.
 - `REQ-8015`: Intent `change` drains `application.change`. It asks harness,
   source pin, component pin, and project root at most once each. Omitted source
-  pin becomes the same first-party `baseline` as `install`. Omitted action is
+  pin becomes the same first-party `baseline` as `install`; a partially
+  specified pin instead asks for `setup-ref`. Exact owner-local source setups
+  use the held graph, including embedded components whose full reference
+  matches the source member. They do not require public catalog publication.
+  Omitted action is
   `add`. The engine records a new setup stable id, `fork_origin`, and
   `related_setup_ids` pointing at the source. The source identity remains
   held. Identical member sets do not mint. Compensated install remains

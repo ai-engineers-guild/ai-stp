@@ -568,11 +568,21 @@ def _input_document(parameters: Mapping[str, object]) -> dict[str, JsonValue]:
         path = Path(locator)
         try:
             body = path.read_text(encoding="utf-8")
-        except OSError as error:
+        except (OSError, UnicodeError, ValueError) as error:
             raise CliFailure(
                 "AI_STP_VALIDATION_ERROR",
-                "the task input file could not be read",
-                details={"input": locator, "reason": type(error).__name__},
+                "the task input file could not be read; --input expects a JSON/YAML file path "
+                "or '-' for stdin",
+                details={"field": "input", "reason": type(error).__name__},
+                continuations=[
+                    Continuation(
+                        kind="inspect",
+                        path=["help"],
+                        arguments={"path": "task start"},
+                        argv=["help", "--path", "task start", "--json"],
+                        actor="cli",
+                    )
+                ],
             ) from error
     if len(body) > _INPUT_LIMIT:
         raise CliFailure(

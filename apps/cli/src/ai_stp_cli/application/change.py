@@ -12,6 +12,7 @@ from typing import Final, cast
 from ai_stp_cli import identity
 from ai_stp_cli.application import install as install_service
 from ai_stp_cli.application.install_task import (
+    acquire_pin,
     ensure_local_context,
     harness_target,
     project_root_question,
@@ -83,7 +84,7 @@ def drain(facts: Mapping[str, JsonValue]) -> DrainResult:
     setup_id = facts.get("setup_id")
     setup_version = facts.get("setup_version")
     if not isinstance(setup_id, str) or not isinstance(setup_version, str):
-        pin = recommend_setup(harness)
+        pin = recommend_setup(harness) if setup_id is None and setup_version is None else None
         if pin is None:
             return DrainResult(
                 questions=(
@@ -363,6 +364,9 @@ def _local_material(
 
     recorded = versions.held(connection, member.stable_id, member.version)
     if recorded is None:
+        embedded = _embedded_local_component(connection, member.stable_id, member.version)
+        if embedded is not None and embedded.ref == member:
+            return embedded
         raise CliFailure(
             "AI_STP_NOT_FOUND",
             "a setup member is not held by this registry",
@@ -397,15 +401,13 @@ def _local_material(
 
 
 def _acquire_setup(setup_id: str, setup_version: str) -> None:
-    from ai_stp_cli.application import catalog as catalog_service
-
     if not is_valid_id(setup_id, "setup"):
         raise CliFailure(
             "AI_STP_VALIDATION_ERROR",
             "change input is not valid",
             details={"field": "setup_id"},
         )
-    catalog_service.acquire({"id": setup_id, "version": setup_version})
+    acquire_pin(setup_id, setup_version)
 
 
 def _acquire_component(component_id: str, component_version: str) -> setup_compose.CatalogMaterial:

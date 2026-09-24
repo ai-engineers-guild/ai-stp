@@ -845,7 +845,6 @@
   "the target harness is required": "нужен целевой харнесс",
   "the target harness is unknown": "целевой харнесс неизвестен",
   "the task engine verbs are start, answer, continue, status, cancel, and list": "глаголы движка задач: start, answer, continue, status, cancel и list",
-  "the task input file could not be read": "файл входных данных задачи не удалось прочитать",
   "the task input is larger than the allowed bound": "входные данные задачи больше допустимой границы",
   "the task input is not a JSON or YAML object": "входные данные задачи не являются JSON- или YAML-объектом",
   "the task input is not valid": "входные данные задачи недопустимы",
@@ -958,5 +957,6 @@
   "the component name must be one native path segment": "имя компонента должно быть одним сегментом нативного пути",
   "the idempotency key must contain 16 to 128 ASCII letters, digits, '.', '_', '~', or '-'": "ключ идемпотентности должен содержать от 16 до 128 букв ASCII, цифр или символов '.', '_', '~', '-'",
   "this native surface requires exactly one source file": "для этой нативной поверхности требуется ровно один исходный файл",
-  "task start needs --intent NAME, not a positional intent": "для task start требуется --intent NAME, а не позиционное имя сценария"
+  "task start needs --intent NAME, not a positional intent": "для task start требуется --intent NAME, а не позиционное имя сценария",
+  "the task input file could not be read; --input expects a JSON/YAML file path or '-' for stdin": "не удалось прочитать входной файл задачи; --input принимает путь к JSON/YAML-файлу или '-' для stdin"
 }

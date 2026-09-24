@@ -11,7 +11,7 @@ from typing import Final
 from ai_stp_cli import identity
 from ai_stp_cli.application import install as install_service
 from ai_stp_cli.errors import CliFailure
-from ai_stp_cli.local import harnesses, passports, project_passport
+from ai_stp_cli.local import harnesses, passports, project_passport, revisions, versions
 from ai_stp_cli.local.database import configured_path, open_registry
 from ai_stp_contracts.machine_help import InstallationView, TaskInstallOutcome, TaskQuestion
 from ai_stp_foundation.canonical import JsonValue
@@ -73,9 +73,18 @@ def recommend_setup(harness_id: str) -> SetupPin | None:
 
 
 def acquire_pin(setup_id: str, setup_version: str) -> None:
-    """Materialize the exact graph. Shared with expert `registry acquire`."""
+    """Use an exact owner-local setup, otherwise acquire the published graph."""
     from ai_stp_cli.application import catalog as catalog_service
 
+    with closing(open_registry(configured_path(), create=True)) as connection:
+        held = versions.held(connection, setup_id, setup_version)
+        stored = revisions.get(connection, held.revision_id) if held is not None else None
+        if (
+            stored is not None
+            and stored.envelope.kind == "setup"
+            and stored.envelope.owner_id == passports.owner().account_id
+        ):
+            return
     catalog_service.acquire({"id": setup_id, "version": setup_version})
 
 
@@ -168,7 +177,7 @@ def drain(
     setup_id = facts.get("setup_id")
     setup_version = facts.get("setup_version")
     if not isinstance(setup_id, str) or not isinstance(setup_version, str):
-        pin = recommend_setup(harness)
+        pin = recommend_setup(harness) if setup_id is None and setup_version is None else None
         if pin is None:
             return DrainResult(
                 questions=(
