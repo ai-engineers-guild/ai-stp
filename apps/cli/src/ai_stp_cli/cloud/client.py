@@ -211,6 +211,7 @@ def open_client(
     *,
     transport: httpx.BaseTransport | None = None,
     access_token: str | None = None,
+    timeout: float | None = None,
 ) -> Generator[httpx.Client]:
     """A client with the contract's headers already on it."""
     # Name the caller. Left to `httpx` this reads `python-httpx/0.28.1`, which
@@ -232,7 +233,10 @@ def open_client(
         headers["Authorization"] = f"Bearer {access_token}"
     client = httpx.Client(
         base_url=check_base_url(endpoint.base_url),
-        timeout=httpx.Timeout(READ_TIMEOUT, connect=CONNECT_TIMEOUT),
+        timeout=httpx.Timeout(
+            READ_TIMEOUT if timeout is None else timeout,
+            connect=CONNECT_TIMEOUT if timeout is None else min(timeout, CONNECT_TIMEOUT),
+        ),
         headers=headers,
         transport=transport or endpoint.transport,
         # A redirect on an authenticated call would resend the bearer token to

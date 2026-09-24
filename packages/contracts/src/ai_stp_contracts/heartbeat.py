@@ -10,7 +10,7 @@ and secrets cannot smuggle through the field.
 
 from typing import Annotated, Final, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from ai_stp_contracts.corporate import AccountId, OrganizationId
 from ai_stp_contracts.http import Timestamp, open_wire_object, strict_request_object
@@ -26,6 +26,11 @@ HeartbeatHealthState = Literal["active", "partial", "stale", "failing", "disable
 # `name` or `name@version`; no whitespace or path separators.
 CAPABILITY_TOKEN_PATTERN: Final = r"^[a-z0-9][a-z0-9._-]{0,63}(@[A-Za-z0-9][A-Za-z0-9.+_-]{0,63})?$"
 CLI_VERSION_PATTERN: Final = r"^[A-Za-z0-9][A-Za-z0-9.+_-]{0,63}$"
+
+DEFAULT_HEARTBEAT_INTERVAL_SECONDS: Final = 21_600
+DEFAULT_HEARTBEAT_RETRY_BASE_SECONDS: Final = 60
+DEFAULT_HEARTBEAT_RETRY_MAX_SECONDS: Final = 3_600
+DEFAULT_HEARTBEAT_STALE_AFTER_SECONDS: Final = 86_400
 
 CapabilityToken = Annotated[str, Field(max_length=128, pattern=CAPABILITY_TOKEN_PATTERN)]
 
@@ -79,6 +84,45 @@ class InstallationHeartbeatStatus(BaseModel):
     evaluated_at: Timestamp
     stale_after_seconds: Annotated[int, Field(ge=1)]
     heartbeat: InstallationHeartbeat | None = None
+
+
+class InstallationHeartbeatPolicy(BaseModel):
+    """The organization-owned cadence and enablement visible to members."""
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+
+    schema_version: Literal[1] = 1
+    organization_id: OrganizationId
+    enabled: bool = True
+    interval_seconds: Annotated[int, Field(ge=300, le=2_592_000)] = (
+        DEFAULT_HEARTBEAT_INTERVAL_SECONDS
+    )
+    retry_base_seconds: Annotated[int, Field(ge=30, le=86_400)] = (
+        DEFAULT_HEARTBEAT_RETRY_BASE_SECONDS
+    )
+    retry_max_seconds: Annotated[int, Field(ge=60, le=604_800)] = (
+        DEFAULT_HEARTBEAT_RETRY_MAX_SECONDS
+    )
+    stale_after_seconds: Annotated[int, Field(ge=60, le=31_536_000)] = (
+        DEFAULT_HEARTBEAT_STALE_AFTER_SECONDS
+    )
+
+    @model_validator(mode="after")
+    def retry_max_covers_base(self) -> "InstallationHeartbeatPolicy":
+        if self.retry_max_seconds < self.retry_base_seconds:
+            raise ValueError("retry_max_seconds must be at least retry_base_seconds")
+        return self
+
+
+class InstallationHeartbeatSubscription(BaseModel):
+    """Local opt-in state for periodic reporting by this CLI installation."""
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+
+    schema_version: Literal[1] = 1
+    organization_id: OrganizationId
+    enabled: bool
+    next_attempt_at: Timestamp | None = None
 
 
 class InstallationHeartbeatList(BaseModel):

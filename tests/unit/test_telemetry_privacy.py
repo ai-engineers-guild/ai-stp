@@ -1,5 +1,7 @@
 """Telemetry privacy boundary and contract tests (SPEC-089, ADR-0203)."""
 
+from datetime import UTC, datetime, timedelta
+from types import SimpleNamespace
 from typing import Any, cast
 
 import pytest
@@ -13,6 +15,7 @@ from ai_stp_contracts.telemetry_privacy import (
     CorporateTelemetryPolicyRequest,
 )
 from ai_stp_foundation.ids import new_id
+from ai_stp_platform import telemetry_retention
 from ai_stp_platform.telemetry_privacy_service import (
     TELEMETRY_PERMISSIONS,
     TelemetryBoundaryError,
@@ -149,6 +152,77 @@ def test_policy_request_enforces_retention_bounds() -> None:
         idempotency_key="telemetry-policy-0002",
     )
     assert request.legal_basis == "consent"
+    configured = CorporateTelemetryPolicyRequest(
+        raw_retention_days=30,
+        legal_basis="consent",
+        notice_revision=2,
+        expected_policy_revision=0,
+        authorization_revision=1,
+        idempotency_key="telemetry-policy-0003",
+        heartbeat_interval_seconds=900,
+        heartbeat_retry_base_seconds=60,
+        heartbeat_retry_max_seconds=600,
+        heartbeat_stale_after_seconds=7200,
+    )
+    assert configured.heartbeat_stale_after_seconds == 7200
+    with pytest.raises(ValidationError):
+        CorporateTelemetryPolicyRequest(
+            raw_retention_days=30,
+            legal_basis="consent",
+            notice_revision=2,
+            expected_policy_revision=0,
+            authorization_revision=1,
+            idempotency_key="telemetry-policy-0004",
+            heartbeat_retry_base_seconds=600,
+            heartbeat_retry_max_seconds=60,
+        )
+
+
+@pytest.mark.asyncio
+async def test_retention_discovers_heartbeat_only_tenants_and_applies_default_window() -> None:
+    class FakeRows:
+        def all(self) -> list[str]:
+            return ["org_heartbeat_only"]
+
+    class FakeSession:
+        delete_statements: list[Any]
+
+        def __init__(self) -> None:
+            self.delete_statements = []
+            self.tenant_query = None
+
+        def get_bind(self) -> SimpleNamespace:
+            return SimpleNamespace(dialect=SimpleNamespace(name="sqlite"))
+
+        async def scalars(self, statement: Any) -> FakeRows:
+            self.tenant_query = statement
+            return FakeRows()
+
+        async def get(self, _model: Any, _organization_id: str) -> None:
+            return None
+
+        async def execute(self, statement: Any) -> SimpleNamespace:
+            self.delete_statements.append(statement)
+            return SimpleNamespace(rowcount=1)
+
+    session = FakeSession()
+    removed = await telemetry_retention.apply_retention_all(
+        cast(Any, session), now=datetime(2026, 9, 24, tzinfo=UTC)
+    )
+    assert removed == 3
+    assert telemetry_retention.DEFAULT_RAW_RETENTION_DAYS == 90
+    assert "installation_heartbeat" in str(session.tenant_query)
+    assert any(
+        "DELETE FROM installation_heartbeat" in str(statement)
+        for statement in session.delete_statements
+    )
+    heartbeat_delete = next(
+        statement
+        for statement in session.delete_statements
+        if "installation_heartbeat" in str(statement)
+    )
+    cutoff = datetime(2026, 9, 24, tzinfo=UTC) - timedelta(days=90)
+    assert cutoff in heartbeat_delete.compile().params.values()
 
 
 def test_batch_request_rejects_repeated_event_ids() -> None:

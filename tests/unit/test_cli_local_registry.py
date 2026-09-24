@@ -125,7 +125,9 @@ def test_a_failed_transaction_leaves_nothing_behind(registry: sqlite3.Connection
 
 
 def test_migrations_roll_back_where_a_reverse_is_declared(tmp_path: Path) -> None:
-    reversible = next((item.version - 1 for item in MIGRATIONS if not item.down), SCHEMA_VERSION)
+    reversible = next(
+        (item.version - 1 for item in MIGRATIONS if item.down is None), SCHEMA_VERSION
+    )
     connection = historical_registry(tmp_path / "registry.sqlite", reversible)
     downgrade(connection, 0)
     assert schema_version(connection) == 0
@@ -518,12 +520,34 @@ def test_a_migration_that_fails_leaves_the_version_where_it_was(
 
 
 def test_downgrading_past_what_is_applied_does_nothing(tmp_path: Path) -> None:
-    reversible = next((item.version - 1 for item in MIGRATIONS if not item.down), SCHEMA_VERSION)
+    reversible = next(
+        (item.version - 1 for item in MIGRATIONS if item.down is None), SCHEMA_VERSION
+    )
     connection = historical_registry(tmp_path / "registry.sqlite", reversible)
     downgrade(connection, 0)
     downgrade(connection, 0)
     assert schema_version(connection) == 0
     connection.close()
+
+
+def test_additive_heartbeat_subscription_survives_cli_rollback(tmp_path: Path) -> None:
+    path = tmp_path / "registry.sqlite"
+    connection = open_registry(path)
+    connection.execute(
+        "INSERT INTO heartbeat_subscription "
+        "(organization_id, account_id, device_id, next_attempt_at) VALUES (?, ?, ?, ?)",
+        ("organization_test", "account_test", "device_test", "2026-09-24T00:00:00.000Z"),
+    )
+
+    downgrade(connection, SCHEMA_VERSION - 1)
+    assert schema_version(connection) == SCHEMA_VERSION - 1
+    assert connection.execute("SELECT COUNT(*) FROM heartbeat_subscription").fetchone()[0] == 1
+    connection.close()
+
+    upgraded = open_registry(path)
+    assert schema_version(upgraded) == SCHEMA_VERSION
+    assert upgraded.execute("SELECT COUNT(*) FROM heartbeat_subscription").fetchone()[0] == 1
+    upgraded.close()
 
 
 def test_a_failed_developer_init_settles_the_journal(

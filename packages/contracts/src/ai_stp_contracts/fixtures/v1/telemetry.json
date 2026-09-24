@@ -29,6 +29,15 @@
       "body": {"schema_version": 1, "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "evaluated_at": "2026-09-22T11:00:00.000Z", "stale_after_seconds": 86400, "total": 0, "items": []}
     },
     {
+      "case_id": "readInstallationHeartbeatPolicy.telemetry",
+      "operation_id": "readInstallationHeartbeatPolicy",
+      "kind": "positive",
+      "why": "An installation reads its organization's opt-in and retry cadence.",
+      "request": {"path_params": {"organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z"}},
+      "status": 200,
+      "body": {"schema_version": 1, "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "enabled": true, "interval_seconds": 21600, "retry_base_seconds": 60, "retry_max_seconds": 3600, "stale_after_seconds": 86400}
+    },
+    {
       "case_id": "recordCorporateTelemetryEvent.telemetry",
       "operation_id": "recordCorporateTelemetryEvent",
       "kind": "positive",
@@ -89,16 +98,16 @@
       "why": "The active telemetry policy is readable as a typed view.",
       "request": {"path_params": {"organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z"}},
       "status": 200,
-      "body": {"schema_version": 1, "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "raw_retention_days": 30, "aggregate_retention_days": 365, "legal_basis": "consent", "notice_text": "telemetry", "notice_revision": 1, "policy_version": 1, "updated_at": "2026-09-22T11:00:00.000Z"}
+      "body": {"schema_version": 1, "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "raw_retention_days": 30, "aggregate_retention_days": 365, "legal_basis": "consent", "notice_text": "telemetry", "notice_revision": 1, "heartbeat_enabled": true, "heartbeat_interval_seconds": 21600, "heartbeat_retry_base_seconds": 60, "heartbeat_retry_max_seconds": 3600, "heartbeat_stale_after_seconds": 86400, "policy_version": 1, "updated_at": "2026-09-22T11:00:00.000Z"}
     },
     {
       "case_id": "writeCorporateTelemetryPolicy.telemetry",
       "operation_id": "writeCorporateTelemetryPolicy",
       "kind": "positive",
       "why": "A policy replacement carries an explicit revision and idempotency key.",
-      "request": {"path_params": {"organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z"}, "body": {"schema_version": 1, "raw_retention_days": 30, "aggregate_retention_days": 365, "legal_basis": "consent", "notice_text": "telemetry", "notice_revision": 1, "expected_policy_revision": 0, "authorization_revision": 1, "reason": "telemetry policy", "idempotency_key": "telemetry-policy-0001"}},
+      "request": {"path_params": {"organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z"}, "body": {"schema_version": 1, "raw_retention_days": 30, "aggregate_retention_days": 365, "legal_basis": "consent", "notice_text": "telemetry", "notice_revision": 1, "heartbeat_enabled": true, "heartbeat_interval_seconds": 21600, "heartbeat_retry_base_seconds": 60, "heartbeat_retry_max_seconds": 3600, "heartbeat_stale_after_seconds": 86400, "expected_policy_revision": 0, "authorization_revision": 1, "reason": "telemetry policy", "idempotency_key": "telemetry-policy-0001"}},
       "status": 200,
-      "body": {"schema_version": 1, "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "raw_retention_days": 30, "aggregate_retention_days": 365, "legal_basis": "consent", "notice_text": "telemetry", "notice_revision": 1, "policy_version": 1, "updated_at": "2026-09-22T11:00:00.000Z"}
+      "body": {"schema_version": 1, "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "raw_retention_days": 30, "aggregate_retention_days": 365, "legal_basis": "consent", "notice_text": "telemetry", "notice_revision": 1, "heartbeat_enabled": true, "heartbeat_interval_seconds": 21600, "heartbeat_retry_base_seconds": 60, "heartbeat_retry_max_seconds": 3600, "heartbeat_stale_after_seconds": 86400, "policy_version": 1, "updated_at": "2026-09-22T11:00:00.000Z"}
     },
     {
       "case_id": "recordCorporateTelemetryRight.telemetry",

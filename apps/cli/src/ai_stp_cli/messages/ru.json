@@ -645,6 +645,7 @@
   "the operation has no native capture binding": "В операции нет привязки к нативному снимку.",
   "the operation is not a child of this transaction": "операция не является дочерней для этой транзакции",
   "the operation must be named": "нужно назвать операцию",
+  "the organization has disabled installation heartbeat reporting": "организация отключила отправку heartbeat установок",
   "the overlay identity already belongs to a different origin": "идентичность overlay уже принадлежит другому происхождению",
   "the overlay record vanished after being written": "запись overlay исчезла после записи",
   "the overlay version vanished after being written": "версия overlay исчезла после записи",

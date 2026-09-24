@@ -244,6 +244,7 @@ from ai_stp_contracts.health import LivenessResponse, ReadinessResponse
 from ai_stp_contracts.heartbeat import (
     InstallationHeartbeat,
     InstallationHeartbeatList,
+    InstallationHeartbeatPolicy,
     InstallationHeartbeatRequest,
     InstallationHeartbeatStatus,
 )
@@ -625,6 +626,15 @@ OPERATIONS: Final[tuple[Operation, ...]] = (
         path_params=(_ORGANIZATION_ID,),
         authenticated=True,
         idempotent_mutation=True,
+    ),
+    Operation(
+        method="get",
+        path="/corporate/organizations/{organization_id}/telemetry/heartbeat/policy",
+        operation_id="readInstallationHeartbeatPolicy",
+        summary="Read the organization's heartbeat cadence and enablement.",
+        response=InstallationHeartbeatPolicy,
+        path_params=(_ORGANIZATION_ID,),
+        authenticated=True,
     ),
     Operation(
         method="get",

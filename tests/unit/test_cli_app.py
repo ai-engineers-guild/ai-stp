@@ -13,6 +13,7 @@ import pytest
 from pydantic import BaseModel, Field, ValidationError
 
 from ai_stp_cli import app
+from ai_stp_cli.application import heartbeat as heartbeat_app
 from ai_stp_cli.errors import invalid_parameters
 
 
@@ -53,6 +54,24 @@ def test_every_command_succeeds_in_both_modes(
 def test_the_flag_may_be_written_before_the_command(capsys: pytest.CaptureFixture[str]) -> None:
     code, out, _err = _run(["--json", "config", "show"], capsys)
     assert code == 0
+    assert _envelope(out)["ok"] is True
+
+
+def test_automatic_heartbeat_failure_does_not_change_a_successful_command(
+    capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    calls = 0
+
+    def fail() -> None:
+        nonlocal calls
+        calls += 1
+        raise RuntimeError("temporary heartbeat failure")
+
+    monkeypatch.setattr(heartbeat_app, "maybe_send_due", fail)
+    code, out, err = _run(["version", "--json"], capsys)
+    assert code == 0
+    assert not err
+    assert calls == 1
     assert _envelope(out)["ok"] is True
 
 

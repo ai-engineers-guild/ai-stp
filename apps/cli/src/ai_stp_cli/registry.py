@@ -3830,6 +3830,38 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         next_actions=("help --path heartbeat --json",),
     ),
     Declaration(
+        path=["heartbeat", "enable"],
+        summary="Opt this CLI installation into automatic heartbeats for one organization.",
+        result_schema="urn:ai-stp:schema:v1:installation-heartbeat-subscription",
+        handler="heartbeat:enable",
+        mutability="apply",
+        parameters=(
+            option(
+                "organization",
+                "string",
+                "Organization this installation may report to.",
+                required=True,
+            ),
+        ),
+        next_actions=("help --path heartbeat --json",),
+    ),
+    Declaration(
+        path=["heartbeat", "disable"],
+        summary="Stop automatic heartbeats from this CLI installation.",
+        result_schema="urn:ai-stp:schema:v1:installation-heartbeat-subscription",
+        handler="heartbeat:disable",
+        mutability="apply",
+        parameters=(
+            option(
+                "organization",
+                "string",
+                "Organization to stop reporting to.",
+                required=True,
+            ),
+        ),
+        next_actions=("help --path heartbeat --json",),
+    ),
+    Declaration(
         path=["heartbeat", "status"],
         summary="This installation's evaluated health state.",
         result_schema="urn:ai-stp:schema:v1:installation-heartbeat-status",

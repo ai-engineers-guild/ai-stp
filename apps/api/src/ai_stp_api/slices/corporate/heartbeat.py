@@ -8,6 +8,7 @@ member-scoped or organization-scoped visibility. Health is evaluated at read
 time; nothing here emits a runtime invocation event.
 """
 
+from datetime import timedelta
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
@@ -22,6 +23,7 @@ from ai_stp_contracts.heartbeat import (
     HeartbeatHealthState,
     InstallationHeartbeat,
     InstallationHeartbeatList,
+    InstallationHeartbeatPolicy,
     InstallationHeartbeatRequest,
     InstallationHeartbeatStatus,
 )
@@ -56,10 +58,28 @@ async def write_heartbeat(
         view = await heartbeat_service.record_heartbeat(
             db, organization_id=organization_id, report=payload
         )
+    except heartbeat_service.HeartbeatPolicyDisabled as error:
+        raise ApiError(ErrorCategory.PERMISSION, str(error)) from error
+    except heartbeat_service.HeartbeatSubjectRevoked as error:
+        raise ApiError(ErrorCategory.PERMISSION, str(error)) from error
     except heartbeat_service.HeartbeatRejected as error:
         raise ApiError(ErrorCategory.VALIDATION, str(error)) from error
     await db.commit()
     return view
+
+
+@router.get(
+    "/corporate/organizations/{organization_id}/telemetry/heartbeat/policy",
+    response_model=InstallationHeartbeatPolicy,
+)
+async def read_heartbeat_policy(
+    organization_id: OrganizationId,
+    ctx: Annotated[AuthContext, Depends(require_auth)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> InstallationHeartbeatPolicy:
+    """Read heartbeat cadence visible to a member deciding whether to opt in."""
+    await service.organization_and_membership(db, ctx=ctx, organization_id=organization_id)
+    return await heartbeat_service.organization_policy(db, organization_id=organization_id)
 
 
 @router.get(
@@ -78,12 +98,13 @@ async def read_own_heartbeat(
     row = await heartbeat_service.get_heartbeat(
         db, organization_id=organization_id, device_id=ctx.device_id
     )
+    policy = await heartbeat_service.organization_policy(db, organization_id=organization_id)
     return heartbeat_service.status_view(
         organization_id=organization_id,
         device_id=ctx.device_id,
         row=row,
         now=heartbeat_service.utcnow(),
-        stale_after=heartbeat_service.DEFAULT_STALE_AFTER,
+        stale_after=timedelta(seconds=policy.stale_after_seconds),
     )
 
 
@@ -101,7 +122,8 @@ async def list_heartbeats(
     await service.organization_and_membership(db, ctx=ctx, organization_id=organization_id)
     rows = await heartbeat_service.list_heartbeats(db, organization_id=organization_id)
     now = heartbeat_service.utcnow()
-    stale_after = heartbeat_service.DEFAULT_STALE_AFTER
+    policy = await heartbeat_service.organization_policy(db, organization_id=organization_id)
+    stale_after = timedelta(seconds=policy.stale_after_seconds)
     views: list[InstallationHeartbeat] = []
     for row in rows:
         if row.account_id == ctx.account_id or await _telemetry_read_allowed(

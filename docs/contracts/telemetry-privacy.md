@@ -1,6 +1,6 @@
 ---
 description: "Telemetry privacy contract: closed event boundary, policy, rights, retention, audit, and deletion routes."
-last_verified: "2026-09-22"
+last_verified: "2026-09-24"
 ---
 
 # Contract: telemetry privacy
@@ -37,3 +37,21 @@ or erased subject yields `409`.
 All mutations carry `idempotency_key` and `authorization_revision`; replays
 return the stored receipt body. Event ingestion deduplicates on
 `(organization_id, event_id)`.
+
+## Policy fields
+
+The policy also governs installation heartbeats:
+
+| Field | Default | Bounds |
+| --- | ---: | ---: |
+| `heartbeat_enabled` | `true` | boolean |
+| `heartbeat_interval_seconds` | 21600 | 300–2592000 |
+| `heartbeat_retry_base_seconds` | 60 | 30–86400 |
+| `heartbeat_retry_max_seconds` | 3600 | 60–604800 and at least the retry base |
+| `heartbeat_stale_after_seconds` | 86400 | 60–31536000 |
+
+Old policy clients may omit these fields; an update preserves current values.
+The CLI's automatic sender requires its separate local opt-in. A disabled
+organization rejects new heartbeat writes. Retention deletes coalesced
+`installation_heartbeat` rows using `received_at` and the same raw retention
+window; a deleted row reads as `unknown`.

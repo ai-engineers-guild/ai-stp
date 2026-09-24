@@ -5498,6 +5498,26 @@ export type CorporateTelemetryPolicyRequest = {
    * Expected Policy Revision
    */
   expected_policy_revision: number;
+  /**
+   * Heartbeat Enabled
+   */
+  heartbeat_enabled?: boolean | null;
+  /**
+   * Heartbeat Interval Seconds
+   */
+  heartbeat_interval_seconds?: number | null;
+  /**
+   * Heartbeat Retry Base Seconds
+   */
+  heartbeat_retry_base_seconds?: number | null;
+  /**
+   * Heartbeat Retry Max Seconds
+   */
+  heartbeat_retry_max_seconds?: number | null;
+  /**
+   * Heartbeat Stale After Seconds
+   */
+  heartbeat_stale_after_seconds?: number | null;
   idempotency_key: IdempotencyKey;
   /**
    * Legal Basis
@@ -5533,6 +5553,26 @@ export type CorporateTelemetryPolicyView = {
    * Aggregate Retention Days
    */
   aggregate_retention_days: number;
+  /**
+   * Heartbeat Enabled
+   */
+  heartbeat_enabled: boolean;
+  /**
+   * Heartbeat Interval Seconds
+   */
+  heartbeat_interval_seconds: number;
+  /**
+   * Heartbeat Retry Base Seconds
+   */
+  heartbeat_retry_base_seconds: number;
+  /**
+   * Heartbeat Retry Max Seconds
+   */
+  heartbeat_retry_max_seconds: number;
+  /**
+   * Heartbeat Stale After Seconds
+   */
+  heartbeat_stale_after_seconds: number;
   /**
    * Legal Basis
    */
@@ -7558,6 +7598,43 @@ export type InstallationHeartbeatList = {
    * Total
    */
   total: number;
+  [key: string]: unknown;
+};
+
+/**
+ * InstallationHeartbeatPolicy
+ *
+ * The organization-owned cadence and enablement visible to members.
+ */
+export type InstallationHeartbeatPolicy = {
+  /**
+   * Enabled
+   */
+  enabled: boolean;
+  /**
+   * Interval Seconds
+   */
+  interval_seconds: number;
+  /**
+   * Organization Id
+   */
+  organization_id: string;
+  /**
+   * Retry Base Seconds
+   */
+  retry_base_seconds: number;
+  /**
+   * Retry Max Seconds
+   */
+  retry_max_seconds: number;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  /**
+   * Stale After Seconds
+   */
+  stale_after_seconds: number;
   [key: string]: unknown;
 };
 
@@ -24990,6 +25067,64 @@ export type WriteInstallationHeartbeatResponses = {
 
 export type WriteInstallationHeartbeatResponse =
   WriteInstallationHeartbeatResponses[keyof WriteInstallationHeartbeatResponses];
+
+export type ReadInstallationHeartbeatPolicyData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/telemetry/heartbeat/policy";
+};
+
+export type ReadInstallationHeartbeatPolicyErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ReadInstallationHeartbeatPolicyError =
+  ReadInstallationHeartbeatPolicyErrors[keyof ReadInstallationHeartbeatPolicyErrors];
+
+export type ReadInstallationHeartbeatPolicyResponses = {
+  /**
+   * Read the organization's heartbeat cadence and enablement.
+   */
+  200: InstallationHeartbeatPolicy;
+};
+
+export type ReadInstallationHeartbeatPolicyResponse =
+  ReadInstallationHeartbeatPolicyResponses[keyof ReadInstallationHeartbeatPolicyResponses];
 
 export type ListInstallationHeartbeatsData = {
   body?: never;
