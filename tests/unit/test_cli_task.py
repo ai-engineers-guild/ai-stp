@@ -137,6 +137,10 @@ def test_start_joins_a_leftover_running_row(monkeypatch: pytest.MonkeyPatch) -> 
 def test_concurrent_inspect_start_joins_the_same_key() -> None:
     from concurrent.futures import ThreadPoolExecutor
 
+    # Race the task key after schema preparation. Concurrent first opens have
+    # their own registry regression; migrations are not part of this wait.
+    with closing(open_registry(configured_path(), create=True)):
+        pass
     key = "inspect-concurrent-start-01"
     parameters = {"intent": "inspect", "idempotency-key": key}
     with ThreadPoolExecutor(max_workers=2) as pool:
