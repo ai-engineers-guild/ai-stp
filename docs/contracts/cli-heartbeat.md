@@ -6,7 +6,7 @@ last_verified: "2026-09-24"
 # CLI installation heartbeat
 
 The requirements owner is `SPEC-087` (`REQ-8701`–`REQ-8713`); decisions are
-`ADR-0204` and `ADR-0208`. This document defines the machine boundary: the field list, the
+`ADR-0204`, `ADR-0208`, and `ADR-0209`. This document defines the machine boundary: the field list, the
 commands, and the sending rules. This channel is unrelated to the anonymous
 consented ping (`cli-telemetry.md`, ADR-0112), which is untouched.
 
@@ -49,9 +49,16 @@ absent harnesses are not reported.
   typed transport failure.
 - `heartbeat enable --organization <id>` — after device-bound authentication,
   confirm that organization policy permits reporting and opt this local CLI
-  installation in. The subscription is tied to this account and device.
+  installation in. The subscription is tied to this account and device. A
+  per-user OS wakeup is registered before opt-in is saved; a registration
+  error refuses autonomous enrollment.
 - `heartbeat disable --organization <id>` — remove local opt-in without a
-  network request.
+  network request, then remove its OS wakeup.
+- `heartbeat tick --organization <id>` — one offline-safe due check for the
+  named local subscription. It sends only when the organization policy and
+  SQLite retry schedule allow it; it cannot create opt-in.
+- `heartbeat local-status --organization <id>` — offline view of opt-in,
+  scheduler registration, and the next/last attempt timestamps.
 - `heartbeat status --organization <id>` — this installation's evaluated
   health (`unknown` before the first beat).
 - `heartbeat installations --organization <id> [--health <state>]` — the
@@ -64,9 +71,15 @@ attempt; no report body or credential is queued locally. Network work is
 bounded to one policy lookup and one write attempt, each with a two-second
 timeout. Failures do not change the command result and schedule an
 organization-bounded exponential retry. Successful sends wait for the
-organization interval. This is opportunistic reporting while the CLI is used;
-there is no daemon or OS scheduled task, so an idle installation becomes
-`stale`.
+organization interval. An hourly per-user OS wakeup invokes the same sender
+while the user session and host scheduler are available. Windows uses Task
+Scheduler, macOS uses LaunchAgent, Linux uses a user systemd timer, and WSL
+uses a Windows task to launch the named distribution. No Python daemon stays
+resident. The installed Python path and effective XDG config/data directories
+are captured in the local task; repeat `enable`
+after moving or reinstalling the CLI. A sleeping, powered-off, or logged-out
+host may become `stale`. Local `disable` does not report `disabled` to the API;
+the last row eventually projects as `stale`.
 
 ## Never sent
 

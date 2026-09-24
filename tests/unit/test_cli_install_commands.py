@@ -3351,7 +3351,10 @@ def test_target_reads_create_no_registry_on_a_clean_installation() -> None:
     assert not registry.exists()
 
 
-def test_managed_target_changes_use_exact_verified_operation_evidence(tmp_path: Path) -> None:
+@pytest.mark.parametrize("project_form", ["stable_id", "root"])
+def test_managed_target_changes_use_exact_verified_operation_evidence(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, project_form: str
+) -> None:
     target = tmp_path / "target"
     managed = target / "skills" / "review" / "SKILL.md"
     managed.parent.mkdir(parents=True)
@@ -3377,11 +3380,12 @@ def test_managed_target_changes_use_exact_verified_operation_evidence(tmp_path: 
     cache.store_raw_artifact_bytes(payload, artifact_digest)
 
     with closing(open_registry(configured_path(), create=True)) as connection:
+        project_id = _project_context(connection, tmp_path)
         plan = installation.propose(
             connection,
             action="install",
             author="account_test",
-            target_id="project_test:claude-code",
+            target_id=f"{project_id}:claude-code",
             expected_target_digest=TARGET,
             provider_version="1.0.0",
             effects=("materialize managed paths",),
@@ -3411,16 +3415,28 @@ def test_managed_target_changes_use_exact_verified_operation_evidence(tmp_path: 
         )
         managed.write_bytes(b"changed\n")
 
-        detail, changes = install._managed_target_changes(  # pyright: ignore[reportPrivateUsage]
-            connection,
-            project_id="project_test",
-            harness_id="claude-code",
-        )
+    def observe(
+        connection: sqlite3.Connection,
+        parameters: Mapping[str, object],
+        resolved: str,
+        harness: str,
+    ) -> tuple[str, None, tuple[()]]:
+        assert resolved == project_id
+        return TARGET, None, ()
 
-    assert detail == "available"
+    monkeypatch.setattr(install, "_observe_target", observe)
+    diff = install.target_diff(
+        {
+            "project": project_id if project_form == "stable_id" else str(tmp_path),
+            "harness": "claude-code",
+        }
+    ).payload
+    changes = diff.managed_changes
+    assert diff.managed_detail == "available"
     assert [(item.code, item.path) for item in changes] == [("modified", "skills/review/SKILL.md")]
     assert changes[0].expected_digest == f"sha256:{expected}"
     assert changes[0].observed_digest.startswith("sha256:")
+    assert managed.read_bytes() == b"changed\n"
 
 
 def test_install_still_needs_exactly_one_source(tmp_path: Path) -> None:
