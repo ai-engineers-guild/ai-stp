@@ -130,6 +130,11 @@ a CLI language rewrite, and a PyPI CLI cut are excluded.
   `continue`, `answer`, and `cancel` require the current revision. Status
   names the task id; the process does not hold a current task. A successful
   `task status` may describe a failed, cancelled, or compensated target.
+  An unexpected interruption while answering a question retains the running
+  revision and emits its `task continue` continuation, as an interrupted
+  explicit continue does. Reading a running task also emits that continuation
+  without performing any work. A replay after persistence reuses the held
+  immutable result.
 - `REQ-8008`: Advancing a task calls named application services for that
   intent. It does not look up an arbitrary expert leaf in the command
   registry and run it. `application/` does not import `ai_stp_cli.commands`.

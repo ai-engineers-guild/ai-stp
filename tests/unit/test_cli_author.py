@@ -297,6 +297,72 @@ def test_author_refuses_a_tree_with_only_generated_notes(tmp_path: Path) -> None
     assert raised.value.details["source_code"] == "incomplete_passport"
 
 
+def test_author_answer_failure_emits_resumable_revision_without_reminting(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    persist = author_service.persist
+    written: list[setup_author.AuthoredSetup] = []
+
+    def interrupted(
+        *, directory: Path, harness_id: str, component_type: str, name: str, license_spdx: str
+    ) -> setup_author.AuthoredSetup:
+        result = persist(
+            directory=directory,
+            harness_id=harness_id,
+            component_type=component_type,
+            name=name,
+            license_spdx=license_spdx,
+        )
+        written.append(result)
+        if len(written) == 1:
+            raise RuntimeError("interrupted after persisting the authored setup")
+        return result
+
+    monkeypatch.setattr(author_service, "persist", interrupted)
+    started = task_command.start(
+        {
+            "intent": "author",
+            "idempotency-key": "author-answer-interrupted-01",
+            "input": _facts(
+                tmp_path,
+                {
+                    "directory": str(_skill_tree(tmp_path)),
+                    "harness_id": "antigravity",
+                    "component_type": "skill",
+                    "name": "demo",
+                },
+            ),
+        }
+    )
+    with pytest.raises(CliFailure) as raised:
+        task_command.answer(
+            {
+                "task": started.payload.task_id,
+                "revision": started.payload.revision,
+                "question-id": "license-spdx",
+                "value": "MIT",
+            }
+        )
+    assert raised.value.code == "AI_STP_INTERNAL"
+    status = task_command.status({"task": started.payload.task_id})
+    assert status.payload.state == "running"
+    resume = raised.value.continuations[0]
+    assert resume.actor == "cli"
+    assert resume.path == ["task", "continue"]
+    assert resume.arguments == {
+        "task": started.payload.task_id,
+        "revision": status.payload.revision,
+    }
+    assert status.continuations == (resume,)
+    assert len(written) == 1  # Reading status never drains.
+    finished = task_command.continue_(resume.arguments)
+    assert finished.payload.goal_satisfied is True
+    assert finished.payload.state == "completed"
+    assert written[1].setup_id == written[0].setup_id
+    assert written[0].minted is True
+    assert written[1].minted is False
+
+
 def test_author_refuses_a_kind_without_a_native_surface(tmp_path: Path) -> None:
     with pytest.raises(CliFailure) as raised:
         task_command.start(

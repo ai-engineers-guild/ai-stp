@@ -334,6 +334,11 @@ def continue_task(parameters: Mapping[str, object]) -> Answer[TaskView]:
             details={"task": row.task_id, "state": row.state},
         )
     claimed = _commit_if_current(row, agent_tasks.claim(row, at=moment()))
+    return _drain_claimed(claimed)
+
+
+def _drain_claimed(claimed: StoredTask) -> Answer[TaskView]:
+    """Preserve recovery after either an explicit continue or an answered question."""
     try:
         return _drain(claimed)
     except CliFailure:
@@ -411,7 +416,7 @@ def answer_task(parameters: Mapping[str, object]) -> Answer[TaskView]:
         updated_at=row.updated_at,
     )
     claimed = _commit_if_current(row, agent_tasks.claim(holding, at=moment()))
-    return _drain(claimed)
+    return _drain_claimed(claimed)
 
 
 def status(parameters: Mapping[str, object]) -> Answer[TaskView]:
@@ -944,7 +949,7 @@ def _attach_running_continue(failure: CliFailure, task_id: str) -> CliFailure:
 
 
 def _answer(view: TaskView) -> Answer[TaskView]:
-    if view.state == "planned":
+    if view.state in {"planned", "running"}:
         return Answer(
             view,
             continuations=(
