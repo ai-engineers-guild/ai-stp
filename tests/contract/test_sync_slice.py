@@ -20,7 +20,7 @@ def test_sync_verdict_checks_remote_effects_and_receipt_states(
 ) -> None:
     """An accepted envelope alone cannot prove delivery, replay or a merged push."""
     left, right = tmp_path / "a", tmp_path / "b"
-    pulls = deque(
+    pulls: deque[dict[str, object]] = deque(
         [
             {"ok": True},
             {"ok": True, "applied": 1, "next_cursor": "settled"},
