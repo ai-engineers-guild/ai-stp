@@ -80,8 +80,11 @@ This extends the evidence-identity repair before final integration.
 | A2 | Keep each scored overlay bound to one model in `agy_qualify.py` | Reject mixed-model scoring/fill before workspace or model effects; native/isolation updates and invalidation preserve existing attribution; rejection preserves original bytes; same-model replay is idempotent |
 | A3 | Unambiguously frame `application/qualify.py:tree_digest` | A one-file payload containing another entry's delimiters cannot equal the digest of a two-file tree; rename/content changes change identity; traversal order does not; retain old measurements as historical |
 | A3b | Reject contradictory estate identities in `ai_stp_contracts.estate_release` | One provider repository appears once; a filename cannot claim different digests across consumer distributions, native artifacts or provider wheels; real-file validator regressions refuse the contradictory records before a complete verdict |
-| A4 | Reconcile this roadmap and Agent UX checkpoint with source and retained evidence | One current checkpoint, explicit model/date/limits, no stale next-release instruction, no unsupported native or release pass |
+| A4 | Reconcile this roadmap, Agent UX checkpoint and sync specifications with source and retained evidence | One current checkpoint, explicit model/date/limits, no stale next-release instruction, no unsupported native or release pass. SPEC-009 REQ-912 and SPEC-005 incorrectly promised automatic version reissue; `sync_versions.receive`, `versions.record` and the collision rollback regression implement typed refusal with unchanged local data and cursor. Describe that shipped behavior without inventing automatic recovery |
 | A5 | Verify actual services and full gate | `just docs-check`, `just back-static`, `just back-test` with disposable PostgreSQL, `just web-check`, plus resource/build/install regression and security recipes; explain each environment skip; use pinned Bun without changing the user's installation; dispatch existing platform/configuration/software evidence workflows on the work SHA after verifying seven exact provider tags |
+| A5b | Repair the live sync collision fixture in `release_scripts/verify_sync_slice.py` | The authenticated run reproduced a release refusal: adoption alone omits required declared metadata. Reuse the evidence helper and prove the fixture releases through real CLI commands. A repeat also reused the previous divergent probe; give each run a separate native path and prove adoption does not reopen the previous object. Seed the native source through adoption on both devices: passport sync does not transfer the source bytes required for each offline release. Preserve earlier fixtures, then repeat all five live scenarios with two isolated authenticated homes; do not weaken release or conflict validation |
+| A5c | Verify effects in the live sync verdict | The replay receipt may count previously processed events, so receipt acceptance alone does not prove absence of duplicates. Require equal device heads after fast-forward, an empty peer pull with unchanged cursor after replay, and an accepted receipt after the merged push; regression fixtures must reject each false-positive case |
+| A5d | Stop boolean ancestry lookup once the ancestor is found in `local/revisions.py:is_ancestor` | The 10,000-revision measurement performed 10,002 SQL statements for an immediate parent. Bound that case independently of history length; retain correct self, unknown, unrelated and multi-parent results and read-only behavior. Keep deterministic `common_ancestor` selection unchanged; remeasure the retained database |
 | A6 | Review, integrate and verify | Explicit-path staging, exact-SHA PR into `dev`, promotion into `main` after checks, served-SHA readback, synchronize permanent local branches; a green historical SHA is not the final gate |
 
 A1–A3b change qualification evidence handling, not provider ownership or task
@@ -101,6 +104,46 @@ and offline-cache parity. Its login/revocation scenarios remain `not_verified`.
 The initial web command correctly refused installed Bun 1.4.2; subsequent web
 checks use the repository pin 1.4.0 from a temporary tool directory.
 Full-suite and final-SHA results belong to the work PR, not this baseline.
+
+The user-directed workstation run installed the `f64befa0` CLI wheel into an
+isolated environment and staged all seven attested provider `0.0.73` binaries.
+The existing user binaries were retained. Through Herdr, `agy` ran
+`gpt-oss-120b-medium` against all 20 scenarios: 19 passed and the initial
+initialization attempt failed after repeated commands, stale revisions and an
+invented command. Four independent initialization repetitions passed; the
+original failure remains. The resulting overlay is 23 pass / 1 fail, with
+76 qualification cells unrun, not a completed 100-cell qualification.
+Its digest is `sha256:c5cb4c704c1931d116ac5187ebb9d445c263fec43f1a7e68ea0abe6c3ffc2c76`.
+Bubblewrap isolation was enforced, including IPv4, IPv6 and DNS controls.
+
+The exact `f64befa0` CI gate passed all 40 checks. Native platform evidence
+passed all four Python/platform legs; configuration and software evidence each
+passed 21/21 required harness/platform rows. Local provider evidence verified
+seven global and nine additional scoped profiles with no projection
+disagreements, contribution evidence passed four cases, and all 47 cited
+sources were reachable. These measurements are bound to that candidate, not
+silently relabeled as a later commit. The final source gate and integration
+record belong to [PR #406](https://github.com/ai-engineers-guild/ai-stp/pull/406).
+
+Authenticated owner/publication read and preview evidence passed nine checks;
+publication, invitations and moderation submissions were not driven. The sync
+fixture repairs and stricter verdict are covered by 40 local sync tests.
+The final authenticated live run verified all five scenarios: equal heads after
+fast-forward, no new events or cursor movement on replay, conflict refusal,
+an accepted merged push, and immutable collision refusal preserving the local
+release. The intentionally conflicting devices and their evidence are retained.
+The full local backend run was interrupted at 89% with signal 15 and has no
+passing verdict; the exact-head CI suite is the complete backend evidence.
+Local web tests passed 749 main and 130 catalog cases after a loaded-host
+timeout run; browser regression passed 224 with ten declared skips. No timeout
+or assertion was relaxed. Ancestry measurement on 10,000 revisions observed
+10,002 SQL statements even for the immediate parent (about 0.30 s on this
+shared host); it is retained for #256, not treated as a performance guarantee.
+The bounded lookup repair reduces that immediate-parent case to two SQL
+statements at 100, 1,000 and 10,000 revisions (about 0.0002 s at 10,000 in the
+repeat). A distant root still requires a full traversal. A real-registry
+regression bounds the query count and checks that reads do not alter the
+database; branching and unknown-revision cases retain their verdicts.
 
 ### Remainders that this audit must not erase
 

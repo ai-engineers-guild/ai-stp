@@ -27,7 +27,7 @@ last_verified: "2026-08-03"
 | [local-technology-detection-plan.md](local-technology-detection-plan.md) | Implementation plan for issue #222: deterministic local technology-stack detection in the CLI producing the versioned TechnologyScanHandoff. | 2026-09-21 |
 | [quality-gates.md](quality-gates.md) | Required checks and release evidence. | 2026-09-20 |
 | [real-provider-evidence.md](real-provider-evidence.md) | How to run the full lifecycle against released providers and what is checked in the process. | 2026-08-29 |
-| [release-evidence.md](release-evidence.md) | Required release evidence for the CLI, platform, and providers. | 2026-09-08 |
+| [release-evidence.md](release-evidence.md) | Required release evidence for the CLI, platform, and providers. | 2026-09-24 |
 | [repository-structure.md](repository-structure.md) | Target monorepository structure and code ownership rules. | 2026-09-20 |
 | [schema-evolution.md](schema-evolution.md) | Versioning, compatibility, and migration of persisted and transmitted schemas. | 2026-08-03 |
 | [tech-debt-rules.md](tech-debt-rules.md) | Rules for registering temporary compromises. | 2026-08-03 |

@@ -1,6 +1,6 @@
 ---
 description: "Required release evidence for the CLI, platform, and providers."
-last_verified: "2026-09-08"
+last_verified: "2026-09-24"
 ---
 
 # Release evidence
@@ -66,6 +66,15 @@ release network or on a deployed environment being reachable.
 | `just evidence-citations` | is every source link the harness catalogue cites still alive |
 | `just evidence-sync <home_a> <home_b>` | two devices, rewind, conflict and merge — needs a real browser login |
 | `just evidence-publication <home>` | publication, grants, reports and owner reads — needs a real browser login |
+
+Use disposable authenticated homes for the sync slice. Each invocation creates
+a separate collision probe, fills its release-required declared metadata, and
+adopts its native source on both devices so each has the bytes needed to
+release offline. Only device A's probe identity is pushed; the peer's auxiliary
+adoption remains local. Earlier probe files and versions are preserved.
+The expected immutable collision
+leaves device B's conflicting release intact and refuses its incoming page;
+that device is retained as evidence, not silently reset for another run.
 
 The publication slice retains its exact plan and confirmation hash before
 confirming. Repeating an interrupted run resumes that plan, including while its
