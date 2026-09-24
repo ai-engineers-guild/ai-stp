@@ -276,6 +276,9 @@ a CLI language rewrite, and a PyPI CLI cut are excluded.
   binding cannot supply that provenance. Provider validation still runs.
   Sync does not carry distribution artifacts: missing bytes still require exact
   catalog acquisition, including authenticated private publication access.
+  An owned or accepted current-account exact private setup pin enables the
+  acquisition service's authenticated fallback when its artifact is absent;
+  another account or an unbound version does not enable that fallback.
   Sync push selects an existing syncable local entity by `stable_id`; a missing
   or unsupported identifier asks `stable-id`. Project roots are not account-sync
   entities, and local project passports remain on the device. A disabled-sync

@@ -1,6 +1,6 @@
 ---
 description: "Private upload, exact access reads and owner visibility plans shared with the platform owner."
-last_verified: "2026-09-08"
+last_verified: "2026-09-24"
 ---
 
 # Private distribution
@@ -35,6 +35,13 @@ lookup sends no token; only public 404 permits authenticated lookup. Private cac
 keys include normalized endpoint and account. Online denial cannot become cached
 success. Explicit offline acquisition uses already acquired bytes: revocation
 restricts future reads.
+
+The install task enables that authenticated fallback for an exact held private
+setup whose owner is the current account, or whose exact version is bound by an
+accepted current-account sync event, when its distribution artifact is missing.
+It retains the same ID and version. A foreign or unbound local passport does not
+enable this shortcut, and neither synchronization nor this lookup changes
+distribution visibility.
 
 `setup compose` creates a private local SetupVersion. Exact catalog pins use the
 same anonymous-then-authorized lookup, preserving each component digest. Composition

@@ -1243,6 +1243,45 @@ def test_v3_plan_apply_and_status_bind_one_exact_provider_plan(
     ]
 
 
+def test_v3_plan_preserves_compiler_refusals_before_calling_the_provider(
+    registry: sqlite3.Connection,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from ai_stp_cli.local import bundle
+
+    proposal_id = _confirmed(registry, tmp_path, "Y")
+    executable = _provider(tmp_path, "v3-refused-bundle")
+    state = _v3_test_invoker(monkeypatch, target=tmp_path)
+    compile_bundle = bundle.compile_bundle
+
+    def missing_source(*args: Any, **kwargs: Any) -> bundle.Bundle:
+        kwargs["declared_paths"] = kwargs["declared_paths"] | {"skills/missing.md"}
+        return compile_bundle(*args, **kwargs)
+
+    monkeypatch.setattr(bundle, "compile_bundle", missing_source)
+    with pytest.raises(CliFailure) as raised:
+        install.plan(
+            {
+                "proposal": proposal_id,
+                "provider": executable,
+                "protocol-version": 3,
+                "unverified-provider": True,
+                "target": str(tmp_path),
+            }
+        )
+    assert raised.value.code == "AI_STP_PRECONDITION_FAILED"
+    assert raised.value.details["refusals"] == [
+        {
+            "code": "declared_path_absent",
+            "summary": "the composition declares this managed path and no source carries it",
+            "details": {"path": "skills/missing.md"},
+        }
+    ]
+    assert state["calls"] == ["provider-info"]
+    assert state["plan"] is None
+
+
 def test_v3_prepared_and_newly_composed_sources_bind_the_same_harness_bundle(
     registry: sqlite3.Connection,
     tmp_path: Path,

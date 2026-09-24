@@ -494,6 +494,7 @@
   "the cloud session and local signing identity name different devices": "the cloud session and local signing identity name different devices",
   "the compiled bundle has no conversion entries": "the compiled bundle has no conversion entries",
   "the compiled bundle has no conversion report": "the compiled bundle has no conversion report",
+  "the setup bundle could not be compiled": "the setup bundle could not be compiled",
   "the compiled bundle profile differs from the provider profile": "the compiled bundle profile differs from the provider profile",
   "the compiled conversion entry is malformed": "the compiled conversion entry is malformed",
   "the component artifact does not contain exactly its declared managed paths": "the component artifact does not contain exactly its declared managed paths",

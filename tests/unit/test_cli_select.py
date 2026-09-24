@@ -649,6 +649,74 @@ def test_a_hook_manifest_bundle_keeps_sibling_handlers(
     assert [item.path for item in sources] == ["config/hooks.json", "config/hooks/h01.py"]
 
 
+def test_an_authored_inline_hook_compiles_without_a_sibling_handler_directory(
+    registry: sqlite3.Connection, tmp_path: Path
+) -> None:
+    from ai_stp_cli.local import setup_author
+
+    directory = tmp_path / "inline-hook"
+    directory.mkdir()
+    (directory / "hooks.json").write_text(
+        '{"probe":{"PreInvocation":[{"command":"printf probe"}]}}\n',
+        encoding="utf-8",
+    )
+    authored = setup_author.record(
+        registry,
+        directory=directory,
+        harness_id="antigravity",
+        component_type="hook",
+        name="inline-hook",
+        license_spdx="MIT",
+        publisher_id=owner().account_id,
+        device_id=DEVICE,
+        at=MOMENT,
+    )
+    compiled = select.compile_setup_version_bundle(
+        registry, authored.setup_id, authored.setup_version, expected_harness="antigravity"
+    )
+    assert compiled.compiled, compiled.refusals
+    assert [item.path for item in compiled.files] == ["config/hooks.json"]
+
+
+@pytest.mark.parametrize("handler_present", [False, True])
+def test_a_hook_bundle_still_requires_an_explicitly_declared_handler(
+    handler_present: bool,
+) -> None:
+    from ai_stp_cli.local import bundle, composition
+    from ai_stp_foundation.digests import digest_canonical
+
+    passport: JsonValue = {"stable_id": "setup_test"}
+    surface = composition.Surface(
+        stable_id="component_test",
+        version="1.0",
+        component_type="hook",
+        harness_id="antigravity",
+        managed_paths=("config/hooks.json", "config/hooks/handler.sh"),
+    )
+    sources = (bundle.Source("config/hooks.json", b"{}", surface.stable_id),)
+    if handler_present:
+        sources += (bundle.Source("config/hooks/handler.sh", b"exit 0", surface.stable_id),)
+    compiled = bundle.compile_bundle(
+        sources,
+        setup_stable_id="setup_test",
+        setup_version="1.0",
+        setup_digest=digest_canonical("ai-stp:passport:v1", passport),
+        harness_id="antigravity",
+        declared_paths=select._declared_covers((surface,), sources),  # pyright: ignore[reportPrivateUsage]
+        setup_passport=passport,
+        composition_report={},
+        conversion_report={},
+        input_digest="",
+    )
+    assert compiled.compiled is handler_present
+    if not handler_present:
+        assert any(
+            item.code == "declared_path_absent"
+            and item.details["path"] == "config/hooks/handler.sh"
+            for item in compiled.refusals
+        )
+
+
 def test_a_directory_hook_artifact_lands_handlers_under_hooks(
     registry: sqlite3.Connection, tmp_path: Path
 ) -> None:
