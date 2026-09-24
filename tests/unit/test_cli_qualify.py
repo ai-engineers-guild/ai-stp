@@ -74,7 +74,7 @@ def test_artifact_identities_are_content_hashes_not_release_claims() -> None:
     assert identities["provider_kit_aggregate"].startswith("sha256:")
     assert identities["agents_md"].startswith("sha256:")
     assert identities["cli_version"]
-    assert "0.0.29" not in identities["cli_version"]
+    assert "0.0.30" not in identities["cli_version"]
     assert kit["kit_version"] != ""
 
 
@@ -96,7 +96,7 @@ def test_wheel_and_extra_are_not_built() -> None:
     if not dist.is_dir():
         return
     names = [path.name for path in dist.iterdir()]
-    assert not any("0.0.29" in name for name in names)
+    assert not any("0.0.30" in name for name in names)
 
 
 def test_measured_overlay_does_not_fill_unrun_cells(tmp_path: Path) -> None:
@@ -159,6 +159,36 @@ def test_native_bytes_oracle_matches_written_tree_and_detects_drift(
     assert reported.startswith("sha256:")
     held.write_text("drift\n", encoding="utf-8")
     assert tree_digest(root) != reported
+
+
+def test_native_tree_digest_frames_file_boundaries(tmp_path: Path) -> None:
+    one = tmp_path / "one"
+    two = tmp_path / "two"
+    one.mkdir()
+    two.mkdir()
+    (one / "first").write_bytes(b"x\nsecond\0y")
+    (two / "second").write_bytes(b"y")
+    (two / "first").write_bytes(b"x")
+    assert tree_digest(one) != tree_digest(two)
+    (one / "first").write_bytes(b"x")
+    (one / "second").write_bytes(b"y")
+    assert tree_digest(one) == tree_digest(two)
+    (one / "second").rename(one / "renamed")
+    assert tree_digest(one) != tree_digest(two)
+
+
+@pytest.mark.parametrize("model", ["claude-haiku-4-5", "gpt-oss-120b-medium", None, "", 12])
+def test_report_preserves_measured_model_identity(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, model: object
+) -> None:
+    place = tmp_path / "measured.json"
+    place.write_text(
+        json.dumps({"agy_model": model, "haiku": {"no-reinit-on-coding:0": "pass"}}),
+        encoding="utf-8",
+    )
+    monkeypatch.setenv(MEASURED_ENV, str(place))
+    shown = report()
+    assert shown["agy_model"] == (model if isinstance(model, str) and model else None)
 
 
 def test_native_config_root_honours_opencode_xdg(tmp_path: Path) -> None:

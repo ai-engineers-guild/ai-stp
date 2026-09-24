@@ -10,9 +10,10 @@ import pytest
 from tests.support.private_distribution import component_version, setup_version
 
 from ai_stp_cli.application import catalog as catalog_service
+from ai_stp_cli.application import setup_publication
 from ai_stp_cli.cloud import catalog, private_access, session
 from ai_stp_cli.cloud.client import Endpoint
-from ai_stp_cli.commands import component, registry, setup_compose, setup_publication
+from ai_stp_cli.commands import component, registry, setup_compose
 from ai_stp_cli.commands.select import compile_setup_version_bundle
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import acquired_trust, content, passports, revisions, versions

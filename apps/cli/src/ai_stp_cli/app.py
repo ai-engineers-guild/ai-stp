@@ -944,11 +944,11 @@ def _start_intent_parse_failure(command_words: Sequence[str], message: str) -> C
     if "Missing option '--intent'" in message or (
         "--intent" in message and "requires an argument" in message
     ):
-        return _task_intents_failure("task start needs an intent")
+        return _task_intents_failure("task start needs --intent NAME, not a positional intent")
     if "Invalid value" in message and "--intent" in message:
         held = _option_value(command_words, "intent")
         if not held or held.startswith("-"):
-            return _task_intents_failure("task start needs an intent")
+            return _task_intents_failure("task start needs --intent NAME, not a positional intent")
         return _task_intents_failure("the task intent is not supported")
     return None
 

@@ -1,6 +1,7 @@
 """Mechanical constraints: refused stays refused, and every refusal names why."""
 
 import re
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -50,6 +51,45 @@ def test_a_clean_candidate_is_admissible_and_selectable() -> None:
     assert verdict.admissible
     assert verdict.auto_selectable
     assert verdict.lane == search.LANE_AUTHORITATIVE
+
+
+@pytest.mark.parametrize("version", ["1.2.10", "Antigravity CLI 1.2.10"])
+def test_antigravity_1210_legacy_command_is_refused_even_with_task_authority(version: str) -> None:
+    target = replace(
+        TARGET,
+        harness_id="antigravity",
+        harness_version=version,
+        provider_harnesses=frozenset({"antigravity"}),
+    )
+    verdict = eligibility.assess(
+        _candidate(
+            harness_id="antigravity",
+            component_type="command",
+            owned_or_pinned=True,
+            consented=True,
+            consent_source="task:test",
+        ),
+        target,
+    )
+    assert not verdict.admissible
+    refusal = next(r for r in verdict.refusals if r.code == "provider_surface_unavailable")
+    assert refusal.details["harness_version"] == version
+    assert refusal.details["native_path"] == "config/global_workflows"
+
+
+@pytest.mark.parametrize("kind,version", [("skill", "1.2.10"), ("command", "1.1.22")])
+def test_legacy_workflow_refusal_does_not_disable_other_native_surfaces(
+    kind: str, version: str
+) -> None:
+    target = replace(
+        TARGET,
+        harness_id="antigravity",
+        harness_version=version,
+        provider_harnesses=frozenset({"antigravity"}),
+    )
+    assert eligibility.assess(
+        _candidate(harness_id="antigravity", component_type=kind), target
+    ).admissible
 
 
 # REQ-601: the mechanical stage runs before selection, so nothing it refuses can

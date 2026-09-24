@@ -426,6 +426,56 @@ def test_a_missing_artifacts_file_is_refused(tmp_path: Path) -> None:
     assert "missing artifact" in problems[0]
 
 
+@pytest.mark.parametrize("commit", ["c" * 40, "d" * 40])
+def test_repeated_provider_identity_is_refused(commit: str) -> None:
+    payload = EstateRelease.model_validate(_qualified_record()).model_dump()
+    duplicate = dict(payload["providers"][0], commit=commit)
+    payload["providers"].append(duplicate)
+    with pytest.raises(ValidationError, match="duplicate estate provider repository"):
+        EstateRelease.model_validate(payload)
+
+
+@pytest.mark.parametrize("claim_kind", ["distribution", "native", "wheel"])
+def test_conflicting_artifact_claims_cannot_skip_file_verification(
+    tmp_path: Path, claim_kind: str
+) -> None:
+    payload = EstateRelease.model_validate(_qualified_record()).model_dump()
+    artifact = tmp_path / "same.whl"
+    artifact.write_bytes(b"actual artifact")
+    actual_digest = "sha256:" + sha256(artifact.read_bytes()).hexdigest()
+    distribution = dict(payload["distributions"][0], filename=artifact.name, digest=actual_digest)
+    payload["distributions"] = [distribution]
+    conflicting = dict(distribution, digest=_DIGEST)
+    if claim_kind == "distribution":
+        payload["distributions"].append(conflicting)
+    elif claim_kind == "native":
+        payload["providers"][0]["native_artifacts"] = [
+            {"filename": artifact.name, "digest": _DIGEST}
+        ]
+    else:
+        payload["providers"][0]["wheels"] = [conflicting]
+    place = tmp_path / "estate.json"
+    place.write_text(json.dumps(payload), encoding="utf-8")
+    assert any("conflicting estate artifact digests" in item for item in validate(place))
+    assert any(
+        "conflicting estate artifact digests" in item
+        for item in validate(place, artifacts=tmp_path)
+    )
+
+
+def test_shared_artifact_filename_with_identical_bytes_is_unambiguous(tmp_path: Path) -> None:
+    payload = EstateRelease.model_validate(_qualified_record()).model_dump()
+    artifact = tmp_path / "same.whl"
+    artifact.write_bytes(b"actual artifact")
+    digest = "sha256:" + sha256(artifact.read_bytes()).hexdigest()
+    distribution = dict(payload["distributions"][0], filename=artifact.name, digest=digest)
+    payload["distributions"] = [distribution]
+    payload["providers"][0]["wheels"] = [distribution]
+    place = tmp_path / "estate.json"
+    place.write_text(json.dumps(payload), encoding="utf-8")
+    assert validate(place, artifacts=tmp_path) == []
+
+
 def test_three_platform_beta_does_not_reinterpret_legacy_six_platform_evidence() -> None:
     current = EstateRelease.model_validate(_qualified_record())
     assert computed_verdict(current) == "complete"

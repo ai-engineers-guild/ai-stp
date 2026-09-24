@@ -137,6 +137,10 @@ def test_start_joins_a_leftover_running_row(monkeypatch: pytest.MonkeyPatch) -> 
 def test_concurrent_inspect_start_joins_the_same_key() -> None:
     from concurrent.futures import ThreadPoolExecutor
 
+    # Race the task key after schema preparation. Concurrent first opens have
+    # their own registry regression; migrations are not part of this wait.
+    with closing(open_registry(configured_path(), create=True)):
+        pass
     key = "inspect-concurrent-start-01"
     parameters = {"intent": "inspect", "idempotency-key": key}
     with ThreadPoolExecutor(max_workers=2) as pool:
@@ -304,6 +308,32 @@ def test_inspect_input_facts_are_refused(tmp_path: Path) -> None:
     assert raised.value.code == "AI_STP_VALIDATION_ERROR"
 
 
+@pytest.mark.parametrize("key", ["init-1790264096", "x" * 129, "private value!", "é" * 16])
+def test_invalid_task_key_explains_constraints_without_echoing_input(key: str) -> None:
+    from ai_stp_contracts.http import IDEMPOTENCY_KEY_PATTERN
+
+    existed = configured_path().exists()
+    with pytest.raises(CliFailure) as raised:
+        task_command.start({"intent": "inspect", "idempotency-key": key})
+    error = raised.value
+    assert error.code == "AI_STP_VALIDATION_ERROR"
+    assert error.details == {"field": "idempotency-key", "pattern": IDEMPOTENCY_KEY_PATTERN}
+    assert key not in error.message
+    assert key not in json.dumps(error.details)
+    assert continuation_argv(error.continuations[0]) == ["help", "--path", "task start", "--json"]
+    assert configured_path().exists() == existed
+
+
+@pytest.mark.parametrize("key", ["a" * 16, "z" * 128, "valid.key_01~-task"])
+def test_task_key_boundary_values_keep_idempotent_start(key: str) -> None:
+    parameters = {"intent": "inspect", "idempotency-key": key}
+    first = task_command.start(parameters)
+    repeated = task_command.start(parameters)
+    assert first.payload.task_id == repeated.payload.task_id
+    assert first.payload.goal_satisfied is True
+    assert first.payload.revision == repeated.payload.revision
+
+
 def test_task_intents_lists_shipped_intents_only() -> None:
     from ai_stp_cli.application.inspect import SHIPPED_INTENT_NAMES
     from ai_stp_cli.registry import COMMANDS
@@ -319,6 +349,9 @@ def test_task_intents_lists_shipped_intents_only() -> None:
     assert catalog.payload.intents[6].input_schema.endswith("cli-task-input-account")
     assert catalog.payload.intents[7].input_schema.endswith("cli-task-input-publish")
     start = next(item for item in COMMANDS if item.name == "task start")
+    key = next(item for item in start.descriptor.parameters if item.name == "idempotency-key")
+    assert "16 to 128 ASCII" in key.summary
+    assert "same request" in key.summary
     intent = next(item for item in start.descriptor.parameters if item.name == "intent")
     assert tuple(intent.choices) == SHIPPED_INTENT_NAMES
     by_name = {item.name: item.when for item in catalog.payload.intents}
@@ -326,6 +359,41 @@ def test_task_intents_lists_shipped_intents_only() -> None:
     assert "do not start account" in by_name["initialize"]
     assert "provider-too-old" in by_name["account"]
     assert "Login never uploads" in by_name["account"]
+
+
+@pytest.mark.parametrize("case", ["inline-json", "missing-file", "invalid-utf8"])
+def test_unreadable_task_input_explains_file_or_stdin_without_echoing_values(
+    case: str, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    locator = str(tmp_path / "missing.json")
+    if case == "inline-json":
+        locator = '{"private_value":"do-not-echo-this-input"}'
+    elif case == "invalid-utf8":
+        place = tmp_path / "invalid.json"
+        place.write_bytes(b"\xff\xfe")
+        locator = str(place)
+    code = app.main(
+        [
+            "task",
+            "start",
+            "--intent",
+            "install",
+            "--idempotency-key",
+            "unreadable-task-input-01",
+            "--input",
+            locator,
+            "--json",
+        ]
+    )
+    output = capsys.readouterr().out
+    body = json.loads(output)
+    assert code == 2
+    assert body["error"]["code"] == "AI_STP_VALIDATION_ERROR"
+    assert "JSON/YAML file path or '-' for stdin" in body["error"]["message"]
+    assert body["error"]["details"]["field"] == "input"
+    assert "do-not-echo-this-input" not in output
+    assert body["continuations"][0]["argv"] == ["help", "--path", "task start", "--json"]
+    assert task_command.list_({}).payload.tasks == []
 
 
 def test_conflicting_idempotency_payload_is_refused() -> None:

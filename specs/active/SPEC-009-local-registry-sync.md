@@ -1,6 +1,6 @@
 ---
 description: "SPEC-009: Local registry and synchronization."
-last_verified: "2026-09-08"
+last_verified: "2026-09-24"
 ---
 
 # SPEC-009: Local registry and synchronization
@@ -33,7 +33,7 @@ This includes SQLite, local content-addressed storage, revisions, device heads, 
 - `REQ-909`: Synchronization never applies a setup or changes the harness target directory without a separate installation plan.
 - `REQ-910`: Partial synchronization retains the journal and cursor and is not reported as successful.
 - `REQ-911`: The full device passport never leaves the device; only its permitted summary from `docs/contracts/device-passport.md` is synchronized as a separate entity for that device, no three-way merge is performed between summaries from different devices, and only the developer passport is merged across devices.
-- `REQ-912`: Concurrent offline creation of versions of the same object on two devices is reconciled during synchronization without rewriting immutable data: if one `X.Y` number is occupied by different hashes, the first revision accepted by the server retains the number, the losing unpublished version is automatically reissued under the next available minor number with the same content and a new passport, a `ConflictRecord` is created, and a published number is never moved this way.
+- `REQ-912`: When an incoming immutable `X.Y` for an object has a different passport digest from the locally recorded version, synchronization refuses with `AI_STP_CONFLICT`. The entire incoming page rolls back, preserving local versions, revisions and the previous cursor. Synchronization does not automatically reissue either version or change a published number.
 
 - `REQ-913`: Component/setup synchronization carries exact immutable version
   snapshots independently of draft ancestry and preserves the draft head.
@@ -74,6 +74,6 @@ Old and new clients exchange only a supported major schema version. Migration pr
 | `REQ-909` | An end-to-end synchronization test compares the target hash before and after. |
 | `REQ-910` | Fault injection after every persistence point confirms a resumable partial state. |
 | `REQ-911` | A two-device fixture synchronizes two separate summaries without attempting to merge them, and synchronization events contain neither the full device passport nor absolute paths. |
-| `REQ-912` | A fixture with two offline devices using the same number and different hashes retains the number of the first accepted revision, reissues the second under the next number with a `ConflictRecord`, and does not change any published snapshot. |
+| `REQ-912` | `test_version_collision_rolls_back_the_remote_revision_and_cursor` receives the same number with different hashes, observes `AI_STP_CONFLICT`, and compares the complete local database and cursor before and after; the live two-device slice also verifies the local released digest is retained. |
 | `REQ-913` | Two isolated registries transfer a separately stored version snapshot; releasing after an accepted push is delivered and replayed without changing either draft head. |
 | `REQ-914` | A legacy missing reference remains visible while later valid events apply; its matching snapshot resolves it, while a mismatched snapshot or version collision preserves the previous page and cursor. |

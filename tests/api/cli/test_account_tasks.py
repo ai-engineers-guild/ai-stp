@@ -19,11 +19,14 @@ from tests.api.cli.conftest import WebApprover
 from tests.support.asgi_sync import SyncAsgiServer
 
 from ai_stp_cli.application import auth as auth_commands
+from ai_stp_cli.application import sync as sync_commands
 from ai_stp_cli.cloud import session
 from ai_stp_cli.cloud.client import Endpoint
+from ai_stp_cli.commands import config_show
 from ai_stp_cli.commands import task as task_command
 from ai_stp_cli.secrets import open_store
 from ai_stp_contracts.http import API_BASE_PATH
+from ai_stp_contracts.machine_help import SyncPullView
 
 FORBIDDEN_PATH_FRAGMENTS = ("/publications", "/sync-plans", "/revisions")
 
@@ -175,6 +178,33 @@ def test_logout_completes_without_questions(
 
     store, _warning = open_store()
     assert session.load(store) is None
+
+
+def test_explicit_account_pull_drains_the_real_sync_endpoint(
+    cli_endpoint: Endpoint,
+    web_approver: ApproverFactory,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(auth_commands, "endpoint", lambda: cli_endpoint)
+    monkeypatch.setattr(sync_commands, "endpoint", lambda: cli_endpoint)
+    _sign_in(cli_endpoint, web_approver())
+    config_show.set_({"set": ("sync.enabled=true",)})
+    started = task_command.start(
+        {
+            "intent": "account",
+            "idempotency-key": "account-real-sync-pull-01",
+            "input": _facts(tmp_path, {"action": "sync", "scope": "pull"}),
+        }
+    )
+    assert started.payload.state == "completed"
+    assert started.payload.goal_satisfied
+    outcome = started.payload.outcome
+    assert outcome is not None and outcome.kind == "account"
+    assert outcome.synced
+    assert isinstance(outcome.sync_result, SyncPullView)
+    assert outcome.sync_result.state == "up_to_date"
+    assert outcome.sync_result.pending_version_count == 0
 
 
 class _RecordingTransport(httpx.BaseTransport):

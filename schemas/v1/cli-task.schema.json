@@ -69,6 +69,95 @@
       "title": "DoctorReport",
       "type": "object"
     },
+    "EvidenceBindingView": {
+      "additionalProperties": true,
+      "description": "One accepted evidence binding on a snapshot.",
+      "properties": {
+        "check_id": {
+          "title": "Check Id",
+          "type": "string"
+        },
+        "expires_at": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "finding_summary": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SafetyFindingSummary"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reason"
+        },
+        "result": {
+          "$ref": "#/$defs/ai_stp_contracts__publication__CheckResult"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "source": {
+          "$ref": "#/$defs/EvidenceSource"
+        }
+      },
+      "required": [
+        "check_id",
+        "expires_at",
+        "finding_summary",
+        "reason",
+        "result",
+        "schema_version",
+        "source"
+      ],
+      "title": "EvidenceBindingView",
+      "type": "object"
+    },
+    "EvidenceSource": {
+      "enum": [
+        "author_attested",
+        "platform_digest_verified",
+        "platform_structure_verified",
+        "platform_safety_scan",
+        "provider_installation_tested",
+        "runtime_tested"
+      ],
+      "type": "string"
+    },
+    "FindingSeverity": {
+      "enum": [
+        "info",
+        "low",
+        "medium",
+        "high",
+        "critical"
+      ],
+      "type": "string"
+    },
     "HarnessId": {
       "enum": [
         "claude-code",
@@ -81,6 +170,13 @@
       ],
       "type": "string"
     },
+    "ObjectKind": {
+      "enum": [
+        "component",
+        "setup"
+      ],
+      "type": "string"
+    },
     "ParameterType": {
       "enum": [
         "string",
@@ -88,6 +184,225 @@
         "integer"
       ],
       "type": "string"
+    },
+    "PublicationSetMemberView": {
+      "additionalProperties": true,
+      "description": "One object inside a setup's publication, and why it is there.\n\n`role` is what separates the setup from the components it pins, and it is\nstated rather than inferred from `object_kind`: a set holds exactly one\nsetup, and a reader deciding what becomes public should not have to work\nthat out by counting.",
+      "properties": {
+        "already_published": {
+          "default": false,
+          "title": "Already Published",
+          "type": "boolean"
+        },
+        "error_code": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Error Code"
+        },
+        "evidence": {
+          "items": {
+            "$ref": "#/$defs/EvidenceBindingView"
+          },
+          "title": "Evidence",
+          "type": "array"
+        },
+        "object_kind": {
+          "$ref": "#/$defs/ObjectKind"
+        },
+        "plan_hash": {
+          "default": "",
+          "title": "Plan Hash",
+          "type": "string"
+        },
+        "plan_id": {
+          "default": "",
+          "title": "Plan Id",
+          "type": "string"
+        },
+        "role": {
+          "enum": [
+            "setup",
+            "pinned_component"
+          ],
+          "title": "Role",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "stable_id": {
+          "title": "Stable Id",
+          "type": "string"
+        },
+        "state": {
+          "default": "",
+          "title": "State",
+          "type": "string"
+        },
+        "version": {
+          "maxLength": 32,
+          "minLength": 3,
+          "title": "Version",
+          "type": "string"
+        },
+        "visibility": {
+          "default": "public",
+          "enum": [
+            "public",
+            "private"
+          ],
+          "title": "Visibility",
+          "type": "string"
+        }
+      },
+      "required": [
+        "already_published",
+        "error_code",
+        "evidence",
+        "object_kind",
+        "plan_hash",
+        "plan_id",
+        "role",
+        "schema_version",
+        "stable_id",
+        "state",
+        "version",
+        "visibility"
+      ],
+      "title": "PublicationSetMemberView",
+      "type": "object"
+    },
+    "PublicationSetView": {
+      "additionalProperties": true,
+      "description": "Every plan one setup's publication needs, as a single decision.\n\nA setup cannot be published before the components it pins are, so a person\npublishing one had to publish each component first and confirm each hash\nseparately. Locally the two are already one act — `setup import register`\ncommits the component passports and the setup graph together or not at all —\nand this carries that same rule across the publication boundary\n(`ADR-0114`).\n\nThe guarantee that survives is the one that matters: publication still takes\nan explicit confirmation of an exact hash. `set_digest` covers every plan in\norder, so confirming it is confirming all of them and nothing else.",
+      "properties": {
+        "expires_at": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "members": {
+          "items": {
+            "$ref": "#/$defs/PublicationSetMemberView"
+          },
+          "minItems": 1,
+          "title": "Members",
+          "type": "array"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "set_digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Set Digest",
+          "type": "string"
+        },
+        "setup_stable_id": {
+          "title": "Setup Stable Id",
+          "type": "string"
+        },
+        "setup_version": {
+          "maxLength": 32,
+          "minLength": 3,
+          "title": "Setup Version",
+          "type": "string"
+        },
+        "state": {
+          "default": "planned",
+          "enum": [
+            "planned",
+            "published",
+            "partial"
+          ],
+          "title": "State",
+          "type": "string"
+        }
+      },
+      "required": [
+        "expires_at",
+        "members",
+        "schema_version",
+        "set_digest",
+        "setup_stable_id",
+        "setup_version",
+        "state"
+      ],
+      "title": "PublicationSetView",
+      "type": "object"
+    },
+    "SafetyFindingSummary": {
+      "additionalProperties": true,
+      "description": "Bounded public identifiers for findings; never scanned content.",
+      "properties": {
+        "count": {
+          "minimum": 1,
+          "title": "Count",
+          "type": "integer"
+        },
+        "paths": {
+          "items": {
+            "maxLength": 240,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 16,
+          "title": "Paths",
+          "type": "array"
+        },
+        "rule_ids": {
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 16,
+          "title": "Rule Ids",
+          "type": "array"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "severity_max": {
+          "$ref": "#/$defs/FindingSeverity"
+        },
+        "truncated": {
+          "default": false,
+          "title": "Truncated",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "count",
+        "paths",
+        "rule_ids",
+        "schema_version",
+        "severity_max",
+        "truncated"
+      ],
+      "title": "SafetyFindingSummary",
+      "type": "object"
     },
     "SetupState": {
       "enum": [
@@ -97,6 +412,208 @@
         "failed"
       ],
       "type": "string"
+    },
+    "SyncPendingVersion": {
+      "additionalProperties": false,
+      "description": "An exact legacy version reference whose snapshot is not available yet.",
+      "properties": {
+        "event_id": {
+          "title": "Event Id",
+          "type": "string"
+        },
+        "passport_digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Passport Digest",
+          "type": "string"
+        },
+        "revision_id": {
+          "title": "Revision Id",
+          "type": "string"
+        },
+        "stable_id": {
+          "title": "Stable Id",
+          "type": "string"
+        },
+        "version": {
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "stable_id",
+        "version",
+        "passport_digest",
+        "revision_id",
+        "event_id"
+      ],
+      "title": "SyncPendingVersion",
+      "type": "object"
+    },
+    "SyncPullView": {
+      "additionalProperties": false,
+      "description": "One atomically applied page from the private account stream.",
+      "properties": {
+        "applied": {
+          "minimum": 0,
+          "title": "Applied",
+          "type": "integer"
+        },
+        "next_cursor": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Next Cursor"
+        },
+        "pending_version_count": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Pending Version Count",
+          "type": "integer"
+        },
+        "pending_versions": {
+          "items": {
+            "$ref": "#/$defs/SyncPendingVersion"
+          },
+          "maxItems": 128,
+          "title": "Pending Versions",
+          "type": "array"
+        },
+        "received": {
+          "minimum": 0,
+          "title": "Received",
+          "type": "integer"
+        },
+        "replayed": {
+          "minimum": 0,
+          "title": "Replayed",
+          "type": "integer"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "skipped": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 64,
+          "title": "Skipped",
+          "type": "array"
+        },
+        "state": {
+          "default": "pulling",
+          "enum": [
+            "pulling",
+            "up_to_date",
+            "partial"
+          ],
+          "title": "State",
+          "type": "string"
+        }
+      },
+      "required": [
+        "received",
+        "applied",
+        "replayed",
+        "next_cursor"
+      ],
+      "title": "SyncPullView",
+      "type": "object"
+    },
+    "SyncPushView": {
+      "additionalProperties": false,
+      "description": "Durable outcome of pushing one exact local revision.",
+      "properties": {
+        "conflict_fields": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Conflict Fields",
+          "type": "array"
+        },
+        "conflicting_entity_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Conflicting Entity Id"
+        },
+        "event_id": {
+          "minLength": 8,
+          "title": "Event Id",
+          "type": "string"
+        },
+        "local_revision_id": {
+          "minLength": 1,
+          "title": "Local Revision Id",
+          "type": "string"
+        },
+        "processed_events": {
+          "minimum": 1,
+          "title": "Processed Events",
+          "type": "integer"
+        },
+        "remote_revision_id": {
+          "minLength": 1,
+          "title": "Remote Revision Id",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "server_head_revision_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Server Head Revision Id"
+        },
+        "stable_id": {
+          "minLength": 1,
+          "title": "Stable Id",
+          "type": "string"
+        },
+        "state": {
+          "enum": [
+            "accepted",
+            "rejected",
+            "conflict",
+            "superseded"
+          ],
+          "title": "State",
+          "type": "string"
+        }
+      },
+      "required": [
+        "stable_id",
+        "processed_events",
+        "local_revision_id",
+        "event_id",
+        "remote_revision_id",
+        "state",
+        "server_head_revision_id",
+        "conflicting_entity_id"
+      ],
+      "title": "SyncPushView",
+      "type": "object"
     },
     "TaskAccountOutcome": {
       "additionalProperties": true,
@@ -142,6 +659,21 @@
           "title": "Session State",
           "type": "string"
         },
+        "sync_result": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SyncPushView"
+            },
+            {
+              "$ref": "#/$defs/SyncPullView"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sync Result"
+        },
         "synced": {
           "default": false,
           "title": "Synced",
@@ -156,6 +688,7 @@
         "provider",
         "scope",
         "session_state",
+        "sync_result",
         "synced"
       ],
       "title": "TaskAccountOutcome",
@@ -573,6 +1106,17 @@
           "title": "Provenance",
           "type": "string"
         },
+        "publication_set": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PublicationSetView"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
         "readable": {
           "title": "Readable",
           "type": "boolean"
@@ -602,6 +1146,7 @@
         "plan_hash",
         "plan_id",
         "provenance",
+        "publication_set",
         "readable",
         "source_binding_id",
         "state",
@@ -737,6 +1282,34 @@
       ],
       "title": "TaskSwitchOutcome",
       "type": "object"
+    },
+    "Timestamp": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$",
+      "type": "string"
+    },
+    "ai_stp_contracts__publication__CheckResult": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ai_stp_contracts__safety_checks__CheckResult"
+        },
+        {
+          "const": "expired",
+          "type": "string"
+        }
+      ]
+    },
+    "ai_stp_contracts__safety_checks__CheckResult": {
+      "enum": [
+        "passed",
+        "warning",
+        "failed",
+        "degraded",
+        "not_run",
+        "not_applicable",
+        "skipped",
+        "running"
+      ],
+      "type": "string"
     }
   },
   "$id": "urn:ai-stp:schema:v1:cli-task",

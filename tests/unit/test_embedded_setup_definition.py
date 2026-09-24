@@ -377,3 +377,36 @@ def test_embedded_reference_must_match_its_passport_identity(field: str) -> None
     with pytest.raises(SourceError) as mismatch:
         validate_setup_definition(canonize(document))
     assert mismatch.value.code == INTEGRITY_MISMATCH
+
+
+@pytest.mark.parametrize("case", ["exact", "corrupt", "duplicate", "catalog-collision"])
+def test_retained_embedded_records_keep_sealed_bytes_and_validation(case: str) -> None:
+    original = _freeze(embedded=(_draft(_path_snapshot(), stable_id=EMBEDDED_ID),))
+    raw = original.document["embedded"]
+    assert isinstance(raw, list) and isinstance(raw[0], dict)
+    record = dict(raw[0])
+    if case == "corrupt":
+        record["artifact_size_bytes"] = 0
+    retained = (record, record) if case == "duplicate" else (record,)
+
+    def derive():
+        return freeze_setup_definition(
+            setup_id=SETUP,
+            version="2.0",
+            harness_id="claude-code",
+            input_digest=DIGEST,
+            publisher_id=OWNER,
+            created_at=AT,
+            catalog_members=original.components if case == "catalog-collision" else (),
+            embedded_members=(),
+            retained_embedded=retained,
+        )
+
+    if case == "exact":
+        derived = derive()
+        assert derived.components == original.components
+        assert derived.document["embedded"] == original.document["embedded"]
+        assert derived.document["version"] == "2.0"
+    else:
+        with pytest.raises(SourceError):
+            derive()

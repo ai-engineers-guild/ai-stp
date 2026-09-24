@@ -220,7 +220,9 @@ def _component_version(
     """One recorded component version, held by the registry on its own."""
     rule = composition.rule_for(component_type, harness_id, scope=scope)
     native_path = (
-        rule.relative if rule is not None and rule.shape == "file" else f"skills/{managed_name}.md"
+        rule.relative
+        if rule is not None and rule.shape == "file"
+        else f"{rule.relative if rule is not None else 'skills'}/{managed_name}.md"
     )
 
     stable_id = f"component_01J0000000000000000000000{suffix}"
@@ -1241,6 +1243,166 @@ def test_v3_plan_apply_and_status_bind_one_exact_provider_plan(
         "apply-operation",
         "status",
     ]
+
+
+def test_v3_plan_preserves_compiler_refusals_before_calling_the_provider(
+    registry: sqlite3.Connection,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from ai_stp_cli.local import bundle
+
+    proposal_id = _confirmed(registry, tmp_path, "Y")
+    executable = _provider(tmp_path, "v3-refused-bundle")
+    state = _v3_test_invoker(monkeypatch, target=tmp_path)
+    compile_bundle = bundle.compile_bundle
+
+    def missing_source(*args: Any, **kwargs: Any) -> bundle.Bundle:
+        kwargs["declared_paths"] = kwargs["declared_paths"] | {"skills/missing.md"}
+        return compile_bundle(*args, **kwargs)
+
+    monkeypatch.setattr(bundle, "compile_bundle", missing_source)
+    with pytest.raises(CliFailure) as raised:
+        install.plan(
+            {
+                "proposal": proposal_id,
+                "provider": executable,
+                "protocol-version": 3,
+                "unverified-provider": True,
+                "target": str(tmp_path),
+            }
+        )
+    assert raised.value.code == "AI_STP_PRECONDITION_FAILED"
+    assert raised.value.details["refusals"] == [
+        {
+            "code": "declared_path_absent",
+            "summary": "the composition declares this managed path and no source carries it",
+            "details": {"path": "skills/missing.md"},
+        }
+    ]
+    assert state["calls"] == ["provider-info"]
+    assert state["plan"] is None
+
+
+@pytest.mark.parametrize("action", ["install", "update"])
+def test_native_runtime_refusal_precedes_provider_planning_of_an_exact_setup(
+    registry: sqlite3.Connection,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    action: str,
+) -> None:
+    from ai_stp_cli.application import author
+
+    _project_context(registry, tmp_path)
+    source = tmp_path / "command-source"
+    source.mkdir()
+    (source / "probe.md").write_text("---\ndescription: Probe\n---\nSay probe.\n")
+    authored = author.persist(
+        directory=source,
+        harness_id="antigravity",
+        component_type="command",
+        name="probe",
+        license_spdx="MIT",
+    )
+    executable = _provider(tmp_path, "native-runtime-provider")
+    state = _v3_test_invoker(monkeypatch, target=tmp_path)
+    factory = invocation.provider_invoker
+
+    def native_invoker(*args: Any, **kwargs: Any) -> conformance.Invoker:
+        invoke = factory(*args, **kwargs)
+
+        def call(command: str, arguments: Sequence[str]) -> JsonValue:
+            result = invoke(command, arguments)
+            if command == "provider-info":
+                assert isinstance(result, dict)
+                return {**result, "harness_id": "antigravity"}
+            return result
+
+        return call
+
+    def observed(_harness: str) -> str:
+        return "1.2.10"
+
+    monkeypatch.setattr(invocation, "provider_invoker", native_invoker)
+    monkeypatch.setattr(install, "_observed_harness_version", observed)
+    with pytest.raises(CliFailure) as raised:
+        install.plan(
+            {
+                "setup": f"{authored.setup_id}@{authored.setup_version}",
+                "project": str(tmp_path),
+                "harness": "antigravity",
+                "action": action,
+                "provider": executable,
+                "protocol-version": 3,
+                "unverified-provider": True,
+                "target": str(tmp_path),
+            }
+        )
+    assert raised.value.code == "AI_STP_PRECONDITION_FAILED"
+    assert "refusals" in raised.value.details, (str(raised.value), raised.value.details)
+    assert "provider_surface_unavailable" in str(raised.value.details["refusals"])
+    assert state["calls"] == ["provider-info"]
+    assert state["plan"] is None
+
+
+def test_apply_rechecks_native_runtime_after_the_plan_was_approved(
+    registry: sqlite3.Connection,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    proposal = _confirmed(
+        registry, tmp_path, "X", harness_id="antigravity", component_type="command"
+    )
+    platform_name, architecture = install._release_platform().split("/", 1)  # pyright: ignore[reportPrivateUsage]
+    executable = _provider(
+        tmp_path,
+        "runtime-change-provider",
+        answers={
+            "provider-info": {
+                "protocol_version": protocol.VERSION,
+                "harness_id": "antigravity",
+                "provider_version": "1.0.0",
+                "supported_actions": list(protocol.COMMANDS),
+                "bundle_formats": ["ai-stp-bundle/1", "ai-stp-bundle/2"],
+                "supported_os": [platform_name],
+                "supported_arch": [architecture],
+                "limits": {},
+            }
+        },
+    )
+    version = "1.1.22"
+
+    def observed(_harness: str) -> str:
+        return version
+
+    monkeypatch.setattr(install, "_observed_harness_version", observed)
+    planned = install.plan(
+        {
+            "proposal": proposal,
+            "provider": executable,
+            "target": str(tmp_path),
+            "unverified-provider": True,
+        }
+    ).payload
+    install.approve({"operation": planned.operation_id, "plan-digest": planned.plan_digest})
+    version = "1.2.10"
+    calls: list[str] = []
+
+    def forbidden_invoker(*_args: Any, **_kwargs: Any) -> conformance.Invoker:
+        def call(command: str, arguments: Sequence[str]) -> JsonValue:
+            calls.append(command)
+            raise AssertionError("Native runtime incompatibility must stop before provider effects")
+
+        return call
+
+    monkeypatch.setattr(invocation, "provider_invoker", forbidden_invoker)
+    with pytest.raises(CliFailure) as raised:
+        install.apply({"operation": planned.operation_id, "provider": executable})
+    assert raised.value.code == "AI_STP_PRECONDITION_FAILED"
+    assert "provider_surface_unavailable" in str(raised.value.details["refusals"])
+    assert calls == []
+    current = journal.get(registry, planned.operation_id)
+    assert current is not None and current.state == installation.STATE_APPROVED
 
 
 def test_v3_prepared_and_newly_composed_sources_bind_the_same_harness_bundle(

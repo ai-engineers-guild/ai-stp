@@ -47,7 +47,11 @@ not type `ai-stp`. Do not start `account`.
    Do not invent `task status`, `task info`, or `task get`.
    A lost task reference is recovered through `task list`: it returns only
    tasks that have not settled, each with the id and revision a resume needs.
-   Wait for each `ai-stp` JSON envelope on stdout. Foreground the CLI; do not background it. A backgrounded invocation is a failed turn.
+   Wait for each `ai-stp` JSON envelope on stdout. Do not deliberately
+   background the CLI. If the shell tool yields a task handle, retrieve that
+   tool's completed output before the next CLI call. Its handle is not an
+   ai-stp task id. A timer or a shell status is not the CLI result. Do not
+   repeat a pending command or report success before reading its envelope.
 3. Stop when there are no continuations. If `error.details.state` is
    `failed`, the task is settled; do not type `task get`. Report payload
    verification, not envelope `ok` alone.

@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "cli_version": "0.0.0-pinned",
-  "registry_digest": "sha256:7e28988fd37ae69e3de92126377bead4d1d3b882249525b0c4baefbdc4f9aa3e",
+  "registry_digest": "sha256:960a20bf95b0ccec7d55c421985bb8c692c9edfd63ac242c70002484c43ebc33",
   "global_options": [
     {
       "name": "json",
@@ -10869,7 +10869,7 @@
           "value_type": "string",
           "required": true,
           "repeatable": false,
-          "summary": "Stable key for this exact intent.",
+          "summary": "Stable key for this exact intent and input: 16 to 128 ASCII letters, digits, '.', '_', '~', or '-'. A UUID is valid. Reuse it only for the same request.",
           "choices": []
         },
         {

@@ -11,12 +11,21 @@ import pytest
 
 from ai_stp_cli import identity
 from ai_stp_cli.answer import Answer
+from ai_stp_cli.application import author as author_service
+from ai_stp_cli.application import catalog as catalog_service
 from ai_stp_cli.application import change as change_service
 from ai_stp_cli.application import install as install_service
 from ai_stp_cli.application.install_task import recommend_setup
 from ai_stp_cli.commands import task as task_command
 from ai_stp_cli.errors import CliFailure
-from ai_stp_cli.local import passports, revisions, setup_compose, setup_derive, versions
+from ai_stp_cli.local import (
+    passports,
+    revisions,
+    setup_author,
+    setup_compose,
+    setup_derive,
+    versions,
+)
 from ai_stp_cli.local.database import configured_path, open_registry
 from ai_stp_contracts.first_party import FirstPartyCatalogMember, catalog_identity
 from ai_stp_contracts.machine_help import InstallationView
@@ -384,6 +393,26 @@ def test_change_adds_a_locally_authored_component_without_cloud(
     assert finished.payload.outcome.source_setup_id == pin.setup_id
     assert finished.payload.outcome.setup_id != pin.setup_id
     assert finished.payload.outcome.minted is True
+    from ai_stp_cli.application.setup_publication import (
+        _catalog_pins,  # pyright: ignore[reportPrivateUsage]
+    )
+    from ai_stp_cli.local import content
+    from ai_stp_sources.definition import validate_setup_definition
+
+    with closing(open_registry(configured_path(), create=True)) as connection:
+        derived = revisions.head(connection, finished.payload.outcome.setup_id)
+        assert derived is not None
+        passport = SetupVersionPassport.model_validate(derived.envelope.model_dump(mode="json"))
+        definition = validate_setup_definition(content.get(connection, passport.artifact.digest))
+        assert authored_outcome.component_id not in {
+            item[0] for item in _catalog_pins(connection, passport)
+        }
+        embedded = definition.get("embedded")
+        assert isinstance(embedded, list) and len(embedded) == 1
+        original = revisions.head(connection, authored_outcome.component_id)
+        assert original is not None
+        assert isinstance(embedded[0], dict)
+        assert embedded[0]["passport"] == original.envelope.model_dump(mode="json")
 
 
 def test_change_module_does_not_start_a_process() -> None:
@@ -393,6 +422,67 @@ def test_change_module_does_not_start_a_process() -> None:
     derive = Path("apps/cli/src/ai_stp_cli/local/setup_derive.py").read_text("utf-8")
     assert "Popen" not in derive
     assert "subprocess" not in derive
+
+
+def test_change_an_owned_authored_setup_then_remove_from_its_derived_setup(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    authored: list[setup_author.AuthoredSetup] = []
+    for name in ("first", "second"):
+        tree = tmp_path / name
+        tree.mkdir()
+        (tree / "SKILL.md").write_text(f"# {name}\n", encoding="utf-8")
+        authored.append(
+            author_service.persist(
+                directory=tree,
+                harness_id="antigravity",
+                component_type="skill",
+                name=name,
+                license_spdx="MIT",
+            )
+        )
+
+    def no_catalog(_parameters: Mapping[str, object]) -> None:
+        raise AssertionError("owned local setups must not be fetched from the catalog")
+
+    monkeypatch.setattr(catalog_service, "acquire", no_catalog)
+    _stub_install(monkeypatch)
+    source = authored[0].setup_id
+    for action in ("add", "remove"):
+        started = task_command.start(
+            {
+                "intent": "change",
+                "idempotency-key": f"local-setup-{action}-0001",
+                "input": _facts(
+                    tmp_path,
+                    {
+                        "harness_id": "antigravity",
+                        "setup_id": source,
+                        "setup_version": "1.0",
+                        "component_id": authored[1].component_id,
+                        "component_version": "1.0",
+                        "action": action,
+                        "project_root": str(tmp_path),
+                    },
+                ),
+            }
+        )
+        outcome = started.payload.outcome
+        assert started.payload.goal_satisfied
+        assert outcome is not None and outcome.kind == "change"
+        assert outcome.source_setup_id == source
+        assert outcome.setup_id != source
+        with closing(open_registry(configured_path())) as connection:
+            held = versions.held(connection, outcome.setup_id, outcome.setup_version)
+            assert held is not None
+            stored = revisions.get(connection, held.revision_id)
+            assert stored is not None
+            passport = SetupVersionPassport.model_validate(stored.envelope.model_dump())
+            expected = {authored[0].component_id}
+            if action == "add":
+                expected.add(authored[1].component_id)
+            assert {member.stable_id for member in passport.components} == expected
+        source = outcome.setup_id
 
 
 def _stub_install(monkeypatch: pytest.MonkeyPatch) -> str:

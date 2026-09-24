@@ -3,5 +3,6 @@
   "enableTerminalSandbox": false,
   "allowAgentAccessNonWorkspaceFiles": true,
   "allowCascadeAccessGitignoreFiles": true,
-  "autoContinueOnMaxGeneratorInvocations": true
+  "autoContinueOnMaxGeneratorInvocations": true,
+  "allowNonWorkspaceAccess": true
 }

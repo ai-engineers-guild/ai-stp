@@ -1,8 +1,8 @@
 # Promote the exact commit a green `check` proved, for the target to deploy.
 #
 # The target is not a GitHub runner and this workflow never reaches it. It
-# advances one monotonic ref; the host fetches that ref with a read-only deploy
-# key on its own timer and performs the locked, idempotent deployment locally.
+# advances one monotonic ref; the host fetches it anonymously over HTTPS on
+# its own timer and performs the locked, idempotent deployment locally.
 #
 # That shape is deliberate, and it is why this workflow holds no deployment
 # credential at all: a public repository's CI cannot leak an SSH key it was

@@ -13,11 +13,11 @@ last_verified: "2026-08-03"
 | [SPEC-002-identity-devices-access.md](SPEC-002-identity-devices-access.md) | SPEC-002: Accounts, OAuth, devices, and access. | 2026-09-07 |
 | [SPEC-003-developer-passport.md](SPEC-003-developer-passport.md) | SPEC-003: Developer passport and public projection. | 2026-09-20 |
 | [SPEC-004-project-index-passport.md](SPEC-004-project-index-passport.md) | SPEC-004: Project index and passport. | 2026-09-20 |
-| [SPEC-005-registry-versioning.md](SPEC-005-registry-versioning.md) | SPEC-005: Registry, variants, and object versions. | 2026-09-05 |
-| [SPEC-006-search-and-setup-compiler.md](SPEC-006-search-and-setup-compiler.md) | SPEC-006: Search, candidate selection, and setup compiler. | 2026-09-05 |
+| [SPEC-005-registry-versioning.md](SPEC-005-registry-versioning.md) | SPEC-005: Registry, variants, and object versions. | 2026-09-24 |
+| [SPEC-006-search-and-setup-compiler.md](SPEC-006-search-and-setup-compiler.md) | SPEC-006: Search, candidate selection, and setup compiler. | 2026-09-24 |
 | [SPEC-007-validation-publishing.md](SPEC-007-validation-publishing.md) | SPEC-007: Tests, evidence and publication. | 2026-09-07 |
-| [SPEC-008-provider-installation.md](SPEC-008-provider-installation.md) | SPEC-008: Providers, installation and recovery. | 2026-09-06 |
-| [SPEC-009-local-registry-sync.md](SPEC-009-local-registry-sync.md) | SPEC-009: Local registry and synchronization. | 2026-09-08 |
+| [SPEC-008-provider-installation.md](SPEC-008-provider-installation.md) | SPEC-008: Providers, installation and recovery. | 2026-09-24 |
+| [SPEC-009-local-registry-sync.md](SPEC-009-local-registry-sync.md) | SPEC-009: Local registry and synchronization. | 2026-09-24 |
 | [SPEC-010-platform-api.md](SPEC-010-platform-api.md) | SPEC-010: Server platform and API. | 2026-09-04 |
 | [SPEC-011-cli-agent-skill.md](SPEC-011-cli-agent-skill.md) | SPEC-011: CLI, machine help and agent skill. | 2026-09-16 |
 | [SPEC-012-uninstall-recovery.md](SPEC-012-uninstall-recovery.md) | SPEC-012: Uninstallation, full cleanup, and recovery. | 2026-09-20 |
@@ -69,7 +69,7 @@ last_verified: "2026-08-03"
 | [SPEC-058-multi-root-installation-transactions.md](SPEC-058-multi-root-installation-transactions.md) | SPEC-058: Recoverable consumer coordination of one setup across multiple provider roots. | 2026-09-15 |
 | [SPEC-059-public-identities-and-catalog-lines.md](SPEC-059-public-identities-and-catalog-lines.md) | SPEC-059: Unique account identities, component names, and owner-fenced catalog lines. | 2026-09-04 |
 | [SPEC-060-standard-family-identity.md](SPEC-060-standard-family-identity.md) | SPEC-060: Coordinated standard-family identity distinct from envelope v1 and protocol v3. | 2026-09-06 |
-| [SPEC-061-estate-release-qualification.md](SPEC-061-estate-release-qualification.md) | SPEC-061: Estate-release complete requires the seven-harness launch matrix. | 2026-09-08 |
+| [SPEC-061-estate-release-qualification.md](SPEC-061-estate-release-qualification.md) | SPEC-061: Estate-release complete requires the seven-harness launch matrix. | 2026-09-24 |
 | [SPEC-062-setup-recast.md](SPEC-062-setup-recast.md) | SPEC-062: Recast a complete setup onto another harness with provenance. | 2026-09-06 |
 | [SPEC-063-component-materialize.md](SPEC-063-component-materialize.md) | SPEC-063: Materialize one target-harness adaptation from a pinned component. | 2026-09-06 |
 | [SPEC-064-component-projections-assurance-and-portability.md](SPEC-064-component-projections-assurance-and-portability.md) | SPEC-064: Complete platform contract for one component with exact harness projections, target-bound assurance, search, and web presentation. | 2026-09-06 |
@@ -88,7 +88,7 @@ last_verified: "2026-08-03"
 | [SPEC-077-shared-product-mode-web-ui.md](SPEC-077-shared-product-mode-web-ui.md) | SPEC-077: Shared Next.js SaaS UI with server-resolved product context. | 2026-09-11 |
 | [SPEC-078-project-identity-linking-and-sync.md](SPEC-078-project-identity-linking-and-sync.md) | SPEC-078: Distinct local, remote, and provider project identities with explicit linking and deterministic synchronization. | 2026-09-14 |
 | [SPEC-079-corporate-core.md](SPEC-079-corporate-core.md) | SPEC-079: Corporate bootstrap, scoped RBAC, tenant isolation, and audit journal. | 2026-09-18 |
-| [SPEC-080-cli-agent-task-contract.md](SPEC-080-cli-agent-task-contract.md) | SPEC-080: Headless CLI application services, capability inventory, and the agent task contract. | 2026-09-20 |
+| [SPEC-080-cli-agent-task-contract.md](SPEC-080-cli-agent-task-contract.md) | SPEC-080: Headless CLI application services, capability inventory, and the agent task contract. | 2026-09-24 |
 | [SPEC-081-technology-registry-and-landscape.md](SPEC-081-technology-registry-and-landscape.md) | SPEC-081: Governed technology metadata, usage facts, detection handoff, and authorized landscape projections. | 2026-09-23 |
 | [SPEC-082-canonical-corporate-relations.md](SPEC-082-canonical-corporate-relations.md) | SPEC-082: Single canonical team/project/technology relationships, responsibility, and current assignment scopes. | 2026-09-12 |
 | [SPEC-083-corporate-hub-workspace.md](SPEC-083-corporate-hub-workspace.md) | SPEC-083: Corporate Hub directories, relationship editing, and catalog assignments. | 2026-09-18 |

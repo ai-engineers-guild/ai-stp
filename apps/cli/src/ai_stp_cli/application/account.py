@@ -3,26 +3,25 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from contextlib import closing
 from dataclasses import dataclass
-from pathlib import Path
 
 from ai_stp_cli.application.auth import begin as start_login
 from ai_stp_cli.application.auth import complete as complete_login
 from ai_stp_cli.application.auth import logout as logout_session
 from ai_stp_cli.cloud import session
 from ai_stp_cli.errors import CliFailure
-from ai_stp_cli.local import project_passport
-from ai_stp_cli.local.database import configured_path, open_registry
 from ai_stp_cli.secrets import open_store
 from ai_stp_contracts.auth import OAUTH_PROVIDERS
 from ai_stp_contracts.machine_help import (
     AuthStatus,
     DeviceApproval,
+    SyncPullView,
+    SyncPushView,
     TaskAccountOutcome,
     TaskQuestion,
 )
 from ai_stp_foundation.canonical import JsonValue
+from ai_stp_foundation.ids import is_valid_id
 
 _ACTIONS = ("login", "logout", "sync")
 _SCOPES = ("push", "pull")
@@ -35,6 +34,7 @@ class DrainResult:
     questions: tuple[TaskQuestion, ...] = ()
     child_operation_ids: tuple[str, ...] = ()
     facts: dict[str, JsonValue] | None = None
+    advance: bool = False
 
 
 def begin(provider: str) -> DeviceApproval:
@@ -52,24 +52,12 @@ def logout() -> AuthStatus:
     return logout_session({}).payload
 
 
-def sync_now(*, scope: str, project_root: str) -> object:
+def sync_now(*, scope: str, stable_id: str) -> SyncPushView | SyncPullView:
     """Explicit private-registry sync. Never implied by login. Tests may stub this."""
     from ai_stp_cli.application import sync as sync_commands
 
     if scope == "pull":
-        return sync_commands.pull({}).payload
-    root = Path(project_root).expanduser()
-    if not root.is_absolute():
-        root = Path.cwd() / root
-    root = root.resolve()
-    with closing(open_registry(configured_path(), create=True)) as connection:
-        stable_id = project_passport.stable_id_for(connection, root)
-    if stable_id is None:
-        raise CliFailure(
-            "AI_STP_NOT_FOUND",
-            "no local project passport for this root",
-            details={"project_root": str(root)},
-        )
+        return sync_commands.pull({"confirm": True}).payload
     return sync_commands.push({"id": stable_id, "confirm": True}).payload
 
 
@@ -114,7 +102,9 @@ def ensure_session(facts: Mapping[str, JsonValue]) -> DrainResult | AuthStatus:
         raise
 
 
-def drain(facts: Mapping[str, JsonValue]) -> DrainResult:
+def drain(
+    facts: Mapping[str, JsonValue], *, previous: TaskAccountOutcome | None = None
+) -> DrainResult:
     """Advance account until a boundary. Never shells out to `ai-stp`. Never polls."""
     action = facts.get("action")
     if not isinstance(action, str) or action not in _ACTIONS:
@@ -166,26 +156,40 @@ def drain(facts: Mapping[str, JsonValue]) -> DrainResult:
                 ),
             )
         )
-    project_root = facts.get("project_root")
+    stable_id = facts.get("stable_id")
     if scope == "push" and (
-        not isinstance(project_root, str) or not Path(project_root).is_absolute()
+        not isinstance(stable_id, str)
+        or not any(
+            is_valid_id(stable_id, prefix)
+            for prefix in ("developer", "component", "setup", "device", "consent", "request")
+        )
     ):
-        cwd = Path.cwd()
-        recommended = str(cwd) if cwd.is_absolute() and (cwd / ".git").is_dir() else ""
         return DrainResult(
             questions=(
                 TaskQuestion(
-                    question_id="project-root",
-                    prompt="Which absolute project root should this sync push?",
+                    question_id="stable-id",
+                    prompt="Which local entity should this sync push?",
                     value_type="string",
                     choices=[],
-                    recommended=recommended,
-                    why="Push sends the local project passport head, not a catalog object.",
+                    why="Choose a developer, component, setup, device summary, or consent id. "
+                    "Project passports and local paths stay on this device.",
                     actor="human",
                 ),
             )
         )
-    sync_now(scope=scope, project_root=project_root if isinstance(project_root, str) else "")
+    receipt = sync_now(scope=scope, stable_id=stable_id if isinstance(stable_id, str) else "")
+    synced = receipt.state == ("accepted" if isinstance(receipt, SyncPushView) else "up_to_date")
+    previous_receipt = previous.sync_result if previous is not None else None
+    previous_cursor = (
+        previous_receipt.next_cursor if isinstance(previous_receipt, SyncPullView) else None
+    )
+    advance = (
+        isinstance(receipt, SyncPullView)
+        and not synced
+        and receipt.received > 0
+        and receipt.next_cursor is not None
+        and receipt.next_cursor != previous_cursor
+    )
     provider = facts.get("provider")
     return DrainResult(
         outcome=TaskAccountOutcome(
@@ -193,9 +197,11 @@ def drain(facts: Mapping[str, JsonValue]) -> DrainResult:
             authenticated=True,
             provider=provider if isinstance(provider, str) else "",
             session_state=gate.state,
-            synced=True,
+            synced=synced,
             scope=scope,
-        )
+            sync_result=receipt,
+        ),
+        advance=advance,
     )
 
 

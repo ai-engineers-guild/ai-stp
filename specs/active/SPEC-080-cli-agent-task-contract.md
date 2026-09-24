@@ -1,6 +1,6 @@
 ---
 description: "SPEC-080: Headless CLI application services, capability inventory, and the agent task contract."
-last_verified: "2026-09-20"
+last_verified: "2026-09-24"
 ---
 
 # SPEC-080: CLI agent task contract
@@ -41,7 +41,9 @@ drains a member add or remove on a saved setup into a **new** setup identity,
 records `fork_origin` and `related_setup_ids` to the source, and then installs
 the derived pin. The source setup id is not overwritten. A member set that
 already matches is a no-op identity (no mint) and still installs that pin.
-Replays of the same owner and delta reuse the derived id. `author` registers one
+Replays of the same owner and delta reuse the derived id. Embedded members retain
+their sealed passport, snapshot and artifact in the derived definition; a change
+does not promote them into independently published catalog components. `author` registers one
 directory as one embedded component and one new setup identity; kinds come from
 `COMPONENT_TYPES` filtered by native surfaces; drafts are not saved-setup
 mutations and are not installed. `switch` restores the last user
@@ -110,7 +112,12 @@ a CLI language rewrite, and a PyPI CLI cut are excluded.
   `command_paths`. Completing inspect satisfies the task goal even when the
   doctor report is not `ready`.
 - `REQ-8007`: `task start` is idempotent on the pair of `idempotency-key` and
-  the canonical document of intent plus `--input` body. Drain may enrich
+  the canonical document of intent plus `--input` body. Keys use the shared
+  HTTP-contract pattern: 16 to 128 ASCII letters, digits, `.`, `_`, `~`, or
+  `-`. Start help names that constraint and the requirement to reuse a key
+  only for the same request. An invalid key is refused before task creation;
+  its error names the field and pattern without echoing the rejected value
+  and points to scoped `task start` help. Drain may enrich
   `payload_json` with checkpoint facts (switch restore ids, account device
   code). Replay of the original `--input` still joins that row; only a
   contradictory user key is `AI_STP_CONFLICT`. After minting, start
@@ -125,6 +132,11 @@ a CLI language rewrite, and a PyPI CLI cut are excluded.
   `continue`, `answer`, and `cancel` require the current revision. Status
   names the task id; the process does not hold a current task. A successful
   `task status` may describe a failed, cancelled, or compensated target.
+  An unexpected interruption while answering a question retains the running
+  revision and emits its `task continue` continuation, as an interrupted
+  explicit continue does. Reading a running task also emits that continuation
+  without performing any work. A replay after persistence reuses the held
+  immutable result.
 - `REQ-8008`: Advancing a task calls named application services for that
   intent. It does not look up an arbitrary expert leaf in the command
   registry and run it. `application/` does not import `ai_stp_cli.commands`.
@@ -142,9 +154,16 @@ a CLI language rewrite, and a PyPI CLI cut are excluded.
   start completes in the first envelope. A blocked human question binds
   `question-id` and leaves `value` missing; argv is
   `task answer` without that value (`REQ-1131`).
+  The control Skill distinguishes a harness shell task handle from an ai-stp
+  task id. If the shell tool yields before stdout is available, the agent
+  retrieves its completed output before another CLI invocation; a timer or
+  shell-task status does not establish a CLI outcome.
 - `REQ-8011`: `task start` and `task answer` accept `--input <file|->`. The
   file or stdin is a JSON or YAML object parsed into the same typed model;
-  duplicate keys are refused rather than last-wins, in either spelling. Flags
+  unreadable paths and invalid UTF-8 return a validation error naming the
+  file-or-stdin interface and scoped start help, without echoing the supplied
+  input locator. An inline JSON argument remains a refused file locator.
+  Duplicate keys are refused rather than last-wins, in either spelling. Flags
   win over keys
   in that object. Inspect rejects a non-empty input object. A schema
   validation refusal is `AI_STP_VALIDATION_ERROR` whose `details.fields`
@@ -190,6 +209,12 @@ a CLI language rewrite, and a PyPI CLI cut are excluded.
   under task authority, and apply in one `task continue`. The model does not
   type those expert leaves. Omitted `setup_id`/`setup_version` becomes one
   justified first-party `baseline` pin for the harness, acquired in-process.
+  Only omission of both fields selects that baseline. Supplying either field
+  alone blocks on `setup-ref` until the exact pair is known. An exact setup
+  already held under the current owner's identity proceeds to the same
+  checked install plan without fetching it from the public catalog. A missing
+  version or another owner's setup still uses catalog acquisition; local
+  ownership does not bypass graph, artifact, compatibility or provider checks.
   If no justified pin exists, one `setup-ref` question. The CLI does not quiz
   the catalog. Omitted `project_root` is one absolute-path question.
   A catalogued harness config directory (or a path inside one) is not a
@@ -207,7 +232,11 @@ a CLI language rewrite, and a PyPI CLI cut are excluded.
   resumes or applies the held operation instead of planning a second one.
 - `REQ-8015`: Intent `change` drains `application.change`. It asks harness,
   source pin, component pin, and project root at most once each. Omitted source
-  pin becomes the same first-party `baseline` as `install`. Omitted action is
+  pin becomes the same first-party `baseline` as `install`; a partially
+  specified pin instead asks for `setup-ref`. Exact owner-local source setups
+  use the held graph, including embedded components whose full reference
+  matches the source member. They do not require public catalog publication.
+  Omitted action is
   `add`. The engine records a new setup stable id, `fork_origin`, and
   `related_setup_ids` pointing at the source. The source identity remains
   held. Identical member sets do not mint. Compensated install remains
@@ -218,8 +247,27 @@ a CLI language rewrite, and a PyPI CLI cut are excluded.
 - `REQ-8016`: Intent `author` drains `application.author`. It registers one
   directory as one embedded component and one setup identity. It asks
   directory, harness, kind, and name at most once each. Replay of the same
-  bytes reuses the identity. A kind with no native surface for that harness
-  is refused. Author does not install and does not mutate a saved setup.
+  bytes and native document path reuses the identity. A kind with no native
+  surface for that harness is refused. Directory containers retain each source
+  file's relative path
+  under the named native component directory, including nested scripts;
+  GENERATED.md source notes are excluded from the native projection.
+  A single-file surface requires exactly one source file. Antigravity
+  `instruction` and `command` each
+  require exactly one `.md` source file and preserve its bytes at
+  `config/rules/<name>.md` and `config/global_workflows/<name>.md`, respectively.
+  They reject additional source files rather than dropping content or hiding
+  it inside an unread nested directory. Their deterministic setup and embedded
+  component identities bind the native path: reauthoring a legacy nested
+  projection or choosing another native name mints new identities, leaving
+  the old immutable versions unchanged. Other author identities retain their
+  existing derivation. Names must be single native path segments. Unprojectable source trees return
+  `AI_STP_VALIDATION_ERROR`, not an internal error. Author does not install
+  and does not mutate a saved setup.
+  Authoring retains validated embedded component bytes and immutable snapshots
+  alongside the setup. Replaying older authored identities or installing a local
+  definition restores missing embedded storage without reissuing any version;
+  existing corrupt bytes remain a refusal.
 - `REQ-8017`: Intent `switch` drains `application.switch`. It restores the
   newest user `preserved_setup` for the target, never an upstream catalog
   pin. Missing snapshot is refused without a catalog fallback. The
@@ -231,9 +279,36 @@ a CLI language rewrite, and a PyPI CLI cut are excluded.
 - `REQ-8018`: Intent `account` drains `application.account`. Device-code
   login uses `actor=external`, one exchange per continue, and never
   `login.poll`. Login never uploads. Already signed-in login skips begin.
-  Sync is explicit only. Login does not call `/publications`, `/sync-plans`,
+  An accepted current-account sync event binding an exact setup version permits
+  local acquisition after sign-in, even when its immutable snapshot retains the
+  original offline owner. Another account, a pending event, or a different version
+  binding cannot supply that provenance. Provider validation still runs.
+  Sync does not carry distribution artifacts: missing bytes still require exact
+  catalog acquisition, including authenticated private publication access.
+  An owned or accepted current-account exact private setup pin enables the
+  acquisition service's authenticated fallback when its artifact is absent;
+  another account or an unbound version does not enable that fallback.
+  Sync push selects an existing syncable local entity by `stable_id`; a missing
+  or unsupported identifier asks `stable-id`. Project roots are not account-sync
+  entities, and local project passports remain on the device. A disabled-sync
+  failure retains its exact configuration repair without enabling sync implicitly.
+  Sync is explicit only; the selected action supplies the internal confirmation
+  for both push and pull. Its typed `sync_result` preserves the underlying
+  receipt, including conflicts and missing version coordinates. `synced` and
+  the task goal are true only for an accepted push or an up-to-date pull.
+  A nonempty pull page with a new cursor checkpoints its receipt in the same
+  task at `planned` and emits a CLI continuation for the next page. Empty
+  partial pages and repeated cursors settle without claiming the goal or
+  polling unchanged data. Login does not call `/publications`, `/sync-plans`,
   `/revisions`, or catalog PUT.
-- `REQ-8019`: Intent `publish` drains `application.publish`. Visibility
+- `REQ-8019`: Intent `publish` drains `application.publish`. A setup id routes
+  through the existing setup publication set, including its exact component pins.
+  The task checkpoints the planned `publication_set` before confirmation and emits
+  a CLI continuation. Continue confirms that stored set digest; settled replay
+  creates no new plans. The typed set receipt preserves member states, server
+  evidence reasons and summaries, and transport error codes. Only
+  `published` satisfies the readable goal. Component publication keeps the
+  individual no-binding plan path. Visibility
   defaults to private. The plan omits `source_binding_id` and uses
   filesystem provenance. A bound git plan is refused. A worker receipt is
   not readable unless plan `state` is `published`. Missing auth blocks with
@@ -248,6 +323,14 @@ a CLI language rewrite, and a PyPI CLI cut are excluded.
   cells stay `not_run`; they are not success. An optional measured overlay
   (`AI_STP_QUALIFY_MEASURED`) may record `pass` or `fail` for executed cells;
   unknown keys and statuses are ignored so garbage cannot fill the matrix.
+  The report preserves the overlay's `agy_model`; scored cells without a
+  valid model identity report `null`, not the configured default. A scored
+  overlay belongs to one model: scoring or filling it with a different or
+  unknown recorded model is refused before workspace or driver effects and
+  leaves the file unchanged. Native/isolation records and explicit
+  invalidation preserve the attribution of retained cells. Same-model replay
+  replaces the same cell without adding another entry; out-of-matrix run
+  indexes are refused.
   Isolated `ai_stp_cli.agy_qualify` may run Haiku cells against
   `gpt-oss-120b-medium` in a throwaway HOME; live results enter only through
   that overlay.   Isolated `agy` argv includes `--add-dir` of that throwaway
@@ -306,7 +389,10 @@ a CLI language rewrite, and a PyPI CLI cut are excluded.
   time with a 90s gap; a 503 empty-log cell stays unrun and the next attempt
   in the same walk may take a different unrun cell. Native-byte identity is
   an independent tree digest of provider-written files, not a stubbed
-  envelope field.
+  envelope field. Its `ai-stp-qualify-tree/2` input contains an ordered JSON
+  array of relative paths and content hashes, prefixed by the domain and a
+  NUL byte. File content cannot impersonate another file boundary. Historical
+  digests from the earlier unframed algorithm are not current evidence.
   Wheel and extra
   artifacts stay `not_built` until those bytes exist. `application/qualify.py`
   owns those cells, the promotion stages, and content hashes of the Skill,
@@ -339,6 +425,9 @@ a CLI language rewrite, and a PyPI CLI cut are excluded.
   `task start --json` without `--intent`, `task start --intent` without a
   value, and `task start --intent` with a name that is not shipped list
   `task intents` and do not echo Click's missing-option or choice dump.
+  A missing intent, including a positional intent after `task start`, names
+  the required `--intent NAME` form in the refusal; it does not execute the
+  guessed operation or accept a new positional form.
   `help --path` with no matching family lists `task intents` and does not
   send the full registry dump. An unscoped `help --agent --json` dump still
   carries a `cli` continuation whose argv is `task intents --json`. A scoped
@@ -475,11 +564,11 @@ and a partial unique index on an open mutating binding.
 | `REQ-8013` | `test_cli_initialize` asserts the section contract, catalog surfaces including custom `CODEX_HOME`, preserve-outside-markers, idempotent no-write, Cursor `alwaysApply` `.mdc`, HTML-comment refusal, antigravity limitation, that `application/initialize.py` contains no file-write verbs, that omitted drain kwargs with no bind stay `provider-too-old`, that a remembered chosen provider without the op or without `instruction_section` stays too-old, that a discovered row is not a bind, that declaring both invokes the provider path, that `--instruction-section` is on plan argv only then, and that a drain `CliFailure` keeps `details.task` and drops expert `next_actions` such as `provider network`. Fake-provider tests still replace `provider_operations` / `patch_via_provider`. `test_cli_plan_request_fields` accepts `instruction_section` on `plan_request_fields` and sends `--instruction-section` only for `patch_instruction_region` when that field is declared. `test_cli_task_driver` continues a `provider-too-old` block without writing. Skill and qualify treat `provider-too-old` as not login. |
 | `REQ-8014` | `test_cli_install_task` asks harness/setup-ref/project-root once, drains plan→approve→apply in one start, maps compensated and partial apply to `CliFailure` with task `failed`, resumes a held child after a killed start, refuses a relative project root, re-asks when `project_root` is a catalogued harness config directory, mints missing developer/device/project passports before plan, passes the catalogued harness config root as `target`, and strips expert `next_actions` such as `provider network` from drain failures. |
 | `REQ-8015` | `test_cli_change` mints a new setup id with `fork_origin` and `related_setup_ids`, keeps the source id held, skips minting on a no-op member set, drains derive→install in one continue, maps compensated apply to `CliFailure`, mints missing context passports before plan, and adds a locally authored embedded component without catalog acquire. |
-| `REQ-8016` | `test_cli_author` registers a directory as one component plus one setup identity, asks typed questions once, reuses the identity on replay of the same bytes, refuses a kind with no native surface, and contains no nested CLI process. |
+| `REQ-8016` | `test_cli_author` registers a directory as one component plus one setup identity, asks typed questions once, reuses the identity on replay of the same bytes, verifies exact Antigravity skill archive paths and bytes for single-file and nested-script trees, omits generated notes, refuses invalid names and multiple files on a single-file surface, verifies immediate named Antigravity Markdown projections and unchanged payloads, replays the same native name, forks changed names and legacy nested identities without overwriting either version, reports unprojectable trees as validation errors, refuses a kind with no native surface, and contains no nested CLI process. |
 | `REQ-8017` | `test_cli_switch` restores the newest user `preserved_setup`, refuses a missing snapshot without a catalog fallback, asks for an absolute project directory rather than a harness config root, re-asks when `project_root` is inside a catalogued harness config directory, captures drift then asks `reload-session`, replays the original `--input` onto that blocked row without a second restore, maps compensated restore to task `failed`, and never kills the caller or claims `session_loaded`. |
 | `REQ-8018` | `test_cli_account` drains device-code login with `actor=external`, one exchange per continue, no `/publications` `/sync-plans` `/revisions` or catalog PUT on login, skipped begin when already signed in, explicit sync only, and never `login.poll`. |
 | `REQ-8019` | `test_cli_publish` defaults visibility to private, omits `source_binding_id`, treats worker `validating` as not readable, treats `published` as readable, blocks missing auth with one user code, and refuses a bound git plan. |
-| `REQ-8020` | `test_cli_task_driver` and `test_cli_install_task` drive the twenty corpus scenarios without an LLM: relative project-root refusal, change add, author directory, publish private/public filesystem, login skip and idle-no-upload, auth-required publish, partial/compensated install with recover not re-apply, kill-after-plan and kill-after-apply resume (INTERNAL envelope carries `task continue` argv), concurrent continue one winner, antigravity limitation, custom-home section through provider hooks, pending-reload not loaded, skill under 500 lines without a 203-command dump, install exact pin with an independent native-bytes tree digest. `application/qualify.py` owns native 7×3, Haiku 20×5, promotion stages, and wheel/extra claims; cells that were not executed stay `not_run` and are not success; a measured overlay may record only `pass` or `fail` for known cells; isolated `agy_qualify` prompt and score cover all twenty corpus names and write overlay only; a capacity miss with an empty `cli.log` does not record `fail`; a 503 after follow-through or choreography is scored; a start-only 503 retries a clean attempt and stays `not_run` after those retries; a later capacity miss does not erase a previously scored `pass` or `fail`; `--fill` skips a 503 empty-log cell to the next unrun cell in the same walk; isolated `agy` argv `--add-dir`s the throwaway workspace root and project; install exact-pin, without-pin, switch, and seeded change-add prompts do not lead with the host absolute project path; the isolated wrapper pins `AI_STP_FORCE_FILE_CREDENTIAL_STORE=1` so a pending device-code cannot leak into the host keyring; the isolated wrapper refuses an argv path outside the throwaway workspace and score fails a logged escaped path; a logged `task answer` without `--value` is `fail`; overlay score for `install-exact-pin`, `install-without-pin`, `change-add-component`, and `switch-preserved-setup` is `pass` only when a completed registry row has `goal_satisfied` and `outcome.verified`; overlay score for `custom-home-section` is `pass` only when a completed initialize row has `wrote` for codex and `CODEX_HOME/AGENTS.md` contains the marked section (that catalogued path is not invented); overlay score for `fresh-initialize-prompt` is `pass` only when a completed initialize row has `wrote` with marked catalogued instruction bytes or limitation `no_global_instruction`; overlay score for `antigravity-limitation` is `pass` only when that limitation is recorded, `wrote` is false, and `harness_id` is antigravity; overlay score for `author-directory` is `pass` only when a completed author row has `minted` with `setup_id` and `component_id`; overlay score for `unsupported-project-local` is `pass` only when install stays blocked on `project-root` after `--value relative` and is not a verified install; overlay score for `login-idle-no-upload` is `pass` only when account is blocked on `authorization` (or completed login with `login_uploaded` false) and a failed drain is `fail`; overlay score for `publish-private`, `publish-public-filesystem`, and `auth-required-publish` is `pass` only when publish is blocked on `authorization`, or a completed row has filesystem provenance, empty `source_binding_id`, and the matching visibility, and a failed drain is `fail`; publish prompts name a cwd-relative `--input` and do not lead with the host absolute project path; a verified start with empty continuations is success; a `failed` drain, including isolation `AI_STP_DEPENDENCY_UNAVAILABLE`, is `fail`; overlay score for `compensated-install`, `kill-after-apply`, and `concurrent-continue` is `pass` only when install is `failed`/`cancelled`/`running` and not verified; those names stay host-isolation failure envelopes, not native compensation/kill/one-winner claims; opt-in `--docker-image` execs the isolated CLI inside privileged Docker so bwrap can ENFORCE without adding a Linux unisolated product path; explicit `--invalidate` / `--invalidate-stale-verified` drop scored Haiku cells so fill can re-run initialize/install/change/switch/custom-home under the verified scorer; overlay `isolation` records a host probe and never fills a native cell; wheel/extra stay `not_built`. Artifact identities are content hashes, not a release claim. Dirty trees are refused as release candidates. |
+| `REQ-8020` | `test_cli_task_driver` and `test_cli_install_task` drive the twenty corpus scenarios without an LLM: relative project-root refusal, change add, author directory, publish private/public filesystem, login skip and idle-no-upload, auth-required publish, partial/compensated install with recover not re-apply, kill-after-plan and kill-after-apply resume (INTERNAL envelope carries `task continue` argv), concurrent continue one winner, antigravity limitation, custom-home section through provider hooks, pending-reload not loaded, skill under 500 lines without a 203-command dump, install exact pin with an independent native-bytes tree digest. `test_cli_qualify` proves measured model attribution and unambiguous file-tree digest framing; `test_cli_agy_qualify` refuses mixed/unknown-model scoring before effects, preserves model attribution through native probes and invalidation, and rejects out-of-matrix run indexes. `application/qualify.py` owns native 7×3, Haiku 20×5, promotion stages, and wheel/extra claims; cells that were not executed stay `not_run` and are not success; a measured overlay may record only `pass` or `fail` for known cells; isolated `agy_qualify` prompt and score cover all twenty corpus names and write overlay only; a capacity miss with an empty `cli.log` does not record `fail`; a 503 after follow-through or choreography is scored; a start-only 503 retries a clean attempt and stays `not_run` after those retries; a later capacity miss does not erase a previously scored `pass` or `fail`; `--fill` skips a 503 empty-log cell to the next unrun cell in the same walk; isolated `agy` argv `--add-dir`s the throwaway workspace root and project; install exact-pin, without-pin, switch, and seeded change-add prompts do not lead with the host absolute project path; the isolated wrapper pins `AI_STP_FORCE_FILE_CREDENTIAL_STORE=1` so a pending device-code cannot leak into the host keyring; the isolated wrapper refuses an argv path outside the throwaway workspace and score fails a logged escaped path; a logged `task answer` without `--value` is `fail`; overlay score for `install-exact-pin`, `install-without-pin`, `change-add-component`, and `switch-preserved-setup` is `pass` only when a completed registry row has `goal_satisfied` and `outcome.verified`; overlay score for `custom-home-section` is `pass` only when a completed initialize row has `wrote` for codex and `CODEX_HOME/AGENTS.md` contains the marked section (that catalogued path is not invented); overlay score for `fresh-initialize-prompt` is `pass` only when a completed initialize row has `wrote` with marked catalogued instruction bytes or limitation `no_global_instruction`; overlay score for `antigravity-limitation` is `pass` only when that limitation is recorded, `wrote` is false, and `harness_id` is antigravity; overlay score for `author-directory` is `pass` only when a completed author row has `minted` with `setup_id` and `component_id`; overlay score for `unsupported-project-local` is `pass` only when install stays blocked on `project-root` after `--value relative` and is not a verified install; overlay score for `login-idle-no-upload` is `pass` only when account is blocked on `authorization` (or completed login with `login_uploaded` false) and a failed drain is `fail`; overlay score for `publish-private`, `publish-public-filesystem`, and `auth-required-publish` is `pass` only when publish is blocked on `authorization`, or a completed row has filesystem provenance, empty `source_binding_id`, and the matching visibility, and a failed drain is `fail`; publish prompts name a cwd-relative `--input` and do not lead with the host absolute project path; a verified start with empty continuations is success; a `failed` drain, including isolation `AI_STP_DEPENDENCY_UNAVAILABLE`, is `fail`; overlay score for `compensated-install`, `kill-after-apply`, and `concurrent-continue` is `pass` only when install is `failed`/`cancelled`/`running` and not verified; those names stay host-isolation failure envelopes, not native compensation/kill/one-winner claims; opt-in `--docker-image` execs the isolated CLI inside privileged Docker so bwrap can ENFORCE without adding a Linux unisolated product path; explicit `--invalidate` / `--invalidate-stale-verified` drop scored Haiku cells so fill can re-run initialize/install/change/switch/custom-home under the verified scorer; overlay `isolation` records a host probe and never fills a native cell; wheel/extra stay `not_built`. Artifact identities are content hashes, not a release claim. Dirty trees are refused as release candidates. |
 | `REQ-8021` | `test_cli_task` allows two inspect tasks together, refuses a second mutating start on the same harness and scope, allows different project roots, and refuses answering the same harness onto a second open mutating task. |
 | `REQ-8022` | `test_cli_app` redirects `install --json`, `install --harness`, a stray path under `install`, `auth --json`, `sync --json`, `publication --json`, `setup preserve --json`, `setup restore --json`, `setup preserved --json`, `setup compose --json`, and unknown top-level shipped intent names (`initialize`, `inspect`, `change`, `author`, `switch`, `account`, `publish`) to `task start` for the matching intent with a `cli` continuation; `task get --json`, `task info --json`, `nope --json`, empty `--json`, and `--help --json` list `task intents` and do not send `help --agent`; Click usage dumps for incomplete groups (`component --json`, `registry --json`, `select --json`, `setup --json`, `config --json`) list `task intents` and do not name expert leaves; `task start --intent initialize --json` without the key emits `task start --intent initialize --idempotency-key initialize-session-01 --json`; `task start --json` without `--intent` and `task start --intent` with an unshipped name list `task intents` and do not echo Click's missing-option or choice dump; `task answer --json` and `task continue --json` without `--task` resume the unique blocked human question, list `task list` when many unsettled rows exist and `task intents` when zero; those verbs with `--task` and without `--revision` resume the named task even when other rows are open; `help --path` with no matching family lists `task intents` and does not send `help --agent`; an unscoped `help --agent --json` dump carries a `task intents` continuation; a scoped `help --path install --json` carries the install start continuation; scoped mixed families (`component`, `select`, `setup`, `registry`, `config`) list `task intents`; `help --path doctor` carries none; a `task_covered` leaf without required input (`install plan --json`, `auth login --json`, `publication plan --json`, `setup compose apply --json`) emits the draining `task start` line; everyday pending leaves (`setup compose plan --json`, `select propose --json`, `component adopt --json`, `component discover --bogus --json`, `setup import inspect --json`, `component publish --json`, `registry search --json`, `publication status --json`, `setup preserved show --json`) do the same; a successful `component discover --json` carries the author start continuation; a successful `config init --json` carries the initialize start continuation; `install plan --action backup --json` and `sync preview --json` do not; `test_cli_cloud` `AI_STP_AUTH_REQUIRED` / `AI_STP_AUTHORIZATION_EXPIRED` / `AI_STP_AUTHORIZATION_PENDING` carry the account start continuation and do not name `auth login` or `auth complete`; `test_cli_capability_map` `everyday_success_start_intent` covers `auth login` apply success and not `auth complete`; extra-flag everyday leaf failures (`install plan --setup`, `select confirm --proposal`) do not name those expert leaves; a successful `install status --json` and `setup preserved list --json` carry the draining start; `test_cli_capability_map` `everyday_success_start_intent` covers covered `plan` success (`install plan`, `publication plan`, `setup preserve plan`), `auth login` / `registry acquire` apply success, and not `install apply`; `test_cli_app` `_everyday_success_envelope` strips `install apply` from plan success then starts install, and terminal apply keeps `install recover` while dropping `install plan`; `test_user_docs_everyday_first_copy` forbids qualify-forbidden leaves in every user-facing bash fence and in table cells that wrap an `ai-stp` argv in backticks; `test_cli_process` `install --help` / `auth --help` / `select --help` omit forbidden `Commands:` leaves while `install plan --help` remains; `install transaction --help` omits plan/approve/apply; `setup --help` omits compose/scaffold/update/restore/import; `component --help` omits scaffold/publish; `publication visibility --help` omits plan/confirm; `select --help` omits bundle/graph; `registry --help` omits search/acquire; `ai-stp --help` omits `help`; `test_cli_agy_qualify` `choreographed` fails unscoped `help --json`. |
 | `REQ-8023` | `test_cli_schema_discovery` resolves `schema show --id` for a bare name, the full URN, and the generated file name to the same document as the model's JSON Schema; `schema list` names every exported id and `--find` filters names; an unknown id is `AI_STP_NOT_FOUND` with `details.candidates` and a `schema list` continuation; every `input_schema` the intents catalog emits resolves to its model; both paths classify `inspect`; `help --find` filters path and summary within `--path` scope and a miss is `AI_STP_NOT_FOUND` with the `task intents` continuation. |

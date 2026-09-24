@@ -278,6 +278,8 @@ def test_task_start_without_the_key_emits_the_start_argv(
         ["task", "start", "--json"],
         ["task", "start", "--idempotency-key", "initialize-session-01", "--json"],
         ["task", "start", "--intent", "--json"],
+        ["task", "start", "initialize", "--json"],
+        ["task", "start", "install", "--idempotency-key", "install-session-01", "--json"],
     ],
 )
 def test_task_start_without_an_intent_lists_intents(
@@ -288,7 +290,7 @@ def test_task_start_without_an_intent_lists_intents(
     assert err == ""
     envelope = _envelope(out)
     assert envelope["ok"] is False
-    assert envelope["error"]["message"] == "task start needs an intent"  # pyright: ignore[reportIndexIssue]
+    assert "--intent NAME" in str(envelope["error"]["message"])  # pyright: ignore[reportIndexIssue]
     assert envelope["next_actions"] == ["task intents --json"]
     first = envelope["continuations"][0]
     assert isinstance(first, dict)
