@@ -487,6 +487,7 @@ async def test_policy_rights_revocation_and_retention(
                 state="active",
             )
         )
+        await db.flush()
         db.add(
             InstallationHeartbeatRow(
                 organization_id=organization_id,
