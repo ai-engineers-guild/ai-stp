@@ -37,9 +37,12 @@ from ai_stp_passports.versions import ComponentType
 from ai_stp_sources.definition import (
     EmbeddedDraft,
     FrozenDefinition,
+    decode_embedded_artifact,
     freeze_setup_definition,
     pack_component_tree,
+    validate_setup_definition,
 )
+from ai_stp_sources.errors import SourceError
 from ai_stp_sources.models import SourceIntent, SourceSnapshot
 
 PLAN_DOMAIN = "ai-stp:plan:v1"
@@ -113,6 +116,7 @@ class CatalogMaterial:
     ref: ComponentRef
     passport: dict[str, JsonValue]
     artifact: bytes
+    embedded_record: dict[str, JsonValue] | None = None
 
 
 @dataclass(frozen=True)
@@ -168,7 +172,7 @@ def compose(
     if not is_valid_id(setup_id, "setup"):
         raise CliFailure("AI_STP_VALIDATION_ERROR", "a valid setup id is required")
     _reject_authoring_draft(manifest)
-    catalog_refs = tuple(item.ref for item in catalog)
+    catalog_refs = tuple(item.ref for item in catalog if item.embedded_record is None)
     embedded = tuple(
         EmbeddedDraft(
             snapshot=snapshot,
@@ -206,6 +210,9 @@ def compose(
         created_at=created_at,
         catalog_members=catalog_refs,
         embedded_members=embedded,
+        retained_embedded=tuple(
+            item.embedded_record for item in catalog if item.embedded_record is not None
+        ),
         catalog_ids=frozenset(item.stable_id for item in catalog_refs),
     )
     definition_digest = digest_bytes(ARTIFACT_DOMAIN, frozen.payload)
@@ -279,6 +286,37 @@ def plan_view(resolved: ResolvedComposition) -> SetupComposePlan:
     )
 
 
+def retain_embedded(
+    connection: sqlite3.Connection, payload: bytes, *, device_id: str, at: str
+) -> None:
+    """Retain the validated definition's exact component snapshots and bytes."""
+    try:
+        definition = validate_setup_definition(payload)
+    except SourceError as error:
+        raise CliFailure(
+            "AI_STP_VALIDATION_ERROR", error.message, details={"source_code": error.code}
+        ) from error
+    raw = definition.get("embedded", [])
+    assert isinstance(raw, list)
+    with transaction(connection):
+        for item in raw:
+            assert isinstance(item, dict)
+            document = cast(dict[str, JsonValue], item["passport"])
+            artifact = decode_embedded_artifact(str(item["artifact_b64"]))
+            saved = content.put(connection, artifact, at=at)
+            # Existing corrupt bytes must still be refused, never overwritten.
+            content.get(connection, saved.digest)
+            stored = revisions.commit(connection, document, device_id=device_id)
+            versions.record(
+                connection,
+                stable_id=stored.stable_id,
+                version=str(document["version"]),
+                passport_digest=str(item["passport_digest"]),
+                revision_id=stored.revision_id,
+                at=at,
+            )
+
+
 def apply(
     connection: sqlite3.Connection,
     resolved: ResolvedComposition,
@@ -318,6 +356,7 @@ def apply(
         related_setup_ids=related_setup_ids,
     )
     with transaction(connection):
+        retain_embedded(connection, resolved.frozen.payload, device_id=device_id, at=at)
         for item in resolved.catalog:
             artifact = content.put(connection, item.artifact, at=at)
             declared = cast(dict[str, object], item.passport["artifact"])

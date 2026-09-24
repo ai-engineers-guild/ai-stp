@@ -27,3 +27,15 @@ is the local filesystem; do not invent git history. Do not type a
 `github.com` remote. New publications default
 to private. A worker receipt is not a readable catalog result unless outcome
 `readable` is true.
+
+Publish accepts a component or setup `object_id` with its exact `object_version`.
+A setup publication checkpoints its whole graph in `outcome.publication_set`;
+follow the same task continuation to confirm that exact set. Retain partial
+member results and do not claim readability early. `provider` is the sign-in
+provider (`google` or `github`), not a filesystem provenance label.
+
+A publication-set member retains server `evidence` with check reasons and
+bounded finding summaries. Read these before retrying a refused publication;
+`goal_satisfied=false` is not a published object. An offline owner's immutable
+passport is not rewritten after sign-in. Embedded components stay embedded when
+added to a new derived setup; change is not catalog promotion.

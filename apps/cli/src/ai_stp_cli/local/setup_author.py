@@ -11,7 +11,7 @@ from typing import Final, cast
 from ulid import ULID
 
 from ai_stp_cli.errors import CliFailure
-from ai_stp_cli.local import revisions, setup_compose, versions
+from ai_stp_cli.local import content, revisions, setup_compose, versions
 from ai_stp_cli.local.composition import rule_for
 from ai_stp_passports import SetupVersionPassport
 from ai_stp_passports.versions import COMPONENT_TYPES, ComponentType
@@ -196,6 +196,12 @@ def _held_setup(
             details={"stable_id": held.stable_id},
         )
     passport = SetupVersionPassport.model_validate(stored.envelope.model_dump(mode="json"))
+    setup_compose.retain_embedded(
+        connection,
+        content.get(connection, passport.artifact.digest),
+        device_id=stored.device_id,
+        at=stored.created_at,
+    )
     member = passport.components[0]
     return AuthoredSetup(
         setup_id=held.stable_id,

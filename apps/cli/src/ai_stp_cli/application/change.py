@@ -343,7 +343,7 @@ def _embedded_local_component(
             except SourceError:
                 continue
             return setup_compose.CatalogMaterial(
-                member, cast(dict[str, JsonValue], raw_passport), packed
+                member, cast(dict[str, JsonValue], raw_passport), packed, embedded_record=item
             )
     return None
 
@@ -362,11 +362,11 @@ def _local_material(
 ) -> setup_compose.CatalogMaterial:
     from ai_stp_cli.local import cache, content, revisions
 
+    embedded = _embedded_local_component(connection, member.stable_id, member.version)
+    if embedded is not None and embedded.ref == member:
+        return embedded
     recorded = versions.held(connection, member.stable_id, member.version)
     if recorded is None:
-        embedded = _embedded_local_component(connection, member.stable_id, member.version)
-        if embedded is not None and embedded.ref == member:
-            return embedded
         raise CliFailure(
             "AI_STP_NOT_FOUND",
             "a setup member is not held by this registry",

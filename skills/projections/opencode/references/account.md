@@ -29,6 +29,10 @@ for a developer, component, setup, device summary, or consent. The task asks
 `stable-id` if it is missing or unsupported; a `project_root` is not a sync entity.
 Project passports and absolute local paths stay on the device. If sync is disabled,
 use the returned configuration repair before starting a new sync task.
+Sync transfers passport history and immutable version snapshots, not distribution
+artifacts. Installing on another device also needs the exact artifact bytes,
+acquired through an authorized publication. A successful pull alone does not
+prove a setup is installable there.
 Linked project history is the organization ledger, not account sync.
 Do not type `project passport`. Do not type `project revision push`.
 Do not type `project revision pull`, `project sync plan`, or `project sync apply`.

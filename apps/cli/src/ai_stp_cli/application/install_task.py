@@ -11,13 +11,24 @@ from typing import Final
 from ai_stp_cli import identity
 from ai_stp_cli.application import install as install_service
 from ai_stp_cli.errors import CliFailure
-from ai_stp_cli.local import harnesses, passports, project_passport, revisions, versions
+from ai_stp_cli.local import (
+    content,
+    harnesses,
+    passports,
+    project_passport,
+    revisions,
+    setup_compose,
+    sync_versions,
+    versions,
+)
 from ai_stp_cli.local.database import configured_path, open_registry
 from ai_stp_contracts.machine_help import InstallationView, TaskInstallOutcome, TaskQuestion
 from ai_stp_foundation.canonical import JsonValue
 from ai_stp_foundation.harnesses import HARNESS_IDS
 from ai_stp_foundation.ids import is_valid_id
 from ai_stp_foundation.versioning import parse_version
+from ai_stp_passports import SetupVersionPassport
+from ai_stp_sources.definition import try_parse_setup_definition
 
 PREFERRED_POSTURE: Final[str] = "baseline"
 
@@ -73,18 +84,37 @@ def recommend_setup(harness_id: str) -> SetupPin | None:
 
 
 def acquire_pin(setup_id: str, setup_version: str) -> None:
-    """Use an exact owner-local setup, otherwise acquire the published graph."""
+    """Use an exact owned or account-synced setup; otherwise acquire its graph."""
     from ai_stp_cli.application import catalog as catalog_service
 
     with closing(open_registry(configured_path(), create=True)) as connection:
         held = versions.held(connection, setup_id, setup_version)
         stored = revisions.get(connection, held.revision_id) if held is not None else None
         if (
-            stored is not None
+            held is not None
+            and stored is not None
             and stored.envelope.kind == "setup"
-            and stored.envelope.owner_id == passports.owner().account_id
+            and (
+                stored.envelope.owner_id == passports.owner().account_id
+                or sync_versions.account_holds(
+                    connection, account=passports.owner().account_id, recorded=held
+                )
+            )
         ):
-            return
+            passport = SetupVersionPassport.model_validate(stored.envelope.model_dump(mode="json"))
+            try:
+                payload = content.get(connection, passport.artifact.digest)
+            except CliFailure as error:
+                if error.code != "AI_STP_NOT_FOUND":
+                    raise
+                # Sync retains passports, not distribution artifacts. A private
+                # publication can provide the missing exact bytes through acquire.
+            else:
+                if try_parse_setup_definition(payload) is not None:
+                    setup_compose.retain_embedded(
+                        connection, payload, device_id=stored.device_id, at=stored.created_at
+                    )
+                return
     catalog_service.acquire({"id": setup_id, "version": setup_version})
 
 

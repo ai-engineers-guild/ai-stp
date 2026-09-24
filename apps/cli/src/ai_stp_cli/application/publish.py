@@ -21,6 +21,7 @@ class DrainResult:
     questions: tuple[TaskQuestion, ...] = ()
     child_operation_ids: tuple[str, ...] = ()
     facts: dict[str, JsonValue] | None = None
+    advance: bool = False
 
 
 def plan_publication(parameters: Mapping[str, object]) -> PublicationPlanView:
@@ -39,7 +40,9 @@ def confirm_publication(*, plan_id: str, plan_hash: str) -> PublicationPlanView:
     ).payload
 
 
-def drain(facts: Mapping[str, JsonValue]) -> DrainResult:
+def drain(
+    facts: Mapping[str, JsonValue], *, previous: TaskPublishOutcome | None = None
+) -> DrainResult:
     """Advance publish until a boundary. Never shells out to `ai-stp`. Never invents git."""
     gate = account_service.ensure_session(facts)
     if isinstance(gate, account_service.DrainResult):
@@ -91,6 +94,10 @@ def drain(facts: Mapping[str, JsonValue]) -> DrainResult:
                 ),
             )
         )
+    if object_id.startswith("setup_"):
+        return _drain_setup(
+            object_id, object_version, visibility=chosen_visibility, previous=previous
+        )
     plan_id = facts.get("plan_id")
     plan_hash = facts.get("plan_hash")
     if isinstance(plan_id, str) and plan_id and isinstance(plan_hash, str) and plan_hash:
@@ -127,4 +134,34 @@ def drain(facts: Mapping[str, JsonValue]) -> DrainResult:
             state=confirmed.state,
             readable=readable,
         )
+    )
+
+
+def _drain_setup(
+    stable_id: str, version: str, *, visibility: str, previous: TaskPublishOutcome | None
+) -> DrainResult:
+    from ai_stp_cli.commands import setup_publication
+
+    held = previous.publication_set if previous is not None else None
+    if held is None:
+        receipt = setup_publication.plan(
+            {"id": stable_id, "version": version, "visibility": visibility}
+        ).payload
+    else:
+        receipt = setup_publication.confirm(
+            {"set-digest": held.set_digest, "confirm": True}
+        ).payload
+    setup = next(member for member in receipt.members if member.role == "setup")
+    return DrainResult(
+        outcome=TaskPublishOutcome(
+            object_id=receipt.setup_stable_id,
+            object_version=receipt.setup_version,
+            visibility=setup.visibility,
+            plan_id=setup.plan_id,
+            plan_hash=setup.plan_hash,
+            state=receipt.state,
+            readable=receipt.state == PLAN_STATE_PUBLISHED,
+            publication_set=receipt,
+        ),
+        advance=held is None and receipt.state != PLAN_STATE_PUBLISHED,
     )

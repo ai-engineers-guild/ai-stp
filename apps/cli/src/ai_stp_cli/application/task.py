@@ -44,6 +44,7 @@ from ai_stp_contracts.machine_help import (
     TaskListEntry,
     TaskListView,
     TaskOutcome,
+    TaskPublishOutcome,
     TaskView,
 )
 from ai_stp_foundation.canonical import JsonValue
@@ -787,8 +788,11 @@ def _drain(row: StoredTask) -> Answer[TaskView]:
         return _answer(agent_tasks.view_of(updated))
     if row.intent == PUBLISH_INTENT:
         facts = _facts_of(row)
+        previous = agent_tasks.view_of(row).outcome
         try:
-            result = drain_publish(facts)
+            result = drain_publish(
+                facts, previous=previous if isinstance(previous, TaskPublishOutcome) else None
+            )
         except CliFailure as error:
             _failed_drain(row, error, at=at)
             raise
@@ -800,6 +804,7 @@ def _drain(row: StoredTask) -> Answer[TaskView]:
                     result.outcome,
                     at=at,
                     goal_satisfied=result.outcome.readable,
+                    state="planned" if result.advance else "completed",
                     child_operation_ids=result.child_operation_ids,
                 ),
             )

@@ -41,7 +41,9 @@ drains a member add or remove on a saved setup into a **new** setup identity,
 records `fork_origin` and `related_setup_ids` to the source, and then installs
 the derived pin. The source setup id is not overwritten. A member set that
 already matches is a no-op identity (no mint) and still installs that pin.
-Replays of the same owner and delta reuse the derived id. `author` registers one
+Replays of the same owner and delta reuse the derived id. Embedded members retain
+their sealed passport, snapshot and artifact in the derived definition; a change
+does not promote them into independently published catalog components. `author` registers one
 directory as one embedded component and one new setup identity; kinds come from
 `COMPONENT_TYPES` filtered by native surfaces; drafts are not saved-setup
 mutations and are not installed. `switch` restores the last user
@@ -253,6 +255,10 @@ a CLI language rewrite, and a PyPI CLI cut are excluded.
   single native path segments. Unprojectable source trees return
   `AI_STP_VALIDATION_ERROR`, not an internal error. Author does not install
   and does not mutate a saved setup.
+  Authoring retains validated embedded component bytes and immutable snapshots
+  alongside the setup. Replaying older authored identities or installing a local
+  definition restores missing embedded storage without reissuing any version;
+  existing corrupt bytes remain a refusal.
 - `REQ-8017`: Intent `switch` drains `application.switch`. It restores the
   newest user `preserved_setup` for the target, never an upstream catalog
   pin. Missing snapshot is refused without a catalog fallback. The
@@ -264,6 +270,12 @@ a CLI language rewrite, and a PyPI CLI cut are excluded.
 - `REQ-8018`: Intent `account` drains `application.account`. Device-code
   login uses `actor=external`, one exchange per continue, and never
   `login.poll`. Login never uploads. Already signed-in login skips begin.
+  An accepted current-account sync event binding an exact setup version permits
+  local acquisition after sign-in, even when its immutable snapshot retains the
+  original offline owner. Another account, a pending event, or a different version
+  binding cannot supply that provenance. Provider validation still runs.
+  Sync does not carry distribution artifacts: missing bytes still require exact
+  catalog acquisition, including authenticated private publication access.
   Sync push selects an existing syncable local entity by `stable_id`; a missing
   or unsupported identifier asks `stable-id`. Project roots are not account-sync
   entities, and local project passports remain on the device. A disabled-sync
@@ -277,7 +289,14 @@ a CLI language rewrite, and a PyPI CLI cut are excluded.
   partial pages and repeated cursors settle without claiming the goal or
   polling unchanged data. Login does not call `/publications`, `/sync-plans`,
   `/revisions`, or catalog PUT.
-- `REQ-8019`: Intent `publish` drains `application.publish`. Visibility
+- `REQ-8019`: Intent `publish` drains `application.publish`. A setup id routes
+  through the existing setup publication set, including its exact component pins.
+  The task checkpoints the planned `publication_set` before confirmation and emits
+  a CLI continuation. Continue confirms that stored set digest; settled replay
+  creates no new plans. The typed set receipt preserves member states, server
+  evidence reasons and summaries, and transport error codes. Only
+  `published` satisfies the readable goal. Component publication keeps the
+  individual no-binding plan path. Visibility
   defaults to private. The plan omits `source_binding_id` and uses
   filesystem provenance. A bound git plan is refused. A worker receipt is
   not readable unless plan `state` is `published`. Missing auth blocks with

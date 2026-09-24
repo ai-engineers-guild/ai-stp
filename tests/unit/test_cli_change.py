@@ -393,6 +393,26 @@ def test_change_adds_a_locally_authored_component_without_cloud(
     assert finished.payload.outcome.source_setup_id == pin.setup_id
     assert finished.payload.outcome.setup_id != pin.setup_id
     assert finished.payload.outcome.minted is True
+    from ai_stp_cli.commands.setup_publication import (
+        _catalog_pins,  # pyright: ignore[reportPrivateUsage]
+    )
+    from ai_stp_cli.local import content
+    from ai_stp_sources.definition import validate_setup_definition
+
+    with closing(open_registry(configured_path(), create=True)) as connection:
+        derived = revisions.head(connection, finished.payload.outcome.setup_id)
+        assert derived is not None
+        passport = SetupVersionPassport.model_validate(derived.envelope.model_dump(mode="json"))
+        definition = validate_setup_definition(content.get(connection, passport.artifact.digest))
+        assert authored_outcome.component_id not in {
+            item[0] for item in _catalog_pins(connection, passport)
+        }
+        embedded = definition.get("embedded")
+        assert isinstance(embedded, list) and len(embedded) == 1
+        original = revisions.head(connection, authored_outcome.component_id)
+        assert original is not None
+        assert isinstance(embedded[0], dict)
+        assert embedded[0]["passport"] == original.envelope.model_dump(mode="json")
 
 
 def test_change_module_does_not_start_a_process() -> None:

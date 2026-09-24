@@ -36,8 +36,8 @@ from ai_stp_contracts.catalog import (
 from ai_stp_contracts.corporate import PlanOutcome
 from ai_stp_contracts.http import Timestamp, open_wire_object
 from ai_stp_contracts.private_access import PrivateVersionTrust
+from ai_stp_contracts.publication import EvidenceBindingView, PublicationPlanResponse
 from ai_stp_contracts.publication import ObjectKind as PublicationObjectKind
-from ai_stp_contracts.publication import PublicationPlanResponse
 from ai_stp_contracts.standard import STANDARD_FAMILY
 from ai_stp_contracts.technology import TechnologyScanHandoff
 from ai_stp_foundation.canonical import JsonValue
@@ -686,6 +686,7 @@ class TaskPublishOutcome(BaseModel):
     state: str
     readable: bool
     provenance: Literal["filesystem"] = "filesystem"
+    publication_set: "PublicationSetView | None" = None
 
 
 type TaskOutcome = Annotated[
@@ -884,6 +885,8 @@ class PublicationSetMemberView(BaseModel):
     plan_id: str = ""
     plan_hash: str = ""
     state: str = ""
+    evidence: list[EvidenceBindingView] = Field(default_factory=list[EvidenceBindingView])
+    error_code: str | None = None
 
     #: Public before this set existed. Confirm skips it rather than replanning
     #: it, and it is listed anyway so the set describes the whole graph.

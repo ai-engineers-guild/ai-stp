@@ -8,11 +8,18 @@ from pathlib import Path
 
 import pytest
 
+from ai_stp_cli.answer import Answer
 from ai_stp_cli.application import account as account_service
 from ai_stp_cli.application import publish as publish_service
 from ai_stp_cli.commands import task as task_command
 from ai_stp_cli.errors import CliFailure
-from ai_stp_contracts.machine_help import AuthStatus, DeviceApproval, PublicationPlanView
+from ai_stp_contracts.machine_help import (
+    AuthStatus,
+    DeviceApproval,
+    PublicationPlanView,
+    PublicationSetMemberView,
+    PublicationSetView,
+)
 from ai_stp_foundation.ids import new_id
 
 STABLE = "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
@@ -21,6 +28,77 @@ PLAN_HASH = "plan_" + "c" * 64
 ACCOUNT = "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
 DEVICE = "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
 DIGEST = "sha256:" + "b" * 64
+
+
+@pytest.mark.parametrize("terminal", ["published", "partial"])
+def test_setup_publication_checkpoints_the_exact_set_and_preserves_its_receipt(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, terminal: str
+) -> None:
+    from ai_stp_cli.commands import setup_publication
+
+    monkeypatch.setattr(account_service, "ensure_session", _signed_in)
+    setup_id = new_id("setup")
+    planned = PublicationSetView(
+        set_digest=DIGEST,
+        setup_stable_id=setup_id,
+        setup_version="1.0",
+        state="planned",
+        members=[
+            PublicationSetMemberView(
+                role="setup",
+                object_kind="setup",
+                visibility="private",
+                stable_id=setup_id,
+                version="1.0",
+                plan_id=PLAN,
+                plan_hash=PLAN_HASH,
+                state="ready",
+            )
+        ],
+    )
+    calls: list[tuple[str, Mapping[str, object]]] = []
+
+    def plan(parameters: Mapping[str, object]) -> Answer[PublicationSetView]:
+        calls.append(("plan", parameters))
+        return Answer(planned)
+
+    def confirm(parameters: Mapping[str, object]) -> Answer[PublicationSetView]:
+        calls.append(("confirm", parameters))
+        return Answer(planned.model_copy(update={"state": terminal}))
+
+    monkeypatch.setattr(setup_publication, "plan", plan)
+    monkeypatch.setattr(setup_publication, "confirm", confirm)
+    started = task_command.start(
+        {
+            "intent": "publish",
+            "idempotency-key": "publish-setup-checkpoint-01",
+            "input": _facts(tmp_path, {"object_id": setup_id, "object_version": "1.0"}),
+        }
+    )
+    assert started.payload.state == "planned"
+    assert not started.payload.goal_satisfied
+    assert started.continuations[0].actor == "cli"
+    assert len(calls) == 1
+    finished = task_command.continue_(
+        {"task": started.payload.task_id, "revision": started.payload.revision}
+    )
+    assert finished.payload.state == "completed"
+    assert finished.payload.goal_satisfied is (terminal == "published")
+    outcome = finished.payload.outcome
+    assert outcome is not None and outcome.kind == "publish"
+    receipt = outcome.model_dump()["publication_set"]
+    assert receipt["set_digest"] == DIGEST
+    assert receipt["state"] == terminal
+    assert outcome.source_binding_id == ""
+    assert outcome.visibility == "private"
+    replay = task_command.continue_(
+        {"task": finished.payload.task_id, "revision": finished.payload.revision}
+    )
+    assert replay.payload == finished.payload
+    assert calls == [
+        ("plan", {"id": setup_id, "version": "1.0", "visibility": "private"}),
+        ("confirm", {"set-digest": DIGEST, "confirm": True}),
+    ]
 
 
 def test_publish_asks_for_object_id_once(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

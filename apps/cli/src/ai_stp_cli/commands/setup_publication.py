@@ -196,11 +196,15 @@ def _confirm_members(
             continue
         try:
             final = _confirm_one(where, held, member, artifacts.get(member.stable_id, b""), pause)
-        except CliFailure:
-            settled.append(member.model_copy(update={"state": "blocked"}))
+        except CliFailure as error:
+            settled.append(member.model_copy(update={"state": "blocked", "error_code": error.code}))
             stop = True
             continue
-        settled.append(member.model_copy(update={"state": final.state}))
+        settled.append(
+            member.model_copy(
+                update={"state": final.state, "evidence": final.evidence, "error_code": None}
+            )
+        )
         if final.state != PLAN_STATE_PUBLISHED:
             stop = True
     return tuple(settled)

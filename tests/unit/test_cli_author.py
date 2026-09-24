@@ -13,9 +13,10 @@ import pytest
 
 from ai_stp_cli import identity
 from ai_stp_cli.application import author as author_service
+from ai_stp_cli.application import select as select_service
 from ai_stp_cli.commands import task as task_command
 from ai_stp_cli.errors import CliFailure
-from ai_stp_cli.local import content, passports, revisions, setup_author, versions
+from ai_stp_cli.local import content, passports, revisions, setup_author, setup_compose, versions
 from ai_stp_cli.local.database import configured_path, open_registry
 from ai_stp_passports.versions import COMPONENT_TYPES
 
@@ -239,6 +240,65 @@ def test_authored_antigravity_skill_preserves_native_files(
     assert replay.setup_id == authored.setup_id
     assert replay.component_id == authored.component_id
     assert replay.minted is False
+
+
+@pytest.mark.parametrize("kind", ["skill", "setting"])
+def test_authored_setup_compiles_immediately_without_a_change_task(
+    tmp_path: Path, kind: str
+) -> None:
+    tree = tmp_path / "native-component"
+    tree.mkdir()
+    filename = "SKILL.md" if kind == "skill" else "settings.json"
+    payload = b"# Native skill\n" if kind == "skill" else b'{"toolPermission":"accept-edits"}\n'
+    (tree / filename).write_bytes(payload)
+    authored = author_service.persist(
+        directory=tree,
+        harness_id="antigravity",
+        component_type=kind,
+        name="native-component",
+        license_spdx="MIT",
+    )
+    with closing(open_registry(configured_path(), create=True)) as connection:
+        compiled = select_service.compile_setup_version_bundle(
+            connection, authored.setup_id, authored.setup_version, expected_harness="antigravity"
+        )
+        with zipfile.ZipFile(io.BytesIO(compiled.archive)) as archive:
+            names = archive.namelist()
+            assert any(name.endswith(filename) for name in names)
+            assert any(archive.read(name) == payload for name in names if name.endswith(filename))
+
+
+def test_author_replay_repairs_legacy_embedded_storage_without_reissuing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    tree = _skill_tree(tmp_path)
+
+    def author() -> setup_author.AuthoredSetup:
+        return author_service.persist(
+            directory=tree,
+            harness_id="antigravity",
+            component_type="skill",
+            name="demo",
+            license_spdx="MIT",
+        )
+
+    def omit_embedded(*args: object, **kwargs: object) -> None:
+        pass
+
+    with monkeypatch.context() as legacy:
+        legacy.setattr(setup_compose, "retain_embedded", omit_embedded)
+        original = author()
+    with closing(open_registry(configured_path(), create=True)) as connection:
+        before = versions.held(connection, original.setup_id, original.setup_version)
+        assert versions.held(connection, original.component_id, original.component_version) is None
+    replay = author()
+    assert not replay.minted
+    with closing(open_registry(configured_path(), create=True)) as connection:
+        assert versions.held(connection, replay.setup_id, replay.setup_version) == before
+        compiled = select_service.compile_setup_version_bundle(
+            connection, replay.setup_id, replay.setup_version, expected_harness="antigravity"
+        )
+        assert compiled.archive
 
 
 def test_author_refuses_multiple_files_for_a_single_file_surface(tmp_path: Path) -> None:

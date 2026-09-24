@@ -175,9 +175,16 @@ may be calculated at read time from expiry or current policy/profile identity.
   rejected evidence reason codes, and the next valid action.
   Raw scanner output, internal object keys, local paths, and other owners'
   private evidence MUST remain unavailable.
-- `REQ-6420`: Public setup validation MUST require an exact published adaptation
-  whose harness equals the setup harness. A private overlay or missing target
-  MUST fail with `adaptation_unavailable` and MUST not close a public setup graph.
+- `REQ-6420`: Setup validation requires an exact adaptation whose harness equals
+  the setup harness, from the published catalog pin or the validated embedded
+  record. A private overlay or missing target fails with
+  `adaptation_unavailable` and cannot close a public setup graph.
+  Validated embedded component passports also supply exact adaptations. The
+  definition bytes must match the setup artifact digest and size, its identity
+  and harness, and each component's exact version and passport digest. Catalog
+  publication of an embedded member is not required. Missing, mismatched or
+  unsupported adaptations remain a failure.
+
 - `REQ-6421`: Public Web MUST expose no risk-install action and MUST never turn
   an author assertion or private overlay into a catalog recommendation.
 - `REQ-6422`: Likes and reports MUST remain keyed by component stable ID.
