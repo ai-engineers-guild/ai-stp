@@ -954,5 +954,9 @@
   "verified catalogue bytes changed before local materialization": "verified catalogue bytes changed before local materialization",
   "verified catalogue bytes changed before provider planning": "verified catalogue bytes changed before provider planning",
   "verified provider release evidence is incomplete": "verified provider release evidence is incomplete",
-  "visibility must be public or private": "visibility must be public or private"
+  "visibility must be public or private": "visibility must be public or private",
+  "the component name must be one native path segment": "the component name must be one native path segment",
+  "the idempotency key must contain 16 to 128 ASCII letters, digits, '.', '_', '~', or '-'": "the idempotency key must contain 16 to 128 ASCII letters, digits, '.', '_', '~', or '-'",
+  "this native surface requires exactly one source file": "this native surface requires exactly one source file",
+  "task start needs --intent NAME, not a positional intent": "task start needs --intent NAME, not a positional intent"
 }

@@ -954,5 +954,9 @@
   "verified catalogue bytes changed before local materialization": "проверенные байты каталога изменились до локальной материализации",
   "verified catalogue bytes changed before provider planning": "проверенные байты каталога изменились до планирования провайдера",
   "verified provider release evidence is incomplete": "доказательства проверенного выпуска провайдера неполны",
-  "visibility must be public or private": "visibility должна быть public или private"
+  "visibility must be public or private": "visibility должна быть public или private",
+  "the component name must be one native path segment": "имя компонента должно быть одним сегментом нативного пути",
+  "the idempotency key must contain 16 to 128 ASCII letters, digits, '.', '_', '~', or '-'": "ключ идемпотентности должен содержать от 16 до 128 букв ASCII, цифр или символов '.', '_', '~', '-'",
+  "this native surface requires exactly one source file": "для этой нативной поверхности требуется ровно один исходный файл",
+  "task start needs --intent NAME, not a positional intent": "для task start требуется --intent NAME, а не позиционное имя сценария"
 }
