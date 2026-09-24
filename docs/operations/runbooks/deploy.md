@@ -1,9 +1,9 @@
 ---
 description: "Runbook: reproducible deployment with a web tier, backups, and rollback."
-last_verified: "2026-09-20"
+last_verified: "2026-09-24"
 ---
 
-# Staging deployment
+# Production deployment
 
 Normative sources: `SPEC-024` (`REQ-2401`..`REQ-2417`), `ADR-0044`,
 `ADR-0046`, framework `SPEC-019` / `ADR-0040`. Secrets do not enter the repository
@@ -42,13 +42,12 @@ host-owned file.
 
 ## CI and deployment trust domains
 
-Deployment is automatic and starts **somewhere else**. Its source is the public
-`ai-engineers-guild/ai-stp` repository (`ADR-0109`): after a green `check` on
-`main`, its `deploy.yml` advances `deploy/prod` via `workflow_run` to the
-**exact SHA that `check` verified**, not to the current `main`—another commit
-may be merged between verification and deployment. This repository does not
-contain a deployment workflow, and `tests/unit/test_deploy_hardening.py`
-verifies that it does not.
+Deployment starts in the public `ai-engineers-guild/ai-stp` repository
+(`ADR-0109`). After a successful push-triggered `check` on `main`,
+`.github/workflows/deploy.yml` advances `deploy/prod` via `workflow_run` to
+the exact SHA that check verified. A later merge into `main` does not change
+the commit selected by that completed run. The private authoring tree does
+not promote deployments; the public tree carries and tests this workflow.
 
 The connection is initiated from the host to GitHub, not the other way around. The production
 host is not an Actions runner: a systemd timer fetches the exact SHA and invokes the local
@@ -107,9 +106,10 @@ The separation of trust domains from `ADR-0046` rests on three assertions:
 - the source is narrowed twice: `workflow_run` after a completed `check`, plus an explicit
   check for `event == push` and `head_branch == main`.
 
-The first two are checked here, in `tests/unit/test_deploy_hardening.py`; the third is
-checked in `tests/unit/test_deploy_contract.py`, which runs in the tree where the
-deployment workflow exists and is skipped where it must not exist.
+`tests/unit/test_deploy_contract.py` checks the public workflow's deployment
+credentials, runner boundary, exact source SHA and event guards, together with
+the host pull script. The private authoring tree has separate fleet hardening
+checks; those withheld tests are not part of this public checkout.
 
 The public route is verified **off** the host: a separate job
 `verify-public` on a standard GitHub runner, which needs only outbound
@@ -118,7 +118,7 @@ port 443. A check that runs only where the service runs cannot distinguish
 
 The manual path remains operational and independent of CI: `rsync` the verified tree to the
 host, then run `deploy/run.sh` and `deploy/verify.sh`. It is also the recovery path
-when the runner on the host is unavailable.
+when the host's pull timer is unavailable.
 
 `AI_STP_PUBLIC_HOST` and `AI_STP_DOCS_HOST` belong in `.env.prod` on the host, not
 in the repository. Both are bare host names and carry no scheme: the stack asks no
@@ -127,9 +127,11 @@ Either may hold several space-separated names, as nginx's own `server_name` does
 the first names the rendered file and, unless `AI_STP_TLS_LINEAGE` says otherwise,
 the certbot directory.
 
-The agent on the host executes only the contents of the monotonic ref published by the
-release job. Its deploy key has read-only access to Contents; there is no Actions
-credential on the production host.
+The host deployer executes the contents of the monotonic ref published by the
+promotion job. `deploy/pull-deploy.sh` fetches the public repository anonymously
+over HTTPS, disables Git credential helpers for that fetch, and refuses a
+candidate that is not a descendant of a resolvable deployed commit. No deploy
+key or Actions credential is needed on the production host.
 
 ## Changing the deployment source
 
@@ -288,8 +290,9 @@ Readiness prevents the service from being declared ready until the database, mig
 are ready (`SPEC-017`). The deployment script aborts on the readiness timeout and does not
 consider the artifact healthy.
 
-The workflow retains the internal check and then starts an external probe from the deployment
-runner. `deploy/verify_public.py` accepts only a bare `https` origin, uses
+The host scripts perform the internal checks. The workflow's `verify-public`
+job waits for the promoted commit using an external probe on a GitHub runner.
+`deploy/verify_public.py` accepts only a bare `https` origin, uses
 ordinary DNS and the system TLS trust chain, limits responses, and compares
 `git_commit`, `environment`, and the single head revision calculated from the migrations.
 It has no options to disable TLS or override DNS.
@@ -372,8 +375,9 @@ fail—this is an expected abort; then proceed according to
 migrate/seed no-op). A concurrent deployment exits with a held-lock
 error.
 
-Before `rsync` begins, the workflow atomically writes `.deploy-state/in-progress` with the exact
-SHA and the `transfer_started` stage. `deploy/deploy.sh` updates the marker after config,
+Before `rsync` begins, the host's `deploy/pull-deploy.sh` calls
+`deploy/mark-transfer.sh` to atomically write `.deploy-state/in-progress` with
+the exact SHA and the `transfer_started` stage. `deploy/deploy.sh` updates the marker after config,
 the build stage, dependency preparation, migration, seeding, startup,
 and the liveness and readiness checks. After successful
 readiness, it moves the previous `current` to `previous`, atomically writes the new
