@@ -8,7 +8,7 @@ import sqlite3
 from collections.abc import Mapping
 from dataclasses import dataclass
 from dataclasses import replace as evolve
-from typing import cast
+from typing import Literal, cast
 
 from ai_stp_contracts.machine_help import (
     TaskInspectOutcome,
@@ -311,6 +311,7 @@ def with_outcome(
     *,
     at: str,
     goal_satisfied: bool = True,
+    state: Literal["planned", "completed"] = "completed",
     child_operation_ids: tuple[str, ...] | None = None,
 ) -> StoredTask:
     children = (
@@ -322,7 +323,7 @@ def with_outcome(
         task_id=row.task_id,
         revision=row.revision + 1,
         intent=row.intent,
-        state="completed",
+        state=state,
         goal_satisfied=goal_satisfied,
         idempotency_key=row.idempotency_key,
         payload_json=row.payload_json,

@@ -507,11 +507,12 @@ def freeze_setup_definition(
     created_at: str,
     catalog_members: tuple[ComponentRef, ...],
     embedded_members: tuple[EmbeddedDraft, ...],
+    retained_embedded: tuple[dict[str, JsonValue], ...] = (),
     catalog_ids: frozenset[str] = frozenset(),
     known_identities: Mapping[str, str] | None = None,
 ) -> FrozenDefinition:
     """Freeze catalog and resolved non-catalog members into definition v1 or v2."""
-    if len(embedded_members) > MAX_EMBEDDED_RECORDS:
+    if len(embedded_members) + len(retained_embedded) > MAX_EMBEDDED_RECORDS:
         raise SourceError(UNSAFE_ARCHIVE, "embedded index exceeds the accepted size")
     identities = dict(known_identities or {})
     catalog_ids = catalog_ids | frozenset(item.stable_id for item in catalog_members)
@@ -519,6 +520,25 @@ def freeze_setup_definition(
     embedded_records: list[dict[str, JsonValue]] = []
     seen_keys: dict[str, ComponentRef] = {}
     seen_refs: dict[tuple[str, str], str] = {}
+
+    # A derived setup carries the original sealed record, not a new passport
+    # and not an implicit promotion into the catalog. The final validator
+    # rechecks every retained digest, size and native projection.
+    for record in retained_embedded:
+        try:
+            retained = _EmbeddedRecord.model_validate(record)
+        except ValidationError as exc:
+            raise SourceError(INVALID_SOURCE, "retained embedded record is incomplete") from exc
+        ref = retained.ref
+        if ref.stable_id in catalog_ids:
+            raise SourceError(
+                CATALOG_COLLISION, "embedded identity collides with a catalog component"
+            )
+        if (ref.stable_id, ref.version) in seen_refs:
+            raise SourceError(INTEGRITY_MISMATCH, "duplicate retained embedded ref")
+        seen_refs[(ref.stable_id, ref.version)] = ref.passport_digest
+        components.append(ref)
+        embedded_records.append(dict(record))
 
     for draft in embedded_members:
         validate_frozen_snapshot(draft.snapshot)

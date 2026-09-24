@@ -41,7 +41,9 @@ drains a member add or remove on a saved setup into a **new** setup identity,
 records `fork_origin` and `related_setup_ids` to the source, and then installs
 the derived pin. The source setup id is not overwritten. A member set that
 already matches is a no-op identity (no mint) and still installs that pin.
-Replays of the same owner and delta reuse the derived id. `author` registers one
+Replays of the same owner and delta reuse the derived id. Embedded members retain
+their sealed passport, snapshot and artifact in the derived definition; a change
+does not promote them into independently published catalog components. `author` registers one
 directory as one embedded component and one new setup identity; kinds come from
 `COMPONENT_TYPES` filtered by native surfaces; drafts are not saved-setup
 mutations and are not installed. `switch` restores the last user
@@ -110,7 +112,12 @@ a CLI language rewrite, and a PyPI CLI cut are excluded.
   `command_paths`. Completing inspect satisfies the task goal even when the
   doctor report is not `ready`.
 - `REQ-8007`: `task start` is idempotent on the pair of `idempotency-key` and
-  the canonical document of intent plus `--input` body. Drain may enrich
+  the canonical document of intent plus `--input` body. Keys use the shared
+  HTTP-contract pattern: 16 to 128 ASCII letters, digits, `.`, `_`, `~`, or
+  `-`. Start help names that constraint and the requirement to reuse a key
+  only for the same request. An invalid key is refused before task creation;
+  its error names the field and pattern without echoing the rejected value
+  and points to scoped `task start` help. Drain may enrich
   `payload_json` with checkpoint facts (switch restore ids, account device
   code). Replay of the original `--input` still joins that row; only a
   contradictory user key is `AI_STP_CONFLICT`. After minting, start
@@ -125,6 +132,11 @@ a CLI language rewrite, and a PyPI CLI cut are excluded.
   `continue`, `answer`, and `cancel` require the current revision. Status
   names the task id; the process does not hold a current task. A successful
   `task status` may describe a failed, cancelled, or compensated target.
+  An unexpected interruption while answering a question retains the running
+  revision and emits its `task continue` continuation, as an interrupted
+  explicit continue does. Reading a running task also emits that continuation
+  without performing any work. A replay after persistence reuses the held
+  immutable result.
 - `REQ-8008`: Advancing a task calls named application services for that
   intent. It does not look up an arbitrary expert leaf in the command
   registry and run it. `application/` does not import `ai_stp_cli.commands`.
@@ -142,9 +154,16 @@ a CLI language rewrite, and a PyPI CLI cut are excluded.
   start completes in the first envelope. A blocked human question binds
   `question-id` and leaves `value` missing; argv is
   `task answer` without that value (`REQ-1131`).
+  The control Skill distinguishes a harness shell task handle from an ai-stp
+  task id. If the shell tool yields before stdout is available, the agent
+  retrieves its completed output before another CLI invocation; a timer or
+  shell-task status does not establish a CLI outcome.
 - `REQ-8011`: `task start` and `task answer` accept `--input <file|->`. The
   file or stdin is a JSON or YAML object parsed into the same typed model;
-  duplicate keys are refused rather than last-wins, in either spelling. Flags
+  unreadable paths and invalid UTF-8 return a validation error naming the
+  file-or-stdin interface and scoped start help, without echoing the supplied
+  input locator. An inline JSON argument remains a refused file locator.
+  Duplicate keys are refused rather than last-wins, in either spelling. Flags
   win over keys
   in that object. Inspect rejects a non-empty input object. A schema
   validation refusal is `AI_STP_VALIDATION_ERROR` whose `details.fields`
@@ -190,6 +209,12 @@ a CLI language rewrite, and a PyPI CLI cut are excluded.
   under task authority, and apply in one `task continue`. The model does not
   type those expert leaves. Omitted `setup_id`/`setup_version` becomes one
   justified first-party `baseline` pin for the harness, acquired in-process.
+  Only omission of both fields selects that baseline. Supplying either field
+  alone blocks on `setup-ref` until the exact pair is known. An exact setup
+  already held under the current owner's identity proceeds to the same
+  checked install plan without fetching it from the public catalog. A missing
+  version or another owner's setup still uses catalog acquisition; local
+  ownership does not bypass graph, artifact, compatibility or provider checks.
   If no justified pin exists, one `setup-ref` question. The CLI does not quiz
   the catalog. Omitted `project_root` is one absolute-path question.
   A catalogued harness config directory (or a path inside one) is not a
@@ -207,7 +232,11 @@ a CLI language rewrite, and a PyPI CLI cut are excluded.
   resumes or applies the held operation instead of planning a second one.
 - `REQ-8015`: Intent `change` drains `application.change`. It asks harness,
   source pin, component pin, and project root at most once each. Omitted source
-  pin becomes the same first-party `baseline` as `install`. Omitted action is
+  pin becomes the same first-party `baseline` as `install`; a partially
+  specified pin instead asks for `setup-ref`. Exact owner-local source setups
+  use the held graph, including embedded components whose full reference
+  matches the source member. They do not require public catalog publication.
+  Omitted action is
   `add`. The engine records a new setup stable id, `fork_origin`, and
   `related_setup_ids` pointing at the source. The source identity remains
   held. Identical member sets do not mint. Compensated install remains
@@ -219,7 +248,17 @@ a CLI language rewrite, and a PyPI CLI cut are excluded.
   directory as one embedded component and one setup identity. It asks
   directory, harness, kind, and name at most once each. Replay of the same
   bytes reuses the identity. A kind with no native surface for that harness
-  is refused. Author does not install and does not mutate a saved setup.
+  is refused. Directory surfaces retain each source file's relative path
+  under the named native component directory, including nested scripts;
+  GENERATED.md source notes are excluded from the native projection.
+  A single-file surface requires exactly one source file. Names must be
+  single native path segments. Unprojectable source trees return
+  `AI_STP_VALIDATION_ERROR`, not an internal error. Author does not install
+  and does not mutate a saved setup.
+  Authoring retains validated embedded component bytes and immutable snapshots
+  alongside the setup. Replaying older authored identities or installing a local
+  definition restores missing embedded storage without reissuing any version;
+  existing corrupt bytes remain a refusal.
 - `REQ-8017`: Intent `switch` drains `application.switch`. It restores the
   newest user `preserved_setup` for the target, never an upstream catalog
   pin. Missing snapshot is refused without a catalog fallback. The
@@ -231,9 +270,33 @@ a CLI language rewrite, and a PyPI CLI cut are excluded.
 - `REQ-8018`: Intent `account` drains `application.account`. Device-code
   login uses `actor=external`, one exchange per continue, and never
   `login.poll`. Login never uploads. Already signed-in login skips begin.
-  Sync is explicit only. Login does not call `/publications`, `/sync-plans`,
+  An accepted current-account sync event binding an exact setup version permits
+  local acquisition after sign-in, even when its immutable snapshot retains the
+  original offline owner. Another account, a pending event, or a different version
+  binding cannot supply that provenance. Provider validation still runs.
+  Sync does not carry distribution artifacts: missing bytes still require exact
+  catalog acquisition, including authenticated private publication access.
+  Sync push selects an existing syncable local entity by `stable_id`; a missing
+  or unsupported identifier asks `stable-id`. Project roots are not account-sync
+  entities, and local project passports remain on the device. A disabled-sync
+  failure retains its exact configuration repair without enabling sync implicitly.
+  Sync is explicit only; the selected action supplies the internal confirmation
+  for both push and pull. Its typed `sync_result` preserves the underlying
+  receipt, including conflicts and missing version coordinates. `synced` and
+  the task goal are true only for an accepted push or an up-to-date pull.
+  A nonempty pull page with a new cursor checkpoints its receipt in the same
+  task at `planned` and emits a CLI continuation for the next page. Empty
+  partial pages and repeated cursors settle without claiming the goal or
+  polling unchanged data. Login does not call `/publications`, `/sync-plans`,
   `/revisions`, or catalog PUT.
-- `REQ-8019`: Intent `publish` drains `application.publish`. Visibility
+- `REQ-8019`: Intent `publish` drains `application.publish`. A setup id routes
+  through the existing setup publication set, including its exact component pins.
+  The task checkpoints the planned `publication_set` before confirmation and emits
+  a CLI continuation. Continue confirms that stored set digest; settled replay
+  creates no new plans. The typed set receipt preserves member states, server
+  evidence reasons and summaries, and transport error codes. Only
+  `published` satisfies the readable goal. Component publication keeps the
+  individual no-binding plan path. Visibility
   defaults to private. The plan omits `source_binding_id` and uses
   filesystem provenance. A bound git plan is refused. A worker receipt is
   not readable unless plan `state` is `published`. Missing auth blocks with
@@ -350,6 +413,9 @@ a CLI language rewrite, and a PyPI CLI cut are excluded.
   `task start --json` without `--intent`, `task start --intent` without a
   value, and `task start --intent` with a name that is not shipped list
   `task intents` and do not echo Click's missing-option or choice dump.
+  A missing intent, including a positional intent after `task start`, names
+  the required `--intent NAME` form in the refusal; it does not execute the
+  guessed operation or accept a new positional form.
   `help --path` with no matching family lists `task intents` and does not
   send the full registry dump. An unscoped `help --agent --json` dump still
   carries a `cli` continuation whose argv is `task intents --json`. A scoped
@@ -486,7 +552,7 @@ and a partial unique index on an open mutating binding.
 | `REQ-8013` | `test_cli_initialize` asserts the section contract, catalog surfaces including custom `CODEX_HOME`, preserve-outside-markers, idempotent no-write, Cursor `alwaysApply` `.mdc`, HTML-comment refusal, antigravity limitation, that `application/initialize.py` contains no file-write verbs, that omitted drain kwargs with no bind stay `provider-too-old`, that a remembered chosen provider without the op or without `instruction_section` stays too-old, that a discovered row is not a bind, that declaring both invokes the provider path, that `--instruction-section` is on plan argv only then, and that a drain `CliFailure` keeps `details.task` and drops expert `next_actions` such as `provider network`. Fake-provider tests still replace `provider_operations` / `patch_via_provider`. `test_cli_plan_request_fields` accepts `instruction_section` on `plan_request_fields` and sends `--instruction-section` only for `patch_instruction_region` when that field is declared. `test_cli_task_driver` continues a `provider-too-old` block without writing. Skill and qualify treat `provider-too-old` as not login. |
 | `REQ-8014` | `test_cli_install_task` asks harness/setup-ref/project-root once, drains plan→approve→apply in one start, maps compensated and partial apply to `CliFailure` with task `failed`, resumes a held child after a killed start, refuses a relative project root, re-asks when `project_root` is a catalogued harness config directory, mints missing developer/device/project passports before plan, passes the catalogued harness config root as `target`, and strips expert `next_actions` such as `provider network` from drain failures. |
 | `REQ-8015` | `test_cli_change` mints a new setup id with `fork_origin` and `related_setup_ids`, keeps the source id held, skips minting on a no-op member set, drains derive→install in one continue, maps compensated apply to `CliFailure`, mints missing context passports before plan, and adds a locally authored embedded component without catalog acquire. |
-| `REQ-8016` | `test_cli_author` registers a directory as one component plus one setup identity, asks typed questions once, reuses the identity on replay of the same bytes, refuses a kind with no native surface, and contains no nested CLI process. |
+| `REQ-8016` | `test_cli_author` registers a directory as one component plus one setup identity, asks typed questions once, reuses the identity on replay of the same bytes, verifies exact Antigravity skill archive paths and bytes for single-file and nested-script trees, omits generated notes, refuses invalid names and multiple files on a single-file surface, reports unprojectable trees as validation errors, refuses a kind with no native surface, and contains no nested CLI process. |
 | `REQ-8017` | `test_cli_switch` restores the newest user `preserved_setup`, refuses a missing snapshot without a catalog fallback, asks for an absolute project directory rather than a harness config root, re-asks when `project_root` is inside a catalogued harness config directory, captures drift then asks `reload-session`, replays the original `--input` onto that blocked row without a second restore, maps compensated restore to task `failed`, and never kills the caller or claims `session_loaded`. |
 | `REQ-8018` | `test_cli_account` drains device-code login with `actor=external`, one exchange per continue, no `/publications` `/sync-plans` `/revisions` or catalog PUT on login, skipped begin when already signed in, explicit sync only, and never `login.poll`. |
 | `REQ-8019` | `test_cli_publish` defaults visibility to private, omits `source_binding_id`, treats worker `validating` as not readable, treats `published` as readable, blocks missing auth with one user code, and refuses a bound git plan. |

@@ -4922,7 +4922,14 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                     "publish",
                 ),
             ),
-            option("idempotency-key", "string", "Stable key for this exact intent.", required=True),
+            option(
+                "idempotency-key",
+                "string",
+                "Stable key for this exact intent and input: 16 to 128 ASCII letters, "
+                "digits, '.', '_', '~', or '-'. A UUID is valid. "
+                "Reuse it only for the same request.",
+                required=True,
+            ),
             option("input", "string", "JSON or YAML object file, or - for stdin."),
         ),
         next_actions=("help --path task --json",),

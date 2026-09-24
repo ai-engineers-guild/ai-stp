@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import sqlite3
 from typing import cast
 
@@ -20,6 +21,39 @@ from ai_stp_foundation.canonical import JsonValue
 
 def _invalid(reason: str) -> CliFailure:
     return CliFailure("AI_STP_VALIDATION_ERROR", reason)
+
+
+def account_holds(
+    connection: sqlite3.Connection, *, account: str, recorded: versions.Recorded
+) -> bool:
+    """An accepted account event binds this exact immutable version.
+
+    Signing in must not rewrite an offline-authored version's original owner.
+    Its accepted private-ledger binding supplies the account provenance instead.
+    """
+    rows = connection.execute(
+        "SELECT request_json FROM sync_event WHERE account_id = ? AND entity_id = ? "
+        "AND state = 'accepted'",
+        (account, recorded.stable_id),
+    ).fetchall()
+    for row in rows:
+        event = json.loads(str(row[0]))
+        if event.get("operation") != "upsert":
+            continue
+        for raw in event.get("payload", {}).get("sync_released_versions", []):
+            if not isinstance(raw, dict):
+                continue
+            try:
+                binding = parse_binding(cast(dict[str, object], raw), recorded.stable_id)
+            except VersionBindingError:
+                continue
+            if (binding.version, binding.passport_digest, binding.revision_id) == (
+                recorded.version,
+                recorded.passport_digest,
+                recorded.revision_id,
+            ):
+                return True
+    return False
 
 
 def outgoing(connection: sqlite3.Connection, stored: revisions.StoredRevision) -> list[JsonValue]:

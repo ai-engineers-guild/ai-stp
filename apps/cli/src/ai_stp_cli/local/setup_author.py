@@ -11,7 +11,7 @@ from typing import Final, cast
 from ulid import ULID
 
 from ai_stp_cli.errors import CliFailure
-from ai_stp_cli.local import composition, revisions, setup_compose, versions
+from ai_stp_cli.local import content, revisions, setup_compose, versions
 from ai_stp_cli.local.composition import rule_for
 from ai_stp_passports import SetupVersionPassport
 from ai_stp_passports.versions import COMPONENT_TYPES, ComponentType
@@ -115,7 +115,7 @@ def record(
     if held is not None:
         return _held_setup(connection, held, minted=False)
     description = f"Local {component_type} {name}."
-    managed = composition.covers(component_type, harness_id, name)
+    managed = _managed_files(snapshot, component_type, harness_id, name)
     component = setup_compose.ComposeComponent(
         source={"kind": "path", "relative_path": place.name},
         component_type=cast(ComponentType, component_type),
@@ -133,14 +133,19 @@ def record(
         tags=("authored",),
         components=(component,),
     )
-    composed = setup_compose.compose(
-        manifest=manifest,
-        setup_id=setup_id,
-        publisher_id=publisher_id,
-        created_at=at,
-        snapshots=((component, snapshot),),
-        catalog=(),
-    )
+    try:
+        composed = setup_compose.compose(
+            manifest=manifest,
+            setup_id=setup_id,
+            publisher_id=publisher_id,
+            created_at=at,
+            snapshots=((component, snapshot),),
+            catalog=(),
+        )
+    except SourceError as error:
+        raise CliFailure(
+            "AI_STP_VALIDATION_ERROR", error.message, details={"source_code": error.code}
+        ) from error
     setup_compose.apply(
         connection,
         composed,
@@ -159,6 +164,27 @@ def record(
     )
 
 
+def _managed_files(
+    snapshot: SourceSnapshot, component_type: str, harness_id: str, name: str
+) -> tuple[str, ...]:
+    """Map source files to native members, not to directory ownership claims."""
+    if not name or name in {".", ".."} or any(char in name for char in "/\\\0"):
+        raise CliFailure(
+            "AI_STP_VALIDATION_ERROR", "the component name must be one native path segment"
+        )
+    files = sorted(path for path in snapshot.files if path.rsplit("/", 1)[-1] != "GENERATED.md")
+    rule = rule_for(component_type, harness_id)
+    if rule is not None and rule.shape == "directory":
+        return tuple(f"{rule.relative}/{name}/{path}" for path in files)
+    if len(files) != 1:
+        raise CliFailure(
+            "AI_STP_VALIDATION_ERROR",
+            "this native surface requires exactly one source file",
+            details={"harness_id": harness_id, "component_type": component_type},
+        )
+    return (rule.relative if rule is not None else f"bin/{name}",)
+
+
 def _held_setup(
     connection: sqlite3.Connection, held: versions.Recorded, *, minted: bool
 ) -> AuthoredSetup:
@@ -170,6 +196,12 @@ def _held_setup(
             details={"stable_id": held.stable_id},
         )
     passport = SetupVersionPassport.model_validate(stored.envelope.model_dump(mode="json"))
+    setup_compose.retain_embedded(
+        connection,
+        content.get(connection, passport.artifact.digest),
+        device_id=stored.device_id,
+        at=stored.created_at,
+    )
     member = passport.components[0]
     return AuthoredSetup(
         setup_id=held.stable_id,

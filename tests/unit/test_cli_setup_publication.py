@@ -19,7 +19,7 @@ from typing import Any, cast
 
 import pytest
 
-from ai_stp_cli.commands import setup_publication
+from ai_stp_cli.application import setup_publication
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import (
     component_passports,
@@ -31,6 +31,7 @@ from ai_stp_cli.local import (
 )
 from ai_stp_cli.local.database import configured_path, open_registry
 from ai_stp_contracts.machine_help import PublicationSetMemberView
+from ai_stp_contracts.publication import EvidenceBindingView
 from ai_stp_foundation.canonical import JsonValue
 from ai_stp_foundation.digests import digest_bytes, digest_canonical
 from ai_stp_foundation.ids import new_id
@@ -115,6 +116,18 @@ class _Plan:
         self.actor_id = _Session.account_id
         self.device_id = request.device_id
         self.state = state
+        self.evidence = (
+            [
+                EvidenceBindingView(
+                    check_id="setup_exact_adaptation",
+                    result="failed",
+                    source="platform_structure_verified",
+                    reason="adaptation_unavailable",
+                )
+            ]
+            if state == "failed"
+            else []
+        )
 
 
 class _Session:
@@ -488,6 +501,7 @@ def test_a_refused_component_stops_the_setup_and_leaves_the_rest_published(
     by_id = {member.stable_id: member for member in settled.members}
     assert by_id[pins[0]].state == "published"
     assert by_id[pins[1]].state == "failed"
+    assert by_id[pins[1]].model_dump()["evidence"][0]["reason"] == "adaptation_unavailable"
     assert by_id[SETUP].state not in {"published"}
 
 

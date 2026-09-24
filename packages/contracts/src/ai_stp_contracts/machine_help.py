@@ -36,8 +36,8 @@ from ai_stp_contracts.catalog import (
 from ai_stp_contracts.corporate import PlanOutcome
 from ai_stp_contracts.http import Timestamp, open_wire_object
 from ai_stp_contracts.private_access import PrivateVersionTrust
+from ai_stp_contracts.publication import EvidenceBindingView, PublicationPlanResponse
 from ai_stp_contracts.publication import ObjectKind as PublicationObjectKind
-from ai_stp_contracts.publication import PublicationPlanResponse
 from ai_stp_contracts.standard import STANDARD_FAMILY
 from ai_stp_contracts.technology import TechnologyScanHandoff
 from ai_stp_foundation.canonical import JsonValue
@@ -506,7 +506,11 @@ class TaskAccountInput(BaseModel):
     schema_version: Literal[1] = 1
     action: Literal["login", "logout", "sync"] | None = None
     provider: Literal["google", "github"] | None = None
-    project_root: str | None = None
+    stable_id: str | None = Field(default=None, description="Exact local account-sync entity id.")
+    project_root: str | None = Field(
+        default=None,
+        description="Legacy input retained for replay; project passports do not sync to accounts.",
+    )
     scope: Literal["push", "pull"] | None = None
 
 
@@ -664,6 +668,7 @@ class TaskAccountOutcome(BaseModel):
     session_state: str = ""
     synced: bool = False
     scope: str = ""
+    sync_result: SyncPushView | SyncPullView | None = None
 
 
 class TaskPublishOutcome(BaseModel):
@@ -681,6 +686,7 @@ class TaskPublishOutcome(BaseModel):
     state: str
     readable: bool
     provenance: Literal["filesystem"] = "filesystem"
+    publication_set: "PublicationSetView | None" = None
 
 
 type TaskOutcome = Annotated[
@@ -879,6 +885,8 @@ class PublicationSetMemberView(BaseModel):
     plan_id: str = ""
     plan_hash: str = ""
     state: str = ""
+    evidence: list[EvidenceBindingView] = Field(default_factory=list[EvidenceBindingView])
+    error_code: str | None = None
 
     #: Public before this set existed. Confirm skips it rather than replanning
     #: it, and it is listed anyway so the set describes the whole graph.

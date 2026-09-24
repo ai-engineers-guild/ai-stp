@@ -530,11 +530,21 @@ async def test_execute_validate_scans_actual_embedded_bytes(
         attestations=[],
         effects=[],
     )
+    plan.passport = _public_setup_passport(
+        components=[item.model_dump(mode="json") for item in frozen.components],
+        artifact_digest=digest,
+        size_bytes=len(frozen.payload),
+    )
+    plan.passport["visibility"] = "private"
+    plan.passport["revision_id"] = derive_revision_id(cast(dict[str, JsonValue], plan.passport))
     added: list[object] = []
     session = AsyncMock()
     session.get = AsyncMock(return_value=plan)
     session.scalar = AsyncMock(return_value=None)
     session.scalars = AsyncMock(return_value=SimpleNamespace(all=lambda: []))
+    session.execute = AsyncMock(
+        return_value=SimpleNamespace(scalars=lambda: SimpleNamespace(all=lambda: []))
+    )
     session.add = lambda obj: added.append(obj)
     session.flush = AsyncMock()
     monkeypatch.setattr("ai_stp_platform.publication_logic.enqueue", AsyncMock())
@@ -714,3 +724,32 @@ async def test_setup_exact_adaptation_is_one_unique_check_for_many_missing_pins(
     assert bindings[0]["finding_summary"]["missing_component_ids"] == sorted(
         [EMBEDDED_ID, CATALOG_ID]
     )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("case", ["exact", "artifact-mismatch", "pin-mismatch", "target-mismatch"])
+async def test_embedded_exact_adaptation_requires_the_bound_definition(case: str) -> None:
+    frozen = _freeze(embedded=(_draft(_path_snapshot(), stable_id=EMBEDDED_ID),))
+    digest = digest_bytes(ARTIFACT_DIGEST_DOMAIN, frozen.payload)
+    passport = _public_setup_passport(
+        components=[item.model_dump(mode="json") for item in frozen.components],
+        artifact_digest=digest,
+        size_bytes=len(frozen.payload),
+    )
+    if case == "pin-mismatch":
+        passport["components"] = [
+            {"stable_id": EMBEDDED_ID, "version": "1.0", "passport_digest": DIGEST}
+        ]
+    if case == "target-mismatch":
+        passport["harness_id"] = "antigravity"
+    session = AsyncMock()
+    session.execute = AsyncMock(
+        return_value=SimpleNamespace(scalars=lambda: SimpleNamespace(all=lambda: []))
+    )
+    bindings = await _exact_adaptation_bindings(
+        session,
+        passport,
+        definition_bytes=frozen.payload + b" " if case == "artifact-mismatch" else frozen.payload,
+    )
+    assert len(bindings) == 1
+    assert bindings[0]["result"] == ("passed" if case == "exact" else "failed")
