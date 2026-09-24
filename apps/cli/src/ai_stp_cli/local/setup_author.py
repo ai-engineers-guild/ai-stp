@@ -44,8 +44,12 @@ def authored_setup_id(
     harness_id: str,
     component_type: str,
     files_digest: str,
+    *,
+    native_paths: tuple[str, ...] = (),
 ) -> str:
     material = f"{publisher_id}\0{harness_id}\0{component_type}\0{files_digest}".encode()
+    if native_paths:
+        material += ("\0native_paths\0" + "\0".join(native_paths)).encode()
     return f"setup_{ULID.from_bytes(hashlib.sha256(material).digest()[:16])}"
 
 
@@ -110,12 +114,16 @@ def record(
         )
     place, snapshot = snapshot_of(directory)
     files_digest = str(snapshot.component_digest or snapshot.exact_identity)
-    setup_id = authored_setup_id(publisher_id, harness_id, component_type, files_digest)
+    managed = _managed_files(snapshot, component_type, harness_id, name)
+    # A corrected native document must not replay an immutable nested projection.
+    native_paths = managed if _named_document(component_type, harness_id) else ()
+    setup_id = authored_setup_id(
+        publisher_id, harness_id, component_type, files_digest, native_paths=native_paths
+    )
     held = versions.held(connection, setup_id, AUTHORED_VERSION)
     if held is not None:
         return _held_setup(connection, held, minted=False)
     description = f"Local {component_type} {name}."
-    managed = _managed_files(snapshot, component_type, harness_id, name)
     component = setup_compose.ComposeComponent(
         source={"kind": "path", "relative_path": place.name},
         component_type=cast(ComponentType, component_type),
@@ -141,6 +149,8 @@ def record(
             created_at=at,
             snapshots=((component, snapshot),),
             catalog=(),
+            # The component must fork with its projection, as well as the setup.
+            embedded_identity_scope=setup_id if native_paths else "",
         )
     except SourceError as error:
         raise CliFailure(
@@ -174,6 +184,14 @@ def _managed_files(
         )
     files = sorted(path for path in snapshot.files if path.rsplit("/", 1)[-1] != "GENERATED.md")
     rule = rule_for(component_type, harness_id)
+    if rule is not None and _named_document(component_type, harness_id):
+        if len(files) != 1 or not files[0].endswith(".md"):
+            raise CliFailure(
+                "AI_STP_VALIDATION_ERROR",
+                "this native document surface requires exactly one Markdown file",
+                details={"harness_id": harness_id, "component_type": component_type},
+            )
+        return (f"{rule.relative}/{name}.md",)
     if rule is not None and rule.shape == "directory":
         return tuple(f"{rule.relative}/{name}/{path}" for path in files)
     if len(files) != 1:
@@ -183,6 +201,10 @@ def _managed_files(
             details={"harness_id": harness_id, "component_type": component_type},
         )
     return (rule.relative if rule is not None else f"bin/{name}",)
+
+
+def _named_document(component_type: str, harness_id: str) -> bool:
+    return harness_id == "antigravity" and component_type in {"instruction", "command"}
 
 
 def _held_setup(

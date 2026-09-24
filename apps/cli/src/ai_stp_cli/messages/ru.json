@@ -958,5 +958,6 @@
   "the idempotency key must contain 16 to 128 ASCII letters, digits, '.', '_', '~', or '-'": "ключ идемпотентности должен содержать от 16 до 128 букв ASCII, цифр или символов '.', '_', '~', '-'",
   "this native surface requires exactly one source file": "для этой нативной поверхности требуется ровно один исходный файл",
   "task start needs --intent NAME, not a positional intent": "для task start требуется --intent NAME, а не позиционное имя сценария",
-  "the task input file could not be read; --input expects a JSON/YAML file path or '-' for stdin": "не удалось прочитать входной файл задачи; --input принимает путь к JSON/YAML-файлу или '-' для stdin"
+  "the task input file could not be read; --input expects a JSON/YAML file path or '-' for stdin": "не удалось прочитать входной файл задачи; --input принимает путь к JSON/YAML-файлу или '-' для stdin",
+  "this native document surface requires exactly one Markdown file": "для этой нативной поверхности требуется ровно один файл Markdown"
 }
