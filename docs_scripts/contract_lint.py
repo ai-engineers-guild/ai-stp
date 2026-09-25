@@ -15,6 +15,7 @@ describe what it replaced.
 
 from __future__ import annotations
 
+import json
 import os
 import re
 import subprocess
@@ -53,6 +54,38 @@ COMPONENT_TYPES = (
 MCP_TRANSPORTS = ("local_exec", "package", "remote_https")
 BRANCH_PREFIXES = ("feat", "chore", "docs", "test", "fix", "refactor")
 BRANCH_NAME_RE = re.compile(rf"^(?:{'|'.join(BRANCH_PREFIXES)})/.+$")
+
+
+def is_dependabot_pull_request(branch: str) -> bool:
+    """Accept only a same-repository PR actually authored by Dependabot."""
+    if not branch.startswith("dependabot/") or branch == "dependabot/":
+        return False
+    if os.environ.get("GITHUB_EVENT_NAME") != "pull_request":
+        return False
+    event_path = os.environ.get("GITHUB_EVENT_PATH")
+    repository = os.environ.get("GITHUB_REPOSITORY")
+    if not event_path or not repository:
+        return False
+    try:
+        event = json.loads(Path(event_path).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return False
+    if not isinstance(event, dict):
+        return False
+    pull_request = event.get("pull_request")
+    if not isinstance(pull_request, dict):
+        return False
+    user = pull_request.get("user")
+    head = pull_request.get("head")
+    return (
+        isinstance(user, dict)
+        and user.get("login") == "dependabot[bot]"
+        and isinstance(head, dict)
+        and head.get("ref") == branch
+        and isinstance(head.get("repo"), dict)
+        and head["repo"].get("full_name") == repository
+    )
+
 
 VALIDATION_POLICY = Path("docs/contracts/validation-policy.md")
 PASSPORTS_DOC = Path("docs/contracts/component-setup-passports.md")
@@ -337,7 +370,12 @@ class ContractLinter:
     def check_branch_name(self) -> None:
         """CI branches use the repository's allowed conventional prefixes."""
         branch = os.environ.get("GITHUB_HEAD_REF") or os.environ.get("GITHUB_REF_NAME")
-        if not branch or branch in {"main", "dev"} or BRANCH_NAME_RE.fullmatch(branch):
+        if (
+            not branch
+            or branch in {"main", "dev"}
+            or BRANCH_NAME_RE.fullmatch(branch)
+            or is_dependabot_pull_request(branch)
+        ):
             return
         self.error(
             GIT_WORKFLOW_DOC,
