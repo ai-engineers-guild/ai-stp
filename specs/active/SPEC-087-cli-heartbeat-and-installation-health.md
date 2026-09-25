@@ -164,13 +164,39 @@ Clients may omit the heartbeat surface and continue using the anonymous
 consented ping unchanged. Rollback disables the new routes and controls while
 preserving existing installation data and audit history.
 
+The signed request is a deliberate security cutover, not a negotiated feature
+flag. The API's request model requires `signature`; a body without it is
+refused at request validation and there is no unsigned-reader branch, so a
+client older than the signing artifact cannot report against this API. The
+supported upgrade path is installing the newer public CLI artifact over the
+existing installation: the local registry migrations are additive, opt-in
+state, account/device identity, and the OS wakeup carry forward, and only
+reporting stops until the upgrade. The diagnostic is the transport refusal
+itself — a request-validation failure naming `signature` — together with the
+version surface (`ai-stp version` reports `cli_version` and the served API
+identity) so an operator can pair an old binary with a new API. The companion
+reader change loosens `interval_seconds` to `ge=60`; a released client pinned
+at `ge=300` cannot parse an organization policy below 300 seconds, so
+operators keep intervals at or above 300 until enrolled devices run the
+signed artifact — or accept that those devices stop reporting until
+upgraded. The opposite direction is equally hard: a signed request carries a
+field an older strict reader rejects, so a new client cannot heartbeat
+against an API that predates signature enforcement. The rollout order is
+therefore new clients first and the enforcing API second for greenfield, or
+the enforcing API first for the existing estate with the documented upgrade;
+rolling the API back past the signature reader re-opens unsigned writes and
+is the only downgrade that restores an old client's reporting — a binary
+rollback to an older wheel is never equivalent, because an artifact that
+cannot read migrated local state is not a valid rollback merely because its
+wheel installs.
+
 ## Acceptance criteria
 
 | Requirement | Executable oracle |
 |---|---|
 | `REQ-8701` | Heartbeat unit and corporate API tests prove the authenticated route is separate from anonymous telemetry. |
 | `REQ-8702` | Authorization tests reject foreign account, device, and unbound-session claims. |
-| `REQ-8703` | Platform tests cover coalescing, ordering, clock skew, and no-op replay. |
+| `REQ-8703` | Platform tests cover coalescing, ordering, clock skew, no-op replay, and the cutover boundary — unsigned bodies, stale and future `checked_at`, and signatures bound to a foreign organization are refused before mutation. |
 | `REQ-8704` | Health projection tests cover active, partial, failing, disabled, stale, and unknown semantics without worker mutation. |
 | `REQ-8705` | Contract and heartbeat tests reject extra fields and unsafe capability or payload values. |
 | `REQ-8706` | Usage integration tests prove heartbeat writes do not create runtime usage events. |
