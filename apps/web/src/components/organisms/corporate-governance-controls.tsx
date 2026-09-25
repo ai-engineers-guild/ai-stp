@@ -20,7 +20,7 @@ import type {
 
 export type GovernanceAuthority = {
   organizationId: string;
-  authorizationRevision: string;
+  authorizationRevision: string | number;
   csrfToken: string;
 };
 type Authority = GovernanceAuthority;

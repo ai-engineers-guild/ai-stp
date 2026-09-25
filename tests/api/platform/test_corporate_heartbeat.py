@@ -287,6 +287,49 @@ async def test_heartbeat_health_states_and_staleness_read_time(
     assert disabled.json()["health_state"] == "disabled"
 
 
+async def test_superadmin_can_set_one_minute_heartbeat_policy(
+    heartbeat_client: tuple[AsyncClient, async_sessionmaker[AsyncSession]],
+) -> None:
+    client, sessionmaker = heartbeat_client
+    account_id, _device_id, token = await _account_with_device(sessionmaker)
+    organization_id = await _bootstrap(client, account_id, "hb-policy-edit-scenario-0006")
+    auth = {"Authorization": f"Bearer {token}"}
+    context = await client.get(
+        f"/v1/corporate/organizations/{organization_id}/context", headers=auth
+    )
+    assert context.status_code == 200, context.text
+    assert "telemetry.manage" in context.json()["capabilities"]
+    revision = context.json()["organization"]["authorization_revision"]
+    path = f"/v1/corporate/organizations/{organization_id}/telemetry/policy"
+    saved = await client.put(
+        path,
+        headers=auth,
+        json={
+            "schema_version": 1,
+            "raw_retention_days": 90,
+            "aggregate_retention_days": 365,
+            "legal_basis": "consent",
+            "notice_revision": 0,
+            "heartbeat_enabled": True,
+            "heartbeat_interval_seconds": 60,
+            "heartbeat_retry_base_seconds": 60,
+            "heartbeat_retry_max_seconds": 3600,
+            "heartbeat_stale_after_seconds": 3600,
+            "expected_policy_revision": 0,
+            "authorization_revision": revision,
+            "idempotency_key": "hb-policy-edit-scenario-0006",
+        },
+    )
+    assert saved.status_code == 200, saved.text
+    assert saved.json()["heartbeat_interval_seconds"] == 60
+    report = await client.get(
+        f"/v1/corporate/organizations/{organization_id}/telemetry/heartbeat-report",
+        headers=auth,
+    )
+    assert report.status_code == 200, report.text
+    assert report.json()["interval_seconds"] == 60
+
+
 async def test_organization_policy_controls_cadence_staleness_and_revocation(
     heartbeat_client: tuple[AsyncClient, async_sessionmaker[AsyncSession]],
 ) -> None:

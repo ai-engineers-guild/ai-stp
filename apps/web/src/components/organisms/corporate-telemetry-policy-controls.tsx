@@ -103,7 +103,7 @@ function TelemetryPolicyFields({
             id="heartbeat-interval"
             name="heartbeat_interval_seconds"
             type="number"
-            min={300}
+            min={60}
             max={2592000}
             required
             defaultValue={policy?.heartbeat_interval_seconds ?? 21600}
