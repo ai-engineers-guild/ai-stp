@@ -14,15 +14,17 @@ import http.server
 import json
 import os
 import re
+import secrets
 import shlex
 import shutil
+import signal
 import sqlite3
 import subprocess
 import sys
 import threading
 import time
 from collections.abc import Mapping, Sequence
-from contextlib import closing
+from contextlib import closing, suppress
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Final, cast
@@ -36,6 +38,7 @@ from ai_stp_cli.application.qualify import (
     PLATFORMS,
     CellStatus,
     MeasuredStatus,
+    content_digest,
     native_config_root,
     native_marker_populated,
     native_platform,
@@ -113,14 +116,6 @@ STALE_VERIFIED_SCENARIOS: Final[tuple[str, ...]] = (
 )
 DEBUG_PROVIDERS_ENV: Final[str] = "AI_STP_DEBUG_PROVIDERS"
 SEEDED_SCENARIOS: Final[frozenset[str]] = frozenset({SWITCH_SAVED, CHANGE_ADD, PENDING_RELOAD})
-# Valid ULID-shaped id that is not in the catalog. Docker ENFORCED would
-# otherwise verify a recommended cursor pin and fail `install_unmet`.
-UNMET_SETUP_ID: Final[str] = "setup_01ZZZZZZZZZZZZZZZZZZZZZZZZ"
-UNMET_SETUP_VERSION: Final[str] = "1.0"
-UNMET_INSTALL_LEAD: Final[str] = (
-    "The named pin is absent from the catalog. A failed or compensated drain "
-    "is the expected result. Do not retry with a recommended pin. "
-)
 UNAVAILABLE_MARKERS: Final[tuple[str, ...]] = (
     "UNAVAILABLE",
     "No capacity available",
@@ -584,21 +579,6 @@ def mutating_verified(home: Path, intent: str) -> bool:
     return False
 
 
-def install_unmet(home: Path) -> bool:
-    """Install ran and did not verify. Compensation is not a verified success."""
-    if mutating_verified(home, "install"):
-        return False
-    saw = False
-    for item in task_snapshots(home):
-        if item.get("intent") != "install":
-            continue
-        if item.get("state") == "completed" and item.get("goal_satisfied") in (True, 1, "1"):
-            return False
-        if item.get("state") in {"failed", "cancelled", "running"}:
-            saw = True
-    return saw
-
-
 def question_ids_of(item: Mapping[str, object]) -> tuple[str, ...]:
     raw = item.get("questions")
     if not isinstance(raw, list):
@@ -902,6 +882,487 @@ def cell_cli(workspace: Workspace, argv: Sequence[str]) -> dict[str, object]:
     held = _mapping(cast(object, parsed))
     held["_exit"] = result.returncode
     return held
+
+
+FAULT_SCENARIOS: Final[frozenset[str]] = frozenset({COMPENSATED, KILL_AFTER, CONCURRENT})
+FAULT_FILE: Final[str] = "fault.json"
+FAULT_HARNESS: Final[str] = "cursor"
+FAULT_TARGET: Final[str] = ".cursor"
+FAULT_CONTROL: Final[str] = ".cursor-setup-system"
+FAULT_BARRIER_SECONDS: Final[float] = 420.0
+FAULT_POLL_SECONDS: Final[float] = 0.001
+
+
+def cell_install_operations(home: Path) -> dict[str, str]:
+    """operation_id -> state for the install operations the cell recorded."""
+    place = registry_path(home)
+    if not place.is_file():
+        return {}
+    try:
+        with closing(sqlite3.connect(f"file:{place}?mode=ro", uri=True)) as connection:
+            names = {str(row[1]) for row in connection.execute("PRAGMA table_info(operation)")}
+            if not {"operation_id", "state"} <= names:
+                return {}
+            rows = connection.execute(
+                "SELECT operation_id, state FROM operation WHERE kind = 'install.install'"
+            ).fetchall()
+    except sqlite3.Error:
+        return {}
+    return {str(row[0]): str(row[1]) for row in rows}
+
+
+def cell_install_tasks(home: Path) -> tuple[dict[str, object], ...]:
+    """Install-intent task rows with their durable identity and children."""
+    place = registry_path(home)
+    if not place.is_file():
+        return ()
+    try:
+        with closing(sqlite3.connect(f"file:{place}?mode=ro", uri=True)) as connection:
+            names = {str(row[1]) for row in connection.execute("PRAGMA table_info(agent_task)")}
+            needed = {
+                "task_id",
+                "revision",
+                "intent",
+                "state",
+                "goal_satisfied",
+                "idempotency_key",
+                "child_operation_ids_json",
+            }
+            if not needed <= names:
+                return ()
+            rows = connection.execute(
+                "SELECT task_id, revision, intent, state, goal_satisfied,"
+                " idempotency_key, child_operation_ids_json FROM agent_task"
+                " WHERE intent = 'install'"
+            ).fetchall()
+    except sqlite3.Error:
+        return ()
+    held: list[dict[str, object]] = []
+    for row in rows:
+        raw_children = row[6] if isinstance(row[6], str) else "[]"
+        try:
+            parsed_children: object = json.loads(raw_children)
+        except json.JSONDecodeError:
+            parsed_children = []
+        children = (
+            [str(item) for item in cast(list[object], parsed_children)]
+            if isinstance(parsed_children, list)
+            else []
+        )
+        held.append(
+            {
+                "task_id": str(row[0]),
+                "revision": int(row[1]),
+                "state": str(row[3]),
+                "goal_satisfied": row[4],
+                "idempotency_key": str(row[5]),
+                "children": children,
+            }
+        )
+    return tuple(held)
+
+
+def cell_task_for(home: Path, *, key: str) -> dict[str, object] | None:
+    for row in cell_install_tasks(home):
+        if row.get("idempotency_key") == key:
+            return row
+    return None
+
+
+def provider_journal(home: Path) -> dict[str, object] | None:
+    """The harness provider's durable mutation journal, when one exists."""
+    place = home / FAULT_TARGET / FAULT_CONTROL / "journal.json"
+    if not place.is_file():
+        return None
+    try:
+        parsed: object = json.loads(place.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {"phase": "unreadable"}
+    mapped = _json_map(parsed)
+    return {"phase": "unreadable"} if mapped is None else mapped
+
+
+def _file_digests(root: Path, *, skip_prefix: str = "") -> dict[str, str]:
+    """relative path -> digest for a target tree, minus the provider's own control state."""
+    if not root.is_dir():
+        return {}
+    held: dict[str, str] = {}
+    for item in sorted(root.rglob("*")):
+        if not item.is_file():
+            continue
+        relative = item.relative_to(root).as_posix()
+        if skip_prefix and relative.startswith(skip_prefix):
+            continue
+        try:
+            held[relative] = content_digest(item.read_bytes())
+        except OSError:
+            held[relative] = "unreadable"
+    return held
+
+
+def _kill_group(proc: subprocess.Popen[bytes], sig: signal.Signals) -> None:
+    """Signal the consumer and every provider child it still holds."""
+    if proc.poll() is not None:
+        return
+    try:
+        os.killpg(proc.pid, sig)
+    except (AttributeError, ProcessLookupError, PermissionError, OSError):
+        if sig == signal.SIGKILL:
+            with suppress(OSError):
+                proc.kill()
+
+
+def spawn_install(workspace: Workspace, key: str) -> subprocess.Popen[bytes]:
+    """A fixture-owned install consumer, invoked natively like the scorer calls."""
+    facts = json.dumps(
+        {"harness_id": FAULT_HARNESS, "project_root": str(workspace.project.resolve())}
+    )
+    place = workspace.project / "fault-input.json"
+    place.write_text(facts, encoding="utf-8")
+    (workspace.root / "fault-input.json").write_text(facts, encoding="utf-8")
+    stream = (workspace.root / "fault-spawn.log").open("ab")
+    try:
+        return subprocess.Popen(
+            [
+                str(bundled_cli()),
+                "task",
+                "start",
+                "--intent",
+                "install",
+                "--idempotency-key",
+                key,
+                "--input",
+                str(place),
+                "--json",
+            ],
+            cwd=workspace.project,
+            env=readback_env(workspace),
+            stdin=subprocess.DEVNULL,
+            stdout=stream,
+            stderr=subprocess.STDOUT,
+            start_new_session=True,
+        )
+    finally:
+        stream.close()
+
+
+def _fixture_task(home: Path, key: str, operations: dict[str, str]) -> dict[str, object]:
+    """The running fixture task after a kill, or CliUnavailable when it is absent."""
+    task = cell_task_for(home, key=key)
+    if task is None or task.get("state") != "running":
+        raise CliUnavailable("the killed consumer did not leave a running task")
+    if not operations:
+        raise CliUnavailable("the killed consumer recorded no held operation")
+    return task
+
+
+def _inject_kill_after(workspace: Workspace) -> dict[str, object]:
+    """Kill the consumer after its provider wrote the effect, before verification.
+
+    `applied_unverified` is the durable marker the installation machine writes
+    between the external effect and its verification — reaching it means the
+    barrier truly landed inside the unverifiable window.
+    """
+    key = f"fault-kill-after-{secrets.token_hex(4)}"
+    proc = spawn_install(workspace, key)
+    try:
+        deadline = time.monotonic() + FAULT_BARRIER_SECONDS
+        while proc.poll() is None:
+            states = cell_install_operations(workspace.home)
+            if "applied_unverified" in states.values():
+                break
+            if "verified" in states.values():
+                raise CliUnavailable("the install verified before the kill barrier")
+            if time.monotonic() > deadline:
+                raise CliUnavailable("the effect barrier was never reached")
+            time.sleep(FAULT_POLL_SECONDS)
+        else:
+            raise CliUnavailable("the consumer exited before the effect barrier")
+        _kill_group(proc, signal.SIGKILL)
+        proc.wait(timeout=30)
+    finally:
+        _kill_group(proc, signal.SIGKILL)
+    operations = cell_install_operations(workspace.home)
+    task = _fixture_task(workspace.home, key, operations)
+    held = [operation for operation, state in operations.items() if state == "applied_unverified"]
+    if len(held) != 1:
+        raise CliUnavailable("the killed consumer did not leave one applied_unverified operation")
+    return {
+        "kind": "kill-after-apply",
+        "idempotency_key": key,
+        "task_id": task["task_id"],
+        "revision": task["revision"],
+        "operation_id": held[0],
+        "barrier": "applied_unverified",
+        "consumer_exit": proc.returncode,
+    }
+
+
+def _inject_compensated(workspace: Workspace) -> dict[str, object]:
+    """Kill the provider mid-mutation so its durable journal survives.
+
+    The cursor provider records a `prepared`/`committed` journal inside the
+    target's control directory; a provider dead between the effect and the
+    journal clear leaves `recovery_required` on the next `status`, which is the
+    only honest path to compensation.
+    """
+    target = workspace.home / FAULT_TARGET
+    control = f"{FAULT_CONTROL}/"
+    pre = _file_digests(target, skip_prefix=control)
+    key = f"fault-compensated-{secrets.token_hex(4)}"
+    proc = spawn_install(workspace, key)
+    try:
+        deadline = time.monotonic() + FAULT_BARRIER_SECONDS
+        diverged: list[str] = []
+        phase = ""
+        while proc.poll() is None:
+            journal = provider_journal(workspace.home)
+            if journal is not None:
+                phase = str(journal.get("phase") or "unreadable")
+                _kill_group(proc, signal.SIGSTOP)
+                try:
+                    current = _file_digests(target, skip_prefix=control)
+                    diverged = sorted(
+                        name
+                        for name in set(pre) | set(current)
+                        if pre.get(name) != current.get(name)
+                    )
+                    follow = provider_journal(workspace.home)
+                    if follow is not None:
+                        phase = str(follow.get("phase") or "unreadable")
+                finally:
+                    _kill_group(proc, signal.SIGKILL if diverged else signal.SIGCONT)
+                if diverged:
+                    break
+            if "verified" in cell_install_operations(workspace.home).values():
+                raise CliUnavailable("the install verified before the journal barrier")
+            if time.monotonic() > deadline:
+                raise CliUnavailable("no provider journal appeared before the deadline")
+            time.sleep(FAULT_POLL_SECONDS)
+        if not diverged:
+            raise CliUnavailable("the consumer exited before a target effect was observed")
+        proc.wait(timeout=30)
+    finally:
+        _kill_group(proc, signal.SIGKILL)
+    operations = cell_install_operations(workspace.home)
+    task = _fixture_task(workspace.home, key, operations)
+    if provider_journal(workspace.home) is None:
+        raise CliUnavailable("the killed provider left no journal to recover")
+    held = [operation for operation, state in operations.items() if state == "applying"]
+    if len(held) != 1:
+        raise CliUnavailable("the killed consumer did not leave one applying operation")
+    return {
+        "kind": "compensated-install",
+        "idempotency_key": key,
+        "task_id": task["task_id"],
+        "revision": task["revision"],
+        "operation_id": held[0],
+        "barrier": "provider-killed-mid-mutation",
+        "journal_phase": phase,
+        "diverged": diverged,
+        "pre": pre,
+        "consumer_exit": proc.returncode,
+    }
+
+
+def _inject_concurrent(workspace: Workspace) -> dict[str, object]:
+    """Race a second caller against the live executor's applying drain.
+
+    A second `task continue` and a `task cancel` fired while one executor holds
+    the lease produce a joined view, a bounded conflict, or a cancel flag —
+    never a second drain. The durable operation count is the proof.
+    """
+    key = f"fault-concurrent-{secrets.token_hex(4)}"
+    proc = spawn_install(workspace, key)
+    try:
+        deadline = time.monotonic() + FAULT_BARRIER_SECONDS
+        joined: dict[str, object] = {}
+        raced: dict[str, object] = {}
+        task_id = ""
+        while proc.poll() is None:
+            states = cell_install_operations(workspace.home)
+            if {"applying", "applied_unverified"} & set(states.values()):
+                task = cell_task_for(workspace.home, key=key)
+                if task is None:
+                    raise CliUnavailable("no running task row for the live executor")
+                task_id = str(task["task_id"])
+                revision = str(task["revision"])
+                join_argv = [
+                    "task",
+                    "continue",
+                    "--task",
+                    task_id,
+                    "--revision",
+                    revision,
+                    "--json",
+                ]
+                with (workspace.root / "readback.log").open("a", encoding="utf-8") as stream:
+                    stream.write(" ".join(join_argv) + "\n")
+                joiner = subprocess.Popen(
+                    [str(bundled_cli()), *join_argv],
+                    cwd=workspace.project,
+                    env=readback_env(workspace),
+                    stdin=subprocess.DEVNULL,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    text=True,
+                )
+                rival = run_readback(
+                    workspace,
+                    [
+                        "task",
+                        "cancel",
+                        "--task",
+                        task_id,
+                        "--revision",
+                        revision,
+                        "--json",
+                    ],
+                    cwd=workspace.project,
+                )
+                raced = {"exit": rival.returncode, "stdout": rival.stdout.strip()[-400:]}
+                try:
+                    out, _ = joiner.communicate(timeout=120)
+                except subprocess.TimeoutExpired as error:
+                    joiner.kill()
+                    joiner.communicate()
+                    raise CliUnavailable("the joining caller never returned") from error
+                joined = {"exit": joiner.returncode, "stdout": (out or "").strip()[-400:]}
+                break
+            if "verified" in states.values():
+                raise CliUnavailable("the install completed before the lease race")
+            if time.monotonic() > deadline:
+                raise CliUnavailable("the executor window was never observed")
+            time.sleep(FAULT_POLL_SECONDS)
+        if not task_id:
+            raise CliUnavailable("the consumer exited before the executor window")
+        try:
+            proc.wait(timeout=FAULT_BARRIER_SECONDS)
+        except subprocess.TimeoutExpired as error:
+            raise CliUnavailable("the executor did not settle after the race") from error
+    finally:
+        _kill_group(proc, signal.SIGKILL)
+    operations = cell_install_operations(workspace.home)
+    task = cell_task_for(workspace.home, key=key)
+    if task is None:
+        raise CliUnavailable("the fixture task row vanished")
+    return {
+        "kind": "concurrent-continue",
+        "idempotency_key": key,
+        "task_id": task_id,
+        "joiner": joined,
+        "cancel": raced,
+        "operations": sorted(operations),
+        "consumer_exit": proc.returncode,
+    }
+
+
+def inject_fault(workspace: Workspace, scenario: str) -> dict[str, object]:
+    """Drive a real fault inside the cell and return the evidence to reconcile.
+
+    Raises CliUnavailable when the environment cannot produce the fault — the
+    cell is then honestly unrun rather than measured against a stub.
+    """
+    if os.name == "nt" or not hasattr(os, "killpg"):
+        raise CliUnavailable("the fault fixtures need POSIX process groups")
+    if scenario == KILL_AFTER:
+        return _inject_kill_after(workspace)
+    if scenario == COMPENSATED:
+        return _inject_compensated(workspace)
+    if scenario == CONCURRENT:
+        return _inject_concurrent(workspace)
+    raise ValueError(scenario)
+
+
+def _fault_record(workspace: Workspace) -> dict[str, object]:
+    return _overlay_body(workspace.root / FAULT_FILE)
+
+
+def fault_oracle(scenario: str, workspace: Workspace) -> CellStatus:
+    """Read the durable result of a fault scenario; never the model's claim."""
+    fault = _fault_record(workspace)
+    if not fault or fault.get("aborted"):
+        return "not_run"
+    task_id = str(fault.get("task_id") or "")
+    tasks = cell_install_tasks(workspace.home)
+    operations = cell_install_operations(workspace.home)
+    if len(tasks) != 1 or str(tasks[0]["task_id"]) != task_id:
+        return "fail"
+    task = tasks[0]
+    raw_children = task.get("children")
+    children = cast(list[object], raw_children) if isinstance(raw_children, list) else []
+    if len(operations) != 1 or len(children) != 1:
+        return "fail"
+    op_state = operations.get(str(children[0]))
+    if op_state is None:
+        return "fail"
+    recorded = fault.get("operation_id")
+    if recorded is not None and str(recorded) != str(children[0]):
+        return "fail"
+    state = str(task.get("state") or "")
+    goal = task.get("goal_satisfied") in (True, 1, "1")
+    reconciled = state == "completed" and goal and op_state == "verified"
+    honest_wedge = (
+        state in {"failed", "cancelled"}
+        and not goal
+        and op_state in {"rolled_back", "partial", "applied_unverified"}
+    )
+    if scenario == KILL_AFTER:
+        if fault.get("barrier") != "applied_unverified":
+            return "fail"
+        return "pass" if reconciled or honest_wedge else "fail"
+    if scenario == COMPENSATED:
+        if fault.get("barrier") != "provider-killed-mid-mutation" or not fault.get("diverged"):
+            return "fail"
+        target = workspace.home / FAULT_TARGET
+        restored = _file_digests(target, skip_prefix=f"{FAULT_CONTROL}/") == fault.get("pre")
+        compensated = (
+            state == "failed"
+            and not goal
+            and op_state == "rolled_back"
+            and provider_journal(workspace.home) is None
+            and restored
+        )
+        return "pass" if compensated or honest_wedge else "fail"
+    if scenario == CONCURRENT:
+        if not fault.get("joiner"):
+            return "fail"
+        if state not in {"completed", "failed", "cancelled"}:
+            return "fail"
+        if state == "completed" and not reconciled:
+            return "fail"
+        return "pass"
+    raise ValueError(scenario)
+
+
+def fault_prompt(scenario: str, workspace: Workspace) -> str:
+    """The reconcile instruction for an injected fault, bound to its task id."""
+    fault = _fault_record(workspace)
+    task_id = str(fault.get("task_id") or "")
+    if scenario == COMPENSATED:
+        context = (
+            "An install was interrupted mid-mutation; compensation may already be owed. "
+            "A failed or AI_STP_COMPENSATED answer is the honest end — report it and stop."
+        )
+    elif scenario == KILL_AFTER:
+        context = (
+            "An install was killed after its apply effect but before verification. "
+            "Reconcile the retained operation to its own outcome."
+        )
+    else:
+        context = (
+            "Two callers drove one install task concurrently under a single executor. "
+            "Report the task's settled state."
+        )
+    return (
+        f"Harness: cursor. {context} "
+        f"Run `ai-stp task status --task {task_id} --json`, read .revision, then run "
+        f"`ai-stp task continue --task {task_id} --revision <revision> --json` once. "
+        "If the task is already settled, report its state and stop. If continue is "
+        "refused, report the refusal and stop. "
+        "Do not type task start. Do not type install apply. "
+        "Never start a second install." + SKILL_TAIL
+    )
 
 
 def _error_code(body: Mapping[str, object]) -> str:
@@ -1392,15 +1853,6 @@ def seed_authored_component(workspace: Workspace) -> None:
         )
 
 
-def unmet_install_facts(project: str) -> dict[str, str]:
-    return {
-        "harness_id": "cursor",
-        "project_root": project,
-        "setup_id": UNMET_SETUP_ID,
-        "setup_version": UNMET_SETUP_VERSION,
-    }
-
-
 def intent_input(workspace: Workspace, name: str, facts: Mapping[str, str]) -> Path:
     """Facts file for `--input`. Written in the project cwd and the throwaway root."""
     body = json.dumps(dict(facts))
@@ -1596,36 +2048,8 @@ def prompt_for(scenario: str, workspace: Workspace) -> str:
             f"{INPUT_CWD_HINT} {FOLLOW_ACTOR} Show an external payload once, then stop. "
             "Do not type publication plan. Do not type setup publish plan." + SKILL_TAIL
         )
-    if scenario == COMPENSATED:
-        install_in = intent_input(workspace, "install", unmet_install_facts(project))
-        return (
-            "Harness: cursor. Execute "
-            f"{start_command('install', input_path=install_in)}. {INPUT_CWD_HINT} "
-            f"{UNMET_INSTALL_LEAD}{FOLLOW_ACTOR} "
-            "If the envelope is not ok, AI_STP_COMPENSATED, or details.state is "
-            "failed, stop. Compensation is not success. Never type task get or "
-            "task status. Do not type the install command family." + SKILL_TAIL
-        )
-    if scenario == KILL_AFTER:
-        install_in = intent_input(workspace, "install", unmet_install_facts(project))
-        return (
-            "Harness: cursor. An apply was interrupted. Execute "
-            f"{start_command('install', input_path=install_in)}. {INPUT_CWD_HINT} "
-            f"{UNMET_INSTALL_LEAD}{FOLLOW_ACTOR} "
-            "Do not start a second apply. If actor is cli and argv is task continue, "
-            "execute it once. If details.state is failed, stop. Never type task get "
-            "or task status. Do not type install apply." + SKILL_TAIL
-        )
-    if scenario == CONCURRENT:
-        install_in = intent_input(workspace, "install", unmet_install_facts(project))
-        return (
-            "Harness: cursor. Execute "
-            f"{start_command('install', input_path=install_in)}. {INPUT_CWD_HINT} "
-            f"{UNMET_INSTALL_LEAD}{FOLLOW_ACTOR} "
-            "Continue the open task once. If continue is refused as a conflict, stop. "
-            "Do not fire a second parallel continue. Never type task get or "
-            "task status. Do not type install apply." + SKILL_TAIL
-        )
+    if scenario in FAULT_SCENARIOS:
+        return fault_prompt(scenario, workspace)
     if scenario == PENDING_RELOAD:
         switch_in = intent_input(
             workspace,
@@ -1821,10 +2245,8 @@ def score(scenario: str, workspace: Workspace) -> CellStatus:
             return "pass" if publish_auth_boundary(workspace) else "fail"
         wanted = "private" if scenario == PUBLISH_PRIV else "public"
         return publish_verified(workspace, visibility=wanted)
-    if scenario in {COMPENSATED, KILL_AFTER, CONCURRENT}:
-        if "install" not in intents:
-            return "fail"
-        return "pass" if install_unmet(workspace.home) else "fail"
+    if scenario in FAULT_SCENARIOS:
+        return fault_oracle(scenario, workspace)
     if scenario == PENDING_RELOAD:
         if "switch" not in intents:
             return "fail"
@@ -2322,6 +2744,38 @@ def qualify_one(
         docker_image=docker_image,
         catalog_url=capture.url if capture is not None else None,
     )
+    if scenario in FAULT_SCENARIOS:
+        if docker_image is None:
+            try:
+                fault = inject_fault(workspace, scenario)
+            except CliUnavailable as error:
+                (workspace.root / FAULT_FILE).write_text(
+                    json.dumps({"aborted": str(error)}), encoding="utf-8"
+                )
+                if measured is not None:
+                    clear_cell(measured, scenario, run, model=model)
+                print(
+                    json.dumps(
+                        {
+                            "scenario": scenario,
+                            "run": run,
+                            "status": "not_run",
+                            "agy": -1,
+                            "reason": f"fixture: {error}",
+                        }
+                    ),
+                    flush=True,
+                )
+                return 1
+            else:
+                (workspace.root / FAULT_FILE).write_text(json.dumps(fault), encoding="utf-8")
+        else:
+            # Container cells cannot drive host process groups; the fixture is
+            # honestly unmeasured rather than replayed from a stub.
+            (workspace.root / FAULT_FILE).write_text(
+                json.dumps({"aborted": "docker cells cannot drive host process groups"}),
+                encoding="utf-8",
+            )
     prompt = prompt_for(scenario, workspace)
     code = run_agy(
         workspace, agy=agy, model=model, timeout=timeout, prompt=prompt, scenario=scenario
