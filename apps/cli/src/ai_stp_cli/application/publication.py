@@ -26,6 +26,7 @@ from ai_stp_cli.local.author_attestations import verify as verify_attestation
 from ai_stp_cli.local.database import configured_path, open_readonly, open_registry, transaction
 from ai_stp_contracts.machine_help import PublicationPlanView
 from ai_stp_contracts.publication import (
+    PLAN_STATES_REFUSED,
     AuthorAttestation,
     PublicationConfirmRequest,
     PublicationPlanCreateRequest,
@@ -206,6 +207,8 @@ def confirm(parameters: Mapping[str, object]) -> Answer[PublicationPlanView]:
     current = publication.status(where, held.access_token, plan_id)
     if current.plan_id != plan_id or current.plan_hash != plan_hash:
         raise CliFailure("AI_STP_PRECONDITION_FAILED", "the distribution plan changed after review")
+    if current.state in {"validating", "publish_planned", "published"} | PLAN_STATES_REFUSED:
+        return Answer(PublicationPlanView.model_validate(current.model_dump(mode="json")))
     if current.state in {"ready", "draft"}:
         with closing(open_readonly(configured_path())) as connection:
             artifact = content.get(connection, current.content_digest)
@@ -235,7 +238,7 @@ def confirm(parameters: Mapping[str, object]) -> Answer[PublicationPlanView]:
     request = PublicationConfirmRequest(
         plan_hash=plan_hash,
         confirmed=True,
-        idempotency_key=login.new_idempotency_key(),
+        idempotency_key=str(parameters.get("idempotency-key") or login.new_idempotency_key()),
     )
     try:
         result = publication.confirm(where, held.access_token, plan_id, request)

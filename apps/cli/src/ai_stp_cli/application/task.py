@@ -804,7 +804,14 @@ def _drain(row: StoredTask) -> Answer[TaskView]:
                     result.outcome,
                     at=at,
                     goal_satisfied=result.outcome.readable,
-                    state="planned" if result.advance else "completed",
+                    state=(
+                        "blocked"
+                        if result.questions
+                        else "planned"
+                        if result.advance
+                        else "completed"
+                    ),
+                    questions=result.questions,
                     child_operation_ids=result.child_operation_ids,
                 ),
             )
