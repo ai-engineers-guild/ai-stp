@@ -26,7 +26,7 @@ from contextlib import closing
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Final, cast
-from urllib.parse import SplitResult, urlsplit
+from urllib.parse import SplitResult, urlsplit, urlunsplit
 
 from ai_stp_cli.application.initialize import ANTIGRAVITY_LIMITATION
 from ai_stp_cli.application.qualify import (
@@ -269,7 +269,6 @@ class Workspace:
     home: Path
     project: Path
     wrapper: Path
-    readback: Path
 
 
 def bundled_cli() -> Path:
@@ -468,33 +467,17 @@ def prepare_workspace(
         encoding="utf-8",
     )
     wrapper.chmod(0o755)
-    readback = bin_dir / "ai-stp-readback"
-    readback.write_text(
-        wrapper_script(
-            home=home,
-            root=root,
-            log=root / "readback.log",
-            extra=extra,
-            docker_image=docker_image,
-            repo=source,
-        ),
-        encoding="utf-8",
-    )
-    readback.chmod(0o755)
     subprocess.run(["git", "init"], cwd=project, check=False, capture_output=True)
-    workspace = Workspace(root=root, home=home, project=project, wrapper=wrapper, readback=readback)
+    workspace = Workspace(root=root, home=home, project=project, wrapper=wrapper)
     if catalog_url is not None:
         # Route the cell's platform traffic through the qualify recorder. The
         # recorder only observes: upstream stays the real catalogue. The
-        # readback wrapper keeps fixture traffic out of cli.log — that file is
+        # readback path keeps fixture traffic out of cli.log — that file is
         # the model's evidence, not the runner's.
-        configured = subprocess.run(
-            [str(readback), "config", "set", "--set", f"catalog.url={catalog_url}", "--json"],
+        configured = run_readback(
+            workspace,
+            ["config", "set", "--set", f"catalog.url={catalog_url}", "--json"],
             cwd=project,
-            check=False,
-            capture_output=True,
-            text=True,
-            timeout=60,
         )
         (root / "catalog-config.log").write_text(
             f"exit={configured.returncode}\n{configured.stdout}\n{configured.stderr}\n",
@@ -695,6 +678,15 @@ PUBLISH_CAPTURE_PREFIXES: Final[tuple[str, ...]] = (
     "/v1/auth",
     "/v1/devices",
 )
+FORWARDED_HEADERS: Final[tuple[str, ...]] = (
+    "accept",
+    "authorization",
+    "content-type",
+    "user-agent",
+    "x-ai-stp-authorization-revision",
+    "x-ai-stp-organization-id",
+    "x-ai-stp-schema-version",
+)
 _READBACK_REFUSED: Final[frozenset[str]] = frozenset(
     {
         "AI_STP_NOT_FOUND",
@@ -727,25 +719,60 @@ class RequestCapture:
         lock = self._lock
 
         class Handler(http.server.BaseHTTPRequestHandler):
+            def _target(self) -> str | None:
+                """Origin-form API path worth forwarding, or None to refuse.
+
+                The request line is client-controlled, so forwarding is
+                restricted to the `/v1/` surface of the fixed upstream origin:
+                no absolute-form URLs, no authority-relative `//` paths, no
+                control bytes. Anything else is recorded, never proxied.
+                """
+                raw = self.path
+                if "\r" in raw or "\n" in raw:
+                    return None
+                parts = urlsplit(raw)
+                if parts.scheme or parts.netloc:
+                    return None
+                path = parts.path
+                if not path.startswith("/v1/"):
+                    return None
+                return urlunsplit(("", "", path, parts.query, ""))
+
+            def _forward_headers(self) -> dict[str, str]:
+                """The headers the API reads — nothing else crosses the hop."""
+                headers: dict[str, str] = {}
+                for name in FORWARDED_HEADERS:
+                    value = self.headers.get(name)
+                    if value is None:
+                        continue
+                    if "\r" in value or "\n" in value:
+                        continue
+                    headers[name] = value
+                return headers
+
             def _forward(self) -> None:
                 length = int(self.headers.get("Content-Length") or 0)
                 body = self.rfile.read(length) if length else b""
+                target = self._target()
                 record: dict[str, object] = {
                     "method": self.command,
                     "path": self.path,
                     "body_size": len(body),
                     "authorized": self.headers.get("Authorization") is not None,
                 }
+                if target is None:
+                    record["blocked"] = True
+                    with lock:
+                        records.append(record)
+                    self.send_error(403, "capture refuses paths outside /v1/")
+                    return
                 with lock:
                     records.append(record)
-                headers = {
-                    key: value
-                    for key, value in self.headers.items()
-                    if key.lower() not in {"host", "content-length", "connection", "keep-alive"}
-                }
                 connection = http.client.HTTPSConnection(upstream_host, upstream_port, timeout=60)
                 try:
-                    connection.request(self.command, self.path, body=body, headers=headers)
+                    connection.request(
+                        self.command, target, body=body, headers=self._forward_headers()
+                    )
                     response = connection.getresponse()
                     payload = response.read()
                     self.send_response(response.status)
@@ -829,15 +856,43 @@ def capture_boundary(workspace: Workspace) -> CellStatus | None:
     return None
 
 
-def cell_cli(workspace: Workspace, argv: Sequence[str]) -> dict[str, object]:
-    """Scorer-side CLI call inside the cell, logged to readback.log only."""
-    result = subprocess.run(
-        [str(workspace.readback), *argv],
+def readback_env(workspace: Workspace) -> dict[str, str]:
+    """The cell's environment for scorer-side calls, without the POSIX wrapper.
+
+    The wrapper script exists for the model's shell; a shebang file is not
+    executable on Windows, so fixture-side calls set the same variables and
+    invoke the bundled entry point directly. Docker cells bind-mount `home`,
+    so a host-side call with this environment reads the same registry.
+    """
+    env = dict(os.environ)
+    env["HOME"] = str(workspace.home)
+    env["USERPROFILE"] = str(workspace.home)
+    env["XDG_CONFIG_HOME"] = str(workspace.home / "config")
+    env["XDG_DATA_HOME"] = str(workspace.home / "data")
+    env["AI_STP_FORCE_FILE_CREDENTIAL_STORE"] = "1"
+    return env
+
+
+def run_readback(
+    workspace: Workspace, argv: Sequence[str], *, cwd: Path | None = None
+) -> subprocess.CompletedProcess[str]:
+    """One scorer-side CLI call inside the cell, logged to readback.log."""
+    with (workspace.root / "readback.log").open("a", encoding="utf-8") as stream:
+        stream.write(" ".join(argv) + "\n")
+    return subprocess.run(
+        [str(bundled_cli()), *argv],
+        cwd=cwd,
+        env=readback_env(workspace),
         check=False,
         capture_output=True,
         text=True,
         timeout=120,
     )
+
+
+def cell_cli(workspace: Workspace, argv: Sequence[str]) -> dict[str, object]:
+    """Scorer-side CLI call inside the cell, logged to readback.log only."""
+    result = run_readback(workspace, argv, cwd=workspace.project)
     try:
         parsed: object = json.loads(result.stdout)
     except json.JSONDecodeError:
