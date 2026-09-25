@@ -13,6 +13,10 @@ Contributor branches use exactly one of these prefixes followed by a non-empty
 description: `feat/`, `chore/`, `docs/`, `test/`, `fix/`, or `refactor/`.
 Branches with other prefixes—including `claude/` and `codex/`—are rejected by
 the CI contract check. `main` and `dev` are exempt from this naming rule.
+The check also accepts a `dependabot/` head only when GitHub's pull-request
+event identifies `dependabot[bot]` as its author and verifies that the head
+ref and repository match the event. A similarly named human or fork branch
+is still rejected (ADR-0210).
 
 ADR-0180 restores the two-branch workflow at the owner's request and supersedes the branch-policy portion of ADR-0115. No mandatory human approval is required.
 
