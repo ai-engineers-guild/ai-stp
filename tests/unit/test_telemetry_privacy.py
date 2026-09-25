@@ -209,11 +209,15 @@ async def test_retention_discovers_heartbeat_only_tenants_and_applies_default_wi
     removed = await telemetry_retention.apply_retention_all(
         cast(Any, session), now=datetime(2026, 9, 24, tzinfo=UTC)
     )
-    assert removed == 3
+    assert removed == 4
     assert telemetry_retention.DEFAULT_RAW_RETENTION_DAYS == 90
     assert "installation_heartbeat" in str(session.tenant_query)
     assert any(
         "DELETE FROM installation_heartbeat" in str(statement)
+        for statement in session.delete_statements
+    )
+    assert any(
+        "DELETE FROM installation_heartbeat_event" in str(statement)
         for statement in session.delete_statements
     )
     heartbeat_delete = next(

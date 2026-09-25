@@ -15,7 +15,7 @@ from sqlalchemy import delete as sql_delete
 from sqlalchemy import select, union
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ai_stp_platform.heartbeat_models import InstallationHeartbeat
+from ai_stp_platform.heartbeat_models import InstallationHeartbeat, InstallationHeartbeatEvent
 from ai_stp_platform.runtime_usage_models import RuntimeUsageEvent
 from ai_stp_platform.telemetry_policy_models import TelemetryEvent, TelemetryPolicy
 from ai_stp_platform.tenant_scope import set_tenant_scope
@@ -49,6 +49,10 @@ async def apply_retention(session: AsyncSession, *, organization_id: str, now: d
             InstallationHeartbeat.organization_id == organization_id,
             InstallationHeartbeat.received_at < cutoff,
         ),
+        sql_delete(InstallationHeartbeatEvent).where(
+            InstallationHeartbeatEvent.organization_id == organization_id,
+            InstallationHeartbeatEvent.received_at < cutoff,
+        ),
     ):
         result = await session.execute(statement)
         rowcount = getattr(result, "rowcount", 0)
@@ -65,6 +69,7 @@ async def retention_tenants(session: AsyncSession) -> list[str]:
             select(TelemetryEvent.organization_id),
             select(RuntimeUsageEvent.organization_id),
             select(InstallationHeartbeat.organization_id),
+            select(InstallationHeartbeatEvent.organization_id),
         )
     )
     return list(rows.all())

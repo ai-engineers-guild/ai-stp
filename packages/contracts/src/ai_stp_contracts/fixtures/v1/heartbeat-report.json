@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "cases": [
+    {
+      "case_id": "readCorporateHeartbeatReport.empty",
+      "operation_id": "readCorporateHeartbeatReport",
+      "kind": "positive",
+      "why": "A scoped organization with no enrolled devices returns an empty fixed report.",
+      "request": {
+        "path_params": {
+          "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        },
+        "query": {
+          "view": "current"
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "evaluated_at": "2026-09-25T12:00:00.000Z",
+        "interval_seconds": 900,
+        "stale_after_seconds": 3600,
+        "total": 0,
+        "page": 1,
+        "page_size": 10,
+        "teams": [],
+        "employees": [],
+        "items": []
+      }
+    }
+  ]
+}

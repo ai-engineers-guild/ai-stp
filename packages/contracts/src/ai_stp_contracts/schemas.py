@@ -255,6 +255,12 @@ from ai_stp_contracts.grants import (
 )
 from ai_stp_contracts.health import LivenessResponse, ReadinessResponse
 from ai_stp_contracts.heartbeat import (
+    HeartbeatReport,
+    HeartbeatReportBucket,
+    HeartbeatReportEmployee,
+    HeartbeatReportQuery,
+    HeartbeatReportRow,
+    HeartbeatReportTeam,
     InstallationHeartbeat,
     InstallationHeartbeatList,
     InstallationHeartbeatPolicy,
@@ -836,6 +842,12 @@ HTTP_MODELS: Final[dict[str, ExportedSchema]] = {
     "installation-heartbeat-status": InstallationHeartbeatStatus,
     "installation-heartbeat-list": InstallationHeartbeatList,
     "installation-heartbeat-policy": InstallationHeartbeatPolicy,
+    "heartbeat-report-team": HeartbeatReportTeam,
+    "heartbeat-report-employee": HeartbeatReportEmployee,
+    "heartbeat-report-bucket": HeartbeatReportBucket,
+    "heartbeat-report-row": HeartbeatReportRow,
+    "heartbeat-report": HeartbeatReport,
+    "heartbeat-report-query": HeartbeatReportQuery,
     "corporate-ci-check-request": CorporateCiCheckRequest,
     "corporate-ci-check-view": CorporateCiCheckView,
     "dashboard-query-request": DashboardQueryRequest,

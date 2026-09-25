@@ -27,7 +27,7 @@ def _to_summary(device: Device, *, display_name: str | None = None) -> DeviceSum
         id=device.id,
         state=device.state,
         last_seen_at=device.last_seen_at,
-        display_name=display_name,
+        display_name=display_name or device.display_name,
         os=None,
         architecture=None,
         harnesses=(),
@@ -97,6 +97,7 @@ async def register_device(
             account_id=ctx.account_id,
             public_key=pk,
             state=DeviceState.ACTIVE.value,
+            display_name=display_name,
             last_seen_at=now,
         )
         db.add(device)
@@ -109,6 +110,8 @@ async def register_device(
                 "device is revoked; register a new device key",
             )
         device.last_seen_at = now
+        if display_name:
+            device.display_name = display_name
     await db.flush()
 
     # Bind the current opaque session to this device so revoke cascades.

@@ -338,6 +338,7 @@ const capabilities = [
   "category.list",
   "category.read",
   "technology_decision.read",
+  "telemetry.read",
 ];
 const context: CorporateContext = {
   schema_version: 1,
@@ -933,6 +934,47 @@ export function corporateHandlers(
     return ok({ schema_version: 1, authorization_revision: "1", capabilities });
   if (!path.startsWith(`${base}/`)) return error(404, "AI_STP_NOT_FOUND");
   const suffix = path.slice(base.length + 1);
+  if (suffix === "telemetry/heartbeat-report" && method === "GET") {
+    const team = teamViews[0]!;
+    const employee = team.members[0] ?? member;
+    const teamOption = { id: team.team_id, name: team.name };
+    const heartbeat = {
+      account_id: employee.account_id,
+      employee_name: employee.display_name ?? "Employee",
+      teams: [teamOption],
+      device_id: "device_01K6DASHBOARDMOCK00000000",
+      device_name: "MacBook Pro",
+      last_heartbeat_at: "2026-09-25T11:45:00Z",
+      status: "active" as const,
+      buckets: Array.from({ length: 60 }, (_, index) => ({
+        start: new Date(Date.parse("2026-09-24T12:00:00Z") + index * 24 * 60_000).toISOString(),
+        end: new Date(Date.parse("2026-09-24T12:00:00Z") + (index + 1) * 24 * 60_000).toISOString(),
+        expected: 1,
+        received: 1,
+        state: "healthy" as const,
+      })),
+      coverage_percent: 100,
+    };
+    const matches =
+      (!query.has("team") || query.getAll("team").includes(team.team_id)) &&
+      (!query.has("employee") || query.getAll("employee").includes(employee.account_id)) &&
+      (!query.has("status") || query.getAll("status").includes("active"));
+    return ok({
+      schema_version: 1,
+      organization_id: organization.organization_id,
+      evaluated_at: "2026-09-25T12:00:00Z",
+      interval_seconds: 900,
+      stale_after_seconds: 3600,
+      total: matches ? 1 : 0,
+      page: 1,
+      page_size: 10,
+      teams: [teamOption],
+      employees: [
+        { id: employee.account_id, name: heartbeat.employee_name, team_ids: [team.team_id] },
+      ],
+      items: matches ? [heartbeat] : [],
+    });
+  }
   if (suffix === "dashboard/views" && method === "GET")
     return ok({
       schema_version: 1,

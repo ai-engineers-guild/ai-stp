@@ -259,6 +259,9 @@ async def _visible_accounts(
     return allowed_accounts, teams_by_account
 
 
+visible_accounts = _visible_accounts
+
+
 async def _source_rows(
     db: AsyncSession,
     *,

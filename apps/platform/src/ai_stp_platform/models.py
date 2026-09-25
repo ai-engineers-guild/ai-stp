@@ -124,6 +124,7 @@ class Device(Base):
     )
     public_key: Mapped[str] = mapped_column(Text)
     device_type: Mapped[str] = mapped_column(String(32), default="cli")
+    display_name: Mapped[str | None] = mapped_column(String(120), nullable=True)
     approximate_location: Mapped[str | None] = mapped_column(String(160), nullable=True)
     user_agent: Mapped[str | None] = mapped_column(String(512), nullable=True)
     state: Mapped[str] = mapped_column(String(32), default="active")

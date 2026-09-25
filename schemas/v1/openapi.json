@@ -15044,6 +15044,365 @@
         ],
         "type": "string"
       },
+      "HeartbeatReport": {
+        "additionalProperties": false,
+        "properties": {
+          "employees": {
+            "items": {
+              "$ref": "#/components/schemas/HeartbeatReportEmployee"
+            },
+            "title": "Employees",
+            "type": "array"
+          },
+          "evaluated_at": {
+            "$ref": "#/components/schemas/Timestamp"
+          },
+          "interval_seconds": {
+            "title": "Interval Seconds",
+            "type": "integer"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/HeartbeatReportRow"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "organization_id": {
+            "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "title": "Organization Id",
+            "type": "string"
+          },
+          "page": {
+            "title": "Page",
+            "type": "integer"
+          },
+          "page_size": {
+            "title": "Page Size",
+            "type": "integer"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "stale_after_seconds": {
+            "title": "Stale After Seconds",
+            "type": "integer"
+          },
+          "teams": {
+            "items": {
+              "$ref": "#/components/schemas/HeartbeatReportTeam"
+            },
+            "title": "Teams",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "organization_id",
+          "evaluated_at",
+          "interval_seconds",
+          "stale_after_seconds",
+          "total",
+          "page",
+          "page_size",
+          "teams",
+          "employees",
+          "items"
+        ],
+        "title": "HeartbeatReport",
+        "type": "object"
+      },
+      "HeartbeatReportBucket": {
+        "additionalProperties": false,
+        "properties": {
+          "end": {
+            "$ref": "#/components/schemas/Timestamp"
+          },
+          "expected": {
+            "title": "Expected",
+            "type": "integer"
+          },
+          "received": {
+            "title": "Received",
+            "type": "integer"
+          },
+          "start": {
+            "$ref": "#/components/schemas/Timestamp"
+          },
+          "state": {
+            "enum": [
+              "healthy",
+              "partial",
+              "missing",
+              "not_expected"
+            ],
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "start",
+          "end",
+          "expected",
+          "received",
+          "state"
+        ],
+        "title": "HeartbeatReportBucket",
+        "type": "object"
+      },
+      "HeartbeatReportEmployee": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "team_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Team Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "team_ids"
+        ],
+        "title": "HeartbeatReportEmployee",
+        "type": "object"
+      },
+      "HeartbeatReportQuery": {
+        "additionalProperties": false,
+        "properties": {
+          "employee": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Employee",
+            "type": "array"
+          },
+          "from_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "From Date"
+          },
+          "order": {
+            "default": "desc",
+            "enum": [
+              "asc",
+              "desc"
+            ],
+            "title": "Order",
+            "type": "string"
+          },
+          "page": {
+            "default": 1,
+            "minimum": 1,
+            "title": "Page",
+            "type": "integer"
+          },
+          "page_size": {
+            "default": 10,
+            "maximum": 50,
+            "minimum": 1,
+            "title": "Page Size",
+            "type": "integer"
+          },
+          "period": {
+            "default": "7d",
+            "enum": [
+              "24h",
+              "7d",
+              "30d",
+              "custom"
+            ],
+            "title": "Period",
+            "type": "string"
+          },
+          "sort": {
+            "default": "last_heartbeat",
+            "enum": [
+              "employee",
+              "team",
+              "last_heartbeat",
+              "status",
+              "coverage"
+            ],
+            "title": "Sort",
+            "type": "string"
+          },
+          "status": {
+            "default": [],
+            "items": {
+              "enum": [
+                "active",
+                "stale",
+                "failing",
+                "disabled",
+                "unknown"
+              ],
+              "type": "string"
+            },
+            "title": "Status",
+            "type": "array"
+          },
+          "team": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Team",
+            "type": "array"
+          },
+          "to_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "To Date"
+          },
+          "view": {
+            "default": "current",
+            "enum": [
+              "current",
+              "history"
+            ],
+            "title": "View",
+            "type": "string"
+          }
+        },
+        "title": "HeartbeatReportQuery",
+        "type": "object"
+      },
+      "HeartbeatReportRow": {
+        "additionalProperties": false,
+        "properties": {
+          "account_id": {
+            "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "title": "Account Id",
+            "type": "string"
+          },
+          "buckets": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/HeartbeatReportBucket"
+            },
+            "title": "Buckets",
+            "type": "array"
+          },
+          "coverage_percent": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Coverage Percent"
+          },
+          "device_id": {
+            "pattern": "^device_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "title": "Device Id",
+            "type": "string"
+          },
+          "device_name": {
+            "title": "Device Name",
+            "type": "string"
+          },
+          "employee_name": {
+            "title": "Employee Name",
+            "type": "string"
+          },
+          "last_heartbeat_at": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Timestamp"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status": {
+            "enum": [
+              "active",
+              "stale",
+              "failing",
+              "disabled",
+              "unknown"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "teams": {
+            "items": {
+              "$ref": "#/components/schemas/HeartbeatReportTeam"
+            },
+            "title": "Teams",
+            "type": "array"
+          }
+        },
+        "required": [
+          "account_id",
+          "employee_name",
+          "teams",
+          "device_id",
+          "device_name",
+          "last_heartbeat_at",
+          "status"
+        ],
+        "title": "HeartbeatReportRow",
+        "type": "object"
+      },
+      "HeartbeatReportTeam": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "HeartbeatReportTeam",
+        "type": "object"
+      },
       "IdempotencyKey": {
         "pattern": "^[A-Za-z0-9._~-]{16,128}$",
         "type": "string"
@@ -67673,6 +68032,358 @@
           }
         ],
         "summary": "Record the authenticated installation heartbeat."
+      }
+    },
+    "/v1/corporate/organizations/{organization_id}/telemetry/heartbeat-report": {
+      "get": {
+        "operationId": "readCorporateHeartbeatReport",
+        "parameters": [
+          {
+            "description": "Explicit remote organization selected for this request.",
+            "in": "path",
+            "name": "organization_id",
+            "required": true,
+            "schema": {
+              "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "employee",
+            "required": false,
+            "schema": {
+              "default": [],
+              "items": {
+                "type": "string"
+              },
+              "title": "Employee",
+              "type": "array"
+            }
+          },
+          {
+            "in": "query",
+            "name": "from_date",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "From Date"
+            }
+          },
+          {
+            "in": "query",
+            "name": "order",
+            "required": false,
+            "schema": {
+              "default": "desc",
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "title": "Order",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page_size",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "maximum": 50,
+              "minimum": 1,
+              "title": "Page Size",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "period",
+            "required": false,
+            "schema": {
+              "default": "7d",
+              "enum": [
+                "24h",
+                "7d",
+                "30d",
+                "custom"
+              ],
+              "title": "Period",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "default": "last_heartbeat",
+              "enum": [
+                "employee",
+                "team",
+                "last_heartbeat",
+                "status",
+                "coverage"
+              ],
+              "title": "Sort",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "default": [],
+              "items": {
+                "enum": [
+                  "active",
+                  "stale",
+                  "failing",
+                  "disabled",
+                  "unknown"
+                ],
+                "type": "string"
+              },
+              "title": "Status",
+              "type": "array"
+            }
+          },
+          {
+            "in": "query",
+            "name": "team",
+            "required": false,
+            "schema": {
+              "default": [],
+              "items": {
+                "type": "string"
+              },
+              "title": "Team",
+              "type": "array"
+            }
+          },
+          {
+            "in": "query",
+            "name": "to_date",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "To Date"
+            }
+          },
+          {
+            "in": "query",
+            "name": "view",
+            "required": false,
+            "schema": {
+              "default": "current",
+              "enum": [
+                "current",
+                "history"
+              ],
+              "title": "View",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "readCorporateHeartbeatReport.empty": {
+                    "summary": "A scoped organization with no enrolled devices returns an empty fixed report.",
+                    "value": {
+                      "employees": [],
+                      "evaluated_at": "2026-09-25T12:00:00.000Z",
+                      "interval_seconds": 900,
+                      "items": [],
+                      "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "page": 1,
+                      "page_size": 10,
+                      "schema_version": 1,
+                      "stale_after_seconds": 3600,
+                      "teams": [],
+                      "total": 0
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/HeartbeatReport"
+                }
+              }
+            },
+            "description": "Read the fixed scoped device heartbeat report.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Read the fixed scoped device heartbeat report."
       }
     },
     "/v1/corporate/organizations/{organization_id}/telemetry/heartbeat/policy": {

@@ -1,0 +1,46 @@
+{
+  "$defs": {
+    "Timestamp": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:heartbeat-report-bucket",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "end": {
+      "$ref": "#/$defs/Timestamp"
+    },
+    "expected": {
+      "title": "Expected",
+      "type": "integer"
+    },
+    "received": {
+      "title": "Received",
+      "type": "integer"
+    },
+    "start": {
+      "$ref": "#/$defs/Timestamp"
+    },
+    "state": {
+      "enum": [
+        "healthy",
+        "partial",
+        "missing",
+        "not_expected"
+      ],
+      "title": "State",
+      "type": "string"
+    }
+  },
+  "required": [
+    "start",
+    "end",
+    "expected",
+    "received",
+    "state"
+  ],
+  "title": "HeartbeatReportBucket",
+  "type": "object"
+}

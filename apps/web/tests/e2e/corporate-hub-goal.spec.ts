@@ -120,6 +120,42 @@ test.describe("original Corporate Hub goal: integrated browser workflow", () => 
     "Opt in after integration with AI_STP_CORPORATE_E2E=offline or live; this skip is not corporate verification",
   );
 
+  test("reports lead from the catalog to a filtered heartbeat history", async ({ page }, info) => {
+    test.skip(mode !== "offline", "The report journey uses the populated offline fixture");
+    await authenticate(page);
+    await page.getByRole("button", { name: "Use dark theme" }).click();
+    await page.goto("/en/corporate/reports");
+    await expect(main(page).getByRole("heading", { name: "Reports" })).toBeVisible();
+    for (const width of [1280, 1440, 1920]) {
+      await page.setViewportSize({ width, height: 900 });
+      await fitsViewport(page);
+      await screenshot(page, info, `reports-${width}`);
+    }
+    await main(page).getByRole("link", { name: /Open/ }).first().click();
+    await expect(main(page).getByRole("heading", { name: "Device Heartbeat" })).toBeVisible();
+    for (const width of [1280, 1440, 1920]) {
+      await page.setViewportSize({ width, height: 900 });
+      await fitsViewport(page);
+      await screenshot(page, info, `heartbeat-current-${width}`);
+    }
+    await main(page).getByText("All teams", { exact: true }).click();
+    await main(page).getByRole("checkbox").first().click();
+    await expect(page).toHaveURL(/team=/);
+    await main(page).locator('details[name="catalog-filter"]').first().locator("summary").click();
+    await main(page).getByRole("button", { name: "History" }).click();
+    await expect(page).toHaveURL(/view=history/);
+    await main(page).getByLabel("Period").selectOption("24h");
+    await expect(page).toHaveURL(/period=24h/);
+    await expect(main(page).getByText("MacBook Pro")).toBeVisible();
+    for (const width of [1280, 1440, 1920]) {
+      await page.setViewportSize({ width, height: 900 });
+      await fitsViewport(page);
+      await screenshot(page, info, `heartbeat-history-${width}`);
+    }
+    await page.goto("/en/reports");
+    await expect(main(page).getByRole("heading", { name: "Your cases" })).toBeVisible();
+  });
+
   test("dashboard constructor renders bounded health results and saved views", async ({ page }) => {
     test.skip(
       mode !== "offline",

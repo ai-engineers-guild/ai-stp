@@ -20,6 +20,7 @@ from ai_stp_api.slices.corporate import (
     gitlab,
     governance,
     heartbeat,
+    heartbeat_report,
     overview,
     permissions,
     profiles,
@@ -98,6 +99,7 @@ router.include_router(permissions.router)
 router.include_router(telemetry_policy.router)
 router.include_router(telemetry_rights.router)
 router.include_router(heartbeat.router)
+router.include_router(heartbeat_report.router)
 router.include_router(dashboard.router)
 router.include_router(gitlab.router)
 router.include_router(github_languages.router)

@@ -29,7 +29,11 @@ from ai_stp_contracts.heartbeat import (
     DEFAULT_HEARTBEAT_RETRY_MAX_SECONDS,
     DEFAULT_HEARTBEAT_STALE_AFTER_SECONDS,
 )
-from ai_stp_platform.heartbeat_models import InstallationHeartbeat
+from ai_stp_platform.heartbeat_models import (
+    InstallationHeartbeat,
+    InstallationHeartbeatEvent,
+    InstallationHeartbeatPolicyEvent,
+)
 from ai_stp_platform.runtime_usage_models import RuntimeUsageEvent
 from ai_stp_platform.telemetry_policy_models import (
     TelemetryAudit,
@@ -413,6 +417,16 @@ async def write_policy(
             updated_by=updated_by,
         )
         session.add(row)
+        session.add(
+            InstallationHeartbeatPolicyEvent(
+                organization_id=organization_id,
+                version=1,
+                effective_from=datetime.now(UTC),
+                enabled=row.heartbeat_enabled,
+                interval_seconds=row.heartbeat_interval_seconds,
+                stale_after_seconds=row.heartbeat_stale_after_seconds,
+            )
+        )
         await session.flush()
         return row
     if row.policy_version != expected_policy_revision:
@@ -433,6 +447,16 @@ async def write_policy(
     if heartbeat_stale_after_seconds is not None:
         row.heartbeat_stale_after_seconds = heartbeat_stale_after_seconds
     row.policy_version += 1
+    session.add(
+        InstallationHeartbeatPolicyEvent(
+            organization_id=organization_id,
+            version=row.policy_version,
+            effective_from=datetime.now(UTC),
+            enabled=row.heartbeat_enabled,
+            interval_seconds=row.heartbeat_interval_seconds,
+            stale_after_seconds=row.heartbeat_stale_after_seconds,
+        )
+    )
     row.updated_by = updated_by
     await session.flush()
     return row
@@ -496,9 +520,11 @@ async def _erase_stream_subject_rows(
     if subject_kind == "device":
         usage_predicate = RuntimeUsageEvent.device_id == subject_id
         heartbeat_predicate = InstallationHeartbeat.device_id == subject_id
+        heartbeat_event_predicate = InstallationHeartbeatEvent.device_id == subject_id
     else:
         usage_predicate = RuntimeUsageEvent.employee_account_id == subject_id
         heartbeat_predicate = InstallationHeartbeat.account_id == subject_id
+        heartbeat_event_predicate = InstallationHeartbeatEvent.account_id == subject_id
     removed = 0
     for statement in (
         sql_delete(RuntimeUsageEvent).where(
@@ -506,6 +532,9 @@ async def _erase_stream_subject_rows(
         ),
         sql_delete(InstallationHeartbeat).where(
             InstallationHeartbeat.organization_id == organization_id, heartbeat_predicate
+        ),
+        sql_delete(InstallationHeartbeatEvent).where(
+            InstallationHeartbeatEvent.organization_id == organization_id, heartbeat_event_predicate
         ),
     ):
         result = await session.execute(statement)

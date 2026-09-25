@@ -1,6 +1,6 @@
 ---
 description: "SPEC-087: Authenticated CLI installation heartbeats and read-time installation health for corporate tenants."
-last_verified: "2026-09-24"
+last_verified: "2026-09-25"
 ---
 
 # SPEC-087: CLI heartbeat and installation health
@@ -132,6 +132,13 @@ are owned by SPEC-089.
   timestamp within five minutes of server time. A lost renewal response does
   not invalidate the prior credential before its normal expiry. The renewed
   tokens remain in the credential store; no token enters the heartbeat body.
+- `REQ-8717`: Each strictly newer accepted installation heartbeat appends one
+  tenant-scoped history row in the same transaction as the latest-state update.
+  The row contains subject references, checked/received timestamps, reported
+  state, and the interval and policy revision effective at receipt. Equal or
+  older reports append nothing. The history has no raw request, provider
+  payload, path, prompt, or credential. History before migration 0096 cannot be
+  reconstructed from the earlier coalesced rows.
 
 ## States and errors
 
@@ -184,3 +191,4 @@ preserving existing installation data and audit history.
 | `REQ-8714` | CLI and scheduler adapter tests cover the targeted due claim, per-user task definitions, catch-up, and WSL host wakeup. |
 | `REQ-8715` | CLI tests cover local subscription and scheduler status without network access. |
 | `REQ-8716` | CLI renewal test and API tests cover valid and invalid device signatures and credential replacement. |
+| `REQ-8717` | History tests cover one append per newer accepted write, no append for replay, and closed stored fields. |

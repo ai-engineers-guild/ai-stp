@@ -419,6 +419,9 @@ import type {
   ReadCorporateEntityProfileData,
   ReadCorporateEntityProfileErrors,
   ReadCorporateEntityProfileResponses,
+  ReadCorporateHeartbeatReportData,
+  ReadCorporateHeartbeatReportErrors,
+  ReadCorporateHeartbeatReportResponses,
   ReadCorporateMemberData,
   ReadCorporateMemberErrors,
   ReadCorporateMemberResponses,
@@ -593,6 +596,9 @@ import type {
   RecordCorporateTelemetryRightData,
   RecordCorporateTelemetryRightErrors,
   RecordCorporateTelemetryRightResponses,
+  RefreshDeviceSessionData,
+  RefreshDeviceSessionErrors,
+  RefreshDeviceSessionResponses,
   RefreshGitLabRepositoryData,
   RefreshGitLabRepositoryErrors,
   RefreshGitLabRepositoryResponses,
@@ -993,6 +999,26 @@ export const startDeviceAuthorization = <ThrowOnError extends boolean = false>(
     ThrowOnError
   >({
     url: "/v1/auth/device",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Renew a device session with its stored credential and key.
+ */
+export const refreshDeviceSession = <ThrowOnError extends boolean = false>(
+  options: Options<RefreshDeviceSessionData, ThrowOnError>,
+): RequestResult<RefreshDeviceSessionResponses, RefreshDeviceSessionErrors, ThrowOnError> =>
+  (options.client ?? client).post<
+    RefreshDeviceSessionResponses,
+    RefreshDeviceSessionErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/auth/device/refresh",
     ...options,
     headers: {
       "Content-Type": "application/json",
@@ -3845,6 +3871,26 @@ export const writeInstallationHeartbeat = <ThrowOnError extends boolean = false>
       "Content-Type": "application/json",
       ...options.headers,
     },
+  });
+
+/**
+ * Read the fixed scoped device heartbeat report.
+ */
+export const readCorporateHeartbeatReport = <ThrowOnError extends boolean = false>(
+  options: Options<ReadCorporateHeartbeatReportData, ThrowOnError>,
+): RequestResult<
+  ReadCorporateHeartbeatReportResponses,
+  ReadCorporateHeartbeatReportErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).get<
+    ReadCorporateHeartbeatReportResponses,
+    ReadCorporateHeartbeatReportErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/telemetry/heartbeat-report",
+    ...options,
   });
 
 /**

@@ -48,17 +48,33 @@ export const CORPORATE_ROUTES: MachineRoute[] = [
     },
   },
   {
-    pattern: "corporate/installations",
+    pattern: "corporate/reports",
     resolve: async () => {
-      const t = await getTranslations("installations");
-      return presentPage({ title: t("title"), summary: t("unavailable") });
+      const t = await getTranslations("corporateReports");
+      return presentPage({ title: t("title"), summary: t("subtitle") });
     },
   },
   {
-    pattern: "corporate/usage",
+    pattern: "corporate/reports/heartbeat",
     resolve: async () => {
-      const t = await getTranslations("hub");
-      return presentPage({ title: t("usage"), summary: t("usageViewBody") });
+      const t = await getTranslations("corporateReports");
+      return presentPage({ title: t("heartbeat"), summary: t("currentDescription") });
     },
   },
+  {
+    pattern: "corporate/reports/:report",
+    resolve: async () => {
+      const t = await getTranslations("corporateReports");
+      return presentPage({ title: t("title") });
+    },
+  },
+  ...(["corporate/installations", "corporate/usage"] as const).map(
+    (pattern): MachineRoute => ({
+      pattern,
+      resolve: async () => {
+        const t = await getTranslations("corporateReports");
+        return presentPage({ title: t("title"), links: [[t("title"), "/corporate/reports"]] });
+      },
+    }),
+  ),
 ];

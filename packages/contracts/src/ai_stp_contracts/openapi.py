@@ -243,6 +243,12 @@ from ai_stp_contracts.grants import (
 )
 from ai_stp_contracts.health import LivenessResponse, ReadinessResponse
 from ai_stp_contracts.heartbeat import (
+    HeartbeatReport,
+    HeartbeatReportBucket,
+    HeartbeatReportEmployee,
+    HeartbeatReportQuery,
+    HeartbeatReportRow,
+    HeartbeatReportTeam,
     InstallationHeartbeat,
     InstallationHeartbeatList,
     InstallationHeartbeatPolicy,
@@ -3371,6 +3377,16 @@ OPERATIONS: Final[tuple[Operation, ...]] = (
         authenticated=True,
     ),
     Operation(
+        method="get",
+        path="/corporate/organizations/{organization_id}/telemetry/heartbeat-report",
+        operation_id="readCorporateHeartbeatReport",
+        summary="Read the fixed scoped device heartbeat report.",
+        response=HeartbeatReport,
+        query=HeartbeatReportQuery,
+        path_params=(_ORGANIZATION_ID,),
+        authenticated=True,
+    ),
+    Operation(
         method="post",
         path="/corporate/organizations/{organization_id}/telemetry/events",
         operation_id="recordCorporateTelemetryEvent",
@@ -3545,6 +3561,10 @@ OPERATIONS: Final[tuple[Operation, ...]] = (
 #: Nested models that travel inside a larger payload but still deserve a
 #: standalone artifact the platform can implement against.
 NESTED_ONLY_MODELS: Final[tuple[type[BaseModel], ...]] = (
+    HeartbeatReportTeam,
+    HeartbeatReportEmployee,
+    HeartbeatReportBucket,
+    HeartbeatReportRow,
     DeviceSummary,
     PageInfo,
     SyncEvent,

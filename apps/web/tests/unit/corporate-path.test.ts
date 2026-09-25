@@ -26,6 +26,7 @@ it("prefixes shared corporate links once and preserves query strings", async () 
   );
   expect(corporateHref("/ru/corporate/account")).toBe("/ru/corporate/account");
   expect(corporateHref("/")).toBe("/corporate/overview");
+  expect(corporateHref("/reports")).toBe("/reports");
   expect(corporateHref("https://docs.test")).toBe("https://docs.test");
   expect(projectedHref(corporateHref("/account"), "en")).toBe("/en/ai/corporate/account");
   expect(projectedHref(corporateHref("/corporate/overview"), "en")).toBe(
@@ -38,6 +39,8 @@ it("prefixes shared corporate links once and preserves query strings", async () 
   );
   expect(corporateSharedPath("/en/corporate/organization/admins")).toBeNull();
   expect(corporateSharedPath("/en/corporate/technology-landscape")).toBeNull();
+  expect(corporateSharedPath("/en/corporate/reports")).toBeNull();
+  expect(corporateSharedPath("/en/corporate/reports/heartbeat")).toBeNull();
 });
 
 it("preserves personal and packaged website URLs", async () => {

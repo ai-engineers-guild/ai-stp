@@ -17,17 +17,19 @@ import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from nacl.signing import SigningKey
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from tests.support.api_settings import make_settings
 
 from ai_stp_api.app import create_app
 from ai_stp_api.session import issue_session
 from ai_stp_api.slices.corporate.heartbeat import router as heartbeat_router
+from ai_stp_api.slices.corporate.heartbeat_report import router as heartbeat_report_router
 from ai_stp_contracts.auth import DeviceRefreshRequest, device_refresh_message
 from ai_stp_contracts.heartbeat import InstallationHeartbeatRequest, heartbeat_signature_message
 from ai_stp_foundation.ids import new_id
 from ai_stp_foundation.timestamps import format_timestamp
-from ai_stp_platform.heartbeat_models import InstallationHeartbeat
+from ai_stp_platform.heartbeat_models import InstallationHeartbeat, InstallationHeartbeatEvent
 from ai_stp_platform.models import Account, Device
 from ai_stp_platform.organization_models import OrganizationMembership
 from ai_stp_platform.telemetry_policy_models import TelemetryPolicy, TelemetryRevocation
@@ -48,6 +50,7 @@ async def heartbeat_client(
     settings = make_settings(tmp_path, database_url=migrated_database_url)
     app = create_app(settings)
     app.include_router(heartbeat_router, prefix="/v1")
+    app.include_router(heartbeat_report_router, prefix="/v1")
     async with app.router.lifespan_context(app):
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
@@ -162,6 +165,10 @@ async def test_heartbeat_write_is_idempotent_and_delayed_writes_cannot_regress(
     organization_id = await _bootstrap(client, account_id, "hb-idempotent-scenar-0001")
     auth = {"Authorization": f"Bearer {token}"}
     path = f"/v1/corporate/organizations/{organization_id}/telemetry/heartbeat"
+    report_path = f"/v1/corporate/organizations/{organization_id}/telemetry/heartbeat-report"
+    unknown = await client.get(report_path, headers=auth)
+    assert unknown.status_code == 200, unknown.text
+    assert unknown.json()["items"][0]["status"] == "unknown"
 
     first_payload = _payload(account_id, device_id)
     first = await _put(client, path, json=first_payload, headers=auth)
@@ -204,6 +211,37 @@ async def test_heartbeat_write_is_idempotent_and_delayed_writes_cannot_regress(
     )
     assert newer.status_code == 200, newer.text
     assert newer.json()["revision"] == 2
+    async with sessionmaker() as db:
+        await set_tenant_scope(db, organization_id)
+        events = (
+            await db.scalars(
+                select(InstallationHeartbeatEvent).where(
+                    InstallationHeartbeatEvent.organization_id == organization_id,
+                    InstallationHeartbeatEvent.device_id == device_id,
+                )
+            )
+        ).all()
+        assert len(events) == 2
+    history = await client.get(f"{report_path}?view=history&period=24h", headers=auth)
+    assert history.status_code == 200, history.text
+    assert sum(bucket["received"] for bucket in history.json()["items"][0]["buckets"]) == 2
+    hidden = await client.get(f"{report_path}?team=team_foreign", headers=auth)
+    assert hidden.status_code == 200 and hidden.json()["items"] == []
+    hidden_employee = await client.get(f"{report_path}?employee=account_foreign", headers=auth)
+    assert hidden_employee.status_code == 200 and hidden_employee.json()["items"] == []
+    async with sessionmaker() as db:
+        await set_tenant_scope(db, organization_id)
+        member = await db.scalar(
+            select(OrganizationMembership).where(
+                OrganizationMembership.organization_id == organization_id,
+                OrganizationMembership.account_id == account_id,
+            )
+        )
+        assert member is not None
+        member.role = "member"
+        await db.commit()
+    denied = await client.get(report_path, headers=auth)
+    assert denied.status_code == 403
 
 
 async def test_heartbeat_health_states_and_staleness_read_time(

@@ -6180,6 +6180,24 @@ export type DeviceRecord = {
 };
 
 /**
+ * DeviceRefreshRequest
+ *
+ * A device-key proof accompanying a stored refresh credential.
+ */
+export type DeviceRefreshRequest = {
+  checked_at: Timestamp;
+  device_id: DeviceId;
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
+  /**
+   * Signature
+   */
+  signature: string;
+};
+
+/**
  * DeviceRegisterResponse
  *
  * POST /v1/devices registration resource body.
@@ -7513,6 +7531,194 @@ export const HarnessId = {
 
 export type HarnessId = (typeof HarnessId)[keyof typeof HarnessId];
 
+/**
+ * HeartbeatReport
+ */
+export type HeartbeatReport = {
+  /**
+   * Employees
+   */
+  employees: Array<HeartbeatReportEmployee>;
+  evaluated_at: Timestamp;
+  /**
+   * Interval Seconds
+   */
+  interval_seconds: number;
+  /**
+   * Items
+   */
+  items: Array<HeartbeatReportRow>;
+  /**
+   * Organization Id
+   */
+  organization_id: string;
+  /**
+   * Page
+   */
+  page: number;
+  /**
+   * Page Size
+   */
+  page_size: number;
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
+  /**
+   * Stale After Seconds
+   */
+  stale_after_seconds: number;
+  /**
+   * Teams
+   */
+  teams: Array<HeartbeatReportTeam>;
+  /**
+   * Total
+   */
+  total: number;
+};
+
+/**
+ * HeartbeatReportBucket
+ */
+export type HeartbeatReportBucket = {
+  end: Timestamp;
+  /**
+   * Expected
+   */
+  expected: number;
+  /**
+   * Received
+   */
+  received: number;
+  start: Timestamp;
+  /**
+   * State
+   */
+  state: "healthy" | "partial" | "missing" | "not_expected";
+};
+
+/**
+ * HeartbeatReportEmployee
+ */
+export type HeartbeatReportEmployee = {
+  /**
+   * Id
+   */
+  id: string;
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Team Ids
+   */
+  team_ids: Array<string>;
+};
+
+/**
+ * HeartbeatReportQuery
+ */
+export type HeartbeatReportQuery = {
+  /**
+   * Employee
+   */
+  employee?: Array<string>;
+  /**
+   * From Date
+   */
+  from_date?: string | null;
+  /**
+   * Order
+   */
+  order?: "asc" | "desc";
+  /**
+   * Page
+   */
+  page?: number;
+  /**
+   * Page Size
+   */
+  page_size?: number;
+  /**
+   * Period
+   */
+  period?: "24h" | "7d" | "30d" | "custom";
+  /**
+   * Sort
+   */
+  sort?: "employee" | "team" | "last_heartbeat" | "status" | "coverage";
+  /**
+   * Status
+   */
+  status?: Array<"active" | "stale" | "failing" | "disabled" | "unknown">;
+  /**
+   * Team
+   */
+  team?: Array<string>;
+  /**
+   * To Date
+   */
+  to_date?: string | null;
+  /**
+   * View
+   */
+  view?: "current" | "history";
+};
+
+/**
+ * HeartbeatReportRow
+ */
+export type HeartbeatReportRow = {
+  /**
+   * Account Id
+   */
+  account_id: string;
+  /**
+   * Buckets
+   */
+  buckets?: Array<HeartbeatReportBucket>;
+  /**
+   * Coverage Percent
+   */
+  coverage_percent?: number | null;
+  /**
+   * Device Id
+   */
+  device_id: string;
+  /**
+   * Device Name
+   */
+  device_name: string;
+  /**
+   * Employee Name
+   */
+  employee_name: string;
+  last_heartbeat_at: Timestamp | null;
+  /**
+   * Status
+   */
+  status: "active" | "stale" | "failing" | "disabled" | "unknown";
+  /**
+   * Teams
+   */
+  teams: Array<HeartbeatReportTeam>;
+};
+
+/**
+ * HeartbeatReportTeam
+ */
+export type HeartbeatReportTeam = {
+  /**
+   * Id
+   */
+  id: string;
+  /**
+   * Name
+   */
+  name: string;
+};
+
 export type IdempotencyKey = string;
 
 export const ImplementationMode = { DERIVED: "derived", NATIVE: "native" } as const;
@@ -7670,6 +7876,10 @@ export type InstallationHeartbeatRequest = {
    * Schema Version
    */
   schema_version?: 1;
+  /**
+   * Signature
+   */
+  signature: string;
 };
 
 /**
@@ -14848,6 +15058,59 @@ export type StartDeviceAuthorizationResponses = {
 
 export type StartDeviceAuthorizationResponse =
   StartDeviceAuthorizationResponses[keyof StartDeviceAuthorizationResponses];
+
+export type RefreshDeviceSessionData = {
+  body: DeviceRefreshRequest;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path?: never;
+  query?: never;
+  url: "/v1/auth/device/refresh";
+};
+
+export type RefreshDeviceSessionErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type RefreshDeviceSessionError =
+  RefreshDeviceSessionErrors[keyof RefreshDeviceSessionErrors];
+
+export type RefreshDeviceSessionResponses = {
+  /**
+   * Renew a device session with its stored credential and key.
+   */
+  200: DeviceTokenResponse;
+};
+
+export type RefreshDeviceSessionResponse =
+  RefreshDeviceSessionResponses[keyof RefreshDeviceSessionResponses];
 
 export type ExchangeDeviceCodeData = {
   body: DeviceTokenRequest;
@@ -25067,6 +25330,109 @@ export type WriteInstallationHeartbeatResponses = {
 
 export type WriteInstallationHeartbeatResponse =
   WriteInstallationHeartbeatResponses[keyof WriteInstallationHeartbeatResponses];
+
+export type ReadCorporateHeartbeatReportData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+  };
+  query?: {
+    /**
+     * Employee
+     */
+    employee?: Array<string>;
+    /**
+     * From Date
+     */
+    from_date?: string | null;
+    /**
+     * Order
+     */
+    order?: "asc" | "desc";
+    /**
+     * Page
+     */
+    page?: number;
+    /**
+     * Page Size
+     */
+    page_size?: number;
+    /**
+     * Period
+     */
+    period?: "24h" | "7d" | "30d" | "custom";
+    /**
+     * Sort
+     */
+    sort?: "employee" | "team" | "last_heartbeat" | "status" | "coverage";
+    /**
+     * Status
+     */
+    status?: Array<"active" | "stale" | "failing" | "disabled" | "unknown">;
+    /**
+     * Team
+     */
+    team?: Array<string>;
+    /**
+     * To Date
+     */
+    to_date?: string | null;
+    /**
+     * View
+     */
+    view?: "current" | "history";
+  };
+  url: "/v1/corporate/organizations/{organization_id}/telemetry/heartbeat-report";
+};
+
+export type ReadCorporateHeartbeatReportErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ReadCorporateHeartbeatReportError =
+  ReadCorporateHeartbeatReportErrors[keyof ReadCorporateHeartbeatReportErrors];
+
+export type ReadCorporateHeartbeatReportResponses = {
+  /**
+   * Read the fixed scoped device heartbeat report.
+   */
+  200: HeartbeatReport;
+};
+
+export type ReadCorporateHeartbeatReportResponse =
+  ReadCorporateHeartbeatReportResponses[keyof ReadCorporateHeartbeatReportResponses];
 
 export type ReadInstallationHeartbeatPolicyData = {
   body?: never;
