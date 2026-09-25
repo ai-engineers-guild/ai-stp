@@ -51,12 +51,13 @@ sender tries one due organization after a successful ordinary invocation,
 oldest first. A 120-second lease lets another invocation recover after a
 process stops during a send. Policy lookup and send each use one attempt with
 a two-second timeout. A fresh report is built for each attempt, and exponential
-retries are capped by the organization retry maximum. Session or network
-failure leaves the primary command result unchanged. A twice-per-minute per-user OS
-task also invokes `heartbeat tick --organization <id>` through a launcher that
-restores the enrolled XDG config/data directories and credential-store choice.
-The tick uses the same due
-claim and policy. Native Windows tasks use `pythonw.exe` to avoid a console
+retries are capped by the organization retry maximum. Automatic reports send
+only CLI liveness and do not execute installed harnesses; explicit reports
+can inspect their versions. Session or network
+failure leaves the primary command result unchanged. An hourly per-user OS
+task invokes the due sender directly through a launcher that restores the
+enrolled XDG config/data directories and credential-store choice. It does not
+query Task Scheduler after sending. Native Windows tasks use `pythonw.exe` to avoid a console
 window. The task is not a resident Python daemon.
 WSL tasks use a hidden Windows Script Host launcher for `wsl.exe`.
 

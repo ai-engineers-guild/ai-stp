@@ -93,11 +93,9 @@ def _windows_install(name: str, organization_id: str) -> None:
     script = (
         "$ErrorActionPreference = 'Stop'; "
         f"{action}"
-        "$start = (Get-Date).AddMinutes(1); "
-        "$trigger = @(0, 30) | ForEach-Object { "
-        "New-ScheduledTaskTrigger -Once -At $start.AddSeconds($_) "
-        "-RepetitionInterval (New-TimeSpan -Minutes 1) "
-        "-RepetitionDuration (New-TimeSpan -Days 3650) }; "
+        "$trigger = New-ScheduledTaskTrigger -Once -At (Get-Date).AddHours(1) "
+        "-RepetitionInterval (New-TimeSpan -Hours 1) "
+        "-RepetitionDuration (New-TimeSpan -Days 3650); "
         "$settings = New-ScheduledTaskSettingsSet -StartWhenAvailable "
         "-MultipleInstances IgnoreNew; "
         "$principal = New-ScheduledTaskPrincipal "
@@ -170,7 +168,7 @@ def _mac_install(name: str, organization_id: str) -> None:
     payload = {
         "Label": f"com.aistp.{name}",
         "ProgramArguments": [executable, *args],
-        "StartInterval": 30,
+        "StartInterval": 3600,
         "RunAtLoad": True,
     }
     path.write_bytes(plistlib.dumps(payload))
@@ -211,7 +209,7 @@ def _linux_install(name: str, organization_id: str) -> None:
     )
     timer.write_text(
         "[Unit]\nDescription=ai-stp installation heartbeat wakeup\n"
-        "[Timer]\nOnCalendar=*-*-* *:*:00,30\nPersistent=true\n"
+        "[Timer]\nOnCalendar=hourly\nPersistent=true\n"
         f"Unit={name}.service\n"
         "[Install]\nWantedBy=timers.target\n",
         encoding="utf-8",

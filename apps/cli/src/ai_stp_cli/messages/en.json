@@ -870,6 +870,7 @@
   "the visibility plan changed after review": "the visibility plan changed after review",
   "the visibility plan does not match the requested owner effect": "the visibility plan does not match the requested owner effect",
   "the wheel size does not match the plan": "the wheel size does not match the plan",
+  "the windowless Python executable is unavailable": "the windowless Python executable is unavailable",
   "there are no component drafts in this import plan": "there are no component drafts in this import plan",
   "there are no rollback bytes for the previous CLI version": "there are no rollback bytes for the previous CLI version",
   "there is no configuration directory at that path": "there is no configuration directory at that path",

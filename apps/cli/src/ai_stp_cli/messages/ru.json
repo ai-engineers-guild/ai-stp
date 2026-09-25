@@ -870,6 +870,7 @@
   "the visibility plan changed after review": "План изменения публичности изменился после проверки",
   "the visibility plan does not match the requested owner effect": "План изменения публичности не совпадает с запрошенным действием владельца",
   "the wheel size does not match the plan": "размер wheel не совпадает с планом",
+  "the windowless Python executable is unavailable": "исполняемый файл Python без консольного окна недоступен",
   "there are no component drafts in this import plan": "в этом плане импорта нет черновиков компонентов",
   "there are no rollback bytes for the previous CLI version": "нет байтов отката для предыдущей версии CLI",
   "there is no configuration directory at that path": "по этому пути нет каталога конфигурации",

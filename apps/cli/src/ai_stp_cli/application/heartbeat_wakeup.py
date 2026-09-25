@@ -2,8 +2,6 @@
 
 import os
 import sys
-from contextlib import redirect_stderr, redirect_stdout
-from pathlib import Path
 
 
 def run(args: list[str]) -> int:
@@ -16,14 +14,10 @@ def run(args: list[str]) -> int:
         os.environ["AI_STP_FORCE_FILE_CREDENTIAL_STORE"] = "1"
     else:
         os.environ.pop("AI_STP_FORCE_FILE_CREDENTIAL_STORE", None)
-    from ai_stp_cli.app import main
+    from ai_stp_cli.application.heartbeat import maybe_send_due
 
-    with (
-        Path(os.devnull).open("w", encoding="utf-8") as sink,
-        redirect_stdout(sink),
-        redirect_stderr(sink),
-    ):
-        return main(["heartbeat", "tick", "--organization", organization_id, "--json"])
+    maybe_send_due(organization_id=organization_id)
+    return 0
 
 
 if __name__ == "__main__":

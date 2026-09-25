@@ -67,11 +67,13 @@ absent harnesses are not reported.
 After a successful ordinary CLI command, the CLI attempts at most one due
 subscription, ordered by oldest due time. Authentication and heartbeat
 commands do not trigger automatic sending. The snapshot is rebuilt on every
-attempt; no report body or credential is queued locally. Network work is
+attempt; automatic reports attest CLI liveness without running installed
+harnesses, while explicit sends can include harness and provider facts. No
+report body or credential is queued locally. Network work is
 bounded to one policy lookup and one write attempt, each with a two-second
 timeout. Failures do not change the command result and schedule an
 organization-bounded exponential retry. Successful sends wait for the
-organization interval. A twice-per-minute per-user OS wakeup invokes the same sender
+organization interval. An hourly per-user OS wakeup invokes the same sender
 while the user session and host scheduler are available. Windows uses Task
 Scheduler with `pythonw.exe` to avoid a console window, macOS uses LaunchAgent,
 Linux uses a user systemd timer, and WSL

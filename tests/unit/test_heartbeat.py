@@ -298,6 +298,21 @@ def test_build_report_binds_session_identity_and_closed_fields() -> None:
     }
 
 
+def test_background_report_checks_cli_liveness_without_running_harnesses(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        heartbeat_app,
+        "_local_heartbeat_facts",
+        lambda: pytest.fail("background heartbeat ran a harness probe"),
+    )
+    report = heartbeat_app.build_report(
+        _session(), probe_harnesses=False, last_sync_at="2026-09-22T11:00:00.000Z"
+    )
+    assert report.capabilities == ["cli.heartbeat"]
+    assert report.health_state == "active"
+
+
 def test_build_report_rejects_unknown_state_and_bad_sync_timestamp() -> None:
     session = _session()
     with pytest.raises(CliFailure, match="a supplied value is not valid for this command"):

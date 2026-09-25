@@ -91,26 +91,29 @@ are owned by SPEC-089.
   bounds, and staleness. Disabled policy rejects explicit writes and defers
   automatic checks until the configured interval. The defaults are enabled,
   21600 seconds, 60 seconds, 3600 seconds, and 86400 seconds respectively.
-- `REQ-8712`: The CLI reports only harnesses detected as locally installed.
+- `REQ-8712`: Explicit reports include only harnesses detected as locally installed.
   Provider availability and version are reported only when the locally
   resolved provider executable is present and its bytes match its release
   manifest. The heartbeat path never runs provider code. `active` means no
   installed harness needs a provider or all detected providers pass that
-  check; `partial` means some pass; `failing` means none pass.
+  check; `partial` means some pass; `failing` means none pass. Automatic reports
+  attest only that the enrolled CLI is alive and authenticated: they send the
+  `cli.heartbeat` capability and `active` without executing harness programs.
 - `REQ-8713`: The automatic sender persists only organization/account/device
   identifiers and bounded schedule metadata locally. It retains no request
   payload or credentials, and sends the last successful sync time only when it
   exists in the local sync cursor. A subscription is discarded if the held
   account or device no longer matches its opt-in identity.
 - `REQ-8714`: After policy and device-bound authentication checks,
-  `heartbeat enable` registers a per-user OS wakeup every 30 seconds for that
+  `heartbeat enable` registers an hourly per-user OS wakeup for that
   organization before saving local opt-in. Windows uses an interactive-user
   Task Scheduler task with a windowless Python executable and missed-run
   catch-up; macOS uses a LaunchAgent with
-  a 30-second interval; Linux uses a user systemd timer with persistent
+  a one-hour interval; Linux uses a user systemd timer with persistent
   catch-up; WSL uses a Windows task with a windowless launcher that invokes the
-  named WSL distribution and user. `heartbeat tick` checks only the named subscription using the same
-  due-claim sender; it cannot create an opt-in. `heartbeat disable` removes
+  named WSL distribution and user. The scheduled launcher calls the due sender
+  directly without querying Task Scheduler. `heartbeat tick` checks only the
+  named subscription; it cannot create an opt-in. `heartbeat disable` removes
   local opt-in before removing the wakeup. Repeating `enable` repairs the task
   target path and preserves the enrolled file credential-store selection.
   Scheduler failure is typed and cannot claim successful autonomous enrollment.
