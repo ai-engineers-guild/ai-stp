@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Badge } from "@/components/atoms/badge";
 import { Button } from "@/components/atoms/button";
@@ -35,6 +36,10 @@ function relativeTime(value: string | null, now: string, locale: string, never: 
   return formatter.format(-Math.floor(seconds / 86400), "day");
 }
 
+function utcDateTime(value: string): string {
+  return `${new Date(value).toISOString().replace("T", " ").slice(0, 19)} UTC`;
+}
+
 // Filters and both views share one URL state and one table shell.
 // eslint-disable-next-line max-lines-per-function
 export function CorporateHeartbeatReport({
@@ -65,8 +70,31 @@ export function CorporateHeartbeatReport({
   const t = useTranslations("corporateReports");
   const router = useRouter();
   const path = usePathname();
+  const selectionKey = JSON.stringify([selectedTeams, selectedEmployees, selectedStatuses]);
+  const [syncedKey, setSyncedKey] = useState(selectionKey);
+  const [selection, setSelection] = useState(() => ({
+    teams: selectedTeams,
+    employees: selectedEmployees,
+    statuses: selectedStatuses,
+  }));
+  if (syncedKey !== selectionKey) {
+    setSyncedKey(selectionKey);
+    setSelection({
+      teams: selectedTeams,
+      employees: selectedEmployees,
+      statuses: selectedStatuses,
+    });
+  }
+  const pendingQuery = useRef<URLSearchParams | null>(null);
+  const filterTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (filterTimer.current) clearTimeout(filterTimer.current);
+    },
+    [],
+  );
   const query = (changes: Record<string, string | string[] | null>) => {
-    const params = new URLSearchParams(window.location.search);
+    const params = new URLSearchParams(pendingQuery.current ?? window.location.search);
     for (const [key, value] of Object.entries(changes)) {
       params.delete(key);
       if (Array.isArray(value))
@@ -78,11 +106,23 @@ export function CorporateHeartbeatReport({
     return `${path}?${params.toString()}`;
   };
   const change = (changes: Record<string, string | string[] | null>) => {
-    router.push(query({ ...changes, page: null }));
+    if (filterTimer.current) clearTimeout(filterTimer.current);
+    const next = query({ ...changes, page: null });
+    pendingQuery.current = null;
+    router.push(next);
+  };
+  const changeFilter = (changes: Record<string, string | string[] | null>) => {
+    const next = query({ ...changes, page: null });
+    pendingQuery.current = new URLSearchParams(next.split("?")[1]);
+    if (filterTimer.current) clearTimeout(filterTimer.current);
+    filterTimer.current = setTimeout(() => {
+      pendingQuery.current = null;
+      router.replace(next, { scroll: false });
+    }, 250);
   };
   const employees = report.employees.filter(
     (employee) =>
-      selectedTeams.length === 0 || employee.team_ids.some((id) => selectedTeams.includes(id)),
+      selection.teams.length === 0 || employee.team_ids.some((id) => selection.teams.includes(id)),
   );
   const first = (report.page - 1) * report.page_size + 1;
   const last = Math.min(report.page * report.page_size, report.total);
@@ -103,30 +143,35 @@ export function CorporateHeartbeatReport({
       <div className="border-border bg-card grid gap-4 rounded-lg border p-4 md:grid-cols-[repeat(3,minmax(0,1fr))_auto] xl:items-end">
         <SearchableMultiSelect
           name="team"
-          label={selectedTeams.length ? t("team") : t("allTeams")}
+          label={selection.teams.length ? t("team") : t("allTeams")}
           searchLabel={t("searchTeams")}
           options={report.teams.map((team) => ({ value: team.id, label: team.name }))}
-          selected={selectedTeams}
+          selected={selection.teams}
           onChange={(value) => {
             const validEmployees = report.employees.filter(
               (employee) =>
                 value.length === 0 || employee.team_ids.some((id) => value.includes(id)),
             );
-            change({
+            const nextEmployees = selection.employees.filter((id) =>
+              validEmployees.some((employee) => employee.id === id),
+            );
+            setSelection({ ...selection, teams: value, employees: nextEmployees });
+            changeFilter({
               team: value,
-              employee: selectedEmployees.filter((id) => validEmployees.some((e) => e.id === id)),
+              employee: nextEmployees,
             });
           }}
           closeLabel={t("close")}
         />
         <SearchableMultiSelect
           name="employee"
-          label={selectedEmployees.length ? t("employee") : t("allEmployees")}
+          label={selection.employees.length ? t("employee") : t("allEmployees")}
           searchLabel={t("searchEmployees")}
           options={employees.map((employee) => ({ value: employee.id, label: employee.name }))}
-          selected={selectedEmployees}
+          selected={selection.employees}
           onChange={(value) => {
-            change({ employee: value });
+            setSelection({ ...selection, employees: value });
+            changeFilter({ employee: value });
           }}
           closeLabel={t("close")}
         />
@@ -184,12 +229,13 @@ export function CorporateHeartbeatReport({
           )}
           <SearchableMultiSelect
             name="status"
-            label={selectedStatuses.length ? t("status") : t("allStatuses")}
+            label={selection.statuses.length ? t("status") : t("allStatuses")}
             searchLabel={t("searchStatuses")}
             options={STATUSES.map((status) => ({ value: status, label: t(status) }))}
-            selected={selectedStatuses}
+            selected={selection.statuses}
             onChange={(value) => {
-              change({ status: value });
+              setSelection({ ...selection, statuses: value as Status[] });
+              changeFilter({ status: value });
             }}
             closeLabel={t("close")}
           />
@@ -326,7 +372,7 @@ export function CorporateHeartbeatReport({
                           key={index}
                           type="button"
                           className={`focus-visible:ring-ring h-3 min-w-0 flex-1 focus-visible:ring-2 ${BUCKET_COLORS[bucket.state]}`}
-                          title={`${new Date(bucket.start).toLocaleString(locale)}–${new Date(bucket.end).toLocaleString(locale)} · ${t("expected")}: ${bucket.expected} · ${t("received")}: ${bucket.received} · ${t("coveragePercent")}: ${bucket.expected ? Math.round((100 * Math.min(bucket.received, bucket.expected)) / bucket.expected) : 0}%`}
+                          title={`${utcDateTime(bucket.start)}–${utcDateTime(bucket.end)} · ${t("expected")}: ${bucket.expected} · ${t("received")}: ${bucket.received} · ${t("coveragePercent")}: ${bucket.expected ? Math.round((100 * Math.min(bucket.received, bucket.expected)) / bucket.expected) : 0}%`}
                           aria-label={`${t("expected")}: ${bucket.expected}, ${t("received")}: ${bucket.received}`}
                         />
                       ))}
@@ -338,12 +384,9 @@ export function CorporateHeartbeatReport({
                       {[0, 15, 30, 45, 59].map((index) => (
                         <span key={index}>
                           {row.buckets?.[index]
-                            ? new Intl.DateTimeFormat(
-                                locale,
-                                period === "24h"
-                                  ? { hour: "2-digit" }
-                                  : { day: "numeric", month: "short" },
-                              ).format(new Date(row.buckets[index].start))
+                            ? period === "24h"
+                              ? row.buckets[index].start.slice(11, 16)
+                              : row.buckets[index].start.slice(5, 10)
                             : ""}
                         </span>
                       ))}
@@ -352,11 +395,7 @@ export function CorporateHeartbeatReport({
                 )}
                 <td
                   className="px-4 py-3"
-                  title={
-                    row.last_heartbeat_at
-                      ? new Date(row.last_heartbeat_at).toLocaleString(locale)
-                      : undefined
-                  }
+                  title={row.last_heartbeat_at ? utcDateTime(row.last_heartbeat_at) : undefined}
                 >
                   {relativeTime(row.last_heartbeat_at, report.evaluated_at, locale, t("never"))}
                 </td>
