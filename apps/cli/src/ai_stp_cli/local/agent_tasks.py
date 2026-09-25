@@ -39,6 +39,7 @@ class StoredTask:
     account_id: str = ""
     precondition_digest: str = ""
     original_request_json: str = ""
+    cancel_requested_at: str = ""
 
 
 _INSPECT = "inspect"
@@ -179,8 +180,8 @@ def insert(connection: sqlite3.Connection, row: StoredTask) -> StoredTask:
             payload_json, outcome_json, questions_json, child_operation_ids_json,
             created_at, updated_at,
             harness_id, project_root, scope, account_id, precondition_digest,
-            original_request_json
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            original_request_json, cancel_requested_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             row.task_id,
@@ -201,6 +202,7 @@ def insert(connection: sqlite3.Connection, row: StoredTask) -> StoredTask:
             row.account_id,
             row.precondition_digest,
             row.original_request_json,
+            row.cancel_requested_at,
         ),
     )
     return row
@@ -224,7 +226,8 @@ def replace(connection: sqlite3.Connection, row: StoredTask) -> StoredTask:
             scope = ?,
             account_id = ?,
             precondition_digest = ?,
-            original_request_json = ?
+            original_request_json = ?,
+            cancel_requested_at = ?
         WHERE task_id = ?
         """,
         (
@@ -242,6 +245,7 @@ def replace(connection: sqlite3.Connection, row: StoredTask) -> StoredTask:
             row.account_id,
             row.precondition_digest,
             row.original_request_json,
+            row.cancel_requested_at,
             row.task_id,
         ),
     )
@@ -404,6 +408,16 @@ def cancelled(row: StoredTask, *, at: str) -> StoredTask:
     )
 
 
+def request_cancel(row: StoredTask, *, at: str) -> StoredTask:
+    """Flag cancellation without settling: effects and references stay resumable.
+
+    Terminal `cancelled` is only written once the declared effects are
+    settled — by the live executor's own commit, or by the continue that
+    reconciles a dead executor's children.
+    """
+    return evolve(row, revision=row.revision + 1, cancel_requested_at=at, updated_at=at)
+
+
 def empty_list_json() -> str:
     return canonize([]).decode("utf-8")
 
@@ -428,4 +442,5 @@ def _stored(row: sqlite3.Row) -> StoredTask:
         account_id=str(row["account_id"] or ""),
         precondition_digest=str(row["precondition_digest"] or ""),
         original_request_json=str(row["original_request_json"] or ""),
+        cancel_requested_at=str(row["cancel_requested_at"] or ""),
     )

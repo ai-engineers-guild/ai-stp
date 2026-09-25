@@ -1479,6 +1479,12 @@ MIGRATIONS: Final[tuple[Migration, ...]] = (
         up=("ALTER TABLE agent_task ADD COLUMN original_request_json TEXT NOT NULL DEFAULT ''",),
         down=("ALTER TABLE agent_task DROP COLUMN original_request_json",),
     ),
+    Migration(
+        version=49,
+        summary="cancellation is a request until executor and effects settle",
+        up=("ALTER TABLE agent_task ADD COLUMN cancel_requested_at TEXT NOT NULL DEFAULT ''",),
+        down=("ALTER TABLE agent_task DROP COLUMN cancel_requested_at",),
+    ),
 )
 
 #: Names for nested savepoints. A counter rather than a fixed name: two nested

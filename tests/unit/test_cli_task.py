@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import os
+import threading
 import time
 from contextlib import closing
 from dataclasses import replace as evolve
@@ -354,14 +356,23 @@ def test_inspect_continue_is_idempotent_once_completed() -> None:
     assert again.payload.state == "completed"
 
 
-def test_concurrent_continue_on_one_revision_has_one_winner() -> None:
+def test_concurrent_continue_on_one_revision_has_one_executor(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Two callers race the same blocked revision: exactly one drains.
+
+    The loser joins the live executor's bounded wait instead of claiming a
+    fresh revision beside it — and never enters a second drain.
+    """
     from concurrent.futures import ThreadPoolExecutor
 
-    started = task_command.start(
-        {"intent": "initialize", "idempotency-key": "inspect-concurrent-01"}
-    )
-    assert started.payload.state == "blocked"
-    parameters = {"task": started.payload.task_id, "revision": started.payload.revision}
+    from ai_stp_cli.application import task as task_service
+
+    monkeypatch.setattr(task_service, "RUNNING_JOIN_SECONDS", 1.0)
+    monkeypatch.setattr(task_service, "RUNNING_JOIN_POLL_SECONDS", 0.05)
+    row = _planned_inspect("inspect-concurrent-01")
+    entered, release, entries = _barrier_drain(monkeypatch)
+    parameters = {"task": row.task_id, "revision": row.revision}
     won: list[Answer[TaskView]] = []
     lost: list[CliFailure] = []
 
@@ -372,14 +383,253 @@ def test_concurrent_continue_on_one_revision_has_one_winner() -> None:
             lost.append(error)
 
     with ThreadPoolExecutor(max_workers=2) as pool:
-        futures = [pool.submit(work), pool.submit(work)]
-        for future in futures:
-            future.result()
-    assert len(won) == 1
-    assert won[0].payload.state == "blocked"
-    assert won[0].payload.questions[0].question_id == "harness-id"
-    assert len(lost) == 1
-    assert lost[0].code == "AI_STP_CONFLICT"
+        racers = [pool.submit(work), pool.submit(work)]
+        assert entered.wait(timeout=10)
+        # While one executor drains, the other waits its bounded join.
+        time.sleep(0.2)
+        release.set()
+        for racer in racers:
+            racer.result(timeout=10)
+    assert entries == [1]
+    assert len(won) + len(lost) == 2
+    assert all(error.code == "AI_STP_CONFLICT" for error in lost)
+    assert all(item.payload.task_id == row.task_id for item in won)
+    # One drain ran; the other caller joined it (settled or in-progress
+    # view) or lost the stale-revision conflict — never a second drain.
+    assert any(item.payload.state == "completed" for item in won)
+    assert all(item.payload.state in {"planned", "running", "completed"} for item in won)
+
+
+def _planned_inspect(key: str) -> StoredTask:
+    """A minted inspect row: start would drain it, so tests insert it directly."""
+    at = moment()
+    row = StoredTask(
+        task_id=new_id("task"),
+        revision=1,
+        intent="inspect",
+        state="planned",
+        goal_satisfied=False,
+        idempotency_key=key,
+        payload_json=agent_tasks.payload_document("inspect", {}),
+        outcome_json=None,
+        questions_json=agent_tasks.empty_list_json(),
+        child_operation_ids_json=agent_tasks.empty_list_json(),
+        created_at=at,
+        updated_at=at,
+    )
+    with (
+        closing(open_registry(configured_path(), create=True)) as connection,
+        transaction(connection),
+    ):
+        agent_tasks.insert(connection, row)
+    return row
+
+
+def _barrier_drain(
+    monkeypatch: pytest.MonkeyPatch,
+) -> tuple[threading.Event, threading.Event, list[int]]:
+    """Hold the inspect drain at a barrier and count how often it is entered."""
+    from ai_stp_cli.application import task as task_service
+
+    entered = threading.Event()
+    release = threading.Event()
+    entries: list[int] = []
+
+    def held() -> object:
+        entries.append(1)
+        entered.set()
+        assert release.wait(timeout=30)
+        return inspect_doctor()
+
+    monkeypatch.setattr(task_service, "doctor", held)
+    return entered, release, entries
+
+
+def test_continue_on_a_live_executor_joins_instead_of_draining(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The running revision is not permission for a second drain.
+
+    Caller A holds the executor lease inside a barriered drain; caller B,
+    armed only with the observed running revision, joins the bounded wait
+    rather than entering a parallel drain.
+    """
+    from concurrent.futures import ThreadPoolExecutor
+
+    from ai_stp_cli.application import task as task_service
+
+    monkeypatch.setattr(task_service, "RUNNING_JOIN_SECONDS", 1.0)
+    monkeypatch.setattr(task_service, "RUNNING_JOIN_POLL_SECONDS", 0.05)
+    row = _planned_inspect("inspect-live-executor-01")
+    entered, release, entries = _barrier_drain(monkeypatch)
+    joined: list[Answer[TaskView]] = []
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        executor = pool.submit(
+            task_command.continue_, {"task": row.task_id, "revision": row.revision}
+        )
+        assert entered.wait(timeout=10)
+        observed = task_command.status({"task": row.task_id})
+        assert observed.payload.state == "running"
+        assert observed.continuations[0].actor == "external"
+        joined.append(
+            pool.submit(
+                task_command.continue_,
+                {"task": row.task_id, "revision": observed.payload.revision},
+            ).result(timeout=10)
+        )
+        # The second caller waited out its join bound without entering a drain.
+        assert entries == [1]
+        assert joined[0].payload.state == "running"
+        assert joined[0].continuations[0].actor == "external"
+        release.set()
+        finished = executor.result(timeout=10)
+    assert finished.payload.state == "completed"
+    assert entries == [1]
+
+
+def test_a_dead_executors_running_row_is_recovered_by_the_next_continue() -> None:
+    """A `running` row whose lease is free names a dead owner, not a rival."""
+    row = _planned_inspect("inspect-dead-executor-01")
+    claimed = agent_tasks.claim(row, at=moment())
+    with (
+        closing(open_registry(configured_path(), create=True)) as connection,
+        transaction(connection),
+    ):
+        agent_tasks.replace(connection, claimed)
+
+    status = task_command.status({"task": row.task_id})
+    assert status.payload.state == "running"
+    # No live executor holds the lease: continuing is the safe recovery.
+    assert status.continuations[0].actor == "cli"
+
+    recovered = task_command.continue_({"task": row.task_id, "revision": claimed.revision})
+    assert recovered.payload.state == "completed"
+    assert recovered.payload.goal_satisfied is True
+
+
+@pytest.mark.skipif(os.name != "posix", reason="flock release on death is POSIX-verified")
+def test_the_lease_dies_with_the_executor_process() -> None:
+    """Two real processes: the OS releases the lock when the holder is killed."""
+    import signal
+    import subprocess
+    import sys
+
+    from ai_stp_cli.local import executor_lease
+
+    task_id = new_id("task")
+    holder = subprocess.Popen(
+        [
+            sys.executable,
+            "-c",
+            (
+                "import fcntl, os, sys, time\n"
+                "path = sys.argv[1]\n"
+                "fd = os.open(path, os.O_CREAT | os.O_RDWR, 0o600)\n"
+                "fcntl.flock(fd, fcntl.LOCK_EX)\n"
+                "open(path + '.held', 'w').close()\n"
+                "time.sleep(60)\n"
+            ),
+            str(executor_lease._path(task_id)),  # pyright: ignore[reportPrivateUsage]
+        ]
+    )
+    try:
+        deadline = time.monotonic() + 10
+        while not executor_lease.held(task_id):
+            assert time.monotonic() < deadline, "the holder never took the lease"
+            time.sleep(0.05)
+    finally:
+        holder.send_signal(signal.SIGKILL)
+        holder.wait(timeout=10)
+    deadline = time.monotonic() + 10
+    while executor_lease.held(task_id):
+        assert time.monotonic() < deadline, "the OS never released the lease"
+        time.sleep(0.05)
+
+
+def test_cancel_before_effects_settles_immediately() -> None:
+    """No children, no outcome, no live executor: nothing could have happened."""
+    started = task_command.start(
+        {"intent": "initialize", "idempotency-key": "inspect-cancel-prefx-01"}
+    )
+    assert started.payload.state == "blocked"
+    cancelled = task_command.cancel(
+        {"task": started.payload.task_id, "revision": started.payload.revision}
+    )
+    assert cancelled.payload.state == "cancelled"
+
+
+def test_cancel_during_a_live_drain_settles_at_the_drain_boundary(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A live executor cannot be terminalized by the cancel call itself.
+
+    The request is recorded; the drain's own commit honors it, and the
+    outcome it produced stays attached so `cancelled` is never 'nothing
+    happened'.
+    """
+    from concurrent.futures import ThreadPoolExecutor
+
+    row = _planned_inspect("inspect-cancel-live-01")
+    entered, release, _entries = _barrier_drain(monkeypatch)
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        executor = pool.submit(
+            task_command.continue_, {"task": row.task_id, "revision": row.revision}
+        )
+        assert entered.wait(timeout=10)
+        observed = task_command.status({"task": row.task_id})
+        requested = task_command.cancel(
+            {"task": row.task_id, "revision": observed.payload.revision}
+        )
+        # The task is still running: cancellation is a request, not a verdict.
+        assert requested.payload.state == "running"
+        release.set()
+        finished = executor.result(timeout=10)
+    assert finished.payload.state == "cancelled"
+    assert finished.payload.goal_satisfied is True
+    assert finished.payload.outcome is not None
+    assert finished.payload.outcome.kind == "inspect"
+    with pytest.raises(CliFailure) as raised:
+        task_command.continue_({"task": row.task_id, "revision": finished.payload.revision})
+    assert raised.value.code == "AI_STP_CONFLICT"
+
+
+def test_cancel_of_a_dead_executor_recovers_then_settles() -> None:
+    """Cancellation of an abandoned running row keeps the resumable path:
+    a later continue reconciles the drain and then settles cancelled."""
+    row = _planned_inspect("inspect-cancel-dead-01")
+    claimed = agent_tasks.claim(row, at=moment())
+    held = agent_tasks.with_children(claimed, ("operation_testchild01",), at=moment())
+    with (
+        closing(open_registry(configured_path(), create=True)) as connection,
+        transaction(connection),
+    ):
+        agent_tasks.replace(connection, held)
+
+    requested = task_command.cancel({"task": row.task_id, "revision": held.revision})
+    # Not terminal: the recorded child may already have had an effect.
+    assert requested.payload.state == "running"
+    assert requested.payload.child_operation_ids == ["operation_testchild01"]
+    # A free lease marks the row as recoverable, not as settled.
+    assert requested.continuations[0].actor == "cli"
+
+    settled = task_command.continue_({"task": row.task_id, "revision": requested.payload.revision})
+    assert settled.payload.state == "cancelled"
+    assert settled.payload.child_operation_ids == ["operation_testchild01"]
+    assert settled.payload.outcome is not None
+
+
+def test_cancel_requested_twice_is_one_request() -> None:
+    row = _planned_inspect("inspect-cancel-twice-01")
+    claimed = agent_tasks.claim(row, at=moment())
+    with (
+        closing(open_registry(configured_path(), create=True)) as connection,
+        transaction(connection),
+    ):
+        agent_tasks.replace(connection, claimed)
+    first = task_command.cancel({"task": row.task_id, "revision": claimed.revision})
+    second = task_command.cancel({"task": row.task_id, "revision": first.payload.revision})
+    assert second.payload.state == "running"
 
 
 def test_stale_revision_is_a_conflict() -> None:
