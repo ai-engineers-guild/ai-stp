@@ -1189,10 +1189,13 @@ def test_concurrent_continue_argv_has_one_winner(capsys: pytest.CaptureFixture[s
         futures = [pool.submit(work), pool.submit(work)]
         for future in futures:
             future.result()
-    assert len(won) == 1
-    assert len(lost) == 1
-    assert lost[0].code == "AI_STP_CONFLICT"
-    assert won[0].payload.state == "blocked"
+    # One executor drains; the second caller joins its committed result or
+    # conflicts on the stale revision — it never runs a parallel drain.
+    assert len(won) + len(lost) == 2
+    assert all(error.code == "AI_STP_CONFLICT" for error in lost)
+    assert all(item.payload.task_id == payload["task_id"] for item in won)
+    assert any(item.payload.state == "blocked" for item in won)
+    assert all(item.payload.state in {"blocked", "planned", "running"} for item in won)
 
 
 def _first_argv(body: dict[str, object]) -> list[str]:

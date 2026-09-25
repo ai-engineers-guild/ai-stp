@@ -32,7 +32,7 @@ from ai_stp_cli.application.install_task import drain as drain_install
 from ai_stp_cli.application.publish import drain as drain_publish
 from ai_stp_cli.application.switch import drain as drain_switch
 from ai_stp_cli.errors import CliFailure, field_issues, internal_failure
-from ai_stp_cli.local import agent_tasks
+from ai_stp_cli.local import agent_tasks, executor_lease
 from ai_stp_cli.local.agent_tasks import StoredTask
 from ai_stp_cli.local.database import configured_path, open_registry, transaction
 from ai_stp_cli.local.passports import moment
@@ -338,8 +338,41 @@ def continue_task(parameters: Mapping[str, object]) -> Answer[TaskView]:
             "the task is already settled",
             details={"task": row.task_id, "state": row.state},
         )
-    claimed = _commit_if_current(row, agent_tasks.claim(row, at=moment()))
-    return _drain_claimed(claimed)
+    return _execute_or_join(row)
+
+
+def _execute_or_join(row: StoredTask) -> Answer[TaskView]:
+    """Drain under the task's executor lease, or join a live executor's wait.
+
+    A fresh revision is not permission to take over a running drain: only the
+    lease decides liveness. While it is held the caller joins a bounded wait;
+    once it frees — a settled row, or a dead executor's running row the next
+    caller recovers — the CAS claim runs under the lease, never beside it.
+    """
+    deadline = time.monotonic() + RUNNING_JOIN_SECONDS
+    current = row
+    while True:
+        if current.state in SETTLED:
+            return _observed_answer(agent_tasks.view_of(current))
+        lease = executor_lease.try_acquire(row.task_id)
+        if lease is not None:
+            try:
+                claimed = _commit_if_current(current, agent_tasks.claim(current, at=moment()))
+                return _drain_claimed(claimed)
+            finally:
+                lease.release()
+        if time.monotonic() >= deadline:
+            # A live executor may still be draining; the running or planned
+            # view with its liveness-marked continuation is the bounded
+            # in-progress result, never a second drain.
+            return _observed_answer(agent_tasks.view_of(current))
+        time.sleep(RUNNING_JOIN_POLL_SECONDS)
+        current = _fresh(row.task_id)
+
+
+def _fresh(task_id: str) -> StoredTask:
+    with closing(open_registry(configured_path(), create=False)) as connection:
+        return _held(connection, task_id)
 
 
 def _drain_claimed(claimed: StoredTask) -> Answer[TaskView]:
@@ -411,8 +444,29 @@ def answer_task(parameters: Mapping[str, object]) -> Answer[TaskView]:
         payload_json=agent_tasks.payload_document(row.intent, merged),
         questions_json=agent_tasks.empty_list_json(),
     )
-    claimed = _commit_if_current(row, agent_tasks.claim(holding, at=moment()))
-    return _drain_claimed(claimed)
+    return _claim_and_drain(row, holding)
+
+
+def _claim_and_drain(row: StoredTask, base: StoredTask) -> Answer[TaskView]:
+    """Claim `base` under the executor lease; a live executor is joined, not doubled."""
+    lease = executor_lease.try_acquire(row.task_id)
+    if lease is None:
+        return _wait_for_executor(row)
+    try:
+        claimed = _commit_if_current(row, agent_tasks.claim(base, at=moment()))
+        return _drain_claimed(claimed)
+    finally:
+        lease.release()
+
+
+def _wait_for_executor(row: StoredTask) -> Answer[TaskView]:
+    """Bounded join: a live drain settles, or the caller retries its request."""
+    deadline = time.monotonic() + RUNNING_JOIN_SECONDS
+    current = row
+    while current.state == "running" and time.monotonic() < deadline:
+        time.sleep(RUNNING_JOIN_POLL_SECONDS)
+        current = _fresh(row.task_id)
+    return _observed_answer(agent_tasks.view_of(current))
 
 
 def status(parameters: Mapping[str, object]) -> Answer[TaskView]:
@@ -425,10 +479,18 @@ def status(parameters: Mapping[str, object]) -> Answer[TaskView]:
             "the task is not held by this registry",
             details={"task": task_id},
         )
-    return _answer(agent_tasks.view_of(row))
+    return _observed_answer(agent_tasks.view_of(row))
 
 
 def cancel(parameters: Mapping[str, object]) -> Answer[TaskView]:
+    """Cancellation is a request until the executor and its effects settle.
+
+    A task with no recorded children, no outcome and no live executor settles
+    immediately — nothing it did can have happened. Everything else keeps its
+    resumable row: a live executor finishes its drain and settles `cancelled`
+    at its own commit boundary, while a dead executor's `running` row keeps
+    the child references for the continue that reconciles them.
+    """
     row = _load_for_write(parameters)
     if row.state in SETTLED:
         raise CliFailure(
@@ -436,6 +498,11 @@ def cancel(parameters: Mapping[str, object]) -> Answer[TaskView]:
             "the task is already settled",
             details={"task": row.task_id, "state": row.state},
         )
+    live = executor_lease.held(row.task_id)
+    effects = bool(_children_of(row)) or row.outcome_json is not None
+    if live or row.state == "running" or effects:
+        updated = _commit_if_current(row, agent_tasks.request_cancel(row, at=moment()))
+        return _observed_answer(agent_tasks.view_of(updated))
     updated = _commit_if_current(row, agent_tasks.cancelled(row, at=moment()))
     return _answer(agent_tasks.view_of(updated))
 
@@ -624,7 +691,9 @@ def _drain(row: StoredTask) -> Answer[TaskView]:
     at = moment()
     if row.intent == INSPECT_INTENT:
         outcome: TaskOutcome = TaskInspectOutcome(doctor=doctor(), orientation=orientation())
-        updated = _commit_if_current(row, agent_tasks.with_outcome(row, outcome, at=at))
+        updated = _commit_if_current(
+            row, agent_tasks.with_outcome(row, outcome, at=at), settle_cancel=True
+        )
         return _answer(agent_tasks.view_of(updated))
     if row.intent == INITIALIZE_INTENT:
         facts = _facts_of(row)
@@ -634,9 +703,13 @@ def _drain(row: StoredTask) -> Answer[TaskView]:
             _failed_drain(row, error, at=at)
             raise
         if result.outcome is not None:
-            updated = _commit_if_current(row, agent_tasks.with_outcome(row, result.outcome, at=at))
+            updated = _commit_if_current(
+                row, agent_tasks.with_outcome(row, result.outcome, at=at), settle_cancel=True
+            )
             return _answer(agent_tasks.view_of(updated))
-        updated = _commit_if_current(row, agent_tasks.with_questions(row, result.questions, at=at))
+        updated = _commit_if_current(
+            row, agent_tasks.with_questions(row, result.questions, at=at), settle_cancel=True
+        )
         return _answer(agent_tasks.view_of(updated))
     if row.intent == INSTALL_INTENT:
         facts = _facts_of(row)
@@ -670,9 +743,12 @@ def _drain(row: StoredTask) -> Answer[TaskView]:
                     goal_satisfied=result.outcome.verified,
                     child_operation_ids=result.child_operation_ids,
                 ),
+                settle_cancel=True,
             )
             return _answer(agent_tasks.view_of(updated))
-        updated = _commit_if_current(row, agent_tasks.with_questions(row, result.questions, at=at))
+        updated = _commit_if_current(
+            row, agent_tasks.with_questions(row, result.questions, at=at), settle_cancel=True
+        )
         return _answer(agent_tasks.view_of(updated))
     if row.intent == CHANGE_INTENT:
         facts = _facts_of(row)
@@ -691,9 +767,12 @@ def _drain(row: StoredTask) -> Answer[TaskView]:
                     goal_satisfied=result.outcome.verified,
                     child_operation_ids=result.child_operation_ids,
                 ),
+                settle_cancel=True,
             )
             return _answer(agent_tasks.view_of(updated))
-        updated = _commit_if_current(row, agent_tasks.with_questions(row, result.questions, at=at))
+        updated = _commit_if_current(
+            row, agent_tasks.with_questions(row, result.questions, at=at), settle_cancel=True
+        )
         return _answer(agent_tasks.view_of(updated))
     if row.intent == AUTHOR_INTENT:
         facts = _facts_of(row)
@@ -712,9 +791,12 @@ def _drain(row: StoredTask) -> Answer[TaskView]:
                     goal_satisfied=True,
                     child_operation_ids=result.child_operation_ids,
                 ),
+                settle_cancel=True,
             )
             return _answer(agent_tasks.view_of(updated))
-        updated = _commit_if_current(row, agent_tasks.with_questions(row, result.questions, at=at))
+        updated = _commit_if_current(
+            row, agent_tasks.with_questions(row, result.questions, at=at), settle_cancel=True
+        )
         return _answer(agent_tasks.view_of(updated))
     if row.intent == SWITCH_INTENT:
         facts = _facts_of(row)
@@ -733,6 +815,7 @@ def _drain(row: StoredTask) -> Answer[TaskView]:
                     goal_satisfied=True,
                     child_operation_ids=result.child_operation_ids,
                 ),
+                settle_cancel=True,
             )
             return _answer(agent_tasks.view_of(updated))
         updated = _commit_if_current(
@@ -744,6 +827,7 @@ def _drain(row: StoredTask) -> Answer[TaskView]:
                 facts=result.facts,
                 child_operation_ids=result.child_operation_ids or None,
             ),
+            settle_cancel=True,
         )
         return _answer(agent_tasks.view_of(updated))
     if row.intent == ACCOUNT_INTENT:
@@ -767,6 +851,7 @@ def _drain(row: StoredTask) -> Answer[TaskView]:
                     state="planned" if result.advance else "completed",
                     child_operation_ids=result.child_operation_ids,
                 ),
+                settle_cancel=True,
             )
             return _answer(agent_tasks.view_of(updated))
         updated = _commit_if_current(
@@ -778,6 +863,7 @@ def _drain(row: StoredTask) -> Answer[TaskView]:
                 facts=result.facts,
                 child_operation_ids=result.child_operation_ids or None,
             ),
+            settle_cancel=True,
         )
         return _answer(agent_tasks.view_of(updated))
     if row.intent == PUBLISH_INTENT:
@@ -808,6 +894,7 @@ def _drain(row: StoredTask) -> Answer[TaskView]:
                     questions=result.questions,
                     child_operation_ids=result.child_operation_ids,
                 ),
+                settle_cancel=True,
             )
             return _answer(agent_tasks.view_of(updated))
         updated = _commit_if_current(
@@ -819,6 +906,7 @@ def _drain(row: StoredTask) -> Answer[TaskView]:
                 facts=result.facts,
                 child_operation_ids=result.child_operation_ids or None,
             ),
+            settle_cancel=True,
         )
         return _answer(agent_tasks.view_of(updated))
     error = CliFailure(
@@ -850,13 +938,17 @@ def _load_for_write(parameters: Mapping[str, object]) -> StoredTask:
     return row
 
 
-def _commit_if_current(expected: StoredTask, updated: StoredTask) -> StoredTask:
+def _commit_if_current(
+    expected: StoredTask, updated: StoredTask, *, settle_cancel: bool = False
+) -> StoredTask:
     with (
         closing(open_registry(configured_path(), create=False)) as connection,
         transaction(connection),
     ):
         current = _held(connection, expected.task_id)
-        if current.revision != expected.revision:
+        diverged = current.revision != expected.revision
+        flagged = bool(current.cancel_requested_at)
+        if diverged and not (settle_cancel and flagged):
             raise CliFailure(
                 "AI_STP_CONFLICT",
                 "the task revision does not match",
@@ -865,6 +957,19 @@ def _commit_if_current(expected: StoredTask, updated: StoredTask) -> StoredTask:
                     "expected": str(expected.revision),
                     "found": str(current.revision),
                 },
+            )
+        if settle_cancel and flagged:
+            # While this drain holds the executor lease, the only write that
+            # may land beside it is the cancellation request — claims and
+            # children all travel under the lease. The drain's declared
+            # effects are settled by this commit, so honor the request: the
+            # row becomes cancelled on top of the flag writes, keeping the
+            # outcome and child references that describe what happened.
+            updated = evolve(
+                updated,
+                revision=current.revision + 1,
+                state="cancelled",
+                cancel_requested_at=current.cancel_requested_at,
             )
         _refuse_overlap(connection, updated)
         try:
@@ -968,6 +1073,37 @@ def _attach_running_continue(failure: CliFailure, task_id: str) -> CliFailure:
     failure.continuations = [held]
     failure.next_actions = [continuation_command(held)]
     return failure
+
+
+def _observed_answer(view: TaskView) -> Answer[TaskView]:
+    """The outside view of an unsettled task.
+
+    A `running` row under a held lease names a live executor — the caller
+    waits (`external`). The same row with a free lease means the owner died;
+    continuing is the safe recovery, so it stays `cli`.
+    """
+    if view.state in {"planned", "running"} and executor_lease.held(view.task_id):
+        return Answer(
+            view,
+            continuations=(
+                Continuation(
+                    kind="advance",
+                    path=["task", "continue"],
+                    arguments={"task": view.task_id, "revision": view.revision},
+                    argv=[
+                        "task",
+                        "continue",
+                        "--task",
+                        view.task_id,
+                        "--revision",
+                        str(view.revision),
+                        "--json",
+                    ],
+                    actor="external",
+                ),
+            ),
+        )
+    return _answer(view)
 
 
 def _answer(view: TaskView) -> Answer[TaskView]:
