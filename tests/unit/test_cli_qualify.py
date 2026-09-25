@@ -4,20 +4,21 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import cast
 
 import pytest
 
 from ai_stp_cli.application.qualify import (
+    AGENT_RUNS,
+    AGENT_SCENARIOS,
     AGY_MODEL,
-    HAIKU_RUNS,
-    HAIKU_SCENARIOS,
     MEASURED_ENV,
     PLATFORMS,
     PROMOTION_STAGES,
+    agent_cells,
+    agent_from_document,
     content_digest,
     extra_status,
-    haiku_cells,
-    haiku_from_document,
     isolation_from_document,
     load_measured,
     native_cells,
@@ -41,15 +42,15 @@ KIT_IDENTITY = ROOT / "provider-kit" / "v3" / "KIT-IDENTITY.json"
 AGENTS_MD = ROOT / "apps" / "web" / "src" / "app" / "agents.md" / "route.ts"
 
 
-def test_native_and_haiku_cells_are_not_run() -> None:
+def test_native_and_agent_cells_are_not_run() -> None:
     native = native_cells()
-    haiku = haiku_cells()
+    agent = agent_cells()
     assert len(native) == len(HARNESS_ID_ORDER) * len(PLATFORMS) == 21
-    assert len(haiku) == len(HAIKU_SCENARIOS) * HAIKU_RUNS == 100
+    assert len(agent) == len(AGENT_SCENARIOS) * AGENT_RUNS == 100
     assert set(native.values()) == {"not_run"}
-    assert set(haiku.values()) == {"not_run"}
-    assert len(HAIKU_SCENARIOS) == 20
-    assert len(set(HAIKU_SCENARIOS)) == 20
+    assert set(agent.values()) == {"not_run"}
+    assert len(AGENT_SCENARIOS) == 20
+    assert len(set(AGENT_SCENARIOS)) == 20
 
 
 def test_promotion_stages_are_not_run() -> None:
@@ -104,7 +105,7 @@ def test_measured_overlay_does_not_fill_unrun_cells(tmp_path: Path) -> None:
     place.write_text(
         json.dumps(
             {
-                "haiku": {
+                "agent": {
                     "no-reinit-on-coding:0": "pass",
                     "no-reinit-on-coding:1": "fail",
                     "unknown-scenario:0": "pass",
@@ -118,14 +119,14 @@ def test_measured_overlay_does_not_fill_unrun_cells(tmp_path: Path) -> None:
         encoding="utf-8",
     )
     document = load_measured(place)
-    haiku = haiku_cells(measured=haiku_from_document(document))
+    agent = agent_cells(measured=agent_from_document(document))
     native = native_cells(measured=native_from_document(document))
     promotion = promotion_status(measured=promotion_from_document(document))
-    assert haiku[("no-reinit-on-coding", 0)] == "pass"
-    assert haiku[("no-reinit-on-coding", 1)] == "fail"
-    assert haiku[("no-reinit-on-coding", 2)] == "not_run"
-    assert haiku[("install-exact-pin", 0)] == "not_run"
-    assert ("unknown-scenario", 0) not in haiku
+    assert agent[("no-reinit-on-coding", 0)] == "pass"
+    assert agent[("no-reinit-on-coding", 1)] == "fail"
+    assert agent[("no-reinit-on-coding", 2)] == "not_run"
+    assert agent[("install-exact-pin", 0)] == "not_run"
+    assert ("unknown-scenario", 0) not in agent
     assert native[("cursor", "linux-x86_64")] == "pass"
     assert ("cursor", "sparc") not in native
     assert promotion["source_merged"] == "fail"
@@ -138,9 +139,9 @@ def test_report_is_json_safe_and_keeps_unrun_cells() -> None:
     dumped = json.dumps(shown)
     parsed = json.loads(dumped)
     assert parsed["agy_model"] == AGY_MODEL == "gpt-oss-120b-medium"
-    haiku = parsed["haiku"]
-    assert haiku["no-reinit-on-coding:0"] == "not_run"
-    assert len(haiku) == 100
+    agent = parsed["agent"]
+    assert agent["no-reinit-on-coding:0"] == "not_run"
+    assert len(agent) == 100
     native = parsed["native"]
     assert len(native) == 21
     assert set(native.values()) == {"not_run"}
@@ -177,13 +178,13 @@ def test_native_tree_digest_frames_file_boundaries(tmp_path: Path) -> None:
     assert tree_digest(one) != tree_digest(two)
 
 
-@pytest.mark.parametrize("model", ["claude-haiku-4-5", "gpt-oss-120b-medium", None, "", 12])
+@pytest.mark.parametrize("model", ["other-model", "gpt-oss-120b-medium", None, "", 12])
 def test_report_preserves_measured_model_identity(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, model: object
 ) -> None:
     place = tmp_path / "measured.json"
     place.write_text(
-        json.dumps({"agy_model": model, "haiku": {"no-reinit-on-coding:0": "pass"}}),
+        json.dumps({"agy_model": model, "agent": {"no-reinit-on-coding:0": "pass"}}),
         encoding="utf-8",
     )
     monkeypatch.setenv(MEASURED_ENV, str(place))
@@ -217,18 +218,40 @@ def test_native_config_root_honours_opencode_xdg(tmp_path: Path) -> None:
 def test_report_reads_measured_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     place = tmp_path / "measured.json"
     place.write_text(
-        json.dumps({"haiku": {"no-reinit-on-coding:0": "pass"}}),
+        json.dumps({"agent": {"no-reinit-on-coding:0": "pass"}}),
         encoding="utf-8",
     )
     monkeypatch.setenv(MEASURED_ENV, str(place))
     shown = report()
-    haiku = shown["haiku"]
-    assert isinstance(haiku, dict)
-    assert haiku["no-reinit-on-coding:0"] == "pass"
-    assert haiku["no-reinit-on-coding:1"] == "not_run"
+    agent = shown["agent"]
+    assert isinstance(agent, dict)
+    assert agent["no-reinit-on-coding:0"] == "pass"
+    assert agent["no-reinit-on-coding:1"] == "not_run"
     isolation = shown["isolation"]
     assert isinstance(isolation, dict)
     assert isolation["status"] == "not_run"
+
+
+def test_historical_haiku_overlay_does_not_qualify_the_agent_matrix(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    place = tmp_path / "historical.json"
+    place.write_text(
+        json.dumps(
+            {
+                "agy_model": "claude-haiku-4-5",
+                "haiku": {"no-reinit-on-coding:0": "pass"},
+            }
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setenv(MEASURED_ENV, str(place))
+    shown = report()
+    agent = shown["agent"]
+    assert isinstance(agent, dict)
+    assert set(cast(dict[str, object], agent).values()) == {"not_run"}
+    assert "haiku" not in shown
+    assert shown["agy_model"] == AGY_MODEL
 
 
 def test_isolation_overlay_does_not_fill_native_cells(tmp_path: Path) -> None:

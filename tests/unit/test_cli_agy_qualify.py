@@ -76,7 +76,7 @@ from ai_stp_cli.agy_qualify import (
     write_isolation,
     write_native_cell,
 )
-from ai_stp_cli.application.qualify import AGY_MODEL, HAIKU_RUNS, HAIKU_SCENARIOS
+from ai_stp_cli.application.qualify import AGENT_RUNS, AGENT_SCENARIOS, AGY_MODEL
 from ai_stp_contracts.cli_copy import INITIALIZE_PROMPT, INITIALIZE_START
 
 
@@ -308,7 +308,7 @@ def _drive_initialize_limitation(workspace: Workspace) -> None:
 
 
 def test_supported_scenarios_are_the_full_corpus() -> None:
-    assert frozenset(HAIKU_SCENARIOS) == SUPPORTED_SCENARIOS
+    assert frozenset(AGENT_SCENARIOS) == SUPPORTED_SCENARIOS
     assert KILL_AFTER in SUPPORTED_SCENARIOS
     assert CONCURRENT in SUPPORTED_SCENARIOS
     assert COMPENSATED in SUPPORTED_SCENARIOS
@@ -740,8 +740,8 @@ def test_unknown_scenario_exits_before_agy(tmp_path: Path) -> None:
     assert code == 2
 
 
-def test_every_haiku_scenario_has_a_prompt_and_score(tmp_path: Path) -> None:
-    for scenario in HAIKU_SCENARIOS:
+def test_every_agent_scenario_has_a_prompt_and_score(tmp_path: Path) -> None:
+    for scenario in AGENT_SCENARIOS:
         workspace = prepare_workspace(tmp_path / scenario, scenario=scenario)
         assert prompt_for(scenario, workspace)
         assert score(scenario, workspace) in {"pass", "fail"}
@@ -984,19 +984,19 @@ def test_publish_score_requires_authorization_or_filesystem(tmp_path: Path) -> N
 
 
 def test_unrun_cells_skip_scored_pass_and_fail() -> None:
-    haiku = {
+    agent = {
         f"{RELATIVE_ROOT}:0": "pass",
         f"{RELATIVE_ROOT}:1": "pass",
         f"{RELATIVE_ROOT}:2": "pass",
         f"{RELATIVE_ROOT}:3": "pass",
         f"{AUTHOR_DIR}:1": "fail",
     }
-    pending = unrun_cells(haiku)
+    pending = unrun_cells(agent)
     assert (RELATIVE_ROOT, 0) not in pending
     assert (RELATIVE_ROOT, 4) in pending
     assert (AUTHOR_DIR, 1) not in pending
     assert (AUTHOR_DIR, 0) in pending
-    assert pending[0] == (HAIKU_SCENARIOS[0], 0)
+    assert pending[0] == (AGENT_SCENARIOS[0], 0)
 
 
 def test_fill_requires_root_and_measured() -> None:
@@ -1026,13 +1026,13 @@ def test_write_cell_refuses_an_unknown_scenario(tmp_path: Path) -> None:
         write_cell(tmp_path / "measured.json", "not-a-scenario", 0, "pass")
     write_cell(tmp_path / "measured.json", NO_REINIT, 0, "pass")
     body = json.loads((tmp_path / "measured.json").read_text(encoding="utf-8"))
-    assert body["haiku"][f"{NO_REINIT}:0"] == "pass"
-    assert NO_REINIT in HAIKU_SCENARIOS
+    assert body["agent"][f"{NO_REINIT}:0"] == "pass"
+    assert NO_REINIT in AGENT_SCENARIOS
     write_cell(tmp_path / "measured.json", NO_REINIT, 3, "fail")
     clear_cell(tmp_path / "measured.json", NO_REINIT, 3)
     body = json.loads((tmp_path / "measured.json").read_text(encoding="utf-8"))
-    assert body["haiku"][f"{NO_REINIT}:3"] == "fail"
-    assert body["haiku"][f"{NO_REINIT}:0"] == "pass"
+    assert body["agent"][f"{NO_REINIT}:3"] == "fail"
+    assert body["agent"][f"{NO_REINIT}:0"] == "pass"
 
 
 def test_write_cell_records_the_model_that_drove_it(tmp_path: Path) -> None:
@@ -1041,13 +1041,13 @@ def test_write_cell_records_the_model_that_drove_it(tmp_path: Path) -> None:
     assert json.loads(measured.read_text(encoding="utf-8"))["agy_model"] == AGY_MODEL
     before = measured.read_bytes()
     with pytest.raises(ValueError, match="separate --measured"):
-        write_cell(measured, NO_REINIT, 1, "pass", model="claude-haiku-4-5")
+        write_cell(measured, NO_REINIT, 1, "pass", model="other-model")
     assert measured.read_bytes() == before
     write_cell(measured, NO_REINIT, 1, "pass")
     body = json.loads(measured.read_text(encoding="utf-8"))
     assert body["agy_model"] == AGY_MODEL
-    assert body["haiku"][f"{NO_REINIT}:0"] == "pass"
-    assert body["haiku"][f"{NO_REINIT}:1"] == "pass"
+    assert body["agent"][f"{NO_REINIT}:0"] == "pass"
+    assert body["agent"][f"{NO_REINIT}:1"] == "pass"
     before = measured.read_bytes()
     write_cell(measured, NO_REINIT, 1, "pass")
     assert measured.read_bytes() == before
@@ -1059,7 +1059,7 @@ def test_model_mismatch_is_rejected_before_qualification_effects(
     tmp_path: Path, capsys: pytest.CaptureFixture[str], fill: bool, invalidate: bool
 ) -> None:
     measured = tmp_path / "measured.json"
-    write_cell(measured, NO_REINIT, 0, "pass", model="claude-haiku-4-5")
+    write_cell(measured, NO_REINIT, 0, "pass", model="other-model")
     before = measured.read_bytes()
     root = tmp_path / "must-not-be-created"
     argv = ["--root", str(root), "--measured", str(measured), "--agy", "absent-driver"]
@@ -1075,7 +1075,7 @@ def test_model_mismatch_is_rejected_before_qualification_effects(
 
 def test_unattributed_cells_cannot_acquire_a_model_label(tmp_path: Path) -> None:
     measured = tmp_path / "measured.json"
-    measured.write_text(json.dumps({"haiku": {f"{NO_REINIT}:0": "pass"}}), encoding="utf-8")
+    measured.write_text(json.dumps({"agent": {f"{NO_REINIT}:0": "pass"}}), encoding="utf-8")
     before = measured.read_bytes()
     with pytest.raises(ValueError, match="unknown model"):
         write_cell(measured, NO_REINIT, 1, "pass")
@@ -1084,22 +1084,42 @@ def test_unattributed_cells_cannot_acquire_a_model_label(tmp_path: Path) -> None
     assert "agy_model" not in json.loads(measured.read_text(encoding="utf-8"))
 
 
+def test_historical_haiku_overlay_cannot_be_extended_as_agent_evidence(
+    tmp_path: Path,
+) -> None:
+    measured = tmp_path / "historical.json"
+    measured.write_text(
+        json.dumps({"agy_model": AGY_MODEL, "haiku": {f"{NO_REINIT}:0": "pass"}}),
+        encoding="utf-8",
+    )
+    before = measured.read_bytes()
+    with pytest.raises(ValueError, match="new --measured path"):
+        write_cell(measured, NO_REINIT, 1, "pass")
+    for arguments in (
+        ["--invalidate", NO_REINIT],
+        ["--native-cell", "cursor:linux-x86_64"],
+        ["--record-isolation"],
+    ):
+        assert main(["--measured", str(measured), *arguments]) == 2
+    assert measured.read_bytes() == before
+
+
 def test_native_probes_and_invalidation_preserve_model_attribution(tmp_path: Path) -> None:
     measured = tmp_path / "measured.json"
     for run in range(3):
-        write_cell(measured, NO_REINIT, run, "pass", model="claude-haiku-4-5")
+        write_cell(measured, NO_REINIT, run, "pass", model="other-model")
     write_isolation(measured, {"status": "enforced"})
     write_native_cell(measured, "cursor", "linux-x86_64", "pass")
     clear_cell(measured, NO_REINIT, 4)
     assert invalidate_cell(measured, NO_REINIT, 1) == 1
     body = json.loads(measured.read_text(encoding="utf-8"))
-    assert body["agy_model"] == "claude-haiku-4-5"
-    assert body["haiku"] == {f"{NO_REINIT}:0": "pass", f"{NO_REINIT}:2": "pass"}
+    assert body["agy_model"] == "other-model"
+    assert body["agent"] == {f"{NO_REINIT}:0": "pass", f"{NO_REINIT}:2": "pass"}
     assert invalidate_scenario(measured, NO_REINIT) == 2
-    assert json.loads(measured.read_text(encoding="utf-8"))["agy_model"] == "claude-haiku-4-5"
+    assert json.loads(measured.read_text(encoding="utf-8"))["agy_model"] == "other-model"
 
 
-@pytest.mark.parametrize("run", [-1, HAIKU_RUNS])
+@pytest.mark.parametrize("run", [-1, AGENT_RUNS])
 def test_write_cell_refuses_out_of_matrix_runs(tmp_path: Path, run: int) -> None:
     measured = tmp_path / "measured.json"
     with pytest.raises(ValueError):
@@ -1120,18 +1140,18 @@ def test_invalidate_drops_scored_cells_so_fill_can_rerun(tmp_path: Path) -> None
     write_cell(measured, NO_REINIT, 0, "pass")
     assert invalidate_scenario(measured, INSTALL_OPEN) == 2
     body = json.loads(measured.read_text(encoding="utf-8"))
-    assert f"{INSTALL_OPEN}:0" not in body["haiku"]
-    assert f"{INSTALL_OPEN}:1" not in body["haiku"]
-    assert body["haiku"][f"{NO_REINIT}:0"] == "pass"
-    pending = unrun_cells(body["haiku"])
+    assert f"{INSTALL_OPEN}:0" not in body["agent"]
+    assert f"{INSTALL_OPEN}:1" not in body["agent"]
+    assert body["agent"][f"{NO_REINIT}:0"] == "pass"
+    pending = unrun_cells(body["agent"])
     assert (INSTALL_OPEN, 0) in pending
     assert (NO_REINIT, 0) not in pending
     write_cell(measured, INSTALL_OPEN, 0, "fail")
     write_cell(measured, INSTALL_OPEN, 1, "pass")
     assert invalidate_cell(measured, INSTALL_OPEN, 0) == 1
     body = json.loads(measured.read_text(encoding="utf-8"))
-    assert f"{INSTALL_OPEN}:0" not in body["haiku"]
-    assert body["haiku"][f"{INSTALL_OPEN}:1"] == "pass"
+    assert f"{INSTALL_OPEN}:0" not in body["agent"]
+    assert body["agent"][f"{INSTALL_OPEN}:1"] == "pass"
     assert invalidate_target(f"{INSTALL_OPEN}:0") == (INSTALL_OPEN, 0)
     assert invalidate_target(INSTALL_OPEN) == (INSTALL_OPEN, None)
     with pytest.raises(ValueError):
@@ -1141,8 +1161,8 @@ def test_invalidate_drops_scored_cells_so_fill_can_rerun(tmp_path: Path) -> None
     write_cell(measured, INSTALL_OPEN, 0, "fail")
     assert main(["--invalidate", f"{INSTALL_OPEN}:0", "--measured", str(measured)]) == 0
     body = json.loads(measured.read_text(encoding="utf-8"))
-    assert f"{INSTALL_OPEN}:0" not in body["haiku"]
-    assert body["haiku"][f"{INSTALL_OPEN}:1"] == "pass"
+    assert f"{INSTALL_OPEN}:0" not in body["agent"]
+    assert body["agent"][f"{INSTALL_OPEN}:1"] == "pass"
     write_cell(measured, INSTALL_PIN, 0, "pass")
     assert main(["--invalidate-stale-verified"]) == 2
     assert STALE_VERIFIED_SCENARIOS == (
@@ -1159,8 +1179,8 @@ def test_invalidate_drops_scored_cells_so_fill_can_rerun(tmp_path: Path) -> None
     )
     assert main(["--invalidate-stale-verified", "--measured", str(measured)]) == 0
     body = json.loads(measured.read_text(encoding="utf-8"))
-    assert f"{INSTALL_PIN}:0" not in body["haiku"]
-    assert body["haiku"][f"{NO_REINIT}:0"] == "pass"
+    assert f"{INSTALL_PIN}:0" not in body["agent"]
+    assert body["agent"][f"{NO_REINIT}:0"] == "pass"
 
 
 def test_switch_workspace_does_not_seed_without_docker(tmp_path: Path) -> None:
@@ -1190,7 +1210,7 @@ def test_seeded_change_prompt_uses_input_file(tmp_path: Path) -> None:
     assert body["harness_id"] == "cursor"
 
 
-def test_write_native_cell_refuses_unknown_keys_and_keeps_haiku(tmp_path: Path) -> None:
+def test_write_native_cell_refuses_unknown_keys_and_keeps_agent(tmp_path: Path) -> None:
     measured = tmp_path / "measured.json"
     write_cell(measured, NO_REINIT, 0, "pass")
     with pytest.raises(ValueError):
@@ -1208,7 +1228,7 @@ def test_write_native_cell_refuses_unknown_keys_and_keeps_haiku(tmp_path: Path) 
     assert code == 0
     body = json.loads(measured.read_text(encoding="utf-8"))
     assert body["native"]["cursor:linux-x86_64"] == "pass"
-    assert body["haiku"][f"{NO_REINIT}:0"] == "pass"
+    assert body["agent"][f"{NO_REINIT}:0"] == "pass"
     assert main(["--native-cell", "cursor:sparc", "--measured", str(measured)]) == 2
 
 
@@ -1275,7 +1295,7 @@ def test_drive_native_install_rejects_short_key_and_scores_verified_marker(
     )
     body = json.loads(measured.read_text(encoding="utf-8"))
     assert body["native"]["cursor:linux-x86_64"] == "pass"
-    assert body["haiku"][f"{NO_REINIT}:0"] == "pass"
+    assert body["agent"][f"{NO_REINIT}:0"] == "pass"
     assert main(["--native-drive", str(input_path)]) == 2
 
 
@@ -1296,7 +1316,7 @@ def test_record_isolation_does_not_fill_native(
     body = json.loads(measured.read_text(encoding="utf-8"))
     assert body["isolation"]["status"] == "unavailable"
     assert "native" not in body
-    assert body["haiku"][f"{NO_REINIT}:0"] == "pass"
+    assert body["agent"][f"{NO_REINIT}:0"] == "pass"
     write_isolation(
         measured,
         {
@@ -1476,7 +1496,7 @@ def test_background_killed_install_stays_unrun(
     assert code == 1
     assert not measured.is_file() or f"{INSTALL_OPEN}:0" not in json.loads(
         measured.read_text(encoding="utf-8")
-    ).get("haiku", {})
+    ).get("agent", {})
     report = json.loads(capsys.readouterr().out.strip().splitlines()[-1])
     assert report["status"] == "not_run"
     assert report["reason"] == "backgrounded"
@@ -1547,7 +1567,7 @@ def test_503_after_cli_use_is_scored_not_cleared(
     )
     assert code == 1
     body = json.loads(measured.read_text(encoding="utf-8"))
-    assert body["haiku"][f"{INSTALL_OPEN}:0"] == "fail"
+    assert body["agent"][f"{INSTALL_OPEN}:0"] == "fail"
 
 
 def test_start_only_503_does_not_erase_a_prior_fail(
@@ -1582,7 +1602,7 @@ def test_start_only_503_does_not_erase_a_prior_fail(
     )
     assert code == 1
     body = json.loads(measured.read_text(encoding="utf-8"))
-    assert body["haiku"][f"{SWITCH_SAVED}:0"] == "fail"
+    assert body["agent"][f"{SWITCH_SAVED}:0"] == "fail"
 
 
 @pytest.mark.skipif(os.name == "nt", reason="the agy stub is a POSIX shell script")
@@ -1623,7 +1643,7 @@ def test_unavailable_agy_keeps_a_prior_fail_cell(
     assert code == 1
     assert sleeps["n"] == 0
     body = json.loads(measured.read_text(encoding="utf-8"))
-    assert body["haiku"][f"{NO_REINIT}:3"] == "fail"
+    assert body["agent"][f"{NO_REINIT}:3"] == "fail"
 
 
 def test_start_only_503_without_a_prior_cell_stays_absent(
@@ -1658,7 +1678,7 @@ def test_start_only_503_without_a_prior_cell_stays_absent(
     assert code == 1
     if measured.is_file():
         body = json.loads(measured.read_text(encoding="utf-8"))
-        assert f"{SWITCH_SAVED}:1" not in body.get("haiku", {})
+        assert f"{SWITCH_SAVED}:1" not in body.get("agent", {})
     else:
         assert not measured.exists()
 
