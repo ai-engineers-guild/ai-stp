@@ -67,6 +67,13 @@ driver is `agy` with `gpt-oss-120b-medium`. Historical `haiku` keys are ignored
 by the report and cannot be extended in place. Use a new measured path for the
 current candidate, record its exact wheel, Skill, website prompt, provider and
 harness identities, and keep unavailable cells `not_run`.
+
+`--unassisted` writes the separate `unassisted` overlay key: the same twenty
+scenarios under plain user requests with no argv coaching, so guided protocol
+development and customer UX are never mixed into one score. The website's own
+initialize copy stays verbatim — it is shipped product text, not coaching.
+Unassisted cells are diagnostics toward release UX, not a substitute for the
+guided acceptance target.
 An `agy` individual-quota 429 before any CLI invocation is unavailable model
 capacity, not an agent failure. `--fill` pauses on that response and preserves
 the remaining unrun cells for a later capacity window; it does not spend the
