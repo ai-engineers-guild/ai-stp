@@ -1473,6 +1473,12 @@ MIGRATIONS: Final[tuple[Migration, ...]] = (
         up=("ALTER TABLE heartbeat_subscription ADD COLUMN scheduler_interval_seconds INTEGER",),
         down=("ALTER TABLE heartbeat_subscription DROP COLUMN scheduler_interval_seconds",),
     ),
+    Migration(
+        version=48,
+        summary="immutable original start request for idempotent task replay",
+        up=("ALTER TABLE agent_task ADD COLUMN original_request_json TEXT NOT NULL DEFAULT ''",),
+        down=("ALTER TABLE agent_task DROP COLUMN original_request_json",),
+    ),
 )
 
 #: Names for nested savepoints. A counter rather than a fixed name: two nested

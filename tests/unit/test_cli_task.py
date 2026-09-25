@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import time
 from contextlib import closing
+from dataclasses import replace as evolve
 from io import StringIO
 from pathlib import Path
 
@@ -49,28 +50,165 @@ def test_inspect_task_start_is_idempotent_and_mints_task_ids() -> None:
     assert first.payload.outcome.kind == "inspect"
 
 
-def test_same_start_payload_treats_drain_checkpoints_as_the_original_input() -> None:
+def test_same_start_request_compares_the_stored_original_document() -> None:
     original = agent_tasks.payload_document(
         "switch", {"harness_id": "cursor", "project_root": "/tmp/project"}
     )
-    checkpoint = agent_tasks.payload_document(
-        "switch",
-        {
-            "harness_id": "cursor",
-            "project_root": "/tmp/project",
-            "preserved_setup_id": "setup_01TEST",
-            "state": "verified",
-        },
-    )
-    other = agent_tasks.payload_document(
+    subset = agent_tasks.payload_document("switch", {"harness_id": "cursor"})
+    changed = agent_tasks.payload_document(
         "switch", {"harness_id": "cursor", "project_root": "/tmp/other"}
     )
     bare = agent_tasks.payload_document("switch", None)
-    assert agent_tasks.same_start_payload(original, original) is True
-    assert agent_tasks.same_start_payload(checkpoint, original) is True
-    assert agent_tasks.same_start_payload(checkpoint, other) is False
-    assert agent_tasks.same_start_payload(checkpoint, bare) is False
-    assert agent_tasks.same_start_payload(bare, original) is False
+    other_intent = agent_tasks.payload_document(
+        "install", {"harness_id": "cursor", "project_root": "/tmp/project"}
+    )
+    assert agent_tasks.same_start_request(original, original) is True
+    assert agent_tasks.same_start_request(original, subset) is False
+    assert agent_tasks.same_start_request(original, changed) is False
+    assert agent_tasks.same_start_request(original, bare) is False
+    assert agent_tasks.same_start_request(original, other_intent) is False
+
+
+def test_original_request_of_prefers_the_stored_identity_then_the_held_payload() -> None:
+    at = moment()
+    payload = agent_tasks.payload_document("inspect", {})
+    row = StoredTask(
+        task_id=new_id("task"),
+        revision=1,
+        intent="inspect",
+        state="planned",
+        goal_satisfied=False,
+        idempotency_key="key",
+        payload_json=payload,
+        outcome_json=None,
+        questions_json=agent_tasks.empty_list_json(),
+        child_operation_ids_json=agent_tasks.empty_list_json(),
+        created_at=at,
+        updated_at=at,
+    )
+    assert agent_tasks.original_request_of(row) == payload
+    stamped = evolve(row, original_request_json=agent_tasks.payload_document("inspect", {"x": 1}))
+    assert agent_tasks.original_request_of(stamped) != payload
+
+
+def test_insert_stamps_the_first_start_document_as_the_original() -> None:
+    at = moment()
+    payload = agent_tasks.payload_document("inspect", {})
+    row = StoredTask(
+        task_id=new_id("task"),
+        revision=1,
+        intent="inspect",
+        state="planned",
+        goal_satisfied=False,
+        idempotency_key="insert-stamps-original-01",
+        payload_json=payload,
+        outcome_json=None,
+        questions_json=agent_tasks.empty_list_json(),
+        child_operation_ids_json=agent_tasks.empty_list_json(),
+        created_at=at,
+        updated_at=at,
+    )
+    with (
+        closing(open_registry(configured_path(), create=True)) as connection,
+        transaction(connection),
+    ):
+        agent_tasks.insert(connection, row)
+        held = agent_tasks.by_id(connection, row.task_id)
+    assert held is not None
+    assert agent_tasks.original_request_of(held) == payload
+
+
+def test_start_replays_the_original_request_after_an_answer_enriched_the_payload(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from ai_stp_cli.application import task as task_service
+    from ai_stp_cli.application.install_task import DrainResult
+    from ai_stp_contracts.machine_help import TaskQuestion
+
+    key = "install-original-replay-01"
+    started = task_command.start({"intent": "install", "idempotency-key": key})
+    assert started.payload.state == "blocked"
+    assert started.payload.questions[0].question_id == "harness-id"
+
+    def drain(_facts: object, **_kwargs: object) -> DrainResult:
+        return DrainResult(
+            questions=(
+                TaskQuestion(
+                    question_id="setup-ref",
+                    prompt="Which exact setup should be installed?",
+                    value_type="string",
+                    choices=[],
+                    why="test",
+                    actor="human",
+                ),
+            )
+        )
+
+    monkeypatch.setattr(task_service, "drain_install", drain)
+    answered = task_command.answer(
+        {
+            "task": started.payload.task_id,
+            "revision": started.payload.revision,
+            "question-id": "harness-id",
+            "value": "cursor",
+        }
+    )
+    assert answered.payload.task_id == started.payload.task_id
+    replayed = task_command.start({"intent": "install", "idempotency-key": key})
+    assert replayed.payload.task_id == started.payload.task_id
+
+
+def test_start_rejects_a_subset_of_the_original_input(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from ai_stp_cli.application import task as task_service
+    from ai_stp_cli.application.install_task import DrainResult
+    from ai_stp_contracts.machine_help import TaskQuestion
+
+    def drain(_facts: object, **_kwargs: object) -> DrainResult:
+        return DrainResult(
+            questions=(
+                TaskQuestion(
+                    question_id="setup-ref",
+                    prompt="Which exact setup should be installed?",
+                    value_type="string",
+                    choices=[],
+                    why="test",
+                    actor="human",
+                ),
+            )
+        )
+
+    monkeypatch.setattr(task_service, "drain_install", drain)
+    full = tmp_path / "full.json"
+    full.write_text(
+        json.dumps({"harness_id": "cursor", "project_root": str(tmp_path.resolve())}),
+        encoding="utf-8",
+    )
+    subset = tmp_path / "subset.json"
+    subset.write_text(json.dumps({"harness_id": "cursor"}), encoding="utf-8")
+    key = "install-subset-replay-01"
+    started = task_command.start({"intent": "install", "idempotency-key": key, "input": str(full)})
+    assert started.payload.state == "blocked"
+    with pytest.raises(CliFailure) as raised:
+        task_command.start({"intent": "install", "idempotency-key": key, "input": str(subset)})
+    assert raised.value.code == "AI_STP_CONFLICT"
+    assert raised.value.details.get("task") == started.payload.task_id
+
+
+def test_start_rejects_a_changed_original_input(tmp_path: Path) -> None:
+    key = "install-changed-replay-01"
+    first_doc = tmp_path / "first.json"
+    first_doc.write_text(json.dumps({"harness_id": "cursor"}), encoding="utf-8")
+    changed_doc = tmp_path / "changed.json"
+    changed_doc.write_text(json.dumps({"harness_id": "codex"}), encoding="utf-8")
+    started = task_command.start(
+        {"intent": "install", "idempotency-key": key, "input": str(first_doc)}
+    )
+    with pytest.raises(CliFailure) as raised:
+        task_command.start({"intent": "install", "idempotency-key": key, "input": str(changed_doc)})
+    assert raised.value.code == "AI_STP_CONFLICT"
+    assert raised.value.details.get("task") == started.payload.task_id
 
 
 def test_start_drains_a_leftover_planned_row() -> None:
@@ -400,13 +538,26 @@ def test_conflicting_idempotency_payload_is_refused() -> None:
     started = _start()
     with closing(open_registry(configured_path())) as connection:
         connection.execute(
-            "UPDATE agent_task SET payload_json = ? WHERE task_id = ?",
+            "UPDATE agent_task SET original_request_json = ? WHERE task_id = ?",
             ('{"intent":"other"}', started.payload.task_id),
         )
         connection.commit()
     with pytest.raises(CliFailure) as raised:
         _start()
     assert raised.value.code == "AI_STP_CONFLICT"
+
+
+def test_mutable_payload_is_not_the_idempotency_identity() -> None:
+    """A changed held payload cannot forge or break the recorded original."""
+    started = _start()
+    with closing(open_registry(configured_path())) as connection:
+        connection.execute(
+            "UPDATE agent_task SET payload_json = ? WHERE task_id = ?",
+            ('{"intent":"inspect","input":{"merged":1}}', started.payload.task_id),
+        )
+        connection.commit()
+    replayed = _start()
+    assert replayed.payload.task_id == started.payload.task_id
 
 
 def test_completed_inspect_envelope_has_no_operation_receipt() -> None:
