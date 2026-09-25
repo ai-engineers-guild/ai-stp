@@ -1,6 +1,6 @@
 ---
 description: "Client-side publication plan sequence and the boundary of transmitted data."
-last_verified: "2026-09-08"
+last_verified: "2026-09-25"
 ---
 
 # CLI publication
@@ -17,6 +17,14 @@ Creating a plan does not itself publish the object. The resulting `plan_id`,
 `publication confirm --plan-id <id> --plan-hash <hash> --confirm` command confirms
 that exact snapshot. `publication status --plan-id <id>` is the read-only path for
 verification and recovery if the confirm response is lost.
+
+The guided `publish` task retains the exact component plan before confirmation.
+An asynchronous `validating` or `publish_planned` response leaves the task
+blocked on the external worker. `task continue` reads that recorded plan's
+status; it does not create another plan or repeat confirmation. The task reports
+its goal satisfied only after the plan reaches `published`.
+Guided confirmation uses the recorded plan ID as its stable idempotency key;
+the expert command mints a key for one invocation.
 
 The creation request includes the passport and artifact digest. Source component
 bytes, local paths, session tokens, and values of required credentials are not

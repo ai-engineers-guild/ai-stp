@@ -22,7 +22,7 @@ last_verified: "2026-08-03"
 | [cli-heartbeat.md](cli-heartbeat.md) | Closed heartbeat payload the CLI sends for its corporate installation, and the command behavior around it. | 2026-09-24 |
 | [cli-json.md](cli-json.md) | JSON envelope, error classes, and CLI machine-output rules. | 2026-09-16 |
 | [cli-owner-objects.md](cli-owner-objects.md) | Authorized reading of owner objects through the CLI. | 2026-08-13 |
-| [cli-publication.md](cli-publication.md) | Client-side publication plan sequence and the boundary of transmitted data. | 2026-09-08 |
+| [cli-publication.md](cli-publication.md) | Client-side publication plan sequence and the boundary of transmitted data. | 2026-09-25 |
 | [cli-self-update.md](cli-self-update.md) | Machine boundary for ai-stp CLI self-update: commands, plan fields, journal states. | 2026-09-08 |
 | [cli-telemetry.md](cli-telemetry.md) | Closed list of anonymous telemetry ping fields, sending conditions, and excluded data. | 2026-08-21 |
 | [complaint-intake.md](complaint-intake.md) | Public complaint intake: fields, distinction from a private report case, and configurable limits. | 2026-08-22 |
