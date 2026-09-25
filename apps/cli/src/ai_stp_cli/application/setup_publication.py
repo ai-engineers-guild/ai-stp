@@ -197,7 +197,15 @@ def _confirm_members(
         try:
             final = _confirm_one(where, held, member, artifacts.get(member.stable_id, b""), pause)
         except CliFailure as error:
-            settled.append(member.model_copy(update={"state": "blocked", "error_code": error.code}))
+            if error.retryable:
+                # A transient read is not a refusal. The member keeps its
+                # in-progress state so the set stays resumable instead of
+                # settling a terminal rejection the platform never made.
+                settled.append(member.model_copy(update={"error_code": error.code}))
+            else:
+                settled.append(
+                    member.model_copy(update={"state": "blocked", "error_code": error.code})
+                )
             stop = True
             continue
         settled.append(

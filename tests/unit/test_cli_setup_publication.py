@@ -505,6 +505,101 @@ def test_a_refused_component_stops_the_setup_and_leaves_the_rest_published(
     assert by_id[SETUP].state not in {"published"}
 
 
+class _ValidatingPlatform(_Platform):
+    """A worker that keeps one member validating until released."""
+
+    def __init__(self, *, pending: str) -> None:
+        super().__init__()
+        self.pending = pending
+        self.release = False
+
+    def confirm(self, _where: object, _token: str, plan_id: str, request: Any) -> Any:
+        if plan_id == f"plan_{self.pending}":
+            self.confirmed.append(plan_id)
+            return _Plan(plan_id, "validating", self.requests[plan_id])
+        return super().confirm(_where, _token, plan_id, request)
+
+    def status(self, _where: object, _token: str, plan_id: str) -> Any:
+        if plan_id == f"plan_{self.pending}" and not self.release:
+            # Pre-confirm the plan looks like any other; the worker keeps it
+            # validating only after accepting the confirm.
+            if plan_id not in self.confirmed:
+                return _Plan(plan_id, "ready", self.requests[plan_id])
+            return _Plan(plan_id, "validating", self.requests[plan_id])
+        return super().status(_where, _token, plan_id)
+
+
+def test_a_validating_member_stays_resumable_until_the_worker_decides(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A bounded poll is not a terminal outcome: the set keeps its pending
+    member so the next confirm re-reads the worker rather than settling early.
+    """
+    pins = _materialize()
+    fake = _ValidatingPlatform(pending=pins[1])
+    _install(monkeypatch, fake)
+    view = _plan()
+
+    first = setup_publication.confirm({"set-digest": view.set_digest, "confirm": True}).payload
+
+    assert first.state == "partial"
+    by_id = {member.stable_id: member for member in first.members}
+    assert by_id[pins[0]].state == "published"
+    assert by_id[pins[1]].state == "validating"
+    assert by_id[SETUP].state not in {"published"}
+    assert fake.confirmed == [f"plan_{pins[0]}", f"plan_{pins[1]}"]
+
+    fake.release = True
+    second = setup_publication.confirm({"set-digest": view.set_digest, "confirm": True}).payload
+
+    assert second.state == "published"
+    assert all(member.state == "published" for member in second.members)
+    # Resuming never replans and never re-applies an effect that already landed:
+    # the first pin was bound and confirmed exactly once across both calls.
+    assert fake.bound.count(f"plan_{pins[0]}") == 1
+    assert fake.confirmed.count(f"plan_{pins[0]}") == 1
+
+
+class _FlakyStatusPlatform(_Platform):
+    """A transient read failure is not a member refusal."""
+
+    def __init__(self, *, flaky: str, failures: int = 1) -> None:
+        super().__init__()
+        self.flaky = flaky
+        self.failures_left = failures
+
+    def status(self, _where: object, _token: str, plan_id: str) -> Any:
+        if plan_id == f"plan_{self.flaky}" and self.failures_left > 0:
+            self.failures_left -= 1
+            raise CliFailure(
+                "AI_STP_DEPENDENCY_UNAVAILABLE",
+                "the platform could not be reached",
+                retryable=True,
+            )
+        return super().status(_where, _token, plan_id)
+
+
+def test_a_transient_status_read_keeps_the_member_pending_not_refused(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    pins = _materialize()
+    fake = _FlakyStatusPlatform(flaky=pins[0], failures=1)
+    _install(monkeypatch, fake)
+    view = _plan()
+
+    first = setup_publication.confirm({"set-digest": view.set_digest, "confirm": True}).payload
+
+    assert first.state != "published"
+    by_id = {member.stable_id: member for member in first.members}
+    assert by_id[pins[0]].state not in {"blocked", "failed", "cancelled", "stale"}
+    assert by_id[pins[0]].error_code == "AI_STP_DEPENDENCY_UNAVAILABLE"
+
+    second = setup_publication.confirm({"set-digest": view.set_digest, "confirm": True}).payload
+
+    assert second.state == "published"
+    assert all(member.state == "published" for member in second.members)
+
+
 def test_a_set_from_another_account_or_device_is_refused(
     platform: _Platform, monkeypatch: pytest.MonkeyPatch
 ) -> None:
