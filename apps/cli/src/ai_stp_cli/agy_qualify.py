@@ -121,6 +121,8 @@ UNAVAILABLE_MARKERS: Final[tuple[str, ...]] = (
     "UNAVAILABLE",
     "No capacity available",
     "(code 503)",
+    "RESOURCE_EXHAUSTED (code 429)",
+    "Individual quota reached",
     # Claude Code print mode reports Anthropic API overload/rate errors with
     # these type names; a capacity miss must leave the cell unrun, not fail.
     "overloaded_error",
@@ -1433,6 +1435,11 @@ def run_was_unavailable(stdout: str, stderr: str) -> bool:
     return any(marker in blob for marker in UNAVAILABLE_MARKERS)
 
 
+def individual_quota_exhausted(stdout: str, stderr: str) -> bool:
+    """Recognize agy's run-wide individual-quota response."""
+    return "individual quota reached" in f"{stdout}\n{stderr}".casefold()
+
+
 def drove_cli(workspace: Workspace) -> bool:
     return bool(logged_invocations(workspace).strip())
 
@@ -1981,6 +1988,13 @@ def fill_unrun(
             skipped.discard((scenario, run))
         elif after.get(key) not in {"pass", "fail"}:
             skipped.add((scenario, run))
+            stdout_path = cell_root / "agy.stdout"
+            stderr_path = cell_root / "agy.stderr"
+            stdout = stdout_path.read_text(encoding="utf-8") if stdout_path.is_file() else ""
+            stderr = stderr_path.read_text(encoding="utf-8") if stderr_path.is_file() else ""
+            if individual_quota_exhausted(stdout, stderr):
+                print(json.dumps({"fill": "paused", "reason": "quota_exhausted"}), flush=True)
+                return 1
         if attempt + 1 < max_attempts and unrun_cells(_agent_map(_overlay_body(measured))):
             time.sleep(gap_seconds)
     return 0 if passed else 1

@@ -390,12 +390,14 @@ a CLI language rewrite, and a PyPI CLI cut are excluded.
   runner prompt and score cover all twenty corpus names.
   Kill-after-apply resume and concurrent continue one-winner remain proven
   by the deterministic driver as engine properties; they are not exempt from
-  agent cells. A capacity miss (`UNAVAILABLE` / 503) with an empty `cli.log`
-  does not record `fail`. A 503 after the model already invoked `ai-stp` is
-  scored when the log shows follow-through or choreography; a start-only 503
-  retries a clean attempt. A start-only 503 after those retries stays
-  `not_run`; it is not `fail`. A later capacity miss does not erase a
-  previously scored `pass` or `fail`. `--fill` walks unrun cells one at a
+  agent cells. A capacity miss (`UNAVAILABLE` / 503) or an individual quota
+  exhaustion (`RESOURCE_EXHAUSTED` / 429) with an empty `cli.log` does not
+  record `fail`. An individual quota exhaustion pauses `--fill` so further
+  cells remain `not_run` until capacity returns. A 503 after the model already
+  invoked `ai-stp` is scored when the log shows follow-through or choreography;
+  a start-only 503 retries a clean attempt and then stays `not_run`, not `fail`.
+  A later capacity miss does not erase a previously scored `pass` or `fail`.
+  `--fill` walks unrun cells one at a
   time with a 90s gap; a 503 empty-log cell stays unrun and the next attempt
   in the same walk may take a different unrun cell. Native-byte identity is
   an independent tree digest of provider-written files, not a stubbed

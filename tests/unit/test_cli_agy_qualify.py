@@ -1127,9 +1127,10 @@ def test_write_cell_refuses_out_of_matrix_runs(tmp_path: Path, run: int) -> None
     assert not measured.exists()
 
 
-def test_unavailable_markers_cover_claude_overload() -> None:
+def test_unavailable_markers_cover_model_limits() -> None:
     assert run_was_unavailable("", '{"error": {"type": "overloaded_error"}}')
     assert run_was_unavailable("API Error: rate_limit_error", "")
+    assert run_was_unavailable("", "RESOURCE_EXHAUSTED (code 429): Individual quota reached")
     assert not run_was_unavailable("", "a plain failure")
 
 
@@ -1458,6 +1459,46 @@ def test_capacity_miss_is_unavailable_not_a_scenario_fail() -> None:
     )
     assert run_was_unavailable(stdout, "")
     assert not run_was_unavailable('{"status":"SUCCESS"}', "")
+
+
+@pytest.mark.skipif(os.name == "nt", reason="the agy stub is a POSIX shell script")
+def test_fill_pauses_on_individual_quota_without_scoring(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    stub = tmp_path / "agy"
+    stub.write_text(
+        "#!/bin/sh\n"
+        "echo 'Individual quota reached. Resets in 1h.'\n"
+        "echo 'RESOURCE_EXHAUSTED (code 429): Individual quota reached' >&2\n"
+        "exit 3\n",
+        encoding="utf-8",
+    )
+    stub.chmod(0o755)
+    measured = tmp_path / "measured.json"
+    cells = tmp_path / "cells"
+    assert (
+        main(
+            [
+                "--root",
+                str(cells),
+                "--measured",
+                str(measured),
+                "--agy",
+                str(stub),
+                "--fill",
+                "--max-attempts",
+                "3",
+                "--gap-seconds",
+                "0",
+            ]
+        )
+        == 1
+    )
+    assert not measured.exists()
+    assert len(list(cells.iterdir())) == 1
+    output = capsys.readouterr().out
+    assert '"status": "not_run"' in output
+    assert '"reason": "quota_exhausted"' in output
 
 
 def test_background_killed_install_stays_unrun(
