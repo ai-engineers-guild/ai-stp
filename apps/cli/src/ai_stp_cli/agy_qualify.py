@@ -27,9 +27,9 @@ from urllib.parse import SplitResult, urlsplit
 
 from ai_stp_cli.application.initialize import ANTIGRAVITY_LIMITATION
 from ai_stp_cli.application.qualify import (
+    AGENT_RUNS,
+    AGENT_SCENARIOS,
     AGY_MODEL,
-    HAIKU_RUNS,
-    HAIKU_SCENARIOS,
     PLATFORMS,
     MeasuredStatus,
     native_config_root,
@@ -248,7 +248,7 @@ INPUT_CWD_HINT: Final[str] = (
     "Execute the start argv as written. Do not cd. Do not open that file. "
     "Do not refuse because the file contains an absolute path."
 )
-SUPPORTED_SCENARIOS: Final[frozenset[str]] = frozenset(HAIKU_SCENARIOS)
+SUPPORTED_SCENARIOS: Final[frozenset[str]] = frozenset(AGENT_SCENARIOS)
 LOADED_MARKERS: Final[tuple[str, ...]] = (
     "session loaded",
     "already loaded",
@@ -1454,14 +1454,19 @@ def _overlay_body(path: Path) -> dict[str, object]:
     if not isinstance(parsed, dict):
         return {}
     items = cast(dict[object, object], parsed)
-    return {str(key): value for key, value in items.items()}
+    body = {str(key): value for key, value in items.items()}
+    if "haiku" in body:
+        raise ValueError(
+            "historical haiku overlay is not an agent qualification; use a new --measured path"
+        )
+    return body
 
 
-def _haiku_map(body: Mapping[str, object]) -> dict[str, object]:
-    haiku_raw = body.get("haiku")
-    if not isinstance(haiku_raw, dict):
+def _agent_map(body: Mapping[str, object]) -> dict[str, object]:
+    agent_raw = body.get("agent")
+    if not isinstance(agent_raw, dict):
         return {}
-    raw_items = cast(dict[object, object], haiku_raw)
+    raw_items = cast(dict[object, object], agent_raw)
     return {str(key): value for key, value in raw_items.items()}
 
 
@@ -1471,7 +1476,7 @@ def _model_overlay(path: Path, model: str) -> dict[str, object]:
         raise ValueError("--model must name the model being measured")
     body = _overlay_body(path)
     if body.get("agy_model") != model and any(
-        value in ("pass", "fail") for value in _haiku_map(body).values()
+        value in ("pass", "fail") for value in _agent_map(body).values()
     ):
         raise ValueError(
             "measured overlay contains cells from a different or unknown model; "
@@ -1482,16 +1487,16 @@ def _model_overlay(path: Path, model: str) -> dict[str, object]:
 
 def _preserve_overlay_model(body: dict[str, object], model: str) -> None:
     """Native probes and invalidation cannot relabel retained model results."""
-    if not _haiku_map(body):
+    if not _agent_map(body):
         body.setdefault("agy_model", model)
 
 
-def unrun_cells(haiku: Mapping[str, object]) -> tuple[tuple[str, int], ...]:
+def unrun_cells(agent: Mapping[str, object]) -> tuple[tuple[str, int], ...]:
     """Missing and not_run only. Scored pass/fail stay put."""
     held: list[tuple[str, int]] = []
-    for scenario in HAIKU_SCENARIOS:
-        for run in range(HAIKU_RUNS):
-            if haiku.get(f"{scenario}:{run}") not in {"pass", "fail"}:
+    for scenario in AGENT_SCENARIOS:
+        for run in range(AGENT_RUNS):
+            if agent.get(f"{scenario}:{run}") not in {"pass", "fail"}:
                 held.append((scenario, run))
     return tuple(held)
 
@@ -1525,14 +1530,14 @@ def write_cell(
     *,
     model: str = AGY_MODEL,
 ) -> None:
-    if scenario not in HAIKU_SCENARIOS:
+    if scenario not in AGENT_SCENARIOS:
         raise ValueError(scenario)
-    if run < 0 or run >= HAIKU_RUNS:
+    if run < 0 or run >= AGENT_RUNS:
         raise ValueError(run)
     body = _model_overlay(path, model)
-    haiku = _haiku_map(body)
-    haiku[f"{scenario}:{run}"] = status
-    body["haiku"] = haiku
+    agent = _agent_map(body)
+    agent[f"{scenario}:{run}"] = status
+    body["agent"] = agent
     body["agy_model"] = model
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(body, indent=2, sort_keys=True) + "\n", encoding="utf-8")
@@ -1694,36 +1699,36 @@ def drive_native_install(input_path: Path, key: str) -> dict[str, object]:
 
 def clear_cell(path: Path, scenario: str, run: int, *, model: str = AGY_MODEL) -> None:
     """Drop an unexecuted cell. Never erase a scored pass or fail."""
-    if scenario not in HAIKU_SCENARIOS:
+    if scenario not in AGENT_SCENARIOS:
         raise ValueError(scenario)
     if not path.is_file():
         return
     body = _overlay_body(path)
-    haiku = _haiku_map(body)
+    agent = _agent_map(body)
     key = f"{scenario}:{run}"
-    if haiku.get(key) in {"pass", "fail"}:
+    if agent.get(key) in {"pass", "fail"}:
         return
-    haiku.pop(key, None)
-    body["haiku"] = haiku
+    agent.pop(key, None)
+    body["agent"] = agent
     _preserve_overlay_model(body, model)
     path.write_text(json.dumps(body, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
 def invalidate_scenario(path: Path, scenario: str, *, model: str = AGY_MODEL) -> int:
     """Drop scored cells so fill can re-run them. Explicit; clear_cell will not."""
-    if scenario not in HAIKU_SCENARIOS:
+    if scenario not in AGENT_SCENARIOS:
         raise ValueError(scenario)
     if not path.is_file():
         return 0
     body = _overlay_body(path)
-    haiku = _haiku_map(body)
+    agent = _agent_map(body)
     dropped = 0
-    for run in range(HAIKU_RUNS):
+    for run in range(AGENT_RUNS):
         key = f"{scenario}:{run}"
-        if key in haiku:
-            haiku.pop(key)
+        if key in agent:
+            agent.pop(key)
             dropped += 1
-    body["haiku"] = haiku
+    body["agent"] = agent
     _preserve_overlay_model(body, model)
     path.write_text(json.dumps(body, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     return dropped
@@ -1731,19 +1736,19 @@ def invalidate_scenario(path: Path, scenario: str, *, model: str = AGY_MODEL) ->
 
 def invalidate_cell(path: Path, scenario: str, run: int, *, model: str = AGY_MODEL) -> int:
     """Drop one scored overlay cell. `clear_cell` will not erase pass/fail."""
-    if scenario not in HAIKU_SCENARIOS:
+    if scenario not in AGENT_SCENARIOS:
         raise ValueError(scenario)
-    if run < 0 or run >= HAIKU_RUNS:
+    if run < 0 or run >= AGENT_RUNS:
         raise ValueError(run)
     if not path.is_file():
         return 0
     body = _overlay_body(path)
-    haiku = _haiku_map(body)
+    agent = _agent_map(body)
     key = f"{scenario}:{run}"
-    if key not in haiku:
+    if key not in agent:
         return 0
-    haiku.pop(key)
-    body["haiku"] = haiku
+    agent.pop(key)
+    body["agent"] = agent
     _preserve_overlay_model(body, model)
     path.write_text(json.dumps(body, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     return 1
@@ -1752,12 +1757,12 @@ def invalidate_cell(path: Path, scenario: str, run: int, *, model: str = AGY_MOD
 def invalidate_target(token: str) -> tuple[str, int | None]:
     """`install-without-pin` drops five cells; `install-without-pin:0` drops one."""
     name, separator, rest = token.partition(":")
-    if separator and rest.isdigit() and name in HAIKU_SCENARIOS:
+    if separator and rest.isdigit() and name in AGENT_SCENARIOS:
         run = int(rest)
-        if 0 <= run < HAIKU_RUNS:
+        if 0 <= run < AGENT_RUNS:
             return name, run
         raise ValueError(token)
-    if token in HAIKU_SCENARIOS:
+    if token in AGENT_SCENARIOS:
         return token, None
     raise ValueError(token)
 
@@ -1949,7 +1954,7 @@ def fill_unrun(
     skipped: set[tuple[str, int]] = set()
     last: tuple[str, int] | None = None
     for attempt in range(max_attempts):
-        pending = unrun_cells(_haiku_map(_overlay_body(measured)))
+        pending = unrun_cells(_agent_map(_overlay_body(measured)))
         chosen = next_fill_cell(pending, skipped, rotate_from=last)
         if chosen is None:
             break
@@ -1969,14 +1974,14 @@ def fill_unrun(
             model=model,
             docker_image=docker_image,
         )
-        after = _haiku_map(_overlay_body(measured))
+        after = _agent_map(_overlay_body(measured))
         key = f"{scenario}:{run}"
         if code == 0:
             passed += 1
             skipped.discard((scenario, run))
         elif after.get(key) not in {"pass", "fail"}:
             skipped.add((scenario, run))
-        if attempt + 1 < max_attempts and unrun_cells(_haiku_map(_overlay_body(measured))):
+        if attempt + 1 < max_attempts and unrun_cells(_agent_map(_overlay_body(measured))):
             time.sleep(gap_seconds)
     return 0 if passed else 1
 
@@ -2010,7 +2015,7 @@ def main(arguments: list[str] | None = None) -> int:
     parser.add_argument(
         "--fill",
         action="store_true",
-        help="Walk unrun Haiku cells one at a time. Scored pass/fail stay put.",
+        help="Walk unrun agent cells one at a time. Scored pass/fail stay put.",
     )
     parser.add_argument("--max-attempts", type=int, default=8)
     parser.add_argument("--gap-seconds", type=int, default=FILL_GAP_SECONDS)
@@ -2029,7 +2034,7 @@ def main(arguments: list[str] | None = None) -> int:
         action="append",
         default=[],
         metavar="SCENARIO",
-        help="Drop scored overlay cells for one Haiku scenario so --fill can re-run them.",
+        help="Drop scored overlay cells for one agent scenario so --fill can re-run them.",
     )
     parser.add_argument(
         "--invalidate-stale-verified",
@@ -2050,9 +2055,12 @@ def main(arguments: list[str] | None = None) -> int:
         or options.root is not None
         or not (options.invalidate or options.invalidate_stale_verified)
     )
-    if scoring and options.measured is not None:
+    if options.measured is not None:
         try:
-            _model_overlay(options.measured, options.model)
+            if scoring:
+                _model_overlay(options.measured, options.model)
+            else:
+                _overlay_body(options.measured)
         except (OSError, ValueError) as error:
             print(str(error), file=sys.stderr)
             return 2

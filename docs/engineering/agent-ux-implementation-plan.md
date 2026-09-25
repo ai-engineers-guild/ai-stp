@@ -1,6 +1,6 @@
 ---
-description: "Target implementation plan for the agent-first CLI: weakest-model loop, shared task engine, and the website-to-native journeys in epic #261."
-last_verified: "2026-09-24"
+description: "Target implementation plan for the agent-first CLI: GPT OSS 120B qualification, shared task engine, and the website-to-native journeys in epic #261."
+last_verified: "2026-09-25"
 ---
 
 # Agent UX implementation plan
@@ -14,7 +14,7 @@ This file is the engineering contract for how those issues are implemented
 in *this* tree without shrinking acceptance.
 
 Owner goal: after `uv tool install ai-stp-cli` and one pasted initialize
-prompt, a Haiku-class agent operates ai-stp. The agent picks an intent,
+prompt, GPT OSS 120B through `agy` operates ai-stp. The agent picks an intent,
 relays answers, and reports verification. The CLI owns acquisition,
 composition, backup, plan, approve, apply, verify, retries, and recovery.
 
@@ -33,7 +33,7 @@ OPEN. Do not touch colleague issues (#254, #256) or
 | Released CLI | `0.0.29` on PyPI (`apps/cli/pyproject.toml` matches); tag `v0.0.29` points to `eeb682e4` |
 | Provider kit | `0.2.13` in `tests/golden/provider-kit/identity-ledger.json` |
 | Issues | #261–#275 OPEN. setup-systems #316 OPEN. Never close #256. Draft #254: do not touch |
-| Haiku 20×5 | Retained `claude-haiku-4-5` overlay: 99 pass / 1 fail, measured 2026-09-21; historical model threshold met, not current candidate/native qualification |
+| Agent 20×5 | GPT OSS 120B through `agy` is the sole current model target; no current-candidate trial is counted yet. Historical Haiku 99/100 is archived evidence only |
 | Branch-policy SC2015 | closed in [#304](https://github.com/ai-engineers-guild/ai-stp/pull/304) |
 
 ### Live CLI
@@ -49,8 +49,8 @@ OPEN. Do not touch colleague issues (#254, #256) or
 | Slice | Code | Qualify / ship |
 | --- | --- | --- |
 | 0 land kernel | on `main` via #297 | done |
-| 1–8 | on `main` | Deterministic journeys implemented; retained Haiku overlay 99/100 |
-| 9 qualify + next cut | runner exists | Historical model threshold met; native win/mac and current candidate binding remain unverified |
+| 1–8 | on `main` | Deterministic journeys implemented; current GPT OSS 120B candidate qualification pending |
+| 9 qualify + next cut | runner exists | GPT OSS 120B threshold, native win/mac, and current candidate binding remain unverified |
 
 The retained `.tmp/qualify-measured-haiku.json` names `claude-haiku-4-5`:
 `unsupported-project-local` is 4/5; all other scenarios are 5/5. The separate
@@ -62,11 +62,17 @@ An overlay alone does not bind a current wheel, all provider artifacts or
 fresh-session loading. Do not combine these model scores or carry them forward
 as measurements of a later source tree.
 
+From 2026-09-25, new trials write the `agent` overlay key. The runner's default
+driver is `agy` with `gpt-oss-120b-medium`. Historical `haiku` keys are ignored
+by the report and cannot be extended in place. Use a new measured path for the
+current candidate, record its exact wheel, Skill, website prompt, provider and
+harness identities, and keep unavailable cells `not_run`.
+
 ### Remaining to close the epic (do not shrink)
 
-1. **Slice 9 Haiku**: retain the historical 99/100 result; any new candidate claim needs ≥95/100, no scenario <4/5, 5/5 on initialize / install / change / switch at its own identities.
+1. **Slice 9 GPT OSS 120B via `agy`**: run the current candidate anew; the required result is ≥95/100, no scenario <4/5, 5/5 on initialize / install / change / switch at its own identities.
 2. **Native win/mac** stay `not_run` here. Docker ENFORCED is the isolation path on this host.
-3. **Next CLI cut** after qualification of current bytes. `0.0.29` is on PyPI from tag `v0.0.29`; the native Antigravity user journey verified its official upgrade from `0.0.28`, public wheel bytes, and a fresh baseline consumer. That run used `gpt-oss-120b-medium` with corrective prompts, so it does not qualify autonomous Haiku behavior on this candidate. The qualification record in #368 remains historical evidence.
+3. **Next CLI cut** after qualification of current bytes. `0.0.29` is on PyPI from tag `v0.0.29`; the native Antigravity user journey verified its official upgrade from `0.0.28`, public wheel bytes, and a fresh baseline consumer. That run used `gpt-oss-120b-medium` with corrective prompts, so it does not qualify autonomous GPT OSS 120B behavior on this candidate. The qualification record in #368 remains historical evidence.
 4. **setup-systems #316** stays OPEN. The Antigravity user journey consumed its public provider `0.0.74` baseline in a fresh native session. Other provider and platform cells remain unverified by that run. Vendor kit `0.2.13` remains the recorded contract baseline. Do not close #316 from this plan.
 5. Issue comments with SHA; close only for measured scope. **Never close #256**. Do not touch #254.
 6. `component publish` stays `task_pending`. Do not compact `help --agent`. Do not shrink capabilities `command_paths` (REQ-8006).
@@ -329,7 +335,7 @@ Skill + website rewrite ships in the **same wheel** as all of:
 5. `install` of one public setup → independent native verification.
 6. Login skipped. Network spy shows no publication/sync/revision-push.
 
-Until a Haiku-qualified wheel exists, keep current Skill playbooks so
+Until a GPT OSS 120B-qualified wheel exists, keep current Skill playbooks so
 pre-task-engine installs are not stranded on an inspect-only surface.
 `0.0.29` on PyPI is the current reader. The Haiku 4.5 record in #368 is historical evidence; later reader changes include the completed parameter_rules vocabulary (#375, #380, #396), the leaf-scoped parse-failure contract (#385), the selector-refusal options+continuation shape (#396), and the Antigravity native fixes in #416–#430.
 
@@ -595,7 +601,7 @@ process loaded them. Do not kill the caller.
 
 | Area | Work tree | Remaining |
 | --- | --- | --- |
-| Verbs | 8 declared and drained: inspect, initialize, install, change, author, switch, account, publish | win/mac native cells + Haiku native-bytes (overlay is proxy) |
+| Verbs | 8 declared and drained: inspect, initialize, install, change, author, switch, account, publish | win/mac native cells + current GPT OSS 120B native bytes (overlay is proxy) |
 | Discovery | Additive `task intents`. Skill starts at `task intents --json` | Keep `help --agent` full |
 | Continuations | JSON values + `argv` + `actor`; quoted display; continue claims revision; blocked human binds `question-id` and emits `task answer` argv without `value`; Skill executes argv only for `actor=cli`; explicit `argv` wins over missing→help | Keep; no second protocol |
 | Inspect payload | Slim orientation, no `command_paths` | — |
@@ -603,19 +609,18 @@ process loaded them. Do not kill the caller.
 | Application | install + change + author + switch + account + publish + coordinator extracted; select/catalog/auth/sync/publication live in `application/`; Click facades; unlabeled leftover = 0 | `component publish` stays `task_pending` |
 | Task row | Full-input idempotency; `kind`-discriminated outcome; `task start` drains once; leftover `planned` replay drains; leftover `running` replay joins (no empty-continuation success); same-key insert race joins; continue claims `running`; install child resume; schema 43 overlap columns; one mutating task per bound `(harness_id, project_root, scope)` | — |
 | Init | `initialize` + catalog surfaces + optional op; task-engine fake-provider hooks; bound chosen/configured lookup; kit `0.2.13` accepts `instruction_section` and sends `--instruction-section` only when the bound provider declares both; drain `CliFailure` keeps `details.task`, `details.state=failed`, and drops expert `next_actions`. setup-systems kernel on `feat/patch-instruction-region` plan/apply/withdraw preserves `:::begin-ai-stp` / `:::end-ai-stp`; empty first write keeps bytes before markers; argv accepts YAML `---` as the section value; YAML frontmatter survives setup replace/withdraw of the attachment. Live Docker ENFORCED initialize against bound debug cursor/claude/codex/pi/opencode/grok-build writes catalogued surfaces (`alwaysApply` on cursor). Installed `0.0.72` omits the op. Antigravity lists the field and not the op | tag/publish providers only after CLI `0.0.23`; do not install over `0.0.72`; host bwrap denied |
-| Qualify | identities hashed; default report all `not_run`; measured overlay cannot fill unrun cells; isolated `agy_qualify` prompt/score covers all 20 names; linux providers on PATH but v3 local phases refuse without network isolation; overlay `isolation` may record `unavailable` without filling native cells; `--native-drive` scores verified + catalogued config-root `tree_digest`; wheel/extra `not_built`; retained overlay 89 pass / 11 unrun on `gpt-oss-120b-medium` (install/change/switch/custom-home/pending-reload 5/5 truthful Docker+Haiku; initialize 5/5 truthful limitation outcome; author/relative/login-idle 5/5 truthful; publish trio 5/5 truthful blocked authorization; login-skipped 5/5 no CLI); wrapper/score path jail; empty-log 503 does not retry; `--probe` is opt-in; `--fill` walks unrun cells one-at-a-time with a 90s gap and does not overwrite scored pass/fail; start-only 503 retries a clean attempt; `--fill` skips a 503 empty-log cell to the next unrun cell; remaining follow-through names are not a verified native-bytes claim; install/change/switch overlay score requires completed+verified (verified start with empty continuations is pass); custom-home overlay score requires completed initialize `wrote` for codex and markers at `CODEX_HOME/AGENTS.md`; relative `--root` is resolved so seed/wrapper exec; those four mutating prompts include `VERIFIED_DRAIN`; opt-in `--docker-image` execs the isolated CLI inside privileged Docker; change loads locally authored embedded members; task-drain failures drop `provider network` and attach `details.state=failed`; harness config roots are not `project_root`; score fails `task answer` without `--value` and `task get`; `FOLLOW_ACTOR` stops when continuations are empty and `actor=human` is not wait; choreography ignores `--value` payloads | native linux-x86_64 7/7 executed under Docker ENFORCED; win/mac `not_run`; wheel/extra from a clean tree |
+| Qualify | identities hashed; default report all `not_run`; measured overlay cannot fill unrun cells; isolated `agy_qualify` prompt/score covers all 20 names; linux providers on PATH but v3 local phases refuse without network isolation; overlay `isolation` may record `unavailable` without filling native cells; `--native-drive` scores verified + catalogued config-root `tree_digest`; wheel/extra `not_built`; retained overlay 89 pass / 11 unrun on `gpt-oss-120b-medium` (install/change/switch/custom-home/pending-reload 5/5 truthful Docker-assisted model; initialize 5/5 truthful limitation outcome; author/relative/login-idle 5/5 truthful; publish trio 5/5 truthful blocked authorization; login-skipped 5/5 no CLI); wrapper/score path jail; empty-log 503 does not retry; `--probe` is opt-in; `--fill` walks unrun cells one-at-a-time with a 90s gap and does not overwrite scored pass/fail; start-only 503 retries a clean attempt; `--fill` skips a 503 empty-log cell to the next unrun cell; remaining follow-through names are not a verified native-bytes claim; install/change/switch overlay score requires completed+verified (verified start with empty continuations is pass); custom-home overlay score requires completed initialize `wrote` for codex and markers at `CODEX_HOME/AGENTS.md`; relative `--root` is resolved so seed/wrapper exec; those four mutating prompts include `VERIFIED_DRAIN`; opt-in `--docker-image` execs the isolated CLI inside privileged Docker; change loads locally authored embedded members; task-drain failures drop `provider network` and attach `details.state=failed`; harness config roots are not `project_root`; score fails `task answer` without `--value` and `task get`; `FOLLOW_ACTOR` stops when continuations are empty and `actor=human` is not wait; choreography ignores `--value` payloads | native linux-x86_64 7/7 executed under Docker ENFORCED; win/mac `not_run`; wheel/extra from a clean tree |
 | Recommend | one first-party `baseline` pin | — |
 | Derive | `change` mints setup id + `fork_origin` + `related_setup_ids`; `switch` restores last user `preserved_setup` | — |
 | Publish | `publish` drains no-binding publication plan | — |
 | Skill/web | generated loop + `cli_copy.INITIALIZE_PROMPT` / `INITIALIZE_START --json`; playbooks intent-first; no transaction-apply / adopt / doctor-prelude / named-plan-leaf choreography; `recover.md` continues an open task before naming `install recover`; Skill text names no flags except the bootstrap pair; Skill forbids inventing `task status` / `task info` | — |
-| SPEC-080 | enum of eight drained intents; REQ-8007 start drains once; REQ-8010 human argv; REQ-8020 driver + 503 retry policy; REQ-8021 overlap; REQ-8022 group→intent redirect | Haiku + native qualify |
+| SPEC-080 | enum of eight drained intents; REQ-8007 start drains once; REQ-8010 human argv; REQ-8020 driver + 503 retry policy; REQ-8021 overlap; REQ-8022 group→intent redirect | GPT OSS 120B via `agy` + native qualify |
 | Issues | not closed | comment SHA + remaining gap; do not close early |
 
 ## 6. Execution slices
 
 Work-branch → PR into `dev` → merge commit → later `dev`→`main`
-(`docs/engineering/git-workflow.md`). Do not merge from this plan until
-the owner says execute. Do not `--force` `main`/`dev`. Do not touch
+(`docs/engineering/git-workflow.md`). Do not `--force` `main`/`dev`. Do not touch
 draft 254. Focused checks while editing; CI is feedback. No `just check`
 inside CLI commands.
 
@@ -712,8 +717,8 @@ declares both is chosen after the CLI reader ships. Do not tag.
 - **Then** Skill rewrite, `cli_copy.INITIALIZE_PROMPT`, `/agents.md`
   route, `SPEC-011` REQ-1106.
 
-Exit: a no-LLM driver completes the owner's first journey. Haiku is
-later, against these bytes.
+Exit: a no-LLM driver completes the owner's first journey. The current
+GPT OSS 120B model run follows against the same candidate bytes.
 
 ### Slice 5 — `change` (derived setups) + component-on-saved-setup
 
@@ -744,9 +749,9 @@ Candidate wheel + Skill + website + providers. Test **those** artifacts.
 
 1. Deterministic driver full corpus (negative controls, kill
    before/after receipt, concurrent continue).
-2. Haiku 4.5, 20×5, ≥95/100, no scenario <4/5, 5/5 on initialize /
-   install / change / switch. Stronger models are not used to hide the
-   interface.
+2. GPT OSS 120B through `agy`, 20×5, ≥95/100, no scenario <4/5,
+   5/5 on initialize / install / change / switch. Do not substitute
+   another model or carry over historical overlay cells.
 3. Seven harnesses × Linux x86_64, Windows x86_64, macOS arm64. Missing
    cells stay `not run`.
 4. Promote the same bytes. Distinguish: source merged, server deployed,
@@ -754,7 +759,7 @@ Candidate wheel + Skill + website + providers. Test **those** artifacts.
 
 Close issues only for measured scope.
 
-## 7. Haiku corpus (20)
+## 7. Agent qualification corpus (20)
 
 Core (must 5/5):
 
@@ -803,7 +808,7 @@ side effect, unsafe replay.
 | #271 | Login ≠ upload; explicit publish/sync |
 | #272 | Bounds measured on journeys (reuse existing HTTP/apply policy) |
 | #273 / ss#316 | Optional op + rendered providers; no hand-edit of generated trees |
-| #274 | Driver + Haiku + native cells with identities |
+| #274 | Driver + GPT OSS 120B through `agy` + native cells with identities |
 | #275 | Same bytes on website/Skill/wheel/providers |
 | #261 | All of the above |
 | #256 | Never from this epic |

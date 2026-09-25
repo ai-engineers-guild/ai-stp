@@ -1,5 +1,5 @@
 # pyright: reportUnknownVariableType=false, reportUnknownMemberType=false, reportUnknownArgumentType=false, reportIndexIssue=false
-"""Deterministic argv driver for the Haiku corpus. No LLM. Native cells stay not_run."""
+"""Deterministic argv driver for the agent corpus. No LLM. Native cells stay not_run."""
 
 from __future__ import annotations
 
@@ -31,11 +31,11 @@ from ai_stp_cli.application.initialize import (
     section_digest,
 )
 from ai_stp_cli.application.qualify import (
-    HAIKU_RUNS,
-    HAIKU_SCENARIOS,
+    AGENT_RUNS,
+    AGENT_SCENARIOS,
     PLATFORMS,
+    agent_cells,
     extra_status,
-    haiku_cells,
     native_cells,
     tree_digest,
     wheel_status,
@@ -60,7 +60,7 @@ from ai_stp_passports.versions import SetupVersionPassport
 
 ROOT = Path(__file__).resolve().parents[2]
 CANONICAL_SKILL = ROOT / "skills" / "canonical" / "ai-stp" / "SKILL.md"
-CORPUS = HAIKU_SCENARIOS
+CORPUS = AGENT_SCENARIOS
 STABLE = "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
 PLAN = "plan_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
 PLAN_HASH = "plan_" + "c" * 64
@@ -115,7 +115,7 @@ def _follow(body: dict[str, object], capsys: pytest.CaptureFixture[str]) -> dict
     return current
 
 
-def test_corpus_names_the_twenty_haiku_scenarios() -> None:
+def test_corpus_names_the_twenty_agent_scenarios() -> None:
     assert len(CORPUS) == 20
     assert len(set(CORPUS)) == 20
     assert tuple(name for name, _ in CORPUS_DRIVERS) == CORPUS
@@ -348,14 +348,14 @@ def test_canonical_skill_does_not_dump_the_registry() -> None:
     assert "not login" in text
 
 
-def test_unrun_native_and_haiku_cells_stay_not_run() -> None:
+def test_unrun_native_and_agent_cells_stay_not_run() -> None:
     native = native_cells()
-    haiku = haiku_cells()
-    assert CORPUS == HAIKU_SCENARIOS
+    agent = agent_cells()
+    assert CORPUS == AGENT_SCENARIOS
     assert len(native) == len(HARNESS_ID_ORDER) * len(PLATFORMS) == 21
-    assert len(haiku) == len(CORPUS) * HAIKU_RUNS == 100
+    assert len(agent) == len(CORPUS) * AGENT_RUNS == 100
     assert set(native.values()) == {"not_run"}
-    assert set(haiku.values()) == {"not_run"}
+    assert set(agent.values()) == {"not_run"}
 
 
 def test_install_without_pin_uses_emitted_argv(
