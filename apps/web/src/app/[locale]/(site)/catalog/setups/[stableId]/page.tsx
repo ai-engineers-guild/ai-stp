@@ -53,7 +53,7 @@ import { readPublisherProfile, type PublicProfileProjection } from "@/lib/api/pu
 import { sessionCookieValue } from "@/lib/auth/require-session";
 import { readCsrfToken } from "@/lib/auth/session";
 import { asAccountId, asComponentId, asVersionId, tryAsSetupId } from "@/lib/brands";
-import { installStart, registryVersion } from "@/lib/cli-copy";
+import { installSetupStart, registryVersion } from "@/lib/cli-copy";
 import { isFeatureEnabled } from "@/lib/features/gate";
 import { buildDeepLink, normalizeTarget } from "@/lib/deep-links";
 import { publicOrigin } from "@/lib/site";
@@ -389,7 +389,7 @@ export default async function SetupDetailPage({ params, searchParams }: PageProp
               labels={contextBudgetLabels(t, tCli)}
             />
             <CliCopyBlock
-              command={installStart()}
+              command={installSetupStart(summary.stable_id, summary.latest_version)}
               title={tCli("useTitle")}
               description={tCli("useBody")}
               copyLabel={tCli("copy")}

@@ -1240,7 +1240,7 @@
   },
   "cli": {
     "useTitle": "Использовать через CLI",
-    "useBody": "Запустите intent install. CLI спросит harness и сетап.",
+    "useBody": "Запустите intent install для этого объекта. CLI спросит harness.",
     "inspectTitle": "Посмотреть эту версию через CLI",
     "inspectBody": "Команда использует стабильный идентификатор и версию объекта.",
     "copy": "Копировать",

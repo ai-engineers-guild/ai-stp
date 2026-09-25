@@ -54,7 +54,7 @@ import { sessionCookieValue } from "@/lib/auth/require-session";
 import { readCsrfToken } from "@/lib/auth/session";
 import { asAccountId, asVersionId, tryAsComponentId } from "@/lib/brands";
 import { namedHarnesses } from "@/lib/catalog-harnesses";
-import { installStart, registryVersion } from "@/lib/cli-copy";
+import { installTaskStart, registryVersion } from "@/lib/cli-copy";
 import { isFeatureEnabled } from "@/lib/features/gate";
 import { buildDeepLink, normalizeTarget } from "@/lib/deep-links";
 import { publicOrigin } from "@/lib/site";
@@ -356,7 +356,7 @@ export default async function ComponentDetailPage({ params, searchParams }: Page
               labels={contextBudgetLabels(t, tCli)}
             />
             <CliCopyBlock
-              command={installStart()}
+              command={installTaskStart(summary.stable_id, summary.latest_version)}
               title={tCli("useTitle")}
               description={tCli("useBody")}
               copyLabel={tCli("copy")}
