@@ -634,7 +634,7 @@ Slice status on this work tree:
 | --- | --- |
 | 0 | Merged to `main` and deployed (PRs #279/#280 chain completed) |
 | 1–8 | Shipped on `main`. Live CLI: eight intents, root `--help` is `task` only |
-| 9 | Deterministic argv driver green for all 20 scenarios. Haiku overlay `claude-haiku-4-5`: **99 pass / 1 fail / 100 cells** under Docker ENFORCED (2026-09-21, PR #356 + prompt-clarity rerun) — `unsupported-project-local` 4/5 (cell 4 sent `.` not `relative`), all other scenarios 5/5, gates met. gpt-oss overlay: 89 measured pass + native linux-x86_64 7/7. win/mac `not_run`; wheel/extra `not_built`; promote not run |
+| 9 | Deterministic argv driver green for all 20 scenarios. Haiku overlay `claude-haiku-4-5`: **99 pass / 1 fail / 100 cells** under Docker ENFORCED (2026-09-21, PR #356 + prompt-clarity rerun) — `unsupported-project-local` 4/5 (cell 4 sent `.` not `relative`), all other scenarios 5/5; historical layer only. GPT OSS 120B `agy` overlay (`agent` key, `gpt-oss-120b-medium`): **100 pass / 0 fail / 100 cells** checkout-bound under Docker on the `main` tree (2026-09-25, post-#442 quota resume). Wheel-bound rerun on a locally built `ai-stp-cli-0.0.29` wheel from the same tree: **98 pass / 2 fail / 100 cells** (2026-09-25) — `unsupported-project-local:4` sent `.` not the literal `relative`; `pending-reload-not-loaded:2` printed the forbidden verbatim marker `session loaded` inside a negated table label; both end states verified correct, gates met. Native linux-x86_64 7/7; win/mac `not_run`; promotion stages not run |
 
 Each slice: spec/ADR as in §2.14, `just back-gen` if schemas move,
 `just docs-gen` if docs move, i18n for user-visible questions, issue
