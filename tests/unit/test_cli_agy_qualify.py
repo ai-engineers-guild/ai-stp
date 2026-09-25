@@ -881,6 +881,50 @@ def test_pending_reload_fails_a_loaded_session_claim(tmp_path: Path) -> None:
         "The running process loaded the new files.\n", encoding="utf-8"
     )
     assert score(PENDING_RELOAD, workspace) == "fail"
+
+
+def test_pending_reload_accepts_negated_loaded_reports(tmp_path: Path) -> None:
+    """A truthful "session loaded | false" report must not score as a claim."""
+    workspace = prepare_workspace(tmp_path, scenario=PENDING_RELOAD)
+    _drive(workspace, "switch")
+    _insert_intent(
+        workspace.home,
+        "switch",
+        outcome={
+            "kind": "switch",
+            "harness_id": "cursor",
+            "project_root": str(workspace.project),
+            "preserved_setup_id": "setup_held",
+            "verified": True,
+            "session_loaded": False,
+            "process_killed": False,
+        },
+    )
+    (workspace.root / "cli.log").write_text(
+        "task start --intent switch --input switch-input.json --json\n"
+        "task answer --task t --revision 3 --question-id reload-session --value done --json\n",
+        encoding="utf-8",
+    )
+    assert score(PENDING_RELOAD, workspace) == "pass"
+    for truthful in (
+        "Session loaded | false\n",
+        "session loaded: false\n",
+        "the session did not load new files; no files are now loaded\n",
+        "without the session loaded files the process stays pending\n",
+    ):
+        (workspace.root / "agy.stdout").write_text(truthful, encoding="utf-8")
+        assert score(PENDING_RELOAD, workspace) == "pass", truthful
+    for claim in (
+        "Session loaded new files.\n",
+        "the files are now loaded into the running process\n",
+        "session loaded, not yet verified\n",
+        "no errors: the session loaded successfully\n",
+    ):
+        (workspace.root / "agy.stdout").write_text(claim, encoding="utf-8")
+        assert score(PENDING_RELOAD, workspace) == "fail", claim
+
+
+def test_pending_reload_blocked_still_passes(tmp_path: Path) -> None:
     blocked = prepare_workspace(tmp_path / "pending-block", scenario=PENDING_RELOAD)
     _insert_intent(
         blocked.home,
