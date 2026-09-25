@@ -7,7 +7,7 @@ verified end-to-end in this worktree.
 
 from __future__ import annotations
 
-import uuid
+import base64
 from collections.abc import AsyncIterator
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -16,12 +16,15 @@ from typing import Any
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
+from nacl.signing import SigningKey
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from tests.support.api_settings import make_settings
 
 from ai_stp_api.app import create_app
 from ai_stp_api.session import issue_session
 from ai_stp_api.slices.corporate.heartbeat import router as heartbeat_router
+from ai_stp_contracts.auth import DeviceRefreshRequest, device_refresh_message
+from ai_stp_contracts.heartbeat import InstallationHeartbeatRequest, heartbeat_signature_message
 from ai_stp_foundation.ids import new_id
 from ai_stp_foundation.timestamps import format_timestamp
 from ai_stp_platform.heartbeat_models import InstallationHeartbeat
@@ -31,6 +34,7 @@ from ai_stp_platform.telemetry_policy_models import TelemetryPolicy, TelemetryRe
 from ai_stp_platform.tenant_scope import set_tenant_scope
 
 pytestmark = pytest.mark.platform
+_DEVICE_KEYS: dict[str, SigningKey] = {}
 
 
 def _now() -> datetime:
@@ -55,10 +59,11 @@ async def _account_with_device(
 ) -> tuple[str, str, str]:
     async with sessionmaker() as db:
         account = Account(id=new_id("account"), status="active")
+        signer = SigningKey.generate()
         device = Device(
             id=new_id("device"),
             account_id=account.id,
-            public_key="hb-pk-" + uuid.uuid4().hex[:24],
+            public_key=base64.b64encode(bytes(signer.verify_key)).decode("ascii"),
             state="active",
         )
         db.add_all([account, device])
@@ -67,6 +72,7 @@ async def _account_with_device(
             db, account_id=account.id, device_id=device.id, ttl_seconds=3600
         )
         await db.commit()
+        _DEVICE_KEYS[device.id] = signer
         return account.id, device.id, issued.raw_token
 
 
@@ -98,9 +104,54 @@ def _payload(
         "last_sync_at": format_timestamp(moment - timedelta(minutes=5)),
         "health_state": "active",
         "checked_at": format_timestamp(moment),
+        "signature": "A" * 86,
     }
     payload.update(overrides)
     return payload
+
+
+async def _put(
+    client: AsyncClient, path: str, *, json: dict[str, Any], headers: dict[str, str]
+) -> Any:
+    device_id = json["device_id"]
+    signer = _DEVICE_KEYS.get(device_id)
+    if signer is not None:
+        report = InstallationHeartbeatRequest.model_validate(json)
+        signature = signer.sign(heartbeat_signature_message(path.split("/")[4], report)).signature
+        json = {**json, "signature": base64.urlsafe_b64encode(signature).rstrip(b"=").decode()}
+    return await client.put(path, json=json, headers=headers)
+
+
+async def test_device_can_renew_session_with_its_key(
+    heartbeat_client: tuple[AsyncClient, async_sessionmaker[AsyncSession]],
+) -> None:
+    client, sessionmaker = heartbeat_client
+    account_id, device_id, token = await _account_with_device(sessionmaker)
+    organization_id = await _bootstrap(client, account_id, "hb-renew-scenario-0001")
+    request = DeviceRefreshRequest(
+        device_id=device_id, checked_at=format_timestamp(_now()), signature="A" * 86
+    )
+    denied = await client.post(
+        "/v1/auth/device/refresh",
+        json=request.model_dump(mode="json"),
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert denied.status_code == 400
+    signature = _DEVICE_KEYS[device_id].sign(device_refresh_message(request)).signature
+    signed = request.model_copy(
+        update={"signature": base64.urlsafe_b64encode(signature).rstrip(b"=").decode()}
+    )
+    renewed = await client.post(
+        "/v1/auth/device/refresh",
+        json=signed.model_dump(mode="json"),
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert renewed.status_code == 200, renewed.text
+    policy = await client.get(
+        f"/v1/corporate/organizations/{organization_id}/telemetry/heartbeat/policy",
+        headers={"Authorization": f"Bearer {renewed.json()['access_token']}"},
+    )
+    assert policy.status_code == 200
 
 
 async def test_heartbeat_write_is_idempotent_and_delayed_writes_cannot_regress(
@@ -113,21 +164,29 @@ async def test_heartbeat_write_is_idempotent_and_delayed_writes_cannot_regress(
     path = f"/v1/corporate/organizations/{organization_id}/telemetry/heartbeat"
 
     first_payload = _payload(account_id, device_id)
-    first = await client.put(path, json=first_payload, headers=auth)
+    first = await _put(client, path, json=first_payload, headers=auth)
     assert first.status_code == 200, first.text
     assert first.json()["health_state"] == "active"
     assert first.json()["revision"] == 1
 
-    replay = await client.put(path, json=first_payload, headers=auth)
+    forged = await client.put(
+        path,
+        json={**first_payload, "signature": "A" * 86},
+        headers=auth,
+    )
+    assert forged.status_code == 400
+
+    replay = await _put(client, path, json=first_payload, headers=auth)
     assert replay.status_code == 200, replay.text
     assert replay.json()["revision"] == 1
 
-    delayed = await client.put(
+    delayed = await _put(
+        client,
         path,
         json=_payload(
             account_id,
             device_id,
-            checked_at=_now() - timedelta(hours=2),
+            checked_at=_now() - timedelta(minutes=2),
             cli_version="0.0.1",
             health_state="failing",
         ),
@@ -137,7 +196,8 @@ async def test_heartbeat_write_is_idempotent_and_delayed_writes_cannot_regress(
     assert delayed.json()["revision"] == 1
     assert delayed.json()["cli_version"] == "1.4.2"
 
-    newer = await client.put(
+    newer = await _put(
+        client,
         path,
         json=_payload(account_id, device_id, checked_at=_now() + timedelta(seconds=30)),
         headers=auth,
@@ -160,7 +220,7 @@ async def test_heartbeat_health_states_and_staleness_read_time(
     assert missing.json()["health_state"] == "unknown"
 
     assert (
-        await client.put(path, json=_payload(account_id, device_id), headers=auth)
+        await _put(client, path, json=_payload(account_id, device_id), headers=auth)
     ).status_code == 200
     own = await client.get(path, headers=auth)
     assert own.json()["health_state"] == "active"
@@ -174,7 +234,8 @@ async def test_heartbeat_health_states_and_staleness_read_time(
     stale = await client.get(path, headers=auth)
     assert stale.json()["health_state"] == "stale"
 
-    disabled = await client.put(
+    disabled = await _put(
+        client,
         path,
         json=_payload(
             account_id,
@@ -219,7 +280,7 @@ async def test_organization_policy_controls_cadence_staleness_and_revocation(
     assert settings.json()["interval_seconds"] == 900
     assert settings.json()["stale_after_seconds"] == 3600
 
-    written = await client.put(write_path, json=_payload(account_id, device_id), headers=auth)
+    written = await _put(client, write_path, json=_payload(account_id, device_id), headers=auth)
     assert written.status_code == 200, written.text
     async with sessionmaker() as db:
         await set_tenant_scope(db, organization_id)
@@ -237,7 +298,8 @@ async def test_organization_policy_controls_cadence_staleness_and_revocation(
         assert policy_row is not None
         policy_row.heartbeat_enabled = False
         await db.commit()
-    disabled = await client.put(
+    disabled = await _put(
+        client,
         write_path,
         json=_payload(account_id, device_id, checked_at=_now() + timedelta(minutes=1)),
         headers=auth,
@@ -260,7 +322,8 @@ async def test_organization_policy_controls_cadence_staleness_and_revocation(
             )
         )
         await db.commit()
-    revoked = await client.put(
+    revoked = await _put(
+        client,
         write_path,
         json=_payload(account_id, device_id, checked_at=_now() + timedelta(minutes=2)),
         headers=auth,
@@ -277,13 +340,13 @@ async def test_heartbeat_rejects_foreign_identity_and_deviceless_sessions(
     auth = {"Authorization": f"Bearer {token}"}
     path = f"/v1/corporate/organizations/{organization_id}/telemetry/heartbeat"
 
-    foreign_account = await client.put(
-        path, json=_payload(new_id("account"), device_id), headers=auth
+    foreign_account = await _put(
+        client, path, json=_payload(new_id("account"), device_id), headers=auth
     )
     assert foreign_account.status_code == 403
 
-    foreign_device = await client.put(
-        path, json=_payload(account_id, new_id("device")), headers=auth
+    foreign_device = await _put(
+        client, path, json=_payload(account_id, new_id("device")), headers=auth
     )
     assert foreign_device.status_code == 403
 
@@ -292,7 +355,8 @@ async def test_heartbeat_rejects_foreign_identity_and_deviceless_sessions(
             db, account_id=account_id, device_id=None, ttl_seconds=3600
         )
         await db.commit()
-    deviceless = await client.put(
+    deviceless = await _put(
+        client,
         path,
         json=_payload(account_id, device_id),
         headers={"Authorization": f"Bearer {cookie_session.raw_token}"},
@@ -326,13 +390,14 @@ async def test_heartbeat_tenant_and_role_isolation(
     list_path = f"/v1/corporate/organizations/{organization_id}/telemetry/heartbeats"
 
     assert (
-        await client.put(write_path, json=_payload(owner_id, owner_device), headers=owner_auth)
+        await _put(client, write_path, json=_payload(owner_id, owner_device), headers=owner_auth)
     ).status_code == 200
     assert (
-        await client.put(write_path, json=_payload(member_id, member_device), headers=member_auth)
+        await _put(client, write_path, json=_payload(member_id, member_device), headers=member_auth)
     ).status_code == 200
 
-    denied = await client.put(
+    denied = await _put(
+        client,
         write_path,
         json=_payload(outsider_id, outsider_device),
         headers=outsider_auth,

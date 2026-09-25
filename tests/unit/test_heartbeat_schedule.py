@@ -54,6 +54,65 @@ def test_tick_claims_only_its_organization(tmp_path: Path, monkeypatch: pytest.M
         )
 
 
+def test_scheduled_tick_ignores_opportunistic_due_time(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    path = tmp_path / "registry.sqlite"
+    organization = new_id("organization")
+    with sqlite3.connect(path) as connection:
+        connection.execute(
+            "CREATE TABLE heartbeat_subscription (organization_id TEXT PRIMARY KEY, "
+            "account_id TEXT, device_id TEXT, next_attempt_at TEXT, attempt_token TEXT)"
+        )
+        connection.execute(
+            "INSERT INTO heartbeat_subscription VALUES (?, ?, ?, ?, NULL)",
+            (organization, new_id("account"), new_id("device"), "2099-01-01T00:00:00.000Z"),
+        )
+    monkeypatch.setattr(heartbeat_app, "configured_path", lambda: path)
+    assert (
+        heartbeat_app._claim_due_subscription(datetime.now(UTC), organization_id=organization)
+        is None
+    )
+    assert (
+        heartbeat_app._claim_due_subscription(
+            datetime.now(UTC), organization_id=organization, scheduled=True
+        )
+        is not None
+    )
+
+
+def test_policy_interval_reconfigures_task_once(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    organization = new_id("organization")
+    monkeypatch.setattr(heartbeat_app, "configured_path", lambda: tmp_path / "registry.sqlite")
+    monkeypatch.setattr(schedule, "present", lambda _org: False)
+    account_id, device_id = new_id("account"), new_id("device")
+    heartbeat_app.enable_subscription(
+        organization,
+        account_id=account_id,
+        device_id=device_id,
+        interval_seconds=3600,
+    )
+    calls: list[tuple[str, int]] = []
+
+    def fake_install(org: str, interval: int, *, defer_mac_reload: bool = False) -> bool:
+        calls.append((org, interval))
+        return True
+
+    monkeypatch.setattr(schedule, "install", fake_install)
+    heartbeat_app._update_scheduler_interval(organization, 90)
+    heartbeat_app._update_scheduler_interval(organization, 90)
+    assert calls == [(organization, 90)]
+    heartbeat_app.enable_subscription(
+        organization, account_id=account_id, device_id=device_id, interval_seconds=60
+    )
+    with sqlite3.connect(tmp_path / "registry.sqlite") as connection:
+        assert connection.execute(
+            "SELECT scheduler_interval_seconds FROM heartbeat_subscription"
+        ).fetchone() == (60,)
+
+
 def test_windows_task_uses_user_session_and_catch_up(monkeypatch: pytest.MonkeyPatch) -> None:
     organization = new_id("organization")
     scripts: list[str] = []
@@ -63,10 +122,10 @@ def test_windows_task_uses_user_session_and_catch_up(monkeypatch: pytest.MonkeyP
         lambda _org: (r"C:\Program Files\Python\python.exe", ["-m", "ai_stp_cli"]),
     )
     monkeypatch.setattr(schedule, "_powershell", scripts.append)
-    schedule._windows_install("ai-stp-test", organization)
+    schedule._windows_install("ai-stp-test", organization, 90)
     assert "-LogonType Interactive -RunLevel Limited" in scripts[0]
     assert "-StartWhenAvailable" in scripts[0]
-    assert "-RepetitionInterval (New-TimeSpan -Hours 1)" in scripts[0]
+    assert "-RepetitionInterval (New-TimeSpan -Seconds 90)" in scripts[0]
     assert "-MultipleInstances IgnoreNew" in scripts[0]
     assert "C:\\Program Files\\Python\\python.exe" in scripts[0]
 
@@ -92,7 +151,7 @@ def test_wsl_task_uses_windowless_host_launcher(monkeypatch: pytest.MonkeyPatch)
         lambda _org: ("wsl.exe", ["-d", "Ubuntu-24.04", "--", "/usr/bin/python3"]),
     )
     monkeypatch.setattr(schedule, "_powershell", scripts.append)
-    schedule._windows_install("ai-stp-test", new_id("organization"))
+    schedule._windows_install("ai-stp-test", new_id("organization"), 90)
     assert "wscript.exe" in scripts[0]
     assert "WScript.Shell" in scripts[0]
     assert "Run" in scripts[0]
@@ -114,11 +173,44 @@ def test_mac_launch_agent_checks_hourly_and_at_login(
         schedule, "_target", lambda _org: ("/usr/bin/python3", ["-m", "ai_stp_cli"])
     )
     monkeypatch.setattr(schedule, "_run", calls.append)
-    schedule._mac_install("ai-stp-test", organization)
+    schedule._mac_install("ai-stp-test", organization, 90)
     payload = plistlib.loads(path.read_bytes())
-    assert payload["StartInterval"] == 3600
+    assert payload["StartInterval"] == 90
     assert payload["RunAtLoad"] is True
     assert calls == [["launchctl", "bootstrap", "gui/1000", str(path)]]
+
+
+def test_mac_policy_change_defers_reload_outside_running_agent(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    path = tmp_path / "heartbeat.plist"
+    path.touch()
+    starts: list[tuple[object, ...]] = []
+
+    def fake_popen(*args: object, **_kwargs: object) -> None:
+        starts.append(args)
+
+    monkeypatch.setattr(schedule, "_mac_path", lambda _name: path)
+    monkeypatch.setattr(schedule, "_mac_loaded", lambda _name: True)
+    monkeypatch.setattr(
+        schedule, "_target", lambda _org: ("/usr/bin/python3", ["-m", "ai_stp_cli"])
+    )
+    monkeypatch.setattr(
+        schedule, "_run", lambda _args: pytest.fail("reload killed the active agent")
+    )
+    monkeypatch.setattr(schedule.subprocess, "Popen", fake_popen)
+    assert not schedule._mac_install("ai-stp-test", new_id("organization"), 90, deferred=True)
+    assert starts and "reload-mac" in repr(starts[0])
+    assert plistlib.loads(path.read_bytes())["StartInterval"] == 90
+
+
+def test_mac_deferred_reload_does_not_restore_opted_out_task(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(schedule.time, "sleep", lambda _seconds: None)
+    monkeypatch.setattr(schedule, "_mac_path", lambda _name: tmp_path / "removed.plist")
+    monkeypatch.setattr(schedule, "_run", lambda _args: pytest.fail("task was restored"))
+    schedule._mac_reload(new_id("organization"), 90)
 
 
 def test_linux_timer_catches_up_and_runs_as_user(
@@ -132,8 +224,8 @@ def test_linux_timer_catches_up_and_runs_as_user(
         schedule, "_target", lambda _org: ("/usr/bin/python3", ["-m", "ai_stp_cli"])
     )
     monkeypatch.setattr(schedule, "_run", calls.append)
-    schedule._linux_install("ai-stp-test", organization)
-    assert "OnCalendar=hourly" in timer.read_text()
+    schedule._linux_install("ai-stp-test", organization, 90)
+    assert "OnUnitActiveSec=90s" in timer.read_text()
     assert "Persistent=true" in timer.read_text()
     assert "ExecStart=/usr/bin/python3 -m ai_stp_cli" in service.read_text()
     assert calls[-1] == ["systemctl", "--user", "enable", "--now", "heartbeat.timer"]
@@ -155,7 +247,7 @@ def test_wakeup_restores_enrolled_xdg_paths(monkeypatch: pytest.MonkeyPatch) -> 
     monkeypatch.setattr(
         heartbeat_app,
         "maybe_send_due",
-        lambda *, organization_id: seen.append(organization_id),
+        lambda *, organization_id, scheduled: seen.append(organization_id),
     )
     monkeypatch.setenv("XDG_CONFIG_HOME", "/prior/config")
     monkeypatch.setenv("XDG_DATA_HOME", "/prior/data")
@@ -181,7 +273,7 @@ def test_enable_registers_before_opt_in_and_disable_opts_out_first(
         "policy",
         lambda *_args: InstallationHeartbeatPolicy(organization_id=organization),
     )
-    monkeypatch.setattr(schedule, "install", lambda _org: events.append("install"))
+    monkeypatch.setattr(schedule, "install", lambda _org, _interval: events.append("install"))
     monkeypatch.setattr(schedule, "remove", lambda _org: events.append("remove"))
     monkeypatch.setattr(
         heartbeat_commands.heartbeat,

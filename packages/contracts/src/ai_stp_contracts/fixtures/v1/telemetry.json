@@ -6,7 +6,7 @@
       "operation_id": "writeInstallationHeartbeat",
       "kind": "positive",
       "why": "An authenticated installation heartbeat is stored and evaluated.",
-      "request": {"path_params": {"organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z"}, "body": {"schema_version": 1, "account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "cli_version": "1.0.0", "capabilities": ["cli.heartbeat"], "last_sync_at": null, "health_state": "active", "checked_at": "2026-09-22T11:00:00.000Z"}},
+      "request": {"path_params": {"organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z"}, "body": {"schema_version": 1, "account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "cli_version": "1.0.0", "capabilities": ["cli.heartbeat"], "last_sync_at": null, "health_state": "active", "checked_at": "2026-09-22T11:00:00.000Z", "signature": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"}},
       "status": 200,
       "body": {"schema_version": 1, "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "cli_version": "1.0.0", "capabilities": ["cli.heartbeat"], "last_sync_at": null, "reported_state": "active", "health_state": "active", "checked_at": "2026-09-22T11:00:00.000Z", "received_at": "2026-09-22T11:00:00.000Z", "revision": 1, "stale_after_seconds": 86400}
     },

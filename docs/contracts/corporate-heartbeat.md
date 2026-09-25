@@ -6,7 +6,7 @@ last_verified: "2026-09-24"
 # Corporate installation heartbeat
 
 The requirements owner is `SPEC-087`; the decisions are `ADR-0204`,
-`ADR-0205`, and `ADR-0208`. All routes are authenticated, under
+`ADR-0205`, `ADR-0208`, and `ADR-0211`. All routes are authenticated, under
 `/v1/corporate/organizations/{organization_id}/telemetry/`, and tenant-scoped
 by row-level security on `installation_heartbeat`.
 
@@ -28,7 +28,9 @@ installations while an org-scoped grant sees all.
 One row per `(organization_id, device_id)`. A beat applies only when its
 `checked_at` is strictly newer than the stored one — replays and delayed
 writes are acknowledged without mutation. `checked_at` more than five minutes
-ahead of the server clock is rejected (`400`). The response is the stored row
+ahead of or behind the server clock is rejected (`400`). The device signs the
+organization ID and closed request fields with its enrolled Ed25519 key; the
+server checks that signature before mutation. The response is the stored row
 plus the evaluated `health_state`.
 
 ## Health states

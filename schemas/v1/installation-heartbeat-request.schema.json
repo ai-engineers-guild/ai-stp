@@ -66,6 +66,11 @@
       "default": 1,
       "title": "Schema Version",
       "type": "integer"
+    },
+    "signature": {
+      "pattern": "^[A-Za-z0-9_-]{86}$",
+      "title": "Signature",
+      "type": "string"
     }
   },
   "required": [
@@ -73,7 +78,8 @@
     "device_id",
     "cli_version",
     "health_state",
-    "checked_at"
+    "checked_at",
+    "signature"
   ],
   "title": "InstallationHeartbeatRequest",
   "type": "object"
