@@ -1309,14 +1309,12 @@ def test_advance_held_reports_compensation_for_a_rolled_back_operation(
 ) -> None:
     plan = _journal_plan("advance-rolled-back")
     _journal_move(plan.operation_id, "rolled_back", plan.digest)
+
+    def forbidden(_parameters: Mapping[str, object]) -> Answer[InstallationView]:
+        raise AssertionError("a settled operation is read back, never retried")
+
     for name in ("resume", "approve", "apply"):
-        monkeypatch.setattr(
-            install_service,
-            name,
-            lambda _p: (_ for _ in ()).throw(
-                AssertionError("a settled operation is read back, never retried")
-            ),
-        )
+        monkeypatch.setattr(install_service, name, forbidden)
     # The real install.view carries the operation's own answer: rolled_back
     # is a finished mutation and reports AI_STP_COMPENSATED, not a retry.
     with pytest.raises(CliFailure) as raised:
