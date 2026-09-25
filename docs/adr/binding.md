@@ -38,5 +38,6 @@ must not silently undo:
 | [ADR-0150](ADR-0150-full-task-authority-does-not-reprompt.md) | Task authority and staged replacement |
 | [ADR-0180](ADR-0180-permanent-dev-and-protected-main.md) | `dev` integration, `main` promotion |
 | [ADR-0181](ADR-0181-application-services-own-cli-effects.md) | Application services own CLI effects |
+| [ADR-0210](ADR-0210-dependabot-branches-are-verified-by-event.md) | Verified Dependabot branch exception |
 | [ADR-0109](ADR-0109-the-deployment-source-is-the-public-repository.md) | Public repository is the deploy source |
 | [ADR-0135](ADR-0135-nginx-is-the-only-edge-proxy.md) | Host nginx is the public edge |

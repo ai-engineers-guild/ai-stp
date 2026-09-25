@@ -3,7 +3,7 @@ description: "Organization heartbeat policy drives the OS timer and device keys 
 last_verified: "2026-09-25"
 ---
 
-# ADR-0210: Organization cadence and signed installation heartbeats
+# ADR-0211: Organization cadence and signed installation heartbeats
 
 Status: accepted. Supersedes the fixed hourly wakeup in ADR-0209.
 

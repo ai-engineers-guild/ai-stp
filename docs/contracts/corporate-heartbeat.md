@@ -6,7 +6,7 @@ last_verified: "2026-09-24"
 # Corporate installation heartbeat
 
 The requirements owner is `SPEC-087`; the decisions are `ADR-0204`,
-`ADR-0205`, `ADR-0208`, and `ADR-0210`. All routes are authenticated, under
+`ADR-0205`, `ADR-0208`, and `ADR-0211`. All routes are authenticated, under
 `/v1/corporate/organizations/{organization_id}/telemetry/`, and tenant-scoped
 by row-level security on `installation_heartbeat`.
 

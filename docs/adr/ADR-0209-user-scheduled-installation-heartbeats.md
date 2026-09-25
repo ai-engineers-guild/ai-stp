@@ -6,7 +6,7 @@ last_verified: "2026-09-25"
 # ADR-0209: User-scheduled installation heartbeats
 
 Status: accepted. Extends ADR-0208 for the case where the CLI is idle.
-ADR-0210 supersedes its fixed hourly cadence.
+ADR-0211 supersedes its fixed hourly cadence.
 
 ## Context
 
