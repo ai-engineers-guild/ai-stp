@@ -105,10 +105,11 @@ are owned by SPEC-089.
 - `REQ-8714`: After policy and device-bound authentication checks,
   `heartbeat enable` registers a per-user OS wakeup every 30 seconds for that
   organization before saving local opt-in. Windows uses an interactive-user
-  Task Scheduler task with missed-run catch-up; macOS uses a LaunchAgent with
+  Task Scheduler task with a windowless Python executable and missed-run
+  catch-up; macOS uses a LaunchAgent with
   a 30-second interval; Linux uses a user systemd timer with persistent
-  catch-up; WSL uses a Windows task that invokes the named WSL distribution and
-  user. `heartbeat tick` checks only the named subscription using the same
+  catch-up; WSL uses a Windows task with a windowless launcher that invokes the
+  named WSL distribution and user. `heartbeat tick` checks only the named subscription using the same
   due-claim sender; it cannot create an opt-in. `heartbeat disable` removes
   local opt-in before removing the wakeup. Repeating `enable` repairs the task
   target path and preserves the enrolled file credential-store selection.

@@ -73,7 +73,8 @@ timeout. Failures do not change the command result and schedule an
 organization-bounded exponential retry. Successful sends wait for the
 organization interval. A twice-per-minute per-user OS wakeup invokes the same sender
 while the user session and host scheduler are available. Windows uses Task
-Scheduler, macOS uses LaunchAgent, Linux uses a user systemd timer, and WSL
+Scheduler with `pythonw.exe` to avoid a console window, macOS uses LaunchAgent,
+Linux uses a user systemd timer, and WSL
 uses a Windows task to launch the named distribution. No Python daemon stays
 resident. The installed Python path, effective XDG config/data directories, and
 file credential-store selection are captured in the local task; repeat `enable`

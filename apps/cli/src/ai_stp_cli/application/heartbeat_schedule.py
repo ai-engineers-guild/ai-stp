@@ -40,6 +40,14 @@ def _target(organization_id: str) -> tuple[str, list[str]]:
     if _wsl():
         distro = os.environ["WSL_DISTRO_NAME"]
         return "wsl.exe", ["-d", distro, "-u", getpass.getuser(), "--", sys.executable, *args]
+    if sys.platform == "win32":
+        executable = Path(sys.executable).with_name("pythonw.exe")
+        if not executable.is_file():
+            raise CliFailure(
+                "AI_STP_DEPENDENCY_UNAVAILABLE",
+                "the windowless Python executable is unavailable",
+            )
+        return str(executable), args
     return sys.executable, args
 
 
@@ -66,14 +74,25 @@ def _ps(value: str) -> str:
 def _windows_install(name: str, organization_id: str) -> None:
     executable, args = _target(organization_id)
     argument = subprocess.list2cmdline(args)
-    execute = (
-        "(Get-Command 'wsl.exe' -ErrorAction Stop).Source"
-        if executable == "wsl.exe"
-        else _ps(executable)
-    )
+    if executable == "wsl.exe":
+        command = subprocess.list2cmdline([executable, *args]).replace('"', '""')
+        launcher = f'CreateObject("WScript.Shell").Run "{command}", 0, True'
+        action = (
+            "$directory = Join-Path $env:LOCALAPPDATA 'ai-stp\\heartbeat'; "
+            "New-Item -ItemType Directory -Path $directory -Force | Out-Null; "
+            f"$launcher = Join-Path $directory {_ps(name + '.vbs')}; "
+            f"[IO.File]::WriteAllText($launcher, {_ps(launcher)}, [Text.Encoding]::Unicode); "
+            "$action = New-ScheduledTaskAction -Execute (Get-Command 'wscript.exe' "
+            "-ErrorAction Stop).Source -Argument ('//B //Nologo \"' + $launcher + '\"'); "
+        )
+    else:
+        action = (
+            f"$action = New-ScheduledTaskAction -Execute {_ps(executable)} "
+            f"-Argument {_ps(argument)}; "
+        )
     script = (
         "$ErrorActionPreference = 'Stop'; "
-        f"$action = New-ScheduledTaskAction -Execute {execute} -Argument {_ps(argument)}; "
+        f"{action}"
         "$start = (Get-Date).AddMinutes(1); "
         "$trigger = @(0, 30) | ForEach-Object { "
         "New-ScheduledTaskTrigger -Once -At $start.AddSeconds($_) "
@@ -94,7 +113,10 @@ def _windows_remove(name: str) -> None:
     _powershell(
         "$ErrorActionPreference = 'Stop'; "
         f"if (Get-ScheduledTask -TaskName {_ps(name)} -ErrorAction SilentlyContinue) {{ "
-        f"Unregister-ScheduledTask -TaskName {_ps(name)} -Confirm:$false }}"
+        f"Unregister-ScheduledTask -TaskName {_ps(name)} -Confirm:$false }}; "
+        "$directory = Join-Path $env:LOCALAPPDATA 'ai-stp\\heartbeat'; "
+        f"$launcher = Join-Path $directory {_ps(name + '.vbs')}; "
+        "Remove-Item -LiteralPath $launcher -ErrorAction SilentlyContinue"
     )
 
 

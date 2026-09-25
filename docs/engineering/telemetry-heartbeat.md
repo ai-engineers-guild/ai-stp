@@ -56,7 +56,9 @@ failure leaves the primary command result unchanged. A twice-per-minute per-user
 task also invokes `heartbeat tick --organization <id>` through a launcher that
 restores the enrolled XDG config/data directories and credential-store choice.
 The tick uses the same due
-claim and policy. The task is not a resident Python daemon.
+claim and policy. Native Windows tasks use `pythonw.exe` to avoid a console
+window. The task is not a resident Python daemon.
+WSL tasks use a hidden Windows Script Host launcher for `wsl.exe`.
 
 `heartbeat enable` requires a device-bound authenticated session and an
 enabled organization policy, registers the OS wakeup, then stores local opt-in.

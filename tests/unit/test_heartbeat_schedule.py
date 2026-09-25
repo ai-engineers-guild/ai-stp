@@ -13,6 +13,7 @@ from ai_stp_cli.application import heartbeat as heartbeat_app
 from ai_stp_cli.application import heartbeat_schedule as schedule
 from ai_stp_cli.application import heartbeat_wakeup
 from ai_stp_cli.commands import heartbeat as heartbeat_commands
+from ai_stp_cli.errors import CliFailure
 from ai_stp_contracts.heartbeat import (
     InstallationHeartbeatPolicy,
     InstallationHeartbeatSubscription,
@@ -69,6 +70,35 @@ def test_windows_task_uses_user_session_and_catch_up(monkeypatch: pytest.MonkeyP
     assert "@(0, 30)" in scripts[0]
     assert "-MultipleInstances IgnoreNew" in scripts[0]
     assert "C:\\Program Files\\Python\\python.exe" in scripts[0]
+
+
+def test_windows_target_uses_windowless_python(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(schedule.sys, "platform", "win32")
+    monkeypatch.setattr(schedule.sys, "executable", str(tmp_path / "python.exe"))
+    with pytest.raises(CliFailure):
+        schedule._target(new_id("organization"))
+    (tmp_path / "pythonw.exe").touch()
+    executable, _args = schedule._target(new_id("organization"))
+    assert executable == str(tmp_path / "pythonw.exe")
+
+
+def test_wsl_task_uses_windowless_host_launcher(monkeypatch: pytest.MonkeyPatch) -> None:
+    scripts: list[str] = []
+    monkeypatch.setattr(
+        schedule,
+        "_target",
+        lambda _org: ("wsl.exe", ["-d", "Ubuntu-24.04", "--", "/usr/bin/python3"]),
+    )
+    monkeypatch.setattr(schedule, "_powershell", scripts.append)
+    schedule._windows_install("ai-stp-test", new_id("organization"))
+    assert "wscript.exe" in scripts[0]
+    assert "WScript.Shell" in scripts[0]
+    assert "Run" in scripts[0]
+    assert ".vbs" in scripts[0]
+    schedule._windows_remove("ai-stp-test")
+    assert "Remove-Item -LiteralPath $launcher" in scripts[1]
 
 
 def test_mac_launch_agent_checks_twice_per_minute_and_at_login(

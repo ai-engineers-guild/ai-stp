@@ -27,11 +27,12 @@ before removing the wakeup, so a removal failure cannot cause another send.
 The tick does not infer opt-in from the presence of an OS task.
 
 Windows uses a Task Scheduler task with two staggered minute triggers under
-the interactive user with missed-run catch-up; macOS uses a LaunchAgent with a
+the interactive user and `pythonw.exe` so wakeups do not open a console,
+with missed-run catch-up; macOS uses a LaunchAgent with a
 30-second interval and
 `RunAtLoad`; Linux uses a user `systemd` timer with `Persistent=true`. WSL
 registers a Windows task that starts the named distribution and user through
-`wsl.exe`, because its own systemd timer does not keep an idle WSL instance
+`wsl.exe` via a hidden `wscript.exe` launcher, because its own systemd timer does not keep an idle WSL instance
 alive. No administrator privilege, new credential, or third-party runtime
 dependency is required.
 
