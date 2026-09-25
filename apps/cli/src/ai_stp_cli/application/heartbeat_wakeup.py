@@ -16,7 +16,7 @@ def run(args: list[str]) -> int:
         os.environ.pop("AI_STP_FORCE_FILE_CREDENTIAL_STORE", None)
     from ai_stp_cli.application.heartbeat import maybe_send_due
 
-    maybe_send_due(organization_id=organization_id)
+    maybe_send_due(organization_id=organization_id, scheduled=True)
     return 0
 
 

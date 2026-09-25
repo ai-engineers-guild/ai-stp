@@ -8,7 +8,7 @@ member-scoped or organization-scoped visibility. Health is evaluated at read
 time; nothing here emits a runtime invocation event.
 """
 
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
@@ -18,6 +18,7 @@ from ai_stp_api.deps import get_db, require_auth
 from ai_stp_api.errors import ApiError, ErrorCategory
 from ai_stp_api.session import AuthContext
 from ai_stp_api.slices.corporate import service
+from ai_stp_api.slices.devices.crypto import verify_ed25519
 from ai_stp_contracts.corporate import OrganizationId
 from ai_stp_contracts.heartbeat import (
     HeartbeatHealthState,
@@ -26,9 +27,11 @@ from ai_stp_contracts.heartbeat import (
     InstallationHeartbeatPolicy,
     InstallationHeartbeatRequest,
     InstallationHeartbeatStatus,
+    heartbeat_signature_message,
 )
-from ai_stp_foundation.timestamps import format_timestamp
+from ai_stp_foundation.timestamps import format_timestamp, parse_timestamp
 from ai_stp_platform import heartbeat_service
+from ai_stp_platform.models import Device
 
 router = APIRouter(tags=["corporate"])
 
@@ -54,6 +57,18 @@ async def write_heartbeat(
             ErrorCategory.PERMISSION,
             "a heartbeat can only be written for the session's own account and device",
         )
+    device = await db.get(Device, ctx.device_id)
+    if device is None or device.account_id != ctx.account_id or device.state != "active":
+        raise ApiError(ErrorCategory.PERMISSION, "heartbeat device is unavailable")
+    if abs(datetime.now(UTC) - parse_timestamp(payload.checked_at)) > timedelta(minutes=5):
+        raise ApiError(
+            ErrorCategory.VALIDATION, "heartbeat timestamp is outside the accepted window"
+        )
+    verify_ed25519(
+        public_key=device.public_key,
+        message=heartbeat_signature_message(organization_id, payload),
+        signature=payload.signature,
+    )
     try:
         view = await heartbeat_service.record_heartbeat(
             db, organization_id=organization_id, report=payload

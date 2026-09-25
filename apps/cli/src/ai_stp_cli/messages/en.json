@@ -743,6 +743,8 @@
   "the provider-info harness does not match the requested harness": "the provider-info harness does not match the requested harness",
   "the provider-info payload does not satisfy protocol v3": "the provider-info payload does not satisfy protocol v3",
   "the provider-info payload is not a v3 capability declaration": "the provider-info payload is not a v3 capability declaration",
+  "the publication plan changed after the task recorded it": "the publication plan changed after the task recorded it",
+  "the publication task no longer names its recorded object": "the publication task no longer names its recorded object",
   "the public catalogue is switched off in this configuration": "the public catalogue is switched off in this configuration",
   "the published passport identity does not match the requested version": "the published passport identity does not match the requested version",
   "the published passport is not a complete version passport": "the published passport is not a complete version passport",
@@ -962,5 +964,10 @@
   "this native surface requires exactly one source file": "this native surface requires exactly one source file",
   "task start needs --intent NAME, not a positional intent": "task start needs --intent NAME, not a positional intent",
   "the task input file could not be read; --input expects a JSON/YAML file path or '-' for stdin": "the task input file could not be read; --input expects a JSON/YAML file path or '-' for stdin",
-  "this native document surface requires exactly one Markdown file": "this native document surface requires exactly one Markdown file"
+  "this native document surface requires exactly one Markdown file": "this native document surface requires exactly one Markdown file",
+  "invalid heartbeat interval": "invalid heartbeat interval",
+  "renewal changed the enrolled device": "renewal changed the enrolled device",
+  "the enrolled device key has changed": "the enrolled device key has changed",
+  "the enrolled device must sign in again": "the enrolled device must sign in again",
+  "the held device cannot sign this heartbeat": "the held device cannot sign this heartbeat"
 }

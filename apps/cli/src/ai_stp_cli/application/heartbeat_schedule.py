@@ -5,8 +5,10 @@ import getpass
 import hashlib
 import os
 import plistlib
+import sqlite3
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 from ai_stp_cli.errors import CliFailure
@@ -53,7 +55,13 @@ def _target(organization_id: str) -> tuple[str, list[str]]:
 
 def _run(args: list[str]) -> None:
     try:
-        subprocess.run(args, check=True, capture_output=True, timeout=15)
+        subprocess.run(
+            args,
+            check=True,
+            capture_output=True,
+            timeout=15,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+        )
     except (OSError, subprocess.SubprocessError) as error:
         raise CliFailure(
             "AI_STP_DEPENDENCY_UNAVAILABLE",
@@ -71,7 +79,7 @@ def _ps(value: str) -> str:
     return "'" + value.replace("'", "''") + "'"
 
 
-def _windows_install(name: str, organization_id: str) -> None:
+def _windows_install(name: str, organization_id: str, interval_seconds: int) -> None:
     executable, args = _target(organization_id)
     argument = subprocess.list2cmdline(args)
     if executable == "wsl.exe":
@@ -93,8 +101,9 @@ def _windows_install(name: str, organization_id: str) -> None:
     script = (
         "$ErrorActionPreference = 'Stop'; "
         f"{action}"
-        "$trigger = New-ScheduledTaskTrigger -Once -At (Get-Date).AddHours(1) "
-        "-RepetitionInterval (New-TimeSpan -Hours 1) "
+        "$trigger = New-ScheduledTaskTrigger -Once "
+        f"-At (Get-Date).AddSeconds({interval_seconds}) "
+        f"-RepetitionInterval (New-TimeSpan -Seconds {interval_seconds}) "
         "-RepetitionDuration (New-TimeSpan -Days 3650); "
         "$settings = New-ScheduledTaskSettingsSet -StartWhenAvailable "
         "-MultipleInstances IgnoreNew; "
@@ -132,6 +141,7 @@ def _windows_present(name: str) -> bool:
             capture_output=True,
             timeout=15,
             check=False,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
         )
     except (OSError, subprocess.SubprocessError):
         return False
@@ -159,20 +169,52 @@ def _mac_loaded(name: str) -> bool:
     return result.returncode == 0
 
 
-def _mac_install(name: str, organization_id: str) -> None:
+def _mac_install(
+    name: str, organization_id: str, interval_seconds: int, *, deferred: bool = False
+) -> bool:
     path = _mac_path(name)
     path.parent.mkdir(parents=True, exist_ok=True)
-    if path.exists() and _mac_loaded(name):
+    loaded = path.exists() and _mac_loaded(name)
+    if loaded and not deferred:
         _run(["launchctl", "bootout", _mac_domain(), str(path)])
     executable, args = _target(organization_id)
     payload = {
         "Label": f"com.aistp.{name}",
         "ProgramArguments": [executable, *args],
-        "StartInterval": 3600,
+        "StartInterval": interval_seconds,
         "RunAtLoad": True,
     }
     path.write_bytes(plistlib.dumps(payload))
+    if loaded and deferred:
+        # launchctl bootout would terminate the currently running LaunchAgent.
+        # A detached, short-lived helper reloads it after this tick exits.
+        subprocess.Popen(
+            [sys.executable, "-m", __name__, "reload-mac", organization_id, str(interval_seconds)],
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            start_new_session=True,
+        )
+        return False
     _run(["launchctl", "bootstrap", _mac_domain(), str(path)])
+    return True
+
+
+def _mac_reload(organization_id: str, interval_seconds: int) -> None:
+    time.sleep(2)
+    name = _name(organization_id)
+    path = _mac_path(name)
+    if not path.is_file() or not configured_path().is_file():
+        return  # Opt-out removed the task or subscription before the deferred reload.
+    if _mac_loaded(name):
+        _run(["launchctl", "bootout", _mac_domain(), str(path)])
+    _run(["launchctl", "bootstrap", _mac_domain(), str(path)])
+    with sqlite3.connect(configured_path()) as connection:
+        connection.execute(
+            "UPDATE heartbeat_subscription SET scheduler_interval_seconds = ? "
+            "WHERE organization_id = ?",
+            (interval_seconds, organization_id),
+        )
 
 
 def _mac_remove(name: str) -> None:
@@ -188,7 +230,7 @@ def _linux_paths(name: str) -> tuple[Path, Path]:
     return directory / f"{name}.service", directory / f"{name}.timer"
 
 
-def _linux_install(name: str, organization_id: str) -> None:
+def _linux_install(name: str, organization_id: str, interval_seconds: int) -> None:
     service, timer = _linux_paths(name)
     service.parent.mkdir(parents=True, exist_ok=True)
     executable, args = _target(organization_id)
@@ -209,7 +251,7 @@ def _linux_install(name: str, organization_id: str) -> None:
     )
     timer.write_text(
         "[Unit]\nDescription=ai-stp installation heartbeat wakeup\n"
-        "[Timer]\nOnCalendar=hourly\nPersistent=true\n"
+        f"[Timer]\nOnBootSec={interval_seconds}s\nOnUnitActiveSec={interval_seconds}s\nPersistent=true\n"
         f"Unit={name}.service\n"
         "[Install]\nWantedBy=timers.target\n",
         encoding="utf-8",
@@ -227,19 +269,22 @@ def _linux_remove(name: str) -> None:
         _run(["systemctl", "--user", "daemon-reload"])
 
 
-def install(organization_id: str) -> None:
+def install(organization_id: str, interval_seconds: int, *, defer_mac_reload: bool = False) -> bool:
+    if not 60 <= interval_seconds <= 2_592_000:
+        raise CliFailure("AI_STP_VALIDATION_ERROR", "invalid heartbeat interval")
     name = _name(organization_id)
     if sys.platform == "win32" or _wsl():
-        _windows_install(name, organization_id)
+        _windows_install(name, organization_id, interval_seconds)
     elif sys.platform == "darwin":
-        _mac_install(name, organization_id)
+        return _mac_install(name, organization_id, interval_seconds, deferred=defer_mac_reload)
     elif sys.platform == "linux":
-        _linux_install(name, organization_id)
+        _linux_install(name, organization_id, interval_seconds)
     else:
         raise CliFailure(
             "AI_STP_DEPENDENCY_UNAVAILABLE",
             "the operating system heartbeat scheduler is unavailable",
         )
+    return True
 
 
 def remove(organization_id: str) -> None:
@@ -274,3 +319,12 @@ def present(organization_id: str) -> bool:
         except (OSError, subprocess.SubprocessError):
             return False
     return False
+
+
+if __name__ == "__main__":
+    if len(sys.argv) != 4 or sys.argv[1] != "reload-mac" or sys.platform != "darwin":
+        raise SystemExit(2)
+    interval = int(sys.argv[3])
+    if not 60 <= interval <= 2_592_000:
+        raise SystemExit(2)
+    _mac_reload(sys.argv[2], interval)

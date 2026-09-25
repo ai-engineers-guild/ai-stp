@@ -26,7 +26,7 @@ type PromotionStage = Literal[
 ]
 
 PLATFORMS: Final[tuple[str, ...]] = ("linux-x86_64", "windows-x86_64", "macos-arm64")
-HAIKU_RUNS: Final[int] = 5
+AGENT_RUNS: Final[int] = 5
 AGY_MODEL: Final[str] = "gpt-oss-120b-medium"
 MEASURED_ENV: Final[str] = "AI_STP_QUALIFY_MEASURED"
 PROMOTION_STAGES: Final[tuple[PromotionStage, ...]] = (
@@ -37,7 +37,7 @@ PROMOTION_STAGES: Final[tuple[PromotionStage, ...]] = (
     "native_files_applied",
     "session_loaded",
 )
-HAIKU_SCENARIOS: Final[tuple[str, ...]] = (
+AGENT_SCENARIOS: Final[tuple[str, ...]] = (
     "fresh-initialize-prompt",
     "no-reinit-on-coding",
     "install-exact-pin",
@@ -99,11 +99,11 @@ def native_cells(
     return held
 
 
-def haiku_cells(
+def agent_cells(
     *, measured: Mapping[tuple[str, int], MeasuredStatus] | None = None
 ) -> dict[tuple[str, int], CellStatus]:
     held: dict[tuple[str, int], CellStatus] = {
-        (scenario, run): "not_run" for scenario in HAIKU_SCENARIOS for run in range(HAIKU_RUNS)
+        (scenario, run): "not_run" for scenario in AGENT_SCENARIOS for run in range(AGENT_RUNS)
     }
     for key, status in (measured or {}).items():
         if key in held:
@@ -195,8 +195,8 @@ def native_from_document(document: Mapping[str, object]) -> dict[tuple[str, str]
     return held
 
 
-def haiku_from_document(document: Mapping[str, object]) -> dict[tuple[str, int], MeasuredStatus]:
-    raw = _object_map(document.get("haiku"))
+def agent_from_document(document: Mapping[str, object]) -> dict[tuple[str, int], MeasuredStatus]:
+    raw = _object_map(document.get("agent"))
     if raw is None:
         return {}
     held: dict[tuple[str, int], MeasuredStatus] = {}
@@ -205,9 +205,12 @@ def haiku_from_document(document: Mapping[str, object]) -> dict[tuple[str, int],
         if not isinstance(key, str) or status is None or ":" not in key:
             continue
         scenario, _, index = key.rpartition(":")
-        if not index.isdigit():
+        if scenario not in AGENT_SCENARIOS or not index.isdigit():
             continue
-        held[(scenario, int(index))] = status
+        run = int(index)
+        if run >= AGENT_RUNS:
+            continue
+        held[(scenario, run)] = status
     return held
 
 
@@ -249,16 +252,17 @@ def report() -> dict[str, object]:
     """JSON-safe cells. Unmeasured stay not_run. Not a promotion claim."""
     document = load_measured()
     native = native_cells(measured=native_from_document(document))
-    haiku = haiku_cells(measured=haiku_from_document(document))
+    measured_agent = agent_from_document(document)
+    agent = agent_cells(measured=measured_agent)
     promotion = promotion_status(measured=promotion_from_document(document))
-    model = document.get("agy_model")
+    model = document.get("agy_model") if measured_agent else AGY_MODEL
     if not isinstance(model, str) or not model.strip():
-        model = None if haiku_from_document(document) else AGY_MODEL
+        model = None if measured_agent else AGY_MODEL
     return {
         "native": {
             f"{harness}:{platform}": status for (harness, platform), status in native.items()
         },
-        "haiku": {f"{scenario}:{run}": status for (scenario, run), status in haiku.items()},
+        "agent": {f"{scenario}:{run}": status for (scenario, run), status in agent.items()},
         "promotion": dict(promotion),
         "isolation": isolation_from_document(document),
         "wheel": wheel_status(),

@@ -743,6 +743,8 @@
   "the provider-info harness does not match the requested harness": "харнесс в provider-info не совпадает с запрошенным",
   "the provider-info payload does not satisfy protocol v3": "payload provider-info не удовлетворяет протоколу v3",
   "the provider-info payload is not a v3 capability declaration": "полезная нагрузка provider-info не является объявлением возможностей v3",
+  "the publication plan changed after the task recorded it": "план публикации изменился после сохранения его в задаче",
+  "the publication task no longer names its recorded object": "задача публикации больше не указывает на сохранённый объект",
   "the public catalogue is switched off in this configuration": "публичный каталог выключен в этой конфигурации",
   "the published passport identity does not match the requested version": "идентичность опубликованного паспорта не совпадает с запрошенной версией",
   "the published passport is not a complete version passport": "опубликованный паспорт не является полным паспортом версии",
@@ -962,5 +964,10 @@
   "this native surface requires exactly one source file": "для этой нативной поверхности требуется ровно один исходный файл",
   "task start needs --intent NAME, not a positional intent": "для task start требуется --intent NAME, а не позиционное имя сценария",
   "the task input file could not be read; --input expects a JSON/YAML file path or '-' for stdin": "не удалось прочитать входной файл задачи; --input принимает путь к JSON/YAML-файлу или '-' для stdin",
-  "this native document surface requires exactly one Markdown file": "для этой нативной поверхности требуется ровно один файл Markdown"
+  "this native document surface requires exactly one Markdown file": "для этой нативной поверхности требуется ровно один файл Markdown",
+  "invalid heartbeat interval": "недопустимый интервал хертбита",
+  "renewal changed the enrolled device": "при продлении сессии изменилось зарегистрированное устройство",
+  "the enrolled device key has changed": "ключ зарегистрированного устройства изменился",
+  "the enrolled device must sign in again": "зарегистрированному устройству нужно снова войти в систему",
+  "the held device cannot sign this heartbeat": "текущее устройство не может подписать этот хертбит"
 }

@@ -311,7 +311,8 @@ def with_outcome(
     *,
     at: str,
     goal_satisfied: bool = True,
-    state: Literal["planned", "completed"] = "completed",
+    state: Literal["planned", "blocked", "completed"] = "completed",
+    questions: tuple[TaskQuestion, ...] = (),
     child_operation_ids: tuple[str, ...] | None = None,
 ) -> StoredTask:
     children = (
@@ -328,7 +329,9 @@ def with_outcome(
         idempotency_key=row.idempotency_key,
         payload_json=row.payload_json,
         outcome_json=outcome.model_dump_json(),
-        questions_json=row.questions_json,
+        questions_json=canonize([item.model_dump(mode="json") for item in questions]).decode(
+            "utf-8"
+        ),
         child_operation_ids_json=children,
         created_at=row.created_at,
         updated_at=at,

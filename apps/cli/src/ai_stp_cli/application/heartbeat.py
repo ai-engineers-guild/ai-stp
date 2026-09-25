@@ -5,6 +5,7 @@ the authenticated transport. Nothing here touches the anonymous telemetry
 collector, and nothing emits a runtime invocation event.
 """
 
+import base64
 import sqlite3
 import uuid
 from collections.abc import Callable, Iterable, Mapping
@@ -13,7 +14,8 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Final
 
-from ai_stp_cli import config, heartbeat
+from ai_stp_cli import config, heartbeat, identity
+from ai_stp_cli.cloud import session as cloud_session
 from ai_stp_cli.cloud.client import Endpoint, call, open_client
 from ai_stp_cli.cloud.session import Session
 from ai_stp_cli.errors import CliFailure
@@ -21,6 +23,8 @@ from ai_stp_cli.local import harnesses as harness_detection
 from ai_stp_cli.local import provider_installations
 from ai_stp_cli.local.database import configured_path, open_readonly, open_registry
 from ai_stp_cli.runtime import cli_version
+from ai_stp_cli.secrets import open_store
+from ai_stp_contracts.auth import DeviceRefreshRequest, DeviceTokenResponse, device_refresh_message
 from ai_stp_contracts.heartbeat import (
     DEFAULT_HEARTBEAT_RETRY_BASE_SECONDS,
     DEFAULT_HEARTBEAT_RETRY_MAX_SECONDS,
@@ -30,10 +34,56 @@ from ai_stp_contracts.heartbeat import (
     InstallationHeartbeatRequest,
     InstallationHeartbeatStatus,
     InstallationHeartbeatSubscription,
+    heartbeat_signature_message,
 )
 from ai_stp_foundation.timestamps import format_timestamp, parse_timestamp
 
 AUTO_TIMEOUT_SECONDS: Final = 2.0
+
+
+def _scheduled_session(target: Endpoint) -> Session:
+    """Renew an enrolled device's session before a background credential expires."""
+    store, _warning = open_store()
+    held = cloud_session.load(store)
+    if held is None or held.revoked:
+        raise CliFailure("AI_STP_AUTH_REQUIRED", "the enrolled device must sign in again")
+    if parse_timestamp(held.expires_at) > datetime.now(UTC) + timedelta(hours=12):
+        return held
+    signer, _warning = identity.load_or_create()
+    if signer.device_id != held.device_id:
+        raise CliFailure("AI_STP_DEVICE_REVOKED", "the enrolled device key has changed")
+    unsigned = DeviceRefreshRequest(
+        device_id=held.device_id,
+        checked_at=format_timestamp(datetime.now(UTC)),
+        signature="A" * 86,
+    )
+    signature = (
+        base64.urlsafe_b64encode(signer.sign(device_refresh_message(unsigned)))
+        .rstrip(b"=")
+        .decode("ascii")
+    )
+    with open_client(
+        target, access_token=held.refresh_token, timeout=AUTO_TIMEOUT_SECONDS
+    ) as client:
+        renewed = call(
+            client,
+            "POST",
+            "/auth/device/refresh",
+            DeviceTokenResponse,
+            body=unsigned.model_copy(update={"signature": signature}),
+            attempts=2,
+        )
+    if renewed.account_id != held.account_id or renewed.device_id != held.device_id:
+        raise CliFailure("AI_STP_VALIDATION_ERROR", "renewal changed the enrolled device")
+    updated = Session(
+        account_id=held.account_id,
+        device_id=held.device_id,
+        access_token=renewed.access_token,
+        refresh_token=renewed.refresh_token,
+        expires_at=cloud_session.expiry(renewed.expires_in),
+    )
+    cloud_session.save(store, updated)
+    return updated
 
 
 def collect_capabilities(extra: Iterable[str] = (), *, base: list[str] | None = None) -> list[str]:
@@ -184,6 +234,7 @@ def build_report(
         last_sync_at=last_sync_at,
         health_state=reported_state,  # narrowed by the REPORTED_STATES check above
         checked_at=format_timestamp(checked),
+        signature="A" * 86,  # replaced by send() before transport
     )
 
 
@@ -197,13 +248,25 @@ def send(
     timeout: float | None = None,
 ) -> InstallationHeartbeat:
     """Write one heartbeat; the server coalesces replays and delayed beats."""
+    signer, _warning = identity.load_or_create()
+    if signer.device_id != session.device_id:
+        raise CliFailure("AI_STP_DEVICE_REVOKED", "the held device cannot sign this heartbeat")
+    unsigned = request.model_copy(update={"signature": ""})
+    signature = (
+        base64.urlsafe_b64encode(
+            signer.sign(heartbeat_signature_message(organization_id, unsigned))
+        )
+        .rstrip(b"=")
+        .decode("ascii")
+    )
+    signed = request.model_copy(update={"signature": signature})
     with open_client(endpoint, access_token=session.access_token, timeout=timeout) as client:
         return call(
             client,
             "PUT",
             f"/corporate/organizations/{organization_id}/telemetry/heartbeat",
             InstallationHeartbeat,
-            body=request,
+            body=signed,
             attempts=endpoint.max_attempts if attempts is None else attempts,
         )
 
@@ -232,6 +295,7 @@ def enable_subscription(
     *,
     account_id: str,
     device_id: str,
+    interval_seconds: int | None = None,
     now: datetime | None = None,
 ) -> InstallationHeartbeatSubscription:
     """Persist explicit local opt-in; repeated enable is idempotent."""
@@ -239,13 +303,20 @@ def enable_subscription(
     with closing(open_registry(configured_path(), create=True)) as connection:
         connection.execute(
             "INSERT INTO heartbeat_subscription "
-            "(organization_id, account_id, device_id, next_attempt_at) VALUES (?, ?, ?, ?) "
+            "(organization_id, account_id, device_id, next_attempt_at, scheduler_interval_seconds) "
+            "VALUES (?, ?, ?, ?, ?) "
             "ON CONFLICT (organization_id) DO UPDATE SET "
             "account_id = excluded.account_id, device_id = excluded.device_id, "
-            "next_attempt_at = excluded.next_attempt_at, attempts = 0, "
+            "next_attempt_at = excluded.next_attempt_at, "
+            "scheduler_interval_seconds = excluded.scheduler_interval_seconds, attempts = 0, "
             "last_attempt_at = NULL, last_success_at = NULL, attempt_token = NULL "
             "WHERE account_id != excluded.account_id OR device_id != excluded.device_id",
-            (organization_id, account_id, device_id, moment),
+            (organization_id, account_id, device_id, moment, interval_seconds),
+        )
+        connection.execute(
+            "UPDATE heartbeat_subscription SET scheduler_interval_seconds = ? "
+            "WHERE organization_id = ?",
+            (interval_seconds, organization_id),
         )
     return subscription_status(organization_id)
 
@@ -303,7 +374,7 @@ def _schedule_connection() -> sqlite3.Connection | None:
 
 
 def _claim_due_subscription(
-    now: datetime, *, organization_id: str | None = None
+    now: datetime, *, organization_id: str | None = None, scheduled: bool = False
 ) -> tuple[str, str, str, str] | None:
     try:
         connection = _schedule_connection()
@@ -316,9 +387,9 @@ def _claim_due_subscription(
         row = connection.execute(
             "SELECT organization_id, account_id, device_id "
             "FROM heartbeat_subscription "
-            "WHERE next_attempt_at <= ? AND (? IS NULL OR organization_id = ?) "
+            "WHERE (? = 1 OR next_attempt_at <= ?) AND (? IS NULL OR organization_id = ?) "
             "ORDER BY next_attempt_at, organization_id LIMIT 1",
-            (format_timestamp(now), organization_id, organization_id),
+            (int(scheduled), format_timestamp(now), organization_id, organization_id),
         ).fetchone()
         if row is None:
             connection.execute("COMMIT")
@@ -443,11 +514,15 @@ def _finish_attempt(
         connection.close()
 
 
-def maybe_send_due(*, now: datetime | None = None, organization_id: str | None = None) -> None:
+def maybe_send_due(
+    *, now: datetime | None = None, organization_id: str | None = None, scheduled: bool = False
+) -> None:
     """Attempt one due opt-in heartbeat after a successful ordinary invocation."""
     moment = now or datetime.now(UTC)
     try:
-        claimed = _claim_due_subscription(moment, organization_id=organization_id)
+        claimed = _claim_due_subscription(
+            moment, organization_id=organization_id, scheduled=scheduled
+        )
     except Exception:
         return
     if claimed is None:
@@ -460,20 +535,27 @@ def maybe_send_due(*, now: datetime | None = None, organization_id: str | None =
         from ai_stp_cli.application.auth import endpoint as cloud_endpoint
         from ai_stp_cli.application.cloud_auth import required
 
-        session = required("automatic installation heartbeat")
+        target = cloud_endpoint()
+        session = (
+            _scheduled_session(target)
+            if scheduled
+            else required("automatic installation heartbeat")
+        )
         if session.account_id != account_id or session.device_id != device_id:
             _forget_claimed_subscription(organization_id, token)
             return
-        target = cloud_endpoint()
         current_policy = policy(
             target,
             session,
             organization_id,
-            attempts=1,
+            attempts=2 if scheduled else 1,
             timeout=AUTO_TIMEOUT_SECONDS,
         )
         retry_base = current_policy.retry_base_seconds
         retry_max = current_policy.retry_max_seconds
+        if scheduled:
+            with suppress(Exception):
+                _update_scheduler_interval(organization_id, current_policy.interval_seconds)
         if not current_policy.enabled:
             _finish_attempt(
                 organization_id,
@@ -489,7 +571,7 @@ def maybe_send_due(*, now: datetime | None = None, organization_id: str | None =
             session,
             organization_id,
             report,
-            attempts=1,
+            attempts=2 if scheduled else 1,
             timeout=AUTO_TIMEOUT_SECONDS,
         )
     except Exception:
@@ -507,6 +589,35 @@ def maybe_send_due(*, now: datetime | None = None, organization_id: str | None =
         now=moment,
         interval_seconds=interval_seconds,
     )
+
+
+def _update_scheduler_interval(organization_id: str, interval_seconds: int) -> None:
+    """Repair the recurring OS task only when the server interval changes."""
+    connection = _schedule_connection()
+    if connection is None:
+        return
+    try:
+        row = connection.execute(
+            "SELECT scheduler_interval_seconds FROM heartbeat_subscription "
+            "WHERE organization_id = ?",
+            (organization_id,),
+        ).fetchone()
+        if row is None or row[0] == interval_seconds:
+            return
+        from ai_stp_cli.application import heartbeat_schedule
+
+        installed = heartbeat_schedule.install(
+            organization_id, interval_seconds, defer_mac_reload=True
+        )
+        if not installed:
+            return
+        connection.execute(
+            "UPDATE heartbeat_subscription SET scheduler_interval_seconds = ? "
+            "WHERE organization_id = ?",
+            (interval_seconds, organization_id),
+        )
+    finally:
+        connection.close()
 
 
 def status(
