@@ -229,7 +229,10 @@ a CLI language rewrite, and a PyPI CLI cut are excluded.
   A continue claims the current revision (`state=running`) before effects so
   a concurrent continue on the same revision is `AI_STP_CONFLICT`. After plan
   the engine records the child operation id; a later continue of that task
-  resumes or applies the held operation instead of planning a second one.
+  advances the held operation from its journal state — unfinished resumes,
+  an approved plan applies, a planned one approves and applies, and an
+  already-settled one is read back as its own answer — instead of planning a
+  second one.
 - `REQ-8015`: Intent `change` drains `application.change`. It asks harness,
   source pin, component pin, and project root at most once each. Omitted source
   pin becomes the same first-party `baseline` as `install`; a partially

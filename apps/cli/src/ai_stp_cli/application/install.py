@@ -1434,6 +1434,20 @@ def resume(parameters: Mapping[str, object]) -> Answer[InstallationView]:
         return _finish_mutation(work(connection))
 
 
+def view(parameters: Mapping[str, object]) -> Answer[InstallationView]:
+    """The recorded answer of one operation. Changes nothing.
+
+    `status` lists operations still waiting for a decision; this returns the
+    answer of one named operation as it stands — including the refusal a
+    finished mutation would report — so a caller that holds an operation id
+    learns its outcome without asking for another change.
+    """
+    operation_id = _operation(parameters)
+    with closing(open_readonly(configured_path())) as connection:
+        held = installation._require(connection, operation_id)  # pyright: ignore[reportPrivateUsage]
+        return _finish_mutation(_view(connection, held))
+
+
 def recover_preserved(
     parameters: Mapping[str, object],
     *,

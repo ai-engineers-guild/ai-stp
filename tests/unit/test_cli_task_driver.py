@@ -6,6 +6,7 @@ from __future__ import annotations
 import json
 from collections.abc import Mapping
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import closing
 from pathlib import Path
 from typing import Final, cast
 
@@ -43,7 +44,8 @@ from ai_stp_cli.application.qualify import (
 from ai_stp_cli.cloud import session
 from ai_stp_cli.commands import task as task_command
 from ai_stp_cli.errors import CliFailure
-from ai_stp_cli.local import preserved_setups, setup_derive
+from ai_stp_cli.local import installation, preserved_setups, setup_derive
+from ai_stp_cli.local.database import configured_path, open_registry
 from ai_stp_cli.secrets import open_store
 from ai_stp_contracts.cli_copy import INITIALIZE_PROMPT, INITIALIZE_START, INTENTS_BOOTSTRAP
 from ai_stp_contracts.first_party import FirstPartyCatalogMember, catalog_identity
@@ -1157,6 +1159,305 @@ def test_kill_after_apply_argv_resumes_the_held_operation(
     outcome = finished["data"]["outcome"]  # type: ignore[index]
     assert outcome["kind"] == "install"
     assert outcome["verified"] is True
+
+
+AT_MOMENT = "2026-09-26T00:00:00.000Z"
+LATER_MOMENT = "2026-09-26T01:00:00.000Z"
+
+
+def _journal_plan(key: str) -> installation.Plan:
+    """A real operation_plan row, so advance_held's journal dispatch engages."""
+    with closing(open_registry(configured_path(), create=True)) as connection:
+        return installation.propose(
+            connection,
+            action="install",
+            author="account_01J0000000000000000000000A",
+            target_id="project_01J0000000000000000000000B:cursor",
+            expected_target_digest="sha256:" + "a" * 64,
+            provider_version="0.0.76",
+            effects=("write .cursor/cli-config.json",),
+            recovery_action="restore the provider backup",
+            idempotency_key=key,
+            at=AT_MOMENT,
+            expires_at=LATER_MOMENT,
+        )
+
+
+def _journal_move(operation_id: str, target: str, plan_digest: str) -> None:
+    with closing(open_registry(configured_path(), create=True)) as connection:
+        if target in {"approved", "applying", "applied_unverified", "verified", "rolled_back"}:
+            installation.approve(connection, operation_id, plan_digest=plan_digest, at=AT_MOMENT)
+        if target in {"applying", "applied_unverified", "verified", "rolled_back"}:
+            installation.begin(
+                connection,
+                operation_id,
+                observed_target_digest="sha256:" + "a" * 64,
+                at=AT_MOMENT,
+            )
+        if target in {"applied_unverified", "verified", "rolled_back"}:
+            installation.applied(connection, operation_id, at=AT_MOMENT)
+        if target == "verified":
+            installation.verify(
+                connection,
+                operation_id,
+                postconditions_met=True,
+                at=AT_MOMENT,
+                observed_target_digest="sha256:" + "a" * 64,
+            )
+        if target == "rolled_back":
+            installation.roll_back(
+                connection,
+                operation_id,
+                at=AT_MOMENT,
+                reason="the provider recovered its durable pre-operation target",
+            )
+
+
+def test_advance_held_resumes_an_unfinished_operation(monkeypatch: pytest.MonkeyPatch) -> None:
+    plan = _journal_plan("advance-resume")
+    _journal_move(plan.operation_id, "applied_unverified", plan.digest)
+    calls: list[str] = []
+
+    def resume(_parameters: Mapping[str, object]) -> Answer[InstallationView]:
+        calls.append("resume")
+        return _answer_install(plan.operation_id, "verified", plan.digest)
+
+    def forbidden(_parameters: Mapping[str, object]) -> Answer[InstallationView]:
+        raise AssertionError("an unfinished operation resumes, nothing else")
+
+    monkeypatch.setattr(install_service, "resume", resume)
+    monkeypatch.setattr(install_service, "apply", forbidden)
+    monkeypatch.setattr(install_service, "approve", forbidden)
+    monkeypatch.setattr(install_service, "view", forbidden)
+    result = install_task_service.advance_held(plan.operation_id)
+    assert calls == ["resume"]
+    assert result.state == "verified"
+
+
+def test_advance_held_applies_an_approved_plan(monkeypatch: pytest.MonkeyPatch) -> None:
+    plan = _journal_plan("advance-approved")
+    _journal_move(plan.operation_id, "approved", plan.digest)
+    calls: list[str] = []
+
+    def apply(_parameters: Mapping[str, object]) -> Answer[InstallationView]:
+        calls.append("apply")
+        return _answer_install(plan.operation_id, "verified", plan.digest)
+
+    def forbidden(_parameters: Mapping[str, object]) -> Answer[InstallationView]:
+        raise AssertionError("an approved plan applies, nothing else")
+
+    monkeypatch.setattr(install_service, "apply", apply)
+    monkeypatch.setattr(install_service, "resume", forbidden)
+    monkeypatch.setattr(install_service, "approve", forbidden)
+    monkeypatch.setattr(install_service, "view", forbidden)
+    result = install_task_service.advance_held(plan.operation_id)
+    assert calls == ["apply"]
+    assert result.state == "verified"
+
+
+def test_advance_held_approves_then_applies_a_planned_operation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    plan = _journal_plan("advance-planned")
+    calls: list[str] = []
+
+    def approve(parameters: Mapping[str, object]) -> Answer[InstallationView]:
+        calls.append(f"approve:{parameters.get('plan-digest')}")
+        return _answer_install(plan.operation_id, "approved", plan.digest)
+
+    def apply(_parameters: Mapping[str, object]) -> Answer[InstallationView]:
+        calls.append("apply")
+        return _answer_install(plan.operation_id, "verified", plan.digest)
+
+    def forbidden(_parameters: Mapping[str, object]) -> Answer[InstallationView]:
+        raise AssertionError("a planned operation approves and applies, nothing else")
+
+    monkeypatch.setattr(install_service, "approve", approve)
+    monkeypatch.setattr(install_service, "apply", apply)
+    monkeypatch.setattr(install_service, "resume", forbidden)
+    monkeypatch.setattr(install_service, "view", forbidden)
+    result = install_task_service.advance_held(plan.operation_id)
+    assert calls == [f"approve:{plan.digest}", "apply"]
+    assert result.state == "verified"
+
+
+def test_advance_held_reads_back_a_settled_operation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    plan = _journal_plan("advance-verified")
+    _journal_move(plan.operation_id, "verified", plan.digest)
+    calls: list[str] = []
+
+    def view(_parameters: Mapping[str, object]) -> Answer[InstallationView]:
+        calls.append("view")
+        return _answer_install(plan.operation_id, "verified", plan.digest)
+
+    def forbidden(_parameters: Mapping[str, object]) -> Answer[InstallationView]:
+        raise AssertionError("a settled operation is read back, never retried")
+
+    monkeypatch.setattr(install_service, "view", view)
+    monkeypatch.setattr(install_service, "resume", forbidden)
+    monkeypatch.setattr(install_service, "approve", forbidden)
+    monkeypatch.setattr(install_service, "apply", forbidden)
+    result = install_task_service.advance_held(plan.operation_id)
+    assert calls == ["view"]
+    assert result.state == "verified"
+
+
+def test_advance_held_reports_compensation_for_a_rolled_back_operation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    plan = _journal_plan("advance-rolled-back")
+    _journal_move(plan.operation_id, "rolled_back", plan.digest)
+    for name in ("resume", "approve", "apply"):
+        monkeypatch.setattr(
+            install_service,
+            name,
+            lambda _p: (_ for _ in ()).throw(
+                AssertionError("a settled operation is read back, never retried")
+            ),
+        )
+    # The real install.view carries the operation's own answer: rolled_back
+    # is a finished mutation and reports AI_STP_COMPENSATED, not a retry.
+    with pytest.raises(CliFailure) as raised:
+        install_task_service.advance_held(plan.operation_id)
+    assert raised.value.code == "AI_STP_COMPENSATED"
+
+
+def test_continue_completes_when_the_child_verified_before_the_executor_died(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The executor died after `verified` was committed but before the task
+    outcome was: the next continue must read that truth back, not demand an
+    apply against a settled effect or bury the task as failed."""
+    held: dict[str, str] = {}
+
+    def acquire_pin(_setup_id: str, _setup_version: str) -> None:
+        return None
+
+    def plan(_parameters: Mapping[str, object]) -> Answer[InstallationView]:
+        real = _journal_plan("driver-post-verify-kill")
+        held["operation_id"] = real.operation_id
+        held["digest"] = real.digest
+        return _answer_install(real.operation_id, "planned", real.digest)
+
+    def approve(_parameters: Mapping[str, object]) -> Answer[InstallationView]:
+        return _answer_install(held["operation_id"], "approved", held["digest"])
+
+    def apply(_parameters: Mapping[str, object]) -> Answer[InstallationView]:
+        _journal_move(held["operation_id"], "verified", held["digest"])
+        raise RuntimeError("executor died after verified was committed")
+
+    monkeypatch.setattr(install_task_service, "acquire_pin", acquire_pin)
+    monkeypatch.setattr(install_service, "plan", plan)
+    monkeypatch.setattr(install_service, "approve", approve)
+    monkeypatch.setattr(install_service, "apply", apply)
+    facts = _facts_file(tmp_path, {"harness_id": "cursor", "project_root": str(tmp_path.resolve())})
+    code, started = _run(
+        [
+            "task",
+            "start",
+            "--intent",
+            "install",
+            "--idempotency-key",
+            "driver-post-verify-kill-01",
+            "--input",
+            str(facts),
+            "--json",
+        ],
+        capsys,
+    )
+    assert code != 0
+    task_id = _error_task_id(started)
+    code, status = _run(["task", "status", "--task", task_id, "--json"], capsys)
+    assert code == 0
+    payload = _mapping(status["data"])
+    assert payload["state"] == "running"
+    code, finished = _run(
+        [
+            "task",
+            "continue",
+            "--task",
+            task_id,
+            "--revision",
+            str(payload["revision"]),
+            "--json",
+        ],
+        capsys,
+    )
+    assert code == 0
+    assert finished["data"]["state"] == "completed"  # type: ignore[index]
+    assert finished["data"]["goal_satisfied"] is True  # type: ignore[index]
+    outcome = _mapping(finished["data"]["outcome"])  # type: ignore[index]
+    assert outcome["verified"] is True
+    assert outcome["operation_id"] == held["operation_id"]
+
+
+def test_continue_fails_truthfully_when_the_child_rolled_back(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A compensated child operation must fail the task with its own answer
+    (AI_STP_COMPENSATED), not with a misleading 'not approved' refusal."""
+    held: dict[str, str] = {}
+
+    def acquire_pin(_setup_id: str, _setup_version: str) -> None:
+        return None
+
+    def plan(_parameters: Mapping[str, object]) -> Answer[InstallationView]:
+        real = _journal_plan("driver-rolled-back-continue")
+        held["operation_id"] = real.operation_id
+        held["digest"] = real.digest
+        return _answer_install(real.operation_id, "planned", real.digest)
+
+    def approve(_parameters: Mapping[str, object]) -> Answer[InstallationView]:
+        return _answer_install(held["operation_id"], "approved", held["digest"])
+
+    def apply(_parameters: Mapping[str, object]) -> Answer[InstallationView]:
+        _journal_move(held["operation_id"], "rolled_back", held["digest"])
+        raise RuntimeError("executor died after the provider recovered the target")
+
+    monkeypatch.setattr(install_task_service, "acquire_pin", acquire_pin)
+    monkeypatch.setattr(install_service, "plan", plan)
+    monkeypatch.setattr(install_service, "approve", approve)
+    monkeypatch.setattr(install_service, "apply", apply)
+    facts = _facts_file(tmp_path, {"harness_id": "cursor", "project_root": str(tmp_path.resolve())})
+    code, started = _run(
+        [
+            "task",
+            "start",
+            "--intent",
+            "install",
+            "--idempotency-key",
+            "driver-rolled-back-continue-01",
+            "--input",
+            str(facts),
+            "--json",
+        ],
+        capsys,
+    )
+    assert code != 0
+    task_id = _error_task_id(started)
+    code, status = _run(["task", "status", "--task", task_id, "--json"], capsys)
+    assert code == 0
+    payload = _mapping(status["data"])
+    assert payload["state"] == "running"
+    _code, finished = _run(
+        [
+            "task",
+            "continue",
+            "--task",
+            task_id,
+            "--revision",
+            str(payload["revision"]),
+            "--json",
+        ],
+        capsys,
+    )
+    error = _mapping(finished["error"])
+    assert error["code"] == "AI_STP_COMPENSATED"
+    code, after = _run(["task", "status", "--task", task_id, "--json"], capsys)
+    assert code == 0
+    assert _mapping(after["data"])["state"] == "failed"
 
 
 def test_concurrent_continue_argv_has_one_winner(capsys: pytest.CaptureFixture[str]) -> None:
