@@ -17,6 +17,7 @@ from ai_stp_cli.cloud import publication, session
 from ai_stp_cli.cloud.client import Endpoint
 from ai_stp_cli.errors import CliFailure
 from ai_stp_contracts.publication import (
+    PublicationConfirmRequest,
     PublicationPlanCreateRequest,
     PublicationPlanResponse,
 )
@@ -195,6 +196,7 @@ def test_confirm_binds_all_locally_stored_exact_artifacts(monkeypatch: pytest.Mo
     )
     plan = PublicationPlanResponse.model_validate(_response())
     seen: list[bytes] = []
+    seen_keys: list[str] = []
     projection_digest = "sha256:" + "a" * 64
     seen_projections: list[tuple[str, bytes]] = []
 
@@ -212,6 +214,9 @@ def test_confirm_binds_all_locally_stored_exact_artifacts(monkeypatch: pytest.Mo
         return plan
 
     def _confirm(*_args: object, **_kwargs: object) -> PublicationPlanResponse:
+        request = _args[-1]
+        assert isinstance(request, PublicationConfirmRequest)
+        seen_keys.append(request.idempotency_key)
         return plan.model_copy(update={"state": "validating"})
 
     def _bind_projection(*args: object, **_kwargs: object) -> PublicationPlanResponse:
@@ -246,8 +251,36 @@ def test_confirm_binds_all_locally_stored_exact_artifacts(monkeypatch: pytest.Mo
     )
     monkeypatch.setattr("ai_stp_cli.application.publication.publication.confirm", _confirm)
 
-    result = service.confirm({"plan-id": PLAN, "plan-hash": PLAN_HASH, "confirm": True}).payload
+    result = service.confirm(
+        {"plan-id": PLAN, "plan-hash": PLAN_HASH, "confirm": True, "idempotency-key": PLAN}
+    ).payload
 
     assert result.state == "validating"
     assert seen == [b"exact-bytes"]
     assert seen_projections == [(projection_digest, b"projection-bytes")]
+    assert seen_keys == [PLAN]
+
+
+def test_confirm_reconciles_an_accepted_plan_without_another_post(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from ai_stp_cli.application import publication as service
+
+    held = session.Session(
+        account_id=ACCOUNT,
+        device_id=DEVICE,
+        access_token="secret-token",
+        refresh_token="refresh-token",
+        expires_at="2099-01-01T00:00:00.000Z",
+    )
+    plan = PublicationPlanResponse.model_validate(_response("validating"))
+    monkeypatch.setattr(service, "_session", lambda: held)
+    monkeypatch.setattr(service, "endpoint", lambda: Endpoint(BASE))
+    monkeypatch.setattr(service.publication, "status", lambda *_args: plan)
+
+    def duplicate_post(*_args: object, **_kwargs: object) -> PublicationPlanResponse:
+        raise AssertionError("accepted publication must be reconciled through status")
+
+    monkeypatch.setattr(service.publication, "confirm", duplicate_post)
+    result = service.confirm({"plan-id": PLAN, "plan-hash": PLAN_HASH, "confirm": True}).payload
+    assert result.state == "validating"

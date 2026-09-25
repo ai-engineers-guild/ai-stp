@@ -9,7 +9,10 @@ from pathlib import Path
 from ai_stp_cli.application import account as account_service
 from ai_stp_cli.errors import CliFailure
 from ai_stp_contracts.machine_help import PublicationPlanView, TaskPublishOutcome, TaskQuestion
-from ai_stp_contracts.publication import PLAN_STATE_PUBLISHED
+from ai_stp_contracts.publication import (
+    PLAN_STATE_PUBLISHED,
+    PLAN_STATES_IN_PROGRESS,
+)
 from ai_stp_foundation.canonical import JsonValue
 
 _VISIBILITY = ("private", "public")
@@ -24,6 +27,13 @@ class DrainResult:
     advance: bool = False
 
 
+def publication_status(plan_id: str) -> PublicationPlanView:
+    """Read an existing plan without creating another publication attempt."""
+    from ai_stp_cli.application import publication as publication_service
+
+    return publication_service.show({"plan-id": plan_id}).payload
+
+
 def plan_publication(parameters: Mapping[str, object]) -> PublicationPlanView:
     """Create the distribution plan. Tests may stub this."""
     from ai_stp_cli.application import publication as publication_service
@@ -36,7 +46,12 @@ def confirm_publication(*, plan_id: str, plan_hash: str) -> PublicationPlanView:
     from ai_stp_cli.application import publication as publication_service
 
     return publication_service.confirm(
-        {"plan-id": plan_id, "plan-hash": plan_hash, "confirm": True}
+        {
+            "plan-id": plan_id,
+            "plan-hash": plan_hash,
+            "confirm": True,
+            "idempotency-key": plan_id,
+        }
     ).payload
 
 
@@ -98,10 +113,16 @@ def drain(
         return _drain_setup(
             object_id, object_version, visibility=chosen_visibility, previous=previous
         )
-    plan_id = facts.get("plan_id")
-    plan_hash = facts.get("plan_hash")
-    if isinstance(plan_id, str) and plan_id and isinstance(plan_hash, str) and plan_hash:
-        confirmed = confirm_publication(plan_id=plan_id, plan_hash=plan_hash)
+    if previous is not None:
+        if previous.object_id != object_id or previous.object_version != object_version:
+            raise CliFailure(
+                "AI_STP_PRECONDITION_FAILED",
+                "the publication task no longer names its recorded object",
+            )
+        if previous.state in {"draft", "ready"}:
+            current = confirm_publication(plan_id=previous.plan_id, plan_hash=previous.plan_hash)
+        else:
+            current = publication_status(previous.plan_id)
     else:
         parameters: dict[str, object] = {
             "id": object_id,
@@ -121,19 +142,47 @@ def drain(
                 "publication provenance must be the local filesystem",
                 details={"source_binding_id": planned.source_binding_id},
             )
-        confirmed = confirm_publication(plan_id=planned.plan_id, plan_hash=planned.plan_hash)
-    readable = confirmed.state == PLAN_STATE_PUBLISHED
+        current = planned
+    if (
+        current.stable_id != object_id
+        or current.version != object_version
+        or current.visibility != chosen_visibility
+        or current.source_binding_id is not None
+        or (
+            previous is not None
+            and (current.plan_id != previous.plan_id or current.plan_hash != previous.plan_hash)
+        )
+    ):
+        raise CliFailure(
+            "AI_STP_PRECONDITION_FAILED",
+            "the publication plan changed after the task recorded it",
+        )
+    readable = current.state == PLAN_STATE_PUBLISHED
+    waiting = current.state in PLAN_STATES_IN_PROGRESS - {"draft", "ready"}
     return DrainResult(
         outcome=TaskPublishOutcome(
-            object_id=confirmed.stable_id,
-            object_version=confirmed.version,
-            visibility=confirmed.visibility,
-            source_binding_id=confirmed.source_binding_id or "",
-            plan_id=confirmed.plan_id,
-            plan_hash=confirmed.plan_hash,
-            state=confirmed.state,
+            object_id=current.stable_id,
+            object_version=current.version,
+            visibility=current.visibility,
+            source_binding_id=current.source_binding_id or "",
+            plan_id=current.plan_id,
+            plan_hash=current.plan_hash,
+            state=current.state,
             readable=readable,
+        ),
+        advance=current.state in {"draft", "ready"},
+        questions=(
+            TaskQuestion(
+                question_id="publication-processing",
+                prompt="Publication is processing. Resume this task after the platform finishes.",
+                value_type="string",
+                choices=[],
+                why="The accepted worker receipt does not establish catalog readability.",
+                actor="external",
+            ),
         )
+        if waiting
+        else (),
     )
 
 
