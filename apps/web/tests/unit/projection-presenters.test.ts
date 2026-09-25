@@ -103,7 +103,7 @@ describe("machine presenters (REQ-3609, REQ-3610, REQ-3608, REQ-3627)", () => {
     expect(text).toContain("author_verified: Yes");
     expect(text).toContain("component_verified: No");
     expect(text).toContain(
-      "ai-stp task start --intent install --idempotency-key install-session-01 --json",
+      "ai-stp task start --intent install --idempotency-key install-cmp_x-1.2 --json",
     );
     expect(text).toContain("ai-stp registry version --kind component --id cmp_x --version 1.2");
     expect(text).not.toMatch(/<img|image\/|avatar/i);

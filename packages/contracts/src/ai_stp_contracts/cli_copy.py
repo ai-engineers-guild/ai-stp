@@ -23,6 +23,8 @@ a UI command.
 
 from __future__ import annotations
 
+import json
+import re
 from typing import Final, Literal
 
 type ObjectKind = Literal["component", "setup"]
@@ -37,6 +39,10 @@ COMPONENT_NEXT_STEP: Final = (
 )
 SETUP_NEXT_STEP: Final = (
     "ai-stp task start --intent install --idempotency-key install-session-01 --json"
+)
+INSTALL_TASK_START: Final = "ai-stp task start --intent install --idempotency-key {key} --json"
+INSTALL_SETUP_START: Final = (
+    "echo {input} | ai-stp task start --intent install --idempotency-key {key} --input - --json"
 )
 LOGIN: Final = "ai-stp task start --intent account --idempotency-key account-session-01 --json"
 INSTALL_CLI: Final = "uv tool install ai-stp-cli"
@@ -83,6 +89,39 @@ def owner_setup_next_step() -> str:
 def install_start() -> str:
     """Everyday catalog install. Same argv as the empty-state setup copy."""
     return SETUP_NEXT_STEP
+
+
+def install_task_start(stable_id: str, version: str | None = None) -> str:
+    """Install argv whose session key names one object, not all installs.
+
+    `task start` replays the original request for a repeated idempotency key,
+    so a fixed key returns the *first* install's record when the user copies
+    the handoff for a second object. Deriving the key from the object
+    identity keeps repaste-retry resumable and gives every object its own
+    task. Ids are `setup_…` / `component_…` ULIDs and versions are `X.Y`,
+    which the key charset already allows.
+    """
+    key = _install_key(stable_id, version)
+    return INSTALL_TASK_START.format(key=key)
+
+
+def install_setup_start(stable_id: str, version: str) -> str:
+    """Install argv that pins a setup in the durable task request itself.
+
+    The install intent's input schema binds `setup_id`/`setup_version`, so a
+    copied setup line feeds the pin through stdin instead of leaving the task
+    to ask. The request, not only the key, then names the object.
+    """
+    body = json.dumps({"setup_id": stable_id, "setup_version": version}, separators=(",", ":"))
+    return INSTALL_SETUP_START.format(input=f"'{body}'", key=_install_key(stable_id, version))
+
+
+def _install_key(stable_id: str, version: str | None = None) -> str:
+    """One session key per catalog object, inside the CLI key charset."""
+    key = f"install-{stable_id}" if version is None else f"install-{stable_id}-{version}"
+    if re.fullmatch(r"[A-Za-z0-9._~\-]{16,128}", key) is None:
+        raise ValueError(f"derived idempotency key violates the CLI charset: {key!r}")
+    return key
 
 
 def login(provider: Literal["google", "github"]) -> str:
