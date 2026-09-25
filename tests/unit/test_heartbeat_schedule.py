@@ -13,6 +13,7 @@ from ai_stp_cli.application import heartbeat as heartbeat_app
 from ai_stp_cli.application import heartbeat_schedule as schedule
 from ai_stp_cli.application import heartbeat_wakeup
 from ai_stp_cli.commands import heartbeat as heartbeat_commands
+from ai_stp_cli.errors import CliFailure
 from ai_stp_contracts.heartbeat import (
     InstallationHeartbeatPolicy,
     InstallationHeartbeatSubscription,
@@ -65,11 +66,42 @@ def test_windows_task_uses_user_session_and_catch_up(monkeypatch: pytest.MonkeyP
     schedule._windows_install("ai-stp-test", organization)
     assert "-LogonType Interactive -RunLevel Limited" in scripts[0]
     assert "-StartWhenAvailable" in scripts[0]
+    assert "-RepetitionInterval (New-TimeSpan -Hours 1)" in scripts[0]
     assert "-MultipleInstances IgnoreNew" in scripts[0]
     assert "C:\\Program Files\\Python\\python.exe" in scripts[0]
 
 
-def test_mac_launch_agent_is_hourly_and_runs_at_login(
+def test_windows_target_uses_windowless_python(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(schedule.sys, "platform", "win32")
+    monkeypatch.setattr(schedule.sys, "executable", str(tmp_path / "python.exe"))
+    with pytest.raises(CliFailure) as raised:
+        schedule._target(new_id("organization"))
+    assert raised.value.code == "AI_STP_DEPENDENCY_UNAVAILABLE"
+    (tmp_path / "pythonw.exe").touch()
+    executable, _args = schedule._target(new_id("organization"))
+    assert executable == str(tmp_path / "pythonw.exe")
+
+
+def test_wsl_task_uses_windowless_host_launcher(monkeypatch: pytest.MonkeyPatch) -> None:
+    scripts: list[str] = []
+    monkeypatch.setattr(
+        schedule,
+        "_target",
+        lambda _org: ("wsl.exe", ["-d", "Ubuntu-24.04", "--", "/usr/bin/python3"]),
+    )
+    monkeypatch.setattr(schedule, "_powershell", scripts.append)
+    schedule._windows_install("ai-stp-test", new_id("organization"))
+    assert "wscript.exe" in scripts[0]
+    assert "WScript.Shell" in scripts[0]
+    assert "Run" in scripts[0]
+    assert ".vbs" in scripts[0]
+    schedule._windows_remove("ai-stp-test")
+    assert "Remove-Item -LiteralPath $launcher" in scripts[1]
+
+
+def test_mac_launch_agent_checks_hourly_and_at_login(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     organization = new_id("organization")
@@ -84,7 +116,7 @@ def test_mac_launch_agent_is_hourly_and_runs_at_login(
     monkeypatch.setattr(schedule, "_run", calls.append)
     schedule._mac_install("ai-stp-test", organization)
     payload = plistlib.loads(path.read_bytes())
-    assert payload["StartCalendarInterval"] == {"Minute": 0}
+    assert payload["StartInterval"] == 3600
     assert payload["RunAtLoad"] is True
     assert calls == [["launchctl", "bootstrap", "gui/1000", str(path)]]
 
@@ -119,17 +151,21 @@ def test_wsl_uses_host_scheduler_and_named_distro(monkeypatch: pytest.MonkeyPatc
 
 
 def test_wakeup_restores_enrolled_xdg_paths(monkeypatch: pytest.MonkeyPatch) -> None:
-    from ai_stp_cli import app
-
-    seen: list[list[str]] = []
-    monkeypatch.setattr(app, "main", lambda args: seen.append(args) or 0)
+    seen: list[str] = []
+    monkeypatch.setattr(
+        heartbeat_app,
+        "maybe_send_due",
+        lambda *, organization_id: seen.append(organization_id),
+    )
     monkeypatch.setenv("XDG_CONFIG_HOME", "/prior/config")
     monkeypatch.setenv("XDG_DATA_HOME", "/prior/data")
+    monkeypatch.delenv("AI_STP_FORCE_FILE_CREDENTIAL_STORE", raising=False)
     organization = new_id("organization")
-    assert heartbeat_wakeup.run([organization, "/private/config", "/private/data"]) == 0
+    assert heartbeat_wakeup.run([organization, "/private/config", "/private/data", "1"]) == 0
     assert schedule.os.environ["XDG_CONFIG_HOME"] == "/private/config"
     assert schedule.os.environ["XDG_DATA_HOME"] == "/private/data"
-    assert seen == [["heartbeat", "tick", "--organization", organization, "--json"]]
+    assert schedule.os.environ["AI_STP_FORCE_FILE_CREDENTIAL_STORE"] == "1"
+    assert seen == [organization]
 
 
 def test_enable_registers_before_opt_in_and_disable_opts_out_first(

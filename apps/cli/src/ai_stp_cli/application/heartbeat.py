@@ -151,10 +151,13 @@ def build_report(
     health_state: str | None = None,
     last_sync_at: str | None = None,
     capabilities: Iterable[str] = (),
+    probe_harnesses: bool = True,
     clock: Callable[[], datetime] | None = None,
 ) -> InstallationHeartbeatRequest:
     """Assemble the closed heartbeat payload for the held session."""
-    local_capabilities, local_state = _local_heartbeat_facts()
+    local_capabilities, local_state = (
+        _local_heartbeat_facts() if probe_harnesses else (["cli.heartbeat"], "active")
+    )
     reported_state = health_state or local_state
     last_sync_at = last_sync_at or last_successful_sync_at(session.account_id)
     if reported_state not in heartbeat.REPORTED_STATES:
@@ -480,7 +483,7 @@ def maybe_send_due(*, now: datetime | None = None, organization_id: str | None =
             )
             return
         interval_seconds = current_policy.interval_seconds
-        report = build_report(session)
+        report = build_report(session, probe_harnesses=False)
         send(
             target,
             session,

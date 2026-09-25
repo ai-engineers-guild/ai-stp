@@ -108,7 +108,7 @@ class TelemetryPolicy(Base):
         CheckConstraint("notice_revision >= 0", name="ck_telemetry_policy_notice"),
         CheckConstraint("policy_version >= 1", name="ck_telemetry_policy_version"),
         CheckConstraint(
-            "heartbeat_interval_seconds between 300 and 2592000",
+            "heartbeat_interval_seconds between 60 and 2592000",
             name="ck_telemetry_policy_heartbeat_interval",
         ),
         CheckConstraint(
