@@ -35,10 +35,19 @@ def _target(organization_id: str) -> tuple[str, list[str]]:
         organization_id,
         str(config_home().resolve()),
         str(data_home().resolve()),
+        "1" if os.environ.get("AI_STP_FORCE_FILE_CREDENTIAL_STORE") == "1" else "0",
     ]
     if _wsl():
         distro = os.environ["WSL_DISTRO_NAME"]
         return "wsl.exe", ["-d", distro, "-u", getpass.getuser(), "--", sys.executable, *args]
+    if sys.platform == "win32":
+        executable = Path(sys.executable).with_name("pythonw.exe")
+        if not executable.is_file():
+            raise CliFailure(
+                "AI_STP_DEPENDENCY_UNAVAILABLE",
+                "the windowless Python executable is unavailable",
+            )
+        return str(executable), args
     return sys.executable, args
 
 
@@ -65,15 +74,26 @@ def _ps(value: str) -> str:
 def _windows_install(name: str, organization_id: str) -> None:
     executable, args = _target(organization_id)
     argument = subprocess.list2cmdline(args)
-    execute = (
-        "(Get-Command 'wsl.exe' -ErrorAction Stop).Source"
-        if executable == "wsl.exe"
-        else _ps(executable)
-    )
+    if executable == "wsl.exe":
+        command = subprocess.list2cmdline([executable, *args]).replace('"', '""')
+        launcher = f'CreateObject("WScript.Shell").Run "{command}", 0, True'
+        action = (
+            "$directory = Join-Path $env:LOCALAPPDATA 'ai-stp\\heartbeat'; "
+            "New-Item -ItemType Directory -Path $directory -Force | Out-Null; "
+            f"$launcher = Join-Path $directory {_ps(name + '.vbs')}; "
+            f"[IO.File]::WriteAllText($launcher, {_ps(launcher)}, [Text.Encoding]::Unicode); "
+            "$action = New-ScheduledTaskAction -Execute (Get-Command 'wscript.exe' "
+            "-ErrorAction Stop).Source -Argument ('//B //Nologo \"' + $launcher + '\"'); "
+        )
+    else:
+        action = (
+            f"$action = New-ScheduledTaskAction -Execute {_ps(executable)} "
+            f"-Argument {_ps(argument)}; "
+        )
     script = (
         "$ErrorActionPreference = 'Stop'; "
-        f"$action = New-ScheduledTaskAction -Execute {execute} -Argument {_ps(argument)}; "
-        "$trigger = New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(1) "
+        f"{action}"
+        "$trigger = New-ScheduledTaskTrigger -Once -At (Get-Date).AddHours(1) "
         "-RepetitionInterval (New-TimeSpan -Hours 1) "
         "-RepetitionDuration (New-TimeSpan -Days 3650); "
         "$settings = New-ScheduledTaskSettingsSet -StartWhenAvailable "
@@ -91,7 +111,10 @@ def _windows_remove(name: str) -> None:
     _powershell(
         "$ErrorActionPreference = 'Stop'; "
         f"if (Get-ScheduledTask -TaskName {_ps(name)} -ErrorAction SilentlyContinue) {{ "
-        f"Unregister-ScheduledTask -TaskName {_ps(name)} -Confirm:$false }}"
+        f"Unregister-ScheduledTask -TaskName {_ps(name)} -Confirm:$false }}; "
+        "$directory = Join-Path $env:LOCALAPPDATA 'ai-stp\\heartbeat'; "
+        f"$launcher = Join-Path $directory {_ps(name + '.vbs')}; "
+        "Remove-Item -LiteralPath $launcher -ErrorAction SilentlyContinue"
     )
 
 
@@ -145,7 +168,7 @@ def _mac_install(name: str, organization_id: str) -> None:
     payload = {
         "Label": f"com.aistp.{name}",
         "ProgramArguments": [executable, *args],
-        "StartCalendarInterval": {"Minute": 0},
+        "StartInterval": 3600,
         "RunAtLoad": True,
     }
     path.write_bytes(plistlib.dumps(payload))

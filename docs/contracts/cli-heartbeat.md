@@ -67,16 +67,19 @@ absent harnesses are not reported.
 After a successful ordinary CLI command, the CLI attempts at most one due
 subscription, ordered by oldest due time. Authentication and heartbeat
 commands do not trigger automatic sending. The snapshot is rebuilt on every
-attempt; no report body or credential is queued locally. Network work is
+attempt; automatic reports attest CLI liveness without running installed
+harnesses, while explicit sends can include harness and provider facts. No
+report body or credential is queued locally. Network work is
 bounded to one policy lookup and one write attempt, each with a two-second
 timeout. Failures do not change the command result and schedule an
 organization-bounded exponential retry. Successful sends wait for the
 organization interval. An hourly per-user OS wakeup invokes the same sender
 while the user session and host scheduler are available. Windows uses Task
-Scheduler, macOS uses LaunchAgent, Linux uses a user systemd timer, and WSL
+Scheduler with `pythonw.exe` to avoid a console window, macOS uses LaunchAgent,
+Linux uses a user systemd timer, and WSL
 uses a Windows task to launch the named distribution. No Python daemon stays
-resident. The installed Python path and effective XDG config/data directories
-are captured in the local task; repeat `enable`
+resident. The installed Python path, effective XDG config/data directories, and
+file credential-store selection are captured in the local task; repeat `enable`
 after moving or reinstalling the CLI. A sleeping, powered-off, or logged-out
 host may become `stale`. Local `disable` does not report `disabled` to the API;
 the last row eventually projects as `stale`.

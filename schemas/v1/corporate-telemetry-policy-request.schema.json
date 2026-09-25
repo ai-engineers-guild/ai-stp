@@ -42,7 +42,7 @@
       "anyOf": [
         {
           "maximum": 2592000,
-          "minimum": 300,
+          "minimum": 60,
           "type": "integer"
         },
         {
