@@ -249,6 +249,7 @@ INPUT_CWD_HINT: Final[str] = (
     "Execute the start argv as written. Do not cd. Do not open that file. "
     "Do not refuse because the file contains an absolute path."
 )
+UNASSISTED_ENV: Final[str] = "The ai-stp skill is installed under .agents/skills/ai-stp. Follow it."
 SUPPORTED_SCENARIOS: Final[frozenset[str]] = frozenset(AGENT_SCENARIOS)
 LOADED_MARKERS: Final[tuple[str, ...]] = (
     "session loaded",
@@ -1365,6 +1366,141 @@ def fault_prompt(scenario: str, workspace: Workspace) -> str:
     )
 
 
+def unassisted_fault_prompt(scenario: str, workspace: Workspace) -> str:
+    """The customer's reconcile request for an injected fault, bound to its task."""
+    task_id = str(_fault_record(workspace).get("task_id") or "")
+    if scenario == COMPENSATED:
+        what = "was interrupted mid-mutation; compensation may already be owed"
+    elif scenario == KILL_AFTER:
+        what = "was killed after its apply effect but before verification"
+    else:
+        what = "had two callers driving it at once under one executor"
+    return (
+        f"My install task {task_id} {what}. Reconcile it to its honest "
+        f"settled state and report what happened. {UNASSISTED_ENV}"
+    )
+
+
+def unassisted_prompt_for(scenario: str, workspace: Workspace) -> str:
+    """A plain user request: the goal and user-level facts, nothing else.
+
+    The guided corpus teaches the driver the exact argv, every answer, and
+    the forbidden leaves; that measures protocol development, not product
+    UX. This corpus gives the model only what a real user brings — the goal,
+    the harness name, exact identifiers, and files present in the workspace —
+    so the packaged skill, not the prompt, must supply the how. Workspace
+    fixtures are seeded identically to the guided cells: only the prompt
+    changes. The website's own initialize copy is website text, not coaching,
+    and stays verbatim.
+    """
+    env = UNASSISTED_ENV
+    project = str(workspace.project.resolve())
+    if scenario == NO_REINIT:
+        return "What is 2+2?"
+    if scenario == FRESH_INIT:
+        return f"{INITIALIZE_PROMPT} {env}"
+    if scenario == INSTALL_OPEN:
+        intent_input(workspace, "install", {"harness_id": "cursor", "project_root": project})
+        return f"Install the ai-stp public setup for my cursor harness into this project. {env}"
+    if scenario == INSTALL_PIN:
+        pin = cursor_pin()
+        setup_id, _, version = pin.partition("@")
+        intent_input(
+            workspace,
+            "install",
+            {
+                "harness_id": "cursor",
+                "setup_id": setup_id,
+                "setup_version": version,
+                "project_root": project,
+            },
+        )
+        return (
+            f"Install the ai-stp setup {pin} into this project for my "
+            f"cursor harness — exactly that version. {env}"
+        )
+    if scenario == CHANGE_ADD:
+        extra = change_component_ref(workspace)
+        component_id, separator, version = extra.partition("@")
+        if (workspace.root / "seed-component.txt").is_file() and separator:
+            intent_input(
+                workspace,
+                "change",
+                {
+                    "harness_id": "cursor",
+                    "component_id": component_id,
+                    "component_version": version,
+                    "project_root": project,
+                },
+            )
+        return (
+            f"My saved cursor setup is {cursor_pin()} and it must stay "
+            f"restorable. Change it so it also includes the component {extra} "
+            f"while keeping the same setup id. {env}"
+        )
+    if scenario == SWITCH_SAVED:
+        intent_input(workspace, "switch", {"harness_id": "cursor", "project_root": project})
+        return (
+            "Switch this project back to my last working cursor setup — my "
+            f"preserved one, not the upstream default. {env}"
+        )
+    if scenario == RELATIVE_ROOT:
+        intent_input(workspace, "install", {"harness_id": "cursor"})
+        return (
+            "Install the ai-stp public cursor setup for this project. "
+            f"When it asks for the project root, my answer is: relative. {env}"
+        )
+    if scenario == AUTHOR_DIR:
+        return (
+            "Turn the demo-skill directory in this project into a skill "
+            f"component named demo, license MIT, for my cursor harness. {env}"
+        )
+    if scenario == ANTIGRAVITY:
+        return f"Set up the ai-stp integration in this project. My harness is antigravity. {env}"
+    if scenario == CUSTOM_HOME:
+        intent_input(workspace, "initialize", {"harness_id": "codex"})
+        return (
+            "Set up the ai-stp integration in this project. My harness is "
+            f"codex and CODEX_HOME is already set. {env}"
+        )
+    if scenario == RECOVER:
+        return f"An install operation failed or is partial. Recover it to its honest state. {env}"
+    if scenario == LOGIN_SKIP:
+        return f"I am already signed in — just confirm that; nothing else needs to change. {env}"
+    if scenario == LOGIN_IDLE:
+        intent_input(workspace, "account", {"action": "login", "provider": "github"})
+        return f"Log me in with GitHub, then stop — no upload, publish, or sync. {env}"
+    if scenario in {PUBLISH_PRIV, PUBLISH_PUB, AUTH_PUBLISH}:
+        visibility = "private" if scenario == PUBLISH_PRIV else "public"
+        intent_input(
+            workspace,
+            "publish",
+            {
+                "visibility": visibility,
+                "provider": "github",
+                "directory": "demo-skill",
+            },
+        )
+        if scenario == PUBLISH_PRIV:
+            ask = "Publish my demo-skill setup privately to my account — no GitHub repo."
+        elif scenario == PUBLISH_PUB:
+            ask = "Publish my demo-skill setup publicly with filesystem provenance."
+        else:
+            ask = "Publish my demo-skill setup."
+        return f"{ask} {env}"
+    if scenario in FAULT_SCENARIOS:
+        return unassisted_fault_prompt(scenario, workspace)
+    if scenario == PENDING_RELOAD:
+        intent_input(workspace, "switch", {"harness_id": "cursor", "project_root": project})
+        return (
+            "Switch this project to my preserved cursor setup — my last "
+            "working one, not the upstream default. Never kill the running "
+            "session; if its files cannot be loaded mid-session, report "
+            f"that limitation instead of working around it. {env}"
+        )
+    raise ValueError(scenario)
+
+
 def _error_code(body: Mapping[str, object]) -> str:
     return str(_mapping(body.get("error")).get("code") or "")
 
@@ -2303,11 +2439,17 @@ def _overlay_body(path: Path) -> dict[str, object]:
     return body
 
 
-def _agent_map(body: Mapping[str, object]) -> dict[str, object]:
-    agent_raw = body.get("agent")
-    if not isinstance(agent_raw, dict):
+CELL_LAYERS: Final[frozenset[str]] = frozenset({"agent", "unassisted"})
+
+
+def _layer_map(body: Mapping[str, object], layer: str) -> dict[str, object]:
+    """Cell map for one measurement layer. Unknown layers are refused."""
+    if layer not in CELL_LAYERS:
+        raise ValueError(layer)
+    raw = body.get(layer)
+    if not isinstance(raw, dict):
         return {}
-    raw_items = cast(dict[object, object], agent_raw)
+    raw_items = cast(dict[object, object], raw)
     return {str(key): value for key, value in raw_items.items()}
 
 
@@ -2316,9 +2458,12 @@ def _model_overlay(path: Path, model: str) -> dict[str, object]:
     if not model.strip():
         raise ValueError("--model must name the model being measured")
     body = _overlay_body(path)
-    if body.get("agy_model") != model and any(
-        value in ("pass", "fail") for value in _agent_map(body).values()
-    ):
+    scored = any(
+        value in ("pass", "fail")
+        for layer in CELL_LAYERS
+        for value in _layer_map(body, layer).values()
+    )
+    if body.get("agy_model") != model and scored:
         raise ValueError(
             "measured overlay contains cells from a different or unknown model; "
             "use a separate --measured path for this model"
@@ -2328,7 +2473,7 @@ def _model_overlay(path: Path, model: str) -> dict[str, object]:
 
 def _preserve_overlay_model(body: dict[str, object], model: str) -> None:
     """Native probes and invalidation cannot relabel retained model results."""
-    if not _agent_map(body):
+    if not any(_layer_map(body, layer) for layer in CELL_LAYERS):
         body.setdefault("agy_model", model)
 
 
@@ -2370,15 +2515,16 @@ def write_cell(
     status: CellStatus,
     *,
     model: str = AGY_MODEL,
+    layer: str = "agent",
 ) -> None:
     if scenario not in AGENT_SCENARIOS:
         raise ValueError(scenario)
     if run < 0 or run >= AGENT_RUNS:
         raise ValueError(run)
     body = _model_overlay(path, model)
-    agent = _agent_map(body)
-    agent[f"{scenario}:{run}"] = status
-    body["agent"] = agent
+    cells = _layer_map(body, layer)
+    cells[f"{scenario}:{run}"] = status
+    body[layer] = cells
     body["agy_model"] = model
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(body, indent=2, sort_keys=True) + "\n", encoding="utf-8")
@@ -2538,44 +2684,55 @@ def drive_native_install(input_path: Path, key: str) -> dict[str, object]:
     }
 
 
-def clear_cell(path: Path, scenario: str, run: int, *, model: str = AGY_MODEL) -> None:
+def clear_cell(
+    path: Path,
+    scenario: str,
+    run: int,
+    *,
+    model: str = AGY_MODEL,
+    layer: str = "agent",
+) -> None:
     """Drop an unexecuted cell. Never erase a scored pass or fail."""
     if scenario not in AGENT_SCENARIOS:
         raise ValueError(scenario)
     if not path.is_file():
         return
     body = _overlay_body(path)
-    agent = _agent_map(body)
+    cells = _layer_map(body, layer)
     key = f"{scenario}:{run}"
-    if agent.get(key) in {"pass", "fail"}:
+    if cells.get(key) in {"pass", "fail"}:
         return
-    agent.pop(key, None)
-    body["agent"] = agent
+    cells.pop(key, None)
+    body[layer] = cells
     _preserve_overlay_model(body, model)
     path.write_text(json.dumps(body, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
-def invalidate_scenario(path: Path, scenario: str, *, model: str = AGY_MODEL) -> int:
+def invalidate_scenario(
+    path: Path, scenario: str, *, model: str = AGY_MODEL, layer: str = "agent"
+) -> int:
     """Drop scored cells so fill can re-run them. Explicit; clear_cell will not."""
     if scenario not in AGENT_SCENARIOS:
         raise ValueError(scenario)
     if not path.is_file():
         return 0
     body = _overlay_body(path)
-    agent = _agent_map(body)
+    cells = _layer_map(body, layer)
     dropped = 0
     for run in range(AGENT_RUNS):
         key = f"{scenario}:{run}"
-        if key in agent:
-            agent.pop(key)
+        if key in cells:
+            cells.pop(key)
             dropped += 1
-    body["agent"] = agent
+    body[layer] = cells
     _preserve_overlay_model(body, model)
     path.write_text(json.dumps(body, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     return dropped
 
 
-def invalidate_cell(path: Path, scenario: str, run: int, *, model: str = AGY_MODEL) -> int:
+def invalidate_cell(
+    path: Path, scenario: str, run: int, *, model: str = AGY_MODEL, layer: str = "agent"
+) -> int:
     """Drop one scored overlay cell. `clear_cell` will not erase pass/fail."""
     if scenario not in AGENT_SCENARIOS:
         raise ValueError(scenario)
@@ -2584,12 +2741,12 @@ def invalidate_cell(path: Path, scenario: str, run: int, *, model: str = AGY_MOD
     if not path.is_file():
         return 0
     body = _overlay_body(path)
-    agent = _agent_map(body)
+    cells = _layer_map(body, layer)
     key = f"{scenario}:{run}"
-    if key not in agent:
+    if key not in cells:
         return 0
-    agent.pop(key)
-    body["agent"] = agent
+    cells.pop(key)
+    body[layer] = cells
     _preserve_overlay_model(body, model)
     path.write_text(json.dumps(body, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     return 1
@@ -2713,7 +2870,9 @@ def qualify_one(
     probe: bool,
     model: str = AGY_MODEL,
     docker_image: str | None = None,
+    unassisted: bool = False,
 ) -> int:
+    layer = "unassisted" if unassisted else "agent"
     if measured is not None:
         _model_overlay(measured, model)
     if probe and not capacity_probe(agy, model=model):
@@ -2753,7 +2912,7 @@ def qualify_one(
                     json.dumps({"aborted": str(error)}), encoding="utf-8"
                 )
                 if measured is not None:
-                    clear_cell(measured, scenario, run, model=model)
+                    clear_cell(measured, scenario, run, model=model, layer=layer)
                 print(
                     json.dumps(
                         {
@@ -2776,7 +2935,11 @@ def qualify_one(
                 json.dumps({"aborted": "docker cells cannot drive host process groups"}),
                 encoding="utf-8",
             )
-    prompt = prompt_for(scenario, workspace)
+    prompt = (
+        unassisted_prompt_for(scenario, workspace)
+        if unassisted
+        else prompt_for(scenario, workspace)
+    )
     code = run_agy(
         workspace, agy=agy, model=model, timeout=timeout, prompt=prompt, scenario=scenario
     )
@@ -2787,7 +2950,7 @@ def qualify_one(
         capture.close()
     if incomplete_capacity_hit(workspace, stdout, stderr, scenario):
         if measured is not None:
-            clear_cell(measured, scenario, run, model=model)
+            clear_cell(measured, scenario, run, model=model, layer=layer)
         print(
             json.dumps(
                 {
@@ -2807,7 +2970,7 @@ def qualify_one(
         status = score(scenario, workspace)
     if run_was_background_killed(stderr) and status == "fail":
         if measured is not None:
-            clear_cell(measured, scenario, run, model=model)
+            clear_cell(measured, scenario, run, model=model, layer=layer)
         print(
             json.dumps(
                 {
@@ -2822,7 +2985,7 @@ def qualify_one(
         )
         return 1
     if measured is not None:
-        write_cell(measured, scenario, run, status, model=model)
+        write_cell(measured, scenario, run, status, model=model, layer=layer)
     print(json.dumps({"scenario": scenario, "run": run, "status": status, "agy": code}), flush=True)
     return 0 if status == "pass" else 1
 
@@ -2837,14 +3000,16 @@ def fill_unrun(
     gap_seconds: int,
     model: str = AGY_MODEL,
     docker_image: str | None = None,
+    unassisted: bool = False,
 ) -> int:
     """One cell at a time. 503 stays unrun; the next attempt may take a different cell."""
     _model_overlay(measured, model)
+    layer = "unassisted" if unassisted else "agent"
     passed = 0
     skipped: set[tuple[str, int]] = set()
     last: tuple[str, int] | None = None
     for attempt in range(max_attempts):
-        pending = unrun_cells(_agent_map(_overlay_body(measured)))
+        pending = unrun_cells(_layer_map(_overlay_body(measured), layer))
         chosen = next_fill_cell(pending, skipped, rotate_from=last)
         if chosen is None:
             break
@@ -2863,8 +3028,9 @@ def fill_unrun(
             probe=False,
             model=model,
             docker_image=docker_image,
+            unassisted=unassisted,
         )
-        after = _agent_map(_overlay_body(measured))
+        after = _layer_map(_overlay_body(measured), layer)
         key = f"{scenario}:{run}"
         if code == 0:
             passed += 1
@@ -2878,7 +3044,7 @@ def fill_unrun(
             if individual_quota_exhausted(stdout, stderr):
                 print(json.dumps({"fill": "paused", "reason": "quota_exhausted"}), flush=True)
                 return 1
-        if attempt + 1 < max_attempts and unrun_cells(_agent_map(_overlay_body(measured))):
+        if attempt + 1 < max_attempts and unrun_cells(_layer_map(_overlay_body(measured), layer)):
             time.sleep(gap_seconds)
     return 0 if passed else 1
 
@@ -2914,6 +3080,15 @@ def main(arguments: list[str] | None = None) -> int:
         action="store_true",
         help="Walk unrun agent cells one at a time. Scored pass/fail stay put.",
     )
+    parser.add_argument(
+        "--unassisted",
+        action="store_true",
+        help=(
+            "Drive the unassisted corpus: plain user requests without argv "
+            "coaching. Cells land in the overlay's own unassisted layer and "
+            "never mix into guided agent results."
+        ),
+    )
     parser.add_argument("--max-attempts", type=int, default=8)
     parser.add_argument("--gap-seconds", type=int, default=FILL_GAP_SECONDS)
     parser.add_argument(
@@ -2943,6 +3118,7 @@ def main(arguments: list[str] | None = None) -> int:
     )
     options = parser.parse_args(arguments)
     docker_image = options.docker_image or os.environ.get(DOCKER_IMAGE_ENV) or None
+    layer = "unassisted" if options.unassisted else "agent"
     scoring = not (
         options.record_isolation
         or options.native_cell is not None
@@ -2975,9 +3151,11 @@ def main(arguments: list[str] | None = None) -> int:
                 print(f"unsupported scenario: {name}", file=sys.stderr)
                 return 2
             dropped[name] = (
-                invalidate_scenario(options.measured, scenario, model=options.model)
+                invalidate_scenario(options.measured, scenario, model=options.model, layer=layer)
                 if run is None
-                else invalidate_cell(options.measured, scenario, run, model=options.model)
+                else invalidate_cell(
+                    options.measured, scenario, run, model=options.model, layer=layer
+                )
             )
         print(json.dumps({"invalidated": dropped}))
         if not options.fill and options.root is None:
@@ -3043,6 +3221,7 @@ def main(arguments: list[str] | None = None) -> int:
             gap_seconds=options.gap_seconds,
             model=options.model,
             docker_image=docker_image,
+            unassisted=options.unassisted,
         )
     if options.root is None:
         print("--root is required", file=sys.stderr)
@@ -3060,6 +3239,7 @@ def main(arguments: list[str] | None = None) -> int:
         probe=options.probe,
         model=options.model,
         docker_image=docker_image,
+        unassisted=options.unassisted,
     )
 
 

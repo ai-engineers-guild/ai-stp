@@ -40,6 +40,7 @@ from ai_stp_cli.agy_qualify import (
     STALE_VERIFIED_SCENARIOS,
     SUPPORTED_SCENARIOS,
     SWITCH_SAVED,
+    UNASSISTED_ENV,
     VERIFIED_DRAIN,
     Workspace,
     agy_argv,
@@ -47,6 +48,7 @@ from ai_stp_cli.agy_qualify import (
     capacity_miss,
     choreographed,
     clear_cell,
+    cursor_pin,
     custom_home_section_landed,
     debug_provider,
     drive_native_install,
@@ -70,6 +72,7 @@ from ai_stp_cli.agy_qualify import (
     score_no_reinit,
     start_command,
     task_intents,
+    unassisted_prompt_for,
     unrun_cells,
     write_cell,
     write_isolation,
@@ -529,6 +532,112 @@ def test_fresh_initialize_prompt_is_the_website_line(tmp_path: Path) -> None:
     assert "CODEX_HOME/AGENTS.md" in custom_prompt
     assert INPUT_CWD_HINT in custom_prompt
     assert (custom.project / "initialize-input.json").is_file()
+
+
+def test_unassisted_prompts_are_plain_user_requests(tmp_path: Path) -> None:
+    """The unassisted corpus carries goals and user facts, never argv coaching."""
+    coaching = (
+        "task start",
+        "task continue",
+        "task answer",
+        "task intents",
+        "task status",
+        "--intent",
+        "--idempotency-key",
+        "--input ",
+        "--value",
+        "--json",
+        "Do not ",
+        "Execute ai-stp",
+        "actor is",
+        "continuations",
+    )
+    for scenario in sorted(AGENT_SCENARIOS):
+        workspace = prepare_workspace(tmp_path / f"un-{scenario}", scenario=scenario)
+        if scenario in {COMPENSATED, KILL_AFTER, CONCURRENT}:
+            _seed_fault(workspace, kind="kill-after-apply", task_id="task_un")
+        text = unassisted_prompt_for(scenario, workspace)
+        assert text, scenario
+        if scenario == NO_REINIT:
+            assert text == "What is 2+2?"
+            continue
+        assert UNASSISTED_ENV in text, scenario
+        if scenario == FRESH_INIT:
+            # The website's own initialize copy is website text, not coaching.
+            assert INITIALIZE_PROMPT in text
+            continue
+        for marker in coaching:
+            assert marker not in text, f"{scenario}: coaching marker {marker!r} leaked"
+
+
+def test_unassisted_prompts_bind_their_user_facts(tmp_path: Path) -> None:
+    workspace = prepare_workspace(tmp_path / "un-pin", scenario=INSTALL_PIN)
+    assert cursor_pin() in unassisted_prompt_for(INSTALL_PIN, workspace)
+    seeded = prepare_workspace(tmp_path / "un-change", scenario=CHANGE_ADD)
+    change_text = unassisted_prompt_for(CHANGE_ADD, seeded)
+    assert extra_cursor_ref() in change_text
+    assert cursor_pin() in change_text
+    faulted = prepare_workspace(tmp_path / "un-fault", scenario=KILL_AFTER)
+    _seed_fault(faulted, kind="kill-after-apply", task_id="task_un")
+    assert "task_un" in unassisted_prompt_for(KILL_AFTER, faulted)
+    relative = prepare_workspace(tmp_path / "un-rel", scenario=RELATIVE_ROOT)
+    relative_text = unassisted_prompt_for(RELATIVE_ROOT, relative)
+    assert "relative" in relative_text
+    assert "--value" not in relative_text
+
+
+def test_unassisted_cells_land_in_their_own_layer(tmp_path: Path) -> None:
+    measured = tmp_path / "measured.json"
+    write_cell(measured, NO_REINIT, 0, "pass")
+    write_cell(measured, NO_REINIT, 0, "fail", layer="unassisted")
+    body = json.loads(measured.read_text(encoding="utf-8"))
+    assert body["agent"][f"{NO_REINIT}:0"] == "pass"
+    assert body["unassisted"][f"{NO_REINIT}:0"] == "fail"
+    assert invalidate_cell(measured, NO_REINIT, 0, layer="unassisted") == 1
+    body = json.loads(measured.read_text(encoding="utf-8"))
+    assert f"{NO_REINIT}:0" not in body["unassisted"]
+    assert body["agent"][f"{NO_REINIT}:0"] == "pass"
+    with pytest.raises(ValueError):
+        write_cell(measured, NO_REINIT, 1, "pass", layer="other")
+
+
+def test_model_guard_covers_unassisted_cells(tmp_path: Path) -> None:
+    measured = tmp_path / "measured.json"
+    write_cell(measured, NO_REINIT, 0, "pass", layer="unassisted")
+    with pytest.raises(ValueError, match="different or unknown model"):
+        write_cell(measured, NO_REINIT, 1, "pass", model="other-model", layer="unassisted")
+
+
+def test_unassisted_qualify_writes_own_layer(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    measured = tmp_path / "measured.json"
+    write_cell(measured, LOGIN_SKIP, 0, "fail")
+
+    def _run(workspace: Workspace, **kwargs: object) -> int:
+        prompt = str(kwargs.get("prompt") or "")
+        assert "task start" not in prompt
+        (workspace.root / "agy.stdout").write_text(
+            '{"status":"SUCCESS","response":"already signed in"}\n', encoding="utf-8"
+        )
+        (workspace.root / "agy.stderr").write_text("", encoding="utf-8")
+        return 0
+
+    monkeypatch.setattr("ai_stp_cli.agy_qualify.run_agy", _run)
+    code = qualify_one(
+        root=tmp_path / "cell",
+        scenario=LOGIN_SKIP,
+        run=0,
+        measured=measured,
+        agy=Path("/bin/agy"),
+        timeout=5,
+        probe=False,
+        unassisted=True,
+    )
+    assert code == 0
+    body = json.loads(measured.read_text(encoding="utf-8"))
+    assert body["unassisted"][f"{LOGIN_SKIP}:0"] == "pass"
+    assert body["agent"][f"{LOGIN_SKIP}:0"] == "fail"
 
 
 def test_custom_home_score_requires_the_codex_section(tmp_path: Path) -> None:
