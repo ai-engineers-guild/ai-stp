@@ -321,6 +321,7 @@ export default async function ComponentDetailPage({ params, searchParams }: Page
             {corporateUsage ? (
               <CorporateCatalogUsage
                 items={corporateUsage.items}
+                total={corporateUsage.total}
                 labels={usageSectionLabels(th, t)}
               />
             ) : null}

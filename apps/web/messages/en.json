@@ -89,6 +89,7 @@
     "categories": "Technology categories",
     "installations": "Installations",
     "usage": "Usage",
+    "usageTruncated": "Showing the first {shown} of {total} assignments",
     "overviewBody": "Explore your organization and its technology landscape.",
     "organizationBody": "Manage employees, projects, teams, and their connections.",
     "browseProjects": "Browse projects in your organization.",
