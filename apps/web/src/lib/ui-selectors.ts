@@ -37,6 +37,9 @@ export const UI = {
     locale: "locale-select",
     shortcuts: "keyboard-shortcuts",
   },
+  corporate: {
+    organizationSwitcher: "corporate-organization-switcher",
+  },
   theme: {
     toggle: "color-theme-toggle",
   },

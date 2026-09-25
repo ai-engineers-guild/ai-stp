@@ -3,7 +3,7 @@ import { cache } from "react";
 
 import { cookies } from "next/headers";
 
-import { CSRF_COOKIE, SESSION_COOKIE } from "@/lib/auth/cookies";
+import { CORPORATE_ORG_COOKIE, CSRF_COOKIE, SESSION_COOKIE } from "@/lib/auth/cookies";
 import { ApiError } from "@/lib/api/errors";
 import { asAccountId, asDeviceId, type AccountId, type DeviceId } from "@/lib/brands";
 import { getEnv } from "@/lib/env";
@@ -25,7 +25,7 @@ type SessionPayload = {
   expiresAt: number;
 };
 
-const SESSION_TTL_MS = 12 * 60 * 60 * 1000;
+export const SESSION_TTL_MS = 12 * 60 * 60 * 1000;
 
 function sign(payload: string, secret: string): string {
   return createHmac("sha256", secret).update(payload).digest("base64url");
@@ -196,6 +196,7 @@ export async function clearSessionCookies(): Promise<void> {
   const jar = await cookies();
   jar.delete(SESSION_COOKIE);
   jar.delete(CSRF_COOKIE);
+  jar.delete(CORPORATE_ORG_COOKIE);
 }
 
 export function assertCsrf(headerToken: string | null, cookieToken: string | null): void {
