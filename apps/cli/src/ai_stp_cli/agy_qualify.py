@@ -9,6 +9,8 @@ driven so the overlay's agy_model stays honest.
 from __future__ import annotations
 
 import argparse
+import http.client
+import http.server
 import json
 import os
 import re
@@ -17,6 +19,7 @@ import shutil
 import sqlite3
 import subprocess
 import sys
+import threading
 import time
 from collections.abc import Mapping, Sequence
 from contextlib import closing
@@ -31,6 +34,7 @@ from ai_stp_cli.application.qualify import (
     AGENT_SCENARIOS,
     AGY_MODEL,
     PLATFORMS,
+    CellStatus,
     MeasuredStatus,
     native_config_root,
     native_marker_populated,
@@ -265,6 +269,7 @@ class Workspace:
     home: Path
     project: Path
     wrapper: Path
+    readback: Path
 
 
 def bundled_cli() -> Path:
@@ -431,6 +436,7 @@ def prepare_workspace(
     repo: Path | None = None,
     scenario: str = NO_REINIT,
     docker_image: str | None = None,
+    catalog_url: str | None = None,
 ) -> Workspace:
     """Isolated project + CLI home. Does not touch the caller's harness files."""
     root = root.expanduser().resolve()
@@ -462,8 +468,38 @@ def prepare_workspace(
         encoding="utf-8",
     )
     wrapper.chmod(0o755)
+    readback = bin_dir / "ai-stp-readback"
+    readback.write_text(
+        wrapper_script(
+            home=home,
+            root=root,
+            log=root / "readback.log",
+            extra=extra,
+            docker_image=docker_image,
+            repo=source,
+        ),
+        encoding="utf-8",
+    )
+    readback.chmod(0o755)
     subprocess.run(["git", "init"], cwd=project, check=False, capture_output=True)
-    workspace = Workspace(root=root, home=home, project=project, wrapper=wrapper)
+    workspace = Workspace(root=root, home=home, project=project, wrapper=wrapper, readback=readback)
+    if catalog_url is not None:
+        # Route the cell's platform traffic through the qualify recorder. The
+        # recorder only observes: upstream stays the real catalogue. The
+        # readback wrapper keeps fixture traffic out of cli.log — that file is
+        # the model's evidence, not the runner's.
+        configured = subprocess.run(
+            [str(readback), "config", "set", "--set", f"catalog.url={catalog_url}", "--json"],
+            cwd=project,
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+        (root / "catalog-config.log").write_text(
+            f"exit={configured.returncode}\n{configured.stdout}\n{configured.stderr}\n",
+            encoding="utf-8",
+        )
     prepare_scenario(workspace, scenario)
     if scenario == CUSTOM_HOME and docker_image:
         seed_bound_codex(workspace)
@@ -645,32 +681,355 @@ def account_idle_honest(home: Path) -> bool:
     return saw_block
 
 
-def publish_honest(home: Path, *, visibility: str | None = None) -> bool:
-    """Unsigned isolate blocks on authorization. Completed rows stay filesystem."""
-    saw_block = False
-    saw_complete = False
-    for item in task_snapshots(home):
+CAPTURE_FILE: Final[str] = "requests.jsonl"
+CATALOG_UPSTREAM_ENV: Final[str] = "AI_STP_QUALIFY_CATALOG"
+DEFAULT_CATALOG_UPSTREAM: Final[str] = "https://ai-stp.aiguild.space"
+#: Request paths a publish cell may legitimately send. Anything else in the
+#: capture means the CLI uploaded or asked about data the scenario never
+#: selected — the same claim UPLOAD_MARKERS makes for argv, made on the wire.
+PUBLISH_CAPTURE_PREFIXES: Final[tuple[str, ...]] = (
+    "/v1/publications",
+    "/v1/catalog",
+    "/v1/objects",
+    "/v1/accounts",
+    "/v1/auth",
+    "/v1/devices",
+)
+_READBACK_REFUSED: Final[frozenset[str]] = frozenset(
+    {
+        "AI_STP_NOT_FOUND",
+        "AI_STP_AUTH_REQUIRED",
+        "AI_STP_AUTHORIZATION_DECLINED",
+        "AI_STP_AUTHORIZATION_EXPIRED",
+        "AI_STP_AUTHORIZATION_PENDING",
+    }
+)
+
+
+class RequestCapture:
+    """Loopback forwarder: records every platform request, then proxies it.
+
+    The cell's `catalog.url` points at the bound port, so the capture sees the
+    exact requests the CLI makes — which paths, and how large each upload was —
+    while upstream still answers every one for real. Credentials travel
+    through but are never recorded.
+    """
+
+    def __init__(self, upstream: str) -> None:
+        parsed = urlsplit(upstream)
+        if parsed.scheme != "https" or not parsed.hostname:
+            raise ValueError("the capture upstream must be an HTTPS origin")
+        upstream_host = parsed.hostname
+        upstream_port = parsed.port or 443
+        self._records: list[dict[str, object]] = []
+        self._lock = threading.Lock()
+        records = self._records
+        lock = self._lock
+
+        class Handler(http.server.BaseHTTPRequestHandler):
+            def _forward(self) -> None:
+                length = int(self.headers.get("Content-Length") or 0)
+                body = self.rfile.read(length) if length else b""
+                record: dict[str, object] = {
+                    "method": self.command,
+                    "path": self.path,
+                    "body_size": len(body),
+                    "authorized": self.headers.get("Authorization") is not None,
+                }
+                with lock:
+                    records.append(record)
+                headers = {
+                    key: value
+                    for key, value in self.headers.items()
+                    if key.lower() not in {"host", "content-length", "connection", "keep-alive"}
+                }
+                connection = http.client.HTTPSConnection(upstream_host, upstream_port, timeout=60)
+                try:
+                    connection.request(self.command, self.path, body=body, headers=headers)
+                    response = connection.getresponse()
+                    payload = response.read()
+                    self.send_response(response.status)
+                    for key, value in response.getheaders():
+                        if key.lower() in {"transfer-encoding", "connection", "keep-alive"}:
+                            continue
+                        self.send_header(key, value)
+                    self.end_headers()
+                    self.wfile.write(payload)
+                except (OSError, http.client.HTTPException) as error:
+                    self.send_error(502, f"capture upstream failed: {type(error).__name__}")
+                finally:
+                    connection.close()
+
+            do_GET = _forward
+            do_POST = _forward
+            do_PUT = _forward
+            do_DELETE = _forward
+            do_PATCH = _forward
+
+            def log_message(self, format: str, *args: object) -> None:
+                del format, args
+
+        try:
+            self._server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        except OSError as error:
+            # Containerised or sandboxed runners may forbid listening sockets.
+            raise CliUnavailable("the capture socket could not be bound") from error
+        self._thread = threading.Thread(target=self._server.serve_forever, daemon=True)
+        self._thread.start()
+
+    @property
+    def url(self) -> str:
+        return f"http://127.0.0.1:{self._server.server_address[1]}"
+
+    def records(self) -> tuple[dict[str, object], ...]:
+        with self._lock:
+            return tuple(dict(item) for item in self._records)
+
+    def dump(self, place: Path) -> None:
+        lines = [json.dumps(item, sort_keys=True) for item in self.records()]
+        place.write_text("".join(f"{line}\n" for line in lines), encoding="utf-8")
+
+    def close(self) -> None:
+        self._server.shutdown()
+        self._server.server_close()
+        self._thread.join(timeout=5)
+
+
+class CliUnavailable(Exception):
+    """A fixture the scorer needs could not be wired in this environment."""
+
+
+def catalog_upstream() -> str:
+    return os.environ.get(CATALOG_UPSTREAM_ENV, "").strip() or DEFAULT_CATALOG_UPSTREAM
+
+
+def capture_records(workspace: Workspace) -> tuple[dict[str, object], ...]:
+    place = workspace.root / CAPTURE_FILE
+    if not place.is_file():
+        return ()
+    held: list[dict[str, object]] = []
+    for line in place.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        mapped = _json_map(json.loads(line))
+        if mapped is not None:
+            held.append(mapped)
+    return tuple(held)
+
+
+def capture_boundary(workspace: Workspace) -> CellStatus | None:
+    """None when every captured request stayed inside the publish surface."""
+    place = workspace.root / CAPTURE_FILE
+    if not place.is_file():
+        return "not_run"
+    for record in capture_records(workspace):
+        path = str(record.get("path") or "")
+        if not path.startswith(PUBLISH_CAPTURE_PREFIXES):
+            return "fail"
+    return None
+
+
+def cell_cli(workspace: Workspace, argv: Sequence[str]) -> dict[str, object]:
+    """Scorer-side CLI call inside the cell, logged to readback.log only."""
+    result = subprocess.run(
+        [str(workspace.readback), *argv],
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    try:
+        parsed: object = json.loads(result.stdout)
+    except json.JSONDecodeError:
+        return {"ok": False, "_exit": result.returncode}
+    if not isinstance(parsed, dict):
+        return {"ok": False, "_exit": result.returncode}
+    held = _mapping(cast(object, parsed))
+    held["_exit"] = result.returncode
+    return held
+
+
+def _error_code(body: Mapping[str, object]) -> str:
+    return str(_mapping(body.get("error")).get("code") or "")
+
+
+def publication_readback(
+    workspace: Workspace,
+    object_id: str,
+    version: str,
+    *,
+    private: bool,
+) -> str:
+    """Independent remote answer for one claimed publication.
+
+    `verified` — the catalogue answered this exact object and version online,
+    and the artifact fetch bound the version passport's digest to real bytes.
+    `absent` — the catalogue answered "no such object/version": the claim is
+    contradicted, not merely unproven. `unavailable` — auth, network, or the
+    fixture could not answer; that is missing infrastructure, not evidence.
+    """
+    private_flag = ["--private"] if private else []
+    view = cell_cli(
+        workspace,
+        [
+            "registry",
+            "version",
+            "--kind",
+            "component",
+            "--id",
+            object_id,
+            "--version",
+            version,
+            *private_flag,
+            "--json",
+        ],
+    )
+    if view.get("ok") is not True:
+        code = _error_code(view)
+        if code == "AI_STP_NOT_FOUND":
+            return "absent"
+        return "unavailable"
+    data = _mapping(view.get("data"))
+    if data.get("source") != "online":
+        return "unavailable"
+    passport = _mapping(data.get("passport"))
+    if str(passport.get("stable_id") or "") != object_id:
+        return "fail"
+    if str(passport.get("version") or "") != version:
+        return "fail"
+    artifact = _mapping(passport.get("artifact"))
+    digest = str(artifact.get("digest") or "")
+    if not digest:
+        return "unavailable"
+    fetched = cell_cli(
+        workspace,
+        [
+            "registry",
+            "fetch",
+            "--kind",
+            "component",
+            "--id",
+            object_id,
+            "--version",
+            version,
+            *private_flag,
+            "--json",
+        ],
+    )
+    if fetched.get("ok") is not True:
+        code = _error_code(fetched)
+        if code in _READBACK_REFUSED:
+            return "absent" if code == "AI_STP_NOT_FOUND" else "unavailable"
+        return "unavailable"
+    fetched_data = _mapping(fetched.get("data"))
+    if fetched_data.get("source") == "cache":
+        return "unavailable"
+    if str(fetched_data.get("digest") or "") != digest:
+        return "fail"
+    return "verified"
+
+
+def _publication_evidence(item: Mapping[str, object]) -> dict[str, object] | None:
+    """Local positive evidence for one completed publish task, else None."""
+    if item.get("state") != "completed":
+        return None
+    if item.get("goal_satisfied") not in (True, 1, "1"):
+        return None
+    outcome = _json_map(item.get("outcome"))
+    if outcome is None or outcome.get("kind") != "publish":
+        return None
+    if outcome.get("state") != "published":
+        return None
+    if outcome.get("readable") is not True:
+        return None
+    if not outcome.get("object_id") or not outcome.get("object_version"):
+        return None
+    if outcome.get("source_binding_id"):
+        return None
+    if outcome.get("provenance") not in {"filesystem", None}:
+        return None
+    return outcome
+
+
+def publish_auth_boundary(workspace: Workspace) -> bool:
+    """The auth probe: parked on authorization, or a fully published outcome.
+
+    A blocked authorization question is the boundary this scenario exists to
+    prove; a completed readable publication means the environment could
+    authenticate and the same boundary was crossed for real. A completed claim
+    the catalogue contradicts is a defect, not a boundary.
+    """
+    saw = False
+    for item in task_snapshots(workspace.home):
         if item.get("intent") != "publish":
             continue
-        if item.get("state") == "failed":
+        if item.get("state") in {"failed", "cancelled"}:
             return False
         if item.get("state") == "blocked" and "authorization" in question_ids_of(item):
-            saw_block = True
-        if item.get("state") != "completed":
-            continue
-        outcome = _json_map(item.get("outcome"))
-        if outcome is None:
-            continue
-        if not outcome.get("object_id"):
-            continue
-        if outcome.get("source_binding_id"):
+            saw = True
+        evidence = _publication_evidence(item)
+        if item.get("state") == "completed" and evidence is None:
             return False
-        if outcome.get("provenance") not in {"filesystem", None}:
+        if evidence is None:
+            continue
+        verdict = publication_readback(
+            workspace,
+            str(evidence.get("object_id")),
+            str(evidence.get("object_version")),
+            private=evidence.get("visibility") == "private",
+        )
+        if verdict in {"absent", "fail"}:
             return False
-        if visibility is not None and outcome.get("visibility") != visibility:
-            return False
-        saw_complete = True
-    return saw_block or saw_complete
+        saw = True
+    return saw
+
+
+def publish_verified(workspace: Workspace, *, visibility: str | None) -> CellStatus:
+    """Positive publication: completed, readable, bound to the remote object.
+
+    A blocked or unfinished publish task is not failure evidence — the cell
+    could not produce the outcome this scenario measures, so it is `not_run`.
+    A task that claims completion without a readable publication is a real
+    defect: `fail`.
+    """
+    published: list[dict[str, object]] = []
+    pending = False
+    for item in task_snapshots(workspace.home):
+        if item.get("intent") != "publish":
+            continue
+        state = item.get("state")
+        if state in {"failed", "cancelled"}:
+            return "fail"
+        outcome = _publication_evidence(item)
+        if state == "completed":
+            if outcome is None:
+                return "fail"
+            if visibility is not None and outcome.get("visibility") != visibility:
+                return "fail"
+            published.append(outcome)
+            continue
+        pending = True
+    if not published:
+        return "not_run" if pending else "fail"
+    for outcome in published:
+        private = outcome.get("visibility") == "private"
+        object_id = str(outcome.get("object_id"))
+        version = str(outcome.get("object_version"))
+        verdict = publication_readback(workspace, object_id, version, private=private)
+        if verdict in {"absent", "fail"}:
+            return "fail"
+        if verdict != "verified":
+            return "not_run"
+        if private:
+            # The unauthorized-read negative control: a private object that an
+            # anonymous read can see is a disclosure, not a publication.
+            anon = publication_readback(workspace, object_id, version, private=False)
+            if anon == "verified":
+                return "fail"
+    boundary = capture_boundary(workspace)
+    if boundary is not None:
+        return boundary
+    return "pass"
 
 
 def switch_not_loaded(home: Path) -> bool:
@@ -1305,7 +1664,7 @@ def score_no_reinit(home: Path) -> MeasuredStatus:
     return "pass"
 
 
-def score(scenario: str, workspace: Workspace) -> MeasuredStatus:
+def score(scenario: str, workspace: Workspace) -> CellStatus:
     if choreographed(workspace):
         return "fail"
     if escaped_workspace(workspace):
@@ -1403,12 +1762,10 @@ def score(scenario: str, workspace: Workspace) -> MeasuredStatus:
             return "fail"
         if "publish" not in intents:
             return "fail"
-        wanted = None
-        if scenario == PUBLISH_PRIV:
-            wanted = "private"
-        elif scenario == PUBLISH_PUB:
-            wanted = "public"
-        return "pass" if publish_honest(workspace.home, visibility=wanted) else "fail"
+        if scenario == AUTH_PUBLISH:
+            return "pass" if publish_auth_boundary(workspace) else "fail"
+        wanted = "private" if scenario == PUBLISH_PRIV else "public"
+        return publish_verified(workspace, visibility=wanted)
     if scenario in {COMPENSATED, KILL_AFTER, CONCURRENT}:
         if "install" not in intents:
             return "fail"
@@ -1533,7 +1890,7 @@ def write_cell(
     path: Path,
     scenario: str,
     run: int,
-    status: MeasuredStatus,
+    status: CellStatus,
     *,
     model: str = AGY_MODEL,
 ) -> None:
@@ -1895,13 +2252,30 @@ def qualify_one(
             )
         )
         return 1
-    workspace = prepare_workspace(root, scenario=scenario, docker_image=docker_image)
+    capture: RequestCapture | None = None
+    if docker_image is None:
+        # Host cells route platform traffic through the recorder. A container's
+        # loopback is its own, so docker cells keep the direct upstream and the
+        # egress assertions stay unmeasured rather than faked.
+        try:
+            capture = RequestCapture(catalog_upstream())
+        except CliUnavailable:
+            capture = None
+    workspace = prepare_workspace(
+        root,
+        scenario=scenario,
+        docker_image=docker_image,
+        catalog_url=capture.url if capture is not None else None,
+    )
     prompt = prompt_for(scenario, workspace)
     code = run_agy(
         workspace, agy=agy, model=model, timeout=timeout, prompt=prompt, scenario=scenario
     )
     stdout = (workspace.root / "agy.stdout").read_text(encoding="utf-8")
     stderr = (workspace.root / "agy.stderr").read_text(encoding="utf-8")
+    if capture is not None:
+        capture.dump(workspace.root / CAPTURE_FILE)
+        capture.close()
     if incomplete_capacity_hit(workspace, stdout, stderr, scenario):
         if measured is not None:
             clear_cell(measured, scenario, run, model=model)
@@ -1919,7 +2293,7 @@ def qualify_one(
         )
         return 1
     if code != 0 and not drove_cli(workspace):
-        status: MeasuredStatus = "fail"
+        status: CellStatus = "fail"
     else:
         status = score(scenario, workspace)
     if run_was_background_killed(stderr) and status == "fail":
