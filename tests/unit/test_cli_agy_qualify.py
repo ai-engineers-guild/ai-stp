@@ -7,6 +7,7 @@ import json
 import os
 import sqlite3
 import subprocess
+from collections.abc import Sequence
 from contextlib import closing
 from pathlib import Path
 from types import SimpleNamespace
@@ -39,8 +40,6 @@ from ai_stp_cli.agy_qualify import (
     STALE_VERIFIED_SCENARIOS,
     SUPPORTED_SCENARIOS,
     SWITCH_SAVED,
-    UNMET_SETUP_ID,
-    UNMET_SETUP_VERSION,
     VERIFIED_DRAIN,
     Workspace,
     agy_argv,
@@ -289,6 +288,111 @@ def _drive(workspace: Workspace, intent: str) -> None:
     )
 
 
+def _seed_fault_task(
+    home: Path,
+    *,
+    task_id: str = "task_fault",
+    key: str = "fault-key",
+    state: str = "completed",
+    goal_satisfied: bool = True,
+    children: tuple[str, ...] = ("op_fault",),
+) -> None:
+    """A durable install task row with the columns the fault oracle reads."""
+    place = registry_path(home)
+    place.parent.mkdir(parents=True, exist_ok=True)
+    with closing(sqlite3.connect(place)) as connection:
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS agent_task (
+                task_id TEXT,
+                revision INTEGER,
+                intent TEXT,
+                state TEXT,
+                goal_satisfied INTEGER,
+                idempotency_key TEXT,
+                payload_json TEXT,
+                outcome_json TEXT,
+                questions_json TEXT,
+                child_operation_ids_json TEXT
+            )
+            """
+        )
+        cols = {str(row[1]) for row in connection.execute("PRAGMA table_info(agent_task)")}
+        for name, spec in (
+            ("task_id", "TEXT"),
+            ("revision", "INTEGER"),
+            ("idempotency_key", "TEXT"),
+            ("child_operation_ids_json", "TEXT"),
+            ("state", "TEXT"),
+            ("goal_satisfied", "INTEGER"),
+        ):
+            if name not in cols:
+                connection.execute(f"ALTER TABLE agent_task ADD COLUMN {name} {spec}")
+        connection.execute(
+            "INSERT INTO agent_task "
+            "(task_id, revision, intent, state, goal_satisfied, idempotency_key,"
+            " child_operation_ids_json) VALUES (?, ?, 'install', ?, ?, ?, ?)",
+            (
+                task_id,
+                3,
+                state,
+                int(goal_satisfied),
+                key,
+                json.dumps(list(children)),
+            ),
+        )
+        connection.commit()
+
+
+def _seed_fault_op(home: Path, *, operation_id: str = "op_fault", state: str = "verified") -> None:
+    place = registry_path(home)
+    place.parent.mkdir(parents=True, exist_ok=True)
+    with closing(sqlite3.connect(place)) as connection:
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS operation (
+                operation_id TEXT,
+                kind TEXT,
+                state TEXT,
+                started_at TEXT,
+                finished_at TEXT,
+                detail TEXT
+            )
+            """
+        )
+        connection.execute(
+            "INSERT INTO operation VALUES (?, 'install.install', ?, 't', NULL, NULL)",
+            (operation_id, state),
+        )
+        connection.commit()
+
+
+def _seed_fault(
+    workspace: Workspace,
+    *,
+    kind: str,
+    task_id: str = "task_fault",
+    state: str = "completed",
+    goal_satisfied: bool = True,
+    op_state: str = "verified",
+    operation_id: str = "op_fault",
+    extra: dict[str, object] | None = None,
+) -> None:
+    """Fault evidence plus the durable rows the oracle reads it against."""
+    _seed_fault_task(
+        workspace.home,
+        task_id=task_id,
+        state=state,
+        goal_satisfied=goal_satisfied,
+        children=(operation_id,),
+    )
+    _seed_fault_op(workspace.home, operation_id=operation_id, state=op_state)
+    fault: dict[str, object] = {"kind": kind, "task_id": task_id}
+    if extra:
+        fault.update(extra)
+    (workspace.root / "fault.json").write_text(json.dumps(fault), encoding="utf-8")
+
+
 def _drive_initialize_limitation(workspace: Workspace) -> None:
     _insert_intent(
         workspace.home,
@@ -343,24 +447,26 @@ def test_fresh_initialize_prompt_is_the_website_line(tmp_path: Path) -> None:
     assert VERIFIED_DRAIN in prompt_for(SWITCH_SAVED, workspace)
     assert VERIFIED_DRAIN not in prompt_for(COMPENSATED, workspace)
     assert VERIFIED_DRAIN not in prompt_for(RELATIVE_ROOT, workspace)
-    assert "--input install-input.json" in prompt_for(COMPENSATED, workspace)
-    assert INPUT_CWD_HINT in prompt_for(COMPENSATED, workspace)
-    assert "Absolute project root:" not in prompt_for(COMPENSATED, workspace)
-    assert "Never type task get" in prompt_for(COMPENSATED, workspace)
-    assert "absent from the catalog" in prompt_for(COMPENSATED, workspace)
-    compensated_input = json.loads((workspace.project / "install-input.json").read_text())
-    assert compensated_input["setup_id"] == UNMET_SETUP_ID
-    assert compensated_input["setup_version"] == UNMET_SETUP_VERSION
-    assert "Never type task get" in prompt_for(KILL_AFTER, workspace)
-    assert "--input install-input.json" in prompt_for(KILL_AFTER, workspace)
-    assert "absent from the catalog" in prompt_for(KILL_AFTER, workspace)
-    kill_input = json.loads((workspace.project / "install-input.json").read_text())
-    assert kill_input["setup_id"] == UNMET_SETUP_ID
+    (workspace.root / "fault.json").write_text(
+        json.dumps({"task_id": "task_fault", "kind": "compensated-install"}),
+        encoding="utf-8",
+    )
+    compensated_prompt = prompt_for(COMPENSATED, workspace)
+    assert "task status --task task_fault --json" in compensated_prompt
+    assert "task continue --task task_fault --revision" in compensated_prompt
+    assert "compensation" in compensated_prompt.lower()
+    assert "Never start a second install" in compensated_prompt
+    assert "Do not type task start" in compensated_prompt
+    kill_prompt = prompt_for(KILL_AFTER, workspace)
+    assert "task status --task task_fault --json" in kill_prompt
+    assert "task continue --task task_fault --revision" in kill_prompt
+    assert "Never start a second install" in kill_prompt
+    concurrent_prompt = prompt_for(CONCURRENT, workspace)
+    assert "Harness: cursor" in concurrent_prompt
+    assert "task status --task task_fault --json" in concurrent_prompt
+    assert "Never start a second install" in concurrent_prompt
     assert "Never type task get" in prompt_for(RECOVER, workspace)
     assert "task intents --json" in prompt_for(RECOVER, workspace)
-    assert "Harness: cursor" in prompt_for(CONCURRENT, workspace)
-    assert "--input install-input.json" in prompt_for(CONCURRENT, workspace)
-    assert "Absolute project root:" not in prompt_for(CONCURRENT, workspace)
     assert start_command("change") in prompt_for(CHANGE_ADD, workspace)
     assert "Harness: cursor" in prompt_for(CHANGE_ADD, workspace)
     assert "Do not wait for a person" in prompt_for(CHANGE_ADD, workspace)
@@ -744,7 +850,7 @@ def test_every_agent_scenario_has_a_prompt_and_score(tmp_path: Path) -> None:
     for scenario in AGENT_SCENARIOS:
         workspace = prepare_workspace(tmp_path / scenario, scenario=scenario)
         assert prompt_for(scenario, workspace)
-        assert score(scenario, workspace) in {"pass", "fail"}
+        assert score(scenario, workspace) in {"pass", "fail", "not_run"}
 
 
 def test_pending_reload_fails_a_loaded_session_claim(tmp_path: Path) -> None:
@@ -798,23 +904,94 @@ def test_pending_reload_fails_a_loaded_session_claim(tmp_path: Path) -> None:
     )
     assert score(PENDING_RELOAD, failed) == "fail"
     compensated = prepare_workspace(tmp_path / "compensated", scenario=COMPENSATED)
-    assert score(COMPENSATED, compensated) == "fail"
-    _insert_intent(compensated.home, "install")
-    assert score(COMPENSATED, compensated) == "fail"
-    _drive(compensated, "install")
-    assert score(COMPENSATED, compensated) == "fail"
-    unmet = prepare_workspace(tmp_path / "compensated-unmet", scenario=COMPENSATED)
-    _insert_intent(unmet.home, "install", state="failed", goal_satisfied=False, verified=False)
-    (unmet.root / "cli.log").write_text(
-        "task start --intent install --input install-input.json --json\n",
-        encoding="utf-8",
+    assert score(COMPENSATED, compensated) == "not_run"
+    (compensated.root / "fault.json").write_text(
+        json.dumps({"aborted": "the barrier was never reached"}), encoding="utf-8"
     )
-    assert score(COMPENSATED, unmet) == "pass"
+    assert score(COMPENSATED, compensated) == "not_run"
+    _seed_fault(
+        compensated,
+        kind="compensated-install",
+        state="failed",
+        goal_satisfied=False,
+        op_state="rolled_back",
+        extra={
+            "barrier": "provider-killed-mid-mutation",
+            "diverged": ["skills/demo/SKILL.md"],
+            "pre": {},
+        },
+    )
+    assert score(COMPENSATED, compensated) == "pass"
+    wedge = prepare_workspace(tmp_path / "compensated-wedge", scenario=COMPENSATED)
+    _seed_fault(
+        wedge,
+        kind="compensated-install",
+        state="failed",
+        goal_satisfied=False,
+        op_state="partial",
+        extra={
+            "barrier": "provider-killed-mid-mutation",
+            "diverged": ["skills/demo/SKILL.md"],
+            "pre": {},
+        },
+    )
+    assert score(COMPENSATED, wedge) == "pass"
+    running = prepare_workspace(tmp_path / "compensated-running", scenario=COMPENSATED)
+    _seed_fault(
+        running,
+        kind="compensated-install",
+        state="running",
+        goal_satisfied=False,
+        op_state="applying",
+        extra={
+            "barrier": "provider-killed-mid-mutation",
+            "diverged": ["skills/demo/SKILL.md"],
+            "pre": {},
+        },
+    )
+    assert score(COMPENSATED, running) == "fail"
     killed = prepare_workspace(tmp_path / "killed", scenario=KILL_AFTER)
-    (killed.root / "cli.log").write_text("task continue --task t --json\n", encoding="utf-8")
-    assert score(KILL_AFTER, killed) == "fail"
-    _insert_intent(killed.home, "install", state="running", goal_satisfied=False, verified=False)
+    assert score(KILL_AFTER, killed) == "not_run"
+    _seed_fault(
+        killed,
+        kind="kill-after-apply",
+        state="completed",
+        goal_satisfied=True,
+        op_state="verified",
+        extra={"barrier": "applied_unverified"},
+    )
     assert score(KILL_AFTER, killed) == "pass"
+    wedge_kill = prepare_workspace(tmp_path / "killed-wedge", scenario=KILL_AFTER)
+    _seed_fault(
+        wedge_kill,
+        kind="kill-after-apply",
+        state="failed",
+        goal_satisfied=False,
+        op_state="partial",
+        extra={"barrier": "applied_unverified"},
+    )
+    assert score(KILL_AFTER, wedge_kill) == "pass"
+    abandoned = prepare_workspace(tmp_path / "killed-abandoned", scenario=KILL_AFTER)
+    _seed_fault(
+        abandoned,
+        kind="kill-after-apply",
+        state="running",
+        goal_satisfied=False,
+        op_state="applied_unverified",
+        extra={"barrier": "applied_unverified"},
+    )
+    assert score(KILL_AFTER, abandoned) == "fail"
+    doubled = prepare_workspace(tmp_path / "killed-doubled", scenario=KILL_AFTER)
+    _seed_fault(
+        doubled,
+        kind="kill-after-apply",
+        state="completed",
+        goal_satisfied=True,
+        op_state="verified",
+        extra={"barrier": "applied_unverified"},
+    )
+    _seed_fault_op(doubled.home, operation_id="op_second", state="verified")
+    assert score(KILL_AFTER, doubled) == "fail"
     idle = prepare_workspace(tmp_path / "idle", scenario=LOGIN_IDLE)
     assert score(LOGIN_IDLE, idle) == "fail"
     _drive(idle, "account")
@@ -848,27 +1025,136 @@ def test_pending_reload_fails_a_loaded_session_claim(tmp_path: Path) -> None:
     )
     assert score(LOGIN_IDLE, failed_idle) == "fail"
     concurrent = prepare_workspace(tmp_path / "concurrent", scenario=CONCURRENT)
-    _insert_intent(concurrent.home, "install")
-    (concurrent.root / "cli.log").write_text(
-        "task start --intent install --json\n", encoding="utf-8"
+    assert score(CONCURRENT, concurrent) == "not_run"
+    _seed_fault(
+        concurrent,
+        kind="concurrent-continue",
+        state="completed",
+        goal_satisfied=True,
+        op_state="verified",
+        extra={"joiner": {"exit": 0, "stdout": "{}"}},
     )
-    assert score(CONCURRENT, concurrent) == "fail"
-    (concurrent.root / "cli.log").write_text(
-        "task start --intent install --json\ntask continue --task t --revision 1 --json\n",
+    assert score(CONCURRENT, concurrent) == "pass"
+    joined_cancel = prepare_workspace(tmp_path / "concurrent-cancel", scenario=CONCURRENT)
+    _seed_fault(
+        joined_cancel,
+        kind="concurrent-continue",
+        state="cancelled",
+        goal_satisfied=False,
+        op_state="verified",
+        extra={"joiner": {"exit": 0, "stdout": "{}"}, "cancel": {"exit": 0}},
+    )
+    assert score(CONCURRENT, joined_cancel) == "pass"
+    no_joiner = prepare_workspace(tmp_path / "concurrent-no-joiner", scenario=CONCURRENT)
+    _seed_fault(
+        no_joiner,
+        kind="concurrent-continue",
+        state="completed",
+        goal_satisfied=True,
+        op_state="verified",
+    )
+    assert score(CONCURRENT, no_joiner) == "fail"
+    second_drain = prepare_workspace(tmp_path / "consecond", scenario=CONCURRENT)
+    _seed_fault(
+        second_drain,
+        kind="concurrent-continue",
+        state="completed",
+        goal_satisfied=True,
+        op_state="verified",
+        extra={"joiner": {"exit": 0, "stdout": "{}"}},
+    )
+    _seed_fault_op(second_drain.home, operation_id="op_second", state="planned")
+    assert score(CONCURRENT, second_drain) == "fail"
+    second_task = prepare_workspace(tmp_path / "consecond-task", scenario=CONCURRENT)
+    _seed_fault(
+        second_task,
+        kind="concurrent-continue",
+        state="completed",
+        goal_satisfied=True,
+        op_state="verified",
+        extra={"joiner": {"exit": 0, "stdout": "{}"}},
+    )
+    _seed_fault_task(
+        second_task.home,
+        task_id="task_extra",
+        key="other-key",
+        state="failed",
+        goal_satisfied=False,
+        children=(),
+    )
+    assert score(CONCURRENT, second_task) == "fail"
+
+
+def _publish_outcome(**overrides: object) -> dict[str, object]:
+    outcome: dict[str, object] = {
+        "kind": "publish",
+        "object_id": "component_demo",
+        "object_version": "1.0",
+        "visibility": "private",
+        "source_binding_id": "",
+        "plan_id": "plan_demo",
+        "plan_hash": "hash_demo",
+        "state": "published",
+        "readable": True,
+        "provenance": "filesystem",
+    }
+    outcome.update(overrides)
+    return outcome
+
+
+def _readback_stub(
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    version_verdict: str = "verified",
+    private_only: bool = False,
+) -> None:
+    """cell_cli fake: registry version/fetch envelopes keyed on --private."""
+
+    def _cli(_workspace: Workspace, argv: Sequence[str]) -> dict[str, object]:
+        args = list(argv)
+        private = "--private" in args
+        if args[:2] == ["registry", "version"]:
+            if version_verdict == "absent" or (private_only and not private):
+                return {"ok": False, "error": {"code": "AI_STP_NOT_FOUND"}, "_exit": 1}
+            if version_verdict == "unavailable":
+                return {"ok": False, "error": {"code": "AI_STP_AUTH_REQUIRED"}, "_exit": 1}
+            return {
+                "ok": True,
+                "data": {
+                    "source": "online",
+                    "passport": {
+                        "stable_id": args[args.index("--id") + 1],
+                        "version": args[args.index("--version") + 1],
+                        "artifact": {"digest": "sha256:demo"},
+                    },
+                },
+                "_exit": 0,
+            }
+        if args[:2] == ["registry", "fetch"]:
+            if private_only and not private:
+                return {"ok": False, "error": {"code": "AI_STP_NOT_FOUND"}, "_exit": 1}
+            return {
+                "ok": True,
+                "data": {"source": "online", "digest": "sha256:demo"},
+                "_exit": 0,
+            }
+        return {"ok": False, "_exit": 2}
+
+    monkeypatch.setattr("ai_stp_cli.agy_qualify.cell_cli", _cli)
+
+
+def _capture(workspace: Workspace, *paths: str) -> None:
+    lines = "".join(
+        json.dumps({"method": "GET", "path": path, "body_size": 0}) + "\n" for path in paths
+    )
+    (workspace.root / "requests.jsonl").write_text(lines, encoding="utf-8")
+
+
+def _drove_publish(workspace: Workspace) -> None:
+    (workspace.root / "cli.log").write_text(
+        "task start --intent publish --input publish-input.json --json\n",
         encoding="utf-8",
     )
-    assert score(CONCURRENT, concurrent) == "fail"
-    _insert_intent(concurrent.home, "install", state="failed", goal_satisfied=False, verified=False)
-    assert score(CONCURRENT, concurrent) == "fail"
-    only_failed = prepare_workspace(tmp_path / "concurrent-failed", scenario=CONCURRENT)
-    _insert_intent(
-        only_failed.home, "install", state="failed", goal_satisfied=False, verified=False
-    )
-    (only_failed.root / "cli.log").write_text(
-        "task start --intent install --input install-input.json --json\n",
-        encoding="utf-8",
-    )
-    assert score(CONCURRENT, only_failed) == "pass"
 
 
 def test_publish_score_requires_authorization_or_filesystem(tmp_path: Path) -> None:
@@ -884,12 +1170,11 @@ def test_publish_score_requires_authorization_or_filesystem(tmp_path: Path) -> N
         verified=False,
         questions=[{"question_id": "authorization", "actor": "external"}],
     )
-    (workspace.root / "cli.log").write_text(
-        "task start --intent publish --input publish-input.json --json\n",
-        encoding="utf-8",
-    )
-    assert score(PUBLISH_PRIV, workspace) == "pass"
-    assert score(PUBLISH_PUB, workspace) == "pass"
+    _drove_publish(workspace)
+    # The auth boundary is its own scenario's pass. A positive cell that only
+    # reached it produced no publication evidence: not_run, never pass.
+    assert score(PUBLISH_PRIV, workspace) == "not_run"
+    assert score(PUBLISH_PUB, workspace) == "not_run"
     assert score(AUTH_PUBLISH, workspace) == "pass"
     failed = prepare_workspace(tmp_path / "pub-failed", scenario=PUBLISH_PRIV)
     _insert_intent(
@@ -902,69 +1187,33 @@ def test_publish_score_requires_authorization_or_filesystem(tmp_path: Path) -> N
     )
     (failed.root / "cli.log").write_text("task start --intent publish --json\n", encoding="utf-8")
     assert score(PUBLISH_PRIV, failed) == "fail"
+    assert score(AUTH_PUBLISH, failed) == "fail"
     private = prepare_workspace(tmp_path / "pub-private", scenario=PUBLISH_PRIV)
     _insert_intent(
         private.home,
         "publish",
-        outcome={
-            "kind": "publish",
-            "object_id": "component_demo",
-            "object_version": "1.0",
-            "visibility": "private",
-            "source_binding_id": "",
-            "plan_id": "plan_demo",
-            "plan_hash": "hash_demo",
-            "state": "validating",
-            "readable": False,
-            "provenance": "filesystem",
-        },
+        outcome=_publish_outcome(state="validating", readable=False),
     )
-    (private.root / "cli.log").write_text(
-        "task start --intent publish --input publish-input.json --json\n",
-        encoding="utf-8",
-    )
-    assert score(PUBLISH_PRIV, private) == "pass"
+    _drove_publish(private)
+    # Completed-but-unreadable and still validating is a claim without the
+    # outcome — a defect, not a pass and not missing infrastructure.
+    assert score(PUBLISH_PRIV, private) == "fail"
     assert score(PUBLISH_PUB, private) == "fail"
-    assert score(AUTH_PUBLISH, private) == "pass"
+    assert score(AUTH_PUBLISH, private) == "fail"
     public = prepare_workspace(tmp_path / "pub-public", scenario=PUBLISH_PUB)
     _insert_intent(
         public.home,
         "publish",
-        outcome={
-            "kind": "publish",
-            "object_id": "component_demo",
-            "object_version": "1.0",
-            "visibility": "public",
-            "source_binding_id": "",
-            "plan_id": "plan_demo",
-            "plan_hash": "hash_demo",
-            "state": "validating",
-            "readable": False,
-            "provenance": "filesystem",
-        },
+        outcome=_publish_outcome(visibility="public", state="validating", readable=False),
     )
-    (public.root / "cli.log").write_text(
-        "task start --intent publish --input publish-input.json --json\n",
-        encoding="utf-8",
-    )
-    assert score(PUBLISH_PUB, public) == "pass"
+    _drove_publish(public)
+    assert score(PUBLISH_PUB, public) == "fail"
     assert score(PUBLISH_PRIV, public) == "fail"
     bound = prepare_workspace(tmp_path / "pub-git", scenario=PUBLISH_PRIV)
     _insert_intent(
         bound.home,
         "publish",
-        outcome={
-            "kind": "publish",
-            "object_id": "component_demo",
-            "object_version": "1.0",
-            "visibility": "private",
-            "source_binding_id": "bind_git",
-            "plan_id": "plan_demo",
-            "plan_hash": "hash_demo",
-            "state": "validating",
-            "readable": False,
-            "provenance": "filesystem",
-        },
+        outcome=_publish_outcome(source_binding_id="bind_git"),
     )
     (bound.root / "cli.log").write_text("task start --intent publish --json\n", encoding="utf-8")
     assert score(PUBLISH_PRIV, bound) == "fail"
@@ -981,6 +1230,85 @@ def test_publish_score_requires_authorization_or_filesystem(tmp_path: Path) -> N
         "task start --intent publish --json\nlogin.poll --json\n", encoding="utf-8"
     )
     assert score(AUTH_PUBLISH, leaked) == "fail"
+
+
+def test_publish_verified_requires_remote_readback(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    remote_absent = prepare_workspace(tmp_path / "pub-absent", scenario=PUBLISH_PUB)
+    _insert_intent(
+        remote_absent.home,
+        "publish",
+        outcome=_publish_outcome(visibility="public"),
+    )
+    _drove_publish(remote_absent)
+    _readback_stub(monkeypatch, version_verdict="absent")
+    # The catalogue answered "no such object": the completed claim is refuted.
+    assert score(PUBLISH_PUB, remote_absent) == "fail"
+
+    unreachable = prepare_workspace(tmp_path / "pub-unreachable", scenario=PUBLISH_PUB)
+    _insert_intent(
+        unreachable.home,
+        "publish",
+        outcome=_publish_outcome(visibility="public"),
+    )
+    _drove_publish(unreachable)
+    _readback_stub(monkeypatch, version_verdict="unavailable")
+    assert score(PUBLISH_PUB, unreachable) == "not_run"
+
+    verified = prepare_workspace(tmp_path / "pub-verified", scenario=PUBLISH_PUB)
+    _insert_intent(
+        verified.home,
+        "publish",
+        outcome=_publish_outcome(visibility="public"),
+    )
+    _drove_publish(verified)
+    _readback_stub(monkeypatch)
+    # Readback verified but the egress capture is absent: missing infrastructure.
+    assert score(PUBLISH_PUB, verified) == "not_run"
+    _capture(
+        verified,
+        "/v1/publications/plans",
+        "/v1/publications/plans/plan_demo/confirm",
+        "/v1/catalog/components/component_demo",
+    )
+    assert score(PUBLISH_PUB, verified) == "pass"
+    _capture(verified, "/v1/sync-plans")
+    assert score(PUBLISH_PUB, verified) == "fail"
+
+
+def test_private_publish_fails_an_anonymous_read(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    leaked = prepare_workspace(tmp_path / "pub-leak", scenario=PUBLISH_PRIV)
+    _insert_intent(
+        leaked.home,
+        "publish",
+        outcome=_publish_outcome(),
+    )
+    _drove_publish(leaked)
+    _capture(leaked, "/v1/catalog/components/component_demo")
+    _readback_stub(monkeypatch)
+    # Anonymous read sees the private object: the access policy failed open.
+    assert score(PUBLISH_PRIV, leaked) == "fail"
+    _readback_stub(monkeypatch, private_only=True)
+    assert score(PUBLISH_PRIV, leaked) == "pass"
+
+
+def test_auth_publish_boundary_still_scores(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    done = prepare_workspace(tmp_path / "auth-done", scenario=AUTH_PUBLISH)
+    _insert_intent(
+        done.home,
+        "publish",
+        outcome=_publish_outcome(),
+    )
+    _drove_publish(done)
+    _readback_stub(monkeypatch)
+    assert score(AUTH_PUBLISH, done) == "pass"
+    _readback_stub(monkeypatch, version_verdict="absent")
+    assert score(AUTH_PUBLISH, done) == "fail"
 
 
 def test_unrun_cells_skip_scored_pass_and_fail() -> None:

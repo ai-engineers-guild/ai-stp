@@ -12,6 +12,7 @@ from ai_stp_contracts.machine_help import PublicationPlanView, TaskPublishOutcom
 from ai_stp_contracts.publication import (
     PLAN_STATE_PUBLISHED,
     PLAN_STATES_IN_PROGRESS,
+    PLAN_STATES_REFUSED,
 )
 from ai_stp_foundation.canonical import JsonValue
 
@@ -171,18 +172,23 @@ def drain(
             readable=readable,
         ),
         advance=current.state in {"draft", "ready"},
-        questions=(
-            TaskQuestion(
-                question_id="publication-processing",
-                prompt="Publication is processing. Resume this task after the platform finishes.",
-                value_type="string",
-                choices=[],
-                why="The accepted worker receipt does not establish catalog readability.",
-                actor="external",
-            ),
-        )
-        if waiting
-        else (),
+        questions=(_processing_question(),) if waiting else (),
+    )
+
+
+def _processing_question() -> TaskQuestion:
+    """The typed external wait while the platform worker decides.
+
+    The accepted worker receipt does not establish catalog readability, so a
+    still-validating member blocks the task rather than settling it.
+    """
+    return TaskQuestion(
+        question_id="publication-processing",
+        prompt="Publication is processing. Resume this task after the platform finishes.",
+        value_type="string",
+        choices=[],
+        why="The accepted worker receipt does not establish catalog readability.",
+        actor="external",
     )
 
 
@@ -201,6 +207,24 @@ def _drain_setup(
             {"set-digest": held.set_digest, "confirm": True}
         ).payload
     setup = next(member for member in receipt.members if member.role == "setup")
+    # The first member that has not reached published decides the task's
+    # boundary: client-side work still owed resumes as planned, a worker-side
+    # decision waits as a typed external question, and a final refusal settles
+    # truthfully. A bounded poll alone must never mark the task completed.
+    unfinished = next(
+        (
+            member
+            for member in receipt.members
+            if not member.already_published and member.state != PLAN_STATE_PUBLISHED
+        ),
+        None,
+    )
+    waiting = (
+        unfinished is not None
+        and unfinished.state not in {"draft", "ready"}
+        and unfinished.state not in PLAN_STATES_REFUSED
+        and unfinished.state != "blocked"
+    )
     return DrainResult(
         outcome=TaskPublishOutcome(
             object_id=receipt.setup_stable_id,
@@ -212,5 +236,6 @@ def _drain_setup(
             readable=receipt.state == PLAN_STATE_PUBLISHED,
             publication_set=receipt,
         ),
-        advance=held is None and receipt.state != PLAN_STATE_PUBLISHED,
+        advance=unfinished is not None and unfinished.state in {"draft", "ready"},
+        questions=(_processing_question(),) if waiting else (),
     )

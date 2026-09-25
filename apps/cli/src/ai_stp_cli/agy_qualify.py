@@ -9,21 +9,26 @@ driven so the overlay's agy_model stays honest.
 from __future__ import annotations
 
 import argparse
+import http.client
+import http.server
 import json
 import os
 import re
+import secrets
 import shlex
 import shutil
+import signal
 import sqlite3
 import subprocess
 import sys
+import threading
 import time
 from collections.abc import Mapping, Sequence
-from contextlib import closing
+from contextlib import closing, suppress
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Final, cast
-from urllib.parse import SplitResult, urlsplit
+from urllib.parse import SplitResult, urlsplit, urlunsplit
 
 from ai_stp_cli.application.initialize import ANTIGRAVITY_LIMITATION
 from ai_stp_cli.application.qualify import (
@@ -31,7 +36,9 @@ from ai_stp_cli.application.qualify import (
     AGENT_SCENARIOS,
     AGY_MODEL,
     PLATFORMS,
+    CellStatus,
     MeasuredStatus,
+    content_digest,
     native_config_root,
     native_marker_populated,
     native_platform,
@@ -109,14 +116,6 @@ STALE_VERIFIED_SCENARIOS: Final[tuple[str, ...]] = (
 )
 DEBUG_PROVIDERS_ENV: Final[str] = "AI_STP_DEBUG_PROVIDERS"
 SEEDED_SCENARIOS: Final[frozenset[str]] = frozenset({SWITCH_SAVED, CHANGE_ADD, PENDING_RELOAD})
-# Valid ULID-shaped id that is not in the catalog. Docker ENFORCED would
-# otherwise verify a recommended cursor pin and fail `install_unmet`.
-UNMET_SETUP_ID: Final[str] = "setup_01ZZZZZZZZZZZZZZZZZZZZZZZZ"
-UNMET_SETUP_VERSION: Final[str] = "1.0"
-UNMET_INSTALL_LEAD: Final[str] = (
-    "The named pin is absent from the catalog. A failed or compensated drain "
-    "is the expected result. Do not retry with a recommended pin. "
-)
 UNAVAILABLE_MARKERS: Final[tuple[str, ...]] = (
     "UNAVAILABLE",
     "No capacity available",
@@ -431,6 +430,7 @@ def prepare_workspace(
     repo: Path | None = None,
     scenario: str = NO_REINIT,
     docker_image: str | None = None,
+    catalog_url: str | None = None,
 ) -> Workspace:
     """Isolated project + CLI home. Does not touch the caller's harness files."""
     root = root.expanduser().resolve()
@@ -464,6 +464,20 @@ def prepare_workspace(
     wrapper.chmod(0o755)
     subprocess.run(["git", "init"], cwd=project, check=False, capture_output=True)
     workspace = Workspace(root=root, home=home, project=project, wrapper=wrapper)
+    if catalog_url is not None:
+        # Route the cell's platform traffic through the qualify recorder. The
+        # recorder only observes: upstream stays the real catalogue. The
+        # readback path keeps fixture traffic out of cli.log — that file is
+        # the model's evidence, not the runner's.
+        configured = run_readback(
+            workspace,
+            ["config", "set", "--set", f"catalog.url={catalog_url}", "--json"],
+            cwd=project,
+        )
+        (root / "catalog-config.log").write_text(
+            f"exit={configured.returncode}\n{configured.stdout}\n{configured.stderr}\n",
+            encoding="utf-8",
+        )
     prepare_scenario(workspace, scenario)
     if scenario == CUSTOM_HOME and docker_image:
         seed_bound_codex(workspace)
@@ -565,21 +579,6 @@ def mutating_verified(home: Path, intent: str) -> bool:
     return False
 
 
-def install_unmet(home: Path) -> bool:
-    """Install ran and did not verify. Compensation is not a verified success."""
-    if mutating_verified(home, "install"):
-        return False
-    saw = False
-    for item in task_snapshots(home):
-        if item.get("intent") != "install":
-            continue
-        if item.get("state") == "completed" and item.get("goal_satisfied") in (True, 1, "1"):
-            return False
-        if item.get("state") in {"failed", "cancelled", "running"}:
-            saw = True
-    return saw
-
-
 def question_ids_of(item: Mapping[str, object]) -> tuple[str, ...]:
     raw = item.get("questions")
     if not isinstance(raw, list):
@@ -645,32 +644,908 @@ def account_idle_honest(home: Path) -> bool:
     return saw_block
 
 
-def publish_honest(home: Path, *, visibility: str | None = None) -> bool:
-    """Unsigned isolate blocks on authorization. Completed rows stay filesystem."""
-    saw_block = False
-    saw_complete = False
-    for item in task_snapshots(home):
+CAPTURE_FILE: Final[str] = "requests.jsonl"
+CATALOG_UPSTREAM_ENV: Final[str] = "AI_STP_QUALIFY_CATALOG"
+DEFAULT_CATALOG_UPSTREAM: Final[str] = "https://ai-stp.aiguild.space"
+#: Request paths a publish cell may legitimately send. Anything else in the
+#: capture means the CLI uploaded or asked about data the scenario never
+#: selected — the same claim UPLOAD_MARKERS makes for argv, made on the wire.
+PUBLISH_CAPTURE_PREFIXES: Final[tuple[str, ...]] = (
+    "/v1/publications",
+    "/v1/catalog",
+    "/v1/objects",
+    "/v1/accounts",
+    "/v1/auth",
+    "/v1/devices",
+)
+FORWARDED_HEADERS: Final[tuple[str, ...]] = (
+    "accept",
+    "authorization",
+    "content-type",
+    "user-agent",
+    "x-ai-stp-authorization-revision",
+    "x-ai-stp-organization-id",
+    "x-ai-stp-schema-version",
+)
+_READBACK_REFUSED: Final[frozenset[str]] = frozenset(
+    {
+        "AI_STP_NOT_FOUND",
+        "AI_STP_AUTH_REQUIRED",
+        "AI_STP_AUTHORIZATION_DECLINED",
+        "AI_STP_AUTHORIZATION_EXPIRED",
+        "AI_STP_AUTHORIZATION_PENDING",
+    }
+)
+
+
+class RequestCapture:
+    """Loopback forwarder: records every platform request, then proxies it.
+
+    The cell's `catalog.url` points at the bound port, so the capture sees the
+    exact requests the CLI makes — which paths, and how large each upload was —
+    while upstream still answers every one for real. Credentials travel
+    through but are never recorded.
+    """
+
+    def __init__(self, upstream: str) -> None:
+        parsed = urlsplit(upstream)
+        if parsed.scheme != "https" or not parsed.hostname:
+            raise ValueError("the capture upstream must be an HTTPS origin")
+        upstream_host = parsed.hostname
+        upstream_port = parsed.port or 443
+        self._records: list[dict[str, object]] = []
+        self._lock = threading.Lock()
+        records = self._records
+        lock = self._lock
+
+        class Handler(http.server.BaseHTTPRequestHandler):
+            def _target(self) -> str | None:
+                """Origin-form API path worth forwarding, or None to refuse.
+
+                The request line is client-controlled, so forwarding is
+                restricted to the `/v1/` surface of the fixed upstream origin:
+                no absolute-form URLs, no authority-relative `//` paths, no
+                control bytes. Anything else is recorded, never proxied.
+                """
+                raw = self.path
+                if "\r" in raw or "\n" in raw:
+                    return None
+                parts = urlsplit(raw)
+                if parts.scheme or parts.netloc:
+                    return None
+                path = parts.path
+                if not path.startswith("/v1/"):
+                    return None
+                return urlunsplit(("", "", path, parts.query, ""))
+
+            def _forward_headers(self) -> dict[str, str]:
+                """The headers the API reads — nothing else crosses the hop."""
+                headers: dict[str, str] = {}
+                for name in FORWARDED_HEADERS:
+                    value = self.headers.get(name)
+                    if value is None:
+                        continue
+                    if "\r" in value or "\n" in value:
+                        continue
+                    headers[name] = value
+                return headers
+
+            def _forward(self) -> None:
+                length = int(self.headers.get("Content-Length") or 0)
+                body = self.rfile.read(length) if length else b""
+                target = self._target()
+                record: dict[str, object] = {
+                    "method": self.command,
+                    "path": self.path,
+                    "body_size": len(body),
+                    "authorized": self.headers.get("Authorization") is not None,
+                }
+                if target is None:
+                    record["blocked"] = True
+                    with lock:
+                        records.append(record)
+                    self.send_error(403, "capture refuses paths outside /v1/")
+                    return
+                with lock:
+                    records.append(record)
+                connection = http.client.HTTPSConnection(upstream_host, upstream_port, timeout=60)
+                try:
+                    connection.request(
+                        self.command, target, body=body, headers=self._forward_headers()
+                    )
+                    response = connection.getresponse()
+                    payload = response.read()
+                    self.send_response(response.status)
+                    for key, value in response.getheaders():
+                        if key.lower() in {"transfer-encoding", "connection", "keep-alive"}:
+                            continue
+                        self.send_header(key, value)
+                    self.end_headers()
+                    self.wfile.write(payload)
+                except (OSError, http.client.HTTPException) as error:
+                    self.send_error(502, f"capture upstream failed: {type(error).__name__}")
+                finally:
+                    connection.close()
+
+            do_GET = _forward
+            do_POST = _forward
+            do_PUT = _forward
+            do_DELETE = _forward
+            do_PATCH = _forward
+
+            def log_message(self, format: str, *args: object) -> None:
+                del format, args
+
+        try:
+            self._server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        except OSError as error:
+            # Containerised or sandboxed runners may forbid listening sockets.
+            raise CliUnavailable("the capture socket could not be bound") from error
+        self._thread = threading.Thread(target=self._server.serve_forever, daemon=True)
+        self._thread.start()
+
+    @property
+    def url(self) -> str:
+        return f"http://127.0.0.1:{self._server.server_address[1]}"
+
+    def records(self) -> tuple[dict[str, object], ...]:
+        with self._lock:
+            return tuple(dict(item) for item in self._records)
+
+    def dump(self, place: Path) -> None:
+        lines = [json.dumps(item, sort_keys=True) for item in self.records()]
+        place.write_text("".join(f"{line}\n" for line in lines), encoding="utf-8")
+
+    def close(self) -> None:
+        self._server.shutdown()
+        self._server.server_close()
+        self._thread.join(timeout=5)
+
+
+class CliUnavailable(Exception):
+    """A fixture the scorer needs could not be wired in this environment."""
+
+
+def catalog_upstream() -> str:
+    return os.environ.get(CATALOG_UPSTREAM_ENV, "").strip() or DEFAULT_CATALOG_UPSTREAM
+
+
+def capture_records(workspace: Workspace) -> tuple[dict[str, object], ...]:
+    place = workspace.root / CAPTURE_FILE
+    if not place.is_file():
+        return ()
+    held: list[dict[str, object]] = []
+    for line in place.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        mapped = _json_map(json.loads(line))
+        if mapped is not None:
+            held.append(mapped)
+    return tuple(held)
+
+
+def capture_boundary(workspace: Workspace) -> CellStatus | None:
+    """None when every captured request stayed inside the publish surface."""
+    place = workspace.root / CAPTURE_FILE
+    if not place.is_file():
+        return "not_run"
+    for record in capture_records(workspace):
+        path = str(record.get("path") or "")
+        if not path.startswith(PUBLISH_CAPTURE_PREFIXES):
+            return "fail"
+    return None
+
+
+def readback_env(workspace: Workspace) -> dict[str, str]:
+    """The cell's environment for scorer-side calls, without the POSIX wrapper.
+
+    The wrapper script exists for the model's shell; a shebang file is not
+    executable on Windows, so fixture-side calls set the same variables and
+    invoke the bundled entry point directly. Docker cells bind-mount `home`,
+    so a host-side call with this environment reads the same registry.
+    """
+    env = dict(os.environ)
+    env["HOME"] = str(workspace.home)
+    env["USERPROFILE"] = str(workspace.home)
+    env["XDG_CONFIG_HOME"] = str(workspace.home / "config")
+    env["XDG_DATA_HOME"] = str(workspace.home / "data")
+    env["AI_STP_FORCE_FILE_CREDENTIAL_STORE"] = "1"
+    return env
+
+
+def run_readback(
+    workspace: Workspace, argv: Sequence[str], *, cwd: Path | None = None
+) -> subprocess.CompletedProcess[str]:
+    """One scorer-side CLI call inside the cell, logged to readback.log."""
+    with (workspace.root / "readback.log").open("a", encoding="utf-8") as stream:
+        stream.write(" ".join(argv) + "\n")
+    return subprocess.run(
+        [str(bundled_cli()), *argv],
+        cwd=cwd,
+        env=readback_env(workspace),
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+
+
+def cell_cli(workspace: Workspace, argv: Sequence[str]) -> dict[str, object]:
+    """Scorer-side CLI call inside the cell, logged to readback.log only."""
+    result = run_readback(workspace, argv, cwd=workspace.project)
+    try:
+        parsed: object = json.loads(result.stdout)
+    except json.JSONDecodeError:
+        return {"ok": False, "_exit": result.returncode}
+    if not isinstance(parsed, dict):
+        return {"ok": False, "_exit": result.returncode}
+    held = _mapping(cast(object, parsed))
+    held["_exit"] = result.returncode
+    return held
+
+
+FAULT_SCENARIOS: Final[frozenset[str]] = frozenset({COMPENSATED, KILL_AFTER, CONCURRENT})
+FAULT_FILE: Final[str] = "fault.json"
+FAULT_HARNESS: Final[str] = "cursor"
+FAULT_TARGET: Final[str] = ".cursor"
+FAULT_CONTROL: Final[str] = ".cursor-setup-system"
+FAULT_BARRIER_SECONDS: Final[float] = 420.0
+FAULT_POLL_SECONDS: Final[float] = 0.001
+
+
+def cell_install_operations(home: Path) -> dict[str, str]:
+    """operation_id -> state for the install operations the cell recorded."""
+    place = registry_path(home)
+    if not place.is_file():
+        return {}
+    try:
+        with closing(sqlite3.connect(f"file:{place}?mode=ro", uri=True)) as connection:
+            names = {str(row[1]) for row in connection.execute("PRAGMA table_info(operation)")}
+            if not {"operation_id", "state"} <= names:
+                return {}
+            rows = connection.execute(
+                "SELECT operation_id, state FROM operation WHERE kind = 'install.install'"
+            ).fetchall()
+    except sqlite3.Error:
+        return {}
+    return {str(row[0]): str(row[1]) for row in rows}
+
+
+def cell_install_tasks(home: Path) -> tuple[dict[str, object], ...]:
+    """Install-intent task rows with their durable identity and children."""
+    place = registry_path(home)
+    if not place.is_file():
+        return ()
+    try:
+        with closing(sqlite3.connect(f"file:{place}?mode=ro", uri=True)) as connection:
+            names = {str(row[1]) for row in connection.execute("PRAGMA table_info(agent_task)")}
+            needed = {
+                "task_id",
+                "revision",
+                "intent",
+                "state",
+                "goal_satisfied",
+                "idempotency_key",
+                "child_operation_ids_json",
+            }
+            if not needed <= names:
+                return ()
+            rows = connection.execute(
+                "SELECT task_id, revision, intent, state, goal_satisfied,"
+                " idempotency_key, child_operation_ids_json FROM agent_task"
+                " WHERE intent = 'install'"
+            ).fetchall()
+    except sqlite3.Error:
+        return ()
+    held: list[dict[str, object]] = []
+    for row in rows:
+        raw_children = row[6] if isinstance(row[6], str) else "[]"
+        try:
+            parsed_children: object = json.loads(raw_children)
+        except json.JSONDecodeError:
+            parsed_children = []
+        children = (
+            [str(item) for item in cast(list[object], parsed_children)]
+            if isinstance(parsed_children, list)
+            else []
+        )
+        held.append(
+            {
+                "task_id": str(row[0]),
+                "revision": int(row[1]),
+                "state": str(row[3]),
+                "goal_satisfied": row[4],
+                "idempotency_key": str(row[5]),
+                "children": children,
+            }
+        )
+    return tuple(held)
+
+
+def cell_task_for(home: Path, *, key: str) -> dict[str, object] | None:
+    for row in cell_install_tasks(home):
+        if row.get("idempotency_key") == key:
+            return row
+    return None
+
+
+def provider_journal(home: Path) -> dict[str, object] | None:
+    """The harness provider's durable mutation journal, when one exists."""
+    place = home / FAULT_TARGET / FAULT_CONTROL / "journal.json"
+    if not place.is_file():
+        return None
+    try:
+        parsed: object = json.loads(place.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {"phase": "unreadable"}
+    mapped = _json_map(parsed)
+    return {"phase": "unreadable"} if mapped is None else mapped
+
+
+def _file_digests(root: Path, *, skip_prefix: str = "") -> dict[str, str]:
+    """relative path -> digest for a target tree, minus the provider's own control state."""
+    if not root.is_dir():
+        return {}
+    held: dict[str, str] = {}
+    for item in sorted(root.rglob("*")):
+        if not item.is_file():
+            continue
+        relative = item.relative_to(root).as_posix()
+        if skip_prefix and relative.startswith(skip_prefix):
+            continue
+        try:
+            held[relative] = content_digest(item.read_bytes())
+        except OSError:
+            held[relative] = "unreadable"
+    return held
+
+
+def _kill_group(proc: subprocess.Popen[bytes], sig: signal.Signals) -> None:
+    """Signal the consumer and every provider child it still holds."""
+    if proc.poll() is not None:
+        return
+    try:
+        os.killpg(proc.pid, sig)
+    except (AttributeError, ProcessLookupError, PermissionError, OSError):
+        if sig == signal.SIGKILL:
+            with suppress(OSError):
+                proc.kill()
+
+
+def spawn_install(workspace: Workspace, key: str) -> subprocess.Popen[bytes]:
+    """A fixture-owned install consumer, invoked natively like the scorer calls."""
+    facts = json.dumps(
+        {"harness_id": FAULT_HARNESS, "project_root": str(workspace.project.resolve())}
+    )
+    place = workspace.project / "fault-input.json"
+    place.write_text(facts, encoding="utf-8")
+    (workspace.root / "fault-input.json").write_text(facts, encoding="utf-8")
+    stream = (workspace.root / "fault-spawn.log").open("ab")
+    try:
+        return subprocess.Popen(
+            [
+                str(bundled_cli()),
+                "task",
+                "start",
+                "--intent",
+                "install",
+                "--idempotency-key",
+                key,
+                "--input",
+                str(place),
+                "--json",
+            ],
+            cwd=workspace.project,
+            env=readback_env(workspace),
+            stdin=subprocess.DEVNULL,
+            stdout=stream,
+            stderr=subprocess.STDOUT,
+            start_new_session=True,
+        )
+    finally:
+        stream.close()
+
+
+def _fixture_task(home: Path, key: str, operations: dict[str, str]) -> dict[str, object]:
+    """The running fixture task after a kill, or CliUnavailable when it is absent."""
+    task = cell_task_for(home, key=key)
+    if task is None or task.get("state") != "running":
+        raise CliUnavailable("the killed consumer did not leave a running task")
+    if not operations:
+        raise CliUnavailable("the killed consumer recorded no held operation")
+    return task
+
+
+def _inject_kill_after(workspace: Workspace) -> dict[str, object]:
+    """Kill the consumer after its provider wrote the effect, before verification.
+
+    `applied_unverified` is the durable marker the installation machine writes
+    between the external effect and its verification — reaching it means the
+    barrier truly landed inside the unverifiable window.
+    """
+    key = f"fault-kill-after-{secrets.token_hex(4)}"
+    proc = spawn_install(workspace, key)
+    try:
+        deadline = time.monotonic() + FAULT_BARRIER_SECONDS
+        while proc.poll() is None:
+            states = cell_install_operations(workspace.home)
+            if "applied_unverified" in states.values():
+                break
+            if "verified" in states.values():
+                raise CliUnavailable("the install verified before the kill barrier")
+            if time.monotonic() > deadline:
+                raise CliUnavailable("the effect barrier was never reached")
+            time.sleep(FAULT_POLL_SECONDS)
+        else:
+            raise CliUnavailable("the consumer exited before the effect barrier")
+        _kill_group(proc, signal.SIGKILL)
+        proc.wait(timeout=30)
+    finally:
+        _kill_group(proc, signal.SIGKILL)
+    operations = cell_install_operations(workspace.home)
+    task = _fixture_task(workspace.home, key, operations)
+    held = [operation for operation, state in operations.items() if state == "applied_unverified"]
+    if len(held) != 1:
+        raise CliUnavailable("the killed consumer did not leave one applied_unverified operation")
+    return {
+        "kind": "kill-after-apply",
+        "idempotency_key": key,
+        "task_id": task["task_id"],
+        "revision": task["revision"],
+        "operation_id": held[0],
+        "barrier": "applied_unverified",
+        "consumer_exit": proc.returncode,
+    }
+
+
+def _inject_compensated(workspace: Workspace) -> dict[str, object]:
+    """Kill the provider mid-mutation so its durable journal survives.
+
+    The cursor provider records a `prepared`/`committed` journal inside the
+    target's control directory; a provider dead between the effect and the
+    journal clear leaves `recovery_required` on the next `status`, which is the
+    only honest path to compensation.
+    """
+    target = workspace.home / FAULT_TARGET
+    control = f"{FAULT_CONTROL}/"
+    pre = _file_digests(target, skip_prefix=control)
+    key = f"fault-compensated-{secrets.token_hex(4)}"
+    proc = spawn_install(workspace, key)
+    try:
+        deadline = time.monotonic() + FAULT_BARRIER_SECONDS
+        diverged: list[str] = []
+        phase = ""
+        while proc.poll() is None:
+            journal = provider_journal(workspace.home)
+            if journal is not None:
+                phase = str(journal.get("phase") or "unreadable")
+                _kill_group(proc, signal.SIGSTOP)
+                try:
+                    current = _file_digests(target, skip_prefix=control)
+                    diverged = sorted(
+                        name
+                        for name in set(pre) | set(current)
+                        if pre.get(name) != current.get(name)
+                    )
+                    follow = provider_journal(workspace.home)
+                    if follow is not None:
+                        phase = str(follow.get("phase") or "unreadable")
+                finally:
+                    _kill_group(proc, signal.SIGKILL if diverged else signal.SIGCONT)
+                if diverged:
+                    break
+            if "verified" in cell_install_operations(workspace.home).values():
+                raise CliUnavailable("the install verified before the journal barrier")
+            if time.monotonic() > deadline:
+                raise CliUnavailable("no provider journal appeared before the deadline")
+            time.sleep(FAULT_POLL_SECONDS)
+        if not diverged:
+            raise CliUnavailable("the consumer exited before a target effect was observed")
+        proc.wait(timeout=30)
+    finally:
+        _kill_group(proc, signal.SIGKILL)
+    operations = cell_install_operations(workspace.home)
+    task = _fixture_task(workspace.home, key, operations)
+    if provider_journal(workspace.home) is None:
+        raise CliUnavailable("the killed provider left no journal to recover")
+    held = [operation for operation, state in operations.items() if state == "applying"]
+    if len(held) != 1:
+        raise CliUnavailable("the killed consumer did not leave one applying operation")
+    return {
+        "kind": "compensated-install",
+        "idempotency_key": key,
+        "task_id": task["task_id"],
+        "revision": task["revision"],
+        "operation_id": held[0],
+        "barrier": "provider-killed-mid-mutation",
+        "journal_phase": phase,
+        "diverged": diverged,
+        "pre": pre,
+        "consumer_exit": proc.returncode,
+    }
+
+
+def _inject_concurrent(workspace: Workspace) -> dict[str, object]:
+    """Race a second caller against the live executor's applying drain.
+
+    A second `task continue` and a `task cancel` fired while one executor holds
+    the lease produce a joined view, a bounded conflict, or a cancel flag —
+    never a second drain. The durable operation count is the proof.
+    """
+    key = f"fault-concurrent-{secrets.token_hex(4)}"
+    proc = spawn_install(workspace, key)
+    try:
+        deadline = time.monotonic() + FAULT_BARRIER_SECONDS
+        joined: dict[str, object] = {}
+        raced: dict[str, object] = {}
+        task_id = ""
+        while proc.poll() is None:
+            states = cell_install_operations(workspace.home)
+            if {"applying", "applied_unverified"} & set(states.values()):
+                task = cell_task_for(workspace.home, key=key)
+                if task is None:
+                    raise CliUnavailable("no running task row for the live executor")
+                task_id = str(task["task_id"])
+                revision = str(task["revision"])
+                join_argv = [
+                    "task",
+                    "continue",
+                    "--task",
+                    task_id,
+                    "--revision",
+                    revision,
+                    "--json",
+                ]
+                with (workspace.root / "readback.log").open("a", encoding="utf-8") as stream:
+                    stream.write(" ".join(join_argv) + "\n")
+                joiner = subprocess.Popen(
+                    [str(bundled_cli()), *join_argv],
+                    cwd=workspace.project,
+                    env=readback_env(workspace),
+                    stdin=subprocess.DEVNULL,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    text=True,
+                )
+                rival = run_readback(
+                    workspace,
+                    [
+                        "task",
+                        "cancel",
+                        "--task",
+                        task_id,
+                        "--revision",
+                        revision,
+                        "--json",
+                    ],
+                    cwd=workspace.project,
+                )
+                raced = {"exit": rival.returncode, "stdout": rival.stdout.strip()[-400:]}
+                try:
+                    out, _ = joiner.communicate(timeout=120)
+                except subprocess.TimeoutExpired as error:
+                    joiner.kill()
+                    joiner.communicate()
+                    raise CliUnavailable("the joining caller never returned") from error
+                joined = {"exit": joiner.returncode, "stdout": (out or "").strip()[-400:]}
+                break
+            if "verified" in states.values():
+                raise CliUnavailable("the install completed before the lease race")
+            if time.monotonic() > deadline:
+                raise CliUnavailable("the executor window was never observed")
+            time.sleep(FAULT_POLL_SECONDS)
+        if not task_id:
+            raise CliUnavailable("the consumer exited before the executor window")
+        try:
+            proc.wait(timeout=FAULT_BARRIER_SECONDS)
+        except subprocess.TimeoutExpired as error:
+            raise CliUnavailable("the executor did not settle after the race") from error
+    finally:
+        _kill_group(proc, signal.SIGKILL)
+    operations = cell_install_operations(workspace.home)
+    task = cell_task_for(workspace.home, key=key)
+    if task is None:
+        raise CliUnavailable("the fixture task row vanished")
+    return {
+        "kind": "concurrent-continue",
+        "idempotency_key": key,
+        "task_id": task_id,
+        "joiner": joined,
+        "cancel": raced,
+        "operations": sorted(operations),
+        "consumer_exit": proc.returncode,
+    }
+
+
+def inject_fault(workspace: Workspace, scenario: str) -> dict[str, object]:
+    """Drive a real fault inside the cell and return the evidence to reconcile.
+
+    Raises CliUnavailable when the environment cannot produce the fault — the
+    cell is then honestly unrun rather than measured against a stub.
+    """
+    if os.name == "nt" or not hasattr(os, "killpg"):
+        raise CliUnavailable("the fault fixtures need POSIX process groups")
+    if scenario == KILL_AFTER:
+        return _inject_kill_after(workspace)
+    if scenario == COMPENSATED:
+        return _inject_compensated(workspace)
+    if scenario == CONCURRENT:
+        return _inject_concurrent(workspace)
+    raise ValueError(scenario)
+
+
+def _fault_record(workspace: Workspace) -> dict[str, object]:
+    return _overlay_body(workspace.root / FAULT_FILE)
+
+
+def fault_oracle(scenario: str, workspace: Workspace) -> CellStatus:
+    """Read the durable result of a fault scenario; never the model's claim."""
+    fault = _fault_record(workspace)
+    if not fault or fault.get("aborted"):
+        return "not_run"
+    task_id = str(fault.get("task_id") or "")
+    tasks = cell_install_tasks(workspace.home)
+    operations = cell_install_operations(workspace.home)
+    if len(tasks) != 1 or str(tasks[0]["task_id"]) != task_id:
+        return "fail"
+    task = tasks[0]
+    raw_children = task.get("children")
+    children = cast(list[object], raw_children) if isinstance(raw_children, list) else []
+    if len(operations) != 1 or len(children) != 1:
+        return "fail"
+    op_state = operations.get(str(children[0]))
+    if op_state is None:
+        return "fail"
+    recorded = fault.get("operation_id")
+    if recorded is not None and str(recorded) != str(children[0]):
+        return "fail"
+    state = str(task.get("state") or "")
+    goal = task.get("goal_satisfied") in (True, 1, "1")
+    reconciled = state == "completed" and goal and op_state == "verified"
+    honest_wedge = (
+        state in {"failed", "cancelled"}
+        and not goal
+        and op_state in {"rolled_back", "partial", "applied_unverified"}
+    )
+    if scenario == KILL_AFTER:
+        if fault.get("barrier") != "applied_unverified":
+            return "fail"
+        return "pass" if reconciled or honest_wedge else "fail"
+    if scenario == COMPENSATED:
+        if fault.get("barrier") != "provider-killed-mid-mutation" or not fault.get("diverged"):
+            return "fail"
+        target = workspace.home / FAULT_TARGET
+        restored = _file_digests(target, skip_prefix=f"{FAULT_CONTROL}/") == fault.get("pre")
+        compensated = (
+            state == "failed"
+            and not goal
+            and op_state == "rolled_back"
+            and provider_journal(workspace.home) is None
+            and restored
+        )
+        return "pass" if compensated or honest_wedge else "fail"
+    if scenario == CONCURRENT:
+        if not fault.get("joiner"):
+            return "fail"
+        if state not in {"completed", "failed", "cancelled"}:
+            return "fail"
+        if state == "completed" and not reconciled:
+            return "fail"
+        return "pass"
+    raise ValueError(scenario)
+
+
+def fault_prompt(scenario: str, workspace: Workspace) -> str:
+    """The reconcile instruction for an injected fault, bound to its task id."""
+    fault = _fault_record(workspace)
+    task_id = str(fault.get("task_id") or "")
+    if scenario == COMPENSATED:
+        context = (
+            "An install was interrupted mid-mutation; compensation may already be owed. "
+            "A failed or AI_STP_COMPENSATED answer is the honest end — report it and stop."
+        )
+    elif scenario == KILL_AFTER:
+        context = (
+            "An install was killed after its apply effect but before verification. "
+            "Reconcile the retained operation to its own outcome."
+        )
+    else:
+        context = (
+            "Two callers drove one install task concurrently under a single executor. "
+            "Report the task's settled state."
+        )
+    return (
+        f"Harness: cursor. {context} "
+        f"Run `ai-stp task status --task {task_id} --json`, read .revision, then run "
+        f"`ai-stp task continue --task {task_id} --revision <revision> --json` once. "
+        "If the task is already settled, report its state and stop. If continue is "
+        "refused, report the refusal and stop. "
+        "Do not type task start. Do not type install apply. "
+        "Never start a second install." + SKILL_TAIL
+    )
+
+
+def _error_code(body: Mapping[str, object]) -> str:
+    return str(_mapping(body.get("error")).get("code") or "")
+
+
+def publication_readback(
+    workspace: Workspace,
+    object_id: str,
+    version: str,
+    *,
+    private: bool,
+) -> str:
+    """Independent remote answer for one claimed publication.
+
+    `verified` — the catalogue answered this exact object and version online,
+    and the artifact fetch bound the version passport's digest to real bytes.
+    `absent` — the catalogue answered "no such object/version": the claim is
+    contradicted, not merely unproven. `unavailable` — auth, network, or the
+    fixture could not answer; that is missing infrastructure, not evidence.
+    """
+    private_flag = ["--private"] if private else []
+    view = cell_cli(
+        workspace,
+        [
+            "registry",
+            "version",
+            "--kind",
+            "component",
+            "--id",
+            object_id,
+            "--version",
+            version,
+            *private_flag,
+            "--json",
+        ],
+    )
+    if view.get("ok") is not True:
+        code = _error_code(view)
+        if code == "AI_STP_NOT_FOUND":
+            return "absent"
+        return "unavailable"
+    data = _mapping(view.get("data"))
+    if data.get("source") != "online":
+        return "unavailable"
+    passport = _mapping(data.get("passport"))
+    if str(passport.get("stable_id") or "") != object_id:
+        return "fail"
+    if str(passport.get("version") or "") != version:
+        return "fail"
+    artifact = _mapping(passport.get("artifact"))
+    digest = str(artifact.get("digest") or "")
+    if not digest:
+        return "unavailable"
+    fetched = cell_cli(
+        workspace,
+        [
+            "registry",
+            "fetch",
+            "--kind",
+            "component",
+            "--id",
+            object_id,
+            "--version",
+            version,
+            *private_flag,
+            "--json",
+        ],
+    )
+    if fetched.get("ok") is not True:
+        code = _error_code(fetched)
+        if code in _READBACK_REFUSED:
+            return "absent" if code == "AI_STP_NOT_FOUND" else "unavailable"
+        return "unavailable"
+    fetched_data = _mapping(fetched.get("data"))
+    if fetched_data.get("source") == "cache":
+        return "unavailable"
+    if str(fetched_data.get("digest") or "") != digest:
+        return "fail"
+    return "verified"
+
+
+def _publication_evidence(item: Mapping[str, object]) -> dict[str, object] | None:
+    """Local positive evidence for one completed publish task, else None."""
+    if item.get("state") != "completed":
+        return None
+    if item.get("goal_satisfied") not in (True, 1, "1"):
+        return None
+    outcome = _json_map(item.get("outcome"))
+    if outcome is None or outcome.get("kind") != "publish":
+        return None
+    if outcome.get("state") != "published":
+        return None
+    if outcome.get("readable") is not True:
+        return None
+    if not outcome.get("object_id") or not outcome.get("object_version"):
+        return None
+    if outcome.get("source_binding_id"):
+        return None
+    if outcome.get("provenance") not in {"filesystem", None}:
+        return None
+    return outcome
+
+
+def publish_auth_boundary(workspace: Workspace) -> bool:
+    """The auth probe: parked on authorization, or a fully published outcome.
+
+    A blocked authorization question is the boundary this scenario exists to
+    prove; a completed readable publication means the environment could
+    authenticate and the same boundary was crossed for real. A completed claim
+    the catalogue contradicts is a defect, not a boundary.
+    """
+    saw = False
+    for item in task_snapshots(workspace.home):
         if item.get("intent") != "publish":
             continue
-        if item.get("state") == "failed":
+        if item.get("state") in {"failed", "cancelled"}:
             return False
         if item.get("state") == "blocked" and "authorization" in question_ids_of(item):
-            saw_block = True
-        if item.get("state") != "completed":
-            continue
-        outcome = _json_map(item.get("outcome"))
-        if outcome is None:
-            continue
-        if not outcome.get("object_id"):
-            continue
-        if outcome.get("source_binding_id"):
+            saw = True
+        evidence = _publication_evidence(item)
+        if item.get("state") == "completed" and evidence is None:
             return False
-        if outcome.get("provenance") not in {"filesystem", None}:
+        if evidence is None:
+            continue
+        verdict = publication_readback(
+            workspace,
+            str(evidence.get("object_id")),
+            str(evidence.get("object_version")),
+            private=evidence.get("visibility") == "private",
+        )
+        if verdict in {"absent", "fail"}:
             return False
-        if visibility is not None and outcome.get("visibility") != visibility:
-            return False
-        saw_complete = True
-    return saw_block or saw_complete
+        saw = True
+    return saw
+
+
+def publish_verified(workspace: Workspace, *, visibility: str | None) -> CellStatus:
+    """Positive publication: completed, readable, bound to the remote object.
+
+    A blocked or unfinished publish task is not failure evidence — the cell
+    could not produce the outcome this scenario measures, so it is `not_run`.
+    A task that claims completion without a readable publication is a real
+    defect: `fail`.
+    """
+    published: list[dict[str, object]] = []
+    pending = False
+    for item in task_snapshots(workspace.home):
+        if item.get("intent") != "publish":
+            continue
+        state = item.get("state")
+        if state in {"failed", "cancelled"}:
+            return "fail"
+        outcome = _publication_evidence(item)
+        if state == "completed":
+            if outcome is None:
+                return "fail"
+            if visibility is not None and outcome.get("visibility") != visibility:
+                return "fail"
+            published.append(outcome)
+            continue
+        pending = True
+    if not published:
+        return "not_run" if pending else "fail"
+    for outcome in published:
+        private = outcome.get("visibility") == "private"
+        object_id = str(outcome.get("object_id"))
+        version = str(outcome.get("object_version"))
+        verdict = publication_readback(workspace, object_id, version, private=private)
+        if verdict in {"absent", "fail"}:
+            return "fail"
+        if verdict != "verified":
+            return "not_run"
+        if private:
+            # The unauthorized-read negative control: a private object that an
+            # anonymous read can see is a disclosure, not a publication.
+            anon = publication_readback(workspace, object_id, version, private=False)
+            if anon == "verified":
+                return "fail"
+    boundary = capture_boundary(workspace)
+    if boundary is not None:
+        return boundary
+    return "pass"
 
 
 def switch_not_loaded(home: Path) -> bool:
@@ -978,15 +1853,6 @@ def seed_authored_component(workspace: Workspace) -> None:
         )
 
 
-def unmet_install_facts(project: str) -> dict[str, str]:
-    return {
-        "harness_id": "cursor",
-        "project_root": project,
-        "setup_id": UNMET_SETUP_ID,
-        "setup_version": UNMET_SETUP_VERSION,
-    }
-
-
 def intent_input(workspace: Workspace, name: str, facts: Mapping[str, str]) -> Path:
     """Facts file for `--input`. Written in the project cwd and the throwaway root."""
     body = json.dumps(dict(facts))
@@ -1182,36 +2048,8 @@ def prompt_for(scenario: str, workspace: Workspace) -> str:
             f"{INPUT_CWD_HINT} {FOLLOW_ACTOR} Show an external payload once, then stop. "
             "Do not type publication plan. Do not type setup publish plan." + SKILL_TAIL
         )
-    if scenario == COMPENSATED:
-        install_in = intent_input(workspace, "install", unmet_install_facts(project))
-        return (
-            "Harness: cursor. Execute "
-            f"{start_command('install', input_path=install_in)}. {INPUT_CWD_HINT} "
-            f"{UNMET_INSTALL_LEAD}{FOLLOW_ACTOR} "
-            "If the envelope is not ok, AI_STP_COMPENSATED, or details.state is "
-            "failed, stop. Compensation is not success. Never type task get or "
-            "task status. Do not type the install command family." + SKILL_TAIL
-        )
-    if scenario == KILL_AFTER:
-        install_in = intent_input(workspace, "install", unmet_install_facts(project))
-        return (
-            "Harness: cursor. An apply was interrupted. Execute "
-            f"{start_command('install', input_path=install_in)}. {INPUT_CWD_HINT} "
-            f"{UNMET_INSTALL_LEAD}{FOLLOW_ACTOR} "
-            "Do not start a second apply. If actor is cli and argv is task continue, "
-            "execute it once. If details.state is failed, stop. Never type task get "
-            "or task status. Do not type install apply." + SKILL_TAIL
-        )
-    if scenario == CONCURRENT:
-        install_in = intent_input(workspace, "install", unmet_install_facts(project))
-        return (
-            "Harness: cursor. Execute "
-            f"{start_command('install', input_path=install_in)}. {INPUT_CWD_HINT} "
-            f"{UNMET_INSTALL_LEAD}{FOLLOW_ACTOR} "
-            "Continue the open task once. If continue is refused as a conflict, stop. "
-            "Do not fire a second parallel continue. Never type task get or "
-            "task status. Do not type install apply." + SKILL_TAIL
-        )
+    if scenario in FAULT_SCENARIOS:
+        return fault_prompt(scenario, workspace)
     if scenario == PENDING_RELOAD:
         switch_in = intent_input(
             workspace,
@@ -1305,7 +2143,7 @@ def score_no_reinit(home: Path) -> MeasuredStatus:
     return "pass"
 
 
-def score(scenario: str, workspace: Workspace) -> MeasuredStatus:
+def score(scenario: str, workspace: Workspace) -> CellStatus:
     if choreographed(workspace):
         return "fail"
     if escaped_workspace(workspace):
@@ -1403,16 +2241,12 @@ def score(scenario: str, workspace: Workspace) -> MeasuredStatus:
             return "fail"
         if "publish" not in intents:
             return "fail"
-        wanted = None
-        if scenario == PUBLISH_PRIV:
-            wanted = "private"
-        elif scenario == PUBLISH_PUB:
-            wanted = "public"
-        return "pass" if publish_honest(workspace.home, visibility=wanted) else "fail"
-    if scenario in {COMPENSATED, KILL_AFTER, CONCURRENT}:
-        if "install" not in intents:
-            return "fail"
-        return "pass" if install_unmet(workspace.home) else "fail"
+        if scenario == AUTH_PUBLISH:
+            return "pass" if publish_auth_boundary(workspace) else "fail"
+        wanted = "private" if scenario == PUBLISH_PRIV else "public"
+        return publish_verified(workspace, visibility=wanted)
+    if scenario in FAULT_SCENARIOS:
+        return fault_oracle(scenario, workspace)
     if scenario == PENDING_RELOAD:
         if "switch" not in intents:
             return "fail"
@@ -1533,7 +2367,7 @@ def write_cell(
     path: Path,
     scenario: str,
     run: int,
-    status: MeasuredStatus,
+    status: CellStatus,
     *,
     model: str = AGY_MODEL,
 ) -> None:
@@ -1895,13 +2729,62 @@ def qualify_one(
             )
         )
         return 1
-    workspace = prepare_workspace(root, scenario=scenario, docker_image=docker_image)
+    capture: RequestCapture | None = None
+    if docker_image is None:
+        # Host cells route platform traffic through the recorder. A container's
+        # loopback is its own, so docker cells keep the direct upstream and the
+        # egress assertions stay unmeasured rather than faked.
+        try:
+            capture = RequestCapture(catalog_upstream())
+        except CliUnavailable:
+            capture = None
+    workspace = prepare_workspace(
+        root,
+        scenario=scenario,
+        docker_image=docker_image,
+        catalog_url=capture.url if capture is not None else None,
+    )
+    if scenario in FAULT_SCENARIOS:
+        if docker_image is None:
+            try:
+                fault = inject_fault(workspace, scenario)
+            except CliUnavailable as error:
+                (workspace.root / FAULT_FILE).write_text(
+                    json.dumps({"aborted": str(error)}), encoding="utf-8"
+                )
+                if measured is not None:
+                    clear_cell(measured, scenario, run, model=model)
+                print(
+                    json.dumps(
+                        {
+                            "scenario": scenario,
+                            "run": run,
+                            "status": "not_run",
+                            "agy": -1,
+                            "reason": f"fixture: {error}",
+                        }
+                    ),
+                    flush=True,
+                )
+                return 1
+            else:
+                (workspace.root / FAULT_FILE).write_text(json.dumps(fault), encoding="utf-8")
+        else:
+            # Container cells cannot drive host process groups; the fixture is
+            # honestly unmeasured rather than replayed from a stub.
+            (workspace.root / FAULT_FILE).write_text(
+                json.dumps({"aborted": "docker cells cannot drive host process groups"}),
+                encoding="utf-8",
+            )
     prompt = prompt_for(scenario, workspace)
     code = run_agy(
         workspace, agy=agy, model=model, timeout=timeout, prompt=prompt, scenario=scenario
     )
     stdout = (workspace.root / "agy.stdout").read_text(encoding="utf-8")
     stderr = (workspace.root / "agy.stderr").read_text(encoding="utf-8")
+    if capture is not None:
+        capture.dump(workspace.root / CAPTURE_FILE)
+        capture.close()
     if incomplete_capacity_hit(workspace, stdout, stderr, scenario):
         if measured is not None:
             clear_cell(measured, scenario, run, model=model)
@@ -1919,7 +2802,7 @@ def qualify_one(
         )
         return 1
     if code != 0 and not drove_cli(workspace):
-        status: MeasuredStatus = "fail"
+        status: CellStatus = "fail"
     else:
         status = score(scenario, workspace)
     if run_was_background_killed(stderr) and status == "fail":
