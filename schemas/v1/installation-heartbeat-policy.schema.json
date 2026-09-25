@@ -12,7 +12,7 @@
     "interval_seconds": {
       "default": 21600,
       "maximum": 2592000,
-      "minimum": 300,
+      "minimum": 60,
       "title": "Interval Seconds",
       "type": "integer"
     },

@@ -71,12 +71,12 @@ attempt; no report body or credential is queued locally. Network work is
 bounded to one policy lookup and one write attempt, each with a two-second
 timeout. Failures do not change the command result and schedule an
 organization-bounded exponential retry. Successful sends wait for the
-organization interval. An hourly per-user OS wakeup invokes the same sender
+organization interval. A twice-per-minute per-user OS wakeup invokes the same sender
 while the user session and host scheduler are available. Windows uses Task
 Scheduler, macOS uses LaunchAgent, Linux uses a user systemd timer, and WSL
 uses a Windows task to launch the named distribution. No Python daemon stays
-resident. The installed Python path and effective XDG config/data directories
-are captured in the local task; repeat `enable`
+resident. The installed Python path, effective XDG config/data directories, and
+file credential-store selection are captured in the local task; repeat `enable`
 after moving or reinstalling the CLI. A sleeping, powered-off, or logged-out
 host may become `stale`. Local `disable` does not report `disabled` to the API;
 the last row eventually projects as `stale`.

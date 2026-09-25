@@ -65,11 +65,13 @@ def test_windows_task_uses_user_session_and_catch_up(monkeypatch: pytest.MonkeyP
     schedule._windows_install("ai-stp-test", organization)
     assert "-LogonType Interactive -RunLevel Limited" in scripts[0]
     assert "-StartWhenAvailable" in scripts[0]
+    assert "-RepetitionInterval (New-TimeSpan -Minutes 1)" in scripts[0]
+    assert "@(0, 30)" in scripts[0]
     assert "-MultipleInstances IgnoreNew" in scripts[0]
     assert "C:\\Program Files\\Python\\python.exe" in scripts[0]
 
 
-def test_mac_launch_agent_is_hourly_and_runs_at_login(
+def test_mac_launch_agent_checks_twice_per_minute_and_at_login(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     organization = new_id("organization")
@@ -84,7 +86,7 @@ def test_mac_launch_agent_is_hourly_and_runs_at_login(
     monkeypatch.setattr(schedule, "_run", calls.append)
     schedule._mac_install("ai-stp-test", organization)
     payload = plistlib.loads(path.read_bytes())
-    assert payload["StartCalendarInterval"] == {"Minute": 0}
+    assert payload["StartInterval"] == 30
     assert payload["RunAtLoad"] is True
     assert calls == [["launchctl", "bootstrap", "gui/1000", str(path)]]
 
@@ -101,7 +103,7 @@ def test_linux_timer_catches_up_and_runs_as_user(
     )
     monkeypatch.setattr(schedule, "_run", calls.append)
     schedule._linux_install("ai-stp-test", organization)
-    assert "OnCalendar=hourly" in timer.read_text()
+    assert "OnCalendar=*-*-* *:*:00,30" in timer.read_text()
     assert "Persistent=true" in timer.read_text()
     assert "ExecStart=/usr/bin/python3 -m ai_stp_cli" in service.read_text()
     assert calls[-1] == ["systemctl", "--user", "enable", "--now", "heartbeat.timer"]
@@ -125,10 +127,12 @@ def test_wakeup_restores_enrolled_xdg_paths(monkeypatch: pytest.MonkeyPatch) -> 
     monkeypatch.setattr(app, "main", lambda args: seen.append(args) or 0)
     monkeypatch.setenv("XDG_CONFIG_HOME", "/prior/config")
     monkeypatch.setenv("XDG_DATA_HOME", "/prior/data")
+    monkeypatch.delenv("AI_STP_FORCE_FILE_CREDENTIAL_STORE", raising=False)
     organization = new_id("organization")
-    assert heartbeat_wakeup.run([organization, "/private/config", "/private/data"]) == 0
+    assert heartbeat_wakeup.run([organization, "/private/config", "/private/data", "1"]) == 0
     assert schedule.os.environ["XDG_CONFIG_HOME"] == "/private/config"
     assert schedule.os.environ["XDG_DATA_HOME"] == "/private/data"
+    assert schedule.os.environ["AI_STP_FORCE_FILE_CREDENTIAL_STORE"] == "1"
     assert seen == [["heartbeat", "tick", "--organization", organization, "--json"]]
 
 

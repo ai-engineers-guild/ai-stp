@@ -52,9 +52,10 @@ oldest first. A 120-second lease lets another invocation recover after a
 process stops during a send. Policy lookup and send each use one attempt with
 a two-second timeout. A fresh report is built for each attempt, and exponential
 retries are capped by the organization retry maximum. Session or network
-failure leaves the primary command result unchanged. An hourly per-user OS
+failure leaves the primary command result unchanged. A twice-per-minute per-user OS
 task also invokes `heartbeat tick --organization <id>` through a launcher that
-restores the enrolled XDG config/data directories. The tick uses the same due
+restores the enrolled XDG config/data directories and credential-store choice.
+The tick uses the same due
 claim and policy. The task is not a resident Python daemon.
 
 `heartbeat enable` requires a device-bound authenticated session and an

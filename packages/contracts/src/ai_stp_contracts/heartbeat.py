@@ -94,7 +94,7 @@ class InstallationHeartbeatPolicy(BaseModel):
     schema_version: Literal[1] = 1
     organization_id: OrganizationId
     enabled: bool = True
-    interval_seconds: Annotated[int, Field(ge=300, le=2_592_000)] = (
+    interval_seconds: Annotated[int, Field(ge=60, le=2_592_000)] = (
         DEFAULT_HEARTBEAT_INTERVAL_SECONDS
     )
     retry_base_seconds: Annotated[int, Field(ge=30, le=86_400)] = (

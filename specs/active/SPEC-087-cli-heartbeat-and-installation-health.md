@@ -103,16 +103,16 @@ are owned by SPEC-089.
   exists in the local sync cursor. A subscription is discarded if the held
   account or device no longer matches its opt-in identity.
 - `REQ-8714`: After policy and device-bound authentication checks,
-  `heartbeat enable` registers an hourly per-user OS wakeup for that
+  `heartbeat enable` registers a per-user OS wakeup every 30 seconds for that
   organization before saving local opt-in. Windows uses an interactive-user
   Task Scheduler task with missed-run catch-up; macOS uses a LaunchAgent with
-  an hourly calendar trigger; Linux uses a user systemd timer with persistent
+  a 30-second interval; Linux uses a user systemd timer with persistent
   catch-up; WSL uses a Windows task that invokes the named WSL distribution and
   user. `heartbeat tick` checks only the named subscription using the same
   due-claim sender; it cannot create an opt-in. `heartbeat disable` removes
   local opt-in before removing the wakeup. Repeating `enable` repairs the task
-  target path. Scheduler failure is typed and cannot claim successful
-  autonomous enrollment.
+  target path and preserves the enrolled file credential-store selection.
+  Scheduler failure is typed and cannot claim successful autonomous enrollment.
 - `REQ-8715`: `heartbeat local-status` is offline and reports local opt-in,
   scheduler registration, next attempt, last attempt, and last success. The
   scheduler and local opt-out do not emit a server-side `disabled` report:

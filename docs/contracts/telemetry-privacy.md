@@ -45,7 +45,7 @@ The policy also governs installation heartbeats:
 | Field | Default | Bounds |
 | --- | ---: | ---: |
 | `heartbeat_enabled` | `true` | boolean |
-| `heartbeat_interval_seconds` | 21600 | 300–2592000 |
+| `heartbeat_interval_seconds` | 21600 | 60–2592000 |
 | `heartbeat_retry_base_seconds` | 60 | 30–86400 |
 | `heartbeat_retry_max_seconds` | 3600 | 60–604800 and at least the retry base |
 | `heartbeat_stale_after_seconds` | 86400 | 60–31536000 |
