@@ -743,6 +743,8 @@
   "the provider-info harness does not match the requested harness": "the provider-info harness does not match the requested harness",
   "the provider-info payload does not satisfy protocol v3": "the provider-info payload does not satisfy protocol v3",
   "the provider-info payload is not a v3 capability declaration": "the provider-info payload is not a v3 capability declaration",
+  "the publication plan changed after the task recorded it": "the publication plan changed after the task recorded it",
+  "the publication task no longer names its recorded object": "the publication task no longer names its recorded object",
   "the public catalogue is switched off in this configuration": "the public catalogue is switched off in this configuration",
   "the published passport identity does not match the requested version": "the published passport identity does not match the requested version",
   "the published passport is not a complete version passport": "the published passport is not a complete version passport",

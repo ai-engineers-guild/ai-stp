@@ -18,11 +18,11 @@ prompt, a Haiku-class agent operates ai-stp. The agent picks an intent,
 relays answers, and reports verification. The CLI owns acquisition,
 composition, backup, plan, approve, apply, verify, retries, and recovery.
 
-## Checkpoint (2026-09-24)
+## Checkpoint (2026-09-25)
 
 Eight drained intents are on GitHub `main` (PR
 [#297](https://github.com/ai-engineers-guild/ai-stp/pull/297) merged
-2026-09-19). Source and the released `ai-stp-cli` line are `0.0.28`. Epic #261–#275 stay
+2026-09-19). Source and the released `ai-stp-cli` line are `0.0.29`. Epic #261–#275 stay
 OPEN. Do not touch colleague issues (#254, #256) or
 `feat/milestone-6-b2b-03`.
 
@@ -30,7 +30,7 @@ OPEN. Do not touch colleague issues (#254, #256) or
 | --- | --- |
 | Line | GitHub `main` / `dev`. Work branch `feat/agent-task-lifecycle` is gone |
 | PR | [#297](https://github.com/ai-engineers-guild/ai-stp/pull/297) merged into `dev`, then promoted |
-| Released CLI | `0.0.28` on PyPI (`apps/cli/pyproject.toml` matches) |
+| Released CLI | `0.0.29` on PyPI (`apps/cli/pyproject.toml` matches); tag `v0.0.29` points to `eeb682e4` |
 | Provider kit | `0.2.13` in `tests/golden/provider-kit/identity-ledger.json` |
 | Issues | #261–#275 OPEN. setup-systems #316 OPEN. Never close #256. Draft #254: do not touch |
 | Haiku 20×5 | Retained `claude-haiku-4-5` overlay: 99 pass / 1 fail, measured 2026-09-21; historical model threshold met, not current candidate/native qualification |
@@ -66,8 +66,8 @@ as measurements of a later source tree.
 
 1. **Slice 9 Haiku**: retain the historical 99/100 result; any new candidate claim needs ≥95/100, no scenario <4/5, 5/5 on initialize / install / change / switch at its own identities.
 2. **Native win/mac** stay `not_run` here. Docker ENFORCED is the isolation path on this host.
-3. **Next CLI cut** after qualify of clean bytes. `0.0.28` is on PyPI from #397/#398 and carries the completed `parameter_rules` vocabulary (#375, #380, plus telemetry consent in #396), the leaf-scoped parse-failure contract with the full missing-options set (#385), and the selector-refusal `details.options` + leaf-continuation shape (#396). The qualification record in #368 is retained history, not a rerun of those later bytes.
-4. **setup-systems #316** stays OPEN. Public `NDDev-OpenNetwork/*-setup-system` tags are `0.0.73` (2026-09-19) and vendor kit `0.2.13` (same aggregate digest as this tree). A local `0.0.72` install is not the public tag. Do not close #316 from this plan.
+3. **Next CLI cut** after qualification of current bytes. `0.0.29` is on PyPI from tag `v0.0.29`; the native Antigravity user journey verified its official upgrade from `0.0.28`, public wheel bytes, and a fresh baseline consumer. That run used `gpt-oss-120b-medium` with corrective prompts, so it does not qualify autonomous Haiku behavior on this candidate. The qualification record in #368 remains historical evidence.
+4. **setup-systems #316** stays OPEN. The Antigravity user journey consumed its public provider `0.0.74` baseline in a fresh native session. Other provider and platform cells remain unverified by that run. Vendor kit `0.2.13` remains the recorded contract baseline. Do not close #316 from this plan.
 5. Issue comments with SHA; close only for measured scope. **Never close #256**. Do not touch #254.
 6. `component publish` stays `task_pending`. Do not compact `help --agent`. Do not shrink capabilities `command_paths` (REQ-8006).
 
@@ -99,7 +99,7 @@ External practice used (not copied as a second normative system):
 | Work branch | `feat/agent-task-lifecycle` @ `6f19972f` (gone; kernel is on `main` via #297) |
 | `origin/dev` then | `de37d6f3` after #277 (typed continuations exist; **no** PyPI cut at that date) |
 | Open PRs then | [#279](https://github.com/ai-engineers-guild/ai-stp/pull/279) envelope truth; [#280](https://github.com/ai-engineers-guild/ai-stp/pull/280) inspect engine (contains #279) |
-| Released CLI then | `0.0.22`. Current PyPI is `0.0.28` |
+| Released CLI then | `0.0.22`. Current PyPI is `0.0.29` |
 | Issues | #261–#275 OPEN. setup-systems #316 OPEN. #256 OPEN (never close from this epic). Draft #254 colleague / B2B: do not touch |
 
 Kernel that already exists and must be **evolved**, not replaced:
@@ -331,7 +331,7 @@ Skill + website rewrite ships in the **same wheel** as all of:
 
 Until a Haiku-qualified wheel exists, keep current Skill playbooks so
 pre-task-engine installs are not stranded on an inspect-only surface.
-`0.0.28` on PyPI is the current reader. The Haiku 4.5 record in #368 is historical evidence; later reader changes include the completed parameter_rules vocabulary (#375, #380, #396), and the leaf-scoped parse-failure contract (#385), and the selector-refusal options+continuation shape (#396).
+`0.0.29` on PyPI is the current reader. The Haiku 4.5 record in #368 is historical evidence; later reader changes include the completed parameter_rules vocabulary (#375, #380, #396), the leaf-scoped parse-failure contract (#385), the selector-refusal options+continuation shape (#396), and the Antigravity native fixes in #416–#430.
 
 ### 2.7 Derived setups
 

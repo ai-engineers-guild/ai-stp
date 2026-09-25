@@ -19,6 +19,7 @@ from ai_stp_contracts.machine_help import (
     PublicationPlanView,
     PublicationSetMemberView,
     PublicationSetView,
+    TaskPublishOutcome,
 )
 from ai_stp_foundation.ids import new_id
 
@@ -110,6 +111,24 @@ def test_publish_asks_for_object_id_once(tmp_path: Path, monkeypatch: pytest.Mon
     assert continued.payload.questions[0].question_id == "object-id"
 
 
+def test_guided_confirmation_reuses_the_plan_identity_as_its_retry_key(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from ai_stp_cli.application import publication as publication_service
+
+    captured: list[Mapping[str, object]] = []
+
+    def confirm(parameters: Mapping[str, object]) -> Answer[PublicationPlanView]:
+        captured.append(parameters)
+        return Answer(_plan("validating"))
+
+    monkeypatch.setattr(publication_service, "confirm", confirm)
+    publish_service.confirm_publication(plan_id=PLAN, plan_hash=PLAN_HASH)
+    assert captured == [
+        {"plan-id": PLAN, "plan-hash": PLAN_HASH, "confirm": True, "idempotency-key": PLAN}
+    ]
+
+
 def test_publish_defaults_private_and_omits_source_binding(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -118,7 +137,7 @@ def test_publish_defaults_private_and_omits_source_binding(
 
     def plan_publication(parameters: Mapping[str, object]) -> PublicationPlanView:
         planned.append(dict(parameters))
-        return _plan("validating")
+        return _plan("ready")
 
     def confirm_publication(*, plan_id: str, plan_hash: str) -> PublicationPlanView:
         return _plan("validating", plan_id=plan_id, plan_hash=plan_hash)
@@ -135,8 +154,10 @@ def test_publish_defaults_private_and_omits_source_binding(
     finished = task_command.continue_(
         {"task": started.payload.task_id, "revision": started.payload.revision}
     )
-    assert finished.payload.state == "completed"
+    assert finished.payload.state == "blocked"
     assert finished.payload.goal_satisfied is False
+    assert finished.payload.questions[0].question_id == "publication-processing"
+    assert finished.continuations[0].actor == "external"
     outcome = finished.payload.outcome
     assert outcome is not None
     assert outcome.kind == "publish"
@@ -148,6 +169,65 @@ def test_publish_defaults_private_and_omits_source_binding(
     assert planned == [{"id": STABLE, "version": "1.0", "visibility": "private"}]
     assert "source-binding-id" not in planned[0]
     assert "git" not in json.dumps(planned[0])
+
+
+def test_publish_reconciles_the_recorded_plan_without_duplicate_effects(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(account_service, "ensure_session", _signed_in)
+    calls: list[tuple[str, str]] = []
+    states = iter(("validating", "published"))
+
+    def plan(_parameters: Mapping[str, object]) -> PublicationPlanView:
+        calls.append(("plan", PLAN))
+        return _plan("ready")
+
+    def confirm(*, plan_id: str, plan_hash: str) -> PublicationPlanView:
+        calls.append(("confirm", plan_id))
+        assert plan_hash == PLAN_HASH
+        return _plan("validating")
+
+    def status(plan_id: str) -> PublicationPlanView:
+        calls.append(("status", plan_id))
+        return _plan(next(states))
+
+    monkeypatch.setattr(publish_service, "plan_publication", plan)
+    monkeypatch.setattr(publish_service, "confirm_publication", confirm)
+    monkeypatch.setattr(publish_service, "publication_status", status)
+    started = task_command.start(
+        {
+            "intent": "publish",
+            "idempotency-key": "publish-reconcile-0001",
+            "input": _facts(tmp_path, {"object_id": STABLE, "object_version": "1.0"}),
+        }
+    )
+    assert started.payload.state == "planned"
+    accepted = task_command.continue_(
+        {"task": started.payload.task_id, "revision": started.payload.revision}
+    )
+    assert accepted.payload.state == "blocked"
+    assert isinstance(accepted.payload.outcome, TaskPublishOutcome)
+    assert accepted.payload.outcome.state == "validating"
+    waiting = task_command.continue_(
+        {"task": accepted.payload.task_id, "revision": accepted.payload.revision}
+    )
+    assert waiting.payload.state == "blocked"
+    assert waiting.payload.revision > accepted.payload.revision
+    published = task_command.continue_(
+        {"task": waiting.payload.task_id, "revision": waiting.payload.revision}
+    )
+    assert published.payload.state == "completed"
+    assert published.payload.goal_satisfied
+    assert published.payload.questions == []
+    assert isinstance(published.payload.outcome, TaskPublishOutcome)
+    assert published.payload.outcome.plan_id == PLAN
+    assert published.payload.outcome.readable
+    assert calls == [
+        ("plan", PLAN),
+        ("confirm", PLAN),
+        ("status", PLAN),
+        ("status", PLAN),
+    ]
 
 
 def test_published_state_is_readable(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
