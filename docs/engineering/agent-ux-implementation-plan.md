@@ -67,6 +67,10 @@ driver is `agy` with `gpt-oss-120b-medium`. Historical `haiku` keys are ignored
 by the report and cannot be extended in place. Use a new measured path for the
 current candidate, record its exact wheel, Skill, website prompt, provider and
 harness identities, and keep unavailable cells `not_run`.
+An `agy` individual-quota 429 before any CLI invocation is unavailable model
+capacity, not an agent failure. `--fill` pauses on that response and preserves
+the remaining unrun cells for a later capacity window; it does not spend the
+rest of the corpus against a known exhausted quota.
 
 ### Remaining to close the epic (do not shrink)
 
