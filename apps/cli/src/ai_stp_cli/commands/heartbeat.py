@@ -53,12 +53,13 @@ def enable(parameters: Mapping[str, object]) -> Answer[InstallationHeartbeatSubs
         )
     from ai_stp_cli.application import heartbeat_schedule
 
-    heartbeat_schedule.install(organization_id)
+    heartbeat_schedule.install(organization_id, policy.interval_seconds)
     return Answer(
         heartbeat.enable_subscription(
             organization_id,
             account_id=held.account_id,
             device_id=held.device_id,
+            interval_seconds=policy.interval_seconds,
         )
     )
 

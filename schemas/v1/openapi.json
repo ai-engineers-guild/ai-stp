@@ -12521,6 +12521,36 @@
         "title": "DeviceRecord",
         "type": "object"
       },
+      "DeviceRefreshRequest": {
+        "additionalProperties": false,
+        "description": "A device-key proof accompanying a stored refresh credential.",
+        "properties": {
+          "checked_at": {
+            "$ref": "#/components/schemas/Timestamp"
+          },
+          "device_id": {
+            "$ref": "#/components/schemas/DeviceId"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "signature": {
+            "pattern": "^[A-Za-z0-9_-]{86}$",
+            "title": "Signature",
+            "type": "string"
+          }
+        },
+        "required": [
+          "device_id",
+          "checked_at",
+          "signature"
+        ],
+        "title": "DeviceRefreshRequest",
+        "type": "object"
+      },
       "DeviceRegisterResponse": {
         "additionalProperties": true,
         "description": "POST /v1/devices registration resource body.",
@@ -15303,6 +15333,11 @@
             "default": 1,
             "title": "Schema Version",
             "type": "integer"
+          },
+          "signature": {
+            "pattern": "^[A-Za-z0-9_-]{86}$",
+            "title": "Signature",
+            "type": "string"
           }
         },
         "required": [
@@ -15310,7 +15345,8 @@
           "device_id",
           "cli_version",
           "health_state",
-          "checked_at"
+          "checked_at",
+          "signature"
         ],
         "title": "InstallationHeartbeatRequest",
         "type": "object"
@@ -31052,6 +31088,199 @@
         },
         "security": [],
         "summary": "Start a device-code sign-in. Carries no device identity."
+      }
+    },
+    "/v1/auth/device/refresh": {
+      "post": {
+        "operationId": "refreshDeviceSession",
+        "parameters": [
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "examples": {
+                "refreshDeviceSession.signed": {
+                  "summary": "A registered device can renew its session using the held refresh credential and its key.",
+                  "value": {
+                    "checked_at": "2026-09-22T11:00:00.000Z",
+                    "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                    "schema_version": 1,
+                    "signature": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+                  }
+                }
+              },
+              "schema": {
+                "$ref": "#/components/schemas/DeviceRefreshRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "refreshDeviceSession.signed": {
+                    "summary": "A registered device can renew its session using the held refresh credential and its key.",
+                    "value": {
+                      "access_token": "fixture-renewed-access-token",
+                      "account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "expires_in": 3600,
+                      "refresh_token": "fixture-renewed-refresh-token",
+                      "schema_version": 1,
+                      "token_type": "Bearer"
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/DeviceTokenResponse"
+                }
+              }
+            },
+            "description": "Renew a device session with its stored credential and key.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Renew a device session with its stored credential and key."
       }
     },
     "/v1/auth/device/token": {
@@ -67262,7 +67491,8 @@
                     "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                     "health_state": "active",
                     "last_sync_at": null,
-                    "schema_version": 1
+                    "schema_version": 1,
+                    "signature": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
                   }
                 }
               },

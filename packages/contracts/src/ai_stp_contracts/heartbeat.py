@@ -8,6 +8,7 @@ Capability tokens accept only a small alphabet so paths, environment values,
 and secrets cannot smuggle through the field.
 """
 
+import json
 from typing import Annotated, Final, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -50,6 +51,20 @@ class InstallationHeartbeatRequest(BaseModel):
     last_sync_at: Timestamp | None = None
     health_state: HeartbeatReportedState
     checked_at: Timestamp
+    signature: Annotated[str, Field(pattern=r"^[A-Za-z0-9_-]{86}$")]
+
+
+def heartbeat_signature_message(
+    organization_id: str, request: InstallationHeartbeatRequest
+) -> bytes:
+    """Domain-separated canonical bytes signed by the enrolled device key."""
+    payload = request.model_dump(mode="json", exclude={"signature"})
+    return (
+        b"ai-stp:installation-heartbeat:v1\n"
+        + organization_id.encode("ascii")
+        + b"\n"
+        + json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    )
 
 
 class InstallationHeartbeat(BaseModel):

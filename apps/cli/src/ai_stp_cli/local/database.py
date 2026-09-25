@@ -1467,6 +1467,12 @@ MIGRATIONS: Final[tuple[Migration, ...]] = (
         # state across a binary rollback and makes the next upgrade idempotent.
         down=(),
     ),
+    Migration(
+        version=47,
+        summary="remember the server-owned heartbeat scheduler interval",
+        up=("ALTER TABLE heartbeat_subscription ADD COLUMN scheduler_interval_seconds INTEGER",),
+        down=("ALTER TABLE heartbeat_subscription DROP COLUMN scheduler_interval_seconds",),
+    ),
 )
 
 #: Names for nested savepoints. A counter rather than a fixed name: two nested

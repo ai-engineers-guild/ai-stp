@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import sqlite3
+from contextlib import nullcontext
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from types import SimpleNamespace
@@ -13,9 +14,13 @@ import pytest
 from pydantic import ValidationError
 
 from ai_stp_cli import heartbeat as heartbeat_rules
+from ai_stp_cli import identity, secrets
 from ai_stp_cli.application import heartbeat as heartbeat_app
+from ai_stp_cli.cloud import session as cloud_session
+from ai_stp_cli.cloud.client import Endpoint
 from ai_stp_cli.cloud.session import Session
 from ai_stp_cli.errors import CliFailure
+from ai_stp_contracts.auth import DeviceTokenResponse
 from ai_stp_contracts.heartbeat import (
     InstallationHeartbeatPolicy,
     InstallationHeartbeatRequest,
@@ -39,6 +44,7 @@ def _request(**overrides: object) -> dict[str, object]:
         "last_sync_at": "2026-09-22T11:00:00.000Z",
         "health_state": "active",
         "checked_at": format_timestamp(NOW),
+        "signature": "A" * 86,
     }
     payload.update(overrides)
     return payload
@@ -295,7 +301,40 @@ def test_build_report_binds_session_identity_and_closed_fields() -> None:
         "last_sync_at",
         "health_state",
         "checked_at",
+        "signature",
     }
+
+
+def test_scheduled_session_renews_before_expiry(monkeypatch: pytest.MonkeyPatch) -> None:
+    signer, _warning = identity.load_or_create()
+    store, _warning = secrets.open_store()
+    account_id = new_id("account")
+    held = Session(
+        account_id=account_id,
+        device_id=signer.device_id,
+        access_token="old-access",
+        refresh_token="old-refresh",
+        expires_at=format_timestamp(datetime.now(UTC) + timedelta(hours=1)),
+    )
+    cloud_session.save(store, held)
+
+    def fake_open_client(*_args: object, **_kwargs: object) -> nullcontext[object]:
+        return nullcontext(object())
+
+    def fake_call(*_args: object, **_kwargs: object) -> DeviceTokenResponse:
+        return DeviceTokenResponse(
+            access_token="new-access",
+            refresh_token="new-refresh",
+            expires_in=86400,
+            account_id=account_id,
+            device_id=signer.device_id,
+        )
+
+    monkeypatch.setattr(heartbeat_app, "open_client", fake_open_client)
+    monkeypatch.setattr(heartbeat_app, "call", fake_call)
+    renewed = heartbeat_app._scheduled_session(Endpoint("http://localhost:8000"))
+    assert renewed.access_token == "new-access"
+    assert cloud_session.load(store) == renewed
 
 
 def test_background_report_checks_cli_liveness_without_running_harnesses(

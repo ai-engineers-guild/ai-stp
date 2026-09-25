@@ -152,6 +152,26 @@ class DeviceTokenResponse(BaseModel):
     device_id: DeviceId
 
 
+class DeviceRefreshRequest(BaseModel):
+    """A device-key proof accompanying a stored refresh credential."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
+
+    schema_version: Literal[1] = 1
+    device_id: DeviceId
+    checked_at: Timestamp
+    signature: Annotated[str, Field(pattern=r"^[A-Za-z0-9_-]{86}$")]
+
+
+def device_refresh_message(request: DeviceRefreshRequest) -> bytes:
+    return (
+        b"ai-stp:device-refresh:v1\n"
+        + request.device_id.encode("ascii")
+        + b"\n"
+        + request.checked_at.encode("ascii")
+    )
+
+
 class OAuthCallbackResult(BaseModel):
     """The outcome of the browser half, as the web surface reads it.
 

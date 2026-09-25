@@ -37,6 +37,7 @@ from ai_stp_contracts.auth import (
     DeviceAuthorizationResponse,
     DeviceChallengeRequest,
     DeviceChallengeResponse,
+    DeviceRefreshRequest,
     DeviceTokenRequest,
     DeviceTokenResponse,
     LegalOnboardingCompleteRequest,
@@ -2269,6 +2270,15 @@ OPERATIONS: Final[tuple[Operation, ...]] = (
             "AI_STP_AUTHORIZATION_EXPIRED",
             "AI_STP_AUTHORIZATION_DECLINED",
         ),
+    ),
+    Operation(
+        method="post",
+        path="/auth/device/refresh",
+        operation_id="refreshDeviceSession",
+        summary="Renew a device session with its stored credential and key.",
+        response=DeviceTokenResponse,
+        body=DeviceRefreshRequest,
+        authenticated=True,
     ),
     Operation(
         method="get",

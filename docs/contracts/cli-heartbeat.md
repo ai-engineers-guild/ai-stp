@@ -6,7 +6,7 @@ last_verified: "2026-09-24"
 # CLI installation heartbeat
 
 The requirements owner is `SPEC-087` (`REQ-8701`–`REQ-8713`); decisions are
-`ADR-0204`, `ADR-0208`, and `ADR-0209`. This document defines the machine boundary: the field list, the
+`ADR-0204`, `ADR-0208`, `ADR-0209`, and `ADR-0210`. This document defines the machine boundary: the field list, the
 commands, and the sending rules. This channel is unrelated to the anonymous
 consented ping (`cli-telemetry.md`, ADR-0112), which is untouched.
 
@@ -28,6 +28,7 @@ field outside the table may be added without changing this document and
 | `last_sync_at` | `2026-09-22T11:00:00.000Z` | last successful local sync cursor or null |
 | `health_state` | `active`, `partial`, `failing`, `disabled` | local facts by default; explicit override accepted |
 | `checked_at` | `2026-09-22T12:00:00.000Z` | client clock at build time |
+| `signature` | 86-character base64url Ed25519 signature | enrolled device key over organization ID and canonical request fields |
 
 ## Capability tokens
 
@@ -70,11 +71,14 @@ commands do not trigger automatic sending. The snapshot is rebuilt on every
 attempt; automatic reports attest CLI liveness without running installed
 harnesses, while explicit sends can include harness and provider facts. No
 report body or credential is queued locally. Network work is
-bounded to one policy lookup and one write attempt, each with a two-second
-timeout. Failures do not change the command result and schedule an
-organization-bounded exponential retry. Successful sends wait for the
-organization interval. An hourly per-user OS wakeup invokes the same sender
-while the user session and host scheduler are available. Windows uses Task
+bounded to one policy lookup and one write attempt for ordinary CLI commands;
+scheduled runs allow two transport attempts each, with a two-second timeout.
+Failures do not change the command result and schedule an
+organization-bounded exponential retry. Successful opportunistic sends wait for the
+organization interval. A recurring per-user OS wakeup runs at that interval
+and sends immediately while the user session and host scheduler are available.
+The next tick reads policy and updates the OS timer if the interval changed.
+Windows uses Task
 Scheduler with `pythonw.exe` to avoid a console window, macOS uses LaunchAgent,
 Linux uses a user systemd timer, and WSL
 uses a Windows task to launch the named distribution. No Python daemon stays
@@ -83,6 +87,9 @@ file credential-store selection are captured in the local task; repeat `enable`
 after moving or reinstalling the CLI. A sleeping, powered-off, or logged-out
 host may become `stale`. Local `disable` does not report `disabled` to the API;
 the last row eventually projects as `stale`.
+Before local session expiry, a scheduled tick renews it using the credential
+store's refresh token and a signature by the same enrolled device key. If
+renewal fails, the task stays registered and retries on the next tick.
 
 ## Never sent
 

@@ -51,8 +51,10 @@ are owned by SPEC-089.
 - `REQ-8703`: Writes coalesce onto one row per `(organization_id, device_id)`.
   An incoming heartbeat is applied only when its `checked_at` is strictly newer
   than the stored one; equal or older beats return success without mutation.
-  A `checked_at` ahead of the server clock by more than the accepted skew is
-  rejected.
+  A `checked_at` more than five minutes from the server clock in either
+  direction is rejected. The request carries an Ed25519 signature by the
+  enrolled device key over the organization ID and canonical request fields;
+  the API checks the active device's registered public key before mutation.
 - `REQ-8704`: Health is a deterministic read-time projection using the
   organization's `heartbeat_stale_after_seconds` (default 86400): `disabled` is
   reported state and survives the stale window; a `received_at` older than the
@@ -105,14 +107,17 @@ are owned by SPEC-089.
   exists in the local sync cursor. A subscription is discarded if the held
   account or device no longer matches its opt-in identity.
 - `REQ-8714`: After policy and device-bound authentication checks,
-  `heartbeat enable` registers an hourly per-user OS wakeup for that
-  organization before saving local opt-in. Windows uses an interactive-user
+  `heartbeat enable` registers a per-user OS wakeup at the organization's
+  `heartbeat_interval_seconds` before saving local opt-in. Windows uses an interactive-user
   Task Scheduler task with a windowless Python executable and missed-run
-  catch-up; macOS uses a LaunchAgent with
-  a one-hour interval; Linux uses a user systemd timer with persistent
+  catch-up; macOS uses a LaunchAgent; Linux uses a user systemd timer with persistent
   catch-up; WSL uses a Windows task with a windowless launcher that invokes the
-  named WSL distribution and user. The scheduled launcher calls the due sender
-  directly without querying Task Scheduler. `heartbeat tick` checks only the
+  named WSL distribution and user. The scheduled launcher calls the sender
+  without the opportunistic due-time gate and updates the OS timer when a new
+  organization interval is read. Policy fetch and write each have at most two
+  bounded transport attempts on the scheduled path. Windows scheduler helpers
+  have no console window.
+  `heartbeat tick` checks only the
   named subscription; it cannot create an opt-in. `heartbeat disable` removes
   local opt-in before removing the wakeup. Repeating `enable` repairs the task
   target path and preserves the enrolled file credential-store selection.
@@ -121,6 +126,12 @@ are owned by SPEC-089.
   scheduler registration, next attempt, last attempt, and last success. The
   scheduler and local opt-out do not emit a server-side `disabled` report:
   absence of future beats projects as `stale` after the organization threshold.
+- `REQ-8716`: A scheduled sender renews its device-bound session before local
+  expiry using the stored refresh credential and a fresh device-key signature.
+  The API accepts renewal only for the same active registered device and a
+  timestamp within five minutes of server time. A lost renewal response does
+  not invalidate the prior credential before its normal expiry. The renewed
+  tokens remain in the credential store; no token enters the heartbeat body.
 
 ## States and errors
 
@@ -130,7 +141,8 @@ permission input is rejected before mutation. Equal or older heartbeats are
 successful no-ops, while offline writes return the existing typed transport
 failure. Automatic reporting is best-effort and does not change the result of
 the ordinary command that triggered it. Local opt-in is explicit; a CLI that is
-not invoked cannot report and eventually projects `stale`.
+powered off, logged out, or unable to authenticate cannot report and eventually
+projects `stale`.
 
 ## Security and privacy
 
@@ -171,3 +183,4 @@ preserving existing installation data and audit history.
 | `REQ-8713` | CLI tests prove idempotent opt-in, account/device rebinding, opt-out, and the absence of a stored payload. |
 | `REQ-8714` | CLI and scheduler adapter tests cover the targeted due claim, per-user task definitions, catch-up, and WSL host wakeup. |
 | `REQ-8715` | CLI tests cover local subscription and scheduler status without network access. |
+| `REQ-8716` | CLI renewal test and API tests cover valid and invalid device signatures and credential replacement. |

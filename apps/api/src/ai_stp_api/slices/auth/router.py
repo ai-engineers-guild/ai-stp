@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Annotated, Any, cast
 from urllib.parse import urlencode
 
@@ -34,10 +34,16 @@ from ai_stp_api.slices.auth.service import (
     resolve_step_up_link,
     unlink_identity,
 )
-from ai_stp_contracts.auth import LegalOnboardingCompleteRequest
+from ai_stp_api.slices.devices.crypto import verify_ed25519
+from ai_stp_contracts.auth import (
+    DeviceRefreshRequest,
+    DeviceTokenResponse,
+    LegalOnboardingCompleteRequest,
+    device_refresh_message,
+)
 from ai_stp_contracts.identity import AccountIdentityUpdate, AccountPrivacyUpdate
 from ai_stp_foundation.ids import new_id
-from ai_stp_foundation.timestamps import format_timestamp
+from ai_stp_foundation.timestamps import format_timestamp, parse_timestamp
 from ai_stp_platform.identity import IdentityError, set_account_identity
 from ai_stp_platform.logging import get_logger
 from ai_stp_platform.models import Account, Device, OAuthIdentity
@@ -519,6 +525,43 @@ async def exchange_device_auth(
         display_name=body.display_name,
     )
     return JSONResponse(content=payload, status_code=200)
+
+
+@router.post("/auth/device/refresh", response_model=DeviceTokenResponse)
+async def refresh_device_auth(
+    payload: DeviceRefreshRequest,
+    ctx: Annotated[AuthContext, Depends(require_auth)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+    auth: Annotated[AuthSettings, Depends(get_auth_settings)],
+) -> DeviceTokenResponse:
+    """Renew a device session using its stored credential and key."""
+    if ctx.device_id is None or ctx.device_id != payload.device_id:
+        raise ApiError(ErrorCategory.PERMISSION, "refresh requires the enrolled device")
+    device = await db.get(Device, payload.device_id)
+    if device is None or device.account_id != ctx.account_id or device.state != "active":
+        raise ApiError(ErrorCategory.PERMISSION, "refresh device is unavailable")
+    if abs(datetime.now(UTC) - parse_timestamp(payload.checked_at)) > timedelta(minutes=5):
+        raise ApiError(ErrorCategory.VALIDATION, "refresh timestamp is outside the accepted window")
+    verify_ed25519(
+        public_key=device.public_key,
+        message=device_refresh_message(payload),
+        signature=payload.signature,
+    )
+    # Keep the old credential usable until its normal expiry so a lost response
+    # does not strand an unattended installation after the server committed.
+    access = await issue_session(
+        db, account_id=ctx.account_id, device_id=ctx.device_id, ttl_seconds=auth.session_ttl_seconds
+    )
+    refresh = await issue_session(
+        db, account_id=ctx.account_id, device_id=ctx.device_id, ttl_seconds=auth.session_ttl_seconds
+    )
+    return DeviceTokenResponse(
+        access_token=access.raw_token,
+        refresh_token=refresh.raw_token,
+        expires_in=min(auth.session_ttl_seconds, 86400),
+        account_id=ctx.account_id,
+        device_id=ctx.device_id,
+    )
 
 
 @router.post("/auth/device/approve", response_model=None)

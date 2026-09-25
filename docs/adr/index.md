@@ -207,6 +207,7 @@ last_verified: "2026-08-03"
 | [ADR-0207-corporate-dashboards-query-canonical-health.md](ADR-0207-corporate-dashboards-query-canonical-health.md) | Corporate dashboards query canonical operational health through a constrained contract. | 2026-09-23 |
 | [ADR-0208-periodic-cli-installation-heartbeats.md](ADR-0208-periodic-cli-installation-heartbeats.md) | Opt-in installation heartbeats are retried opportunistically by the CLI and use organization telemetry policy. | 2026-09-24 |
 | [ADR-0209-user-scheduled-installation-heartbeats.md](ADR-0209-user-scheduled-installation-heartbeats.md) | Opted-in installation heartbeats use per-user OS wakeups while the CLI retains due times and retries. | 2026-09-25 |
+| [ADR-0210-organization-cadence-and-signed-installation-heartbeats.md](ADR-0210-organization-cadence-and-signed-installation-heartbeats.md) | Organization heartbeat policy drives the OS timer and device keys sign reports. | 2026-09-25 |
 | [binding.md](binding.md) | Which accepted ADRs still constrain non-corporate work; default is binding. | 2026-09-20 |
 | [template.md](template.md) | Architecture decision record template. | 2026-08-03 |
 

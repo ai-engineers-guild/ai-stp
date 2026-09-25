@@ -962,5 +962,10 @@
   "this native surface requires exactly one source file": "this native surface requires exactly one source file",
   "task start needs --intent NAME, not a positional intent": "task start needs --intent NAME, not a positional intent",
   "the task input file could not be read; --input expects a JSON/YAML file path or '-' for stdin": "the task input file could not be read; --input expects a JSON/YAML file path or '-' for stdin",
-  "this native document surface requires exactly one Markdown file": "this native document surface requires exactly one Markdown file"
+  "this native document surface requires exactly one Markdown file": "this native document surface requires exactly one Markdown file",
+  "invalid heartbeat interval": "invalid heartbeat interval",
+  "renewal changed the enrolled device": "renewal changed the enrolled device",
+  "the enrolled device key has changed": "the enrolled device key has changed",
+  "the enrolled device must sign in again": "the enrolled device must sign in again",
+  "the held device cannot sign this heartbeat": "the held device cannot sign this heartbeat"
 }

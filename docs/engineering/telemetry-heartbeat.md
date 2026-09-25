@@ -33,6 +33,8 @@ last_verified: "2026-09-24"
 - CLI local database migration 46 — stores one organization subscription,
   bound account/device identity, retry count, timestamps, and lease token; it
   stores no heartbeat body or credentials.
+- CLI local database migration 47 — remembers the installed OS timer interval
+  so it is repaired only when the organization policy changes.
 - `migrations/versions/0084_installation_heartbeat.py` — table plus tenant RLS
   and the shared `ai_stp_reject_tenant_change` trigger;
   `0085_heartbeat_permissions.py` — seeds `telemetry.read`.
@@ -41,25 +43,34 @@ last_verified: "2026-09-24"
 
 `checked_at` is the client-declared ordering key: a beat applies only when
 strictly newer. `received_at` is the server write moment and drives staleness.
-A `checked_at` more than `MAX_FUTURE_SKEW` (5 minutes) ahead of the server is
-rejected so a skewed client cannot wedge the ordering key. Concurrent beats
+A `checked_at` more than five minutes from the server clock is rejected.
+The device signs the organization ID and canonical closed request; the API
+verifies that signature against the active registered device key. Concurrent beats
 serialize on `SELECT … FOR UPDATE` of the coalescing row.
 
 The organization policy defaults to an enabled 6-hour interval, a 60-second
 retry base, a 1-hour retry maximum, and a 24-hour stale threshold. The local
 sender tries one due organization after a successful ordinary invocation,
 oldest first. A 120-second lease lets another invocation recover after a
-process stops during a send. Policy lookup and send each use one attempt with
-a two-second timeout. A fresh report is built for each attempt, and exponential
+process stops during a send. Policy lookup and send each use one attempt for
+ordinary commands and two attempts for scheduled runs, with a two-second timeout.
+A fresh report is built for each attempt, and exponential
 retries are capped by the organization retry maximum. Automatic reports send
 only CLI liveness and do not execute installed harnesses; explicit reports
 can inspect their versions. Session or network
-failure leaves the primary command result unchanged. An hourly per-user OS
-task invokes the due sender directly through a launcher that restores the
+failure leaves the primary command result unchanged. A per-user OS
+task runs at the organization's configured interval and invokes the sender
+without the opportunistic due-time gate through a launcher that restores the
 enrolled XDG config/data directories and credential-store choice. It does not
 query Task Scheduler after sending. Native Windows tasks use `pythonw.exe` to avoid a console
 window. The task is not a resident Python daemon.
-WSL tasks use a hidden Windows Script Host launcher for `wsl.exe`.
+WSL tasks use a hidden Windows Script Host launcher for `wsl.exe`. Each
+scheduled tick reads policy and changes the timer only if its interval changed.
+Windows PowerShell helpers also use windowless process creation.
+Scheduled ticks renew the device session before its local expiry with a
+device-signed refresh request; renewed credentials remain in the OS credential
+store. The server leaves the prior refresh credential valid until expiry so a
+lost response can be retried.
 
 `heartbeat enable` requires a device-bound authenticated session and an
 enabled organization policy, registers the OS wakeup, then stores local opt-in.
