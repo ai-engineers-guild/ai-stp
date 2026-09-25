@@ -9,6 +9,7 @@ import sys
 import time
 from collections.abc import Mapping
 from contextlib import closing
+from dataclasses import replace as evolve
 from pathlib import Path
 from typing import Final, NoReturn, cast
 
@@ -195,7 +196,9 @@ def start(parameters: Mapping[str, object]) -> Answer[TaskView]:
         ):
             held = agent_tasks.by_idempotency_key(connection, key)
             if held is not None:
-                if not agent_tasks.same_start_payload(held.payload_json, payload):
+                if not agent_tasks.same_start_request(
+                    agent_tasks.original_request_of(held), payload
+                ):
                     raise CliFailure(
                         "AI_STP_CONFLICT",
                         "the idempotency key already names a different input",
@@ -257,7 +260,7 @@ def _replay_after_insert_race(key: str, payload: str, candidate: StoredTask) -> 
                 "another mutating task already holds this target",
                 details={"task": (rival.task_id if rival is not None else bound.task_id)},
             )
-    if not agent_tasks.same_start_payload(occupied.payload_json, payload):
+    if not agent_tasks.same_start_request(agent_tasks.original_request_of(occupied), payload):
         raise CliFailure(
             "AI_STP_CONFLICT",
             "the idempotency key already names a different input",
@@ -403,19 +406,10 @@ def answer_task(parameters: Mapping[str, object]) -> Answer[TaskView]:
         merged["project_root"] = value
     else:
         merged[question.question_id.replace("-", "_")] = value
-    holding = StoredTask(
-        task_id=row.task_id,
-        revision=row.revision,
-        intent=row.intent,
-        state=row.state,
-        goal_satisfied=row.goal_satisfied,
-        idempotency_key=row.idempotency_key,
+    holding = evolve(
+        row,
         payload_json=agent_tasks.payload_document(row.intent, merged),
-        outcome_json=row.outcome_json,
         questions_json=agent_tasks.empty_list_json(),
-        child_operation_ids_json=row.child_operation_ids_json,
-        created_at=row.created_at,
-        updated_at=row.updated_at,
     )
     claimed = _commit_if_current(row, agent_tasks.claim(holding, at=moment()))
     return _drain_claimed(claimed)

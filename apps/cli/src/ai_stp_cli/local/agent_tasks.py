@@ -38,6 +38,7 @@ class StoredTask:
     scope: str = ""
     account_id: str = ""
     precondition_digest: str = ""
+    original_request_json: str = ""
 
 
 _INSPECT = "inspect"
@@ -119,36 +120,26 @@ def payload_document(intent: str, facts: Mapping[str, JsonValue] | None = None) 
     return canonize(body).decode("utf-8")
 
 
-def same_start_payload(held_payload: str, incoming: str) -> bool:
-    """True when incoming is the original start document, including drain-enriched rows.
+def original_request_of(row: StoredTask) -> str:
+    """The immutable first-start document recorded at insert.
 
-    Switch and account persist checkpoint facts into `payload_json`. REQ-8007
-    still keys idempotency on the caller's `--input`, not those extras.
+    Rows written before the column existed carry an empty marker; their held
+    payload is the best surviving evidence, so strict comparison against it is
+    the conservative fallback rather than a guess at a merged request.
     """
-    if held_payload == incoming:
-        return True
-    try:
-        held_body: object = json.loads(held_payload)
-        incoming_body: object = json.loads(incoming)
-    except json.JSONDecodeError:
-        return False
-    if not isinstance(held_body, dict) or not isinstance(incoming_body, dict):
-        return False
-    held_map = cast(dict[str, object], held_body)
-    incoming_map = cast(dict[str, object], incoming_body)
-    if held_map.get("intent") != incoming_map.get("intent"):
-        return False
-    incoming_input = incoming_map.get("input")
-    held_input = held_map.get("input")
-    if incoming_input is None:
-        return held_input is None
-    if not isinstance(incoming_input, dict) or not isinstance(held_input, dict):
-        return False
-    held_facts = input_facts(held_payload)
-    incoming_items = cast(dict[str, object], incoming_input)
-    return all(
-        held_facts.get(str(key)) == cast(JsonValue, value) for key, value in incoming_items.items()
-    )
+    return row.original_request_json or row.payload_json
+
+
+def same_start_request(original: str, incoming: str) -> bool:
+    """True when incoming is exactly the recorded original start document.
+
+    REQ-8007 keys idempotency on the caller's original `--input` document, not
+    on facts a later drain merged into `payload_json`. Both documents are
+    canonized by `payload_document`, so equality is canonical, not formatting.
+    A request that drops material fields or an answer-enriched payload can
+    never masquerade as the original.
+    """
+    return original == incoming
 
 
 def by_id(connection: sqlite3.Connection, task_id: str) -> StoredTask | None:
@@ -176,15 +167,20 @@ def unsettled(connection: sqlite3.Connection) -> tuple[StoredTask, ...]:
 
 
 def insert(connection: sqlite3.Connection, row: StoredTask) -> StoredTask:
+    # The first write atomically freezes the caller's start document as the
+    # idempotency identity. Enrichment later rewrites payload_json, never this.
     row = persist_binding(row)
+    if not row.original_request_json:
+        row = evolve(row, original_request_json=row.payload_json)
     connection.execute(
         """
         INSERT INTO agent_task (
             task_id, revision, intent, state, goal_satisfied, idempotency_key,
             payload_json, outcome_json, questions_json, child_operation_ids_json,
             created_at, updated_at,
-            harness_id, project_root, scope, account_id, precondition_digest
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            harness_id, project_root, scope, account_id, precondition_digest,
+            original_request_json
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             row.task_id,
@@ -204,6 +200,7 @@ def insert(connection: sqlite3.Connection, row: StoredTask) -> StoredTask:
             row.scope,
             row.account_id,
             row.precondition_digest,
+            row.original_request_json,
         ),
     )
     return row
@@ -226,7 +223,8 @@ def replace(connection: sqlite3.Connection, row: StoredTask) -> StoredTask:
             project_root = ?,
             scope = ?,
             account_id = ?,
-            precondition_digest = ?
+            precondition_digest = ?,
+            original_request_json = ?
         WHERE task_id = ?
         """,
         (
@@ -243,6 +241,7 @@ def replace(connection: sqlite3.Connection, row: StoredTask) -> StoredTask:
             row.scope,
             row.account_id,
             row.precondition_digest,
+            row.original_request_json,
             row.task_id,
         ),
     )
@@ -320,20 +319,16 @@ def with_outcome(
         if child_operation_ids is not None
         else row.child_operation_ids_json
     )
-    return StoredTask(
-        task_id=row.task_id,
+    return evolve(
+        row,
         revision=row.revision + 1,
-        intent=row.intent,
         state=state,
         goal_satisfied=goal_satisfied,
-        idempotency_key=row.idempotency_key,
-        payload_json=row.payload_json,
         outcome_json=outcome.model_dump_json(),
         questions_json=canonize([item.model_dump(mode="json") for item in questions]).decode(
             "utf-8"
         ),
         child_operation_ids_json=children,
-        created_at=row.created_at,
         updated_at=at,
     )
 
@@ -352,56 +347,31 @@ def with_questions(
         if child_operation_ids is not None
         else row.child_operation_ids_json
     )
-    return StoredTask(
-        task_id=row.task_id,
+    return evolve(
+        row,
         revision=row.revision + 1,
-        intent=row.intent,
         state="blocked",
         goal_satisfied=False,
-        idempotency_key=row.idempotency_key,
         payload_json=payload,
-        outcome_json=row.outcome_json,
         questions_json=canonize([item.model_dump(mode="json") for item in questions]).decode(
             "utf-8"
         ),
         child_operation_ids_json=children,
-        created_at=row.created_at,
         updated_at=at,
     )
 
 
 def claim(row: StoredTask, *, at: str) -> StoredTask:
     """Occupy this revision before effects. Concurrent continue then conflicts."""
-    return StoredTask(
-        task_id=row.task_id,
-        revision=row.revision + 1,
-        intent=row.intent,
-        state="running",
-        goal_satisfied=row.goal_satisfied,
-        idempotency_key=row.idempotency_key,
-        payload_json=row.payload_json,
-        outcome_json=row.outcome_json,
-        questions_json=row.questions_json,
-        child_operation_ids_json=row.child_operation_ids_json,
-        created_at=row.created_at,
-        updated_at=at,
-    )
+    return evolve(row, revision=row.revision + 1, state="running", updated_at=at)
 
 
 def with_children(row: StoredTask, child_operation_ids: tuple[str, ...], *, at: str) -> StoredTask:
     """Record a child operation before apply so a killed continue can resume."""
-    return StoredTask(
-        task_id=row.task_id,
+    return evolve(
+        row,
         revision=row.revision + 1,
-        intent=row.intent,
-        state=row.state,
-        goal_satisfied=row.goal_satisfied,
-        idempotency_key=row.idempotency_key,
-        payload_json=row.payload_json,
-        outcome_json=row.outcome_json,
-        questions_json=row.questions_json,
         child_operation_ids_json=canonize(list(child_operation_ids)).decode("utf-8"),
-        created_at=row.created_at,
         updated_at=at,
     )
 
@@ -414,35 +384,22 @@ def failed(
         if child_operation_ids is not None
         else row.child_operation_ids_json
     )
-    return StoredTask(
-        task_id=row.task_id,
+    return evolve(
+        row,
         revision=row.revision + 1,
-        intent=row.intent,
         state="failed",
         goal_satisfied=False,
-        idempotency_key=row.idempotency_key,
-        payload_json=row.payload_json,
-        outcome_json=row.outcome_json,
-        questions_json=row.questions_json,
         child_operation_ids_json=children,
-        created_at=row.created_at,
         updated_at=at,
     )
 
 
 def cancelled(row: StoredTask, *, at: str) -> StoredTask:
-    return StoredTask(
-        task_id=row.task_id,
+    return evolve(
+        row,
         revision=row.revision + 1,
-        intent=row.intent,
         state="cancelled",
         goal_satisfied=False,
-        idempotency_key=row.idempotency_key,
-        payload_json=row.payload_json,
-        outcome_json=row.outcome_json,
-        questions_json=row.questions_json,
-        child_operation_ids_json=row.child_operation_ids_json,
-        created_at=row.created_at,
         updated_at=at,
     )
 
@@ -470,4 +427,5 @@ def _stored(row: sqlite3.Row) -> StoredTask:
         scope=str(row["scope"] or ""),
         account_id=str(row["account_id"] or ""),
         precondition_digest=str(row["precondition_digest"] or ""),
+        original_request_json=str(row["original_request_json"] or ""),
     )
