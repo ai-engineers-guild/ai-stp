@@ -494,13 +494,14 @@ def test_a_missing_assigned_component_names_the_install_plan(
     assert remediation.arguments["project"] == PROJECT
 
 
-def test_a_components_only_gap_names_no_install_plan(
+def test_a_components_only_gap_names_a_typed_policy_refusal(
     tmp_path: Path,
     connection: sqlite3.Connection,
     corporate_plan: dict[str, object],
 ) -> None:
     """Standalone components bind to an exact setup graph — without an
-    assigned setup line there is no honest command to print."""
+    assigned setup line the verdict names the unsupported policy shape and
+    its exact identities instead of silently reporting no action (#358)."""
     target = tmp_path / "target"
     (target / "skills" / "review").mkdir(parents=True)
     (target / "skills" / "review" / "SKILL.md").write_bytes(b"expected\n")
@@ -538,7 +539,136 @@ def test_a_components_only_gap_names_no_install_plan(
 
     # A plan silent on the materialized setup is not a verdict to pass on.
     assert answer.payload.status == "unverifiable"
-    assert answer.continuations == ()
+    assert len(answer.continuations) == 1
+    refusal = answer.continuations[0]
+    assert refusal.kind == "blocked"
+    assert refusal.actor == "human"
+    assert refusal.path == ["corporate", "assignment"]
+    assert refusal.arguments["conflict"] == "components-without-setup-baseline"
+    assert refusal.arguments["components"] == ["component_extra@2.0"]
+    assert refusal.missing == ["organization-administrator"]
+    assert any("no baseline" in line for line in answer.payload.diagnostics)
+
+
+def test_multiple_assigned_setups_name_a_typed_policy_conflict(
+    tmp_path: Path,
+    connection: sqlite3.Connection,
+    corporate_plan: dict[str, object],
+) -> None:
+    """Two assigned setups cannot share one install plan — the conflict is
+    named with both identities rather than an arbitrary pick (#358)."""
+    target = tmp_path / "target"
+    (target / "skills" / "review").mkdir(parents=True)
+    (target / "skills" / "review" / "SKILL.md").write_bytes(b"expected\n")
+    _verified_installation(
+        connection,
+        target=target,
+        bundle=_bundle_bytes({"skills/review/SKILL.md": b"expected\n"}),
+    )
+    corporate_plan["response"] = CorporateAssignmentPlan.model_validate(
+        {
+            "schema_version": 1,
+            "organization_id": ORGANIZATION,
+            "account_id": ACCOUNT,
+            "harness": HARNESS,
+            "items": [
+                {
+                    "object_kind": "setup",
+                    "stable_id": SETUP_ID,
+                    "state": "assigned",
+                    "outcome": "installed",
+                    "action": "none",
+                    "version": "1.0",
+                },
+                {
+                    "object_kind": "setup",
+                    "stable_id": "setup_baseline_second",
+                    "state": "assigned",
+                    "outcome": "missing",
+                    "action": "install",
+                    "version": "3.2",
+                },
+            ],
+            "total": 2,
+        }
+    )
+
+    answer = managed_verify.verify_managed(
+        _parameters(),
+        endpoint_url=ENDPOINT,
+        access_token="bearer",
+        account_id=ACCOUNT,
+    )
+
+    assert answer.payload.status != "pass"
+    assert len(answer.continuations) == 1
+    conflict = answer.continuations[0]
+    assert conflict.kind == "blocked"
+    assert conflict.actor == "human"
+    assert conflict.arguments["conflict"] == "multiple-setup-assignments"
+    assert conflict.arguments["setups"] == [
+        f"{SETUP_ID}@1.0",
+        "setup_baseline_second@3.2",
+    ]
+    assert any("more than one setup" in line for line in answer.payload.diagnostics)
+
+
+def test_an_unversioned_assignment_names_a_typed_policy_refusal(
+    tmp_path: Path,
+    connection: sqlite3.Connection,
+    corporate_plan: dict[str, object],
+) -> None:
+    """An assigned line without an exact version cannot pin a prepared
+    graph — the refusal names which item lacks the pin (#358)."""
+    target = tmp_path / "target"
+    (target / "skills" / "review").mkdir(parents=True)
+    (target / "skills" / "review" / "SKILL.md").write_bytes(b"expected\n")
+    _verified_installation(
+        connection,
+        target=target,
+        bundle=_bundle_bytes({"skills/review/SKILL.md": b"expected\n"}),
+    )
+    corporate_plan["response"] = CorporateAssignmentPlan.model_validate(
+        {
+            "schema_version": 1,
+            "organization_id": ORGANIZATION,
+            "account_id": ACCOUNT,
+            "harness": HARNESS,
+            "items": [
+                {
+                    "object_kind": "setup",
+                    "stable_id": SETUP_ID,
+                    "state": "assigned",
+                    "outcome": "installed",
+                    "action": "none",
+                    "version": "1.0",
+                },
+                {
+                    "object_kind": "component",
+                    "stable_id": "component_unpinned",
+                    "state": "assigned",
+                    "outcome": "missing",
+                    "action": "install",
+                },
+            ],
+            "total": 2,
+        }
+    )
+
+    answer = managed_verify.verify_managed(
+        _parameters(),
+        endpoint_url=ENDPOINT,
+        access_token="bearer",
+        account_id=ACCOUNT,
+    )
+
+    assert answer.payload.status != "pass"
+    assert len(answer.continuations) == 1
+    refusal = answer.continuations[0]
+    assert refusal.kind == "blocked"
+    assert refusal.arguments["conflict"] == "unversioned-assignment"
+    assert refusal.arguments["items"] == ["component_unpinned"]
+    assert any("without an exact version" in line for line in answer.payload.diagnostics)
 
 
 def test_a_pair_with_no_verified_installation_is_not_enrolled(
