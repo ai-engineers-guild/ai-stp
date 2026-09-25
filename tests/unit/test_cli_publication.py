@@ -276,11 +276,15 @@ def test_confirm_reconciles_an_accepted_plan_without_another_post(
     plan = PublicationPlanResponse.model_validate(_response("validating"))
     monkeypatch.setattr(service, "_session", lambda: held)
     monkeypatch.setattr(service, "endpoint", lambda: Endpoint(BASE))
-    monkeypatch.setattr(service.publication, "status", lambda *_args: plan)
+
+    def status(*_args: object) -> PublicationPlanResponse:
+        return plan
+
+    monkeypatch.setattr(publication, "status", status)
 
     def duplicate_post(*_args: object, **_kwargs: object) -> PublicationPlanResponse:
         raise AssertionError("accepted publication must be reconciled through status")
 
-    monkeypatch.setattr(service.publication, "confirm", duplicate_post)
+    monkeypatch.setattr(publication, "confirm", duplicate_post)
     result = service.confirm({"plan-id": PLAN, "plan-hash": PLAN_HASH, "confirm": True}).payload
     assert result.state == "validating"
