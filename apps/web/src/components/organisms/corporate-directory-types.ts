@@ -143,6 +143,7 @@ export function usageSectionLabels(h: (key: string) => string, catalog: (key: st
       technology: h("technologies"),
     },
     relation: relationSectionLabels(h, catalog),
+    truncated: h("usageTruncated"),
   };
 }
 

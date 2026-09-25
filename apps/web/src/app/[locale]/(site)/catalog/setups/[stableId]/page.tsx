@@ -353,6 +353,7 @@ export default async function SetupDetailPage({ params, searchParams }: PageProp
             {corporateUsage ? (
               <CorporateCatalogUsage
                 items={corporateUsage.items}
+                total={corporateUsage.total}
                 labels={usageSectionLabels(th, t)}
               />
             ) : null}
