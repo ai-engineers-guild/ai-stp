@@ -331,6 +331,61 @@ async def test_organization_policy_controls_cadence_staleness_and_revocation(
     assert revoked.status_code == 403
 
 
+async def test_heartbeat_boundary_rejects_unsigned_stale_and_wrong_org(
+    heartbeat_client: tuple[AsyncClient, async_sessionmaker[AsyncSession]],
+) -> None:
+    """The signed-request cutover leaves no reader fallback for old clients.
+
+    A `0.0.29`-shape body has no `signature` field at all; it must be rejected
+    before mutation, never parsed into an implicit unsigned accept. The same
+    boundary refuses a stale `checked_at`, a future one, and a signature that
+    binds a different organization than the route's.
+    """
+    client, sessionmaker = heartbeat_client
+    account_id, device_id, token = await _account_with_device(sessionmaker)
+    organization_id = await _bootstrap(client, account_id, "hb-boundary-scenario-0005")
+    auth = {"Authorization": f"Bearer {token}"}
+    path = f"/v1/corporate/organizations/{organization_id}/telemetry/heartbeat"
+
+    unsigned = _payload(account_id, device_id)
+    unsigned.pop("signature")
+    refused = await client.put(path, json=unsigned, headers=auth)
+    assert refused.status_code in {400, 422}, refused.text
+
+    stale = await _put(
+        client,
+        path,
+        json=_payload(account_id, device_id, checked_at=_now() - timedelta(minutes=10)),
+        headers=auth,
+    )
+    assert stale.status_code == 400, stale.text
+
+    future = await _put(
+        client,
+        path,
+        json=_payload(account_id, device_id, checked_at=_now() + timedelta(minutes=10)),
+        headers=auth,
+    )
+    assert future.status_code == 400, future.text
+
+    signer = _DEVICE_KEYS[device_id]
+    report = InstallationHeartbeatRequest.model_validate(_payload(account_id, device_id))
+    foreign_signature = signer.sign(heartbeat_signature_message("org_other", report)).signature
+    foreign = await client.put(
+        path,
+        json={
+            **report.model_dump(mode="json"),
+            "signature": base64.urlsafe_b64encode(foreign_signature).rstrip(b"=").decode(),
+        },
+        headers=auth,
+    )
+    assert foreign.status_code == 400, foreign.text
+
+    missing = await client.get(path, headers=auth)
+    assert missing.status_code == 200
+    assert missing.json()["health_state"] == "unknown"
+
+
 async def test_heartbeat_rejects_foreign_identity_and_deviceless_sessions(
     heartbeat_client: tuple[AsyncClient, async_sessionmaker[AsyncSession]],
 ) -> None:
