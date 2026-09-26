@@ -21,6 +21,7 @@ import signal
 import sqlite3
 import subprocess
 import sys
+import tempfile
 import threading
 import time
 from collections.abc import Mapping, Sequence
@@ -44,6 +45,7 @@ from ai_stp_cli.application.qualify import (
     native_platform,
     tree_digest,
 )
+from ai_stp_cli.qualify_identity import canonical_skill, execution_identity
 from ai_stp_contracts.cli_copy import INITIALIZE_PROMPT, INITIALIZE_START
 from ai_stp_foundation.harnesses import HARNESS_ID_ORDER
 
@@ -443,7 +445,7 @@ def prepare_workspace(
     home.mkdir(parents=True, exist_ok=True)
     bin_dir.mkdir(parents=True, exist_ok=True)
     skill.parent.mkdir(parents=True, exist_ok=True)
-    copy_qualify_skill(source / "skills" / "canonical" / "ai-stp", skill)
+    copy_qualify_skill(canonical_skill(source), skill)
     log = root / "cli.log"
     extra = ""
     if scenario == CUSTOM_HOME:
@@ -451,18 +453,19 @@ def prepare_workspace(
         codex.mkdir(parents=True, exist_ok=True)
         extra = f"export CODEX_HOME={shlex.quote(str(codex))}\n"
     wrapper = bin_dir / "ai-stp"
-    wrapper.write_text(
-        wrapper_script(
-            home=home,
-            root=root,
-            log=log,
-            extra=extra,
-            docker_image=docker_image,
-            repo=source,
-        ),
-        encoding="utf-8",
-    )
-    wrapper.chmod(0o755)
+    for executable, calls in ((wrapper, log), (root / "fixture-ai-stp", root / "fixture-cli.log")):
+        executable.write_text(
+            wrapper_script(
+                home=home,
+                root=root,
+                log=calls,
+                extra=extra,
+                docker_image=docker_image,
+                repo=source,
+            ),
+            encoding="utf-8",
+        )
+        executable.chmod(0o755)
     subprocess.run(["git", "init"], cwd=project, check=False, capture_output=True)
     workspace = Workspace(root=root, home=home, project=project, wrapper=wrapper)
     if catalog_url is not None:
@@ -487,8 +490,6 @@ def prepare_workspace(
         # bound claude provider the cell can only ever end provider-too-old,
         # which measures the environment, not the model.
         seed_bound_provider(workspace, "claude-code", "claude-setup-system")
-    if docker_image and scenario in SEEDED_SCENARIOS:
-        seed_for_scenario(workspace, scenario)
     return workspace
 
 
@@ -497,7 +498,11 @@ def prepare_scenario(workspace: Workspace, scenario: str) -> None:
         return
     tree = workspace.project / "demo-skill"
     tree.mkdir(parents=True, exist_ok=True)
-    (tree / "SKILL.md").write_text("# Demo\n\nA local skill.\n", encoding="utf-8")
+    (tree / "SKILL.md").write_text(
+        "---\nname: demo\ndescription: Demonstrate a local qualification skill.\n"
+        "license: MIT\n---\n\n# Demo\n\nA local skill.\n",
+        encoding="utf-8",
+    )
 
 
 def registry_path(home: Path) -> Path:
@@ -1520,6 +1525,12 @@ def publication_readback(
     contradicted, not merely unproven. `unavailable` — auth, network, or the
     fixture could not answer; that is missing infrastructure, not evidence.
     """
+    if object_id.startswith("setup_"):
+        kind = "setup"
+    elif object_id.startswith("component_"):
+        kind = "component"
+    else:
+        return "fail"
     private_flag = ["--private"] if private else []
     view = cell_cli(
         workspace,
@@ -1527,7 +1538,7 @@ def publication_readback(
             "registry",
             "version",
             "--kind",
-            "component",
+            kind,
             "--id",
             object_id,
             "--version",
@@ -1559,7 +1570,7 @@ def publication_readback(
             "registry",
             "fetch",
             "--kind",
-            "component",
+            kind,
             "--id",
             object_id,
             "--version",
@@ -1630,7 +1641,7 @@ def publish_auth_boundary(workspace: Workspace) -> bool:
             str(evidence.get("object_version")),
             private=evidence.get("visibility") == "private",
         )
-        if verdict in {"absent", "fail"}:
+        if verdict != "verified":
             return False
         saw = True
     return saw
@@ -1676,8 +1687,10 @@ def publish_verified(workspace: Workspace, *, visibility: str | None) -> CellSta
             # The unauthorized-read negative control: a private object that an
             # anonymous read can see is a disclosure, not a publication.
             anon = publication_readback(workspace, object_id, version, private=False)
-            if anon == "verified":
+            if anon in {"verified", "fail"}:
                 return "fail"
+            if anon != "absent":
+                return "not_run"
     boundary = capture_boundary(workspace)
     if boundary is not None:
         return boundary
@@ -1767,7 +1780,7 @@ def seed_bound_provider(workspace: Workspace, harness_id: str, binary: str) -> N
     bound.chmod(bound.stat().st_mode | 0o111)
     held = subprocess.run(
         [
-            str(workspace.wrapper),
+            str(workspace.root / "fixture-ai-stp"),
             "config",
             "set",
             "--set",
@@ -1917,7 +1930,7 @@ def _seed_intent(
     input_path.write_text(json.dumps(facts), encoding="utf-8")
     result = subprocess.run(
         [
-            str(workspace.wrapper),
+            str(workspace.root / "fixture-ai-stp"),
             "task",
             "start",
             "--intent",
@@ -1932,18 +1945,26 @@ def _seed_intent(
         check=False,
         capture_output=True,
         text=True,
+        timeout=120,
     )
-    (workspace.root / "seed.log").write_text(
+    (workspace.root / f"seed-{intent}.log").write_text(
         f"exit={result.returncode}\n{result.stdout}\n{result.stderr}\n",
         encoding="utf-8",
     )
     try:
         parsed: object = json.loads(result.stdout)
-    except json.JSONDecodeError:
-        return {}
-    if not isinstance(parsed, dict):
-        return {}
-    return _mapping(cast(object, parsed))
+    except json.JSONDecodeError as error:
+        raise CliUnavailable(f"{intent} fixture returned no JSON envelope") from error
+    body = _mapping(parsed)
+    data = _mapping(body.get("data"))
+    if (
+        result.returncode != 0
+        or body.get("ok") is not True
+        or data.get("state") != "completed"
+        or data.get("goal_satisfied") is not True
+    ):
+        raise CliUnavailable(f"{intent} fixture did not complete: {_error_code(body) or 'pending'}")
+    return body
 
 
 def seed_cursor_install(workspace: Workspace) -> None:
@@ -1951,8 +1972,8 @@ def seed_cursor_install(workspace: Workspace) -> None:
     pin = cursor_pin()
     setup_id, separator, version = pin.partition("@")
     if not separator:
-        return
-    _seed_intent(
+        raise CliUnavailable("the fixture has no exact Cursor setup pin")
+    body = _seed_intent(
         workspace,
         intent="install",
         key="qualify-seed-install-01",
@@ -1963,6 +1984,8 @@ def seed_cursor_install(workspace: Workspace) -> None:
             "project_root": str(workspace.project.resolve()),
         },
     )
+    if _mapping(_mapping(body.get("data")).get("outcome")).get("verified") is not True:
+        raise CliUnavailable("the fixture's Cursor install was not verified")
 
 
 def seed_authored_component(workspace: Workspace) -> None:
@@ -1987,6 +2010,8 @@ def seed_authored_component(workspace: Workspace) -> None:
             f"{component_id}@{version}",
             encoding="utf-8",
         )
+    else:
+        raise CliUnavailable("the author fixture did not retain an exact component pin")
 
 
 def intent_input(workspace: Workspace, name: str, facts: Mapping[str, str]) -> Path:
@@ -2478,7 +2503,9 @@ def _layer_map(body: Mapping[str, object], layer: str) -> dict[str, object]:
     return {str(key): value for key, value in raw_items.items()}
 
 
-def _model_overlay(path: Path, model: str) -> dict[str, object]:
+def _model_overlay(
+    path: Path, model: str, identity: Mapping[str, object] | None = None
+) -> dict[str, object]:
     """Refuse to attribute existing scored cells to a different or unknown model."""
     if not model.strip():
         raise ValueError("--model must name the model being measured")
@@ -2492,6 +2519,12 @@ def _model_overlay(path: Path, model: str) -> dict[str, object]:
         raise ValueError(
             "measured overlay contains cells from a different or unknown model; "
             "use a separate --measured path for this model"
+        )
+    expected = dict(identity) if identity is not None else execution_identity(repo_root())
+    if scored and body.get("execution_identity") != expected:
+        raise ValueError(
+            "measured overlay contains cells from different or unknown executable inputs; "
+            "use a separate --measured path for this candidate"
         )
     return body
 
@@ -2541,12 +2574,15 @@ def write_cell(
     *,
     model: str = AGY_MODEL,
     layer: str = "agent",
+    identity: Mapping[str, object] | None = None,
 ) -> None:
     if scenario not in AGENT_SCENARIOS:
         raise ValueError(scenario)
     if run < 0 or run >= AGENT_RUNS:
         raise ValueError(run)
-    body = _model_overlay(path, model)
+    expected = dict(identity) if identity is not None else execution_identity(repo_root())
+    body = _model_overlay(path, model, expected)
+    body["execution_identity"] = expected
     cells = _layer_map(body, layer)
     cells[f"{scenario}:{run}"] = status
     body[layer] = cells
@@ -2897,9 +2933,15 @@ def qualify_one(
     docker_image: str | None = None,
     unassisted: bool = False,
 ) -> int:
+    if scenario not in SUPPORTED_SCENARIOS or not 0 <= run < AGENT_RUNS:
+        raise ValueError("qualification requires a known scenario and a run from 0 through 4")
+    root = root.expanduser().resolve()
+    if root.exists() and (not root.is_dir() or any(root.iterdir())):
+        raise ValueError("qualification requires a new empty workspace; retain previous attempts")
     layer = "unassisted" if unassisted else "agent"
+    identity = execution_identity(repo_root(), docker_image=docker_image)
     if measured is not None:
-        _model_overlay(measured, model)
+        _model_overlay(measured, model, identity)
     if probe and not capacity_probe(agy, model=model):
         print(
             json.dumps(
@@ -2922,97 +2964,156 @@ def qualify_one(
             capture = RequestCapture(catalog_upstream())
         except CliUnavailable:
             capture = None
-    workspace = prepare_workspace(
-        root,
-        scenario=scenario,
-        docker_image=docker_image,
-        catalog_url=capture.url if capture is not None else None,
-    )
-    if scenario in FAULT_SCENARIOS:
-        if docker_image is None:
+    try:
+        workspace = prepare_workspace(
+            root,
+            scenario=scenario,
+            docker_image=docker_image,
+            catalog_url=capture.url if capture is not None else None,
+        )
+        if scenario in SEEDED_SCENARIOS:
             try:
-                fault = inject_fault(workspace, scenario)
-            except CliUnavailable as error:
-                (workspace.root / FAULT_FILE).write_text(
-                    json.dumps({"aborted": str(error)}), encoding="utf-8"
+                seed_for_scenario(workspace, scenario)
+            except (CliUnavailable, OSError, subprocess.TimeoutExpired) as error:
+                reason = f"fixture: {error}"
+                (workspace.root / "fixture-failure.json").write_text(
+                    json.dumps({"scenario": scenario, "reason": reason}) + "\n", encoding="utf-8"
                 )
-                if measured is not None:
-                    clear_cell(measured, scenario, run, model=model, layer=layer)
                 print(
                     json.dumps(
-                        {
-                            "scenario": scenario,
-                            "run": run,
-                            "status": "not_run",
-                            "agy": -1,
-                            "reason": f"fixture: {error}",
-                        }
+                        {"scenario": scenario, "run": run, "status": "not_run", "reason": reason}
                     ),
                     flush=True,
                 )
                 return 1
+        if scenario in FAULT_SCENARIOS:
+            if docker_image is None:
+                try:
+                    fault = inject_fault(workspace, scenario)
+                except CliUnavailable as error:
+                    (workspace.root / FAULT_FILE).write_text(
+                        json.dumps({"aborted": str(error)}), encoding="utf-8"
+                    )
+                    if measured is not None:
+                        clear_cell(measured, scenario, run, model=model, layer=layer)
+                    print(
+                        json.dumps(
+                            {
+                                "scenario": scenario,
+                                "run": run,
+                                "status": "not_run",
+                                "agy": -1,
+                                "reason": f"fixture: {error}",
+                            }
+                        ),
+                        flush=True,
+                    )
+                    return 1
+                else:
+                    (workspace.root / FAULT_FILE).write_text(json.dumps(fault), encoding="utf-8")
             else:
-                (workspace.root / FAULT_FILE).write_text(json.dumps(fault), encoding="utf-8")
-        else:
-            # Container cells cannot drive host process groups; the fixture is
-            # honestly unmeasured rather than replayed from a stub.
-            (workspace.root / FAULT_FILE).write_text(
-                json.dumps({"aborted": "docker cells cannot drive host process groups"}),
-                encoding="utf-8",
+                # Container cells cannot drive host process groups; the fixture is
+                # honestly unmeasured rather than replayed from a stub.
+                (workspace.root / FAULT_FILE).write_text(
+                    json.dumps({"aborted": "docker cells cannot drive host process groups"}),
+                    encoding="utf-8",
+                )
+        prompt = (
+            unassisted_prompt_for(scenario, workspace)
+            if unassisted
+            else prompt_for(scenario, workspace)
+        )
+        (root / "execution-identity.json").write_text(
+            json.dumps(identity, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+        )
+        (root / "prompt.txt").write_text(prompt, encoding="utf-8")
+        driver = agy if agy.is_file() else Path(shutil.which(str(agy)) or str(agy))
+        (root / "driver-identity.json").write_text(
+            json.dumps(
+                {
+                    "model": model,
+                    "digest": content_digest(driver.read_bytes()) if driver.is_file() else None,
+                }
             )
-    prompt = (
-        unassisted_prompt_for(scenario, workspace)
-        if unassisted
-        else prompt_for(scenario, workspace)
-    )
-    code = run_agy(
-        workspace, agy=agy, model=model, timeout=timeout, prompt=prompt, scenario=scenario
-    )
-    stdout = (workspace.root / "agy.stdout").read_text(encoding="utf-8")
-    stderr = (workspace.root / "agy.stderr").read_text(encoding="utf-8")
-    if capture is not None:
-        capture.dump(workspace.root / CAPTURE_FILE)
-        capture.close()
-    if incomplete_capacity_hit(workspace, stdout, stderr, scenario):
-        if measured is not None:
-            clear_cell(measured, scenario, run, model=model, layer=layer)
-        print(
+            + "\n",
+            encoding="utf-8",
+        )
+        code = run_agy(
+            workspace, agy=agy, model=model, timeout=timeout, prompt=prompt, scenario=scenario
+        )
+        stdout = (workspace.root / "agy.stdout").read_text(encoding="utf-8")
+        stderr = (workspace.root / "agy.stderr").read_text(encoding="utf-8")
+        if capture is not None:
+            capture.dump(workspace.root / CAPTURE_FILE)
+        if incomplete_capacity_hit(workspace, stdout, stderr, scenario):
+            if measured is not None:
+                clear_cell(measured, scenario, run, model=model, layer=layer)
+            print(
+                json.dumps(
+                    {
+                        "scenario": scenario,
+                        "run": run,
+                        "status": "not_run",
+                        "agy": code,
+                        "reason": "unavailable",
+                    }
+                ),
+                flush=True,
+            )
+            return 1
+        if code != 0 and not drove_cli(workspace):
+            status: CellStatus = "fail"
+        else:
+            status = score(scenario, workspace)
+        if run_was_background_killed(stderr) and status == "fail":
+            if measured is not None:
+                clear_cell(measured, scenario, run, model=model, layer=layer)
+            print(
+                json.dumps(
+                    {
+                        "scenario": scenario,
+                        "run": run,
+                        "status": "not_run",
+                        "agy": code,
+                        "reason": "backgrounded",
+                    }
+                ),
+                flush=True,
+            )
+            return 1
+        if execution_identity(repo_root(), docker_image=docker_image) != identity:
+            raise ValueError(
+                "qualification executable inputs changed during the attempt; "
+                "retain evidence and rerun"
+            )
+        (root / "verdict.json").write_text(
             json.dumps(
                 {
                     "scenario": scenario,
                     "run": run,
-                    "status": "not_run",
+                    "layer": layer,
+                    "status": status,
                     "agy": code,
-                    "reason": "unavailable",
+                    "prompt_digest": content_digest(prompt.encode("utf-8")),
                 }
-            ),
-            flush=True,
+            )
+            + "\n",
+            encoding="utf-8",
         )
-        return 1
-    if code != 0 and not drove_cli(workspace):
-        status: CellStatus = "fail"
-    else:
-        status = score(scenario, workspace)
-    if run_was_background_killed(stderr) and status == "fail":
         if measured is not None:
-            clear_cell(measured, scenario, run, model=model, layer=layer)
+            write_cell(measured, scenario, run, status, model=model, layer=layer, identity=identity)
         print(
-            json.dumps(
-                {
-                    "scenario": scenario,
-                    "run": run,
-                    "status": "not_run",
-                    "agy": code,
-                    "reason": "backgrounded",
-                }
-            ),
+            json.dumps({"scenario": scenario, "run": run, "status": status, "agy": code}),
             flush=True,
         )
-        return 1
-    if measured is not None:
-        write_cell(measured, scenario, run, status, model=model, layer=layer)
-    print(json.dumps({"scenario": scenario, "run": run, "status": status, "agy": code}), flush=True)
-    return 0 if status == "pass" else 1
+        return 0 if status == "pass" else 1
+    finally:
+        if capture is not None:
+            try:
+                if root.is_dir():
+                    capture.dump(root / CAPTURE_FILE)
+            finally:
+                capture.close()
 
 
 def fill_unrun(
@@ -3028,7 +3129,7 @@ def fill_unrun(
     unassisted: bool = False,
 ) -> int:
     """One cell at a time. 503 stays unrun; the next attempt may take a different cell."""
-    _model_overlay(measured, model)
+    _model_overlay(measured, model, execution_identity(repo_root(), docker_image=docker_image))
     layer = "unassisted" if unassisted else "agent"
     passed = 0
     skipped: set[tuple[str, int]] = set()
@@ -3040,9 +3141,8 @@ def fill_unrun(
             break
         last = chosen
         scenario, run = chosen
-        cell_root = parent / f"{scenario}-{run}-{attempt}"
-        if cell_root.exists():
-            shutil.rmtree(cell_root)
+        parent.mkdir(parents=True, exist_ok=True)
+        cell_root = Path(tempfile.mkdtemp(prefix=f"{scenario}-{run}-{attempt}-", dir=parent))
         code = qualify_one(
             root=cell_root,
             scenario=scenario,
@@ -3075,6 +3175,14 @@ def fill_unrun(
 
 
 def main(arguments: list[str] | None = None) -> int:
+    try:
+        return _main(arguments)
+    except (ValueError, OSError, CliUnavailable) as error:
+        print(str(error), file=sys.stderr)
+        return 2
+
+
+def _main(arguments: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", type=Path)
     parser.add_argument("--scenario", default=NO_REINIT)
@@ -3156,7 +3264,11 @@ def main(arguments: list[str] | None = None) -> int:
     if options.measured is not None:
         try:
             if scoring:
-                _model_overlay(options.measured, options.model)
+                _model_overlay(
+                    options.measured,
+                    options.model,
+                    execution_identity(repo_root(), docker_image=docker_image),
+                )
             else:
                 _overlay_body(options.measured)
         except (OSError, ValueError) as error:
