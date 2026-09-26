@@ -115,6 +115,126 @@ async def test_product_mode_is_independent_from_auth_and_fails_closed(
     assert local_with_org.status_code == 401
 
 
+async def test_organization_list_returns_only_selectable_memberships(
+    db_api_client: tuple[AsyncClient, async_sessionmaker[AsyncSession], Any],
+) -> None:
+    """The corporate switcher's data source (#328): `GET /v1/organizations`.
+
+    The list must name exactly the organizations the account may select —
+    every active membership, no foreign or suspended rows — in the
+    deterministic display order the UI renders, and it must not be cached.
+    """
+    client, sessionmaker, _settings = db_api_client
+    async with sessionmaker() as db:
+        account = Account(id=new_id("account"))
+        personal = Organization(
+            id=new_id("organization"),
+            kind="personal",
+            owner_account_id=account.id,
+            display_name="Personal",
+        )
+        corporate_b = Organization(
+            id=new_id("organization"),
+            kind="corporate",
+            owner_account_id=None,
+            display_name="Beta",
+        )
+        corporate_a = Organization(
+            id=new_id("organization"),
+            kind="corporate",
+            owner_account_id=None,
+            display_name="Alpha",
+        )
+        foreign = Organization(
+            id=new_id("organization"),
+            kind="corporate",
+            owner_account_id=None,
+            display_name="Foreign",
+        )
+        suspended_org = Organization(
+            id=new_id("organization"),
+            kind="corporate",
+            owner_account_id=None,
+            display_name="Suspended",
+            state="suspended",
+        )
+        suspended_membership_org = Organization(
+            id=new_id("organization"),
+            kind="corporate",
+            owner_account_id=None,
+            display_name="Retired Membership",
+        )
+        db.add_all(
+            [
+                account,
+                personal,
+                corporate_a,
+                corporate_b,
+                foreign,
+                suspended_org,
+                suspended_membership_org,
+                OrganizationMembership(
+                    organization_id=personal.id,
+                    account_id=account.id,
+                    role="owner",
+                    state="active",
+                ),
+                OrganizationMembership(
+                    organization_id=corporate_b.id,
+                    account_id=account.id,
+                    role="member",
+                    state="active",
+                ),
+                OrganizationMembership(
+                    organization_id=corporate_a.id,
+                    account_id=account.id,
+                    role="owner",
+                    state="active",
+                ),
+                OrganizationMembership(
+                    organization_id=suspended_org.id,
+                    account_id=account.id,
+                    role="owner",
+                    state="active",
+                ),
+                OrganizationMembership(
+                    organization_id=suspended_membership_org.id,
+                    account_id=account.id,
+                    role="member",
+                    state="suspended",
+                ),
+            ]
+        )
+        issued = await issue_session(db, account_id=account.id, device_id=None, ttl_seconds=3600)
+        await db.commit()
+
+    authenticated = {"Authorization": f"Bearer {issued.raw_token}"}
+
+    anonymous = await client.get("/v1/organizations")
+    assert anonymous.status_code == 401
+
+    response = await client.get("/v1/organizations", headers=authenticated)
+    assert response.status_code == 200
+    assert "no-store" in response.headers.get("cache-control", "")
+    items = response.json()["items"]
+    returned_ids = [item["organization_id"] for item in items]
+    assert set(returned_ids) == {personal.id, corporate_a.id, corporate_b.id}
+    assert foreign.id not in returned_ids
+    assert suspended_org.id not in returned_ids
+    assert suspended_membership_org.id not in returned_ids
+    # Deterministic display order: kind, then display name, then id.
+    assert returned_ids == sorted(
+        returned_ids,
+        key=lambda oid: (
+            next(i["kind"] for i in items if i["organization_id"] == oid),
+            next(i["display_name"] for i in items if i["organization_id"] == oid),
+            oid,
+        ),
+    )
+    assert [item["kind"] for item in items].count("corporate") == 2
+    assert all(item["membership_revision"] >= 1 for item in items)
+
+
 async def test_authenticated_account_gets_one_personal_organization_by_default(
     db_api_client: tuple[AsyncClient, async_sessionmaker[AsyncSession], Any],
 ) -> None:
