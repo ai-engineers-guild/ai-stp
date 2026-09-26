@@ -633,10 +633,19 @@ def _input_document(parameters: Mapping[str, object]) -> dict[str, JsonValue]:
         try:
             body = path.read_text(encoding="utf-8")
         except (OSError, UnicodeError, ValueError) as error:
+            message = (
+                "the task input file could not be read; --input expects a JSON/YAML file path "
+                "or '-' for stdin"
+            )
+            if locator.lstrip()[:1] in ("{", "[") or "\n" in locator:
+                message += (
+                    "; the value looks like an inline document: pipe it through stdin, "
+                    "e.g. printf '%s' '{\"field\":\"value\"}' | "
+                    "ai-stp task start --intent install --idempotency-key KEY --input -"
+                )
             raise CliFailure(
                 "AI_STP_VALIDATION_ERROR",
-                "the task input file could not be read; --input expects a JSON/YAML file path "
-                "or '-' for stdin",
+                message,
                 details={"field": "input", "reason": type(error).__name__},
                 continuations=[
                     Continuation(

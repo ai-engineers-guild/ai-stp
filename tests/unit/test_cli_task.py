@@ -762,6 +762,7 @@ def test_task_intents_lists_shipped_intents_only() -> None:
 def test_unreadable_task_input_explains_file_or_stdin_without_echoing_values(
     case: str, tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
+    inline_hint = "; the value looks like an inline document"
     locator = str(tmp_path / "missing.json")
     if case == "inline-json":
         locator = '{"private_value":"do-not-echo-this-input"}'
@@ -787,6 +788,11 @@ def test_unreadable_task_input_explains_file_or_stdin_without_echoing_values(
     assert code == 2
     assert body["error"]["code"] == "AI_STP_VALIDATION_ERROR"
     assert "JSON/YAML file path or '-' for stdin" in body["error"]["message"]
+    if case == "inline-json":
+        assert inline_hint in body["error"]["message"]
+        assert "--input -" in body["error"]["message"]
+    else:
+        assert inline_hint not in body["error"]["message"]
     assert body["error"]["details"]["field"] == "input"
     assert "do-not-echo-this-input" not in output
     assert body["continuations"][0]["argv"] == ["help", "--path", "task start", "--json"]
