@@ -1,6 +1,6 @@
 ---
 description: "Current ai_stp status and the ordered plan for remaining work."
-last_verified: "2026-09-24"
+last_verified: "2026-09-26"
 ---
 
 # Current status and plan
@@ -15,9 +15,74 @@ scopes, and native MCP/agent/hook/plugin transforms landed in `#145` / `#147` /
 The `#146`/`#155` platform closeout is implemented in this tree; GitHub issue
 state remains a separate maintainer action. Merged PRs are not the OBT release.
 
+## Session audit and execution plan — 2026-09-26
+
+This checkpoint supersedes the execution order dated September 24. The clean
+starting integration revision was `527a4806b62260a28ac418e85746e6274a8278c3`;
+release `main` was `a524816611b9e06ea0139989847e8210d90e2593`.
+Work branch: `fix/session-audit-2026-09-26`.
+
+### Coverage and reconciliation
+
+The read-only local inventory contains 21 records: three Devin, two earlier
+Codex, three Claude Code, four Cursor and nine Grok. Together they contain
+7,833 extracted messages before deduplication. Empty/local-command records are
+included in the inventory, not counted as completed engineering conversations.
+Cloud-only, deleted or unsynchronized sessions remain outside the available
+record. The sanitized inventory digest is
+`sha256:69712ad0c6d63d4f937228fb99bc4b968e6af85fd2ac6814cf46cc334aea0f7a`.
+Raw sessions and credentials remain outside this repository.
+
+Historical requests were traced to their present source and regressions, then
+concrete defects were reproduced before repair. This is a review of the
+implementation by domain and call chain, supported by the complete automated
+gates; it is not a claim that every source line received a separate manual
+review. The code-backed canon remains the owner of the domain inventory.
+
+| Session lead | Current implementation and second check | Decision |
+| --- | --- | --- |
+| Cursor task kernel, stdin and control attachment | `application/task.py`, `application/initialize.py`, `app.py`, task-driver regressions; eight intents already ship | Keep implementation; do not rebuild #297 |
+| Claude sync digests and durable receipts | Project sync/revision services and `test_cli_project_sync_apply.py`, `test_cli_project_revision.py` | Repairs implemented; retain live multi-device evidence separately |
+| Grok stale specifications and fake API journeys | `implementation-canon.md`, `tests/api/cli`, real PostgreSQL fixtures, generated-contract checks | Preserve current code-backed classification; do not revive mass archive proposals |
+| Codex native Antigravity, private publication and provider instruction preservation | September 24 native evidence, publication services, exact synced local versions, public provider 0.0.76 release receipts | Historical assisted native proof is valid for its recorded bytes; full fresh-session/platform matrix is still separate |
+| Devin task pending/original-request/executor lease issues #450–#452 | Publication pending state, immutable task facts, executor identity and cancellation regressions are present after #455–#474 | Do not reimplement already merged repairs |
+| Devin publication/fault acceptance #448–#449 | `agy_qualify.py` and tests implement independent publication and real-fault oracles, but readback kind and recorder lifetime were wrong | Repair verified defects below |
+| Devin unassisted 14 pass / 10 fail / 76 unrun | Four change failures used a colliding catalog member because host prerequisites were absent; install/initialize failures also include model choreography and quota limits | Retain old attempts; rerun corrected fixtures at new identities, never relabel old failures |
+| PyPI 0.0.30 awaiting approval | Exact-tag candidate 36192734213, source `16c9895b0d8262b5df1188e0b87002d20848b446`, install and attestation verification | Published through existing reviewer authority; no environment/access change |
+
+### Ordered execution and acceptance
+
+| Order | Work | Acceptance and current disposition |
+| --- | --- | --- |
+| 1 | Reconcile session leads against current code twice | Inventory and source/test mapping above; historical architecture proposals and colleague corporate work are not new requirements |
+| 2 | Repair publication evidence | Setup/component routes match the published identity; unavailable anonymous reads cannot prove denial; the recorder remains open through scoring and closes on all exits |
+| 3 | Repair scenario prerequisites | Host and Docker seed change/switch/reload; fixtures must complete before model use; additive authoring avoids baseline path conflicts; fixture and model calls have separate logs |
+| 4 | Preserve attempts | Reject nonempty direct workspaces; fill uses unique directories; validate scenario and run before effects; retain unavailable and failed attempts |
+| 5 | Bind execution inputs | Hash actual first-party payload and copied Skill, record installation/archive metadata and website prompt; refuse mixed/unknown candidate overlays; retain prompt and driver identity per attempt; recheck input bytes before score |
+| 6 | Recheck reported UX failures | Only reproducible product failures justify runtime changes. Unsupported model commands and invalid fixtures remain explicit findings |
+| 7 | Finish delivery | PyPI 0.0.30 published in run 36229099123; public wheel/sdist match the candidate; unpinned isolated install resolves 0.0.30. Later fixes require a new immutable patch |
+| 8 | Repeat private publication | New synthetic author/publish through the existing test account; require worker completion, fresh owner version/artifact reads and anonymous denial; no grant or visibility changes |
+| 9 | Repeat GPT OSS 120B acceptance | New unassisted attempt returned individual quota exhaustion with a 4h42m reset; it remains `not_run`. Do not fill the corpus while this condition persists |
+| 10 | Update canonical documents | SPEC-080 follows tested oracles, prerequisites and identity binding; this roadmap owns the current order; Agent UX preserves historical scores |
+| 11 | Verify complete gates | Focused 104 tests passed; full backend/PostgreSQL, static, documentation, web and remaining gate recipes must be observed before integration |
+| 12 | Integrate and promote | Work PR to dev, exact-head green gate, same-repository dev-to-main promotion, release/deployment readback and permanent-branch synchronization; normal revert is the code rollback |
+
+Public 0.0.30 wheel digest:
+`sha256:3c9f3199d9e86c4798b7784deb71f2eaf03a67f135cb1affd46fe7c0265d436e`.
+Sdist digest:
+`sha256:69e6ec661efe2f0d3933e7bb9d904b92c04f94be99661f712bd69b34123715bf`.
+The unknown-input waiting publication run was cancelled before the script
+created the named-input successful run. Published versions and tags are retained.
+
+A content identity is not a full release/native acceptance claim. Provider
+artifact versions, Docker image identity, harness version and fresh-session
+consumption still require their separate recorded receipts; the model overlay
+alone cannot certify them. Native Windows/macOS, the full current 20×5 model
+threshold, setup-systems #316 and the full beta/estate criteria remain open.
+
 ## Session audit and execution plan — 2026-09-24
 
-This checkpoint supersedes the dated execution orders below. Baseline:
+Historical checkpoint; the September 26 execution order above is current. Baseline:
 `dev` commit `b9555283fec772996b09d6243ec84a7d5b5eedbb`, tree
 `3f0594cf580727b644fc4ae4dd1b62a8d8cc5e66`; `main` and the live API report
 `0bc51644a2de42ea2e8b7b5770d8f747770f5c52`. The working tree was clean.

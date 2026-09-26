@@ -1,6 +1,6 @@
 ---
 description: "Target implementation plan for the agent-first CLI: GPT OSS 120B qualification, shared task engine, and the website-to-native journeys in epic #261."
-last_verified: "2026-09-25"
+last_verified: "2026-09-26"
 ---
 
 # Agent UX implementation plan
@@ -18,11 +18,11 @@ prompt, GPT OSS 120B through `agy` operates ai-stp. The agent picks an intent,
 relays answers, and reports verification. The CLI owns acquisition,
 composition, backup, plan, approve, apply, verify, retries, and recovery.
 
-## Checkpoint (2026-09-25)
+## Checkpoint (2026-09-26)
 
 Eight drained intents are on GitHub `main` (PR
 [#297](https://github.com/ai-engineers-guild/ai-stp/pull/297) merged
-2026-09-19). Source and the released `ai-stp-cli` line are `0.0.29`. Epic #261–#275 stay
+2026-09-19). Source and the released `ai-stp-cli` line are `0.0.30`. Epic #261–#275 stay
 OPEN. Do not touch colleague issues (#254, #256) or
 `feat/milestone-6-b2b-03`.
 
@@ -30,11 +30,19 @@ OPEN. Do not touch colleague issues (#254, #256) or
 | --- | --- |
 | Line | GitHub `main` / `dev`. Work branch `feat/agent-task-lifecycle` is gone |
 | PR | [#297](https://github.com/ai-engineers-guild/ai-stp/pull/297) merged into `dev`, then promoted |
-| Released CLI | `0.0.29` on PyPI (`apps/cli/pyproject.toml` matches); tag `v0.0.29` points to `eeb682e4` |
+| Released CLI | `0.0.30` on PyPI (`apps/cli/pyproject.toml` matches); tag `v0.0.30` points to `16c9895b` |
 | Provider kit | `0.2.13` in `tests/golden/provider-kit/identity-ledger.json` |
 | Issues | #261–#275 OPEN. setup-systems #316 OPEN. Never close #256. Draft #254: do not touch |
 | Agent 20×5 | GPT OSS 120B through `agy` is the sole current model target; no current-candidate trial is counted yet. Historical Haiku 99/100 is archived evidence only |
 | Branch-policy SC2015 | closed in [#304](https://github.com/ai-engineers-guild/ai-stp/pull/304) |
+
+The September 25 guided source 100/100 and installed-wheel 98/100 results
+remain historical measurements of their recorded inputs. The separate
+unassisted matrix is 14 pass / 10 fail / 76 unrun, including invalid host
+change fixtures. They do not qualify the September 26 repair. New overlays bind
+CLI/Skill bytes and refuse old unidentified candidates; fresh GPT OSS 120B
+attempts currently encounter individual quota exhaustion. See the
+[canonical execution plan](implementation-roadmap.md#session-audit-and-execution-plan--2026-09-26).
 
 ### Live CLI
 
@@ -116,7 +124,7 @@ External practice used (not copied as a second normative system):
 | Work branch | `feat/agent-task-lifecycle` @ `6f19972f` (gone; kernel is on `main` via #297) |
 | `origin/dev` then | `de37d6f3` after #277 (typed continuations exist; **no** PyPI cut at that date) |
 | Open PRs then | [#279](https://github.com/ai-engineers-guild/ai-stp/pull/279) envelope truth; [#280](https://github.com/ai-engineers-guild/ai-stp/pull/280) inspect engine (contains #279) |
-| Released CLI then | `0.0.22`. Current PyPI is `0.0.29` |
+| Released CLI then | `0.0.22`. Current PyPI is `0.0.30` |
 | Issues | #261–#275 OPEN. setup-systems #316 OPEN. #256 OPEN (never close from this epic). Draft #254 colleague / B2B: do not touch |
 
 Kernel that already exists and must be **evolved**, not replaced:
