@@ -37,7 +37,10 @@ Native surface for this harness: Skill and agent in Gemini's shared home, with a
    `envelope.continuations[0].actor` — JSON-поле, а не личность пользователя.
    Когда поле `cli`, исполните `argv` своими tools. Когда `human`, этот
    `argv` как напечатан не исполняйте (value нарочно отсутствует). Сразу
-   ответьте из разговора через `ai-stp task answer`. Ждать человека — не
+   ответьте из разговора через
+   `ai-stp task answer --task <id> --revision <n> --value <ответ>`;
+   `--input` передаёт структурированные объекты, а не ответ агента — ответ,
+   который задача не получила, оставляет её blocked. Ждать человека — не
    работа. Когда `external`, покажите payload один раз и остановитесь.
    Этот `argv` не исполняйте. `provider-too-old` — не login: не стартуйте
    `account` и не крутите `task continue`. Device-code покажите один раз;
