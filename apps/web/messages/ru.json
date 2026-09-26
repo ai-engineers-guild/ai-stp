@@ -89,6 +89,7 @@
     "categories": "Категории технологий",
     "installations": "Установки",
     "usage": "Использование",
+    "usageTruncated": "Показаны первые {shown} из {total} назначений",
     "overviewBody": "Организация и её технологический ландшафт.",
     "organizationBody": "Сотрудники, проекты, команды и связи между ними.",
     "browseProjects": "Проекты вашей организации.",
@@ -1239,7 +1240,7 @@
   },
   "cli": {
     "useTitle": "Использовать через CLI",
-    "useBody": "Запустите intent install. CLI спросит harness и сетап.",
+    "useBody": "Запустите intent install для этого объекта. CLI спросит harness.",
     "inspectTitle": "Посмотреть эту версию через CLI",
     "inspectBody": "Команда использует стабильный идентификатор и версию объекта.",
     "copy": "Копировать",

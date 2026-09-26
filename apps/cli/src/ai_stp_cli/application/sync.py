@@ -249,6 +249,39 @@ def _confirmed(parameters: Mapping[str, object], action: str) -> None:
         )
 
 
+def _push_order(
+    connection: sqlite3.Connection, head: revisions.StoredRevision
+) -> list[revisions.StoredRevision]:
+    """Every reachable ancestor, parents before children, the head last.
+
+    Recursive descent reaches Python's recursion ceiling around a thousand
+    ancestors and `sync push` dies on the stack rather than on a check — the
+    explicit stack carries the same post-order at any depth.
+    """
+    ordered: list[revisions.StoredRevision] = []
+    visited: set[str] = set()
+    stack: list[tuple[revisions.StoredRevision, bool]] = [(head, False)]
+    while stack:
+        item, expanded = stack.pop()
+        if item.revision_id in visited:
+            continue
+        if not expanded:
+            stack.append((item, True))
+            for parent_id in reversed(item.parents):
+                if parent_id not in visited:
+                    parent = revisions.get(connection, parent_id)
+                    if parent is None:
+                        raise CliFailure(
+                            "AI_STP_VALIDATION_ERROR",
+                            "the local revision graph has a missing parent",
+                        )
+                    stack.append((parent, False))
+            continue
+        visited.add(item.revision_id)
+        ordered.append(item)
+    return ordered
+
+
 def push(parameters: Mapping[str, object]) -> Answer[SyncPushView]:
     """Push one exact local head, replaying its durable event after uncertainty."""
     _enabled()
@@ -268,24 +301,7 @@ def push(parameters: Mapping[str, object]) -> Answer[SyncPushView]:
             return _push_consent(connection, held, stable_id)
         if stored is None:
             raise CliFailure("AI_STP_NOT_FOUND", "that identifier has no local revision head")
-        ordered: list[revisions.StoredRevision] = []
-        visited: set[str] = set()
-
-        def visit(item: revisions.StoredRevision) -> None:
-            if item.revision_id in visited:
-                return
-            for parent_id in item.parents:
-                parent = revisions.get(connection, parent_id)
-                if parent is None:
-                    raise CliFailure(
-                        "AI_STP_VALIDATION_ERROR",
-                        "the local revision graph has a missing parent",
-                    )
-                visit(parent)
-            visited.add(item.revision_id)
-            ordered.append(item)
-
-        visit(stored)
+        ordered = _push_order(connection, stored)
         processed = 0
         pending: sync_state.Pending | None = None
         receipt: SyncEventReceipt | None = None

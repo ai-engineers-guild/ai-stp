@@ -141,6 +141,23 @@ not redesign administration or Technology Landscape. Dashboard is an empty route
   scope id, and source roles from `permissions/matrix`. Subject detail pages
   render edit, presentation, and delete affordances from the subject's own
   `available_actions` instead of organization-wide capabilities.
+- `REQ-8317`: An account holding more than one corporate membership selects its
+  active organization through a switcher in the Corporate Hub chrome. The
+  selection is a session-scoped preference cookie written by a server action
+  only after validating the value against live memberships; a value naming a
+  revoked, forged, or non-corporate organization clears the stored preference
+  instead of selecting an arbitrary substitute. Per-request resolution returns
+  the validated preference, or the first membership when none is stored or the
+  stored value is stale, through the single organization-resolution path shared
+  by directory, catalog assignment, installation, usage, overview, and
+  mutation-context readers — direct links and refreshes therefore resolve one
+  organization context per request. Mutations remain bound to the organization
+  identifier and authorization revision they were rendered for: every write
+  names its `organization_id` explicitly, so a switch in another tab never
+  retargets an in-flight write, and the preference is never an authorization
+  grant. Signing out clears the preference; membership revocation is discovered
+  at the next resolution because the cookie is revalidated against live
+  memberships on every request.
 
 The extension is accepted only after route/build-profile assertions, PostgreSQL
 tenant/RBAC/media tests, generated-contract checks, and desktop/mobile browser

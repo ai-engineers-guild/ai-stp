@@ -1,5 +1,8 @@
+import { cookies } from "next/headers";
+
 import { apiRequest } from "@/lib/api/http";
 import { ApiError } from "@/lib/api/errors";
+import { CORPORATE_ORG_COOKIE } from "@/lib/auth/cookies";
 
 import type {
   CorporateAuditList,
@@ -404,13 +407,48 @@ export async function readTechnologyEmployees(
   );
 }
 
-export async function readCorporateOrganization(
+/** Corporate organizations the account currently belongs to. */
+export async function readCorporateOrganizations(
   sessionToken: string,
-): Promise<OrganizationSummary | null> {
+): Promise<OrganizationSummary[]> {
   const organizations = await apiRequest<OrganizationListResponse>("/v1/organizations", {
     sessionToken,
   });
-  return organizations.items.find((item) => item.kind === "corporate") ?? null;
+  return organizations.items.filter((item) => item.kind === "corporate");
+}
+
+/**
+ * Resolves the request's organization context: the stored selection when it is
+ * a current membership, otherwise the first membership. A stored value that is
+ * not a current membership is ignored — it is a preference, never an
+ * authorization grant (mutations bind the organization id they were rendered
+ * for).
+ */
+export function resolveCorporateOrganization(
+  organizations: readonly OrganizationSummary[],
+  preferred: string | null | undefined,
+): OrganizationSummary | null {
+  if (preferred) {
+    const selected = organizations.find((item) => item.organization_id === preferred);
+    if (selected) return selected;
+  }
+  return organizations[0] ?? null;
+}
+
+/** Session preference cookie; absent outside request scope (tests, tools). */
+async function preferredCorporateOrganization(): Promise<string | null> {
+  try {
+    return (await cookies()).get(CORPORATE_ORG_COOKIE)?.value ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export async function readCorporateOrganization(
+  sessionToken: string,
+): Promise<OrganizationSummary | null> {
+  const organizations = await readCorporateOrganizations(sessionToken);
+  return resolveCorporateOrganization(organizations, await preferredCorporateOrganization());
 }
 
 export async function readCorporateCatalogAssignments(

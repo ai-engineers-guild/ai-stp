@@ -134,6 +134,36 @@ def test_measured_overlay_does_not_fill_unrun_cells(tmp_path: Path) -> None:
     assert promotion["cli_released"] == "not_run"
 
 
+def test_unassisted_overlay_cells_report_in_their_own_layer(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    place = tmp_path / "measured.json"
+    place.write_text(
+        json.dumps(
+            {
+                "agent": {"no-reinit-on-coding:0": "fail"},
+                "unassisted": {
+                    "no-reinit-on-coding:0": "pass",
+                    "bogus:0": "pass",
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    document = load_measured(place)
+    unassisted = agent_cells(measured=agent_from_document(document, layer="unassisted"))
+    assert unassisted[("no-reinit-on-coding", 0)] == "pass"
+    assert unassisted[("no-reinit-on-coding", 1)] == "not_run"
+    assert ("bogus", 0) not in unassisted
+    monkeypatch.setenv(MEASURED_ENV, str(place))
+    shown = report()
+    parsed = json.loads(json.dumps(shown))
+    assert parsed["unassisted"]["no-reinit-on-coding:0"] == "pass"
+    assert parsed["unassisted"]["no-reinit-on-coding:1"] == "not_run"
+    assert parsed["agent"]["no-reinit-on-coding:0"] == "fail"
+    assert len(parsed["unassisted"]) == 100
+
+
 def test_report_is_json_safe_and_keeps_unrun_cells() -> None:
     shown = report()
     dumped = json.dumps(shown)

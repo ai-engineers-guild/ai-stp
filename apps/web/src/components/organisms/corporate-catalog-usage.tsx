@@ -14,14 +14,19 @@ const SUBJECT_RESOURCES = {
 
 export function CorporateCatalogUsage({
   items,
+  total,
   labels,
 }: {
   items: CorporateCatalogUsageItem[];
+  /** Authorized usage rows the server counted, including rows this page did not fetch. */
+  total: number;
   labels: {
     subjectSections: Record<CorporateCatalogUsageItem["subject_kind"], string>;
     relation: CorporateRelationSectionLabels;
+    truncated: string;
   };
 }) {
+  const truncated = items.length < total;
   return (
     <>
       {(Object.keys(SUBJECT_RESOURCES) as (keyof typeof SUBJECT_RESOURCES)[]).map((kind) => {
@@ -44,6 +49,13 @@ export function CorporateCatalogUsage({
           />
         );
       })}
+      {truncated ? (
+        <p className="text-muted-foreground text-sm">
+          {labels.truncated
+            .replace("{shown}", String(items.length))
+            .replace("{total}", String(total))}
+        </p>
+      ) : null}
     </>
   );
 }

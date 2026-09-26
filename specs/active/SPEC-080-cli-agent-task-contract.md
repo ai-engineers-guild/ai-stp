@@ -342,6 +342,16 @@ a CLI language rewrite, and a PyPI CLI cut are excluded.
   invalidation preserve the attribution of retained cells. Same-model replay
   replaces the same cell without adding another entry; out-of-matrix run
   indexes are refused.
+  A second `unassisted` overlay key holds the customer-experience corpus:
+  the same twenty scenario names and run indexes, driven by `--unassisted`,
+  whose prompts state only the user's goal and user-level facts — harness
+  name, exact identifiers, workspace files — with no argv, actor mechanics,
+  or answer recipes. The website's own initialize copy is website text, not
+  coaching, and stays verbatim. Cells land in their own layer, never mix
+  into guided `agent` results, and are not a substitute for either
+  direction: guided cells measure protocol development, unassisted cells
+  measure product UX. The one-model rule, invalidation, capacity handling,
+  and durable-row oracles apply to both layers alike.
   Isolated `ai_stp_cli.agy_qualify` may run agent cells through `agy` with
   `gpt-oss-120b-medium` in a throwaway HOME; live results enter only through
   that overlay. Only this model is the current acceptance target; other model

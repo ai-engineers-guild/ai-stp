@@ -116,25 +116,48 @@ export async function readCorporateCatalogOwnership(
   }
 }
 
+const CATALOG_USAGE_PAGE_LIMIT = 256;
+const CATALOG_USAGE_MAX_PAGES = 4;
+
+export type CorporateCatalogUsagePage = {
+  items: CorporateCatalogUsageList["items"];
+  total: number;
+  /** False when the bounded read stopped before every authorized row arrived. */
+  complete: boolean;
+};
+
 export async function readCorporateCatalogUsage(
   sessionToken: string,
   organizationId: string,
   objectKind: CorporateCatalogObjectKind,
   stableId: ComponentId | SetupId,
-): Promise<CorporateCatalogUsageList | null> {
+): Promise<CorporateCatalogUsagePage | null> {
   const validStableId =
     objectKind === "component" ? tryAsComponentId(stableId) : tryAsSetupId(stableId);
   if (!validStableId) throw new Error("invalid catalog usage target");
+  const items: CorporateCatalogUsageList["items"] = [];
+  let total = 0;
   try {
-    return await privateApiRequest<CorporateCatalogUsageList>(
-      `/v1/corporate/organizations/${organizationId}/catalog-usage`,
-      {
-        sessionToken,
-        query: { object_kind: objectKind, stable_id: stableId, limit: 100 },
-      },
-    );
+    for (let page = 0; page < CATALOG_USAGE_MAX_PAGES; page++) {
+      const slice = await privateApiRequest<CorporateCatalogUsageList>(
+        `/v1/corporate/organizations/${organizationId}/catalog-usage`,
+        {
+          sessionToken,
+          query: {
+            object_kind: objectKind,
+            stable_id: stableId,
+            offset: items.length,
+            limit: CATALOG_USAGE_PAGE_LIMIT,
+          },
+        },
+      );
+      total = slice.total;
+      items.push(...slice.items);
+      if (!slice.items.length || items.length >= slice.total) break;
+    }
   } catch (error) {
     if (error instanceof ApiError && [401, 403, 404].includes(error.status)) return null;
     throw error;
   }
+  return { items, total, complete: items.length >= total };
 }

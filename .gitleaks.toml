@@ -16,11 +16,7 @@ regexes = [
 ]
 
 [[allowlists]]
-condition = "AND"
-description = "SPEC-080 acceptance-table example token matched generic-api-key at one historical commit; documentation, not a credential"
-commits = [
-  "4f744a3f57c992e87da9622fa179fab391f34133",
-]
-paths = [
-  '''^specs/active/SPEC-080-cli-agent-task-contract\.md$''',
+description = "The REQ-8020 spec-table phrase 'partial/compensated' trips generic-api-key (entropy 3.68 on two English words). Verified false positive on commits 4f744a3f and fca6a854. The suppression is the finding's exact secret text, not a file or commit skip — a real credential, including one added to the same spec file, still scans."
+regexes = [
+  '''^partial/compensated$''',
 ]

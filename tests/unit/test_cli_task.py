@@ -518,6 +518,9 @@ def test_the_lease_dies_with_the_executor_process() -> None:
     from ai_stp_cli.local import executor_lease
 
     task_id = new_id("task")
+    lock_path = executor_lease._path(task_id)  # pyright: ignore[reportPrivateUsage]
+    marker = lock_path.with_suffix(".lock.held")
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
     holder = subprocess.Popen(
         [
             sys.executable,
@@ -530,15 +533,21 @@ def test_the_lease_dies_with_the_executor_process() -> None:
                 "open(path + '.held', 'w').close()\n"
                 "time.sleep(60)\n"
             ),
-            str(executor_lease._path(task_id)),  # pyright: ignore[reportPrivateUsage]
+            str(lock_path),
         ]
     )
     try:
-        deadline = time.monotonic() + 10
-        while not executor_lease.held(task_id):
+        # The child writes the marker only after flock succeeds: wait for the
+        # marker, then confirm the lease reads held. Polling `held()` alone
+        # proved flaky on a loaded macOS runner where interpreter startup
+        # alone can consume a short deadline.
+        deadline = time.monotonic() + 30
+        while not marker.exists():
             assert time.monotonic() < deadline, "the holder never took the lease"
             time.sleep(0.05)
+        assert executor_lease.held(task_id)
     finally:
+        marker.unlink(missing_ok=True)
         holder.send_signal(signal.SIGKILL)
         holder.wait(timeout=10)
     deadline = time.monotonic() + 10

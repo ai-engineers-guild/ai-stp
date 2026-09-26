@@ -27,7 +27,7 @@ test.describe("component detail actions and media (SPEC-035)", () => {
     await expect(page.getByRole("heading", { name: "Use via CLI" })).toBeVisible();
     await expect(
       page.getByText(
-        "ai-stp task start --intent install --idempotency-key install-session-01 --json",
+        "ai-stp task start --intent install --idempotency-key install-component_01JQZK7B8N4M6P2R9T5V0X3YBE-1.0 --json",
       ),
     ).toHaveCount(1);
     await expect(
