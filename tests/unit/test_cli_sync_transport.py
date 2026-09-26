@@ -1680,3 +1680,111 @@ def test_consent_allow_names_the_push_continuation_when_sync_is_on(
     config.set_values({"sync.enabled": "false"})
     silent = component_command.consent_allow({"scope": "task", "target": "full-auto"})
     assert silent.continuations == ()
+
+
+def test_a_pending_event_bound_to_a_retired_device_is_retired_and_recreated(
+    tmp_path: Path,
+) -> None:
+    """A pending request signed by a device identity this install no longer
+    holds can never deliver — the server requires the event's device to be the
+    session's. Replaying it wedged every later push; now the stale row is
+    marked `failed` and the intent mints a fresh event for the live device."""
+    connection = open_registry(tmp_path / "registry.sqlite")
+    stable_id = new_id("developer")
+    try:
+        root = revisions.commit(connection, _content(stable_id), device_id=DEVICE_A)
+        stale = sync_state.prepare(
+            connection, account_id=ACCOUNT, device_id=DEVICE_A, stored=root
+        )
+
+        fresh = sync_state.prepare(
+            connection, account_id=ACCOUNT, device_id=DEVICE_B, stored=root
+        )
+        assert fresh.state == "pending"
+        assert fresh.request.event_id != stale.request.event_id
+        assert fresh.request.device_id == DEVICE_B
+        assert fresh.request.revision_id != stale.request.revision_id
+
+        retired = connection.execute(
+            "SELECT state FROM sync_event WHERE account_id = ? AND event_id = ?",
+            (ACCOUNT, stale.request.event_id),
+        ).fetchone()
+        assert retired is not None and retired[0] == "failed"
+
+        # And the fresh event delivers normally.
+        sync_state.record_receipt(
+            connection,
+            account_id=ACCOUNT,
+            receipt=_accepted(fresh.request.event_id, fresh.request.revision_id, "cursor-1"),
+        )
+        mapping = sync_state.mapping_for_local(
+            connection, account_id=ACCOUNT, local_revision_id=root.revision_id
+        )
+        assert mapping is not None and mapping.state == "accepted"
+    finally:
+        connection.close()
+
+
+def test_unreachable_server_head_scopes_the_lookup_to_the_receipts_account(
+    tmp_path: Path,
+) -> None:
+    """The receipt's own account is the only history that can answer for it.
+
+    Another signed-in account may hold the named revision in its own stream;
+    an unscoped lookup then reported a head this account never received as
+    reachable, and a real divergence went back to `up_to_date`.
+    """
+    connection = open_registry(tmp_path / "registry.sqlite")
+    stable_id = new_id("developer")
+    other_account = "account_01JQZK7B8N4M6P2R9T5V0X3Y00"
+    foreign_revision = "revision_" + "f" * 64
+    try:
+        # Account A's latest refusal names a head the server holds.
+        receipt = SyncEventReceipt(
+            event_id="event_refused",
+            state="conflict",
+            revision_id=None,
+            server_head_revision_id=foreign_revision,
+            cursor=None,
+            conflict=None,
+            conflicting_entity_id=None,
+            error_code=None,
+        )
+        connection.execute(
+            "INSERT INTO sync_event (account_id, event_id, sync_key, "
+            "local_revision_id, remote_revision_id, entity_id, direction, "
+            "request_json, state, receipt_json, created_at) "
+            "VALUES (?, ?, ?, NULL, ?, ?, 'push', '{}', 'conflict', ?, ?)",
+            (
+                ACCOUNT,
+                "event_refused",
+                "key_refused",
+                "revision_" + "a" * 64,
+                stable_id,
+                receipt.model_dump_json(),
+                AT,
+            ),
+        )
+        # Account B's stream knows exactly that revision — but it is B's.
+        connection.execute(
+            "INSERT INTO sync_event (account_id, event_id, sync_key, "
+            "local_revision_id, remote_revision_id, entity_id, direction, "
+            "request_json, state, receipt_json, created_at) "
+            "VALUES (?, ?, ?, NULL, ?, ?, 'pull', '{}', 'accepted', NULL, ?)",
+            (
+                other_account,
+                "event_other",
+                foreign_revision,
+                foreign_revision,
+                stable_id,
+                AT,
+            ),
+        )
+        connection.commit()
+
+        assert (
+            sync_state.unreachable_server_head(connection, stable_id)
+            == foreign_revision
+        )
+    finally:
+        connection.close()

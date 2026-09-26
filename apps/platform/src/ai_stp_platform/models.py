@@ -124,6 +124,7 @@ class Device(Base):
     )
     public_key: Mapped[str] = mapped_column(Text)
     device_type: Mapped[str] = mapped_column(String(32), default="cli")
+    display_name: Mapped[str | None] = mapped_column(String(160), nullable=True)
     approximate_location: Mapped[str | None] = mapped_column(String(160), nullable=True)
     user_agent: Mapped[str | None] = mapped_column(String(512), nullable=True)
     state: Mapped[str] = mapped_column(String(32), default="active")
@@ -140,6 +141,9 @@ class AccountSession(Base):
     """Durable server session bound to one account and optionally one device."""
 
     __tablename__ = "account_session"
+    __table_args__ = (
+        CheckConstraint("kind in ('access', 'refresh')", name="ck_account_session_kind"),
+    )
 
     id: Mapped[str] = mapped_column(String(128), primary_key=True)
     account_id: Mapped[str] = mapped_column(
@@ -150,6 +154,7 @@ class AccountSession(Base):
     )
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    kind: Mapped[str] = mapped_column(String(16), default="access")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     account: Mapped[Account] = relationship()
@@ -162,6 +167,7 @@ class DeviceAuthorization(Base):
     __tablename__ = "device_authorization"
     __table_args__ = (
         UniqueConstraint("user_code", name="uq_device_authorization_user_code"),
+        UniqueConstraint("idempotency_key", name="uq_device_authorization_idempotency_key"),
         CheckConstraint(
             "status in ('pending', 'approved', 'declined', 'consumed')",
             name="ck_device_authorization_status",
@@ -178,6 +184,7 @@ class DeviceAuthorization(Base):
     interval_seconds: Mapped[int] = mapped_column(Integer, default=5)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     last_poll_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    idempotency_key: Mapped[str | None] = mapped_column(String(128), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 

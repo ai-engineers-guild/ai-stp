@@ -169,12 +169,24 @@ async def _undelivered_ancestors(
         .scalars()
         .all()
     )
+    # Post-order DFS: a revision is emitted only after every undelivered parent
+    # of it, which is the only order a fresh device can apply. Reversing a
+    # pre-order walk is not equivalent once two branches share an ancestor —
+    # the shared node then lands ahead of the branch that still needs it.
     ordered: list[SyncRevision] = []
+    held_rows: dict[str, SyncRevision] = {}
     seen: set[str] = set()
-    frontier = [parent for parent in parents if parent not in delivered]
-    while frontier and len(ordered) < MAX_UNDELIVERED_ANCESTORS:
-        revision_id = frontier.pop()
-        if revision_id in seen:
+    stack: list[tuple[str, bool]] = [
+        (parent, False) for parent in parents if parent not in delivered
+    ]
+    while stack and len(ordered) < MAX_UNDELIVERED_ANCESTORS:
+        revision_id, expanded = stack.pop()
+        if expanded:
+            held = held_rows.get(revision_id)
+            if held is not None:
+                ordered.append(held)
+            continue
+        if revision_id in seen or revision_id in delivered:
             continue
         seen.add(revision_id)
         held = (
@@ -189,13 +201,13 @@ async def _undelivered_ancestors(
             # Not this account's revision at all. Validation owns that refusal;
             # silently inventing a delivery for it would be worse.
             continue
-        ordered.append(held)
-        frontier.extend(
-            str(parent)
+        held_rows[revision_id] = held
+        stack.append((revision_id, True))
+        stack.extend(
+            (str(parent), False)
             for parent in (held.parent_revision_ids or [])
             if str(parent) not in delivered and str(parent) not in seen
         )
-    ordered.reverse()
     return ordered
 
 
@@ -272,20 +284,24 @@ async def _singleton_identity(db: AsyncSession, *, account_id: str, kind: str) -
     """
     if kind not in SINGLETON_ENTITY_KINDS:
         return None
+    # The live identity is whatever the entity's head points at. Scanning every
+    # stored revision counts conflict-retained rows too — revisions that were
+    # refused and never delivered — and a phantom entity then blocks a real
+    # identity push forever.
     result = await db.execute(
-        select(SyncRevision.entity_id, SyncRevision.operation)
-        .where(
-            SyncRevision.account_id == account_id,
-            SyncRevision.entity_kind == kind,
+        select(SyncEntityHead.entity_id, SyncRevision.operation)
+        .join(
+            SyncRevision,
+            (SyncRevision.account_id == SyncEntityHead.account_id)
+            & (SyncRevision.revision_id == SyncEntityHead.revision_id),
         )
-        .order_by(SyncRevision.entity_id)
+        .where(
+            SyncEntityHead.account_id == account_id,
+            SyncRevision.entity_kind == kind,
+            SyncRevision.operation != "tombstone",
+        )
     )
-    live: set[str] = set()
-    for entity_id, operation in result.all():
-        if operation == "tombstone":
-            live.discard(str(entity_id))
-        else:
-            live.add(str(entity_id))
+    live = {str(entity_id) for entity_id, _operation in result.all()}
     return sorted(live)[0] if live else None
 
 
@@ -470,7 +486,8 @@ async def _apply_one(
         return stored
 
     # A conflict candidate is retained for a later explicit client merge, so all
-    # of its ancestors must already be known before it can enter the ledger.
+    # of its ancestors must already be known before it can enter the ledger —
+    # and they must be ancestors of this entity, not of a different one.
     for parent in parents:
         parent_row = await db.get(
             SyncRevision, {"account_id": ctx.account_id, "revision_id": parent}
@@ -503,6 +520,42 @@ async def _apply_one(
                     "state": "rejected",
                     "entity_id": event.entity_id,
                     "reason": "unknown_parent",
+                },
+            )
+            await db.commit()
+            return stored
+        if (
+            parent_row.entity_id != event.entity_id
+            or parent_row.entity_kind != event.entity_kind
+        ):
+            receipt = SyncEventReceipt(
+                event_id=event.event_id,
+                state="rejected",
+                revision_id=None,
+                server_head_revision_id=current_head,
+                cursor=None,
+                conflict=None,
+                conflicting_entity_id=None,
+                error_code="AI_STP_VALIDATION_ERROR",
+            )
+            stored = await _store_receipt(
+                db,
+                account_id=ctx.account_id,
+                event=event,
+                fingerprint=fingerprint,
+                receipt=receipt,
+            )
+            await emit_audit(
+                db,
+                actor_account_id=ctx.account_id,
+                action="sync.event_rejected",
+                target_table="sync_event_receipt",
+                target_id=event.event_id,
+                payload={
+                    "state": "rejected",
+                    "entity_id": event.entity_id,
+                    "reason": "cross_entity_parent",
+                    "parent_revision_id": parent,
                 },
             )
             await db.commit()

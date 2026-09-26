@@ -20,7 +20,11 @@ from ai_stp_contracts.sync import (
     SyncStreamEvent,
 )
 from ai_stp_contracts.sync_payload import SyncPayloadRejection, check_sync_payload
-from ai_stp_contracts.sync_versions import VersionBindingError, validate_payload
+from ai_stp_contracts.sync_versions import (
+    MAX_VERSIONS,
+    VersionBindingError,
+    validate_payload,
+)
 from ai_stp_foundation.canonical import JsonValue, canonize
 from ai_stp_foundation.digests import digest_canonical
 from ai_stp_foundation.revisions import revision_id
@@ -215,13 +219,26 @@ def _prepare(
     payload: dict[str, object] | None,
 ) -> Pending:
     outstanding = connection.execute(
-        "SELECT request_json, state FROM sync_event WHERE account_id = ? "
+        "SELECT event_id, request_json, state FROM sync_event WHERE account_id = ? "
         "AND local_revision_id = ? AND direction = 'push' AND state = 'pending' "
         "ORDER BY rowid LIMIT 1",
         (account_id, stored.revision_id),
     ).fetchone()
     if outstanding is not None:
-        return Pending(SyncEvent.model_validate_json(str(outstanding[0])), str(outstanding[1]))
+        request = SyncEvent.model_validate_json(str(outstanding[1]))
+        if request.device_id == device_id:
+            return Pending(request, str(outstanding[2]))
+        # The request was minted by a device identity this installation no
+        # longer holds — a reset, a re-register, a restored backup. The server
+        # refuses any event whose device is not the session's, so the row can
+        # never earn a receipt: replaying it would wedge this revision on every
+        # push. Keep it for audit, marked, and let the intent mint a fresh
+        # event bound to the device that exists.
+        connection.execute(
+            "UPDATE sync_event SET state = 'failed' "
+            "WHERE account_id = ? AND event_id = ?",
+            (account_id, str(outstanding[0])),
+        )
     payload = payload_for(connection, stored) if payload is None else payload
     _validate_payload(payload)
     accepted = connection.execute(
@@ -327,12 +344,23 @@ def prepare_tombstone(
         raise CliFailure("AI_STP_NOT_FOUND", "that identifier has no local tombstone")
     sync_key = f"tombstone:{stable_id}:{mark.created_at}"
     known = connection.execute(
-        "SELECT request_json, state FROM sync_event "
+        "SELECT event_id, request_json, state FROM sync_event "
         "WHERE account_id = ? AND sync_key = ? AND direction = 'push'",
         (account_id, sync_key),
     ).fetchone()
     if known is not None:
-        return Pending(SyncEvent.model_validate_json(str(known[0])), str(known[1]))
+        request = SyncEvent.model_validate_json(str(known[1]))
+        if request.device_id == device_id or str(known[2]) != "pending":
+            return Pending(request, str(known[2]))
+        # Same retired-device rule as `_prepare`: a pending tombstone another
+        # device identity signed can never deliver — the key does not bind the
+        # device, so the check has to.
+        with transaction(connection):
+            connection.execute(
+                "UPDATE sync_event SET state = 'failed' "
+                "WHERE account_id = ? AND event_id = ?",
+                (account_id, str(known[0])),
+            )
     local_head = revisions.head(connection, stable_id)
     if local_head is None:
         raise CliFailure("AI_STP_NOT_FOUND", "the tombstoned entity has no local revision")
@@ -530,22 +558,25 @@ def unreachable_server_head(connection: sqlite3.Connection, stable_id: str) -> s
     device already stored.
     """
     row = connection.execute(
-        "SELECT receipt_json FROM sync_event "
+        "SELECT account_id, receipt_json FROM sync_event "
         "WHERE entity_id = ? AND receipt_json IS NOT NULL "
         "ORDER BY created_at DESC, rowid DESC LIMIT 1",
         (stable_id,),
     ).fetchone()
-    if row is None or row[0] is None:
+    if row is None or row[1] is None:
         return None
-    held = SyncEventReceipt.model_validate_json(row[0]).server_head_revision_id
+    source_account = str(row[0])
+    held = SyncEventReceipt.model_validate_json(row[1]).server_head_revision_id
     if held is None:
         return None
     # Remote and local revision ids are not the same value: an applied event is
     # resealed against local parents, and `sync_event` is what maps one to the
     # other. Asking the revision table directly would call every received head
-    # unreachable.
+    # unreachable — and asking it without the receipt's own account would let
+    # another signed-in account's history answer for this one.
     known = connection.execute(
-        "SELECT 1 FROM sync_event WHERE remote_revision_id = ?", (held,)
+        "SELECT 1 FROM sync_event WHERE account_id = ? AND remote_revision_id = ?",
+        (source_account, held),
     ).fetchone()
     return None if known is not None else held
 
@@ -693,7 +724,7 @@ def _apply_event(
                 "AI_STP_VALIDATION_ERROR", "pulled released versions must be a bounded list"
             )
         raw_versions = cast(list[object], raw_versions_value)
-        if len(raw_versions) > 128:
+        if len(raw_versions) > MAX_VERSIONS:
             raise CliFailure(
                 "AI_STP_VALIDATION_ERROR", "pulled released versions must be a bounded list"
             )

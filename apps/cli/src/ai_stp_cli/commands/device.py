@@ -7,6 +7,7 @@ them together would make "no account yet" and "no device identity" look the
 same, and their next actions differ.
 """
 
+import contextlib
 from collections.abc import Mapping
 
 from ai_stp_cli import identity
@@ -69,6 +70,18 @@ def reset(parameters: Mapping[str, object]) -> Answer[DeviceIdentity]:
             next_actions=["device reset --confirm --json"],
         )
     store, _store_warning = open_store()
+    held = session.load(store)
+    if held is not None:
+        # The server pair outlives the local forget by days; retiring the
+        # identity without ending it leaves a valid bearer nobody can use.
+        # Best-effort: an unreachable platform must not hold the reset hostage.
+        from ai_stp_cli.application.auth import endpoint
+        from ai_stp_cli.cloud import login
+
+        with contextlib.suppress(Exception):
+            # Clearing proceeds regardless: an unreachable platform must not
+            # hold the local reset hostage.
+            login.revoke_session(endpoint(), held.access_token)
     session.clear(store)
     session.clear_pending(store)
     fresh, warning = identity.reset()

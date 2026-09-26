@@ -525,6 +525,12 @@ _WAY_BACK_REASON: Final[Mapping[tuple[str, str], tuple[str, ...]]] = {
         "device reset --confirm --json",
         *_LOGIN_ACTIONS,
     ),
+    # The account exists but has not completed legal onboarding; only the web
+    # console can finish it, so the next step is named, not a command.
+    ("AI_STP_PERMISSION_DENIED", "onboarding_pending"): (
+        "complete legal onboarding in the web console",
+        "auth status --json",
+    ),
 }
 
 
