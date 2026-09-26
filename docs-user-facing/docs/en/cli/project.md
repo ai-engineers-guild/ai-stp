@@ -165,6 +165,23 @@ plan is the ledger `revision_id` from the push receipt. The passport's
 own `revision_id` is a different digest domain; planning with it is
 refused as a revision the organization has not seen.
 
+## Technology detection
+
+`ai-stp project detect --root <root> --json` records local technology findings
+without executing project code or installing dependencies. Read them with
+`project technologies`; review through `project technology confirm`, `reject`
+or `override`. Reviews survive rescans. Canonical identities come from a
+versioned mapping; unknown coordinates remain explicitly unmapped.
+
+Check `state` and `stopped_by` before treating missing findings as absence.
+An unreadable, changed, oversized or malformed supported manifest makes the
+scan partial. Repair the manifest or narrow the root and scan again. A partial
+scan retains prior review decisions and marks unseen current findings stale.
+
+Publication requires an explicit project link and a fetched organization mapping
+snapshot. `project technology publish` sends bounded evidence, never manifest
+contents. Use machine help for the required publication preconditions.
+
 ## Organization ledger
 
 A local passport stays on the device until you publish an allowlisted

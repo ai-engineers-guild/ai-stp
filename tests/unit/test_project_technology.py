@@ -149,6 +149,10 @@ def test_detection_is_deterministic(project: Path) -> None:
 def test_detect_machine_output_pins_the_same_index_revision(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, project: Path
 ) -> None:
+    def no_symbol_scan(*args: object, **kwargs: object) -> None:
+        raise AssertionError("technology detection must not parse source symbols")
+
+    monkeypatch.setattr("ai_stp_cli.local.symbols.survey", no_symbol_scan)
     _patch_target(monkeypatch, tmp_path / "registry.sqlite")
     first = project_commands.detect({"root": str(project)}).payload
     second = project_commands.detect({"root": str(project)}).payload
@@ -685,6 +689,7 @@ def test_publish_sends_the_handoff_the_contract_shaped(
     registry_path = tmp_path / "registry.sqlite"
     with closing(open_registry(registry_path, create=True)) as connection:
         project_id = _linked_project(connection, project)
+        connection.execute("UPDATE tech_scan SET detector_version = '1'")
         source_revision = tech_findings.scans(connection, project_id=project_id)[0].source_revision
         tech_findings.cache_mapping(
             connection,
@@ -753,6 +758,7 @@ def test_publish_sends_the_handoff_the_contract_shaped(
     assert handoff["project_id"] == REMOTE_PROJECT
     assert handoff["local_project_id"] == project_id
     assert handoff["mapping_version"] == "v3"
+    assert handoff["detector_version"] == "1"
     observations = cast(list[object], handoff["observations"])
     observed_ids = {cast(dict[str, object], item)["technology_id"] for item in observations}
     # Only what the snapshot covers travels: django now resolves, unmapped

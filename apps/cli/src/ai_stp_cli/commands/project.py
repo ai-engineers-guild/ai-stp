@@ -1417,6 +1417,7 @@ def detect(parameters: Mapping[str, object]) -> Answer[CliTechnologyScan]:
             remote_project_id=link.remote_project_id if link is not None else None,
             at=at,
             source_revision=record.source_revision,
+            detector_version=record.detector_version,
         )
         return CliTechnologyScan(
             scan_id=record.scan_id,
@@ -1646,6 +1647,7 @@ def technology_publish(parameters: Mapping[str, object]) -> Answer[TechnologySca
             remote_project_id=link.remote_project_id,
             at=chosen.created_at,
             source_revision=chosen.source_revision,
+            detector_version=chosen.detector_version,
         )
     expected = _optional(parameters, "expected-revision")
     try:

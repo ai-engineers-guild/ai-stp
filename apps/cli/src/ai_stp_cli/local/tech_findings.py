@@ -643,6 +643,7 @@ def build_handoff(
     remote_project_id: str | None = None,
     at: str,
     source_revision: str | None = None,
+    detector_version: str = tech_detect.DETECTOR_VERSION,
 ) -> HandoffResult:
     """Project stored findings into one `TechnologyScanHandoff`.
 
@@ -682,7 +683,7 @@ def build_handoff(
                     observed_at=at,
                     source_revision=source_revision,
                     confidence=trace.confidence,
-                    detector_version=tech_detect.DETECTOR_VERSION,
+                    detector_version=detector_version,
                     mapping_version=mapping.version,
                 )
                 if candidate not in bucket:
@@ -732,7 +733,7 @@ def build_handoff(
             scan_id=scan_id,
             scope=scope,
             complete=complete,
-            detector_version=tech_detect.DETECTOR_VERSION,
+            detector_version=detector_version,
             mapping_version=mapping.version,
             observations=items,
         ),

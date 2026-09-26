@@ -1,6 +1,6 @@
 ---
 description: "SPEC-081: Governed technology metadata, usage facts, detection handoff, and authorized landscape projections."
-last_verified: "2026-09-23"
+last_verified: "2026-09-26"
 ---
 
 # SPEC-081: Technology registry and landscape
@@ -259,6 +259,19 @@ canonical-pair and original/current technology read permissions. Historical
 reads remain available for retained archived/deleted project identities.
 
 ### Local detection, review and publication
+
+Detector version `2` recognizes Python dependency groups and inline setup.cfg
+requirements, Cargo workspace/target dependencies and renamed packages, scoped
+pnpm coordinates across lockfile generations, Go require blocks and checksum
+versions, and Dockerfile/Compose variants. Cargo editions are not compiler
+versions; Go exclude/replace directives are not dependency declarations; Docker
+build stages are not external images. Multiple checksum versions remain separate
+claims. Dependency URLs and local paths are not version strings.
+
+An unverified, changed, oversized, undecodable or malformed supported manifest
+makes detection incomplete while retaining findings from other inputs. Detection
+also checks its time budget between files. These scans cannot mark prior findings
+absent. Publication retains the stored scan's detector version after a CLI upgrade.
 
 `project detect` builds the one bounded `SPEC-004` index and runs the detector
 over it. Detections persist per project and scan scope with their claims —
