@@ -60,7 +60,7 @@ review. The code-backed canon remains the owner of the domain inventory.
 | 4 | Preserve attempts | Reject nonempty direct workspaces; fill uses unique directories; validate scenario and run before effects; retain unavailable and failed attempts |
 | 5 | Bind execution inputs | Hash actual first-party payload and copied Skill, record installation/archive metadata and website prompt; refuse mixed/unknown candidate overlays; retain prompt and driver identity per attempt; recheck input bytes before score |
 | 6 | Recheck reported UX failures | Only reproducible product failures justify runtime changes. Unsupported model commands and invalid fixtures remain explicit findings |
-| 7 | Finish delivery | PyPI 0.0.30 published in run 36229099123; public wheel/sdist match the candidate; unpinned isolated install resolves 0.0.30. Later fixes require a new immutable patch |
+| 7 | Finish delivery | PyPI 0.0.30 published in run 36229099123; public wheel/sdist match the candidate; unpinned isolated install resolves 0.0.30. The qualifier repairs prepare maintenance 0.0.31 without an autonomous-model acceptance claim |
 | 8 | Repeat private publication | Verified a new synthetic private setup through author/publish, worker completion, fresh owner version/artifact reads and anonymous not-found; no grants or existing visibility changes |
 | 9 | Repeat GPT OSS 120B acceptance | New unassisted attempt returned individual quota exhaustion with a 4h42m reset; it remains `not_run`. Do not fill the corpus while this condition persists |
 | 10 | Update canonical documents | SPEC-080 follows tested oracles, prerequisites and identity binding; this roadmap owns the current order; Agent UX preserves historical scores |

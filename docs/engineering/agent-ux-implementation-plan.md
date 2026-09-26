@@ -22,7 +22,8 @@ composition, backup, plan, approve, apply, verify, retries, and recovery.
 
 Eight drained intents are on GitHub `main` (PR
 [#297](https://github.com/ai-engineers-guild/ai-stp/pull/297) merged
-2026-09-19). Source and the released `ai-stp-cli` line are `0.0.30`. Epic #261–#275 stay
+2026-09-19). Source is preparing maintenance `ai-stp-cli` `0.0.31`; the released line is
+`0.0.30`. Epic #261–#275 stay
 OPEN. Do not touch colleague issues (#254, #256) or
 `feat/milestone-6-b2b-03`.
 
@@ -30,7 +31,7 @@ OPEN. Do not touch colleague issues (#254, #256) or
 | --- | --- |
 | Line | GitHub `main` / `dev`. Work branch `feat/agent-task-lifecycle` is gone |
 | PR | [#297](https://github.com/ai-engineers-guild/ai-stp/pull/297) merged into `dev`, then promoted |
-| Released CLI | `0.0.30` on PyPI (`apps/cli/pyproject.toml` matches); tag `v0.0.30` points to `16c9895b` |
+| Released CLI | `0.0.30` on PyPI; source prepares maintenance `0.0.31`; tag `v0.0.30` points to `16c9895b` |
 | Provider kit | `0.2.13` in `tests/golden/provider-kit/identity-ledger.json` |
 | Issues | #261–#275 OPEN. setup-systems #316 OPEN. Never close #256. Draft #254: do not touch |
 | Agent 20×5 | GPT OSS 120B through `agy` is the sole current model target; no current-candidate trial is counted yet. Historical Haiku 99/100 is archived evidence only |
@@ -91,7 +92,9 @@ rest of the corpus against a known exhausted quota.
 
 1. **Slice 9 GPT OSS 120B via `agy`**: run the current candidate anew; the required result is ≥95/100, no scenario <4/5, 5/5 on initialize / install / change / switch at its own identities.
 2. **Native win/mac** stay `not_run` here. Docker ENFORCED is the isolation path on this host.
-3. **Next CLI cut** after qualification of current bytes. `0.0.29` is on PyPI from tag `v0.0.29`; the native Antigravity user journey verified its official upgrade from `0.0.28`, public wheel bytes, and a fresh baseline consumer. That run used `gpt-oss-120b-medium` with corrective prompts, so it does not qualify autonomous GPT OSS 120B behavior on this candidate. The qualification record in #368 remains historical evidence.
+3. **Epic acceptance** requires qualification of current bytes. The maintenance
+   `0.0.31` cut repairs qualification infrastructure and does not close this
+   threshold or establish autonomous model acceptance. `0.0.29` is on PyPI from tag `v0.0.29`; the native Antigravity user journey verified its official upgrade from `0.0.28`, public wheel bytes, and a fresh baseline consumer. That run used `gpt-oss-120b-medium` with corrective prompts, so it does not qualify autonomous GPT OSS 120B behavior on this candidate. The qualification record in #368 remains historical evidence.
 4. **setup-systems #316** stays OPEN. The Antigravity user journey consumed its public provider `0.0.74` baseline in a fresh native session. Other provider and platform cells remain unverified by that run. Vendor kit `0.2.13` remains the recorded contract baseline. Do not close #316 from this plan.
 5. Issue comments with SHA; close only for measured scope. **Never close #256**. Do not touch #254.
 6. `component publish` stays `task_pending`. Do not compact `help --agent`. Do not shrink capabilities `command_paths` (REQ-8006).
