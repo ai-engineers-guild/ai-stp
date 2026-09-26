@@ -42,7 +42,7 @@ unassisted matrix is 14 pass / 10 fail / 76 unrun, including invalid host
 change fixtures. They do not qualify the September 26 repair. New overlays bind
 CLI/Skill bytes and refuse old unidentified candidates; fresh GPT OSS 120B
 attempts currently encounter individual quota exhaustion. See the
-[canonical execution plan](implementation-roadmap.md#session-audit-and-execution-plan--2026-09-26).
+[canonical execution plan](implementation-roadmap.md).
 
 ### Live CLI
 

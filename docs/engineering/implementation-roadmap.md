@@ -56,12 +56,12 @@ review. The code-backed canon remains the owner of the domain inventory.
 | --- | --- | --- |
 | 1 | Reconcile session leads against current code twice | Inventory and source/test mapping above; historical architecture proposals and colleague corporate work are not new requirements |
 | 2 | Repair publication evidence | Setup/component routes match the published identity; unavailable anonymous reads cannot prove denial; the recorder remains open through scoring and closes on all exits |
-| 3 | Repair scenario prerequisites | Host and Docker seed change/switch/reload; fixtures must complete before model use; additive authoring avoids baseline path conflicts; fixture and model calls have separate logs |
+| 3 | Repair scenario prerequisites | Host and Docker seed change/switch/reload; fixtures must complete before model use; additive authoring avoids baseline path conflicts; fixture and model calls have separate logs; Skill fixtures include the metadata required by the real scanner |
 | 4 | Preserve attempts | Reject nonempty direct workspaces; fill uses unique directories; validate scenario and run before effects; retain unavailable and failed attempts |
 | 5 | Bind execution inputs | Hash actual first-party payload and copied Skill, record installation/archive metadata and website prompt; refuse mixed/unknown candidate overlays; retain prompt and driver identity per attempt; recheck input bytes before score |
 | 6 | Recheck reported UX failures | Only reproducible product failures justify runtime changes. Unsupported model commands and invalid fixtures remain explicit findings |
 | 7 | Finish delivery | PyPI 0.0.30 published in run 36229099123; public wheel/sdist match the candidate; unpinned isolated install resolves 0.0.30. Later fixes require a new immutable patch |
-| 8 | Repeat private publication | New synthetic author/publish through the existing test account; require worker completion, fresh owner version/artifact reads and anonymous denial; no grant or visibility changes |
+| 8 | Repeat private publication | Verified a new synthetic private setup through author/publish, worker completion, fresh owner version/artifact reads and anonymous not-found; no grants or existing visibility changes |
 | 9 | Repeat GPT OSS 120B acceptance | New unassisted attempt returned individual quota exhaustion with a 4h42m reset; it remains `not_run`. Do not fill the corpus while this condition persists |
 | 10 | Update canonical documents | SPEC-080 follows tested oracles, prerequisites and identity binding; this roadmap owns the current order; Agent UX preserves historical scores |
 | 11 | Verify complete gates | Focused 104 tests passed; full backend/PostgreSQL, static, documentation, web and remaining gate recipes must be observed before integration |
@@ -73,6 +73,22 @@ Sdist digest:
 `sha256:69e6ec661efe2f0d3933e7bb9d904b92c04f94be99661f712bd69b34123715bf`.
 The unknown-input waiting publication run was cancelled before the script
 created the named-input successful run. Published versions and tags are retained.
+
+The first live Skill fixture lacked required metadata. The deployed scanner
+returned `Error loading skill: SKILL.md missing required field: name`, and the
+mandatory gate correctly refused publication. The valid replacement includes
+name, description and license; it passed the same real scanner. A new private
+setup `setup_01VS671RQWVM40R7TFJ2C0YRFC@1.0` then reached `published`,
+`goal_satisfied=true` and `readable=true`. A fresh observer downloaded the exact
+artifact and an anonymous request returned not-found. The rejected original is
+retained; no published bytes or security verdict were overwritten.
+
+Technical references were checked against the primary
+[PyPA direct URL specification](https://packaging.python.org/en/latest/specifications/direct-url-data-structure/),
+[GitHub deployment review documentation](https://docs.github.com/en/actions/how-tos/deploy/configure-and-manage-deployments/review-deployments),
+and [Cisco Skill Scanner](https://github.com/cisco-ai-defense/skill-scanner).
+The scanner behavior above was also reproduced on the deployed worker, using
+the original synthetic input and its valid replacement.
 
 A content identity is not a full release/native acceptance claim. Provider
 artifact versions, Docker image identity, harness version and fresh-session

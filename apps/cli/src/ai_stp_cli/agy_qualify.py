@@ -498,7 +498,11 @@ def prepare_scenario(workspace: Workspace, scenario: str) -> None:
         return
     tree = workspace.project / "demo-skill"
     tree.mkdir(parents=True, exist_ok=True)
-    (tree / "SKILL.md").write_text("# Demo\n\nA local skill.\n", encoding="utf-8")
+    (tree / "SKILL.md").write_text(
+        "---\nname: demo\ndescription: Demonstrate a local qualification skill.\n"
+        "license: MIT\n---\n\n# Demo\n\nA local skill.\n",
+        encoding="utf-8",
+    )
 
 
 def registry_path(home: Path) -> Path:

@@ -402,7 +402,9 @@ a CLI language rewrite, and a PyPI CLI cut are excluded.
   `session_loaded` false; a failed drain is `fail`; model output must not
   claim the session loaded. That scenario seed-installs on host and Docker
   like `switch-preserved-setup`. Change-add authors an independent local skill
-  instead of selecting a colliding catalog member. Required fixture intents
+  instead of selecting a colliding catalog member. The fixture Skill includes
+  valid name, description and license metadata for the real safety scanner.
+  Required fixture intents
   must finish successfully before the driver runs; missing prerequisites remain
   `not_run`. Fixture commands have a separate log from model commands.
   Overlay score for

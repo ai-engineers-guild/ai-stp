@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 
 import pytest
+import yaml
 
 from ai_stp_cli import agy_qualify as qualify
 
@@ -14,6 +15,11 @@ from ai_stp_cli import agy_qualify as qualify
 @pytest.mark.skipif(os.name == "nt", reason="the fixture wrapper uses a POSIX shell")
 def test_change_seed_authors_a_real_additive_component_without_model_calls(tmp_path: Path) -> None:
     workspace = qualify.prepare_workspace(tmp_path, scenario=qualify.CHANGE_ADD)
+    source = workspace.project / "demo-skill" / "SKILL.md"
+    metadata = yaml.safe_load(source.read_text().split("---", 2)[1])
+    assert metadata["name"] == "demo"
+    assert metadata["description"]
+    assert metadata["license"] == "MIT"
     qualify.seed_for_scenario(workspace, qualify.CHANGE_ADD)
     pin = qualify.change_component_ref(workspace)
     assert pin.startswith("component_")
