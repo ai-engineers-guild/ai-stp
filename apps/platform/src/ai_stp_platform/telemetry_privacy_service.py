@@ -18,6 +18,7 @@ import re
 from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime
 from typing import Any, cast
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from sqlalchemy import Select, func, select, update
 from sqlalchemy import delete as sql_delete
@@ -34,6 +35,8 @@ from ai_stp_platform.heartbeat_models import (
     InstallationHeartbeatEvent,
     InstallationHeartbeatPolicyEvent,
 )
+from ai_stp_platform.installation_inventory_models import InstallationInventorySnapshot
+from ai_stp_platform.installation_usage_models import InstallationOperationFact
 from ai_stp_platform.runtime_usage_models import RuntimeUsageEvent
 from ai_stp_platform.telemetry_policy_models import (
     TelemetryAudit,
@@ -353,6 +356,10 @@ async def write_policy(
     notice_text: str | None,
     notice_revision: int,
     heartbeat_enabled: bool | None = None,
+    inventory_scan_enabled: bool | None = None,
+    usage_collection_enabled: bool | None = None,
+    usage_registration_required: bool | None = None,
+    report_timezone: str | None = None,
     heartbeat_interval_seconds: int | None = None,
     heartbeat_retry_base_seconds: int | None = None,
     heartbeat_retry_max_seconds: int | None = None,
@@ -382,6 +389,25 @@ async def write_policy(
     )
     if retry_max < retry_base:
         raise TelemetryPolicyValidationError("heartbeat retry maximum must cover its retry base")
+    effective_usage_enabled = (
+        usage_collection_enabled
+        if usage_collection_enabled is not None
+        else (row.usage_collection_enabled if row is not None else False)
+    )
+    effective_usage_required = (
+        usage_registration_required
+        if usage_registration_required is not None
+        else (row.usage_registration_required if row is not None else False)
+    )
+    if effective_usage_required and not effective_usage_enabled:
+        raise TelemetryPolicyValidationError("required usage registration needs usage collection")
+    if report_timezone is not None:
+        try:
+            ZoneInfo(report_timezone)
+        except (ZoneInfoNotFoundError, ValueError) as error:
+            raise TelemetryPolicyValidationError(
+                "report timezone must be an IANA timezone"
+            ) from error
     if row is None:
         if expected_policy_revision != 0:
             raise TelemetryPolicyConflictError("telemetry policy does not exist")
@@ -393,6 +419,12 @@ async def write_policy(
             notice_text=notice_text,
             notice_revision=notice_revision,
             heartbeat_enabled=(True if heartbeat_enabled is None else heartbeat_enabled),
+            inventory_scan_enabled=(
+                False if inventory_scan_enabled is None else inventory_scan_enabled
+            ),
+            usage_collection_enabled=effective_usage_enabled,
+            usage_registration_required=effective_usage_required,
+            report_timezone=report_timezone or "UTC",
             heartbeat_interval_seconds=(
                 DEFAULT_HEARTBEAT_INTERVAL_SECONDS
                 if heartbeat_interval_seconds is None
@@ -438,6 +470,14 @@ async def write_policy(
     row.notice_revision = notice_revision
     if heartbeat_enabled is not None:
         row.heartbeat_enabled = heartbeat_enabled
+    if inventory_scan_enabled is not None:
+        row.inventory_scan_enabled = inventory_scan_enabled
+    if usage_collection_enabled is not None:
+        row.usage_collection_enabled = usage_collection_enabled
+    if usage_registration_required is not None:
+        row.usage_registration_required = usage_registration_required
+    if report_timezone is not None:
+        row.report_timezone = report_timezone
     if heartbeat_interval_seconds is not None:
         row.heartbeat_interval_seconds = heartbeat_interval_seconds
     if heartbeat_retry_base_seconds is not None:
@@ -511,7 +551,8 @@ async def _erase_stream_subject_rows(
 ) -> int:
     """Delete the subject's rows from stream-owned governed tables.
 
-    `runtime_usage_event` and `installation_heartbeat` carry subject
+    `runtime_usage_event`, `installation_operation_fact`, and
+    `installation_heartbeat` carry subject
     identifiers in NOT NULL columns by design, so erasure there is physical
     deletion rather than in-place anonymization. Heartbeat rows are current
     installation state; removing them on erasure also stops the installation
@@ -519,16 +560,28 @@ async def _erase_stream_subject_rows(
     """
     if subject_kind == "device":
         usage_predicate = RuntimeUsageEvent.device_id == subject_id
+        installation_predicate = InstallationOperationFact.device_id == subject_id
+        inventory_predicate = InstallationInventorySnapshot.device_id == subject_id
         heartbeat_predicate = InstallationHeartbeat.device_id == subject_id
         heartbeat_event_predicate = InstallationHeartbeatEvent.device_id == subject_id
     else:
         usage_predicate = RuntimeUsageEvent.employee_account_id == subject_id
+        installation_predicate = InstallationOperationFact.employee_account_id == subject_id
+        inventory_predicate = InstallationInventorySnapshot.employee_account_id == subject_id
         heartbeat_predicate = InstallationHeartbeat.account_id == subject_id
         heartbeat_event_predicate = InstallationHeartbeatEvent.account_id == subject_id
     removed = 0
     for statement in (
         sql_delete(RuntimeUsageEvent).where(
             RuntimeUsageEvent.organization_id == organization_id, usage_predicate
+        ),
+        sql_delete(InstallationOperationFact).where(
+            InstallationOperationFact.organization_id == organization_id,
+            installation_predicate,
+        ),
+        sql_delete(InstallationInventorySnapshot).where(
+            InstallationInventorySnapshot.organization_id == organization_id,
+            inventory_predicate,
         ),
         sql_delete(InstallationHeartbeat).where(
             InstallationHeartbeat.organization_id == organization_id, heartbeat_predicate

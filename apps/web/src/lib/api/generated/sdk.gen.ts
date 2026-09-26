@@ -188,6 +188,12 @@ import type {
   ImportTechnologySeedData,
   ImportTechnologySeedErrors,
   ImportTechnologySeedResponses,
+  IngestInstallationInventoryData,
+  IngestInstallationInventoryErrors,
+  IngestInstallationInventoryResponses,
+  IngestInstallationOperationsData,
+  IngestInstallationOperationsErrors,
+  IngestInstallationOperationsResponses,
   IngestRuntimeUsageEventsData,
   IngestRuntimeUsageEventsErrors,
   IngestRuntimeUsageEventsResponses,
@@ -3931,6 +3937,54 @@ export const listInstallationHeartbeats = <ThrowOnError extends boolean = false>
     security: [{ scheme: "bearer", type: "http" }],
     url: "/v1/corporate/organizations/{organization_id}/telemetry/heartbeats",
     ...options,
+  });
+
+/**
+ * Ingest bounded installation discovery snapshots.
+ */
+export const ingestInstallationInventory = <ThrowOnError extends boolean = false>(
+  options: Options<IngestInstallationInventoryData, ThrowOnError>,
+): RequestResult<
+  IngestInstallationInventoryResponses,
+  IngestInstallationInventoryErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).post<
+    IngestInstallationInventoryResponses,
+    IngestInstallationInventoryErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/telemetry/installation-inventory",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Ingest exact settled installation results.
+ */
+export const ingestInstallationOperations = <ThrowOnError extends boolean = false>(
+  options: Options<IngestInstallationOperationsData, ThrowOnError>,
+): RequestResult<
+  IngestInstallationOperationsResponses,
+  IngestInstallationOperationsErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).post<
+    IngestInstallationOperationsResponses,
+    IngestInstallationOperationsErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/telemetry/installation-operations",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
   });
 
 /**

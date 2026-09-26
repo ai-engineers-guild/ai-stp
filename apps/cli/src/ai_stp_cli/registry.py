@@ -3588,11 +3588,28 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         confirmation="plan_digest",
         parameters=(
             option("operation", "string", "The approved operation to apply.", required=True),
+            option("organization", "string", "Bind the result to this corporate organization."),
+            option(
+                "corporate-project", "string", "Corporate project receiving the installation fact."
+            ),
             option(
                 "provider",
                 "string",
                 "Provider executable. Omitted, the CLI uses a configured, remembered "
                 "or managed provider, or acquires the attested OpenNetwork release.",
+            ),
+        ),
+        next_actions=("help --path install --json",),
+    ),
+    Declaration(
+        path=["install", "sync-results"],
+        summary="Deliver settled corporate installation results from the local journal.",
+        result_schema="urn:ai-stp:schema:v1:installation-operation-receipt",
+        handler="install:sync_results",
+        mutability="apply",
+        parameters=(
+            option(
+                "organization", "string", "Corporate organization to synchronize.", required=True
             ),
         ),
         next_actions=("help --path install --json",),
@@ -3919,6 +3936,29 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         next_actions=("help --path heartbeat --json",),
     ),
     Declaration(
+        path=["usage", "hook"],
+        summary="Buffer a native MCP hook from stdin using the current verified installation.",
+        result_schema="urn:ai-stp:schema:v1:runtime-usage-record-result",
+        handler="usage:hook",
+        mutability="apply",
+        parameters=(
+            option(
+                "harness",
+                "string",
+                "Native harness emitting the hook.",
+                required=True,
+                choices=("codex", "grok-build"),
+            ),
+            option(
+                "scope",
+                "string",
+                "Installation scope; project by default.",
+                choices=("project", "global"),
+            ),
+        ),
+        next_actions=("help --path usage --json",),
+    ),
+    Declaration(
         path=["usage", "record"],
         summary="Buffer one accepted component invocation for later delivery.",
         result_schema="urn:ai-stp:schema:v1:runtime-usage-record-result",
@@ -3928,9 +3968,9 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             option("organization", "string", "Organization the event belongs to.", required=True),
             option("project", "string", "Project the invocation ran under.", required=True),
             option("harness", "string", "Harness that ran the invocation.", required=True),
-            option("setup", "string", "Setup stable identifier.", required=True),
-            option("setup-version", "string", "Setup version (X.Y).", required=True),
-            option("setup-digest", "string", "Setup passport digest.", required=True),
+            option("setup", "string", "Setup stable identifier, if unambiguous."),
+            option("setup-version", "string", "Setup version (X.Y), if unambiguous."),
+            option("setup-digest", "string", "Setup passport digest, if unambiguous."),
             option("kind", "string", "Component kind.", required=True),
             option("component", "string", "Component stable identifier.", required=True),
             option("component-version", "string", "Component version (X.Y).", required=True),
@@ -3944,6 +3984,12 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 choices=("succeeded", "failed", "cancelled"),
             ),
             option("event-id", "string", "Idempotency key; generated when omitted."),
+            option(
+                "activity-kind",
+                "string",
+                "Report a component invocation or a separate content load.",
+                choices=("invocation", "load"),
+            ),
         ),
         next_actions=("help --path usage --json",),
     ),
@@ -3993,6 +4039,18 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             option("setup", "string", "Filter by setup stable identifier."),
             option("component", "string", "Filter by component stable identifier."),
             option("kind", "string", "Filter by component kind."),
+            option(
+                "source",
+                "string",
+                "Filter by evidence source.",
+                choices=("native_hook", "agent_reported"),
+            ),
+            option(
+                "activity-kind",
+                "string",
+                "Filter by activity kind.",
+                choices=("invocation", "load"),
+            ),
             option(
                 "outcome",
                 "string",
@@ -4049,6 +4107,9 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         summary="Inspect the local usage-event buffer. Sends nothing.",
         result_schema="urn:ai-stp:schema:v1:runtime-usage-outbox-status",
         handler="usage:outbox",
+        parameters=(
+            option("organization", "string", "Organization the events belong to.", required=True),
+        ),
         next_actions=("help --path usage --json",),
     ),
     Declaration(

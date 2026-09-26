@@ -198,7 +198,7 @@ last_verified: "2026-08-03"
 | [ADR-0198-managed-installation-verification.md](ADR-0198-managed-installation-verification.md) | Read-only verification that a managed target still carries the organization-approved setup and components. | 2026-09-20 |
 | [ADR-0199-standalone-components-extend-a-prepared-setup-bundle.md](ADR-0199-standalone-components-extend-a-prepared-setup-bundle.md) | Standalone exact components extend one prepared setup bundle without changing the verified baseline. | 2026-09-20 |
 | [ADR-0200-local-technology-detection-coordinates-not-identities.md](ADR-0200-local-technology-detection-coordinates-not-identities.md) | The local detector emits coordinates; only a versioned mapping snapshot may resolve them to canonical technology identities. | 2026-09-23 |
-| [ADR-0201-runtime-usage-events.md](ADR-0201-runtime-usage-events.md) | Corporate runtime component-usage events: closed coordinates on the authenticated channel, a bounded local outbox, and scoped aggregate reporting. | 2026-09-22 |
+| [ADR-0201-runtime-usage-events.md](ADR-0201-runtime-usage-events.md) | Corporate runtime component-usage events: closed coordinates on the authenticated channel, a bounded local outbox, and scoped aggregate reporting. | 2026-09-25 |
 | [ADR-0202-runtime-usage-visibility.md](ADR-0202-runtime-usage-visibility.md) | Runtime usage visibility: identity bound to the caller, team-scoped narrowing, separately permissioned drill-down, digested export receipts, and the retention seam delegated to SPEC-089. | 2026-09-22 |
 | [ADR-0203-telemetry-privacy.md](ADR-0203-telemetry-privacy.md) | Corporate telemetry is allowed only behind a closed field boundary, tenant isolation, retention, subject rights, and a dedicated governance audit trail. | 2026-09-22 |
 | [ADR-0204-authenticated-installation-heartbeats.md](ADR-0204-authenticated-installation-heartbeats.md) | Installation heartbeats ride the authenticated corporate channel; identity comes from the session, writes coalesce by checked_at. | 2026-09-22 |
@@ -210,6 +210,10 @@ last_verified: "2026-08-03"
 | [ADR-0210-dependabot-branches-are-verified-by-event.md](ADR-0210-dependabot-branches-are-verified-by-event.md) | Allow same-repository Dependabot pull requests through the branch-name contract after verifying GitHub event identity. | 2026-09-25 |
 | [ADR-0211-organization-cadence-and-signed-installation-heartbeats.md](ADR-0211-organization-cadence-and-signed-installation-heartbeats.md) | Organization heartbeat policy drives the OS timer and device keys sign reports. | 2026-09-25 |
 | [ADR-0212-fixed-corporate-heartbeat-reports.md](ADR-0212-fixed-corporate-heartbeat-reports.md) | Corporate Reports presents fixed reports and retains accepted installation heartbeats for a bounded history. | 2026-09-25 |
+| [ADR-0213-corporate-installation-operation-facts.md](ADR-0213-corporate-installation-operation-facts.md) | Keep corporate installation history separate from heartbeat inventory and runtime usage. | 2026-09-25 |
+| [ADR-0214-corporate-installation-inventory.md](ADR-0214-corporate-installation-inventory.md) | Keep opt-in installation inventory independent of operation history and usage counts. | 2026-09-25 |
+| [ADR-0215-bound-native-usage-hooks.md](ADR-0215-bound-native-usage-hooks.md) | Bind native usage observations to a verified local installation without exposing corporate credentials to components. | 2026-09-26 |
+| [ADR-0216-rollback-provenance-from-the-journal.md](ADR-0216-rollback-provenance-from-the-journal.md) | Recover a rollback's component coordinates from the prior verified bundle, or leave them unknown. | 2026-09-26 |
 | [binding.md](binding.md) | Which accepted ADRs still constrain non-corporate work; default is binding. | 2026-09-20 |
 | [template.md](template.md) | Architecture decision record template. | 2026-08-03 |
 

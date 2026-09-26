@@ -39,6 +39,20 @@ class RuntimeUsageEvent(Base):
             name="ck_runtime_usage_event_outcome",
         ),
         CheckConstraint(
+            "source in ('native_hook','agent_reported')",
+            name="ck_runtime_usage_event_source",
+        ),
+        CheckConstraint(
+            "activity_kind in ('invocation','load')",
+            name="ck_runtime_usage_event_activity_kind",
+        ),
+        CheckConstraint(
+            "(setup_stable_id IS NULL AND setup_version IS NULL AND setup_passport_digest IS NULL) "
+            "OR (setup_stable_id IS NOT NULL AND setup_version IS NOT NULL "
+            "AND setup_passport_digest IS NOT NULL)",
+            name="ck_runtime_usage_setup_coordinate",
+        ),
+        CheckConstraint(
             "component_kind in "
             "('instruction','skill','mcp','hook','command','agent','plugin','setting','cli')",
             name="ck_runtime_usage_event_component_kind",
@@ -73,15 +87,21 @@ class RuntimeUsageEvent(Base):
     device_id: Mapped[str] = mapped_column(String(64), nullable=False)
     project_id: Mapped[str] = mapped_column(String(64), nullable=False)
     harness: Mapped[str] = mapped_column(String(64), nullable=False)
-    setup_stable_id: Mapped[str] = mapped_column(String(128), nullable=False)
-    setup_version: Mapped[str] = mapped_column(String(32), nullable=False)
-    setup_passport_digest: Mapped[str] = mapped_column(String(80), nullable=False)
+    setup_stable_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    setup_version: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    setup_passport_digest: Mapped[str | None] = mapped_column(String(80), nullable=True)
     component_kind: Mapped[str] = mapped_column(String(16), nullable=False)
     component_stable_id: Mapped[str] = mapped_column(String(128), nullable=False)
     component_version: Mapped[str] = mapped_column(String(32), nullable=False)
     component_passport_digest: Mapped[str] = mapped_column(String(80), nullable=False)
     invoked_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     outcome: Mapped[str] = mapped_column(String(16), nullable=False)
+    source: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="agent_reported", server_default="agent_reported"
+    )
+    activity_kind: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="invocation", server_default="invocation"
+    )
     schema_version: Mapped[int] = mapped_column(
         Integer, nullable=False, default=1, server_default="1"
     )

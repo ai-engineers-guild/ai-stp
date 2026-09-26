@@ -73,6 +73,9 @@ async def organization_policy(
     return InstallationHeartbeatPolicy(
         organization_id=organization_id,
         enabled=True if row is None else row.heartbeat_enabled,
+        inventory_scan_enabled=False if row is None else row.inventory_scan_enabled,
+        usage_collection_enabled=False if row is None else row.usage_collection_enabled,
+        usage_registration_required=False if row is None else row.usage_registration_required,
         interval_seconds=(
             DEFAULT_HEARTBEAT_INTERVAL_SECONDS if row is None else row.heartbeat_interval_seconds
         ),

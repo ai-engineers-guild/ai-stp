@@ -16,6 +16,8 @@ from sqlalchemy import select, union
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ai_stp_platform.heartbeat_models import InstallationHeartbeat, InstallationHeartbeatEvent
+from ai_stp_platform.installation_inventory_models import InstallationInventorySnapshot
+from ai_stp_platform.installation_usage_models import InstallationOperationFact
 from ai_stp_platform.runtime_usage_models import RuntimeUsageEvent
 from ai_stp_platform.telemetry_policy_models import TelemetryEvent, TelemetryPolicy
 from ai_stp_platform.tenant_scope import set_tenant_scope
@@ -28,7 +30,8 @@ async def apply_retention(session: AsyncSession, *, organization_id: str, now: d
 
     The sweep covers every governed raw-event table: the generic
     `telemetry_event` boundary store and the usage stream's
-    `runtime_usage_event`, and `installation_heartbeat`. Old coalesced rows
+    `runtime_usage_event`, `installation_operation_fact`, and
+    `installation_heartbeat`. Old coalesced rows
     disappear and project as `unknown`; retention never writes `stale`.
     """
     await set_tenant_scope(session, organization_id)
@@ -44,6 +47,14 @@ async def apply_retention(session: AsyncSession, *, organization_id: str, now: d
         sql_delete(RuntimeUsageEvent).where(
             RuntimeUsageEvent.organization_id == organization_id,
             RuntimeUsageEvent.invoked_at < cutoff,
+        ),
+        sql_delete(InstallationOperationFact).where(
+            InstallationOperationFact.organization_id == organization_id,
+            InstallationOperationFact.occurred_at < cutoff,
+        ),
+        sql_delete(InstallationInventorySnapshot).where(
+            InstallationInventorySnapshot.organization_id == organization_id,
+            InstallationInventorySnapshot.scanned_at < cutoff,
         ),
         sql_delete(InstallationHeartbeat).where(
             InstallationHeartbeat.organization_id == organization_id,
@@ -68,6 +79,8 @@ async def retention_tenants(session: AsyncSession) -> list[str]:
             select(TelemetryPolicy.organization_id),
             select(TelemetryEvent.organization_id),
             select(RuntimeUsageEvent.organization_id),
+            select(InstallationOperationFact.organization_id),
+            select(InstallationInventorySnapshot.organization_id),
             select(InstallationHeartbeat.organization_id),
             select(InstallationHeartbeatEvent.organization_id),
         )

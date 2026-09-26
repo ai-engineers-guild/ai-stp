@@ -21,6 +21,8 @@ from ai_stp_api.slices.corporate import (
     governance,
     heartbeat,
     heartbeat_report,
+    installation_inventory,
+    installation_usage,
     overview,
     permissions,
     profiles,
@@ -100,6 +102,8 @@ router.include_router(telemetry_policy.router)
 router.include_router(telemetry_rights.router)
 router.include_router(heartbeat.router)
 router.include_router(heartbeat_report.router)
+router.include_router(installation_usage.router)
+router.include_router(installation_inventory.router)
 router.include_router(dashboard.router)
 router.include_router(gitlab.router)
 router.include_router(github_languages.router)

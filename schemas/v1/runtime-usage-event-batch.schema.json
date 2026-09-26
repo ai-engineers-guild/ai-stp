@@ -61,6 +61,15 @@
       "additionalProperties": false,
       "description": "One component invocation. The closed field set is the contract.",
       "properties": {
+        "activity_kind": {
+          "default": "invocation",
+          "enum": [
+            "invocation",
+            "load"
+          ],
+          "title": "Activity Kind",
+          "type": "string"
+        },
         "component": {
           "$ref": "#/$defs/RuntimeUsageComponentCoordinate"
         },
@@ -114,7 +123,24 @@
           "type": "integer"
         },
         "setup": {
-          "$ref": "#/$defs/RuntimeUsageSetupCoordinate"
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RuntimeUsageSetupCoordinate"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "source": {
+          "default": "agent_reported",
+          "enum": [
+            "native_hook",
+            "agent_reported"
+          ],
+          "title": "Source",
+          "type": "string"
         }
       },
       "required": [
@@ -124,7 +150,6 @@
         "device_id",
         "project_id",
         "harness",
-        "setup",
         "component",
         "invoked_at",
         "outcome"

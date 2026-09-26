@@ -1,8 +1,8 @@
 {
   "$defs": {
-    "RuntimeUsageInstalledRow": {
+    "RuntimeUsageAssignedRow": {
       "additionalProperties": true,
-      "description": "One currently assigned object and whether it was ever invoked.",
+      "description": "One currently assigned object and its observed use in the selected period.",
       "properties": {
         "invocations": {
           "minimum": 0,
@@ -34,8 +34,8 @@
         },
         "state": {
           "enum": [
-            "invoked",
-            "not_invoked"
+            "recorded_use",
+            "no_recorded_use"
           ],
           "title": "State",
           "type": "string"
@@ -61,13 +61,332 @@
         "state",
         "version"
       ],
-      "title": "RuntimeUsageInstalledRow",
+      "title": "RuntimeUsageAssignedRow",
+      "type": "object"
+    },
+    "RuntimeUsageDayBucket": {
+      "additionalProperties": false,
+      "properties": {
+        "day": {
+          "title": "Day",
+          "type": "string"
+        },
+        "uses": {
+          "minimum": 0,
+          "title": "Uses",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "day",
+        "uses"
+      ],
+      "title": "RuntimeUsageDayBucket",
+      "type": "object"
+    },
+    "RuntimeUsageEmployeeRow": {
+      "additionalProperties": false,
+      "properties": {
+        "active_days": {
+          "minimum": 0,
+          "title": "Active Days",
+          "type": "integer"
+        },
+        "assigned_components": {
+          "minimum": 0,
+          "title": "Assigned Components",
+          "type": "integer"
+        },
+        "employee_id": {
+          "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+          "title": "Employee Id",
+          "type": "string"
+        },
+        "installed_components": {
+          "minimum": 0,
+          "title": "Installed Components",
+          "type": "integer"
+        },
+        "last_used_at": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Name"
+        },
+        "team_ids": {
+          "items": {
+            "pattern": "^operation_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "type": "string"
+          },
+          "title": "Team Ids",
+          "type": "array"
+        },
+        "used_components": {
+          "minimum": 0,
+          "title": "Used Components",
+          "type": "integer"
+        },
+        "uses": {
+          "minimum": 0,
+          "title": "Uses",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "employee_id",
+        "team_ids",
+        "assigned_components",
+        "installed_components",
+        "used_components",
+        "uses",
+        "active_days"
+      ],
+      "title": "RuntimeUsageEmployeeRow",
+      "type": "object"
+    },
+    "RuntimeUsageHourBucket": {
+      "additionalProperties": false,
+      "properties": {
+        "hour": {
+          "maximum": 23,
+          "minimum": 0,
+          "title": "Hour",
+          "type": "integer"
+        },
+        "uses": {
+          "minimum": 0,
+          "title": "Uses",
+          "type": "integer"
+        },
+        "weekday": {
+          "maximum": 6,
+          "minimum": 0,
+          "title": "Weekday",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "weekday",
+        "hour",
+        "uses"
+      ],
+      "title": "RuntimeUsageHourBucket",
+      "type": "object"
+    },
+    "RuntimeUsageInventoryEmployeeRow": {
+      "additionalProperties": false,
+      "description": "Current managed observations; no inferred removal from partial scans.",
+      "properties": {
+        "coverage": {
+          "enum": [
+            "complete",
+            "partial",
+            "stale"
+          ],
+          "title": "Coverage",
+          "type": "string"
+        },
+        "employee_id": {
+          "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+          "title": "Employee Id",
+          "type": "string"
+        },
+        "last_complete_at": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "last_scan_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "observed_modified": {
+          "minimum": 0,
+          "title": "Observed Modified",
+          "type": "integer"
+        },
+        "observed_present": {
+          "minimum": 0,
+          "title": "Observed Present",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "employee_id",
+        "observed_present",
+        "observed_modified",
+        "coverage",
+        "last_scan_at"
+      ],
+      "title": "RuntimeUsageInventoryEmployeeRow",
+      "type": "object"
+    },
+    "RuntimeUsageObjectRow": {
+      "additionalProperties": false,
+      "description": "A setup or component, with a component's actual setup relation.",
+      "properties": {
+        "active_days": {
+          "minimum": 0,
+          "title": "Active Days",
+          "type": "integer"
+        },
+        "assigned_to": {
+          "minimum": 0,
+          "title": "Assigned To",
+          "type": "integer"
+        },
+        "installation_state": {
+          "anyOf": [
+            {
+              "enum": [
+                "present",
+                "modified",
+                "missing",
+                "unknown"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Installation State"
+        },
+        "installed_for": {
+          "minimum": 0,
+          "title": "Installed For",
+          "type": "integer"
+        },
+        "last_checked_at": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "last_used_at": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Name"
+        },
+        "object_kind": {
+          "enum": [
+            "setup",
+            "component"
+          ],
+          "title": "Object Kind",
+          "type": "string"
+        },
+        "parent_setup_stable_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Parent Setup Stable Id"
+        },
+        "parent_setup_version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Parent Setup Version"
+        },
+        "stable_id": {
+          "title": "Stable Id",
+          "type": "string"
+        },
+        "used_by": {
+          "minimum": 0,
+          "title": "Used By",
+          "type": "integer"
+        },
+        "uses": {
+          "minimum": 0,
+          "title": "Uses",
+          "type": "integer"
+        },
+        "version": {
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "object_kind",
+        "stable_id",
+        "version",
+        "assigned_to",
+        "installed_for",
+        "used_by",
+        "uses",
+        "active_days"
+      ],
+      "title": "RuntimeUsageObjectRow",
       "type": "object"
     },
     "RuntimeUsageReportRow": {
       "additionalProperties": true,
       "description": "One deterministic aggregate bucket over a defined window.",
       "properties": {
+        "active_days": {
+          "minimum": 0,
+          "title": "Active Days",
+          "type": "integer"
+        },
         "cancelled": {
           "minimum": 0,
           "title": "Cancelled",
@@ -181,6 +500,7 @@
         }
       },
       "required": [
+        "active_days",
         "cancelled",
         "component_kind",
         "component_stable_id",
@@ -207,8 +527,36 @@
   "$id": "urn:ai-stp:schema:v1:runtime-usage-report",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": true,
-  "description": "The aggregate answer plus the installed-vs-invoked comparison.",
+  "description": "The aggregate answer plus current assignments and observed use.",
   "properties": {
+    "assigned": {
+      "items": {
+        "$ref": "#/$defs/RuntimeUsageAssignedRow"
+      },
+      "title": "Assigned",
+      "type": "array"
+    },
+    "by_day": {
+      "items": {
+        "$ref": "#/$defs/RuntimeUsageDayBucket"
+      },
+      "title": "By Day",
+      "type": "array"
+    },
+    "by_hour": {
+      "items": {
+        "$ref": "#/$defs/RuntimeUsageHourBucket"
+      },
+      "title": "By Hour",
+      "type": "array"
+    },
+    "employees": {
+      "items": {
+        "$ref": "#/$defs/RuntimeUsageEmployeeRow"
+      },
+      "title": "Employees",
+      "type": "array"
+    },
     "generated_at": {
       "$ref": "#/$defs/Timestamp"
     },
@@ -225,12 +573,17 @@
       "title": "Group By",
       "type": "string"
     },
-    "installed": {
+    "inventory_employees": {
       "items": {
-        "$ref": "#/$defs/RuntimeUsageInstalledRow"
+        "$ref": "#/$defs/RuntimeUsageInventoryEmployeeRow"
       },
-      "title": "Installed",
+      "title": "Inventory Employees",
       "type": "array"
+    },
+    "inventory_scan_enabled": {
+      "default": false,
+      "title": "Inventory Scan Enabled",
+      "type": "boolean"
     },
     "invoked_from": {
       "anyOf": [
@@ -254,9 +607,21 @@
       ],
       "default": null
     },
+    "objects": {
+      "items": {
+        "$ref": "#/$defs/RuntimeUsageObjectRow"
+      },
+      "title": "Objects",
+      "type": "array"
+    },
     "organization_id": {
       "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
       "title": "Organization Id",
+      "type": "string"
+    },
+    "report_timezone": {
+      "default": "UTC",
+      "title": "Report Timezone",
       "type": "string"
     },
     "rows": {
@@ -276,18 +641,31 @@
       "minimum": 0,
       "title": "Total Events",
       "type": "integer"
+    },
+    "usage_collection_enabled": {
+      "default": false,
+      "title": "Usage Collection Enabled",
+      "type": "boolean"
     }
   },
   "required": [
+    "assigned",
+    "by_day",
+    "by_hour",
+    "employees",
     "generated_at",
     "group_by",
-    "installed",
+    "inventory_employees",
+    "inventory_scan_enabled",
     "invoked_from",
     "invoked_to",
+    "objects",
     "organization_id",
+    "report_timezone",
     "rows",
     "schema_version",
-    "total_events"
+    "total_events",
+    "usage_collection_enabled"
   ],
   "title": "RuntimeUsageReport",
   "type": "object"

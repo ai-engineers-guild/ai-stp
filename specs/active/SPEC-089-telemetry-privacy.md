@@ -30,7 +30,8 @@ governed HTTP surface under `/v1/corporate/organizations/{id}/telemetry/*`.
 - `Policy` — per-tenant `raw_retention_days`, `aggregate_retention_days`,
   `legal_basis`, `notice_text`, `notice_revision`, monotonic `policy_version`.
   It also owns heartbeat enablement, send interval, retry bounds, and the
-  read-time stale threshold.
+  read-time stale threshold. `report_timezone` is a validated IANA time zone
+  (default `UTC`) used to interpret organization report days and hours.
 - `Revocation` — per-subject (`account` or `device`) record of notice, legal
   basis, and the `active`/`revoked`/`deleted` state machine.
 - `Telemetry audit` — append-only `telemetry_audit` row for every privileged

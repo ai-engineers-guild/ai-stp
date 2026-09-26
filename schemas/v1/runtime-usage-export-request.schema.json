@@ -20,6 +20,19 @@
       "additionalProperties": false,
       "description": "Aggregate report filters. Every field narrows; none widens.",
       "properties": {
+        "collection_state": {
+          "default": "all",
+          "enum": [
+            "all",
+            "complete",
+            "partial",
+            "stale",
+            "unknown",
+            "disabled"
+          ],
+          "title": "Collection State",
+          "type": "string"
+        },
         "component_kind": {
           "anyOf": [
             {
@@ -213,6 +226,16 @@
           ],
           "default": null,
           "title": "Technology Id"
+        },
+        "usage_state": {
+          "default": "all",
+          "enum": [
+            "all",
+            "recorded",
+            "no_recorded"
+          ],
+          "title": "Usage State",
+          "type": "string"
         }
       },
       "title": "RuntimeUsageReportQuery",
@@ -239,6 +262,7 @@
     "query": {
       "$ref": "#/$defs/RuntimeUsageReportQuery",
       "default": {
+        "collection_state": "all",
         "component_kind": null,
         "component_stable_id": null,
         "device_id": null,
@@ -253,7 +277,8 @@
         "project_id": null,
         "setup_stable_id": null,
         "team_id": null,
-        "technology_id": null
+        "technology_id": null,
+        "usage_state": "all"
       }
     },
     "schema_version": {

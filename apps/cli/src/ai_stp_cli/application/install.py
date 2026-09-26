@@ -26,7 +26,7 @@ import sqlite3
 import subprocess
 import zipfile
 from collections.abc import Generator, Mapping, Sequence
-from contextlib import closing, contextmanager
+from contextlib import closing, contextmanager, suppress
 from contextvars import ContextVar
 from dataclasses import dataclass
 from datetime import timedelta
@@ -36,6 +36,7 @@ from typing import Final, cast
 from ai_stp_cli import config, telemetry
 from ai_stp_cli.answer import Answer
 from ai_stp_cli.application import select as select_command
+from ai_stp_cli.cloud import session as cloud_session
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import (
     bundle,
@@ -75,6 +76,7 @@ from ai_stp_cli.provider import (
     status as provider_status,
 )
 from ai_stp_cli.runtime import cli_version
+from ai_stp_cli.secrets import open_store
 from ai_stp_contracts.machine_help import (
     InstallationStatus,
     InstallationStep,
@@ -432,7 +434,10 @@ def plan(parameters: Mapping[str, object]) -> Answer[InstallationView]:
         pair = (
             _Pair(held.project_id, held.harness_id)
             if held is not None
-            else _Pair(_required(parameters, "project"), _required(parameters, "harness"))
+            else _Pair(
+                _project_id(connection, _required(parameters, "project")),
+                _required(parameters, "harness"),
+            )
         )
         from ai_stp_cli.provider import acquire
 
@@ -789,6 +794,7 @@ def _plan_v3(
     )
     existing = installation.active_for_idempotency(connection, idempotency_key)
     if existing is not None:
+        _remember_planned_scope(connection, existing.operation_id, planned_scope)
         return _view(connection, existing)
 
     requested_id = str(parameters.get("operation-id") or "").strip()
@@ -894,7 +900,16 @@ def _plan_v3(
         setup_version="" if proposal is None else (proposal.confirmed_version or ""),
         operation_id=operation_id,
     )
+    _remember_planned_scope(connection, recorded.operation_id, planned_scope)
     return _view(connection, recorded)
+
+
+def _remember_planned_scope(
+    connection: sqlite3.Connection, operation_id: str, planned_scope: str
+) -> None:
+    """Record a corporate scope beside the plan. `user_root` is not one of them."""
+    if planned_scope in {"global", "project"}:
+        installation.remember_target_scope(connection, operation_id, planned_scope)
 
 
 def approve(parameters: Mapping[str, object]) -> Answer[InstallationView]:
@@ -957,6 +972,36 @@ def apply(parameters: Mapping[str, object]) -> Answer[InstallationView]:
             if held.provider_protocol_version == protocol_v3.VERSION
             else _bound_bundle(held)
         )
+        organization_id = str(parameters.get("organization") or "")
+        if organization_id:
+            corporate_project_id = str(parameters.get("corporate-project") or "")
+            if not corporate_project_id:
+                raise CliFailure(
+                    "AI_STP_VALIDATION_ERROR", "corporate installation needs --corporate-project"
+                )
+            store, _warning = open_store()
+            session = cloud_session.load(store)
+            if session is None or session.revoked or session.account_id != held.author:
+                raise CliFailure(
+                    "AI_STP_AUTH_REQUIRED",
+                    "the approved operation requires its author's corporate session",
+                )
+            bundle_scope = None
+            if held.bundle_artifact_digest:
+                archive = cache.stored_raw_artifact(held.bundle_artifact_digest)
+                if archive is not None:
+                    bundle_scope = managed_diff.bundle_manifest(archive).target_scope
+            scope = installation.corporate_scope(connection, operation_id, bundle_scope)
+            installation.bind_corporate(
+                connection,
+                operation_id,
+                organization_id=organization_id,
+                project_id=corporate_project_id,
+                account_id=session.account_id,
+                device_id=session.device_id,
+                scope=scope,
+                at=moment(),
+            )
         current = journal.get(connection, operation_id)
         if (
             harness_id == "antigravity"
@@ -1083,7 +1128,13 @@ def apply(parameters: Mapping[str, object]) -> Answer[InstallationView]:
         return _view(connection, held)
 
     with closing(open_registry(configured_path(), create=True)) as connection:
-        return _finish_mutation(work(connection))
+        answer = _finish_mutation(work(connection))
+    if organization_id := str(parameters.get("organization") or ""):
+        from ai_stp_cli.application.installation_usage import sync_results
+
+        with suppress(Exception):
+            sync_results({"organization": organization_id})
+    return answer
 
 
 def _apply_v3(
@@ -1795,21 +1846,59 @@ def _provider_observation(
     )
 
 
-def _held_scope(held: installation.Plan) -> str:
-    """The projection scope the held plan's bundle was compiled for."""
+def _compiled_scope(held: installation.Plan) -> str | None:
+    """The scope a compiled bundle names, or None when this plan has no bundle."""
     if not held.bundle_artifact_digest:
-        return "global"
+        return None
     archive = cache.stored_raw_artifact(held.bundle_artifact_digest)
     if archive is None:
         return "global"
     return managed_diff.bundle_manifest(archive).target_scope
 
 
+def _bound_profile_scope(
+    held: installation.Plan, capabilities: protocol_v3.ProviderCapabilities
+) -> str:
+    """The scope whose projection digest the approved provider plan seals.
+
+    A restore carries no bundle. `user_root` is not stored on the plan row, so
+    the digest checked at planning is the only record of that scope.
+    """
+    if not held.provider_plan_digest:
+        return ""
+    path = cache.stored_provider_plan(held.provider_plan_digest)
+    if path is None:
+        return ""
+    try:
+        artifact = operation_v3.load_plan(path, held.provider_plan_digest).artifact
+    except CliFailure:
+        return ""
+    digest = artifact.get("projection_profile_digest")
+    if not isinstance(digest, str) or not digest:
+        return ""
+    matched = [
+        profile.scope
+        for profile in (capabilities.projection, *capabilities.scoped_projections)
+        if profile.digest == digest
+    ]
+    if len(matched) != 1:
+        return ""
+    return matched[0]
+
+
+def _status_scope(held: installation.Plan, capabilities: protocol_v3.ProviderCapabilities) -> str:
+    """The scope `status` must use so its digest is the one this plan bound."""
+    compiled = _compiled_scope(held)
+    if compiled is not None:
+        return compiled
+    return _bound_profile_scope(held, capabilities) or "global"
+
+
 def _status_tail(
     capabilities: protocol_v3.ProviderCapabilities, held: installation.Plan
 ) -> tuple[str, ...]:
-    """`status`'s argv tail for the scope an approved plan was compiled for."""
-    return operation_v3.status_arguments(capabilities, _held_scope(held))
+    """`status`'s argv tail for the scope an approved plan was made for."""
+    return operation_v3.status_arguments(capabilities, _status_scope(held, capabilities))
 
 
 def _pair_status_tail(
@@ -1817,19 +1906,35 @@ def _pair_status_tail(
 ) -> tuple[str, ...]:
     """`status`'s argv tail for what this pair last verified.
 
-    An observer reads the target the way the last verified install wrote it:
-    a workspace pair asks for the workspace view. The provider's declaration
-    is consulted only then, so a home pair costs no extra invocation.
+    An observer reads the target the way the last verified install wrote it.
+    A bundle names that scope directly. A sourceless plan uses the recorded
+    corporate scope, then the projection digest, so `user_root` is still asked
+    for and a recorded home plan costs no extra invocation.
     """
     history = targets.verified(connection, project_id=project_id, harness_id=harness)
     if not history:
         return ()
     held = installation.plan(connection, history[-1].operation_id)
-    scope = _held_scope(held)
-    if scope == "global":
+    compiled = _compiled_scope(held)
+    if compiled == "global":
+        return ()
+    recorded = (
+        "" if compiled is not None else installation.target_scope(connection, held.operation_id)
+    )
+    if compiled is None and recorded != "project" and not held.provider_plan_digest:
+        return ()
+    if compiled is None and recorded == "global":
         return ()
     info = _object(invoke("provider-info", ()))
     capabilities = protocol_v3.parse_capabilities(cast(Mapping[str, object], info))
+    if compiled is not None:
+        scope = compiled
+    elif recorded == "project":
+        scope = recorded
+    else:
+        scope = _status_scope(held, capabilities)
+    if scope == "global":
+        return ()
     return operation_v3.status_arguments(capabilities, scope)
 
 

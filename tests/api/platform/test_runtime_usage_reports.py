@@ -29,6 +29,7 @@ from ai_stp_platform.organization_models import (
     OrganizationMembership,
     ProjectIdentity,
 )
+from ai_stp_platform.telemetry_policy_models import TelemetryPolicy
 from ai_stp_platform.tenant_scope import set_tenant_scope
 
 pytestmark = pytest.mark.platform
@@ -57,6 +58,7 @@ def _event(
         harness="claude-code",
         invoked_at=invoked_at,
         outcome=outcome,  # pyright: ignore[reportArgumentType]
+        source="native_hook",
         setup=setup
         or RuntimeUsageSetupCoordinate(
             stable_id=new_id("setup"), version="1.0", passport_digest=DIGEST
@@ -83,6 +85,16 @@ async def _seed_admin(
     session.add(Organization(id=organization_id, kind="corporate", display_name="Acme"))
     # Dependents reference the org row through DDL-only FKs; flush first.
     await session.flush()
+    session.add(
+        TelemetryPolicy(
+            organization_id=organization_id,
+            raw_retention_days=90,
+            aggregate_retention_days=365,
+            legal_basis="contract",
+            usage_collection_enabled=True,
+            policy_version=1,
+        )
+    )
     session.add(Account(id=admin, status="active"))
     session.add(Device(id="device-01", account_id=admin, public_key="key-device-01"))
     session.add(
@@ -312,9 +324,9 @@ async def test_installed_vs_invoked(
             scope=runtime_usage_service.UsageScope(employees=None),
             now=NOW,
         )
-        states = {row.stable_id: row.state for row in report.installed}
-        assert states[invoked_component] == "invoked"
-        assert states[silent_component] == "not_invoked"
+        states = {row.stable_id: row.state for row in report.assigned}
+        assert states[invoked_component] == "recorded_use"
+        assert states[silent_component] == "no_recorded_use"
 
 
 async def test_export_is_bounded_digested_and_idempotent(

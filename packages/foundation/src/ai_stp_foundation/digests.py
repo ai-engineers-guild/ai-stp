@@ -57,6 +57,9 @@ DIGEST_DOMAINS: Final[frozenset[str]] = frozenset(
         "ai-stp:seo-profile:v1",
         "ai-stp:article-body:v1",
         "ai-stp:runtime-usage-export:v1",
+        "ai-stp:installation-operation:v1",
+        "ai-stp:corporate-inventory-location:v1",
+        "ai-stp:installation-inventory:v1",
     }
 )
 

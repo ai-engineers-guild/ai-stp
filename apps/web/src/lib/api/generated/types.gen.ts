@@ -5520,6 +5520,10 @@ export type CorporateTelemetryPolicyRequest = {
   heartbeat_stale_after_seconds?: number | null;
   idempotency_key: IdempotencyKey;
   /**
+   * Inventory Scan Enabled
+   */
+  inventory_scan_enabled?: boolean | null;
+  /**
    * Legal Basis
    */
   legal_basis: "consent" | "contract" | "legitimate_interest";
@@ -5540,9 +5544,21 @@ export type CorporateTelemetryPolicyRequest = {
    */
   reason?: string;
   /**
+   * Report Timezone
+   */
+  report_timezone?: string | null;
+  /**
    * Schema Version
    */
   schema_version?: 1;
+  /**
+   * Usage Collection Enabled
+   */
+  usage_collection_enabled?: boolean | null;
+  /**
+   * Usage Registration Required
+   */
+  usage_registration_required?: boolean | null;
 };
 
 /**
@@ -5574,6 +5590,10 @@ export type CorporateTelemetryPolicyView = {
    */
   heartbeat_stale_after_seconds: number;
   /**
+   * Inventory Scan Enabled
+   */
+  inventory_scan_enabled: boolean;
+  /**
    * Legal Basis
    */
   legal_basis: "consent" | "contract" | "legitimate_interest";
@@ -5598,10 +5618,22 @@ export type CorporateTelemetryPolicyView = {
    */
   raw_retention_days: number;
   /**
+   * Report Timezone
+   */
+  report_timezone: string;
+  /**
    * Schema Version
    */
   schema_version: 1;
   updated_at: Timestamp;
+  /**
+   * Usage Collection Enabled
+   */
+  usage_collection_enabled: boolean;
+  /**
+   * Usage Registration Required
+   */
+  usage_registration_required: boolean;
   [key: string]: unknown;
 };
 
@@ -7822,6 +7854,10 @@ export type InstallationHeartbeatPolicy = {
    */
   interval_seconds: number;
   /**
+   * Inventory Scan Enabled
+   */
+  inventory_scan_enabled: boolean;
+  /**
    * Organization Id
    */
   organization_id: string;
@@ -7841,6 +7877,14 @@ export type InstallationHeartbeatPolicy = {
    * Stale After Seconds
    */
   stale_after_seconds: number;
+  /**
+   * Usage Collection Enabled
+   */
+  usage_collection_enabled: boolean;
+  /**
+   * Usage Registration Required
+   */
+  usage_registration_required: boolean;
   [key: string]: unknown;
 };
 
@@ -7911,6 +7955,246 @@ export type InstallationHeartbeatStatus = {
    */
   stale_after_seconds: number;
   [key: string]: unknown;
+};
+
+/**
+ * InstallationInventoryBatch
+ */
+export type InstallationInventoryBatch = {
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
+  /**
+   * Snapshots
+   */
+  snapshots: Array<InstallationInventorySnapshot>;
+};
+
+/**
+ * InstallationInventoryReceipt
+ */
+export type InstallationInventoryReceipt = {
+  /**
+   * Accepted Ids
+   */
+  accepted_ids: Array<string>;
+  /**
+   * Duplicate Ids
+   */
+  duplicate_ids: Array<string>;
+  /**
+   * Rejected Ids
+   */
+  rejected_ids: Array<string>;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  [key: string]: unknown;
+};
+
+/**
+ * InstallationInventorySnapshot
+ *
+ * One global or registered-project scope, including failed/partial checks.
+ */
+export type InstallationInventorySnapshot = {
+  /**
+   * Complete
+   */
+  complete: boolean;
+  /**
+   * Components
+   */
+  components: Array<InventoryObservedComponent>;
+  /**
+   * Device Id
+   */
+  device_id: string;
+  /**
+   * Employee Id
+   */
+  employee_id: string;
+  /**
+   * Organization Id
+   */
+  organization_id: string;
+  /**
+   * Project Id
+   */
+  project_id?: string | null;
+  /**
+   * Scan Id
+   */
+  scan_id: string;
+  scanned_at: Timestamp;
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
+  /**
+   * Scope
+   */
+  scope: "global" | "project";
+};
+
+/**
+ * InstallationOperationBatch
+ */
+export type InstallationOperationBatch = {
+  /**
+   * Operations
+   */
+  operations: Array<InstallationOperationFact>;
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
+};
+
+/**
+ * InstallationOperationFact
+ *
+ * One settled local journal operation; no paths or provider payloads.
+ */
+export type InstallationOperationFact = {
+  /**
+   * Action
+   */
+  action: "install" | "update" | "remove" | "rollback";
+  /**
+   * Components
+   */
+  components?: Array<InstalledComponent>;
+  /**
+   * Components Complete
+   */
+  components_complete?: boolean;
+  /**
+   * Device Id
+   */
+  device_id: string;
+  /**
+   * Employee Id
+   */
+  employee_id: string;
+  harness: HarnessId;
+  occurred_at: Timestamp;
+  /**
+   * Operation Id
+   */
+  operation_id: string;
+  /**
+   * Organization Id
+   */
+  organization_id: string;
+  /**
+   * Project Id
+   */
+  project_id: string;
+  /**
+   * Result
+   */
+  result: "verified" | "partial" | "rolled_back" | "failed" | "stale";
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
+  /**
+   * Scope
+   */
+  scope: "global" | "project" | "unknown";
+  /**
+   * Setup Stable Id
+   */
+  setup_stable_id?: string | null;
+  /**
+   * Setup Version
+   */
+  setup_version?: string | null;
+};
+
+/**
+ * InstallationOperationReceipt
+ */
+export type InstallationOperationReceipt = {
+  /**
+   * Accepted Ids
+   */
+  accepted_ids: Array<string>;
+  /**
+   * Duplicate Ids
+   */
+  duplicate_ids: Array<string>;
+  /**
+   * Rejected Ids
+   */
+  rejected_ids: Array<string>;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  [key: string]: unknown;
+};
+
+/**
+ * InstalledComponent
+ */
+export type InstalledComponent = {
+  /**
+   * Kind
+   */
+  kind:
+    "instruction" | "skill" | "mcp" | "hook" | "command" | "agent" | "plugin" | "setting" | "cli";
+  /**
+   * Stable Id
+   */
+  stable_id: string;
+  /**
+   * Version
+   */
+  version: string;
+};
+
+/**
+ * InventoryObservedComponent
+ */
+export type InventoryObservedComponent = {
+  harness: HarnessId;
+  /**
+   * Kind
+   */
+  kind:
+    "instruction" | "skill" | "mcp" | "hook" | "command" | "agent" | "plugin" | "setting" | "cli";
+  /**
+   * Location Digest
+   */
+  location_digest: string;
+  /**
+   * Setup Stable Id
+   */
+  setup_stable_id?: string | null;
+  /**
+   * Setup Version
+   */
+  setup_version?: string | null;
+  /**
+   * Source
+   */
+  source: "managed" | "external" | "unknown";
+  /**
+   * Stable Id
+   */
+  stable_id?: string | null;
+  /**
+   * State
+   */
+  state: "present" | "modified" | "missing" | "unknown";
+  /**
+   * Version
+   */
+  version?: string | null;
 };
 
 export const InvitationState = {
@@ -10372,6 +10656,36 @@ export type RequestTopic = (typeof RequestTopic)[keyof typeof RequestTopic];
 export type RevisionId = string;
 
 /**
+ * RuntimeUsageAssignedRow
+ *
+ * One currently assigned object and its observed use in the selected period.
+ */
+export type RuntimeUsageAssignedRow = {
+  /**
+   * Invocations
+   */
+  invocations: number;
+  last_invoked_at: Timestamp | null;
+  /**
+   * Object Kind
+   */
+  object_kind: "setup" | "component";
+  /**
+   * Stable Id
+   */
+  stable_id: string;
+  /**
+   * State
+   */
+  state: "recorded_use" | "no_recorded_use";
+  /**
+   * Version
+   */
+  version: string | null;
+  [key: string]: unknown;
+};
+
+/**
  * RuntimeUsageComponentCoordinate
  *
  * The exact component that was invoked, kind-qualified.
@@ -10397,11 +10711,68 @@ export type RuntimeUsageComponentCoordinate = {
 };
 
 /**
+ * RuntimeUsageDayBucket
+ */
+export type RuntimeUsageDayBucket = {
+  /**
+   * Day
+   */
+  day: string;
+  /**
+   * Uses
+   */
+  uses: number;
+};
+
+/**
+ * RuntimeUsageEmployeeRow
+ */
+export type RuntimeUsageEmployeeRow = {
+  /**
+   * Active Days
+   */
+  active_days: number;
+  /**
+   * Assigned Components
+   */
+  assigned_components: number;
+  /**
+   * Employee Id
+   */
+  employee_id: string;
+  /**
+   * Installed Components
+   */
+  installed_components: number;
+  last_used_at?: Timestamp | null;
+  /**
+   * Name
+   */
+  name?: string | null;
+  /**
+   * Team Ids
+   */
+  team_ids: Array<string>;
+  /**
+   * Used Components
+   */
+  used_components: number;
+  /**
+   * Uses
+   */
+  uses: number;
+};
+
+/**
  * RuntimeUsageEvent
  *
  * One component invocation. The closed field set is the contract.
  */
 export type RuntimeUsageEvent = {
+  /**
+   * Activity Kind
+   */
+  activity_kind?: "invocation" | "load";
   component: RuntimeUsageComponentCoordinate;
   /**
    * Device Id
@@ -10433,7 +10804,11 @@ export type RuntimeUsageEvent = {
    * Schema Version
    */
   schema_version?: 1;
-  setup: RuntimeUsageSetupCoordinate;
+  setup?: RuntimeUsageSetupCoordinate | null;
+  /**
+   * Source
+   */
+  source?: "native_hook" | "agent_reported";
 };
 
 /**
@@ -10486,6 +10861,10 @@ export type RuntimeUsageEventList = {
  */
 export type RuntimeUsageEventQuery = {
   /**
+   * Activity Kind
+   */
+  activity_kind?: "invocation" | "load" | null;
+  /**
    * Component Kind
    */
   component_kind?:
@@ -10504,9 +10883,17 @@ export type RuntimeUsageEventQuery = {
    */
   component_stable_id?: string | null;
   /**
+   * Component Version
+   */
+  component_version?: string | null;
+  /**
    * Device Id
    */
   device_id?: string | null;
+  /**
+   * Direct Only
+   */
+  direct_only?: boolean;
   /**
    * Employee Id
    */
@@ -10518,6 +10905,18 @@ export type RuntimeUsageEventQuery = {
    * Limit
    */
   limit?: number;
+  /**
+   * Local Day
+   */
+  local_day?: string | null;
+  /**
+   * Local Hour
+   */
+  local_hour?: number | null;
+  /**
+   * Local Weekday
+   */
+  local_weekday?: number | null;
   /**
    * Offset
    */
@@ -10535,6 +10934,14 @@ export type RuntimeUsageEventQuery = {
    */
   setup_stable_id?: string | null;
   /**
+   * Setup Version
+   */
+  setup_version?: string | null;
+  /**
+   * Source
+   */
+  source?: "native_hook" | "agent_reported" | null;
+  /**
    * Team Id
    */
   team_id?: string | null;
@@ -10550,6 +10957,10 @@ export type RuntimeUsageEventQuery = {
  * The redacted drill-down row: identities and coordinates, nothing else.
  */
 export type RuntimeUsageEventView = {
+  /**
+   * Activity Kind
+   */
+  activity_kind: "invocation" | "load";
   /**
    * Component Kind
    */
@@ -10590,11 +11001,15 @@ export type RuntimeUsageEventView = {
   /**
    * Setup Stable Id
    */
-  setup_stable_id: string;
+  setup_stable_id: string | null;
   /**
    * Setup Version
    */
-  setup_version: string;
+  setup_version: string | null;
+  /**
+   * Source
+   */
+  source: "native_hook" | "agent_reported";
   [key: string]: unknown;
 };
 
@@ -10651,6 +11066,24 @@ export type RuntimeUsageExportView = {
 };
 
 /**
+ * RuntimeUsageHourBucket
+ */
+export type RuntimeUsageHourBucket = {
+  /**
+   * Hour
+   */
+  hour: number;
+  /**
+   * Uses
+   */
+  uses: number;
+  /**
+   * Weekday
+   */
+  weekday: number;
+};
+
+/**
  * RuntimeUsageIngestResult
  *
  * Per-batch bookkeeping; the server never returns event content.
@@ -10661,6 +11094,14 @@ export type RuntimeUsageIngestResult = {
    */
   accepted: number;
   /**
+   * Accepted Ids
+   */
+  accepted_ids: Array<string>;
+  /**
+   * Duplicate Ids
+   */
+  duplicate_ids: Array<string>;
+  /**
    * Duplicates
    */
   duplicates: number;
@@ -10669,6 +11110,10 @@ export type RuntimeUsageIngestResult = {
    */
   rejected: number;
   /**
+   * Rejected Ids
+   */
+  rejected_ids: Array<string>;
+  /**
    * Schema Version
    */
   schema_version: 1;
@@ -10676,56 +11121,138 @@ export type RuntimeUsageIngestResult = {
 };
 
 /**
- * RuntimeUsageInstalledRow
+ * RuntimeUsageInventoryEmployeeRow
  *
- * One currently assigned object and whether it was ever invoked.
+ * Current managed observations; no inferred removal from partial scans.
  */
-export type RuntimeUsageInstalledRow = {
+export type RuntimeUsageInventoryEmployeeRow = {
   /**
-   * Invocations
+   * Coverage
    */
-  invocations: number;
-  last_invoked_at: Timestamp | null;
+  coverage: "complete" | "partial" | "stale";
+  /**
+   * Employee Id
+   */
+  employee_id: string;
+  last_complete_at?: Timestamp | null;
+  last_scan_at: Timestamp;
+  /**
+   * Observed Modified
+   */
+  observed_modified: number;
+  /**
+   * Observed Present
+   */
+  observed_present: number;
+};
+
+/**
+ * RuntimeUsageObjectRow
+ *
+ * A setup or component, with a component's actual setup relation.
+ */
+export type RuntimeUsageObjectRow = {
+  /**
+   * Active Days
+   */
+  active_days: number;
+  /**
+   * Assigned To
+   */
+  assigned_to: number;
+  /**
+   * Installation State
+   */
+  installation_state?: "present" | "modified" | "missing" | "unknown" | null;
+  /**
+   * Installed For
+   */
+  installed_for: number;
+  last_checked_at?: Timestamp | null;
+  last_used_at?: Timestamp | null;
+  /**
+   * Name
+   */
+  name?: string | null;
   /**
    * Object Kind
    */
   object_kind: "setup" | "component";
   /**
+   * Parent Setup Stable Id
+   */
+  parent_setup_stable_id?: string | null;
+  /**
+   * Parent Setup Version
+   */
+  parent_setup_version?: string | null;
+  /**
    * Stable Id
    */
   stable_id: string;
   /**
-   * State
+   * Used By
    */
-  state: "invoked" | "not_invoked";
+  used_by: number;
+  /**
+   * Uses
+   */
+  uses: number;
   /**
    * Version
    */
-  version: string | null;
-  [key: string]: unknown;
+  version: string;
 };
 
 /**
  * RuntimeUsageReport
  *
- * The aggregate answer plus the installed-vs-invoked comparison.
+ * The aggregate answer plus current assignments and observed use.
  */
 export type RuntimeUsageReport = {
+  /**
+   * Assigned
+   */
+  assigned: Array<RuntimeUsageAssignedRow>;
+  /**
+   * By Day
+   */
+  by_day: Array<RuntimeUsageDayBucket>;
+  /**
+   * By Hour
+   */
+  by_hour: Array<RuntimeUsageHourBucket>;
+  /**
+   * Employees
+   */
+  employees: Array<RuntimeUsageEmployeeRow>;
   generated_at: Timestamp;
   /**
    * Group By
    */
   group_by: "component" | "setup" | "employee" | "device" | "project" | "harness" | "outcome";
   /**
-   * Installed
+   * Inventory Employees
    */
-  installed: Array<RuntimeUsageInstalledRow>;
+  inventory_employees: Array<RuntimeUsageInventoryEmployeeRow>;
+  /**
+   * Inventory Scan Enabled
+   */
+  inventory_scan_enabled: boolean;
   invoked_from: Timestamp | null;
   invoked_to: Timestamp | null;
+  /**
+   * Objects
+   */
+  objects: Array<RuntimeUsageObjectRow>;
   /**
    * Organization Id
    */
   organization_id: string;
+  /**
+   * Report Timezone
+   */
+  report_timezone: string;
   /**
    * Rows
    */
@@ -10738,6 +11265,10 @@ export type RuntimeUsageReport = {
    * Total Events
    */
   total_events: number;
+  /**
+   * Usage Collection Enabled
+   */
+  usage_collection_enabled: boolean;
   [key: string]: unknown;
 };
 
@@ -10747,6 +11278,10 @@ export type RuntimeUsageReport = {
  * Aggregate report filters. Every field narrows; none widens.
  */
 export type RuntimeUsageReportQuery = {
+  /**
+   * Collection State
+   */
+  collection_state?: "all" | "complete" | "partial" | "stale" | "unknown" | "disabled";
   /**
    * Component Kind
    */
@@ -10808,6 +11343,10 @@ export type RuntimeUsageReportQuery = {
    * Technology Id
    */
   technology_id?: string | null;
+  /**
+   * Usage State
+   */
+  usage_state?: "all" | "recorded" | "no_recorded";
 };
 
 /**
@@ -10816,6 +11355,10 @@ export type RuntimeUsageReportQuery = {
  * One deterministic aggregate bucket over a defined window.
  */
 export type RuntimeUsageReportRow = {
+  /**
+   * Active Days
+   */
+  active_days: number;
   /**
    * Cancelled
    */
@@ -25550,6 +26093,122 @@ export type ListInstallationHeartbeatsResponses = {
 export type ListInstallationHeartbeatsResponse =
   ListInstallationHeartbeatsResponses[keyof ListInstallationHeartbeatsResponses];
 
+export type IngestInstallationInventoryData = {
+  body: InstallationInventoryBatch;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/telemetry/installation-inventory";
+};
+
+export type IngestInstallationInventoryErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type IngestInstallationInventoryError =
+  IngestInstallationInventoryErrors[keyof IngestInstallationInventoryErrors];
+
+export type IngestInstallationInventoryResponses = {
+  /**
+   * Ingest bounded installation discovery snapshots.
+   */
+  200: InstallationInventoryReceipt;
+};
+
+export type IngestInstallationInventoryResponse =
+  IngestInstallationInventoryResponses[keyof IngestInstallationInventoryResponses];
+
+export type IngestInstallationOperationsData = {
+  body: InstallationOperationBatch;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/telemetry/installation-operations";
+};
+
+export type IngestInstallationOperationsErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type IngestInstallationOperationsError =
+  IngestInstallationOperationsErrors[keyof IngestInstallationOperationsErrors];
+
+export type IngestInstallationOperationsResponses = {
+  /**
+   * Ingest exact settled installation results.
+   */
+  200: InstallationOperationReceipt;
+};
+
+export type IngestInstallationOperationsResponse =
+  IngestInstallationOperationsResponses[keyof IngestInstallationOperationsResponses];
+
 export type ReadCorporateTelemetryPolicyData = {
   body?: never;
   headers?: {
@@ -25818,6 +26477,10 @@ export type ListRuntimeUsageEventsData = {
   };
   query?: {
     /**
+     * Activity Kind
+     */
+    activity_kind?: "invocation" | "load" | null;
+    /**
      * Component Kind
      */
     component_kind?:
@@ -25836,9 +26499,17 @@ export type ListRuntimeUsageEventsData = {
      */
     component_stable_id?: string | null;
     /**
+     * Component Version
+     */
+    component_version?: string | null;
+    /**
      * Device Id
      */
     device_id?: string | null;
+    /**
+     * Direct Only
+     */
+    direct_only?: boolean;
     /**
      * Employee Id
      */
@@ -25850,6 +26521,18 @@ export type ListRuntimeUsageEventsData = {
      * Limit
      */
     limit?: number;
+    /**
+     * Local Day
+     */
+    local_day?: string | null;
+    /**
+     * Local Hour
+     */
+    local_hour?: number | null;
+    /**
+     * Local Weekday
+     */
+    local_weekday?: number | null;
     /**
      * Offset
      */
@@ -25866,6 +26549,14 @@ export type ListRuntimeUsageEventsData = {
      * Setup Stable Id
      */
     setup_stable_id?: string | null;
+    /**
+     * Setup Version
+     */
+    setup_version?: string | null;
+    /**
+     * Source
+     */
+    source?: "native_hook" | "agent_reported" | null;
     /**
      * Team Id
      */
@@ -26116,6 +26807,10 @@ export type ReadRuntimeUsageReportData = {
   };
   query?: {
     /**
+     * Collection State
+     */
+    collection_state?: "all" | "complete" | "partial" | "stale" | "unknown" | "disabled";
+    /**
      * Component Kind
      */
     component_kind?:
@@ -26176,6 +26871,10 @@ export type ReadRuntimeUsageReportData = {
      * Technology Id
      */
     technology_id?: string | null;
+    /**
+     * Usage State
+     */
+    usage_state?: "all" | "recorded" | "no_recorded";
   };
   url: "/v1/corporate/organizations/{organization_id}/telemetry/usage-reports";
 };

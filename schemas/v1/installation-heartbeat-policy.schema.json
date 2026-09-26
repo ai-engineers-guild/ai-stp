@@ -16,6 +16,11 @@
       "title": "Interval Seconds",
       "type": "integer"
     },
+    "inventory_scan_enabled": {
+      "default": false,
+      "title": "Inventory Scan Enabled",
+      "type": "boolean"
+    },
     "organization_id": {
       "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
       "title": "Organization Id",
@@ -47,16 +52,29 @@
       "minimum": 60,
       "title": "Stale After Seconds",
       "type": "integer"
+    },
+    "usage_collection_enabled": {
+      "default": false,
+      "title": "Usage Collection Enabled",
+      "type": "boolean"
+    },
+    "usage_registration_required": {
+      "default": false,
+      "title": "Usage Registration Required",
+      "type": "boolean"
     }
   },
   "required": [
     "enabled",
     "interval_seconds",
+    "inventory_scan_enabled",
     "organization_id",
     "retry_base_seconds",
     "retry_max_seconds",
     "schema_version",
-    "stale_after_seconds"
+    "stale_after_seconds",
+    "usage_collection_enabled",
+    "usage_registration_required"
   ],
   "title": "InstallationHeartbeatPolicy",
   "type": "object"

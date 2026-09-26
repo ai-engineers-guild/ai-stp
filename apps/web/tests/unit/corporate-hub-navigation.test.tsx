@@ -36,7 +36,13 @@ it("orders the Organization tabs as Projects, Teams, Employees, Technologies, Re
   route.path = "/corporate/organization";
   render(
     <CorporateHubNavigation
-      capabilities={["project.list", "team.list", "member.list", "technology.list", "telemetry.read"]}
+      capabilities={[
+        "project.list",
+        "team.list",
+        "member.list",
+        "technology.list",
+        "telemetry.read",
+      ]}
     />,
   );
   expect(screen.getByRole("navigation").querySelectorAll("a")).toHaveLength(5);

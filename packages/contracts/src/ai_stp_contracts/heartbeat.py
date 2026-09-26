@@ -110,6 +110,9 @@ class InstallationHeartbeatPolicy(BaseModel):
     schema_version: Literal[1] = 1
     organization_id: OrganizationId
     enabled: bool = True
+    inventory_scan_enabled: bool = False
+    usage_collection_enabled: bool = False
+    usage_registration_required: bool = False
     interval_seconds: Annotated[int, Field(ge=60, le=2_592_000)] = (
         DEFAULT_HEARTBEAT_INTERVAL_SECONDS
     )

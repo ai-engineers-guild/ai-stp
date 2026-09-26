@@ -22,6 +22,19 @@
   "additionalProperties": false,
   "description": "Aggregate report filters. Every field narrows; none widens.",
   "properties": {
+    "collection_state": {
+      "default": "all",
+      "enum": [
+        "all",
+        "complete",
+        "partial",
+        "stale",
+        "unknown",
+        "disabled"
+      ],
+      "title": "Collection State",
+      "type": "string"
+    },
     "component_kind": {
       "anyOf": [
         {
@@ -215,6 +228,16 @@
       ],
       "default": null,
       "title": "Technology Id"
+    },
+    "usage_state": {
+      "default": "all",
+      "enum": [
+        "all",
+        "recorded",
+        "no_recorded"
+      ],
+      "title": "Usage State",
+      "type": "string"
     }
   },
   "title": "RuntimeUsageReportQuery",

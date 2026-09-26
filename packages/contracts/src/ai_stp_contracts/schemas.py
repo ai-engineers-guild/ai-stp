@@ -284,6 +284,14 @@ from ai_stp_contracts.impact import (
     BlastRadiusReport,
     SelectionImpactReport,
 )
+from ai_stp_contracts.installation_inventory import (
+    InstallationInventoryBatch,
+    InstallationInventoryReceipt,
+)
+from ai_stp_contracts.installation_usage import (
+    InstallationOperationBatch,
+    InstallationOperationReceipt,
+)
 from ai_stp_contracts.machine_help import (
     AuthStatus,
     Capabilities,
@@ -563,6 +571,10 @@ from ai_stp_foundation.schemas import ExportedSchema, check, schema_id, write
 #: The `/v1` HTTP boundary. Every one of these is served by a route, and a test
 #: rejects any that is not.
 HTTP_MODELS: Final[dict[str, ExportedSchema]] = {
+    "installation-operation-batch": InstallationOperationBatch,
+    "installation-operation-receipt": InstallationOperationReceipt,
+    "installation-inventory-batch": InstallationInventoryBatch,
+    "installation-inventory-receipt": InstallationInventoryReceipt,
     "employee-technology-request": EmployeeTechnologyRequest,
     "employee-technology-list": EmployeeTechnologyList,
     "employee-technology-view": EmployeeTechnologyView,

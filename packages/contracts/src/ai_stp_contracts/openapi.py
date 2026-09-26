@@ -281,6 +281,14 @@ from ai_stp_contracts.impact import (
     AccountSelectionImpactQuery,
     AccountSelectionImpactReport,
 )
+from ai_stp_contracts.installation_inventory import (
+    InstallationInventoryBatch,
+    InstallationInventoryReceipt,
+)
+from ai_stp_contracts.installation_usage import (
+    InstallationOperationBatch,
+    InstallationOperationReceipt,
+)
 from ai_stp_contracts.owner import (
     OwnerLifecycleRequest,
     OwnerLifecycleResponse,
@@ -3508,6 +3516,26 @@ OPERATIONS: Final[tuple[Operation, ...]] = (
         summary="Ingest a bounded batch of runtime usage events.",
         response=RuntimeUsageIngestResult,
         body=RuntimeUsageEventBatch,
+        path_params=(_ORGANIZATION_ID,),
+        authenticated=True,
+    ),
+    Operation(
+        method="post",
+        path="/corporate/organizations/{organization_id}/telemetry/installation-operations",
+        operation_id="ingestInstallationOperations",
+        summary="Ingest exact settled installation results.",
+        response=InstallationOperationReceipt,
+        body=InstallationOperationBatch,
+        path_params=(_ORGANIZATION_ID,),
+        authenticated=True,
+    ),
+    Operation(
+        method="post",
+        path="/corporate/organizations/{organization_id}/telemetry/installation-inventory",
+        operation_id="ingestInstallationInventory",
+        summary="Ingest bounded installation discovery snapshots.",
+        response=InstallationInventoryReceipt,
+        body=InstallationInventoryBatch,
         path_params=(_ORGANIZATION_ID,),
         authenticated=True,
     ),

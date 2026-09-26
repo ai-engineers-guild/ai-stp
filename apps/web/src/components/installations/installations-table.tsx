@@ -8,6 +8,7 @@ const HEALTH_VARIANT: Record<
   "success" | "warning" | "destructive" | "secondary" | "outline"
 > = {
   active: "success",
+  partial: "warning",
   stale: "warning",
   failing: "destructive",
   disabled: "secondary",

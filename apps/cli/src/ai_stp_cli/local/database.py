@@ -1473,6 +1473,48 @@ MIGRATIONS: Final[tuple[Migration, ...]] = (
         up=("ALTER TABLE heartbeat_subscription ADD COLUMN scheduler_interval_seconds INTEGER",),
         down=("ALTER TABLE heartbeat_subscription DROP COLUMN scheduler_interval_seconds",),
     ),
+    Migration(
+        version=48,
+        summary="bind settled installation operations to their corporate identity",
+        up=(
+            """
+            CREATE TABLE operation_corporate_binding (
+                operation_id TEXT PRIMARY KEY REFERENCES operation(operation_id),
+                organization_id TEXT NOT NULL,
+                project_id TEXT NOT NULL,
+                account_id TEXT NOT NULL,
+                device_id TEXT NOT NULL,
+                scope TEXT NOT NULL CHECK (scope IN ('global','project','unknown')),
+                created_at TEXT NOT NULL,
+                delivered_at TEXT
+            ) STRICT
+            """,
+        ),
+        down=("DROP TABLE operation_corporate_binding",),
+    ),
+    Migration(
+        version=49,
+        summary="queue corporate inventory snapshots until acknowledged",
+        up=(
+            """
+            CREATE TABLE corporate_inventory_outbox (
+                scan_id TEXT PRIMARY KEY,
+                organization_id TEXT NOT NULL,
+                account_id TEXT NOT NULL,
+                device_id TEXT NOT NULL,
+                payload_json TEXT NOT NULL,
+                created_at TEXT NOT NULL
+            ) STRICT
+            """,
+        ),
+        down=("DROP TABLE corporate_inventory_outbox",),
+    ),
+    Migration(
+        version=50,
+        summary="remember the scope a provider operation was planned against",
+        up=("ALTER TABLE operation_plan ADD COLUMN target_scope TEXT",),
+        down=("ALTER TABLE operation_plan DROP COLUMN target_scope",),
+    ),
 )
 
 #: Names for nested savepoints. A counter rather than a fixed name: two nested

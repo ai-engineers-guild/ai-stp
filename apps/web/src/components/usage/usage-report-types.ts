@@ -27,11 +27,11 @@ export type UsageReportRow = {
   last_invoked_at: string;
 };
 
-export type UsageInstalledRow = {
+export type UsageAssignedRow = {
   object_kind: "setup" | "component";
   stable_id: string;
   version: string | null;
-  state: "invoked" | "not_invoked";
+  state: "recorded_use" | "no_recorded_use";
   invocations: number;
   last_invoked_at: string | null;
 };
@@ -45,5 +45,5 @@ export type UsageReport = {
   group_by: UsageGroupBy;
   total_events: number;
   rows: UsageReportRow[];
-  installed: UsageInstalledRow[];
+  assigned: UsageAssignedRow[];
 };

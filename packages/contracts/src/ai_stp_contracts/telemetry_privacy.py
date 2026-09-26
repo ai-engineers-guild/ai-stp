@@ -1,6 +1,7 @@
 """Corporate telemetry privacy contracts: bounded events, policy, and data rights."""
 
 from typing import Annotated, Literal, Self
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -176,6 +177,10 @@ class CorporateTelemetryPolicyView(BaseModel):
     notice_text: str | None = None
     notice_revision: Annotated[int, Field(ge=0)]
     heartbeat_enabled: bool = True
+    inventory_scan_enabled: bool = False
+    usage_collection_enabled: bool = False
+    usage_registration_required: bool = False
+    report_timezone: Annotated[str, Field(min_length=1, max_length=64)] = "UTC"
     heartbeat_interval_seconds: Annotated[int, Field(ge=60, le=2_592_000)] = 21_600
     heartbeat_retry_base_seconds: Annotated[int, Field(ge=30, le=86_400)] = 60
     heartbeat_retry_max_seconds: Annotated[int, Field(ge=60, le=604_800)] = 3_600
@@ -193,6 +198,10 @@ class CorporateTelemetryPolicyRequest(BaseModel):
     notice_text: Annotated[str, Field(max_length=4000)] | None = None
     notice_revision: Annotated[int, Field(ge=0)]
     heartbeat_enabled: bool | None = None
+    inventory_scan_enabled: bool | None = None
+    usage_collection_enabled: bool | None = None
+    usage_registration_required: bool | None = None
+    report_timezone: Annotated[str, Field(min_length=1, max_length=64)] | None = None
     heartbeat_interval_seconds: Annotated[int, Field(ge=60, le=2_592_000)] | None = None
     heartbeat_retry_base_seconds: Annotated[int, Field(ge=30, le=86_400)] | None = None
     heartbeat_retry_max_seconds: Annotated[int, Field(ge=60, le=604_800)] | None = None
@@ -204,6 +213,13 @@ class CorporateTelemetryPolicyRequest(BaseModel):
 
     @model_validator(mode="after")
     def heartbeat_retry_bounds(self) -> "CorporateTelemetryPolicyRequest":
+        if self.report_timezone is not None:
+            try:
+                ZoneInfo(self.report_timezone)
+            except (ZoneInfoNotFoundError, ValueError) as error:
+                raise ValueError("report timezone must be an IANA timezone") from error
+        if self.usage_registration_required and self.usage_collection_enabled is False:
+            raise ValueError("required usage registration needs usage collection")
         if (
             self.heartbeat_retry_base_seconds is not None
             and self.heartbeat_retry_max_seconds is not None

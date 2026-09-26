@@ -4,6 +4,8 @@ from collections.abc import Mapping
 
 from ai_stp_cli.answer import Answer
 from ai_stp_cli.application import install as install_service
+from ai_stp_cli.application import installation_usage
+from ai_stp_contracts.installation_usage import InstallationOperationReceipt
 from ai_stp_contracts.machine_help import (
     InstallationStatus,
     InstallationView,
@@ -32,6 +34,10 @@ def approve(parameters: Mapping[str, object]) -> Answer[InstallationView]:
 
 def apply(parameters: Mapping[str, object]) -> Answer[InstallationView]:
     return install_service.apply(parameters)
+
+
+def sync_results(parameters: Mapping[str, object]) -> Answer[InstallationOperationReceipt]:
+    return installation_usage.sync_results(parameters)
 
 
 def cancel(parameters: Mapping[str, object]) -> Answer[InstallationView]:

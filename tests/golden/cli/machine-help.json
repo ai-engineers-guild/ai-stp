@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "cli_version": "0.0.0-pinned",
-  "registry_digest": "sha256:960a20bf95b0ccec7d55c421985bb8c692c9edfd63ac242c70002484c43ebc33",
+  "registry_digest": "sha256:92534e4e335e881c332f8d8511317ffcc171771c6b09839262ec4db1d3f5b199",
   "global_options": [
     {
       "name": "json",
@@ -4192,6 +4192,24 @@
           "choices": []
         },
         {
+          "name": "organization",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Bind the result to this corporate organization.",
+          "choices": []
+        },
+        {
+          "name": "corporate-project",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Corporate project receiving the installation fact.",
+          "choices": []
+        },
+        {
           "name": "provider",
           "kind": "option",
           "value_type": "string",
@@ -4620,6 +4638,31 @@
       "parameters": [],
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-installation-status",
+      "next_actions": [
+        "help --path install --json"
+      ]
+    },
+    {
+      "path": [
+        "install",
+        "sync-results"
+      ],
+      "summary": "Deliver settled corporate installation results from the local journal.",
+      "mutability": "apply",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "organization",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Corporate organization to synchronize.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:installation-operation-receipt",
       "next_actions": [
         "help --path install --json"
       ]
@@ -11359,6 +11402,30 @@
           "choices": []
         },
         {
+          "name": "source",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Filter by evidence source.",
+          "choices": [
+            "native_hook",
+            "agent_reported"
+          ]
+        },
+        {
+          "name": "activity-kind",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Filter by activity kind.",
+          "choices": [
+            "invocation",
+            "load"
+          ]
+        },
+        {
           "name": "outcome",
           "kind": "option",
           "value_type": "string",
@@ -11618,12 +11685,62 @@
     {
       "path": [
         "usage",
+        "hook"
+      ],
+      "summary": "Buffer a native MCP hook from stdin using the current verified installation.",
+      "mutability": "apply",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "harness",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Native harness emitting the hook.",
+          "choices": [
+            "codex",
+            "grok-build"
+          ]
+        },
+        {
+          "name": "scope",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Installation scope; project by default.",
+          "choices": [
+            "project",
+            "global"
+          ]
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:runtime-usage-record-result",
+      "next_actions": [
+        "help --path usage --json"
+      ]
+    },
+    {
+      "path": [
+        "usage",
         "outbox"
       ],
       "summary": "Inspect the local usage-event buffer. Sends nothing.",
       "mutability": "read",
       "confirmation": "none",
-      "parameters": [],
+      "parameters": [
+        {
+          "name": "organization",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Organization the events belong to.",
+          "choices": []
+        }
+      ],
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:runtime-usage-outbox-status",
       "next_actions": [
@@ -11670,27 +11787,27 @@
           "name": "setup",
           "kind": "option",
           "value_type": "string",
-          "required": true,
+          "required": false,
           "repeatable": false,
-          "summary": "Setup stable identifier.",
+          "summary": "Setup stable identifier, if unambiguous.",
           "choices": []
         },
         {
           "name": "setup-version",
           "kind": "option",
           "value_type": "string",
-          "required": true,
+          "required": false,
           "repeatable": false,
-          "summary": "Setup version (X.Y).",
+          "summary": "Setup version (X.Y), if unambiguous.",
           "choices": []
         },
         {
           "name": "setup-digest",
           "kind": "option",
           "value_type": "string",
-          "required": true,
+          "required": false,
           "repeatable": false,
-          "summary": "Setup passport digest.",
+          "summary": "Setup passport digest, if unambiguous.",
           "choices": []
         },
         {
@@ -11759,6 +11876,18 @@
           "repeatable": false,
           "summary": "Idempotency key; generated when omitted.",
           "choices": []
+        },
+        {
+          "name": "activity-kind",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Report a component invocation or a separate content load.",
+          "choices": [
+            "invocation",
+            "load"
+          ]
         }
       ],
       "parameter_rules": [],

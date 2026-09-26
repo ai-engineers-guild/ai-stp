@@ -3490,6 +3490,33 @@ def test_a_copy_or_a_restore_without_a_setup_still_needs_the_pair(
     assert "a required option was not supplied" in str(raised.value)
 
 
+def test_sourceless_plan_resolves_registered_project_root(
+    registry: sqlite3.Connection, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    project_id = _project_context(registry, tmp_path)
+    executable = _provider(tmp_path, "v3-root-backup")
+    _v3_test_invoker(monkeypatch, target=tmp_path)
+
+    def resolved_target(project: str, harness: str) -> str:
+        assert project == project_id
+        assert harness == "claude-code"
+        raise RuntimeError("resolved target")
+
+    monkeypatch.setattr(installation, "target_identity", resolved_target)
+    with pytest.raises(RuntimeError, match="resolved target"):
+        install.plan(
+            {
+                "action": "backup",
+                "project": str(tmp_path),
+                "harness": "claude-code",
+                "provider": executable,
+                "protocol-version": 3,
+                "target": str(tmp_path),
+                "unverified-provider": True,
+            }
+        )
+
+
 def test_a_rollback_without_a_backup_ref_is_refused(
     registry: sqlite3.Connection,
     tmp_path: Path,

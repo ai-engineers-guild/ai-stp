@@ -2,7 +2,7 @@
   "$id": "urn:ai-stp:schema:v1:runtime-usage-record-result",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": true,
-  "description": "The outcome of recording one accepted invocation into the outbox.\n\n`queued` and `duplicate` are the durable states; `full` and `dropped`\nmean the local queue could not accept the event - the caller treats them\nas non-fatal telemetry loss, never as a reason to fail the invocation.",
+  "description": "The outcome of recording one accepted invocation into the outbox.\n\n`queued` and `duplicate` are durable states; `full` and `dropped` mean\nthe queue refused the event. `disabled` means collection is off locally.",
   "properties": {
     "event_id": {
       "title": "Event Id",
@@ -19,7 +19,8 @@
         "queued",
         "duplicate",
         "full",
-        "dropped"
+        "dropped",
+        "disabled"
       ],
       "title": "State",
       "type": "string"

@@ -33,6 +33,7 @@ from ai_stp_platform.organization_models import (
     OrganizationMembership,
     ProjectIdentity,
 )
+from ai_stp_platform.telemetry_policy_models import TelemetryPolicy
 from ai_stp_platform.tenant_scope import set_tenant_scope
 
 pytestmark = pytest.mark.platform
@@ -83,6 +84,16 @@ async def _seed_tenant(
     # The org row must exist before roles and bindings; the FKs live only in
     # DDL, so the unit of work does not order them.
     await session.flush()
+    session.add(
+        TelemetryPolicy(
+            organization_id=organization_id,
+            raw_retention_days=90,
+            aggregate_retention_days=365,
+            legal_basis="contract",
+            usage_collection_enabled=True,
+            policy_version=1,
+        )
+    )
     for account_id in (superadmin, lead, member):
         session.add(Account(id=account_id, status="active"))
         session.add(

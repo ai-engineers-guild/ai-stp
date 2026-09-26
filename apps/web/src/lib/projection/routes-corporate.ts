@@ -68,13 +68,11 @@ export const CORPORATE_ROUTES: MachineRoute[] = [
       return presentPage({ title: t("title") });
     },
   },
-  ...(["corporate/installations", "corporate/usage"] as const).map(
-    (pattern): MachineRoute => ({
-      pattern,
-      resolve: async () => {
-        const t = await getTranslations("corporateReports");
-        return presentPage({ title: t("title"), links: [[t("title"), "/corporate/reports"]] });
-      },
-    }),
-  ),
+  ...(["corporate/installations", "corporate/usage"] as const).map((pattern): MachineRoute => ({
+    pattern,
+    resolve: async () => {
+      const t = await getTranslations("corporateReports");
+      return presentPage({ title: t("title"), links: [[t("title"), "/corporate/reports"]] });
+    },
+  })),
 ];

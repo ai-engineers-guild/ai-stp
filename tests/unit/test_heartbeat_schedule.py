@@ -3,6 +3,8 @@
 
 import plistlib
 import sqlite3
+import sys
+import uuid
 from datetime import UTC, datetime
 from pathlib import Path
 from types import SimpleNamespace
@@ -158,6 +160,13 @@ def test_wsl_task_uses_windowless_host_launcher(monkeypatch: pytest.MonkeyPatch)
     assert ".vbs" in scripts[0]
     schedule._windows_remove("ai-stp-test")
     assert "Remove-Item -LiteralPath $launcher" in scripts[1]
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="actual Windows scheduler exit behavior")
+def test_windows_removal_of_an_absent_task_and_launcher_is_idempotent() -> None:
+    name = f"ai-stp-test-absent-{uuid.uuid4().hex}"
+    schedule._windows_remove(name)
+    schedule._windows_remove(name)
 
 
 def test_mac_launch_agent_checks_hourly_and_at_login(

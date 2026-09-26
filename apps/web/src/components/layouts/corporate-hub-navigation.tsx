@@ -25,9 +25,7 @@ export function CorporateHubNavigation({ capabilities }: { capabilities: readonl
   if (path === "/corporate") return null;
   const inLandscape = /\/corporate\/(catalog|categories|technology-landscape)(?:\/|$)/.test(path);
   const inOrganization =
-    /\/corporate\/(organization|employees|projects|teams|technologies|reports)(?:\/|$)/.test(
-      path,
-    );
+    /\/corporate\/(organization|employees|projects|teams|technologies|reports)(?:\/|$)/.test(path);
   const isOverview = path === "/corporate/overview";
   const activeSection =
     path === "/corporate/dashboard" ? "dashboard" : inLandscape ? "landscape" : "organization";
@@ -40,7 +38,9 @@ export function CorporateHubNavigation({ capabilities }: { capabilities: readonl
   if (
     path !== "/corporate/organization" &&
     !isOverview &&
-    !items.some((item) => path === item.href || (item.key === "reports" && path.startsWith(`${item.href}/`)))
+    !items.some(
+      (item) => path === item.href || (item.key === "reports" && path.startsWith(`${item.href}/`)),
+    )
   ) {
     return null;
   }

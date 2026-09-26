@@ -7,6 +7,7 @@ from typing import Any, cast
 import pytest
 from pydantic import ValidationError
 
+from ai_stp_contracts.heartbeat import InstallationHeartbeatPolicy
 from ai_stp_contracts.telemetry_privacy import (
     CorporateTelemetryEventBatchRequest,
     CorporateTelemetryEventRequest,
@@ -15,7 +16,7 @@ from ai_stp_contracts.telemetry_privacy import (
     CorporateTelemetryPolicyRequest,
 )
 from ai_stp_foundation.ids import new_id
-from ai_stp_platform import telemetry_retention
+from ai_stp_platform import telemetry_privacy_service, telemetry_retention
 from ai_stp_platform.telemetry_privacy_service import (
     TELEMETRY_PERMISSIONS,
     TelemetryBoundaryError,
@@ -40,6 +41,13 @@ def _heartbeat(**overrides: object) -> dict[str, Any]:
     }
     event.update(overrides)
     return event
+
+
+def test_inventory_scan_defaults_off_independently_of_heartbeat() -> None:
+    policy = InstallationHeartbeatPolicy(organization_id=new_id("organization"))
+    assert policy.enabled is True
+    assert policy.inventory_scan_enabled is False
+    assert policy.model_copy(update={"inventory_scan_enabled": True}).enabled is True
 
 
 def _invocation(**overrides: object) -> dict[str, Any]:
@@ -165,6 +173,39 @@ def test_policy_request_enforces_retention_bounds() -> None:
         heartbeat_stale_after_seconds=7200,
     )
     assert configured.heartbeat_stale_after_seconds == 7200
+    assert (
+        CorporateTelemetryPolicyRequest(
+            raw_retention_days=30,
+            legal_basis="consent",
+            notice_revision=2,
+            expected_policy_revision=0,
+            authorization_revision=1,
+            idempotency_key="telemetry-policy-timezone",
+            report_timezone="Europe/Moscow",
+        ).report_timezone
+        == "Europe/Moscow"
+    )
+    with pytest.raises(ValidationError, match="IANA timezone"):
+        CorporateTelemetryPolicyRequest(
+            raw_retention_days=30,
+            legal_basis="consent",
+            notice_revision=2,
+            expected_policy_revision=0,
+            authorization_revision=1,
+            idempotency_key="telemetry-policy-bad-timezone",
+            report_timezone="Mars/Olympus",
+        )
+    with pytest.raises(ValidationError, match="required usage registration"):
+        CorporateTelemetryPolicyRequest(
+            raw_retention_days=30,
+            legal_basis="consent",
+            notice_revision=2,
+            expected_policy_revision=0,
+            authorization_revision=1,
+            idempotency_key="telemetry-policy-usage-required",
+            usage_collection_enabled=False,
+            usage_registration_required=True,
+        )
     with pytest.raises(ValidationError):
         CorporateTelemetryPolicyRequest(
             raw_retention_days=30,
@@ -209,9 +250,11 @@ async def test_retention_discovers_heartbeat_only_tenants_and_applies_default_wi
     removed = await telemetry_retention.apply_retention_all(
         cast(Any, session), now=datetime(2026, 9, 24, tzinfo=UTC)
     )
-    assert removed == 4
+    assert removed == 6
     assert telemetry_retention.DEFAULT_RAW_RETENTION_DAYS == 90
     assert "installation_heartbeat" in str(session.tenant_query)
+    assert "installation_operation_fact" in str(session.tenant_query)
+    assert "installation_inventory_snapshot" in str(session.tenant_query)
     assert any(
         "DELETE FROM installation_heartbeat" in str(statement)
         for statement in session.delete_statements
@@ -227,6 +270,29 @@ async def test_retention_discovers_heartbeat_only_tenants_and_applies_default_wi
     )
     cutoff = datetime(2026, 9, 24, tzinfo=UTC) - timedelta(days=90)
     assert cutoff in heartbeat_delete.compile().params.values()
+
+
+@pytest.mark.asyncio
+async def test_subject_erasure_covers_installation_operation_facts() -> None:
+    class FakeSession:
+        def __init__(self) -> None:
+            self.statements: list[str] = []
+
+        async def execute(self, statement: Any) -> SimpleNamespace:
+            self.statements.append(str(statement))
+            return SimpleNamespace(rowcount=1)
+
+    session = FakeSession()
+    await telemetry_privacy_service._erase_stream_subject_rows(  # pyright: ignore[reportPrivateUsage]
+        cast(Any, session),
+        organization_id=new_id("organization"),
+        subject_kind="account",
+        subject_id=new_id("account"),
+    )
+    assert any("DELETE FROM installation_operation_fact" in value for value in session.statements)
+    assert any(
+        "DELETE FROM installation_inventory_snapshot" in value for value in session.statements
+    )
 
 
 def test_batch_request_rejects_repeated_event_ids() -> None:
