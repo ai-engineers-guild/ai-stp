@@ -37,9 +37,8 @@ Native surface for this harness: Plugin/Skill and compatible `AGENTS.md` instruc
    `envelope.continuations[0].actor` — JSON-поле, а не личность пользователя.
    Когда поле `cli`, исполните `argv` своими tools. Когда `human`, этот
    `argv` как напечатан не исполняйте (value нарочно отсутствует). Сразу
-   ответьте из разговора через
-   `ai-stp task answer --task <id> --revision <n> --value <ответ>`;
-   `--input` передаёт структурированные объекты, а не ответ агента — ответ,
+   ответьте из разговора через `ai-stp task answer` с id задачи, её ревизией
+   и текстом вашего ответа — ответ это текст, не файл и не stdin; ответ,
    который задача не получила, оставляет её blocked. Ждать человека — не
    работа. Когда `external`, покажите payload один раз и остановитесь.
    Этот `argv` не исполняйте. `provider-too-old` — не login: не стартуйте
