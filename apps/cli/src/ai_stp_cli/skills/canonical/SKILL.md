@@ -40,7 +40,10 @@ not type `ai-stp`. Do not start `account`.
    When that field is `cli`, execute `argv` with your tools. When it is
    `human`, do not execute that `argv` as printed (the value is missing on
    purpose). Answer immediately from the conversation through
-   `ai-stp task answer`. Waiting for a person is not the job. When it is
+   `ai-stp task answer --task <id> --revision <n> --value <answer>`;
+   `--input` carries structured objects, not the agent's reply, and an
+   answer the task never consumed leaves it blocked. Waiting for a person
+   is not the job. When it is
    `external`, show the payload once and stop. Do not execute that `argv`.
    `provider-too-old` is not login: do not start `account`, do not loop
    `task continue`. A device-code payload is shown once; later
