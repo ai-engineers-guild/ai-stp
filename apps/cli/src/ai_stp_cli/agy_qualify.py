@@ -2892,20 +2892,31 @@ def run_agy(
     for attempt in range(UNAVAILABLE_ATTEMPTS):
         if log.is_file():
             log.write_text("", encoding="utf-8")
-        result = subprocess.run(
-            agy_argv(
-                agy,
-                model=model,
-                prompt=prompt,
-                add_dirs=(workspace.root, workspace.project),
-            ),
-            cwd=workspace.project,
-            env=env,
-            check=False,
-            capture_output=True,
-            text=True,
-            timeout=timeout,
-        )
+        try:
+            result = subprocess.run(
+                agy_argv(
+                    agy,
+                    model=model,
+                    prompt=prompt,
+                    add_dirs=(workspace.root, workspace.project),
+                ),
+                cwd=workspace.project,
+                env=env,
+                check=False,
+                capture_output=True,
+                text=True,
+                timeout=timeout,
+            )
+        except subprocess.TimeoutExpired as error:
+            # A driver that outlives its bound is a measured fail, not a fill
+            # crash: whatever partial output exists still counts as evidence.
+            stdout = error.stdout.decode() if isinstance(error.stdout, bytes) else error.stdout
+            stderr = error.stderr.decode() if isinstance(error.stderr, bytes) else error.stderr
+            (workspace.root / "agy.stdout").write_text(stdout or "", encoding="utf-8")
+            (workspace.root / "agy.stderr").write_text(
+                (stderr or "") + f"\nagy timed out after {timeout}s\n", encoding="utf-8"
+            )
+            return 124
         (workspace.root / "agy.stdout").write_text(result.stdout, encoding="utf-8")
         (workspace.root / "agy.stderr").write_text(result.stderr, encoding="utf-8")
         code = result.returncode
