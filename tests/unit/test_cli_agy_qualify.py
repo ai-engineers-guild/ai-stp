@@ -782,7 +782,7 @@ def test_score_requires_the_matching_intent_and_rejects_expert_leaves(
     assert score(INSTALL_OPEN, dumped_help) == "fail"
     invented = prepare_workspace(tmp_path / "invented-status")
     _drive_initialize_limitation(invented)
-    (invented.root / "cli.log").write_text("task status --task-id task_01\n", encoding="utf-8")
+    (invented.root / "cli.log").write_text("task get --task task_01\n", encoding="utf-8")
     assert score(FRESH_INIT, invented) == "fail"
     hijacked = prepare_workspace(tmp_path / "init-account")
     _drive_initialize_limitation(hijacked)
@@ -1075,6 +1075,25 @@ def test_pending_reload_blocked_still_passes(tmp_path: Path) -> None:
         },
     )
     assert score(COMPENSATED, compensated) == "pass"
+    status_first = prepare_workspace(tmp_path / "compensated-status", scenario=COMPENSATED)
+    (status_first.root / "cli.log").write_text(
+        "task status --task task_fault --json\n"
+        "task continue --task task_fault --revision 3 --json\n",
+        encoding="utf-8",
+    )
+    _seed_fault(
+        status_first,
+        kind="compensated-install",
+        state="failed",
+        goal_satisfied=False,
+        op_state="rolled_back",
+        extra={
+            "barrier": "provider-killed-mid-mutation",
+            "diverged": ["skills/demo/SKILL.md"],
+            "pre": {},
+        },
+    )
+    assert score(COMPENSATED, status_first) == "pass"
     wedge = prepare_workspace(tmp_path / "compensated-wedge", scenario=COMPENSATED)
     _seed_fault(
         wedge,
@@ -2224,7 +2243,7 @@ def test_agy_argv_puts_print_equals_last() -> None:
     assert added.count("--add-dir") == 2
     assert "Use your shell tool" in SKILL_TAIL
     assert "printed command is not a completed initialize" in SKILL_TAIL
-    assert "Do not invent task status, task info, or task get" in SKILL_TAIL
+    assert "Do not invent task info or task get" in SKILL_TAIL
     assert "Do not type component add" in SKILL_TAIL
     assert "Do not insert task continue when actor is human" in SKILL_TAIL
     assert "absolute path outside this workspace" in SKILL_TAIL

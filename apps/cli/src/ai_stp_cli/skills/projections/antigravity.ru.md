@@ -46,7 +46,7 @@ Native surface for this harness: Skill and agent in Gemini's shared home, with a
    `task continue` только после браузера, не в тесном цикле.
    `task start` уже продвинул задачу. Не вставляйте `task continue`, когда
    `actor` равен `human` или continuations нет.
-   Не выдумывайте `task status`, `task info` или `task get`.
+   Не выдумывайте `task info` или `task get`.
    Дождитесь JSON-конверта `ai-stp` на stdout. Не запускайте CLI намеренно
    в background. Если shell tool вернул идентификатор фоновой задачи,
    получите через этот tool завершённый вывод до следующего вызова CLI.
@@ -135,7 +135,7 @@ Native surface for this harness: Skill and agent in Gemini's shared home, with a
   intent `inspect`.
 - Не набирайте `provider network`. Пустой `continuations` значит остановиться
   и сообщить типизированную ошибку. Когда `error.details.state` — `failed`,
-  задача settled; не набирайте `task get`, `task status` или `task continue`.
+  задача settled; не набирайте `task get` или `task continue`.
 - Используйте команды конфигурации и установки CLI. В harness target пишет
   провайдер; ручная правка нативных файлов не заменяет его работу.
 - Сохраняйте точные версии, идентификаторы proposal и operation, plan digest
