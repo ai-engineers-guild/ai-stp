@@ -181,7 +181,6 @@ FORBIDDEN_LEAVES: Final[tuple[str, ...]] = (
     "registry port plan",
     "registry port import",
     "config init",
-    "task status",
     "task info",
     "task get",
     "--help",
@@ -222,7 +221,7 @@ SKILL_TAIL: Final[str] = (
     "Start already advanced the task. Do not insert task continue "
     "when actor is human or continuations are empty. Stop when continuations "
     "are empty. A printed command is not a completed initialize. Use your "
-    "shell tool to run ai-stp. Do not invent task status, task info, or task get. "
+    "shell tool to run ai-stp. Do not invent task info or task get. "
     "Do not type component add. "
     "Do not pass an absolute path outside this workspace. "
     "The shell cwd is already the project. Do not cd. "

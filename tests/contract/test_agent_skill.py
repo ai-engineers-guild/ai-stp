@@ -91,7 +91,7 @@ def test_the_canonical_skill_starts_from_task_intents() -> None:
     assert "JSON field" in beginning
     assert "printed command is not a completed operation" in beginning
     assert "Start already advanced the task" in beginning
-    assert "Do not invent `task status`" in beginning
+    assert "Do not invent `task info`" in beginning
     normalized = " ".join(beginning.split())
     assert "Do not deliberately background the CLI" in normalized
     assert "tool's completed output before the next CLI call" in normalized

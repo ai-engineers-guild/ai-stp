@@ -50,7 +50,7 @@ not type `ai-stp`. Do not start `account`.
    `task continue` only after the browser, never in a tight loop.
    Start already advanced the task. Do not insert
    `task continue` when `actor` is `human` or when there are no continuations.
-   Do not invent `task status`, `task info`, or `task get`.
+   Do not invent `task info` or `task get`.
    A lost task reference is recovered through `task list`: it returns only
    tasks that have not settled, each with the id and revision a resume needs.
    Wait for each `ai-stp` JSON envelope on stdout. Do not deliberately
@@ -140,7 +140,7 @@ and [traps](references/traps.md) when a returned state is ambiguous.
   `inspect` intent.
 - Do not type `provider network`. Empty `continuations` means stop and
   report the typed error. When `error.details.state` is `failed`, the task
-  is settled; do not type `task get`, `task status`, or `task continue`.
+  is settled; do not type `task get` or `task continue`.
 - Use CLI configuration and installation commands. The provider writes the
   harness target; do not replace its work with manual native-file edits.
 - Keep exact setup/component versions, proposal and operation identifiers,
