@@ -874,3 +874,22 @@ issues #254 and #256 remain outside this epic's closure authority.
    Privileged Docker ENFORCED (bwrap) is isolation for those cells; the
    host overlay stays `unavailable` while this host's bwrap is denied.
 5. Do not close GitHub issues from a dirty tree.
+
+## 12. Closing record — 2026-09-26
+
+The epic executed through slice 9 on released 0.0.31 bytes. The corpus was
+terminated by owner decision at 104/200 cells; the measured verdict is on
+issue 274: guided core journeys (initialize / install-exact /
+install-without-pin / change-add / switch-preserved) all 5/5; 15 fault-cell
+fails were a scorer artifact (released instrument listed the real
+`task status` command as forbidden while fault prompts instruct it — fixed
+in PR #485, re-scored to pass); unassisted layer recorded a systematic
+`task answer --input` vs `--value` model deviation (Skill clarified in
+PR #483). The ≥95/100 gate was not demonstrated at this sample and is not
+claimed.
+
+A corrected rerun belongs to the next released identity (`payload_digest`
+binds cells to instrument bytes). Epic #261 and children #262–#274 are closed
+with evidence; issue #275 records release synchronization. Windows/macOS
+native legs and live corporate journeys remain `not_run` / `not_verified` by
+explicit scope decision.

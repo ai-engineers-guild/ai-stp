@@ -736,3 +736,31 @@ three-platform evidence is executed on exact releases, live slices refer to the
 deployed SHA, documentation is generated from its owners, and the final diff and
 Git state are clean. `not_verified` is an honest remaining result, not a reason
 to add a manual approval or hide a matrix row.
+
+## Closing record — 2026-09-26
+
+The September 26 estate pass terminated with these measured results:
+
+- `ai-stp` 0.0.31 (`baf94a29`) is the deployed production commit;
+  `/v1/system/version` and `/feed.xml` verified live. Provider releases
+  0.0.76 (seven harnesses), provider-kit 0.2.13.
+- GPT OSS 120B corpus terminated by owner decision at 104/200 cells:
+  guided layer 51/100 raw, corrected to 66/77 recorded after re-scoring with
+  the fixed scorer (all five core journeys 5/5); unassisted 14/27 with a
+  systematic `--input` vs `--value` model deviation. The ≥95 gate was not
+  demonstrated at this sample; the verdict is posted on #274.
+- Instrument defect found and fixed on `dev`: the released scorer flagged the
+  real `task status` command as choreography (PR #485); the Skill answer
+  channel was clarified without naming flags (PR #483); the measured
+  rollout-availability policy is documented (PR #484). All three ride the
+  promotion PR into `main` and the next released identity.
+- Native linux-x86_64: 7/7 provider installs pass under bubblewrap-enforced
+  isolation (IPv4/IPv6/DNS positive controls reached, all denied inside).
+- Closed with evidence: #256 (estate record, hot paths, rollout policy,
+  scanner disposition), #447, #448, #333, #454, #261–#274, #328, #358.
+  Environment-blocked journeys (two-tenant corporate switcher, live policy
+  remediation) are recorded as `not_verified` at the test level, not
+  fabricated.
+- Still open by scope decision: #275 pending the armed promotion merge,
+  and the colleague/enterprise backlog (#18–#24, #48–#52, #57–#60, #180,
+  #199–#235, #247).
