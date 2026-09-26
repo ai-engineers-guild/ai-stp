@@ -162,7 +162,9 @@ a CLI language rewrite, and a PyPI CLI cut are excluded.
   file or stdin is a JSON or YAML object parsed into the same typed model;
   unreadable paths and invalid UTF-8 return a validation error naming the
   file-or-stdin interface and scoped start help, without echoing the supplied
-  input locator. An inline JSON argument remains a refused file locator.
+  input locator. An inline JSON argument remains a refused file locator;
+  when the refused locator looks like an inline document, the error also
+  names the stdin route (`--input -`) with a pipe example.
   Duplicate keys are refused rather than last-wins, in either spelling. Flags
   win over keys
   in that object. Inspect rejects a non-empty input object. A schema
