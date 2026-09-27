@@ -25,7 +25,7 @@ from ai_stp_platform.safety.percent import (
 )
 from ai_stp_platform.safety.planner import plan_checks
 from ai_stp_platform.safety.policy import POLICY_VERSION, SafetyProfile
-from ai_stp_platform.safety.types import ArtifactManifest
+from ai_stp_platform.safety.types import ArtifactManifest, CheckOutcome
 from ai_stp_platform.safety.workdir import isolated_workdir, materialize_artifact
 from ai_stp_platform.storage.object_store import ARTIFACT_DIGEST_DOMAIN
 
@@ -200,6 +200,70 @@ async def test_clean_artifact_passes_in_proc_gates(monkeypatch: pytest.MonkeyPat
         use_cache=True,
     )
     assert result2.cache_hit is True
+
+
+@pytest.mark.asyncio
+async def test_scan_does_not_starve_the_event_loop(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The synchronous materialize → execute tail must run off the loop.
+
+    A blocking `_execute_plan` used to freeze every other coroutine for the
+    full scan. This test parks a probe on the loop while a deliberately slow
+    execution runs; the probe must keep ticking through it.
+    """
+    import asyncio
+    import time
+
+    from ai_stp_platform.safety import orchestrator
+
+    _clean_skill_engines(monkeypatch)
+    clear_safety_cache()
+    payload = _zip_tree({"SKILL.md": "# ok\n", "README.md": "docs\n"})
+    digest = _digest(payload)
+    passport = {
+        "component_type": "skill",
+        "artifact": {"digest": digest, "size_bytes": len(payload)},
+    }
+
+    def slow_execute(
+        tree: object,
+        manifest: object,
+        planned: object,
+        started: float,
+    ) -> list[CheckOutcome]:
+        time.sleep(0.3)
+        return []
+
+    monkeypatch.setattr(orchestrator, "_execute_plan", slow_execute)
+
+    ticks = 0
+    stop = asyncio.Event()
+
+    async def probe() -> None:
+        nonlocal ticks
+        while not stop.is_set():
+            ticks += 1
+            await asyncio.sleep(0)
+
+    scan = asyncio.create_task(
+        run_safety_suite(
+            passport=passport,
+            content_digest=digest,
+            policy_version=POLICY_VERSION,
+            artifact_bytes=payload,
+            profile=SafetyProfile.STANDARD,
+            use_cache=False,
+        )
+    )
+    probe_task = asyncio.create_task(probe())
+    try:
+        await asyncio.sleep(0.15)  # lands inside the 300ms sync window
+        mid_ticks = ticks
+        await scan
+    finally:
+        stop.set()
+        await probe_task
+    # On the pre-thread implementation the loop never served the probe once.
+    assert mid_ticks > 5
 
 
 @pytest.mark.asyncio

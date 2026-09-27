@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ai_stp_contracts.seo import SEO_LOCALES, SeoEnrichmentOutput, SeoProfileDocument
 from ai_stp_platform.logging import get_logger
+from ai_stp_platform.queue.states import PermanentJobFailure
 from ai_stp_platform.seo.collectors import SubjectMissing, collect_subject
 from ai_stp_platform.seo.enrich import (
     SeoEnrichmentRejected,
@@ -35,7 +36,7 @@ _log = get_logger("seo_enrich")
 def _payload_str(payload: Mapping[str, object], key: str) -> str:
     value = payload.get(key)
     if not isinstance(value, str) or not value:
-        raise ValueError(f"seo_enrich requires {key}")
+        raise PermanentJobFailure(f"seo_enrich requires {key}")
     return value
 
 
@@ -58,7 +59,7 @@ async def handle_seo_enrich(
     expected_digest = _payload_str(payload, "source_digest")
     template_version = _payload_str(payload, "template_version")
     if locale not in SEO_LOCALES:
-        raise ValueError("seo_enrich requires locale")
+        raise PermanentJobFailure("seo_enrich requires locale")
     moment = now or datetime.now(UTC)
     started = monotonic()
     snapshot = await session.get(SeoFactSnapshot, snapshot_id)

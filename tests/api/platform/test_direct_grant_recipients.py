@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
-from httpx import AsyncClient
+import asyncio
+
+from httpx import AsyncClient, Response
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from ai_stp_api.errors import CATEGORY_CODE, ErrorCategory
@@ -10,7 +13,7 @@ from ai_stp_api.session import issue_session
 from ai_stp_api.settings import Settings
 from ai_stp_foundation.ids import new_id
 from ai_stp_platform.grant_identity_models import OAuthIdentityAlias
-from ai_stp_platform.models import Account, CatalogMetadata, OAuthIdentity
+from ai_stp_platform.models import AccessGrant, Account, CatalogMetadata, OAuthIdentity
 
 _STABLE_ID = "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
 
@@ -68,7 +71,7 @@ def _auth(token: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {token}"}
 
 
-async def test_github_username_grant_normalizes_lists_authorizes_and_revokes(
+async def test_github_username_grant_normalizes(
     db_api_client: tuple[AsyncClient, async_sessionmaker[AsyncSession], Settings],
 ) -> None:
     client, sessionmaker, _settings = db_api_client
@@ -93,6 +96,74 @@ async def test_github_username_grant_normalizes_lists_authorizes_and_revokes(
     body = created.json()
     assert body["grantee_account_id"] == grantee_id
     assert body["recipient_kind"] == "github_username"
+
+
+async def test_concurrent_direct_grants_commit_exactly_one_row(
+    db_api_client: tuple[AsyncClient, async_sessionmaker[AsyncSession], Settings],
+) -> None:
+    """Two creates racing on the same target+grantee cannot both insert: the
+    unique tuple arbitrates and both callers receive the committed winner."""
+    client, sessionmaker, _settings = db_api_client
+    owner_id, owner_token = await _account_token(sessionmaker)
+    grantee_id, _grantee_token = await _account_token(sessionmaker)
+    await _owned_component(sessionmaker, owner_account_id=owner_id)
+
+    async def create(key: str) -> Response:
+        return await client.post(
+            "/v1/grants/direct",
+            headers=_auth(owner_token),
+            json={
+                "schema_version": 1,
+                "object_kind": "component",
+                "stable_id": _STABLE_ID,
+                "major": 1,
+                "recipient_kind": "user_id",
+                "recipient": grantee_id,
+                "idempotency_key": key,
+            },
+        )
+
+    first, second = await asyncio.gather(
+        create("race-grant-alpha-0001"), create("race-grant-bravo-001")
+    )
+    assert first.status_code == 201, first.text
+    assert second.status_code == 201, second.text
+    assert first.json()["grant_id"] == second.json()["grant_id"]
+    async with sessionmaker() as db:
+        count = await db.scalar(
+            select(func.count())
+            .select_from(AccessGrant)
+            .where(
+                AccessGrant.stable_id == _STABLE_ID,
+                AccessGrant.grantee_account_id == grantee_id,
+            )
+        )
+    assert count == 1
+
+
+async def test_github_username_grant_listing_and_revoke(
+    db_api_client: tuple[AsyncClient, async_sessionmaker[AsyncSession], Settings],
+) -> None:
+    client, sessionmaker, _settings = db_api_client
+    owner_id, owner_token = await _account_token(sessionmaker)
+    _grantee_id, grantee_token = await _account_token(sessionmaker, github_username="octo-cat")
+    await _owned_component(sessionmaker, owner_account_id=owner_id)
+
+    created = await client.post(
+        "/v1/grants/direct",
+        headers=_auth(owner_token),
+        json={
+            "schema_version": 1,
+            "object_kind": "component",
+            "stable_id": _STABLE_ID,
+            "major": 1,
+            "recipient_kind": "github_username",
+            "recipient": " @Octo-Cat ",
+            "idempotency_key": "github-grant-listing",
+        },
+    )
+    assert created.status_code == 201
+    body = created.json()
     assert body["recipient"] == "octo-cat"
 
     listed = await client.get("/v1/grants", headers=_auth(grantee_token))

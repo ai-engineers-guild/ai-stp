@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import secrets
 from datetime import UTC, datetime, timedelta
+from typing import Any, cast
 
-from sqlalchemy import select, update
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy import CursorResult, select, update
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ai_stp_api.errors import ApiError, ErrorCategory
@@ -72,42 +73,57 @@ async def start_device_authorization(
             return held
 
     now = datetime.now(UTC)
-    row = DeviceAuthorization(
-        device_code=_mint_device_code(),
-        user_code=_mint_user_code(),
-        provider=provider,
-        status="pending",
-        account_id=None,
-        interval_seconds=_DEFAULT_INTERVAL,
-        expires_at=now + timedelta(seconds=_DEFAULT_EXPIRES),
-        last_poll_at=None,
-        idempotency_key=idempotency_key,
-    )
-    # Rare user_code collision: retry once.
-    clash = await db.execute(
-        select(DeviceAuthorization).where(DeviceAuthorization.user_code == row.user_code)
-    )
-    if clash.scalar_one_or_none() is not None:
-        row.user_code = _mint_user_code()
-    db.add(row)
-    try:
-        async with db.begin_nested():
-            await db.flush()
-    except IntegrityError:
-        # A concurrent same-key create won the race: replay its row.
-        if idempotency_key is None:
-            raise
-        held = (
+    # A clash can land on either unique key: `idempotency_key` means the same
+    # intent committed concurrently (replay its row); `user_code` means the
+    # random code collided (mint a fresh one and retry once). `DO NOTHING`
+    # skips either conflict without raising, so the session stays usable —
+    # a failed flush inside `begin_nested` would mark it rollback-required.
+    for _attempt in range(2):
+        device_code = _mint_device_code()
+        user_code = _mint_user_code()
+        inserted = cast(
+            CursorResult[Any],
             await db.execute(
-                select(DeviceAuthorization).where(
-                    DeviceAuthorization.idempotency_key == idempotency_key
+                pg_insert(DeviceAuthorization)
+                .values(
+                    device_code=device_code,
+                    user_code=user_code,
+                    provider=provider,
+                    status="pending",
+                    account_id=None,
+                    interval_seconds=_DEFAULT_INTERVAL,
+                    expires_at=now + timedelta(seconds=_DEFAULT_EXPIRES),
+                    last_poll_at=None,
+                    idempotency_key=idempotency_key,
                 )
-            )
-        ).scalar_one_or_none()
-        if held is None or held.provider != provider:
-            raise
-        return held
-    return row
+                .on_conflict_do_nothing()
+            ),
+        )
+        if inserted.rowcount == 1:
+            return (
+                await db.execute(
+                    select(DeviceAuthorization).where(
+                        DeviceAuthorization.device_code == device_code
+                    )
+                )
+            ).scalar_one()
+        if idempotency_key is not None:
+            held = (
+                await db.execute(
+                    select(DeviceAuthorization).where(
+                        DeviceAuthorization.idempotency_key == idempotency_key
+                    )
+                )
+            ).scalar_one_or_none()
+            if held is not None:
+                if held.provider != provider:
+                    raise ApiError(
+                        ErrorCategory.CONFLICT,
+                        "idempotency key was reused with different content",
+                    )
+                return held
+        # Otherwise the random `user_code` clashed: loop mints a fresh pair.
+    raise ApiError(ErrorCategory.INTERNAL, "could not allocate a unique device user code")
 
 
 def verification_uris(auth: AuthSettings, user_code: str) -> tuple[str, str]:
@@ -214,10 +230,33 @@ async def exchange_device_code(
     row.status = "consumed"
 
     pk = normalize_public_key(public_key)
-    foreign = await db.execute(
-        select(Device).where(Device.public_key == pk, Device.account_id != row.account_id)
-    )
-    if foreign.scalar_one_or_none() is not None:
+    # `public_key` is globally unique, so the lookup itself answers the
+    # foreign-account question the old two-query dance approximated.
+    device = (await db.execute(select(Device).where(Device.public_key == pk))).scalar_one_or_none()
+    if device is None:
+        # Prefer client-supplied device_id when free; otherwise mint.
+        taken = await db.get(Device, device_id)
+        new_device_id = device_id if taken is None else new_id("device")
+        # `ON CONFLICT DO NOTHING` keeps the request transaction alive through
+        # the race: two exchanges on the same key insert once, the loser skips
+        # and re-reads the committed winner. (A failed flush inside
+        # `begin_nested` marks the whole session rollback-required in
+        # SQLAlchemy, so savepoint-replay cannot survive here.)
+        await db.execute(
+            pg_insert(Device)
+            .values(
+                id=new_device_id,
+                account_id=row.account_id,
+                public_key=pk,
+                device_type="cli",
+                display_name=display_name or None,
+                state=DeviceState.ACTIVE.value,
+                last_seen_at=now,
+            )
+            .on_conflict_do_nothing(index_elements=[Device.public_key])
+        )
+        device = (await db.execute(select(Device).where(Device.public_key == pk))).scalar_one()
+    if device.account_id != row.account_id:
         # `reason` survives the wire through the client's forwarded-details
         # allowlist; the recovery it names is `device reset`, which a generic
         # PERMISSION_DENIED must not suggest (#359).
@@ -226,33 +265,14 @@ async def exchange_device_code(
             "device key belongs to another account",
             details={"reason": "device_key_foreign"},
         )
-
-    existing = await db.execute(
-        select(Device).where(Device.account_id == row.account_id, Device.public_key == pk)
-    )
-    device = existing.scalar_one_or_none()
-    if device is None:
-        # Prefer client-supplied device_id when free; otherwise mint.
-        taken = await db.get(Device, device_id)
-        new_device_id = device_id if taken is None else new_id("device")
-        device = Device(
-            id=new_device_id,
-            account_id=row.account_id,
-            public_key=pk,
-            display_name=display_name or None,
-            state=DeviceState.ACTIVE.value,
-            last_seen_at=now,
+    if device.state == DeviceState.REVOKED.value:
+        raise ApiError(
+            ErrorCategory.PERMISSION,
+            "device is revoked; register a new device key",
         )
-        db.add(device)
-    else:
-        if device.state == DeviceState.REVOKED.value:
-            raise ApiError(
-                ErrorCategory.PERMISSION,
-                "device is revoked; register a new device key",
-            )
-        device.last_seen_at = now
-        if display_name:
-            device.display_name = display_name
+    device.last_seen_at = now
+    if display_name:
+        device.display_name = display_name
     device.user_agent = user_agent
     device.approximate_location = approximate_location(client_ip, auth.geoip_city_db_path)
     await db.flush()

@@ -21,6 +21,9 @@ LOCAL_SESSION_HEADER = "X-AI-STP-Local-Session"
 LOCAL_CSRF_HEADER = "X-AI-STP-Local-CSRF"
 LOCAL_SESSION_TTL = timedelta(hours=1)
 _STARTUP_TIMEOUT = 30.0
+# Each session owns a full Python subprocess; without a bound a loopback
+# client can fork the API host to death one session at a time.
+_MAX_LOCAL_PROCESSES = 4
 
 
 @dataclass(frozen=True)
@@ -62,6 +65,22 @@ async def start(request: Request) -> LocalSession:
     """Launch one disposable loopback process and create its session there."""
     _require_loopback(request)
     processes: dict[str, _LocalProcess] = request.app.state.local_processes
+    # Reap entries whose session expired: they still own a live subprocess
+    # until `stop` or shutdown, which the cap below would otherwise count.
+    now = datetime.now(UTC)
+    stale = [
+        (token, entry)
+        for token, entry in processes.items()
+        if entry.session.expires_at <= now or entry.process.returncode is not None
+    ]
+    for token, entry in stale:
+        processes.pop(token)
+        await _stop_process(entry)
+    if len(processes) >= _MAX_LOCAL_PROCESSES:
+        raise ApiError(
+            ErrorCategory.RATE_LIMITED,
+            "local session limit reached; stop an existing session first",
+        )
     process = await asyncio.create_subprocess_exec(
         sys.executable,
         "-B",
@@ -130,9 +149,17 @@ def require(request: Request, *, mutation: bool = False) -> LocalSession:
 
 async def stop(request: Request) -> None:
     """End the child session and terminate its process; no durable state is kept."""
-    session = require(request, mutation=True)
+    _require_loopback(request)
     processes: dict[str, _LocalProcess] = request.app.state.local_processes
-    entry = processes.pop(session.token)
+    token = request.headers.get(LOCAL_SESSION_HEADER, "")
+    entry = processes.pop(token, None)
+    if entry is None:
+        raise ApiError(ErrorCategory.AUTH_REQUIRED, "local session required")
+    session = entry.session
+    if not secrets.compare_digest(session.csrf_token, request.headers.get(LOCAL_CSRF_HEADER, "")):
+        # Put the entry back: a failed CSRF check must not kill a live session.
+        processes[session.token] = entry
+        raise ApiError(ErrorCategory.AUTH_REQUIRED, "local csrf validation failed")
     try:
         async with httpx.AsyncClient(base_url=session.api_base_url, timeout=1.0) as client:
             await client.delete(

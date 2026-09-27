@@ -1515,6 +1515,11 @@ async def push_project_revision(
     except IntegrityError as error:
         # A concurrent push committed a unique row first: replay its receipt
         # under this idempotency key, or refuse when the collision is not ours.
+        # The failed flush marked the whole transaction rollback-required
+        # (SQLAlchemy deactivates the parent on any `begin_nested` exception),
+        # so clear it before the replay read — the replay answer is entirely
+        # the winner's committed state anyway.
+        await db.rollback()
         winner = await db.scalar(
             select(ProjectRevisionReceiptRow).where(
                 ProjectRevisionReceiptRow.organization_id == link.organization_id,

@@ -7,6 +7,7 @@ from collections.abc import Mapping
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ai_stp_platform.publication_logic import execute_validate
+from ai_stp_platform.queue.states import PermanentJobFailure
 
 
 async def handle_validate(session: AsyncSession, payload: Mapping[str, object]) -> None:
@@ -21,7 +22,7 @@ async def handle_validate(session: AsyncSession, payload: Mapping[str, object]) 
     plan_id = payload.get("plan_id")
     if not isinstance(plan_id, str) or not plan_id:
         msg = "validate requires plan_id"
-        raise ValueError(msg)
+        raise PermanentJobFailure(msg)
     # Production path: execute_validate opens env object store and downloads
     # the content-addressed artifact before the staged safety suite.
     await execute_validate(session, plan_id=plan_id, release_read_transaction=True)

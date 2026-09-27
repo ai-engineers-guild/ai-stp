@@ -121,7 +121,7 @@ class Worker:
         self._schedule_official_upstream = schedule_official_upstream
         # The daily sweep marker is independent of the upstream flag:
         # telemetry retention must run even when upstream sync is disabled.
-        self._daily_sweep_day: date | None = date.min
+        self._daily_sweep_day: date = date.min
 
     def request_stop(self) -> None:
         """Signal the run loop to stop claiming and drain."""
@@ -192,12 +192,7 @@ class Worker:
                     # boundary would skip that day forever. Enqueue each missed
                     # day — the attempt/outbox dedup makes repeats no-ops —
                     # bounded so a long outage cannot storm the queue.
-                    first = (
-                        today - timedelta(days=7)
-                        if self._daily_sweep_day is None
-                        or self._daily_sweep_day < today - timedelta(days=7)
-                        else self._daily_sweep_day
-                    )
+                    first = max(self._daily_sweep_day, today - timedelta(days=7))
                     day = first
                     while day <= today:
                         moment = datetime.combine(day, datetime.min.time(), tzinfo=UTC)
@@ -271,7 +266,13 @@ class Worker:
                     await set_tenant_scope(session, "*")
                     current = await session.get(Job, job_id)
                     if current is not None:
-                        await fail(session, current, error="unregistered job type", permanent=True)
+                        await fail(
+                            session,
+                            current,
+                            error="unregistered job type",
+                            permanent=True,
+                            locked_by=self._worker_id,
+                        )
                 result = "failed"
                 return
 
@@ -303,15 +304,22 @@ class Worker:
                 if current is None:
                     return
                 if error is None:
-                    await mark_succeeded(status_session, current)
+                    if not await mark_succeeded(status_session, current, locked_by=self._worker_id):
+                        # The lease lapsed mid-flight and the row belongs to a
+                        # new owner now — their verdict is the job's outcome.
+                        result = "superseded"
+                        return
                     result = "succeeded"
                 else:
-                    await fail(
+                    if not await fail(
                         status_session,
                         current,
                         error=error,
                         permanent=permanent_failure,
-                    )
+                        locked_by=self._worker_id,
+                    ):
+                        result = "superseded"
+                        return
                     await record_queue_outcome(status_session, current)
                     if current.state == JobState.DEAD_LETTER:
                         _log.error(

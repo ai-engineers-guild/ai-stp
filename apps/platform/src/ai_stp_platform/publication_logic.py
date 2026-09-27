@@ -14,8 +14,8 @@ from typing import Any, cast
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 from pydantic import ValidationError
-from sqlalchemy import or_, select
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy import CursorResult, or_, select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ai_stp_assurance import AuthorAttestation, attestation_digest
@@ -882,39 +882,52 @@ async def _persist_safety_run(session: AsyncSession, safety: Any) -> SafetyScanR
     )
     if existing is not None:
         return existing
-    run = SafetyScanRun(
-        id=new_id("scan"),
-        content_digest=safety.content_digest,
-        policy_version=safety.policy_version,
-        profile=safety.profile,
-        object_kind=safety.object_kind,
-        state="complete",
-        cache_hit=bool(safety.cache_hit),
-        wall_ms=int(safety.wall_ms),
-        engine_status={
-            "outcomes": [o.check_id for o in safety.outcomes],
-            "profile": safety.profile,
-        },
-    )
-    try:
-        # Another worker may finish the same immutable identity after our
-        # SELECT. The unique constraint is the cross-process lock; isolate its
-        # conflict in a savepoint so the validation transaction stays usable.
-        async with session.begin_nested():
-            session.add(run)
-            await session.flush()
-    except IntegrityError:
-        winner = await session.scalar(
-            select(SafetyScanRun).where(
-                SafetyScanRun.content_digest == safety.content_digest,
-                SafetyScanRun.policy_version == safety.policy_version,
-                SafetyScanRun.profile == safety.profile,
-                SafetyScanRun.object_kind == safety.object_kind,
+    run_id = new_id("scan")
+    # Another worker may finish the same immutable identity after our SELECT.
+    # `ON CONFLICT DO NOTHING` keeps this transaction usable: a failed flush
+    # inside `begin_nested` marks the whole session rollback-required in
+    # SQLAlchemy, so the savepoint-replay idiom cannot survive the race.
+    inserted = cast(
+        CursorResult[Any],
+        await session.execute(
+            pg_insert(SafetyScanRun)
+            .values(
+                id=run_id,
+                content_digest=safety.content_digest,
+                policy_version=safety.policy_version,
+                profile=safety.profile,
+                object_kind=safety.object_kind,
+                state="complete",
+                cache_hit=bool(safety.cache_hit),
+                wall_ms=int(safety.wall_ms),
+                engine_status={
+                    "outcomes": [o.check_id for o in safety.outcomes],
+                    "profile": safety.profile,
+                },
             )
-        )
-        if winner is None:
-            raise
-        return winner
+            .on_conflict_do_nothing(
+                index_elements=[
+                    SafetyScanRun.content_digest,
+                    SafetyScanRun.policy_version,
+                    SafetyScanRun.profile,
+                    SafetyScanRun.object_kind,
+                ]
+            )
+        ),
+    )
+    if inserted.rowcount != 1:
+        return (
+            await session.execute(
+                select(SafetyScanRun).where(
+                    SafetyScanRun.content_digest == safety.content_digest,
+                    SafetyScanRun.policy_version == safety.policy_version,
+                    SafetyScanRun.profile == safety.profile,
+                    SafetyScanRun.object_kind == safety.object_kind,
+                )
+            )
+        ).scalar_one()
+    run = await session.get(SafetyScanRun, run_id)
+    assert run is not None
     for finding in safety.all_findings():
         session.add(
             SafetyFinding(
