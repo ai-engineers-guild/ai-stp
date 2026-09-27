@@ -39,9 +39,19 @@
   ],
   "decision": "docs/adr/ADR-0061-capability-negotiated-provider-protocol-v3.md",
   "generated_from": "apps/cli/src/ai_stp_cli/provider/protocol_v3.py",
-  "kit_version": "0.2.13",
+  "kit_version": "0.2.14",
   "operation_network": {
     "backup": [
+      {
+        "network_requirement": "none",
+        "phase": "plan"
+      },
+      {
+        "network_requirement": "none",
+        "phase": "apply"
+      }
+    ],
+    "detach_instruction_region": [
       {
         "network_requirement": "none",
         "phase": "plan"
@@ -160,6 +170,7 @@
     "launch"
   ],
   "optional_operations": [
+    "detach_instruction_region",
     "launch",
     "patch_instruction_region",
     "reset",
