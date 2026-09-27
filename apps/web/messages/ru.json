@@ -189,6 +189,8 @@
     "unknown": "Неизвестно",
     "never": "Никогда",
     "devices": "Устройств: {count}",
+    "expandDevices": "Показать устройства",
+    "collapseDevices": "Скрыть устройства",
     "perPage": "На странице",
     "pageRange": "{from}–{to} из {total}",
     "previous": "Предыдущая страница",

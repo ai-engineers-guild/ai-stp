@@ -57,7 +57,7 @@ export default async function DevicesPage({ params, searchParams }: PageProps) {
       </header>
 
       <DeviceList
-        devices={devices.items}
+        devices={devices.items.filter((device) => device.state === "active")}
         currentDeviceId={session.deviceId}
         csrfToken={csrf}
         locale={locale}

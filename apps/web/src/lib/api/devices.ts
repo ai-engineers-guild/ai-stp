@@ -49,7 +49,7 @@ function mapSummary(
 ): DeviceSummary | null {
   const displayName = asString(row["display_name"]);
   const osRaw = row["operating_system"] ?? row["os"];
-  if (displayName === null && typeof osRaw !== "string") {
+  if (typeof osRaw !== "string") {
     return null;
   }
   const operatingSystem =
@@ -79,6 +79,7 @@ function mapPlatformDevice(row: Record<string, unknown>): DeviceRecord | null {
   return {
     schema_version: 1,
     device_id: deviceId,
+    display_name: asString(row["display_name"]),
     state: asDeviceState(row["state"]),
     registered_at: registered,
     last_active_at: last,

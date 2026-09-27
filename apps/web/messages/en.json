@@ -189,6 +189,8 @@
     "unknown": "Unknown",
     "never": "Never",
     "devices": "{count} devices",
+    "expandDevices": "Show devices",
+    "collapseDevices": "Hide devices",
     "perPage": "Per page",
     "pageRange": "{from}–{to} of {total}",
     "previous": "Previous page",

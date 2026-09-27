@@ -95,6 +95,61 @@ it("shows the in-table empty state and sorts through the URL", () => {
   );
 });
 
+const item = (
+  accountId: string,
+  employee: string,
+  deviceId: string,
+  deviceName: string,
+  status: string,
+) =>
+  ({
+    account_id: accountId,
+    employee_name: employee,
+    teams: [{ id: "team-1", name: "Data Platform" }],
+    device_id: deviceId,
+    device_name: deviceName,
+    last_heartbeat_at: "2026-09-25T11:00:00Z",
+    status,
+    buckets: [],
+    coverage_percent: null,
+  }) as HeartbeatReportData["items"][number];
+
+it("groups devices under the employee and reveals them on expand", () => {
+  window.history.replaceState(null, "", "/corporate/reports/heartbeat?view=current");
+  render(
+    <CorporateHeartbeatReport
+      report={{
+        ...report,
+        total: 3,
+        items: [
+          item("acc-a", "Artem Letyushev", "dev-1", "DESKTOP-A", "active"),
+          item("acc-a", "Artem Letyushev", "dev-2", "DESKTOP-B", "unknown"),
+          item("acc-b", "Mikhail Orlov", "dev-3", "DESKTOP-C", "unknown"),
+        ],
+      }}
+      view="current"
+      period="7d"
+      fromDate=""
+      toDate=""
+      selectedTeams={[]}
+      selectedEmployees={[]}
+      selectedStatuses={[]}
+      sort="last_heartbeat"
+      order="desc"
+      locale="en"
+    />,
+  );
+  // One row per employee: the multi-device person collapses to a single line.
+  expect(screen.getAllByText("Artem Letyushev")).toHaveLength(1);
+  expect(screen.queryByText("DESKTOP-A")).not.toBeInTheDocument();
+  // Single-device employees still show the device inline.
+  expect(screen.getByText("DESKTOP-C")).toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole("button", { name: "expandDevices" }));
+  expect(screen.getByText("DESKTOP-A")).toBeInTheDocument();
+  expect(screen.getByText("DESKTOP-B")).toBeInTheDocument();
+});
+
 it("keeps the selected view when moving to the next page", () => {
   window.history.replaceState(null, "", "/corporate/reports/heartbeat?view=history&period=7d");
   render(

@@ -32,7 +32,6 @@ type DeviceListProps = {
 
 type DeviceCardProps = {
   device: DeviceRecord;
-  duplicateCount: number;
   isCurrent: boolean;
   open: boolean;
   pending: boolean;
@@ -41,31 +40,13 @@ type DeviceCardProps = {
   locale: string;
 };
 
-function deviceGroupKey(device: DeviceRecord): string {
-  if (device.device_type === "web") {
-    return `web:${browserDeviceLabel(device.user_agent) ?? "browser"}:${device.state}`;
-  }
-  const summary = device.summary;
-  return `cli:${summary?.display_name ?? "cli"}:${summary?.operating_system ?? "unknown"}:${device.state}`;
-}
-
-export function groupDevices(devices: DeviceRecord[], currentDeviceId: string | null) {
-  const groups = new Map<string, DeviceRecord[]>();
-  for (const device of devices) {
-    const key = deviceGroupKey(device);
-    groups.set(key, [...(groups.get(key) ?? []), device]);
-  }
-  return [...groups.values()].flatMap((items) => {
-    const device =
-      items.find((item) => item.device_id === currentDeviceId) ??
-      [...items].sort((a, b) => b.last_active_at.localeCompare(a.last_active_at))[0];
-    return device ? [{ devices: items, device }] : [];
-  });
+function storedDisplayName(device: DeviceRecord): string | null {
+  const value = device["display_name"];
+  return typeof value === "string" && value ? value : null;
 }
 
 function DeviceCard({
   device,
-  duplicateCount,
   isCurrent,
   open,
   pending,
@@ -79,6 +60,7 @@ function DeviceCard({
   const deviceType = device.device_type === "web" ? "web" : "cli";
   const readableName =
     summary?.display_name ??
+    storedDisplayName(device) ??
     (deviceType === "web" ? browserDeviceLabel(device.user_agent) : null) ??
     t(deviceType === "web" ? "webBrowser" : "cliDevice");
   const location = device.approximate_location ?? null;
@@ -191,11 +173,6 @@ function DeviceCard({
           {t("technicalDetails")}
         </summary>
         <div className="mt-3 flex min-w-0 flex-wrap items-center gap-2 text-sm">
-          {duplicateCount > 1 ? (
-            <p className="text-muted-foreground w-full text-xs">
-              {t("matchingSessions", { count: duplicateCount })}
-            </p>
-          ) : null}
           <code className="max-w-full truncate" title={device.device_id}>
             {device.device_id}
           </code>
@@ -273,14 +250,12 @@ export function DeviceList({ devices, currentDeviceId, csrfToken, locale }: Devi
     return <p className="text-muted-foreground text-sm">{t("empty")}</p>;
   }
 
-  const groups = groupDevices(devices, currentDeviceId);
   return (
     <ul className="flex flex-col gap-4">
-      {groups.map(({ device, devices: matchingDevices }) => (
+      {devices.map((device) => (
         <DeviceCard
           key={device.device_id}
           device={device}
-          duplicateCount={matchingDevices.length}
           isCurrent={currentDeviceId === device.device_id}
           open={openId === device.device_id}
           pending={pending}

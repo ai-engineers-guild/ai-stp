@@ -182,12 +182,17 @@ def test_pending_polls_are_not_paced_but_a_success_is(
 
     from ai_stp_platform.models import Device
 
-    async def stored_label() -> str | None:
+    async def stored_label() -> tuple[str | None, str | None]:
         async with cli_server.app.state.sessionmaker() as db:
             device = await db.get(Device, tokens.device_id)
-            return device.display_name if device is not None else None
+            if device is None:
+                return (None, None)
+            return (device.display_name, device.user_agent)
 
-    assert cli_server.call(stored_label) == "boundary-test"
+    label, agent = cli_server.call(stored_label)
+    assert label == "boundary-test"
+    # The exchange also captures the caller's transport metadata.
+    assert agent is not None and agent.startswith("ai-stp-cli/")
 
     with pytest.raises(CliFailure) as limited:
         login.exchange(

@@ -2,43 +2,19 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
-import { Badge } from "@/components/atoms/badge";
 import { Button } from "@/components/atoms/button";
 import { SearchableMultiSelect } from "@/components/molecules/searchable-multi-select";
+import {
+  groupByEmployee,
+  HeartbeatEmployeeRows,
+} from "@/components/organisms/corporate-heartbeat-rows";
 import type { HeartbeatReport as HeartbeatReportData } from "@/lib/api/generated/types.gen";
-import { Link, usePathname, useRouter } from "@/lib/i18n/navigation";
+import { usePathname, useRouter } from "@/lib/i18n/navigation";
 
 type Status = HeartbeatReportData["items"][number]["status"];
 export type { HeartbeatReportData };
 
 const STATUSES: Status[] = ["active", "stale", "failing", "disabled", "unknown"];
-const BADGES = {
-  active: "success",
-  stale: "warning",
-  failing: "destructive",
-  disabled: "secondary",
-  unknown: "outline",
-} as const;
-const BUCKET_COLORS = {
-  healthy: "bg-success",
-  partial: "bg-warning",
-  missing: "bg-destructive",
-  not_expected: "bg-muted",
-} as const;
-
-function relativeTime(value: string | null, now: string, locale: string, never: string): string {
-  if (!value) return never;
-  const seconds = Math.max(0, Math.floor((Date.parse(now) - Date.parse(value)) / 1000));
-  const formatter = new Intl.RelativeTimeFormat(locale, { numeric: "auto" });
-  if (seconds < 60) return formatter.format(-seconds, "second");
-  if (seconds < 3600) return formatter.format(-Math.floor(seconds / 60), "minute");
-  if (seconds < 86400) return formatter.format(-Math.floor(seconds / 3600), "hour");
-  return formatter.format(-Math.floor(seconds / 86400), "day");
-}
-
-function utcDateTime(value: string): string {
-  return `${new Date(value).toISOString().replace("T", " ").slice(0, 19)} UTC`;
-}
 
 // Filters and both views share one URL state and one table shell.
 // eslint-disable-next-line max-lines-per-function
@@ -72,6 +48,15 @@ export function CorporateHeartbeatReport({
   const path = usePathname();
   const selectionKey = JSON.stringify([selectedTeams, selectedEmployees, selectedStatuses]);
   const [syncedKey, setSyncedKey] = useState(selectionKey);
+  const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
+  const toggleExpanded = (accountId: string) => {
+    setExpanded((current) => {
+      const next = new Set(current);
+      if (next.has(accountId)) next.delete(accountId);
+      else next.add(accountId);
+      return next;
+    });
+  };
   const [selection, setSelection] = useState(() => ({
     teams: selectedTeams,
     employees: selectedEmployees,
@@ -336,89 +321,20 @@ export function CorporateHeartbeatReport({
             </tr>
           </thead>
           <tbody>
-            {report.items.map((row) => (
-              <tr key={row.device_id} className="border-border border-b last:border-0">
-                <td className="px-4 py-3">
-                  <Link
-                    href={`/corporate/employees/${row.account_id}`}
-                    className="hover:text-primary underline"
-                  >
-                    {row.employee_name}
-                  </Link>
-                </td>
-                <td className="px-4 py-3">
-                  {row.teams.map((team, index) => (
-                    <span key={team.id}>
-                      {index > 0 && ", "}
-                      <Link
-                        href={`/corporate/teams/${team.id}`}
-                        className="hover:text-primary underline"
-                      >
-                        {team.name}
-                      </Link>
-                    </span>
-                  ))}
-                </td>
-                <td className="px-4 py-3">{row.device_name}</td>
-                {view === "history" && (
-                  <td className="px-4 py-3">
-                    <div
-                      className="flex min-w-52 gap-px"
-                      role="group"
-                      aria-label={t("heartbeatHistory")}
-                    >
-                      {(row.buckets ?? []).map((bucket, index) => (
-                        <button
-                          key={index}
-                          type="button"
-                          className={`focus-visible:ring-ring h-3 min-w-0 flex-1 focus-visible:ring-2 ${BUCKET_COLORS[bucket.state]}`}
-                          title={`${utcDateTime(bucket.start)}–${utcDateTime(bucket.end)} · ${t("expected")}: ${bucket.expected} · ${t("received")}: ${bucket.received} · ${t("coveragePercent")}: ${bucket.expected ? Math.round((100 * Math.min(bucket.received, bucket.expected)) / bucket.expected) : 0}%`}
-                          aria-label={`${t("expected")}: ${bucket.expected}, ${t("received")}: ${bucket.received}`}
-                        />
-                      ))}
-                    </div>
-                    <div
-                      aria-hidden="true"
-                      className="text-muted-foreground mt-1 flex justify-between text-[10px]"
-                    >
-                      {[0, 15, 30, 45, 59].map((index) => (
-                        <span key={index}>
-                          {row.buckets?.[index]
-                            ? period === "24h"
-                              ? row.buckets[index].start.slice(11, 16)
-                              : row.buckets[index].start.slice(5, 10)
-                            : ""}
-                        </span>
-                      ))}
-                    </div>
-                  </td>
-                )}
-                <td
-                  className="px-4 py-3"
-                  title={row.last_heartbeat_at ? utcDateTime(row.last_heartbeat_at) : undefined}
-                >
-                  {relativeTime(row.last_heartbeat_at, report.evaluated_at, locale, t("never"))}
-                </td>
-                <td className="px-4 py-3">
-                  {view === "history" ? (
-                    row.coverage_percent === null || row.coverage_percent === undefined ? (
-                      "—"
-                    ) : (
-                      <span className="flex items-center gap-2">
-                        {row.coverage_percent}%
-                        <span className="bg-muted h-1.5 w-20 rounded-sm">
-                          <span
-                            className={`block h-full rounded-sm ${row.coverage_percent >= 90 ? "bg-success" : row.coverage_percent >= 60 ? "bg-warning" : "bg-destructive"}`}
-                            style={{ width: `${row.coverage_percent}%` }}
-                          />
-                        </span>
-                      </span>
-                    )
-                  ) : (
-                    <Badge variant={BADGES[row.status]}>● {t(row.status)}</Badge>
-                  )}
-                </td>
-              </tr>
+            {groupByEmployee(report.items).map(({ accountId, rows }) => (
+              <HeartbeatEmployeeRows
+                key={accountId}
+                rows={rows}
+                view={view}
+                period={period}
+                evaluatedAt={report.evaluated_at}
+                locale={locale}
+                expanded={expanded.has(accountId)}
+                onToggle={() => {
+                  toggleExpanded(accountId);
+                }}
+                t={t}
+              />
             ))}
             {report.items.length === 0 && (
               <tr>

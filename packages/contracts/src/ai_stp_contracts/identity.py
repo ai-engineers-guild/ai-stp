@@ -84,6 +84,10 @@ class DeviceRecord(BaseModel):
     schema_version: Literal[1] = 1
     device_id: DeviceId
     state: DeviceState
+    #: The label the device supplied at registration (`display_name` on the
+    #: registration and device-code-exchange bodies); null until one of those
+    #: paths stored one. The corporate heartbeat report renders the same field.
+    display_name: Annotated[str | None, Field(max_length=160)]
     registered_at: Timestamp
     last_active_at: Timestamp
     device_type: Literal["cli", "web"]
