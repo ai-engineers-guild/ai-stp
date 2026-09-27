@@ -56,7 +56,9 @@ def _report(connection: sqlite3.Connection, stable_id: str) -> SyncPreview:
         )
     head_ids = sorted(item.revision_id for item in found)
     if len(found) == 1:
-        behind = sync_state.unreachable_server_head(connection, stable_id)
+        behind = sync_state.unreachable_server_head(
+            connection, consent.acting_accounts(), stable_id
+        )
         if behind is not None:
             # One local head and a refused push naming a head this device does
             # not hold. There is nothing to merge locally, so the honest answer
@@ -249,6 +251,39 @@ def _confirmed(parameters: Mapping[str, object], action: str) -> None:
         )
 
 
+def _push_order(
+    connection: sqlite3.Connection, head: revisions.StoredRevision
+) -> list[revisions.StoredRevision]:
+    """Every reachable ancestor, parents before children, the head last.
+
+    Recursive descent reaches Python's recursion ceiling around a thousand
+    ancestors and `sync push` dies on the stack rather than on a check — the
+    explicit stack carries the same post-order at any depth.
+    """
+    ordered: list[revisions.StoredRevision] = []
+    visited: set[str] = set()
+    stack: list[tuple[revisions.StoredRevision, bool]] = [(head, False)]
+    while stack:
+        item, expanded = stack.pop()
+        if item.revision_id in visited:
+            continue
+        if not expanded:
+            stack.append((item, True))
+            for parent_id in reversed(item.parents):
+                if parent_id not in visited:
+                    parent = revisions.get(connection, parent_id)
+                    if parent is None:
+                        raise CliFailure(
+                            "AI_STP_VALIDATION_ERROR",
+                            "the local revision graph has a missing parent",
+                        )
+                    stack.append((parent, False))
+            continue
+        visited.add(item.revision_id)
+        ordered.append(item)
+    return ordered
+
+
 def push(parameters: Mapping[str, object]) -> Answer[SyncPushView]:
     """Push one exact local head, replaying its durable event after uncertainty."""
     _enabled()
@@ -268,24 +303,7 @@ def push(parameters: Mapping[str, object]) -> Answer[SyncPushView]:
             return _push_consent(connection, held, stable_id)
         if stored is None:
             raise CliFailure("AI_STP_NOT_FOUND", "that identifier has no local revision head")
-        ordered: list[revisions.StoredRevision] = []
-        visited: set[str] = set()
-
-        def visit(item: revisions.StoredRevision) -> None:
-            if item.revision_id in visited:
-                return
-            for parent_id in item.parents:
-                parent = revisions.get(connection, parent_id)
-                if parent is None:
-                    raise CliFailure(
-                        "AI_STP_VALIDATION_ERROR",
-                        "the local revision graph has a missing parent",
-                    )
-                visit(parent)
-            visited.add(item.revision_id)
-            ordered.append(item)
-
-        visit(stored)
+        ordered = _push_order(connection, stored)
         processed = 0
         pending: sync_state.Pending | None = None
         receipt: SyncEventReceipt | None = None
@@ -581,11 +599,22 @@ def _push_consent(
     on every device, because the consent is a property of the account and its
     target, not of the installation that recorded it first.
     """
+    # The push may carry this account's own record or the device owner's: a
+    # record delivered by another account's pull is not this stream's state
+    # to publish. The account's own record answers first when both exist.
+    accounts = [held.account_id]
+    local = consent.local_owner_id()
+    if local is not None and local != held.account_id:
+        accounts.append(local)
     record = None
-    for item in consent.all_records(connection):
+    records = consent.all_records(connection, accounts=tuple(accounts))
+    for item in records:
         if item.consent_id == entity_id or consent.entity_id(item.scope, item.target) == entity_id:
-            record = item
-            break
+            if item.account_id == held.account_id:
+                record = item
+                break
+            if record is None:
+                record = item
     if record is None:
         raise CliFailure(
             "AI_STP_NOT_FOUND",

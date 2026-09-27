@@ -33,7 +33,7 @@ import {
   namedPassportHarnesses,
   namedProjectionKinds,
 } from "@/lib/catalog-harnesses";
-import { installStart, registryVersion } from "@/lib/cli-copy";
+import { installTaskStart, registryVersion } from "@/lib/cli-copy";
 import { buildDeepLink, normalizeTarget } from "@/lib/deep-links";
 import { publicOrigin } from "@/lib/site";
 import { versionPageMetadata } from "@/lib/seo/metadata";
@@ -236,7 +236,7 @@ export default async function ComponentVersionPage({ params }: PageProps) {
         <p className="text-sm font-medium">{t("githubArchived")}</p>
       ) : null}
       <CliCopyBlock
-        command={installStart()}
+        command={installTaskStart(stableId, version)}
         title={tCli("useTitle")}
         description={tCli("useBody")}
         copyLabel={tCli("copy")}

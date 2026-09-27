@@ -79,6 +79,11 @@ async def create_usage_export(
         )
         scope = runtime_usage_service.UsageScope(employees=None)
     except ApiError as denied:
+        # Only a permission denial may fall back to a narrower scope; a stale
+        # authorization_revision or a backend error must surface as itself,
+        # never be laundered into a narrower-but-successful export.
+        if denied.category is not ErrorCategory.PERMISSION:
+            raise
         scope = await runtime_usage_service.resolve_scope(
             db,
             organization_id=organization_id,
@@ -114,6 +119,7 @@ async def create_usage_export(
 async def read_usage_export(
     organization_id: OrganizationId,
     export_id: str,
+    request: Request,
     db: Annotated[AsyncSession, Depends(get_db)],
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> RuntimeUsageExportView:
@@ -128,4 +134,13 @@ async def read_usage_export(
     )
     if view is None:
         raise ApiError(ErrorCategory.NOT_FOUND, "usage export not found")
+    await emit_audit(
+        db,
+        actor_account_id=ctx.account_id,
+        organization_id=organization_id,
+        action="telemetry.export",
+        target_table="runtime_usage_export",
+        target_id=view.export_id,
+        request_id=_request_id(request),
+    )
     return view

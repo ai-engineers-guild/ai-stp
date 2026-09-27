@@ -5,7 +5,9 @@ import {
   INITIALIZE_START,
   INSTALL_CLI,
   INTENTS_BOOTSTRAP,
+  installSetupStart,
   installStart,
+  installTaskStart,
   login,
   ownerComponentNextStep,
   ownerSetupNextStep,
@@ -52,6 +54,23 @@ describe("cli-copy templates", () => {
     expect(INTENTS_BOOTSTRAP).toBe("ai-stp task intents --json");
     expect(INITIALIZE_START).toBe(
       "ai-stp task start --intent initialize --idempotency-key initialize-session-01 --json",
+    );
+  });
+
+  it("scopes the catalog install session key to the object", () => {
+    expect(installTaskStart(SAMPLE_COMPONENT)).toBe(
+      `ai-stp task start --intent install --idempotency-key install-${SAMPLE_COMPONENT} --json`,
+    );
+    expect(installTaskStart(SAMPLE_COMPONENT, "1.0")).toBe(
+      `ai-stp task start --intent install --idempotency-key install-${SAMPLE_COMPONENT}-1.0 --json`,
+    );
+    expect(installTaskStart(SAMPLE_SETUP, "2.13")).not.toBe(
+      installTaskStart(SAMPLE_COMPONENT, "2.13"),
+    );
+    expect(installSetupStart(SAMPLE_SETUP, "2.13")).toBe(
+      `echo '{"setup_id":"${SAMPLE_SETUP}","setup_version":"2.13"}' | ` +
+        `ai-stp task start --intent install ` +
+        `--idempotency-key install-${SAMPLE_SETUP}-2.13 --input - --json`,
     );
   });
 

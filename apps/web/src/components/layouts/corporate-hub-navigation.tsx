@@ -20,7 +20,14 @@ const landscape = [
   { key: "mappings", href: "/corporate/technology-mappings" },
 ] as const;
 
-export function CorporateHubNavigation({ capabilities }: { capabilities: readonly string[] }) {
+export function CorporateHubNavigation({
+  capabilities,
+  bleed = true,
+}: {
+  capabilities: readonly string[];
+  /** Bleed into the shell's top padding; disabled when chrome above it owns the bleed. */
+  bleed?: boolean;
+}) {
   const t = useTranslations("hub");
   const path = usePathname();
   if (path === "/corporate") return null;
@@ -50,7 +57,7 @@ export function CorporateHubNavigation({ capabilities }: { capabilities: readonl
   return (
     <div
       data-ui={UI.navigation.secondaryNav}
-      className="border-border -mx-4 -mt-6 mb-6 border-b sm:-mx-6"
+      className={`border-border -mx-4 ${bleed ? "-mt-6" : ""} mb-6 border-b sm:-mx-6`}
     >
       <NavigationTabs
         ariaLabel={t(activeSection)}

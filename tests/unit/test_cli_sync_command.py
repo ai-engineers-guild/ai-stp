@@ -1,6 +1,7 @@
 """`sync preview` reaches the merge core and never changes local state."""
 
 import sqlite3
+import sys
 from collections.abc import Iterator
 from pathlib import Path
 from typing import cast
@@ -168,3 +169,79 @@ def test_an_ancestor_head_is_classified_as_fast_forward(
     assert report.state == "fast_forward"
     assert report.common_ancestor_revision_id == root.revision_id
     assert report.candidate_revision_id == child.revision_id
+
+
+def test_push_order_survives_ancestry_past_the_recursion_ceiling(
+    registry: sqlite3.Connection,
+) -> None:
+    """`sync push` orders ancestry iteratively: a chain longer than Python's
+    recursion budget still walks, where the old recursive `visit` died."""
+    stable_id, owner_id, at = new_id("developer"), new_id("account"), passports.moment()
+    chain = [revisions.commit(registry, _content(stable_id, owner_id, at), device_id=DEVICE)]
+    for _ in range(300):
+        chain.append(
+            revisions.commit(
+                registry,
+                _content(stable_id, owner_id, at, parents=[chain[-1].revision_id]),
+                device_id=DEVICE,
+            )
+        )
+    previous = sys.getrecursionlimit()
+    sys.setrecursionlimit(200)
+    try:
+        ordered = sync._push_order(registry, chain[-1])  # pyright: ignore[reportPrivateUsage]
+    finally:
+        sys.setrecursionlimit(previous)
+
+    assert [item.revision_id for item in ordered] == [item.revision_id for item in chain]
+
+
+def test_push_order_names_parents_before_children_in_a_diamond(
+    registry: sqlite3.Connection,
+) -> None:
+    stable_id, owner_id, at = new_id("developer"), new_id("account"), passports.moment()
+    root = revisions.commit(registry, _content(stable_id, owner_id, at), device_id=DEVICE)
+    left = revisions.commit(
+        registry,
+        _content(
+            stable_id,
+            owner_id,
+            at,
+            parents=[root.revision_id],
+            facts={"side": _fact("left")},
+        ),
+        device_id=DEVICE,
+    )
+    right = revisions.commit(
+        registry,
+        _content(
+            stable_id,
+            owner_id,
+            at,
+            parents=[root.revision_id],
+            facts={"side": _fact("right")},
+        ),
+        device_id=OTHER_DEVICE,
+    )
+    merge = revisions.commit(
+        registry,
+        _content(
+            stable_id,
+            owner_id,
+            at,
+            parents=[left.revision_id, right.revision_id],
+            facts={"side": _fact("merged")},
+        ),
+        device_id=DEVICE,
+    )
+
+    ordered = sync._push_order(registry, merge)  # pyright: ignore[reportPrivateUsage]
+
+    # `revision_parent` rows read back sorted by id, so siblings walk in stored
+    # order — parents before children either way, and the head last.
+    siblings = sorted([left.revision_id, right.revision_id])
+    assert [item.revision_id for item in ordered] == [
+        root.revision_id,
+        *siblings,
+        merge.revision_id,
+    ]

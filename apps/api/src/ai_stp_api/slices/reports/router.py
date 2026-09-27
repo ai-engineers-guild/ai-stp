@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ai_stp_api.deps import get_db, require_auth
+from ai_stp_api.deps import get_db, get_settings, require_auth
 from ai_stp_api.errors import ApiError, ErrorCategory
 from ai_stp_api.session import AuthContext
 from ai_stp_api.settings import Settings
@@ -89,9 +89,15 @@ async def list_staff_reports(
     db: Annotated[AsyncSession, Depends(get_db)],
     ctx: Annotated[AuthContext, Depends(require_auth)],
     page_size: Annotated[int, Query(ge=1, le=PAGE_SIZE_MAX)] = PAGE_SIZE_DEFAULT,
+    cursor: Annotated[str | None, Query()] = None,
 ) -> JSONResponse:
     result = await service.list_staff_reports(
-        db, ctx=ctx, staff_ids=_staff_ids(request), page_size=page_size
+        db,
+        ctx=ctx,
+        staff_ids=_staff_ids(request),
+        page_size=page_size,
+        cursor=cursor,
+        cursor_secret=get_settings(request).catalog.cursor_signing_secret,
     )
     return _resource(result)
 

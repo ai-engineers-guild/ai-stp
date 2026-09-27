@@ -64,11 +64,14 @@ class RecordingMailPort:
 
 @dataclass(frozen=True)
 class ResendMailPort:
-    """Resend HTTP adapter shell. Real network call only when api_key set."""
+    """Resend HTTP adapter. Real network call only when api_key set."""
 
     api_key: str
     from_address: str = "noreply@ai-stp.invalid"
     api_base: str = "https://api.resend.com"
+    # Public web origin for the one-time accept link; the token travels in the
+    # URL fragment so servers and proxies never see it (REQ-2714, ADR-0047).
+    accept_base_url: str = ""
 
     def send_invitation(
         self,
@@ -83,18 +86,29 @@ class ResendMailPort:
             # No key configured: treat as dry-run success for non-prod.
             return
         # Avoid importing httpx at module level so platform unit tests need no client.
+        import json
         import urllib.error
         import urllib.request
 
-        body = (
-            f'{{"from":"{self.from_address}","to":["{to_email}"],'
-            f'"subject":"ai_stp access invitation",'
-            f'"text":"Invitation {invitation_id} for {object_stable_id} major {major}. '
-            f'Token is delivered out of band to the owner flow."}}'
+        accept_url = (
+            f"{self.accept_base_url.rstrip('/')}/invitations/{invitation_id}#token={accept_token}"
+            if self.accept_base_url
+            else f"{invitation_id}#token={accept_token}"
         )
-        # Token is intentionally not included in the body above for safe defaults;
-        # production templates would use a one-time accept URL owned by web.
-        del accept_token
+        body = json.dumps(
+            {
+                "from": self.from_address,
+                "to": [to_email],
+                "subject": f"ai_stp access invitation: {object_stable_id} {major}.*",
+                "text": (
+                    "You have been invited to access "
+                    f"{object_stable_id} major {major}.\n\n"
+                    f"Accept the invitation: {accept_url}\n\n"
+                    "The link carries a one-time token in its fragment; it is "
+                    "never sent to our servers."
+                ),
+            }
+        )
         request = urllib.request.Request(
             f"{self.api_base.rstrip('/')}/emails",
             data=body.encode("utf-8"),

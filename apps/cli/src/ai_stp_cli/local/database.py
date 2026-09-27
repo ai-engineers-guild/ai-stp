@@ -1475,6 +1475,106 @@ MIGRATIONS: Final[tuple[Migration, ...]] = (
     ),
     Migration(
         version=48,
+        summary="immutable original start request for idempotent task replay",
+        up=("ALTER TABLE agent_task ADD COLUMN original_request_json TEXT NOT NULL DEFAULT ''",),
+        down=("ALTER TABLE agent_task DROP COLUMN original_request_json",),
+    ),
+    Migration(
+        version=49,
+        summary="cancellation is a request until executor and effects settle",
+        up=("ALTER TABLE agent_task ADD COLUMN cancel_requested_at TEXT NOT NULL DEFAULT ''",),
+        down=("ALTER TABLE agent_task DROP COLUMN cancel_requested_at",),
+    ),
+    Migration(
+        version=50,
+        summary="consent records belong to the account that granted them",
+        up=(
+            # `UNIQUE(scope, target)` let one consent record answer for every
+            # account that ever signed into the device: a record pulled under
+            # one account rewrote another's grant, and the next push carried
+            # it into a foreign stream. Consent is an account-level entity, so
+            # the table gains the account and the uniqueness moves with it.
+            #
+            # A pulled row is recognised by `consent_id` holding the wire
+            # entity id (`consent_<digest(scope, target)>`), which joins the
+            # pull event's account. Rows granted locally recorded the device
+            # owner in `decided_by`, which is exactly the identity they keep
+            # answering for.
+            # `consent_id` is the wire entity id for pulled rows — identical
+            # on every account for the same target by design — so the primary
+            # key is the pair, and one account's pull cannot collide with
+            # another's row.
+            """
+            CREATE TABLE consent_new (
+                consent_id  TEXT NOT NULL,
+                account_id  TEXT NOT NULL,
+                scope       TEXT NOT NULL,
+                target      TEXT NOT NULL,
+                fingerprint TEXT NOT NULL,
+                observed    TEXT NOT NULL DEFAULT '[]',
+                decided_by  TEXT NOT NULL,
+                origin      TEXT NOT NULL,
+                created_at  TEXT NOT NULL,
+                revoked_at  TEXT,
+                PRIMARY KEY (account_id, consent_id),
+                UNIQUE (account_id, scope, target)
+            ) STRICT
+            """,
+            """
+            INSERT INTO consent_new
+                (consent_id, account_id, scope, target, fingerprint, observed,
+                 decided_by, origin, created_at, revoked_at)
+            SELECT
+                consent_id,
+                COALESCE(
+                    (SELECT se.account_id FROM sync_event se
+                      WHERE se.entity_id = consent.consent_id
+                        AND se.direction = 'pull'
+                      ORDER BY se.created_at DESC LIMIT 1),
+                    decided_by
+                ),
+                scope, target, fingerprint, observed, decided_by,
+                origin, created_at, revoked_at
+            FROM consent
+            """,
+            "DROP TABLE consent",
+            "ALTER TABLE consent_new RENAME TO consent",
+            "CREATE INDEX consent_by_target ON consent(target)",
+        ),
+        down=(
+            # Restoring the account-blind shape collapses targets held by more
+            # than one account; the oldest record survives, matching "the
+            # first grant answered" semantics this schema had.
+            """
+            CREATE TABLE consent_old (
+                consent_id  TEXT PRIMARY KEY,
+                scope       TEXT NOT NULL,
+                target      TEXT NOT NULL,
+                fingerprint TEXT NOT NULL,
+                observed    TEXT NOT NULL DEFAULT '[]',
+                decided_by  TEXT NOT NULL,
+                origin      TEXT NOT NULL,
+                created_at  TEXT NOT NULL,
+                revoked_at  TEXT,
+                UNIQUE (scope, target)
+            ) STRICT
+            """,
+            """
+            INSERT INTO consent_old
+                (consent_id, scope, target, fingerprint, observed,
+                 decided_by, origin, created_at, revoked_at)
+            SELECT consent_id, scope, target, fingerprint, observed,
+                   decided_by, origin, created_at, revoked_at
+            FROM consent
+            WHERE rowid IN (SELECT MIN(rowid) FROM consent GROUP BY scope, target)
+            """,
+            "DROP TABLE consent",
+            "ALTER TABLE consent_old RENAME TO consent",
+            "CREATE INDEX consent_by_target ON consent(target)",
+        ),
+    ),
+    Migration(
+        version=51,
         summary="bind settled installation operations to their corporate identity",
         up=(
             """
@@ -1493,7 +1593,7 @@ MIGRATIONS: Final[tuple[Migration, ...]] = (
         down=("DROP TABLE operation_corporate_binding",),
     ),
     Migration(
-        version=49,
+        version=52,
         summary="queue corporate inventory snapshots until acknowledged",
         up=(
             """
@@ -1510,7 +1610,7 @@ MIGRATIONS: Final[tuple[Migration, ...]] = (
         down=("DROP TABLE corporate_inventory_outbox",),
     ),
     Migration(
-        version=50,
+        version=53,
         summary="remember the scope a provider operation was planned against",
         up=("ALTER TABLE operation_plan ADD COLUMN target_scope TEXT",),
         down=("ALTER TABLE operation_plan DROP COLUMN target_scope",),

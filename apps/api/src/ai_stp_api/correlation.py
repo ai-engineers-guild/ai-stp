@@ -13,7 +13,9 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
 
+from ai_stp_api.envelope import error_response
 from ai_stp_api.observability import current_trace_id
+from ai_stp_contracts.http import SCHEMA_VERSION, SCHEMA_VERSION_HEADER
 from ai_stp_foundation.ids import new_id
 
 REQUEST_ID_HEADER = "X-Request-Id"
@@ -22,7 +24,13 @@ TRACE_ID_HEADER = "X-Trace-Id"
 
 
 class CorrelationMiddleware(BaseHTTPMiddleware):
-    """Assign a request id, continue inbound correlation and surface the trace id."""
+    """Assign a request id, continue inbound correlation and surface the trace id.
+
+    Also enforces the documented wire-major check: the client sends
+    ``X-AI-STP-Schema-Version`` on every call and the contract states an
+    unknown major "fails typed" — until now nothing read it, so a newer client
+    got silent partial behavior instead of the refusal that names the problem.
+    """
 
     async def dispatch(
         self,
@@ -33,6 +41,31 @@ class CorrelationMiddleware(BaseHTTPMiddleware):
         correlation_id = request.headers.get(CORRELATION_HEADER) or request_id
         request.state.request_id = request_id
         request.state.correlation_id = correlation_id
+
+        declared = request.headers.get(SCHEMA_VERSION_HEADER)
+        if declared is not None:
+            try:
+                major = int(declared)
+            except ValueError:
+                major = SCHEMA_VERSION + 1
+            if major < 1 or major > SCHEMA_VERSION:
+                response = error_response(
+                    request_id=request_id,
+                    code="AI_STP_SCHEMA_UNSUPPORTED",
+                    message=(
+                        "the client speaks a newer contract version "
+                        "than this deployment understands"
+                    ),
+                    retryable=False,
+                    status_code=400,
+                    details={
+                        "found": declared[:32],
+                        "supported": str(SCHEMA_VERSION),
+                    },
+                )
+                response.headers[REQUEST_ID_HEADER] = request_id
+                response.headers[CORRELATION_HEADER] = correlation_id
+                return response
 
         response = await call_next(request)
 

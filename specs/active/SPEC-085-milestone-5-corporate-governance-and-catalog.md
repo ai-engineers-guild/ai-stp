@@ -190,7 +190,14 @@ by this specification.
   plan/apply/status/recovery contracts. Diagnostics carry coordinates,
   expected and observed digests, classifications, timestamps, and evidence
   references only - never repository contents, prompts, secrets, complete
-  files, or absolute local paths.
+  files, or absolute local paths. A failing verdict on an enrolled target
+  names one remediation continuation: the executable `install plan`
+  continuation when the assigned set binds exactly one prepared exact
+  SetupVersion, or a `blocked` continuation for the organization
+  administrator naming the policy conflict and its exact identities -
+  multiple setup baselines, components with no setup baseline, or an
+  assigned line without an exact version - when no single install plan can
+  satisfy the assignment.
 - `REQ-8524`: `GET /v1/owner/objects/{object_kind}/{stable_id}/capabilities`
   reports the caller's management capabilities on one catalog object without
   requiring a published version: `edit` and `edit_presentation` for the
@@ -297,7 +304,7 @@ schemas and clients are updated only by repository generators.
 | `REQ-8520` | CLI verification tests cover context binding, the session-account default, the verified-record plus manifest plus provider-status evidence layers, and the not-enrolled verdicts for absent local state. |
 | `REQ-8521` | CLI verification tests cover setup and component coordinate checks, modified/missing/extra managed paths, and the expected-change verdict for a later authorized installation on the same provider target. |
 | `REQ-8522` | CLI verification tests cover verdict precedence (proven drift over policy states), offline and unreachable-layer behavior, and the revoked/outdated/unsupported/not-enrolled outcomes. |
-| `REQ-8523` | CLI verification tests assert the operation log and target bytes are untouched and the rendered result carries no local paths or file content; contract tests pin the generated verdict schema. |
+| `REQ-8523` | CLI verification tests assert the operation log and target bytes are untouched and the rendered result carries no local paths or file content; contract tests pin the generated verdict schema. CLI verification tests cover the executable install-plan continuation and the blocked policy-conflict continuations with their exact identities. |
 | `REQ-8524` | `tests/api/platform/test_corporate_subject_rbac.py::test_catalog_object_capabilities_and_draft_delete` covers author, superadmin, and operational-owner capability sets plus the unpublished draft probe. |
 | `REQ-8525` | `tests/api/platform/test_corporate_subject_rbac.py::test_catalog_object_capabilities_and_draft_delete` covers published immutability, non-owner denial, successful draft removal, and ownership cleanup. |
 | `REQ-8526` | `tests/api/platform/test_corporate_subject_rbac.py::test_team_lead_manages_own_team_members_only` asserts `available_actions` on member detail for a scoped lead; generated contract tests pin the response fields. |

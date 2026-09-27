@@ -1,6 +1,6 @@
 ---
 description: "Runbook: reproducible deployment with a web tier, backups, and rollback."
-last_verified: "2026-09-24"
+last_verified: "2026-09-26"
 ---
 
 # Production deployment
@@ -367,6 +367,44 @@ If the previous code is incompatible with the already applied schema, readiness 
 fail—this is an expected abort; then proceed according to
 `docs/engineering/schema-evolution.md` and
 `docs/operations/runbooks/database-migration.md`.
+
+## Rollout transition and availability target
+
+The phases are measured separately, because they fail differently: merge to
+`main` moves `deploy/prod` only after the push-triggered `check` succeeds; the
+host timer then pulls, rebuilds images, migrates, and restarts services; only
+after the new commit answers does `verify-public` record the readback.
+
+| Phase | Bound | What dominates |
+| --- | --- | --- |
+| broad CI → ref move | one `check` run | required checks on `main` |
+| host pull tick | ≤ 1 min | the systemd timer period |
+| build / migrate / restart | measured 29–31 min per roll | image rebuilds on the host |
+| service transition | seconds-scale probe blips | container swap |
+| promote → public readback | ≤ 65 min (`verify-public` wait = two queued rolls) | the two phases above |
+
+Two measured rolls:
+
+- `b35536eb` (job 108114839932, 2026-09-25): first probe 14:38:06Z, success
+  14:54:51Z after 55 attempts; discrete 503/502 probe failures at 14:38:06,
+  14:53:19, 14:53:40, 14:54:01, 14:54:24 while the previous commit kept serving
+  between them.
+- `baf94a29` (job 108381703613, 2026-09-26): first probe 09:46:19Z with the
+  previous commit answering, success 10:17:26Z after 78 attempts; three
+  discrete 503s (09:51:32, 09:58:20, 10:04:53) and one read timeout (09:59:26)
+  during the image swap.
+
+Accepted target: the previously deployed artifact keeps answering throughout a
+roll; readiness probes may fail discretely (seconds) while containers swap.
+A sustained readiness failure, a roll exceeding the 65-minute bound, or a
+readback naming the wrong commit is a breach to investigate—not a condition to
+poll longer against. Discrete failed probes are transition noise, not an
+outage duration: the probe cadence (~23 s) cannot observe sub-interval
+continuity, so no continuous-outage claim is made either way.
+
+Rollback latency is the same class as a forward roll (a redeploy of the
+previous exact artifact, ~30 min on the measured host) and does not revert the
+schema. That is the recorded limitation, not a faster path.
 
 ## Deploy lock
 

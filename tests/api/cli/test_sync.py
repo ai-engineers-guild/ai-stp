@@ -34,7 +34,12 @@ from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import passports, revisions, sync_state
 from ai_stp_cli.local.database import configured_path, open_registry
 from ai_stp_contracts.machine_help import SyncPushView
-from ai_stp_contracts.sync import SyncEvent, SyncPullQuery, SyncPushRequest
+from ai_stp_contracts.sync import (
+    SyncEvent,
+    SyncEventReceipt,
+    SyncPullQuery,
+    SyncPushRequest,
+)
 from ai_stp_foundation.canonical import JsonValue
 from ai_stp_foundation.ids import new_id
 from ai_stp_platform.models import Device
@@ -484,7 +489,7 @@ def _sealed_event(
     entity_id: str,
     entity_kind: str,
     operation: str,
-    payload: dict[str, object],
+    payload: dict[str, JsonValue],
     parents: list[str] | None = None,
     expected_head: str | None = None,
 ) -> SyncEvent:
@@ -516,7 +521,7 @@ def _sealed_event(
         created_at=AT,
         idempotency_key=login.new_idempotency_key(),
         expected_head_revision_id=expected_head,
-        payload=payload,
+        payload=cast(dict[str, object], payload),
     )
 
 
@@ -606,7 +611,7 @@ def test_consent_round_trips_through_the_real_ledger_to_a_second_device(
             connection, account_id=account_id, response=page, at=AT
         )
         assert applied >= 1
-        held = consent.held(connection, scope="task", target="full-auto")
+        held = consent.held(connection, accounts=(account_id,), scope="task", target="full-auto")
         assert held is not None and held.active
         assert held.consent_id == entity
 
@@ -625,7 +630,7 @@ def test_consent_round_trips_through_the_real_ledger_to_a_second_device(
     fresh = tmp_path / "device-c.sqlite"
     with open_registry(fresh) as connection:
         sync_state.apply_page(connection, account_id=account_id, response=page2, at=AT)
-        held = consent.held(connection, scope="task", target="full-auto")
+        held = consent.held(connection, accounts=(account_id,), scope="task", target="full-auto")
         assert held is not None and not held.active
 
 
@@ -668,3 +673,188 @@ def test_a_malformed_consent_event_is_rejected_at_intake(
     _device_b, token_b = _second_device(cli_server, account_id)
     page = cloud_sync.pull(cli_endpoint, token_b, SyncPullQuery(cursor=None, page_size=20))
     assert page.items == []
+
+
+def _component_payload(
+    stable_id: str,
+    *,
+    account_id: str,
+    parents: list[str] | None = None,
+    name: str = "probe",
+) -> dict[str, JsonValue]:
+    return _content(stable_id, owner_id=account_id, parents=parents, name=name)
+
+
+def test_undelivered_ancestors_reach_the_stream_parents_first(
+    cli_endpoint: Endpoint,
+    cli_server: SyncAsgiServer,
+    device_session: CliSession,
+) -> None:
+    """A merge into retained conflicts delivers every ancestor before its child.
+
+    The shape that broke the old order: two undelivered branches sharing an
+    undelivered root. Reversing a pre-order walk emits a node ahead of the
+    shared ancestor another branch still needs, and a fresh device then holds
+    a page it can never apply. Post-order is the only applicable order.
+    """
+    account_id = device_session.account_id
+    device_id = device_session.device_id
+    entity = new_id("component")
+
+    def push(
+        parents: list[str],
+        *,
+        name: str,
+        expected_head: str | None = None,
+        operation: str = "upsert",
+    ) -> tuple[SyncEventReceipt, str]:
+        event = _sealed_event(
+            account_id=account_id,
+            device_id=device_id,
+            entity_id=entity,
+            entity_kind="component_private",
+            operation=operation,
+            payload=_component_payload(entity, account_id=account_id, parents=parents, name=name),
+            parents=parents,
+            expected_head=expected_head,
+        )
+        receipt = cloud_sync.push(
+            cli_endpoint, device_session.access_token, SyncPushRequest(events=[event])
+        ).receipts[0]
+        return receipt, event.revision_id
+
+    # A: the accepted root.
+    receipt, rev_a = push([], name="root")
+    assert receipt.state == "accepted"
+    # R: conflict-retained — the diamond's shared undelivered ancestor.
+    receipt, rev_r = push([rev_a], name="shared-root")
+    assert receipt.state == "conflict"
+    # Two branches over R, both refused and retained. Distinct payloads, or the
+    # content address folds them into one revision.
+    receipt, rev_d1 = push([rev_r], name="branch-one")
+    assert receipt.state == "conflict"
+    receipt, rev_d2 = push([rev_r], name="branch-two")
+    assert receipt.state == "conflict"
+    # X joins the branches; still a conflict against the unmoved head.
+    receipt, rev_x = push([rev_d1, rev_d2], name="join")
+    assert receipt.state == "conflict"
+    # The merge fast-forwards off A and names X — pulling in the whole
+    # undelivered subgraph first.
+    receipt, rev_m = push([rev_a, rev_x], name="merge", expected_head=rev_a)
+    assert receipt.state == "accepted"
+
+    _device_b, token_b = _second_device(cli_server, account_id)
+    page = cloud_sync.pull(cli_endpoint, token_b, SyncPullQuery(cursor=None, page_size=20))
+    order = {item.revision_id: item.sequence for item in page.items}
+    # A was already delivered at sequence 1; the backfilled subgraph follows it.
+    assert order[rev_a] < order[rev_r]
+    assert order[rev_r] < order[rev_d1]
+    assert order[rev_r] < order[rev_d2]
+    assert order[rev_d1] < order[rev_x]
+    assert order[rev_d2] < order[rev_x]
+    assert order[rev_x] < order[rev_m]
+
+
+def test_a_conflict_retained_tombstone_does_not_free_the_singleton(
+    cli_endpoint: Endpoint,
+    cli_server: SyncAsgiServer,
+    device_session: CliSession,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """A refused tombstone is still just a refusal: the identity stays held.
+
+    Counting retained revisions as live state let a conflict-stored tombstone
+    erase the account's developer passport from the singleton check, and the
+    next foreign identity push was accepted. Only the entity's real head may
+    say whether it lives.
+    """
+    _enable(monkeypatch, cli_endpoint)
+    account_id = device_session.account_id
+
+    with open_registry(configured_path()) as connection:
+        held = passports.developer_stable_id(connection)
+    assert held is not None
+    pushed = sync_commands.push({"id": held, "confirm": True}).payload
+    assert pushed.state == "accepted"
+
+    # The ledger's head revision is the stream's own id, not the local one.
+    stream = cloud_sync.pull(
+        cli_endpoint,
+        device_session.access_token,
+        SyncPullQuery(cursor=None, page_size=20),
+    )
+    head_revision = stream.items[-1].revision_id
+
+    # A tombstone that misses the head is conflict-retained, not delivered.
+    tombstone = _sealed_event(
+        account_id=account_id,
+        device_id=device_session.device_id,
+        entity_id=held,
+        entity_kind="developer_passport",
+        operation="tombstone",
+        payload={"schema_version": 1, "kind": "developer", "stable_id": held},
+        parents=[head_revision],
+    )
+    refused = cloud_sync.push(
+        cli_endpoint, device_session.access_token, SyncPushRequest(events=[tombstone])
+    ).receipts[0]
+    assert refused.state == "conflict", refused.model_dump()
+
+    # The passport is still the account's one live identity: a second machine's
+    # own init must still be refused, naming the held entity.
+    device_b, token_b = _second_device(cli_server, account_id)
+    foreign = _event_for(
+        tmp_path / "device-b.sqlite",
+        account_id=account_id,
+        device_id=device_b,
+        stable_id=new_id("developer"),
+        kind="developer",
+    )
+    receipt = cloud_sync.push(cli_endpoint, token_b, SyncPushRequest(events=[foreign])).receipts[0]
+    assert receipt.state == "rejected"
+    assert receipt.conflicting_entity_id == held
+
+
+def test_a_parent_of_another_entity_is_refused(
+    cli_endpoint: Endpoint,
+    device_session: CliSession,
+) -> None:
+    """A revision may only descend from its own entity's history.
+
+    Existence alone was checked; entity and kind were not — a forged parent
+    link let an event graft onto an unrelated ledger, and any outbox backfill
+    would then deliver that other entity's history to this one's readers.
+    """
+    account_id = device_session.account_id
+    device_id = device_session.device_id
+    entity_a = new_id("component")
+    entity_b = new_id("component")
+
+    root_a = _sealed_event(
+        account_id=account_id,
+        device_id=device_id,
+        entity_id=entity_a,
+        entity_kind="component_private",
+        operation="upsert",
+        payload=_component_payload(entity_a, account_id=account_id),
+    )
+    accepted = cloud_sync.push(
+        cli_endpoint, device_session.access_token, SyncPushRequest(events=[root_a])
+    ).receipts[0]
+    assert accepted.state == "accepted"
+
+    grafted = _sealed_event(
+        account_id=account_id,
+        device_id=device_id,
+        entity_id=entity_b,
+        entity_kind="component_private",
+        operation="upsert",
+        payload=_component_payload(entity_b, account_id=account_id, parents=[root_a.revision_id]),
+        parents=[root_a.revision_id],
+    )
+    receipt = cloud_sync.push(
+        cli_endpoint, device_session.access_token, SyncPushRequest(events=[grafted])
+    ).receipts[0]
+    assert receipt.state == "rejected"
+    assert receipt.error_code == "AI_STP_VALIDATION_ERROR"

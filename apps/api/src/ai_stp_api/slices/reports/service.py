@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import func, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ai_stp_api.audit import emit_audit
@@ -22,6 +22,13 @@ from ai_stp_contracts.reports import (
     StaffTriageRequest,
 )
 from ai_stp_foundation.ids import new_id
+from ai_stp_platform.catalog_cursor import (
+    CursorError,
+    CursorKey,
+    decode_cursor,
+    encode_cursor,
+    filter_signature,
+)
 from ai_stp_platform.external_catalog import COUNTRY_CODES, canonical_external_url
 from ai_stp_platform.models import (
     CatalogMetadata,
@@ -239,20 +246,41 @@ async def list_staff_reports(
     ctx: AuthContext,
     staff_ids: frozenset[str],
     page_size: int = 20,
+    cursor: str | None = None,
+    cursor_secret: str | None = None,
 ) -> StaffReportListResponse:
     await require_staff(ctx, staff_ids)
-    rows = list(
-        (
-            await db.execute(
-                select(ReportCase)
-                .where(ReportCase.state != "security_escalated")
-                .order_by(ReportCase.created_at.desc())
-                .limit(page_size)
+    # The same signed-cursor contract as the public catalog: a truncated page
+    # without a continuation would make the staff queue silently incomplete.
+    filter_sig = filter_signature(
+        object_kind="staff_reports",
+        q=None,
+        tags=[],
+        harness_id=None,
+        component_type=None,
+        include_experimental=False,
+    )
+    statement = (
+        select(ReportCase)
+        .where(ReportCase.state != "security_escalated")
+        .order_by(ReportCase.created_at.desc(), ReportCase.id.desc())
+    )
+    if cursor is not None:
+        if cursor_secret is None:
+            raise ApiError(ErrorCategory.DEPENDENCY, "cursor signing is not configured")
+        try:
+            key = decode_cursor(secret=cursor_secret, token=cursor, filter_sig=filter_sig)
+        except CursorError as error:
+            raise ApiError(ErrorCategory.VALIDATION, "invalid cursor") from error
+        statement = statement.where(
+            or_(
+                ReportCase.created_at < key.published_at,
+                and_(ReportCase.created_at == key.published_at, ReportCase.id < key.stable_id),
             )
         )
-        .scalars()
-        .all()
-    )
+    rows = list((await db.execute(statement.limit(page_size + 1))).scalars().all())
+    has_more = len(rows) > page_size
+    rows = rows[:page_size]
     items = [
         StaffReportSummary(
             schema_version=1,
@@ -268,10 +296,19 @@ async def list_staff_reports(
         )
         for row in rows
     ]
+    next_cursor: str | None = None
+    if has_more and cursor_secret is not None:
+        last = rows[-1]
+        created = last.created_at if last.created_at.tzinfo else last.created_at.replace(tzinfo=UTC)
+        next_cursor = encode_cursor(
+            secret=cursor_secret,
+            filter_sig=filter_sig,
+            key=CursorKey(published_at=created, stable_id=last.id),
+        )
     return StaffReportListResponse(
         schema_version=1,
         items=items,
-        page=PageInfo(schema_version=1, next_cursor=None, page_size=max(page_size, 1)),
+        page=PageInfo(schema_version=1, next_cursor=next_cursor, page_size=max(page_size, 1)),
     )
 
 

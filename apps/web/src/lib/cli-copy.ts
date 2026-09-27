@@ -19,6 +19,8 @@ export {
   ownerComponentNextStep,
   ownerSetupNextStep,
   installStart,
+  installSetupStart,
+  installTaskStart,
   registryCommand,
   registryShow,
   registryVersion,

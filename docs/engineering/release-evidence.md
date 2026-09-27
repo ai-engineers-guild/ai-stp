@@ -65,6 +65,7 @@ release network or on a deployed environment being reachable.
 | `just evidence-contribution <tag>` | `#54`'s acceptance: one MCP component in each of its three native forms, and the refusal that is also an answer; each installed form is then removed again, and the owned-file form must leave the host file behind with the person's own key — the target's `config.toml` is seeded with that key before the install, so the removal has something to keep |
 | `just evidence-citations` | is every source link the harness catalogue cites still alive |
 | `just evidence-sync <home_a> <home_b>` | two devices, rewind, conflict and merge — needs a real browser login |
+| `just evidence-sync-hot-paths` | the private-sync denominators `#256` R05 names: ancestor walks, common-ancestor selection, page application and cold/warm task overhead, with real sqlite statement counts; `fixture` rows are setup cost, not verdicts |
 | `just evidence-publication <home>` | publication, grants, reports and owner reads — needs a real browser login |
 
 Use disposable authenticated homes for the sync slice. Each invocation creates

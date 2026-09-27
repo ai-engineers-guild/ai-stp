@@ -10,9 +10,17 @@ import { privateApiRequest, type PrivateRequestOptions } from "@/lib/api/http";
 import {
   corporateAuditFilters,
   readCorporateContext,
+  readCorporateOrganizations,
   type CorporateAuditFilterValues,
 } from "@/lib/api/corporate";
-import { assertCsrf, readCsrfToken, readSession, SESSION_COOKIE } from "@/lib/auth/session";
+import { CORPORATE_ORG_COOKIE } from "@/lib/auth/cookies";
+import {
+  assertCsrf,
+  readCsrfToken,
+  readSession,
+  SESSION_COOKIE,
+  SESSION_TTL_MS,
+} from "@/lib/auth/session";
 import { COMPILED_FEATURE_PROFILE } from "@/lib/features/compiled";
 
 import type {
@@ -40,6 +48,34 @@ type MutationResult =
   | { ok: false; message: string; code?: string; fieldErrors?: FieldErrors };
 
 type AuditExportResult = { ok: true; data: CorporateAuditExport } | { ok: false; message: string };
+
+/**
+ * Persists the selected corporate organization for this session. The value is
+ * validated against current memberships before it is stored — the cookie is a
+ * session-scoped preference, never an authorization grant. A value that is not
+ * a current membership (forged or revoked) clears the stored preference so the
+ * next request resolves the bounded default instead of an arbitrary substitute.
+ */
+export async function selectCorporateOrganization(formData: FormData): Promise<void> {
+  const sessionToken = (await cookies()).get(SESSION_COOKIE)?.value;
+  if (!sessionToken || !(await readSession())) return;
+  const submitted = formData.get("organization");
+  const organizationId = typeof submitted === "string" ? submitted : "";
+  const memberships = await readCorporateOrganizations(sessionToken);
+  const jar = await cookies();
+  if (memberships.some((item) => item.organization_id === organizationId)) {
+    jar.set(CORPORATE_ORG_COOKIE, organizationId, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+      maxAge: SESSION_TTL_MS / 1000,
+    });
+  } else {
+    jar.delete(CORPORATE_ORG_COOKIE);
+  }
+  revalidatePath("/", "layout");
+}
 
 export async function corporateCatalogSearchAction(input: {
   kind: string;

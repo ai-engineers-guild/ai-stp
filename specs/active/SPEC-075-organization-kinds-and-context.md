@@ -52,11 +52,15 @@ and #203. A separate `Workspace` domain entity is excluded.
   corporate row is invalid.
 - `REQ-7506`: Every organization-scoped API request names its organization
   explicitly. A session's remembered UI state is never substituted when the
-  request omits or changes the scope; Web receives scope from the authoritative
-  backend instead of persisting a user-selected organization.
+  request omits or changes the scope. Web may persist a session-scoped
+  organization preference that is validated against live memberships on every
+  request (SPEC-083 `REQ-8317`); it only selects which rendered organization
+  supplies the explicit request scope and is never an authorization grant.
 - `REQ-7507`: Machine contracts contain no `workspace_id`, workspace ownership,
   workspace table, workspace passport, or workspace lifecycle. No Web route
-  exposes a context selector or treats workspace as an independent identity.
+  exposes a workspace selector or treats workspace as an independent identity;
+  the corporate-organization switcher (SPEC-083 `REQ-8317`) selects among real
+  memberships, not a workspace entity.
 - `REQ-7508`: Local projects, local project passports, local registry objects,
   and local installation state require no organization row and do not receive a
   synthetic remote organization while offline.
@@ -112,7 +116,7 @@ override backend resolution.
 | `REQ-7504` | An authenticated non-member with a known corporate ID receives no resource or capability data. |
 | `REQ-7505` | Migration and model tests reject each corporate resource family without an organization ID. |
 | `REQ-7506` | Requests with absent, stale, or substituted organization scope fail without falling back to the remembered UI context. |
-| `REQ-7507` | Schema/database inventories contain no Workspace aggregate or `workspace_id`, and browser checks find no context selector. |
+| `REQ-7507` | Schema/database inventories contain no Workspace aggregate or `workspace_id`, and browser checks find no workspace selector distinct from the membership-validated organization switcher. |
 | `REQ-7508` | Network-disabled local project adoption and operation create no organization row or remote request. |
 | `REQ-7509` | A migration fixture preserves account authorship and attaches every existing cloud row to exactly one personal organization on repeated runs. |
 | `REQ-7510` | Hostile cross-organization read, write, list, search, and relationship tests fail before protected fields are loaded. |

@@ -170,7 +170,7 @@ def test_kit_schema_and_cases_are_derived_from_the_runtime_contract() -> None:
     properties = cast(dict[str, object], protocol_v3.STATUS_WIRE_SCHEMA["properties"])
     assert set(properties) == set(protocol_v3.STATUS_ALWAYS_FIELDS) | set(
         protocol_v3.STATUS_VERIFIED_FIELDS
-    )
+    ) | set(protocol_v3.STATUS_OPTIONAL_FIELDS)
 
 
 def test_always_and_verified_sets_do_not_overlap() -> None:

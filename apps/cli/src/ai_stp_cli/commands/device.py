@@ -69,7 +69,26 @@ def reset(parameters: Mapping[str, object]) -> Answer[DeviceIdentity]:
             next_actions=["device reset --confirm --json"],
         )
     store, _store_warning = open_store()
+    held = session.load(store)
+    revoke_warning: str | None = None
+    if held is not None:
+        # The server pair outlives the local forget by days; retiring the
+        # identity without ending it leaves a valid bearer nobody can use.
+        # An unreachable platform must not hold the reset hostage, but a silent
+        # failure would leave the caller believing the token is dead when it is
+        # not — the answer has to say so.
+        from ai_stp_cli.application.auth import endpoint
+        from ai_stp_cli.cloud import login
+
+        try:
+            login.revoke_session(endpoint(), held.access_token)
+        except Exception:
+            revoke_warning = (
+                "the platform could not be reached to revoke the session; "
+                "the old token may remain valid until it expires"
+            )
     session.clear(store)
     session.clear_pending(store)
     fresh, warning = identity.reset()
-    return with_warning(fresh.report(), warning)
+    warnings = tuple(w for w in (warning, revoke_warning) if w is not None)
+    return Answer(fresh.report(), warnings)

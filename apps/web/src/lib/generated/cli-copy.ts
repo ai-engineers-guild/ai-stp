@@ -12,6 +12,8 @@ export const SELECT_IMPACT =
   "ai-stp select impact --setup-id {stable_id} --setup-version {version}" as const;
 export const COMPONENT_NEXT_STEP = "ai-stp task start --intent author --idempotency-key author-session-01 --json" as const;
 export const SETUP_NEXT_STEP = "ai-stp task start --intent install --idempotency-key install-session-01 --json" as const;
+export const INSTALL_TASK_START = "ai-stp task start --intent install --idempotency-key {key} --json" as const;
+export const INSTALL_SETUP_START = "echo {input} | ai-stp task start --intent install --idempotency-key {key} --input - --json" as const;
 export const LOGIN = "ai-stp task start --intent account --idempotency-key account-session-01 --json" as const;
 export const INTENTS_BOOTSTRAP = "ai-stp task intents --json" as const;
 export const INITIALIZE_START = "ai-stp task start --intent initialize --idempotency-key initialize-session-01 --json" as const;
@@ -42,6 +44,21 @@ export function ownerSetupNextStep(): string {
 
 export function installStart(): string {
   return SETUP_NEXT_STEP;
+}
+
+function installKey(stableId: string, version?: string): string {
+  return version ? `install-${stableId}-${version}` : `install-${stableId}`;
+}
+
+export function installTaskStart(stableId: string, version?: string): string {
+  return INSTALL_TASK_START.replaceAll("{key}", installKey(stableId, version));
+}
+
+export function installSetupStart(stableId: string, version: string): string {
+  const input = JSON.stringify({ setup_id: stableId, setup_version: version });
+  return INSTALL_SETUP_START
+    .replaceAll("{input}", `'${input}'`)
+    .replaceAll("{key}", installKey(stableId, version));
 }
 
 export function login(provider: LoginProvider): string {

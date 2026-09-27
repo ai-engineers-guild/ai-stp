@@ -33,7 +33,9 @@ from ai_stp_contracts.cli_copy import (
     REGISTRY_SHOW,
     REGISTRY_VERSION,
     SETUP_NEXT_STEP,
+    install_setup_start,
     install_start,
+    install_task_start,
     login,
     owner_component_next_step,
     owner_setup_next_step,
@@ -209,6 +211,56 @@ def test_every_command_the_web_publishes_is_a_registered_command() -> None:
         while name and name not in registered:
             name = " ".join(name.split(" ")[:-1])
         assert name in registered, f"web publishes {rendered!r}, which is not a registered command"
+
+
+_IDEMPOTENCY_KEY = re.compile(r"[A-Za-z0-9._~\-]{16,128}")
+
+
+def _install_key(argv: str) -> str:
+    found = re.search(r"--idempotency-key (\S+)", argv)
+    assert found is not None, argv
+    return found.group(1)
+
+
+@pytest.mark.parametrize(
+    "stable_id,version",
+    [(SAMPLE_COMPONENT, None), (SAMPLE_COMPONENT, "1.0"), (SAMPLE_SETUP, "2.13")],
+)
+def test_an_object_install_argv_scopes_the_session_key_to_the_object(
+    stable_id: str, version: str | None
+) -> None:
+    """`task start` replays the first request that used an idempotency key, so
+    a fixed `install-session-01` key makes a second copied catalog install
+    return the first object's record. The key must follow the object.
+    """
+    argv = install_task_start(stable_id, version)
+    assert argv.startswith("ai-stp task start --intent install ")
+    key = _install_key(argv)
+    assert _IDEMPOTENCY_KEY.fullmatch(key) is not None, key
+    assert stable_id in key
+    assert argv not in {SETUP_NEXT_STEP, install_start()}
+    # Two different objects never share a session key.
+    other = SAMPLE_SETUP if stable_id != SAMPLE_SETUP else SAMPLE_COMPONENT
+    assert install_task_start(other, version) != argv
+
+
+def test_a_setup_install_argv_pins_the_object_in_the_request() -> None:
+    """The install intent's input binds setup_id/setup_version, so the setup
+    handoff feeds the pin through stdin: the durable request names the object.
+    """
+    argv = install_setup_start(SAMPLE_SETUP, "2.13")
+    head, _, command = argv.partition(" | ")
+    assert head.startswith("echo '") and head.endswith("'")
+    pin = json.loads(head.removeprefix("echo '").removesuffix("'"))
+    assert pin == {"setup_id": SAMPLE_SETUP, "setup_version": "2.13"}
+    assert command.startswith("ai-stp task start --intent install ")
+    assert "--input -" in command
+    assert SAMPLE_SETUP in _install_key(command)
+
+
+def test_install_key_rejects_an_identity_outside_the_charset() -> None:
+    with pytest.raises(ValueError, match="charset"):
+        install_task_start("bad id with spaces")
 
 
 def test_device_login_copy_uses_the_account_start() -> None:

@@ -22,7 +22,7 @@ import {
 } from "@/lib/api/catalog";
 import { ApiError } from "@/lib/api/errors";
 import { asVersionId, tryAsSetupId } from "@/lib/brands";
-import { installStart, registryVersion } from "@/lib/cli-copy";
+import { installSetupStart, registryVersion } from "@/lib/cli-copy";
 import { buildDeepLink, normalizeTarget } from "@/lib/deep-links";
 import { versionPageMetadata } from "@/lib/seo/metadata";
 import { publicOrigin } from "@/lib/site";
@@ -240,7 +240,7 @@ function SetupVersionCliCopy({
   return (
     <>
       <CliCopyBlock
-        command={installStart()}
+        command={installSetupStart(stableId, version)}
         title={useTitle}
         description={useBody}
         copyLabel={copyLabel}

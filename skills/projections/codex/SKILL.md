@@ -37,14 +37,17 @@ not type `ai-stp`. Do not start `account`.
    When that field is `cli`, execute `argv` with your tools. When it is
    `human`, do not execute that `argv` as printed (the value is missing on
    purpose). Answer immediately from the conversation through
-   `ai-stp task answer`. Waiting for a person is not the job. When it is
+   `ai-stp task answer`: the id, revision and answer value are the task's
+   own, and your reply text is the value — never a file, never stdin. An
+   answer the task did not consume leaves it blocked. Waiting for a person
+   is not the job. When it is
    `external`, show the payload once and stop. Do not execute that `argv`.
    `provider-too-old` is not login: do not start `account`, do not loop
    `task continue`. A device-code payload is shown once; later
    `task continue` only after the browser, never in a tight loop.
    Start already advanced the task. Do not insert
    `task continue` when `actor` is `human` or when there are no continuations.
-   Do not invent `task status`, `task info`, or `task get`.
+   Do not invent `task info` or `task get`.
    A lost task reference is recovered through `task list`: it returns only
    tasks that have not settled, each with the id and revision a resume needs.
    Wait for each `ai-stp` JSON envelope on stdout. Do not deliberately
@@ -134,7 +137,7 @@ and [traps](references/traps.md) when a returned state is ambiguous.
   `inspect` intent.
 - Do not type `provider network`. Empty `continuations` means stop and
   report the typed error. When `error.details.state` is `failed`, the task
-  is settled; do not type `task get`, `task status`, or `task continue`.
+  is settled; do not type `task get` or `task continue`.
 - Use CLI configuration and installation commands. The provider writes the
   harness target; do not replace its work with manual native-file edits.
 - Keep exact setup/component versions, proposal and operation identifiers,

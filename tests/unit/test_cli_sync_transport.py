@@ -15,7 +15,7 @@ from ai_stp_cli.cloud import session
 from ai_stp_cli.cloud import sync as cloud_sync
 from ai_stp_cli.cloud.client import Endpoint
 from ai_stp_cli.errors import CliFailure
-from ai_stp_cli.local import lifecycle, revisions, sync_state, versions
+from ai_stp_cli.local import consent, lifecycle, revisions, sync_state, versions
 from ai_stp_cli.local.database import open_registry
 from ai_stp_contracts.http import PageInfo
 from ai_stp_contracts.sync import (
@@ -833,7 +833,7 @@ def test_a_refusal_raised_while_applying_still_names_the_event(tmp_path: Path) -
 
 
 def test_preview_does_not_answer_up_to_date_against_a_server_head_it_lacks(
-    tmp_path: Path,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Two surfaces must not tell the operator opposite things about one entity.
 
@@ -848,6 +848,9 @@ def test_preview_does_not_answer_up_to_date_against_a_server_head_it_lacks(
     """
     connection = open_registry(tmp_path / "registry.sqlite")
     stable_id = new_id("developer")
+    # The receipt this device holds belongs to ACCOUNT's stream, so the
+    # preview is asked with that identity acting.
+    monkeypatch.setattr(consent, "acting_accounts", lambda: (ACCOUNT,))
     try:
         local = revisions.commit(connection, _content(stable_id), device_id=DEVICE_A)
         prepared = sync_state.prepare(
@@ -1237,6 +1240,7 @@ def _stream_event(
     sequence: int = 1,
     device_id: str = DEVICE_B,
     event_id: str | None = None,
+    actor_id: str = ACCOUNT,
 ) -> SyncStreamEvent:
     """A pulled event of a non-passport kind, sealed exactly as a sender does."""
     sealed: dict[str, JsonValue] = {
@@ -1247,7 +1251,7 @@ def _stream_event(
         "operation": operation,
         "payload": cast(JsonValue, payload),
         "device_id": device_id,
-        "actor_id": ACCOUNT,
+        "actor_id": actor_id,
         "created_at": AT,
     }
     return SyncStreamEvent(
@@ -1257,7 +1261,7 @@ def _stream_event(
         revision_id=revision_id(sealed),
         parent_revision_ids=[],
         device_id=device_id,
-        actor_id=ACCOUNT,
+        actor_id=actor_id,
         operation=operation,  # pyright: ignore[reportArgumentType]
         content_digest=digest_canonical("ai-stp:revision:v1", cast(JsonValue, payload)),
         created_at=AT,
@@ -1352,7 +1356,7 @@ def test_a_pulled_consent_grant_applies_and_replays(tmp_path: Path) -> None:
             0,
             [],
         )
-        held = consent.held(connection, scope="task", target="full-auto")
+        held = consent.held(connection, accounts=(ACCOUNT,), scope="task", target="full-auto")
         assert held is not None and held.active
         assert held.consent_id == entity
         assert held.decided_by == ACCOUNT
@@ -1396,7 +1400,7 @@ def test_a_pulled_consent_tombstone_revokes(tmp_path: Path) -> None:
             at=AT,
         )
         assert second == (1, 0, [])
-        held = consent.held(connection, scope="task", target="full-auto")
+        held = consent.held(connection, accounts=(ACCOUNT,), scope="task", target="full-auto")
         assert held is not None and not held.active
     finally:
         connection.close()
@@ -1416,6 +1420,84 @@ def test_a_pulled_consent_outside_the_closed_scopes_is_refused(tmp_path: Path) -
             sync_state.apply_page(connection, account_id=ACCOUNT, response=page, at=AT)
         assert raised.value.code == "AI_STP_VALIDATION_ERROR"
         assert sync_state.cursor(connection, ACCOUNT) is None
+    finally:
+        connection.close()
+
+
+def test_a_consent_pulled_under_one_account_never_answers_for_another(
+    tmp_path: Path,
+) -> None:
+    """The account scope is the security property: without it, one account's
+    consent silently authorized candidates under every other signed-in
+    account on the device.
+    """
+    from ai_stp_cli.local import consent
+
+    other = "account_01JQZK7B8N4M6P2R9T5V0X3Y00"
+    connection = open_registry(tmp_path / "registry.sqlite")
+    try:
+        entity = consent.entity_id("task", "full-auto")
+        event = _stream_event("unverified_consent", entity, _consent_payload())
+        page = SyncPullResponse(items=[event], page=PageInfo(next_cursor="c1", page_size=20))
+        assert sync_state.apply_page(connection, account_id=ACCOUNT, response=page, at=AT) == (
+            1,
+            0,
+            [],
+        )
+        # The pulling account sees its own record.
+        assert (
+            consent.held(connection, accounts=(ACCOUNT,), scope="task", target="full-auto")
+            is not None
+        )
+        # A second account signed into the same device does not.
+        assert consent.held(connection, accounts=(other,), scope="task", target="full-auto") is None
+        assert consent.active(connection, accounts=(other,)) == ()
+        # And a pull under the second account cannot revoke the first's grant.
+        tombstone = _stream_event(
+            "unverified_consent",
+            entity,
+            {"schema_version": 1, "scope": "task", "target": "full-auto", "revoked_at": AT},
+            operation="tombstone",
+            sequence=2,
+            actor_id=other,
+        )
+        sync_state.apply_page(
+            connection,
+            account_id=other,
+            response=SyncPullResponse(
+                items=[tombstone], page=PageInfo(next_cursor="c2", page_size=20)
+            ),
+            at=AT,
+        )
+        held = consent.held(connection, accounts=(ACCOUNT,), scope="task", target="full-auto")
+        assert held is not None and held.active
+    finally:
+        connection.close()
+
+
+def test_a_push_under_one_account_cannot_carry_anothers_consent(tmp_path: Path) -> None:
+    """`_push_consent` reads only the pushing account's and the device owner's
+    records — a row belonging to a foreign account is not this stream's to
+    publish."""
+    from ai_stp_cli.local import consent
+
+    other = "account_01JQZK7B8N4M6P2R9T5V0X3Y00"
+    connection = open_registry(tmp_path / "registry.sqlite")
+    try:
+        consent.grant(
+            connection,
+            account_id=other,
+            consent_id=consent.entity_id("task", "full-auto"),
+            scope="task",
+            target="full-auto",
+            fingerprint={},
+            observed=(),
+            decided_by=other,
+            origin="component consent allow",
+            at=AT,
+        )
+        records = consent.all_records(connection, accounts=(ACCOUNT,))
+        assert records == ()
     finally:
         connection.close()
 
@@ -1615,6 +1697,7 @@ def test_push_sends_the_consent_record_and_then_its_tombstone(
     with open_registry(registry_path) as registry:
         consent.grant(
             registry,
+            account_id=ACCOUNT,
             consent_id=new_id("request"),
             scope="task",
             target="full-auto",
@@ -1649,7 +1732,7 @@ def test_push_sends_the_consent_record_and_then_its_tombstone(
     assert upsert_payload["target"] == "full-auto"
 
     with open_registry(registry_path) as registry:
-        consent.revoke(registry, scope="task", target="full-auto", at=AT)
+        consent.revoke(registry, account_id=ACCOUNT, scope="task", target="full-auto", at=AT)
 
     retracted = sync_commands.push({"id": entity, "confirm": True}).payload
     assert retracted.state == "accepted"
@@ -1680,3 +1763,109 @@ def test_consent_allow_names_the_push_continuation_when_sync_is_on(
     config.set_values({"sync.enabled": "false"})
     silent = component_command.consent_allow({"scope": "task", "target": "full-auto"})
     assert silent.continuations == ()
+
+
+def test_a_pending_event_bound_to_a_retired_device_is_retired_and_recreated(
+    tmp_path: Path,
+) -> None:
+    """A pending request signed by a device identity this install no longer
+    holds can never deliver — the server requires the event's device to be the
+    session's. Replaying it wedged every later push; now the stale row is
+    marked `failed` and the intent mints a fresh event for the live device."""
+    connection = open_registry(tmp_path / "registry.sqlite")
+    stable_id = new_id("developer")
+    try:
+        root = revisions.commit(connection, _content(stable_id), device_id=DEVICE_A)
+        stale = sync_state.prepare(connection, account_id=ACCOUNT, device_id=DEVICE_A, stored=root)
+
+        fresh = sync_state.prepare(connection, account_id=ACCOUNT, device_id=DEVICE_B, stored=root)
+        assert fresh.state == "pending"
+        assert fresh.request.event_id != stale.request.event_id
+        assert fresh.request.device_id == DEVICE_B
+        assert fresh.request.revision_id != stale.request.revision_id
+
+        retired = connection.execute(
+            "SELECT state FROM sync_event WHERE account_id = ? AND event_id = ?",
+            (ACCOUNT, stale.request.event_id),
+        ).fetchone()
+        assert retired is not None and retired[0] == "failed"
+
+        # And the fresh event delivers normally.
+        sync_state.record_receipt(
+            connection,
+            account_id=ACCOUNT,
+            receipt=_accepted(fresh.request.event_id, fresh.request.revision_id, "cursor-1"),
+        )
+        mapping = sync_state.mapping_for_local(
+            connection, account_id=ACCOUNT, local_revision_id=root.revision_id
+        )
+        assert mapping is not None and mapping.state == "accepted"
+    finally:
+        connection.close()
+
+
+def test_unreachable_server_head_scopes_the_lookup_to_the_receipts_account(
+    tmp_path: Path,
+) -> None:
+    """The receipt's own account is the only history that can answer for it.
+
+    Another signed-in account may hold the named revision in its own stream;
+    an unscoped lookup then reported a head this account never received as
+    reachable, and a real divergence went back to `up_to_date`.
+    """
+    connection = open_registry(tmp_path / "registry.sqlite")
+    stable_id = new_id("developer")
+    other_account = "account_01JQZK7B8N4M6P2R9T5V0X3Y00"
+    foreign_revision = "revision_" + "f" * 64
+    try:
+        # Account A's latest refusal names a head the server holds.
+        receipt = SyncEventReceipt(
+            event_id="event_refused",
+            state="conflict",
+            revision_id=None,
+            server_head_revision_id=foreign_revision,
+            cursor=None,
+            conflict=None,
+            conflicting_entity_id=None,
+            error_code=None,
+        )
+        connection.execute(
+            "INSERT INTO sync_event (account_id, event_id, sync_key, "
+            "local_revision_id, remote_revision_id, entity_id, direction, "
+            "request_json, state, receipt_json, created_at) "
+            "VALUES (?, ?, ?, NULL, ?, ?, 'push', '{}', 'conflict', ?, ?)",
+            (
+                ACCOUNT,
+                "event_refused",
+                "key_refused",
+                "revision_" + "a" * 64,
+                stable_id,
+                receipt.model_dump_json(),
+                AT,
+            ),
+        )
+        # Account B's stream knows exactly that revision — but it is B's.
+        connection.execute(
+            "INSERT INTO sync_event (account_id, event_id, sync_key, "
+            "local_revision_id, remote_revision_id, entity_id, direction, "
+            "request_json, state, receipt_json, created_at) "
+            "VALUES (?, ?, ?, NULL, ?, ?, 'pull', '{}', 'accepted', NULL, ?)",
+            (
+                other_account,
+                "event_other",
+                foreign_revision,
+                foreign_revision,
+                stable_id,
+                AT,
+            ),
+        )
+        connection.commit()
+
+        assert (
+            sync_state.unreachable_server_head(connection, (ACCOUNT,), stable_id)
+            == foreign_revision
+        )
+        # And the same refusal is invisible through another account's lens.
+        assert sync_state.unreachable_server_head(connection, (other_account,), stable_id) is None
+    finally:
+        connection.close()

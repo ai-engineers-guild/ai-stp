@@ -57,9 +57,9 @@ async def test_setup_job_rechecks_line_owner_after_plan_creation(db_session: Asy
         visibility=Visibility.PRIVATE,
         idempotency_key=new_id("operation"),
     )
-    with pytest.raises(ValueError, match="catalog line is owned by another account"):
-        await execute_publish(db_session, plan_id=plan.id)
-    assert plan.state == "publish_planned"
+    assert await execute_publish(db_session, plan_id=plan.id) is None
+    # Permanent refusal settles on the plan rather than dead-lettering the job.
+    assert plan.state == "failed"
     assert (await db_session.scalars(select(CatalogMetadata))).all() == [existing.metadata]
     assert existing.metadata.owner_account_id == owner
 

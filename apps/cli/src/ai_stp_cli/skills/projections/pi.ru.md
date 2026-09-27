@@ -37,14 +37,16 @@ Native surface for this harness: Package, resources, Skill, and local target set
    `envelope.continuations[0].actor` — JSON-поле, а не личность пользователя.
    Когда поле `cli`, исполните `argv` своими tools. Когда `human`, этот
    `argv` как напечатан не исполняйте (value нарочно отсутствует). Сразу
-   ответьте из разговора через `ai-stp task answer`. Ждать человека — не
+   ответьте из разговора через `ai-stp task answer` с id задачи, её ревизией
+   и текстом вашего ответа — ответ это текст, не файл и не stdin; ответ,
+   который задача не получила, оставляет её blocked. Ждать человека — не
    работа. Когда `external`, покажите payload один раз и остановитесь.
    Этот `argv` не исполняйте. `provider-too-old` — не login: не стартуйте
    `account` и не крутите `task continue`. Device-code покажите один раз;
    `task continue` только после браузера, не в тесном цикле.
    `task start` уже продвинул задачу. Не вставляйте `task continue`, когда
    `actor` равен `human` или continuations нет.
-   Не выдумывайте `task status`, `task info` или `task get`.
+   Не выдумывайте `task info` или `task get`.
    Дождитесь JSON-конверта `ai-stp` на stdout. Не запускайте CLI намеренно
    в background. Если shell tool вернул идентификатор фоновой задачи,
    получите через этот tool завершённый вывод до следующего вызова CLI.
@@ -133,7 +135,7 @@ Native surface for this harness: Package, resources, Skill, and local target set
   intent `inspect`.
 - Не набирайте `provider network`. Пустой `continuations` значит остановиться
   и сообщить типизированную ошибку. Когда `error.details.state` — `failed`,
-  задача settled; не набирайте `task get`, `task status` или `task continue`.
+  задача settled; не набирайте `task get` или `task continue`.
 - Используйте команды конфигурации и установки CLI. В harness target пишет
   провайдер; ручная правка нативных файлов не заменяет его работу.
 - Сохраняйте точные версии, идентификаторы proposal и operation, plan digest

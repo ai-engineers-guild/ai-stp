@@ -1,6 +1,6 @@
 ---
 description: "Target implementation plan for the agent-first CLI: GPT OSS 120B qualification, shared task engine, and the website-to-native journeys in epic #261."
-last_verified: "2026-09-25"
+last_verified: "2026-09-26"
 ---
 
 # Agent UX implementation plan
@@ -18,11 +18,12 @@ prompt, GPT OSS 120B through `agy` operates ai-stp. The agent picks an intent,
 relays answers, and reports verification. The CLI owns acquisition,
 composition, backup, plan, approve, apply, verify, retries, and recovery.
 
-## Checkpoint (2026-09-25)
+## Checkpoint (2026-09-26)
 
 Eight drained intents are on GitHub `main` (PR
 [#297](https://github.com/ai-engineers-guild/ai-stp/pull/297) merged
-2026-09-19). Source and the released `ai-stp-cli` line are `0.0.29`. Epic #261–#275 stay
+2026-09-19). Source is preparing maintenance `ai-stp-cli` `0.0.31`; the released line is
+`0.0.30`. Epic #261–#275 stay
 OPEN. Do not touch colleague issues (#254, #256) or
 `feat/milestone-6-b2b-03`.
 
@@ -30,11 +31,19 @@ OPEN. Do not touch colleague issues (#254, #256) or
 | --- | --- |
 | Line | GitHub `main` / `dev`. Work branch `feat/agent-task-lifecycle` is gone |
 | PR | [#297](https://github.com/ai-engineers-guild/ai-stp/pull/297) merged into `dev`, then promoted |
-| Released CLI | `0.0.29` on PyPI (`apps/cli/pyproject.toml` matches); tag `v0.0.29` points to `eeb682e4` |
-| Provider kit | `0.2.13` in `tests/golden/provider-kit/identity-ledger.json` |
+| Released CLI | `0.0.30` on PyPI; source prepares maintenance `0.0.31`; tag `v0.0.30` points to `16c9895b` |
+| Provider kit | `0.2.14` in `tests/golden/provider-kit/identity-ledger.json` |
 | Issues | #261–#275 OPEN. setup-systems #316 OPEN. Never close #256. Draft #254: do not touch |
 | Agent 20×5 | GPT OSS 120B through `agy` is the sole current model target; no current-candidate trial is counted yet. Historical Haiku 99/100 is archived evidence only |
 | Branch-policy SC2015 | closed in [#304](https://github.com/ai-engineers-guild/ai-stp/pull/304) |
+
+The September 25 guided source 100/100 and installed-wheel 98/100 results
+remain historical measurements of their recorded inputs. The separate
+unassisted matrix is 14 pass / 10 fail / 76 unrun, including invalid host
+change fixtures. They do not qualify the September 26 repair. New overlays bind
+CLI/Skill bytes and refuse old unidentified candidates; fresh GPT OSS 120B
+attempts currently encounter individual quota exhaustion. See the
+[canonical execution plan](implementation-roadmap.md).
 
 ### Live CLI
 
@@ -67,6 +76,13 @@ driver is `agy` with `gpt-oss-120b-medium`. Historical `haiku` keys are ignored
 by the report and cannot be extended in place. Use a new measured path for the
 current candidate, record its exact wheel, Skill, website prompt, provider and
 harness identities, and keep unavailable cells `not_run`.
+
+`--unassisted` writes the separate `unassisted` overlay key: the same twenty
+scenarios under plain user requests with no argv coaching, so guided protocol
+development and customer UX are never mixed into one score. The website's own
+initialize copy stays verbatim — it is shipped product text, not coaching.
+Unassisted cells are diagnostics toward release UX, not a substitute for the
+guided acceptance target.
 An `agy` individual-quota 429 before any CLI invocation is unavailable model
 capacity, not an agent failure. `--fill` pauses on that response and preserves
 the remaining unrun cells for a later capacity window; it does not spend the
@@ -76,7 +92,9 @@ rest of the corpus against a known exhausted quota.
 
 1. **Slice 9 GPT OSS 120B via `agy`**: run the current candidate anew; the required result is ≥95/100, no scenario <4/5, 5/5 on initialize / install / change / switch at its own identities.
 2. **Native win/mac** stay `not_run` here. Docker ENFORCED is the isolation path on this host.
-3. **Next CLI cut** after qualification of current bytes. `0.0.29` is on PyPI from tag `v0.0.29`; the native Antigravity user journey verified its official upgrade from `0.0.28`, public wheel bytes, and a fresh baseline consumer. That run used `gpt-oss-120b-medium` with corrective prompts, so it does not qualify autonomous GPT OSS 120B behavior on this candidate. The qualification record in #368 remains historical evidence.
+3. **Epic acceptance** requires qualification of current bytes. The maintenance
+   `0.0.31` cut repairs qualification infrastructure and does not close this
+   threshold or establish autonomous model acceptance. `0.0.29` is on PyPI from tag `v0.0.29`; the native Antigravity user journey verified its official upgrade from `0.0.28`, public wheel bytes, and a fresh baseline consumer. That run used `gpt-oss-120b-medium` with corrective prompts, so it does not qualify autonomous GPT OSS 120B behavior on this candidate. The qualification record in #368 remains historical evidence.
 4. **setup-systems #316** stays OPEN. The Antigravity user journey consumed its public provider `0.0.74` baseline in a fresh native session. Other provider and platform cells remain unverified by that run. Vendor kit `0.2.13` remains the recorded contract baseline. Do not close #316 from this plan.
 5. Issue comments with SHA; close only for measured scope. **Never close #256**. Do not touch #254.
 6. `component publish` stays `task_pending`. Do not compact `help --agent`. Do not shrink capabilities `command_paths` (REQ-8006).
@@ -109,7 +127,7 @@ External practice used (not copied as a second normative system):
 | Work branch | `feat/agent-task-lifecycle` @ `6f19972f` (gone; kernel is on `main` via #297) |
 | `origin/dev` then | `de37d6f3` after #277 (typed continuations exist; **no** PyPI cut at that date) |
 | Open PRs then | [#279](https://github.com/ai-engineers-guild/ai-stp/pull/279) envelope truth; [#280](https://github.com/ai-engineers-guild/ai-stp/pull/280) inspect engine (contains #279) |
-| Released CLI then | `0.0.22`. Current PyPI is `0.0.29` |
+| Released CLI then | `0.0.22`. Current PyPI is `0.0.30` |
 | Issues | #261–#275 OPEN. setup-systems #316 OPEN. #256 OPEN (never close from this epic). Draft #254 colleague / B2B: do not touch |
 
 Kernel that already exists and must be **evolved**, not replaced:
@@ -634,7 +652,7 @@ Slice status on this work tree:
 | --- | --- |
 | 0 | Merged to `main` and deployed (PRs #279/#280 chain completed) |
 | 1–8 | Shipped on `main`. Live CLI: eight intents, root `--help` is `task` only |
-| 9 | Deterministic argv driver green for all 20 scenarios. Haiku overlay `claude-haiku-4-5`: **99 pass / 1 fail / 100 cells** under Docker ENFORCED (2026-09-21, PR #356 + prompt-clarity rerun) — `unsupported-project-local` 4/5 (cell 4 sent `.` not `relative`), all other scenarios 5/5, gates met. gpt-oss overlay: 89 measured pass + native linux-x86_64 7/7. win/mac `not_run`; wheel/extra `not_built`; promote not run |
+| 9 | Deterministic argv driver green for all 20 scenarios. Haiku overlay `claude-haiku-4-5`: **99 pass / 1 fail / 100 cells** under Docker ENFORCED (2026-09-21, PR #356 + prompt-clarity rerun) — `unsupported-project-local` 4/5 (cell 4 sent `.` not `relative`), all other scenarios 5/5; historical layer only. GPT OSS 120B `agy` overlay (`agent` key, `gpt-oss-120b-medium`): **100 pass / 0 fail / 100 cells** checkout-bound under Docker on the `main` tree (2026-09-25, post-#442 quota resume). Wheel-bound rerun on a locally built `ai-stp-cli-0.0.29` wheel from the same tree: **98 pass / 2 fail / 100 cells** (2026-09-25) — `unsupported-project-local:4` sent `.` not the literal `relative`; `pending-reload-not-loaded:2` printed the forbidden verbatim marker `session loaded` inside a negated table label; both end states verified correct, gates met. Native linux-x86_64 7/7; win/mac `not_run`; promotion stages not run |
 
 Each slice: spec/ADR as in §2.14, `just back-gen` if schemas move,
 `just docs-gen` if docs move, i18n for user-visible questions, issue
@@ -856,3 +874,22 @@ issues #254 and #256 remain outside this epic's closure authority.
    Privileged Docker ENFORCED (bwrap) is isolation for those cells; the
    host overlay stays `unavailable` while this host's bwrap is denied.
 5. Do not close GitHub issues from a dirty tree.
+
+## 12. Closing record — 2026-09-26
+
+The epic executed through slice 9 on released 0.0.31 bytes. The corpus was
+terminated by owner decision at 104/200 cells; the measured verdict is on
+issue 274: guided core journeys (initialize / install-exact /
+install-without-pin / change-add / switch-preserved) all 5/5; 15 fault-cell
+fails were a scorer artifact (released instrument listed the real
+`task status` command as forbidden while fault prompts instruct it — fixed
+in PR #485, re-scored to pass); unassisted layer recorded a systematic
+`task answer --input` vs `--value` model deviation (Skill clarified in
+PR #483). The ≥95/100 gate was not demonstrated at this sample and is not
+claimed.
+
+A corrected rerun belongs to the next released identity (`payload_digest`
+binds cells to instrument bytes). Epic #261 and children #262–#274 are closed
+with evidence; issue #275 records release synchronization. Windows/macOS
+native legs and live corporate journeys remain `not_run` / `not_verified` by
+explicit scope decision.

@@ -664,6 +664,12 @@ def consent_allow(parameters: Mapping[str, object]) -> Answer[ConsentRecord]:
         )
 
     def work(connection: sqlite3.Connection) -> consent.Record:
+        # The record belongs to the signed-in account when there is one — it
+        # is then the account's stream that carries it to other devices — and
+        # to the local owner otherwise. `decided_by` still records the device
+        # operator, which is provenance, not ownership.
+        acting = consent.acting_accounts()
+        account_id = acting[0] if acting else owner().account_id
         if str(scope) == consent.SCOPE_TASK:
             # Task authority is a named profile, not a fingerprint of objects.
             # Requiring a matching registration would make the grant unwritable
@@ -671,6 +677,7 @@ def consent_allow(parameters: Mapping[str, object]) -> Answer[ConsentRecord]:
             # authorizing the task that will meet those objects.
             record = consent.grant(
                 connection,
+                account_id=account_id,
                 consent_id=new_id("request"),
                 scope=str(scope),
                 target=str(target),
@@ -700,6 +707,7 @@ def consent_allow(parameters: Mapping[str, object]) -> Answer[ConsentRecord]:
             )
         record = consent.grant(
             connection,
+            account_id=account_id,
             consent_id=new_id("request"),
             scope=str(scope),
             target=str(target),
@@ -762,15 +770,28 @@ def consent_revoke(parameters: Mapping[str, object]) -> Answer[ConsentRecord]:
         )
 
     def work(connection: sqlite3.Connection) -> consent.Record:
-        consent.revoke(connection, scope=str(scope), target=str(target), at=moment())
-        record = consent.held(connection, scope=str(scope), target=str(target))
+        # The record that would answer for this operator is the one revoked —
+        # the session account's first, then the device owner's. Another
+        # signed-in account's record is neither shown nor touched.
+        accounts = consent.acting_accounts()
+        record = consent.held(connection, accounts=accounts, scope=str(scope), target=str(target))
         if record is None:
             raise CliFailure(
                 "AI_STP_NOT_FOUND",
                 "no consent record covers that target",
                 details={"scope": str(scope), "target": str(target)},
             )
-        return record
+        consent.revoke(
+            connection,
+            account_id=record.account_id,
+            scope=str(scope),
+            target=str(target),
+            at=moment(),
+        )
+        return (
+            consent.held(connection, accounts=accounts, scope=str(scope), target=str(target))
+            or record
+        )
 
     with closing(open_registry(configured_path(), create=True)) as connection:
         record = work(connection)
@@ -787,7 +808,12 @@ def consent_list(_parameters: Mapping[str, object]) -> Answer[ConsentSummary]:
         return Answer(ConsentSummary(records=[]))
     with closing(open_readonly(registry)) as connection:
         return Answer(
-            ConsentSummary(records=[_record(item) for item in consent.active(connection)])
+            ConsentSummary(
+                records=[
+                    _record(item)
+                    for item in consent.active(connection, accounts=consent.acting_accounts())
+                ]
+            )
         )
 
 

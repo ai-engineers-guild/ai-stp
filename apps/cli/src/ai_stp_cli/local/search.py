@@ -249,6 +249,9 @@ def search(
     validate_query(prefix=prefix, phrase=phrase, field=field, value=value)
     laned: dict[str, list[Hit]] = {lane: [] for lane in LANES}
     truncated = False
+    # The consent question is answered once per search by the identities acting
+    # here — the signed-in account and the device owner — not per candidate.
+    accounts = consent.acting_accounts()
 
     for candidate in candidates:
         stored = revisions.get(connection, candidate.revision_id)
@@ -263,7 +266,9 @@ def search(
 
         lane, reason = lane_of(candidate)
         if lane == LANE_EXPERIMENTAL:
-            allowed, why = _consented(connection, candidate, include_unverified=include_unverified)
+            allowed, why = _consented(
+                connection, candidate, accounts=accounts, include_unverified=include_unverified
+            )
             if not allowed:
                 continue
             reason = f"{reason}; {why}"
@@ -296,6 +301,7 @@ def _consented(
     connection: sqlite3.Connection,
     candidate: Candidate,
     *,
+    accounts: tuple[str, ...],
     include_unverified: bool,
 ) -> tuple[bool, str]:
     """Whether an unverified candidate may be shown, and on what basis.
@@ -307,6 +313,7 @@ def _consented(
     """
     found = consent.consulted(
         connection,
+        accounts=accounts,
         stable_id=candidate.stable_id,
         owner_id=candidate.owner_id,
         version=candidate.version,

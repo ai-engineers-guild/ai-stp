@@ -468,6 +468,9 @@ async def _start_publication(
         payload=artifact,
         expected_digest=component_digest,
         expected_size=len(artifact),
+        # Publish reads the owner-scoped key only; an unscoped write here
+        # would validate and then refuse at publish on every sync pass.
+        owner_account_id=source.owner_account_id,
     )
     await enqueue(
         session,

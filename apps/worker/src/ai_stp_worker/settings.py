@@ -30,6 +30,13 @@ class WorkerSettings(BaseSettings):
         gt=0,
     )
     log_dir: Path = Field(default=Path("logs"))
+    # Invitation delivery (REQ-2613): when resend_api_key is empty the worker
+    # falls back to the recording port — mails are kept in memory, not sent.
+    resend_api_key: str = Field(default="")
+    mail_from_address: str = Field(default="noreply@ai-stp.invalid")
+    # Public web origin used to build the one-time accept link carried by the
+    # invitation email, e.g. https://app.example.invalid (NEXT_PUBLIC_APP_URL).
+    invitation_base_url: str = Field(default="")
 
 
 @dataclass(frozen=True)

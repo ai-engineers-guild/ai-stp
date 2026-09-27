@@ -262,7 +262,7 @@ def verify_managed(
     )
     remediation: tuple[Continuation, ...] = ()
     if status != "pass" and found is not None:
-        remediation = _remediation(found, resolved)
+        remediation = _remediation(found, resolved, diagnostics)
     return Answer(
         ManagedVerification(
             status=status,
@@ -290,19 +290,69 @@ def verify_managed(
     )
 
 
-def _remediation(found: CorporateAssignmentPlan, project_id: str) -> tuple[Continuation, ...]:
+def _remediation(
+    found: CorporateAssignmentPlan,
+    project_id: str,
+    diagnostics: list[str],
+) -> tuple[Continuation, ...]:
     """The one install plan that makes the assigned set materialize.
 
-    Assigned components without an assigned setup cannot be named here: the
-    plan binds extras to an exact prepared graph, so a components-only gap
-    reports no action rather than a command that could not run. Two assigned
-    setups are a policy conflict no single plan resolves either.
+    A shape that cannot bind to exactly one prepared exact SetupVersion is a
+    policy problem, not an install step: the verdict names the conflict and
+    its exact identities in a blocked continuation for the organization
+    administrator instead of printing a command that could not run, or
+    silently reporting no action against a requirement nothing could satisfy.
     """
     assigned = [item for item in found.items if item.state == "assigned"]
     setups = [item for item in assigned if item.object_kind == "setup"]
     components = [item for item in assigned if item.object_kind == "component"]
-    if len(setups) != 1 or not all(item.version for item in assigned):
-        return ()
+
+    def _policy(
+        conflict: str,
+        key: str,
+        identities: list[str],
+        sentence: str,
+    ) -> tuple[Continuation, ...]:
+        diagnostics.append(sentence)
+        return (
+            Continuation(
+                kind="blocked",
+                path=["corporate", "assignment"],
+                arguments={
+                    "conflict": conflict,
+                    key: list(identities),
+                },
+                missing=["organization-administrator"],
+                actor="human",
+            ),
+        )
+
+    if len(setups) > 1:
+        return _policy(
+            "multiple-setup-assignments",
+            "setups",
+            sorted(f"{item.stable_id}@{item.version or 'unversioned'}" for item in setups),
+            "more than one setup is assigned; an install binds exactly one "
+            "baseline, so the organization must narrow the assignment",
+        )
+    if len(setups) == 0:
+        if not components:
+            return ()
+        return _policy(
+            "components-without-setup-baseline",
+            "components",
+            sorted(f"{item.stable_id}@{item.version or 'unversioned'}" for item in components),
+            "standalone components install only alongside a prepared exact "
+            "SetupVersion; the assignment carries no baseline to bind them to",
+        )
+    unversioned = sorted(item.stable_id for item in assigned if not item.version)
+    if unversioned:
+        return _policy(
+            "unversioned-assignment",
+            "items",
+            unversioned,
+            "assigned items without an exact version cannot pin a prepared graph",
+        )
     setup = setups[0]
     return (
         Continuation(

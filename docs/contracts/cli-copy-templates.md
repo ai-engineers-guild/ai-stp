@@ -1,6 +1,6 @@
 ---
 description: "Canonical CLI templates for web UI copy blocks (SPEC-037)."
-last_verified: "2026-09-18"
+last_verified: "2026-09-25"
 ---
 
 # CLI copy templates
@@ -23,6 +23,11 @@ every copy button produced a command rejected by the CLI.
 - `{stable_id}` — stable object ID (`component_…` / `setup_…`).
 - `{version}` — exact `X.Y` version. It is a separate argument, not an `@`
   suffix: the CLI does not parse such syntax.
+- `{key}` — the idempotency key. On object pages it is derived from the
+  object: `install-{stable_id}` or `install-{stable_id}-{version}`. `task
+  start` replays the first request that used a key, so a fixed key on catalog
+  object pages would make a second object's copied install return the first
+  object's record. Only generic (no-object) surfaces keep a fixed session key.
 - Paths and tokens are **not** substituted into UI commands.
 
 ## Public object / version
@@ -31,7 +36,8 @@ every copy button produced a command rejected by the CLI.
 |---|---|
 | Show a published object | `ai-stp registry show --kind {kind} --id {stable_id}` |
 | Show an exact version | `ai-stp registry version --kind {kind} --id {stable_id} --version {version}` |
-| Everyday catalog "Use via CLI" | `ai-stp task start --intent install --idempotency-key install-session-01 --json` |
+| Catalog component "Use via CLI" | `ai-stp task start --intent install --idempotency-key install-{stable_id}[-{version}] --json` |
+| Catalog setup "Use via CLI" | `echo '{"setup_id":"{stable_id}","setup_version":"{version}"}' \| ai-stp task start --intent install --idempotency-key install-{stable_id}-{version} --input - --json` |
 
 ## Owner next steps (empty / sync)
 

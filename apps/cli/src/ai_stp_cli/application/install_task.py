@@ -14,6 +14,8 @@ from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import (
     content,
     harnesses,
+    installation,
+    journal,
     passports,
     project_passport,
     revisions,
@@ -21,7 +23,7 @@ from ai_stp_cli.local import (
     sync_versions,
     versions,
 )
-from ai_stp_cli.local.database import configured_path, open_registry
+from ai_stp_cli.local.database import configured_path, open_readonly, open_registry
 from ai_stp_contracts.machine_help import InstallationView, TaskInstallOutcome, TaskQuestion
 from ai_stp_foundation.canonical import JsonValue
 from ai_stp_foundation.harnesses import HARNESS_IDS
@@ -182,7 +184,34 @@ def project_root_question(value: object, *, prompt: str, why: str) -> TaskQuesti
 
 
 def advance_held(operation_id: str) -> InstallationView:
-    """Finish an existing operation. Never plan a second one."""
+    """Finish an existing operation. Never plan a second one.
+
+    The journal owns where the operation stopped. An unfinished operation
+    resumes, an approved plan applies, a planned-but-unapproved operation —
+    the executor died between persisting the plan and approving it —
+    approves and applies, and anything already settled is read back as the
+    answer the operation itself gives. A settle the caller never saw is
+    still the settle: re-issuing apply against a verified effect refused
+    recovery outright, and so did resuming a rolled-back operation.
+    """
+    with closing(open_readonly(configured_path())) as connection:
+        current = journal.get(connection, operation_id)
+        state = "" if current is None else current.state
+        planned_digest = ""
+        if state == installation.STATE_PLANNED:
+            planned_digest = installation.plan(connection, operation_id).digest
+    if state in {installation.STATE_APPLYING, installation.STATE_APPLIED_UNVERIFIED}:
+        return install_service.resume({"operation": operation_id}).payload
+    if state == installation.STATE_PLANNED:
+        install_service.approve({"operation": operation_id, "plan-digest": planned_digest})
+        return install_service.apply({"operation": operation_id}).payload
+    if state == installation.STATE_APPROVED:
+        return install_service.apply({"operation": operation_id}).payload
+    if state:
+        return install_service.view({"operation": operation_id}).payload
+    # No journal row means the operation was never begun locally — a state
+    # the tests that drive this drain with in-memory fakes produce. Resume
+    # still answers first there; only its refusal falls through to apply.
     try:
         return install_service.resume({"operation": operation_id}).payload
     except CliFailure as error:

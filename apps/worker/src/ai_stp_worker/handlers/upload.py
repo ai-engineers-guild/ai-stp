@@ -9,10 +9,10 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 
-from ai_stp_platform.queue.states import Visibility
+from ai_stp_platform.queue.states import PermanentJobFailure, Visibility
 
 
-class InvalidJobPayload(ValueError):
+class InvalidJobPayload(PermanentJobFailure):
     """The job payload is missing or has an invalid required field."""
 
 

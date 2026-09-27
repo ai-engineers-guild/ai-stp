@@ -16,7 +16,6 @@ from tests.support.private_distribution import component_version, setup_version
 from tests.support.publication_artifacts import (
     ARTIFACT_BY_DIGEST,
     CLEAN_ARTIFACT,
-    CLEAN_ARTIFACT_B,
     DIGEST,
     DIGEST2,
     PROJECTION_ARTIFACT,
@@ -47,6 +46,7 @@ from ai_stp_platform.models import (
 from ai_stp_platform.queue.engine import claim, fail, mark_succeeded
 from ai_stp_platform.queue.models import Job
 from ai_stp_platform.queue.states import JobState
+from ai_stp_platform.safety.policy import POLICY_VERSION
 from ai_stp_platform.safety.workdir import MAX_ARTIFACT_BYTES
 from ai_stp_platform.settings import StorageSettings
 from ai_stp_platform.storage.memory import MemoryObjectClient
@@ -285,7 +285,7 @@ async def test_publication_requires_public_profile(
             "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
             "version": "1.0",
             "content_digest": DIGEST,
-            "policy_version": "1",
+            "policy_version": POLICY_VERSION,
             "passport": _passport(owner_id=account_id),
             "attestations": [],
             "idempotency_key": "profile-required-1",
@@ -340,7 +340,7 @@ async def test_new_version_preserves_line_owner_without_a_separate_identity_row(
             "stable_id": stable_id,
             "version": "1.1",
             "content_digest": artifact["digest"],
-            "policy_version": "1",
+            "policy_version": POLICY_VERSION,
             "visibility": "private",
             "passport": passport,
             "attestations": [],
@@ -376,7 +376,7 @@ async def test_publication_plan_confirm_validate_publish(
             "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
             "version": "1.0",
             "content_digest": DIGEST,
-            "policy_version": "1",
+            "policy_version": POLICY_VERSION,
             "passport": passport,
             "attestations": [],
             "idempotency_key": "0123456789abcdef",
@@ -398,7 +398,7 @@ async def test_publication_plan_confirm_validate_publish(
             "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
             "version": "1.0",
             "content_digest": DIGEST,
-            "policy_version": "1",
+            "policy_version": POLICY_VERSION,
             "passport": passport,
             "attestations": [],
             "idempotency_key": "0123456789abcdef",
@@ -490,32 +490,18 @@ async def test_publication_plan_confirm_validate_publish(
             "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
             "version": "1.0",
             "content_digest": DIGEST2,
-            "policy_version": "1",
+            "policy_version": POLICY_VERSION,
             "passport": _passport(owner_id=account_id, digest=DIGEST2),
             "attestations": [],
             "idempotency_key": "0123456789abcde2",
             "device_id": device_id,
         },
     )
-    plan2 = create2.json()
-    await _bind_plan_bytes(client, token, plan2["plan_id"], CLEAN_ARTIFACT_B)
-    conf2 = await client.post(
-        f"/v1/publications/plans/{plan2['plan_id']}/confirm",
-        headers=_auth(token),
-        json={
-            "schema_version": 1,
-            "plan_hash": plan2["plan_hash"],
-            "confirmed": True,
-            "idempotency_key": "confirmkey0000002",
-        },
-    )
-    assert conf2.status_code == 200
-    await _drain_jobs(sessionmaker, worker_id="w2")
-    async with sessionmaker() as db:
-        plan_row = await db.get(PublicationPlan, plan2["plan_id"])
-        assert plan_row is not None
-        # publish handler fails with different digest → failed or stuck publish_planned
-    assert plan_row.state in {"failed", "publish_planned", "published"}
+    # The occupied (kind, stable_id, version) with a different digest is refused
+    # at create with a typed conflict — X.Y immutability — instead of letting a
+    # doomed plan through bind/confirm/validate to a publish refusal.
+    assert create2.status_code == int(CATEGORY_STATUS[ErrorCategory.CONFLICT]), create2.text
+    assert create2.json()["error"]["message"] == "version already published with different digest"
 
 
 async def test_publication_requires_every_declared_projection_artifact(
@@ -533,7 +519,7 @@ async def test_publication_requires_every_declared_projection_artifact(
             "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
             "version": "4.0",
             "content_digest": DIGEST,
-            "policy_version": "1",
+            "policy_version": POLICY_VERSION,
             "passport": passport,
             "attestations": [],
             "idempotency_key": "projection-plan-0001",
@@ -591,7 +577,7 @@ async def test_publication_rejects_invalid_device_and_publishes_warning(
         "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
         "version": "3.0",
         "content_digest": DIGEST,
-        "policy_version": "1",
+        "policy_version": POLICY_VERSION,
         "attestations": [],
         "device_id": device_id,
     }
@@ -1094,3 +1080,76 @@ async def test_dead_letter_for_deliver_invitation_failures(
             assert "token" not in (job.last_error or "").lower()
         else:
             assert job.attempts >= 1
+
+
+@pytest.mark.asyncio
+async def test_staff_reports_paginate_with_signed_cursor(
+    migrated_database_url: str,
+    settings_factory: Callable[..., Settings],
+) -> None:
+    """The staff list must reach past the first page and refuse foreign cursors."""
+    pre = settings_factory(database_url=migrated_database_url)
+    bootstrap = create_app(pre)
+    async with bootstrap.router.lifespan_context(bootstrap):
+        sessionmaker_tmp: async_sessionmaker[AsyncSession] = bootstrap.state.sessionmaker
+        staff_id, _d, staff_token = await _seed_account_device(sessionmaker_tmp)
+        _rid, _rd, reporter_token = await _seed_account_device(sessionmaker_tmp)
+        await _seed_owned_catalog(
+            sessionmaker_tmp,
+            account_id=staff_id,
+            stable_id="component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+            version="2.0",
+        )
+        async with sessionmaker_tmp() as db:
+            row = await db.scalar(select(CatalogMetadata).where(CatalogMetadata.version == "2.0"))
+            assert row is not None
+            row.visibility = "public"
+            row.lifecycle_state = "active"
+            await db.commit()
+
+    settings = settings_factory(
+        database_url=migrated_database_url,
+        admin_account_ids=staff_id,
+    )
+    app = create_app(settings)
+    async with (
+        app.router.lifespan_context(app),
+        AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client,
+    ):
+        for index in range(3):
+            created = await client.post(
+                "/v1/reports",
+                headers=_auth(reporter_token),
+                json={
+                    "schema_version": 1,
+                    "object_kind": "component",
+                    "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                    "version": "2.0",
+                    "content_digest": DIGEST,
+                    "error_code": "AI_STP_VALIDATION_ERROR",
+                    "diagnostics": "",
+                    "diagnostics_previewed": False,
+                    "idempotency_key": f"report-page-{index:04d}",
+                },
+            )
+            assert created.status_code == 201, created.text
+
+        seen: list[str] = []
+        cursor: str | None = None
+        for _ in range(10):
+            url = "/v1/staff/reports?page_size=2"
+            if cursor is not None:
+                url += f"&cursor={cursor}"
+            page = await client.get(url, headers=_auth(staff_token))
+            assert page.status_code == 200, page.text
+            body = page.json()
+            seen.extend(item["case_id"] for item in body["items"])
+            cursor = body["page"]["next_cursor"]
+            if cursor is None:
+                break
+        else:
+            raise AssertionError("staff report pagination never terminated")
+
+        assert len(seen) == 3
+        assert len(set(seen)) == 3, "a report was returned twice across pages"
+        assert cursor is None

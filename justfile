@@ -254,6 +254,18 @@ evidence-sync home_a home_b origin="https://ai-stp.aiguild.space" skip="":
         --home-b "{{ home_b }}" \
         {{ if skip == "" { "" } else { prepend("--skip-event ", skip) } }}
 
+# Measures the private-sync hot paths `#256` R05 keeps explicit — ancestor
+# walks, common-ancestor selection, page application and cold/warm task
+# overhead — against real sqlite statement counts on the shipped functions.
+# A `fixture` row is setup cost, never a verdict, and nothing here rewrites
+# the measured path. Outside `just check`: a denominator is evidence, not a
+# gate, and the script existed with no recipe since it landed.
+[arg('args', help='extra measurement arguments, e.g. --out record.json')]
+[doc('Measure the private-sync hot paths named by #256 R05')]
+[group('evidence')]
+evidence-sync-hot-paths *args:
+    uv run --locked python -m release_scripts.measure_sync_hot_paths {{ args }}
+
 # Proves this repository's projection table still agrees with the seven
 # providers **as released** — on the bytes `provider fetch` serves.
 #

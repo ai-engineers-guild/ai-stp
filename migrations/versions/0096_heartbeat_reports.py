@@ -17,7 +17,11 @@ TENANT = (
 
 
 def upgrade() -> None:
-    op.add_column("device", sa.Column("display_name", sa.String(120), nullable=True))
+    # Idempotent: the sibling device_session_semantics migration ships the same
+    # column, so whichever lands first wins on databases that saw either chain.
+    device_columns = {column["name"] for column in sa.inspect(op.get_bind()).get_columns("device")}
+    if "display_name" not in device_columns:
+        op.add_column("device", sa.Column("display_name", sa.String(160), nullable=True))
     op.create_table(
         "installation_heartbeat_event",
         sa.Column("organization_id", sa.String(64), nullable=False),

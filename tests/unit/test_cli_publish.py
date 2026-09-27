@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from collections.abc import Mapping
 from pathlib import Path
+from typing import Literal, cast
 
 import pytest
 
@@ -31,19 +32,14 @@ DEVICE = "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
 DIGEST = "sha256:" + "b" * 64
 
 
-@pytest.mark.parametrize("terminal", ["published", "partial"])
-def test_setup_publication_checkpoints_the_exact_set_and_preserves_its_receipt(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, terminal: str
-) -> None:
-    from ai_stp_cli.application import setup_publication
-
-    monkeypatch.setattr(account_service, "ensure_session", _signed_in)
-    setup_id = new_id("setup")
-    planned = PublicationSetView(
+def _set_view(
+    setup_id: str, *, member_state: str, set_state: str = "planned"
+) -> PublicationSetView:
+    return PublicationSetView(
         set_digest=DIGEST,
         setup_stable_id=setup_id,
         setup_version="1.0",
-        state="planned",
+        state=cast(Literal["planned", "partial", "published"], set_state),
         members=[
             PublicationSetMemberView(
                 role="setup",
@@ -53,10 +49,20 @@ def test_setup_publication_checkpoints_the_exact_set_and_preserves_its_receipt(
                 version="1.0",
                 plan_id=PLAN,
                 plan_hash=PLAN_HASH,
-                state="ready",
+                state=member_state,  # pyright: ignore[reportArgumentType]
             )
         ],
     )
+
+
+def test_setup_publication_checkpoints_the_exact_set_and_preserves_its_receipt(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from ai_stp_cli.application import setup_publication
+
+    monkeypatch.setattr(account_service, "ensure_session", _signed_in)
+    setup_id = new_id("setup")
+    planned = _set_view(setup_id, member_state="ready")
     calls: list[tuple[str, Mapping[str, object]]] = []
 
     def plan(parameters: Mapping[str, object]) -> Answer[PublicationSetView]:
@@ -65,7 +71,7 @@ def test_setup_publication_checkpoints_the_exact_set_and_preserves_its_receipt(
 
     def confirm(parameters: Mapping[str, object]) -> Answer[PublicationSetView]:
         calls.append(("confirm", parameters))
-        return Answer(planned.model_copy(update={"state": terminal}))
+        return Answer(_set_view(setup_id, member_state="published", set_state="published"))
 
     monkeypatch.setattr(setup_publication, "plan", plan)
     monkeypatch.setattr(setup_publication, "confirm", confirm)
@@ -84,18 +90,131 @@ def test_setup_publication_checkpoints_the_exact_set_and_preserves_its_receipt(
         {"task": started.payload.task_id, "revision": started.payload.revision}
     )
     assert finished.payload.state == "completed"
-    assert finished.payload.goal_satisfied is (terminal == "published")
+    assert finished.payload.goal_satisfied is True
     outcome = finished.payload.outcome
     assert outcome is not None and outcome.kind == "publish"
     receipt = outcome.model_dump()["publication_set"]
     assert receipt["set_digest"] == DIGEST
-    assert receipt["state"] == terminal
+    assert receipt["state"] == "published"
     assert outcome.source_binding_id == ""
     assert outcome.visibility == "private"
     replay = task_command.continue_(
         {"task": finished.payload.task_id, "revision": finished.payload.revision}
     )
     assert replay.payload == finished.payload
+    assert calls == [
+        ("plan", {"id": setup_id, "version": "1.0", "visibility": "private"}),
+        ("confirm", {"set-digest": DIGEST, "confirm": True}),
+    ]
+
+
+def test_setup_publication_stays_resumable_while_the_worker_validates(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A member still validating keeps the task resumable: a bounded poll is
+    not a terminal publication result and must not mark the task completed."""
+    from ai_stp_cli.application import setup_publication
+
+    monkeypatch.setattr(account_service, "ensure_session", _signed_in)
+    setup_id = new_id("setup")
+    confirm_states = iter(("validating", "validating", "published"))
+    calls: list[tuple[str, Mapping[str, object]]] = []
+
+    def plan(parameters: Mapping[str, object]) -> Answer[PublicationSetView]:
+        calls.append(("plan", parameters))
+        return Answer(_set_view(setup_id, member_state="ready"))
+
+    def confirm(parameters: Mapping[str, object]) -> Answer[PublicationSetView]:
+        calls.append(("confirm", parameters))
+        state = next(confirm_states)
+        return Answer(
+            _set_view(
+                setup_id,
+                member_state=state,
+                set_state="published" if state == "published" else "partial",
+            )
+        )
+
+    monkeypatch.setattr(setup_publication, "plan", plan)
+    monkeypatch.setattr(setup_publication, "confirm", confirm)
+    started = task_command.start(
+        {
+            "intent": "publish",
+            "idempotency-key": "publish-setup-resumable-01",
+            "input": _facts(tmp_path, {"object_id": setup_id, "object_version": "1.0"}),
+        }
+    )
+    assert started.payload.state == "planned"
+    waiting = task_command.continue_(
+        {"task": started.payload.task_id, "revision": started.payload.revision}
+    )
+    assert waiting.payload.state == "blocked"
+    assert waiting.payload.goal_satisfied is False
+    assert waiting.payload.questions[0].question_id == "publication-processing"
+    assert waiting.continuations[0].actor == "external"
+    outcome = waiting.payload.outcome
+    assert outcome is not None and outcome.kind == "publish"
+    assert outcome.model_dump()["publication_set"]["set_digest"] == DIGEST
+    still_waiting = task_command.continue_(
+        {"task": waiting.payload.task_id, "revision": waiting.payload.revision}
+    )
+    assert still_waiting.payload.state == "blocked"
+    finished = task_command.continue_(
+        {"task": still_waiting.payload.task_id, "revision": still_waiting.payload.revision}
+    )
+    assert finished.payload.state == "completed"
+    assert finished.payload.goal_satisfied is True
+    final = finished.payload.outcome
+    assert final is not None and final.kind == "publish"
+    assert final.readable is True
+    assert calls == [
+        ("plan", {"id": setup_id, "version": "1.0", "visibility": "private"}),
+        ("confirm", {"set-digest": DIGEST, "confirm": True}),
+        ("confirm", {"set-digest": DIGEST, "confirm": True}),
+        ("confirm", {"set-digest": DIGEST, "confirm": True}),
+    ]
+
+
+def test_setup_publication_settles_truthfully_on_a_final_refusal(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from ai_stp_cli.application import setup_publication
+
+    monkeypatch.setattr(account_service, "ensure_session", _signed_in)
+    setup_id = new_id("setup")
+    calls: list[tuple[str, Mapping[str, object]]] = []
+
+    def plan(parameters: Mapping[str, object]) -> Answer[PublicationSetView]:
+        calls.append(("plan", parameters))
+        return Answer(_set_view(setup_id, member_state="ready"))
+
+    def confirm(parameters: Mapping[str, object]) -> Answer[PublicationSetView]:
+        calls.append(("confirm", parameters))
+        return Answer(_set_view(setup_id, member_state="failed", set_state="partial"))
+
+    monkeypatch.setattr(setup_publication, "plan", plan)
+    monkeypatch.setattr(setup_publication, "confirm", confirm)
+    started = task_command.start(
+        {
+            "intent": "publish",
+            "idempotency-key": "publish-setup-refused-01",
+            "input": _facts(tmp_path, {"object_id": setup_id, "object_version": "1.0"}),
+        }
+    )
+    finished = task_command.continue_(
+        {"task": started.payload.task_id, "revision": started.payload.revision}
+    )
+    assert finished.payload.state == "completed"
+    assert finished.payload.goal_satisfied is False
+    outcome = finished.payload.outcome
+    assert outcome is not None and outcome.kind == "publish"
+    assert outcome.readable is False
+    assert outcome.model_dump()["publication_set"]["members"][0]["state"] == "failed"
+    replay = task_command.continue_(
+        {"task": finished.payload.task_id, "revision": finished.payload.revision}
+    )
+    assert replay.payload == finished.payload
+    # A settled terminal never confirms again — no duplicate publication effect.
     assert calls == [
         ("plan", {"id": setup_id, "version": "1.0", "visibility": "private"}),
         ("confirm", {"set-digest": DIGEST, "confirm": True}),

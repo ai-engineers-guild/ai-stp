@@ -184,13 +184,14 @@ async def test_list_owner_objects_collapses_versions() -> None:
         updated_at=datetime(2026, 3, 1, tzinfo=UTC),
         id="3",
     )
+    # Rows arrive in the order the SQL emits: updated_at DESC, id DESC.
     db = AsyncMock()
-    db.execute = AsyncMock(return_value=_result_scalars([newer, older, other]))
+    db.execute = AsyncMock(return_value=_result_scalars([other, newer, older]))
     out = await owner_service.list_owner_objects(db, ctx=_ctx(), page_size=10)
     assert len(out.items) == 2
-    assert out.items[0].stable_id == "component_aaaa"
-    assert out.items[0].latest_version == "1.1"
-    assert out.items[1].name == "setup_bbbbbbbb"
+    assert out.items[0].stable_id == "setup_bbbbbbbb"
+    assert out.items[1].stable_id == "component_aaaa"
+    assert out.items[1].latest_version == "1.1"
 
     db.execute = AsyncMock(return_value=_result_scalars([newer, older, other]))
     limited = await owner_service.list_owner_objects(

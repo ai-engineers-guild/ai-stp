@@ -9,7 +9,13 @@ import {
   type MachineBlock,
   type MachineDocument,
 } from "@/lib/projection/machine-document";
-import { INITIALIZE_START, installStart, login, registryCommand } from "@/lib/cli-copy";
+import {
+  INITIALIZE_START,
+  installSetupStart,
+  installStart,
+  login,
+  registryCommand,
+} from "@/lib/cli-copy";
 import type { SetupVersionPassport } from "@/lib/api/generated/types.gen";
 import type { PublicObjectFacts } from "@/lib/projection/page-facts";
 import { namedHarnesses } from "@/lib/catalog-harnesses";
@@ -103,8 +109,7 @@ function yesNo(value: boolean, labels: Labels): string {
   return value ? labels.yes : labels.no;
 }
 
-function catalogCliBlocks(inspect: string, labels: Labels): MachineBlock[] {
-  const install = installStart();
+function catalogCliBlocks(install: string, inspect: string, labels: Labels): MachineBlock[] {
   return [field(labels.install, install), code(install), field("inspect", inspect), code(inspect)];
 }
 
@@ -266,7 +271,11 @@ export function presentSetupDetail(input: {
       : []),
     ...(input.countryCodes?.length ? [field("countries", input.countryCodes.join(", "))] : []),
     ...(input.services?.length ? [field("services", input.services.join(", "))] : []),
-    ...catalogCliBlocks(inspect, labels),
+    ...catalogCliBlocks(
+      installSetupStart(summary.stable_id, summary.latest_version),
+      inspect,
+      labels,
+    ),
     ...usageMachineFields(summary.usage_metrics, labels),
   ];
 }
@@ -328,7 +337,7 @@ function presentComponentObject(
       );
     }
   }
-  doc.push(...catalogCliBlocks(facts.inspect, labels));
+  doc.push(...catalogCliBlocks(facts.install, facts.inspect, labels));
   return doc;
 }
 
@@ -439,7 +448,7 @@ export function presentSetupVersion(input: {
     field(input.labels.publisher ?? "publisher", input.ownerId),
     ...(input.tags.length ? [field(input.labels.tags ?? "tags", input.tags.join(", "))] : []),
     ...usageMachineFields(input.usage, input.labels),
-    ...catalogCliBlocks(inspect, input.labels),
+    ...catalogCliBlocks(installSetupStart(input.stableId, input.version), inspect, input.labels),
   ];
 }
 

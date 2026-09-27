@@ -36,6 +36,12 @@ NATURALLY_REPLAY_SAFE: Final[dict[str, str]] = {
         "while the user decides, and the code is the operation identity"
     ),
     "/auth/logout": "ending a session twice ends it once; there is no second effect to create",
+    "/auth/device/refresh": (
+        "renewal does not consume the old credential — the server keeps it valid "
+        "until its normal expiry, so a retried refresh mints a parallel pair "
+        "instead of destroying anything, and the signed checked_at window bounds "
+        "how long the same request can be replayed"
+    ),
     "/corporate/organizations/{organization_id}/catalog-assignments/plan": (
         "the plan endpoint is a read-only POST: retrying evaluation creates no durable effect"
     ),

@@ -195,8 +195,10 @@ def native_from_document(document: Mapping[str, object]) -> dict[tuple[str, str]
     return held
 
 
-def agent_from_document(document: Mapping[str, object]) -> dict[tuple[str, int], MeasuredStatus]:
-    raw = _object_map(document.get("agent"))
+def agent_from_document(
+    document: Mapping[str, object], *, layer: str = "agent"
+) -> dict[tuple[str, int], MeasuredStatus]:
+    raw = _object_map(document.get(layer))
     if raw is None:
         return {}
     held: dict[tuple[str, int], MeasuredStatus] = {}
@@ -253,16 +255,22 @@ def report() -> dict[str, object]:
     document = load_measured()
     native = native_cells(measured=native_from_document(document))
     measured_agent = agent_from_document(document)
+    measured_unassisted = agent_from_document(document, layer="unassisted")
     agent = agent_cells(measured=measured_agent)
+    unassisted = agent_cells(measured=measured_unassisted)
     promotion = promotion_status(measured=promotion_from_document(document))
-    model = document.get("agy_model") if measured_agent else AGY_MODEL
+    scored = measured_agent or measured_unassisted
+    model = document.get("agy_model") if scored else AGY_MODEL
     if not isinstance(model, str) or not model.strip():
-        model = None if measured_agent else AGY_MODEL
+        model = None if scored else AGY_MODEL
     return {
         "native": {
             f"{harness}:{platform}": status for (harness, platform), status in native.items()
         },
         "agent": {f"{scenario}:{run}": status for (scenario, run), status in agent.items()},
+        "unassisted": {
+            f"{scenario}:{run}": status for (scenario, run), status in unassisted.items()
+        },
         "promotion": dict(promotion),
         "isolation": isolation_from_document(document),
         "wheel": wheel_status(),

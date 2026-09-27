@@ -22,7 +22,7 @@ Canonical product docs:
 - **Machine projection:** compact technical representation with explicit machine-readable links
 - **Color theme:** independent light/dark control available in either projection
 
-Primary signal: `#fb631b` → hover `#f4793f`. Type: gerstnerProgramm + ftSystemMono.
+Primary signal: `#fb631b` → hover `#f4793f`. Type: plexSans + plexMono.
 
 ## Rules (ship checklist)
 

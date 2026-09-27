@@ -90,6 +90,7 @@
     "mappings": "Mapping",
     "usage": "Usage",
     "reports": "Reports",
+    "usageTruncated": "Showing the first {shown} of {total} assignments",
     "overviewBody": "Explore your organization and its technology landscape.",
     "organizationBody": "Manage employees, projects, teams, and their connections.",
     "browseProjects": "Browse projects in your organization.",
@@ -1457,7 +1458,7 @@
   },
   "cli": {
     "useTitle": "Use via CLI",
-    "useBody": "Start the install intent. The CLI asks for harness and setup.",
+    "useBody": "Start the install intent for this object. The CLI asks for the harness.",
     "inspectTitle": "Inspect this version via CLI",
     "inspectBody": "Command uses the stable object id and version.",
     "copy": "Copy",

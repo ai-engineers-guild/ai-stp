@@ -25,7 +25,10 @@ the user's identity. You are the coding agent: run `task intents` and
 `task start` yourself. Execute continuation `argv` only when that field is
 `cli`. When that field is `human`, do not execute the printed `argv` (the
 value is missing on purpose); answer immediately from the conversation
-through `task answer`. Waiting for a person is not the job. `task start`
+through `task answer` with the task id, revision and your answer value;
+the answer is reply text, never a file or stdin — one the task did not
+consume leaves it blocked. Waiting for a person is not the
+job. `task start`
 already advanced the task; do not insert `task continue` when `actor` is
 `human` or when there are no continuations. When `actor` is `external`,
 show the payload once; do not execute `argv`. `provider-too-old` is not
