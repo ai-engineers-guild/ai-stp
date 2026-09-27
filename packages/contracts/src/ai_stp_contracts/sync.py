@@ -73,7 +73,7 @@ class SyncEvent(BaseModel):
     entity_id: EntityId
     entity_kind: SyncEntityKind
     revision_id: RevisionId
-    parent_revision_ids: Annotated[list[RevisionId], Field(max_length=8)]
+    parent_revision_ids: Annotated[list[RevisionId], Field(max_length=2)]
     device_id: DeviceId
     actor_id: AccountId
     operation: SyncOperation
@@ -158,7 +158,7 @@ class SyncStreamEvent(BaseModel):
     entity_id: EntityId
     entity_kind: SyncEntityKind
     revision_id: RevisionId
-    parent_revision_ids: Annotated[list[RevisionId], Field(max_length=8)]
+    parent_revision_ids: Annotated[list[RevisionId], Field(max_length=2)]
     device_id: DeviceId
     actor_id: AccountId
     operation: SyncOperation

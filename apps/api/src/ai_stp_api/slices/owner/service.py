@@ -53,6 +53,13 @@ from ai_stp_contracts.publication import (
     PublicationPlanResponse,
 )
 from ai_stp_passports.versions import SetupVersionPassport
+from ai_stp_platform.catalog_cursor import (
+    CursorError,
+    CursorKey,
+    decode_cursor,
+    encode_cursor,
+    filter_signature,
+)
 from ai_stp_platform.catalog_projection import component_summary, setup_summary
 from ai_stp_platform.catalog_read import PUBLIC_LIFECYCLES, CatalogIntegrityError, PublicVersionRow
 from ai_stp_platform.external_catalog import COUNTRY_CODES, canonical_external_url
@@ -998,6 +1005,8 @@ async def list_owner_objects(
     ctx: AuthContext,
     object_kind: str | None = None,
     page_size: int = 20,
+    cursor: str | None = None,
+    cursor_secret: str | None = None,
 ) -> OwnerObjectListResponse:
     stmt = select(CatalogMetadata).where(CatalogMetadata.owner_account_id == ctx.account_id)
     if object_kind in {"component", "setup"}:
@@ -1011,7 +1020,7 @@ async def list_owner_objects(
         key = (row.object_kind, row.stable_id)
         by_key.setdefault(key, []).append(row)
 
-    items: list[OwnerObjectSummary] = []
+    groups: list[tuple[datetime, str, OwnerObjectSummary]] = []
     for (kind, stable_id), versions in by_key.items():
         latest = versions[0]
         for candidate in versions:
@@ -1021,30 +1030,75 @@ async def list_owner_objects(
             ) or candidate.updated_at > latest.updated_at:
                 latest = candidate
         name = latest.name or stable_id
-        updated = _ts(latest.updated_at) or "1970-01-01T00:00:00.000Z"
-        items.append(
-            OwnerObjectSummary(
-                schema_version=1,
-                object_kind=kind,  # type: ignore[arg-type]
-                stable_id=stable_id,
-                name=name,
-                latest_version=latest.version,
-                visibility="public" if latest.visibility == "public" else "private",
-                lifecycle_state=latest.lifecycle_state,  # type: ignore[arg-type]
-                trust_lane=latest.trust_lane,  # type: ignore[arg-type]
-                author_verified=bool(latest.author_verified),
-                component_verified=bool(latest.component_verified),
-                updated_at=updated,
-                catalog_item=_owner_catalog_item(latest),
+        # The group's position belongs to its newest member, not whichever
+        # version the published-preference rule picked as the summary face —
+        # a recently edited draft must bubble the object up either way.
+        newest = max(
+            (row.updated_at if row.updated_at.tzinfo else row.updated_at.replace(tzinfo=UTC))
+            for row in versions
+        )
+        groups.append(
+            (
+                newest,
+                stable_id,
+                OwnerObjectSummary(
+                    schema_version=1,
+                    object_kind=kind,  # type: ignore[arg-type]
+                    stable_id=stable_id,
+                    name=name,
+                    latest_version=latest.version,
+                    visibility="public" if latest.visibility == "public" else "private",
+                    lifecycle_state=latest.lifecycle_state,  # type: ignore[arg-type]
+                    trust_lane=latest.trust_lane,  # type: ignore[arg-type]
+                    author_verified=bool(latest.author_verified),
+                    component_verified=bool(latest.component_verified),
+                    updated_at=_ts(latest.updated_at) or "1970-01-01T00:00:00.000Z",
+                    catalog_item=_owner_catalog_item(latest),
+                ),
             )
         )
-        if len(items) >= page_size:
-            break
+
+    # Deterministic group order — newest update first, stable_id breaking ties —
+    # and the cursor keys on the same pair it is later compared against.
+    def position(entry: tuple[datetime, str, OwnerObjectSummary]) -> tuple[float, str]:
+        return (-entry[0].timestamp(), entry[1])
+
+    groups.sort(key=position)
+
+    filter_sig = filter_signature(
+        object_kind=object_kind or "",
+        q=None,
+        tags=[],
+        harness_id=None,
+        component_type=None,
+        include_experimental=False,
+        owner_ids=[ctx.account_id],
+    )
+    if cursor is not None:
+        if cursor_secret is None:
+            raise ApiError(ErrorCategory.DEPENDENCY, "cursor signing is not configured")
+        try:
+            key = decode_cursor(secret=cursor_secret, token=cursor, filter_sig=filter_sig)
+        except CursorError as error:
+            raise ApiError(ErrorCategory.VALIDATION, "invalid cursor") from error
+        after = (-key.published_at.timestamp(), key.stable_id)
+        groups = [entry for entry in groups if position(entry) > after]
+
+    page = groups[: max(page_size, 1)]
+    items = [entry[2] for entry in page]
+    next_cursor: str | None = None
+    if len(groups) > len(page) and cursor_secret is not None:
+        last = page[-1]
+        next_cursor = encode_cursor(
+            secret=cursor_secret,
+            filter_sig=filter_sig,
+            key=CursorKey(published_at=last[0], stable_id=last[1]),
+        )
 
     return OwnerObjectListResponse(
         schema_version=1,
         items=items,
-        page=PageInfo(schema_version=1, next_cursor=None, page_size=max(page_size, 1)),
+        page=PageInfo(schema_version=1, next_cursor=next_cursor, page_size=max(page_size, 1)),
     )
 
 

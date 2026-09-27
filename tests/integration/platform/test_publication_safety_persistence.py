@@ -182,9 +182,18 @@ async def test_publication_safety_gate_persists_the_actual_verdict_and_replay(
     digest = _digest(payload)
     client = MemoryObjectClient()
     store = ImmutableObjectStore(settings=_settings(), client=client)
-    await store.put_immutable(payload, expected_digest=digest, expected_size=len(payload))
+    # Publish reads the owner-scoped key only — the same key the real bind
+    # path writes, never an unscoped one.
+    await store.put_immutable(
+        payload,
+        expected_digest=digest,
+        expected_size=len(payload),
+        owner_account_id=ACCOUNT_ID,
+    )
     if case == "tampered":
-        client.objects[(_settings().bucket, content_key(_settings(), digest))]["body"] = b"changed"
+        client.objects[
+            (_settings().bucket, content_key(_settings(), digest, owner_account_id=ACCOUNT_ID))
+        ]["body"] = b"changed"
     passport = _passport(digest=digest, size=len(payload), component_type=component_type)
     db_session.add(Account(id=ACCOUNT_ID))
     await db_session.flush()
@@ -243,21 +252,21 @@ async def test_publication_safety_gate_persists_the_actual_verdict_and_replay(
                     idempotency_key=new_id("operation"),
                 )
             ).metadata
-        if case == "draft_unvalidated":
-            snapshot.state = "failed"
-            await db_session.flush()
-            with pytest.raises(ValueError, match="successful validation snapshot"):
-                await execute_publish(db_session, plan_id=plan.id, store=store)
-        elif case == "draft_foreign":
-            with pytest.raises(ValueError, match="owned by another account"):
-                await execute_publish(db_session, plan_id=plan.id, store=store)
         if case in {"draft_unvalidated", "draft_foreign"}:
-            assert plan.state == "publish_planned"
+            if case == "draft_unvalidated":
+                snapshot.state = "failed"
+                await db_session.flush()
+            refused = await execute_publish(db_session, plan_id=plan.id, store=store)
+            # Permanent refusals settle on the plan: a raise would roll back the
+            # handler transaction and leave the plan publish_planned forever.
+            assert refused is None
+            assert plan.state == "failed"
             assert draft is not None and draft.lifecycle_state == "draft"
             assert draft.passport_document is None
             assert await db_session.scalar(select(func.count()).select_from(ObjectLocation)) == 0
             return
         metadata = await execute_publish(db_session, plan_id=plan.id, store=store)
+        assert metadata is not None
         assert plan.state == "published"
         if draft is not None:
             assert metadata.id == draft.id
@@ -281,6 +290,7 @@ async def test_publication_safety_gate_persists_the_actual_verdict_and_replay(
         metadata.visibility = "private"
         await db_session.flush()
         replay = await execute_publish(db_session, plan_id=plan.id, store=store)
+        assert replay is not None
         assert replay.id == metadata.id
         assert replay.lifecycle_state == "blocked"
         assert replay.visibility == "private"

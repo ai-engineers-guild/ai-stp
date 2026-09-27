@@ -24947,7 +24947,7 @@
             "items": {
               "$ref": "#/components/schemas/RevisionId"
             },
-            "maxItems": 8,
+            "maxItems": 2,
             "title": "Parent Revision Ids",
             "type": "array"
           },
@@ -25237,7 +25237,7 @@
             "items": {
               "$ref": "#/components/schemas/RevisionId"
             },
-            "maxItems": 8,
+            "maxItems": 2,
             "title": "Parent Revision Ids",
             "type": "array"
           },

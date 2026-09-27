@@ -14,6 +14,7 @@ from the locally minted identifier to the account the server issued — as an
 ordinary revision, because `owner_id` is content.
 """
 
+import base64
 import socket
 import time
 import uuid
@@ -21,6 +22,7 @@ import webbrowser
 from collections.abc import Callable
 from contextlib import closing
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Final
 
@@ -37,10 +39,13 @@ from ai_stp_contracts.auth import (
     AuthLogoutResponse,
     DeviceAuthorizationRequest,
     DeviceAuthorizationResponse,
+    DeviceRefreshRequest,
     DeviceTokenRequest,
     DeviceTokenResponse,
     OAuthProvider,
+    device_refresh_message,
 )
+from ai_stp_foundation.timestamps import format_timestamp
 
 #: How long to keep polling regardless of what the server said, so a mistaken
 #: `expires_in` cannot leave a terminal waiting forever.
@@ -50,6 +55,15 @@ MAX_POLL_SECONDS: Final[float] = 900.0
 #: `AI_STP_RATE_LIMITED` to a client that polls faster, so this is politeness
 #: with teeth.
 MIN_POLL_INTERVAL: Final[float] = 1.0
+
+#: The ceiling over the server's `interval`. The floor guards the server; the
+#: ceiling guards the waiting person — a pathological `interval` cannot hold a
+#: terminal hostage past the grant's own expiry.
+MAX_POLL_INTERVAL: Final[float] = 30.0
+
+#: Consecutive transport/limited failures a polling loop absorbs before
+#: giving up. Single transient answers must not kill a `--wait` in flight.
+MAX_POLL_FAILURES: Final[int] = 5
 
 
 @dataclass(frozen=True)
@@ -210,8 +224,9 @@ def poll(
     and expired are decisions, and `#71` made them typed errors precisely so a
     client cannot mistake "not yet" for "no credentials issued".
     """
-    interval = max(float(started.interval), MIN_POLL_INTERVAL)
+    interval = min(max(float(started.interval), MIN_POLL_INTERVAL), MAX_POLL_INTERVAL)
     deadline = now() + min(float(started.expires_in), MAX_POLL_SECONDS)
+    transient_failures = 0
 
     while True:
         try:
@@ -224,7 +239,15 @@ def poll(
                 transport=transport,
             )
         except CliFailure as failure:
-            if failure.code != "AI_STP_AUTHORIZATION_PENDING":
+            if failure.code == "AI_STP_AUTHORIZATION_PENDING":
+                transient_failures = 0
+            elif failure.code == "AI_STP_RATE_LIMITED" or failure.retryable:
+                # A shared-window 429 or a dropped connection is not a decision
+                # on the grant; keep waiting inside the deadline.
+                transient_failures += 1
+                if transient_failures >= MAX_POLL_FAILURES:
+                    raise
+            else:
                 raise
         if now() >= deadline:
             raise CliFailure(
@@ -234,6 +257,72 @@ def poll(
                 continuations=login_continuations(),
             )
         pause(interval)
+
+
+def renew(
+    endpoint: Endpoint,
+    held: session.Session,
+    *,
+    timeout: float | None = None,
+    attempts: int | None = None,
+) -> session.Session:
+    """Mint a new session pair from the stored refresh credential.
+
+    The refresh token is a bearer only on this one route; the device key signs
+    the request so the pair stays bound to the enrolled installation. A renewed
+    answer that names a different account or device is refused rather than
+    stored.
+    """
+    signer, _warning = identity.load_or_create()
+    if signer.device_id != held.device_id:
+        raise CliFailure(
+            "AI_STP_DEVICE_REVOKED",
+            "the enrolled device key has changed",
+            next_actions=["device reset --confirm --json", *login_actions()],
+        )
+    unsigned = DeviceRefreshRequest(
+        device_id=held.device_id,
+        checked_at=format_timestamp(datetime.now(UTC)),
+        signature="A" * 86,
+    )
+    signature = (
+        base64.urlsafe_b64encode(signer.sign(device_refresh_message(unsigned)))
+        .rstrip(b"=")
+        .decode("ascii")
+    )
+    request = DeviceRefreshRequest(
+        device_id=held.device_id,
+        checked_at=unsigned.checked_at,
+        signature=signature,
+    )
+    with client.open_client(
+        endpoint,
+        access_token=held.refresh_token,
+        timeout=timeout,
+    ) as http:
+        renewed = client.call(
+            http,
+            "POST",
+            "/auth/device/refresh",
+            DeviceTokenResponse,
+            body=request,
+            attempts=attempts if attempts is not None else endpoint.max_attempts,
+        )
+    if renewed.account_id != held.account_id or renewed.device_id != held.device_id:
+        raise CliFailure(
+            "AI_STP_VALIDATION_ERROR",
+            "the renewal named a different account or device",
+        )
+    updated = session.Session(
+        account_id=held.account_id,
+        device_id=held.device_id,
+        access_token=renewed.access_token,
+        refresh_token=renewed.refresh_token,
+        expires_at=session.expiry(renewed.expires_in),
+    )
+    store, _warning = open_store()
+    session.save(store, updated)
+    return updated
 
 
 def complete(

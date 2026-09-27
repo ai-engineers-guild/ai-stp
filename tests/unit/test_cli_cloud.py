@@ -780,7 +780,9 @@ def test_a_transport_failure_on_the_first_attempt_is_retried() -> None:
         )
     assert len(attempts) == 2
     assert waits == [client.BACKOFF_SECONDS]
-    assert raised.value.code == "AI_STP_DEPENDENCY_UNAVAILABLE"
+    # A timeout is not a refusal: the request may have landed, so the code
+    # names the uncertainty rather than calling it an outage.
+    assert raised.value.code == "AI_STP_TIMEOUT_UNCONFIRMED"
 
 
 def test_an_additive_server_field_is_accepted_and_preserved() -> None:

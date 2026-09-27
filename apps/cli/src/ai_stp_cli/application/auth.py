@@ -6,6 +6,7 @@ property, not a side effect: the agent commonly runs where a loopback listener
 has nowhere to listen, which is why `#71` chose this shape.
 """
 
+import time
 from collections.abc import Mapping
 from typing import Final
 
@@ -16,7 +17,11 @@ from ai_stp_cli.cloud.client import Endpoint, login_actions, login_continuations
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local.database import configured_path
 from ai_stp_cli.secrets import open_store
-from ai_stp_contracts.auth import OAUTH_PROVIDERS, OAuthProvider
+from ai_stp_contracts.auth import (
+    OAUTH_PROVIDERS,
+    DeviceTokenResponse,
+    OAuthProvider,
+)
 from ai_stp_contracts.machine_help import AuthStatus, DeviceApproval
 
 #: Re-exported from the contract that owns the set.
@@ -139,16 +144,17 @@ def complete(parameters: Mapping[str, object]) -> Answer[AuthStatus]:
         expires_in=pending.expires_in,
         interval=pending.interval,
     )
-    ask = login.poll if parameters.get("wait") else login.exchange
-
     try:
-        credentials = ask(
-            endpoint(),
-            started,
-            device_id=device_id,
-            public_key=public_key,
-            display_name=login.device_display_name(),
-        )
+        if parameters.get("wait"):
+            credentials = login.poll(
+                endpoint(),
+                started,
+                device_id=device_id,
+                public_key=public_key,
+                display_name=login.device_display_name(),
+            )
+        else:
+            credentials = _exchange_once(endpoint(), started, pending.interval)
     except CliFailure as failure:
         if failure.code in TERMINAL_OUTCOMES:
             session.clear_pending(store)
@@ -158,6 +164,39 @@ def complete(parameters: Mapping[str, object]) -> Answer[AuthStatus]:
     login.complete(credentials, registry_path=configured_path(), store=store)
     report, _ = session.status()
     return with_warning(report, warning)
+
+
+def _exchange_once(
+    target: Endpoint,
+    started: login.Started,
+    interval: int,
+) -> DeviceTokenResponse:
+    """One exchange, honoring the server's declared poll interval on a 429.
+
+    The server paces `auth/device/token`; a `complete` asked inside the window
+    gets `RATE_LIMITED`, which is a wait, not a refusal. Sleep the grant's own
+    interval and ask once more — twice is still one logical question.
+    """
+    device_id, public_key, _warning = login.local_identity()
+    try:
+        return login.exchange(
+            target,
+            started,
+            device_id=device_id,
+            public_key=public_key,
+            display_name=login.device_display_name(),
+        )
+    except CliFailure as failure:
+        if failure.code != "AI_STP_RATE_LIMITED":
+            raise
+    time.sleep(max(float(interval), 1.0))
+    return login.exchange(
+        target,
+        started,
+        device_id=device_id,
+        public_key=public_key,
+        display_name=login.device_display_name(),
+    )
 
 
 def _provider(raw: object) -> OAuthProvider:

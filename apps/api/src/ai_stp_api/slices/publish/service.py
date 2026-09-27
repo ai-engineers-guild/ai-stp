@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from datetime import UTC, datetime
 from typing import cast
 
@@ -10,7 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ai_stp_api.audit import emit_audit
-from ai_stp_api.errors import ApiError, ErrorCategory
+from ai_stp_api.errors import CATEGORY_CODE, ApiError, ErrorCategory
 from ai_stp_api.session import AuthContext
 from ai_stp_api.settings import Settings
 from ai_stp_api.slices.profile.service import get_public_publisher
@@ -37,6 +38,7 @@ from ai_stp_platform.identity import (
 from ai_stp_platform.models import (
     Account,
     CatalogIdentity,
+    CatalogMetadata,
     Device,
     EvidenceBinding,
     PublicationPlan,
@@ -58,6 +60,19 @@ from ai_stp_platform.storage.object_store import (
     ObjectConflict,
     ObjectIntegrityError,
 )
+
+_CODE_CATEGORY: Mapping[str, ErrorCategory] = {v: k for k, v in CATEGORY_CODE.items()}
+
+
+def _identity_category(exc: IdentityError) -> ErrorCategory:
+    """Map a platform identity refusal to the category that owns its wire code.
+
+    ``IdentityError.code`` is already a registered ``AI_STP_*`` code; mapping it
+    back keeps ``AI_STP_FOREIGN_LINE_OWNERSHIP`` (403) and
+    ``AI_STP_STALE_OWNERSHIP_REVISION`` (412) reachable instead of re-badging
+    everything as PERMISSION/CONFLICT.
+    """
+    return _CODE_CATEGORY.get(exc.code, ErrorCategory.CONFLICT)
 
 
 async def _require_active_device(db: AsyncSession, *, ctx: AuthContext, device_id: str) -> Device:
@@ -95,7 +110,15 @@ async def create_plan(
         passport_visibility = body.passport.get("visibility")
         if passport_visibility in {"public", "private"}:
             visibility = str(passport_visibility)
-    account = await db.get(Account, ctx.account_id)
+    if body.policy_version != POLICY_VERSION:
+        raise ApiError(
+            ErrorCategory.VALIDATION,
+            "policy_version does not name the policy this deployment enforces",
+            details={"supported": POLICY_VERSION},
+        )
+    # Serializes identical idempotency keys before insertion, with no second
+    # effect — the same pattern the visibility plan create path uses.
+    account = await db.scalar(select(Account).where(Account.id == ctx.account_id).with_for_update())
     public_profile = await get_public_publisher(db, account_id=ctx.account_id)
     if visibility == "public" and (
         account is None
@@ -177,6 +200,35 @@ async def create_plan(
         )
     attestations = [a.model_dump(mode="json") for a in body.attestations]
     passport = passport_model.model_dump(mode="json")
+    # An occupied (kind, stable_id, version) refuses here with a typed answer
+    # instead of wedging the publish job: the executor's ValueError used to roll
+    # back and leave the plan in publish_planned forever.
+    occupied = await db.scalar(
+        select(CatalogMetadata)
+        .where(
+            CatalogMetadata.object_kind == body.object_kind,
+            CatalogMetadata.stable_id == body.stable_id,
+            CatalogMetadata.version == body.version,
+        )
+        .with_for_update()
+    )
+    if occupied is not None:
+        if occupied.owner_account_id != ctx.account_id:
+            raise ApiError(
+                ErrorCategory.PERMISSION,
+                "the catalog version is owned by another account",
+            )
+        canonical_digest = passport_digest(passport_model)
+        if occupied.passport_digest and occupied.passport_digest != canonical_digest:
+            raise ApiError(
+                ErrorCategory.CONFLICT,
+                "version already published with different digest",
+            )
+        if occupied.lifecycle_state == "draft" and occupied.published_at is not None:
+            raise ApiError(
+                ErrorCategory.CONFLICT,
+                "published catalog version cannot be rematerialized as a draft",
+            )
     if binding is not None:
         exact_passport_digest = passport_digest(passport_model)
         if binding.passport_digest not in {None, exact_passport_digest}:
@@ -193,7 +245,7 @@ async def create_plan(
                 object_kind=body.object_kind,
             )
         except IdentityError as exc:
-            raise ApiError(ErrorCategory.PERMISSION, exc.message) from exc
+            raise ApiError(_identity_category(exc), exc.message) from exc
     if body.object_kind == "component":
         display_name = str(passport.get("name") or body.stable_id)
         try:
@@ -212,12 +264,7 @@ async def create_plan(
             )
             expected_ownership_revision_id = identity.ownership_revision_id
         except IdentityError as exc:
-            category = (
-                ErrorCategory.PERMISSION
-                if exc.code == "AI_STP_FOREIGN_LINE_OWNERSHIP"
-                else ErrorCategory.CONFLICT
-            )
-            raise ApiError(category, exc.message) from exc
+            raise ApiError(_identity_category(exc), exc.message) from exc
     plan_hash = compute_plan_hash(
         actor_account_id=ctx.account_id,
         device_id=body.device_id,
@@ -347,8 +394,16 @@ async def _bind_exact_artifact(
     audit_action: str,
 ) -> PublicationPlanResponse:
     await _require_active_device(db, ctx=ctx, device_id=plan.device_id)
-    if plan.state in {"failed", "cancelled", "stale"}:
+    # Binds only exist to satisfy confirm; any post-confirm state has already
+    # left the bind window and must not be regressed (e.g. published → stale).
+    if plan.state not in {"draft", "ready"}:
         raise ApiError(ErrorCategory.CONFLICT, f"plan is {plan.state}")
+    now = datetime.now(UTC)
+    expires = plan.expires_at if plan.expires_at.tzinfo else plan.expires_at.replace(tzinfo=UTC)
+    if expires <= now:
+        plan.state = "stale"
+        await db.flush()
+        raise ApiError(ErrorCategory.VALIDATION, "plan expired")
     try:
         await bind_plan_artifact(
             store=store,
@@ -452,25 +507,15 @@ async def confirm_plan(
 
     if body.plan_hash != plan.plan_hash:
         raise ApiError(ErrorCategory.VALIDATION, "plan_hash mismatch")
-    binding = await bound_source(db, plan)
-    if binding is not None and plan.state != "published":
-        if settings is None:
-            raise GitHubError("connector_not_configured")
-        await authorize_binding(
-            db,
-            binding,
-            client=github_client or GitHubClient(),
-            settings=settings.github_connector,
-            public=plan.visibility == "public",
-        )
 
+    # Deterministic checks run before any external call: a replayed or
+    # expired confirm must not spend a GitHub round-trip or surface a remote
+    # error that hides the local verdict.
     if plan.confirm_idempotency_key == body.idempotency_key:
         evidence = await _evidence_for_plan(db, plan_id=plan.id)
         return _to_response(plan, evidence=evidence)
 
     if plan.state in {"validating", "publish_planned", "published"}:
-        if plan.plan_hash != body.plan_hash:
-            raise ApiError(ErrorCategory.CONFLICT, "plan already confirmed with different hash")
         plan.confirm_idempotency_key = body.idempotency_key
         await db.flush()
         evidence = await _evidence_for_plan(db, plan_id=plan.id)
@@ -486,9 +531,6 @@ async def confirm_plan(
         await db.flush()
         raise ApiError(ErrorCategory.VALIDATION, "plan expired")
 
-    if body.plan_hash != plan.plan_hash:
-        raise ApiError(ErrorCategory.VALIDATION, "plan_hash mismatch")
-
     for digest, expected_size in _required_artifact_sizes(plan).items():
         if not await plan_artifact_is_durable(
             store=store,
@@ -502,6 +544,18 @@ async def confirm_plan(
                 else "publication projection artifact bytes are not bound"
             )
             raise ApiError(ErrorCategory.VALIDATION, message, details={"digest": digest})
+
+    binding = await bound_source(db, plan)
+    if binding is not None:
+        if settings is None:
+            raise GitHubError("connector_not_configured")
+        await authorize_binding(
+            db,
+            binding,
+            client=github_client or GitHubClient(),
+            settings=settings.github_connector,
+            public=plan.visibility == "public",
+        )
 
     plan.state = "validating"
     plan.confirm_idempotency_key = body.idempotency_key

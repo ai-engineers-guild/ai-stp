@@ -16,7 +16,9 @@ from ai_stp_cli.cloud.client import (
     Endpoint,
     call,
     failure_from,
+    malformed_response,
     open_client,
+    retry_after,
 )
 from ai_stp_cli.errors import CliFailure
 from ai_stp_contracts.http import API_BASE_PATH, REQUEST_ID_HEADER, SCHEMA_VERSION
@@ -160,6 +162,22 @@ def _bind_payload(
                     content=payload,
                     headers={"Content-Type": "application/octet-stream"},
                 )
+            except httpx.ConnectTimeout as error:
+                last = CliFailure(
+                    "AI_STP_DEPENDENCY_UNAVAILABLE",
+                    "the platform could not be reached",
+                    retryable=True,
+                    details={"exception": type(error).__name__},
+                    next_actions=["doctor --json"],
+                )
+            except httpx.TimeoutException as error:
+                last = CliFailure(
+                    "AI_STP_TIMEOUT_UNCONFIRMED",
+                    "the artifact upload timed out without a confirmed effect",
+                    retryable=True,
+                    details={"exception": type(error).__name__},
+                    next_actions=["doctor --json"],
+                )
             except httpx.HTTPError as error:
                 last = CliFailure(
                     "AI_STP_DEPENDENCY_UNAVAILABLE",
@@ -172,11 +190,17 @@ def _bind_payload(
                 if response.status_code < 400:
                     return _decode_plan(response)
                 last = failure_from(response)
-                if last.code in NEVER_RETRIED or response.status_code not in RETRYABLE_STATUSES:
+                # Same rule as `_exchange`: the status table admits, and the
+                # wire's `retryable` may veto — never the other way around.
+                if (
+                    last.code in NEVER_RETRIED
+                    or not last.retryable
+                    or response.status_code not in RETRYABLE_STATUSES
+                ):
                     raise last
             if attempt >= total:
                 break
-            pause(_retry_after(response) or delay)
+            pause(retry_after(response) or delay)
             delay *= 2
         assert last is not None
         raise last
@@ -209,25 +233,7 @@ def _decode_plan(response: httpx.Response) -> PublicationPlanResponse:
         raise _malformed_plan(response, error) from error
 
 
-def _retry_after(response: httpx.Response | None) -> float | None:
-    if response is None:
-        return None
-    raw = response.headers.get("Retry-After")
-    if raw is None:
-        return None
-    try:
-        return min(max(float(raw), 0.0), 60.0)
-    except ValueError:
-        return None
-
-
 def _malformed_plan(response: httpx.Response, error: BaseException) -> CliFailure:
-    return CliFailure(
-        "AI_STP_VALIDATION_ERROR",
-        "the platform answered with a body that does not match the published contract",
-        details={
-            "status": str(response.status_code),
-            "exception": type(error).__name__,
-            "request_id": response.headers.get(REQUEST_ID_HEADER, ""),
-        },
-    )
+    # Same refusal as the shared path: a mutation that already reached the
+    # server must not be answered with the code that says "fix your request".
+    return malformed_response(response, error)

@@ -6,9 +6,13 @@ import asyncio
 import signal
 
 from ai_stp_platform.db import make_engine, make_sessionmaker
-from ai_stp_platform.logging import configure_logging
+from ai_stp_platform.logging import configure_logging, get_logger
+from ai_stp_platform.mail import ResendMailPort
+from ai_stp_worker.handlers import deliver_invitation
 from ai_stp_worker.runner import Worker
 from ai_stp_worker.settings import Settings, load_settings
+
+_log = get_logger("worker_main")
 
 
 def _install_signals(worker: Worker) -> None:
@@ -25,6 +29,19 @@ def _install_signals(worker: Worker) -> None:
 
 
 async def _run(settings: Settings) -> None:
+    if settings.worker.resend_api_key:
+        deliver_invitation.MAIL_PORT = ResendMailPort(
+            api_key=settings.worker.resend_api_key,
+            from_address=settings.worker.mail_from_address,
+            accept_base_url=settings.worker.invitation_base_url,
+        )
+    else:
+        # Without a key the recording port keeps mails in process memory —
+        # invitations are created but never reach the recipient's inbox.
+        _log.warning(
+            "mail_delivery_unconfigured",
+            detail="AI_STP_WORKER_RESEND_API_KEY unset; invitations are recorded only",
+        )
     engine = make_engine(settings.database)
     sessionmaker = make_sessionmaker(engine)
     worker = Worker(

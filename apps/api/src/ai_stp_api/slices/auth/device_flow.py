@@ -5,7 +5,8 @@ from __future__ import annotations
 import secrets
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import select
+from sqlalchemy import select, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ai_stp_api.errors import ApiError, ErrorCategory
@@ -20,6 +21,10 @@ from ai_stp_platform.models import Device, DeviceAuthorization
 _CROCKFORD = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
 _DEFAULT_INTERVAL = 5
 _DEFAULT_EXPIRES = 600
+# Access sessions report their real lifetime on the wire; the contract caps
+# `expires_in` at one day, so the access half of a device pair never outlives
+# what the client was told. The refresh half keeps the full session TTL.
+ACCESS_TTL_CAP = 86400
 
 
 def _mint_device_code() -> str:
@@ -37,12 +42,33 @@ async def start_device_authorization(
     *,
     provider: str,
     auth: AuthSettings,
+    idempotency_key: str | None = None,
 ) -> DeviceAuthorization:
-    """Create a pending device authorization for CLI polling."""
+    """Create a pending device authorization for CLI polling.
+
+    `idempotency_key` replays the original row so a lost answer cannot mint a
+    second pending authorization for the same user intent.
+    """
     if provider not in {"google", "github"}:
         raise ApiError(ErrorCategory.VALIDATION, "unsupported oauth provider")
     if not auth.provider_enabled(provider):
         raise ApiError(ErrorCategory.DEPENDENCY, "oauth provider is not configured")
+
+    if idempotency_key is not None:
+        held = (
+            await db.execute(
+                select(DeviceAuthorization).where(
+                    DeviceAuthorization.idempotency_key == idempotency_key
+                )
+            )
+        ).scalar_one_or_none()
+        if held is not None:
+            if held.provider != provider:
+                raise ApiError(
+                    ErrorCategory.CONFLICT,
+                    "idempotency key was reused with different content",
+                )
+            return held
 
     now = datetime.now(UTC)
     row = DeviceAuthorization(
@@ -54,17 +80,32 @@ async def start_device_authorization(
         interval_seconds=_DEFAULT_INTERVAL,
         expires_at=now + timedelta(seconds=_DEFAULT_EXPIRES),
         last_poll_at=None,
+        idempotency_key=idempotency_key,
     )
     # Rare user_code collision: retry once.
-    existing = await db.get(DeviceAuthorization, row.device_code)
-    del existing
     clash = await db.execute(
         select(DeviceAuthorization).where(DeviceAuthorization.user_code == row.user_code)
     )
     if clash.scalar_one_or_none() is not None:
         row.user_code = _mint_user_code()
     db.add(row)
-    await db.flush()
+    try:
+        async with db.begin_nested():
+            await db.flush()
+    except IntegrityError:
+        # A concurrent same-key create won the race: replay its row.
+        if idempotency_key is None:
+            raise
+        held = (
+            await db.execute(
+                select(DeviceAuthorization).where(
+                    DeviceAuthorization.idempotency_key == idempotency_key
+                )
+            )
+        ).scalar_one_or_none()
+        if held is None or held.provider != provider:
+            raise
+        return held
     return row
 
 
@@ -118,30 +159,56 @@ async def exchange_device_code(
     if row is None:
         raise ApiError(ErrorCategory.VALIDATION, "unknown device code")
 
-    # Rate limit between polls.
+    # Rate limit between polls. The timestamp has to survive the refusal below,
+    # so it is committed before raising — a bare flush rolls back with the
+    # exception and the throttle never engages.
     if row.last_poll_at is not None:
         elapsed = (now - row.last_poll_at).total_seconds()
         if elapsed < row.interval_seconds:
             raise ApiError(ErrorCategory.RATE_LIMITED, "slow down")
     row.last_poll_at = now
-    await db.flush()
+    await db.commit()
 
-    if row.expires_at <= now and row.status == "pending":
-        row.status = "declined"
-        await db.flush()
+    # The grant dies with `expires_at` in every status: an approved code that
+    # was never exchanged is not a standing credential-issuance capability.
+    if row.expires_at <= now or row.status == "consumed":
         raise ApiError(ErrorCategory.AUTHORIZATION_EXPIRED, "authorization expired")
-
     if row.status == "pending":
         raise ApiError(ErrorCategory.AUTHORIZATION_PENDING, "authorization pending")
     if row.status == "declined":
         raise ApiError(ErrorCategory.AUTHORIZATION_DECLINED, "authorization declined")
-    if row.status == "consumed":
-        raise ApiError(ErrorCategory.AUTHORIZATION_EXPIRED, "authorization expired")
     if row.status != "approved" or not row.account_id:
         raise ApiError(ErrorCategory.AUTHORIZATION_PENDING, "authorization pending")
 
     if not device_id.startswith("device_"):
         raise ApiError(ErrorCategory.VALIDATION, "invalid device id")
+
+    # Single-use consume, claimed atomically. The reads above cannot serialize
+    # two pollers that both see `approved` — only this conditional UPDATE can.
+    # The loser matches zero rows, reloads, and reports the winner's verdict
+    # instead of minting a second credential pair for the same grant. The claim
+    # shares the request transaction, so a failure below still rolls it back.
+    claimed = await db.execute(
+        update(DeviceAuthorization)
+        .where(
+            DeviceAuthorization.device_code == row.device_code,
+            DeviceAuthorization.status == "approved",
+            DeviceAuthorization.expires_at > now,
+        )
+        .values(status="consumed")
+        .execution_options(synchronize_session=False)
+    )
+    if getattr(claimed, "rowcount", 0) != 1:
+        await db.refresh(row)
+        # The refresh can move the row past `approved`; read it fresh so the
+        # checks below see the winner's verdict, not the stale local value.
+        current = str(row.status)
+        if row.expires_at <= now or current == "consumed":
+            raise ApiError(ErrorCategory.AUTHORIZATION_EXPIRED, "authorization expired")
+        if current == "declined":
+            raise ApiError(ErrorCategory.AUTHORIZATION_DECLINED, "authorization declined")
+        raise ApiError(ErrorCategory.AUTHORIZATION_PENDING, "authorization pending")
+    row.status = "consumed"
 
     pk = normalize_public_key(public_key)
     foreign = await db.execute(
@@ -169,6 +236,7 @@ async def exchange_device_code(
             id=new_device_id,
             account_id=row.account_id,
             public_key=pk,
+            display_name=display_name or None,
             state=DeviceState.ACTIVE.value,
             last_seen_at=now,
         )
@@ -180,34 +248,32 @@ async def exchange_device_code(
                 "device is revoked; register a new device key",
             )
         device.last_seen_at = now
+        if display_name:
+            device.display_name = display_name
     await db.flush()
 
+    access_ttl = min(auth.session_ttl_seconds, ACCESS_TTL_CAP)
     issued = await issue_session(
         db,
         account_id=row.account_id,
         device_id=device.id,
-        ttl_seconds=auth.session_ttl_seconds,
+        ttl_seconds=access_ttl,
     )
-    # Bind session to device already done via device_id on issue.
-
-    row.status = "consumed"
-    await db.flush()
-
-    # Refresh token: second opaque session token for offline renewal (MVP: same TTL token).
     refresh = await issue_session(
         db,
         account_id=row.account_id,
         device_id=device.id,
         ttl_seconds=auth.session_ttl_seconds,
+        kind="refresh",
     )
-    del display_name  # stored only when a summary path exists; not required for token response
+    await db.flush()
 
     return {
         "schema_version": 1,
         "access_token": issued.raw_token,
         "refresh_token": refresh.raw_token,
         "token_type": "Bearer",
-        "expires_in": min(auth.session_ttl_seconds, 86400),
+        "expires_in": access_ttl,
         "account_id": row.account_id,
         "device_id": device.id,
     }

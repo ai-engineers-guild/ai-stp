@@ -97,7 +97,7 @@
       "items": {
         "$ref": "#/$defs/RevisionId"
       },
-      "maxItems": 8,
+      "maxItems": 2,
       "title": "Parent Revision Ids",
       "type": "array"
     },

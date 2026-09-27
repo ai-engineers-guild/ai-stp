@@ -8,7 +8,7 @@ import urllib.request
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from typing import Any, cast
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, Mock
 
 import pytest
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
@@ -338,7 +338,14 @@ def test_resend_port_dry_run_and_http_error_paths(monkeypatch: pytest.MonkeyPatc
     assert captured
     body_data = captured[0].data
     assert isinstance(body_data, bytes)
-    assert b"secret-token" not in body_data
+    # The token reaches the invitee only inside the one-time accept link's URL
+    # fragment — never bare in the subject or address fields.
+    import json
+
+    payload = json.loads(body_data)
+    assert "secret-token" not in payload["subject"]
+    assert payload["to"] == ["owner@example.test"]
+    assert "#token=secret-token" in payload["text"]
 
     class BadResponse(Response):
         status = 500
@@ -461,13 +468,24 @@ async def test_publication_database_guards_and_reevaluation_edges() -> None:
         ImmutableObjectStore,
         SimpleNamespace(read_by_digest=AsyncMock(return_value=b"x"), key_for_digest=_object_key),
     )
-    session.scalar.side_effect = [None, None]
-    with pytest.raises(ValueError, match="successful validation"):
-        await execute_publish(session, plan_id=plan.id, store=store)
 
+    # Permanent refusals settle on the plan instead of raising: a raise would
+    # roll back the handler transaction and leave the plan publish_planned
+    # forever while the job dead-letters.
+    def _no_bindings() -> list[object]:
+        return []
+
+    session.scalars = AsyncMock(return_value=SimpleNamespace(all=_no_bindings))
+    session.add = Mock()
+    session.scalar.side_effect = [None, None]
+    assert await execute_publish(session, plan_id=plan.id, store=store) is None
+    assert plan.state == "failed"
+
+    plan.state = "publish_planned"
     with pytest.raises(ValueError, match="object store"):
         await execute_publish(session, plan_id=plan.id)
 
+    plan.state = "publish_planned"
     missing_store = cast(
         ImmutableObjectStore,
         SimpleNamespace(
@@ -475,8 +493,8 @@ async def test_publication_database_guards_and_reevaluation_edges() -> None:
             key_for_digest=_object_key,
         ),
     )
-    with pytest.raises(ValueError, match="durable verified artifact bytes"):
-        await execute_publish(session, plan_id=plan.id, store=missing_store)
+    assert await execute_publish(session, plan_id=plan.id, store=missing_store) is None
+    assert plan.state == "failed"
 
     row = SimpleNamespace(component_verified=True, trust_lane="authoritative")
     published_plan = SimpleNamespace(id="plan_2", component_verified=True)

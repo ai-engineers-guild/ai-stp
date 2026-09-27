@@ -62,7 +62,11 @@ async def read_selection_impact(
         raise ApiError(
             ErrorCategory.VALIDATION,
             "request validation failed",
-            details={"fields": ",".join(str(error["loc"]) for error in exc.errors())},
+            details={
+                "fields": ",".join(
+                    sorted(".".join(str(part) for part in error["loc"]) for error in exc.errors())
+                )
+            },
         ) from exc
     try:
         result = await account_impact(

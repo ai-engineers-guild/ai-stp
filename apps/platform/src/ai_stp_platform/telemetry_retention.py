@@ -59,6 +59,10 @@ async def apply_retention(session: AsyncSession, *, organization_id: str, now: d
 
 async def retention_tenants(session: AsyncSession) -> list[str]:
     """Return every tenant with policy or governed data, including defaults."""
+    # The sweep is a platform job, not a tenant call: governed tables are under
+    # FORCE row-level security, so without "*" this list silently comes back
+    # empty on Postgres and the retention job retains everything.
+    await set_tenant_scope(session, "*")
     rows = await session.scalars(
         union(
             select(TelemetryPolicy.organization_id),

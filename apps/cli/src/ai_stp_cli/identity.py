@@ -333,6 +333,39 @@ def load_or_create() -> tuple[Identity, str | None]:
     return _identity_from(store, record), warning
 
 
+def _salvage_public_record() -> tuple[tuple[Retired, ...], str | None]:
+    """Best-effort read of a record that the strict reader already refused.
+
+    `reset` is the recovery the strict reader names, so it cannot refuse on the
+    same corruption. Whatever still parses — the retired history, the outgoing
+    device id — is worth keeping; the rest is gone, and the caller's warning
+    says so rather than pretending the loss did not happen.
+    """
+    path = device_file()
+    try:
+        parsed: object = json.loads(read_private(path))
+    except Exception:
+        return (), None
+    if not isinstance(parsed, dict):
+        return (), None
+    document = cast(dict[str, object], parsed)
+    entries = document.get("retired", [])
+    salvaged: list[Retired] = []
+    if isinstance(entries, list):
+        for item in cast(list[object], entries):
+            if not isinstance(item, dict):
+                continue
+            record = cast(dict[str, object], item)
+            salvaged.append(
+                Retired(str(record.get("device_id", "")), str(record.get("retired_at", "")))
+            )
+    retired = tuple(salvaged)
+    outgoing = document.get("device_id")
+    if isinstance(outgoing, str) and is_valid_id(outgoing, "device"):
+        return retired, outgoing
+    return retired, None
+
+
 def reset() -> tuple[Identity, str | None]:
     """Retire this identity and mint a fresh one.
 
@@ -349,11 +382,23 @@ def reset() -> tuple[Identity, str | None]:
     the installation on the next command.
     """
     store, warning = open_store()
-    previous = _read_public_record()
-    retired = previous.retired if previous else ()
-    if previous is not None:
-        retired = (*retired, Retired(previous.device_id, _moment()))
-        drop_everywhere(store, key_entry(previous.device_id))
+    try:
+        previous = _read_public_record()
+    except CliFailure:
+        # The record this command exists to retire may be the corrupt thing
+        # itself; the strict reader's own next_action names this command.
+        previous = None
+        retired, outgoing = _salvage_public_record()
+        if outgoing is not None:
+            retired = (*retired, Retired(outgoing, _moment()))
+            drop_everywhere(store, key_entry(outgoing))
+        loss = "the device record was unreadable; its retired history may be incomplete"
+        warning = f"{warning} {loss}" if warning else loss
+    else:
+        retired = previous.retired if previous else ()
+        if previous is not None:
+            retired = (*retired, Retired(previous.device_id, _moment()))
+            drop_everywhere(store, key_entry(previous.device_id))
     return _mint(store, retired), warning
 
 

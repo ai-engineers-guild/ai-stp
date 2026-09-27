@@ -435,6 +435,9 @@ def _candidates(
     ).fetchall()
     recorded = acquired_trust.verdicts(connection)
     wanted = dict(at_version or {})
+    # One identity set for the whole pass: the signed-in account plus the
+    # device owner, resolved once rather than per candidate.
+    accounts = consent.acting_accounts()
     held: list[eligibility.CandidateFacts] = []
     for row in rows:
         stable_id = str(row["stable_id"])
@@ -448,6 +451,7 @@ def _candidates(
         facts = cast(dict[str, JsonValue], document.get("facts") or {})
         agreed = consent.consulted(
             connection,
+            accounts=accounts,
             stable_id=stored.stable_id,
             owner_id=str(document.get("owner_id") or ""),
             version=str(document.get("version") or ""),

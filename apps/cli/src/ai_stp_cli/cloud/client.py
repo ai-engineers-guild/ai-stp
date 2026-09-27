@@ -337,6 +337,25 @@ def _exchange(
                     **(dict(headers) if headers else {}),
                 },
             )
+        except httpx.ConnectTimeout as error:
+            # The request never left — nothing can have taken effect.
+            last = CliFailure(
+                "AI_STP_DEPENDENCY_UNAVAILABLE",
+                "the platform could not be reached",
+                retryable=True,
+                details={"exception": type(error).__name__},
+                next_actions=["doctor --json"],
+            )
+        except httpx.TimeoutException as error:
+            # The request may have landed; the effect is unconfirmed, which is
+            # what the registry's timeout code exists to say.
+            last = CliFailure(
+                "AI_STP_TIMEOUT_UNCONFIRMED",
+                "the call timed out without a confirmed effect",
+                retryable=True,
+                details={"exception": type(error).__name__},
+                next_actions=["doctor --json"],
+            )
         except httpx.HTTPError as error:
             # The message can carry a full URL with a query, so only the type is
             # published.
@@ -356,7 +375,7 @@ def _exchange(
 
         if attempt >= total:
             break
-        pause(_retry_after(response) or delay)
+        pause(retry_after(response) or delay)
         delay *= 2
 
     assert last is not None
@@ -369,7 +388,7 @@ def _worth_retrying(status: int, code: str) -> bool:
     return status in RETRYABLE_STATUSES
 
 
-def _retry_after(response: httpx.Response | None) -> float | None:
+def retry_after(response: httpx.Response | None) -> float | None:
     """Honour the server's own pacing when it gives one."""
     if response is None:
         return None
@@ -388,17 +407,17 @@ def _decode[T: BaseModel](response: httpx.Response, model: type[T]) -> T:
     try:
         return model.model_validate(_decode_document(response))
     except ValidationError as error:
-        raise _malformed(response, error) from error
+        raise malformed_response(response, error) from error
 
 
 def _decode_document(response: httpx.Response) -> dict[str, JsonValue]:
     try:
         document = json.loads(response.text)
     except ValueError as error:
-        raise _malformed(response, error) from error
+        raise malformed_response(response, error) from error
     _check_schema_version(response, document)
     if not isinstance(document, dict):
-        raise _malformed(response, TypeError("response body is not an object"))
+        raise malformed_response(response, TypeError("response body is not an object"))
     return cast(dict[str, JsonValue], document)
 
 
@@ -428,7 +447,7 @@ def _check_schema_version(response: httpx.Response, document: object) -> None:
         )
 
 
-def _malformed(response: httpx.Response, error: BaseException) -> CliFailure:
+def malformed_response(response: httpx.Response, error: BaseException) -> CliFailure:
     """A conforming server did not answer.
 
     This is a client-side refusal, not a server error: what arrived does not
@@ -525,6 +544,12 @@ _WAY_BACK_REASON: Final[Mapping[tuple[str, str], tuple[str, ...]]] = {
         "device reset --confirm --json",
         *_LOGIN_ACTIONS,
     ),
+    # The account exists but has not completed legal onboarding; only the web
+    # console can finish it, so the next step is named, not a command.
+    ("AI_STP_PERMISSION_DENIED", "onboarding_pending"): (
+        "complete legal onboarding in the web console",
+        "auth status --json",
+    ),
 }
 
 
@@ -598,27 +623,43 @@ def failure_from(response: httpx.Response) -> CliFailure:
     message = "the platform reported a failure"
     retryable = response.status_code in RETRYABLE_STATUSES
     reported_details: dict[str, str] = {}
+    raw_code = ""
+    request_id = response.headers.get(REQUEST_ID_HEADER, "")
+    wire_actions: list[str] = []
     try:
         envelope = cast(dict[str, object], json.loads(response.text))
         error = cast(dict[str, object], envelope.get("error", {}))
         reported = str(error.get("code", ""))
+        if reported:
+            raw_code = reported
         if is_registered_code(reported):
             code = reported
             message = str(error.get("message", message))
             retryable = bool(error.get("retryable", retryable))
             reported_details = _forwarded(error)
+        body_request_id = envelope.get("request_id")
+        if isinstance(body_request_id, str) and body_request_id:
+            request_id = body_request_id
+        actions = envelope.get("next_actions")
+        if isinstance(actions, list):
+            wire_actions = [str(item)[:256] for item in cast(list[object], actions)][:8]
     except (ValueError, AttributeError, TypeError):
         pass
+    details = {
+        **reported_details,
+        "status": str(response.status_code),
+        "request_id": request_id,
+    }
+    if raw_code and raw_code != code:
+        # The registry is closed, so an unmapped code is still rewritten — but
+        # it survives here for diagnostics instead of vanishing.
+        details["reported_code"] = raw_code[:128]
     return CliFailure(
         code,
         message,
         retryable=retryable,
-        details={
-            **reported_details,
-            "status": str(response.status_code),
-            "request_id": response.headers.get(REQUEST_ID_HEADER, ""),
-        },
-        next_actions=_way_back_for(code, reported_details),
+        details=details,
+        next_actions=wire_actions or _way_back_for(code, reported_details),
         continuations=login_continuations()
         if code in _ACCOUNT_RESTART
         or (code, reported_details.get("reason", "")) in _WAY_BACK_REASON
