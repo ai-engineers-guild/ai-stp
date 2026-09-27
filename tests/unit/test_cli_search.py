@@ -167,7 +167,7 @@ def test_an_unverified_candidate_is_absent_without_consent(
 
 
 def test_a_durable_consent_shows_a_candidate_without_the_request_flag(
-    registry: sqlite3.Connection,
+    registry: sqlite3.Connection, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """The publisher comes from the candidate, which is why this now proves it.
 
@@ -178,8 +178,10 @@ def test_a_durable_consent_shows_a_candidate_without_the_request_flag(
     candidate carries its own owner.
     """
     unproven = _register(registry, "24", name="unproven")
+    monkeypatch.setattr(consent, "acting_accounts", lambda: (OWNER,))
     consent.grant(
         registry,
+        account_id=OWNER,
         consent_id="request_01J00000000000000000000025",
         scope=consent.SCOPE_PUBLISHER,
         target=OWNER,
@@ -195,7 +197,7 @@ def test_a_durable_consent_shows_a_candidate_without_the_request_flag(
 
 
 def test_a_durable_consent_on_the_major_line_shows_a_candidate(
-    registry: sqlite3.Connection,
+    registry: sqlite3.Connection, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """The second scope had no reader at all until 2026-08-29.
 
@@ -204,8 +206,10 @@ def test_a_durable_consent_on_the_major_line_shows_a_candidate(
     the `major` argument of `covers` had no caller. Writable, listable, inert.
     """
     unproven = _register(registry, "28", name="line")
+    monkeypatch.setattr(consent, "acting_accounts", lambda: (OWNER,))
     consent.grant(
         registry,
+        account_id=OWNER,
         consent_id="request_01J00000000000000000000029",
         scope=consent.SCOPE_OBJECT_MAJOR,
         target=f"{unproven.stable_id}@1",
@@ -226,6 +230,7 @@ def test_a_narrower_refusal_is_not_overruled_by_a_broader_grant(
     unproven = _register(registry, "40", name="narrow")
     consent.grant(
         registry,
+        account_id=OWNER,
         consent_id="request_01J00000000000000000000041",
         scope=consent.SCOPE_OBJECT_MAJOR,
         target=f"{unproven.stable_id}@1",
@@ -237,12 +242,14 @@ def test_a_narrower_refusal_is_not_overruled_by_a_broader_grant(
     )
     consent.revoke(
         registry,
+        account_id=OWNER,
         scope=consent.SCOPE_OBJECT_MAJOR,
         target=f"{unproven.stable_id}@1",
         at=MOMENT,
     )
     consent.grant(
         registry,
+        account_id=OWNER,
         consent_id="request_01J00000000000000000000042",
         scope=consent.SCOPE_PUBLISHER,
         target=OWNER,
@@ -254,6 +261,7 @@ def test_a_narrower_refusal_is_not_overruled_by_a_broader_grant(
     )
     verdict = consent.consulted(
         registry,
+        accounts=(OWNER,),
         stable_id=unproven.stable_id,
         owner_id=OWNER,
         version="1.0",
@@ -276,6 +284,7 @@ def test_a_consent_recorded_with_nothing_observed_covers_nothing(
     unproven = _register(registry, "30", name="unobserved")
     consent.grant(
         registry,
+        account_id=OWNER,
         consent_id="request_01J00000000000000000000031",
         scope=consent.SCOPE_PUBLISHER,
         target=OWNER,
@@ -290,7 +299,7 @@ def test_a_consent_recorded_with_nothing_observed_covers_nothing(
 
 
 def test_a_consent_that_stopped_covering_hides_the_candidate_even_with_the_flag(
-    registry: sqlite3.Connection,
+    registry: sqlite3.Connection, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """A revoking event is not papered over by a request flag.
 
@@ -298,8 +307,10 @@ def test_a_consent_that_stopped_covering_hides_the_candidate_even_with_the_flag(
     different question than "does the old fingerprint still cover this".
     """
     before = _register(registry, "26", name="grown")
+    monkeypatch.setattr(consent, "acting_accounts", lambda: (OWNER,))
     consent.grant(
         registry,
+        account_id=OWNER,
         consent_id="request_01J00000000000000000000027",
         scope=consent.SCOPE_PUBLISHER,
         target=OWNER,

@@ -12,6 +12,7 @@ from fastapi.responses import JSONResponse, RedirectResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ai_stp_api.audit import emit_audit
 from ai_stp_api.deps import (
     clear_session_cookies,
     get_auth_settings,
@@ -19,12 +20,18 @@ from ai_stp_api.deps import (
     new_csrf_token,
     require_auth,
     require_onboarding_auth,
+    require_refresh_auth,
     set_session_cookies,
 )
 from ai_stp_api.envelope import success_response
 from ai_stp_api.errors import ApiError, ErrorCategory
 from ai_stp_api.geoip import approximate_location
-from ai_stp_api.session import AuthContext, issue_session, revoke_session
+from ai_stp_api.session import (
+    AuthContext,
+    issue_session,
+    revoke_session,
+    revoke_sessions_for_device,
+)
 from ai_stp_api.settings import AuthSettings
 from ai_stp_api.slices.auth.domain import validate_provider
 from ai_stp_api.slices.auth.oauth import get_client, profile_from_token
@@ -410,8 +417,21 @@ async def logout(
     auth: Annotated[AuthSettings, Depends(get_auth_settings)],
 ) -> JSONResponse:
     """Revoke the current session; replay of the old token is rejected."""
-    del request
-    revoked = await revoke_session(db, ctx.session_id)
+    if ctx.device_id is not None:
+        # A device session is an access/refresh pair; ending sign-out has to
+        # take the refresh half with it or the pair keeps minting sessions.
+        revoked = await revoke_sessions_for_device(db, ctx.device_id) > 0
+    else:
+        revoked = await revoke_session(db, ctx.session_id)
+    await emit_audit(
+        db,
+        actor_account_id=ctx.account_id,
+        action="auth.logout",
+        target_table="account_session",
+        target_id=ctx.session_id,
+        request_id=getattr(request.state, "request_id", None),
+        payload={"revoked": revoked},
+    )
     response = JSONResponse(
         content={"schema_version": 1, "revoked": revoked},
         status_code=200,
@@ -484,7 +504,21 @@ async def start_device_auth(
     except Exception as exc:
         raise ApiError(ErrorCategory.VALIDATION, "request validation failed") from exc
 
-    row = await start_device_authorization(db, provider=body.provider, auth=auth)
+    row = await start_device_authorization(
+        db,
+        provider=body.provider,
+        auth=auth,
+        idempotency_key=body.idempotency_key,
+    )
+    await emit_audit(
+        db,
+        actor_account_id=None,
+        action="auth.device_started",
+        target_table="device_authorization",
+        target_id=row.user_code,
+        request_id=getattr(request.state, "request_id", None),
+        payload={"provider": body.provider},
+    )
     plain, complete = verification_uris(auth, row.user_code)
     expires_in = max(60, int((row.expires_at - datetime.now(UTC)).total_seconds()))
     return JSONResponse(
@@ -524,13 +558,22 @@ async def exchange_device_auth(
         public_key=body.public_key,
         display_name=body.display_name,
     )
+    await emit_audit(
+        db,
+        actor_account_id=str(payload["account_id"]),
+        action="auth.device_exchanged",
+        target_table="device",
+        target_id=str(payload["device_id"]),
+        request_id=getattr(request.state, "request_id", None),
+    )
     return JSONResponse(content=payload, status_code=200)
 
 
 @router.post("/auth/device/refresh", response_model=DeviceTokenResponse)
 async def refresh_device_auth(
     payload: DeviceRefreshRequest,
-    ctx: Annotated[AuthContext, Depends(require_auth)],
+    request: Request,
+    ctx: Annotated[AuthContext, Depends(require_refresh_auth)],
     db: Annotated[AsyncSession, Depends(get_db)],
     auth: Annotated[AuthSettings, Depends(get_auth_settings)],
 ) -> DeviceTokenResponse:
@@ -547,18 +590,33 @@ async def refresh_device_auth(
         message=device_refresh_message(payload),
         signature=payload.signature,
     )
+    from ai_stp_api.slices.auth.device_flow import ACCESS_TTL_CAP
+
     # Keep the old credential usable until its normal expiry so a lost response
     # does not strand an unattended installation after the server committed.
+    access_ttl = min(auth.session_ttl_seconds, ACCESS_TTL_CAP)
     access = await issue_session(
-        db, account_id=ctx.account_id, device_id=ctx.device_id, ttl_seconds=auth.session_ttl_seconds
+        db, account_id=ctx.account_id, device_id=ctx.device_id, ttl_seconds=access_ttl
     )
     refresh = await issue_session(
-        db, account_id=ctx.account_id, device_id=ctx.device_id, ttl_seconds=auth.session_ttl_seconds
+        db,
+        account_id=ctx.account_id,
+        device_id=ctx.device_id,
+        ttl_seconds=auth.session_ttl_seconds,
+        kind="refresh",
+    )
+    await emit_audit(
+        db,
+        actor_account_id=ctx.account_id,
+        action="auth.device_refreshed",
+        target_table="device",
+        target_id=ctx.device_id,
+        request_id=getattr(request.state, "request_id", None),
     )
     return DeviceTokenResponse(
         access_token=access.raw_token,
         refresh_token=refresh.raw_token,
-        expires_in=min(auth.session_ttl_seconds, 86400),
+        expires_in=access_ttl,
         account_id=ctx.account_id,
         device_id=ctx.device_id,
     )
@@ -586,6 +644,15 @@ async def approve_device_auth(
     if not isinstance(user_code, str) or not user_code.strip():
         raise ApiError(ErrorCategory.VALIDATION, "user_code required")
     row = await approve_device_authorization(db, user_code=user_code, account_id=ctx.account_id)
+    await emit_audit(
+        db,
+        actor_account_id=ctx.account_id,
+        action="auth.device_approved",
+        target_table="device_authorization",
+        target_id=row.user_code,
+        request_id=getattr(request.state, "request_id", None),
+        payload={"provider": row.provider},
+    )
     return JSONResponse(
         content={
             "schema_version": 1,

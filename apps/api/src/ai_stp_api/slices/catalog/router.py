@@ -383,7 +383,11 @@ def _component_search_request(
         raise ApiError(
             ErrorCategory.VALIDATION,
             "request validation failed",
-            details={"fields": ",".join(str(e["loc"]) for e in exc.errors())},
+            details={
+                "fields": ",".join(
+                    sorted(".".join(str(part) for part in e["loc"]) for e in exc.errors())
+                )
+            },
         ) from exc
 
 
@@ -468,7 +472,11 @@ def _setup_search_request(
         raise ApiError(
             ErrorCategory.VALIDATION,
             "request validation failed",
-            details={"fields": ",".join(str(e["loc"]) for e in exc.errors())},
+            details={
+                "fields": ",".join(
+                    sorted(".".join(str(part) for part in e["loc"]) for e in exc.errors())
+                )
+            },
         ) from exc
 
 
@@ -993,7 +1001,11 @@ async def read_setup_context_budget(
         raise ApiError(
             ErrorCategory.VALIDATION,
             "request validation failed",
-            details={"fields": ",".join(str(error["loc"]) for error in exc.errors())},
+            details={
+                "fields": ",".join(
+                    sorted(".".join(str(part) for part in error["loc"]) for error in exc.errors())
+                )
+            },
         ) from exc
     try:
         result = await setup_context_budget(
@@ -1032,7 +1044,11 @@ async def read_component_context_budget(
         raise ApiError(
             ErrorCategory.VALIDATION,
             "request validation failed",
-            details={"fields": ",".join(str(error["loc"]) for error in exc.errors())},
+            details={
+                "fields": ",".join(
+                    sorted(".".join(str(part) for part in error["loc"]) for error in exc.errors())
+                )
+            },
         ) from exc
     try:
         result = await component_context_budget(

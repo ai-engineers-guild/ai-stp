@@ -56,6 +56,7 @@ async def issue_session(
     account_id: str,
     device_id: str | None,
     ttl_seconds: int,
+    kind: str = "access",
 ) -> IssuedSession:
     """Persist a new session row keyed by the hash of a fresh raw token."""
     raw = mint_session_token()
@@ -67,6 +68,7 @@ async def issue_session(
         device_id=device_id,
         expires_at=now + timedelta(seconds=ttl_seconds),
         revoked_at=None,
+        kind=kind,
     )
     db.add(row)
     await db.flush()
@@ -138,18 +140,25 @@ async def verify_raw_token(
     admin_account_ids: frozenset[str],
     via_cookie: bool,
     allow_onboarding: bool = False,
+    allow_refresh: bool = False,
 ) -> AuthContext:
     """Hash ``raw_token``, look up the session and return an AuthContext.
 
     Raises ``ApiError`` with ``AUTH_REQUIRED`` when the credential is missing,
     unknown, expired or session-revoked. Raises ``DEVICE_REVOKED`` when the
     bound device is revoked (SPEC-025 REQ-2508). Does not log the token value.
+
+    A ``refresh`` session is valid only on the refresh route itself
+    (``allow_refresh=True``); everywhere else it answers like an unknown token
+    so a leaked refresh credential cannot act as a general bearer.
     """
     if not raw_token:
         raise ApiError(ErrorCategory.AUTH_REQUIRED, "authentication required")
     session_id = hash_session_token(raw_token)
     row = await load_session_row(db, session_id)
     if row is None:
+        raise ApiError(ErrorCategory.AUTH_REQUIRED, "authentication required")
+    if row.kind == "refresh" and not allow_refresh:
         raise ApiError(ErrorCategory.AUTH_REQUIRED, "authentication required")
     if session_device_revoked(row):
         raise ApiError(ErrorCategory.DEVICE_REVOKED, "device is revoked")
@@ -159,7 +168,11 @@ async def verify_raw_token(
     if account.status != "active" and not (
         allow_onboarding and account.status == "onboarding_pending"
     ):
-        raise ApiError(ErrorCategory.PERMISSION, "legal onboarding is required")
+        raise ApiError(
+            ErrorCategory.PERMISSION,
+            "legal onboarding is required",
+            details={"reason": "onboarding_pending"},
+        )
     if row.device is not None:
         row.device.last_seen_at = datetime.now(UTC)
         await db.flush()

@@ -8,6 +8,7 @@ import secrets
 from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import or_, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ai_stp_api.audit import emit_audit
@@ -38,8 +39,6 @@ from ai_stp_platform.models import (
 from ai_stp_platform.queue.engine import enqueue
 from ai_stp_platform.queue.states import JobType
 
-# Module-level outbox for tokens that must reach the mail job without DB storage of raw token.
-_PENDING_TOKENS: dict[str, str] = {}
 _GITHUB_USERNAME = re.compile(r"^[a-z\d](?:[a-z\d]|-(?=[a-z\d])){0,38}$")
 _ACCOUNT_ID = re.compile(stable_id_pattern("account"))
 
@@ -165,7 +164,24 @@ async def create_direct_grant(
         identifier_value=recipient,
     )
     db.add(grant)
-    await db.flush()
+    try:
+        async with db.begin_nested():
+            await db.flush()
+    except IntegrityError:
+        # A concurrent create for the same target and grantee committed first:
+        # the unique key already chose the row this request must replay.
+        winner = await db.scalar(
+            select(AccessGrant).where(
+                AccessGrant.object_kind == body.object_kind,
+                AccessGrant.stable_id == body.stable_id,
+                AccessGrant.major == body.major,
+                AccessGrant.grantee_account_id == grantee_account_id,
+            )
+        )
+        if winner is None:
+            raise
+        winner_reference = await db.get(GrantRecipientReference, winner.id)
+        return grant_to_wire(winner, winner_reference)
     db.add(reference)
     await emit_audit(
         db,
@@ -227,7 +243,6 @@ async def create_invitation(
         expires_at=datetime.now(UTC) + timedelta(seconds=body.ttl_seconds),
     )
     db.add(invitation)
-    _PENDING_TOKENS[invitation.id] = token
     await enqueue(
         db,
         job_type=JobType.DELIVER_INVITATION,
@@ -307,7 +322,10 @@ async def accept_invitation(
     invitation_id: str,
     body: GrantAcceptRequest,
 ) -> AccessGrantResponse:
-    invitation = await db.get(GrantInvitation, invitation_id)
+    # FOR UPDATE: two accepts of the same invitation must serialize — the loser
+    # re-reads `accepted` and replays the winner's grant instead of racing the
+    # access_grant unique key into a 500.
+    invitation = await db.get(GrantInvitation, invitation_id, with_for_update=True)
     if invitation is None:
         raise ApiError(ErrorCategory.NOT_FOUND, "invitation not found")
     if invitation.state == "accepted" and invitation.accepted_grant_id:
@@ -370,6 +388,27 @@ async def accept_invitation(
         state="active",
     )
     db.add(grant)
+    try:
+        async with db.begin_nested():
+            await db.flush()
+    except IntegrityError:
+        # A concurrent accept of a *different* invitation for the same target
+        # and grantee committed first: the unique key is the arbiter, and its
+        # winner's row is the grant this acceptance binds to.
+        winner = await db.scalar(
+            select(AccessGrant).where(
+                AccessGrant.object_kind == invitation.object_kind,
+                AccessGrant.stable_id == invitation.stable_id,
+                AccessGrant.major == invitation.major,
+                AccessGrant.grantee_account_id == ctx.account_id,
+            )
+        )
+        if winner is None:
+            raise
+        invitation.state = "accepted"
+        invitation.accepted_grant_id = winner.id
+        await db.flush()
+        return grant_to_wire(winner)
     invitation.state = "accepted"
     invitation.accepted_grant_id = grant.id
     await emit_audit(

@@ -35,6 +35,7 @@ from ai_stp_platform.identity import (
 )
 from ai_stp_platform.models import (
     AccountAuthorVerification,
+    AuditEvent,
     CatalogMetadata,
     Device,
     EvidenceBinding,
@@ -46,6 +47,7 @@ from ai_stp_platform.models import (
     ValidationSnapshot,
 )
 from ai_stp_platform.queue.engine import enqueue
+from ai_stp_platform.queue.models import Job
 from ai_stp_platform.queue.states import JobType
 from ai_stp_platform.safety.artifact_fetch import (
     ArtifactBytesSource,
@@ -376,6 +378,65 @@ def snapshot_outcome(bindings: list[dict[str, Any]]) -> tuple[str, bool]:
     return "failed", False
 
 
+async def _record_refusal_snapshot(
+    session: AsyncSession, plan: PublicationPlan, reason: str
+) -> ValidationSnapshot:
+    """Write a permanent-failure snapshot and settle the plan.
+
+    Mirrors the failed tail of ``execute_validate``: the plan ends ``failed``,
+    the verdict is durable (snapshot + binding), and official-upstream attempts
+    are marked permanent so their ledger reconciles.
+    """
+    snapshot = ValidationSnapshot(
+        id=new_id("snapshot"),
+        plan_id=plan.id,
+        content_digest=plan.content_digest,
+        policy_version=plan.policy_version,
+        state="failed",
+        component_verified=False,
+    )
+    session.add(snapshot)
+    await session.flush()
+    session.add(
+        EvidenceBinding(
+            snapshot_id=snapshot.id,
+            check_id="plan_gate",
+            result="failed",
+            source="publication_executor",
+            mandatory=True,
+            family="gate",
+            reason=reason[:200],
+            expires_at=datetime.now(UTC) + EVIDENCE_TTL,
+        )
+    )
+    plan.state = "failed"
+    session.add(
+        AuditEvent(
+            actor_account_id=plan.actor_account_id,
+            actor_type="system",
+            action="publication.validate_refused",
+            target_table="publication_plan",
+            target_id=plan.id,
+            reason=reason,
+            outcome="failed",
+            payload={"stable_id": plan.stable_id, "version": plan.version},
+        )
+    )
+    official_attempts = (
+        await session.scalars(
+            select(OfficialUpstreamSync).where(OfficialUpstreamSync.plan_id == plan.id)
+        )
+    ).all()
+    for official_attempt in official_attempts:
+        official_attempt.state = "failed_permanent"
+        official_attempt.result = "failed"
+        official_attempt.error_code = "failed_validation"
+        official_attempt.error_class = "permanent"
+        official_attempt.completed_at = datetime.now(UTC)
+    await session.flush()
+    return snapshot
+
+
 async def execute_validate(
     session: AsyncSession,
     *,
@@ -406,10 +467,24 @@ async def execute_validate(
     )
     if existing is not None:
         return existing
+    if plan.state in {"failed", "cancelled", "stale"}:
+        # A late/retried job on a settled plan must not mutate it — settle a
+        # refusal snapshot so the verdict is durable instead of wedging.
+        return await _record_refusal_snapshot(
+            session, plan, f"plan is {plan.state} before validation ran"
+        )
 
+    from ai_stp_platform.github_client import GitHubError
     from ai_stp_platform.github_sources import bound_source
 
-    source_binding = await bound_source(session, plan)
+    try:
+        source_binding = await bound_source(session, plan)
+    except GitHubError as exc:
+        # Permanent binding mismatch — settle as a failed validation rather
+        # than dead-lettering the job while the plan stays "validating".
+        return await _record_refusal_snapshot(
+            session, plan, f"bound source refused validation: {exc}"
+        )
     bindings = run_platform_checks(
         passport=plan.passport,
         content_digest=plan.content_digest,
@@ -861,27 +936,106 @@ async def _persist_safety_run(session: AsyncSession, safety: Any) -> SafetyScanR
     return run
 
 
+async def _refuse_publish(session: AsyncSession, plan: PublicationPlan, reason: str) -> None:
+    """Settle a permanent publish refusal on the plan instead of raising.
+
+    A raised refusal rolls the handler transaction back and dead-letters the
+    job while the plan stays ``publish_planned`` forever — the wedge the
+    validate path never had because it settles failures on the plan itself.
+    Permanent preconditions (integrity, ownership, occupied version) cannot be
+    fixed by a retry, so the job completes and the plan carries the verdict.
+    """
+    plan.state = "failed"
+    session.add(
+        AuditEvent(
+            actor_account_id=plan.actor_account_id,
+            actor_type="system",
+            action="publication.publish_refused",
+            target_table="publication_plan",
+            target_id=plan.id,
+            reason=reason,
+            outcome="failed",
+            payload={"stable_id": plan.stable_id, "version": plan.version},
+        )
+    )
+    official_attempts = (
+        await session.scalars(
+            select(OfficialUpstreamSync).where(OfficialUpstreamSync.plan_id == plan.id)
+        )
+    ).all()
+    for official_attempt in official_attempts:
+        official_attempt.state = "failed_permanent"
+        official_attempt.result = "failed"
+        official_attempt.error_code = "publish_refused"
+        official_attempt.error_class = "permanent"
+        official_attempt.completed_at = datetime.now(UTC)
+    await session.flush()
+
+
+async def settle_dead_lettered_plan(session: AsyncSession, job: Job) -> None:
+    """Settle a plan whose validate/publish job exhausted retries.
+
+    A dead-lettered VALIDATE leaves the plan in ``validating`` and a
+    dead-lettered PUBLISH leaves it in ``publish_planned`` forever — no API
+    path re-drives either state. The durable verdict moves onto the plan so
+    the owner sees a terminal ``failed`` instead of silent limbo.
+    """
+    plan_id = job.payload.get("plan_id")
+    if not isinstance(plan_id, str):
+        return
+    plan = await session.get(PublicationPlan, plan_id)
+    if plan is None or plan.state in {"published", "failed", "cancelled", "stale"}:
+        return
+    reason = f"{job.job_type} job {job.id} dead-lettered"
+    if job.job_type == JobType.PUBLISH:
+        await _refuse_publish(session, plan, reason)
+    elif job.job_type == JobType.VALIDATE:
+        await _record_refusal_snapshot(session, plan, reason)
+
+
 async def execute_publish(
     session: AsyncSession,
     *,
     plan_id: str,
     store: ImmutableObjectStore | None = None,
-) -> CatalogMetadata:
-    """Materialize catalog version from a validated plan (idempotent)."""
+    now: datetime | None = None,
+) -> CatalogMetadata | None:
+    """Materialize catalog version from a validated plan (idempotent).
+
+    Returns ``None`` when the plan met a permanent refusal and was marked
+    ``failed``; transient problems (store unavailable, source fetch) still
+    raise so the queue retries them.
+    """
     plan = await session.get(PublicationPlan, plan_id)
     if plan is None:
         msg = f"unknown plan {plan_id}"
         raise ValueError(msg)
+    if plan.state in {"failed", "cancelled", "stale"}:
+        # A retried/late job must not mutate a refused or expired plan.
+        # "published" stays reachable: the republish branch below is the
+        # idempotent replay that returns the existing catalog metadata.
+        return None
+    now = now or datetime.now(UTC)
+    expires_at = getattr(plan, "expires_at", None)
+    if expires_at is not None and expires_at <= now:
+        await _refuse_publish(session, plan, "publication plan expired before publish")
+        return None
     plan_visibility = getattr(plan, "visibility", "private")
     if plan_visibility == "private" and plan.passport.get("visibility") == "public":
         # Rows created before 0052 did not have a plan visibility column.
         plan_visibility = "public"
-    from ai_stp_platform.github_client import GitHubClient
+    from ai_stp_platform.github_client import GitHubClient, GitHubError
     from ai_stp_platform.github_sources import bound_source, public_bound_source_bytes
 
-    source = await bound_source(session, plan)
-    if source is not None and plan_visibility == "public":
-        await public_bound_source_bytes(source, client=GitHubClient())
+    try:
+        source = await bound_source(session, plan)
+        if source is not None and plan_visibility == "public":
+            await public_bound_source_bytes(source, client=GitHubClient())
+    except GitHubError as exc:
+        # A bound-source mismatch (renamed/private/transferred repo) is
+        # permanent — settle it instead of dead-lettering into a wedged plan.
+        await _refuse_publish(session, plan, f"bound source refused publish: {exc}")
+        return None
     passport, invalid = validate_publication_passport(
         dict(plan.passport),
         object_kind=plan.object_kind,
@@ -893,8 +1047,12 @@ async def execute_publish(
         source_bound=source is not None,
     )
     if passport is None:
-        msg = f"publish passport failed integrity validation: {', '.join(invalid)}"
-        raise ValueError(msg)
+        await _refuse_publish(
+            session,
+            plan,
+            f"publish passport failed integrity validation: {', '.join(invalid)}",
+        )
+        return None
     if hasattr(plan, "expected_ownership_revision_id"):
         try:
             await assert_publication_owner(
@@ -905,7 +1063,8 @@ async def execute_publish(
                 object_kind=plan.object_kind,
             )
         except IdentityError as exc:
-            raise ValueError(exc.message) from exc
+            await _refuse_publish(session, plan, exc.message)
+            return None
     canonical_passport = passport.model_dump(mode="json")
     canonical_digest = passport_digest(passport)
 
@@ -914,20 +1073,27 @@ async def execute_publish(
         raise ValueError(msg)
     artifact_size = int(passport.artifact.size_bytes)
     artifact_key = store.key_for_digest(plan.content_digest, owner_account_id=plan.actor_account_id)
-    artifact_bytes = await store.read_by_digest(
-        plan.content_digest,
-        expected_size=artifact_size,
-        owner_account_id=plan.actor_account_id,
-    )
-    if artifact_bytes is None and plan_visibility == "public":
-        artifact_key = store.key_for_digest(plan.content_digest)
+    try:
         artifact_bytes = await store.read_by_digest(
             plan.content_digest,
             expected_size=artifact_size,
+            owner_account_id=plan.actor_account_id,
         )
+        if artifact_bytes is None and plan_visibility == "public":
+            # Public objects written before owner scoping live at the legacy
+            # unscoped key; the digest still verifies the bytes.
+            artifact_key = store.key_for_digest(plan.content_digest)
+            artifact_bytes = await store.read_by_digest(
+                plan.content_digest,
+                expected_size=artifact_size,
+            )
+    except ObjectIntegrityError as exc:
+        # Corrupt or wrong-size stored bytes cannot heal by retry — settle.
+        await _refuse_publish(session, plan, f"stored artifact failed integrity check: {exc}")
+        return None
     if artifact_bytes is None:
-        msg = "publish requires durable verified artifact bytes"
-        raise ValueError(msg)
+        await _refuse_publish(session, plan, "publish requires durable verified artifact bytes")
+        return None
 
     existing = await session.scalar(
         select(CatalogMetadata)
@@ -940,14 +1106,18 @@ async def execute_publish(
     )
     if existing is not None:
         if existing.owner_account_id != plan.actor_account_id:
-            msg = "the catalog version is owned by another account"
-            raise ValueError(msg)
+            await _refuse_publish(session, plan, "the catalog version is owned by another account")
+            return None
         if existing.passport_digest and existing.passport_digest != canonical_digest:
-            msg = "version already published with different digest"
-            raise ValueError(msg)
+            await _refuse_publish(session, plan, "version already published with different digest")
+            return None
         if existing.lifecycle_state == "draft" and existing.published_at is not None:
-            msg = "published catalog version cannot be rematerialized as a draft"
-            raise ValueError(msg)
+            await _refuse_publish(
+                session,
+                plan,
+                "published catalog version cannot be rematerialized as a draft",
+            )
+            return None
     if existing is not None and existing.lifecycle_state != "draft":
         if (
             existing.passport_digest != canonical_digest
@@ -955,8 +1125,12 @@ async def execute_publish(
             != canonize(cast(JsonValue, canonical_passport))
             or existing.published_at is None
         ):
-            msg = "published catalog version has incomplete immutable metadata"
-            raise ValueError(msg)
+            await _refuse_publish(
+                session,
+                plan,
+                "published catalog version has incomplete immutable metadata",
+            )
+            return None
         plan.state = "published"
         if plan.object_kind == "component":
             from ai_stp_platform.catalog_assessments import apply_component_verified
@@ -978,8 +1152,8 @@ async def execute_publish(
         select(ValidationSnapshot).where(ValidationSnapshot.plan_id == plan.id)
     )
     if snapshot is None or snapshot.state not in {"passed", "warning"}:
-        msg = "publish requires successful validation snapshot"
-        raise ValueError(msg)
+        await _refuse_publish(session, plan, "publish requires successful validation snapshot")
+        return None
 
     bindings = list(
         (
@@ -1043,7 +1217,10 @@ async def execute_publish(
                 ),
             )
         except IdentityError as exc:
-            raise ValueError(exc.message) from exc
+            # A canonical-name claim that landed between create and publish is
+            # permanent; settle like the ownership refusal above.
+            await _refuse_publish(session, plan, exc.message)
+            return None
     metadata = existing or CatalogMetadata(
         owner_account_id=plan.actor_account_id,
         object_kind=plan.object_kind,

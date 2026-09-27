@@ -12,6 +12,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any, cast
 
 from sqlalchemy import CursorResult, case, select, update
+from sqlalchemy import delete as sql_delete
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -213,6 +214,7 @@ async def fail(
     job: Job,
     *,
     error: str,
+    permanent: bool = False,
     now: datetime | None = None,
 ) -> None:
     """Record a failure: schedule a bounded retry or move to dead-letter."""
@@ -221,7 +223,7 @@ async def fail(
     job.last_error = error[:2000]
     job.locked_by = None
     job.locked_at = None
-    if job.attempts >= job.max_attempts:
+    if permanent or job.attempts >= job.max_attempts:
         job.state = JobState.DEAD_LETTER
     else:
         job.state = JobState.RETRY_SCHEDULED
@@ -335,6 +337,45 @@ async def requeue_stale(
     return count
 
 
+QUEUE_GC_RETENTION_DAYS = 30
+QUEUE_GC_BATCH_LIMIT = 5000
+
+
+async def gc_terminal_jobs(
+    session: AsyncSession,
+    *,
+    retention_days: int = QUEUE_GC_RETENTION_DAYS,
+    limit: int = QUEUE_GC_BATCH_LIMIT,
+    now: datetime | None = None,
+) -> int:
+    """Delete terminal job rows older than the retention window.
+
+    Terminal rows otherwise accumulate forever — succeeded SEO builds, daily
+    upstream syncs, dead letters — and payloads can carry personal data, so
+    growth is also a retention problem. Deletion is bounded per pass; the
+    daily sweep drains a backlog over successive days. A re-enqueue under a
+    GC'd idempotency key inserts a fresh row, which is the desired replay.
+    """
+    await set_tenant_scope(session, "*")
+    cutoff = (now or _now()) - timedelta(days=retention_days)
+    ids = (
+        await session.scalars(
+            select(Job.id)
+            .where(Job.state.in_(TERMINAL_STATES), Job.updated_at < cutoff)
+            .order_by(Job.updated_at)
+            .limit(limit)
+        )
+    ).all()
+    if not ids:
+        return 0
+    result = cast(
+        "CursorResult[Any]",
+        await session.execute(sql_delete(Job).where(Job.id.in_(ids))),
+    )
+    await session.flush()
+    return result.rowcount
+
+
 __all__ = [
     "TERMINAL_STATES",
     "TenantJobInvalid",
@@ -343,6 +384,7 @@ __all__ = [
     "claim",
     "enqueue",
     "fail",
+    "gc_terminal_jobs",
     "heartbeat",
     "mark_succeeded",
     "requeue_locked",

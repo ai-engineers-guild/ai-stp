@@ -141,6 +141,31 @@ async def require_onboarding_auth(
     )
 
 
+async def require_refresh_auth(
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    auth: Annotated[AuthSettings, Depends(get_auth_settings)],
+) -> AuthContext:
+    """Authenticate the device-refresh route, where a refresh session is valid.
+
+    Refresh-kind sessions answer `AUTH_REQUIRED` on every other route; here
+    both kinds are accepted so a session pair issued before `kind` existed
+    still refreshes.
+    """
+    bearer = _extract_bearer(request)
+    if bearer is None:
+        raise ApiError(ErrorCategory.AUTH_REQUIRED, "authentication required")
+    context = await verify_raw_token(
+        db,
+        bearer,
+        admin_account_ids=auth.admin_ids(),
+        via_cookie=False,
+        allow_refresh=True,
+    )
+    request.state.auth_context = context
+    return context
+
+
 def set_session_cookies(
     response: Response,
     *,

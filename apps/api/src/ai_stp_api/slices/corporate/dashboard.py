@@ -35,7 +35,7 @@ from ai_stp_foundation.timestamps import format_timestamp, parse_timestamp
 from ai_stp_platform.corporate_authorization import has_corporate_permission
 from ai_stp_platform.dashboard_models import CorporateCiCheck, CorporateDashboardView
 from ai_stp_platform.heartbeat_models import InstallationHeartbeat
-from ai_stp_platform.heartbeat_service import DEFAULT_STALE_AFTER, evaluate_health
+from ai_stp_platform.heartbeat_service import evaluate_health, organization_policy
 from ai_stp_platform.organization_models import (
     CorporateProject,
     CorporateTeam,
@@ -241,9 +241,20 @@ async def _visible_accounts(
     for account_id, team_id in team_rows:
         if team_id in allowed_teams:
             teams_by_account[account_id].append(team_id)
+    # Same member→organization fallback as service.authorize: an org-scoped
+    # telemetry.read grant sees every member, matching the heartbeat listing.
+    org_wide = superadmin or await has_corporate_permission(
+        db,
+        organization_id=organization_id,
+        principal_type="user",
+        principal_id=ctx.account_id,
+        permission="telemetry.read",
+        scope_kind="organization",
+        scope_id=organization_id,
+    )
     allowed_accounts: set[str] = set()
     for membership in memberships:
-        if superadmin or (
+        if org_wide or (
             membership.account_id in teams_by_account
             and await has_corporate_permission(
                 db,
@@ -266,6 +277,7 @@ async def _source_rows(
     query: DashboardQuery,
     now: datetime,
     account_ids: set[str],
+    stale_after: timedelta,
 ) -> list[dict[str, str]]:
     if not account_ids:
         return []
@@ -316,7 +328,7 @@ async def _source_rows(
         return [
             {
                 "state": evaluate_health(
-                    row.reported_state, row.received_at, now=now, stale_after=DEFAULT_STALE_AFTER
+                    row.reported_state, row.received_at, now=now, stale_after=stale_after
                 ),
                 "account": row.account_id,
                 "device": row.device_id,
@@ -358,7 +370,7 @@ async def _source_rows(
                     if row.received_at.tzinfo
                     else row.received_at.replace(tzinfo=UTC)
                 )
-                > DEFAULT_STALE_AFTER
+                > stale_after
                 and row.health != "disabled"
                 else row.health or "unknown"
             ),
@@ -406,12 +418,17 @@ async def query_dashboard(
         db, ctx=ctx, organization_id=organization_id, superadmin=superadmin
     )
     now = datetime.now(UTC)
+    # The heartbeat endpoints evaluate staleness against the organization's
+    # configured policy; the dashboard must agree or one tenant sees two
+    # different health verdicts for the same installation.
+    policy = await organization_policy(db, organization_id=organization_id)
     rows = await _source_rows(
         db,
         organization_id=organization_id,
         query=payload.query,
         now=now,
         account_ids=account_ids,
+        stale_after=timedelta(seconds=policy.stale_after_seconds),
     )
     # Project visibility is checked after the bounded read and before filtering or aggregation.
     if payload.query.dataset == "ci" and not superadmin:

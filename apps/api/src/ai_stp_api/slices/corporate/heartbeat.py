@@ -11,9 +11,10 @@ time; nothing here emits a runtime invocation event.
 from datetime import UTC, datetime, timedelta
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ai_stp_api.audit import emit_audit
 from ai_stp_api.deps import get_db, require_auth
 from ai_stp_api.errors import ApiError, ErrorCategory
 from ai_stp_api.session import AuthContext
@@ -32,6 +33,7 @@ from ai_stp_contracts.heartbeat import (
 from ai_stp_foundation.timestamps import format_timestamp, parse_timestamp
 from ai_stp_platform import heartbeat_service
 from ai_stp_platform.models import Device
+from ai_stp_platform.telemetry_privacy_service import record_privileged_access
 
 router = APIRouter(tags=["corporate"])
 
@@ -129,6 +131,7 @@ async def read_own_heartbeat(
 )
 async def list_heartbeats(
     organization_id: OrganizationId,
+    request: Request,
     ctx: Annotated[AuthContext, Depends(require_auth)],
     db: Annotated[AsyncSession, Depends(get_db)],
     health_state: Annotated[HeartbeatHealthState | None, Query()] = None,
@@ -140,13 +143,38 @@ async def list_heartbeats(
     policy = await heartbeat_service.organization_policy(db, organization_id=organization_id)
     stale_after = timedelta(seconds=policy.stale_after_seconds)
     views: list[InstallationHeartbeat] = []
+    foreign = 0
     for row in rows:
         if row.account_id == ctx.account_id or await _telemetry_read_allowed(
             db, ctx=ctx, organization_id=organization_id, member_account_id=row.account_id
         ):
             views.append(heartbeat_service.to_view(row, now=now, stale_after=stale_after))
+            foreign += int(row.account_id != ctx.account_id)
     if health_state is not None:
         views = [view for view in views if view.health_state == health_state]
+    if foreign:
+        # Reading other members' telemetry is a privileged operation: it takes
+        # the same platform + governance audit pair as the telemetry list.
+        request_id = getattr(request.state, "request_id", None)
+        await emit_audit(
+            db,
+            actor_account_id=ctx.account_id,
+            organization_id=organization_id,
+            action="telemetry.list",
+            target_table="installation_heartbeat",
+            target_id=organization_id,
+            request_id=request_id,
+        )
+        await record_privileged_access(
+            db,
+            organization_id=organization_id,
+            actor_account_id=ctx.account_id,
+            action="telemetry.list",
+            target_table="installation_heartbeat",
+            target_id=organization_id,
+            request_id=request_id,
+            detail={"returned": len(views), "foreign": foreign},
+        )
     return InstallationHeartbeatList(
         organization_id=organization_id,
         evaluated_at=format_timestamp(now),
@@ -169,6 +197,10 @@ async def _telemetry_read_allowed(
             scope_kind="member",
             scope_id=member_account_id,
         )
-    except ApiError:
+    except ApiError as denied:
+        # A backend failure must not masquerade as "not allowed" — only a real
+        # permission verdict narrows the listing.
+        if denied.category is not ErrorCategory.PERMISSION:
+            raise
         return False
     return True

@@ -22,6 +22,8 @@ from ai_stp_contracts.public_profile import (
     public_projection,
     validate_avatar_upload,
 )
+from ai_stp_foundation.canonical import JsonValue
+from ai_stp_foundation.digests import digest_canonical
 from ai_stp_platform.models import (
     AccountAuthorVerification,
     AvatarAsset,
@@ -253,8 +255,19 @@ async def publish_profile(
     expected_digest: str,
     idempotency_key: str,
 ) -> dict[str, Any]:
-    del idempotency_key
-    profile = await ensure_profile(db, account_id)
+    await ensure_profile(db, account_id)
+    profile = await db.get(PublicProfile, account_id, with_for_update=True)
+    if profile is None:
+        raise ApiError(ErrorCategory.NOT_FOUND, "profile not found")
+    fingerprint = digest_canonical(
+        "ai-stp:profile-publish:v1",
+        cast(JsonValue, {"account_id": account_id, "expected_digest": expected_digest}),
+    )
+    if profile.last_publish_key == idempotency_key:
+        if profile.last_publish_fingerprint != fingerprint:
+            raise ApiError(ErrorCategory.CONFLICT, "idempotency key belongs to another request")
+        if profile.last_publish_response is not None:
+            return dict(profile.last_publish_response)
     if not profile.draft_revision_id:
         raise ApiError(ErrorCategory.VALIDATION, "no draft to publish")
     draft = await db.get(ProfileRevision, profile.draft_revision_id)
@@ -270,33 +283,36 @@ async def publish_profile(
                 old.lifecycle = "superseded"
         profile.published_revision_id = None
         profile.draft_revision_id = None
-        await db.flush()
-        return {
+        body = {
             "schema_version": 1,
             "operation_id": _new_id("op"),
             "published": False,
             "account_id": account_id,
         }
-
-    if profile.published_revision_id:
-        old = await db.get(ProfileRevision, profile.published_revision_id)
-        if old is not None:
-            old.lifecycle = "superseded"
-    draft.lifecycle = "published"
-    profile.published_revision_id = draft.id
-    profile.draft_revision_id = None
+    else:
+        if profile.published_revision_id:
+            old = await db.get(ProfileRevision, profile.published_revision_id)
+            if old is not None:
+                old.lifecycle = "superseded"
+        draft.lifecycle = "published"
+        profile.published_revision_id = draft.id
+        profile.draft_revision_id = None
+        body = {
+            "schema_version": 1,
+            "operation_id": _new_id("op"),
+            "published": True,
+            "content_digest": draft.content_digest,
+            "projection": public_projection(
+                account_id=account_id,
+                fields=fields,
+                avatar_public_url=await _avatar_url(db, fields.avatar_asset_id),
+            ),
+        }
+    profile.last_publish_key = idempotency_key
+    profile.last_publish_fingerprint = fingerprint
+    profile.last_publish_response = body
     await db.flush()
-    return {
-        "schema_version": 1,
-        "operation_id": _new_id("op"),
-        "published": True,
-        "content_digest": draft.content_digest,
-        "projection": public_projection(
-            account_id=account_id,
-            fields=fields,
-            avatar_public_url=await _avatar_url(db, fields.avatar_asset_id),
-        ),
-    }
+    return body
 
 
 async def create_avatar_from_bytes(

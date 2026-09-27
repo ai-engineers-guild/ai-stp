@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Final
 
 from ai_stp_cli import config, heartbeat, identity
+from ai_stp_cli.cloud import login as cloud_login
 from ai_stp_cli.cloud import session as cloud_session
 from ai_stp_cli.cloud.client import Endpoint, call, open_client
 from ai_stp_cli.cloud.session import Session
@@ -24,7 +25,6 @@ from ai_stp_cli.local import provider_installations
 from ai_stp_cli.local.database import configured_path, open_readonly, open_registry
 from ai_stp_cli.runtime import cli_version
 from ai_stp_cli.secrets import open_store
-from ai_stp_contracts.auth import DeviceRefreshRequest, DeviceTokenResponse, device_refresh_message
 from ai_stp_contracts.heartbeat import (
     DEFAULT_HEARTBEAT_RETRY_BASE_SECONDS,
     DEFAULT_HEARTBEAT_RETRY_MAX_SECONDS,
@@ -49,41 +49,7 @@ def _scheduled_session(target: Endpoint) -> Session:
         raise CliFailure("AI_STP_AUTH_REQUIRED", "the enrolled device must sign in again")
     if parse_timestamp(held.expires_at) > datetime.now(UTC) + timedelta(hours=12):
         return held
-    signer, _warning = identity.load_or_create()
-    if signer.device_id != held.device_id:
-        raise CliFailure("AI_STP_DEVICE_REVOKED", "the enrolled device key has changed")
-    unsigned = DeviceRefreshRequest(
-        device_id=held.device_id,
-        checked_at=format_timestamp(datetime.now(UTC)),
-        signature="A" * 86,
-    )
-    signature = (
-        base64.urlsafe_b64encode(signer.sign(device_refresh_message(unsigned)))
-        .rstrip(b"=")
-        .decode("ascii")
-    )
-    with open_client(
-        target, access_token=held.refresh_token, timeout=AUTO_TIMEOUT_SECONDS
-    ) as client:
-        renewed = call(
-            client,
-            "POST",
-            "/auth/device/refresh",
-            DeviceTokenResponse,
-            body=unsigned.model_copy(update={"signature": signature}),
-            attempts=2,
-        )
-    if renewed.account_id != held.account_id or renewed.device_id != held.device_id:
-        raise CliFailure("AI_STP_VALIDATION_ERROR", "renewal changed the enrolled device")
-    updated = Session(
-        account_id=held.account_id,
-        device_id=held.device_id,
-        access_token=renewed.access_token,
-        refresh_token=renewed.refresh_token,
-        expires_at=cloud_session.expiry(renewed.expires_in),
-    )
-    cloud_session.save(store, updated)
-    return updated
+    return cloud_login.renew(target, held, timeout=AUTO_TIMEOUT_SECONDS, attempts=2)
 
 
 def collect_capabilities(extra: Iterable[str] = (), *, base: list[str] | None = None) -> list[str]:

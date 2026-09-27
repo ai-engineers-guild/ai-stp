@@ -143,6 +143,65 @@ async def test_the_list_filters_by_object_kind(
 
 
 @pytest.mark.asyncio
+async def test_the_list_pages_through_every_object_and_stops(
+    db_api_client: tuple[AsyncClient, async_sessionmaker[AsyncSession], Settings],
+) -> None:
+    """Truncation without a continuation is the defect this guards."""
+    client, sessionmaker, _settings = db_api_client
+    owner_id, token = await _account_with_session(sessionmaker)
+    seeded = {await _own_version(sessionmaker, owner_id=owner_id) for _ in range(3)}
+
+    seen: list[str] = []
+    cursor: str | None = None
+    for _ in range(10):
+        url = "/v1/owner/objects?page_size=1"
+        if cursor is not None:
+            url += f"&cursor={cursor}"
+        page = await client.get(url, headers=_auth(token))
+        assert page.status_code == 200, page.text
+        body = page.json()
+        seen.extend(item["stable_id"] for item in body["items"])
+        cursor = body["page"]["next_cursor"]
+        if cursor is None:
+            break
+    else:
+        raise AssertionError("pagination never terminated")
+
+    assert set(seen) == seeded
+    assert len(seen) == len(seeded), "an object was returned twice across pages"
+    assert cursor is None
+
+
+@pytest.mark.asyncio
+async def test_a_tampered_or_foreign_filter_cursor_is_refused(
+    db_api_client: tuple[AsyncClient, async_sessionmaker[AsyncSession], Settings],
+) -> None:
+    client, sessionmaker, _settings = db_api_client
+    owner_id, token = await _account_with_session(sessionmaker)
+    await _own_version(sessionmaker, owner_id=owner_id, object_kind="component")
+    await _own_version(sessionmaker, owner_id=owner_id, object_kind="component")
+
+    first = await client.get(
+        "/v1/owner/objects?page_size=1&object_kind=component", headers=_auth(token)
+    )
+    assert first.status_code == 200, first.text
+    cursor = first.json()["page"]["next_cursor"]
+    assert cursor is not None
+
+    tampered = await client.get(
+        "/v1/owner/objects?page_size=1&cursor=" + cursor[:-4] + "AAAA",
+        headers=_auth(token),
+    )
+    assert tampered.status_code == 400
+
+    crossed = await client.get(
+        f"/v1/owner/objects?page_size=1&object_kind=setup&cursor={cursor}",
+        headers=_auth(token),
+    )
+    assert crossed.status_code == 400, "a cursor must stay bound to its filter"
+
+
+@pytest.mark.asyncio
 async def test_an_owner_reads_their_own_object_and_version(
     db_api_client: tuple[AsyncClient, async_sessionmaker[AsyncSession], Settings],
 ) -> None:
