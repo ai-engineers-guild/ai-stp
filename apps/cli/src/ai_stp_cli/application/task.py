@@ -99,7 +99,12 @@ def missing_answer_hint(task_id: str | None = None) -> CliFailure | None:
                 rows = () if row is None else (row,)
             else:
                 rows = agent_tasks.unsettled(connection)
-    except CliFailure:
+    except (CliFailure, OSError, ValueError, sqlite3.Error):
+        # This runs inside `main`'s ClickException handler, where a second
+        # exception leaves the process without any envelope — measured:
+        # `config.yaml` as a directory escaped as an `IsADirectoryError`
+        # traceback. A hint decorates a failure already in flight; no hint is
+        # always a legal answer, whatever broke the lookup.
         return None
     if len(rows) > 1:
         return CliFailure(
