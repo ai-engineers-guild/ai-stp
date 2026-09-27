@@ -19,7 +19,7 @@ def test_replacement_identity_does_not_execute_an_unmatched_provider(
     executable = tmp_path / "unmatched-provider"
     executable.write_bytes(b"untrusted executable bytes")
 
-    def must_not_run(_path: Path) -> object:
+    def must_not_run(_path: Path, **_kwargs: object) -> object:
         raise AssertionError("replacement inspection must not execute unverified bytes")
 
     monkeypatch.setattr(attested_bind, "inspect_provider", must_not_run)

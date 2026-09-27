@@ -334,7 +334,7 @@ lock is `state=refused` with `reason=stale` (no effect) or `state=stale`. A
 mismatched or expired plan has no effect. A timeout/malformed response after a
 possible effect yields `partial` without automatic retry. After install, `status`
 proves `state=managed`, `target_digest`, protocol/provider identity, and drift
-`clean` or `verified`; nested `provider_state` is allowed.
+`clean`; nested `provider_state` is allowed.
 
 Before the first write, the provider publishes a target-local durable journal in
 phase `prepared`, bound to the exact plan digest, operation ID, and target-bound

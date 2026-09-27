@@ -972,10 +972,19 @@ def _v3_test_invoker(
 
     def provider_status() -> JsonValue:
         if state["recovery_state"]:
+            # The wire says "recovery owed" through `cleanup_state`, never
+            # through `state` — that enum is `managed|unmanaged|missing` and a
+            # provider mid-transaction still answers what the directory is.
+            held = cast(dict[str, JsonValue], state["plan"])
             return {
-                "state": state["recovery_state"],
-                "recovery_phase": "prepared",
-                "target_digest": TARGET_AFTER,
+                "state": "missing",
+                "target_digest": TARGET,
+                "cleanup_state": "required",
+                "journal": {
+                    "phase": "prepared",
+                    "operation": "install",
+                    "operation_id": held["operation_id"],
+                },
             }
         if not state["installed"]:
             return {"state": "missing", "target_digest": TARGET}
@@ -984,7 +993,7 @@ def _v3_test_invoker(
         answer: dict[str, JsonValue] = {
             "state": "managed",
             "target_digest": TARGET_AFTER,
-            "drift_state": "verified",
+            "drift_state": "clean",
             "protocol_version": protocol_v3.VERSION,
             "provider_id": "claude-setup-system",
             "provider_version": "3.0.0",

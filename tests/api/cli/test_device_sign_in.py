@@ -307,6 +307,66 @@ def test_concurrent_exchanges_mint_exactly_one_credential_pair(
     assert refused[0].category == ErrorCategory.AUTHORIZATION_EXPIRED
 
 
+def test_concurrent_approvals_bind_exactly_one_account(
+    cli_server: SyncAsgiServer,
+    cli_endpoint: Endpoint,
+    web_approver: ApproverFactory,
+) -> None:
+    """Two approvers who both see `pending` must not both bind the grant.
+
+    The `pending → approved` transition is claimed in one conditional UPDATE,
+    the same reason the `approved → consumed` claim is — two reads cannot
+    serialize each other, and the loser used to overwrite the winner's
+    `account_id`, handing a device session to the wrong account.
+    """
+    import asyncio
+
+    from sqlalchemy import select
+
+    from ai_stp_api.errors import ApiError, ErrorCategory
+    from ai_stp_api.slices.auth.device_flow import approve_device_authorization
+
+    first, second = web_approver(), web_approver()
+    started = login.start(cli_endpoint, "github")
+
+    async def attempt(account_id: str) -> DeviceAuthorization | ApiError:
+        async with cli_server.app.state.sessionmaker() as db:
+            try:
+                row = await approve_device_authorization(
+                    db, user_code=started.user_code, account_id=account_id
+                )
+                await db.commit()
+            except ApiError as error:
+                await db.rollback()
+                return error
+            return row
+
+    async def race() -> tuple[DeviceAuthorization | ApiError, DeviceAuthorization | ApiError]:
+        return await asyncio.gather(attempt(first.account_id), attempt(second.account_id))
+
+    outcomes = cli_server.call(race)
+    bound = [outcome for outcome in outcomes if isinstance(outcome, DeviceAuthorization)]
+    refused = [outcome for outcome in outcomes if isinstance(outcome, ApiError)]
+    assert len(bound) == 1, "exactly one approver may bind the grant"
+    assert len(refused) == 1
+    assert refused[0].category == ErrorCategory.CONFLICT
+
+    async def final_account() -> str:
+        async with cli_server.app.state.sessionmaker() as db:
+            row = (
+                await db.execute(
+                    select(DeviceAuthorization).where(
+                        DeviceAuthorization.user_code == started.user_code
+                    )
+                )
+            ).scalar_one()
+            return str(row.account_id)
+
+    # The bound grant belongs to the winner — the loser's write did not land
+    # over it after the commit.
+    assert cli_server.call(final_account) == bound[0].account_id
+
+
 def test_a_pending_answer_keeps_the_pending_record(
     cli_endpoint: Endpoint,
     web_approver: ApproverFactory,

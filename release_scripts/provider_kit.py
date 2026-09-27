@@ -54,7 +54,11 @@ KIT_IDENTITY_SCHEMA: Final[str] = "ai-stp-provider-kit-identity/1"
 #: (`#273`). No provider declares the operation or emits the member yet — this
 #: release is what lets one do so without older consumers refusing the whole
 #: `provider-info` or `status` answer.
-KIT_VERSION: Final[str] = "0.2.14"
+#: 0.2.15 opens `status` to the optional `authorization` member the contract
+#: and ADR-0052 always documented — the parser accepted it while the schema
+#: refused it, so the schema now names what the parser reads (ADR-0125,
+#: reader first, again).
+KIT_VERSION: Final[str] = "0.2.15"
 
 #: The kit's only artifact with no source to re-derive it from, and therefore
 #: the exact limit of what `--check` can see. Everything else here is rendered

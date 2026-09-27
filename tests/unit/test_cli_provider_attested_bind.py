@@ -104,7 +104,7 @@ class _Github:
 def _inspect(harness_id: str = "pi") -> Callable[[Path], protocol_v3.ProviderCapabilities]:
     payload = _info(harness_id=harness_id)
 
-    def inspect(executable: Path) -> protocol_v3.ProviderCapabilities:
+    def inspect(executable: Path, **_kwargs: object) -> protocol_v3.ProviderCapabilities:
         assert executable.is_file()
         return protocol_v3.parse_capabilities(payload)
 
@@ -175,7 +175,7 @@ def test_fetch_writes_a_closed_manifest_after_attestation(
     _attest(monkeypatch, order)
     payload = _info()
 
-    def inspect(executable: Path) -> protocol_v3.ProviderCapabilities:
+    def inspect(executable: Path, **_kwargs: object) -> protocol_v3.ProviderCapabilities:
         order.append("inspect")
         return protocol_v3.parse_capabilities(payload)
 
@@ -246,7 +246,7 @@ def test_provider_fetch_command_binds_into_the_named_directory(
     _attest(monkeypatch)
     payload = _info()
 
-    def inspect(executable: Path) -> protocol_v3.ProviderCapabilities:
+    def inspect(executable: Path, **_kwargs: object) -> protocol_v3.ProviderCapabilities:
         return protocol_v3.parse_capabilities(payload)
 
     monkeypatch.setattr(attested_bind, "GithubReleases", lambda: _Github())
@@ -271,7 +271,7 @@ def test_provider_fetch_names_the_bind_step_while_unbound(
     payload = _info()
     monkeypatch.setattr(attested_bind, "GithubReleases", lambda: _Github())
 
-    def inspect(executable: Path) -> protocol_v3.ProviderCapabilities:
+    def inspect(executable: Path, **_kwargs: object) -> protocol_v3.ProviderCapabilities:
         return protocol_v3.parse_capabilities(payload)
 
     monkeypatch.setattr(attested_bind, "inspect_provider", inspect)
@@ -290,7 +290,7 @@ def test_provider_fetch_stays_quiet_once_bound(
     payload = _info()
     monkeypatch.setattr(attested_bind, "GithubReleases", lambda: _Github())
 
-    def inspect(executable: Path) -> protocol_v3.ProviderCapabilities:
+    def inspect(executable: Path, **_kwargs: object) -> protocol_v3.ProviderCapabilities:
         return protocol_v3.parse_capabilities(payload)
 
     monkeypatch.setattr(attested_bind, "inspect_provider", inspect)
