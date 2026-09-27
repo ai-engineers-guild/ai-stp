@@ -103,6 +103,7 @@ export const UI = {
     button: "ui-button",
     badge: "ui-badge",
     input: "ui-input",
+    switch: "ui-switch",
     textarea: "ui-textarea",
     dialog: "ui-dialog",
     statePanel: "state-panel",

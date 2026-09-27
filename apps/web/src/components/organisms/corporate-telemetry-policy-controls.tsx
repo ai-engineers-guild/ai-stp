@@ -4,20 +4,21 @@ import { useRef } from "react";
 import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/atoms/button";
-import { Input } from "@/components/atoms/input";
-import { Label } from "@/components/atoms/label";
-import { Textarea } from "@/components/atoms/textarea";
 import {
   useGovernanceMutation,
   type GovernanceAuthority,
 } from "@/components/organisms/corporate-governance-controls";
+import {
+  AdvancedDisclosure,
+  PresetCadenceField,
+  PrivacyReportingSection,
+  SwitchRow,
+  UnitSecondsField,
+} from "@/components/organisms/corporate-telemetry-policy-fields";
 import type {
   CorporateTelemetryPolicyRequest,
   CorporateTelemetryPolicyView,
 } from "@/lib/api/generated/types.gen";
-
-const selectClass =
-  "border-input bg-background text-foreground focus-visible:ring-ring h-11 w-full rounded-sm border px-3 text-sm focus-visible:ring-2";
 
 type BooleanFieldDef = {
   id: string;
@@ -31,114 +32,47 @@ type BooleanFieldDef = {
     | "inventoryScanReporting"
     | "usageCollectionReporting"
     | "usageRegistrationRequired";
+  hintKey?:
+    "heartbeatEnabledHint" | "inventoryScanHint" | "usageCollectionHint" | "usageRegistrationHint";
   fallback: boolean;
 };
 
-const BOOLEAN_FIELDS_SINGLE: readonly BooleanFieldDef[] = [
-  {
-    id: "heartbeat-enabled",
-    name: "heartbeat_enabled",
-    labelKey: "heartbeatReporting",
-    fallback: true,
-  },
-  {
-    id: "inventory-scan-enabled",
-    name: "inventory_scan_enabled",
-    labelKey: "inventoryScanReporting",
-    fallback: false,
-  },
-];
+const HEARTBEAT_TOGGLE: BooleanFieldDef = {
+  id: "heartbeat-enabled",
+  name: "heartbeat_enabled",
+  labelKey: "heartbeatReporting",
+  hintKey: "heartbeatEnabledHint",
+  fallback: true,
+};
 
-const BOOLEAN_FIELDS_GRID: readonly BooleanFieldDef[] = [
+const INVENTORY_TOGGLE: BooleanFieldDef = {
+  id: "inventory-scan-enabled",
+  name: "inventory_scan_enabled",
+  labelKey: "inventoryScanReporting",
+  hintKey: "inventoryScanHint",
+  fallback: false,
+};
+
+const USAGE_TOGGLES: readonly BooleanFieldDef[] = [
   {
     id: "usage-collection-enabled",
     name: "usage_collection_enabled",
     labelKey: "usageCollectionReporting",
+    hintKey: "usageCollectionHint",
     fallback: false,
   },
   {
     id: "usage-registration-required",
     name: "usage_registration_required",
     labelKey: "usageRegistrationRequired",
+    hintKey: "usageRegistrationHint",
     fallback: false,
   },
 ];
 
-// Cadence is stored and submitted in seconds; the form displays friendlier
-// units (minutes / hours). `unit` is the seconds multiplier for one input step.
-const CADENCE_FIELDS = [
-  {
-    id: "heartbeat-interval",
-    name: "heartbeat_interval_seconds",
-    labelKey: "heartbeatIntervalMinutes",
-    unit: 60,
-    min: 1,
-    max: 43200,
-    fallback: 21600,
-  },
-  {
-    id: "heartbeat-stale",
-    name: "heartbeat_stale_after_seconds",
-    labelKey: "heartbeatStaleHours",
-    unit: 3600,
-    min: 1,
-    max: 8760,
-    fallback: 86400,
-  },
-] as const;
-
-const ADVANCED_CADENCE_FIELDS = [
-  {
-    id: "heartbeat-retry-base",
-    name: "heartbeat_retry_base_seconds",
-    labelKey: "heartbeatRetryBaseSeconds",
-    unit: 1,
-    min: 30,
-    max: 86400,
-    fallback: 60,
-  },
-  {
-    id: "heartbeat-retry-max",
-    name: "heartbeat_retry_max_seconds",
-    labelKey: "heartbeatRetryMaxMinutes",
-    unit: 60,
-    min: 1,
-    max: 10080,
-    fallback: 3600,
-  },
-] as const;
-
-function BooleanSelectField({
-  id,
-  name,
-  label,
-  value,
-  disabled,
-  t,
-}: {
-  id: string;
-  name: string;
-  label: string;
-  value: boolean;
-  disabled: boolean;
-  t: (key: string) => string;
-}) {
-  return (
-    <div className="space-y-2">
-      <Label htmlFor={id}>{label}</Label>
-      <select
-        id={id}
-        name={name}
-        defaultValue={String(value)}
-        className={selectClass}
-        disabled={disabled}
-      >
-        <option value="true">{t("heartbeatEnabled")}</option>
-        <option value="false">{t("heartbeatDisabled")}</option>
-      </select>
-    </div>
-  );
-}
+// Presets are display conveniences; the submitted value stays in seconds.
+const HEARTBEAT_INTERVAL_PRESETS = [60, 300, 900, 3600, 21600, 86400] as const;
+const HEARTBEAT_STALE_PRESETS = [3600, 21600, 86400, 259200, 604800] as const;
 
 function TelemetryPolicyFields({
   policy,
@@ -148,136 +82,85 @@ function TelemetryPolicyFields({
   disabled: boolean;
 }) {
   const t = useTranslations("technology");
-  const toggle = (field: BooleanFieldDef | undefined) =>
-    field && (
-      <BooleanSelectField
-        key={field.name}
-        id={field.id}
-        name={field.name}
-        label={t(field.labelKey)}
-        value={policy?.[field.name] ?? field.fallback}
-        disabled={disabled}
-        t={t}
-      />
-    );
-  const cadenceField = (field: {
-    id: string;
-    name:
-      | "heartbeat_interval_seconds"
-      | "heartbeat_stale_after_seconds"
-      | "heartbeat_retry_base_seconds"
-      | "heartbeat_retry_max_seconds";
-    labelKey: string;
-    unit: number;
-    min: number;
-    max: number;
-    fallback: number;
-  }) => (
-    <div key={field.name} className="space-y-2">
-      <Label htmlFor={field.id}>{t(field.labelKey)}</Label>
-      <Input
-        id={field.id}
-        name={field.name}
-        type="number"
-        min={field.min}
-        max={field.max}
-        required
-        defaultValue={Math.round((policy?.[field.name] ?? field.fallback) / field.unit)}
-        disabled={disabled}
-      />
-    </div>
+  const toggle = (field: BooleanFieldDef) => (
+    <SwitchRow
+      key={field.name}
+      id={field.id}
+      name={field.name}
+      label={t(field.labelKey)}
+      hint={field.hintKey ? t(field.hintKey) : undefined}
+      value={policy?.[field.name] ?? field.fallback}
+      disabled={disabled}
+    />
   );
   return (
     <>
       <section className="border-border space-y-4 border-t pt-4">
         <h3 className="text-sm font-medium">{t("sectionDeviceHeartbeat")}</h3>
-        {toggle(BOOLEAN_FIELDS_SINGLE[0])}
-        <div className="grid gap-4 sm:grid-cols-2">{CADENCE_FIELDS.map(cadenceField)}</div>
-        <details className="border-border rounded-md border px-4 py-3">
-          <summary className="text-muted-foreground cursor-pointer text-sm font-medium">
-            {t("advanced")}
-          </summary>
-          <div className="mt-4 grid gap-4 sm:grid-cols-2">
-            {ADVANCED_CADENCE_FIELDS.map(cadenceField)}
+        {toggle(HEARTBEAT_TOGGLE)}
+        <div className="grid gap-4 sm:grid-cols-2">
+          <PresetCadenceField
+            id="heartbeat-interval"
+            name="heartbeat_interval_seconds"
+            label={t("heartbeatInterval")}
+            hint={t("heartbeatIntervalHint")}
+            presets={HEARTBEAT_INTERVAL_PRESETS}
+            seconds={policy?.heartbeat_interval_seconds ?? 21600}
+            customUnit={60}
+            customLabelKey="customIntervalMinutes"
+            customMin={1}
+            customMax={43200}
+            disabled={disabled}
+            t={t}
+          />
+          <PresetCadenceField
+            id="heartbeat-stale"
+            name="heartbeat_stale_after_seconds"
+            label={t("heartbeatStale")}
+            hint={t("heartbeatStaleHint")}
+            presets={HEARTBEAT_STALE_PRESETS}
+            seconds={policy?.heartbeat_stale_after_seconds ?? 86400}
+            customUnit={3600}
+            customLabelKey="customStaleHours"
+            customMin={1}
+            customMax={8760}
+            disabled={disabled}
+            t={t}
+          />
+        </div>
+        <AdvancedDisclosure title={t("advanced")}>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <UnitSecondsField
+              id="heartbeat-retry-base"
+              name="heartbeat_retry_base_seconds"
+              label={t("heartbeatRetryBaseSeconds")}
+              hint={t("heartbeatRetryBaseHint")}
+              seconds={policy?.heartbeat_retry_base_seconds ?? 60}
+              unit={1}
+              min={30}
+              max={86400}
+              disabled={disabled}
+            />
+            <UnitSecondsField
+              id="heartbeat-retry-max"
+              name="heartbeat_retry_max_seconds"
+              label={t("heartbeatRetryMaxMinutes")}
+              hint={t("heartbeatRetryMaxHint")}
+              seconds={policy?.heartbeat_retry_max_seconds ?? 3600}
+              unit={60}
+              min={1}
+              max={10080}
+              disabled={disabled}
+            />
           </div>
-        </details>
+        </AdvancedDisclosure>
       </section>
       <section className="border-border space-y-4 border-t pt-4">
         <h3 className="text-sm font-medium">{t("sectionInventoryUsage")}</h3>
-        {toggle(BOOLEAN_FIELDS_SINGLE[1])}
-        <div className="grid gap-4 sm:grid-cols-2">{BOOLEAN_FIELDS_GRID.map(toggle)}</div>
+        {toggle(INVENTORY_TOGGLE)}
+        <div className="space-y-4">{USAGE_TOGGLES.map(toggle)}</div>
       </section>
-      <section className="border-border space-y-4 border-t pt-4">
-        <h3 className="text-sm font-medium">{t("sectionPrivacyReporting")}</h3>
-        <div className="space-y-2">
-          <Label htmlFor="telemetry-legal-basis">{t("telemetryLegalBasis")}</Label>
-          <select
-            id="telemetry-legal-basis"
-            name="legal_basis"
-            required
-            defaultValue={policy?.legal_basis ?? ""}
-            className={selectClass}
-          >
-            <option value="" disabled>
-              {t("chooseTelemetryLegalBasis")}
-            </option>
-            <option value="consent">{t("telemetryBasisConsent")}</option>
-            <option value="contract">{t("telemetryBasisContract")}</option>
-            <option value="legitimate_interest">{t("telemetryBasisLegitimateInterest")}</option>
-          </select>
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="telemetry-notice">{t("telemetryNotice")}</Label>
-          <Textarea
-            id="telemetry-notice"
-            name="notice_text"
-            maxLength={4000}
-            defaultValue={policy?.notice_text ?? ""}
-            disabled={disabled}
-          />
-        </div>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-2">
-            <Label htmlFor="telemetry-raw-retention">{t("telemetryRawRetention")}</Label>
-            <Input
-              id="telemetry-raw-retention"
-              name="raw_retention_days"
-              type="number"
-              min={1}
-              max={3650}
-              required
-              defaultValue={policy?.raw_retention_days ?? 90}
-              disabled={disabled}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="telemetry-aggregate-retention">
-              {t("telemetryAggregateRetention")}
-            </Label>
-            <Input
-              id="telemetry-aggregate-retention"
-              name="aggregate_retention_days"
-              type="number"
-              min={1}
-              max={3650}
-              required
-              defaultValue={policy?.aggregate_retention_days ?? 365}
-              disabled={disabled}
-            />
-          </div>
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="report-timezone">{t("reportTimezone")}</Label>
-          <Input
-            id="report-timezone"
-            name="report_timezone"
-            required
-            maxLength={64}
-            defaultValue={policy?.report_timezone ?? "UTC"}
-            disabled={disabled}
-          />
-        </div>
-      </section>
+      <PrivacyReportingSection policy={policy} disabled={disabled} t={t} />
     </>
   );
 }
@@ -335,10 +218,10 @@ function parseTelemetryForm(data: FormData): ParsedTelemetryForm | null {
 
   const rawRetention = number("raw_retention_days");
   const aggregateRetention = number("aggregate_retention_days");
-  const interval = number("heartbeat_interval_seconds") * 60;
+  const interval = number("heartbeat_interval_seconds");
   const retryBase = number("heartbeat_retry_base_seconds");
-  const retryMax = number("heartbeat_retry_max_seconds") * 60;
-  const staleAfter = number("heartbeat_stale_after_seconds") * 3600;
+  const retryMax = number("heartbeat_retry_max_seconds");
+  const staleAfter = number("heartbeat_stale_after_seconds");
 
   if (
     ![rawRetention, aggregateRetention, interval, retryBase, retryMax, staleAfter].every(
