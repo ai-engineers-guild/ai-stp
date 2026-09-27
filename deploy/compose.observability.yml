@@ -1,11 +1,11 @@
 # Optional local OpenObserve profile for #187. It is intentionally not included
-# by docker-compose.prod.yml, so the product remains runnable without it.
+# by deploy/compose.prod.yml, so the product remains runnable without it.
 services:
   openobserve:
     # Required value must be an owner-approved immutable image digest.
     image: ${AI_STP_OPENOBSERVE_IMAGE:?set an immutable OpenObserve image digest}
     env_file:
-      - path: .env.prod
+      - path: ../.env.prod
         required: false
     environment:
       ZO_NODE_ROLE: all

@@ -468,7 +468,7 @@ def test_the_images_resolve_the_lockfile_with_the_uv_every_gate_installs() -> No
     assert len(installed) == 1, f"workflows install more than one uv: {sorted(installed)}"
     expected = installed.pop()
 
-    dockerfiles = sorted(Path().glob("Dockerfile*"))
+    dockerfiles = sorted(Path("deploy/docker").glob("Dockerfile*"))
     assert dockerfiles, "no Dockerfile found"
     seen = 0
     for path in dockerfiles:
@@ -483,7 +483,7 @@ def test_the_images_resolve_the_lockfile_with_the_uv_every_gate_installs() -> No
             assert f":{expected}@" in reference, (
                 f"{path} pins uv {reference.split('@')[0]}, gates install uv=={expected}"
             )
-    assert seen >= 3, f"expected every image to pin uv, found {seen} references"
+    assert seen >= 2, f"expected every image to pin uv, found {seen} references"
 
 
 def test_platform_evidence_stays_manual_and_can_neither_publish_nor_deploy() -> None:
@@ -577,7 +577,7 @@ def test_the_worker_apparmor_profile_allows_userns_and_is_loaded_before_compose(
     assert "profile ai-stp-worker" in rules
     assert "userns," in rules
     assert "unconfined" not in rules
-    assert "privileged: true" not in Path("docker-compose.prod.yml").read_text(encoding="utf-8")
+    assert "privileged: true" not in Path("deploy/compose.prod.yml").read_text(encoding="utf-8")
 
     assert "apparmor_parser" in loader
     assert "NoNewPrivileges" in loader

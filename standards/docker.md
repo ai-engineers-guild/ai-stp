@@ -14,6 +14,25 @@ and `AI_STP_API_GIT_COMMIT` carries its identity into the running services.
 Everything below exists to keep that chain reproducible, locked and
 rollback-safe.
 
+## Layout
+
+Container and orchestration files live in `deploy/`:
+
+- `deploy/compose.dev.yml`, `deploy/compose.prod.yml` — the dev and prod
+  stacks; `deploy/compose.corporate.yml` is the corporate-server overlay on
+  prod; `deploy/compose.corporate-local.yml`, `deploy/compose.seo-enrichment.yml`
+  and `deploy/compose.observability.yml` are optional overlays.
+- `deploy/docker/Dockerfile.app` — every Python image (`base` → `worker`,
+  `api`, `content-import`, `worker-safety`). One `base`, no per-file copies.
+- `deploy/docker/Dockerfile.web` — the web image (`dev`, `prod` targets),
+  built from the repository root narrowed by `Dockerfile.web.dockerignore`.
+- `deploy/docker/Dockerfile.docs` — the user-documentation site (`dev`,
+  `prod`).
+
+Compose files run with `deploy/` as project directory: build contexts are
+`..` (the repository root) and bind mounts/`env_file` paths use `../` to
+reach the root, so the same file works from any caller's cwd.
+
 ## Version contract
 
 - Base images and `uv` are pinned **by digest, named by tag**
@@ -39,17 +58,15 @@ rollback-safe.
 ## Rules
 
 1. **Every `FROM` and every production `image:` is digest-pinned.**
-   `Dockerfile*` at the root *and* `apps/web/Dockerfile*` are both covered
-   by the contract test — the web image lives under `apps/` but answers the
-   same rule. A republished tag leaves no trace; the 2026-08-20 `rustfs`
+   `deploy/docker/Dockerfile.*` is covered by the contract test. A republished tag leaves no trace; the 2026-08-20 `rustfs`
    `:latest` republish took production down for real (`#394`).
 2. **Dev is exempt from digest pinning only where the exemption is the
-   point.** `docker-compose.dev.yml` pulls `postgres:16` by tag because a
+   point.** `deploy/compose.dev.yml` pulls `postgres:16` by tag because a
    dev stack tracks its major — that is the one named exemption, recorded in
    the test. `rustfs` in dev pins the *same* digest as prod: a dev stack
    resolving a different build cannot reproduce what production hit.
-   `apps/web/Dockerfile.dev` pins the same bun digest as `Dockerfile.prod`
-   for the same reason.
+   The `dev` and `prod` targets of `deploy/docker/Dockerfile.web` pin the
+   same bun digest for the same reason.
 3. **`${VAR:-default}` image references pin their default by digest.** The
    variable is the operator's override; the default is this tree's answer
    for an unconfigured checkout. Enforced by
@@ -66,11 +83,11 @@ rollback-safe.
    the index's package unpinned, documented with `# hadolint
    ignore=DL3018`. Production-path images may not.
 7. **Build contexts are minimal and secret-free.** `.dockerignore` excludes
-   `.env*` (only `*.example` re-included), `.git`, `deploy` (except the two
-   nginx files `Dockerfile.user-docs` copies), tests and build output. A
+   `.env*` (only `*.example` re-included), `.git`, `deploy` (except the
+   nginx conf `Dockerfile.docs` copies), tests and build output. A
    `<dockerfile-name>.dockerignore` beside a Dockerfile *replaces* the root
-   ignore for that build — `apps/web/Dockerfile.prod.dockerignore` is what
-   lets the web image see `apps/web/` while the platform images cannot.
+   ignore for that build — `deploy/docker/Dockerfile.web.dockerignore` is
+   what lets the web image see `apps/web/` while the platform images cannot.
    Adding a Dockerfile means deciding which ignore file governs it.
 8. **Secrets never enter images or build args, and reach only the services
    that consume them.** `ARG`/`ENV` hold build-time placeholders only
@@ -88,9 +105,9 @@ rollback-safe.
    credentials — grepping, never `source`ing or printing, so a missing or
    placeholder secret leaves the healthy release serving.
 9. **Compose is the unit of validation.** `docker compose config -q` must
-   pass for `docker-compose.prod.yml`, `docker-compose.dev.yml`, and every
-   overlay combination the runbooks use (dev+corporate, dev+seo-enrichment
-   `--profile seo_enrichment`). The overlays are invalid alone by design —
+   pass for `deploy/compose.prod.yml`, `deploy/compose.dev.yml`, and
+   every overlay combination the runbooks use (dev+corporate-local,
+   dev+seo-enrichment `--profile seo_enrichment`, prod+corporate). The overlays are invalid alone by design —
    they patch dev services. `deploy.sh` runs `compose config` before
    mutating anything.
 10. **Every long-running service reports health.** `restart: always`
@@ -147,7 +164,7 @@ rollback-safe.
 | `!override` on volume lists | **accepted** for overlays | corporate-local replaces dev mounts deliberately |
 | `depends_on` with conditions | **required** | `service_healthy` / `service_completed_successfully`, never bare |
 | Named volumes for data | **required** | `pgdata`, `rustfs`, `osv_offline`, `clamav_db`, `logs` |
-| Bind mounts into prod services | **restricted** — read-only, repo-relative, non-secret | `./docs-user-facing/content:/content:ro`, `./deploy/geoip:/srv/geoip:ro` are the accepted set |
+| Bind mounts into prod services | **restricted** — read-only, repo-relative, non-secret | `../docs-user-facing/content:/content:ro`, `./geoip:/srv/geoip:ro` are the accepted set |
 | `secrets:` / `configs:` top-levels | **allowed, unused** | env_file covers the need today; adopt when a secret must be a file |
 | `ports` beyond loopback in prod | **reject** | the host nginx owns the public edge (ADR-0135) |
 | `network_mode: host` | **reject** | bypasses the internal/edge split and the loopback binding |
@@ -164,7 +181,7 @@ rollback-safe.
 
 | Check | Where it runs | What it proves |
 | --- | --- | --- |
-| `just infra-static` | local, on demand (outside `check`) | hadolint clean at `warning` threshold (`.hadolint.yaml`), shellcheck clean on `deploy/*.sh`, all four compose contexts render |
+| `just infra-static` | local, on demand (outside `check`) | hadolint clean at `warning` threshold (`.hadolint.yaml`), shellcheck clean on `deploy/*.sh`, all six compose combinations render |
 | `just infra-build` | local, on demand | the prod images build from this checkout exactly as the host builds them |
 | `just infra-up` / `infra-down` | local dev | the dev stack lifecycle |
 | `test_container_bases_are_pinned.py` | `back-test`, CI | every `FROM` digest-pinned, prod `image:` digested, one tag → one digest, `${VAR:-}` defaults digested |

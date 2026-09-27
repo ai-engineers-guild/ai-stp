@@ -25,7 +25,7 @@ Deploy steps (order):
   6. Record current artifact
 
 Environment:
-  AI_STP_COMPOSE_FILE   default docker-compose.prod.yml
+  AI_STP_COMPOSE_FILE   default deploy/compose.prod.yml
   AI_STP_ENV_FILE       default .env.prod
   AI_STP_API_GIT_COMMIT injected into api for safe diagnostics; on a host whose
                         root is not a repository it also names the deploy

@@ -3,6 +3,11 @@
 # Postgres and RustFS stay internal. No host proxy in dev: web (:3000) and api (:8000)
 # are published on the host; browser /v1/* is rewritten by Next to the API.
 
+# Pinned: the project name used to come from the checkout's directory name
+# (typically `ai-stp`). Under deploy/ it would become `deploy` and orphan
+# dev volumes (pgdata, web_next, ...). Override: COMPOSE_PROJECT_NAME.
+name: ai-stp
+
 x-app-env: &app-env
   AI_STP_DB_URL: postgresql+asyncpg://ai_stp:ai_stp_dev@postgres:5432/ai_stp
   AI_STP_STORAGE_ENDPOINT: http://rustfs:9000
@@ -72,7 +77,7 @@ services:
       POSTGRES_PASSWORD: ai_stp_dev
       POSTGRES_DB: ai_stp
     env_file:
-      - path: .env.dev
+      - path: ../.env.dev
         required: false
     volumes:
       - pgdata:/var/lib/postgresql/data
@@ -99,7 +104,7 @@ services:
       RUSTFS_ACCESS_KEY: ai_stp
       RUSTFS_SECRET_KEY: ai_stp_dev
     env_file:
-      - path: .env.dev
+      - path: ../.env.dev
         required: false
     volumes:
       - rustfs:/data
@@ -119,12 +124,12 @@ services:
 
   migrate:
     build:
-      context: .
+      context: ..
       target: worker
     command: ["alembic", "upgrade", "head"]
     environment: *app-env
     env_file:
-      - path: .env.dev
+      - path: ../.env.dev
         required: false
     depends_on:
       postgres:
@@ -134,12 +139,12 @@ services:
 
   seed:
     build:
-      context: .
+      context: ..
       target: worker
     command: ["python", "-m", "ai_stp_platform.seed_cli"]
     environment: *app-env
     env_file:
-      - path: .env.dev
+      - path: ../.env.dev
         required: false
     depends_on:
       postgres:
@@ -151,7 +156,7 @@ services:
 
   api:
     build:
-      context: .
+      context: ..
       target: api
     environment:
       <<: *app-env
@@ -162,7 +167,7 @@ services:
       AI_STP_AUTH_OAUTH_REDIRECT_BASE_URL: >-
         ${AI_STP_AUTH_OAUTH_REDIRECT_BASE_URL:-http://localhost:8000}
     env_file:
-      - path: .env.dev
+      - path: ../.env.dev
         required: false
     # Host :8000 for OAuth provider callbacks when Google/GitHub still list
     # http://localhost:8000/v1/auth/{provider}/callback (site itself is :3000).
@@ -197,7 +202,7 @@ services:
     # this exits 0 (SPEC-054). The importer resolves the current checkout HEAD
     # at startup, so no commit build argument is needed.
     build:
-      context: .
+      context: ..
       target: content-import
     command: ["python", "-m", "ai_stp_platform.content.importer"]
     environment:
@@ -207,11 +212,11 @@ services:
       AI_STP_CONTENT_HUB: /repo/docs-user-facing/content
       AI_STP_CONTENT_REPOSITORY: /repo
     env_file:
-      - path: .env.dev
+      - path: ../.env.dev
         required: false
     volumes:
-      - ./.git:/repo/.git:ro
-      - ./docs-user-facing/content:/repo/docs-user-facing/content:ro
+      - ../.git:/repo/.git:ro
+      - ../docs-user-facing/content:/repo/docs-user-facing/content:ro
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -223,14 +228,14 @@ services:
   worker:
     # Publication validate uses pinned scanner CLIs (not the bare worker target).
     build:
-      context: .
-      dockerfile: Dockerfile.worker-safety
+      context: ..
+      dockerfile: deploy/docker/Dockerfile.app
       target: worker-safety
     environment: *app-env
     # AI_STP_WORKER_GITHUB_TOKEN comes from .env.dev. Do not add an empty
     # environment override here: it would wipe the env_file value.
     env_file:
-      - path: .env.dev
+      - path: ../.env.dev
         required: false
     volumes:
       - logs:/var/log/ai_stp
@@ -247,8 +252,9 @@ services:
 
   web:
     build:
-      context: ./apps/web
-      dockerfile: Dockerfile.dev
+      context: ..
+      dockerfile: deploy/docker/Dockerfile.web
+      target: dev
     environment:
       <<: *web-env
       # Keep compile cache off the Windows bind mount (major I/O win under Docker Desktop).
@@ -264,17 +270,17 @@ services:
         find /app/.next -mindepth 1 -maxdepth 1 -exec rm -r -- {} + &&
         exec node node_modules/next/dist/bin/next dev --hostname 0.0.0.0 --port 3000
     env_file:
-      - path: .env.dev
+      - path: ../.env.dev
         required: false
     ports:
       - "3000:3000"
     volumes:
-      - ./apps/web:/app
+      - ../apps/web:/app
       - web_node_modules:/app/node_modules
       # .next on a Linux volume: avoid 9p/virtiofs latency for webpack output.
       - web_next:/app/.next
-      - ./docs-user-facing:/docs-user-facing:ro
-      - ./packages/contracts/src/ai_stp_contracts/fixtures/v1/corporate-overview.json:/packages/contracts/src/ai_stp_contracts/fixtures/v1/corporate-overview.json:ro
+      - ../docs-user-facing:/docs-user-facing:ro
+      - ../packages/contracts/src/ai_stp_contracts/fixtures/v1/corporate-overview.json:/packages/contracts/src/ai_stp_contracts/fixtures/v1/corporate-overview.json:ro
     networks: [internal]
     depends_on:
       api:
@@ -295,8 +301,8 @@ services:
 
   docs:
     build:
-      context: .
-      dockerfile: Dockerfile.user-docs
+      context: ..
+      dockerfile: deploy/docker/Dockerfile.docs
       target: dev
     environment:
       AI_STP_USER_DOCS_SITE_URL: http://localhost:${AI_STP_USER_DOCS_PORT:-8011}/
@@ -304,10 +310,10 @@ services:
     ports:
       - "${AI_STP_USER_DOCS_PORT:-8011}:8000"
     volumes:
-      - ./docs-user-facing/docs:/app/docs-user-facing/docs:ro
-      - ./docs_scripts/user-mkdocs.yml:/app/docs_scripts/user-mkdocs.yml:ro
-      - ./docs_scripts/user-mkdocs.en.yml:/app/docs_scripts/user-mkdocs.en.yml:ro
-      - ./docs_scripts/user_docs_dev.py:/app/docs_scripts/user_docs_dev.py:ro
+      - ../docs-user-facing/docs:/app/docs-user-facing/docs:ro
+      - ../docs_scripts/user-mkdocs.yml:/app/docs_scripts/user-mkdocs.yml:ro
+      - ../docs_scripts/user-mkdocs.en.yml:/app/docs_scripts/user-mkdocs.en.yml:ro
+      - ../docs_scripts/user_docs_dev.py:/app/docs_scripts/user_docs_dev.py:ro
     networks: [internal]
     healthcheck:
       test:

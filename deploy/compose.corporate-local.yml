@@ -9,8 +9,8 @@ services:
     # Run the image's sources, not the Windows bind mount, for this acceptance deployment.
     volumes: !override
       - web_node_modules:/app/node_modules
-      - ./docs-user-facing:/docs-user-facing:ro
-      - ./packages/contracts/src/ai_stp_contracts/fixtures/v1/corporate-overview.json:/packages/contracts/src/ai_stp_contracts/fixtures/v1/corporate-overview.json:ro
+      - ../docs-user-facing:/docs-user-facing:ro
+      - ../packages/contracts/src/ai_stp_contracts/fixtures/v1/corporate-overview.json:/packages/contracts/src/ai_stp_contracts/fixtures/v1/corporate-overview.json:ro
     # Corporate module exclusions use the incumbent webpack aliases. Keep the
     # real API/auth transport in this stack; fixtures are opt-in for tests.
     environment:

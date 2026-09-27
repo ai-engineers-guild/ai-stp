@@ -62,7 +62,7 @@ printf '  %-20s %s\n' "/ (docs)" "${docs}"
 # `${AI_STP_API_GIT_COMMIT}` cannot answer this: it is an environment variable
 # the API reports back, so it describes the deployment attempt rather than the
 # code any container is running.
-readonly COMPOSE_FILE="${AI_STP_COMPOSE_FILE:-docker-compose.prod.yml}"
+readonly COMPOSE_FILE="${AI_STP_COMPOSE_FILE:-deploy/compose.prod.yml}"
 compose() {
   local -a args=(-f "${ROOT}/${COMPOSE_FILE}")
   [[ -f "${ROOT}/${AI_STP_ENV_FILE:-.env.prod}" ]] &&

@@ -12,7 +12,7 @@ Policy version: `safety-3`.
 ## Worker image and external CLIs
 
 In dev and prod compose, the publication worker is built from
-`Dockerfile.worker-safety` (target `worker-safety`) with:
+`deploy/docker/Dockerfile.app` (target `worker-safety`) with:
 
 - `AI_STP_SAFETY_EXTERNAL_CLI=1`
 - `AI_STP_SAFETY_CACHE_TTL_SECONDS` (default 900) and
@@ -60,7 +60,7 @@ for dangerous content nobody had seen. A check that does not finish is now
 Manual build:
 
 ```text
-docker build -f Dockerfile.worker-safety --target worker-safety -t ai-stp-worker-safety .
+docker build -f deploy/docker/Dockerfile.app --target worker-safety -t ai-stp-worker-safety .
 ```
 
 Version pins are in `scripts/safety/versions.env`; installation is in

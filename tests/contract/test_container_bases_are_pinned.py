@@ -1,10 +1,10 @@
 """A base image named by tag is not pinned, and a republished tag leaves no trace.
 
-`Dockerfile` already carried the argument — the `uv` line explains that `:0.9`
+`deploy/docker/Dockerfile.app` already carried the argument — the `uv` line explains that `:0.9`
 moves, that two builds of one commit could resolve different releases, and that
 `SPEC-024` requires the image to be reproducible from the commit. It was applied
 to `uv` and not to the `FROM python:3.12-slim` two lines above it, and not at
-all in `Dockerfile.user-docs`.
+all in `deploy/docker/Dockerfile.docs`.
 
 The asymmetry that makes this worth a check rather than a habit: a **stale** pin
 announces itself — the version reads as going backwards, and dependabot opens a
@@ -27,11 +27,11 @@ _FROM = re.compile(
     r"^FROM\s+(?P<ref>[A-Za-z0-9._/-]+:[A-Za-z0-9._-]+)(?P<digest>@sha256:[0-9a-f]{64})?"
 )
 
-#: Compose services in the file production actually runs. `docker-compose.dev.yml`
+#: Compose services in the file production actually runs. `deploy/compose.dev.yml`
 #: is deliberately absent: a developer pulling a newer `postgres:16` is the point
 #: of a dev stack, and pinning it would mean a digest bump before every local
 #: `up`. The exemption is the file, named, rather than a rule about tags.
-_PINNED_COMPOSE = ("docker-compose.prod.yml",)
+_PINNED_COMPOSE = ("deploy/compose.prod.yml",)
 
 _IMAGE = re.compile(r"^\s+image:\s+(?P<ref>[^\s@]+)(?P<digest>@sha256:[0-9a-f]{64})?\s*$")
 
@@ -41,10 +41,7 @@ _IMAGE_DEFAULT = re.compile(r"^\s+image:\s+\$\{[A-Z0-9_]+:-(?P<default>[^}]+)\}\
 
 
 def _dockerfiles() -> list[Path]:
-    # The web image lives under apps/ because it is the app's build file, not
-    # the platform's — the rule it must answer is the same one, so the glob
-    # reaches it rather than trusting a second copy of the rule to remember.
-    return sorted(Path().glob("Dockerfile*")) + sorted(Path("apps/web").glob("Dockerfile*"))
+    return sorted(Path("deploy/docker").glob("Dockerfile*"))
 
 
 def test_every_container_base_is_pinned_by_digest() -> None:
@@ -82,7 +79,7 @@ def test_compose_image_defaults_are_pinned_by_digest() -> None:
     alone — overridable by accident, moving by design.
     """
     unpinned: list[str] = []
-    for path in sorted(Path().glob("docker-compose.*.yml")):
+    for path in sorted(Path("deploy").glob("compose.*.yml")):
         for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
             found = _IMAGE_DEFAULT.match(line)
             if found and "@sha256:" not in found.group("default"):
@@ -93,10 +90,10 @@ def test_compose_image_defaults_are_pinned_by_digest() -> None:
 def test_one_image_and_tag_resolves_to_one_digest_across_the_tree() -> None:
     """Per-file pinning is reproducible per file and still builds on two bases.
 
-    `Dockerfile.worker-safety` pinned one republish of `python:3.12-slim` and
-    `Dockerfile` pinned another. Each was internally reproducible; together they
-    meant the platform image and the scanner image ran different interpreters,
-    with nothing anywhere saying so.
+    The old `Dockerfile.worker-safety` pinned one republish of
+    `python:3.12-slim` and `Dockerfile` pinned another. Each was internally
+    reproducible; together they meant the platform image and the scanner
+    image ran different interpreters, with nothing anywhere saying so.
     """
     seen: dict[str, set[str]] = {}
     for path in _dockerfiles():

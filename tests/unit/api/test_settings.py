@@ -91,7 +91,7 @@ def test_dev_and_prod_env_examples_name_the_dual_window_policy() -> None:
 
 def test_dev_compose_names_the_dual_window_policy() -> None:
     """The self-contained stack has no .env.dev; the policy still has to be named."""
-    text = (_ROOT / "docker-compose.dev.yml").read_text(encoding="utf-8")
+    text = (_ROOT / "deploy/compose.dev.yml").read_text(encoding="utf-8")
     for key, value in _documented_rate_limit_policy().items():
         needle = f'{key}: "{value}"'
         assert needle in text, needle

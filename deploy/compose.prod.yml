@@ -4,6 +4,13 @@
 # only; the host's nginx terminates TLS and owns the public route split
 # (deploy/nginx/ai-stp.conf.template).
 
+# Pinned: the project name used to come from the deployment root's directory
+# name (~/ai_stp on the host). Moving the compose file under deploy/ would
+# rename the project to `deploy` and orphan every named volume — pgdata,
+# rustfs, osv_offline, clamav_db, logs. A non-default root overrides via
+# COMPOSE_PROJECT_NAME (env beats the `name:` key).
+name: ai_stp
+
 services:
   postgres:
     image: postgres:16@sha256:f1c3376c26f2609ab9f29f71f824103fe2fcd8ee0346485cb6122a4f93df6f94
@@ -67,11 +74,11 @@ services:
 
   migrate:
     build:
-      context: .
+      context: ..
       target: worker
     command: ["alembic", "upgrade", "head"]
     env_file:
-      - path: .env.prod
+      - path: ../.env.prod
         required: false
     depends_on:
       postgres:
@@ -88,11 +95,11 @@ services:
   # on `AI_STP_API_ENVIRONMENT`, so it holds however this service is invoked.
   seed:
     build:
-      context: .
+      context: ..
       target: worker
     command: ["python", "-m", "ai_stp_platform.seed_cli"]
     env_file:
-      - path: .env.prod
+      - path: ../.env.prod
         required: false
     depends_on:
       postgres:
@@ -104,19 +111,19 @@ services:
 
   api:
     build:
-      context: .
+      context: ..
       target: api
     environment:
       AI_STP_API_GIT_COMMIT: ${AI_STP_API_GIT_COMMIT:-}
     env_file:
-      - path: .env.prod
+      - path: ../.env.prod
         required: false
     volumes:
       - logs:/var/log/ai_stp
       # Coarse-location database (SPEC-023 REQ-2314). Read-only, and empty in the
       # repository: the file and its update policy belong to the operator. Absent,
       # the lookup returns nothing and login is unaffected.
-      - ./deploy/geoip:/srv/geoip:ro
+      - ./geoip:/srv/geoip:ro
     ports:
       - "${AI_STP_API_BIND:-127.0.0.1:58082}:8000"
     networks: [internal, edge]
@@ -146,7 +153,7 @@ services:
     # The snapshot is built at startup from the release content. The deploy
     # script supplies the exact commit to the API and importer environments.
     build:
-      context: .
+      context: ..
       target: content-import
     command: ["python", "-m", "ai_stp_platform.content.importer"]
     environment:
@@ -155,10 +162,10 @@ services:
       AI_STP_CONTENT_HUB: /content
       AI_STP_CONTENT_SNAPSHOT: /tmp/content-snapshot.json
     env_file:
-      - path: .env.prod
+      - path: ../.env.prod
         required: false
     volumes:
-      - ./docs-user-facing/content:/content:ro
+      - ../docs-user-facing/content:/content:ro
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -169,8 +176,8 @@ services:
 
   osv-refresh:
     build:
-      context: .
-      dockerfile: Dockerfile.worker-safety
+      context: ..
+      dockerfile: deploy/docker/Dockerfile.app
       target: worker-safety
     command:
       - sh
@@ -200,8 +207,8 @@ services:
 
   clamav-refresh:
     build:
-      context: .
-      dockerfile: Dockerfile.worker-safety
+      context: ..
+      dockerfile: deploy/docker/Dockerfile.app
       target: worker-safety
     user: root
     command:
@@ -225,10 +232,10 @@ services:
     restart: always
 
   worker:
-    # Safety validate path: pinned scanners + EXTERNAL_CLI (see Dockerfile.worker-safety).
+    # Safety validate path: pinned scanners + EXTERNAL_CLI (see deploy/docker/Dockerfile.app).
     build:
-      context: .
-      dockerfile: Dockerfile.worker-safety
+      context: ..
+      dockerfile: deploy/docker/Dockerfile.app
       target: worker-safety
     environment:
       AI_STP_SAFETY_EXTERNAL_CLI: "1"
@@ -247,7 +254,7 @@ services:
       - seccomp=unconfined
       - apparmor=ai-stp-worker
     env_file:
-      - path: .env.prod
+      - path: ../.env.prod
         required: false
     volumes:
       - logs:/var/log/ai_stp
@@ -281,8 +288,9 @@ services:
 
   web:
     build:
-      context: .
-      dockerfile: apps/web/Dockerfile.prod
+      context: ..
+      dockerfile: deploy/docker/Dockerfile.web
+      target: prod
       args:
         NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-https://app.example.invalid}
         AI_STP_WEB_PROFILE: ${AI_STP_WEB_PROFILE:-public_saas}
@@ -298,7 +306,7 @@ services:
       AI_STP_API_BASE_URL: http://api:8000
       AI_STP_USE_MOCKS: "false"
     env_file:
-      - path: .env.prod
+      - path: ../.env.prod
         required: false
     ports:
       - "${AI_STP_WEB_BIND:-127.0.0.1:58081}:3000"
@@ -322,8 +330,8 @@ services:
 
   docs:
     build:
-      context: .
-      dockerfile: Dockerfile.user-docs
+      context: ..
+      dockerfile: deploy/docker/Dockerfile.docs
       target: prod
       args:
         AI_STP_USER_DOCS_SITE_URL: ${AI_STP_USER_DOCS_URL:-https://docs.example.invalid}

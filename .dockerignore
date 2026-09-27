@@ -1,6 +1,7 @@
-# Root build context for Dockerfile (api/worker/migrate/seed).
-# Without this file Docker Desktop sent ~350MB+ (web node_modules, .next, .venv).
-# The production web image uses this root context to consume docs-user-facing/.
+# Root build context for deploy/docker/Dockerfile.app (api/worker/migrate/seed/
+# worker-safety) and Dockerfile.docs. Without this file Docker Desktop sent
+# ~350MB+ (web node_modules, .next, .venv). The web image uses the root context
+# too, narrowed by its own Dockerfile.web.dockerignore.
 
 # VCS / IDE
 .git
@@ -39,7 +40,7 @@ dist
 **/playwright-report
 **/*.tsbuildinfo
 apps/web
-# Dockerfile.prod.dockerignore gives the production web build its narrower
+# deploy/docker/Dockerfile.web.dockerignore gives the web build its narrower
 # root-context view without adding the Node tree to Python image contexts.
 
 # Docs toolchain (mkdocs node deps)

@@ -57,8 +57,8 @@ For the first login or an expired refresh, log in inside the container. The
 Antigravity callback listens on `127.0.0.1:51121`.
 
 ```sh
-docker compose -f docker-compose.dev.yml \
-  -f docker-compose.seo-enrichment.yml --profile seo_enrichment \
+docker compose -f deploy/compose.dev.yml \
+  -f deploy/compose.seo-enrichment.yml --profile seo_enrichment \
   exec cliproxy /CLIProxyAPI/CLIProxyAPI -no-browser -antigravity-login
 ```
 
@@ -68,10 +68,10 @@ Google returns the code to `localhost:51121`, and SSH carries it to the
 container. Do not expose ports 8317 or 51121 to the internet.
 
 ```sh
-docker compose -f docker-compose.dev.yml \
-  -f docker-compose.seo-enrichment.yml --profile seo_enrichment up -d
-docker compose -f docker-compose.dev.yml \
-  -f docker-compose.seo-enrichment.yml --profile seo_enrichment \
+docker compose -f deploy/compose.dev.yml \
+  -f deploy/compose.seo-enrichment.yml --profile seo_enrichment up -d
+docker compose -f deploy/compose.dev.yml \
+  -f deploy/compose.seo-enrichment.yml --profile seo_enrichment \
   exec worker python -m ai_stp_platform.seo.enqueue_pending
 ```
 
