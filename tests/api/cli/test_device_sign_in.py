@@ -147,7 +147,7 @@ def test_approve_with_an_unknown_code_is_a_typed_answer(
 
 
 def test_pending_polls_are_not_paced_but_a_success_is(
-    cli_endpoint: Endpoint, web_approver: ApproverFactory
+    cli_server: SyncAsgiServer, cli_endpoint: Endpoint, web_approver: ApproverFactory
 ) -> None:
     """The server persists `last_poll_at` only on a committed request.
 
@@ -179,6 +179,15 @@ def test_pending_polls_are_not_paced_but_a_success_is(
         display_name="boundary-test",
     )
     assert tokens.account_id == approver.account_id
+
+    from ai_stp_platform.models import Device
+
+    async def stored_label() -> str | None:
+        async with cli_server.app.state.sessionmaker() as db:
+            device = await db.get(Device, tokens.device_id)
+            return device.display_name if device is not None else None
+
+    assert cli_server.call(stored_label) == "boundary-test"
 
     with pytest.raises(CliFailure) as limited:
         login.exchange(

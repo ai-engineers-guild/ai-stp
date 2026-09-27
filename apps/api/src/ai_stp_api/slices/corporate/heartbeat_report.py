@@ -398,7 +398,7 @@ async def heartbeat_report(
                         "last_heartbeat_at": (
                             format_timestamp(_aware(device_events[-1].received_at))
                             if device_events
-                            else None
+                            else row.last_heartbeat_at
                         ),
                     }
                 )

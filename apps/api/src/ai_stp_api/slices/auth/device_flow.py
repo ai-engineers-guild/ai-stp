@@ -169,6 +169,7 @@ async def exchange_device_code(
             id=new_device_id,
             account_id=row.account_id,
             public_key=pk,
+            display_name=display_name,
             state=DeviceState.ACTIVE.value,
             last_seen_at=now,
         )
@@ -180,6 +181,7 @@ async def exchange_device_code(
                 "device is revoked; register a new device key",
             )
         device.last_seen_at = now
+        device.display_name = display_name
     await db.flush()
 
     issued = await issue_session(
@@ -200,7 +202,6 @@ async def exchange_device_code(
         device_id=device.id,
         ttl_seconds=auth.session_ttl_seconds,
     )
-    del display_name  # stored only when a summary path exists; not required for token response
 
     return {
         "schema_version": 1,

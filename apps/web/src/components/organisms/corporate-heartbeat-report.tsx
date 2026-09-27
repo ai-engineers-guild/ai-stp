@@ -140,7 +140,7 @@ export function CorporateHeartbeatReport({
   );
   return (
     <>
-      <div className="border-border bg-card grid gap-4 rounded-lg border p-4 md:grid-cols-[repeat(3,minmax(0,1fr))_auto] xl:items-end">
+      <div className="border-border bg-card grid items-end gap-4 rounded-lg border p-4 md:grid-cols-[repeat(3,minmax(0,1fr))_auto]">
         <SearchableMultiSelect
           name="team"
           label={selection.teams.length ? t("team") : t("allTeams")}
@@ -175,7 +175,7 @@ export function CorporateHeartbeatReport({
           }}
           closeLabel={t("close")}
         />
-        <div className="grid gap-2 sm:grid-cols-2 md:grid-cols-1 xl:grid-cols-2">
+        <div className="grid items-end gap-2 sm:grid-cols-2 md:grid-cols-1 xl:grid-cols-2">
           {view === "history" && (
             <label className="text-muted-foreground text-xs">
               {t("period")}

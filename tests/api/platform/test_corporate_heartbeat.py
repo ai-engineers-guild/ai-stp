@@ -502,3 +502,50 @@ async def test_heartbeat_tenant_and_role_isolation(
     filtered = await client.get(list_path, params={"health_state": "stale"}, headers=owner_auth)
     assert filtered.status_code == 200
     assert filtered.json()["items"] == []
+
+
+async def test_history_names_the_true_last_beat_outside_the_window(
+    heartbeat_client: tuple[AsyncClient, async_sessionmaker[AsyncSession]],
+) -> None:
+    """A stale device keeps its real `last_heartbeat_at` when the window holds no events."""
+    client, sessionmaker = heartbeat_client
+    account_id, device_id, token = await _account_with_device(sessionmaker)
+    organization_id = await _bootstrap(client, account_id, "hb-history-stale-0007")
+    auth = {"Authorization": f"Bearer {token}"}
+    old = _now() - timedelta(days=2)
+    async with sessionmaker() as db:
+        await set_tenant_scope(db, organization_id)
+        db.add(
+            InstallationHeartbeat(
+                organization_id=organization_id,
+                device_id=device_id,
+                account_id=account_id,
+                cli_version="1.4.2",
+                capabilities=["cli.heartbeat"],
+                reported_state="active",
+                checked_at=old,
+                received_at=old,
+            )
+        )
+        db.add(
+            InstallationHeartbeatEvent(
+                organization_id=organization_id,
+                device_id=device_id,
+                account_id=account_id,
+                checked_at=old,
+                received_at=old,
+                reported_state="active",
+                interval_seconds=3600,
+                policy_version=1,
+            )
+        )
+        await db.commit()
+    history = await client.get(
+        f"/v1/corporate/organizations/{organization_id}/telemetry/heartbeat-report"
+        "?view=history&period=24h",
+        headers=auth,
+    )
+    assert history.status_code == 200, history.text
+    row = history.json()["items"][0]
+    assert row["status"] == "stale"
+    assert row["last_heartbeat_at"] == format_timestamp(old)
