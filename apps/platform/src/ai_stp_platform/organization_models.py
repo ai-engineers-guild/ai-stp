@@ -63,6 +63,9 @@ class Organization(Base):
         String(64), ForeignKey("account.id", ondelete="RESTRICT"), nullable=True, index=True
     )
     display_name: Mapped[str] = mapped_column(String(200), nullable=False)
+    allowed_email_domains: Mapped[list[str]] = mapped_column(
+        JSON, nullable=False, default=list, server_default="[]"
+    )
     revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
     policy_revision: Mapped[int] = mapped_column(
         Integer, nullable=False, default=1, server_default="1"
@@ -496,6 +499,46 @@ class CorporateProvisionedIdentity(Base):
         String(64), ForeignKey("account.id", ondelete="CASCADE"), nullable=False
     )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class CorporateInvitation(Base):
+    """Single-use organization invitation link, hashed token at rest."""
+
+    __tablename__ = "corporate_invitation"
+    __table_args__ = (
+        UniqueConstraint("organization_id", "idempotency_key", name="uq_corporate_invitation_key"),
+        CheckConstraint(
+            "state in ('pending', 'accepted', 'expired', 'revoked')",
+            name="ck_corporate_invitation_state",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    organization_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("organization.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    issuer_account_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("account.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    recipient_email_normalized: Mapped[str] = mapped_column(String(320), nullable=False, index=True)
+    display_name: Mapped[str] = mapped_column(String(80), nullable=False)
+    role: Mapped[str] = mapped_column(String(64), nullable=False)
+    team_ids: Mapped[list[str]] = mapped_column(
+        JSON, nullable=False, default=list, server_default="[]"
+    )
+    project_ids: Mapped[list[str]] = mapped_column(
+        JSON, nullable=False, default=list, server_default="[]"
+    )
+    job_title_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    token_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    state: Mapped[str] = mapped_column(String(16), nullable=False, default="pending")
+    idempotency_key: Mapped[str] = mapped_column(String(128), nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    accepted_account_id: Mapped[str | None] = mapped_column(
+        String(64), ForeignKey("account.id", ondelete="SET NULL"), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 class CorporateMutationReceipt(Base):

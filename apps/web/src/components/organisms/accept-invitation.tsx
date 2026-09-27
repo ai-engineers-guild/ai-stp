@@ -9,6 +9,8 @@ import { CSRF_COOKIE } from "@/lib/auth/cookies";
 
 type AcceptInvitationProps = {
   invitationId: string;
+  /** Same-origin accept endpoint; defaults to the grant invitation hop. */
+  endpoint?: string;
   labels: {
     accept: string;
     accepting: string;
@@ -57,7 +59,7 @@ function scrubFragment(): void {
  * Fragment-only invitation accept (REQ-2714 / ADR-0047).
  * Token lives in memory; never Server Action / RSC / storage / logs.
  */
-export function AcceptInvitation({ invitationId, labels }: AcceptInvitationProps) {
+export function AcceptInvitation({ invitationId, endpoint, labels }: AcceptInvitationProps) {
   // The token lives in the URL fragment, which the server never sees. Reading
   // it during render and scrubbing it in an effect separates the question from
   // the side effect; setting both from one effect cost a render pass and made
@@ -127,7 +129,7 @@ export function AcceptInvitation({ invitationId, labels }: AcceptInvitationProps
                 }
                 const idempotencyKey = crypto.randomUUID().replaceAll("-", "");
                 const response = await fetch(
-                  `/api/grants/invitations/${encodeURIComponent(invitationId)}/accept`,
+                  endpoint ?? `/api/grants/invitations/${encodeURIComponent(invitationId)}/accept`,
                   {
                     method: "POST",
                     credentials: "same-origin",

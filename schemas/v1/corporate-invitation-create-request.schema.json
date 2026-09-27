@@ -1,0 +1,94 @@
+{
+  "$defs": {
+    "IdempotencyKey": {
+      "pattern": "^[A-Za-z0-9._~-]{16,128}$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:corporate-invitation-create-request",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "POST /v1/corporate/organizations/{organization_id}/invitations body.",
+  "properties": {
+    "authorization_revision": {
+      "minimum": 1,
+      "title": "Authorization Revision",
+      "type": "integer"
+    },
+    "display_name": {
+      "maxLength": 80,
+      "minLength": 1,
+      "title": "Display Name",
+      "type": "string"
+    },
+    "idempotency_key": {
+      "$ref": "#/$defs/IdempotencyKey"
+    },
+    "job_title_id": {
+      "anyOf": [
+        {
+          "pattern": "^job_title_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Job Title Id"
+    },
+    "project_ids": {
+      "items": {
+        "pattern": "^remote_project_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+        "type": "string"
+      },
+      "maxItems": 64,
+      "title": "Project Ids",
+      "type": "array"
+    },
+    "recipient_email": {
+      "maxLength": 320,
+      "minLength": 3,
+      "title": "Recipient Email",
+      "type": "string"
+    },
+    "role": {
+      "description": "Tenant-local role name.",
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[a-z][a-z0-9_-]*$",
+      "title": "Role",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "team_ids": {
+      "items": {
+        "type": "string"
+      },
+      "maxItems": 64,
+      "title": "Team Ids",
+      "type": "array"
+    },
+    "ttl_seconds": {
+      "default": 604800,
+      "maximum": 2592000,
+      "minimum": 60,
+      "title": "Ttl Seconds",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "recipient_email",
+    "display_name",
+    "role",
+    "authorization_revision",
+    "idempotency_key"
+  ],
+  "title": "CorporateInvitationCreateRequest",
+  "type": "object"
+}

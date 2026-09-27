@@ -1,0 +1,529 @@
+"""Organization membership invitations and the email-domain allowlist (#201).
+
+One raw token exists only in the create response; at rest it is a SHA-256
+hash, and the mutation receipt stores the view without the secret.
+"""
+
+from __future__ import annotations
+
+import hashlib
+import re
+import secrets
+from datetime import UTC, datetime, timedelta
+from typing import Annotated, NoReturn, cast
+
+from fastapi import APIRouter, Depends, Request
+from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from ai_stp_api.audit import emit_audit
+from ai_stp_api.deps import get_db, require_auth
+from ai_stp_api.errors import ApiError, ErrorCategory
+from ai_stp_api.session import AuthContext
+from ai_stp_api.slices.auth.domain import normalize_email
+from ai_stp_api.slices.corporate.service import (
+    assert_email_domain_allowed,
+    authorize,
+    authorize_idempotent,
+    email_domain_allowed,
+    ensure_active_projects,
+    ensure_active_teams,
+    ensure_current_job_title,
+    ensure_role_exists,
+    insert_membership_graph,
+    member_view,
+    mutation_fingerprint,
+    store_mutation_receipt,
+)
+from ai_stp_contracts.corporate import (
+    CorporateInvitation,
+    CorporateInvitationAcceptRequest,
+    CorporateInvitationCreateRequest,
+    CorporateInvitationList,
+    CorporateInvitationRevokeRequest,
+    CorporateInvitationState,
+    CorporateMember,
+    CorporateMembershipPolicy,
+    CorporateMembershipPolicyRequest,
+)
+from ai_stp_foundation.ids import new_id
+from ai_stp_foundation.timestamps import format_timestamp
+from ai_stp_platform.models import Account, OAuthIdentity
+from ai_stp_platform.organization_models import (
+    CorporateInvitation as CorporateInvitationRow,
+)
+from ai_stp_platform.organization_models import (
+    CorporateProvisionedIdentity,
+    Organization,
+    OrganizationMembership,
+)
+
+router = APIRouter(tags=["corporate"])
+
+_DOMAIN = re.compile(
+    r"^(?=.{1,253}$)[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?"
+    r"(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$"
+)
+
+
+def _request_id(request: Request) -> str | None:
+    return getattr(request.state, "request_id", None)
+
+
+def _ts(value: datetime) -> str:
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=UTC)
+    return format_timestamp(value)
+
+
+def _expired(row: CorporateInvitationRow) -> bool:
+    expires = row.expires_at if row.expires_at.tzinfo else row.expires_at.replace(tzinfo=UTC)
+    return row.state == "pending" and expires <= datetime.now(UTC)
+
+
+def _view(row: CorporateInvitationRow, *, token: str | None = None) -> CorporateInvitation:
+    state = "expired" if _expired(row) else row.state
+    return CorporateInvitation(
+        schema_version=1,
+        invitation_id=row.id,
+        organization_id=row.organization_id,
+        recipient_email=row.recipient_email_normalized,
+        display_name=row.display_name,
+        role=row.role,
+        team_ids=list(row.team_ids or []),
+        project_ids=list(row.project_ids or []),
+        job_title_id=row.job_title_id,
+        state=cast(CorporateInvitationState, state),
+        expires_at=_ts(row.expires_at),
+        created_at=_ts(row.created_at),
+        accepted_account_id=row.accepted_account_id,
+        token=token,
+    )
+
+
+def _hash(token: str) -> str:
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+def _normalize_domains(values: list[str]) -> list[str]:
+    domains = sorted(
+        {item.strip().lower().lstrip("@.").rstrip(".") for item in values if item.strip()}
+    )
+    if any(_DOMAIN.fullmatch(item) is None for item in domains):
+        raise ApiError(ErrorCategory.VALIDATION, "invalid email domain")
+    return domains
+
+
+async def _invitation(
+    db: AsyncSession, *, organization_id: str, invitation_id: str
+) -> CorporateInvitationRow:
+    row = await db.get(CorporateInvitationRow, invitation_id)
+    if row is None or row.organization_id != organization_id:
+        raise ApiError(ErrorCategory.NOT_FOUND, "invitation not found")
+    return row
+
+
+@router.post(
+    "/corporate/organizations/{organization_id}/invitations",
+    response_model=CorporateInvitation,
+)
+async def create_invitation(
+    organization_id: str,
+    payload: CorporateInvitationCreateRequest,
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    ctx: Annotated[AuthContext, Depends(require_auth)],
+) -> CorporateInvitation:
+    fingerprint = mutation_fingerprint(payload.model_dump(mode="json", exclude={"idempotency_key"}))
+    organization, receipt = await authorize_idempotent(
+        db,
+        ctx=ctx,
+        organization_id=organization_id,
+        permission="member.invite",
+        authorization_revision=payload.authorization_revision,
+        idempotency_key=payload.idempotency_key,
+        operation="member.invitation.create",
+        fingerprint=fingerprint,
+        request_id=_request_id(request),
+    )
+    if receipt is not None:
+        return CorporateInvitation.model_validate(receipt.response_body)
+    await ensure_active_teams(db, organization_id=organization_id, team_ids=payload.team_ids)
+    await ensure_active_projects(
+        db, organization_id=organization_id, project_ids=payload.project_ids
+    )
+    await ensure_role_exists(db, organization_id=organization_id, role=payload.role)
+    await ensure_current_job_title(
+        db, organization_id=organization_id, job_title_id=payload.job_title_id
+    )
+    assert_email_domain_allowed(organization, payload.recipient_email)
+    normalized_email = normalize_email(payload.recipient_email)
+    if await db.scalar(
+        select(OrganizationMembership.id)
+        .join(
+            CorporateProvisionedIdentity,
+            CorporateProvisionedIdentity.account_id == OrganizationMembership.account_id,
+        )
+        .where(
+            OrganizationMembership.organization_id == organization_id,
+            CorporateProvisionedIdentity.normalized_email == normalized_email,
+        )
+    ):
+        raise ApiError(ErrorCategory.CONFLICT, "member already exists")
+    joined_accounts = select(OAuthIdentity.account_id).where(
+        OAuthIdentity.state == "linked",
+        func.lower(OAuthIdentity.email) == normalized_email,
+    )
+    if await db.scalar(
+        select(OrganizationMembership.id).where(
+            OrganizationMembership.organization_id == organization_id,
+            OrganizationMembership.account_id.in_(joined_accounts),
+        )
+    ):
+        raise ApiError(ErrorCategory.CONFLICT, "member already exists")
+    token = secrets.token_urlsafe(32)
+    row = CorporateInvitationRow(
+        id=new_id("invite"),
+        organization_id=organization_id,
+        issuer_account_id=ctx.account_id,
+        recipient_email_normalized=normalized_email,
+        display_name=payload.display_name.strip(),
+        role=payload.role,
+        team_ids=list(dict.fromkeys(payload.team_ids)),
+        project_ids=list(dict.fromkeys(payload.project_ids)),
+        job_title_id=payload.job_title_id,
+        token_hash=_hash(token),
+        state="pending",
+        idempotency_key=payload.idempotency_key,
+        expires_at=datetime.now(UTC) + timedelta(seconds=payload.ttl_seconds),
+    )
+    db.add(row)
+    await emit_audit(
+        db,
+        actor_account_id=ctx.account_id,
+        organization_id=organization_id,
+        action="member.invitation_created",
+        target_table="corporate_invitation",
+        target_id=row.id,
+        request_id=_request_id(request),
+        payload={"role": row.role},
+    )
+    await db.flush()
+    # The receipt stores everything but the secret: a replayed create answers
+    # the same view while the raw token stays non-recoverable.
+    await store_mutation_receipt(
+        db,
+        organization_id=organization_id,
+        key=payload.idempotency_key,
+        operation="member.invitation.create",
+        fingerprint=fingerprint,
+        response=_view(row),
+    )
+    return _view(row, token=token)
+
+
+@router.get(
+    "/corporate/organizations/{organization_id}/invitations",
+    response_model=CorporateInvitationList,
+)
+async def list_invitations(
+    organization_id: str,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    ctx: Annotated[AuthContext, Depends(require_auth)],
+) -> CorporateInvitationList:
+    await authorize(db, ctx=ctx, organization_id=organization_id, permission="member.invite")
+    rows = (
+        (
+            await db.execute(
+                select(CorporateInvitationRow)
+                .where(CorporateInvitationRow.organization_id == organization_id)
+                .order_by(CorporateInvitationRow.created_at.desc())
+                .limit(256)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    return CorporateInvitationList(items=[_view(row) for row in rows])
+
+
+@router.post(
+    "/corporate/organizations/{organization_id}/invitations/{invitation_id}/revoke",
+    response_model=CorporateInvitation,
+)
+async def revoke_invitation(
+    organization_id: str,
+    invitation_id: str,
+    payload: CorporateInvitationRevokeRequest,
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    ctx: Annotated[AuthContext, Depends(require_auth)],
+) -> CorporateInvitation:
+    fingerprint = mutation_fingerprint(payload.model_dump(mode="json", exclude={"idempotency_key"}))
+    organization, receipt = await authorize_idempotent(
+        db,
+        ctx=ctx,
+        organization_id=organization_id,
+        permission="member.invite",
+        authorization_revision=payload.authorization_revision,
+        idempotency_key=payload.idempotency_key,
+        operation="member.invitation.revoke",
+        fingerprint=fingerprint,
+        request_id=_request_id(request),
+    )
+    if receipt is not None:
+        return CorporateInvitation.model_validate(receipt.response_body)
+    row = await _invitation(db, organization_id=organization.id, invitation_id=invitation_id)
+    if row.state == "pending":
+        row.state = "revoked"
+        row.revoked_at = datetime.now(UTC)
+        await emit_audit(
+            db,
+            actor_account_id=ctx.account_id,
+            organization_id=organization.id,
+            action="member.invitation_revoked",
+            target_table="corporate_invitation",
+            target_id=row.id,
+            reason=payload.reason or None,
+            request_id=_request_id(request),
+        )
+        await db.flush()
+    response = _view(row)
+    await store_mutation_receipt(
+        db,
+        organization_id=organization.id,
+        key=payload.idempotency_key,
+        operation="member.invitation.revoke",
+        fingerprint=fingerprint,
+        response=response,
+    )
+    return response
+
+
+@router.post("/corporate/invitations/{invitation_id}/accept", response_model=CorporateMember)
+async def accept_invitation(
+    invitation_id: str,
+    payload: CorporateInvitationAcceptRequest,
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    ctx: Annotated[AuthContext, Depends(require_auth)],
+) -> CorporateMember:
+    request_id = _request_id(request)
+    row = await db.get(CorporateInvitationRow, invitation_id, with_for_update=True)
+
+    async def reject(action: str, category: ErrorCategory, message: str) -> NoReturn:
+        if row is not None:
+            # The request session rolls back once ApiError propagates, so the
+            # failure audit is committed before the raise — the row itself is
+            # only locked, never mutated on this path.
+            await emit_audit(
+                db,
+                actor_account_id=ctx.account_id,
+                organization_id=row.organization_id,
+                action=action,
+                target_table="corporate_invitation",
+                target_id=row.id,
+                outcome="failed",
+                request_id=request_id,
+            )
+            await db.commit()
+        raise ApiError(category, message)
+
+    if row is None:
+        raise ApiError(ErrorCategory.NOT_FOUND, "invitation not found")
+    if row.state == "accepted" and row.accepted_account_id == ctx.account_id:
+        membership = await db.scalar(
+            select(OrganizationMembership).where(
+                OrganizationMembership.organization_id == row.organization_id,
+                OrganizationMembership.account_id == ctx.account_id,
+            )
+        )
+        account = await db.get(Account, ctx.account_id)
+        if membership is not None and account is not None:
+            return member_view(membership, account)
+    if row.state != "pending":
+        await reject(
+            "member.invitation_replayed", ErrorCategory.CONFLICT, f"invitation is {row.state}"
+        )
+    if _expired(row):
+        row.state = "expired"
+        await emit_audit(
+            db,
+            actor_account_id=ctx.account_id,
+            organization_id=row.organization_id,
+            action="member.invitation_expired",
+            target_table="corporate_invitation",
+            target_id=row.id,
+            request_id=request_id,
+        )
+        await db.commit()
+        raise ApiError(ErrorCategory.VALIDATION, "invitation expired")
+    if _hash(payload.token) != row.token_hash:
+        await reject(
+            "member.invitation_token_invalid", ErrorCategory.VALIDATION, "invitation token invalid"
+        )
+
+    organization = await db.get(Organization, row.organization_id)
+    if organization is None or organization.state != "active":
+        await reject(
+            "member.invitation_org_inactive", ErrorCategory.CONFLICT, "organization is unavailable"
+        )
+    if not email_domain_allowed(
+        list(organization.allowed_email_domains or []), row.recipient_email_normalized
+    ):
+        await reject(
+            "member.invitation_domain_rejected",
+            ErrorCategory.VALIDATION,
+            "email domain is not allowed",
+        )
+
+    emails = {
+        normalize_email(identity.email)
+        for identity in (
+            await db.execute(
+                select(OAuthIdentity).where(
+                    OAuthIdentity.account_id == ctx.account_id,
+                    OAuthIdentity.state == "linked",
+                    OAuthIdentity.email_verified.is_(True),
+                )
+            )
+        )
+        .scalars()
+        .all()
+    }
+    if row.recipient_email_normalized not in emails:
+        await reject(
+            "member.invitation_email_mismatch",
+            ErrorCategory.VALIDATION,
+            "verified email does not match invitation",
+        )
+
+    existing = await db.scalar(
+        select(OrganizationMembership).where(
+            OrganizationMembership.organization_id == row.organization_id,
+            OrganizationMembership.account_id == ctx.account_id,
+        )
+    )
+    if existing is not None:
+        await reject("member.invitation_duplicate", ErrorCategory.CONFLICT, "member already exists")
+
+    await ensure_active_teams(
+        db, organization_id=row.organization_id, team_ids=list(row.team_ids or [])
+    )
+    await ensure_active_projects(
+        db, organization_id=row.organization_id, project_ids=list(row.project_ids or [])
+    )
+    await ensure_current_job_title(
+        db, organization_id=row.organization_id, job_title_id=row.job_title_id
+    )
+    membership = await insert_membership_graph(
+        db,
+        organization_id=row.organization_id,
+        account_id=ctx.account_id,
+        display_name=row.display_name,
+        role=row.role,
+        team_ids=list(row.team_ids or []),
+        project_ids=list(row.project_ids or []),
+        job_title_id=row.job_title_id,
+    )
+    try:
+        async with db.begin_nested():
+            db.add(
+                CorporateProvisionedIdentity(
+                    organization_id=row.organization_id,
+                    normalized_email=row.recipient_email_normalized,
+                    account_id=ctx.account_id,
+                )
+            )
+            await db.flush()
+    except IntegrityError:
+        # The email is already provisioned elsewhere; membership still stands.
+        pass
+    row.state = "accepted"
+    row.accepted_account_id = ctx.account_id
+    await emit_audit(
+        db,
+        actor_account_id=ctx.account_id,
+        organization_id=row.organization_id,
+        action="member.invitation_accepted",
+        target_table="corporate_invitation",
+        target_id=row.id,
+        request_id=request_id,
+    )
+    await db.flush()
+    account = cast(Account, await db.get(Account, ctx.account_id))
+    return member_view(membership, account)
+
+
+@router.get(
+    "/corporate/organizations/{organization_id}/membership/policy",
+    response_model=CorporateMembershipPolicy,
+)
+async def read_membership_policy(
+    organization_id: str,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    ctx: Annotated[AuthContext, Depends(require_auth)],
+) -> CorporateMembershipPolicy:
+    organization, _membership = await authorize(
+        db, ctx=ctx, organization_id=organization_id, permission="organization.read"
+    )
+    return CorporateMembershipPolicy(
+        organization_id=organization.id,
+        allowed_email_domains=list(organization.allowed_email_domains or []),
+        authorization_revision=organization.policy_revision,
+    )
+
+
+@router.put(
+    "/corporate/organizations/{organization_id}/membership/policy",
+    response_model=CorporateMembershipPolicy,
+)
+async def write_membership_policy(
+    organization_id: str,
+    payload: CorporateMembershipPolicyRequest,
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    ctx: Annotated[AuthContext, Depends(require_auth)],
+) -> CorporateMembershipPolicy:
+    fingerprint = mutation_fingerprint(payload.model_dump(mode="json", exclude={"idempotency_key"}))
+    organization, receipt = await authorize_idempotent(
+        db,
+        ctx=ctx,
+        organization_id=organization_id,
+        permission="organization.manage",
+        authorization_revision=payload.authorization_revision,
+        idempotency_key=payload.idempotency_key,
+        operation="membership.policy.write",
+        fingerprint=fingerprint,
+        request_id=_request_id(request),
+    )
+    if receipt is not None:
+        return CorporateMembershipPolicy.model_validate(receipt.response_body)
+    organization.allowed_email_domains = _normalize_domains(payload.allowed_email_domains)
+    organization.policy_revision += 1
+    response = CorporateMembershipPolicy(
+        organization_id=organization.id,
+        allowed_email_domains=list(organization.allowed_email_domains),
+        authorization_revision=organization.policy_revision,
+    )
+    await emit_audit(
+        db,
+        actor_account_id=ctx.account_id,
+        organization_id=organization.id,
+        action="membership.policy.write",
+        target_table="organization",
+        target_id=organization.id,
+        request_id=_request_id(request),
+        payload={"allowed_email_domains": response.allowed_email_domains},
+    )
+    await store_mutation_receipt(
+        db,
+        organization_id=organization.id,
+        key=payload.idempotency_key,
+        operation="membership.policy.write",
+        fingerprint=fingerprint,
+        response=response,
+    )
+    await db.flush()
+    return response

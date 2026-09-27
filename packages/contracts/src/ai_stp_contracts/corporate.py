@@ -963,3 +963,85 @@ class CorporateOverview(BaseModel):
             ):
                 raise ValueError("overview assignments require the same tenant and subject")
         return self
+
+
+type CorporateInvitationState = Literal["pending", "accepted", "expired", "revoked"]
+
+
+class CorporateInvitationCreateRequest(BaseModel):
+    """POST /v1/corporate/organizations/{organization_id}/invitations body."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
+    schema_version: Literal[1] = 1
+    recipient_email: Annotated[str, Field(min_length=3, max_length=320)]
+    display_name: Annotated[str, Field(min_length=1, max_length=80)]
+    role: CorporateRole
+    team_ids: Annotated[list[str], Field(max_length=64)] = Field(default_factory=list)
+    project_ids: Annotated[list[ProjectId], Field(max_length=64)] = Field(default_factory=list)
+    job_title_id: JobTitleId | None = None
+    ttl_seconds: Annotated[int, Field(default=604_800, ge=60, le=2_592_000)] = 604_800
+    authorization_revision: Annotated[int, Field(ge=1)]
+    idempotency_key: IdempotencyKey
+
+
+class CorporateInvitation(BaseModel):
+    """One organization invitation. The raw token is returned only on create."""
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+    schema_version: Literal[1] = 1
+    invitation_id: Annotated[str, Field(min_length=8, max_length=64)]
+    organization_id: OrganizationId
+    recipient_email: str
+    display_name: str
+    role: CorporateRole
+    team_ids: Annotated[list[str], Field(max_length=64)] = []
+    project_ids: Annotated[list[ProjectId], Field(max_length=64)] = []
+    job_title_id: JobTitleId | None = None
+    state: CorporateInvitationState
+    expires_at: Timestamp
+    created_at: Timestamp
+    accepted_account_id: AccountId | None = None
+    token: str | None = None
+
+
+class CorporateInvitationList(BaseModel):
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+    schema_version: Literal[1] = 1
+    items: Annotated[list[CorporateInvitation], Field(max_length=256)]
+
+
+class CorporateInvitationRevokeRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
+    schema_version: Literal[1] = 1
+    reason: Annotated[str, Field(default="", max_length=500)] = ""
+    authorization_revision: Annotated[int, Field(ge=1)]
+    idempotency_key: IdempotencyKey
+
+
+class CorporateInvitationAcceptRequest(BaseModel):
+    """POST /v1/corporate/invitations/{invitation_id}/accept body."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
+    schema_version: Literal[1] = 1
+    token: Annotated[str, Field(min_length=16, max_length=256)]
+    idempotency_key: IdempotencyKey
+
+
+class CorporateMembershipPolicy(BaseModel):
+    """Email-domain allowlist for joining the organization."""
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+    schema_version: Literal[1] = 1
+    organization_id: OrganizationId
+    allowed_email_domains: Annotated[list[str], Field(max_length=64)] = []
+    authorization_revision: Annotated[int, Field(ge=1)]
+
+
+class CorporateMembershipPolicyRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
+    schema_version: Literal[1] = 1
+    allowed_email_domains: Annotated[
+        list[Annotated[str, Field(min_length=1, max_length=253)]], Field(max_length=64)
+    ] = Field(default_factory=list)
+    authorization_revision: Annotated[int, Field(ge=1)]
+    idempotency_key: IdempotencyKey

@@ -3,6 +3,9 @@
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from "./client";
 import { client } from "./client.gen";
 import type {
+  AcceptCorporateInvitationData,
+  AcceptCorporateInvitationErrors,
+  AcceptCorporateInvitationResponses,
   AcceptGrantInvitationData,
   AcceptGrantInvitationErrors,
   AcceptGrantInvitationResponses,
@@ -59,6 +62,9 @@ import type {
   CreateCorporateDashboardViewData,
   CreateCorporateDashboardViewErrors,
   CreateCorporateDashboardViewResponses,
+  CreateCorporateInvitationData,
+  CreateCorporateInvitationErrors,
+  CreateCorporateInvitationResponses,
   CreateCorporateJobTitleData,
   CreateCorporateJobTitleErrors,
   CreateCorporateJobTitleResponses,
@@ -227,6 +233,9 @@ import type {
   ListCorporateDashboardViewsData,
   ListCorporateDashboardViewsErrors,
   ListCorporateDashboardViewsResponses,
+  ListCorporateInvitationsData,
+  ListCorporateInvitationsErrors,
+  ListCorporateInvitationsResponses,
   ListCorporateJobTitlesData,
   ListCorporateJobTitlesErrors,
   ListCorporateJobTitlesResponses,
@@ -434,6 +443,9 @@ import type {
   ReadCorporateMemberData,
   ReadCorporateMemberErrors,
   ReadCorporateMemberResponses,
+  ReadCorporateMembershipPolicyData,
+  ReadCorporateMembershipPolicyErrors,
+  ReadCorporateMembershipPolicyResponses,
   ReadCorporateOverviewData,
   ReadCorporateOverviewErrors,
   ReadCorporateOverviewResponses,
@@ -632,6 +644,9 @@ import type {
   RevokeAccessGrantData,
   RevokeAccessGrantErrors,
   RevokeAccessGrantResponses,
+  RevokeCorporateInvitationData,
+  RevokeCorporateInvitationErrors,
+  RevokeCorporateInvitationResponses,
   RevokeCorporateTelemetrySubjectData,
   RevokeCorporateTelemetrySubjectErrors,
   RevokeCorporateTelemetrySubjectResponses,
@@ -740,6 +755,9 @@ import type {
   WriteCorporateEntityProfileData,
   WriteCorporateEntityProfileErrors,
   WriteCorporateEntityProfileResponses,
+  WriteCorporateMembershipPolicyData,
+  WriteCorporateMembershipPolicyErrors,
+  WriteCorporateMembershipPolicyResponses,
   WriteCorporateProjectActivityData,
   WriteCorporateProjectActivityErrors,
   WriteCorporateProjectActivityResponses,
@@ -1572,6 +1590,30 @@ export const bootstrapCorporateOrganization = <ThrowOnError extends boolean = fa
   });
 
 /**
+ * Accept an organization invitation when the verified email matches.
+ */
+export const acceptCorporateInvitation = <ThrowOnError extends boolean = false>(
+  options: Options<AcceptCorporateInvitationData, ThrowOnError>,
+): RequestResult<
+  AcceptCorporateInvitationResponses,
+  AcceptCorporateInvitationErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).post<
+    AcceptCorporateInvitationResponses,
+    AcceptCorporateInvitationErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/invitations/{invitation_id}/accept",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
  * List the tenant audit journal.
  */
 export const listCorporateAudit = <ThrowOnError extends boolean = false>(
@@ -2304,6 +2346,70 @@ export const registerGitLabRepository = <ThrowOnError extends boolean = false>(
   });
 
 /**
+ * List organization invitations.
+ */
+export const listCorporateInvitations = <ThrowOnError extends boolean = false>(
+  options: Options<ListCorporateInvitationsData, ThrowOnError>,
+): RequestResult<ListCorporateInvitationsResponses, ListCorporateInvitationsErrors, ThrowOnError> =>
+  (options.client ?? client).get<
+    ListCorporateInvitationsResponses,
+    ListCorporateInvitationsErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/invitations",
+    ...options,
+  });
+
+/**
+ * Create a single-use, short-lived organization invitation link.
+ */
+export const createCorporateInvitation = <ThrowOnError extends boolean = false>(
+  options: Options<CreateCorporateInvitationData, ThrowOnError>,
+): RequestResult<
+  CreateCorporateInvitationResponses,
+  CreateCorporateInvitationErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).post<
+    CreateCorporateInvitationResponses,
+    CreateCorporateInvitationErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/invitations",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Revoke a pending organization invitation.
+ */
+export const revokeCorporateInvitation = <ThrowOnError extends boolean = false>(
+  options: Options<RevokeCorporateInvitationData, ThrowOnError>,
+): RequestResult<
+  RevokeCorporateInvitationResponses,
+  RevokeCorporateInvitationErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).post<
+    RevokeCorporateInvitationResponses,
+    RevokeCorporateInvitationErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/invitations/{invitation_id}/revoke",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
  * List organization job titles.
  */
 export const listCorporateJobTitles = <ThrowOnError extends boolean = false>(
@@ -2524,6 +2630,50 @@ export const assignCorporateMember = <ThrowOnError extends boolean = false>(
   >({
     security: [{ scheme: "bearer", type: "http" }],
     url: "/v1/corporate/organizations/{organization_id}/membership-assignments",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Read the organization's email-domain allowlist.
+ */
+export const readCorporateMembershipPolicy = <ThrowOnError extends boolean = false>(
+  options: Options<ReadCorporateMembershipPolicyData, ThrowOnError>,
+): RequestResult<
+  ReadCorporateMembershipPolicyResponses,
+  ReadCorporateMembershipPolicyErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).get<
+    ReadCorporateMembershipPolicyResponses,
+    ReadCorporateMembershipPolicyErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/membership/policy",
+    ...options,
+  });
+
+/**
+ * Restrict invitations and member provisioning to email domains.
+ */
+export const writeCorporateMembershipPolicy = <ThrowOnError extends boolean = false>(
+  options: Options<WriteCorporateMembershipPolicyData, ThrowOnError>,
+): RequestResult<
+  WriteCorporateMembershipPolicyResponses,
+  WriteCorporateMembershipPolicyErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).put<
+    WriteCorporateMembershipPolicyResponses,
+    WriteCorporateMembershipPolicyErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/membership/policy",
     ...options,
     headers: {
       "Content-Type": "application/json",

@@ -136,6 +136,7 @@ ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
             "organization.read",
             "organization.manage",
             "member.create",
+            "member.invite",
             "member.read",
             "member.update",
             "member.delete",
@@ -189,6 +190,7 @@ ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
     "lead": frozenset(
         {
             "organization.read",
+            "member.invite",
             "member.read",
             "member.update",
             "member.delete",
@@ -930,7 +932,7 @@ async def _scope_target_exists(
     return False
 
 
-async def _ensure_role_exists(db: AsyncSession, *, organization_id: str, role: str) -> None:
+async def ensure_role_exists(db: AsyncSession, *, organization_id: str, role: str) -> None:
     if (
         await db.scalar(
             select(CorporateRoleRow.name).where(
@@ -943,7 +945,7 @@ async def _ensure_role_exists(db: AsyncSession, *, organization_id: str, role: s
         raise ApiError(ErrorCategory.VALIDATION, "corporate role is unavailable")
 
 
-async def _ensure_current_job_title(
+async def ensure_current_job_title(
     db: AsyncSession, *, organization_id: str, job_title_id: str | None
 ) -> None:
     if job_title_id is None:
@@ -961,7 +963,7 @@ async def _ensure_current_job_title(
         raise ApiError(ErrorCategory.VALIDATION, "job title is unavailable")
 
 
-async def _ensure_active_teams(
+async def ensure_active_teams(
     db: AsyncSession, *, organization_id: str, team_ids: list[str]
 ) -> None:
     unique_ids = list(dict.fromkeys(team_ids))
@@ -980,7 +982,7 @@ async def _ensure_active_teams(
         raise ApiError(ErrorCategory.VALIDATION, "team relationship is unavailable")
 
 
-async def _ensure_active_projects(
+async def ensure_active_projects(
     db: AsyncSession, *, organization_id: str, project_ids: list[str]
 ) -> None:
     unique_ids = list(dict.fromkeys(project_ids))
@@ -1593,6 +1595,84 @@ async def update_job_title(
     return response
 
 
+def email_domain_allowed(allowed_domains: list[str] | None, email: str) -> bool:
+    """An empty allowlist admits every domain; otherwise the email's domain must match."""
+
+    if not allowed_domains:
+        return True
+    domain = normalize_email(email).rsplit("@", 1)[-1]
+    return domain in {item.strip().lower().lstrip("@.") for item in allowed_domains}
+
+
+def assert_email_domain_allowed(organization: Organization, email: str) -> None:
+    if not email_domain_allowed(list(organization.allowed_email_domains or []), email):
+        raise ApiError(ErrorCategory.VALIDATION, "email domain is not allowed")
+
+
+async def insert_membership_graph(
+    db: AsyncSession,
+    *,
+    organization_id: str,
+    account_id: str,
+    display_name: str,
+    role: str,
+    team_ids: list[str],
+    project_ids: list[str],
+    job_title_id: str | None,
+) -> OrganizationMembership:
+    """Create the membership row plus its org and team role bindings."""
+
+    membership = OrganizationMembership(
+        organization_id=organization_id,
+        account_id=account_id,
+        display_name=display_name.strip(),
+        role=role,
+        state="active",
+        job_title_id=job_title_id,
+    )
+    binding = CorporateRoleBinding(
+        id=new_id("operation"),
+        organization_id=organization_id,
+        account_id=account_id,
+        role=role,
+        scope_kind="organization",
+        scope_id=organization_id,
+        state="active",
+    )
+    db.add(membership)
+    await db.flush()
+    db.add(binding)
+    for team_id in dict.fromkeys(team_ids):
+        db.add(
+            CorporateTeamMember(
+                organization_id=organization_id,
+                team_id=team_id,
+                account_id=account_id,
+                role="staff",
+            )
+        )
+        db.add(
+            CorporateRoleBinding(
+                id=new_id("operation"),
+                organization_id=organization_id,
+                account_id=account_id,
+                role="staff",
+                scope_kind="team",
+                scope_id=team_id,
+                state="active",
+            )
+        )
+    for project_id in dict.fromkeys(project_ids):
+        db.add(
+            CorporateProjectMember(
+                organization_id=organization_id,
+                project_id=project_id,
+                account_id=account_id,
+            )
+        )
+    return membership
+
+
 async def create_member(
     db: AsyncSession,
     *,
@@ -1615,12 +1695,12 @@ async def create_member(
     )
     if receipt is not None:
         return CorporateMember.model_validate(receipt.response_body)
-    await _ensure_active_teams(db, organization_id=organization_id, team_ids=payload.team_ids)
-    await _ensure_active_projects(
+    await ensure_active_teams(db, organization_id=organization_id, team_ids=payload.team_ids)
+    await ensure_active_projects(
         db, organization_id=organization_id, project_ids=payload.project_ids
     )
-    await _ensure_role_exists(db, organization_id=organization_id, role=payload.role)
-    await _ensure_current_job_title(
+    await ensure_role_exists(db, organization_id=organization_id, role=payload.role)
+    await ensure_current_job_title(
         db, organization_id=organization_id, job_title_id=payload.job_title_id
     )
     if payload.catalog_assignments:
@@ -1657,6 +1737,7 @@ async def create_member(
         db.add(account)
         await db.flush()
     if payload.email is not None:
+        assert_email_domain_allowed(organization, payload.email)
         db.add(
             CorporateProvisionedIdentity(
                 organization_id=organization_id,
@@ -1672,54 +1753,16 @@ async def create_member(
     )
     if existing is not None:
         raise ApiError(ErrorCategory.CONFLICT, "member already exists")
-    membership = OrganizationMembership(
+    membership = await insert_membership_graph(
+        db,
         organization_id=organization_id,
         account_id=account.id,
-        display_name=payload.display_name.strip(),
+        display_name=payload.display_name,
         role=payload.role,
-        state="active",
+        team_ids=payload.team_ids,
+        project_ids=payload.project_ids,
         job_title_id=payload.job_title_id,
     )
-    binding = CorporateRoleBinding(
-        id=new_id("operation"),
-        organization_id=organization_id,
-        account_id=account.id,
-        role=payload.role,
-        scope_kind="organization",
-        scope_id=organization_id,
-        state="active",
-    )
-    db.add(membership)
-    await db.flush()
-    db.add(binding)
-    for team_id in dict.fromkeys(payload.team_ids):
-        db.add(
-            CorporateTeamMember(
-                organization_id=organization_id,
-                team_id=team_id,
-                account_id=account.id,
-                role="staff",
-            )
-        )
-        db.add(
-            CorporateRoleBinding(
-                id=new_id("operation"),
-                organization_id=organization_id,
-                account_id=account.id,
-                role="staff",
-                scope_kind="team",
-                scope_id=team_id,
-                state="active",
-            )
-        )
-    for project_id in dict.fromkeys(payload.project_ids):
-        db.add(
-            CorporateProjectMember(
-                organization_id=organization_id,
-                project_id=project_id,
-                account_id=account.id,
-            )
-        )
     for assignment in payload.catalog_assignments:
         db.add(
             CorporateCatalogAssignmentRow(
@@ -1892,8 +1935,8 @@ async def update_member(
         # Scoped (team) member administration cannot change organization roles
         # or touch a superadmin membership.
         raise ApiError(ErrorCategory.PERMISSION, "member role change is forbidden")
-    await _ensure_role_exists(db, organization_id=organization_id, role=payload.role)
-    await _ensure_current_job_title(
+    await ensure_role_exists(db, organization_id=organization_id, role=payload.role)
+    await ensure_current_job_title(
         db, organization_id=organization_id, job_title_id=payload.job_title_id
     )
     before = {
@@ -2508,7 +2551,7 @@ async def create_project(
     if receipt is not None:
         return CorporateProjectView.model_validate(receipt.response_body)
     if payload.owner_team_id is not None:
-        await _ensure_active_teams(
+        await ensure_active_teams(
             db, organization_id=organization_id, team_ids=[payload.owner_team_id]
         )
     await _ensure_active_technologies(
@@ -2999,7 +3042,7 @@ async def create_team(
     if payload.lead_account_id is not None and payload.lead_account_id not in employee_ids:
         raise ApiError(ErrorCategory.VALIDATION, "team lead must be an employee of the team")
     await _ensure_active_members(db, organization_id=organization_id, account_ids=employee_ids)
-    await _ensure_active_projects(
+    await ensure_active_projects(
         db, organization_id=organization_id, project_ids=list(payload.project_ids)
     )
     await _ensure_active_technologies(
