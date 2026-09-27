@@ -472,7 +472,14 @@
     "next": "Далее",
     "open": "Открыть проект",
     "backToWorkspace": "Назад в корпоративное пространство",
-    "backToTechnologies": "Назад к технологиям"
+    "backToTechnologies": "Назад к технологиям",
+    "sectionDeviceHeartbeat": "Хартбит устройств",
+    "sectionInventoryUsage": "Инвентаризация и использование",
+    "sectionPrivacyReporting": "Приватность и отчёты",
+    "advanced": "Расширенные",
+    "heartbeatIntervalMinutes": "Интервал хартбита (минуты)",
+    "heartbeatStaleHours": "Порог устаревания (часы)",
+    "heartbeatRetryMaxMinutes": "Максимальная задержка повтора (минуты)"
   },
   "githubConnector": {
     "backToAccount": "Назад к аккаунту",

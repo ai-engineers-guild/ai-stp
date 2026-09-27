@@ -18,12 +18,12 @@ it("submits a one-minute heartbeat interval with the corporate policy revision",
       csrfToken="csrf"
     />,
   );
-  expect(screen.getByLabelText("heartbeatIntervalSeconds")).toHaveAttribute("min", "60");
+  expect(screen.getByLabelText("heartbeatIntervalMinutes")).toHaveAttribute("min", "1");
   fireEvent.change(screen.getByLabelText("telemetryLegalBasis"), {
     target: { value: "consent" },
   });
-  fireEvent.change(screen.getByLabelText("heartbeatIntervalSeconds"), {
-    target: { value: "60" },
+  fireEvent.change(screen.getByLabelText("heartbeatIntervalMinutes"), {
+    target: { value: "1" },
   });
   const form = screen.getByRole("button", { name: "saveChanges" }).closest("form");
   expect(form).not.toBeNull();

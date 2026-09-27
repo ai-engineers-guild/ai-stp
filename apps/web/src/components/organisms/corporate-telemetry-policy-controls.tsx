@@ -64,27 +64,35 @@ const BOOLEAN_FIELDS_GRID: readonly BooleanFieldDef[] = [
   },
 ];
 
+// Cadence is stored and submitted in seconds; the form displays friendlier
+// units (minutes / hours). `unit` is the seconds multiplier for one input step.
 const CADENCE_FIELDS = [
   {
     id: "heartbeat-interval",
     name: "heartbeat_interval_seconds",
-    labelKey: "heartbeatIntervalSeconds",
-    min: 60,
-    max: 2592000,
+    labelKey: "heartbeatIntervalMinutes",
+    unit: 60,
+    min: 1,
+    max: 43200,
     fallback: 21600,
   },
   {
     id: "heartbeat-stale",
     name: "heartbeat_stale_after_seconds",
-    labelKey: "heartbeatStaleSeconds",
-    min: 60,
-    max: 31536000,
+    labelKey: "heartbeatStaleHours",
+    unit: 3600,
+    min: 1,
+    max: 8760,
     fallback: 86400,
   },
+] as const;
+
+const ADVANCED_CADENCE_FIELDS = [
   {
     id: "heartbeat-retry-base",
     name: "heartbeat_retry_base_seconds",
     labelKey: "heartbeatRetryBaseSeconds",
+    unit: 1,
     min: 30,
     max: 86400,
     fallback: 60,
@@ -92,9 +100,10 @@ const CADENCE_FIELDS = [
   {
     id: "heartbeat-retry-max",
     name: "heartbeat_retry_max_seconds",
-    labelKey: "heartbeatRetryMaxSeconds",
-    min: 60,
-    max: 604800,
+    labelKey: "heartbeatRetryMaxMinutes",
+    unit: 60,
+    min: 1,
+    max: 10080,
     fallback: 3600,
   },
 ] as const;
@@ -139,115 +148,136 @@ function TelemetryPolicyFields({
   disabled: boolean;
 }) {
   const t = useTranslations("technology");
+  const toggle = (field: BooleanFieldDef | undefined) =>
+    field && (
+      <BooleanSelectField
+        key={field.name}
+        id={field.id}
+        name={field.name}
+        label={t(field.labelKey)}
+        value={policy?.[field.name] ?? field.fallback}
+        disabled={disabled}
+        t={t}
+      />
+    );
+  const cadenceField = (field: {
+    id: string;
+    name:
+      | "heartbeat_interval_seconds"
+      | "heartbeat_stale_after_seconds"
+      | "heartbeat_retry_base_seconds"
+      | "heartbeat_retry_max_seconds";
+    labelKey: string;
+    unit: number;
+    min: number;
+    max: number;
+    fallback: number;
+  }) => (
+    <div key={field.name} className="space-y-2">
+      <Label htmlFor={field.id}>{t(field.labelKey)}</Label>
+      <Input
+        id={field.id}
+        name={field.name}
+        type="number"
+        min={field.min}
+        max={field.max}
+        required
+        defaultValue={Math.round((policy?.[field.name] ?? field.fallback) / field.unit)}
+        disabled={disabled}
+      />
+    </div>
+  );
   return (
     <>
-      <div className="space-y-2">
-        <Label htmlFor="telemetry-legal-basis">{t("telemetryLegalBasis")}</Label>
-        <select
-          id="telemetry-legal-basis"
-          name="legal_basis"
-          required
-          defaultValue={policy?.legal_basis ?? ""}
-          className={selectClass}
-        >
-          <option value="" disabled>
-            {t("chooseTelemetryLegalBasis")}
-          </option>
-          <option value="consent">{t("telemetryBasisConsent")}</option>
-          <option value="contract">{t("telemetryBasisContract")}</option>
-          <option value="legitimate_interest">{t("telemetryBasisLegitimateInterest")}</option>
-        </select>
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="telemetry-notice">{t("telemetryNotice")}</Label>
-        <Textarea
-          id="telemetry-notice"
-          name="notice_text"
-          maxLength={4000}
-          defaultValue={policy?.notice_text ?? ""}
-          disabled={disabled}
-        />
-      </div>
-      <div className="grid gap-4 sm:grid-cols-2">
+      <section className="border-border space-y-4 border-t pt-4">
+        <h3 className="text-sm font-medium">{t("sectionDeviceHeartbeat")}</h3>
+        {toggle(BOOLEAN_FIELDS_SINGLE[0])}
+        <div className="grid gap-4 sm:grid-cols-2">{CADENCE_FIELDS.map(cadenceField)}</div>
+        <details className="border-border rounded-md border px-4 py-3">
+          <summary className="text-muted-foreground cursor-pointer text-sm font-medium">
+            {t("advanced")}
+          </summary>
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            {ADVANCED_CADENCE_FIELDS.map(cadenceField)}
+          </div>
+        </details>
+      </section>
+      <section className="border-border space-y-4 border-t pt-4">
+        <h3 className="text-sm font-medium">{t("sectionInventoryUsage")}</h3>
+        {toggle(BOOLEAN_FIELDS_SINGLE[1])}
+        <div className="grid gap-4 sm:grid-cols-2">{BOOLEAN_FIELDS_GRID.map(toggle)}</div>
+      </section>
+      <section className="border-border space-y-4 border-t pt-4">
+        <h3 className="text-sm font-medium">{t("sectionPrivacyReporting")}</h3>
         <div className="space-y-2">
-          <Label htmlFor="telemetry-raw-retention">{t("telemetryRawRetention")}</Label>
-          <Input
-            id="telemetry-raw-retention"
-            name="raw_retention_days"
-            type="number"
-            min={1}
-            max={3650}
+          <Label htmlFor="telemetry-legal-basis">{t("telemetryLegalBasis")}</Label>
+          <select
+            id="telemetry-legal-basis"
+            name="legal_basis"
             required
-            defaultValue={policy?.raw_retention_days ?? 90}
+            defaultValue={policy?.legal_basis ?? ""}
+            className={selectClass}
+          >
+            <option value="" disabled>
+              {t("chooseTelemetryLegalBasis")}
+            </option>
+            <option value="consent">{t("telemetryBasisConsent")}</option>
+            <option value="contract">{t("telemetryBasisContract")}</option>
+            <option value="legitimate_interest">{t("telemetryBasisLegitimateInterest")}</option>
+          </select>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="telemetry-notice">{t("telemetryNotice")}</Label>
+          <Textarea
+            id="telemetry-notice"
+            name="notice_text"
+            maxLength={4000}
+            defaultValue={policy?.notice_text ?? ""}
             disabled={disabled}
           />
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="telemetry-aggregate-retention">{t("telemetryAggregateRetention")}</Label>
-          <Input
-            id="telemetry-aggregate-retention"
-            name="aggregate_retention_days"
-            type="number"
-            min={1}
-            max={3650}
-            required
-            defaultValue={policy?.aggregate_retention_days ?? 365}
-            disabled={disabled}
-          />
-        </div>
-      </div>
-      {BOOLEAN_FIELDS_SINGLE.map((field) => (
-        <BooleanSelectField
-          key={field.name}
-          id={field.id}
-          name={field.name}
-          label={t(field.labelKey)}
-          value={policy?.[field.name] ?? field.fallback}
-          disabled={disabled}
-          t={t}
-        />
-      ))}
-      <div className="grid gap-4 sm:grid-cols-2">
-        {BOOLEAN_FIELDS_GRID.map((field) => (
-          <BooleanSelectField
-            key={field.name}
-            id={field.id}
-            name={field.name}
-            label={t(field.labelKey)}
-            value={policy?.[field.name] ?? field.fallback}
-            disabled={disabled}
-            t={t}
-          />
-        ))}
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="report-timezone">{t("reportTimezone")}</Label>
-        <Input
-          id="report-timezone"
-          name="report_timezone"
-          required
-          maxLength={64}
-          defaultValue={policy?.report_timezone ?? "UTC"}
-          disabled={disabled}
-        />
-      </div>
-      <div className="grid gap-4 sm:grid-cols-2">
-        {CADENCE_FIELDS.map((field) => (
-          <div key={field.name} className="space-y-2">
-            <Label htmlFor={field.id}>{t(field.labelKey)}</Label>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-2">
+            <Label htmlFor="telemetry-raw-retention">{t("telemetryRawRetention")}</Label>
             <Input
-              id={field.id}
-              name={field.name}
+              id="telemetry-raw-retention"
+              name="raw_retention_days"
               type="number"
-              min={field.min}
-              max={field.max}
+              min={1}
+              max={3650}
               required
-              defaultValue={policy?.[field.name] ?? field.fallback}
+              defaultValue={policy?.raw_retention_days ?? 90}
               disabled={disabled}
             />
           </div>
-        ))}
-      </div>
+          <div className="space-y-2">
+            <Label htmlFor="telemetry-aggregate-retention">
+              {t("telemetryAggregateRetention")}
+            </Label>
+            <Input
+              id="telemetry-aggregate-retention"
+              name="aggregate_retention_days"
+              type="number"
+              min={1}
+              max={3650}
+              required
+              defaultValue={policy?.aggregate_retention_days ?? 365}
+              disabled={disabled}
+            />
+          </div>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="report-timezone">{t("reportTimezone")}</Label>
+          <Input
+            id="report-timezone"
+            name="report_timezone"
+            required
+            maxLength={64}
+            defaultValue={policy?.report_timezone ?? "UTC"}
+            disabled={disabled}
+          />
+        </div>
+      </section>
     </>
   );
 }
@@ -305,10 +335,10 @@ function parseTelemetryForm(data: FormData): ParsedTelemetryForm | null {
 
   const rawRetention = number("raw_retention_days");
   const aggregateRetention = number("aggregate_retention_days");
-  const interval = number("heartbeat_interval_seconds");
+  const interval = number("heartbeat_interval_seconds") * 60;
   const retryBase = number("heartbeat_retry_base_seconds");
-  const retryMax = number("heartbeat_retry_max_seconds");
-  const staleAfter = number("heartbeat_stale_after_seconds");
+  const retryMax = number("heartbeat_retry_max_seconds") * 60;
+  const staleAfter = number("heartbeat_stale_after_seconds") * 3600;
 
   if (
     ![rawRetention, aggregateRetention, interval, retryBase, retryMax, staleAfter].every(

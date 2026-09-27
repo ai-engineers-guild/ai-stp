@@ -472,7 +472,14 @@
     "next": "Next",
     "open": "Open project",
     "backToWorkspace": "Back to corporate workspace",
-    "backToTechnologies": "Back to technologies"
+    "backToTechnologies": "Back to technologies",
+    "sectionDeviceHeartbeat": "Device heartbeat",
+    "sectionInventoryUsage": "Inventory and usage",
+    "sectionPrivacyReporting": "Privacy and reporting",
+    "advanced": "Advanced",
+    "heartbeatIntervalMinutes": "Heartbeat interval (minutes)",
+    "heartbeatStaleHours": "Stale threshold (hours)",
+    "heartbeatRetryMaxMinutes": "Maximum retry delay (minutes)"
   },
   "githubConnector": {
     "backToAccount": "Back to account",
