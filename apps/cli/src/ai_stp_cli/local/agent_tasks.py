@@ -302,6 +302,10 @@ def parse_outcome(raw: str) -> TaskOutcome:
         from ai_stp_contracts.machine_help import TaskPublishOutcome
 
         return TaskPublishOutcome.model_validate(body)
+    if kind == "technology":
+        from ai_stp_contracts.machine_help import TaskTechnologyOutcome
+
+        return TaskTechnologyOutcome.model_validate(body)
     raise ValueError(f"unsupported task outcome kind: {kind}")
 
 

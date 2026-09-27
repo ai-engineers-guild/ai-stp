@@ -406,6 +406,7 @@ from ai_stp_contracts.technology import (
     TechnologyTeamList,
     TechnologyTeamView,
     TechnologyTeamWriteRequest,
+    TechnologyUnmappedView,
     TechnologyView,
     TechnologyWriteRequest,
 )
@@ -918,6 +919,15 @@ OPERATIONS: Final[tuple[Operation, ...]] = (
             _ORGANIZATION_ID,
             PathParam("version", "Immutable mapping version.", r"^[A-Za-z0-9._+-]+$"),
         ),
+    ),
+    Operation(
+        method="get",
+        path="/corporate/organizations/{organization_id}/technology-unmapped-coordinates",
+        operation_id="readTechnologyUnmappedCoordinates",
+        summary="Read the organization's unmapped-coordinate review queue.",
+        response=TechnologyUnmappedView,
+        authenticated=True,
+        path_params=(_ORGANIZATION_ID,),
     ),
     Operation(
         method="post",

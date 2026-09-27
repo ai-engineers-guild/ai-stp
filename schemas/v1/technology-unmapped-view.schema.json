@@ -1,0 +1,67 @@
+{
+  "$defs": {
+    "TechnologyUnmappedEntry": {
+      "additionalProperties": true,
+      "description": "One unmapped coordinate and the projects that reported it.",
+      "properties": {
+        "coordinate": {
+          "maxLength": 512,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9._:/@+*-]+$",
+          "title": "Coordinate",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "package",
+            "image",
+            "executable",
+            "configuration",
+            "alias"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "project_ids": {
+          "items": {
+            "pattern": "^remote_project_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "type": "string"
+          },
+          "maxItems": 512,
+          "title": "Project Ids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "coordinate",
+        "kind",
+        "project_ids"
+      ],
+      "title": "TechnologyUnmappedEntry",
+      "type": "object"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:technology-unmapped-view",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "properties": {
+    "coordinates": {
+      "items": {
+        "$ref": "#/$defs/TechnologyUnmappedEntry"
+      },
+      "title": "Coordinates",
+      "type": "array"
+    },
+    "organization_id": {
+      "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "title": "Organization Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "coordinates",
+    "organization_id"
+  ],
+  "title": "TechnologyUnmappedView",
+  "type": "object"
+}

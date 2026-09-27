@@ -2,13 +2,26 @@
 
 Identifiers are manifest identity, not derived from mutable display names.
 Never reorder or replace existing entries; a changed manifest needs a new version.
+
+`_SEED_ROWS` is the corpus: one row per technology — id suffix, display name,
+aliases, category indices into `SEED_CATEGORIES`, and detection coordinates.
+A coordinate is what the detector emits: `(kind, coordinate)` where kind is
+`package`, `image`, `configuration`, `alias`, or `executable`. `SEED_TECHNOLOGIES`
+and `SEED_COORDINATES` are both projections of that table, so the registry and
+the bundled mapping can never disagree about which identity a coordinate names.
 """
 
-from typing import Final
+from typing import Final, Literal
 
 from ai_stp_contracts.technology import TechnologyMetadata
 
 SEED_PROVENANCE: Final = "ai_stp:technology-seed:1"
+
+#: The version `import_seed` writes the seed coordinates under. Immutable like
+#: every mapping snapshot: growing the corpus means a new version string, the
+#: previous snapshot stays replayable.
+SEED_COORDINATES_VERSION: Final = "seed-coordinates.1"
+
 SEED_CATEGORIES: Final = (
     ("category_00000000000000000000000001", "Language"),
     ("category_00000000000000000000000002", "Library"),
@@ -35,39 +48,1698 @@ SEED_CATEGORIES: Final = (
     ("category_00000000000000000000000023", "Identity and security infrastructure"),
 )
 
-SEED_TECHNOLOGIES: Final = (
+#: (id_suffix, name, aliases, category indices, detection coordinates).
+#: Indices into SEED_CATEGORIES: 0 Language, 1 Library, 2 Framework, 3 Runtime,
+#: 4 Browser, 5 Web API, 6 DBMS, 7 Cache, 8 Broker, 9 Build tool,
+#: 10 Package manager, 11 Registry, 12 Test framework, 13 Test runner,
+#: 14 CI/CD, 15 Job runner, 16 Container platform, 17 OS, 18 Cloud,
+#: 19 Web server/proxy, 20 IaC, 21 Observability, 22 Identity/security.
+_CoordinateKind = Literal["package", "image", "executable", "configuration", "alias"]
+_SeedRow = tuple[
+    str,
+    str,
+    tuple[str, ...],
+    tuple[int, ...],
+    tuple[tuple[_CoordinateKind, str], ...],
+]
+_SEED_ROWS: Final[tuple[_SeedRow, ...]] = (
     (
-        "technology_00000000000000000000000001",
-        TechnologyMetadata(
-            name="Bun", category_ids=[SEED_CATEGORIES[index][0] for index in (3, 9, 10, 13)]
+        "01",
+        "Bun",
+        (),
+        (3, 9, 10, 13),
+        (
+            ("alias", "bun"),
+            ("package", "bun"),
+            ("configuration", "bun.lock"),
+            ("configuration", "bun.lockb"),
+        ),
+    ),
+    ("02", "npm CLI", (), (10,), (("alias", "npm"), ("package", "npm"))),
+    ("03", "npm registry", (), (11,), ()),
+    (
+        "04",
+        "GitLab CI/CD",
+        ("GitLab CI",),
+        (14,),
+        (
+            ("configuration", ".gitlab-ci.yml"),
+            ("configuration", ".gitlab-ci.yaml"),
+        ),
+    ),
+    ("05", "GitLab Runner", (), (15,), (("image", "gitlab/gitlab-runner"),)),
+    (
+        "06",
+        "React",
+        ("React.js",),
+        (1,),
+        (
+            ("package", "react"),
+            ("package", "react-dom"),
         ),
     ),
     (
-        "technology_00000000000000000000000002",
-        TechnologyMetadata(name="npm CLI", category_ids=[SEED_CATEGORIES[10][0]]),
+        "07",
+        "PostgreSQL",
+        ("Postgres",),
+        (6,),
+        (
+            ("image", "postgres"),
+            ("image", "postgresql"),
+            ("package", "psycopg"),
+            ("package", "psycopg2"),
+            ("package", "psycopg2-binary"),
+            ("package", "asyncpg"),
+            ("package", "pg"),
+            ("package", "postgres"),
+            ("configuration", "postgresql.conf"),
+            ("configuration", "pg_hba.conf"),
+        ),
     ),
+    # --- Languages ----------------------------------------------------------
     (
-        "technology_00000000000000000000000003",
-        TechnologyMetadata(name="npm registry", category_ids=[SEED_CATEGORIES[11][0]]),
-    ),
-    (
-        "technology_00000000000000000000000004",
-        TechnologyMetadata(name="GitLab CI/CD", category_ids=[SEED_CATEGORIES[14][0]]),
-    ),
-    (
-        "technology_00000000000000000000000005",
-        TechnologyMetadata(name="GitLab Runner", category_ids=[SEED_CATEGORIES[15][0]]),
-    ),
-    (
-        "technology_00000000000000000000000006",
-        TechnologyMetadata(
-            name="React", aliases=["React.js"], category_ids=[SEED_CATEGORIES[1][0]]
+        "08",
+        "Python",
+        ("CPython",),
+        (0,),
+        (
+            ("alias", "python"),
+            ("image", "python"),
+            ("configuration", ".python-version"),
+            ("configuration", "runtime.txt"),
+            ("configuration", "pyrightconfig.json"),
         ),
     ),
     (
-        "technology_00000000000000000000000007",
-        TechnologyMetadata(
-            name="PostgreSQL", aliases=["Postgres"], category_ids=[SEED_CATEGORIES[6][0]]
+        "09",
+        "TypeScript",
+        (),
+        (0,),
+        (("alias", "typescript"), ("package", "typescript")),
+    ),
+    ("10", "JavaScript", ("ECMAScript",), (0,), (("alias", "javascript"),)),
+    (
+        "11",
+        "Go",
+        ("Golang",),
+        (0,),
+        (
+            ("alias", "go"),
+            ("image", "golang"),
+            ("configuration", ".go-version"),
         ),
     ),
+    ("12", "Rust", ("Rustlang",), (0,), (("alias", "rust"), ("image", "rust"))),
+    ("13", "Dart", (), (0,), (("alias", "dart"),)),
+    (
+        "14",
+        "Java",
+        (),
+        (0,),
+        (
+            ("alias", "java"),
+            ("configuration", ".java-version"),
+            ("image", "openjdk"),
+            ("image", "eclipse-temurin"),
+        ),
+    ),
+    (
+        "15",
+        "Ruby",
+        (),
+        (0,),
+        (
+            ("alias", "ruby"),
+            ("configuration", ".ruby-version"),
+            ("image", "ruby"),
+        ),
+    ),
+    ("16", "PHP", (), (0,), (("alias", "php"), ("image", "php"))),
+    (
+        "17",
+        "Elixir",
+        (),
+        (0,),
+        (
+            ("alias", "elixir"),
+            ("configuration", "mix.exs"),
+            ("image", "elixir"),
+        ),
+    ),
+    # --- Runtimes and version managers --------------------------------------
+    (
+        "18",
+        "Node.js",
+        ("Node",),
+        (3,),
+        (
+            ("alias", "node"),
+            ("image", "node"),
+            ("configuration", ".nvmrc"),
+            ("configuration", ".node-version"),
+        ),
+    ),
+    (
+        "19",
+        "Deno",
+        (),
+        (3,),
+        (
+            ("alias", "deno"),
+            ("image", "denoland/deno"),
+            ("configuration", "deno.json"),
+            ("configuration", "deno.jsonc"),
+        ),
+    ),
+    (
+        "20",
+        "mise",
+        (),
+        (10,),
+        (
+            ("configuration", "mise.toml"),
+            ("configuration", ".mise.toml"),
+        ),
+    ),
+    ("21", "asdf", (), (10,), (("configuration", ".tool-versions"),)),
+    # --- Package managers ---------------------------------------------------
+    (
+        "22",
+        "uv",
+        (),
+        (10,),
+        (
+            ("alias", "uv"),
+            ("image", "ghcr.io/astral-sh/uv"),
+        ),
+    ),
+    ("23", "Poetry", (), (10,), (("alias", "poetry"),)),
+    (
+        "24",
+        "pipenv",
+        (),
+        (10,),
+        (
+            ("alias", "pipenv"),
+            ("configuration", "Pipfile"),
+        ),
+    ),
+    ("25", "pnpm", (), (10,), (("alias", "pnpm"),)),
+    ("26", "Yarn", (), (10,), (("alias", "yarn"),)),
+    (
+        "27",
+        "Cargo",
+        (),
+        (9, 10),
+        (
+            ("alias", "cargo"),
+            ("package", "cargo"),
+        ),
+    ),
+    (
+        "28",
+        "Composer",
+        (),
+        (10,),
+        (
+            ("alias", "composer"),
+            ("configuration", "composer.json"),
+        ),
+    ),
+    (
+        "29",
+        "Bundler",
+        (),
+        (10,),
+        (
+            ("alias", "bundler"),
+            ("configuration", "Gemfile"),
+        ),
+    ),
+    (
+        "30",
+        "Conda",
+        (),
+        (10,),
+        (
+            ("alias", "conda"),
+            ("configuration", "environment.yml"),
+            ("configuration", "environment.yaml"),
+        ),
+    ),
+    ("31", "Dart Pub", ("pub",), (10,), (("alias", "pubspec"),)),
+    # --- Frameworks ---------------------------------------------------------
+    (
+        "32",
+        "Django",
+        (),
+        (2,),
+        (
+            ("package", "django"),
+            ("configuration", "manage.py"),
+        ),
+    ),
+    ("33", "FastAPI", (), (2,), (("package", "fastapi"),)),
+    (
+        "34",
+        "Flask",
+        (),
+        (2,),
+        (
+            ("package", "flask"),
+            ("package", "flask-sqlalchemy"),
+            ("package", "flask-login"),
+            ("package", "flask-migrate"),
+            ("package", "flask-wtf"),
+        ),
+    ),
+    (
+        "35",
+        "Next.js",
+        ("NextJS",),
+        (2,),
+        (
+            ("package", "next"),
+            ("configuration", "next.config.js"),
+            ("configuration", "next.config.mjs"),
+            ("configuration", "next.config.ts"),
+        ),
+    ),
+    (
+        "36",
+        "Angular",
+        ("AngularJS",),
+        (2,),
+        (
+            ("configuration", "angular.json"),
+            ("package", "@angular/core"),
+            ("package", "@angular/cli"),
+        ),
+    ),
+    ("37", "Vue.js", ("Vue",), (2,), (("package", "vue"),)),
+    (
+        "38",
+        "Nuxt",
+        ("Nuxt.js",),
+        (2,),
+        (
+            ("package", "nuxt"),
+            ("configuration", "nuxt.config.ts"),
+            ("configuration", "nuxt.config.js"),
+        ),
+    ),
+    ("39", "Svelte", (), (1,), (("package", "svelte"),)),
+    (
+        "40",
+        "SvelteKit",
+        (),
+        (2,),
+        (
+            ("package", "@sveltejs/kit"),
+            ("configuration", "svelte.config.js"),
+        ),
+    ),
+    (
+        "41",
+        "NestJS",
+        ("Nest",),
+        (2,),
+        (
+            ("package", "@nestjs/core"),
+            ("package", "@nestjs/common"),
+        ),
+    ),
+    ("42", "Express", ("Express.js",), (2,), (("package", "express"),)),
+    ("43", "Fastify", (), (2,), (("package", "fastify"),)),
+    (
+        "44",
+        "Tauri",
+        (),
+        (2,),
+        (
+            ("configuration", "tauri.conf.json"),
+            ("package", "@tauri-apps/api"),
+            ("package", "tauri"),
+        ),
+    ),
+    ("45", "Electron", (), (2,), (("package", "electron"),)),
+    (
+        "46",
+        "Remix",
+        (),
+        (2,),
+        (
+            ("configuration", "remix.config.js"),
+            ("package", "@remix-run/react"),
+        ),
+    ),
+    (
+        "47",
+        "Astro",
+        (),
+        (2,),
+        (
+            ("configuration", "astro.config.mjs"),
+            ("package", "astro"),
+        ),
+    ),
+    (
+        "48",
+        "Gatsby",
+        (),
+        (2,),
+        (
+            ("configuration", "gatsby-config.js"),
+            ("package", "gatsby"),
+        ),
+    ),
+    ("49", "Flutter", (), (2,), (("package", "flutter"),)),
+    ("50", "React Native", (), (2,), (("package", "react-native"),)),
+    ("51", "aiohttp", (), (2,), (("package", "aiohttp"),)),
+    ("52", "Tornado", (), (2,), (("package", "tornado"),)),
+    ("53", "FastStream", (), (2,), (("package", "faststream"),)),
+    (
+        "54",
+        "Ionic",
+        (),
+        (2,),
+        (
+            ("configuration", "ionic.config.json"),
+            ("package", "@ionic/core"),
+        ),
+    ),
+    (
+        "55",
+        "Capacitor",
+        (),
+        (2,),
+        (
+            ("configuration", "capacitor.config.ts"),
+            ("configuration", "capacitor.config.json"),
+            ("package", "@capacitor/core"),
+        ),
+    ),
+    # --- Web API standards and data libraries -------------------------------
+    (
+        "56",
+        "GraphQL",
+        (),
+        (5,),
+        (
+            ("package", "graphql"),
+            ("package", "graphql-core"),
+            ("package", "graphene"),
+        ),
+    ),
+    (
+        "57",
+        "gRPC",
+        (),
+        (5,),
+        (
+            ("package", "grpcio"),
+            ("package", "grpcio-tools"),
+            ("package", "@grpc/grpc-js"),
+            ("package", "google.golang.org/grpc"),
+        ),
+    ),
+    (
+        "58",
+        "Protocol Buffers",
+        ("Protobuf",),
+        (5,),
+        (
+            ("configuration", "proto"),
+            ("package", "protobuf"),
+            ("package", "protobufjs"),
+        ),
+    ),
+    (
+        "59",
+        "Model Context Protocol",
+        ("MCP",),
+        (5,),
+        (
+            ("package", "mcp"),
+            ("package", "@modelcontextprotocol/sdk"),
+        ),
+    ),
+    ("60", "SQLAlchemy", (), (1,), (("package", "sqlalchemy"),)),
+    (
+        "61",
+        "Alembic",
+        (),
+        (1,),
+        (
+            ("package", "alembic"),
+            ("configuration", "alembic.ini"),
+        ),
+    ),
+    (
+        "62",
+        "Prisma",
+        (),
+        (1,),
+        (
+            ("configuration", "schema.prisma"),
+            ("package", "prisma"),
+            ("package", "@prisma/client"),
+        ),
+    ),
+    (
+        "63",
+        "Drizzle ORM",
+        ("Drizzle",),
+        (1,),
+        (
+            ("configuration", "drizzle.config.ts"),
+            ("package", "drizzle-orm"),
+        ),
+    ),
+    ("64", "GORM", (), (1,), (("package", "gorm.io/gorm"),)),
+    ("65", "Pydantic", (), (1,), (("package", "pydantic"),)),
+    (
+        "66",
+        "Tailwind CSS",
+        ("Tailwind",),
+        (1,),
+        (
+            ("package", "tailwindcss"),
+            ("package", "@tailwindcss/vite"),
+            ("package", "@tailwindcss/postcss"),
+            ("package", "@tailwindcss/cli"),
+        ),
+    ),
+    ("67", "Bootstrap", (), (1,), (("package", "bootstrap"),)),
+    ("68", "htmx", (), (1,), (("package", "htmx.org"),)),
+    ("69", "httpx", (), (1,), (("package", "httpx"),)),
+    ("70", "Requests", (), (1,), (("package", "requests"),)),
+    (
+        "71",
+        "pgvector",
+        (),
+        (1,),
+        (
+            ("image", "pgvector/pgvector"),
+            ("package", "pgvector"),
+        ),
+    ),
+    ("72", "PostGIS", (), (1,), (("image", "postgis/postgis"),)),
+    (
+        "73",
+        "LangChain",
+        (),
+        (1,),
+        (
+            ("package", "langchain"),
+            ("package", "langchain-core"),
+        ),
+    ),
+    ("74", "LlamaIndex", (), (1,), (("package", "llama-index"),)),
+    ("75", "OpenAI SDK", ("OpenAI Python library",), (1,), (("package", "openai"),)),
+    (
+        "76",
+        "Anthropic SDK",
+        (),
+        (1,),
+        (("package", "anthropic"), ("package", "@anthropic-ai/sdk")),
+    ),
+    (
+        "77",
+        "Hugging Face Transformers",
+        ("Transformers",),
+        (1,),
+        (
+            ("package", "transformers"),
+            ("package", "huggingface-hub"),
+        ),
+    ),
+    ("78", "PyTorch", (), (1,), (("package", "torch"),)),
+    ("79", "TensorFlow", (), (1,), (("package", "tensorflow"),)),
+    ("80", "pandas", (), (1,), (("package", "pandas"),)),
+    ("81", "NumPy", (), (1,), (("package", "numpy"),)),
+    ("82", "scikit-learn", ("sklearn",), (1,), (("package", "scikit-learn"),)),
+    # --- DBMS ---------------------------------------------------------------
+    (
+        "83",
+        "MySQL",
+        (),
+        (6,),
+        (
+            ("image", "mysql"),
+            ("package", "mysqlclient"),
+            ("package", "pymysql"),
+            ("package", "mysql-connector-python"),
+            ("package", "mysql"),
+            ("package", "mysql2"),
+            ("package", "aiomysql"),
+            ("package", "github.com/go-sql-driver/mysql"),
+        ),
+    ),
+    ("84", "MariaDB", (), (6,), (("image", "mariadb"), ("package", "mariadb"))),
+    (
+        "85",
+        "MongoDB",
+        ("Mongo",),
+        (6,),
+        (
+            ("image", "mongo"),
+            ("image", "mongodb/mongodb-community-server"),
+            ("package", "pymongo"),
+            ("package", "motor"),
+            ("package", "mongodb"),
+        ),
+    ),
+    (
+        "86",
+        "ClickHouse",
+        (),
+        (6,),
+        (
+            ("image", "clickhouse/clickhouse-server"),
+            ("image", "clickhouse"),
+            ("package", "clickhouse-driver"),
+            ("package", "clickhouse-connect"),
+        ),
+    ),
+    (
+        "87",
+        "Elasticsearch",
+        (),
+        (6,),
+        (
+            ("image", "elasticsearch"),
+            ("image", "docker.elastic.co/elasticsearch/elasticsearch"),
+            ("package", "elasticsearch"),
+            ("package", "@elastic/elasticsearch"),
+        ),
+    ),
+    (
+        "88",
+        "OpenSearch",
+        (),
+        (6,),
+        (
+            ("image", "opensearchproject/opensearch"),
+            ("image", "opensearch"),
+            ("package", "opensearch-py"),
+        ),
+    ),
+    (
+        "89",
+        "Apache Cassandra",
+        ("Cassandra",),
+        (6,),
+        (
+            ("image", "cassandra"),
+            ("package", "cassandra-driver"),
+        ),
+    ),
+    ("90", "CockroachDB", (), (6,), (("image", "cockroachdb/cockroach"),)),
+    ("91", "Neo4j", (), (6,), (("image", "neo4j"), ("package", "neo4j"))),
+    (
+        "92",
+        "InfluxDB",
+        (),
+        (6,),
+        (
+            ("image", "influxdb"),
+            ("package", "influxdb"),
+            ("package", "influxdb-client"),
+        ),
+    ),
+    ("93", "TimescaleDB", (), (6,), (("image", "timescale/timescaledb"),)),
+    (
+        "94",
+        "Apache CouchDB",
+        ("CouchDB",),
+        (6,),
+        (
+            ("image", "couchdb"),
+            ("image", "apache/couchdb"),
+        ),
+    ),
+    ("95", "DuckDB", (), (6,), (("package", "duckdb"),)),
+    (
+        "96",
+        "Qdrant",
+        (),
+        (6,),
+        (
+            ("image", "qdrant/qdrant"),
+            ("package", "qdrant-client"),
+        ),
+    ),
+    (
+        "97",
+        "Milvus",
+        (),
+        (6,),
+        (
+            ("image", "milvusdb/milvus"),
+            ("package", "pymilvus"),
+        ),
+    ),
+    (
+        "98",
+        "Weaviate",
+        (),
+        (6,),
+        (
+            ("image", "semitechnologies/weaviate"),
+            ("package", "weaviate-client"),
+        ),
+    ),
+    (
+        "99",
+        "Microsoft SQL Server",
+        ("SQL Server", "MSSQL"),
+        (6,),
+        (
+            ("image", "mcr.microsoft.com/mssql/server"),
+            ("package", "pymssql"),
+            ("package", "pyodbc"),
+        ),
+    ),
+    (
+        "100",
+        "Oracle Database",
+        ("Oracle DB",),
+        (6,),
+        (
+            ("package", "oracledb"),
+            ("package", "cx-oracle"),
+            ("image", "container-registry.oracle.com/database/free"),
+        ),
+    ),
+    ("101", "SurrealDB", (), (6,), (("image", "surrealdb/surrealdb"),)),
+    (
+        "102",
+        "Meilisearch",
+        (),
+        (6,),
+        (
+            ("image", "getmeili/meilisearch"),
+            ("package", "meilisearch"),
+        ),
+    ),
+    ("103", "Typesense", (), (6,), (("image", "typesense/typesense"),)),
+    ("104", "MinIO", (), (6,), (("image", "minio/minio"), ("package", "minio"))),
+    ("105", "pgAdmin", (), (6,), (("image", "dpage/pgadmin4"),)),
+    # --- Cache ----------------------------------------------------------------
+    (
+        "106",
+        "Redis",
+        (),
+        (6, 7),
+        (
+            ("image", "redis"),
+            ("image", "redis/redis-stack-server"),
+            ("package", "redis"),
+            ("package", "hiredis"),
+            ("package", "ioredis"),
+            ("package", "github.com/redis/go-redis"),
+            ("package", "github.com/redis/go-redis/v9"),
+            ("package", "github.com/go-redis/redis/v8"),
+            ("configuration", "redis.conf"),
+        ),
+    ),
+    (
+        "107",
+        "Memcached",
+        (),
+        (7,),
+        (
+            ("image", "memcached"),
+            ("package", "pymemcache"),
+            ("package", "memcached"),
+        ),
+    ),
+    (
+        "108",
+        "Valkey",
+        (),
+        (7,),
+        (
+            ("image", "valkey/valkey"),
+            ("package", "valkey"),
+        ),
+    ),
+    (
+        "109",
+        "Dragonfly",
+        ("DragonflyDB",),
+        (7,),
+        (("image", "docker.dragonflydb.io/dragonflydb/dragonfly"),),
+    ),
+    ("110", "Hazelcast", (), (7,), (("image", "hazelcast/hazelcast"),)),
+    # --- Brokers, queues, schedulers ------------------------------------------
+    (
+        "111",
+        "Apache Kafka",
+        ("Kafka",),
+        (8,),
+        (
+            ("image", "apache/kafka"),
+            ("image", "confluentinc/cp-kafka"),
+            ("image", "bitnami/kafka"),
+            ("package", "kafka-python"),
+            ("package", "confluent-kafka"),
+            ("package", "aiokafka"),
+            ("package", "kafkajs"),
+            ("package", "github.com/segmentio/kafka-go"),
+            ("package", "github.com/confluentinc/confluent-kafka-go"),
+            ("package", "github.com/shopify/sarama"),
+        ),
+    ),
+    (
+        "112",
+        "RabbitMQ",
+        (),
+        (8,),
+        (
+            ("image", "rabbitmq"),
+            ("package", "pika"),
+            ("package", "aio-pika"),
+            ("package", "amqplib"),
+            ("package", "github.com/rabbitmq/amqp091-go"),
+        ),
+    ),
+    (
+        "113",
+        "NATS",
+        (),
+        (8,),
+        (
+            ("image", "nats"),
+            ("package", "nats-py"),
+            ("package", "nats"),
+            ("package", "github.com/nats-io/nats.go"),
+        ),
+    ),
+    (
+        "114",
+        "Apache Pulsar",
+        ("Pulsar",),
+        (8,),
+        (
+            ("image", "apachepulsar/pulsar"),
+            ("package", "pulsar-client"),
+        ),
+    ),
+    (
+        "115",
+        "Redpanda",
+        (),
+        (8,),
+        (
+            ("image", "redpandadata/redpanda"),
+            ("image", "docker.redpanda.com/redpandadata/redpanda"),
+        ),
+    ),
+    (
+        "116",
+        "Eclipse Mosquitto",
+        ("Mosquitto",),
+        (8,),
+        (
+            ("image", "eclipse-mosquitto"),
+            ("package", "paho-mqtt"),
+        ),
+    ),
+    ("117", "EMQX", (), (8,), (("image", "emqx/emqx"),)),
+    ("118", "Apache ActiveMQ", ("ActiveMQ",), (8,), (("image", "apache/activemq-classic"),)),
+    ("119", "Apache RocketMQ", ("RocketMQ",), (8,), (("image", "apache/rocketmq"),)),
+    ("120", "Celery", (), (15,), (("package", "celery"),)),
+    (
+        "121",
+        "Temporal",
+        (),
+        (15,),
+        (
+            ("image", "temporalio/server"),
+            ("image", "temporalio/admin-tools"),
+            ("image", "temporalio/ui"),
+            ("package", "temporalio"),
+            ("package", "@temporalio/client"),
+            ("package", "@temporalio/worker"),
+        ),
+    ),
+    ("122", "BullMQ", (), (15,), (("package", "bullmq"), ("package", "bull"))),
+    (
+        "123",
+        "Apache Airflow",
+        ("Airflow",),
+        (15,),
+        (
+            ("package", "apache-airflow"),
+            ("image", "apache/airflow"),
+            ("image", "bitnami/airflow"),
+        ),
+    ),
+    ("124", "Dagster", (), (15,), (("package", "dagster"),)),
+    ("125", "Prefect", (), (15,), (("package", "prefect"),)),
+    (
+        "126",
+        "Apache Spark",
+        ("Spark",),
+        (15,),
+        (
+            ("package", "pyspark"),
+            ("image", "apache/spark"),
+            ("image", "bitnami/spark"),
+        ),
+    ),
+    (
+        "127",
+        "Apache Flink",
+        ("Flink",),
+        (15,),
+        (
+            ("image", "flink"),
+            ("package", "apache-flink"),
+        ),
+    ),
+    ("128", "Apache Beam", ("Beam",), (15,), (("package", "apache-beam"),)),
+    (
+        "129",
+        "dbt",
+        ("data build tool",),
+        (9,),
+        (
+            ("package", "dbt-core"),
+            ("package", "dbt"),
+        ),
+    ),
+    # --- CI/CD and developer tooling ------------------------------------------
+    (
+        "130",
+        "GitHub Actions",
+        ("GitHub Actions CI",),
+        (14,),
+        (("configuration", "github-workflows"),),
+    ),
+    (
+        "131",
+        "Jenkins",
+        (),
+        (14,),
+        (
+            ("configuration", "Jenkinsfile"),
+            ("image", "jenkins/jenkins"),
+        ),
+    ),
+    ("132", "CircleCI", (), (14,), (("configuration", "circleci"),)),
+    ("133", "Azure Pipelines", (), (14,), (("configuration", "azure-pipelines.yml"),)),
+    ("134", "Bitbucket Pipelines", (), (14,), (("configuration", "bitbucket-pipelines.yml"),)),
+    ("135", "Travis CI", (), (14,), (("configuration", ".travis.yml"),)),
+    ("136", "Drone", ("Drone CI",), (14,), (("configuration", ".drone.yml"),)),
+    (
+        "137",
+        "pre-commit",
+        (),
+        (9,),
+        (
+            ("configuration", ".pre-commit-config.yaml"),
+            ("package", "pre-commit"),
+        ),
+    ),
+    # --- Containers and orchestration ------------------------------------------
+    (
+        "138",
+        "Docker",
+        (),
+        (16,),
+        (
+            ("configuration", "Dockerfile"),
+            ("configuration", "Containerfile"),
+            ("image", "docker"),
+            ("package", "docker"),
+        ),
+    ),
+    (
+        "139",
+        "Docker Compose",
+        (),
+        (16,),
+        (
+            ("configuration", "docker-compose.yml"),
+            ("configuration", "docker-compose.yaml"),
+            ("configuration", "compose.yml"),
+            ("configuration", "compose.yaml"),
+        ),
+    ),
+    (
+        "140",
+        "Kubernetes",
+        ("k8s",),
+        (16,),
+        (
+            ("configuration", "kubernetes-manifests"),
+            ("package", "kubernetes"),
+            ("package", "k8s.io/client-go"),
+            ("package", "@kubernetes/client-node"),
+        ),
+    ),
+    (
+        "141",
+        "Helm",
+        (),
+        (16,),
+        (
+            ("configuration", "Chart.yaml"),
+            ("configuration", "helmfile.yaml"),
+            ("image", "alpine/helm"),
+        ),
+    ),
+    (
+        "142",
+        "Kustomize",
+        (),
+        (16,),
+        (
+            ("configuration", "kustomization.yaml"),
+            ("configuration", "kustomization.yml"),
+        ),
+    ),
+    ("143", "Skaffold", (), (16,), (("configuration", "skaffold.yaml"),)),
+    ("144", "Docker Registry", ("OCI Distribution registry",), (11,), (("image", "registry"),)),
+    ("145", "Harbor", (), (11,), (("image", "goharbor/harbor-core"),)),
+    # --- IaC -------------------------------------------------------------------
+    (
+        "146",
+        "Terraform",
+        (),
+        (20,),
+        (
+            ("configuration", "tf"),
+            ("alias", "terraform"),
+            ("image", "hashicorp/terraform"),
+        ),
+    ),
+    (
+        "147",
+        "Pulumi",
+        (),
+        (20,),
+        (
+            ("configuration", "Pulumi.yaml"),
+            ("package", "pulumi"),
+        ),
+    ),
+    (
+        "148",
+        "Ansible",
+        (),
+        (20,),
+        (
+            ("configuration", "ansible.cfg"),
+            ("package", "ansible"),
+            ("package", "ansible-core"),
+        ),
+    ),
+    (
+        "149",
+        "Serverless Framework",
+        ("Serverless",),
+        (20,),
+        (
+            ("configuration", "serverless.yml"),
+            ("configuration", "serverless.yaml"),
+            ("package", "serverless"),
+        ),
+    ),
+    (
+        "150",
+        "AWS CDK",
+        (),
+        (20,),
+        (
+            ("configuration", "cdk.json"),
+            ("package", "aws-cdk-lib"),
+        ),
+    ),
+    ("151", "Vagrant", (), (20,), (("configuration", "Vagrantfile"),)),
+    ("152", "Checkov", (), (20,), (("package", "checkov"),)),
+    # --- Web servers and proxies ------------------------------------------------
+    (
+        "153",
+        "nginx",
+        (),
+        (19,),
+        (
+            ("image", "nginx"),
+            ("image", "nginxinc/nginx-unprivileged"),
+            ("configuration", "nginx.conf"),
+        ),
+    ),
+    (
+        "154",
+        "Caddy",
+        (),
+        (19,),
+        (
+            ("image", "caddy"),
+            ("configuration", "Caddyfile"),
+        ),
+    ),
+    ("155", "Traefik", (), (19,), (("image", "traefik"),)),
+    ("156", "HAProxy", (), (19,), (("image", "haproxy"),)),
+    ("157", "Apache HTTP Server", ("httpd",), (19,), (("image", "httpd"),)),
+    ("158", "Envoy", (), (19,), (("image", "envoyproxy/envoy"),)),
+    ("159", "Gunicorn", (), (19,), (("package", "gunicorn"),)),
+    ("160", "Uvicorn", (), (19,), (("package", "uvicorn"),)),
+    ("161", "Kong", ("Kong Gateway",), (19,), (("image", "kong"),)),
+    ("162", "OpenResty", (), (19,), (("image", "openresty/openresty"),)),
+    # --- Observability -----------------------------------------------------------
+    (
+        "163",
+        "Prometheus",
+        (),
+        (21,),
+        (
+            ("image", "prom/prometheus"),
+            ("package", "prometheus-client"),
+            ("package", "prom-client"),
+        ),
+    ),
+    ("164", "Grafana", (), (21,), (("image", "grafana/grafana"),)),
+    (
+        "165",
+        "Sentry",
+        (),
+        (21,),
+        (
+            ("package", "sentry-sdk"),
+            ("package", "@sentry/node"),
+            ("package", "@sentry/react"),
+            ("image", "getsentry/sentry"),
+        ),
+    ),
+    (
+        "166",
+        "Datadog",
+        (),
+        (21,),
+        (
+            ("package", "dd-trace"),
+            ("package", "datadog"),
+            ("package", "datadogpy"),
+            ("image", "datadog/agent"),
+        ),
+    ),
+    ("167", "New Relic", (), (21,), (("package", "newrelic"),)),
+    (
+        "168",
+        "OpenTelemetry",
+        ("OTel",),
+        (21,),
+        (
+            ("package", "opentelemetry-sdk"),
+            ("package", "opentelemetry-api"),
+            ("package", "@opentelemetry/api"),
+            ("package", "@opentelemetry/sdk-node"),
+        ),
+    ),
+    ("169", "Grafana Loki", ("Loki",), (21,), (("image", "grafana/loki"),)),
+    ("170", "Fluent Bit", (), (21,), (("image", "fluent/fluent-bit"),)),
+    ("171", "Jaeger", (), (21,), (("image", "jaegertracing/all-in-one"),)),
+    ("172", "Uptime Kuma", (), (21,), (("image", "louislam/uptime-kuma"),)),
+    ("173", "Zabbix", (), (21,), (("image", "zabbix/zabbix-server"),)),
+    # --- Identity and security ---------------------------------------------------
+    (
+        "174",
+        "Keycloak",
+        (),
+        (22,),
+        (
+            ("image", "keycloak/keycloak"),
+            ("image", "quay.io/keycloak/keycloak"),
+        ),
+    ),
+    (
+        "175",
+        "HashiCorp Vault",
+        ("Vault",),
+        (22,),
+        (
+            ("image", "hashicorp/vault"),
+            ("image", "vault"),
+            ("package", "hvac"),
+        ),
+    ),
+    (
+        "176",
+        "Auth0",
+        (),
+        (22,),
+        (
+            ("package", "auth0"),
+            ("package", "@auth0/auth0-spa-js"),
+            ("package", "@auth0/nextjs-auth0"),
+        ),
+    ),
+    ("177", "Okta", (), (22,), (("package", "@okta/okta-auth-js"),)),
+    ("178", "authentik", (), (22,), (("image", "ghcr.io/goauthentik/server"),)),
+    # --- Cloud platforms and managed services --------------------------------------
+    (
+        "179",
+        "Amazon Web Services",
+        ("AWS",),
+        (18,),
+        (
+            ("package", "boto3"),
+            ("package", "botocore"),
+            ("image", "amazon/aws-cli"),
+        ),
+    ),
+    (
+        "180",
+        "Amazon S3",
+        ("S3",),
+        (18,),
+        (
+            ("package", "@aws-sdk/client-s3"),
+            ("package", "s3fs"),
+        ),
+    ),
+    (
+        "181",
+        "Google Cloud",
+        ("GCP",),
+        (18,),
+        (
+            ("package", "google-cloud-core"),
+            ("package", "google-api-python-client"),
+            ("package", "@google-cloud/storage"),
+        ),
+    ),
+    (
+        "182",
+        "Microsoft Azure",
+        ("Azure",),
+        (18,),
+        (
+            ("package", "azure-identity"),
+            ("package", "azure-storage-blob"),
+            ("package", "@azure/identity"),
+        ),
+    ),
+    (
+        "183",
+        "Firebase",
+        (),
+        (18,),
+        (
+            ("configuration", "firebase.json"),
+            ("package", "firebase"),
+            ("package", "firebase-admin"),
+        ),
+    ),
+    (
+        "184",
+        "Supabase",
+        (),
+        (18,),
+        (
+            ("configuration", "supabase"),
+            ("package", "@supabase/supabase-js"),
+        ),
+    ),
+    ("185", "Vercel", (), (18,), (("configuration", "vercel.json"),)),
+    ("186", "Netlify", (), (18,), (("configuration", "netlify.toml"),)),
+    ("187", "Fly.io", ("Fly",), (18,), (("configuration", "fly.toml"),)),
+    ("188", "Render", (), (18,), (("configuration", "render.yaml"),)),
+    (
+        "189",
+        "Railway",
+        (),
+        (18,),
+        (
+            ("configuration", "railway.toml"),
+            ("configuration", "railway.json"),
+        ),
+    ),
+    (
+        "190",
+        "Cloudflare Workers",
+        ("Wrangler",),
+        (18,),
+        (
+            ("configuration", "wrangler.toml"),
+            ("package", "wrangler"),
+        ),
+    ),
+    # --- Operating systems ----------------------------------------------------------
+    ("191", "Alpine Linux", ("Alpine",), (17,), (("image", "alpine"),)),
+    ("192", "Debian", (), (17,), (("image", "debian"),)),
+    ("193", "Ubuntu", (), (17,), (("image", "ubuntu"),)),
+    (
+        "194",
+        "Google Distroless",
+        ("Distroless",),
+        (17,),
+        (
+            ("image", "gcr.io/distroless/cc-debian12"),
+            ("image", "gcr.io/distroless/base-debian12"),
+            ("image", "gcr.io/distroless/static-debian12"),
+        ),
+    ),
+    ("195", "Amazon Linux", (), (17,), (("image", "amazonlinux"),)),
+    ("196", "Fedora", (), (17,), (("image", "fedora"),)),
+    ("197", "Rocky Linux", (), (17,), (("image", "rockylinux"),)),
+    ("198", "AlmaLinux", (), (17,), (("image", "almalinux"),)),
+    ("199", "Chainguard Wolfi", ("Wolfi",), (17,), (("image", "cgr.dev/chainguard/wolfi-base"),)),
+    # --- Test frameworks and runners --------------------------------------------------
+    (
+        "200",
+        "pytest",
+        (),
+        (12,),
+        (
+            ("package", "pytest"),
+            ("package", "pytest-asyncio"),
+            ("package", "pytest-cov"),
+            ("package", "pytest-django"),
+            ("package", "pytest-mock"),
+            ("package", "pytest-xdist"),
+            ("package", "pytest-benchmark"),
+            ("configuration", "pytest.ini"),
+            ("configuration", "conftest.py"),
+        ),
+    ),
+    (
+        "201",
+        "Jest",
+        (),
+        (12,),
+        (
+            ("package", "jest"),
+            ("configuration", "jest.config.js"),
+            ("configuration", "jest.config.ts"),
+        ),
+    ),
+    (
+        "202",
+        "Vitest",
+        (),
+        (12,),
+        (
+            ("package", "vitest"),
+            ("configuration", "vitest.config.ts"),
+            ("configuration", "vitest.config.js"),
+        ),
+    ),
+    ("203", "Mocha", (), (12,), (("package", "mocha"),)),
+    (
+        "204",
+        "Playwright",
+        (),
+        (13,),
+        (
+            ("package", "playwright"),
+            ("package", "@playwright/test"),
+            ("configuration", "playwright.config.ts"),
+            ("configuration", "playwright.config.js"),
+        ),
+    ),
+    (
+        "205",
+        "Cypress",
+        (),
+        (13,),
+        (
+            ("package", "cypress"),
+            ("configuration", "cypress.config.ts"),
+            ("configuration", "cypress.config.js"),
+        ),
+    ),
+    (
+        "206",
+        "Selenium",
+        (),
+        (13,),
+        (
+            ("package", "selenium"),
+            ("image", "selenium/standalone-chrome"),
+        ),
+    ),
+    ("207", "Hypothesis", (), (12,), (("package", "hypothesis"),)),
+    ("208", "Coverage.py", ("coverage",), (12,), (("package", "coverage"),)),
+    (
+        "209",
+        "tox",
+        (),
+        (13,),
+        (
+            ("package", "tox"),
+            ("configuration", "tox.ini"),
+        ),
+    ),
+    (
+        "210",
+        "Nox",
+        (),
+        (13,),
+        (
+            ("package", "nox"),
+            ("configuration", "noxfile.py"),
+        ),
+    ),
+    ("211", "Cucumber", (), (12,), (("package", "@cucumber/cucumber"),)),
+    ("212", "behave", (), (12,), (("package", "behave"),)),
+    ("213", "Locust", (), (13,), (("package", "locust"),)),
+    (
+        "214",
+        "Grafana k6",
+        ("k6",),
+        (13,),
+        (
+            ("image", "grafana/k6"),
+            ("image", "loadimpact/k6"),
+        ),
+    ),
+    (
+        "215",
+        "Testcontainers",
+        (),
+        (12,),
+        (
+            ("package", "testcontainers"),
+            ("package", "@testcontainers/postgresql"),
+        ),
+    ),
+    ("216", "Robot Framework", (), (12,), (("package", "robotframework"),)),
+    (
+        "217",
+        "Storybook",
+        (),
+        (9, 13),
+        (
+            ("configuration", "storybook"),
+            ("package", "@storybook/react"),
+        ),
+    ),
+    # --- Build and bundling -----------------------------------------------------------
+    (
+        "218",
+        "Vite",
+        (),
+        (9,),
+        (
+            ("configuration", "vite.config.ts"),
+            ("configuration", "vite.config.js"),
+            ("package", "vite"),
+            ("package", "@vitejs/plugin-react"),
+            ("package", "@vitejs/plugin-vue"),
+        ),
+    ),
+    ("219", "esbuild", (), (9,), (("package", "esbuild"),)),
+    (
+        "220",
+        "webpack",
+        (),
+        (9,),
+        (
+            ("package", "webpack"),
+            ("package", "webpack-cli"),
+        ),
+    ),
+    ("221", "Rollup", (), (9,), (("package", "rollup"),)),
+    ("222", "Parcel", (), (9,), (("package", "parcel"), ("package", "@parcel/core"))),
+    ("223", "Turborepo", ("Turbo",), (9,), (("package", "turbo"),)),
+    ("224", "Nx", (), (9,), (("package", "nx"), ("package", "@nx/workspace"))),
+    ("225", "SWC", (), (9,), (("package", "@swc/core"),)),
+    ("226", "Babel", (), (9,), (("package", "@babel/core"),)),
+    (
+        "227",
+        "ESLint",
+        (),
+        (9,),
+        (
+            ("package", "eslint"),
+            ("configuration", "eslint.config.js"),
+            ("configuration", "eslint.config.mjs"),
+            ("configuration", ".eslintrc.json"),
+            ("configuration", ".eslintrc.js"),
+        ),
+    ),
+    (
+        "228",
+        "Prettier",
+        (),
+        (9,),
+        (
+            ("package", "prettier"),
+            ("configuration", ".prettierrc"),
+            ("configuration", ".prettierrc.json"),
+        ),
+    ),
+    (
+        "229",
+        "Biome",
+        ("BiomeJS",),
+        (9,),
+        (
+            ("package", "@biomejs/biome"),
+            ("configuration", "biome.json"),
+        ),
+    ),
+    (
+        "230",
+        "Ruff",
+        (),
+        (9,),
+        (
+            ("package", "ruff"),
+            ("configuration", "ruff.toml"),
+            ("configuration", ".ruff.toml"),
+        ),
+    ),
+    ("231", "mypy", (), (9,), (("package", "mypy"), ("configuration", "mypy.ini"))),
+    ("232", "Pyright", (), (9,), (("package", "pyright"),)),
+    ("233", "Black", (), (9,), (("package", "black"),)),
+    ("234", "isort", (), (9,), (("package", "isort"),)),
+    ("235", "Flake8", (), (9,), (("package", "flake8"),)),
+    ("236", "golangci-lint", ("GolangCI Lint",), (9,), (("image", "golangci/golangci-lint"),)),
+    ("237", "Maven", (), (9,), (("configuration", "pom.xml"), ("image", "maven"))),
+    (
+        "238",
+        "Gradle",
+        (),
+        (9,),
+        (
+            ("configuration", "build.gradle"),
+            ("configuration", "build.gradle.kts"),
+            ("image", "gradle"),
+        ),
+    ),
+    # --- Late additions: the rescan tail ----------------------------------------
+    #: Frameworks.
+    ("239", "Starlette", (), (2,), (("package", "starlette"),)),
+    ("240", "Gin", (), (2,), (("package", "github.com/gin-gonic/gin"),)),
+    (
+        "241",
+        "Echo",
+        (),
+        (2,),
+        (
+            ("package", "github.com/labstack/echo"),
+            ("package", "github.com/labstack/echo/v4"),
+        ),
+    ),
+    (
+        "242",
+        "Chi",
+        (),
+        (2,),
+        (
+            ("package", "github.com/go-chi/chi"),
+            ("package", "github.com/go-chi/chi/v5"),
+        ),
+    ),
+    (
+        "243",
+        "Fiber",
+        (),
+        (2,),
+        (
+            ("package", "github.com/gofiber/fiber"),
+            ("package", "github.com/gofiber/fiber/v2"),
+            ("package", "github.com/gofiber/fiber/v3"),
+        ),
+    ),
+    ("245", "Hono", (), (2,), (("package", "hono"),)),
+    ("246", "Koa", (), (2,), (("package", "koa"),)),
+    (
+        "247",
+        "React Router",
+        ("React Router DOM",),
+        (2,),
+        (
+            ("package", "react-router"),
+            ("package", "react-router-dom"),
+        ),
+    ),
+    ("248", "Cobra", (), (2,), (("package", "github.com/spf13/cobra"),)),
+    (
+        "249",
+        "Django REST framework",
+        ("DRF",),
+        (2,),
+        (("package", "djangorestframework"),),
+    ),
+    #: Libraries.
+    ("250", "Zod", (), (1,), (("package", "zod"),)),
+    ("251", "PyYAML", (), (1,), (("package", "pyyaml"),)),
+    ("252", "Pillow", ("PIL",), (1,), (("package", "pillow"),)),
+    ("253", "PyJWT", (), (1,), (("package", "pyjwt"), ("package", "python-jose"))),
+    ("254", "uvloop", (), (1,), (("package", "uvloop"),)),
+    ("255", "Rich", (), (1,), (("package", "rich"),)),
+    ("256", "Click", (), (1,), (("package", "click"),)),
+    ("257", "Typer", (), (1,), (("package", "typer"),)),
+    ("258", "websockets", (), (1,), (("package", "websockets"), ("package", "ws"))),
+    ("259", "Axios", (), (1,), (("package", "axios"),)),
+    (
+        "260",
+        "Redux",
+        (),
+        (1,),
+        (("package", "redux"), ("package", "@reduxjs/toolkit")),
+    ),
+    ("261", "Zustand", (), (1,), (("package", "zustand"),)),
+    (
+        "262",
+        "TanStack Query",
+        ("React Query",),
+        (1,),
+        (
+            ("package", "@tanstack/react-query"),
+            ("package", "react-query"),
+            ("package", "@tanstack/vue-query"),
+            ("package", "@tanstack/svelte-query"),
+        ),
+    ),
+    ("263", "SWR", (), (1,), (("package", "swr"),)),
+    ("264", "styled-components", (), (1,), (("package", "styled-components"),)),
+    (
+        "265",
+        "Framer Motion",
+        (),
+        (1,),
+        (("package", "framer-motion"), ("package", "motion")),
+    ),
+    ("266", "Polars", (), (1,), (("package", "polars"),)),
+    ("267", "SciPy", (), (1,), (("package", "scipy"),)),
+    ("268", "Matplotlib", (), (1,), (("package", "matplotlib"),)),
+    (
+        "269",
+        "ONNX Runtime",
+        (),
+        (1,),
+        (("package", "onnxruntime"), ("package", "onnxruntime-web")),
+    ),
+    ("270", "sqlx", (), (1,), (("package", "github.com/jmoiron/sqlx"),)),
+    ("271", "Viper", (), (1,), (("package", "github.com/spf13/viper"),)),
+    ("272", "Zap", (), (1,), (("package", "go.uber.org/zap"),)),
+    ("273", "zerolog", (), (1,), (("package", "github.com/rs/zerolog"),)),
+    ("274", "Mongoose", (), (1,), (("package", "mongoose"),)),
+    ("275", "Stripe", (), (18,), (("package", "stripe"),)),
+    (
+        "276",
+        "Clerk",
+        (),
+        (22,),
+        (("package", "@clerk/nextjs"), ("package", "@clerk/clerk-react")),
+    ),
+    (
+        "277",
+        "Auth.js",
+        ("NextAuth",),
+        (22,),
+        (("package", "next-auth"), ("package", "@auth/core")),
+    ),
+    #: Test stack.
+    (
+        "279",
+        "Testing Library",
+        (),
+        (12,),
+        (
+            ("package", "@testing-library/react"),
+            ("package", "@testing-library/dom"),
+            ("package", "@testing-library/vue"),
+            ("package", "@testing-library/angular"),
+        ),
+    ),
+    (
+        "280",
+        "Testify",
+        (),
+        (12,),
+        (
+            ("package", "github.com/stretchr/testify"),
+            ("package", "github.com/stretchr/objx"),
+        ),
+    ),
+    ("281", "Mock Service Worker", ("MSW",), (12,), (("package", "msw"),)),
+    (
+        "282",
+        "Faker",
+        (),
+        (12,),
+        (("package", "faker"), ("package", "@faker-js/faker")),
+    ),
+    (
+        "283",
+        "factory_boy",
+        (),
+        (12,),
+        (("package", "factory-boy"), ("package", "factory_boy")),
+    ),
+    ("284", "responses", (), (12,), (("package", "responses"),)),
+    ("285", "freezegun", (), (12,), (("package", "freezegun"),)),
+    (
+        "286",
+        "gomock",
+        (),
+        (12,),
+        (("package", "go.uber.org/mock"), ("package", "github.com/golang/mock")),
+    ),
+    ("287", "Supertest", (), (12,), (("package", "supertest"),)),
+    ("288", "Nock", (), (12,), (("package", "nock"),)),
+    #: Job runners.
+    ("289", "Dramatiq", (), (15,), (("package", "dramatiq"),)),
+    ("290", "RQ", ("Redis Queue",), (15,), (("package", "rq"),)),
+    ("291", "Huey", (), (15,), (("package", "huey"),)),
+    #: Web servers.
+    ("292", "Hypercorn", (), (19,), (("package", "hypercorn"),)),
+    ("293", "Daphne", (), (19,), (("package", "daphne"),)),
+    #: Build tools.
+    ("294", "PostCSS", (), (9,), (("package", "postcss"),)),
+)
+
+
+def _technology_id(suffix: str) -> str:
+    return f"technology_{int(suffix):026d}"
+
+
+SEED_TECHNOLOGIES: Final = tuple(
+    (
+        _technology_id(suffix),
+        TechnologyMetadata(
+            name=name,
+            aliases=list(aliases),
+            category_ids=[SEED_CATEGORIES[index][0] for index in categories],
+        ),
+    )
+    for suffix, name, aliases, categories, _coordinates in _SEED_ROWS
+)
+
+#: `(technology_id, kind, coordinate)` — the seed's detection surface. The CLI's
+#: bundled mapping and the backend seed import both project this table.
+SEED_COORDINATES: Final = tuple(
+    (_technology_id(suffix), kind, coordinate)
+    for suffix, _name, _aliases, _categories, coordinates in _SEED_ROWS
+    for kind, coordinate in coordinates
 )

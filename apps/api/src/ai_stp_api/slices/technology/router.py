@@ -56,6 +56,7 @@ from ai_stp_contracts.technology import (
     TechnologyTeamList,
     TechnologyTeamView,
     TechnologyTeamWriteRequest,
+    TechnologyUnmappedView,
     TechnologyView,
     TechnologyWriteRequest,
 )
@@ -255,6 +256,18 @@ async def publish_mapping(
         organization_id=organization_id,
         version=version,
         payload=payload,
+        request_id=getattr(request.state, "request_id", None),
+    )
+
+
+@router.get("/technology-unmapped-coordinates", response_model=TechnologyUnmappedView)
+async def read_unmapped(
+    organization_id: OrganizationId, request: Request, db: Db, ctx: Auth
+) -> TechnologyUnmappedView:
+    return await detection.read_unmapped(
+        db,
+        ctx=ctx,
+        organization_id=organization_id,
         request_id=getattr(request.state, "request_id", None),
     )
 

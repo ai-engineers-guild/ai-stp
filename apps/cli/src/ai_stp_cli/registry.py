@@ -2532,6 +2532,93 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         next_actions=("project technology mappings list --organization <id> --json",),
     ),
     Declaration(
+        path=["project", "technology", "mappings", "publish"],
+        summary=(
+            "Publish one immutable organization coordinate mapping: an entries "
+            "document or the bundled seed table."
+        ),
+        result_schema="urn:ai-stp:schema:v1:technology-mapping-view",
+        handler="project:technology_mapping_publish",
+        mutability="apply",
+        parameter_rules=(CommandParameterRule(kind="exactly_one", parameters=["entries", "seed"]),),
+        parameters=(
+            option("organization", "string", "Explicit remote organization.", required=True),
+            option(
+                "version",
+                "string",
+                "Exact immutable snapshot version to write.",
+                required=True,
+            ),
+            option(
+                "entries",
+                "string",
+                "JSON/YAML document of {kind, coordinate, technology_id, provenance} rows.",
+            ),
+            option(
+                "seed",
+                "boolean",
+                "Publish the bundled seed coordinate table as the snapshot.",
+            ),
+            option(
+                "authorization-revision",
+                "string",
+                "Revision from the selected capability projection.",
+                required=True,
+            ),
+            option(
+                "idempotency-key", "string", "Stable key for this exact publication.", required=True
+            ),
+        ),
+        next_actions=(
+            "project technology mappings fetch --organization <id> --version <v> --json",
+        ),
+    ),
+    Declaration(
+        path=["project", "technology", "unmapped"],
+        summary=(
+            "List the stored coordinates the effective mapping cannot resolve "
+            "for one local project — the registry review queue."
+        ),
+        result_schema="urn:ai-stp:schema:v1:cli-technology-unmapped",
+        handler="project:technology_unmapped",
+        parameter_rules=(CommandParameterRule(kind="exactly_one", parameters=["project", "root"]),),
+        parameters=(
+            option("project", "string", "Stable local project identifier."),
+            option("root", "string", "Project root to resolve the identifier from."),
+            option(
+                "scope",
+                "string",
+                "Named scan scope the findings belong to. Defaults to 'repository'.",
+            ),
+            option(
+                "organization",
+                "string",
+                "Remote organization whose cached mapping also applies to resolution.",
+            ),
+        ),
+        next_actions=(
+            "project technology unmapped-remote --organization <id> --json",
+            "project technology mappings publish --organization <id> --version <v> --seed "
+            "--authorization-revision <n> --idempotency-key <key> --json",
+        ),
+    ),
+    Declaration(
+        path=["project", "technology", "unmapped-remote"],
+        summary=(
+            "Read the organization's unmapped-coordinate queue: every coordinate "
+            "published scans left unresolved."
+        ),
+        result_schema="urn:ai-stp:schema:v1:technology-unmapped-view",
+        handler="project:technology_unmapped_remote",
+        parameters=(
+            option("organization", "string", "Explicit remote organization.", required=True),
+        ),
+        next_actions=(
+            "project technology mappings publish --organization <id> --version <v> "
+            "--entries <file> --authorization-revision <n> --idempotency-key <key> --json",
+        ),
+    ),
+    Declaration(
         path=["project", "technology", "publish"],
         summary="Publish the stored findings of a linked project as a scan handoff.",
         result_schema="urn:ai-stp:schema:v1:technology-scan-result",
@@ -4941,6 +5028,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                     "switch",
                     "account",
                     "publish",
+                    "technology",
                 ),
             ),
             option(

@@ -27391,6 +27391,15 @@
             "pattern": "^[A-Za-z0-9._/-]+$",
             "title": "Scope",
             "type": "string"
+          },
+          "unmapped_coordinates": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/TechnologyUnmappedCoordinate"
+            },
+            "maxItems": 512,
+            "title": "Unmapped Coordinates",
+            "type": "array"
           }
         },
         "required": [
@@ -27763,6 +27772,99 @@
           "team_id"
         ],
         "title": "TechnologyTeamWriteRequest",
+        "type": "object"
+      },
+      "TechnologyUnmappedCoordinate": {
+        "additionalProperties": false,
+        "description": "A coordinate the applied mapping did not resolve — the registry's review queue.\n\nUnmapped coordinates are observations, not identities: the platform retains\nthem so an organization can see what its mapping does not yet name and grow\nthe registry from evidence instead of guesswork.",
+        "properties": {
+          "coordinate": {
+            "maxLength": 512,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9._:/@+*-]+$",
+            "title": "Coordinate",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "package",
+              "image",
+              "executable",
+              "configuration",
+              "alias"
+            ],
+            "title": "Kind",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "coordinate"
+        ],
+        "title": "TechnologyUnmappedCoordinate",
+        "type": "object"
+      },
+      "TechnologyUnmappedEntry": {
+        "additionalProperties": true,
+        "description": "One unmapped coordinate and the projects that reported it.",
+        "properties": {
+          "coordinate": {
+            "maxLength": 512,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9._:/@+*-]+$",
+            "title": "Coordinate",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "package",
+              "image",
+              "executable",
+              "configuration",
+              "alias"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "project_ids": {
+            "items": {
+              "pattern": "^remote_project_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            },
+            "maxItems": 512,
+            "title": "Project Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "coordinate",
+          "kind",
+          "project_ids"
+        ],
+        "title": "TechnologyUnmappedEntry",
+        "type": "object"
+      },
+      "TechnologyUnmappedView": {
+        "additionalProperties": true,
+        "properties": {
+          "coordinates": {
+            "items": {
+              "$ref": "#/components/schemas/TechnologyUnmappedEntry"
+            },
+            "title": "Coordinates",
+            "type": "array"
+          },
+          "organization_id": {
+            "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "title": "Organization Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "coordinates",
+          "organization_id"
+        ],
+        "title": "TechnologyUnmappedView",
         "type": "object"
       },
       "TechnologyUsageFact": {
@@ -66008,6 +66110,191 @@
           }
         ],
         "summary": "Import seed v1 without replacing owner edits."
+      }
+    },
+    "/v1/corporate/organizations/{organization_id}/technology-unmapped-coordinates": {
+      "get": {
+        "operationId": "readTechnologyUnmappedCoordinates",
+        "parameters": [
+          {
+            "description": "Explicit remote organization selected for this request.",
+            "in": "path",
+            "name": "organization_id",
+            "required": true,
+            "schema": {
+              "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "readTechnologyUnmappedCoordinates.technology": {
+                    "summary": "Unmapped coordinates stay observations; resolving them is a mapping-snapshot decision.",
+                    "value": {
+                      "coordinates": [
+                        {
+                          "coordinate": "left-pad",
+                          "kind": "package",
+                          "project_ids": [
+                            "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+                          ]
+                        }
+                      ],
+                      "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/TechnologyUnmappedView"
+                }
+              }
+            },
+            "description": "Read the organization's unmapped-coordinate review queue.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Read the organization's unmapped-coordinate review queue."
       }
     },
     "/v1/corporate/organizations/{organization_id}/telemetry/aggregates": {

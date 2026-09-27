@@ -33,6 +33,7 @@ from ai_stp_platform.queue.states import JobState, JobType
 from ai_stp_platform.safety.metrics import record_queue_job
 from ai_stp_platform.tenant_scope import set_tenant_scope
 from ai_stp_worker.handlers import resolve
+from ai_stp_worker.handlers.technology_refresh import enqueue_daily_refresh
 
 _log = get_logger("runner")
 
@@ -100,6 +101,7 @@ class Worker:
         lease_timeout_seconds: float = DEFAULT_LEASE_TIMEOUT_SECONDS,
         heartbeat_interval_seconds: float = DEFAULT_HEARTBEAT_INTERVAL_SECONDS,
         schedule_official_upstream: bool = True,
+        schedule_technology_refresh: bool = True,
     ) -> None:
         self._sessionmaker = sessionmaker
         self._worker_id = worker_id
@@ -112,6 +114,9 @@ class Worker:
         self._heartbeat_interval = heartbeat_interval_seconds
         self._stopping = asyncio.Event()
         self._official_enqueue_day: date | None = date.min if schedule_official_upstream else None
+        self._technology_enqueue_day: date | None = (
+            date.min if schedule_technology_refresh else None
+        )
 
     def request_stop(self) -> None:
         """Signal the run loop to stop claiming and drain."""
@@ -180,6 +185,9 @@ class Worker:
                 await enqueue_daily(session)
                 await reconcile_delivery(session)
                 enqueued_for = today
+            if self._technology_enqueue_day is not None and self._technology_enqueue_day != today:
+                await enqueue_daily_refresh(session)
+                self._technology_enqueue_day = today
             await requeue_stale(session, lease_timeout_seconds=self._lease_timeout)
             queue_events = list(
                 (

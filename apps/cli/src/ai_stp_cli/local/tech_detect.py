@@ -26,7 +26,7 @@ import re
 import time
 import tomllib
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Final, Literal, cast
 
 import yaml
@@ -34,6 +34,7 @@ from packaging.requirements import InvalidRequirement, Requirement
 from packaging.utils import canonicalize_name
 
 from ai_stp_cli.local import project_index
+from ai_stp_contracts.technology_seed import SEED_COORDINATES, SEED_COORDINATES_VERSION
 
 #: Bumped when the rule set changes in a way that makes two scans incomparable.
 #: Evidence carries it, so a finding always says which detector saw it.
@@ -42,7 +43,10 @@ DETECTOR_VERSION: Final[str] = "2"
 #: The version of the bundled coordinate→identity table. Organization snapshots
 #: fetched from the platform carry their own version; this one ships with the
 #: CLI and resolves only identities the canonical seed already owns.
-BUNDLED_MAPPING_VERSION: Final[str] = "bundled.1"
+# The bundled table is a verbatim projection of the seed corpus, so it carries
+# the seed's version: an organization that imported the seed holds this exact
+# snapshot, and a scan declaring it validates against those rows.
+BUNDLED_MAPPING_VERSION: Final[str] = SEED_COORDINATES_VERSION
 
 #: A dependency line longer than this is pathological, not a requirement.
 MAX_LINE_CHARS: Final[int] = 512
@@ -1336,12 +1340,46 @@ class MappingSnapshot:
 
     version: str
     entries: tuple[tuple[str, str, str], ...]  # (kind, coordinate, technology_id)
+    _exact: dict[tuple[str, str], str] = field(init=False, repr=False, compare=False)
+    _image_basenames: dict[str, str] = field(init=False, repr=False, compare=False)
+
+    def __post_init__(self) -> None:
+        exact: dict[tuple[str, str], str] = {}
+        image_basenames: dict[str, str | None] = {}
+        for entry_kind, entry_coordinate, technology_id in self.entries:
+            lowered = entry_coordinate.lower()
+            exact.setdefault((entry_kind, lowered), technology_id)
+            if entry_kind == "image":
+                basename = lowered.rsplit("/", 1)[-1]
+                if image_basenames.get(basename, technology_id) != technology_id:
+                    # `temporalio/server` and `mcr.microsoft.com/mssql/server`
+                    # share a basename; an ambiguous suffix resolves nothing.
+                    # Same-technology repeats (`apache/kafka`, `bitnami/kafka`)
+                    # are one identity, not ambiguity.
+                    image_basenames[basename] = None
+                else:
+                    image_basenames.setdefault(basename, technology_id)
+        object.__setattr__(self, "_exact", exact)
+        object.__setattr__(
+            self,
+            "_image_basenames",
+            {key: value for key, value in image_basenames.items() if value is not None},
+        )
 
     def resolve(self, kind: str, coordinate: str) -> str | None:
         lowered = coordinate.lower()
-        for entry_kind, entry_coordinate, technology_id in self.entries:
-            if entry_kind == kind and entry_coordinate.lower() == lowered:
-                return technology_id
+        found = self._exact.get((kind, lowered))
+        if found is not None:
+            return found
+        if kind == "image":
+            # `harbor.example.com/proxy/library/postgres` names `postgres`: the
+            # registry prefix is deployment plumbing, not identity. Only an
+            # unambiguous basename may claim the entry. A bare `postgres` is
+            # Docker Hub's `library/postgres`.
+            basename = lowered.rsplit("/", 1)[-1]
+            if basename != lowered:
+                return self._image_basenames.get(basename)
+            return self._exact.get((kind, f"library/{lowered}"))
         return None
 
     def technology_ids(self) -> frozenset[str]:
@@ -1351,36 +1389,16 @@ class MappingSnapshot:
 def bundled_mapping() -> MappingSnapshot:
     """The table the CLI ships: seed identities only, nothing invented.
 
-    A coordinate absent here stays unmapped locally — that is a fact to report,
-    not a gap to fill with an identity nobody issued. Canonical ids for
-    technologies outside the seed resolve only through an organization's own
-    published snapshot.
+    Entries are a projection of `technology_seed.SEED_COORDINATES`, so this
+    table and the canonical registry cannot disagree. A coordinate absent here
+    stays unmapped locally — that is a fact to report, not a gap to fill with
+    an identity nobody issued; an organization's own published snapshot can
+    cover what the seed does not.
     """
     return MappingSnapshot(
         version=BUNDLED_MAPPING_VERSION,
-        entries=(
-            # Canonical identities come from `technology_seed.SEED_TECHNOLOGIES`
-            # (SPEC-081 REQ-8202). Nothing outside that manifest is resolved.
-            ("alias", "bun", "technology_00000000000000000000000001"),
-            ("package", "bun", "technology_00000000000000000000000001"),
-            ("configuration", "bun.lock", "technology_00000000000000000000000001"),
-            ("configuration", "bun.lockb", "technology_00000000000000000000000001"),
-            ("alias", "npm", "technology_00000000000000000000000002"),
-            ("package", "npm", "technology_00000000000000000000000002"),
-            ("configuration", ".gitlab-ci.yml", "technology_00000000000000000000000004"),
-            ("configuration", ".gitlab-ci.yaml", "technology_00000000000000000000000004"),
-            ("image", "gitlab/gitlab-runner", "technology_00000000000000000000000005"),
-            ("package", "react", "technology_00000000000000000000000006"),
-            ("package", "react-dom", "technology_00000000000000000000000006"),
-            ("image", "postgres", "technology_00000000000000000000000007"),
-            ("image", "postgresql", "technology_00000000000000000000000007"),
-            ("package", "psycopg", "technology_00000000000000000000000007"),
-            ("package", "psycopg2", "technology_00000000000000000000000007"),
-            ("package", "psycopg2-binary", "technology_00000000000000000000000007"),
-            ("package", "asyncpg", "technology_00000000000000000000000007"),
-            ("package", "pg", "technology_00000000000000000000000007"),
-            ("package", "postgres", "technology_00000000000000000000000007"),
-            ("configuration", "postgresql.conf", "technology_00000000000000000000000007"),
-            ("configuration", "pg_hba.conf", "technology_00000000000000000000000007"),
+        entries=tuple(
+            (kind, coordinate, technology_id)
+            for technology_id, kind, coordinate in SEED_COORDINATES
         ),
     )

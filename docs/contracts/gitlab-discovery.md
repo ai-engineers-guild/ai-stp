@@ -28,8 +28,9 @@ carry credentials or source content. The JSON Schemas are generated under
 Enrichment adds a stable `scan_id` and immutable `mapping_version` to the mutation
 request. It requires the provider observation's retained head revision to match
 GitLab's current default branch head. The result is the existing
-`TechnologyScanResult`; unmapped language names are omitted. Accepted technology
-facts remain governed by the existing review endpoints.
+`TechnologyScanResult`; language names the mapping does not cover land in the
+organization's unmapped-coordinate queue instead of being omitted. Accepted
+technology facts remain governed by the existing review endpoints.
 
 The provider observation is not a corporate project. Create or select the remote
 project and use the explicit SPEC-078 link plan when the two identities should be

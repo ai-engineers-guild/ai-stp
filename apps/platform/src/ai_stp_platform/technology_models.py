@@ -360,6 +360,41 @@ class TechnologyCoordinateMapping(_TenantRow, Base):
     provenance: Mapped[str] = mapped_column(String(256), nullable=False)
 
 
+class TechnologyUnmappedCoordinate(_TenantRow, Base):
+    """A coordinate a published scan reported that its mapping did not resolve.
+
+    This is the registry's review queue: it is evidence, not an identity, and a
+    scan rewrite replaces the project's rows for the reported scope.
+    """
+
+    __tablename__ = "technology_unmapped_coordinate"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["organization_id", "project_id", "project_namespace"],
+            [
+                "project_identity.organization_id",
+                "project_identity.id",
+                "project_identity.namespace",
+            ],
+            ondelete="RESTRICT",
+        ),
+        CheckConstraint(
+            "kind IN ('package','image','executable','configuration','alias')",
+            name="ck_unmapped_kind",
+        ),
+        CheckConstraint("project_namespace = 'remote'", name="ck_unmapped_namespace"),
+        Index("ix_unmapped_coordinate_scan", "organization_id", "scan_id"),
+    )
+    project_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    scope: Mapped[str] = mapped_column(String(128), primary_key=True)
+    kind: Mapped[str] = mapped_column(String(32), primary_key=True)
+    coordinate: Mapped[str] = mapped_column(String(512), primary_key=True)
+    scan_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    project_namespace: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="remote", server_default="remote"
+    )
+
+
 class TechnologyReference(_TenantRow, Base):
     """Explicit catalog subject/applicability reference, excluded from usage totals."""
 

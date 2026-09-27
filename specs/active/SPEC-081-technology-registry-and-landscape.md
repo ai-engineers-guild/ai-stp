@@ -149,6 +149,27 @@ filtering without changing these registry and relation semantics.
   source revision; old scans without that field remain readable. Publication
   refuses an older local scan because the standing findings reflect the latest
   detector pass and cannot be relabeled as a historical scan.
+- `REQ-8217`: A handoff carries the bounded set of coordinates the declared
+  snapshot did not resolve. The platform persists them as the organization's
+  unmapped-coordinate review queue, keyed by organization, project, scope,
+  kind, and coordinate; a rescan replaces exactly that project and scope's
+  rows, so one coordinate reported by two scopes keeps two independent rows.
+  `GET /v1/corporate/organizations/{organization_id}/technology-unmapped-coordinates`
+  returns the queue grouped by coordinate with the reporting projects. Forge
+  language enrichment feeds unknown language names into the same queue rather
+  than discarding them.
+- `REQ-8218`: The registry grows from this queue. `project technology unmapped`
+  lists one local project's unresolved coordinates under the effective
+  mapping; `project technology unmapped-remote` reads the organization queue.
+  `project technology mappings publish` writes one immutable snapshot from
+  exactly one source — an entries document (JSON or YAML, validated against
+  the mapping-entry contract) or the bundled seed table — then caches the
+  published snapshot locally. The `technology` task intent drains the same
+  operations, asking for the action and any missing required field rather
+  than guessing. A scheduled worker refresh replays forge-language detection
+  on linked provider projects through the same merge path as request-driven
+  publication and emits the same unmapped coordinates; projects whose
+  recorded provider head moved are skipped until discovery re-pins them.
 
 ## States and errors
 
@@ -439,6 +460,8 @@ downgrade requires a verified backup and is not an ordinary rollback.
 | `REQ-8214` | Confirm/reject/override decisions survive a rescan that moves the version; an override without an explicit identity and review of an unknown key are refused. |
 | `REQ-8215` | Complete-scan fixtures mark unseen findings absent while a partial scan marks them stale; only current findings appear in the projected handoff. |
 | `REQ-8216` | Publication fixtures refuse an unlinked project, a mismatched organization, and a missing fetched snapshot before demanding a session; a wired mock server receives the exact contract-shaped handoff. |
+| `REQ-8217` | Scope isolation tests show one coordinate under two scopes keeps two rows and a rescan clears exactly one; forge-language fixtures land unknown names in the queue; the organization endpoint groups coordinates across projects. |
+| `REQ-8218` | Command tests cover seed-versus-entries exclusivity, JSON/YAML validation, local and remote unmapped listing, and the intent's action and required-field questions; worker tests cover daily enqueue idempotency, stale-head skip, and merge-path equivalence. |
 
 ## Bounded forge language enrichment
 

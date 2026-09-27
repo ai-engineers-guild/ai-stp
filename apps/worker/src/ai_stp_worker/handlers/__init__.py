@@ -16,6 +16,7 @@ from ai_stp_worker.handlers.reevaluate import handle_reevaluate
 from ai_stp_worker.handlers.repository_metrics import handle_repository_metrics
 from ai_stp_worker.handlers.seo_build import handle_seo_build
 from ai_stp_worker.handlers.seo_enrich import handle_seo_enrich
+from ai_stp_worker.handlers.technology_refresh import handle_technology_refresh
 from ai_stp_worker.handlers.telemetry_retention import handle_telemetry_retention
 from ai_stp_worker.handlers.update import handle_update
 from ai_stp_worker.handlers.upload import handle_upload
@@ -48,6 +49,7 @@ REGISTRY: Mapping[JobType, JobHandler] = {
     JobType.SEO_ENRICH: handle_seo_enrich,
     JobType.OFFICIAL_UPSTREAM_SYNC: handle_official_upstream_sync,
     JobType.TELEMETRY_RETENTION: handle_telemetry_retention,
+    JobType.TECHNOLOGY_REFRESH: handle_technology_refresh,
 }
 
 

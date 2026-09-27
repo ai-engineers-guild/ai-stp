@@ -12,6 +12,7 @@ from ai_stp_api.slices.technology.detection import (
     publish_scan,
     read_mapping,
     read_scan,
+    read_unmapped,
 )
 from ai_stp_api.slices.technology.service import (
     change_lifecycle,
@@ -26,11 +27,15 @@ from ai_stp_contracts.technology import (
     TechnologyScanRequest,
     TechnologySeedRequest,
 )
-from ai_stp_contracts.technology_seed import SEED_TECHNOLOGIES
+from ai_stp_contracts.technology_seed import SEED_COORDINATES_VERSION, SEED_TECHNOLOGIES
 from ai_stp_foundation.ids import new_id
 from ai_stp_platform.models import Account
 from ai_stp_platform.organization_models import Organization
-from ai_stp_platform.technology_models import TechnologyCoordinateMapping, TechnologyScan
+from ai_stp_platform.technology_models import (
+    TechnologyCoordinateMapping,
+    TechnologyScan,
+    TechnologyUnmappedCoordinate,
+)
 
 
 async def test_mapping_and_scan_replay_review_disagreement_and_scope(
@@ -331,3 +336,159 @@ async def test_mapping_and_scan_replay_review_disagreement_and_scope(
     assert await db_session.scalar(select(func.count()).select_from(TechnologyScan)) == 5
     organization = await db_session.get(Organization, org)
     assert organization is not None and organization.policy_revision == 11
+
+
+async def test_unmapped_coordinates_form_the_organizations_review_queue(
+    db_session: AsyncSession,
+) -> None:
+    account_id = new_id("account")
+    db_session.add(Account(id=account_id, status="active"))
+    await db_session.flush()
+    ctx = AuthContext(account_id, "unmapped-test", None, "active", False, False)
+    org = (
+        await bootstrap(
+            db_session,
+            payload=CorporateBootstrapRequest(
+                organization_name="Unmapped acceptance",
+                superadmin_account_id=account_id,
+                idempotency_key="unmapped-bootstrap-0001",
+            ),
+            request_id="unmapped-test",
+        )
+    ).organization_id
+    await import_seed(
+        db_session,
+        ctx=ctx,
+        organization_id=org,
+        payload=TechnologySeedRequest(
+            authorization_revision=1, idempotency_key="unmapped-seed-0001"
+        ),
+        request_id="unmapped-test",
+    )
+    # Importing the seed also installs its coordinate snapshot, so a fresh
+    # organization resolves scans without authoring a mapping first.
+    seeded = await read_mapping(
+        db_session,
+        ctx=ctx,
+        organization_id=org,
+        version=SEED_COORDINATES_VERSION,
+        request_id="unmapped-test",
+    )
+    assert seeded.entries
+    first = await create_project(
+        db_session,
+        ctx=ctx,
+        organization_id=org,
+        payload=CorporateProjectCreateRequest(
+            name="Queue project one",
+            authorization_revision=2,
+            idempotency_key="unmapped-project-one-0001",
+        ),
+        request_id="unmapped-test",
+    )
+    second = await create_project(
+        db_session,
+        ctx=ctx,
+        organization_id=org,
+        payload=CorporateProjectCreateRequest(
+            name="Queue project two",
+            authorization_revision=3,
+            idempotency_key="unmapped-project-two-0001",
+        ),
+        request_id="unmapped-test",
+    )
+
+    async def scan(
+        *,
+        project_id: str,
+        scope: str,
+        coordinates: list[dict[str, str]],
+        revision: int,
+        authorization: int,
+    ) -> None:
+        await publish_scan(
+            db_session,
+            ctx=ctx,
+            organization_id=org,
+            project_id=project_id,
+            payload=TechnologyScanRequest.model_validate(
+                {
+                    "authorization_revision": authorization,
+                    "expected_revision": revision,
+                    "idempotency_key": f"unmapped-scan-{authorization}-0001",
+                    "handoff": {
+                        "organization_id": org,
+                        "project_id": project_id,
+                        "scan_id": new_id("scan"),
+                        "scope": scope,
+                        "complete": True,
+                        "detector_version": "v1",
+                        "mapping_version": SEED_COORDINATES_VERSION,
+                        "observations": [],
+                        "unmapped_coordinates": coordinates,
+                    },
+                }
+            ),
+            request_id="unmapped-test",
+        )
+
+    await scan(
+        project_id=first.project_id,
+        scope="dependencies",
+        coordinates=[
+            {"kind": "package", "coordinate": "left-pad-x"},
+            {"kind": "image", "coordinate": "quay.io/acme/widget"},
+        ],
+        revision=1,
+        authorization=4,
+    )
+    view = await read_unmapped(db_session, ctx=ctx, organization_id=org, request_id="unmapped-test")
+    assert view.organization_id == org
+    assert [(entry.kind, entry.coordinate, entry.project_ids) for entry in view.coordinates] == [
+        ("image", "quay.io/acme/widget", [first.project_id]),
+        ("package", "left-pad-x", [first.project_id]),
+    ]
+    # The same coordinate from another project groups into one queue entry.
+    await scan(
+        project_id=second.project_id,
+        scope="dependencies",
+        coordinates=[{"kind": "package", "coordinate": "left-pad-x"}],
+        revision=1,
+        authorization=5,
+    )
+    view = await read_unmapped(db_session, ctx=ctx, organization_id=org, request_id="unmapped-test")
+    left_pad = next(entry for entry in view.coordinates if entry.coordinate == "left-pad-x")
+    assert left_pad.project_ids == sorted([first.project_id, second.project_id])
+    # A different scope reporting the same coordinate is its own row — the two
+    # scopes must not collide on identity.
+    await scan(
+        project_id=first.project_id,
+        scope="container",
+        coordinates=[{"kind": "image", "coordinate": "quay.io/acme/widget"}],
+        revision=2,
+        authorization=6,
+    )
+    # Rescanning a scope replaces only that scope's rows: the widget stays
+    # queued through the container scope even after dependencies drops it.
+    await scan(
+        project_id=first.project_id,
+        scope="dependencies",
+        coordinates=[{"kind": "package", "coordinate": "left-pad-x"}],
+        revision=3,
+        authorization=7,
+    )
+    view = await read_unmapped(db_session, ctx=ctx, organization_id=org, request_id="unmapped-test")
+    widget = next(entry for entry in view.coordinates if entry.coordinate == "quay.io/acme/widget")
+    assert widget.project_ids == [first.project_id]
+    await scan(
+        project_id=first.project_id,
+        scope="container",
+        coordinates=[],
+        revision=4,
+        authorization=8,
+    )
+    view = await read_unmapped(db_session, ctx=ctx, organization_id=org, request_id="unmapped-test")
+    assert [entry.coordinate for entry in view.coordinates] == ["left-pad-x"]
+    assert (
+        await db_session.scalar(select(func.count()).select_from(TechnologyUnmappedCoordinate)) == 2
+    )

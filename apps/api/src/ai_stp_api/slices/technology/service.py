@@ -52,7 +52,13 @@ from ai_stp_contracts.technology import (
     TechnologyWriteRequest,
     normalize_technology_name,
 )
-from ai_stp_contracts.technology_seed import SEED_CATEGORIES, SEED_PROVENANCE, SEED_TECHNOLOGIES
+from ai_stp_contracts.technology_seed import (
+    SEED_CATEGORIES,
+    SEED_COORDINATES,
+    SEED_COORDINATES_VERSION,
+    SEED_PROVENANCE,
+    SEED_TECHNOLOGIES,
+)
 from ai_stp_foundation.ids import new_id
 from ai_stp_foundation.timestamps import format_timestamp, parse_timestamp
 from ai_stp_platform.corporate_authorization import has_corporate_permission
@@ -71,10 +77,12 @@ from ai_stp_platform.technology_models import (
     TechnologyAlias,
     TechnologyCategory,
     TechnologyClassification,
+    TechnologyCoordinateMapping,
     TechnologyLandscapePolicy,
     TechnologyTeamResponsibility,
     TechnologyUsageFact,
 )
+from ai_stp_platform.technology_scan_merge import project_technology_view
 
 
 async def read_landscape_policy(
@@ -380,7 +388,33 @@ async def import_seed(
             )
             for index, name in enumerate([metadata.name, *metadata.aliases])
         )
-    if created_categories or created_technologies:
+    await db.flush()
+    # The seed ships its own coordinate table so an organization that imports
+    # the registry can resolve scans without authoring a mapping first. The
+    # version names the corpus; content under one version never differs.
+    mapping_present = await db.scalar(
+        select(TechnologyCoordinateMapping.version)
+        .where(
+            TechnologyCoordinateMapping.organization_id == organization_id,
+            TechnologyCoordinateMapping.version == SEED_COORDINATES_VERSION,
+        )
+        .limit(1)
+    )
+    mapping_written = False
+    if mapping_present is None:
+        db.add_all(
+            TechnologyCoordinateMapping(
+                organization_id=organization_id,
+                version=SEED_COORDINATES_VERSION,
+                kind=kind,
+                coordinate=coordinate,
+                technology_id=technology_id,
+                provenance=SEED_PROVENANCE,
+            )
+            for technology_id, kind, coordinate in SEED_COORDINATES
+        )
+        mapping_written = True
+    if created_categories or created_technologies or mapping_written:
         organization.policy_revision += 1
     await db.flush()
     result = TechnologySeedResult(
@@ -2012,45 +2046,6 @@ async def change_lifecycle(
         request_id=request_id,
     )
     return response
-
-
-async def project_technology_view(
-    db: AsyncSession,
-    row: ProjectTechnologyRelation,
-) -> ProjectTechnologyView:
-    facts = list(
-        (
-            await db.scalars(
-                select(TechnologyUsageFact)
-                .where(
-                    TechnologyUsageFact.organization_id == row.organization_id,
-                    TechnologyUsageFact.relation_id == row.id,
-                )
-                .order_by(TechnologyUsageFact.context)
-            )
-        ).all()
-    )
-    return ProjectTechnologyView.model_validate(
-        {
-            "organization_id": row.organization_id,
-            "relation_id": row.id,
-            "project_id": row.project_id,
-            "technology_id": row.technology_id,
-            "state": row.state,
-            "revision": row.revision,
-            "facts": [
-                {
-                    "context": fact.context,
-                    "version": fact.version,
-                    "version_kind": fact.version_kind,
-                    "review": fact.review,
-                    "freshness": fact.freshness,
-                    "evidence": fact.evidence,
-                }
-                for fact in facts
-            ],
-        }
-    )
 
 
 async def write_project_technology(

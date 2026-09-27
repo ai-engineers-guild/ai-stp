@@ -7,9 +7,11 @@ detection and never reimplements that precedence here.
 
 from ai_stp_cli.cloud.client import Endpoint, call, open_client
 from ai_stp_contracts.technology import (
+    TechnologyMappingRequest,
     TechnologyMappingView,
     TechnologyScanRequest,
     TechnologyScanResult,
+    TechnologyUnmappedView,
 )
 
 
@@ -45,5 +47,40 @@ def publish_scan(
             f"/corporate/organizations/{organization_id}/projects/{project_id}/technology-scans",
             TechnologyScanResult,
             body=request,
+            attempts=endpoint.max_attempts,
+        )
+
+
+def publish_mapping(
+    endpoint: Endpoint,
+    access_token: str,
+    organization_id: str,
+    version: str,
+    request: TechnologyMappingRequest,
+) -> TechnologyMappingView:
+    """Write one immutable coordinate→identity snapshot for the organization."""
+    with open_client(endpoint, access_token=access_token) as client:
+        return call(
+            client,
+            "PUT",
+            f"/corporate/organizations/{organization_id}/technology-mappings/{version}",
+            TechnologyMappingView,
+            body=request,
+            attempts=endpoint.max_attempts,
+        )
+
+
+def read_unmapped(
+    endpoint: Endpoint,
+    access_token: str,
+    organization_id: str,
+) -> TechnologyUnmappedView:
+    """Read the organization's queue of coordinates no mapping resolved."""
+    with open_client(endpoint, access_token=access_token) as client:
+        return call(
+            client,
+            "GET",
+            f"/corporate/organizations/{organization_id}/technology-unmapped-coordinates",
+            TechnologyUnmappedView,
             attempts=endpoint.max_attempts,
         )

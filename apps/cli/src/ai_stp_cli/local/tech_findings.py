@@ -30,6 +30,7 @@ from ai_stp_contracts.technology import (
     TechnologyEvidence,
     TechnologyObservation,
     TechnologyScanHandoff,
+    TechnologyUnmappedCoordinate,
     TechnologyUsageFact,
 )
 from ai_stp_foundation.ids import is_valid_id, new_id
@@ -655,6 +656,7 @@ def build_handoff(
     the reviewer named; it does not fabricate evidence.
     """
     unmapped: list[str] = []
+    unmapped_coordinates: set[tuple[str, str]] = set()
     excluded: list[str] = []
     observations: dict[tuple[str, str], list[TechnologyEvidence]] = {}
     # (rank, version text, claim version, claim kind) — rank first so the
@@ -666,11 +668,16 @@ def build_handoff(
         if finding.freshness != "current" or finding.review not in PUBLISHABLE_REVIEWS:
             excluded.append(finding.key)
             continue
-        technology_id = finding.effective_technology_id
+        # The declared snapshot is the authority for this publication: a
+        # scan-time resolution under another table must not travel under a
+        # version that never claimed it. A reviewer's explicit override still
+        # wins, because it is an owner decision, not a coordinate guess.
+        technology_id = finding.override_technology_id if finding.review == "overridden" else None
         if technology_id is None:
             technology_id = mapping.resolve(finding.kind, finding.coordinate)
         if technology_id is None:
             unmapped.append(finding.key)
+            unmapped_coordinates.add((finding.kind, finding.coordinate))
             continue
         key = (technology_id, finding.context)
         bucket = observations.setdefault(key, [])
@@ -736,6 +743,16 @@ def build_handoff(
             detector_version=detector_version,
             mapping_version=mapping.version,
             observations=items,
+            unmapped_coordinates=[
+                TechnologyUnmappedCoordinate(
+                    kind=cast(
+                        Literal["package", "image", "executable", "configuration", "alias"],
+                        kind,
+                    ),
+                    coordinate=coordinate,
+                )
+                for kind, coordinate in sorted(unmapped_coordinates)[:512]
+            ],
         ),
         unmapped=tuple(unmapped),
         excluded=tuple(excluded),

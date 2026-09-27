@@ -2,7 +2,7 @@
 
 import json
 import sqlite3
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from contextlib import closing
 from pathlib import Path
 from typing import cast
@@ -10,6 +10,7 @@ from typing import cast
 import httpx
 import pytest
 
+from ai_stp_cli.application import project_technology
 from ai_stp_cli.cloud.client import Endpoint
 from ai_stp_cli.cloud.session import Session
 from ai_stp_cli.commands import cloud_auth
@@ -59,7 +60,7 @@ def project(tmp_path: Path) -> Path:
     )
     (root / "package.json").write_text(
         '{"dependencies": {"react": "^18.2", "next": "14"},'
-        ' "devDependencies": {"vitest": "*"},'
+        ' "devDependencies": {"vitest": "*", "left-pad": "^1.3"},'
         ' "engines": {"node": ">=20"}}',
         encoding="utf-8",
     )
@@ -67,7 +68,8 @@ def project(tmp_path: Path) -> Path:
         "services:\n"
         "  db:\n    image: postgres:16\n"
         "  cache:\n    image: redis:7\n"
-        "  bus:\n    image: bitnami/kafka:3.7\n",
+        "  bus:\n    image: bitnami/kafka:3.7\n"
+        "  internal:\n    image: acme/internal-tool:2\n",
         encoding="utf-8",
     )
     (root / "angular.json").write_text("{}", encoding="utf-8")
@@ -222,10 +224,13 @@ def test_bundled_mapping_resolves_only_canonical_seed_identities(
     assert stored[("package", "react")].technology_id == ("technology_00000000000000000000000006")
     assert stored[("image", "postgres")].technology_id == ("technology_00000000000000000000000007")
     assert stored[("package", "psycopg")].technology_id == ("technology_00000000000000000000000007")
+    # The bundled seed covers the stack the fixture names.
+    assert stored[("package", "django")].technology_id == ("technology_00000000000000000000000032")
+    assert stored[("image", "redis")].technology_id == ("technology_00000000000000000000000106")
+    assert stored[("package", "fastapi")].technology_id == ("technology_00000000000000000000000033")
     # Everything outside the seed stays honestly unmapped.
-    assert stored[("package", "django")].technology_id is None
-    assert stored[("image", "redis")].technology_id is None
-    assert stored[("package", "fastapi")].technology_id is None
+    assert stored[("package", "left-pad")].technology_id is None
+    assert stored[("image", "acme/internal-tool")].technology_id is None
 
 
 def test_review_survives_a_rescan(registry: sqlite3.Connection, project: Path) -> None:
@@ -386,7 +391,13 @@ def test_the_handoff_merges_coordinates_into_one_observation(
     ]
     assert len(react) == 1
     # Unmapped coordinates are named, never smuggled into observations.
-    assert "package:django:production" in built.unmapped
+    assert "package:left-pad:development" in built.unmapped
+    assert ("package", "left-pad") in {
+        (item.kind, item.coordinate) for item in handoff.unmapped_coordinates
+    }
+    assert ("image", "acme/internal-tool") in {
+        (item.kind, item.coordinate) for item in handoff.unmapped_coordinates
+    }
     assert all(item.technology_id.startswith("technology_") for item in handoff.observations)
     # Every evidence names this scan's detector and mapping.
     assert all(
@@ -514,7 +525,7 @@ def test_org_snapshot_overlays_the_bundled_table(
     assert effective.resolve("image", "postgres") == ("technology_00000000000000000000000007")
     # And without the organization the bundled table stands alone.
     plain = tech_findings.effective_mapping(registry, organization_id=None)
-    assert plain.resolve("package", "django") is None
+    assert plain.resolve("package", "django") == ("technology_00000000000000000000000032")
 
 
 def test_migration_44_rolls_back_cleanly(registry: sqlite3.Connection) -> None:
@@ -620,6 +631,28 @@ def _publish_parameters(project_id: str, **extra: object) -> dict[str, object]:
 
 def _patch_target(monkeypatch: pytest.MonkeyPatch, path: Path) -> None:
     monkeypatch.setattr(project_commands, "configured_path", lambda: path)
+    monkeypatch.setattr(project_technology, "configured_path", lambda: path)
+
+
+def _patch_remote(
+    monkeypatch: pytest.MonkeyPatch,
+    held: Session,
+    route: Callable[[httpx.Request], httpx.Response],
+) -> None:
+    """One session and one endpoint across the command and service layers."""
+
+    def required(_purpose: str) -> Session:
+        return held
+
+    def endpoint() -> Endpoint:
+        return Endpoint(
+            "https://platform.example", max_attempts=1, transport=httpx.MockTransport(route)
+        )
+
+    monkeypatch.setattr(cloud_auth, "required", required)
+    monkeypatch.setattr(project_technology, "session_required", required)
+    monkeypatch.setattr(project_commands, "endpoint", endpoint)
+    monkeypatch.setattr(project_technology, "endpoint", endpoint)
 
 
 def test_publish_refuses_an_unlinked_project(
@@ -734,17 +767,7 @@ def test_publish_sends_the_handoff_the_contract_shaped(
         expires_at=LATER,
     )
 
-    def required(_purpose: str) -> Session:
-        return held
-
-    monkeypatch.setattr(cloud_auth, "required", required)
-    monkeypatch.setattr(
-        project_commands,
-        "endpoint",
-        lambda: Endpoint(
-            "https://platform.example", max_attempts=1, transport=httpx.MockTransport(route)
-        ),
-    )
+    _patch_remote(monkeypatch, held, route)
     answer = project_commands.technology_publish(
         _publish_parameters(project_id, **{"mapping-version": "v3"})
     )
@@ -892,3 +915,194 @@ def test_technologies_refuses_a_scope_the_wire_cannot_carry(
     assert raised.value.code == "AI_STP_VALIDATION_ERROR"
     answer = project_commands.technologies({"project": project_id})
     assert answer.payload.findings
+
+
+def test_technology_unmapped_lists_coordinates_without_identity(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, project: Path
+) -> None:
+    registry_path = tmp_path / "registry.sqlite"
+    with closing(open_registry(registry_path, create=True)) as connection:
+        project_id, _record = _scan_project(connection, project)
+    _patch_target(monkeypatch, registry_path)
+    answer = project_commands.technology_unmapped({"project": project_id})
+    coordinates = {(item.kind, item.coordinate) for item in answer.payload.coordinates}
+    # Seeded coordinates resolve; the unsigned package and the private image stay.
+    assert ("package", "left-pad") in coordinates
+    assert ("image", "acme/internal-tool") in coordinates
+    assert ("package", "django") not in coordinates
+    assert ("image", "postgres") not in coordinates
+
+
+def test_technology_mapping_publish_requires_exactly_one_source(tmp_path: Path) -> None:
+    base = {
+        "organization": ORGANIZATION,
+        "version": "v9",
+        "authorization-revision": "1",
+        "idempotency-key": KEY,
+    }
+    with pytest.raises(CliFailure) as neither:
+        project_commands.technology_mapping_publish(base)
+    assert neither.value.code == "AI_STP_VALIDATION_ERROR"
+    entries = tmp_path / "entries.json"
+    entries.write_text("[]", encoding="utf-8")
+    with pytest.raises(CliFailure) as both:
+        project_commands.technology_mapping_publish({**base, "seed": True, "entries": str(entries)})
+    assert both.value.code == "AI_STP_VALIDATION_ERROR"
+
+
+def test_technology_mapping_publish_sends_seed_and_caches_snapshot(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    registry_path = tmp_path / "registry.sqlite"
+    open_registry(registry_path, create=True).close()
+    _patch_target(monkeypatch, registry_path)
+    sent: list[dict[str, object]] = []
+
+    def route(request: httpx.Request) -> httpx.Response:
+        assert request.method == "PUT"
+        assert request.url.path.endswith("/technology-mappings/v9")
+        body = cast(dict[str, object], json.loads(request.content.decode("utf-8")))
+        sent.append(body)
+        return httpx.Response(
+            200,
+            json={
+                "organization_id": ORGANIZATION,
+                "version": "v9",
+                "entries": body["entries"],
+                "digest": "sha256:" + "e" * 64,
+            },
+        )
+
+    held = Session(
+        account_id=new_id("account"),
+        device_id=new_id("device"),
+        access_token="token",
+        refresh_token="refresh",
+        expires_at=LATER,
+    )
+
+    _patch_remote(monkeypatch, held, route)
+    answer = project_commands.technology_mapping_publish(
+        {
+            "organization": ORGANIZATION,
+            "version": "v9",
+            "authorization-revision": "1",
+            "idempotency-key": KEY,
+            "seed": True,
+        }
+    )
+    assert sent, "the mapping publication never left"
+    assert len(cast(list[object], sent[0]["entries"])) > 400
+    assert answer.payload.version == "v9"
+    answer = project_commands.technology_mappings({"organization": ORGANIZATION})
+    assert [(item.version, item.entries) for item in answer.payload.items] == [
+        ("v9", len(cast(list[object], sent[0]["entries"])))
+    ]
+
+
+def test_technology_mapping_publish_reads_an_entries_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    registry_path = tmp_path / "registry.sqlite"
+    open_registry(registry_path, create=True).close()
+    _patch_target(monkeypatch, registry_path)
+    entries = tmp_path / "entries.yaml"
+    entries.write_text(
+        "- kind: package\n"
+        "  coordinate: acme-widget\n"
+        "  technology_id: technology_00000000000000000000000099\n"
+        "  provenance: reviewed-v1\n",
+        encoding="utf-8",
+    )
+    sent: list[dict[str, object]] = []
+
+    def route(request: httpx.Request) -> httpx.Response:
+        body = cast(dict[str, object], json.loads(request.content.decode("utf-8")))
+        sent.append(body)
+        return httpx.Response(
+            200,
+            json={
+                "organization_id": ORGANIZATION,
+                "version": "v10",
+                "entries": body["entries"],
+                "digest": "sha256:" + "e" * 64,
+            },
+        )
+
+    held = Session(
+        account_id=new_id("account"),
+        device_id=new_id("device"),
+        access_token="token",
+        refresh_token="refresh",
+        expires_at=LATER,
+    )
+
+    _patch_remote(monkeypatch, held, route)
+    answer = project_commands.technology_mapping_publish(
+        {
+            "organization": ORGANIZATION,
+            "version": "v10",
+            "authorization-revision": "1",
+            "idempotency-key": KEY,
+            "entries": str(entries),
+        }
+    )
+    assert sent[0]["entries"] == [
+        {
+            "kind": "package",
+            "coordinate": "acme-widget",
+            "technology_id": "technology_00000000000000000000000099",
+            "provenance": "reviewed-v1",
+        }
+    ]
+    assert answer.payload.entries[0].technology_id == ("technology_00000000000000000000000099")
+    with pytest.raises(CliFailure) as malformed:
+        bad = tmp_path / "bad.yaml"
+        bad.write_text("- kind: package\n  coordinate: {}\n", encoding="utf-8")
+        project_commands.technology_mapping_publish(
+            {
+                "organization": ORGANIZATION,
+                "version": "v11",
+                "authorization-revision": "1",
+                "idempotency-key": KEY,
+                "entries": str(bad),
+            }
+        )
+    assert malformed.value.code == "AI_STP_VALIDATION_ERROR"
+
+
+def test_technology_unmapped_remote_reads_the_organization_queue(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _patch_target(monkeypatch, tmp_path / "registry.sqlite")
+
+    def route(request: httpx.Request) -> httpx.Response:
+        assert request.method == "GET"
+        assert request.url.path.endswith("/technology-unmapped-coordinates")
+        return httpx.Response(
+            200,
+            json={
+                "organization_id": ORGANIZATION,
+                "coordinates": [
+                    {
+                        "kind": "package",
+                        "coordinate": "left-pad-x",
+                        "project_ids": [REMOTE_PROJECT],
+                    }
+                ],
+            },
+        )
+
+    held = Session(
+        account_id=new_id("account"),
+        device_id=new_id("device"),
+        access_token="token",
+        refresh_token="refresh",
+        expires_at=LATER,
+    )
+
+    _patch_remote(monkeypatch, held, route)
+    answer = project_commands.technology_unmapped_remote({"organization": ORGANIZATION})
+    assert answer.payload.organization_id == ORGANIZATION
+    assert answer.payload.coordinates[0].coordinate == "left-pad-x"
+    assert answer.payload.coordinates[0].project_ids == [REMOTE_PROJECT]

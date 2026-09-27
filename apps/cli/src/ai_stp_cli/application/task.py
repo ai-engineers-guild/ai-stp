@@ -30,6 +30,7 @@ from ai_stp_cli.application.inspect import (
 from ai_stp_cli.application.install_task import drain as drain_install
 from ai_stp_cli.application.publish import drain as drain_publish
 from ai_stp_cli.application.switch import drain as drain_switch
+from ai_stp_cli.application.technology import drain as drain_technology
 from ai_stp_cli.errors import CliFailure, field_issues, internal_failure
 from ai_stp_cli.local import agent_tasks
 from ai_stp_cli.local.agent_tasks import StoredTask
@@ -60,6 +61,7 @@ AUTHOR_INTENT = "author"
 SWITCH_INTENT = "switch"
 ACCOUNT_INTENT = "account"
 PUBLISH_INTENT = "publish"
+TECHNOLOGY_INTENT = "technology"
 SUPPORTED_INTENTS = SHIPPED_INTENT_NAMES
 SETTLED = frozenset({"completed", "failed", "cancelled"})
 RUNNING_JOIN_SECONDS: Final[float] = 180.0
@@ -824,6 +826,35 @@ def _drain(row: StoredTask) -> Answer[TaskView]:
                 at=at,
                 facts=result.facts,
                 child_operation_ids=result.child_operation_ids or None,
+            ),
+        )
+        return _answer(agent_tasks.view_of(updated))
+    if row.intent == TECHNOLOGY_INTENT:
+        facts = _facts_of(row)
+        try:
+            result = drain_technology(facts, task_id=row.task_id)
+        except CliFailure as error:
+            _failed_drain(row, error, at=at)
+            raise
+        if result.outcome is not None:
+            updated = _commit_if_current(
+                row,
+                agent_tasks.with_outcome(
+                    row,
+                    result.outcome,
+                    at=at,
+                    goal_satisfied=True,
+                    child_operation_ids=result.child_operation_ids,
+                ),
+            )
+            return _answer(agent_tasks.view_of(updated))
+        updated = _commit_if_current(
+            row,
+            agent_tasks.with_questions(
+                row,
+                result.questions,
+                at=at,
+                facts=result.facts,
             ),
         )
         return _answer(agent_tasks.view_of(updated))

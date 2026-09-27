@@ -10,11 +10,21 @@ from pydantic import ValidationError
 
 from ai_stp_cli import identity
 from ai_stp_cli.answer import Answer
+from ai_stp_cli.application import project_technology
+from ai_stp_cli.application.project_technology import (
+    finding_view as _finding_view,
+)
+from ai_stp_cli.application.project_technology import (
+    project_id_for as _project_id_for,
+)
+from ai_stp_cli.application.project_technology import (
+    scan_scope as _scan_scope,
+)
 from ai_stp_cli.cloud import context as cloud_context
 from ai_stp_cli.cloud import technology as cloud_technology
 from ai_stp_cli.commands import cloud_auth
 from ai_stp_cli.commands.auth import endpoint
-from ai_stp_cli.errors import CliFailure, leaf_help_continuation
+from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import (
     harnesses,
     importing,
@@ -25,7 +35,6 @@ from ai_stp_cli.local import (
     projects,
     revisions,
     symbols,
-    tech_detect,
     tech_findings,
 )
 from ai_stp_cli.local.database import configured_path, open_registry, transaction
@@ -48,14 +57,12 @@ from ai_stp_contracts.context import (
     ProjectUnlinkRequest,
 )
 from ai_stp_contracts.machine_help import (
-    CliTechnologyClaim,
-    CliTechnologyEvidence,
-    CliTechnologyFinding,
     CliTechnologyFindings,
     CliTechnologyMapping,
     CliTechnologyMappings,
     CliTechnologyReview,
     CliTechnologyScan,
+    CliTechnologyUnmapped,
     DiscoveryDiagnostic,
     ExcludedPath,
     ImportedFile,
@@ -71,7 +78,12 @@ from ai_stp_contracts.machine_help import (
     SetupImportComponent,
     SetupImportPlan,
 )
-from ai_stp_contracts.technology import TechnologyScanRequest, TechnologyScanResult
+from ai_stp_contracts.technology import (
+    TechnologyMappingView,
+    TechnologyScanRequest,
+    TechnologyScanResult,
+    TechnologyUnmappedView,
+)
 from ai_stp_foundation.canonical import JsonValue
 from ai_stp_foundation.errors import ERROR_CODES
 from ai_stp_foundation.harnesses import HARNESS_IDS
@@ -1221,97 +1233,11 @@ def _root(parameters: Mapping[str, object]) -> Path:
 
 # --------------------------------------------------------------------------
 # Local technology detection (issue #222)
+#
+# The detection, unmapped-queue, and mapping-publish bodies live in
+# `application.project_technology`; these handlers are thin adapters so the
+# `technology` task drain and the CLI can never disagree.
 # --------------------------------------------------------------------------
-
-
-def _scan_scope(parameters: Mapping[str, object]) -> str:
-    scope = _optional(parameters, "scope") or "repository"
-    if len(scope) > 128 or tech_findings.SCOPE_PATTERN.match(scope) is None:
-        raise CliFailure(
-            "AI_STP_VALIDATION_ERROR",
-            "a scan scope is required and must be at most 128 characters of "
-            "letters, digits, dot, underscore, dash or slash",
-            details={"option": "--scope"},
-        )
-    return scope
-
-
-def _project_id_for(
-    connection: sqlite3.Connection, parameters: Mapping[str, object], *, path: tuple[str, ...]
-) -> str:
-    """The local project identity: explicit `--project`, or resolved from `--root`."""
-    project_id = _optional(parameters, "project")
-    if project_id is not None:
-        if _optional(parameters, "root") is not None:
-            raise CliFailure(
-                "AI_STP_VALIDATION_ERROR",
-                "pass either --project or --root, not both",
-                details={"options": ["--project", "--root"]},
-                continuations=[leaf_help_continuation(path)],
-            )
-        if not is_valid_id(project_id, "project"):
-            raise CliFailure(
-                "AI_STP_VALIDATION_ERROR",
-                "a project identity is written as project_<ulid>",
-                details={"option": "--project"},
-            )
-        return project_id
-    root = _optional(parameters, "root")
-    if root is None:
-        raise CliFailure(
-            "AI_STP_VALIDATION_ERROR",
-            "a local project is required",
-            details={"options": ["--project", "--root"]},
-            continuations=[leaf_help_continuation(path)],
-            next_actions=["project detect --root <path> --json"],
-        )
-    resolved = Path(root).resolve()
-    known = project_passport.stable_id_for(connection, resolved)
-    if known is None:
-        raise CliFailure(
-            "AI_STP_NOT_FOUND",
-            "that root has no local project identity yet",
-            details={"root": redact_home(resolved)},
-            next_actions=[f"project detect --root {resolved} --json"],
-        )
-    return known
-
-
-def _finding_view(held: tech_findings.Finding) -> CliTechnologyFinding:
-    return CliTechnologyFinding(
-        key=held.key,
-        kind=held.kind,
-        coordinate=held.coordinate,
-        context=held.context,
-        technology_id=held.technology_id,
-        effective_technology_id=held.effective_technology_id,
-        version=held.version,
-        version_kind=held.version_kind,
-        review=held.review,
-        freshness=held.freshness,
-        claims=[
-            CliTechnologyClaim(
-                version=claim.version,
-                version_kind=claim.version_kind,
-                evidence=[
-                    CliTechnologyEvidence(
-                        source=trace.source,
-                        path=trace.path,
-                        reference=trace.reference,
-                        confidence=trace.confidence,
-                    )
-                    for trace in claim.evidence
-                ],
-            )
-            for claim in held.claims
-        ],
-        override_technology_id=held.override_technology_id,
-        override_version=held.override_version,
-        first_seen_scan=held.first_seen_scan,
-        last_seen_scan=held.last_seen_scan,
-        source_revision=held.source_revision,
-        reviewed_at=held.reviewed_at,
-    )
 
 
 def _parse_finding_key(
@@ -1362,84 +1288,8 @@ def _parse_finding_key(
 
 
 def detect(parameters: Mapping[str, object]) -> Answer[CliTechnologyScan]:
-    """Detect the technology coordinates one project root uses (issue #222).
-
-    Reads the same bounded index the passport builds — one walk, one truth —
-    over files the index already hashed. Nothing executes, nothing installs,
-    nothing is sent anywhere: the scan and its findings are stored locally,
-    and publication is a separate explicit act.
-    """
-    given = parameters.get("root")
-    if given is None:
-        raise CliFailure(
-            "AI_STP_VALIDATION_ERROR",
-            "a project root is required",
-            next_actions=["project discover --root <path> --json"],
-        )
-    scope = _scan_scope(parameters)
-    at = moment()
-
-    def work(connection: sqlite3.Connection) -> CliTechnologyScan:
-        found = project_passport.scan(connection, Path(str(given)))
-        detected = tech_detect.detect(found.index)
-        link = project_links.cached_link(connection, local_project_id=found.stable_id)
-        mapping = tech_findings.effective_mapping(
-            connection,
-            organization_id=link.organization_id if link is not None else None,
-        )
-        record = tech_findings.record_scan(
-            connection,
-            project_id=found.stable_id,
-            scope=scope,
-            detected=detected,
-            mapping=mapping,
-            at=at,
-            source_revision=found.index_digest.removeprefix("sha256:"),
-        )
-        stored = tech_findings.findings(connection, project_id=found.stable_id, scope=scope)
-        # The wire preview resolves the way publication does: the platform
-        # rejects observations outside the named organization snapshot, so
-        # bundled-only coordinates travel only when no snapshot exists yet.
-        held_snapshot = (
-            tech_findings.cached_mapping(connection, organization_id=link.organization_id)
-            if link is not None
-            else None
-        )
-        wire_mapping = held_snapshot if held_snapshot is not None else tech_detect.bundled_mapping()
-        handoff = tech_findings.build_handoff(
-            project_findings=stored,
-            scan_id=record.scan_id,
-            scope=scope,
-            complete=record.complete,
-            mapping=wire_mapping,
-            local_project_id=found.stable_id,
-            organization_id=link.organization_id if link is not None else None,
-            remote_project_id=link.remote_project_id if link is not None else None,
-            at=at,
-            source_revision=record.source_revision,
-            detector_version=record.detector_version,
-        )
-        return CliTechnologyScan(
-            scan_id=record.scan_id,
-            project_id=found.stable_id,
-            root=redact_home(found.root),
-            scope=scope,
-            state="complete" if record.complete else "partial",
-            stopped_by=record.stopped_by,
-            detector_version=record.detector_version,
-            mapping_version=mapping.version,
-            source_revision=record.source_revision,
-            findings=[_finding_view(item) for item in stored],
-            unmapped=list(handoff.unmapped),
-            observations=len(handoff.handoff.observations),
-            handoff=handoff.handoff,
-        )
-
-    with (
-        closing(open_registry(configured_path(), create=True)) as connection,
-        transaction(connection),
-    ):
-        return Answer(work(connection))
+    """Detect the technology coordinates one project root uses (issue #222)."""
+    return project_technology.detect(parameters)
 
 
 def technologies(parameters: Mapping[str, object]) -> Answer[CliTechnologyFindings]:
@@ -1563,6 +1413,25 @@ def technology_mapping_fetch(
     ):
         work(connection)
     return technology_mappings(parameters)
+
+
+def technology_unmapped(parameters: Mapping[str, object]) -> Answer[CliTechnologyUnmapped]:
+    """List the stored coordinates the effective mapping cannot resolve."""
+    return project_technology.unmapped(parameters)
+
+
+def technology_unmapped_remote(
+    parameters: Mapping[str, object],
+) -> Answer[TechnologyUnmappedView]:
+    """Read the organization's queue of coordinates no mapping snapshot resolved."""
+    return project_technology.unmapped_remote(parameters)
+
+
+def technology_mapping_publish(
+    parameters: Mapping[str, object],
+) -> Answer[TechnologyMappingView]:
+    """Publish one immutable organization mapping snapshot."""
+    return project_technology.mapping_publish(parameters)
 
 
 def technology_publish(parameters: Mapping[str, object]) -> Answer[TechnologyScanResult]:

@@ -216,6 +216,28 @@ class TechnologyObservation(BaseModel):
     fact: TechnologyUsageFact
 
 
+class TechnologyUnmappedCoordinate(BaseModel):
+    """A coordinate the applied mapping did not resolve — the registry's review queue.
+
+    Unmapped coordinates are observations, not identities: the platform retains
+    them so an organization can see what its mapping does not yet name and grow
+    the registry from evidence instead of guesswork.
+    """
+
+    model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
+    kind: Literal["package", "image", "executable", "configuration", "alias"]
+    coordinate: Annotated[
+        str, Field(min_length=1, max_length=512, pattern=r"^[A-Za-z0-9._:/@+*-]+$")
+    ]
+
+    @field_validator("coordinate")
+    @classmethod
+    def no_credentials(cls, value: str) -> str:
+        if "://" in value and urlsplit(value).username is not None:
+            raise ValueError("unmapped coordinates must not contain credentials")
+        return value
+
+
 class TechnologyScanHandoff(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
     schema_version: Literal[1] = 1
@@ -228,6 +250,7 @@ class TechnologyScanHandoff(BaseModel):
     detector_version: MappingVersion
     mapping_version: MappingVersion
     observations: Annotated[list[TechnologyObservation], Field(max_length=4096)]
+    unmapped_coordinates: Annotated[list[TechnologyUnmappedCoordinate], Field(max_length=512)] = []
 
     @model_validator(mode="after")
     def explicit_identity(self) -> TechnologyScanHandoff:
@@ -310,6 +333,23 @@ class TechnologyMappingView(BaseModel):
     version: MappingVersion
     entries: list[TechnologyMappingEntry]
     digest: Annotated[str, Field(pattern=r"^sha256:[0-9a-f]{64}$")]
+
+
+class TechnologyUnmappedEntry(BaseModel):
+    """One unmapped coordinate and the projects that reported it."""
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+    kind: Literal["package", "image", "executable", "configuration", "alias"]
+    coordinate: Annotated[
+        str, Field(min_length=1, max_length=512, pattern=r"^[A-Za-z0-9._:/@+*-]+$")
+    ]
+    project_ids: Annotated[list[RemoteProjectId], Field(max_length=512)]
+
+
+class TechnologyUnmappedView(BaseModel):
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+    organization_id: OrganizationId
+    coordinates: list[TechnologyUnmappedEntry]
 
 
 class TechnologyScanRequest(TechnologyMutation):

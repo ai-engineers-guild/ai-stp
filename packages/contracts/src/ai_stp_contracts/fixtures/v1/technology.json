@@ -1291,6 +1291,30 @@
       }
     },
     {
+      "case_id": "readTechnologyUnmappedCoordinates.technology",
+      "operation_id": "readTechnologyUnmappedCoordinates",
+      "kind": "positive",
+      "why": "Unmapped coordinates stay observations; resolving them is a mapping-snapshot decision.",
+      "request": {
+        "path_params": {
+          "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        }
+      },
+      "status": 200,
+      "body": {
+        "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "coordinates": [
+          {
+            "kind": "package",
+            "coordinate": "left-pad",
+            "project_ids": [
+              "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+            ]
+          }
+        ]
+      }
+    },
+    {
       "case_id": "publishTechnologyScan.technology",
       "operation_id": "publishTechnologyScan",
       "kind": "positive",

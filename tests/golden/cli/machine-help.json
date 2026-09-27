@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "cli_version": "0.0.0-pinned",
-  "registry_digest": "sha256:960a20bf95b0ccec7d55c421985bb8c692c9edfd63ac242c70002484c43ebc33",
+  "registry_digest": "sha256:89e0c7c3c0bf1ab2df0a7178219f8532d1bf8861928f2226d5a4f7ccbfcb4b47",
   "global_options": [
     {
       "name": "json",
@@ -6204,6 +6204,88 @@
       "path": [
         "project",
         "technology",
+        "mappings",
+        "publish"
+      ],
+      "summary": "Publish one immutable organization coordinate mapping: an entries document or the bundled seed table.",
+      "mutability": "apply",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "organization",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Explicit remote organization.",
+          "choices": []
+        },
+        {
+          "name": "version",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Exact immutable snapshot version to write.",
+          "choices": []
+        },
+        {
+          "name": "entries",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "JSON/YAML document of {kind, coordinate, technology_id, provenance} rows.",
+          "choices": []
+        },
+        {
+          "name": "seed",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": false,
+          "repeatable": false,
+          "summary": "Publish the bundled seed coordinate table as the snapshot.",
+          "choices": []
+        },
+        {
+          "name": "authorization-revision",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Revision from the selected capability projection.",
+          "choices": []
+        },
+        {
+          "name": "idempotency-key",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Stable key for this exact publication.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [
+        {
+          "kind": "exactly_one",
+          "parameters": [
+            "entries",
+            "seed"
+          ],
+          "when_parameter": "",
+          "when_values": []
+        }
+      ],
+      "result_schema": "urn:ai-stp:schema:v1:technology-mapping-view",
+      "next_actions": [
+        "project technology mappings fetch --organization <id> --version <v> --json"
+      ]
+    },
+    {
+      "path": [
+        "project",
+        "technology",
         "override"
       ],
       "summary": "Override one finding's resolved identity with a canonical technology.",
@@ -6555,6 +6637,96 @@
       "result_schema": "urn:ai-stp:schema:v1:cli-technology-review",
       "next_actions": [
         "project technologies --project <id> --json"
+      ]
+    },
+    {
+      "path": [
+        "project",
+        "technology",
+        "unmapped"
+      ],
+      "summary": "List the stored coordinates the effective mapping cannot resolve for one local project — the registry review queue.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "project",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Stable local project identifier.",
+          "choices": []
+        },
+        {
+          "name": "root",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Project root to resolve the identifier from.",
+          "choices": []
+        },
+        {
+          "name": "scope",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Named scan scope the findings belong to. Defaults to 'repository'.",
+          "choices": []
+        },
+        {
+          "name": "organization",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Remote organization whose cached mapping also applies to resolution.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [
+        {
+          "kind": "exactly_one",
+          "parameters": [
+            "project",
+            "root"
+          ],
+          "when_parameter": "",
+          "when_values": []
+        }
+      ],
+      "result_schema": "urn:ai-stp:schema:v1:cli-technology-unmapped",
+      "next_actions": [
+        "project technology unmapped-remote --organization <id> --json",
+        "project technology mappings publish --organization <id> --version <v> --seed --authorization-revision <n> --idempotency-key <key> --json"
+      ]
+    },
+    {
+      "path": [
+        "project",
+        "technology",
+        "unmapped-remote"
+      ],
+      "summary": "Read the organization's unmapped-coordinate queue: every coordinate published scans left unresolved.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "organization",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Explicit remote organization.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:technology-unmapped-view",
+      "next_actions": [
+        "project technology mappings publish --organization <id> --version <v> --entries <file> --authorization-revision <n> --idempotency-key <key> --json"
       ]
     },
     {
@@ -10860,7 +11032,8 @@
             "author",
             "switch",
             "account",
-            "publish"
+            "publish",
+            "technology"
           ]
         },
         {
