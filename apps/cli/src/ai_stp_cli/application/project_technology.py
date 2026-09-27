@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from contextlib import closing
 from pathlib import Path
 from typing import Literal, cast
@@ -35,14 +35,28 @@ from ai_stp_contracts.machine_help import (
     CliTechnologyScan,
     CliTechnologyUnmapped,
     CliTechnologyUnmappedItem,
+    TaskTechnologyDecision,
+    TaskTechnologyOutcome,
 )
 from ai_stp_contracts.technology import (
+    CategoryView,
+    CategoryWriteRequest,
+    TechnologyCategoryMetadata,
+    TechnologyLifecycleRequest,
     TechnologyMappingEntry,
+    TechnologyMappingList,
     TechnologyMappingRequest,
     TechnologyMappingView,
+    TechnologyMetadata,
+    TechnologyUnmappedEntry,
+    TechnologyUnmappedReviewRequest,
     TechnologyUnmappedView,
+    TechnologyView,
+    TechnologyWriteRequest,
+    normalize_technology_name,
 )
 from ai_stp_contracts.technology_seed import SEED_COORDINATES, SEED_PROVENANCE
+from ai_stp_foundation.digests import digest_canonical
 from ai_stp_foundation.ids import is_valid_id
 
 
@@ -405,3 +419,489 @@ def read_mapping_entries(path: Path) -> list[TechnologyMappingEntry]:
             "a mapping entry does not match the contract",
             details={"path": redact_home(path), "errors": field_issues(error)},
         ) from error
+
+
+def technology_propose(parameters: Mapping[str, object]) -> Answer[TechnologyUnmappedEntry]:
+    """Propose or clear the candidate technology for one queued coordinate."""
+    organization = _required(parameters, "organization")
+    kind = _coordinate_kind(parameters)
+    coordinate = _required(parameters, "coordinate")
+    technology_id = _optional(parameters, "technology-id")
+    if technology_id is not None and not is_valid_id(technology_id, "technology"):
+        raise CliFailure(
+            "AI_STP_VALIDATION_ERROR",
+            "the technology option is not a technology identifier",
+            details={"option": "--technology-id", "value": technology_id},
+        )
+    if bool(parameters.get("clear")) == (technology_id is not None):
+        raise CliFailure(
+            "AI_STP_VALIDATION_ERROR",
+            "pass exactly one of --technology-id or --clear",
+            details={"options": ["--technology-id", "--clear"]},
+        )
+    request = TechnologyUnmappedReviewRequest(
+        authorization_revision=_integer(parameters, "authorization-revision"),
+        idempotency_key=_required(parameters, "idempotency-key"),
+        kind=kind,
+        coordinate=coordinate,
+        candidate_technology_id=None if parameters.get("clear") else technology_id,
+    )
+    held = session_required("technology propose")
+    return Answer(
+        cloud_technology.review_unmapped(endpoint(), held.access_token, organization, request)
+    )
+
+
+def _coordinate_kind(
+    parameters: Mapping[str, object],
+) -> Literal["package", "image", "executable", "configuration", "alias"]:
+    kind = _required(parameters, "kind")
+    if kind not in ("package", "image", "executable", "configuration", "alias"):
+        raise CliFailure(
+            "AI_STP_VALIDATION_ERROR",
+            "the kind option is not a coordinate kind",
+            details={"option": "--kind", "value": kind},
+        )
+    return kind
+
+
+def technology_apply(parameters: Mapping[str, object]) -> Answer[TechnologyMappingView]:
+    """Extend the organization's current mapping snapshot with reviewed entries.
+
+    The new version overlays `--base-version` (or the cached latest snapshot)
+    instead of standing alone, so applying one coordinate never drops the
+    mappings the organization already reviewed.
+    """
+    organization = _required(parameters, "organization")
+    given_entries = _optional(parameters, "entries")
+    coordinate = _optional(parameters, "coordinate")
+    technology_id = _optional(parameters, "technology-id")
+    single = coordinate is not None or technology_id is not None or _optional(parameters, "kind")
+    if given_entries is not None and single:
+        raise CliFailure(
+            "AI_STP_VALIDATION_ERROR",
+            "pass either --entries or one --kind/--coordinate/--technology-id triple",
+            details={"options": ["--entries", "--kind", "--coordinate", "--technology-id"]},
+        )
+    if single:
+        if coordinate is None or technology_id is None:
+            raise CliFailure(
+                "AI_STP_VALIDATION_ERROR",
+                "a coordinate mapping needs --kind, --coordinate and --technology-id",
+                details={"options": ["--kind", "--coordinate", "--technology-id"]},
+            )
+        if not is_valid_id(technology_id, "technology"):
+            raise CliFailure(
+                "AI_STP_VALIDATION_ERROR",
+                "the technology option is not a technology identifier",
+                details={"option": "--technology-id", "value": technology_id},
+            )
+        entries = [
+            TechnologyMappingEntry(
+                kind=_coordinate_kind(parameters),
+                coordinate=coordinate,
+                technology_id=technology_id,
+                provenance="cli-review",
+            )
+        ]
+    elif given_entries is not None:
+        entries = read_mapping_entries(Path(given_entries).resolve())
+    else:
+        raise CliFailure(
+            "AI_STP_VALIDATION_ERROR",
+            "pass either --entries or one --kind/--coordinate/--technology-id triple",
+            details={"options": ["--entries", "--kind", "--coordinate", "--technology-id"]},
+        )
+
+    base_version = _optional(parameters, "base-version")
+    if base_version is None:
+        registry = configured_path()
+        if registry.exists():
+            with closing(open_registry(registry, create=False)) as connection:
+                held_snapshot = tech_findings.cached_mapping(
+                    connection, organization_id=organization
+                )
+            base_version = held_snapshot.version if held_snapshot is not None else None
+
+    request = TechnologyMappingRequest(
+        authorization_revision=_integer(parameters, "authorization-revision"),
+        expected_revision=0,
+        idempotency_key=_required(parameters, "idempotency-key"),
+        base_version=base_version,
+        entries=entries,
+    )
+    held = session_required("technology apply")
+    host = endpoint()
+    version = _optional(parameters, "version")
+    if version is None:
+        marker = digest_canonical(
+            "ai-stp:mapping-apply:v1",
+            {
+                "organization_id": organization,
+                "base_version": base_version,
+                "entries": [entry.model_dump(mode="json") for entry in entries],
+            },
+        )
+        version = f"review-{marker.removeprefix('sha256:')[:16]}"
+    view = cloud_technology.publish_mapping(host, held.access_token, organization, version, request)
+
+    def work(connection: sqlite3.Connection) -> None:
+        tech_findings.cache_mapping(
+            connection,
+            organization_id=organization,
+            version=view.version,
+            digest=view.digest,
+            entries=[(entry.kind, entry.coordinate, entry.technology_id) for entry in view.entries],
+            at=moment(),
+        )
+
+    with (
+        closing(open_registry(configured_path(), create=True)) as connection,
+        transaction(connection),
+    ):
+        work(connection)
+    return Answer(view)
+
+
+def technology_create(parameters: Mapping[str, object]) -> Answer[TechnologyView]:
+    """Create a technology record; `--active` publishes it past draft."""
+    organization = _required(parameters, "organization")
+    name = _required(parameters, "name")
+    category_ids = [str(item) for item in cast(list[object], parameters.get("category-id") or [])]
+    if not category_ids:
+        raise CliFailure(
+            "AI_STP_VALIDATION_ERROR",
+            "a technology needs at least one --category-id",
+            details={"option": "--category-id"},
+        )
+    description = _optional(parameters, "description") or ""
+    request = TechnologyWriteRequest(
+        authorization_revision=_integer(parameters, "authorization-revision"),
+        expected_revision=0,
+        idempotency_key=_required(parameters, "idempotency-key"),
+        metadata=TechnologyMetadata(name=name, category_ids=category_ids, description=description),
+    )
+    held = session_required("technology create")
+    host = endpoint()
+    view = cloud_technology.write_technology(host, held.access_token, organization, request)
+    if parameters.get("active"):
+        view = cloud_technology.change_technology_lifecycle(
+            host,
+            held.access_token,
+            organization,
+            view.technology_id,
+            TechnologyLifecycleRequest(
+                lifecycle="active",
+                authorization_revision=_integer(parameters, "authorization-revision") + 1,
+                expected_revision=view.revision,
+                idempotency_key=_required(parameters, "idempotency-key") + "-activate",
+            ),
+        )
+    return Answer(view)
+
+
+def technology_category_create(parameters: Mapping[str, object]) -> Answer[CategoryView]:
+    """Create a technology category — a draft unless `--active` is given."""
+    organization = _required(parameters, "organization")
+    request = CategoryWriteRequest(
+        authorization_revision=_integer(parameters, "authorization-revision"),
+        expected_revision=0,
+        idempotency_key=_required(parameters, "idempotency-key"),
+        metadata=TechnologyCategoryMetadata(
+            name=_required(parameters, "name"),
+            description=_optional(parameters, "description") or "",
+        ),
+        state="active" if parameters.get("active") else "draft",
+    )
+    held = session_required("technology category create")
+    return Answer(
+        cloud_technology.write_category(endpoint(), held.access_token, organization, request)
+    )
+
+
+def technology_versions(parameters: Mapping[str, object]) -> Answer[TechnologyMappingList]:
+    """List every mapping snapshot the organization published."""
+    organization = _required(parameters, "organization")
+    held = session_required("technology mappings list")
+    return Answer(cloud_technology.list_mappings(endpoint(), held.access_token, organization))
+
+
+def read_decisions(path: Path) -> list[TaskTechnologyDecision]:
+    """One `--decisions` document → validated decision rows."""
+    if not path.is_file():
+        raise CliFailure(
+            "AI_STP_NOT_FOUND",
+            "the decisions file does not exist",
+            details={"path": redact_home(path)},
+        )
+    try:
+        text = path.read_text(encoding="utf-8")
+    except OSError as error:
+        raise CliFailure(
+            "AI_STP_VALIDATION_ERROR",
+            "the decisions file cannot be read",
+            details={"path": redact_home(path), "error": str(error)},
+        ) from error
+    try:
+        parsed = json.loads(text)
+    except json.JSONDecodeError:
+        try:
+            parsed = yaml.load(text, Loader=UniqueSafeLoader)
+        except (yaml.YAMLError, DuplicateKeyError, RecursionError) as error:
+            raise CliFailure(
+                "AI_STP_VALIDATION_ERROR",
+                "the decisions file is not a JSON or YAML document",
+                details={"path": redact_home(path)},
+            ) from error
+    if not isinstance(parsed, list) or not parsed:
+        raise CliFailure(
+            "AI_STP_VALIDATION_ERROR",
+            "the decisions file must hold a nonempty list of review decisions",
+            details={"path": redact_home(path)},
+        )
+    try:
+        return [TaskTechnologyDecision.model_validate(item) for item in cast(list[object], parsed)]
+    except ValidationError as error:
+        raise CliFailure(
+            "AI_STP_VALIDATION_ERROR",
+            "a review decision does not match the contract",
+            details={"path": redact_home(path), "errors": field_issues(error)},
+        ) from error
+
+
+def resolve_decisions(
+    *,
+    organization: str,
+    decisions: Sequence[TaskTechnologyDecision],
+    authorization_revision: int,
+    idempotency_key: str,
+    base_version: str | None = None,
+    mapping_version: str | None = None,
+) -> TaskTechnologyOutcome:
+    """Execute one decision list against the organization's review queue.
+
+    `technology_name` decisions reuse an existing record on an exact
+    normalized-name match — a rerun after a partial failure converges instead
+    of colliding — and create one otherwise. A category created to hold a
+    technology is published immediately: classifications only accept active
+    categories. `propose` decisions leave the queue entry open with a
+    candidate; `apply` decisions fold into one derived snapshot so a single
+    publish resolves the whole batch.
+    """
+    held = session_required("technology resolve")
+    host = endpoint()
+    # Every mutation authorizes against the organization's current policy
+    # revision; the ones that bump it are counted so the next call stays
+    # honest. Review proposals do not bump it.
+    revision = authorization_revision
+
+    categories_by_name: dict[str, str] | None = None
+    technologies_by_name: dict[str, str] | None = None
+
+    def category_index() -> dict[str, str]:
+        nonlocal categories_by_name
+        if categories_by_name is None:
+            categories_by_name = {
+                normalize_technology_name(item.name): item.category_id
+                for item in cloud_technology.list_categories(
+                    host, held.access_token, organization
+                ).items
+            }
+        return categories_by_name
+
+    def technology_index() -> dict[str, str]:
+        nonlocal technologies_by_name
+        if technologies_by_name is None:
+            technologies_by_name = {}
+            for item in cloud_technology.list_technologies(
+                host, held.access_token, organization
+            ).items:
+                technologies_by_name[normalize_technology_name(item.name)] = item.technology_id
+                for alias in item.aliases:
+                    technologies_by_name.setdefault(
+                        normalize_technology_name(alias), item.technology_id
+                    )
+        return technologies_by_name
+
+    created_technology_ids: list[str] = []
+    created_category_ids: list[str] = []
+    proposed: list[str] = []
+    apply_entries: dict[tuple[str, str], TechnologyMappingEntry] = {}
+
+    for index, decision in enumerate(decisions):
+        key = f"{idempotency_key}-d{index}"
+        technology_id = decision.technology_id
+        if technology_id is None:
+            technology_name = cast(str, decision.technology_name)
+            technology_id = technology_index().get(normalize_technology_name(technology_name))
+        if technology_id is None:
+            technology_name = cast(str, decision.technology_name)
+            category_ids = list(decision.category_ids)
+            if decision.category_name is not None:
+                normalized = normalize_technology_name(decision.category_name)
+                category_id = category_index().get(normalized)
+                if category_id is None:
+                    created = cloud_technology.write_category(
+                        host,
+                        held.access_token,
+                        organization,
+                        CategoryWriteRequest(
+                            authorization_revision=revision,
+                            expected_revision=0,
+                            idempotency_key=f"{key}-category",
+                            metadata=TechnologyCategoryMetadata(
+                                name=decision.category_name,
+                                description=decision.description,
+                            ),
+                            state="active",
+                        ),
+                    )
+                    revision += 1
+                    category_id = created.category_id
+                    category_index()[normalized] = category_id
+                    created_category_ids.append(category_id)
+                if category_id not in category_ids:
+                    category_ids.append(category_id)
+            if not category_ids:
+                raise CliFailure(
+                    "AI_STP_VALIDATION_ERROR",
+                    "a new technology needs at least one category",
+                    details={"decision": index, "technology": technology_name},
+                )
+            created_t = cloud_technology.write_technology(
+                host,
+                held.access_token,
+                organization,
+                TechnologyWriteRequest(
+                    authorization_revision=revision,
+                    expected_revision=0,
+                    idempotency_key=key,
+                    metadata=TechnologyMetadata(
+                        name=technology_name,
+                        category_ids=category_ids,
+                        description=decision.description,
+                    ),
+                ),
+            )
+            revision += 1
+            technology_id = created_t.technology_id
+            technology_index()[normalize_technology_name(created_t.name)] = technology_id
+            created_technology_ids.append(technology_id)
+            if decision.active and created_t.lifecycle != "active":
+                created_t = cloud_technology.change_technology_lifecycle(
+                    host,
+                    held.access_token,
+                    organization,
+                    technology_id,
+                    TechnologyLifecycleRequest(
+                        authorization_revision=revision,
+                        expected_revision=created_t.revision,
+                        idempotency_key=f"{key}-activate",
+                        lifecycle="active",
+                    ),
+                )
+                revision += 1
+        if decision.mode == "propose":
+            cloud_technology.review_unmapped(
+                host,
+                held.access_token,
+                organization,
+                TechnologyUnmappedReviewRequest(
+                    authorization_revision=revision,
+                    expected_revision=0,
+                    idempotency_key=f"{key}-propose",
+                    kind=decision.kind,
+                    coordinate=decision.coordinate,
+                    candidate_technology_id=technology_id,
+                ),
+            )
+            proposed.append(decision.coordinate)
+        else:
+            apply_entries[(decision.kind, decision.coordinate)] = TechnologyMappingEntry(
+                kind=decision.kind,
+                coordinate=decision.coordinate,
+                technology_id=technology_id,
+                provenance="cli-review",
+            )
+
+    view: TechnologyMappingView | None = None
+    if apply_entries:
+        entries = list(apply_entries.values())
+        if base_version is None:
+            registry = configured_path()
+            if registry.exists():
+                with closing(open_registry(registry, create=False)) as connection:
+                    held_snapshot = tech_findings.cached_mapping(
+                        connection, organization_id=organization
+                    )
+                base_version = held_snapshot.version if held_snapshot is not None else None
+        version = mapping_version
+        if version is None:
+            marker = digest_canonical(
+                "ai-stp:mapping-apply:v1",
+                {
+                    "organization_id": organization,
+                    "base_version": base_version,
+                    "entries": [entry.model_dump(mode="json") for entry in entries],
+                },
+            )
+            version = f"review-{marker.removeprefix('sha256:')[:16]}"
+        view = cloud_technology.publish_mapping(
+            host,
+            held.access_token,
+            organization,
+            version,
+            TechnologyMappingRequest(
+                authorization_revision=revision,
+                expected_revision=0,
+                idempotency_key=f"{idempotency_key}-publish",
+                base_version=base_version,
+                entries=entries,
+            ),
+        )
+        with (
+            closing(open_registry(configured_path(), create=True)) as connection,
+            transaction(connection),
+        ):
+            tech_findings.cache_mapping(
+                connection,
+                organization_id=organization,
+                version=view.version,
+                digest=view.digest,
+                entries=[
+                    (entry.kind, entry.coordinate, entry.technology_id) for entry in view.entries
+                ],
+                at=moment(),
+            )
+    return TaskTechnologyOutcome(
+        action="resolve",
+        organization_id=organization,
+        mapping_version=view.version if view is not None else "",
+        mapping_digest=view.digest if view is not None else "",
+        proposed=proposed,
+        applied=[entry.coordinate for entry in apply_entries.values()],
+        created_technology_ids=created_technology_ids,
+        created_category_ids=created_category_ids,
+    )
+
+
+def technology_resolve(parameters: Mapping[str, object]) -> Answer[TaskTechnologyOutcome]:
+    """Apply one `--decisions` document to the organization's review queue."""
+    given = _optional(parameters, "decisions")
+    if given is None:
+        raise CliFailure(
+            "AI_STP_VALIDATION_ERROR",
+            "a decisions document is required",
+            details={"option": "--decisions"},
+        )
+    decisions = read_decisions(Path(given).resolve())
+    return Answer(
+        resolve_decisions(
+            organization=_required(parameters, "organization"),
+            decisions=decisions,
+            authorization_revision=_integer(parameters, "authorization-revision"),
+            idempotency_key=_required(parameters, "idempotency-key"),
+            base_version=_optional(parameters, "base-version"),
+            mapping_version=_optional(parameters, "version"),
+        )
+    )

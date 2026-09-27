@@ -2619,6 +2619,216 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         ),
     ),
     Declaration(
+        path=["project", "technology", "propose"],
+        summary=(
+            "Propose or clear the candidate technology for one queued unmapped "
+            "coordinate — a suggestion for review, not a mapping."
+        ),
+        result_schema="urn:ai-stp:schema:v1:technology-unmapped-entry",
+        handler="project:technology_propose",
+        mutability="apply",
+        parameter_rules=(
+            CommandParameterRule(kind="exactly_one", parameters=["technology-id", "clear"]),
+        ),
+        parameters=(
+            option("organization", "string", "Explicit remote organization.", required=True),
+            option(
+                "kind",
+                "string",
+                "Coordinate kind.",
+                required=True,
+                choices=("package", "image", "executable", "configuration", "alias"),
+            ),
+            option("coordinate", "string", "The unresolved coordinate.", required=True),
+            option(
+                "technology-id",
+                "string",
+                "Canonical technology_<ulid> proposed for the coordinate.",
+            ),
+            option("clear", "boolean", "Drop the queued coordinate's candidate."),
+            option(
+                "authorization-revision",
+                "string",
+                "Revision from the selected capability projection.",
+                required=True,
+            ),
+            option("idempotency-key", "string", "Stable key for this exact review.", required=True),
+        ),
+        next_actions=(
+            "project technology apply --organization <id> --kind <k> --coordinate <c> "
+            "--technology-id <t> --authorization-revision <n> --idempotency-key <key> --json",
+        ),
+    ),
+    Declaration(
+        path=["project", "technology", "apply"],
+        summary=(
+            "Extend the organization's mapping snapshot with reviewed coordinates: "
+            "one triple or an entries document, over a base version."
+        ),
+        result_schema="urn:ai-stp:schema:v1:technology-mapping-view",
+        handler="project:technology_apply",
+        mutability="apply",
+        parameters=(
+            option("organization", "string", "Explicit remote organization.", required=True),
+            option(
+                "kind",
+                "string",
+                "Coordinate kind.",
+                choices=("package", "image", "executable", "configuration", "alias"),
+            ),
+            option("coordinate", "string", "The coordinate to map."),
+            option(
+                "technology-id",
+                "string",
+                "Canonical technology_<ulid> the coordinate resolves to.",
+            ),
+            option(
+                "entries",
+                "string",
+                "JSON/YAML document of {kind, coordinate, technology_id, provenance} rows.",
+            ),
+            option(
+                "base-version",
+                "string",
+                "Snapshot to extend. Defaults to the cached latest organization snapshot.",
+            ),
+            option(
+                "version",
+                "string",
+                "New immutable snapshot name. Derived from the entries when omitted.",
+            ),
+            option(
+                "authorization-revision",
+                "string",
+                "Revision from the selected capability projection.",
+                required=True,
+            ),
+            option(
+                "idempotency-key", "string", "Stable key for this exact publication.", required=True
+            ),
+        ),
+        next_actions=("project technology unmapped-remote --organization <id> --json",),
+    ),
+    Declaration(
+        path=["project", "technology", "create"],
+        summary="Create a technology record in the organization's registry.",
+        result_schema="urn:ai-stp:schema:v1:technology-view",
+        handler="project:technology_create",
+        mutability="apply",
+        parameters=(
+            option("organization", "string", "Explicit remote organization.", required=True),
+            option("name", "string", "Canonical technology name.", required=True),
+            option(
+                "category-id",
+                "string",
+                "Governing category_<ulid>. Repeatable — at least one is required.",
+                repeatable=True,
+            ),
+            option("description", "string", "What the technology is."),
+            option(
+                "active",
+                "boolean",
+                "Publish the record immediately instead of leaving it a draft.",
+            ),
+            option(
+                "authorization-revision",
+                "string",
+                "Revision from the selected capability projection.",
+                required=True,
+            ),
+            option(
+                "idempotency-key", "string", "Stable key for this exact creation.", required=True
+            ),
+        ),
+        next_actions=(
+            "project technology propose --organization <id> --kind <k> --coordinate <c> "
+            "--technology-id <t> --authorization-revision <n> --idempotency-key <key> --json",
+        ),
+    ),
+    Declaration(
+        path=["project", "technology", "create-category"],
+        summary="Create a technology category — a draft unless --active is given.",
+        result_schema="urn:ai-stp:schema:v1:technology-category-view",
+        handler="project:technology_category_create",
+        mutability="apply",
+        parameters=(
+            option("organization", "string", "Explicit remote organization.", required=True),
+            option("name", "string", "Governed category name.", required=True),
+            option("description", "string", "What the category groups."),
+            option(
+                "active",
+                "boolean",
+                "Publish the category immediately instead of leaving it a draft.",
+            ),
+            option(
+                "authorization-revision",
+                "string",
+                "Revision from the selected capability projection.",
+                required=True,
+            ),
+            option(
+                "idempotency-key", "string", "Stable key for this exact creation.", required=True
+            ),
+        ),
+        next_actions=(
+            "project technology create --organization <id> --name <n> --category-id <c> "
+            "--authorization-revision <n> --idempotency-key <key> --json",
+        ),
+    ),
+    Declaration(
+        path=["project", "technology", "mappings", "remote"],
+        summary="List every mapping snapshot the organization published.",
+        result_schema="urn:ai-stp:schema:v1:technology-mapping-list",
+        handler="project:technology_mapping_versions",
+        parameters=(
+            option("organization", "string", "Explicit remote organization.", required=True),
+        ),
+        next_actions=(
+            "project technology mappings fetch --organization <id> --version <v> --json",
+        ),
+    ),
+    Declaration(
+        path=["project", "technology", "resolve"],
+        summary=(
+            "Execute a decisions document against the organization's review "
+            "queue: propose candidates, create records, publish a derived "
+            "snapshot — one call for the whole list."
+        ),
+        result_schema="urn:ai-stp:schema:v1:cli-task-outcome-technology",
+        handler="project:technology_resolve",
+        mutability="apply",
+        parameters=(
+            option("organization", "string", "Explicit remote organization.", required=True),
+            option(
+                "decisions",
+                "string",
+                "JSON/YAML document of review decisions (kind, coordinate, "
+                "technology-id or technology-name, mode).",
+                required=True,
+            ),
+            option(
+                "base-version",
+                "string",
+                "Snapshot apply decisions extend. Defaults to the cached latest.",
+            ),
+            option(
+                "version",
+                "string",
+                "New immutable snapshot name. Derived from the entries when omitted.",
+            ),
+            option(
+                "authorization-revision",
+                "string",
+                "Revision from the selected capability projection.",
+                required=True,
+            ),
+            option(
+                "idempotency-key", "string", "Stable key for this exact resolution.", required=True
+            ),
+        ),
+        next_actions=("project technology unmapped-remote --organization <id> --json",),
+    ),
+    Declaration(
         path=["project", "technology", "publish"],
         summary="Publish the stored findings of a linked project as a scan handoff.",
         result_schema="urn:ai-stp:schema:v1:technology-scan-result",

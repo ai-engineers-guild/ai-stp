@@ -1446,7 +1446,7 @@ async def list_categories(
                 description=row.description,
                 revision=row.revision,
                 provenance=row.provenance,
-                state=cast(Literal["active", "archived"], row.state),
+                state=cast(Literal["draft", "active", "archived"], row.state),
             )
             for row in rows
         ]
@@ -1480,7 +1480,7 @@ async def read_category(
         description=row.description,
         revision=row.revision,
         provenance=row.provenance,
-        state=cast(Literal["active", "archived"], row.state),
+        state=cast(Literal["draft", "active", "archived"], row.state),
     )
 
 
@@ -1731,9 +1731,14 @@ async def write_category(
             normalized_name=normalized,
             provenance="manual",
             revision=1,
+            state=payload.state or "active",
         )
         db.add(row)
     else:
+        if payload.state is not None and payload.state != row.state:
+            raise ApiError(
+                ErrorCategory.VALIDATION, "category state changes use the lifecycle endpoint"
+            )
         row.revision += 1
     row.name, row.normalized_name = payload.metadata.name, normalized
     row.description = payload.metadata.description
@@ -1745,7 +1750,7 @@ async def write_category(
         description=row.description,
         revision=row.revision,
         provenance=row.provenance,
-        state=cast(Literal["active", "archived"], row.state),
+        state=cast(Literal["draft", "active", "archived"], row.state),
     )
     await finish_mutation(
         db,
@@ -1799,7 +1804,7 @@ async def change_category_lifecycle(
         description=row.description,
         revision=row.revision,
         provenance=row.provenance,
-        state=cast(Literal["active", "archived"], row.state),
+        state=cast(Literal["draft", "active", "archived"], row.state),
     ).model_dump(mode="json")
     row.state = payload.target
     row.revision += 1

@@ -1355,10 +1355,19 @@
         "action": {
           "enum": [
             "unmapped",
-            "publish-mapping"
+            "publish-mapping",
+            "resolve"
           ],
           "title": "Action",
           "type": "string"
+        },
+        "applied": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Applied",
+          "type": "array"
         },
         "coordinates": {
           "default": [],
@@ -1366,6 +1375,22 @@
             "$ref": "#/$defs/CliTechnologyUnmappedItem"
           },
           "title": "Coordinates",
+          "type": "array"
+        },
+        "created_category_ids": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Created Category Ids",
+          "type": "array"
+        },
+        "created_technology_ids": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Created Technology Ids",
           "type": "array"
         },
         "kind": {
@@ -1393,6 +1418,14 @@
           "default": "",
           "title": "Project Id",
           "type": "string"
+        },
+        "proposed": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Proposed",
+          "type": "array"
         },
         "scan_id": {
           "default": "",
@@ -1426,12 +1459,16 @@
       },
       "required": [
         "action",
+        "applied",
         "coordinates",
+        "created_category_ids",
+        "created_technology_ids",
         "kind",
         "mapping_digest",
         "mapping_version",
         "organization_id",
         "project_id",
+        "proposed",
         "scan_id",
         "scan_state",
         "server_coordinates"
@@ -1441,8 +1478,21 @@
     },
     "TechnologyUnmappedEntry": {
       "additionalProperties": true,
-      "description": "One unmapped coordinate and the projects that reported it.",
+      "description": "One unmapped coordinate, the projects that reported it and its review state.",
       "properties": {
+        "candidate_technology_id": {
+          "anyOf": [
+            {
+              "pattern": "^technology_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Candidate Technology Id"
+        },
         "coordinate": {
           "maxLength": 512,
           "minLength": 1,
@@ -1469,12 +1519,37 @@
           "maxItems": 512,
           "title": "Project Ids",
           "type": "array"
+        },
+        "resolved_technology_id": {
+          "anyOf": [
+            {
+              "pattern": "^technology_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Resolved Technology Id"
+        },
+        "state": {
+          "default": "open",
+          "enum": [
+            "open",
+            "resolved"
+          ],
+          "title": "State",
+          "type": "string"
         }
       },
       "required": [
+        "candidate_technology_id",
         "coordinate",
         "kind",
-        "project_ids"
+        "project_ids",
+        "resolved_technology_id",
+        "state"
       ],
       "title": "TechnologyUnmappedEntry",
       "type": "object"

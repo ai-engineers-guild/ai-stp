@@ -34,7 +34,7 @@ export function useGovernanceMutation(authority: GovernanceAuthority) {
   function save(
     path: string,
     effect: object,
-    method: "PUT" | "POST" | "DELETE",
+    method: "PUT" | "POST" | "PATCH" | "DELETE",
     acknowledged: () => void,
   ) {
     const fingerprint = JSON.stringify({ path, effect, method });
@@ -81,31 +81,61 @@ export function CategoryLifecycleControls({
 }) {
   const t = useTranslations("technology");
   const revision = useRef(category.revision);
-  const [state, setState] = useState(category.state);
+  const [state, setState] = useState(category.state ?? "active");
   const mutation = useGovernanceMutation(authority);
-  const restore = state === "archived";
-  if (!state || (restore ? !canRestore : !canRemove)) return null;
+  const path = `/v1/corporate/organizations/${authority.organizationId}/technology-categories/${category.category_id}`;
+  const targets: {
+    target: "draft" | "active" | "archived";
+    method: "POST" | "DELETE";
+    allowed: boolean;
+  }[] =
+    state === "draft"
+      ? [
+          { target: "active", method: "POST", allowed: canRestore },
+          { target: "archived", method: "DELETE", allowed: canRemove },
+        ]
+      : state === "archived"
+        ? [{ target: "active", method: "POST", allowed: canRestore }]
+        : [
+            { target: "draft", method: "POST", allowed: canRestore },
+            { target: "archived", method: "DELETE", allowed: canRemove },
+          ];
+  const actions = targets.filter((item) => item.allowed);
+  if (!actions.length) return null;
   return (
     <div className="mt-3 space-y-2" aria-busy={mutation.busy}>
-      <Button
-        size="lg"
-        variant="outline"
-        disabled={mutation.busy}
-        onClick={() => {
-          const path = `/v1/corporate/organizations/${authority.organizationId}/technology-categories/${category.category_id}`;
-          mutation.save(
-            restore ? `${path}/lifecycle` : path,
-            { expected_revision: revision.current, ...(restore ? { target: "active" } : {}) },
-            restore ? "POST" : "DELETE",
-            () => {
-              revision.current += 1;
-              setState(restore ? "active" : "archived");
-            },
-          );
-        }}
-      >
-        {t(mutation.busy ? "saving" : restore ? "restore" : "transition.archived")}
-      </Button>
+      <div className="flex flex-wrap gap-3">
+        {actions.map((action) => (
+          <Button
+            key={action.target}
+            size="lg"
+            variant="outline"
+            disabled={mutation.busy}
+            onClick={() => {
+              mutation.save(
+                action.method === "DELETE" ? path : `${path}/lifecycle`,
+                {
+                  expected_revision: revision.current,
+                  ...(action.method === "POST" ? { target: action.target } : {}),
+                },
+                action.method,
+                () => {
+                  revision.current += 1;
+                  setState(action.target);
+                },
+              );
+            }}
+          >
+            {t(
+              mutation.busy
+                ? "saving"
+                : action.target === "active"
+                  ? "restore"
+                  : `transition.${action.target}`,
+            )}
+          </Button>
+        ))}
+      </div>
       {mutation.message && <p role="status">{mutation.message}</p>}
     </div>
   );

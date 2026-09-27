@@ -3,33 +3,12 @@
     "IdempotencyKey": {
       "pattern": "^[A-Za-z0-9._~-]{16,128}$",
       "type": "string"
-    },
-    "TechnologyCategoryMetadata": {
-      "additionalProperties": false,
-      "properties": {
-        "description": {
-          "default": "",
-          "maxLength": 2000,
-          "title": "Description",
-          "type": "string"
-        },
-        "name": {
-          "maxLength": 200,
-          "minLength": 1,
-          "title": "Name",
-          "type": "string"
-        }
-      },
-      "required": [
-        "name"
-      ],
-      "title": "TechnologyCategoryMetadata",
-      "type": "object"
     }
   },
-  "$id": "urn:ai-stp:schema:v1:technology-category-write-request",
+  "$id": "urn:ai-stp:schema:v1:technology-unmapped-review-request",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
+  "description": "Propose or clear the candidate technology for one unmapped coordinate.",
   "properties": {
     "authorization_revision": {
       "anyOf": [
@@ -46,7 +25,28 @@
       ],
       "title": "Authorization Revision"
     },
+    "candidate_technology_id": {
+      "anyOf": [
+        {
+          "pattern": "^technology_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Candidate Technology Id"
+    },
+    "coordinate": {
+      "maxLength": 512,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9._:/@+*-]+$",
+      "title": "Coordinate",
+      "type": "string"
+    },
     "expected_revision": {
+      "default": 0,
+      "maximum": 0,
       "minimum": 0,
       "title": "Expected Revision",
       "type": "integer"
@@ -54,38 +54,31 @@
     "idempotency_key": {
       "$ref": "#/$defs/IdempotencyKey"
     },
-    "metadata": {
-      "$ref": "#/$defs/TechnologyCategoryMetadata"
+    "kind": {
+      "enum": [
+        "package",
+        "image",
+        "executable",
+        "configuration",
+        "alias"
+      ],
+      "title": "Kind",
+      "type": "string"
     },
     "schema_version": {
       "const": 1,
       "default": 1,
       "title": "Schema Version",
       "type": "integer"
-    },
-    "state": {
-      "anyOf": [
-        {
-          "enum": [
-            "draft",
-            "active"
-          ],
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "title": "State"
     }
   },
   "required": [
     "authorization_revision",
-    "expected_revision",
     "idempotency_key",
-    "metadata"
+    "kind",
+    "coordinate",
+    "candidate_technology_id"
   ],
-  "title": "CategoryWriteRequest",
+  "title": "TechnologyUnmappedReviewRequest",
   "type": "object"
 }

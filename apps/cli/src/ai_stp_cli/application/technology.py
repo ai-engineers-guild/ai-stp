@@ -1,14 +1,17 @@
 """Technology intent: grow the registry from detection evidence, in-process.
 
-Two actions share one drain:
+Three actions share one drain:
 
 - `unmapped` runs `project detect` for the given root and reports the
   coordinates the effective mapping cannot resolve — the local review queue,
   plus the organization's server-side queue when a session exists.
 - `publish-mapping` writes one immutable organization snapshot, either from an
   explicit entries document or from the bundled seed table.
+- `resolve` executes a decision list against the review queue: propose a
+  candidate, or apply entries through one derived snapshot — creating the
+  technologies and categories the decisions name.
 
-Both delegate to `application.project_technology`, so the task can never
+All delegate to `application.project_technology`, so the task can never
 disagree with the CLI about what a coordinate or a snapshot means.
 """
 
@@ -17,9 +20,15 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass
 
+from pydantic import ValidationError
+
 from ai_stp_cli.application import project_technology
-from ai_stp_cli.errors import CliFailure
-from ai_stp_contracts.machine_help import TaskQuestion, TaskTechnologyOutcome
+from ai_stp_cli.errors import CliFailure, field_issues
+from ai_stp_contracts.machine_help import (
+    TaskQuestion,
+    TaskTechnologyDecision,
+    TaskTechnologyOutcome,
+)
 from ai_stp_foundation.canonical import JsonValue
 
 
@@ -32,7 +41,7 @@ class DrainResult:
     advance: bool = False
 
 
-_ACTIONS = ("unmapped", "publish-mapping")
+_ACTIONS = ("unmapped", "publish-mapping", "resolve")
 
 
 def drain(facts: Mapping[str, JsonValue], *, task_id: str) -> DrainResult:
@@ -49,7 +58,8 @@ def drain(facts: Mapping[str, JsonValue], *, task_id: str) -> DrainResult:
                     recommended="unmapped",
                     why=(
                         "unmapped reports the coordinates a scan cannot resolve; "
-                        "publish-mapping writes one immutable organization snapshot."
+                        "publish-mapping writes one immutable organization snapshot; "
+                        "resolve applies a decision list to the review queue."
                     ),
                     actor="external",
                 ),
@@ -57,6 +67,8 @@ def drain(facts: Mapping[str, JsonValue], *, task_id: str) -> DrainResult:
         )
     if action == "unmapped":
         return _drain_unmapped(facts)
+    if action == "resolve":
+        return _drain_resolve(facts, task_id=task_id)
     return _drain_publish_mapping(facts, task_id=task_id)
 
 
@@ -169,5 +181,82 @@ def _drain_publish_mapping(facts: Mapping[str, JsonValue], *, task_id: str) -> D
             organization_id=str(facts["organization_id"]),
             mapping_version=view.version,
             mapping_digest=view.digest,
+        )
+    )
+
+
+def _drain_resolve(facts: Mapping[str, JsonValue], *, task_id: str) -> DrainResult:
+    missing = [
+        name
+        for name in ("organization_id", "authorization_revision")
+        if not isinstance(facts.get(name), (str, int)) or facts.get(name) in (None, "")
+    ]
+    raw = facts.get("decisions")
+    if not isinstance(raw, list) or not raw:
+        missing.append("decisions")
+    if missing:
+        return DrainResult(
+            questions=tuple(
+                TaskQuestion(
+                    question_id=name.replace("_", "-"),
+                    prompt=f"Value for `{name}` is required.",
+                    value_type="string",
+                    choices=[],
+                    why=(
+                        "decisions holds the review list: each row maps one "
+                        "queued coordinate to a technology — existing or to "
+                        "create — as propose or apply."
+                        if name == "decisions"
+                        else "resolve cannot guess it."
+                    ),
+                    actor="external",
+                )
+                for name in missing
+            )
+        )
+    items = raw if isinstance(raw, list) else []
+    try:
+        decisions = [TaskTechnologyDecision.model_validate(item) for item in items]
+    except ValidationError as error:
+        raise CliFailure(
+            "AI_STP_VALIDATION_ERROR",
+            "a review decision does not match the contract",
+            details={"errors": field_issues(error)},
+        ) from error
+    # An optional root refreshes the local scan first so the outcome reports
+    # the queue the caller just saw, not a stale one.
+    project_id = ""
+    scan_id = ""
+    scan_state = None
+    root = facts.get("project_root")
+    if isinstance(root, str) and root.strip():
+        scan = project_technology.detect(
+            {
+                "root": root,
+                "scope": facts.get("scope")
+                if isinstance(facts.get("scope"), str)
+                else "repository",
+            }
+        ).payload
+        project_id, scan_id, scan_state = scan.project_id, scan.scan_id, scan.state
+    raw_revision = facts["authorization_revision"]
+    authorization_revision = int(raw_revision) if isinstance(raw_revision, (int, str)) else 0
+    raw_base = facts.get("base_version")
+    raw_version = facts.get("mapping_version")
+    outcome = project_technology.resolve_decisions(
+        organization=str(facts["organization_id"]),
+        decisions=decisions,
+        authorization_revision=authorization_revision,
+        idempotency_key=str(facts.get("idempotency_key") or f"task-{task_id}-resolve"),
+        base_version=raw_base if isinstance(raw_base, str) else None,
+        mapping_version=raw_version if isinstance(raw_version, str) else None,
+    )
+    return DrainResult(
+        outcome=outcome.model_copy(
+            update={
+                "project_id": project_id,
+                "scan_id": scan_id,
+                "scan_state": scan_state,
+            }
         )
     )

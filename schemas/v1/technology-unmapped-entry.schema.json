@@ -1,0 +1,80 @@
+{
+  "$id": "urn:ai-stp:schema:v1:technology-unmapped-entry",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "One unmapped coordinate, the projects that reported it and its review state.",
+  "properties": {
+    "candidate_technology_id": {
+      "anyOf": [
+        {
+          "pattern": "^technology_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Candidate Technology Id"
+    },
+    "coordinate": {
+      "maxLength": 512,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9._:/@+*-]+$",
+      "title": "Coordinate",
+      "type": "string"
+    },
+    "kind": {
+      "enum": [
+        "package",
+        "image",
+        "executable",
+        "configuration",
+        "alias"
+      ],
+      "title": "Kind",
+      "type": "string"
+    },
+    "project_ids": {
+      "items": {
+        "pattern": "^remote_project_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+        "type": "string"
+      },
+      "maxItems": 512,
+      "title": "Project Ids",
+      "type": "array"
+    },
+    "resolved_technology_id": {
+      "anyOf": [
+        {
+          "pattern": "^technology_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Resolved Technology Id"
+    },
+    "state": {
+      "default": "open",
+      "enum": [
+        "open",
+        "resolved"
+      ],
+      "title": "State",
+      "type": "string"
+    }
+  },
+  "required": [
+    "candidate_technology_id",
+    "coordinate",
+    "kind",
+    "project_ids",
+    "resolved_technology_id",
+    "state"
+  ],
+  "title": "TechnologyUnmappedEntry",
+  "type": "object"
+}

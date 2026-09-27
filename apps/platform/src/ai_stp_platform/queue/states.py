@@ -39,7 +39,6 @@ class JobType(StrEnum):
     SEO_ENRICH = "seo_enrich"
     OFFICIAL_UPSTREAM_SYNC = "official_upstream_sync"
     TELEMETRY_RETENTION = "telemetry_retention"
-    TECHNOLOGY_REFRESH = "technology_refresh"
 
 
 class Visibility(StrEnum):

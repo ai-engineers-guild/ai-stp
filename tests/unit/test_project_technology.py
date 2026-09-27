@@ -1106,3 +1106,284 @@ def test_technology_unmapped_remote_reads_the_organization_queue(
     assert answer.payload.organization_id == ORGANIZATION
     assert answer.payload.coordinates[0].coordinate == "left-pad-x"
     assert answer.payload.coordinates[0].project_ids == [REMOTE_PROJECT]
+
+
+def _technology_body(technology_id: str, name: str, lifecycle: str) -> dict[str, object]:
+    return {
+        "schema_version": 1,
+        "organization_id": ORGANIZATION,
+        "technology_id": technology_id,
+        "name": name,
+        "category_ids": ["category_00000000000000000000000001"],
+        "aliases": [],
+        "description": "",
+        "icon_url": None,
+        "official_urls": [],
+        "owner_account_id": None,
+        "lifecycle": lifecycle,
+        "restore_lifecycle": "draft",
+        "revision": 1,
+        "redirect_id": None,
+        "provenance": "manual",
+        "available_actions": [],
+    }
+
+
+def test_technology_resolve_executes_a_decision_list(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """One apply + one propose decision drive create → propose → publish."""
+    registry_path = tmp_path / "registry.sqlite"
+    open_registry(registry_path, create=True).close()
+    _patch_target(monkeypatch, registry_path)
+    decisions = tmp_path / "decisions.json"
+    decisions.write_text(
+        json.dumps(
+            [
+                {
+                    "kind": "package",
+                    "coordinate": "dagster",
+                    "technology_name": "Dagster",
+                    "category_name": "ETL Orchestration",
+                    "mode": "apply",
+                    "active": True,
+                },
+                {
+                    "kind": "image",
+                    "coordinate": "internal/cache",
+                    "technology_id": "technology_00000000000000000000000007",
+                    "mode": "propose",
+                },
+            ]
+        ),
+        encoding="utf-8",
+    )
+    calls: list[tuple[str, str, int]] = []
+    created_technology = "technology_00000000000000000000000051"
+    created_category = "category_00000000000000000000000009"
+
+    def route(request: httpx.Request) -> httpx.Response:
+        path = request.url.path
+        body = (
+            cast(dict[str, object], json.loads(request.content.decode("utf-8")))
+            if request.content
+            else {}
+        )
+        raw_revision = body.get("authorization_revision")
+        revision = int(raw_revision) if isinstance(raw_revision, (int, str)) else 0
+        if request.method == "GET" and path.endswith("/technologies"):
+            calls.append(("GET", "technologies", 0))
+            return httpx.Response(200, json={"items": [], "total": 0})
+        if request.method == "GET" and path.endswith("/technology-categories"):
+            calls.append(("GET", "categories", 0))
+            return httpx.Response(200, json={"items": []})
+        if request.method == "POST" and path.endswith("/technology-categories"):
+            calls.append(("POST", "categories", revision))
+            return httpx.Response(
+                200,
+                json={
+                    "category_id": created_category,
+                    "name": "ETL Orchestration",
+                    "description": "",
+                    "revision": 1,
+                    "provenance": "manual",
+                    "state": "active",
+                },
+            )
+        if request.method == "POST" and path.endswith("/technologies"):
+            calls.append(("POST", "technologies", revision))
+            assert cast(dict[str, object], body["metadata"])["category_ids"] == [created_category]
+            return httpx.Response(
+                200, json=_technology_body(created_technology, "Dagster", "draft")
+            )
+        if request.method == "PATCH" and path.endswith("/lifecycle"):
+            calls.append(("PATCH", "lifecycle", revision))
+            return httpx.Response(
+                200, json=_technology_body(created_technology, "Dagster", "active")
+            )
+        if request.method == "PATCH" and path.endswith("/technology-unmapped-coordinates"):
+            calls.append(("PATCH", "unmapped", revision))
+            return httpx.Response(
+                200,
+                json={
+                    "kind": "image",
+                    "coordinate": "internal/cache",
+                    "project_ids": [REMOTE_PROJECT],
+                    "candidate_technology_id": body["candidate_technology_id"],
+                    "resolved_technology_id": None,
+                    "state": "open",
+                },
+            )
+        if request.method == "PUT" and "/technology-mappings/" in path:
+            calls.append(("PUT", "mapping", revision))
+            return httpx.Response(
+                200,
+                json={
+                    "organization_id": ORGANIZATION,
+                    "version": path.rsplit("/", 1)[-1],
+                    "entries": body["entries"],
+                    "digest": "sha256:" + "e" * 64,
+                },
+            )
+        raise AssertionError(f"unexpected call {request.method} {path}")
+
+    held = Session(
+        account_id=new_id("account"),
+        device_id=new_id("device"),
+        access_token="token",
+        refresh_token="refresh",
+        expires_at=LATER,
+    )
+
+    _patch_remote(monkeypatch, held, route)
+    answer = project_commands.technology_resolve(
+        {
+            "organization": ORGANIZATION,
+            "decisions": str(decisions),
+            "authorization-revision": "12",
+            "idempotency-key": KEY,
+        }
+    )
+    outcome = answer.payload
+    assert outcome.action == "resolve"
+    assert outcome.created_category_ids == [created_category]
+    assert outcome.created_technology_ids == [created_technology]
+    assert outcome.proposed == ["internal/cache"]
+    assert outcome.applied == ["dagster"]
+    assert outcome.mapping_version.startswith("review-")
+    # Order: name lookups, then the category the new technology classifies
+    # under, the technology, its activation, the proposal (no bump — it reuses
+    # the current revision), and finally the derived snapshot publish.
+    assert calls == [
+        ("GET", "technologies", 0),
+        ("GET", "categories", 0),
+        ("POST", "categories", 12),
+        ("POST", "technologies", 13),
+        ("PATCH", "lifecycle", 14),
+        ("PATCH", "unmapped", 15),
+        ("PUT", "mapping", 15),
+    ]
+
+
+def test_technology_resolve_reuses_a_known_technology_name(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A normalized-name match maps onto the existing record — no duplicate."""
+    _patch_target(monkeypatch, tmp_path / "registry.sqlite")
+    decisions = tmp_path / "decisions.json"
+    decisions.write_text(
+        json.dumps(
+            [
+                {
+                    "kind": "package",
+                    "coordinate": "postgres",
+                    "technology_name": "PostgreSQL",
+                    "category_ids": ["category_00000000000000000000000001"],
+                    "mode": "apply",
+                }
+            ]
+        ),
+        encoding="utf-8",
+    )
+    existing = "technology_00000000000000000000000042"
+    sent: list[dict[str, object]] = []
+
+    def route(request: httpx.Request) -> httpx.Response:
+        path = request.url.path
+        if request.method == "GET" and path.endswith("/technologies"):
+            return httpx.Response(
+                200,
+                json={
+                    "items": [
+                        _technology_body(existing, "postgresql", "active"),
+                    ],
+                    "total": 1,
+                },
+            )
+        if request.method == "PUT" and "/technology-mappings/" in path:
+            body = cast(dict[str, object], json.loads(request.content.decode("utf-8")))
+            sent.append(body)
+            return httpx.Response(
+                200,
+                json={
+                    "organization_id": ORGANIZATION,
+                    "version": path.rsplit("/", 1)[-1],
+                    "entries": body["entries"],
+                    "digest": "sha256:" + "e" * 64,
+                },
+            )
+        raise AssertionError(f"unexpected call {request.method} {path}")
+
+    held = Session(
+        account_id=new_id("account"),
+        device_id=new_id("device"),
+        access_token="token",
+        refresh_token="refresh",
+        expires_at=LATER,
+    )
+
+    _patch_remote(monkeypatch, held, route)
+    answer = project_commands.technology_resolve(
+        {
+            "organization": ORGANIZATION,
+            "decisions": str(decisions),
+            "authorization-revision": "4",
+            "idempotency-key": KEY,
+        }
+    )
+    assert answer.payload.created_technology_ids == []
+    assert sent[0]["entries"] == [
+        {
+            "kind": "package",
+            "coordinate": "postgres",
+            "technology_id": existing,
+            "provenance": "cli-review",
+        }
+    ]
+
+
+def test_technology_resolve_rejects_a_technology_without_a_category(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _patch_target(monkeypatch, tmp_path / "registry.sqlite")
+    decisions = tmp_path / "decisions.json"
+    decisions.write_text(
+        json.dumps(
+            [
+                {
+                    "kind": "package",
+                    "coordinate": "left-pad-x",
+                    "technology_name": "Left Pad X",
+                    "mode": "propose",
+                }
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    def route(request: httpx.Request) -> httpx.Response:
+        if request.method == "GET" and request.url.path.endswith("/technologies"):
+            return httpx.Response(200, json={"items": [], "total": 0})
+        if request.method == "GET" and request.url.path.endswith("/technology-categories"):
+            return httpx.Response(200, json={"items": []})
+        raise AssertionError(f"unexpected call {request.method} {request.url.path}")
+
+    held = Session(
+        account_id=new_id("account"),
+        device_id=new_id("device"),
+        access_token="token",
+        refresh_token="refresh",
+        expires_at=LATER,
+    )
+
+    _patch_remote(monkeypatch, held, route)
+    with pytest.raises(CliFailure) as raised:
+        project_commands.technology_resolve(
+            {
+                "organization": ORGANIZATION,
+                "decisions": str(decisions),
+                "authorization-revision": "1",
+                "idempotency-key": KEY,
+            }
+        )
+    assert raised.value.code == "AI_STP_VALIDATION_ERROR"

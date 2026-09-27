@@ -1309,7 +1309,63 @@
             "coordinate": "left-pad",
             "project_ids": [
               "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
-            ]
+            ],
+            "candidate_technology_id": null,
+            "resolved_technology_id": null,
+            "state": "open"
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "reviewTechnologyUnmappedCoordinate.technology",
+      "operation_id": "reviewTechnologyUnmappedCoordinate",
+      "kind": "positive",
+      "why": "A candidate is a review suggestion; the coordinate stays open until a snapshot resolves it.",
+      "request": {
+        "path_params": {
+          "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        },
+        "body": {
+          "schema_version": 1,
+          "expected_revision": 0,
+          "authorization_revision": 1,
+          "idempotency_key": "fixture-unmapped-review-0001",
+          "kind": "package",
+          "coordinate": "left-pad",
+          "candidate_technology_id": "technology_00000000000000000000000001"
+        }
+      },
+      "status": 200,
+      "body": {
+        "kind": "package",
+        "coordinate": "left-pad",
+        "project_ids": [
+          "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        ],
+        "candidate_technology_id": "technology_00000000000000000000000001",
+        "resolved_technology_id": null,
+        "state": "open"
+      }
+    },
+    {
+      "case_id": "listTechnologyMappings.technology",
+      "operation_id": "listTechnologyMappings",
+      "kind": "positive",
+      "why": "Review picks the freshest snapshot as the base for a derived overlay.",
+      "request": {
+        "path_params": {
+          "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        }
+      },
+      "status": 200,
+      "body": {
+        "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "items": [
+          {
+            "version": "v1",
+            "digest": "sha256:85dc041a89fc93a23c12dd2970e2156b631aa3bfc132b2a6f0c46559cb52e60a",
+            "entries": 1
           }
         ]
       }

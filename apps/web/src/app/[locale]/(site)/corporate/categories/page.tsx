@@ -1,5 +1,6 @@
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { notFound } from "next/navigation";
+import { Badge } from "@/components/atoms/badge";
 import { Input } from "@/components/atoms/input";
 import { Label } from "@/components/atoms/label";
 import { Button } from "@/components/atoms/button";
@@ -62,12 +63,19 @@ export default async function CategoryDirectoryPage({
         <ul className="divide-border divide-y">
           {items.map((item) => (
             <li key={item.category_id} className="space-y-1 py-4">
-              <Link
-                href={`/corporate/categories/${item.category_id}`}
-                className="inline-flex min-h-11 items-center font-medium underline underline-offset-4"
-              >
-                {item.name}
-              </Link>
+              <span className="flex flex-wrap items-center gap-2">
+                <Link
+                  href={`/corporate/categories/${item.category_id}`}
+                  className="inline-flex min-h-11 items-center font-medium underline underline-offset-4"
+                >
+                  {item.name}
+                </Link>
+                {item.state && item.state !== "active" && (
+                  <Badge variant={item.state === "draft" ? "warning" : "secondary"}>
+                    {t(`values.${item.state}`)}
+                  </Badge>
+                )}
+              </span>
               <p className="text-muted-foreground max-w-prose text-sm">{item.description}</p>
             </li>
           ))}

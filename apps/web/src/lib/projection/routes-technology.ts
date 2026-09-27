@@ -20,6 +20,7 @@ import {
 } from "@/lib/api/technology";
 import { sessionCookieValue } from "@/lib/auth/require-session";
 import { presentPage } from "@/lib/projection/presenters";
+import { TECHNOLOGY_MAPPING_ROUTES } from "@/lib/projection/routes-technology-mappings";
 import type { MachineRoute } from "@/lib/projection/route-table";
 
 export const TECHNOLOGY_ROUTES: MachineRoute[] = [
@@ -402,4 +403,5 @@ export const TECHNOLOGY_ROUTES: MachineRoute[] = [
       }
     },
   },
+  ...TECHNOLOGY_MAPPING_ROUTES,
 ];

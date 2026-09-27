@@ -1,10 +1,8 @@
 """Fold a technology scan handoff into relations and facts.
 
-The merge is shared by the API publish path, which authorizes first and
-supplies the per-scope hooks, and by worker refresh, which runs as the
-system actor: redirects resolve, and no per-scope authorization applies.
-Authorization, identity, and mapping checks are the caller's job and finish
-before this function mutates anything.
+The API publish path authorizes first and supplies the per-scope hooks:
+redirects resolve, and every mutation check finishes before this function
+writes anything.
 """
 
 from __future__ import annotations
@@ -25,7 +23,6 @@ from ai_stp_foundation.ids import new_id
 from ai_stp_platform.organization_models import CorporateProject, Organization
 from ai_stp_platform.technology_models import (
     ProjectTechnologyRelation,
-    Technology,
     TechnologyScan,
     TechnologyUnmappedCoordinate,
     TechnologyUsageFact,
@@ -33,23 +30,6 @@ from ai_stp_platform.technology_models import (
 
 ResolveTechnology = Callable[[str], Awaitable[str]]
 AuthorizePair = Callable[[str], Awaitable[None]]
-
-
-async def resolve_technology_redirect(
-    db: AsyncSession, organization_id: str, technology_id: str
-) -> str:
-    """Follow merge redirects to the current identity; system actors use this."""
-    seen: set[str] = set()
-    current = technology_id
-    while current not in seen:
-        seen.add(current)
-        row = await db.get(Technology, (organization_id, current))
-        if row is None:
-            raise LookupError("technology endpoint is unavailable")
-        if row.redirect_id is None:
-            return current
-        current = row.redirect_id
-    raise LookupError("technology redirect cycle")
 
 
 async def project_technology_view(
@@ -261,6 +241,19 @@ async def merge_scan_facts(
     )
     # Unmapped coordinates are the registry's review queue: a scope's rescan
     # replaces its rows wholesale so the queue says what the latest scan said.
+    # Review candidates are proposals attached to the coordinate org-wide, not
+    # scan output — a rewrite carries them over rather than dropping work.
+    prior_candidates = {
+        (row.kind, row.coordinate): row.candidate_technology_id
+        for row in (
+            await db.scalars(
+                select(TechnologyUnmappedCoordinate).where(
+                    TechnologyUnmappedCoordinate.organization_id == organization_id,
+                    TechnologyUnmappedCoordinate.candidate_technology_id.is_not(None),
+                )
+            )
+        ).all()
+    }
     await db.execute(
         delete(TechnologyUnmappedCoordinate).where(
             TechnologyUnmappedCoordinate.organization_id == organization_id,
@@ -276,6 +269,7 @@ async def merge_scan_facts(
             coordinate=coordinate.coordinate,
             scope=handoff.scope,
             scan_id=handoff.scan_id,
+            candidate_technology_id=prior_candidates.get((coordinate.kind, coordinate.coordinate)),
         )
         for coordinate in handoff.unmapped_coordinates
     )

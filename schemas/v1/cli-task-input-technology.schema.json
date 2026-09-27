@@ -1,15 +1,117 @@
 {
+  "$defs": {
+    "TaskTechnologyDecision": {
+      "additionalProperties": false,
+      "description": "One review decision over an unmapped coordinate.\n\n`technology_id` names an existing registry record; `technology_name`\ncreates one first (with `category_ids`/`category_name` for its governing\ncategories). `mode` is `propose` — the queue entry gains a candidate and\nstays open for review — or `apply`, which publishes a derived mapping\nsnapshot so the coordinate resolves from now on.",
+      "properties": {
+        "active": {
+          "default": false,
+          "title": "Active",
+          "type": "boolean"
+        },
+        "category_ids": {
+          "default": [],
+          "items": {
+            "pattern": "^category_[0-9A-HJKMNP-TV-Z]{26}$",
+            "type": "string"
+          },
+          "title": "Category Ids",
+          "type": "array"
+        },
+        "category_name": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Category Name"
+        },
+        "coordinate": {
+          "maxLength": 512,
+          "minLength": 1,
+          "title": "Coordinate",
+          "type": "string"
+        },
+        "description": {
+          "default": "",
+          "maxLength": 4000,
+          "title": "Description",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "package",
+            "image",
+            "executable",
+            "configuration",
+            "alias"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "mode": {
+          "default": "propose",
+          "enum": [
+            "propose",
+            "apply"
+          ],
+          "title": "Mode",
+          "type": "string"
+        },
+        "technology_id": {
+          "anyOf": [
+            {
+              "pattern": "^technology_[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Technology Id"
+        },
+        "technology_name": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Technology Name"
+        }
+      },
+      "required": [
+        "kind",
+        "coordinate"
+      ],
+      "title": "TaskTechnologyDecision",
+      "type": "object"
+    }
+  },
   "$id": "urn:ai-stp:schema:v1:cli-task-input-technology",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
-  "description": "Grow the technology registry from detection evidence.\n\n`unmapped` scans a project and lists what its effective mapping cannot\nresolve — locally and, when an organization is named and a session exists,\nthe organization's review queue. `publish-mapping` writes one immutable\norganization snapshot: an explicit entries document, or the bundled seed\ntable when `seed` is set.",
+  "description": "Grow the technology registry from detection evidence.\n\n`unmapped` scans a project and lists what its effective mapping cannot\nresolve — locally and, when an organization is named and a session exists,\nthe organization's review queue. `publish-mapping` writes one immutable\norganization snapshot: an explicit entries document, or the bundled seed\ntable when `seed` is set. `resolve` applies a decision list: propose\ncandidates, create records, publish a derived snapshot.",
   "properties": {
     "action": {
       "anyOf": [
         {
           "enum": [
             "unmapped",
-            "publish-mapping"
+            "publish-mapping",
+            "resolve"
           ],
           "type": "string"
         },
@@ -32,6 +134,33 @@
       ],
       "default": null,
       "title": "Authorization Revision"
+    },
+    "base_version": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Base Version"
+    },
+    "decisions": {
+      "anyOf": [
+        {
+          "items": {
+            "$ref": "#/$defs/TaskTechnologyDecision"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Decisions"
     },
     "idempotency_key": {
       "anyOf": [

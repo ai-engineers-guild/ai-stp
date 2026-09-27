@@ -474,3 +474,11 @@ technology IDs. The existing confirm/reject/override path is the only way for
 an observation to become an accepted project/landscape fact. A retained scan
 replay does not require another forge read. No source archive or code execution
 is involved.
+
+## Deferred: organization-wide backend scan
+
+Interactive scanning of every linked organization project directly on the
+backend — replaying GitHub/GitLab sources without a local CLI — is a future
+milestone item, not part of this specification. Scans originate locally: one
+project, one bounded root, one explicit publication. Registry growth is
+review-driven, never scheduled background mutation.

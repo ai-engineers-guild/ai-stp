@@ -67,6 +67,21 @@
       ],
       "title": "Authorization Revision"
     },
+    "base_version": {
+      "anyOf": [
+        {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9._+-]+$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Base Version"
+    },
     "entries": {
       "items": {
         "$ref": "#/$defs/TechnologyMappingEntry"

@@ -311,6 +311,9 @@ import type {
   ListTechnologyEmployeesData,
   ListTechnologyEmployeesErrors,
   ListTechnologyEmployeesResponses,
+  ListTechnologyMappingsData,
+  ListTechnologyMappingsErrors,
+  ListTechnologyMappingsResponses,
   ListTechnologyProjectsData,
   ListTechnologyProjectsErrors,
   ListTechnologyProjectsResponses,
@@ -584,6 +587,9 @@ import type {
   ReadTechnologyScanData,
   ReadTechnologyScanErrors,
   ReadTechnologyScanResponses,
+  ReadTechnologyUnmappedCoordinatesData,
+  ReadTechnologyUnmappedCoordinatesErrors,
+  ReadTechnologyUnmappedCoordinatesResponses,
   ReadVisibilityPlanData,
   ReadVisibilityPlanErrors,
   ReadVisibilityPlanResponses,
@@ -614,6 +620,9 @@ import type {
   ResolveProjectConflictData,
   ResolveProjectConflictErrors,
   ResolveProjectConflictResponses,
+  ReviewTechnologyUnmappedCoordinateData,
+  ReviewTechnologyUnmappedCoordinateErrors,
+  ReviewTechnologyUnmappedCoordinateResponses,
   RevokeAccessGrantData,
   RevokeAccessGrantErrors,
   RevokeAccessGrantResponses,
@@ -3626,6 +3635,22 @@ export const writeTechnologyLandscapePolicy = <ThrowOnError extends boolean = fa
   });
 
 /**
+ * List the organization's immutable mapping snapshots.
+ */
+export const listTechnologyMappings = <ThrowOnError extends boolean = false>(
+  options: Options<ListTechnologyMappingsData, ThrowOnError>,
+): RequestResult<ListTechnologyMappingsResponses, ListTechnologyMappingsErrors, ThrowOnError> =>
+  (options.client ?? client).get<
+    ListTechnologyMappingsResponses,
+    ListTechnologyMappingsErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/technology-mappings",
+    ...options,
+  });
+
+/**
  * Read a complete immutable mapping snapshot.
  */
 export const readTechnologyMapping = <ThrowOnError extends boolean = false>(
@@ -3674,6 +3699,50 @@ export const importTechnologySeed = <ThrowOnError extends boolean = false>(
   >({
     security: [{ scheme: "bearer", type: "http" }],
     url: "/v1/corporate/organizations/{organization_id}/technology-seed",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Read the organization's unmapped-coordinate review queue.
+ */
+export const readTechnologyUnmappedCoordinates = <ThrowOnError extends boolean = false>(
+  options: Options<ReadTechnologyUnmappedCoordinatesData, ThrowOnError>,
+): RequestResult<
+  ReadTechnologyUnmappedCoordinatesResponses,
+  ReadTechnologyUnmappedCoordinatesErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).get<
+    ReadTechnologyUnmappedCoordinatesResponses,
+    ReadTechnologyUnmappedCoordinatesErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/technology-unmapped-coordinates",
+    ...options,
+  });
+
+/**
+ * Propose or clear a coordinate's candidate technology.
+ */
+export const reviewTechnologyUnmappedCoordinate = <ThrowOnError extends boolean = false>(
+  options: Options<ReviewTechnologyUnmappedCoordinateData, ThrowOnError>,
+): RequestResult<
+  ReviewTechnologyUnmappedCoordinateResponses,
+  ReviewTechnologyUnmappedCoordinateErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).patch<
+    ReviewTechnologyUnmappedCoordinateResponses,
+    ReviewTechnologyUnmappedCoordinateErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/technology-unmapped-coordinates",
     ...options,
     headers: {
       "Content-Type": "application/json",

@@ -827,7 +827,7 @@ export type CategoryLifecycleRequest = {
   /**
    * Target
    */
-  target: "active" | "archived";
+  target: "draft" | "active" | "archived";
 };
 
 /**
@@ -868,7 +868,7 @@ export type CategoryView = {
   /**
    * State
    */
-  state?: "active" | "archived" | null;
+  state?: "draft" | "active" | "archived" | null;
   [key: string]: unknown;
 };
 
@@ -890,6 +890,10 @@ export type CategoryWriteRequest = {
    * Schema Version
    */
   schema_version?: 1;
+  /**
+   * State
+   */
+  state?: "draft" | "active" | null;
 };
 
 export const CheckStatus = { PASS: "pass", FAIL: "fail" } as const;
@@ -13407,6 +13411,21 @@ export type TechnologyMappingEntry = {
 };
 
 /**
+ * TechnologyMappingList
+ */
+export type TechnologyMappingList = {
+  /**
+   * Items
+   */
+  items: Array<TechnologyMappingSummary>;
+  /**
+   * Organization Id
+   */
+  organization_id: string;
+  [key: string]: unknown;
+};
+
+/**
  * TechnologyMappingRequest
  */
 export type TechnologyMappingRequest = {
@@ -13414,6 +13433,10 @@ export type TechnologyMappingRequest = {
    * Authorization Revision
    */
   authorization_revision: number | string;
+  /**
+   * Base Version
+   */
+  base_version?: string | null;
   /**
    * Entries
    */
@@ -13427,6 +13450,25 @@ export type TechnologyMappingRequest = {
    * Schema Version
    */
   schema_version?: 1;
+};
+
+/**
+ * TechnologyMappingSummary
+ */
+export type TechnologyMappingSummary = {
+  /**
+   * Digest
+   */
+  digest: string;
+  /**
+   * Entries
+   */
+  entries: number;
+  /**
+   * Version
+   */
+  version: string;
+  [key: string]: unknown;
 };
 
 /**
@@ -13708,6 +13750,10 @@ export type TechnologyScanHandoff = {
    * Scope
    */
   scope: string;
+  /**
+   * Unmapped Coordinates
+   */
+  unmapped_coordinates?: Array<TechnologyUnmappedCoordinate>;
 };
 
 /**
@@ -13903,6 +13949,107 @@ export type TechnologyTeamWriteRequest = {
    * Team Id
    */
   team_id: string;
+};
+
+/**
+ * TechnologyUnmappedCoordinate
+ *
+ * A coordinate the applied mapping did not resolve — the registry's review queue.
+ *
+ * Unmapped coordinates are observations, not identities: the platform retains
+ * them so an organization can see what its mapping does not yet name and grow
+ * the registry from evidence instead of guesswork.
+ */
+export type TechnologyUnmappedCoordinate = {
+  /**
+   * Coordinate
+   */
+  coordinate: string;
+  /**
+   * Kind
+   */
+  kind: "package" | "image" | "executable" | "configuration" | "alias";
+};
+
+/**
+ * TechnologyUnmappedEntry
+ *
+ * One unmapped coordinate, the projects that reported it and its review state.
+ */
+export type TechnologyUnmappedEntry = {
+  /**
+   * Candidate Technology Id
+   */
+  candidate_technology_id: string | null;
+  /**
+   * Coordinate
+   */
+  coordinate: string;
+  /**
+   * Kind
+   */
+  kind: "package" | "image" | "executable" | "configuration" | "alias";
+  /**
+   * Project Ids
+   */
+  project_ids: Array<string>;
+  /**
+   * Resolved Technology Id
+   */
+  resolved_technology_id: string | null;
+  /**
+   * State
+   */
+  state: "open" | "resolved";
+  [key: string]: unknown;
+};
+
+/**
+ * TechnologyUnmappedReviewRequest
+ *
+ * Propose or clear the candidate technology for one unmapped coordinate.
+ */
+export type TechnologyUnmappedReviewRequest = {
+  /**
+   * Authorization Revision
+   */
+  authorization_revision: number | string;
+  /**
+   * Candidate Technology Id
+   */
+  candidate_technology_id: string | null;
+  /**
+   * Coordinate
+   */
+  coordinate: string;
+  /**
+   * Expected Revision
+   */
+  expected_revision?: number;
+  idempotency_key: IdempotencyKey;
+  /**
+   * Kind
+   */
+  kind: "package" | "image" | "executable" | "configuration" | "alias";
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
+};
+
+/**
+ * TechnologyUnmappedView
+ */
+export type TechnologyUnmappedView = {
+  /**
+   * Coordinates
+   */
+  coordinates: Array<TechnologyUnmappedEntry>;
+  /**
+   * Organization Id
+   */
+  organization_id: string;
+  [key: string]: unknown;
 };
 
 /**
@@ -24558,6 +24705,64 @@ export type WriteTechnologyLandscapePolicyResponses = {
 export type WriteTechnologyLandscapePolicyResponse =
   WriteTechnologyLandscapePolicyResponses[keyof WriteTechnologyLandscapePolicyResponses];
 
+export type ListTechnologyMappingsData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/technology-mappings";
+};
+
+export type ListTechnologyMappingsErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ListTechnologyMappingsError =
+  ListTechnologyMappingsErrors[keyof ListTechnologyMappingsErrors];
+
+export type ListTechnologyMappingsResponses = {
+  /**
+   * List the organization's immutable mapping snapshots.
+   */
+  200: TechnologyMappingList;
+};
+
+export type ListTechnologyMappingsResponse =
+  ListTechnologyMappingsResponses[keyof ListTechnologyMappingsResponses];
+
 export type ReadTechnologyMappingData = {
   body?: never;
   headers?: {
@@ -24755,6 +24960,126 @@ export type ImportTechnologySeedResponses = {
 
 export type ImportTechnologySeedResponse =
   ImportTechnologySeedResponses[keyof ImportTechnologySeedResponses];
+
+export type ReadTechnologyUnmappedCoordinatesData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/technology-unmapped-coordinates";
+};
+
+export type ReadTechnologyUnmappedCoordinatesErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ReadTechnologyUnmappedCoordinatesError =
+  ReadTechnologyUnmappedCoordinatesErrors[keyof ReadTechnologyUnmappedCoordinatesErrors];
+
+export type ReadTechnologyUnmappedCoordinatesResponses = {
+  /**
+   * Read the organization's unmapped-coordinate review queue.
+   */
+  200: TechnologyUnmappedView;
+};
+
+export type ReadTechnologyUnmappedCoordinatesResponse =
+  ReadTechnologyUnmappedCoordinatesResponses[keyof ReadTechnologyUnmappedCoordinatesResponses];
+
+export type ReviewTechnologyUnmappedCoordinateData = {
+  body: TechnologyUnmappedReviewRequest;
+  headers: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+    /**
+     * Client-chosen key; a retry must not become a second effect.
+     */
+    "Idempotency-Key": string;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/technology-unmapped-coordinates";
+};
+
+export type ReviewTechnologyUnmappedCoordinateErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ReviewTechnologyUnmappedCoordinateError =
+  ReviewTechnologyUnmappedCoordinateErrors[keyof ReviewTechnologyUnmappedCoordinateErrors];
+
+export type ReviewTechnologyUnmappedCoordinateResponses = {
+  /**
+   * Propose or clear a coordinate's candidate technology.
+   */
+  200: TechnologyUnmappedEntry;
+};
+
+export type ReviewTechnologyUnmappedCoordinateResponse =
+  ReviewTechnologyUnmappedCoordinateResponses[keyof ReviewTechnologyUnmappedCoordinateResponses];
 
 export type ListCorporateTelemetryAggregatesData = {
   body?: never;

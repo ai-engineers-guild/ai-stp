@@ -528,6 +528,39 @@ class TaskPublishInput(BaseModel):
     provider: Literal["google", "github"] | None = None
 
 
+class TaskTechnologyDecision(BaseModel):
+    """One review decision over an unmapped coordinate.
+
+    `technology_id` names an existing registry record; `technology_name`
+    creates one first (with `category_ids`/`category_name` for its governing
+    categories). `mode` is `propose` — the queue entry gains a candidate and
+    stays open for review — or `apply`, which publishes a derived mapping
+    snapshot so the coordinate resolves from now on.
+    """
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    kind: Literal["package", "image", "executable", "configuration", "alias"]
+    coordinate: Annotated[str, Field(min_length=1, max_length=512)]
+    technology_id: Annotated[str, Field(pattern=r"^technology_[0-9A-HJKMNP-TV-Z]{26}$")] | None = (
+        None
+    )
+    technology_name: Annotated[str, Field(min_length=1, max_length=200)] | None = None
+    category_ids: list[Annotated[str, Field(pattern=r"^category_[0-9A-HJKMNP-TV-Z]{26}$")]] = []
+    category_name: Annotated[str, Field(min_length=1, max_length=200)] | None = None
+    description: Annotated[str, Field(max_length=4000)] = ""
+    active: bool = False
+    mode: Literal["propose", "apply"] = "propose"
+
+    @model_validator(mode="after")
+    def one_technology_source(self) -> Self:
+        if (self.technology_id is None) == (self.technology_name is None):
+            raise ValueError("name either technology_id or technology_name")
+        if self.technology_name is None and (self.category_ids or self.category_name is not None):
+            raise ValueError("categories only apply when creating a technology")
+        return self
+
+
 class TaskTechnologyInput(BaseModel):
     """Grow the technology registry from detection evidence.
 
@@ -535,21 +568,26 @@ class TaskTechnologyInput(BaseModel):
     resolve — locally and, when an organization is named and a session exists,
     the organization's review queue. `publish-mapping` writes one immutable
     organization snapshot: an explicit entries document, or the bundled seed
-    table when `seed` is set.
+    table when `seed` is set. `resolve` applies a decision list: propose
+    candidates, create records, publish a derived snapshot.
     """
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     schema_version: Literal[1] = 1
-    action: Literal["unmapped", "publish-mapping"] | None = None
+    action: Literal["unmapped", "publish-mapping", "resolve"] | None = None
     project_root: str | None = None
     scope: str | None = None
     organization_id: str | None = None
     #: Exact immutable snapshot version `publish-mapping` writes.
     mapping_version: str | None = None
+    #: Snapshot `resolve` extends; defaults to the cached latest snapshot.
+    base_version: str | None = None
     #: JSON/YAML document of mapping entries; `seed` publishes the bundled table.
     mapping_file: str | None = None
     seed: bool | None = None
+    #: Review decisions `resolve` executes against the organization's queue.
+    decisions: list[TaskTechnologyDecision] | None = None
     authorization_revision: Annotated[int, Field(ge=1)] | None = None
     idempotency_key: str | None = None
 
@@ -722,7 +760,7 @@ class TaskTechnologyOutcome(BaseModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 
     kind: Literal["technology"] = "technology"
-    action: Literal["unmapped", "publish-mapping"]
+    action: Literal["unmapped", "publish-mapping", "resolve"]
     project_id: str = ""
     scan_id: str = ""
     scan_state: Literal["complete", "partial"] | None = None
@@ -731,6 +769,12 @@ class TaskTechnologyOutcome(BaseModel):
     server_coordinates: list[TechnologyUnmappedEntry] = []
     mapping_version: str = ""
     mapping_digest: str = ""
+    #: Coordinates given a review candidate (`resolve`, mode=propose).
+    proposed: list[str] = []
+    #: Coordinates mapped by the published snapshot (`resolve`, mode=apply).
+    applied: list[str] = []
+    created_technology_ids: list[str] = []
+    created_category_ids: list[str] = []
 
 
 type TaskOutcome = Annotated[

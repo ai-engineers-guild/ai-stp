@@ -77,12 +77,17 @@ from ai_stp_contracts.machine_help import (
     ProjectSymbols,
     SetupImportComponent,
     SetupImportPlan,
+    TaskTechnologyOutcome,
 )
 from ai_stp_contracts.technology import (
+    CategoryView,
+    TechnologyMappingList,
     TechnologyMappingView,
     TechnologyScanRequest,
     TechnologyScanResult,
+    TechnologyUnmappedEntry,
     TechnologyUnmappedView,
+    TechnologyView,
 )
 from ai_stp_foundation.canonical import JsonValue
 from ai_stp_foundation.errors import ERROR_CODES
@@ -1432,6 +1437,42 @@ def technology_mapping_publish(
 ) -> Answer[TechnologyMappingView]:
     """Publish one immutable organization mapping snapshot."""
     return project_technology.mapping_publish(parameters)
+
+
+def technology_propose(
+    parameters: Mapping[str, object],
+) -> Answer[TechnologyUnmappedEntry]:
+    """Propose or clear the candidate technology for one queued coordinate."""
+    return project_technology.technology_propose(parameters)
+
+
+def technology_apply(parameters: Mapping[str, object]) -> Answer[TechnologyMappingView]:
+    """Extend the organization's mapping snapshot with reviewed entries."""
+    return project_technology.technology_apply(parameters)
+
+
+def technology_create(parameters: Mapping[str, object]) -> Answer[TechnologyView]:
+    """Create a technology record in the organization's registry."""
+    return project_technology.technology_create(parameters)
+
+
+def technology_category_create(parameters: Mapping[str, object]) -> Answer[CategoryView]:
+    """Create a technology category in the organization's registry."""
+    return project_technology.technology_category_create(parameters)
+
+
+def technology_mapping_versions(
+    parameters: Mapping[str, object],
+) -> Answer[TechnologyMappingList]:
+    """List every mapping snapshot the organization published."""
+    return project_technology.technology_versions(parameters)
+
+
+def technology_resolve(
+    parameters: Mapping[str, object],
+) -> Answer[TaskTechnologyOutcome]:
+    """Execute one decisions document against the organization's queue."""
+    return project_technology.technology_resolve(parameters)
 
 
 def technology_publish(parameters: Mapping[str, object]) -> Answer[TechnologyScanResult]:
