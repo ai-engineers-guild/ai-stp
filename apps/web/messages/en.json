@@ -283,7 +283,7 @@
     "mappingShowResolved": "Show {count} resolved",
     "mappingHideResolved": "Hide resolved",
     "mappingApply": "Publish mapping",
-    "mappingApplyAll": "Publish {count} candidates",
+    "mappingApplyAll": "{count, plural, one {Publish # candidate} other {Publish # candidates}}",
     "mappingCandidate": "Candidate:",
     "mappingCandidateLabel": "Candidate technology",
     "mappingNoCandidate": "No candidate",
