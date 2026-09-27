@@ -156,7 +156,8 @@ def _callback_for(command: Command) -> Any:
         declared = _as_declared(command, parameters)
         _require_declared_flags(command, declared)
         answer = command.handler(declared)
-        if command.descriptor.path[0] not in {"auth", "heartbeat"}:
+        local_hook = tuple(command.descriptor.path) == ("usage", "hook")
+        if not local_hook and command.descriptor.path[0] not in {"auth", "heartbeat"}:
             try:
                 from ai_stp_cli.application.heartbeat import maybe_send_due
 
@@ -168,10 +169,14 @@ def _callback_for(command: Command) -> Any:
         try:
             from ai_stp_cli.self_update.service import maybe_notice
 
-            extra_warnings, extra_actions = maybe_notice(
-                command.descriptor.path,
-                machine=bool(state.get("machine")),
-                tty=sys.stdout.isatty(),
+            extra_warnings, extra_actions = (
+                ((), ())
+                if local_hook
+                else maybe_notice(
+                    command.descriptor.path,
+                    machine=bool(state.get("machine")),
+                    tty=sys.stdout.isatty(),
+                )
             )
         except Exception:
             extra_warnings, extra_actions = (), ()

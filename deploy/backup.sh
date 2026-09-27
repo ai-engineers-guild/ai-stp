@@ -19,7 +19,7 @@ backup filesystem:
   - database-backed object manifest with bucket, owner, digest and size
 
 Environment:
-  AI_STP_COMPOSE_FILE   compose file (default docker-compose.prod.yml)
+  AI_STP_COMPOSE_FILE   compose file (default deploy/compose.prod.yml)
   AI_STP_BACKUP_DIR     backup root directory
   AI_STP_BACKUP_RETENTION  number of newest backups to keep (default 7)
   AI_STP_ALLOW_LOCAL_BACKUP=1 permits a same-filesystem development backup

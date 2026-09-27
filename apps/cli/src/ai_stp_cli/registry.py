@@ -2532,6 +2532,303 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         next_actions=("project technology mappings list --organization <id> --json",),
     ),
     Declaration(
+        path=["project", "technology", "mappings", "publish"],
+        summary=(
+            "Publish one immutable organization coordinate mapping: an entries "
+            "document or the bundled seed table."
+        ),
+        result_schema="urn:ai-stp:schema:v1:technology-mapping-view",
+        handler="project:technology_mapping_publish",
+        mutability="apply",
+        parameter_rules=(CommandParameterRule(kind="exactly_one", parameters=["entries", "seed"]),),
+        parameters=(
+            option("organization", "string", "Explicit remote organization.", required=True),
+            option(
+                "version",
+                "string",
+                "Exact immutable snapshot version to write.",
+                required=True,
+            ),
+            option(
+                "entries",
+                "string",
+                "JSON/YAML document of {kind, coordinate, technology_id, provenance} rows.",
+            ),
+            option(
+                "seed",
+                "boolean",
+                "Publish the bundled seed coordinate table as the snapshot.",
+            ),
+            option(
+                "authorization-revision",
+                "string",
+                "Revision from the selected capability projection.",
+                required=True,
+            ),
+            option(
+                "idempotency-key", "string", "Stable key for this exact publication.", required=True
+            ),
+        ),
+        next_actions=(
+            "project technology mappings fetch --organization <id> --version <v> --json",
+        ),
+    ),
+    Declaration(
+        path=["project", "technology", "unmapped"],
+        summary=(
+            "List the stored coordinates the effective mapping cannot resolve "
+            "for one local project — the registry review queue."
+        ),
+        result_schema="urn:ai-stp:schema:v1:cli-technology-unmapped",
+        handler="project:technology_unmapped",
+        parameter_rules=(CommandParameterRule(kind="exactly_one", parameters=["project", "root"]),),
+        parameters=(
+            option("project", "string", "Stable local project identifier."),
+            option("root", "string", "Project root to resolve the identifier from."),
+            option(
+                "scope",
+                "string",
+                "Named scan scope the findings belong to. Defaults to 'repository'.",
+            ),
+            option(
+                "organization",
+                "string",
+                "Remote organization whose cached mapping also applies to resolution.",
+            ),
+        ),
+        next_actions=(
+            "project technology unmapped-remote --organization <id> --json",
+            "project technology mappings publish --organization <id> --version <v> --seed "
+            "--authorization-revision <n> --idempotency-key <key> --json",
+        ),
+    ),
+    Declaration(
+        path=["project", "technology", "unmapped-remote"],
+        summary=(
+            "Read the organization's unmapped-coordinate queue: every coordinate "
+            "published scans left unresolved."
+        ),
+        result_schema="urn:ai-stp:schema:v1:technology-unmapped-view",
+        handler="project:technology_unmapped_remote",
+        parameters=(
+            option("organization", "string", "Explicit remote organization.", required=True),
+        ),
+        next_actions=(
+            "project technology mappings publish --organization <id> --version <v> "
+            "--entries <file> --authorization-revision <n> --idempotency-key <key> --json",
+        ),
+    ),
+    Declaration(
+        path=["project", "technology", "propose"],
+        summary=(
+            "Propose or clear the candidate technology for one queued unmapped "
+            "coordinate — a suggestion for review, not a mapping."
+        ),
+        result_schema="urn:ai-stp:schema:v1:technology-unmapped-entry",
+        handler="project:technology_propose",
+        mutability="apply",
+        parameter_rules=(
+            CommandParameterRule(kind="exactly_one", parameters=["technology-id", "clear"]),
+        ),
+        parameters=(
+            option("organization", "string", "Explicit remote organization.", required=True),
+            option(
+                "kind",
+                "string",
+                "Coordinate kind.",
+                required=True,
+                choices=("package", "image", "executable", "configuration", "alias"),
+            ),
+            option("coordinate", "string", "The unresolved coordinate.", required=True),
+            option(
+                "technology-id",
+                "string",
+                "Canonical technology_<ulid> proposed for the coordinate.",
+            ),
+            option("clear", "boolean", "Drop the queued coordinate's candidate."),
+            option(
+                "authorization-revision",
+                "string",
+                "Revision from the selected capability projection.",
+                required=True,
+            ),
+            option("idempotency-key", "string", "Stable key for this exact review.", required=True),
+        ),
+        next_actions=(
+            "project technology apply --organization <id> --kind <k> --coordinate <c> "
+            "--technology-id <t> --authorization-revision <n> --idempotency-key <key> --json",
+        ),
+    ),
+    Declaration(
+        path=["project", "technology", "apply"],
+        summary=(
+            "Extend the organization's mapping snapshot with reviewed coordinates: "
+            "one triple or an entries document, over a base version."
+        ),
+        result_schema="urn:ai-stp:schema:v1:technology-mapping-view",
+        handler="project:technology_apply",
+        mutability="apply",
+        parameters=(
+            option("organization", "string", "Explicit remote organization.", required=True),
+            option(
+                "kind",
+                "string",
+                "Coordinate kind.",
+                choices=("package", "image", "executable", "configuration", "alias"),
+            ),
+            option("coordinate", "string", "The coordinate to map."),
+            option(
+                "technology-id",
+                "string",
+                "Canonical technology_<ulid> the coordinate resolves to.",
+            ),
+            option(
+                "entries",
+                "string",
+                "JSON/YAML document of {kind, coordinate, technology_id, provenance} rows.",
+            ),
+            option(
+                "base-version",
+                "string",
+                "Snapshot to extend. Defaults to the cached latest organization snapshot.",
+            ),
+            option(
+                "version",
+                "string",
+                "New immutable snapshot name. Derived from the entries when omitted.",
+            ),
+            option(
+                "authorization-revision",
+                "string",
+                "Revision from the selected capability projection.",
+                required=True,
+            ),
+            option(
+                "idempotency-key", "string", "Stable key for this exact publication.", required=True
+            ),
+        ),
+        next_actions=("project technology unmapped-remote --organization <id> --json",),
+    ),
+    Declaration(
+        path=["project", "technology", "create"],
+        summary="Create a technology record in the organization's registry.",
+        result_schema="urn:ai-stp:schema:v1:technology-view",
+        handler="project:technology_create",
+        mutability="apply",
+        parameters=(
+            option("organization", "string", "Explicit remote organization.", required=True),
+            option("name", "string", "Canonical technology name.", required=True),
+            option(
+                "category-id",
+                "string",
+                "Governing category_<ulid>. Repeatable — at least one is required.",
+                repeatable=True,
+            ),
+            option("description", "string", "What the technology is."),
+            option(
+                "active",
+                "boolean",
+                "Publish the record immediately instead of leaving it a draft.",
+            ),
+            option(
+                "authorization-revision",
+                "string",
+                "Revision from the selected capability projection.",
+                required=True,
+            ),
+            option(
+                "idempotency-key", "string", "Stable key for this exact creation.", required=True
+            ),
+        ),
+        next_actions=(
+            "project technology propose --organization <id> --kind <k> --coordinate <c> "
+            "--technology-id <t> --authorization-revision <n> --idempotency-key <key> --json",
+        ),
+    ),
+    Declaration(
+        path=["project", "technology", "create-category"],
+        summary="Create a technology category — a draft unless --active is given.",
+        result_schema="urn:ai-stp:schema:v1:technology-category-view",
+        handler="project:technology_category_create",
+        mutability="apply",
+        parameters=(
+            option("organization", "string", "Explicit remote organization.", required=True),
+            option("name", "string", "Governed category name.", required=True),
+            option("description", "string", "What the category groups."),
+            option(
+                "active",
+                "boolean",
+                "Publish the category immediately instead of leaving it a draft.",
+            ),
+            option(
+                "authorization-revision",
+                "string",
+                "Revision from the selected capability projection.",
+                required=True,
+            ),
+            option(
+                "idempotency-key", "string", "Stable key for this exact creation.", required=True
+            ),
+        ),
+        next_actions=(
+            "project technology create --organization <id> --name <n> --category-id <c> "
+            "--authorization-revision <n> --idempotency-key <key> --json",
+        ),
+    ),
+    Declaration(
+        path=["project", "technology", "mappings", "remote"],
+        summary="List every mapping snapshot the organization published.",
+        result_schema="urn:ai-stp:schema:v1:technology-mapping-list",
+        handler="project:technology_mapping_versions",
+        parameters=(
+            option("organization", "string", "Explicit remote organization.", required=True),
+        ),
+        next_actions=(
+            "project technology mappings fetch --organization <id> --version <v> --json",
+        ),
+    ),
+    Declaration(
+        path=["project", "technology", "resolve"],
+        summary=(
+            "Execute a decisions document against the organization's review "
+            "queue: propose candidates, create records, publish a derived "
+            "snapshot — one call for the whole list."
+        ),
+        result_schema="urn:ai-stp:schema:v1:cli-task-outcome-technology",
+        handler="project:technology_resolve",
+        mutability="apply",
+        parameters=(
+            option("organization", "string", "Explicit remote organization.", required=True),
+            option(
+                "decisions",
+                "string",
+                "JSON/YAML document of review decisions (kind, coordinate, "
+                "technology-id or technology-name, mode).",
+                required=True,
+            ),
+            option(
+                "base-version",
+                "string",
+                "Snapshot apply decisions extend. Defaults to the cached latest.",
+            ),
+            option(
+                "version",
+                "string",
+                "New immutable snapshot name. Derived from the entries when omitted.",
+            ),
+            option(
+                "authorization-revision",
+                "string",
+                "Revision from the selected capability projection.",
+                required=True,
+            ),
+            option(
+                "idempotency-key", "string", "Stable key for this exact resolution.", required=True
+            ),
+        ),
+        next_actions=("project technology unmapped-remote --organization <id> --json",),
+    ),
+    Declaration(
         path=["project", "technology", "publish"],
         summary="Publish the stored findings of a linked project as a scan handoff.",
         result_schema="urn:ai-stp:schema:v1:technology-scan-result",
@@ -3588,11 +3885,28 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         confirmation="plan_digest",
         parameters=(
             option("operation", "string", "The approved operation to apply.", required=True),
+            option("organization", "string", "Bind the result to this corporate organization."),
+            option(
+                "corporate-project", "string", "Corporate project receiving the installation fact."
+            ),
             option(
                 "provider",
                 "string",
                 "Provider executable. Omitted, the CLI uses a configured, remembered "
                 "or managed provider, or acquires the attested OpenNetwork release.",
+            ),
+        ),
+        next_actions=("help --path install --json",),
+    ),
+    Declaration(
+        path=["install", "sync-results"],
+        summary="Deliver settled corporate installation results from the local journal.",
+        result_schema="urn:ai-stp:schema:v1:installation-operation-receipt",
+        handler="install:sync_results",
+        mutability="apply",
+        parameters=(
+            option(
+                "organization", "string", "Corporate organization to synchronize.", required=True
             ),
         ),
         next_actions=("help --path install --json",),
@@ -3919,6 +4233,29 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         next_actions=("help --path heartbeat --json",),
     ),
     Declaration(
+        path=["usage", "hook"],
+        summary="Buffer a native MCP hook from stdin using the current verified installation.",
+        result_schema="urn:ai-stp:schema:v1:runtime-usage-record-result",
+        handler="usage:hook",
+        mutability="apply",
+        parameters=(
+            option(
+                "harness",
+                "string",
+                "Native harness emitting the hook.",
+                required=True,
+                choices=("codex", "grok-build"),
+            ),
+            option(
+                "scope",
+                "string",
+                "Installation scope; project by default.",
+                choices=("project", "global"),
+            ),
+        ),
+        next_actions=("help --path usage --json",),
+    ),
+    Declaration(
         path=["usage", "record"],
         summary="Buffer one accepted component invocation for later delivery.",
         result_schema="urn:ai-stp:schema:v1:runtime-usage-record-result",
@@ -3928,9 +4265,9 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             option("organization", "string", "Organization the event belongs to.", required=True),
             option("project", "string", "Project the invocation ran under.", required=True),
             option("harness", "string", "Harness that ran the invocation.", required=True),
-            option("setup", "string", "Setup stable identifier.", required=True),
-            option("setup-version", "string", "Setup version (X.Y).", required=True),
-            option("setup-digest", "string", "Setup passport digest.", required=True),
+            option("setup", "string", "Setup stable identifier, if unambiguous."),
+            option("setup-version", "string", "Setup version (X.Y), if unambiguous."),
+            option("setup-digest", "string", "Setup passport digest, if unambiguous."),
             option("kind", "string", "Component kind.", required=True),
             option("component", "string", "Component stable identifier.", required=True),
             option("component-version", "string", "Component version (X.Y).", required=True),
@@ -3944,6 +4281,12 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 choices=("succeeded", "failed", "cancelled"),
             ),
             option("event-id", "string", "Idempotency key; generated when omitted."),
+            option(
+                "activity-kind",
+                "string",
+                "Report a component invocation or a separate content load.",
+                choices=("invocation", "load"),
+            ),
         ),
         next_actions=("help --path usage --json",),
     ),
@@ -3993,6 +4336,18 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             option("setup", "string", "Filter by setup stable identifier."),
             option("component", "string", "Filter by component stable identifier."),
             option("kind", "string", "Filter by component kind."),
+            option(
+                "source",
+                "string",
+                "Filter by evidence source.",
+                choices=("native_hook", "agent_reported"),
+            ),
+            option(
+                "activity-kind",
+                "string",
+                "Filter by activity kind.",
+                choices=("invocation", "load"),
+            ),
             option(
                 "outcome",
                 "string",
@@ -4049,6 +4404,9 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         summary="Inspect the local usage-event buffer. Sends nothing.",
         result_schema="urn:ai-stp:schema:v1:runtime-usage-outbox-status",
         handler="usage:outbox",
+        parameters=(
+            option("organization", "string", "Organization the events belong to.", required=True),
+        ),
         next_actions=("help --path usage --json",),
     ),
     Declaration(
@@ -4941,6 +5299,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                     "switch",
                     "account",
                     "publish",
+                    "technology",
                 ),
             ),
             option(

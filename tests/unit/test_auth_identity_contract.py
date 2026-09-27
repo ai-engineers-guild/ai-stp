@@ -51,6 +51,7 @@ def device_record(**overrides: object) -> DeviceRecord:
         "device_type": "cli",
         "approximate_location": None,
         "user_agent": None,
+        "display_name": None,
         "summary": summary(),
         "etag": 'W/"7"',
     }

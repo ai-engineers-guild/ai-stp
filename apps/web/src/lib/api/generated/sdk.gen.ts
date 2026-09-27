@@ -188,6 +188,12 @@ import type {
   ImportTechnologySeedData,
   ImportTechnologySeedErrors,
   ImportTechnologySeedResponses,
+  IngestInstallationInventoryData,
+  IngestInstallationInventoryErrors,
+  IngestInstallationInventoryResponses,
+  IngestInstallationOperationsData,
+  IngestInstallationOperationsErrors,
+  IngestInstallationOperationsResponses,
   IngestRuntimeUsageEventsData,
   IngestRuntimeUsageEventsErrors,
   IngestRuntimeUsageEventsResponses,
@@ -311,6 +317,9 @@ import type {
   ListTechnologyEmployeesData,
   ListTechnologyEmployeesErrors,
   ListTechnologyEmployeesResponses,
+  ListTechnologyMappingsData,
+  ListTechnologyMappingsErrors,
+  ListTechnologyMappingsResponses,
   ListTechnologyProjectsData,
   ListTechnologyProjectsErrors,
   ListTechnologyProjectsResponses,
@@ -419,6 +428,9 @@ import type {
   ReadCorporateEntityProfileData,
   ReadCorporateEntityProfileErrors,
   ReadCorporateEntityProfileResponses,
+  ReadCorporateHeartbeatReportData,
+  ReadCorporateHeartbeatReportErrors,
+  ReadCorporateHeartbeatReportResponses,
   ReadCorporateMemberData,
   ReadCorporateMemberErrors,
   ReadCorporateMemberResponses,
@@ -581,6 +593,9 @@ import type {
   ReadTechnologyScanData,
   ReadTechnologyScanErrors,
   ReadTechnologyScanResponses,
+  ReadTechnologyUnmappedCoordinatesData,
+  ReadTechnologyUnmappedCoordinatesErrors,
+  ReadTechnologyUnmappedCoordinatesResponses,
   ReadVisibilityPlanData,
   ReadVisibilityPlanErrors,
   ReadVisibilityPlanResponses,
@@ -593,6 +608,9 @@ import type {
   RecordCorporateTelemetryRightData,
   RecordCorporateTelemetryRightErrors,
   RecordCorporateTelemetryRightResponses,
+  RefreshDeviceSessionData,
+  RefreshDeviceSessionErrors,
+  RefreshDeviceSessionResponses,
   RefreshGitLabRepositoryData,
   RefreshGitLabRepositoryErrors,
   RefreshGitLabRepositoryResponses,
@@ -608,6 +626,9 @@ import type {
   ResolveProjectConflictData,
   ResolveProjectConflictErrors,
   ResolveProjectConflictResponses,
+  ReviewTechnologyUnmappedCoordinateData,
+  ReviewTechnologyUnmappedCoordinateErrors,
+  ReviewTechnologyUnmappedCoordinateResponses,
   RevokeAccessGrantData,
   RevokeAccessGrantErrors,
   RevokeAccessGrantResponses,
@@ -993,6 +1014,26 @@ export const startDeviceAuthorization = <ThrowOnError extends boolean = false>(
     ThrowOnError
   >({
     url: "/v1/auth/device",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Renew a device session with its stored credential and key.
+ */
+export const refreshDeviceSession = <ThrowOnError extends boolean = false>(
+  options: Options<RefreshDeviceSessionData, ThrowOnError>,
+): RequestResult<RefreshDeviceSessionResponses, RefreshDeviceSessionErrors, ThrowOnError> =>
+  (options.client ?? client).post<
+    RefreshDeviceSessionResponses,
+    RefreshDeviceSessionErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/auth/device/refresh",
     ...options,
     headers: {
       "Content-Type": "application/json",
@@ -3600,6 +3641,22 @@ export const writeTechnologyLandscapePolicy = <ThrowOnError extends boolean = fa
   });
 
 /**
+ * List the organization's immutable mapping snapshots.
+ */
+export const listTechnologyMappings = <ThrowOnError extends boolean = false>(
+  options: Options<ListTechnologyMappingsData, ThrowOnError>,
+): RequestResult<ListTechnologyMappingsResponses, ListTechnologyMappingsErrors, ThrowOnError> =>
+  (options.client ?? client).get<
+    ListTechnologyMappingsResponses,
+    ListTechnologyMappingsErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/technology-mappings",
+    ...options,
+  });
+
+/**
  * Read a complete immutable mapping snapshot.
  */
 export const readTechnologyMapping = <ThrowOnError extends boolean = false>(
@@ -3648,6 +3705,50 @@ export const importTechnologySeed = <ThrowOnError extends boolean = false>(
   >({
     security: [{ scheme: "bearer", type: "http" }],
     url: "/v1/corporate/organizations/{organization_id}/technology-seed",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Read the organization's unmapped-coordinate review queue.
+ */
+export const readTechnologyUnmappedCoordinates = <ThrowOnError extends boolean = false>(
+  options: Options<ReadTechnologyUnmappedCoordinatesData, ThrowOnError>,
+): RequestResult<
+  ReadTechnologyUnmappedCoordinatesResponses,
+  ReadTechnologyUnmappedCoordinatesErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).get<
+    ReadTechnologyUnmappedCoordinatesResponses,
+    ReadTechnologyUnmappedCoordinatesErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/technology-unmapped-coordinates",
+    ...options,
+  });
+
+/**
+ * Propose or clear a coordinate's candidate technology.
+ */
+export const reviewTechnologyUnmappedCoordinate = <ThrowOnError extends boolean = false>(
+  options: Options<ReviewTechnologyUnmappedCoordinateData, ThrowOnError>,
+): RequestResult<
+  ReviewTechnologyUnmappedCoordinateResponses,
+  ReviewTechnologyUnmappedCoordinateErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).patch<
+    ReviewTechnologyUnmappedCoordinateResponses,
+    ReviewTechnologyUnmappedCoordinateErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/technology-unmapped-coordinates",
     ...options,
     headers: {
       "Content-Type": "application/json",
@@ -3848,6 +3949,26 @@ export const writeInstallationHeartbeat = <ThrowOnError extends boolean = false>
   });
 
 /**
+ * Read the fixed scoped device heartbeat report.
+ */
+export const readCorporateHeartbeatReport = <ThrowOnError extends boolean = false>(
+  options: Options<ReadCorporateHeartbeatReportData, ThrowOnError>,
+): RequestResult<
+  ReadCorporateHeartbeatReportResponses,
+  ReadCorporateHeartbeatReportErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).get<
+    ReadCorporateHeartbeatReportResponses,
+    ReadCorporateHeartbeatReportErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/telemetry/heartbeat-report",
+    ...options,
+  });
+
+/**
  * Read the organization's heartbeat cadence and enablement.
  */
 export const readInstallationHeartbeatPolicy = <ThrowOnError extends boolean = false>(
@@ -3885,6 +4006,54 @@ export const listInstallationHeartbeats = <ThrowOnError extends boolean = false>
     security: [{ scheme: "bearer", type: "http" }],
     url: "/v1/corporate/organizations/{organization_id}/telemetry/heartbeats",
     ...options,
+  });
+
+/**
+ * Ingest bounded installation discovery snapshots.
+ */
+export const ingestInstallationInventory = <ThrowOnError extends boolean = false>(
+  options: Options<IngestInstallationInventoryData, ThrowOnError>,
+): RequestResult<
+  IngestInstallationInventoryResponses,
+  IngestInstallationInventoryErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).post<
+    IngestInstallationInventoryResponses,
+    IngestInstallationInventoryErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/telemetry/installation-inventory",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Ingest exact settled installation results.
+ */
+export const ingestInstallationOperations = <ThrowOnError extends boolean = false>(
+  options: Options<IngestInstallationOperationsData, ThrowOnError>,
+): RequestResult<
+  IngestInstallationOperationsResponses,
+  IngestInstallationOperationsErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).post<
+    IngestInstallationOperationsResponses,
+    IngestInstallationOperationsErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/telemetry/installation-operations",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
   });
 
 /**

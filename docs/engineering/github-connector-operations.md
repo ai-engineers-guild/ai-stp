@@ -133,9 +133,9 @@ connector secrets to add to a GitHub Actions Environment for the current
 pull-based pipeline. After writing `.env.prod` on the host, validate and deploy:
 
 ```sh
-docker compose -f docker-compose.prod.yml --env-file .env.prod config
-docker compose -f docker-compose.prod.yml --env-file .env.prod build
-docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
+docker compose -f deploy/compose.prod.yml --env-file .env.prod config
+docker compose -f deploy/compose.prod.yml --env-file .env.prod build
+docker compose -f deploy/compose.prod.yml --env-file .env.prod up -d
 curl -fsS https://ai-stp.aiguild.space/v1/health/live
 ```
 
@@ -156,7 +156,7 @@ $bytes = New-Object byte[] 32
 Restart only the services that consume these settings:
 
 ```powershell
-docker compose -f docker-compose.dev.yml up -d migrate api web
+docker compose -f deploy/compose.dev.yml up -d migrate api web
 ```
 
 Then open `http://localhost:3000/en/account/github`, link the GitHub identity if it

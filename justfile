@@ -766,12 +766,13 @@ infra-check: infra-static
 [doc('Lint Dockerfiles, deploy scripts and every valid compose combination')]
 [group('infra')]
 infra-static:
-    hadolint Dockerfile Dockerfile.user-docs Dockerfile.worker-safety apps/web/Dockerfile.prod apps/web/Dockerfile.dev
+    hadolint deploy/docker/Dockerfile.app deploy/docker/Dockerfile.web deploy/docker/Dockerfile.docs
     shellcheck -x -S warning deploy/*.sh
-    docker compose -f docker-compose.prod.yml config -q
-    docker compose -f docker-compose.dev.yml config -q
-    docker compose -f docker-compose.dev.yml -f docker-compose.corporate-local.yml config -q
-    docker compose -f docker-compose.dev.yml -f docker-compose.seo-enrichment.yml --profile seo_enrichment config -q
+    docker compose -f deploy/compose.prod.yml config -q
+    docker compose -f deploy/compose.dev.yml config -q
+    docker compose -f deploy/compose.dev.yml -f deploy/compose.corporate-local.yml config -q
+    docker compose -f deploy/compose.dev.yml -f deploy/compose.seo-enrichment.yml --profile seo_enrichment config -q
+    docker compose -f deploy/compose.prod.yml -f deploy/compose.corporate.yml config -q
 
 # The same contract deploy.sh enforces on the host, run against the local
 # `.env.prod` before a deploy window: required values present and non-
@@ -790,16 +791,16 @@ infra-env-check:
 [doc('Build the production images from this checkout, as the deploy host does')]
 [group('infra')]
 infra-build:
-    docker compose -f docker-compose.prod.yml build
+    docker compose -f deploy/compose.prod.yml build
 
 # The development stack is the only stack meant for local bring-up; prod is
 # brought up by deploy/deploy.sh under its lock, on the deployment host.
 [doc('Bring the development stack up with a fresh build')]
 [group('infra')]
 infra-up:
-    docker compose -f docker-compose.dev.yml up -d --build
+    docker compose -f deploy/compose.dev.yml up -d --build
 
 [doc('Bring the development stack down')]
 [group('infra')]
 infra-down:
-    docker compose -f docker-compose.dev.yml down
+    docker compose -f deploy/compose.dev.yml down

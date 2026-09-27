@@ -55,7 +55,7 @@ if docker image inspect ai_stp-worker >/dev/null 2>&1; then
 fi
 if [[ -z "${image}" ]]; then
   image="$(
-    docker compose -f "${ROOT}/docker-compose.prod.yml" images -q worker 2>/dev/null \
+    docker compose -f "${ROOT}/deploy/compose.prod.yml" images -q worker 2>/dev/null \
       | awk 'NF { print; exit }'
   )"
 fi

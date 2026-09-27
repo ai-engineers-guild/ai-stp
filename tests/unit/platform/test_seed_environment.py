@@ -7,7 +7,7 @@ authenticated pipeline now, and a serving environment that also runs the seed
 puts twenty-two invented objects — `fixture-component`, `river-*`,
 `northwind-*` — on a public site beside the real ones.
 
-Production did exactly that on every deploy, because `docker-compose.prod.yml`
+Production did exactly that on every deploy, because `deploy/compose.prod.yml`
 runs the seed unconditionally.
 """
 

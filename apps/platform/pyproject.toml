@@ -17,6 +17,7 @@ dependencies = [
     "httpx>=0.27",
     "structlog>=24.4",
     "aiobotocore>=3.9.0",
+    "tzdata>=2025.1; sys_platform == 'win32'",
 ]
 
 [tool.uv.sources]

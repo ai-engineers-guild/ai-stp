@@ -6,13 +6,19 @@ import hashlib
 import json
 import os
 import re
+import sqlite3
 import stat
 import zipfile
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import Final, cast
 
+from pydantic import ValidationError
+
 from ai_stp_cli.errors import CliFailure
+from ai_stp_foundation.canonical import JsonValue, canonize
+from ai_stp_foundation.digests import digest_canonical
+from ai_stp_passports.versions import ComponentVersionPassport
 
 MAX_MANAGED_FILES: Final[int] = 4000
 MAX_MANAGED_BYTES: Final[int] = 64 * 1024 * 1024
@@ -372,3 +378,90 @@ def _safe(value: str) -> bool:
 
 def _failure(message: str) -> CliFailure:
     return CliFailure("AI_STP_PRECONDITION_FAILED", message)
+
+
+def component_passport(
+    connection: sqlite3.Connection, component: ComponentBinding
+) -> ComponentVersionPassport | None:
+    row = connection.execute(
+        "SELECT r.content FROM object_version v JOIN revision r ON r.revision_id = v.revision_id "
+        "WHERE v.stable_id = ? AND v.version = ? AND v.passport_digest = ?",
+        (component.stable_id, component.version, component.passport_digest),
+    ).fetchone()
+    if row is None:
+        return None
+    try:
+        document = cast(dict[str, JsonValue], json.loads(row["content"]))
+        if digest_canonical("ai-stp:passport:v1", document) != component.passport_digest:
+            return None
+        passport = ComponentVersionPassport.model_validate(document)
+        if passport.stable_id != component.stable_id or passport.version != component.version:
+            return None
+        return passport
+    except (ValidationError, ValueError, TypeError):
+        return None
+
+
+def unchanged_contributions(
+    connection: sqlite3.Connection,
+    target: Path,
+    passport: ComponentVersionPassport,
+    *,
+    harness: str,
+    scope: str,
+) -> frozenset[str]:
+    """Verify only the exact passport-owned keys; unrelated host settings may change."""
+    from ai_stp_cli.local import content, contribution, reading
+
+    unchanged: set[str] = set()
+    for adaptation in passport.adaptations:
+        if adaptation.harness_id != harness:
+            continue
+        for projection in adaptation.scope_adaptations:
+            if projection.scope != scope:
+                continue
+            for member in projection.members:
+                if (
+                    member.ownership != "contribution"
+                    or member.content_artifact is None
+                    or not member.ownership_key
+                    or member.parser_id
+                    != {".toml": "toml/1", ".json": "json/1"}.get(
+                        PurePosixPath(member.path).suffix.casefold()
+                    )
+                    or member.content_artifact.size_bytes > MAX_MANAGED_BYTES
+                ):
+                    continue
+                place = target / member.path
+                parents = [target / parent for parent in PurePosixPath(member.path).parents]
+                if any(
+                    reading.classify_place(parent)[0] != reading.PLACE_DIRECTORY
+                    for parent in parents
+                ):
+                    continue
+                kind, held = reading.classify_place(place)
+                if kind != reading.PLACE_REGULAR or held is None:
+                    continue
+                try:
+                    expected_bytes = content.get(connection, member.content_artifact.digest)
+                    if len(expected_bytes) != member.content_artifact.size_bytes:
+                        continue
+                    expected = contribution.parse_value(
+                        host=member.path,
+                        content=expected_bytes,
+                    )
+                    observed = contribution.parse_value(
+                        host=member.path,
+                        content=reading.read_regular(
+                            place, held, limit=MAX_MANAGED_BYTES, subject="managed contribution"
+                        ),
+                    )
+                    if (
+                        isinstance(observed, dict)
+                        and member.ownership_key in observed
+                        and canonize(expected) == canonize(observed[member.ownership_key])
+                    ):
+                        unchanged.add(member.path)
+                except (CliFailure, OSError, ValueError, TypeError):
+                    continue
+    return frozenset(unchanged)

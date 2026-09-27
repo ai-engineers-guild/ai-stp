@@ -248,7 +248,7 @@ def test_every_bun_base_image_is_the_pinned_bun() -> None:
 
     The test above binds `.bun-version`, `BUN_VERSION` and the lockfiles, and
     its docstring names the exact failure — `Unknown lockfile version`. It then
-    happened anyway, in the one place it did not look: `apps/web/Dockerfile.*`
+    happened anyway, in the one place it did not look: `deploy/docker/Dockerfile.web`
     pinned `oven/bun:1.2.19-alpine`, which cannot read `lockfileVersion: 2`. The
     gate stayed green because the gate never builds that image; production
     retried the build every minute for twelve hours and kept serving the

@@ -13,7 +13,6 @@ from ai_stp_api.slices.technology.service import (
     decision_view,
     finish_mutation,
     mutation_effect,
-    project_technology_view,
     technology_team_view,
     technology_view,
 )
@@ -42,6 +41,7 @@ from ai_stp_platform.technology_models import (
     TechnologyTeamResponsibility,
     TechnologyUsageFact,
 )
+from ai_stp_platform.technology_scan_merge import project_technology_view
 
 
 class _Inputs(NamedTuple):

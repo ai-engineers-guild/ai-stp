@@ -75,7 +75,7 @@ providers; secrets in GitHub or issue text; contents of domain handlers
   `PostgreSQL` and `RustFS`, and contains no proxy service; prod compose reproducibly
   lifts the entire slice, publishes `api`, `web` and `docs` on loopback, and they are
   publicly reachable only through the deployment host's `nginx`.
-  **Dev:** `docker-compose.dev.yml` lifts the same set with ports published to the
+  **Dev:** `deploy/compose.dev.yml` lifts the same set with ports published to the
   host; same-origin `/v1/*` provides dev-rewrite Next.js to `api`.
 - `REQ-2402`: The environment contract is specified by `.env.example` samples with names without
   secret values and dev/prod separation, including web variables

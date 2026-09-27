@@ -46,7 +46,7 @@ only where they are not explicitly superseded by this specification.
 
 ## Requirements
 
-- `REQ-4901`: `docker-compose.dev.yml` runs `Dockerfile.dev`/`next dev` and
+- `REQ-4901`: `deploy/compose.dev.yml` runs the `dev` target of `deploy/docker/Dockerfile.web`/`next dev` and
   proxies `/v1/*` to `AI_STP_API_BASE_URL` without a host proxy. Avatar and component
   media are available through the Web origin; production routing is not
   duplicated in Next.

@@ -27,6 +27,7 @@ RECORD_FIELDS: frozenset[str] = frozenset(
         "schema_version",
         "device_id",
         "state",
+        "display_name",
         "registered_at",
         "last_active_at",
         "device_type",

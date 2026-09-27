@@ -97,6 +97,18 @@
     "idempotency_key": {
       "$ref": "#/$defs/IdempotencyKey"
     },
+    "inventory_scan_enabled": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Inventory Scan Enabled"
+    },
     "legal_basis": {
       "enum": [
         "consent",
@@ -137,11 +149,49 @@
       "title": "Reason",
       "type": "string"
     },
+    "report_timezone": {
+      "anyOf": [
+        {
+          "maxLength": 64,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Report Timezone"
+    },
     "schema_version": {
       "const": 1,
       "default": 1,
       "title": "Schema Version",
       "type": "integer"
+    },
+    "usage_collection_enabled": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Usage Collection Enabled"
+    },
+    "usage_registration_required": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Usage Registration Required"
     }
   },
   "required": [

@@ -3,14 +3,22 @@
 import sqlite3
 import threading
 from collections.abc import Iterator
-from contextlib import closing
+from contextlib import closing, nullcontext
 from pathlib import Path
+from types import SimpleNamespace
+from typing import cast
 
 import pytest
 
+from ai_stp_cli.application import installation_usage
+from ai_stp_cli.application.installation_usage import pending_facts
+from ai_stp_cli.cloud.client import Endpoint
+from ai_stp_cli.cloud.session import Session
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import installation, journal
 from ai_stp_cli.local.database import configured_path, open_registry
+from ai_stp_contracts.installation_usage import InstallationOperationReceipt
+from ai_stp_foundation.ids import new_id
 
 AT = "2026-08-08T10:00:00.000Z"
 SOON = "2026-08-08T11:00:00.000Z"
@@ -65,6 +73,99 @@ def test_a_plan_has_no_effect_of_its_own(registry: sqlite3.Connection) -> None:
     """`REQ-805`: planning is free, and its state says so."""
     plan = _plan(registry, "k1")
     assert _state(registry, plan.operation_id) == installation.STATE_PLANNED
+
+
+def test_corporate_binding_is_frozen_before_apply(registry: sqlite3.Connection) -> None:
+    plan = _approved(registry, "corporate-binding")
+    fields = {
+        "organization_id": new_id("organization"),
+        "project_id": new_id("remote_project"),
+        "account_id": plan.author,
+        "device_id": new_id("device"),
+        "scope": "project",
+        "at": AT,
+    }
+    installation.bind_corporate(registry, plan.operation_id, **fields)
+    installation.bind_corporate(registry, plan.operation_id, **fields)
+    with pytest.raises(CliFailure, match="operation already has a different corporate binding"):
+        installation.bind_corporate(
+            registry, plan.operation_id, **{**fields, "organization_id": new_id("organization")}
+        )
+    installation.begin(registry, plan.operation_id, observed_target_digest=HELD, at=AT)
+    with pytest.raises(CliFailure, match="operation already has a different corporate binding"):
+        installation.bind_corporate(
+            registry, plan.operation_id, **{**fields, "project_id": new_id("remote_project")}
+        )
+
+
+def test_partial_corporate_operation_remains_a_partial_fact(
+    registry: sqlite3.Connection, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    plan = _approved(registry, "corporate-partial")
+    organization_id = new_id("organization")
+    project_id = new_id("remote_project")
+    device_id = new_id("device")
+    installation.bind_corporate(
+        registry,
+        plan.operation_id,
+        organization_id=organization_id,
+        project_id=project_id,
+        account_id=plan.author,
+        device_id=device_id,
+        scope="project",
+        at=AT,
+    )
+    installation.begin(registry, plan.operation_id, observed_target_digest=HELD, at=AT)
+    installation.interrupted(registry, plan.operation_id, at=LATE, reason="provider timed out")
+    facts = pending_facts(
+        registry,
+        organization_id=organization_id,
+        account_id=plan.author,
+        device_id=device_id,
+    )
+    assert len(facts) == 1
+    assert facts[0].result == "partial"
+    assert not facts[0].components_complete
+    assert facts[0].project_id == project_id
+    responses = [
+        InstallationOperationReceipt(rejected_ids=[plan.operation_id]),
+        InstallationOperationReceipt(accepted_ids=[plan.operation_id]),
+    ]
+
+    def fake_open_client(*_args: object, **_kwargs: object):
+        return nullcontext(None)
+
+    def fake_call(*_args: object, **_kwargs: object) -> InstallationOperationReceipt:
+        return responses.pop(0)
+
+    monkeypatch.setattr(installation_usage, "open_client", fake_open_client)
+    monkeypatch.setattr(installation_usage, "call", fake_call)
+    endpoint = cast(Endpoint, SimpleNamespace(max_attempts=1))
+    session = Session(
+        account_id=plan.author,
+        device_id=device_id,
+        access_token="test",
+        refresh_token="test",
+        expires_at=SOON,
+    )
+    first = installation_usage.sync(endpoint, session, organization_id)
+    assert first.rejected_ids == [plan.operation_id]
+    assert (
+        registry.execute(
+            "SELECT delivered_at FROM operation_corporate_binding WHERE operation_id = ?",
+            (plan.operation_id,),
+        ).fetchone()[0]
+        is None
+    )
+    second = installation_usage.sync(endpoint, session, organization_id)
+    assert second.accepted_ids == [plan.operation_id]
+    assert (
+        registry.execute(
+            "SELECT delivered_at FROM operation_corporate_binding WHERE operation_id = ?",
+            (plan.operation_id,),
+        ).fetchone()[0]
+        is not None
+    )
 
 
 def test_the_digest_covers_every_field_a_decision_turns_on(

@@ -185,7 +185,7 @@ commit in the new source; that is the confirmation, not a log entry.
 The preferred path is the script with locking:
 
 ```bash
-export AI_STP_COMPOSE_FILE=docker-compose.prod.yml
+export AI_STP_COMPOSE_FILE=deploy/compose.prod.yml
 export AI_STP_ENV_FILE=.env.prod
 # On a host whose root is not a repository, name the commit being deployed;
 # without it the artifact record is written empty and rollback loses its baseline.
@@ -197,13 +197,13 @@ Manual equivalent (the order is mandatory: migrate → seed → API ready → co
 
 ```bash
 export AI_STP_API_GIT_COMMIT="$(git rev-parse HEAD)"
-docker compose -f docker-compose.prod.yml --env-file .env.prod config
-docker compose -f docker-compose.prod.yml --env-file .env.prod build
-docker compose -f docker-compose.prod.yml --env-file .env.prod up -d postgres rustfs
-docker compose -f docker-compose.prod.yml --env-file .env.prod run --rm migrate
-docker compose -f docker-compose.prod.yml --env-file .env.prod run --rm seed
-docker compose -f docker-compose.prod.yml --env-file .env.prod rm -fs content-import
-docker compose -f docker-compose.prod.yml --env-file .env.prod up -d api worker content-import web docs
+docker compose -f deploy/compose.prod.yml --env-file .env.prod config
+docker compose -f deploy/compose.prod.yml --env-file .env.prod build
+docker compose -f deploy/compose.prod.yml --env-file .env.prod up -d postgres rustfs
+docker compose -f deploy/compose.prod.yml --env-file .env.prod run --rm migrate
+docker compose -f deploy/compose.prod.yml --env-file .env.prod run --rm seed
+docker compose -f deploy/compose.prod.yml --env-file .env.prod rm -fs content-import
+docker compose -f deploy/compose.prod.yml --env-file .env.prod up -d api worker content-import web docs
 ```
 
 Before `up`, the production worker Compose configuration requires the
@@ -224,8 +224,8 @@ No host proxy is used in dev. The browser origin is the published `web`.
 
 ```bash
 export AI_STP_API_GIT_COMMIT="$(git rev-parse HEAD)"
-docker compose -f docker-compose.dev.yml config
-docker compose -f docker-compose.dev.yml up -d --build
+docker compose -f deploy/compose.dev.yml config
+docker compose -f deploy/compose.dev.yml up -d --build
 # Web UI:  http://localhost:3000
 # API:     http://localhost:8000  (also via Next rewrite: http://localhost:3000/v1/...)
 ```
@@ -482,12 +482,12 @@ curl -fsS -o /dev/null -w '%{http_code}\n' "$ORIGIN/v1/health/ready"
 
 | File | Purpose |
 | ---- | ---------- |
-| `apps/web/Dockerfile.dev` | bun + `bun run dev`, EXPOSE 3000 |
-| `apps/web/Dockerfile.prod` | multi-stage standalone → `node:22.18.0-slim`, non-root uid 10001 |
+| `deploy/docker/Dockerfile.web` (`dev`) | bun + `next dev`, EXPOSE 3000 |
+| `deploy/docker/Dockerfile.web` (`prod`) | multi-stage standalone → `node:22.18.0-slim`, non-root uid 10001 |
 
 ```bash
-docker build -f apps/web/Dockerfile.dev -t ai-stp-web:dev apps/web
-docker build -f apps/web/Dockerfile.prod --build-arg AI_STP_WEB_PROFILE=public_saas -t ai-stp-web:prod .
+docker build -f deploy/docker/Dockerfile.web --target dev -t ai-stp-web:dev .
+docker build -f deploy/docker/Dockerfile.web --target prod --build-arg AI_STP_WEB_PROFILE=public_saas -t ai-stp-web:prod .
 ```
 
 ## Required evidence checklist (#84 / REQ-2412)
@@ -498,7 +498,7 @@ Complete when closing the issue on a real checkout/host:
 | -------------- | ------------------ | --------- |
 | Commit / artifact | `git rev-parse HEAD`, image ids | |
 | Compose validation | `docker compose -f … config` | exit |
-| Web dev/prod build | `docker build -f apps/web/Dockerfile.*` | exit |
+| Web dev/prod build | `docker build -f deploy/docker/Dockerfile.web --target {dev,prod}` | exit |
 | Migrate / seed | output of one-shot services | exit |
 | Liveness / readiness | curl exit codes + body status | |
 | Safe diagnostics | `/v1/system/version` without secrets | |
@@ -527,7 +527,7 @@ The correct form is to take the commit from where the deployment recorded it:
 cd /home/ubuntu/ai_stp
 COMMIT=$(sed -n 's/^git_commit=//p' .deploy-state/current)
 AI_STP_API_GIT_COMMIT="$COMMIT" \
-  docker compose -f docker-compose.prod.yml up -d --no-deps api
+  docker compose -f deploy/compose.prod.yml up -d --no-deps api
 docker exec ai_stp-api-1 env | grep GIT_COMMIT
 curl -s https://<host>/v1/system/version
 ```

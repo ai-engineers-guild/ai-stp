@@ -17,17 +17,19 @@ import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from nacl.signing import SigningKey
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from tests.support.api_settings import make_settings
 
 from ai_stp_api.app import create_app
 from ai_stp_api.session import issue_session
 from ai_stp_api.slices.corporate.heartbeat import router as heartbeat_router
+from ai_stp_api.slices.corporate.heartbeat_report import router as heartbeat_report_router
 from ai_stp_contracts.auth import DeviceRefreshRequest, device_refresh_message
 from ai_stp_contracts.heartbeat import InstallationHeartbeatRequest, heartbeat_signature_message
 from ai_stp_foundation.ids import new_id
 from ai_stp_foundation.timestamps import format_timestamp
-from ai_stp_platform.heartbeat_models import InstallationHeartbeat
+from ai_stp_platform.heartbeat_models import InstallationHeartbeat, InstallationHeartbeatEvent
 from ai_stp_platform.models import Account, Device
 from ai_stp_platform.organization_models import OrganizationMembership
 from ai_stp_platform.telemetry_policy_models import TelemetryPolicy, TelemetryRevocation
@@ -48,6 +50,7 @@ async def heartbeat_client(
     settings = make_settings(tmp_path, database_url=migrated_database_url)
     app = create_app(settings)
     app.include_router(heartbeat_router, prefix="/v1")
+    app.include_router(heartbeat_report_router, prefix="/v1")
     async with app.router.lifespan_context(app):
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
@@ -162,6 +165,10 @@ async def test_heartbeat_write_is_idempotent_and_delayed_writes_cannot_regress(
     organization_id = await _bootstrap(client, account_id, "hb-idempotent-scenar-0001")
     auth = {"Authorization": f"Bearer {token}"}
     path = f"/v1/corporate/organizations/{organization_id}/telemetry/heartbeat"
+    report_path = f"/v1/corporate/organizations/{organization_id}/telemetry/heartbeat-report"
+    unknown = await client.get(report_path, headers=auth)
+    assert unknown.status_code == 200, unknown.text
+    assert unknown.json()["items"][0]["status"] == "unknown"
 
     first_payload = _payload(account_id, device_id)
     first = await _put(client, path, json=first_payload, headers=auth)
@@ -204,6 +211,37 @@ async def test_heartbeat_write_is_idempotent_and_delayed_writes_cannot_regress(
     )
     assert newer.status_code == 200, newer.text
     assert newer.json()["revision"] == 2
+    async with sessionmaker() as db:
+        await set_tenant_scope(db, organization_id)
+        events = (
+            await db.scalars(
+                select(InstallationHeartbeatEvent).where(
+                    InstallationHeartbeatEvent.organization_id == organization_id,
+                    InstallationHeartbeatEvent.device_id == device_id,
+                )
+            )
+        ).all()
+        assert len(events) == 2
+    history = await client.get(f"{report_path}?view=history&period=24h", headers=auth)
+    assert history.status_code == 200, history.text
+    assert sum(bucket["received"] for bucket in history.json()["items"][0]["buckets"]) == 2
+    hidden = await client.get(f"{report_path}?team=team_foreign", headers=auth)
+    assert hidden.status_code == 200 and hidden.json()["items"] == []
+    hidden_employee = await client.get(f"{report_path}?employee=account_foreign", headers=auth)
+    assert hidden_employee.status_code == 200 and hidden_employee.json()["items"] == []
+    async with sessionmaker() as db:
+        await set_tenant_scope(db, organization_id)
+        member = await db.scalar(
+            select(OrganizationMembership).where(
+                OrganizationMembership.organization_id == organization_id,
+                OrganizationMembership.account_id == account_id,
+            )
+        )
+        assert member is not None
+        member.role = "member"
+        await db.commit()
+    denied = await client.get(report_path, headers=auth)
+    assert denied.status_code == 403
 
 
 async def test_heartbeat_health_states_and_staleness_read_time(
@@ -247,6 +285,49 @@ async def test_heartbeat_health_states_and_staleness_read_time(
     )
     assert disabled.status_code == 200, disabled.text
     assert disabled.json()["health_state"] == "disabled"
+
+
+async def test_superadmin_can_set_one_minute_heartbeat_policy(
+    heartbeat_client: tuple[AsyncClient, async_sessionmaker[AsyncSession]],
+) -> None:
+    client, sessionmaker = heartbeat_client
+    account_id, _device_id, token = await _account_with_device(sessionmaker)
+    organization_id = await _bootstrap(client, account_id, "hb-policy-edit-scenario-0006")
+    auth = {"Authorization": f"Bearer {token}"}
+    context = await client.get(
+        f"/v1/corporate/organizations/{organization_id}/context", headers=auth
+    )
+    assert context.status_code == 200, context.text
+    assert "telemetry.manage" in context.json()["capabilities"]
+    revision = context.json()["organization"]["authorization_revision"]
+    path = f"/v1/corporate/organizations/{organization_id}/telemetry/policy"
+    saved = await client.put(
+        path,
+        headers=auth,
+        json={
+            "schema_version": 1,
+            "raw_retention_days": 90,
+            "aggregate_retention_days": 365,
+            "legal_basis": "consent",
+            "notice_revision": 0,
+            "heartbeat_enabled": True,
+            "heartbeat_interval_seconds": 60,
+            "heartbeat_retry_base_seconds": 60,
+            "heartbeat_retry_max_seconds": 3600,
+            "heartbeat_stale_after_seconds": 3600,
+            "expected_policy_revision": 0,
+            "authorization_revision": revision,
+            "idempotency_key": "hb-policy-edit-scenario-0006",
+        },
+    )
+    assert saved.status_code == 200, saved.text
+    assert saved.json()["heartbeat_interval_seconds"] == 60
+    report = await client.get(
+        f"/v1/corporate/organizations/{organization_id}/telemetry/heartbeat-report",
+        headers=auth,
+    )
+    assert report.status_code == 200, report.text
+    assert report.json()["interval_seconds"] == 60
 
 
 async def test_organization_policy_controls_cadence_staleness_and_revocation(
@@ -476,3 +557,50 @@ async def test_heartbeat_tenant_and_role_isolation(
     filtered = await client.get(list_path, params={"health_state": "stale"}, headers=owner_auth)
     assert filtered.status_code == 200
     assert filtered.json()["items"] == []
+
+
+async def test_history_names_the_true_last_beat_outside_the_window(
+    heartbeat_client: tuple[AsyncClient, async_sessionmaker[AsyncSession]],
+) -> None:
+    """A stale device keeps its real `last_heartbeat_at` when the window holds no events."""
+    client, sessionmaker = heartbeat_client
+    account_id, device_id, token = await _account_with_device(sessionmaker)
+    organization_id = await _bootstrap(client, account_id, "hb-history-stale-0007")
+    auth = {"Authorization": f"Bearer {token}"}
+    old = _now() - timedelta(days=2)
+    async with sessionmaker() as db:
+        await set_tenant_scope(db, organization_id)
+        db.add(
+            InstallationHeartbeat(
+                organization_id=organization_id,
+                device_id=device_id,
+                account_id=account_id,
+                cli_version="1.4.2",
+                capabilities=["cli.heartbeat"],
+                reported_state="active",
+                checked_at=old,
+                received_at=old,
+            )
+        )
+        db.add(
+            InstallationHeartbeatEvent(
+                organization_id=organization_id,
+                device_id=device_id,
+                account_id=account_id,
+                checked_at=old,
+                received_at=old,
+                reported_state="active",
+                interval_seconds=3600,
+                policy_version=1,
+            )
+        )
+        await db.commit()
+    history = await client.get(
+        f"/v1/corporate/organizations/{organization_id}/telemetry/heartbeat-report"
+        "?view=history&period=24h",
+        headers=auth,
+    )
+    assert history.status_code == 200, history.text
+    row = history.json()["items"][0]
+    assert row["status"] == "stale"
+    assert row["last_heartbeat_at"] == format_timestamp(old)

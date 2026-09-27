@@ -1,6 +1,6 @@
 ---
 description: "Runtime usage event ingestion, scoped reports, drill-down, and export routes for corporate telemetry."
-last_verified: "2026-09-22"
+last_verified: "2026-09-25"
 ---
 
 # Runtime usage events contract
@@ -23,10 +23,12 @@ into the tenant policy table.
 | `device_id` | device reference |
 | `project_id` | remote project id |
 | `harness` | harness id |
-| `setup` | `{stable_id, version, passport_digest}` |
+| `setup` | `{stable_id, version, passport_digest}` when known, otherwise `null` for a direct component |
 | `component` | `{kind, stable_id, version, passport_digest}` |
 | `invoked_at` | canonical UTC timestamp |
 | `outcome` | `succeeded` \| `failed` \| `cancelled` |
+| `source` | `native_hook` \| `agent_reported`; defaults to `agent_reported` for older clients |
+| `activity_kind` | `invocation` \| `load`; defaults to `invocation` for older clients |
 
 Forbidden everywhere: prompts, model inputs/outputs, arguments, MCP payloads,
 source or repository contents, local paths, environment values, credentials,
@@ -47,8 +49,10 @@ secrets.
   Permission `telemetry_usage.events`; audited; redacted rows only.
 - `GET .../telemetry/usage-reports` — query `RuntimeUsageReportQuery`
   (filters plus `group_by`, `offset`, `limit`). Permission
-  `telemetry_usage.read`; returns grouped rows and the installed-vs-invoked
-  list.
+  `telemetry_usage.read`; returns grouped rows and current assignments with
+  their observed confirmed invocation counts. Only native hook invocations
+  contribute to Uses; agent reports and passive loads remain in drill-down.
+  Assignments do not prove installation.
 - `POST .../telemetry/usage-exports` — body `RuntimeUsageExportRequest`
   (`query`, `authorization_revision`, `idempotency_key`). Permission
   `telemetry_usage.export`; bounded, idempotent, digested receipt, audited.
@@ -57,8 +61,8 @@ secrets.
 
 ## CLI surface
 
-- `usage record` — the intake the provider adapter calls after accepting an
-  invocation; buffers one closed-field event in the local outbox. Employee
+- `usage record` — agent-reported fallback; buffers one closed-field event in
+  the local outbox. Employee
   and device come from the held session, never from options.
 - `usage report|events|export` — the read surface over the routes above.
 - `usage outbox` — local buffer state; `usage flush` — drain due events.

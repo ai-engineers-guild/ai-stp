@@ -72,8 +72,8 @@ async def test_seed_replay_preserves_owner_edits(db_session: AsyncSession) -> No
         payload=payload,
         request_id="seed-test",
     )
-    assert len(first.created_category_ids) == 23
-    assert len(first.created_technology_ids) == 7
+    assert len(first.created_category_ids) == len(SEED_CATEGORIES)
+    assert len(first.created_technology_ids) == len(SEED_TECHNOLOGIES)
     assert (
         await import_seed(
             db_session,
@@ -108,8 +108,8 @@ async def test_seed_replay_preserves_owner_edits(db_session: AsyncSession) -> No
         request_id="seed-test",
     )
     assert repeated.created_category_ids == repeated.created_technology_ids == []
-    assert len(repeated.retained_category_ids) == 23
-    assert len(repeated.retained_technology_ids) == 7
+    assert len(repeated.retained_category_ids) == len(SEED_CATEGORIES)
+    assert len(repeated.retained_technology_ids) == len(SEED_TECHNOLOGIES)
     row = await db_session.get(Technology, (org.organization_id, technology_id))
     assert row is not None and row.description == "Owner description"
     assert row.revision == edited.revision and row.lifecycle == "draft"

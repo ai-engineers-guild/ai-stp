@@ -243,10 +243,86 @@ def target_identity(project_id: str, harness_id: str) -> str:
     return f"{project_id}:{harness_id}"
 
 
+def remember_target_scope(connection: sqlite3.Connection, operation_id: str, scope: str) -> None:
+    """Record the scope a plan was built for without changing the plan digest.
+
+    A later corporate binding reads it for operations that have no bundle.
+    An existing value stays; the binding itself remains immutable once written.
+    """
+    if scope not in {"global", "project"}:
+        raise CliFailure("AI_STP_VALIDATION_ERROR", "invalid planned installation scope")
+    connection.execute(
+        "UPDATE operation_plan SET target_scope = ? "
+        "WHERE operation_id = ? AND target_scope IS NULL",
+        (scope, operation_id),
+    )
+
+
+def target_scope(connection: sqlite3.Connection, operation_id: str) -> str:
+    """The planned scope, or empty when this operation was recorded without one."""
+    row = connection.execute(
+        "SELECT target_scope FROM operation_plan WHERE operation_id = ?",
+        (operation_id,),
+    ).fetchone()
+    recorded = "" if row is None or row[0] is None else str(row[0])
+    return recorded if recorded in {"global", "project"} else ""
+
+
+def corporate_scope(
+    connection: sqlite3.Connection, operation_id: str, bundle_scope: str | None
+) -> str:
+    """Prefer the verified bundle's scope, then the scope the plan was made for."""
+    if bundle_scope in {"global", "project"}:
+        return bundle_scope
+    return target_scope(connection, operation_id) or "unknown"
+
+
 def target_pair(target_id: str) -> tuple[str, str]:
     """The project and harness a plan's target identifier names."""
     project_id, _, harness_id = target_id.partition(":")
     return project_id, harness_id
+
+
+def bind_corporate(
+    connection: sqlite3.Connection,
+    operation_id: str,
+    *,
+    organization_id: str,
+    project_id: str,
+    account_id: str,
+    device_id: str,
+    scope: str,
+    at: str,
+) -> None:
+    """Freeze corporate attribution before the provider can change the target."""
+    if scope not in {"global", "project", "unknown"}:
+        raise CliFailure("AI_STP_VALIDATION_ERROR", "invalid installation scope")
+    if not is_valid_id(organization_id, "organization") or not is_valid_id(
+        project_id, "remote_project"
+    ):
+        raise CliFailure("AI_STP_VALIDATION_ERROR", "invalid corporate installation identity")
+    expected = (organization_id, project_id, account_id, device_id, scope)
+    with transaction(connection):
+        existing = connection.execute(
+            "SELECT organization_id, project_id, account_id, device_id, scope "
+            "FROM operation_corporate_binding WHERE operation_id = ?",
+            (operation_id,),
+        ).fetchone()
+        if existing is not None:
+            if tuple(existing) != expected:
+                raise CliFailure(
+                    "AI_STP_CONFLICT", "operation already has a different corporate binding"
+                )
+            return
+        operation = journal.get(connection, operation_id)
+        if operation is None or operation.state not in {STATE_APPROVED, STATE_PLANNED}:
+            raise CliFailure("AI_STP_PRECONDITION_FAILED", "operation cannot be bound after apply")
+        connection.execute(
+            "INSERT INTO operation_corporate_binding "
+            "(operation_id, organization_id, project_id, account_id, device_id, scope, created_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (operation_id, *expected, at),
+        )
 
 
 def propose(

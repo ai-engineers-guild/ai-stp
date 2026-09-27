@@ -11,13 +11,13 @@ const organization = [
   { key: "teams", href: "/corporate/teams" },
   { key: "employees", href: "/corporate/employees" },
   { key: "technologies", href: "/corporate/technologies" },
-  { key: "installations", href: "/corporate/installations" },
-  { key: "usage", href: "/corporate/usage" },
+  { key: "reports", href: "/corporate/reports" },
 ] as const;
 const landscape = [
   { key: "components", href: "/corporate/catalog" },
   { key: "technologies", href: "/corporate/technology-landscape" },
   { key: "categories", href: "/corporate/categories" },
+  { key: "mappings", href: "/corporate/technology-mappings" },
 ] as const;
 
 export function CorporateHubNavigation({
@@ -31,11 +31,10 @@ export function CorporateHubNavigation({
   const t = useTranslations("hub");
   const path = usePathname();
   if (path === "/corporate") return null;
-  const inLandscape = /\/corporate\/(catalog|categories|technology-landscape)(?:\/|$)/.test(path);
+  const inLandscape =
+    /\/corporate\/(catalog|categories|technology-landscape|technology-mappings)(?:\/|$)/.test(path);
   const inOrganization =
-    /\/corporate\/(organization|employees|projects|teams|technologies|installations|usage)(?:\/|$)/.test(
-      path,
-    );
+    /\/corporate\/(organization|employees|projects|teams|technologies|reports)(?:\/|$)/.test(path);
   const isOverview = path === "/corporate/overview";
   const activeSection =
     path === "/corporate/dashboard" ? "dashboard" : inLandscape ? "landscape" : "organization";
@@ -48,7 +47,9 @@ export function CorporateHubNavigation({
   if (
     path !== "/corporate/organization" &&
     !isOverview &&
-    !items.some((item) => path === item.href)
+    !items.some(
+      (item) => path === item.href || (item.key === "reports" && path.startsWith(`${item.href}/`)),
+    )
   ) {
     return null;
   }

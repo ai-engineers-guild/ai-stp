@@ -1,0 +1,23 @@
+# Corporate-server overlay for deploy/compose.prod.yml:
+#   docker compose -f deploy/compose.prod.yml -f deploy/compose.corporate.yml ...
+#
+# The only topological difference from the public SaaS stack is the web build:
+# `corporate_hub` is a build-time profile baked into the standalone artifact
+# (docs/operations/runbooks/web-feature-profiles.md), so it is pinned here as
+# build args — left to `.env.prod` alone, a corporate host could silently ship
+# the public site. Everything else — credentials, origins, the corporate
+# bootstrap secret — stays env-driven in `.env.prod` like any prod deploy.
+#
+# The service set is unchanged: postgres, rustfs, migrate, seed, api,
+# content-import, osv-refresh, clamav-refresh, worker, web, docs. Corporate
+# exclusions live inside the profile; dropping a compose service here would
+# be a second knob over the same switches.
+services:
+  web:
+    build:
+      args:
+        AI_STP_WEB_PROFILE: corporate_hub
+        AI_STP_FEATURE_CONTENT_HUB: "false"
+        AI_STP_FEATURE_SAAS_PUBLIC_PAGES: "false"
+    environment:
+      AI_STP_FEATURE_CATALOG_USAGE_METRICS: "false"

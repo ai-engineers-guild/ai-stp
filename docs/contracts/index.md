@@ -55,7 +55,7 @@ last_verified: "2026-08-03"
 | [provider-release.md](provider-release.md) | Provider release manifest, trust, verification, and rollback protection. | 2026-09-04 |
 | [public-profile.md](public-profile.md) | Public profile fields, revisions, avatar, and separation from the developer passport. | 2026-09-04 |
 | [report-case.md](report-case.md) | Private report case: allowed content, preview, states, and auditable moderator actions. | 2026-09-04 |
-| [runtime-usage-events.md](runtime-usage-events.md) | Runtime usage event ingestion, scoped reports, drill-down, and export routes for corporate telemetry. | 2026-09-22 |
+| [runtime-usage-events.md](runtime-usage-events.md) | Runtime usage event ingestion, scoped reports, drill-down, and export routes for corporate telemetry. | 2026-09-25 |
 | [selection-impact.md](selection-impact.md) | Machine contract for the local context budget, capability delta, and blast radius. | 2026-08-15 |
 | [selection-proposal.md](selection-proposal.md) | Ephemeral composition proposal, its confirmation, and atomic persistence of a SetupVersion. | 2026-08-25 |
 | [seo-publication-projection.md](seo-publication-projection.md) | Machine boundary for server-side SEO revisions, discovery documents, and model enrichment. | 2026-08-29 |

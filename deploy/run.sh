@@ -21,7 +21,7 @@ if [[ -f "${ROOT}/.deploy-env" ]]; then
   set -a && source "${ROOT}/.deploy-env" && set +a
 fi
 
-export AI_STP_COMPOSE_FILE="${AI_STP_COMPOSE_FILE:-docker-compose.prod.yml}"
+export AI_STP_COMPOSE_FILE="${AI_STP_COMPOSE_FILE:-deploy/compose.prod.yml}"
 export AI_STP_ENV_FILE="${AI_STP_ENV_FILE:-.env.prod}"
 
 if [[ ! -f "${ROOT}/${AI_STP_ENV_FILE}" ]]; then

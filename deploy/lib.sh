@@ -7,7 +7,7 @@ set -euo pipefail
 # Resolve repo root from this file's location when sourced from deploy/*.sh.
 _DEPLOY_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 AI_STP_ROOT="${AI_STP_ROOT:-$(cd "${_DEPLOY_LIB_DIR}/.." && pwd)}"
-AI_STP_COMPOSE_FILE="${AI_STP_COMPOSE_FILE:-docker-compose.prod.yml}"
+AI_STP_COMPOSE_FILE="${AI_STP_COMPOSE_FILE:-deploy/compose.prod.yml}"
 AI_STP_ENV_FILE="${AI_STP_ENV_FILE:-.env.prod}"
 AI_STP_STATE_DIR="${AI_STP_STATE_DIR:-${AI_STP_ROOT}/.deploy-state}"
 AI_STP_BACKUP_DIR="${AI_STP_BACKUP_DIR:-${AI_STP_ROOT}/.backups}"

@@ -12,6 +12,9 @@ import type {
   CategoryView,
   TechnologyList,
   TechnologyLandscapeView,
+  TechnologyMappingList,
+  TechnologyMappingView,
+  TechnologyUnmappedView,
   TechnologyView,
   CorporateProjectView,
   ProjectTechnologyList,
@@ -324,6 +327,43 @@ export async function readTeamProjects(
       : null,
   ]);
   return { relations, projects, permissions };
+}
+
+export async function readTechnologyMappingReview(sessionToken: string, organizationId: string) {
+  const permissions = await readTechnologyCapabilities(sessionToken, organizationId);
+  if (!permissions.capabilities.includes("technology.list")) return null;
+  const path = `/v1/corporate/organizations/${organizationId}`;
+  const [unmapped, mappings, technologies, categories] = await Promise.all([
+    privateApiRequest<TechnologyUnmappedView>(`${path}/technology-unmapped-coordinates`, {
+      sessionToken,
+    }),
+    privateApiRequest<TechnologyMappingList>(`${path}/technology-mappings`, { sessionToken }),
+    privateApiRequest<TechnologyList>(`${path}/technologies`, {
+      sessionToken,
+      query: { limit: "256" },
+    }),
+    permissions.capabilities.includes("category.list") &&
+    permissions.capabilities.includes("category.read")
+      ? privateApiRequest<CategoryList>(`${path}/technology-categories`, { sessionToken })
+      : null,
+  ]);
+  return { permissions, unmapped, mappings, technologies, categories };
+}
+
+export async function readTechnologyMappingVersion(
+  sessionToken: string,
+  organizationId: string,
+  version: string,
+): Promise<TechnologyMappingView | null> {
+  try {
+    return await privateApiRequest<TechnologyMappingView>(
+      `/v1/corporate/organizations/${organizationId}/technology-mappings/${encodeURIComponent(version)}`,
+      { sessionToken },
+    );
+  } catch (error) {
+    if (error instanceof ApiError) return null;
+    throw error;
+  }
 }
 
 export async function readTechnologyLandscapePolicy(sessionToken: string, organizationId: string) {

@@ -243,6 +243,12 @@ from ai_stp_contracts.grants import (
 )
 from ai_stp_contracts.health import LivenessResponse, ReadinessResponse
 from ai_stp_contracts.heartbeat import (
+    HeartbeatReport,
+    HeartbeatReportBucket,
+    HeartbeatReportEmployee,
+    HeartbeatReportQuery,
+    HeartbeatReportRow,
+    HeartbeatReportTeam,
     InstallationHeartbeat,
     InstallationHeartbeatList,
     InstallationHeartbeatPolicy,
@@ -274,6 +280,14 @@ from ai_stp_contracts.identity import (
 from ai_stp_contracts.impact import (
     AccountSelectionImpactQuery,
     AccountSelectionImpactReport,
+)
+from ai_stp_contracts.installation_inventory import (
+    InstallationInventoryBatch,
+    InstallationInventoryReceipt,
+)
+from ai_stp_contracts.installation_usage import (
+    InstallationOperationBatch,
+    InstallationOperationReceipt,
 )
 from ai_stp_contracts.owner import (
     OwnerLifecycleRequest,
@@ -385,6 +399,7 @@ from ai_stp_contracts.technology import (
     TechnologyLifecycleRequest,
     TechnologyList,
     TechnologyListQuery,
+    TechnologyMappingList,
     TechnologyMappingRequest,
     TechnologyMappingView,
     TechnologyMergePlanQuery,
@@ -400,6 +415,9 @@ from ai_stp_contracts.technology import (
     TechnologyTeamList,
     TechnologyTeamView,
     TechnologyTeamWriteRequest,
+    TechnologyUnmappedEntry,
+    TechnologyUnmappedReviewRequest,
+    TechnologyUnmappedView,
     TechnologyView,
     TechnologyWriteRequest,
 )
@@ -912,6 +930,35 @@ OPERATIONS: Final[tuple[Operation, ...]] = (
             _ORGANIZATION_ID,
             PathParam("version", "Immutable mapping version.", r"^[A-Za-z0-9._+-]+$"),
         ),
+    ),
+    Operation(
+        method="get",
+        path="/corporate/organizations/{organization_id}/technology-mappings",
+        operation_id="listTechnologyMappings",
+        summary="List the organization's immutable mapping snapshots.",
+        response=TechnologyMappingList,
+        authenticated=True,
+        path_params=(_ORGANIZATION_ID,),
+    ),
+    Operation(
+        method="get",
+        path="/corporate/organizations/{organization_id}/technology-unmapped-coordinates",
+        operation_id="readTechnologyUnmappedCoordinates",
+        summary="Read the organization's unmapped-coordinate review queue.",
+        response=TechnologyUnmappedView,
+        authenticated=True,
+        path_params=(_ORGANIZATION_ID,),
+    ),
+    Operation(
+        method="patch",
+        path="/corporate/organizations/{organization_id}/technology-unmapped-coordinates",
+        operation_id="reviewTechnologyUnmappedCoordinate",
+        summary="Propose or clear a coordinate's candidate technology.",
+        response=TechnologyUnmappedEntry,
+        body=TechnologyUnmappedReviewRequest,
+        authenticated=True,
+        idempotent_mutation=True,
+        path_params=(_ORGANIZATION_ID,),
     ),
     Operation(
         method="post",
@@ -3371,6 +3418,16 @@ OPERATIONS: Final[tuple[Operation, ...]] = (
         authenticated=True,
     ),
     Operation(
+        method="get",
+        path="/corporate/organizations/{organization_id}/telemetry/heartbeat-report",
+        operation_id="readCorporateHeartbeatReport",
+        summary="Read the fixed scoped device heartbeat report.",
+        response=HeartbeatReport,
+        query=HeartbeatReportQuery,
+        path_params=(_ORGANIZATION_ID,),
+        authenticated=True,
+    ),
+    Operation(
         method="post",
         path="/corporate/organizations/{organization_id}/telemetry/events",
         operation_id="recordCorporateTelemetryEvent",
@@ -3496,6 +3553,26 @@ OPERATIONS: Final[tuple[Operation, ...]] = (
         authenticated=True,
     ),
     Operation(
+        method="post",
+        path="/corporate/organizations/{organization_id}/telemetry/installation-operations",
+        operation_id="ingestInstallationOperations",
+        summary="Ingest exact settled installation results.",
+        response=InstallationOperationReceipt,
+        body=InstallationOperationBatch,
+        path_params=(_ORGANIZATION_ID,),
+        authenticated=True,
+    ),
+    Operation(
+        method="post",
+        path="/corporate/organizations/{organization_id}/telemetry/installation-inventory",
+        operation_id="ingestInstallationInventory",
+        summary="Ingest bounded installation discovery snapshots.",
+        response=InstallationInventoryReceipt,
+        body=InstallationInventoryBatch,
+        path_params=(_ORGANIZATION_ID,),
+        authenticated=True,
+    ),
+    Operation(
         method="get",
         path="/corporate/organizations/{organization_id}/telemetry/usage-events",
         operation_id="listRuntimeUsageEvents",
@@ -3545,6 +3622,10 @@ OPERATIONS: Final[tuple[Operation, ...]] = (
 #: Nested models that travel inside a larger payload but still deserve a
 #: standalone artifact the platform can implement against.
 NESTED_ONLY_MODELS: Final[tuple[type[BaseModel], ...]] = (
+    HeartbeatReportTeam,
+    HeartbeatReportEmployee,
+    HeartbeatReportBucket,
+    HeartbeatReportRow,
     DeviceSummary,
     PageInfo,
     SyncEvent,

@@ -1,0 +1,95 @@
+# Frontend image, dev and prod targets in one file (SPEC-024 REQ-2403,
+# ADR-0044). Both build from the repository root, narrowed by
+# Dockerfile.web.dockerignore. Bases are pinned by digest like every other
+# image in this repository: a tag names the version, the digest proves which
+# build of it ran. Bump both only via a separate reviewed change.
+
+FROM oven/bun:1.4.0-alpine@sha256:07235578f79ef8c6f97d94aee7938e76f5cdba5f21ae5dbfdd3d3d38058437eb AS deps
+WORKDIR /app
+COPY apps/web/package.json apps/web/bun.lock ./
+RUN bun install --frozen-lockfile
+
+# Development target: Bun installs deps; real Node runs Next.js (Bun's node
+# shim lacks async_hooks and makes next dev multi-second even for warm
+# routes). Same digest as the production web base: a dev image resolving a
+# different build could not reproduce what production runs.
+FROM deps AS dev
+
+# Real Node for the Next.js server process (not Bun's node fallback symlink).
+# Alpine keeps no version history, so an `=` pin breaks the build the day the
+# index rolls; this dev-only image takes the index's nodejs over a dead pin.
+# hadolint ignore=DL3018
+RUN apk add --no-cache nodejs
+
+COPY apps/web .
+
+ENV NEXT_TELEMETRY_DISABLED=1 \
+    HOSTNAME=0.0.0.0 \
+    PORT=3000 \
+    # Prefer the real Node binary over Bun's fallback `node` on PATH.
+    PATH="/usr/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/sbin:/bin"
+
+EXPOSE 3000
+
+# Webpack + Node: stable development builds with the real Node runtime.
+CMD ["node", "node_modules/next/dist/bin/next", "dev", "--hostname", "0.0.0.0", "--port", "3000"]
+
+FROM oven/bun:1.4.0-alpine@sha256:07235578f79ef8c6f97d94aee7938e76f5cdba5f21ae5dbfdd3d3d38058437eb AS builder
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY apps/web .
+# mock-corporate.ts imports this canonical fixture after apps/web is flattened to /app.
+COPY packages/contracts/src/ai_stp_contracts/fixtures/v1/corporate-overview.json /packages/contracts/src/ai_stp_contracts/fixtures/v1/corporate-overview.json
+COPY docs-user-facing /docs-user-facing
+
+# Public URL is baked into the client bundle at build time.
+ARG NEXT_PUBLIC_APP_URL=http://localhost:8080
+ARG AI_STP_WEB_PROFILE=public_saas
+ARG AI_STP_FEATURE_CONTENT_HUB
+ARG AI_STP_FEATURE_SAAS_PUBLIC_PAGES
+ARG NEXT_PUBLIC_ANALYTICS_ENABLED=true
+ARG NEXT_PUBLIC_GA_MEASUREMENT_ID
+ARG NEXT_PUBLIC_YANDEX_METRIKA_COUNTER_ID
+ARG NEXT_PUBLIC_COOKIE_CONSENT_ENABLED=true
+# AI_STP_SESSION_SECRET below is a literal build-time placeholder documented
+# as such; the real value arrives via env at runtime.
+# hadolint ignore=DL3064
+ENV NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL} \
+    AI_STP_WEB_PROFILE=${AI_STP_WEB_PROFILE} \
+    AI_STP_FEATURE_CONTENT_HUB=${AI_STP_FEATURE_CONTENT_HUB} \
+    AI_STP_FEATURE_SAAS_PUBLIC_PAGES=${AI_STP_FEATURE_SAAS_PUBLIC_PAGES} \
+    NEXT_PUBLIC_ANALYTICS_ENABLED=${NEXT_PUBLIC_ANALYTICS_ENABLED} \
+    NEXT_PUBLIC_GA_MEASUREMENT_ID=${NEXT_PUBLIC_GA_MEASUREMENT_ID} \
+    NEXT_PUBLIC_YANDEX_METRIKA_COUNTER_ID=${NEXT_PUBLIC_YANDEX_METRIKA_COUNTER_ID} \
+    NEXT_PUBLIC_COOKIE_CONSENT_ENABLED=${NEXT_PUBLIC_COOKIE_CONSENT_ENABLED} \
+    NEXT_TELEMETRY_DISABLED=1 \
+    # Build-time placeholders only; runtime secrets come from env at process start.
+    AI_STP_API_BASE_URL=http://api:8000 \
+    AI_STP_USE_MOCKS=false \
+    AI_STP_SESSION_SECRET=build-time-placeholder-not-for-runtime-use \
+    AI_STP_USER_FACING_ROOT=/docs-user-facing
+
+RUN bun run build
+
+FROM node:22.18.0-slim@sha256:752ea8a2f758c34002a0461bd9f1cee4f9a3c36d48494586f60ffce1fc708e0e AS prod
+WORKDIR /app
+
+ENV NODE_ENV=production \
+    NEXT_TELEMETRY_DISABLED=1 \
+    PORT=3000 \
+    HOSTNAME=0.0.0.0 \
+    AI_STP_USER_FACING_ROOT=/app/docs-user-facing
+
+RUN groupadd --system --gid 10001 appuser \
+    && useradd --system --uid 10001 --gid appuser --home /app --shell /usr/sbin/nologin appuser
+
+# The build packaging step already mirrors only profile-enabled public assets.
+COPY --from=builder --chown=appuser:appuser /app/.next/standalone ./
+COPY --from=builder --chown=appuser:appuser /app/.next/static ./.next/static
+COPY --from=builder --chown=appuser:appuser /packages/contracts/src/ai_stp_contracts/fixtures/v1/corporate-overview.json /packages/contracts/src/ai_stp_contracts/fixtures/v1/corporate-overview.json
+
+USER appuser
+
+EXPOSE 3000
+
+CMD ["node", "server.js"]

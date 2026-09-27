@@ -28,8 +28,8 @@ def _executable(rel: str) -> str:
 
 
 def test_dev_compose_worker_uses_worker_safety_and_osv_volume() -> None:
-    text = _read("docker-compose.dev.yml")
-    assert "Dockerfile.worker-safety" in text
+    text = _read("deploy/compose.dev.yml")
+    assert "deploy/docker/Dockerfile.app" in text
     assert "target: worker-safety" in text
     assert "AI_STP_SAFETY_EXTERNAL_CLI" in text
     assert "AI_STP_OSV_OFFLINE_DIR" in text
@@ -41,14 +41,14 @@ def test_dev_compose_worker_uses_worker_safety_and_osv_volume() -> None:
     assert "RUSTFS_SECRET_KEY: ai_stp_dev" in text
     assert "AI_STP_STORAGE_ACCESS_KEY_ID: ai_stp" in text
     assert "9000/health" in text
-    assert "minio/health/live" not in _executable("docker-compose.dev.yml")
+    assert "minio/health/live" not in _executable("deploy/compose.dev.yml")
     assert "rustfs:\n        condition: service_healthy" in text or (
         "rustfs:" in text and "service_healthy" in text
     )
 
 
 def test_compose_imports_repository_snapshot_before_web() -> None:
-    for name in ("docker-compose.prod.yml", "docker-compose.dev.yml"):
+    for name in ("deploy/compose.prod.yml", "deploy/compose.dev.yml"):
         text = _read(name)
         assert "content-import:" in text
         assert "ai_stp_platform.content.importer" in text
@@ -60,7 +60,7 @@ def test_compose_imports_repository_snapshot_before_web() -> None:
 
 
 def _legacy_content_import_image_bakes_snapshot_then_drops_hub() -> None:
-    dockerfile = _read("Dockerfile")
+    dockerfile = _read("deploy/docker/Dockerfile.app")
     ignore = _read(".dockerignore")
     snapshot, remainder = dockerfile.split("FROM base AS content-snapshot", 1)
     runtime = remainder.split("FROM base AS content-import", 1)[1]
@@ -78,7 +78,7 @@ def _legacy_content_import_image_bakes_snapshot_then_drops_hub() -> None:
 
 
 def test_content_import_image_builds_snapshot_at_runtime() -> None:
-    dockerfile = _read("Dockerfile")
+    dockerfile = _read("deploy/docker/Dockerfile.app")
     assert "FROM base AS content-snapshot" not in dockerfile
     assert "COPY --from=content-snapshot" not in dockerfile
     assert "AI_STP_CONTENT_SNAPSHOT=/tmp/content-snapshot.json" in dockerfile
@@ -125,8 +125,8 @@ def test_backup_and_restore_preserve_oauth_identity_data() -> None:
 
 
 def test_prod_compose_worker_safety_and_rustfs_health() -> None:
-    text = _read("docker-compose.prod.yml")
-    assert "Dockerfile.worker-safety" in text
+    text = _read("deploy/compose.prod.yml")
+    assert "deploy/docker/Dockerfile.app" in text
     assert "target: worker-safety" in text
     assert "AI_STP_SAFETY_EXTERNAL_CLI" in text
     assert "OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY" in text
@@ -146,7 +146,7 @@ def test_prod_compose_worker_safety_and_rustfs_health() -> None:
     assert "apparmor=unconfined" not in worker_runnable
     assert "osv_offline:" in text
     assert "9000/health" in text
-    assert "minio/health/live" not in _executable("docker-compose.prod.yml")
+    assert "minio/health/live" not in _executable("deploy/compose.prod.yml")
     # API/worker wait on storage
     assert "service_healthy" in text
 
@@ -159,7 +159,7 @@ def test_every_long_running_prod_service_reports_health() -> None:
     only question a static site can answer — does it serve. One-shot jobs
     (`restart: "no"`) are exempt: their health is their exit code.
     """
-    text = _read("docker-compose.prod.yml")
+    text = _read("deploy/compose.prod.yml")
     services = text.split("services:\n", 1)[1].split("\nnetworks:\n", 1)[0]
     missing: list[str] = []
     for block in re.split(r"\n  (?=\S)", services):
@@ -177,14 +177,14 @@ def test_every_long_running_prod_service_reports_health() -> None:
 
 
 def test_worker_safety_dockerfile_enables_external_cli() -> None:
-    text = _read("Dockerfile.worker-safety")
+    text = _read("deploy/docker/Dockerfile.app")
     assert "AI_STP_SAFETY_EXTERNAL_CLI=1" in text
     assert "AI_STP_OSV_OFFLINE_DIR" in text
     assert "OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY" in text
     assert "install_scanners.sh" in text
     assert "snapshot.debian.org/archive/debian/20260822T000000Z" in text
     assert "requirements.lock" in text
-    assert text.count("FROM python:3.12-slim@sha256:") == 2
+    assert text.count("FROM python:3.12-slim@sha256:") == 1
     # Required skill engines + govulncheck (not optional extras).
     assert "golang.org/x/vuln/cmd/govulncheck" in text
     assert "go-tools" in text
@@ -204,12 +204,12 @@ def test_install_scanners_requires_govulncheck_and_skill_engines() -> None:
 
 
 def test_seo_enrichment_overlay_routes_alias_through_litellm_not_worker() -> None:
-    overlay = _read("docker-compose.seo-enrichment.yml")
+    overlay = _read("deploy/compose.seo-enrichment.yml")
     config = _read("deploy/litellm/seo-writer.yaml")
     cliproxy_config = _read("deploy/cliproxy/config.example.yaml")
-    default_dev = _read("docker-compose.dev.yml")
-    default_prod = _read("docker-compose.prod.yml")
-    overlay_exec = _executable("docker-compose.seo-enrichment.yml")
+    default_dev = _read("deploy/compose.dev.yml")
+    default_prod = _read("deploy/compose.prod.yml")
+    overlay_exec = _executable("deploy/compose.seo-enrichment.yml")
     assert "seo_enrichment" in overlay
     assert "litellm:" in overlay
     assert "cliproxy:" in overlay
@@ -250,9 +250,9 @@ def test_no_compose_file_resolves_an_image_by_a_moving_tag() -> None:
     cannot reproduce what production hit.
     """
     for name in (
-        "docker-compose.prod.yml",
-        "docker-compose.dev.yml",
-        "docker-compose.seo-enrichment.yml",
+        "deploy/compose.prod.yml",
+        "deploy/compose.dev.yml",
+        "deploy/compose.seo-enrichment.yml",
     ):
         for line in _executable(name).splitlines():
             stripped = line.strip()
@@ -281,7 +281,7 @@ def test_third_party_prod_services_receive_only_their_own_credentials() -> None:
     deploy passes with `--env-file`. First-party services keep `env_file`:
     their own code reads the rest — six of them, and counting pins the set.
     """
-    executable = _executable("docker-compose.prod.yml")
+    executable = _executable("deploy/compose.prod.yml")
     postgres = executable.split("\n  postgres:\n", 1)[1].split("\n  rustfs:\n", 1)[0]
     assert "env_file:" not in postgres
     for key in ("POSTGRES_USER", "POSTGRES_PASSWORD", "POSTGRES_DB"):

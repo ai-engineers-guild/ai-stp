@@ -12,7 +12,7 @@ last_verified: "2026-08-03"
 | [SPEC-001-product-contract.md](SPEC-001-product-contract.md) | SPEC-001: MVP product contract. | 2026-09-06 |
 | [SPEC-002-identity-devices-access.md](SPEC-002-identity-devices-access.md) | SPEC-002: Accounts, OAuth, devices, and access. | 2026-09-07 |
 | [SPEC-003-developer-passport.md](SPEC-003-developer-passport.md) | SPEC-003: Developer passport and public projection. | 2026-09-20 |
-| [SPEC-004-project-index-passport.md](SPEC-004-project-index-passport.md) | SPEC-004: Project index and passport. | 2026-09-20 |
+| [SPEC-004-project-index-passport.md](SPEC-004-project-index-passport.md) | SPEC-004: Project index and passport. | 2026-09-26 |
 | [SPEC-005-registry-versioning.md](SPEC-005-registry-versioning.md) | SPEC-005: Registry, variants, and object versions. | 2026-09-24 |
 | [SPEC-006-search-and-setup-compiler.md](SPEC-006-search-and-setup-compiler.md) | SPEC-006: Search, candidate selection, and setup compiler. | 2026-09-24 |
 | [SPEC-007-validation-publishing.md](SPEC-007-validation-publishing.md) | SPEC-007: Tests, evidence and publication. | 2026-09-07 |
@@ -89,16 +89,19 @@ last_verified: "2026-08-03"
 | [SPEC-078-project-identity-linking-and-sync.md](SPEC-078-project-identity-linking-and-sync.md) | SPEC-078: Distinct local, remote, and provider project identities with explicit linking and deterministic synchronization. | 2026-09-14 |
 | [SPEC-079-corporate-core.md](SPEC-079-corporate-core.md) | SPEC-079: Corporate bootstrap, scoped RBAC, tenant isolation, and audit journal. | 2026-09-18 |
 | [SPEC-080-cli-agent-task-contract.md](SPEC-080-cli-agent-task-contract.md) | SPEC-080: Headless CLI application services, capability inventory, and the agent task contract. | 2026-09-24 |
-| [SPEC-081-technology-registry-and-landscape.md](SPEC-081-technology-registry-and-landscape.md) | SPEC-081: Governed technology metadata, usage facts, detection handoff, and authorized landscape projections. | 2026-09-23 |
+| [SPEC-081-technology-registry-and-landscape.md](SPEC-081-technology-registry-and-landscape.md) | SPEC-081: Governed technology metadata, usage facts, detection handoff, and authorized landscape projections. | 2026-09-26 |
 | [SPEC-082-canonical-corporate-relations.md](SPEC-082-canonical-corporate-relations.md) | SPEC-082: Single canonical team/project/technology relationships, responsibility, and current assignment scopes. | 2026-09-12 |
 | [SPEC-083-corporate-hub-workspace.md](SPEC-083-corporate-hub-workspace.md) | SPEC-083: Corporate Hub directories, relationship editing, and catalog assignments. | 2026-09-18 |
 | [SPEC-084-corporate-entity-profiles.md](SPEC-084-corporate-entity-profiles.md) | SPEC-084: Persistent tenant presentation and independent technology ownership. | 2026-09-18 |
 | [SPEC-085-milestone-5-corporate-governance-and-catalog.md](SPEC-085-milestone-5-corporate-governance-and-catalog.md) | SPEC-085: Corporate governance lifecycle, team profile, and catalog context. | 2026-09-19 |
 | [SPEC-086-corporate-workspace-consolidation.md](SPEC-086-corporate-workspace-consolidation.md) | SPEC-086: Corporate workspace identity, directory, catalog, and detail consolidation. | 2026-09-18 |
-| [SPEC-087-cli-heartbeat-and-installation-health.md](SPEC-087-cli-heartbeat-and-installation-health.md) | SPEC-087: Authenticated CLI installation heartbeats and read-time installation health for corporate tenants. | 2026-09-24 |
-| [SPEC-088-runtime-usage-events.md](SPEC-088-runtime-usage-events.md) | SPEC-088: Corporate runtime component-usage events, scoped reports, and bounded export. | 2026-09-22 |
-| [SPEC-089-telemetry-privacy.md](SPEC-089-telemetry-privacy.md) | SPEC-089: Corporate telemetry privacy boundary, retention, access, and data rights. | 2026-09-24 |
-| [SPEC-090-gitlab-project-discovery.md](SPEC-090-gitlab-project-discovery.md) | SPEC-090: Tenant-scoped GitLab repository observation over canonical project identity. | 2026-09-22 |
+| [SPEC-087-cli-heartbeat-and-installation-health.md](SPEC-087-cli-heartbeat-and-installation-health.md) | SPEC-087: Authenticated CLI installation heartbeats and read-time installation health for corporate tenants. | 2026-09-25 |
+| [SPEC-088-runtime-usage-events.md](SPEC-088-runtime-usage-events.md) | SPEC-088: Corporate runtime component-usage events, scoped reports, and bounded export. | 2026-09-25 |
+| [SPEC-089-telemetry-privacy.md](SPEC-089-telemetry-privacy.md) | SPEC-089: Corporate telemetry privacy boundary, retention, access, and data rights. | 2026-09-25 |
+| [SPEC-090-gitlab-project-discovery.md](SPEC-090-gitlab-project-discovery.md) | SPEC-090: Tenant-scoped GitLab repository observation over canonical project identity. | 2026-09-26 |
 | [SPEC-091-corporate-health-dashboards.md](SPEC-091-corporate-health-dashboards.md) | SPEC-091: Authorized Corporate Hub health aggregation and saved dashboard views. | 2026-09-23 |
+| [SPEC-092-fixed-corporate-reports.md](SPEC-092-fixed-corporate-reports.md) | SPEC-092: Fixed corporate reports and scoped current/history device heartbeat views. | 2026-09-25 |
+| [SPEC-093-corporate-installation-operation-facts.md](SPEC-093-corporate-installation-operation-facts.md) | SPEC-093: Authenticated, durable facts for corporate installation operations. | 2026-09-26 |
+| [SPEC-094-corporate-installation-inventory.md](SPEC-094-corporate-installation-inventory.md) | SPEC-094: Opt-in, bounded corporate installation inventory snapshots. | 2026-09-26 |
 
 <!-- END CONTENTS -->

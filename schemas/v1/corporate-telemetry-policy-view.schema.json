@@ -48,6 +48,11 @@
       "title": "Heartbeat Stale After Seconds",
       "type": "integer"
     },
+    "inventory_scan_enabled": {
+      "default": false,
+      "title": "Inventory Scan Enabled",
+      "type": "boolean"
+    },
     "legal_basis": {
       "enum": [
         "consent",
@@ -90,6 +95,13 @@
       "title": "Raw Retention Days",
       "type": "integer"
     },
+    "report_timezone": {
+      "default": "UTC",
+      "maxLength": 64,
+      "minLength": 1,
+      "title": "Report Timezone",
+      "type": "string"
+    },
     "schema_version": {
       "const": 1,
       "default": 1,
@@ -98,6 +110,16 @@
     },
     "updated_at": {
       "$ref": "#/$defs/Timestamp"
+    },
+    "usage_collection_enabled": {
+      "default": false,
+      "title": "Usage Collection Enabled",
+      "type": "boolean"
+    },
+    "usage_registration_required": {
+      "default": false,
+      "title": "Usage Registration Required",
+      "type": "boolean"
     }
   },
   "required": [
@@ -107,14 +129,18 @@
     "heartbeat_retry_base_seconds",
     "heartbeat_retry_max_seconds",
     "heartbeat_stale_after_seconds",
+    "inventory_scan_enabled",
     "legal_basis",
     "notice_revision",
     "notice_text",
     "organization_id",
     "policy_version",
     "raw_retention_days",
+    "report_timezone",
     "schema_version",
-    "updated_at"
+    "updated_at",
+    "usage_collection_enabled",
+    "usage_registration_required"
   ],
   "title": "CorporateTelemetryPolicyView",
   "type": "object"

@@ -125,3 +125,18 @@ def test_discovery_mutations_have_no_credential_or_source_field() -> None:
         GitLabMutationRequest.model_validate(
             {**safe, "repository_contents": "untrusted source bytes"}
         )
+
+
+@pytest.mark.parametrize("limit", [1, 100, 101, 150, 250, 500])
+async def test_pagination_keeps_a_constant_page_size(limit: int) -> None:
+    def respond(request: httpx.Request) -> httpx.Response:
+        count = int(request.url.params["per_page"])
+        page = int(request.url.params["page"])
+        start = (page - 1) * count
+        return httpx.Response(
+            200, json=[{**REPOSITORY, "id": i + 1} for i in range(start, start + count)]
+        )
+
+    client = GitLabClient("https://gitlab.com", transport=httpx.MockTransport(respond))
+    repositories = await client.list_repositories(token="fixture", limit=limit)
+    assert [row.repository_id for row in repositories] == list(range(1, limit + 1))

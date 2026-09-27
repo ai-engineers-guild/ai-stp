@@ -30,6 +30,7 @@ from ai_stp_contracts.heartbeat import (
 )
 from ai_stp_foundation.timestamps import format_timestamp, parse_timestamp
 from ai_stp_platform.heartbeat_models import InstallationHeartbeat as HeartbeatRow
+from ai_stp_platform.heartbeat_models import InstallationHeartbeatEvent
 from ai_stp_platform.telemetry_policy_models import TelemetryPolicy
 from ai_stp_platform.telemetry_privacy_service import (
     TelemetrySubjectRevokedError,
@@ -72,6 +73,9 @@ async def organization_policy(
     return InstallationHeartbeatPolicy(
         organization_id=organization_id,
         enabled=True if row is None else row.heartbeat_enabled,
+        inventory_scan_enabled=False if row is None else row.inventory_scan_enabled,
+        usage_collection_enabled=False if row is None else row.usage_collection_enabled,
+        usage_registration_required=False if row is None else row.usage_registration_required,
         interval_seconds=(
             DEFAULT_HEARTBEAT_INTERVAL_SECONDS if row is None else row.heartbeat_interval_seconds
         ),
@@ -193,6 +197,7 @@ async def record_heartbeat(
     """
     now = now or utcnow()
     policy = await organization_policy(db, organization_id=organization_id)
+    policy_row = await db.get(TelemetryPolicy, organization_id)
     if not policy.enabled:
         raise HeartbeatPolicyDisabled("heartbeat reporting is disabled for this organization")
     try:
@@ -221,6 +226,7 @@ async def record_heartbeat(
         .with_for_update()
     )
     row = result.scalar_one_or_none()
+    accepted = row is None or accepts_update(row.checked_at, checked_at)
     if row is None:
         row = HeartbeatRow(
             organization_id=organization_id,
@@ -238,7 +244,7 @@ async def record_heartbeat(
     else:
         if row.account_id != report.account_id:
             raise HeartbeatRejected("device heartbeat is bound to a different account")
-        if accepts_update(row.checked_at, checked_at):
+        if accepted:
             row.cli_version = report.cli_version
             row.capabilities = list(report.capabilities)
             row.last_sync_at = last_sync_at
@@ -246,6 +252,19 @@ async def record_heartbeat(
             row.checked_at = checked_at
             row.received_at = now
             row.revision += 1
+    if accepted:
+        db.add(
+            InstallationHeartbeatEvent(
+                organization_id=organization_id,
+                account_id=report.account_id,
+                device_id=report.device_id,
+                checked_at=checked_at,
+                received_at=now,
+                reported_state=report.health_state,
+                interval_seconds=policy.interval_seconds,
+                policy_version=policy_row.policy_version if policy_row is not None else 0,
+            )
+        )
     await db.flush()
     return to_view(row, now=now, stale_after=stale_after)
 

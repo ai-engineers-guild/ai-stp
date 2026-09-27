@@ -28,11 +28,11 @@ type Props = {
     outcomes: string;
     firstUsed: string;
     lastUsed: string;
-    installedTitle: string;
-    installedObject: string;
-    installedState: string;
-    invoked: string;
-    notInvoked: string;
+    assignedTitle: string;
+    assignedObject: string;
+    assignedState: string;
+    recordedUse: string;
+    noRecordedUse: string;
     loading: string;
     empty: string;
     failed: string;
@@ -139,25 +139,27 @@ export function UsageReportPanel({ labels }: Props) {
           ))}
         </tbody>
       </table>
-      {report.installed.length > 0 && (
-        <table aria-label={labels.installedTitle}>
+      {report.assigned.length > 0 && (
+        <table aria-label={labels.assignedTitle}>
           <thead>
             <tr>
-              <th scope="col">{labels.installedObject}</th>
-              <th scope="col">{labels.installedState}</th>
+              <th scope="col">{labels.assignedObject}</th>
+              <th scope="col">{labels.assignedState}</th>
               <th scope="col">{labels.invocations}</th>
               <th scope="col">{labels.lastUsed}</th>
             </tr>
           </thead>
           <tbody>
-            {report.installed.map((row) => (
+            {report.assigned.map((row) => (
               <tr key={`${row.object_kind}:${row.stable_id}:${row.version ?? ""}`}>
                 <td>
                   {row.object_kind}:{row.stable_id}
                   {row.version ? `@${row.version}` : ""}
                 </td>
                 <td>
-                  <Badge>{row.state === "invoked" ? labels.invoked : labels.notInvoked}</Badge>
+                  <Badge>
+                    {row.state === "recorded_use" ? labels.recordedUse : labels.noRecordedUse}
+                  </Badge>
                 </td>
                 <td>{row.invocations}</td>
                 <td>{row.last_invoked_at ?? ""}</td>

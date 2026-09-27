@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ai_stp_api.audit import emit_audit
 from ai_stp_api.errors import ApiError, ErrorCategory
+from ai_stp_api.geoip import approximate_location
 from ai_stp_api.session import AuthContext, revoke_sessions_for_device
 from ai_stp_api.settings import AuthSettings
 from ai_stp_api.slices.devices.challenge import issue_challenge, message_to_sign, verify_challenge
@@ -27,7 +28,7 @@ def _to_summary(device: Device, *, display_name: str | None = None) -> DeviceSum
         id=device.id,
         state=device.state,
         last_seen_at=device.last_seen_at,
-        display_name=display_name,
+        display_name=display_name or device.display_name,
         os=None,
         architecture=None,
         harnesses=(),
@@ -55,6 +56,8 @@ async def register_device(
     nonce: str,
     signature: str,
     display_name: str | None,
+    user_agent: str | None = None,
+    client_ip: str | None = None,
 ) -> tuple[DeviceSummary, bool]:
     """Verify challenge + Ed25519 and upsert by (account_id, public_key)."""
     pk = normalize_public_key(public_key)
@@ -97,6 +100,7 @@ async def register_device(
             account_id=ctx.account_id,
             public_key=pk,
             state=DeviceState.ACTIVE.value,
+            display_name=display_name,
             last_seen_at=now,
         )
         db.add(device)
@@ -109,6 +113,10 @@ async def register_device(
                 "device is revoked; register a new device key",
             )
         device.last_seen_at = now
+        if display_name:
+            device.display_name = display_name
+    device.user_agent = user_agent
+    device.approximate_location = approximate_location(client_ip, auth.geoip_city_db_path)
     await db.flush()
 
     # Bind the current opaque session to this device so revoke cascades.

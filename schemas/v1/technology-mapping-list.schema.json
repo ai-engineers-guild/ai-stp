@@ -1,0 +1,56 @@
+{
+  "$defs": {
+    "TechnologyMappingSummary": {
+      "additionalProperties": true,
+      "properties": {
+        "digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Digest",
+          "type": "string"
+        },
+        "entries": {
+          "minimum": 1,
+          "title": "Entries",
+          "type": "integer"
+        },
+        "version": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9._+-]+$",
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "digest",
+        "entries",
+        "version"
+      ],
+      "title": "TechnologyMappingSummary",
+      "type": "object"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:technology-mapping-list",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "properties": {
+    "items": {
+      "items": {
+        "$ref": "#/$defs/TechnologyMappingSummary"
+      },
+      "title": "Items",
+      "type": "array"
+    },
+    "organization_id": {
+      "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "title": "Organization Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "items",
+    "organization_id"
+  ],
+  "title": "TechnologyMappingList",
+  "type": "object"
+}

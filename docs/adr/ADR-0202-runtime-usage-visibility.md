@@ -57,7 +57,7 @@ data-seeded keys. An organization-scoped grant is unrestricted; otherwise the
 caller sees their own events plus active members of the teams where a
 team-scoped binding grants the permission. Requested `employee_id`/`team_id`
 filters intersect with that scope - a filter can narrow to empty, never
-widen. The installed-vs-invoked section shows a scoped caller only the
+widen. The assignment-versus-invocation section shows a scoped caller only the
 assignments addressed to their employees, their teams, or the whole
 organization.
 

@@ -31,9 +31,9 @@ export default async function CorporateSettingsPage({
   const canManageLandscape =
     permissions.capabilities.includes("landscape.manage") &&
     permissions.capabilities.includes("landscape.read");
-  const canReadTelemetry = permissions.capabilities.includes("telemetry.read");
   const canManageTelemetry =
-    canReadTelemetry && permissions.capabilities.includes("telemetry.manage");
+    context.capabilities.includes("telemetry.read") &&
+    context.capabilities.includes("telemetry.manage");
   if (!canManageLandscape && !canManageTelemetry)
     return (
       <StatePanel kind="error" title={t("organizationSettings")} description={t("forbidden")} />
@@ -72,12 +72,6 @@ export default async function CorporateSettingsPage({
         label={corporate("backToWorkspace")}
         fallback="/corporate/organization/admins"
       />
-      {canManageLandscape &&
-        (landscapeUnavailable || !landscapePolicy ? (
-          <StatePanel kind="error" title={t("activityPolicy")} description={t("unavailable")} />
-        ) : (
-          <TechnologyActivityPolicy policy={landscapePolicy} {...authority} />
-        ))}
       {canManageTelemetry &&
         (telemetryUnavailable ? (
           <StatePanel
@@ -86,7 +80,17 @@ export default async function CorporateSettingsPage({
             description={t("telemetryUnavailable")}
           />
         ) : (
-          <CorporateTelemetryPolicyControls policy={telemetryPolicy} {...authority} />
+          <CorporateTelemetryPolicyControls
+            policy={telemetryPolicy}
+            {...authority}
+            authorizationRevision={context.organization.authorization_revision}
+          />
+        ))}
+      {canManageLandscape &&
+        (landscapeUnavailable || !landscapePolicy ? (
+          <StatePanel kind="error" title={t("activityPolicy")} description={t("unavailable")} />
+        ) : (
+          <TechnologyActivityPolicy policy={landscapePolicy} {...authority} />
         ))}
     </div>
   );

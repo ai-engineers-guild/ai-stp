@@ -1,5 +1,6 @@
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { notFound } from "next/navigation";
+import { Badge } from "@/components/atoms/badge";
 import { TechnologyRegistryCreate } from "@/components/organisms/technology-registry-create";
 import { CategoryLifecycleControls } from "@/components/organisms/corporate-governance-controls";
 import { HistoryBackButton } from "@/components/molecules/history-back-button";
@@ -37,7 +38,14 @@ export default async function CategoryDetailPage({
     <article className="space-y-6">
       <HistoryBackButton label={h("backToCategories")} fallback="/corporate/categories" />
       <header className="space-y-2">
-        <h1 className="text-3xl font-medium">{detail.category.name}</h1>
+        <h1 className="flex flex-wrap items-center gap-3 text-3xl font-medium">
+          {detail.category.name}
+          {detail.category.state && detail.category.state !== "active" && (
+            <Badge variant={detail.category.state === "draft" ? "warning" : "secondary"}>
+              {t(`values.${detail.category.state}`)}
+            </Badge>
+          )}
+        </h1>
         <p className="text-muted-foreground max-w-prose">{detail.category.description}</p>
       </header>
       {detail.permissions.capabilities.includes("category.update") && (

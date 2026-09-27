@@ -83,7 +83,7 @@ owning code.
 | SPEC-021 | code-backed | `slices/catalog`, `tests/support/catalog_seed.py` |
 | SPEC-022 | code-backed | `apps/web` app shell, landing, anonymous catalog |
 | SPEC-023 | code-backed | `apps/web` account area + `slices/auth` |
-| SPEC-024 | code-backed | `deploy/`, Dockerfiles, `infra-*` recipes |
+| SPEC-024 | code-backed | `deploy/` (compose + `docker/`), `infra-*` recipes |
 | SPEC-025 | code-backed | `slices/sync`, CLI `local/sync_*` |
 | SPEC-026 | code-backed | `slices/publish`, `slices/grants`, `slices/reports` |
 | SPEC-027 | code-backed | `apps/web` owned-objects UI |

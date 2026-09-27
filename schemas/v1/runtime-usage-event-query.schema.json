@@ -22,6 +22,22 @@
   "additionalProperties": false,
   "description": "Drill-down filters over redacted event rows; separately permissioned.",
   "properties": {
+    "activity_kind": {
+      "anyOf": [
+        {
+          "enum": [
+            "invocation",
+            "load"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Activity Kind"
+    },
     "component_kind": {
       "anyOf": [
         {
@@ -59,6 +75,19 @@
       "default": null,
       "title": "Component Stable Id"
     },
+    "component_version": {
+      "anyOf": [
+        {
+          "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Component Version"
+    },
     "device_id": {
       "anyOf": [
         {
@@ -72,6 +101,11 @@
       ],
       "default": null,
       "title": "Device Id"
+    },
+    "direct_only": {
+      "default": false,
+      "title": "Direct Only",
+      "type": "boolean"
     },
     "employee_id": {
       "anyOf": [
@@ -126,6 +160,47 @@
       "title": "Limit",
       "type": "integer"
     },
+    "local_day": {
+      "anyOf": [
+        {
+          "format": "date",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Local Day"
+    },
+    "local_hour": {
+      "anyOf": [
+        {
+          "maximum": 23,
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Local Hour"
+    },
+    "local_weekday": {
+      "anyOf": [
+        {
+          "maximum": 6,
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Local Weekday"
+    },
     "offset": {
       "default": 0,
       "minimum": 0,
@@ -175,6 +250,35 @@
       ],
       "default": null,
       "title": "Setup Stable Id"
+    },
+    "setup_version": {
+      "anyOf": [
+        {
+          "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Setup Version"
+    },
+    "source": {
+      "anyOf": [
+        {
+          "enum": [
+            "native_hook",
+            "agent_reported"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Source"
     },
     "team_id": {
       "anyOf": [

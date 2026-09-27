@@ -134,12 +134,18 @@ export function TechnologyRegistryCreate({
     };
     const effect = JSON.stringify(metadata);
     if (retry.current?.effect !== effect) retry.current = { effect, key: crypto.randomUUID() };
+    const requestedState = text("state");
     const body: CategoryWriteRequest | TechnologyWriteRequest = {
       schema_version: 1,
       expected_revision: recordRevision.current,
       authorization_revision: authorizationRevision,
       idempotency_key: retry.current.key,
       metadata,
+      ...(kind === "category" &&
+      !record &&
+      (requestedState === "draft" || requestedState === "active")
+        ? { state: requestedState }
+        : {}),
     };
     setMessage(null);
     startTransition(async () => {
@@ -202,6 +208,7 @@ export function TechnologyRegistryCreate({
             defaultValue={record?.description}
           />
         </div>
+        {kind === "category" && !record && <CategoryStateField prefix={prefix} />}
         {kind === "technology" && (
           <TechnologyFields prefix={prefix} categories={categories} initial={initial} />
         )}
@@ -227,6 +234,24 @@ export function TechnologyRegistryCreate({
         </p>
       )}
     </form>
+  );
+}
+
+function CategoryStateField({ prefix }: { prefix: string }) {
+  const t = useTranslations("technology");
+  return (
+    <div className="space-y-2">
+      <Label htmlFor={`${prefix}-state`}>{t("categoryState")}</Label>
+      <select
+        id={`${prefix}-state`}
+        name="state"
+        defaultValue="active"
+        className="border-input bg-background text-foreground focus-visible:ring-ring h-11 w-full rounded-sm border px-3 text-sm focus-visible:ring-2"
+      >
+        <option value="active">{t("values.active")}</option>
+        <option value="draft">{t("values.draft")}</option>
+      </select>
+    </div>
   );
 }
 

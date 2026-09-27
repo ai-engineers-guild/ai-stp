@@ -522,6 +522,30 @@ def maybe_send_due(
         if scheduled:
             with suppress(Exception):
                 _update_scheduler_interval(organization_id, current_policy.interval_seconds)
+        with suppress(Exception):
+            from ai_stp_cli.application import usage_outbox
+
+            with closing(
+                usage_outbox.connect(usage_outbox.scoped_path(session.account_id, organization_id))
+            ) as outbox:
+                usage_outbox.save_policy(
+                    outbox,
+                    enabled=current_policy.usage_collection_enabled,
+                    required=current_policy.usage_registration_required,
+                )
+                if current_policy.usage_collection_enabled:
+                    from ai_stp_cli import runtime_usage
+                    from ai_stp_contracts.runtime_usage import RuntimeUsageEvent
+
+                    usage_outbox.flush(
+                        outbox,
+                        lambda batch: runtime_usage.submit_events(
+                            target,
+                            session.access_token,
+                            organization_id,
+                            [RuntimeUsageEvent.model_validate(item) for item in batch],
+                        ),
+                    )
         if not current_policy.enabled:
             _finish_attempt(
                 organization_id,
@@ -540,6 +564,37 @@ def maybe_send_due(
             attempts=2 if scheduled else 1,
             timeout=AUTO_TIMEOUT_SECONDS,
         )
+        if current_policy.inventory_scan_enabled:
+            from ai_stp_cli.application import installation_inventory
+
+            with (
+                suppress(Exception),
+                closing(open_registry(configured_path(), create=True)) as registry,
+            ):
+                installation_inventory.enqueue(
+                    registry,
+                    organization_id=organization_id,
+                    account_id=session.account_id,
+                    device_id=session.device_id,
+                )
+            with suppress(Exception):
+                installation_inventory.sync(
+                    target,
+                    session,
+                    organization_id,
+                    timeout=AUTO_TIMEOUT_SECONDS,
+                    attempts=1,
+                )
+        with suppress(Exception):
+            from ai_stp_cli.application import installation_usage
+
+            installation_usage.sync(
+                target,
+                session,
+                organization_id,
+                timeout=AUTO_TIMEOUT_SECONDS,
+                attempts=1,
+            )
     except Exception:
         _finish_attempt(
             organization_id,

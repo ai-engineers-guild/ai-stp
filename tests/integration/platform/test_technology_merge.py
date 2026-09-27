@@ -340,7 +340,8 @@ async def test_merge_conflict_preflight_then_retains_pairs_and_history(
         search="Bun",
         request_id="merge-test",
     )
-    assert registry.total == 1 and registry.items[0].technology_id == target
+    listed = {item.technology_id for item in registry.items}
+    assert target in listed and source not in listed
     landscape = await read_landscape(
         db_session,
         ctx=ctx,

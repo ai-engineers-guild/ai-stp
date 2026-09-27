@@ -255,6 +255,12 @@ from ai_stp_contracts.grants import (
 )
 from ai_stp_contracts.health import LivenessResponse, ReadinessResponse
 from ai_stp_contracts.heartbeat import (
+    HeartbeatReport,
+    HeartbeatReportBucket,
+    HeartbeatReportEmployee,
+    HeartbeatReportQuery,
+    HeartbeatReportRow,
+    HeartbeatReportTeam,
     InstallationHeartbeat,
     InstallationHeartbeatList,
     InstallationHeartbeatPolicy,
@@ -278,6 +284,14 @@ from ai_stp_contracts.impact import (
     BlastRadiusReport,
     SelectionImpactReport,
 )
+from ai_stp_contracts.installation_inventory import (
+    InstallationInventoryBatch,
+    InstallationInventoryReceipt,
+)
+from ai_stp_contracts.installation_usage import (
+    InstallationOperationBatch,
+    InstallationOperationReceipt,
+)
 from ai_stp_contracts.machine_help import (
     AuthStatus,
     Capabilities,
@@ -298,6 +312,7 @@ from ai_stp_contracts.machine_help import (
     CliTechnologyMappings,
     CliTechnologyReview,
     CliTechnologyScan,
+    CliTechnologyUnmapped,
     ComponentMaterializePlan,
     ComponentMaterializeResult,
     ComponentPassportSuggestions,
@@ -379,6 +394,8 @@ from ai_stp_contracts.machine_help import (
     TaskListView,
     TaskPublishInput,
     TaskSwitchInput,
+    TaskTechnologyInput,
+    TaskTechnologyOutcome,
     TaskView,
     TelemetryStatus,
     ToolchainProfile,
@@ -508,6 +525,7 @@ from ai_stp_contracts.technology import (
     TechnologyLifecycleRequest,
     TechnologyList,
     TechnologyListQuery,
+    TechnologyMappingList,
     TechnologyMappingRequest,
     TechnologyMappingView,
     TechnologyMergePlanQuery,
@@ -523,6 +541,9 @@ from ai_stp_contracts.technology import (
     TechnologyTeamList,
     TechnologyTeamView,
     TechnologyTeamWriteRequest,
+    TechnologyUnmappedEntry,
+    TechnologyUnmappedReviewRequest,
+    TechnologyUnmappedView,
     TechnologyView,
     TechnologyWriteRequest,
 )
@@ -557,6 +578,10 @@ from ai_stp_foundation.schemas import ExportedSchema, check, schema_id, write
 #: The `/v1` HTTP boundary. Every one of these is served by a route, and a test
 #: rejects any that is not.
 HTTP_MODELS: Final[dict[str, ExportedSchema]] = {
+    "installation-operation-batch": InstallationOperationBatch,
+    "installation-operation-receipt": InstallationOperationReceipt,
+    "installation-inventory-batch": InstallationInventoryBatch,
+    "installation-inventory-receipt": InstallationInventoryReceipt,
     "employee-technology-request": EmployeeTechnologyRequest,
     "employee-technology-list": EmployeeTechnologyList,
     "employee-technology-view": EmployeeTechnologyView,
@@ -564,6 +589,10 @@ HTTP_MODELS: Final[dict[str, ExportedSchema]] = {
     "technology-scan-view": TechnologyScanView,
     "technology-mapping-request": TechnologyMappingRequest,
     "technology-mapping-view": TechnologyMappingView,
+    "technology-unmapped-view": TechnologyUnmappedView,
+    "technology-unmapped-entry": TechnologyUnmappedEntry,
+    "technology-unmapped-review-request": TechnologyUnmappedReviewRequest,
+    "technology-mapping-list": TechnologyMappingList,
     "technology-scan-request": TechnologyScanRequest,
     "technology-scan-result": TechnologyScanResult,
     "technology-seed-request": TechnologySeedRequest,
@@ -836,6 +865,12 @@ HTTP_MODELS: Final[dict[str, ExportedSchema]] = {
     "installation-heartbeat-status": InstallationHeartbeatStatus,
     "installation-heartbeat-list": InstallationHeartbeatList,
     "installation-heartbeat-policy": InstallationHeartbeatPolicy,
+    "heartbeat-report-team": HeartbeatReportTeam,
+    "heartbeat-report-employee": HeartbeatReportEmployee,
+    "heartbeat-report-bucket": HeartbeatReportBucket,
+    "heartbeat-report-row": HeartbeatReportRow,
+    "heartbeat-report": HeartbeatReport,
+    "heartbeat-report-query": HeartbeatReportQuery,
     "corporate-ci-check-request": CorporateCiCheckRequest,
     "corporate-ci-check-view": CorporateCiCheckView,
     "dashboard-query-request": DashboardQueryRequest,
@@ -922,6 +957,7 @@ CLI_MODELS: Final[dict[str, ExportedSchema]] = {
     "cli-technology-findings": CliTechnologyFindings,
     "cli-technology-review": CliTechnologyReview,
     "cli-technology-mappings": CliTechnologyMappings,
+    "cli-technology-unmapped": CliTechnologyUnmapped,
     "cli-version-line": VersionLine,
     "cli-skill-delivery": SkillDelivery,
     "cli-sync-preview": SyncPreview,
@@ -1007,6 +1043,8 @@ CLI_MODELS: Final[dict[str, ExportedSchema]] = {
     "cli-task-input-switch": TaskSwitchInput,
     "cli-task-input-account": TaskAccountInput,
     "cli-task-input-publish": TaskPublishInput,
+    "cli-task-input-technology": TaskTechnologyInput,
+    "cli-task-outcome-technology": TaskTechnologyOutcome,
     "cli-task-intents": TaskIntentsCatalog,
     "cli-task-list": TaskListView,
     "cli-schema-index": CliSchemaIndex,

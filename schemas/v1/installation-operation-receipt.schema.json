@@ -1,0 +1,45 @@
+{
+  "$id": "urn:ai-stp:schema:v1:installation-operation-receipt",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "properties": {
+    "accepted_ids": {
+      "items": {
+        "pattern": "^operation_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+        "type": "string"
+      },
+      "title": "Accepted Ids",
+      "type": "array"
+    },
+    "duplicate_ids": {
+      "items": {
+        "pattern": "^operation_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+        "type": "string"
+      },
+      "title": "Duplicate Ids",
+      "type": "array"
+    },
+    "rejected_ids": {
+      "items": {
+        "pattern": "^operation_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+        "type": "string"
+      },
+      "title": "Rejected Ids",
+      "type": "array"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "accepted_ids",
+    "duplicate_ids",
+    "rejected_ids",
+    "schema_version"
+  ],
+  "title": "InstallationOperationReceipt",
+  "type": "object"
+}

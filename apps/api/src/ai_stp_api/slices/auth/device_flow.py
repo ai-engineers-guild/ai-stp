@@ -10,6 +10,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ai_stp_api.errors import ApiError, ErrorCategory
+from ai_stp_api.geoip import approximate_location
 from ai_stp_api.session import issue_session
 from ai_stp_api.settings import AuthSettings
 from ai_stp_api.slices.devices.crypto import normalize_public_key
@@ -152,6 +153,8 @@ async def exchange_device_code(
     device_id: str,
     public_key: str,
     display_name: str,
+    user_agent: str | None = None,
+    client_ip: str | None = None,
 ) -> dict[str, object]:
     """Poll endpoint: pending/expired/declined as typed errors; success binds device."""
     row = await db.get(DeviceAuthorization, device_code)
@@ -250,6 +253,8 @@ async def exchange_device_code(
         device.last_seen_at = now
         if display_name:
             device.display_name = display_name
+    device.user_agent = user_agent
+    device.approximate_location = approximate_location(client_ip, auth.geoip_city_db_path)
     await db.flush()
 
     access_ttl = min(auth.session_ttl_seconds, ACCESS_TTL_CAP)

@@ -97,7 +97,7 @@ def test_the_two_builds_are_declared_and_ordered() -> None:
     Reversing them ships one language and hides it behind a green build, which
     is why the order is asserted rather than trusted to a comment.
     """
-    for name in ("justfile", "Dockerfile.user-docs"):
+    for name in ("justfile", "deploy/docker/Dockerfile.docs"):
         text = (ROOT / name).read_text(encoding="utf-8")
         russian = text.find("user-mkdocs.yml")
         english = text.find("user-mkdocs.en.yml")
@@ -110,5 +110,5 @@ def test_the_two_builds_are_declared_and_ordered() -> None:
     dev = (ROOT / "docs_scripts" / "user_docs_dev.py").read_text(encoding="utf-8")
     assert "user-mkdocs.yml" in dev and "user-mkdocs.en.yml" in dev
     assert dev.find("user-mkdocs.yml") < dev.find("user-mkdocs.en.yml")
-    dockerfile = (ROOT / "Dockerfile.user-docs").read_text(encoding="utf-8")
+    dockerfile = (ROOT / "deploy/docker/Dockerfile.docs").read_text(encoding="utf-8")
     assert "user_docs_dev.py" in dockerfile
