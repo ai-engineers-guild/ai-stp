@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "cli_version": "0.0.0-pinned",
-  "registry_digest": "sha256:92534e4e335e881c332f8d8511317ffcc171771c6b09839262ec4db1d3f5b199",
+  "registry_digest": "sha256:5fcab361fb87cce4835ed9f5a06da46e3ec52f12bb59a7a59e82192786ff628d",
   "global_options": [
     {
       "name": "json",
@@ -6107,6 +6107,110 @@
       "path": [
         "project",
         "technology",
+        "apply"
+      ],
+      "summary": "Extend the organization's mapping snapshot with reviewed coordinates: one triple or an entries document, over a base version.",
+      "mutability": "apply",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "organization",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Explicit remote organization.",
+          "choices": []
+        },
+        {
+          "name": "kind",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Coordinate kind.",
+          "choices": [
+            "package",
+            "image",
+            "executable",
+            "configuration",
+            "alias"
+          ]
+        },
+        {
+          "name": "coordinate",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "The coordinate to map.",
+          "choices": []
+        },
+        {
+          "name": "technology-id",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Canonical technology_<ulid> the coordinate resolves to.",
+          "choices": []
+        },
+        {
+          "name": "entries",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "JSON/YAML document of {kind, coordinate, technology_id, provenance} rows.",
+          "choices": []
+        },
+        {
+          "name": "base-version",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Snapshot to extend. Defaults to the cached latest organization snapshot.",
+          "choices": []
+        },
+        {
+          "name": "version",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "New immutable snapshot name. Derived from the entries when omitted.",
+          "choices": []
+        },
+        {
+          "name": "authorization-revision",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Revision from the selected capability projection.",
+          "choices": []
+        },
+        {
+          "name": "idempotency-key",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Stable key for this exact publication.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:technology-mapping-view",
+      "next_actions": [
+        "project technology unmapped-remote --organization <id> --json"
+      ]
+    },
+    {
+      "path": [
+        "project",
+        "technology",
         "confirm"
       ],
       "summary": "Confirm one finding: it is a real usage of what it names.",
@@ -6184,6 +6288,157 @@
       "path": [
         "project",
         "technology",
+        "create"
+      ],
+      "summary": "Create a technology record in the organization's registry.",
+      "mutability": "apply",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "organization",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Explicit remote organization.",
+          "choices": []
+        },
+        {
+          "name": "name",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Canonical technology name.",
+          "choices": []
+        },
+        {
+          "name": "category-id",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": true,
+          "summary": "Governing category_<ulid>. Repeatable — at least one is required.",
+          "choices": []
+        },
+        {
+          "name": "description",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "What the technology is.",
+          "choices": []
+        },
+        {
+          "name": "active",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": false,
+          "repeatable": false,
+          "summary": "Publish the record immediately instead of leaving it a draft.",
+          "choices": []
+        },
+        {
+          "name": "authorization-revision",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Revision from the selected capability projection.",
+          "choices": []
+        },
+        {
+          "name": "idempotency-key",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Stable key for this exact creation.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:technology-view",
+      "next_actions": [
+        "project technology propose --organization <id> --kind <k> --coordinate <c> --technology-id <t> --authorization-revision <n> --idempotency-key <key> --json"
+      ]
+    },
+    {
+      "path": [
+        "project",
+        "technology",
+        "create-category"
+      ],
+      "summary": "Create a technology category — a draft unless --active is given.",
+      "mutability": "apply",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "organization",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Explicit remote organization.",
+          "choices": []
+        },
+        {
+          "name": "name",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Governed category name.",
+          "choices": []
+        },
+        {
+          "name": "description",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "What the category groups.",
+          "choices": []
+        },
+        {
+          "name": "active",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": false,
+          "repeatable": false,
+          "summary": "Publish the category immediately instead of leaving it a draft.",
+          "choices": []
+        },
+        {
+          "name": "authorization-revision",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Revision from the selected capability projection.",
+          "choices": []
+        },
+        {
+          "name": "idempotency-key",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Stable key for this exact creation.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:technology-category-view",
+      "next_actions": [
+        "project technology create --organization <id> --name <n> --category-id <c> --authorization-revision <n> --idempotency-key <key> --json"
+      ]
+    },
+    {
+      "path": [
+        "project",
+        "technology",
         "mappings",
         "fetch"
       ],
@@ -6239,6 +6494,115 @@
       ],
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-technology-mappings",
+      "next_actions": [
+        "project technology mappings fetch --organization <id> --version <v> --json"
+      ]
+    },
+    {
+      "path": [
+        "project",
+        "technology",
+        "mappings",
+        "publish"
+      ],
+      "summary": "Publish one immutable organization coordinate mapping: an entries document or the bundled seed table.",
+      "mutability": "apply",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "organization",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Explicit remote organization.",
+          "choices": []
+        },
+        {
+          "name": "version",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Exact immutable snapshot version to write.",
+          "choices": []
+        },
+        {
+          "name": "entries",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "JSON/YAML document of {kind, coordinate, technology_id, provenance} rows.",
+          "choices": []
+        },
+        {
+          "name": "seed",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": false,
+          "repeatable": false,
+          "summary": "Publish the bundled seed coordinate table as the snapshot.",
+          "choices": []
+        },
+        {
+          "name": "authorization-revision",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Revision from the selected capability projection.",
+          "choices": []
+        },
+        {
+          "name": "idempotency-key",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Stable key for this exact publication.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [
+        {
+          "kind": "exactly_one",
+          "parameters": [
+            "entries",
+            "seed"
+          ],
+          "when_parameter": "",
+          "when_values": []
+        }
+      ],
+      "result_schema": "urn:ai-stp:schema:v1:technology-mapping-view",
+      "next_actions": [
+        "project technology mappings fetch --organization <id> --version <v> --json"
+      ]
+    },
+    {
+      "path": [
+        "project",
+        "technology",
+        "mappings",
+        "remote"
+      ],
+      "summary": "List every mapping snapshot the organization published.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "organization",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Explicit remote organization.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:technology-mapping-list",
       "next_actions": [
         "project technology mappings fetch --organization <id> --version <v> --json"
       ]
@@ -6336,6 +6700,102 @@
       "result_schema": "urn:ai-stp:schema:v1:cli-technology-review",
       "next_actions": [
         "project technologies --project <id> --json"
+      ]
+    },
+    {
+      "path": [
+        "project",
+        "technology",
+        "propose"
+      ],
+      "summary": "Propose or clear the candidate technology for one queued unmapped coordinate — a suggestion for review, not a mapping.",
+      "mutability": "apply",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "organization",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Explicit remote organization.",
+          "choices": []
+        },
+        {
+          "name": "kind",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Coordinate kind.",
+          "choices": [
+            "package",
+            "image",
+            "executable",
+            "configuration",
+            "alias"
+          ]
+        },
+        {
+          "name": "coordinate",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "The unresolved coordinate.",
+          "choices": []
+        },
+        {
+          "name": "technology-id",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Canonical technology_<ulid> proposed for the coordinate.",
+          "choices": []
+        },
+        {
+          "name": "clear",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": false,
+          "repeatable": false,
+          "summary": "Drop the queued coordinate's candidate.",
+          "choices": []
+        },
+        {
+          "name": "authorization-revision",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Revision from the selected capability projection.",
+          "choices": []
+        },
+        {
+          "name": "idempotency-key",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Stable key for this exact review.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [
+        {
+          "kind": "exactly_one",
+          "parameters": [
+            "technology-id",
+            "clear"
+          ],
+          "when_parameter": "",
+          "when_values": []
+        }
+      ],
+      "result_schema": "urn:ai-stp:schema:v1:technology-unmapped-entry",
+      "next_actions": [
+        "project technology apply --organization <id> --kind <k> --coordinate <c> --technology-id <t> --authorization-revision <n> --idempotency-key <key> --json"
       ]
     },
     {
@@ -6527,6 +6987,77 @@
       "path": [
         "project",
         "technology",
+        "resolve"
+      ],
+      "summary": "Execute a decisions document against the organization's review queue: propose candidates, create records, publish a derived snapshot — one call for the whole list.",
+      "mutability": "apply",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "organization",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Explicit remote organization.",
+          "choices": []
+        },
+        {
+          "name": "decisions",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "JSON/YAML document of review decisions (kind, coordinate, technology-id or technology-name, mode).",
+          "choices": []
+        },
+        {
+          "name": "base-version",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Snapshot apply decisions extend. Defaults to the cached latest.",
+          "choices": []
+        },
+        {
+          "name": "version",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "New immutable snapshot name. Derived from the entries when omitted.",
+          "choices": []
+        },
+        {
+          "name": "authorization-revision",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Revision from the selected capability projection.",
+          "choices": []
+        },
+        {
+          "name": "idempotency-key",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Stable key for this exact resolution.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-task-outcome-technology",
+      "next_actions": [
+        "project technology unmapped-remote --organization <id> --json"
+      ]
+    },
+    {
+      "path": [
+        "project",
+        "technology",
         "retire"
       ],
       "summary": "Retire one finding: it was a usage and no longer is.",
@@ -6598,6 +7129,96 @@
       "result_schema": "urn:ai-stp:schema:v1:cli-technology-review",
       "next_actions": [
         "project technologies --project <id> --json"
+      ]
+    },
+    {
+      "path": [
+        "project",
+        "technology",
+        "unmapped"
+      ],
+      "summary": "List the stored coordinates the effective mapping cannot resolve for one local project — the registry review queue.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "project",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Stable local project identifier.",
+          "choices": []
+        },
+        {
+          "name": "root",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Project root to resolve the identifier from.",
+          "choices": []
+        },
+        {
+          "name": "scope",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Named scan scope the findings belong to. Defaults to 'repository'.",
+          "choices": []
+        },
+        {
+          "name": "organization",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Remote organization whose cached mapping also applies to resolution.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [
+        {
+          "kind": "exactly_one",
+          "parameters": [
+            "project",
+            "root"
+          ],
+          "when_parameter": "",
+          "when_values": []
+        }
+      ],
+      "result_schema": "urn:ai-stp:schema:v1:cli-technology-unmapped",
+      "next_actions": [
+        "project technology unmapped-remote --organization <id> --json",
+        "project technology mappings publish --organization <id> --version <v> --seed --authorization-revision <n> --idempotency-key <key> --json"
+      ]
+    },
+    {
+      "path": [
+        "project",
+        "technology",
+        "unmapped-remote"
+      ],
+      "summary": "Read the organization's unmapped-coordinate queue: every coordinate published scans left unresolved.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "organization",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Explicit remote organization.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:technology-unmapped-view",
+      "next_actions": [
+        "project technology mappings publish --organization <id> --version <v> --entries <file> --authorization-revision <n> --idempotency-key <key> --json"
       ]
     },
     {
@@ -10903,7 +11524,8 @@
             "author",
             "switch",
             "account",
-            "publish"
+            "publish",
+            "technology"
           ]
         },
         {

@@ -512,6 +512,15 @@
           "pattern": "^[A-Za-z0-9._/-]+$",
           "title": "Scope",
           "type": "string"
+        },
+        "unmapped_coordinates": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/TechnologyUnmappedCoordinate"
+          },
+          "maxItems": 512,
+          "title": "Unmapped Coordinates",
+          "type": "array"
         }
       },
       "required": [
@@ -523,6 +532,36 @@
         "observations"
       ],
       "title": "TechnologyScanHandoff",
+      "type": "object"
+    },
+    "TechnologyUnmappedCoordinate": {
+      "additionalProperties": false,
+      "description": "A coordinate the applied mapping did not resolve — the registry's review queue.\n\nUnmapped coordinates are observations, not identities: the platform retains\nthem so an organization can see what its mapping does not yet name and grow\nthe registry from evidence instead of guesswork.",
+      "properties": {
+        "coordinate": {
+          "maxLength": 512,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9._:/@+*-]+$",
+          "title": "Coordinate",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "package",
+            "image",
+            "executable",
+            "configuration",
+            "alias"
+          ],
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "coordinate"
+      ],
+      "title": "TechnologyUnmappedCoordinate",
       "type": "object"
     },
     "TechnologyUsageFact": {

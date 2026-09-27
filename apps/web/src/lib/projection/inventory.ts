@@ -111,6 +111,7 @@ export const PAGE_INVENTORY: readonly PageInventoryEntry[] = [
     presenter: "domain",
   },
   { pattern: "corporate/technology-landscape", access: "session", presenter: "domain" },
+  { pattern: "corporate/technology-mappings", access: "session", presenter: "domain" },
   { pattern: "corporate/:resource/:resourceId", access: "session", presenter: "domain" },
   { pattern: "corporate/:resource/:resourceId/edit", access: "session", presenter: "domain" },
   { pattern: "devices", access: "session", presenter: "domain" },

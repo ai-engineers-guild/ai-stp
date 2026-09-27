@@ -17,13 +17,15 @@ const landscape = [
   { key: "components", href: "/corporate/catalog" },
   { key: "technologies", href: "/corporate/technology-landscape" },
   { key: "categories", href: "/corporate/categories" },
+  { key: "mappings", href: "/corporate/technology-mappings" },
 ] as const;
 
 export function CorporateHubNavigation({ capabilities }: { capabilities: readonly string[] }) {
   const t = useTranslations("hub");
   const path = usePathname();
   if (path === "/corporate") return null;
-  const inLandscape = /\/corporate\/(catalog|categories|technology-landscape)(?:\/|$)/.test(path);
+  const inLandscape =
+    /\/corporate\/(catalog|categories|technology-landscape|technology-mappings)(?:\/|$)/.test(path);
   const inOrganization =
     /\/corporate\/(organization|employees|projects|teams|technologies|reports)(?:\/|$)/.test(path);
   const isOverview = path === "/corporate/overview";

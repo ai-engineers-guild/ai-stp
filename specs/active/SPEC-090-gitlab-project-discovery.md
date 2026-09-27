@@ -1,6 +1,6 @@
 ---
 description: "SPEC-090: Tenant-scoped GitLab repository observation over canonical project identity."
-last_verified: "2026-09-22"
+last_verified: "2026-09-26"
 ---
 
 # SPEC-090: GitLab project discovery
@@ -37,6 +37,8 @@ existing proposed-fact publication service.
   returns at most 500 repositories with immutable numeric IDs, exact namespace,
   path, URL, default branch, and activity time. The runtime credential is not a
   request, response, audit, passport, or log field.
+  Pagination keeps one page size for the whole request and truncates the final
+  page locally; non-multiple-of-100 limits do not repeat earlier repositories.
 - `REQ-9003`: Register requires `project.create`; refresh and disconnect require
   `project.update`. Mutations check capability revision, expected identity revision,
   and idempotency key. They append a bounded audit record.

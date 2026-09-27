@@ -92,7 +92,16 @@ def test_binary_content_is_excluded_by_the_rule_git_uses(tmp_path: Path) -> None
 
 def test_excluded_directories_never_reach_the_index(tmp_path: Path) -> None:
     root = _tree(tmp_path / "project")
-    for name in ("node_modules", ".git", "__pycache__", "dist", ".venv"):
+    for name in (
+        "node_modules",
+        ".git",
+        "__pycache__",
+        "dist",
+        ".venv",
+        ".hypothesis",
+        ".next",
+        ".cache",
+    ):
         place = root / name
         place.mkdir()
         (place / "thing.py").write_text("x = 1\n", encoding="utf-8")
@@ -100,7 +109,9 @@ def test_excluded_directories_never_reach_the_index(tmp_path: Path) -> None:
     built = project_index.build(root)
     paths = {item.path for item in built.entries}
     assert not any(
-        path.split("/")[0] in {"node_modules", ".git", "dist", ".venv"} for path in paths
+        path.split("/")[0]
+        in {"node_modules", ".git", "dist", ".venv", ".hypothesis", ".next", ".cache"}
+        for path in paths
     )
     reasons = {item.path: item.reason for item in built.excluded}
     assert reasons["node_modules"] == "excluded directory"

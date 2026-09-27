@@ -38,6 +38,9 @@ import type {
   CorporateDirectoryReference,
   DashboardQuery,
   DashboardView,
+  TechnologyMappingEntry,
+  TechnologyMappingView,
+  TechnologyUnmappedEntry,
 } from "./generated/types.gen";
 import type { WorkspaceMockResult } from "./mock-workspace";
 
@@ -195,6 +198,62 @@ const technologies: TechnologyView[] = technologySpecs.map(([id, name, category]
   available_actions: [],
 }));
 const technologyById = new Map(technologies.map((item) => [item.technology_id, item]));
+// Server actions and page renders can load separate module instances (dev
+// compilers, per-entry server chunks); hoist mutable review state so every
+// instance observes the same queue.
+const sharedMockState = globalThis as {
+  __aiStpMockUnmapped?: TechnologyUnmappedEntry[];
+  __aiStpMockMappings?: TechnologyMappingView[];
+};
+const unmappedCoordinates: TechnologyUnmappedEntry[] = (sharedMockState.__aiStpMockUnmapped ??= [
+  {
+    kind: "package",
+    coordinate: "package:github.com/jackc/pgx/v5",
+    candidate_technology_id: "technology_01JQZK7B8N4M6P2R9T5V0X3Y2B",
+    resolved_technology_id: null,
+    project_ids: [projectViews[0]!.project_id],
+    state: "open",
+  },
+  {
+    kind: "package",
+    coordinate: "package:github.com/pressly/goose/v3",
+    candidate_technology_id: null,
+    resolved_technology_id: null,
+    project_ids: [projectViews[0]!.project_id, projectViews[1]!.project_id],
+    state: "open",
+  },
+  {
+    kind: "image",
+    coordinate: "image:harbor.internal/goose-migrations:v3.24",
+    candidate_technology_id: null,
+    resolved_technology_id: null,
+    project_ids: [projectViews[0]!.project_id],
+    state: "open",
+  },
+  {
+    kind: "package",
+    coordinate: "package:github.com/ogen-go/ogen",
+    candidate_technology_id: null,
+    resolved_technology_id: "technology_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+    project_ids: [projectViews[2]!.project_id],
+    state: "resolved",
+  },
+]);
+const mappingSnapshots: TechnologyMappingView[] = (sharedMockState.__aiStpMockMappings ??= [
+  {
+    digest: "sha256:fixture-mapping-v1",
+    entries: [
+      {
+        coordinate: "package:github.com/ogen-go/ogen",
+        kind: "package",
+        provenance: "review",
+        technology_id: "technology_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+      },
+    ],
+    organization_id: organization.organization_id,
+    version: "mapping-fixture-1",
+  },
+]);
 const projectTeamPairs = [
   [projectViews[0]!.project_id, teamViews[0]!.team_id, "owner"],
   [projectViews[1]!.project_id, teamViews[1]!.team_id, "owner"],
@@ -329,6 +388,7 @@ const capabilities = [
   "audit.list",
   "technology.list",
   "technology.read",
+  "technology.update",
   "project_team.list",
   "project_team.read",
   "project_technology.list",
@@ -337,6 +397,8 @@ const capabilities = [
   "technology_team.read",
   "category.list",
   "category.read",
+  "category.create",
+  "category.update",
   "technology_decision.read",
   "telemetry.read",
 ];
@@ -1068,7 +1130,65 @@ export function corporateHandlers(
     .flatMap(([, items]) => items)
     .find((item) => suffix === `profiles/${item.kind}/${item.id}/media`);
   if (mediaTarget) return corporateMediaUploadHandler(method, body, query, headers, mediaTarget);
+  if (suffix === "technology-unmapped-coordinates" && method === "PATCH") {
+    const patch = body as {
+      kind?: string;
+      coordinate?: string;
+      candidate_technology_id?: string | null;
+    };
+    const row = unmappedCoordinates.find(
+      (item) => item.kind === patch.kind && item.coordinate === patch.coordinate,
+    );
+    if (!row) return error(404, "AI_STP_NOT_FOUND");
+    row.candidate_technology_id = patch.candidate_technology_id ?? null;
+    return ok(row);
+  }
+  const mappingMatch = suffix.match(/^technology-mappings\/([^/]+)$/);
+  if (mappingMatch && method === "PUT") {
+    const version = decodeURIComponent(mappingMatch[1] ?? "");
+    const write = body as { entries?: TechnologyMappingEntry[] };
+    const entries = write.entries ?? [];
+    const snapshot: TechnologyMappingView = {
+      digest: `sha256:${version}`,
+      entries,
+      organization_id: organization.organization_id,
+      version,
+    };
+    mappingSnapshots.push(snapshot);
+    for (const row of unmappedCoordinates) {
+      const applied = entries.find(
+        (item) => item.kind === row.kind && item.coordinate === row.coordinate,
+      );
+      if (applied) {
+        row.state = "resolved";
+        row.resolved_technology_id = applied.technology_id;
+        row.candidate_technology_id = null;
+      }
+    }
+    return ok(snapshot);
+  }
   if (method !== "GET") return error(405, "AI_STP_VALIDATION_ERROR");
+  if (suffix === "technology-unmapped-coordinates")
+    return ok({
+      schema_version: 1,
+      organization_id: organization.organization_id,
+      coordinates: unmappedCoordinates,
+    });
+  if (suffix === "technology-mappings")
+    return ok({
+      schema_version: 1,
+      organization_id: organization.organization_id,
+      items: mappingSnapshots.map((snapshot) => ({
+        version: snapshot.version,
+        digest: snapshot.digest,
+        entries: snapshot.entries.length,
+      })),
+    });
+  if (mappingMatch) {
+    const version = decodeURIComponent(mappingMatch[1] ?? "");
+    const snapshot = mappingSnapshots.find((item) => item.version === version);
+    return snapshot ? ok(snapshot) : error(404, "AI_STP_NOT_FOUND");
+  }
   if (suffix === "context") return ok(context);
   if (suffix === "overview") return ok(overviewResponse());
   if (suffix === "directory") return corporateDirectoryResponse(query);

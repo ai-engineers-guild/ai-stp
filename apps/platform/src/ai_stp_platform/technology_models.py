@@ -41,7 +41,9 @@ class TechnologyCategory(_TenantRow, Base):
     __table_args__ = (
         UniqueConstraint("organization_id", "normalized_name", name="uq_technology_category_name"),
         CheckConstraint("revision >= 1", name="ck_technology_category_revision"),
-        CheckConstraint("state IN ('active','archived')", name="ck_technology_category_state"),
+        CheckConstraint(
+            "state IN ('draft','active','archived')", name="ck_technology_category_state"
+        ),
     )
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
     name: Mapped[str] = mapped_column(String(200), nullable=False)
@@ -358,6 +360,55 @@ class TechnologyCoordinateMapping(_TenantRow, Base):
     coordinate: Mapped[str] = mapped_column(String(512), primary_key=True)
     technology_id: Mapped[str] = mapped_column(String(64), primary_key=True)
     provenance: Mapped[str] = mapped_column(String(256), nullable=False)
+
+
+class TechnologyUnmappedCoordinate(_TenantRow, Base):
+    """A coordinate a published scan reported that its mapping did not resolve.
+
+    This is the registry's review queue: it is evidence, not an identity, and a
+    scan rewrite replaces the project's rows for the reported scope.
+    """
+
+    __tablename__ = "technology_unmapped_coordinate"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["organization_id", "project_id", "project_namespace"],
+            [
+                "project_identity.organization_id",
+                "project_identity.id",
+                "project_identity.namespace",
+            ],
+            ondelete="RESTRICT",
+        ),
+        CheckConstraint(
+            "kind IN ('package','image','executable','configuration','alias')",
+            name="ck_unmapped_kind",
+        ),
+        CheckConstraint("project_namespace = 'remote'", name="ck_unmapped_namespace"),
+        ForeignKeyConstraint(
+            ["organization_id", "candidate_technology_id"],
+            ["technology.organization_id", "technology.id"],
+            ondelete="RESTRICT",
+            name="fk_unmapped_candidate",
+        ),
+        ForeignKeyConstraint(
+            ["organization_id", "resolved_technology_id"],
+            ["technology.organization_id", "technology.id"],
+            ondelete="RESTRICT",
+            name="fk_unmapped_resolved",
+        ),
+        Index("ix_unmapped_coordinate_scan", "organization_id", "scan_id"),
+    )
+    project_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    scope: Mapped[str] = mapped_column(String(128), primary_key=True)
+    kind: Mapped[str] = mapped_column(String(32), primary_key=True)
+    coordinate: Mapped[str] = mapped_column(String(512), primary_key=True)
+    scan_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    candidate_technology_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    resolved_technology_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    project_namespace: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="remote", server_default="remote"
+    )
 
 
 class TechnologyReference(_TenantRow, Base):

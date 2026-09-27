@@ -73,6 +73,15 @@ TASK_COVERED: Final[frozenset[tuple[str, ...]]] = _paths(
     "install resume",
     "install status",
     "install sync-results",
+    "project technology apply",
+    "project technology create",
+    "project technology create-category",
+    "project technology mappings publish",
+    "project technology mappings remote",
+    "project technology propose",
+    "project technology resolve",
+    "project technology unmapped",
+    "project technology unmapped-remote",
     "registry acquire",
     "setup compose apply",
     "setup preserve plan",
@@ -376,7 +385,16 @@ EVERYDAY_FORBIDDEN_WAYBACK: Final[tuple[str, ...]] = (
     "project technology retire",
     "project technology mappings list",
     "project technology mappings fetch",
+    "project technology mappings publish",
+    "project technology mappings remote",
     "project technology publish",
+    "project technology apply",
+    "project technology create",
+    "project technology create-category",
+    "project technology propose",
+    "project technology resolve",
+    "project technology unmapped",
+    "project technology unmapped-remote",
     "provider network",
     "provider fetch",
     "provider forget",
@@ -579,6 +597,8 @@ def everyday_intent(path: tuple[str, ...]) -> str | None:
         return "install"
     if path[:2] == ("setup", "import"):
         return "author"
+    if path[:2] == ("project", "technology"):
+        return "technology"
     if path[0] == "registry":
         return "install"
     return intent_for_command_prefix(path)

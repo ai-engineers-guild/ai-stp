@@ -191,8 +191,8 @@ class GitLabClient:
         if not 1 <= limit <= 500:
             raise GitLabError("gitlab_limit_invalid")
         repositories: list[GitLabRepository] = []
+        count = min(100, limit)
         for page in range(1, (limit - 1) // 100 + 2):
-            count = min(100, limit - len(repositories))
             data = await self._get(
                 "projects",
                 token=token,
@@ -206,7 +206,7 @@ class GitLabClient:
             repositories.extend(_repository(item, base_url=self.base_url) for item in rows)
             if len(rows) < count:
                 break
-        return repositories
+        return repositories[:limit]
 
     async def repository(self, repository_id: int, *, token: str) -> GitLabRepository:
         repository_id = _positive_id(repository_id)

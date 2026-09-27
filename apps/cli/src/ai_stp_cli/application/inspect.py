@@ -33,6 +33,7 @@ from ai_stp_contracts.machine_help import (
     TaskOrientation,
     TaskPublishInput,
     TaskSwitchInput,
+    TaskTechnologyInput,
 )
 from ai_stp_foundation.harnesses import HARNESS_IDS
 from ai_stp_foundation.schemas import schema_id
@@ -46,6 +47,7 @@ SHIPPED_INTENT_NAMES: Final[tuple[str, ...]] = (
     "switch",
     "account",
     "publish",
+    "technology",
 )
 #: The validation model behind each intent's `--input` document. `task start`
 #: validates through this table, so the catalog, the JSON Schemas and the
@@ -59,6 +61,7 @@ INTENT_INPUT_MODELS: Final[dict[str, type[BaseModel]]] = {
     "switch": TaskSwitchInput,
     "account": TaskAccountInput,
     "publish": TaskPublishInput,
+    "technology": TaskTechnologyInput,
 }
 
 #: When-to-call guidance per intent, in `SHIPPED_INTENT_NAMES` order.
@@ -96,6 +99,11 @@ INTENT_WHEN: Final[dict[str, str]] = {
     "publish": (
         "Call when the user wants to publish a local object. "
         "Do not type publication plan or publication confirm, and do not invent git provenance."
+    ),
+    "technology": (
+        "Call when the user wants the technology registry extended: list a "
+        "project's unmapped coordinates, or publish an organization mapping "
+        "snapshot. Do not type project detect or technology commands yourself."
     ),
 }
 

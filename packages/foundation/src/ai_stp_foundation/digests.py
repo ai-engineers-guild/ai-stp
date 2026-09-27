@@ -60,6 +60,7 @@ DIGEST_DOMAINS: Final[frozenset[str]] = frozenset(
         "ai-stp:installation-operation:v1",
         "ai-stp:corporate-inventory-location:v1",
         "ai-stp:installation-inventory:v1",
+        "ai-stp:mapping-apply:v1",
     }
 )
 

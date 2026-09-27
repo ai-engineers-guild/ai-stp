@@ -62,6 +62,22 @@
       "default": 1,
       "title": "Schema Version",
       "type": "integer"
+    },
+    "state": {
+      "anyOf": [
+        {
+          "enum": [
+            "draft",
+            "active"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "State"
     }
   },
   "required": [
