@@ -1,6 +1,6 @@
 ---
 description: "SPEC-089: Corporate telemetry privacy boundary, retention, access, and data rights."
-last_verified: "2026-09-24"
+last_verified: "2026-09-25"
 ---
 
 # SPEC-089: Telemetry privacy and governance
@@ -30,7 +30,8 @@ governed HTTP surface under `/v1/corporate/organizations/{id}/telemetry/*`.
 - `Policy` — per-tenant `raw_retention_days`, `aggregate_retention_days`,
   `legal_basis`, `notice_text`, `notice_revision`, monotonic `policy_version`.
   It also owns heartbeat enablement, send interval, retry bounds, and the
-  read-time stale threshold.
+  read-time stale threshold. `report_timezone` is a validated IANA time zone
+  (default `UTC`) used to interpret organization report days and hours.
 - `Revocation` — per-subject (`account` or `device`) record of notice, legal
   basis, and the `active`/`revoked`/`deleted` state machine.
 - `Telemetry audit` — append-only `telemetry_audit` row for every privileged
@@ -54,7 +55,8 @@ governed HTTP surface under `/v1/corporate/organizations/{id}/telemetry/*`.
 - `REQ-8905`: Retention deletes raw events older than the tenant
   `raw_retention_days` (default 90 when no policy exists) across every
   governed raw table: `telemetry_event`, stream-owned `runtime_usage_event`,
-  and coalesced `installation_heartbeat` rows. Event tables use their
+  coalesced `installation_heartbeat` rows, and `installation_heartbeat_event`.
+  Event tables use their
   occurrence/invocation timestamp; installation heartbeats use `received_at`.
   Tenants with only heartbeat rows are included in the sweep. The pass is
   idempotent and runnable per tenant or as a worker sweep; deleting an old
@@ -66,7 +68,8 @@ governed HTTP surface under `/v1/corporate/organizations/{id}/telemetry/*`.
 - `REQ-8907`: Erasure supports `delete` (physical row removal) and
   `anonymize` (identifier stripping); both are idempotent and terminal for
   the subject record. In stream-owned tables whose subject columns are NOT
-  NULL (`runtime_usage_event`, `installation_heartbeat`) both modes erase by
+  NULL (`runtime_usage_event`, `installation_heartbeat`,
+  `installation_heartbeat_event`) both modes erase by
   physical row removal; in-place anonymization exists only where the schema
   permits identifier stripping (`telemetry_event`).
 - `REQ-8908`: Policy writes are optimistic-concurrency checked through

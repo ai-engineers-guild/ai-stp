@@ -11,9 +11,9 @@ def test_web_production_context_allows_and_copies_the_canonical_fixture() -> Non
     fixture_source = (ROOT / "apps/web/src/mocks/corporate-overview-fixture.ts").read_text(
         encoding="utf-8"
     )
-    dockerfile = (ROOT / "apps/web/Dockerfile.prod").read_text(encoding="utf-8")
-    dockerignore = (ROOT / "apps/web/Dockerfile.prod.dockerignore").read_text(encoding="utf-8")
-    compose = (ROOT / "docker-compose.dev.yml").read_text(encoding="utf-8")
+    dockerfile = (ROOT / "deploy/docker/Dockerfile.web").read_text(encoding="utf-8")
+    dockerignore = (ROOT / "deploy/docker/Dockerfile.web.dockerignore").read_text(encoding="utf-8")
+    compose = (ROOT / "deploy/compose.dev.yml").read_text(encoding="utf-8")
 
     assert "@/mocks/corporate-overview-fixture" in source
     assert f"../../../../{FIXTURE}" in fixture_source
@@ -35,6 +35,6 @@ def test_web_production_context_allows_and_copies_the_canonical_fixture() -> Non
         "packages/**",
         f"!{FIXTURE}",
     ]
-    dev_mount = f"- ./{FIXTURE}:/{FIXTURE}:ro"
+    dev_mount = f"- ../{FIXTURE}:/{FIXTURE}:ro"
     assert compose.count(dev_mount) == 1
-    assert "- ./packages:/packages" not in compose
+    assert "- ../packages:/packages" not in compose

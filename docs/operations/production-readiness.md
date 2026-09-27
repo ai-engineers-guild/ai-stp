@@ -17,8 +17,8 @@ OpenObserve is a diagnostic single-node profile. It is not a dependency of
 base stack and only with secrets in a gitignored runtime environment:
 
 ```bash
-docker compose -f docker-compose.prod.yml \
-  -f deploy/docker-compose.observability.yml \
+docker compose -f deploy/compose.prod.yml \
+  -f deploy/compose.observability.yml \
   --env-file .env.prod up -d openobserve
 ```
 
@@ -43,7 +43,7 @@ credentials, tokens, raw logs, personal data, or object bytes must not be includ
 
 | Check | Command / observation | Expected result |
 | --- | --- | --- |
-| Base topology | `docker compose -f docker-compose.prod.yml config` | Output contains no OpenObserve or public OTLP port. |
+| Base topology | `docker compose -f deploy/compose.prod.yml config` | Output contains no OpenObserve or public OTLP port. |
 | Profile isolation | compose config with override | Loopback UI only; OTLP is not exposed. |
 | Health | `curl -fsS "$ORIGIN/v1/health/ready"` | `200` without depending on the exporter. |
 | Telemetry failure | deployed environment with an unavailable endpoint | API remains available; evidence records failure. |

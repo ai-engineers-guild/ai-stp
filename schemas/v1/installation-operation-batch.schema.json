@@ -1,0 +1,211 @@
+{
+  "$defs": {
+    "HarnessId": {
+      "enum": [
+        "claude-code",
+        "codex",
+        "pi",
+        "opencode",
+        "grok-build",
+        "cursor",
+        "antigravity"
+      ],
+      "type": "string"
+    },
+    "InstallationOperationFact": {
+      "additionalProperties": false,
+      "description": "One settled local journal operation; no paths or provider payloads.",
+      "properties": {
+        "action": {
+          "enum": [
+            "install",
+            "update",
+            "remove",
+            "rollback"
+          ],
+          "title": "Action",
+          "type": "string"
+        },
+        "components": {
+          "items": {
+            "$ref": "#/$defs/InstalledComponent"
+          },
+          "maxItems": 256,
+          "title": "Components",
+          "type": "array"
+        },
+        "components_complete": {
+          "default": false,
+          "title": "Components Complete",
+          "type": "boolean"
+        },
+        "device_id": {
+          "maxLength": 64,
+          "minLength": 1,
+          "title": "Device Id",
+          "type": "string"
+        },
+        "employee_id": {
+          "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+          "title": "Employee Id",
+          "type": "string"
+        },
+        "harness": {
+          "$ref": "#/$defs/HarnessId"
+        },
+        "occurred_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "operation_id": {
+          "pattern": "^operation_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+          "title": "Operation Id",
+          "type": "string"
+        },
+        "organization_id": {
+          "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+          "title": "Organization Id",
+          "type": "string"
+        },
+        "project_id": {
+          "pattern": "^remote_project_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+          "title": "Project Id",
+          "type": "string"
+        },
+        "result": {
+          "enum": [
+            "verified",
+            "partial",
+            "rolled_back",
+            "failed",
+            "stale"
+          ],
+          "title": "Result",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "scope": {
+          "enum": [
+            "global",
+            "project",
+            "unknown"
+          ],
+          "title": "Scope",
+          "type": "string"
+        },
+        "setup_stable_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Setup Stable Id"
+        },
+        "setup_version": {
+          "anyOf": [
+            {
+              "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Setup Version"
+        }
+      },
+      "required": [
+        "operation_id",
+        "organization_id",
+        "employee_id",
+        "device_id",
+        "project_id",
+        "harness",
+        "scope",
+        "action",
+        "result",
+        "occurred_at"
+      ],
+      "title": "InstallationOperationFact",
+      "type": "object"
+    },
+    "InstalledComponent": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "enum": [
+            "instruction",
+            "skill",
+            "mcp",
+            "hook",
+            "command",
+            "agent",
+            "plugin",
+            "setting",
+            "cli"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "stable_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Stable Id",
+          "type": "string"
+        },
+        "version": {
+          "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "stable_id",
+        "version"
+      ],
+      "title": "InstalledComponent",
+      "type": "object"
+    },
+    "Timestamp": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:installation-operation-batch",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "operations": {
+      "items": {
+        "$ref": "#/$defs/InstallationOperationFact"
+      },
+      "maxItems": 128,
+      "minItems": 1,
+      "title": "Operations",
+      "type": "array"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "operations"
+  ],
+  "title": "InstallationOperationBatch",
+  "type": "object"
+}

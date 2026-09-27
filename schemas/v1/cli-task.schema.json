@@ -1,5 +1,65 @@
 {
   "$defs": {
+    "CliTechnologyUnmappedItem": {
+      "additionalProperties": true,
+      "description": "One coordinate the effective mapping cannot resolve, with its contexts.",
+      "properties": {
+        "contexts": {
+          "items": {
+            "enum": [
+              "production",
+              "development",
+              "testing",
+              "browser_support"
+            ],
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Contexts",
+          "type": "array"
+        },
+        "coordinate": {
+          "minLength": 1,
+          "title": "Coordinate",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "package",
+            "image",
+            "executable",
+            "configuration",
+            "alias"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "project_ids": {
+          "default": [],
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Project Ids",
+          "type": "array"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "contexts",
+        "coordinate",
+        "kind",
+        "project_ids",
+        "schema_version"
+      ],
+      "title": "CliTechnologyUnmappedItem",
+      "type": "object"
+    },
     "ComponentType": {
       "enum": [
         "instruction",
@@ -951,7 +1011,8 @@
         "author",
         "switch",
         "account",
-        "publish"
+        "publish",
+        "technology"
       ],
       "type": "string"
     },
@@ -1043,7 +1104,8 @@
           "inspect": "#/$defs/TaskInspectOutcome",
           "install": "#/$defs/TaskInstallOutcome",
           "publish": "#/$defs/TaskPublishOutcome",
-          "switch": "#/$defs/TaskSwitchOutcome"
+          "switch": "#/$defs/TaskSwitchOutcome",
+          "technology": "#/$defs/TaskTechnologyOutcome"
         },
         "propertyName": "kind"
       },
@@ -1071,6 +1133,9 @@
         },
         {
           "$ref": "#/$defs/TaskPublishOutcome"
+        },
+        {
+          "$ref": "#/$defs/TaskTechnologyOutcome"
         }
       ]
     },
@@ -1281,6 +1346,212 @@
         "verified"
       ],
       "title": "TaskSwitchOutcome",
+      "type": "object"
+    },
+    "TaskTechnologyOutcome": {
+      "additionalProperties": true,
+      "description": "Technology intent drained in-process: the queue, or the published snapshot.",
+      "properties": {
+        "action": {
+          "enum": [
+            "unmapped",
+            "publish-mapping",
+            "resolve"
+          ],
+          "title": "Action",
+          "type": "string"
+        },
+        "applied": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Applied",
+          "type": "array"
+        },
+        "coordinates": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/CliTechnologyUnmappedItem"
+          },
+          "title": "Coordinates",
+          "type": "array"
+        },
+        "created_category_ids": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Created Category Ids",
+          "type": "array"
+        },
+        "created_technology_ids": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Created Technology Ids",
+          "type": "array"
+        },
+        "kind": {
+          "const": "technology",
+          "default": "technology",
+          "title": "Kind",
+          "type": "string"
+        },
+        "mapping_digest": {
+          "default": "",
+          "title": "Mapping Digest",
+          "type": "string"
+        },
+        "mapping_version": {
+          "default": "",
+          "title": "Mapping Version",
+          "type": "string"
+        },
+        "organization_id": {
+          "default": "",
+          "title": "Organization Id",
+          "type": "string"
+        },
+        "project_id": {
+          "default": "",
+          "title": "Project Id",
+          "type": "string"
+        },
+        "proposed": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Proposed",
+          "type": "array"
+        },
+        "scan_id": {
+          "default": "",
+          "title": "Scan Id",
+          "type": "string"
+        },
+        "scan_state": {
+          "anyOf": [
+            {
+              "enum": [
+                "complete",
+                "partial"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Scan State"
+        },
+        "server_coordinates": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/TechnologyUnmappedEntry"
+          },
+          "title": "Server Coordinates",
+          "type": "array"
+        }
+      },
+      "required": [
+        "action",
+        "applied",
+        "coordinates",
+        "created_category_ids",
+        "created_technology_ids",
+        "kind",
+        "mapping_digest",
+        "mapping_version",
+        "organization_id",
+        "project_id",
+        "proposed",
+        "scan_id",
+        "scan_state",
+        "server_coordinates"
+      ],
+      "title": "TaskTechnologyOutcome",
+      "type": "object"
+    },
+    "TechnologyUnmappedEntry": {
+      "additionalProperties": true,
+      "description": "One unmapped coordinate, the projects that reported it and its review state.",
+      "properties": {
+        "candidate_technology_id": {
+          "anyOf": [
+            {
+              "pattern": "^technology_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Candidate Technology Id"
+        },
+        "coordinate": {
+          "maxLength": 512,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9._:/@+*-]+$",
+          "title": "Coordinate",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "package",
+            "image",
+            "executable",
+            "configuration",
+            "alias"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "project_ids": {
+          "items": {
+            "pattern": "^remote_project_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "type": "string"
+          },
+          "maxItems": 512,
+          "title": "Project Ids",
+          "type": "array"
+        },
+        "resolved_technology_id": {
+          "anyOf": [
+            {
+              "pattern": "^technology_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Resolved Technology Id"
+        },
+        "state": {
+          "default": "open",
+          "enum": [
+            "open",
+            "resolved"
+          ],
+          "title": "State",
+          "type": "string"
+        }
+      },
+      "required": [
+        "candidate_technology_id",
+        "coordinate",
+        "kind",
+        "project_ids",
+        "resolved_technology_id",
+        "state"
+      ],
+      "title": "TechnologyUnmappedEntry",
       "type": "object"
     },
     "Timestamp": {

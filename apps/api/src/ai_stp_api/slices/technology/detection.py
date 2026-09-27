@@ -1,8 +1,8 @@
 """Immutable detector snapshots refresh facts, never owner decisions or project links."""
 
-from typing import cast
+from typing import Literal, cast
 
-from sqlalchemy import select
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ai_stp_api.audit import emit_audit
@@ -12,29 +12,31 @@ from ai_stp_api.slices.corporate.service import authorize, authorize_idempotent
 from ai_stp_api.slices.technology.service import (
     finish_mutation,
     mutation_effect,
-    project_technology_view,
 )
 from ai_stp_contracts.technology import (
     TechnologyMappingEntry,
+    TechnologyMappingList,
     TechnologyMappingRequest,
+    TechnologyMappingSummary,
     TechnologyMappingView,
     TechnologyObservation,
-    TechnologyScanHandoff,
     TechnologyScanRequest,
     TechnologyScanResult,
     TechnologyScanView,
+    TechnologyUnmappedEntry,
+    TechnologyUnmappedReviewRequest,
+    TechnologyUnmappedView,
 )
 from ai_stp_foundation.canonical import JsonValue
 from ai_stp_foundation.digests import digest_canonical
-from ai_stp_foundation.ids import new_id
 from ai_stp_platform.organization_models import CorporateProject, ProjectIdentity
 from ai_stp_platform.technology_models import (
-    ProjectTechnologyRelation,
     Technology,
     TechnologyCoordinateMapping,
     TechnologyScan,
-    TechnologyUsageFact,
+    TechnologyUnmappedCoordinate,
 )
+from ai_stp_platform.technology_scan_merge import merge_scan_facts
 
 
 def _mapping_view(
@@ -137,6 +139,44 @@ async def read_mapping(
     return response
 
 
+async def list_mappings(
+    db: AsyncSession,
+    *,
+    ctx: AuthContext,
+    organization_id: str,
+    request_id: str | None,
+) -> TechnologyMappingList:
+    await authorize(db, ctx=ctx, organization_id=organization_id, permission="technology.list")
+    rows = (
+        await db.execute(
+            select(TechnologyCoordinateMapping.version, func.count())
+            .where(TechnologyCoordinateMapping.organization_id == organization_id)
+            .group_by(TechnologyCoordinateMapping.version)
+            .order_by(TechnologyCoordinateMapping.version)
+        )
+    ).all()
+    items: list[TechnologyMappingSummary] = []
+    for version, count in rows:
+        entries = await _mapped_entries(db, organization_id, str(version))
+        items.append(
+            TechnologyMappingSummary(
+                version=str(version),
+                entries=int(count),
+                digest=_mapping_view(organization_id, str(version), entries).digest,
+            )
+        )
+    await emit_audit(
+        db,
+        actor_account_id=ctx.account_id,
+        organization_id=organization_id,
+        action="technology.mapping.list",
+        target_table="technology_coordinate_mapping",
+        target_id=organization_id,
+        request_id=request_id,
+    )
+    return TechnologyMappingList(organization_id=organization_id, items=items)
+
+
 async def publish_mapping(
     db: AsyncSession,
     *,
@@ -162,7 +202,16 @@ async def publish_mapping(
         await _technology_authority(db, ctx, organization_id, entry.technology_id, update=True)
     if receipt is not None:
         return TechnologyMappingView.model_validate(receipt.response_body)
-    response = _mapping_view(organization_id, version, payload.entries)
+    merged: dict[tuple[str, str], TechnologyMappingEntry] = {}
+    if payload.base_version is not None:
+        base = await _mapped_entries(db, organization_id, payload.base_version)
+        if not base:
+            raise ApiError(ErrorCategory.PERMISSION, "base mapping snapshot is unavailable")
+        for entry in base:
+            await _technology_authority(db, ctx, organization_id, entry.technology_id)
+        merged.update({(entry.kind, entry.coordinate): entry for entry in base})
+    merged.update({(entry.kind, entry.coordinate): entry for entry in payload.entries})
+    response = _mapping_view(organization_id, version, list(merged.values()))
     existing = await _mapped_entries(db, organization_id, version)
     before = _mapping_view(organization_id, version, existing) if existing else None
     if before is not None and before.digest != response.digest:
@@ -178,6 +227,26 @@ async def publish_mapping(
             )
         organization.policy_revision += 1
         await db.flush()
+        # The freshest snapshot defines coverage: every queued coordinate it
+        # names is resolved, everything it drops reopens for review.
+        resolved = (
+            select(TechnologyCoordinateMapping.technology_id)
+            .where(
+                TechnologyCoordinateMapping.organization_id == organization_id,
+                TechnologyCoordinateMapping.version == version,
+                TechnologyCoordinateMapping.kind == TechnologyUnmappedCoordinate.kind,
+                TechnologyCoordinateMapping.coordinate == TechnologyUnmappedCoordinate.coordinate,
+            )
+            .order_by(TechnologyCoordinateMapping.technology_id)
+            .limit(1)
+            .correlate(TechnologyUnmappedCoordinate)
+            .scalar_subquery()
+        )
+        await db.execute(
+            update(TechnologyUnmappedCoordinate)
+            .where(TechnologyUnmappedCoordinate.organization_id == organization_id)
+            .values(resolved_technology_id=resolved)
+        )
     await finish_mutation(
         db,
         ctx=ctx,
@@ -338,157 +407,24 @@ async def publish_scan(
         raise ApiError(ErrorCategory.PERMISSION, "scan project is unavailable")
     if project.revision != payload.expected_revision:
         raise ApiError(ErrorCategory.CONFLICT, "scan project revision changed")
-    prior_rows = list(
-        (
-            await db.scalars(
-                select(TechnologyScan).where(
-                    TechnologyScan.organization_id == organization_id,
-                    TechnologyScan.project_id == project_id,
-                )
-            )
-        ).all()
-    )
-    latest: dict[str, tuple[int, TechnologyScanHandoff]] = {}
-    previous_keys: set[tuple[str, str]] = set()
-    for row in prior_rows:
-        previous = TechnologyScanHandoff.model_validate(row.handoff["handoff"])
-        if previous.scope == handoff.scope:
-            for observation in previous.observations:
-                current = await _technology_authority(
-                    db, ctx, organization_id, observation.technology_id
-                )
-                previous_keys.add((current, observation.fact.context))
-        sequence = TechnologyScanResult.model_validate(row.handoff["result"]).project_revision
-        if previous.scope not in latest or sequence > latest[previous.scope][0]:
-            latest[previous.scope] = (sequence, previous)
-    other_keys: set[tuple[str, str]] = set()
-    for scope, (_, previous) in latest.items():
-        for observation in previous.observations:
-            current = await _technology_authority(
-                db, ctx, organization_id, observation.technology_id
-            )
-            (previous_keys if scope == handoff.scope else other_keys).add(
-                (current, observation.fact.context)
-            )
-    keys = set(observations) | (previous_keys - other_keys)
-    pairs: dict[str, ProjectTechnologyRelation | None] = {}
-    facts: dict[tuple[str, str], TechnologyUsageFact | None] = {}
-    for technology_id, context in sorted(keys):
-        if technology_id not in pairs:
-            pairs[technology_id] = await db.scalar(
-                select(ProjectTechnologyRelation).where(
-                    ProjectTechnologyRelation.organization_id == organization_id,
-                    ProjectTechnologyRelation.project_id == project_id,
-                    ProjectTechnologyRelation.technology_id == technology_id,
-                )
-            )
-            await _pair_authority(
-                db, ctx, organization_id, project_id, "update" if pairs[technology_id] else "create"
-            )
-        pair = pairs[technology_id]
-        facts[(technology_id, context)] = (
-            await db.get(TechnologyUsageFact, (organization_id, pair.id, context)) if pair else None
-        )
+
+    async def _resolve(technology_id: str) -> str:
+        return await _technology_authority(db, ctx, organization_id, technology_id)
+
+    async def _authorize_pair(action: str) -> None:
+        await _pair_authority(db, ctx, organization_id, project_id, action)
+
     # All authorization, identity and mapping checks finish before structural mutation.
-    disagreements: list[TechnologyObservation] = []
-    touched: dict[str, ProjectTechnologyRelation] = {}
-    created_relation_ids: list[str] = []
-    before = {
-        "project_revision": project.revision,
-        "usages": [
-            (await project_technology_view(db, pair)).model_dump(mode="json")
-            for pair in pairs.values()
-            if pair is not None
-        ],
-    }
-    for key in sorted(keys):
-        technology_id, context = key
-        observation, fact, pair = observations.get(key), facts[key], pairs[technology_id]
-        if pair is not None and pair.state == "retired":
-            if observation:
-                disagreements.append(observation)
-            continue
-        if pair is None:
-            if observation is None:
-                continue
-            pair = ProjectTechnologyRelation(
-                organization_id=organization_id,
-                id=new_id("relation"),
-                project_id=project_id,
-                technology_id=technology_id,
-                state="current",
-                revision=1,
-            )
-            db.add(pair)
-            await db.flush()
-            pairs[technology_id] = pair
-            created_relation_ids.append(pair.id)
-        elif technology_id not in touched:
-            pair.revision += 1
-        touched[technology_id] = pair
-        if observation is None:
-            # Manual evidence is independent of detector source availability.
-            if (
-                fact is not None
-                and fact.review != "retired"
-                and fact.evidence
-                and all(entry.get("source") != "manual" for entry in fact.evidence)
-            ):
-                fact.freshness = "absent" if handoff.complete else "unknown"
-            continue
-        if fact is not None and fact.review != "proposed":
-            if (fact.version, fact.version_kind) != (
-                observation.fact.version,
-                observation.fact.version_kind,
-            ) or fact.review in {"rejected", "retired"}:
-                disagreements.append(observation)
-                if (
-                    fact.evidence
-                    and fact.review != "retired"
-                    and all(entry.get("source") != "manual" for entry in fact.evidence)
-                ):
-                    fact.freshness = "stale" if handoff.complete else "unknown"
-            elif fact.evidence and all(entry.get("source") != "manual" for entry in fact.evidence):
-                fact.freshness = "current" if handoff.complete else "unknown"
-            continue
-        if fact is None:
-            fact = TechnologyUsageFact(
-                organization_id=organization_id,
-                relation_id=pair.id,
-                context=context,
-                review="proposed",
-            )
-            db.add(fact)
-        fact.version = observation.fact.version
-        fact.version_kind = observation.fact.version_kind
-        fact.evidence = [entry.model_dump(mode="json") for entry in observation.fact.evidence]
-        fact.freshness = "current" if handoff.complete else "unknown"
-    project.revision += 1
-    organization.policy_revision += 1
-    await db.flush()
-    response = TechnologyScanResult(
+    response, before = await merge_scan_facts(
+        db,
         organization_id=organization_id,
-        project_id=project_id,
-        scan_id=handoff.scan_id,
-        project_revision=project.revision,
+        organization=organization,
+        project=project,
+        handoff=handoff,
+        observations=observations,
         digest=digest,
-        disagreements=disagreements,
-        usages=[
-            await project_technology_view(db, pair) for pair in pairs.values() if pair is not None
-        ],
-        created_relation_ids=created_relation_ids,
-    )
-    db.add(
-        TechnologyScan(
-            organization_id=organization_id,
-            id=handoff.scan_id,
-            project_id=project_id,
-            fingerprint=digest,
-            handoff={
-                "handoff": handoff.model_dump(mode="json"),
-                "result": response.model_dump(mode="json"),
-            },
-        )
+        resolve_technology=_resolve,
+        authorize_pair=_authorize_pair,
     )
     await finish_mutation(
         db,
@@ -542,5 +478,130 @@ async def read_scan(
         target_table="technology_scan",
         target_id=scan_id,
         request_id=request_id,
+    )
+    return response
+
+
+def _unmapped_entry(rows: list[TechnologyUnmappedCoordinate]) -> TechnologyUnmappedEntry:
+    """One grouped queue entry; review fields are uniform across its rows."""
+    first = rows[0]
+    candidate = next(
+        (row.candidate_technology_id for row in rows if row.candidate_technology_id is not None),
+        None,
+    )
+    resolved = next(
+        (row.resolved_technology_id for row in rows if row.resolved_technology_id is not None),
+        None,
+    )
+    return TechnologyUnmappedEntry(
+        # The check constraint keeps kind inside the literal set.
+        kind=cast(Literal["package", "image", "executable", "configuration", "alias"], first.kind),
+        coordinate=first.coordinate,
+        project_ids=sorted({row.project_id for row in rows}),
+        candidate_technology_id=candidate,
+        resolved_technology_id=resolved,
+        state="resolved" if resolved is not None else "open",
+    )
+
+
+async def read_unmapped(
+    db: AsyncSession,
+    *,
+    ctx: AuthContext,
+    organization_id: str,
+    request_id: str | None,
+) -> TechnologyUnmappedView:
+    """Every coordinate the organization's published scans could not resolve."""
+    await authorize(db, ctx=ctx, organization_id=organization_id, permission="technology.list")
+    rows = list(
+        (
+            await db.scalars(
+                select(TechnologyUnmappedCoordinate).where(
+                    TechnologyUnmappedCoordinate.organization_id == organization_id
+                )
+            )
+        ).all()
+    )
+    grouped: dict[tuple[str, str], list[TechnologyUnmappedCoordinate]] = {}
+    for row in rows:
+        grouped.setdefault((row.kind, row.coordinate), []).append(row)
+    response = TechnologyUnmappedView(
+        organization_id=organization_id,
+        coordinates=[_unmapped_entry(group) for _, group in sorted(grouped.items())],
+    )
+    await emit_audit(
+        db,
+        actor_account_id=ctx.account_id,
+        organization_id=organization_id,
+        action="technology.unmapped.read",
+        target_table="technology_unmapped_coordinate",
+        target_id=organization_id,
+        request_id=request_id,
+    )
+    return response
+
+
+async def review_unmapped(
+    db: AsyncSession,
+    *,
+    ctx: AuthContext,
+    organization_id: str,
+    payload: TechnologyUnmappedReviewRequest,
+    request_id: str | None,
+) -> TechnologyUnmappedEntry:
+    """Propose or clear the candidate technology for one queued coordinate.
+
+    A candidate is a suggestion, not a mapping: the coordinate stays open until
+    a published snapshot names it. Review fields are held org-wide — every
+    project's row for the coordinate shows the same candidate.
+    """
+    operation = "technology.unmapped.review"
+    organization, receipt = await authorize_idempotent(
+        db,
+        ctx=ctx,
+        organization_id=organization_id,
+        permission="technology.update",
+        authorization_revision=payload.authorization_revision,
+        idempotency_key=payload.idempotency_key,
+        operation=operation,
+        fingerprint=mutation_effect(payload, f"{payload.kind}:{payload.coordinate}"),
+        request_id=request_id,
+    )
+    if receipt is not None:
+        return TechnologyUnmappedEntry.model_validate(receipt.response_body)
+    candidate: str | None = None
+    if payload.candidate_technology_id is not None:
+        candidate = await _technology_authority(
+            db, ctx, organization_id, payload.candidate_technology_id, update=True
+        )
+    rows = list(
+        (
+            await db.scalars(
+                select(TechnologyUnmappedCoordinate).where(
+                    TechnologyUnmappedCoordinate.organization_id == organization_id,
+                    TechnologyUnmappedCoordinate.kind == payload.kind,
+                    TechnologyUnmappedCoordinate.coordinate == payload.coordinate,
+                )
+            )
+        ).all()
+    )
+    if not rows:
+        raise ApiError(ErrorCategory.PERMISSION, "unmapped coordinate is unavailable")
+    for row in rows:
+        row.candidate_technology_id = candidate
+    organization.policy_revision += 1
+    await db.flush()
+    response = _unmapped_entry(rows)
+    await finish_mutation(
+        db,
+        ctx=ctx,
+        organization_id=organization_id,
+        payload=payload,
+        operation=operation,
+        target=f"{payload.kind}:{payload.coordinate}",
+        response=response,
+        before=None,
+        request_id=request_id,
+        target_table="technology_unmapped_coordinate",
     )
     return response

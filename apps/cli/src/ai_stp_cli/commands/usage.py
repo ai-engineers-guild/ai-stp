@@ -8,9 +8,13 @@ buffer; `usage flush` drains it over the authenticated corporate channel.
 
 from __future__ import annotations
 
+import json
+import sys
 from collections.abc import Mapping
 from contextlib import closing
 from datetime import UTC, datetime
+from pathlib import Path
+from typing import cast
 
 from ai_stp_cli import runtime_usage
 from ai_stp_cli.answer import Answer
@@ -19,7 +23,9 @@ from ai_stp_cli.cloud import session
 from ai_stp_cli.commands import cloud_auth
 from ai_stp_cli.commands.auth import endpoint
 from ai_stp_cli.errors import CliFailure
-from ai_stp_cli.provider import usage_reporting
+from ai_stp_cli.local.database import configured_path, open_registry
+from ai_stp_cli.provider import usage_hooks, usage_reporting
+from ai_stp_cli.secrets import open_store
 from ai_stp_contracts.runtime_usage import (
     RuntimeUsageEvent,
     RuntimeUsageEventList,
@@ -27,6 +33,7 @@ from ai_stp_contracts.runtime_usage import (
     RuntimeUsageExportRequest,
     RuntimeUsageExportView,
     RuntimeUsageFlushResult,
+    RuntimeUsageIngestResult,
     RuntimeUsageOutboxStatus,
     RuntimeUsageRecordResult,
     RuntimeUsageReport,
@@ -96,25 +103,66 @@ def record(parameters: Mapping[str, object]) -> Answer[RuntimeUsageRecordResult]
     event to the authenticated identity again, so a flag could only lie.
     """
     held = _session("corporate usage record")
+    organization_id = _required(parameters, "organization")
     event_id = _optional(parameters, "event-id") or runtime_usage.new_event_id()
     state = usage_reporting.record_invocation(
-        organization_id=_required(parameters, "organization"),
+        organization_id=organization_id,
         employee_id=held.account_id,
         device_id=held.device_id,
         project_id=_required(parameters, "project"),
         harness=_required(parameters, "harness"),
-        setup_stable_id=_required(parameters, "setup"),
-        setup_version=_required(parameters, "setup-version"),
-        setup_passport_digest=_required(parameters, "setup-digest"),
+        setup_stable_id=_optional(parameters, "setup"),
+        setup_version=_optional(parameters, "setup-version"),
+        setup_passport_digest=_optional(parameters, "setup-digest"),
         component_kind=_required(parameters, "kind"),
         component_stable_id=_required(parameters, "component"),
         component_version=_required(parameters, "component-version"),
         component_passport_digest=_required(parameters, "component-digest"),
         invoked_at=_required(parameters, "invoked-at"),
         outcome=_required(parameters, "outcome"),
+        source="agent_reported",
+        activity_kind=_optional(parameters, "activity-kind") or "invocation",
         event_id=event_id,
     )
     return Answer(RuntimeUsageRecordResult(event_id=event_id, state=state))
+
+
+def hook(parameters: Mapping[str, object]) -> Answer[RuntimeUsageRecordResult]:
+    """Read one bounded native hook from stdin; persist only bound usage facts offline."""
+    event_id = runtime_usage.new_event_id()
+    dropped = Answer(RuntimeUsageRecordResult(event_id=event_id, state="dropped"))
+    raw = sys.stdin.buffer.read(1024 * 1024 + 1)
+    if len(raw) > 1024 * 1024:
+        return dropped
+    try:
+        payload: object = json.loads(raw)
+    except (ValueError, UnicodeError):
+        return dropped
+    if not isinstance(payload, dict):
+        return dropped
+    document = cast(dict[str, object], payload)
+    store, _warning = open_store()
+    held = session.load(store)
+    # Recording is offline: expiry does not change who owns the queued facts.
+    if held is None or held.revoked:
+        return dropped
+    harness = _required(parameters, "harness")
+    scope = _optional(parameters, "scope") or "project"
+    with closing(open_registry(configured_path())) as connection:
+        operation = usage_hooks.resolve_operation(
+            connection, held.account_id, held.device_id, harness, scope, Path.cwd()
+        )
+        if operation is None:
+            return dropped
+        event_id = usage_hooks.derive_event_id(
+            operation,
+            str(document.get("session_id" if harness == "codex" else "sessionId") or ""),
+            str(document.get("tool_use_id" if harness == "codex" else "toolUseId") or ""),
+        )
+        result = usage_hooks.record_hook_usage(
+            connection, operation, held.account_id, held.device_id, document
+        )
+    return Answer(RuntimeUsageRecordResult(event_id=event_id, state=result))
 
 
 def report(parameters: Mapping[str, object]) -> Answer[RuntimeUsageReport]:
@@ -144,6 +192,8 @@ def events(parameters: Mapping[str, object]) -> Answer[RuntimeUsageEventList]:
         component_stable_id=_optional(parameters, "component"),
         component_kind=_optional(parameters, "kind"),  # pyright: ignore[reportArgumentType]
         outcome=_optional(parameters, "outcome"),  # pyright: ignore[reportArgumentType]
+        source=_optional(parameters, "source"),  # pyright: ignore[reportArgumentType]
+        activity_kind=_optional(parameters, "activity-kind"),  # pyright: ignore[reportArgumentType]
         invoked_from=_optional(parameters, "from"),
         invoked_to=_optional(parameters, "to"),
         offset=_integer(parameters, "offset", 0),
@@ -194,8 +244,11 @@ def export(parameters: Mapping[str, object]) -> Answer[RuntimeUsageExportView]:
 
 def outbox(parameters: Mapping[str, object]) -> Answer[RuntimeUsageOutboxStatus]:
     """Inspect the local buffer. Reads only; sends nothing."""
-    del parameters
-    with closing(usage_outbox.connect()) as connection:
+    held = _session("corporate usage outbox")
+    organization_id = _required(parameters, "organization")
+    with closing(
+        usage_outbox.connect(usage_outbox.scoped_path(held.account_id, organization_id))
+    ) as connection:
         held = usage_outbox.stats(connection)
     oldest = held["oldest_pending_at"]
     return Answer(
@@ -218,11 +271,13 @@ def flush(parameters: Mapping[str, object]) -> Answer[RuntimeUsageFlushResult]:
     organization_id = _required(parameters, "organization")
     target = endpoint()
 
-    def send(batch: list[dict[str, object]]) -> None:
+    def send(batch: list[dict[str, object]]) -> RuntimeUsageIngestResult:
         events_batch = [RuntimeUsageEvent.model_validate(item) for item in batch]
-        runtime_usage.submit_events(target, held.access_token, organization_id, events_batch)
+        return runtime_usage.submit_events(target, held.access_token, organization_id, events_batch)
 
-    with closing(usage_outbox.connect()) as connection:
+    with closing(
+        usage_outbox.connect(usage_outbox.scoped_path(held.account_id, organization_id))
+    ) as connection:
         sent, remaining = usage_outbox.flush(connection, send)
         held_stats = usage_outbox.stats(connection)
     return Answer(

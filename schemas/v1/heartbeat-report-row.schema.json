@@ -1,0 +1,147 @@
+{
+  "$defs": {
+    "HeartbeatReportBucket": {
+      "additionalProperties": false,
+      "properties": {
+        "end": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "expected": {
+          "title": "Expected",
+          "type": "integer"
+        },
+        "received": {
+          "title": "Received",
+          "type": "integer"
+        },
+        "start": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "state": {
+          "enum": [
+            "healthy",
+            "partial",
+            "missing",
+            "not_expected"
+          ],
+          "title": "State",
+          "type": "string"
+        }
+      },
+      "required": [
+        "start",
+        "end",
+        "expected",
+        "received",
+        "state"
+      ],
+      "title": "HeartbeatReportBucket",
+      "type": "object"
+    },
+    "HeartbeatReportTeam": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name"
+      ],
+      "title": "HeartbeatReportTeam",
+      "type": "object"
+    },
+    "Timestamp": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:heartbeat-report-row",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "account_id": {
+      "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "title": "Account Id",
+      "type": "string"
+    },
+    "buckets": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/HeartbeatReportBucket"
+      },
+      "title": "Buckets",
+      "type": "array"
+    },
+    "coverage_percent": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Coverage Percent"
+    },
+    "device_id": {
+      "pattern": "^device_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "title": "Device Id",
+      "type": "string"
+    },
+    "device_name": {
+      "title": "Device Name",
+      "type": "string"
+    },
+    "employee_name": {
+      "title": "Employee Name",
+      "type": "string"
+    },
+    "last_heartbeat_at": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Timestamp"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "status": {
+      "enum": [
+        "active",
+        "stale",
+        "failing",
+        "disabled",
+        "unknown"
+      ],
+      "title": "Status",
+      "type": "string"
+    },
+    "teams": {
+      "items": {
+        "$ref": "#/$defs/HeartbeatReportTeam"
+      },
+      "title": "Teams",
+      "type": "array"
+    }
+  },
+  "required": [
+    "account_id",
+    "employee_name",
+    "teams",
+    "device_id",
+    "device_name",
+    "last_heartbeat_at",
+    "status"
+  ],
+  "title": "HeartbeatReportRow",
+  "type": "object"
+}

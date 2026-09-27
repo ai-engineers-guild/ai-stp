@@ -1006,7 +1006,7 @@ def adopt(
     # module, and the rule table is what knows a kind lands inside a host file.
     from ai_stp_cli.local import composition, contribution
 
-    rule = composition.rule_for(item.component_type, item.harness_id)
+    rule = composition.rule_for(item.component_type, item.harness_id, scope=item.scope)
     if rule is not None and rule.declared_key:
         adopted = replace(
             adopted,

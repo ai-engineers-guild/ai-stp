@@ -378,6 +378,13 @@ async def test_dashboard_lead_scope_reason_redaction_and_team_views(
     lead_result = await client.post(f"{root}/query", json=query, headers=lead_auth)
     assert lead_result.status_code == 200, lead_result.text
     assert {item["dimensions"]["account"] for item in lead_result.json()["items"]} == {visible}
+    report_path = f"/v1/corporate/organizations/{org}/telemetry/heartbeat-report"
+    lead_report = await client.get(report_path, headers=lead_auth)
+    assert lead_report.status_code == 200, lead_report.text
+    assert hidden not in {item["account_id"] for item in lead_report.json()["items"]}
+    assert hidden_team not in {team["id"] for team in lead_report.json()["teams"]}
+    foreign_team = await client.get(f"{report_path}?team={hidden_team}", headers=lead_auth)
+    assert foreign_team.status_code == 200 and foreign_team.json()["items"] == []
     owner_result = await client.post(
         f"{root}/query", json=query, headers={"Authorization": f"Bearer {owner_token}"}
     )
@@ -385,6 +392,9 @@ async def test_dashboard_lead_scope_reason_redaction_and_team_views(
         visible,
         hidden,
     }
+    owner_report = await client.get(report_path, headers={"Authorization": f"Bearer {owner_token}"})
+    assert owner_report.status_code == 200, owner_report.text
+    assert hidden in {item["account_id"] for item in owner_report.json()["items"]}
     diagnostic = await client.post(
         f"{root}/query",
         json={"query": {"dataset": "ci", "dimensions": ["reason"]}},

@@ -1,0 +1,128 @@
+{
+  "$defs": {
+    "CliTechnologyUnmappedItem": {
+      "additionalProperties": true,
+      "description": "One coordinate the effective mapping cannot resolve, with its contexts.",
+      "properties": {
+        "contexts": {
+          "items": {
+            "enum": [
+              "production",
+              "development",
+              "testing",
+              "browser_support"
+            ],
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Contexts",
+          "type": "array"
+        },
+        "coordinate": {
+          "minLength": 1,
+          "title": "Coordinate",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "package",
+            "image",
+            "executable",
+            "configuration",
+            "alias"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "project_ids": {
+          "default": [],
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Project Ids",
+          "type": "array"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "contexts",
+        "coordinate",
+        "kind",
+        "project_ids",
+        "schema_version"
+      ],
+      "title": "CliTechnologyUnmappedItem",
+      "type": "object"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:cli-technology-unmapped",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "The unmapped-coordinate queue for one project, or for one organization.\n\nLocally this is what `project detect` observed but could not resolve;\nremotely (`--organization`) it is every coordinate published scans left\nunresolved — the queue a registry operator works through when extending\nthe mapping.",
+  "properties": {
+    "coordinates": {
+      "items": {
+        "$ref": "#/$defs/CliTechnologyUnmappedItem"
+      },
+      "title": "Coordinates",
+      "type": "array"
+    },
+    "organization_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Organization Id"
+    },
+    "project_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Project Id"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "scope": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Scope"
+    }
+  },
+  "required": [
+    "coordinates",
+    "organization_id",
+    "project_id",
+    "schema_version",
+    "scope"
+  ],
+  "title": "CliTechnologyUnmapped",
+  "type": "object"
+}

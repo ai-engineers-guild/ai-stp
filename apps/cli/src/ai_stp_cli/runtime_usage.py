@@ -49,6 +49,8 @@ EVENT_FIELDS: Final[tuple[str, ...]] = (
     "component",
     "invoked_at",
     "outcome",
+    "source",
+    "activity_kind",
 )
 
 #: Names that must never appear in an event, an outbox row, or a report.
@@ -64,7 +66,6 @@ FORBIDDEN_FIELDS: Final[frozenset[str]] = frozenset(
         "payload",
         "mcp_payload",
         "content",
-        "source",
         "path",
         "cwd",
         "env",
@@ -94,15 +95,17 @@ def build_event(
     device_id: str,
     project_id: str,
     harness: str,
-    setup_stable_id: str,
-    setup_version: str,
-    setup_passport_digest: str,
+    setup_stable_id: str | None,
+    setup_version: str | None,
+    setup_passport_digest: str | None,
     component_kind: str,
     component_stable_id: str,
     component_version: str,
     component_passport_digest: str,
     invoked_at: str,
     outcome: str,
+    source: str = "native_hook",
+    activity_kind: str = "invocation",
     event_id: str | None = None,
 ) -> RuntimeUsageEvent:
     """Build one validated event. Raises ``ValueError`` on a bad coordinate.
@@ -111,6 +114,23 @@ def build_event(
     or a caller to smuggle content through, which is what "components never
     choose event fields" means mechanically.
     """
+    if any(
+        value is None for value in (setup_stable_id, setup_version, setup_passport_digest)
+    ) and any(
+        value is not None for value in (setup_stable_id, setup_version, setup_passport_digest)
+    ):
+        raise ValueError("setup coordinate must be complete or absent")
+    setup = (
+        RuntimeUsageSetupCoordinate(
+            stable_id=setup_stable_id,
+            version=setup_version,
+            passport_digest=setup_passport_digest,
+        )
+        if setup_stable_id is not None
+        and setup_version is not None
+        and setup_passport_digest is not None
+        else None
+    )
     return RuntimeUsageEvent(
         event_id=event_id or new_event_id(),
         organization_id=organization_id,
@@ -118,11 +138,7 @@ def build_event(
         device_id=device_id,
         project_id=project_id,
         harness=harness,  # pyright: ignore[reportArgumentType]
-        setup=RuntimeUsageSetupCoordinate(
-            stable_id=setup_stable_id,
-            version=setup_version,
-            passport_digest=setup_passport_digest,
-        ),
+        setup=setup,
         component=RuntimeUsageComponentCoordinate(
             kind=component_kind,  # pyright: ignore[reportArgumentType]
             stable_id=component_stable_id,
@@ -131,6 +147,8 @@ def build_event(
         ),
         invoked_at=invoked_at,
         outcome=outcome,  # pyright: ignore[reportArgumentType]
+        source=source,  # pyright: ignore[reportArgumentType]
+        activity_kind=activity_kind,  # pyright: ignore[reportArgumentType]
     )
 
 

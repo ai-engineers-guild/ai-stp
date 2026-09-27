@@ -522,7 +522,9 @@ async def _run_plan(
     ) -> list[tuple[str, str]]:
         return list(versions.get(stable_id, []))
 
-    monkeypatch.setattr(assignments, "_eligible_versions", AsyncMock(side_effect=_by_line))
+    monkeypatch.setattr(
+        assignments, "eligible_assignment_versions", AsyncMock(side_effect=_by_line)
+    )
     monkeypatch.setattr(assignments, "get_visible_metadata", AsyncMock(return_value=None))
     organization_id = new_id("organization")
     result = await assignments.plan_assignments(

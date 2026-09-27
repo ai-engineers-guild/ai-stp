@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Install pinned safety scanner CLIs into PREFIX (default: /opt/safety-bin).
-# Intended for Dockerfile.worker-safety and local Linux ops hosts.
+# Intended for the worker-safety stage of deploy/docker/Dockerfile.app and local Linux ops hosts.
 # Does not modify the application venv; Python tools go to SAFETY_PIP_PREFIX.
 set -euo pipefail
 
@@ -185,7 +185,7 @@ install_gosec() {
 }
 
 install_govulncheck() {
-  # Required Go SCA. Prefer a pre-copied binary (Dockerfile go-tools stage);
+  # Required Go SCA. Prefer a pre-copied binary (Dockerfile.app go-tools stage);
   # otherwise go install when the toolchain is present. No silent skip.
   if [[ -x "${PREFIX}/govulncheck" ]]; then
     log "govulncheck already present at ${PREFIX}/govulncheck"

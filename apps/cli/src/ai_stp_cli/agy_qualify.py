@@ -70,6 +70,12 @@ def _json_map(value: object) -> dict[str, object] | None:
     return {str(key): inner for key, inner in cast(dict[object, object], value).items()}
 
 
+#: POSIX process-group signals for the fault fixtures. Windows lacks these
+#: names entirely, so they resolve through getattr and the fixtures refuse to
+#: run before any of them could be sent.
+_SIGKILL: Final[signal.Signals] = cast(signal.Signals, getattr(signal, "SIGKILL", signal.SIGTERM))
+_SIGSTOP: Final[signal.Signals] = cast(signal.Signals, getattr(signal, "SIGSTOP", _SIGKILL))
+_SIGCONT: Final[signal.Signals] = cast(signal.Signals, getattr(signal, "SIGCONT", _SIGKILL))
 DOCKER_IMAGE_ENV: Final[str] = "AI_STP_QUALIFY_DOCKER_IMAGE"
 PROVIDERS_ENV: Final[str] = "AI_STP_QUALIFY_PROVIDERS"
 TOOLCHAINS_ENV: Final[str] = "AI_STP_QUALIFY_TOOLCHAINS"
@@ -1009,10 +1015,13 @@ def _kill_group(proc: subprocess.Popen[bytes], sig: signal.Signals) -> None:
     """Signal the consumer and every provider child it still holds."""
     if proc.poll() is not None:
         return
+    killpg = getattr(os, "killpg", None)
     try:
-        os.killpg(proc.pid, sig)
+        if killpg is None:
+            raise AttributeError("os.killpg")
+        killpg(proc.pid, sig)
     except (AttributeError, ProcessLookupError, PermissionError, OSError):
-        if sig == signal.SIGKILL:
+        if sig == _SIGKILL:
             with suppress(OSError):
                 proc.kill()
 
@@ -1083,10 +1092,10 @@ def _inject_kill_after(workspace: Workspace) -> dict[str, object]:
             time.sleep(FAULT_POLL_SECONDS)
         else:
             raise CliUnavailable("the consumer exited before the effect barrier")
-        _kill_group(proc, signal.SIGKILL)
+        _kill_group(proc, _SIGKILL)
         proc.wait(timeout=30)
     finally:
-        _kill_group(proc, signal.SIGKILL)
+        _kill_group(proc, _SIGKILL)
     operations = cell_install_operations(workspace.home)
     task = _fixture_task(workspace.home, key, operations)
     held = [operation for operation, state in operations.items() if state == "applied_unverified"]
@@ -1124,7 +1133,7 @@ def _inject_compensated(workspace: Workspace) -> dict[str, object]:
             journal = provider_journal(workspace.home)
             if journal is not None:
                 phase = str(journal.get("phase") or "unreadable")
-                _kill_group(proc, signal.SIGSTOP)
+                _kill_group(proc, _SIGSTOP)
                 try:
                     current = _file_digests(target, skip_prefix=control)
                     diverged = sorted(
@@ -1136,7 +1145,7 @@ def _inject_compensated(workspace: Workspace) -> dict[str, object]:
                     if follow is not None:
                         phase = str(follow.get("phase") or "unreadable")
                 finally:
-                    _kill_group(proc, signal.SIGKILL if diverged else signal.SIGCONT)
+                    _kill_group(proc, _SIGKILL if diverged else _SIGCONT)
                 if diverged:
                     break
             if "verified" in cell_install_operations(workspace.home).values():
@@ -1148,7 +1157,7 @@ def _inject_compensated(workspace: Workspace) -> dict[str, object]:
             raise CliUnavailable("the consumer exited before a target effect was observed")
         proc.wait(timeout=30)
     finally:
-        _kill_group(proc, signal.SIGKILL)
+        _kill_group(proc, _SIGKILL)
     operations = cell_install_operations(workspace.home)
     task = _fixture_task(workspace.home, key, operations)
     if provider_journal(workspace.home) is None:
@@ -1246,7 +1255,7 @@ def _inject_concurrent(workspace: Workspace) -> dict[str, object]:
         except subprocess.TimeoutExpired as error:
             raise CliUnavailable("the executor did not settle after the race") from error
     finally:
-        _kill_group(proc, signal.SIGKILL)
+        _kill_group(proc, _SIGKILL)
     operations = cell_install_operations(workspace.home)
     task = cell_task_for(workspace.home, key=key)
     if task is None:

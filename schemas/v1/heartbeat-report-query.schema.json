@@ -1,0 +1,120 @@
+{
+  "$id": "urn:ai-stp:schema:v1:heartbeat-report-query",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "employee": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Employee",
+      "type": "array"
+    },
+    "from_date": {
+      "anyOf": [
+        {
+          "format": "date",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "From Date"
+    },
+    "order": {
+      "default": "desc",
+      "enum": [
+        "asc",
+        "desc"
+      ],
+      "title": "Order",
+      "type": "string"
+    },
+    "page": {
+      "default": 1,
+      "minimum": 1,
+      "title": "Page",
+      "type": "integer"
+    },
+    "page_size": {
+      "default": 10,
+      "maximum": 50,
+      "minimum": 1,
+      "title": "Page Size",
+      "type": "integer"
+    },
+    "period": {
+      "default": "7d",
+      "enum": [
+        "24h",
+        "7d",
+        "30d",
+        "custom"
+      ],
+      "title": "Period",
+      "type": "string"
+    },
+    "sort": {
+      "default": "last_heartbeat",
+      "enum": [
+        "employee",
+        "team",
+        "last_heartbeat",
+        "status",
+        "coverage"
+      ],
+      "title": "Sort",
+      "type": "string"
+    },
+    "status": {
+      "default": [],
+      "items": {
+        "enum": [
+          "active",
+          "stale",
+          "failing",
+          "disabled",
+          "unknown"
+        ],
+        "type": "string"
+      },
+      "title": "Status",
+      "type": "array"
+    },
+    "team": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Team",
+      "type": "array"
+    },
+    "to_date": {
+      "anyOf": [
+        {
+          "format": "date",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "To Date"
+    },
+    "view": {
+      "default": "current",
+      "enum": [
+        "current",
+        "history"
+      ],
+      "title": "View",
+      "type": "string"
+    }
+  },
+  "title": "HeartbeatReportQuery",
+  "type": "object"
+}

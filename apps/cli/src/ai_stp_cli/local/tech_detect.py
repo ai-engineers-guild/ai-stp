@@ -19,26 +19,34 @@ should carry. `version_kind` keeps `>=3.11` (a declared range) and `3.11.4`
 read from a lock file (an observed version) from ever being spelled the same.
 """
 
+import configparser
 import hashlib
 import json
 import re
+import time
 import tomllib
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Final, Literal, cast
 
 import yaml
+from packaging.requirements import InvalidRequirement, Requirement
+from packaging.utils import canonicalize_name
 
-from ai_stp_cli.local import project_index, projects
+from ai_stp_cli.local import project_index
+from ai_stp_contracts.technology_seed import SEED_COORDINATES, SEED_COORDINATES_VERSION
 
 #: Bumped when the rule set changes in a way that makes two scans incomparable.
 #: Evidence carries it, so a finding always says which detector saw it.
-DETECTOR_VERSION: Final[str] = "1"
+DETECTOR_VERSION: Final[str] = "2"
 
 #: The version of the bundled coordinate→identity table. Organization snapshots
 #: fetched from the platform carry their own version; this one ships with the
 #: CLI and resolves only identities the canonical seed already owns.
-BUNDLED_MAPPING_VERSION: Final[str] = "bundled.1"
+# The bundled table is a verbatim projection of the seed corpus, so it carries
+# the seed's version: an organization that imported the seed holds this exact
+# snapshot, and a scan declaring it validates against those rows.
+BUNDLED_MAPPING_VERSION: Final[str] = SEED_COORDINATES_VERSION
 
 #: A dependency line longer than this is pathological, not a requirement.
 MAX_LINE_CHARS: Final[int] = 512
@@ -101,19 +109,31 @@ class _Reader:
 
     def __init__(self, index: project_index.Index):
         self._root = index.root
+        self.incomplete = False
 
     def text(self, entry: project_index.Entry) -> str | None:
+        text = self._text(entry)
+        if text is None:
+            self.incomplete = True
+        return text
+
+    def _text(self, entry: project_index.Entry) -> str | None:
+        if entry.digest is None or entry.size_bytes > project_index.MAX_FILE_BYTES:
+            return None
         place = self._root / entry.path
         try:
-            if not projects.contains(self._root, place):
+            resolved = place.resolve()
+            if not resolved.is_relative_to(self._root):
                 return None
-            content = place.read_bytes()
-        except OSError:
+            if project_index.is_secret_name(resolved.name):
+                return None
+            if not place.is_file():
+                return None
+            with place.open("rb") as stream:
+                content = stream.read(project_index.MAX_FILE_BYTES + 1)
+        except (OSError, RuntimeError):
             return None
-        if (
-            entry.digest is not None
-            and f"sha256:{hashlib.sha256(content).hexdigest()}" != entry.digest
-        ):
+        if f"sha256:{hashlib.sha256(content).hexdigest()}" != entry.digest:
             return None
         try:
             return content.decode("utf-8")
@@ -145,6 +165,12 @@ class _Builder:
             return
         if version is not None:
             version = version.strip() or None
+            # A dependency locator can carry credentials or local paths. Only
+            # bounded version/range syntax may leave the manifest.
+            if version is not None and not re.fullmatch(
+                r"[A-Za-z0-9.*+<>=!~^|, -]{1,128}", version
+            ):
+                version = None
         if version is None:
             version_kind = "unknown"
         key = (
@@ -201,7 +227,11 @@ def _table(value: object) -> dict[str, object]:
     `isinstance(x, dict)` alone narrows to `dict[Unknown, Unknown]`; callers
     need `.get`/`.items` that return `object`, not Unknown.
     """
-    return cast(dict[str, object], value) if isinstance(value, dict) else {}
+    if not isinstance(value, dict):
+        return {}
+    return {
+        key: item for key, item in cast(dict[object, object], value).items() if isinstance(key, str)
+    }
 
 
 def _seq(value: object) -> list[object]:
@@ -214,9 +244,6 @@ def _text(value: object) -> str | None:
 
 #: Basenames that always name the same file regardless of directory.
 _FROM_LINE: Final[re.Pattern[str]] = re.compile(r"^\s*FROM\s+(.+)$", re.IGNORECASE | re.MULTILINE)
-_REQUIREMENT: Final[re.Pattern[str]] = re.compile(
-    r"^\s*([A-Za-z0-9][A-Za-z0-9._-]*)\s*(?:\[.*?\])?\s*([<>=!~^].*)?$"
-)
 _GO_MODULE: Final[re.Pattern[str]] = re.compile(r"^([A-Za-z0-9._~:/?#@+-]+)\s+v([^\s]+)")
 
 #: How many paths one detection cites for a presence-based signature. A
@@ -240,15 +267,15 @@ def _image_name(reference: str) -> tuple[str, str | None]:
 def _requirement_name(line: str) -> tuple[str, str | None] | None:
     """One `requirements.txt`-style line → (name, range) or nothing."""
     stripped = line.split("#", 1)[0].strip().split(";", 1)[0].strip()
-    if not stripped or stripped.startswith(("-", ".", "/")) or "://" in stripped:
+    if not stripped or stripped.startswith(("-", ".", "/")):
         return None
     if len(stripped) > MAX_LINE_CHARS:
         return None
-    matched = _REQUIREMENT.match(stripped)
-    if matched is None:
+    try:
+        requirement = Requirement(stripped)
+    except InvalidRequirement:
         return None
-    name, specifier = matched.group(1), matched.group(2)
-    return name.lower(), specifier.strip() if specifier else None
+    return canonicalize_name(requirement.name), str(requirement.specifier) or None
 
 
 def _dependency(
@@ -281,10 +308,7 @@ def _dependency(
 
 
 def _pyproject(text: str, builder: _Builder, path: str) -> None:
-    try:
-        document = _table(tomllib.loads(text))
-    except tomllib.TOMLDecodeError:
-        return
+    document = _table(tomllib.loads(text))
     project = _table(document.get("project"))
     if project:
         requires = _text(project.get("requires-python"))
@@ -353,13 +377,28 @@ def _pyproject(text: str, builder: _Builder, path: str) -> None:
                 path=path,
                 reference=f"tool.poetry.{section}",
             )
-    for group_values in _table(poetry.get("group")).values():
+    for group, values in _table(document.get("dependency-groups")).items():
+        for name, spec in _requirements_list(values):
+            _dependency(
+                builder,
+                name,
+                spec,
+                context="testing"
+                if group.lower() in {"test", "tests", "testing"}
+                else "development",
+                source="declared",
+                path=path,
+                reference=f"dependency-groups.{group}",
+            )
+    for group, group_values in _table(poetry.get("group")).items():
         for name, spec in _table(_table(group_values).get("dependencies")).items():
             _dependency(
                 builder,
                 name,
                 _poetry_spec(spec),
-                context="development",
+                context="testing"
+                if group.lower() in {"test", "tests", "testing"}
+                else "development",
                 source="declared",
                 path=path,
                 reference="tool.poetry.group",
@@ -414,10 +453,7 @@ def _requirements(text: str, builder: _Builder, path: str, context: UsageContext
 
 
 def _package_json(text: str, builder: _Builder, path: str) -> None:
-    try:
-        document = _table(json.loads(text))
-    except json.JSONDecodeError:
-        return
+    document = _table(json.loads(text))
     sections: tuple[tuple[str, UsageContext], ...] = (
         ("dependencies", "production"),
         ("devDependencies", "development"),
@@ -464,28 +500,28 @@ def _package_json(text: str, builder: _Builder, path: str) -> None:
 
 
 def _cargo_toml(text: str, builder: _Builder, path: str) -> None:
-    try:
-        document = _table(tomllib.loads(text))
-    except tomllib.TOMLDecodeError:
-        return
+    document = _table(tomllib.loads(text))
     sections: tuple[tuple[str, UsageContext], ...] = (
         ("dependencies", "production"),
         ("dev-dependencies", "testing"),
         ("build-dependencies", "development"),
     )
-    for section, context in sections:
-        for name, spec in _table(document.get(section)).items():
-            _dependency(
-                builder,
-                name,
-                _poetry_spec(spec),
-                context=context,
-                source="declared",
-                path=path,
-                reference=section,
-            )
+    tables = [document, _table(document.get("workspace"))]
+    tables.extend(_table(value) for value in _table(document.get("target")).values())
+    for table in tables:
+        for section, context in sections:
+            for name, spec in _table(table.get(section)).items():
+                _dependency(
+                    builder,
+                    _text(_table(spec).get("package")) or name,
+                    _poetry_spec(spec),
+                    context=context,
+                    source="declared",
+                    path=path,
+                    reference=section,
+                )
     package = _table(document.get("package"))
-    edition = _text(package.get("rust-version")) or _text(package.get("edition"))
+    edition = _text(package.get("rust-version"))
     if edition is not None:
         builder.add(
             "alias",
@@ -501,8 +537,15 @@ def _cargo_toml(text: str, builder: _Builder, path: str) -> None:
 
 
 def _go_mod(text: str, builder: _Builder, path: str) -> None:
+    block = ""
     for line in text.splitlines():
-        stripped = line.strip()
+        stripped = " ".join(line.split("//", 1)[0].split())
+        if stripped.endswith("("):
+            block = stripped[:-1].strip()
+            continue
+        if stripped == ")":
+            block = ""
+            continue
         if stripped.startswith("go "):
             builder.add(
                 "alias",
@@ -516,9 +559,10 @@ def _go_mod(text: str, builder: _Builder, path: str) -> None:
                 confidence=1.0,
             )
             continue
-        for keyword in ("require ", "replace "):
-            if stripped.startswith(keyword):
-                stripped = stripped.removeprefix(keyword)
+        if block != "require":
+            if not stripped.startswith("require "):
+                continue
+            stripped = stripped.removeprefix("require ").strip()
         matched = _GO_MODULE.match(stripped)
         if matched is not None and matched.group(1) not in {"(", "module"}:
             _dependency(
@@ -534,10 +578,7 @@ def _go_mod(text: str, builder: _Builder, path: str) -> None:
 
 
 def _pubspec(text: str, builder: _Builder, path: str) -> None:
-    try:
-        document = _table(yaml.safe_load(text))
-    except yaml.YAMLError:
-        return
+    document = _table(yaml.safe_load(text))
     sections: tuple[tuple[str, UsageContext], ...] = (
         ("dependencies", "production"),
         ("dev_dependencies", "testing"),
@@ -569,34 +610,16 @@ def _pubspec(text: str, builder: _Builder, path: str) -> None:
 
 
 def _setup_cfg(text: str, builder: _Builder, path: str) -> None:
-    """`install_requires` lines inside `[options]` — continuation lines are indented."""
-    in_requires = False
-    for line in text.splitlines():
-        stripped = line.strip()
-        if stripped.startswith("["):
-            in_requires = False
-            continue
-        if line[:1] in {" ", "\t"} and in_requires:
-            parsed = _requirement_name(stripped)
-            if parsed is not None:
-                _dependency(
-                    builder,
-                    parsed[0],
-                    parsed[1],
-                    context="production",
-                    source="declared",
-                    path=path,
-                    reference="install_requires",
-                )
-            continue
-        in_requires = stripped.startswith("install_requires")
+    """Parse inline and multiline requirements without interpolation or execution."""
+    parser = configparser.ConfigParser(interpolation=None)
+    parser.read_string(text)
+    _requirements(
+        parser.get("options", "install_requires", fallback=""), builder, path, "production"
+    )
 
 
 def _pipfile(text: str, builder: _Builder, path: str) -> None:
-    try:
-        document = _table(tomllib.loads(text))
-    except tomllib.TOMLDecodeError:
-        return
+    document = _table(tomllib.loads(text))
     sections: tuple[tuple[str, UsageContext], ...] = (
         ("packages", "production"),
         ("dev-packages", "development"),
@@ -615,10 +638,7 @@ def _pipfile(text: str, builder: _Builder, path: str) -> None:
 
 
 def _environment_yml(text: str, builder: _Builder, path: str) -> None:
-    try:
-        document = _table(yaml.safe_load(text))
-    except yaml.YAMLError:
-        return
+    document = _table(yaml.safe_load(text))
     for entry in _seq(document.get("dependencies")):
         if isinstance(entry, str):
             name, _sep, pinned = entry.partition("=")
@@ -649,15 +669,17 @@ def _environment_yml(text: str, builder: _Builder, path: str) -> None:
 
 
 def _dockerfile(text: str, builder: _Builder, path: str) -> None:
+    stages: set[str] = set()
     for matched in _FROM_LINE.finditer(text):
         # `FROM --platform=linux/amd64 image AS base`: flags and the stage alias
         # are not the image.
         tokens = [token for token in matched.group(1).split() if not token.startswith("--")]
         image_token = tokens[0].split(" ", 1)[0] if tokens else ""
-        if " AS " in matched.group(1).upper():
-            image_token = tokens[0] if tokens else ""
+        previous_stage = image_token.lower() in stages
+        if len(tokens) >= 3 and tokens[1].lower() == "as":
+            stages.add(tokens[2].lower())
         image, tag = _image_name(image_token)
-        if not image or image.lower() == "scratch":
+        if not image or image.lower() == "scratch" or previous_stage:
             continue
         builder.add(
             "image",
@@ -673,10 +695,7 @@ def _dockerfile(text: str, builder: _Builder, path: str) -> None:
 
 
 def _compose(text: str, builder: _Builder, path: str) -> None:
-    try:
-        document = _table(yaml.safe_load(text))
-    except yaml.YAMLError:
-        return
+    document = _table(yaml.safe_load(text))
     for service, body in _table(document.get("services")).items():
         image = _text(_table(body).get("image"))
         if image is None:
@@ -696,10 +715,7 @@ def _compose(text: str, builder: _Builder, path: str) -> None:
 
 
 def _gitlab_ci(text: str, builder: _Builder, path: str) -> None:
-    try:
-        document = _table(yaml.safe_load(text))
-    except yaml.YAMLError:
-        return
+    document = _table(yaml.safe_load(text))
     images: list[str] = []
 
     def collect(container: dict[str, object]) -> None:
@@ -732,10 +748,7 @@ def _gitlab_ci(text: str, builder: _Builder, path: str) -> None:
 def _lock_packages(text: str, builder: _Builder, path: str, flavor: str) -> None:
     """Installed packages out of a lock file — observed, not merely declared."""
     if flavor in {"toml-uv", "toml-poetry", "toml-cargo"}:
-        try:
-            document = _table(tomllib.loads(text))
-        except tomllib.TOMLDecodeError:
-            return
+        document = _table(tomllib.loads(text))
         for entry in _seq(document.get("package")):
             body = _table(entry)
             name, version = _text(body.get("name")), _text(body.get("version"))
@@ -752,10 +765,7 @@ def _lock_packages(text: str, builder: _Builder, path: str, flavor: str) -> None
                     confidence=1.0,
                 )
     elif flavor == "npm":
-        try:
-            document = _table(json.loads(text))
-        except json.JSONDecodeError:
-            return
+        document = _table(json.loads(text))
         for place, body in _table(document.get("packages")).items():
             if "node_modules/" not in place:
                 continue
@@ -774,10 +784,7 @@ def _lock_packages(text: str, builder: _Builder, path: str, flavor: str) -> None
                     confidence=1.0,
                 )
     elif flavor == "pubspec":
-        try:
-            document = _table(yaml.safe_load(text))
-        except yaml.YAMLError:
-            return
+        document = _table(yaml.safe_load(text))
         for name, body in _table(document.get("packages")).items():
             version = _text(_table(body).get("version"))
             builder.add(
@@ -792,17 +799,16 @@ def _lock_packages(text: str, builder: _Builder, path: str, flavor: str) -> None
                 confidence=1.0,
             )
     elif flavor == "go-sum":
-        seen: set[str] = set()
+        seen: set[tuple[str, str]] = set()
         for line in text.splitlines():
             parts = line.split()
-            if len(parts) >= 2 and parts[0] not in seen:
-                seen.add(parts[0])
-                _module, _sep, version = parts[1].rpartition("/go.mod")
+            if len(parts) >= 2 and (parts[0], parts[1].removesuffix("/go.mod")) not in seen:
+                seen.add((parts[0], parts[1].removesuffix("/go.mod")))
                 builder.add(
                     "package",
                     parts[0],
                     "production",
-                    version=version or parts[1],
+                    version=parts[1].removesuffix("/go.mod"),
                     version_kind="observed_version",
                     source="observed",
                     path=path,
@@ -826,15 +832,14 @@ def _yaml_lock_names(text: str, flavor: str) -> set[str]:
     """Package names out of pnpm/yarn locks without a full resolver."""
     found: set[str] = set()
     if flavor == "pnpm":
-        try:
-            document = _table(yaml.safe_load(text))
-        except yaml.YAMLError:
-            return found
+        document = _table(yaml.safe_load(text))
         for section in ("packages", "snapshots"):
             for key in _table(document.get(section)):
-                name = key.split("@", 1)[0].lstrip("/")
-                if name:
-                    found.add(name)
+                coordinate = key.lstrip("/")
+                # pnpm <=6 uses /name/version; >=7 uses name@version.
+                matched = re.match(r"^(@[^/@]+/[^/@(]+|[^/@(]+)(?:@|/)", coordinate)
+                if matched:
+                    found.add(matched.group(1))
     else:
         for matched in re.finditer(r"^\"?((?:@[\w.-]+/)?[\w.-]+)@", text, re.MULTILINE):
             found.add(matched.group(1))
@@ -1039,6 +1044,8 @@ def detect(index: project_index.Index) -> DetectedScan:
     hashed — re-hashed here so the evidence names exactly what was seen.
     """
     reader = _Reader(index)
+    started = time.monotonic()
+    stopped_by = index.stopped_by
     builder = _Builder(found={})
     # Presence-based signatures cite at most MAX_TRACE_PATHS paths: collecting
     # first and emitting once keeps a 4,000-file source tree from producing
@@ -1048,6 +1055,9 @@ def detect(index: project_index.Index) -> DetectedScan:
     suffix_paths: dict[tuple[str, str], list[str]] = {}
 
     for entry in index.entries:
+        if time.monotonic() - started >= project_index.MAX_SECONDS:
+            stopped_by = stopped_by or "detection time budget"
+            break
         basename = entry.path.rsplit("/", 1)[-1]
         if entry.language in _SOURCE_ALIAS:
             language_paths.setdefault(entry.language, []).append(entry.path)
@@ -1097,7 +1107,10 @@ def detect(index: project_index.Index) -> DetectedScan:
                 _runtime_file(basename, text, builder, entry.path)
 
         # Content rules, bounded by the same digest the index computed.
-        _content_rules(basename, entry, reader, builder)
+        try:
+            _content_rules(basename, entry, reader, builder)
+        except (ValueError, yaml.YAMLError, configparser.Error, RecursionError):
+            reader.incomplete = True
 
     for language, paths in language_paths.items():
         for path in sorted(paths)[:MAX_TRACE_PATHS]:
@@ -1134,8 +1147,8 @@ def detect(index: project_index.Index) -> DetectedScan:
             )
 
     return DetectedScan(
-        complete=index.state == "complete",
-        stopped_by=index.stopped_by,
+        complete=index.state == "complete" and stopped_by is None and not reader.incomplete,
+        stopped_by=stopped_by or ("unreadable manifest" if reader.incomplete else None),
         detections=builder.detections(),
     )
 
@@ -1188,6 +1201,12 @@ def _content_rules(
 ) -> None:
     """Per-file content rules. `entry` is a parameter here, so the lambdas
     below close over a fixed file rather than the scan's loop variable."""
+    if basename.startswith(("Dockerfile.", "Containerfile.")):
+        basename = "Dockerfile"
+    elif basename.startswith(("docker-compose.", "compose.")) and basename.endswith(
+        (".yml", ".yaml")
+    ):
+        basename = "compose.yaml"
     if basename not in _CONTENT_FILES and not basename.endswith(".dockerfile"):
         return
     path = entry.path
@@ -1294,10 +1313,7 @@ def _tool_versions(text: str, builder: _Builder, path: str) -> None:
 
 
 def _mise_toml(text: str, builder: _Builder, path: str) -> None:
-    try:
-        document = _table(tomllib.loads(text))
-    except tomllib.TOMLDecodeError:
-        return
+    document = _table(tomllib.loads(text))
     for name, spec in _table(document.get("tools")).items():
         version = _text(spec)
         builder.add(
@@ -1324,12 +1340,46 @@ class MappingSnapshot:
 
     version: str
     entries: tuple[tuple[str, str, str], ...]  # (kind, coordinate, technology_id)
+    _exact: dict[tuple[str, str], str] = field(init=False, repr=False, compare=False)
+    _image_basenames: dict[str, str] = field(init=False, repr=False, compare=False)
+
+    def __post_init__(self) -> None:
+        exact: dict[tuple[str, str], str] = {}
+        image_basenames: dict[str, str | None] = {}
+        for entry_kind, entry_coordinate, technology_id in self.entries:
+            lowered = entry_coordinate.lower()
+            exact.setdefault((entry_kind, lowered), technology_id)
+            if entry_kind == "image":
+                basename = lowered.rsplit("/", 1)[-1]
+                if image_basenames.get(basename, technology_id) != technology_id:
+                    # `temporalio/server` and `mcr.microsoft.com/mssql/server`
+                    # share a basename; an ambiguous suffix resolves nothing.
+                    # Same-technology repeats (`apache/kafka`, `bitnami/kafka`)
+                    # are one identity, not ambiguity.
+                    image_basenames[basename] = None
+                else:
+                    image_basenames.setdefault(basename, technology_id)
+        object.__setattr__(self, "_exact", exact)
+        object.__setattr__(
+            self,
+            "_image_basenames",
+            {key: value for key, value in image_basenames.items() if value is not None},
+        )
 
     def resolve(self, kind: str, coordinate: str) -> str | None:
         lowered = coordinate.lower()
-        for entry_kind, entry_coordinate, technology_id in self.entries:
-            if entry_kind == kind and entry_coordinate.lower() == lowered:
-                return technology_id
+        found = self._exact.get((kind, lowered))
+        if found is not None:
+            return found
+        if kind == "image":
+            # `harbor.example.com/proxy/library/postgres` names `postgres`: the
+            # registry prefix is deployment plumbing, not identity. Only an
+            # unambiguous basename may claim the entry. A bare `postgres` is
+            # Docker Hub's `library/postgres`.
+            basename = lowered.rsplit("/", 1)[-1]
+            if basename != lowered:
+                return self._image_basenames.get(basename)
+            return self._exact.get((kind, f"library/{lowered}"))
         return None
 
     def technology_ids(self) -> frozenset[str]:
@@ -1339,36 +1389,16 @@ class MappingSnapshot:
 def bundled_mapping() -> MappingSnapshot:
     """The table the CLI ships: seed identities only, nothing invented.
 
-    A coordinate absent here stays unmapped locally — that is a fact to report,
-    not a gap to fill with an identity nobody issued. Canonical ids for
-    technologies outside the seed resolve only through an organization's own
-    published snapshot.
+    Entries are a projection of `technology_seed.SEED_COORDINATES`, so this
+    table and the canonical registry cannot disagree. A coordinate absent here
+    stays unmapped locally — that is a fact to report, not a gap to fill with
+    an identity nobody issued; an organization's own published snapshot can
+    cover what the seed does not.
     """
     return MappingSnapshot(
         version=BUNDLED_MAPPING_VERSION,
-        entries=(
-            # Canonical identities come from `technology_seed.SEED_TECHNOLOGIES`
-            # (SPEC-081 REQ-8202). Nothing outside that manifest is resolved.
-            ("alias", "bun", "technology_00000000000000000000000001"),
-            ("package", "bun", "technology_00000000000000000000000001"),
-            ("configuration", "bun.lock", "technology_00000000000000000000000001"),
-            ("configuration", "bun.lockb", "technology_00000000000000000000000001"),
-            ("alias", "npm", "technology_00000000000000000000000002"),
-            ("package", "npm", "technology_00000000000000000000000002"),
-            ("configuration", ".gitlab-ci.yml", "technology_00000000000000000000000004"),
-            ("configuration", ".gitlab-ci.yaml", "technology_00000000000000000000000004"),
-            ("image", "gitlab/gitlab-runner", "technology_00000000000000000000000005"),
-            ("package", "react", "technology_00000000000000000000000006"),
-            ("package", "react-dom", "technology_00000000000000000000000006"),
-            ("image", "postgres", "technology_00000000000000000000000007"),
-            ("image", "postgresql", "technology_00000000000000000000000007"),
-            ("package", "psycopg", "technology_00000000000000000000000007"),
-            ("package", "psycopg2", "technology_00000000000000000000000007"),
-            ("package", "psycopg2-binary", "technology_00000000000000000000000007"),
-            ("package", "asyncpg", "technology_00000000000000000000000007"),
-            ("package", "pg", "technology_00000000000000000000000007"),
-            ("package", "postgres", "technology_00000000000000000000000007"),
-            ("configuration", "postgresql.conf", "technology_00000000000000000000000007"),
-            ("configuration", "pg_hba.conf", "technology_00000000000000000000000007"),
+        entries=tuple(
+            (kind, coordinate, technology_id)
+            for technology_id, kind, coordinate in SEED_COORDINATES
         ),
     )

@@ -216,6 +216,28 @@ class TechnologyObservation(BaseModel):
     fact: TechnologyUsageFact
 
 
+class TechnologyUnmappedCoordinate(BaseModel):
+    """A coordinate the applied mapping did not resolve — the registry's review queue.
+
+    Unmapped coordinates are observations, not identities: the platform retains
+    them so an organization can see what its mapping does not yet name and grow
+    the registry from evidence instead of guesswork.
+    """
+
+    model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
+    kind: Literal["package", "image", "executable", "configuration", "alias"]
+    coordinate: Annotated[
+        str, Field(min_length=1, max_length=512, pattern=r"^[A-Za-z0-9._:/@+*-]+$")
+    ]
+
+    @field_validator("coordinate")
+    @classmethod
+    def no_credentials(cls, value: str) -> str:
+        if "://" in value and urlsplit(value).username is not None:
+            raise ValueError("unmapped coordinates must not contain credentials")
+        return value
+
+
 class TechnologyScanHandoff(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
     schema_version: Literal[1] = 1
@@ -228,6 +250,7 @@ class TechnologyScanHandoff(BaseModel):
     detector_version: MappingVersion
     mapping_version: MappingVersion
     observations: Annotated[list[TechnologyObservation], Field(max_length=4096)]
+    unmapped_coordinates: Annotated[list[TechnologyUnmappedCoordinate], Field(max_length=512)] = []
 
     @model_validator(mode="after")
     def explicit_identity(self) -> TechnologyScanHandoff:
@@ -293,6 +316,7 @@ class TechnologyMappingEntry(BaseModel):
 
 class TechnologyMappingRequest(TechnologyMutation):
     expected_revision: Annotated[int, Field(ge=0, le=0)] = 0
+    base_version: MappingVersion | None = None
     entries: Annotated[list[TechnologyMappingEntry], Field(min_length=1, max_length=4096)]
 
     @field_validator("entries")
@@ -312,12 +336,64 @@ class TechnologyMappingView(BaseModel):
     digest: Annotated[str, Field(pattern=r"^sha256:[0-9a-f]{64}$")]
 
 
+class TechnologyMappingSummary(BaseModel):
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+    version: MappingVersion
+    entries: Annotated[int, Field(ge=1)]
+    digest: Annotated[str, Field(pattern=r"^sha256:[0-9a-f]{64}$")]
+
+
+class TechnologyMappingList(BaseModel):
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+    organization_id: OrganizationId
+    items: list[TechnologyMappingSummary]
+
+
+class TechnologyUnmappedReviewRequest(TechnologyMutation):
+    """Propose or clear the candidate technology for one unmapped coordinate."""
+
+    expected_revision: Annotated[int, Field(ge=0, le=0)] = 0
+    kind: Literal["package", "image", "executable", "configuration", "alias"]
+    coordinate: Annotated[
+        str, Field(min_length=1, max_length=512, pattern=r"^[A-Za-z0-9._:/@+*-]+$")
+    ]
+    candidate_technology_id: TechnologyId | None
+
+    @field_validator("coordinate")
+    @classmethod
+    def no_credentials(cls, value: str) -> str:
+        if "://" in value and urlsplit(value).username is not None:
+            raise ValueError("unmapped coordinates must not contain credentials")
+        return value
+
+
+class TechnologyUnmappedEntry(BaseModel):
+    """One unmapped coordinate, the projects that reported it and its review state."""
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+    kind: Literal["package", "image", "executable", "configuration", "alias"]
+    coordinate: Annotated[
+        str, Field(min_length=1, max_length=512, pattern=r"^[A-Za-z0-9._:/@+*-]+$")
+    ]
+    project_ids: Annotated[list[RemoteProjectId], Field(max_length=512)]
+    candidate_technology_id: TechnologyId | None = None
+    resolved_technology_id: TechnologyId | None = None
+    state: Literal["open", "resolved"] = "open"
+
+
+class TechnologyUnmappedView(BaseModel):
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+    organization_id: OrganizationId
+    coordinates: list[TechnologyUnmappedEntry]
+
+
 class TechnologyScanRequest(TechnologyMutation):
     handoff: TechnologyScanHandoff
 
 
 class CategoryWriteRequest(TechnologyMutation):
     metadata: TechnologyCategoryMetadata
+    state: Literal["draft", "active"] | None = None
 
 
 class TechnologySeedRequest(TechnologyMutation):
@@ -457,7 +533,7 @@ class TechnologyTeamWriteRequest(TechnologyMutation):
 
 
 class CategoryLifecycleRequest(TechnologyMutation):
-    target: Literal["active", "archived"]
+    target: Literal["draft", "active", "archived"]
 
 
 def _category_wire_object(schema: JsonSchemaValue) -> None:
@@ -471,7 +547,7 @@ class CategoryView(TechnologyCategoryMetadata):
     category_id: CategoryId
     revision: Annotated[int, Field(ge=1)]
     provenance: str
-    state: Literal["active", "archived"] | None = None
+    state: Literal["draft", "active", "archived"] | None = None
 
 
 class CategoryList(BaseModel):

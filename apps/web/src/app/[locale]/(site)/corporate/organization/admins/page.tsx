@@ -103,12 +103,13 @@ export default async function CorporateAdministrationPage({ params }: PageProps)
             {technology("title")}
           </Link>
         )}
-        {context.capabilities.includes("landscape.manage") && (
+        {(context.capabilities.includes("landscape.manage") ||
+          context.capabilities.includes("telemetry.manage")) && (
           <Link
             href="/corporate/organization/admins/settings"
             className="inline-flex min-h-11 items-center underline underline-offset-4"
           >
-            {technology("activityPolicy")}
+            {technology("organizationSettings")}
           </Link>
         )}
       </nav>

@@ -35,6 +35,7 @@ from ai_stp_platform.organization_models import (
     OrganizationMembership,
     ProjectIdentity,
 )
+from ai_stp_platform.telemetry_policy_models import TelemetryPolicy
 from ai_stp_platform.tenant_scope import set_tenant_scope
 
 pytestmark = pytest.mark.platform
@@ -124,6 +125,22 @@ async def _tenant(
     )
     assert response.status_code == 200, response.text
     organization_id = response.json()["organization_id"]
+    async with sessionmaker() as db:
+        await set_tenant_scope(db, organization_id)
+        policy = await db.get(TelemetryPolicy, organization_id)
+        if policy is None:
+            policy = TelemetryPolicy(
+                organization_id=organization_id,
+                raw_retention_days=90,
+                aggregate_retention_days=365,
+                legal_basis="contract",
+                usage_collection_enabled=True,
+                policy_version=1,
+            )
+            db.add(policy)
+        else:
+            policy.usage_collection_enabled = True
+        await db.commit()
     return organization_id, account_id, device_id, {"Authorization": f"Bearer {token}"}
 
 
@@ -189,6 +206,9 @@ def _usage_event(
         },
         "invoked_at": INVOKED_AT,
         "outcome": "succeeded",
+        # Native evidence is what the reports count: confirmed-only filters
+        # ignore agent-reported rows.
+        "source": "native_hook",
     }
     event.update(overrides)
     return event
@@ -232,6 +252,9 @@ async def test_ingest_dedup_and_identity_binding(
         "accepted": 1,
         "duplicates": 0,
         "rejected": 0,
+        "accepted_ids": ["usage_event_ing0001"],
+        "duplicate_ids": [],
+        "rejected_ids": [],
     }
     replay = await _ingest(
         client,

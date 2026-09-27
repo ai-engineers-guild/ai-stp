@@ -1619,6 +1619,7 @@
           },
           "target": {
             "enum": [
+              "draft",
               "active",
               "archived"
             ],
@@ -1685,6 +1686,7 @@
             "anyOf": [
               {
                 "enum": [
+                  "draft",
                   "active",
                   "archived"
                 ],
@@ -1742,6 +1744,22 @@
             "default": 1,
             "title": "Schema Version",
             "type": "integer"
+          },
+          "state": {
+            "anyOf": [
+              {
+                "enum": [
+                  "draft",
+                  "active"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "State"
           }
         },
         "required": [
@@ -11331,6 +11349,18 @@
           "idempotency_key": {
             "$ref": "#/components/schemas/IdempotencyKey"
           },
+          "inventory_scan_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Inventory Scan Enabled"
+          },
           "legal_basis": {
             "enum": [
               "consent",
@@ -11371,11 +11401,49 @@
             "title": "Reason",
             "type": "string"
           },
+          "report_timezone": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Report Timezone"
+          },
           "schema_version": {
             "const": 1,
             "default": 1,
             "title": "Schema Version",
             "type": "integer"
+          },
+          "usage_collection_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Usage Collection Enabled"
+          },
+          "usage_registration_required": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Usage Registration Required"
           }
         },
         "required": [
@@ -11431,6 +11499,11 @@
             "title": "Heartbeat Stale After Seconds",
             "type": "integer"
           },
+          "inventory_scan_enabled": {
+            "default": false,
+            "title": "Inventory Scan Enabled",
+            "type": "boolean"
+          },
           "legal_basis": {
             "enum": [
               "consent",
@@ -11473,6 +11546,13 @@
             "title": "Raw Retention Days",
             "type": "integer"
           },
+          "report_timezone": {
+            "default": "UTC",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Report Timezone",
+            "type": "string"
+          },
           "schema_version": {
             "const": 1,
             "default": 1,
@@ -11481,6 +11561,16 @@
           },
           "updated_at": {
             "$ref": "#/components/schemas/Timestamp"
+          },
+          "usage_collection_enabled": {
+            "default": false,
+            "title": "Usage Collection Enabled",
+            "type": "boolean"
+          },
+          "usage_registration_required": {
+            "default": false,
+            "title": "Usage Registration Required",
+            "type": "boolean"
           }
         },
         "required": [
@@ -11490,14 +11580,18 @@
           "heartbeat_retry_base_seconds",
           "heartbeat_retry_max_seconds",
           "heartbeat_stale_after_seconds",
+          "inventory_scan_enabled",
           "legal_basis",
           "notice_revision",
           "notice_text",
           "organization_id",
           "policy_version",
           "raw_retention_days",
+          "report_timezone",
           "schema_version",
-          "updated_at"
+          "updated_at",
+          "usage_collection_enabled",
+          "usage_registration_required"
         ],
         "title": "CorporateTelemetryPolicyView",
         "type": "object"
@@ -12462,6 +12556,18 @@
             "title": "Device Type",
             "type": "string"
           },
+          "display_name": {
+            "anyOf": [
+              {
+                "maxLength": 160,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
           "etag": {
             "maxLength": 128,
             "minLength": 1,
@@ -12510,6 +12616,7 @@
           "approximate_location",
           "device_id",
           "device_type",
+          "display_name",
           "etag",
           "last_active_at",
           "registered_at",
@@ -15044,6 +15151,365 @@
         ],
         "type": "string"
       },
+      "HeartbeatReport": {
+        "additionalProperties": false,
+        "properties": {
+          "employees": {
+            "items": {
+              "$ref": "#/components/schemas/HeartbeatReportEmployee"
+            },
+            "title": "Employees",
+            "type": "array"
+          },
+          "evaluated_at": {
+            "$ref": "#/components/schemas/Timestamp"
+          },
+          "interval_seconds": {
+            "title": "Interval Seconds",
+            "type": "integer"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/HeartbeatReportRow"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "organization_id": {
+            "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "title": "Organization Id",
+            "type": "string"
+          },
+          "page": {
+            "title": "Page",
+            "type": "integer"
+          },
+          "page_size": {
+            "title": "Page Size",
+            "type": "integer"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "stale_after_seconds": {
+            "title": "Stale After Seconds",
+            "type": "integer"
+          },
+          "teams": {
+            "items": {
+              "$ref": "#/components/schemas/HeartbeatReportTeam"
+            },
+            "title": "Teams",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "organization_id",
+          "evaluated_at",
+          "interval_seconds",
+          "stale_after_seconds",
+          "total",
+          "page",
+          "page_size",
+          "teams",
+          "employees",
+          "items"
+        ],
+        "title": "HeartbeatReport",
+        "type": "object"
+      },
+      "HeartbeatReportBucket": {
+        "additionalProperties": false,
+        "properties": {
+          "end": {
+            "$ref": "#/components/schemas/Timestamp"
+          },
+          "expected": {
+            "title": "Expected",
+            "type": "integer"
+          },
+          "received": {
+            "title": "Received",
+            "type": "integer"
+          },
+          "start": {
+            "$ref": "#/components/schemas/Timestamp"
+          },
+          "state": {
+            "enum": [
+              "healthy",
+              "partial",
+              "missing",
+              "not_expected"
+            ],
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "start",
+          "end",
+          "expected",
+          "received",
+          "state"
+        ],
+        "title": "HeartbeatReportBucket",
+        "type": "object"
+      },
+      "HeartbeatReportEmployee": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "team_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Team Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "team_ids"
+        ],
+        "title": "HeartbeatReportEmployee",
+        "type": "object"
+      },
+      "HeartbeatReportQuery": {
+        "additionalProperties": false,
+        "properties": {
+          "employee": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Employee",
+            "type": "array"
+          },
+          "from_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "From Date"
+          },
+          "order": {
+            "default": "desc",
+            "enum": [
+              "asc",
+              "desc"
+            ],
+            "title": "Order",
+            "type": "string"
+          },
+          "page": {
+            "default": 1,
+            "minimum": 1,
+            "title": "Page",
+            "type": "integer"
+          },
+          "page_size": {
+            "default": 10,
+            "maximum": 50,
+            "minimum": 1,
+            "title": "Page Size",
+            "type": "integer"
+          },
+          "period": {
+            "default": "7d",
+            "enum": [
+              "24h",
+              "7d",
+              "30d",
+              "custom"
+            ],
+            "title": "Period",
+            "type": "string"
+          },
+          "sort": {
+            "default": "last_heartbeat",
+            "enum": [
+              "employee",
+              "team",
+              "last_heartbeat",
+              "status",
+              "coverage"
+            ],
+            "title": "Sort",
+            "type": "string"
+          },
+          "status": {
+            "default": [],
+            "items": {
+              "enum": [
+                "active",
+                "stale",
+                "failing",
+                "disabled",
+                "unknown"
+              ],
+              "type": "string"
+            },
+            "title": "Status",
+            "type": "array"
+          },
+          "team": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Team",
+            "type": "array"
+          },
+          "to_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "To Date"
+          },
+          "view": {
+            "default": "current",
+            "enum": [
+              "current",
+              "history"
+            ],
+            "title": "View",
+            "type": "string"
+          }
+        },
+        "title": "HeartbeatReportQuery",
+        "type": "object"
+      },
+      "HeartbeatReportRow": {
+        "additionalProperties": false,
+        "properties": {
+          "account_id": {
+            "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "title": "Account Id",
+            "type": "string"
+          },
+          "buckets": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/HeartbeatReportBucket"
+            },
+            "title": "Buckets",
+            "type": "array"
+          },
+          "coverage_percent": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Coverage Percent"
+          },
+          "device_id": {
+            "pattern": "^device_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "title": "Device Id",
+            "type": "string"
+          },
+          "device_name": {
+            "title": "Device Name",
+            "type": "string"
+          },
+          "employee_name": {
+            "title": "Employee Name",
+            "type": "string"
+          },
+          "last_heartbeat_at": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Timestamp"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status": {
+            "enum": [
+              "active",
+              "stale",
+              "failing",
+              "disabled",
+              "unknown"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "teams": {
+            "items": {
+              "$ref": "#/components/schemas/HeartbeatReportTeam"
+            },
+            "title": "Teams",
+            "type": "array"
+          }
+        },
+        "required": [
+          "account_id",
+          "employee_name",
+          "teams",
+          "device_id",
+          "device_name",
+          "last_heartbeat_at",
+          "status"
+        ],
+        "title": "HeartbeatReportRow",
+        "type": "object"
+      },
+      "HeartbeatReportTeam": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "HeartbeatReportTeam",
+        "type": "object"
+      },
       "IdempotencyKey": {
         "pattern": "^[A-Za-z0-9._~-]{16,128}$",
         "type": "string"
@@ -15228,6 +15694,11 @@
             "title": "Interval Seconds",
             "type": "integer"
           },
+          "inventory_scan_enabled": {
+            "default": false,
+            "title": "Inventory Scan Enabled",
+            "type": "boolean"
+          },
           "organization_id": {
             "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
             "title": "Organization Id",
@@ -15259,16 +15730,29 @@
             "minimum": 60,
             "title": "Stale After Seconds",
             "type": "integer"
+          },
+          "usage_collection_enabled": {
+            "default": false,
+            "title": "Usage Collection Enabled",
+            "type": "boolean"
+          },
+          "usage_registration_required": {
+            "default": false,
+            "title": "Usage Registration Required",
+            "type": "boolean"
           }
         },
         "required": [
           "enabled",
           "interval_seconds",
+          "inventory_scan_enabled",
           "organization_id",
           "retry_base_seconds",
           "retry_max_seconds",
           "schema_version",
-          "stale_after_seconds"
+          "stale_after_seconds",
+          "usage_collection_enabled",
+          "usage_registration_required"
         ],
         "title": "InstallationHeartbeatPolicy",
         "type": "object"
@@ -15413,6 +15897,507 @@
           "stale_after_seconds"
         ],
         "title": "InstallationHeartbeatStatus",
+        "type": "object"
+      },
+      "InstallationInventoryBatch": {
+        "additionalProperties": false,
+        "properties": {
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "snapshots": {
+            "items": {
+              "$ref": "#/components/schemas/InstallationInventorySnapshot"
+            },
+            "maxItems": 64,
+            "minItems": 1,
+            "title": "Snapshots",
+            "type": "array"
+          }
+        },
+        "required": [
+          "snapshots"
+        ],
+        "title": "InstallationInventoryBatch",
+        "type": "object"
+      },
+      "InstallationInventoryReceipt": {
+        "additionalProperties": true,
+        "properties": {
+          "accepted_ids": {
+            "items": {
+              "maxLength": 80,
+              "minLength": 8,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{7,79}$",
+              "type": "string"
+            },
+            "title": "Accepted Ids",
+            "type": "array"
+          },
+          "duplicate_ids": {
+            "items": {
+              "maxLength": 80,
+              "minLength": 8,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{7,79}$",
+              "type": "string"
+            },
+            "title": "Duplicate Ids",
+            "type": "array"
+          },
+          "rejected_ids": {
+            "items": {
+              "maxLength": 80,
+              "minLength": 8,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{7,79}$",
+              "type": "string"
+            },
+            "title": "Rejected Ids",
+            "type": "array"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "accepted_ids",
+          "duplicate_ids",
+          "rejected_ids",
+          "schema_version"
+        ],
+        "title": "InstallationInventoryReceipt",
+        "type": "object"
+      },
+      "InstallationInventorySnapshot": {
+        "additionalProperties": false,
+        "description": "One global or registered-project scope, including failed/partial checks.",
+        "properties": {
+          "complete": {
+            "title": "Complete",
+            "type": "boolean"
+          },
+          "components": {
+            "items": {
+              "$ref": "#/components/schemas/InventoryObservedComponent"
+            },
+            "maxItems": 1024,
+            "title": "Components",
+            "type": "array"
+          },
+          "device_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Device Id",
+            "type": "string"
+          },
+          "employee_id": {
+            "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "title": "Employee Id",
+            "type": "string"
+          },
+          "organization_id": {
+            "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "title": "Organization Id",
+            "type": "string"
+          },
+          "project_id": {
+            "anyOf": [
+              {
+                "pattern": "^remote_project_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Project Id"
+          },
+          "scan_id": {
+            "maxLength": 80,
+            "minLength": 8,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{7,79}$",
+            "title": "Scan Id",
+            "type": "string"
+          },
+          "scanned_at": {
+            "$ref": "#/components/schemas/Timestamp"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "scope": {
+            "enum": [
+              "global",
+              "project"
+            ],
+            "title": "Scope",
+            "type": "string"
+          }
+        },
+        "required": [
+          "scan_id",
+          "organization_id",
+          "employee_id",
+          "device_id",
+          "scope",
+          "scanned_at",
+          "complete",
+          "components"
+        ],
+        "title": "InstallationInventorySnapshot",
+        "type": "object"
+      },
+      "InstallationOperationBatch": {
+        "additionalProperties": false,
+        "properties": {
+          "operations": {
+            "items": {
+              "$ref": "#/components/schemas/InstallationOperationFact"
+            },
+            "maxItems": 128,
+            "minItems": 1,
+            "title": "Operations",
+            "type": "array"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "operations"
+        ],
+        "title": "InstallationOperationBatch",
+        "type": "object"
+      },
+      "InstallationOperationFact": {
+        "additionalProperties": false,
+        "description": "One settled local journal operation; no paths or provider payloads.",
+        "properties": {
+          "action": {
+            "enum": [
+              "install",
+              "update",
+              "remove",
+              "rollback"
+            ],
+            "title": "Action",
+            "type": "string"
+          },
+          "components": {
+            "items": {
+              "$ref": "#/components/schemas/InstalledComponent"
+            },
+            "maxItems": 256,
+            "title": "Components",
+            "type": "array"
+          },
+          "components_complete": {
+            "default": false,
+            "title": "Components Complete",
+            "type": "boolean"
+          },
+          "device_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Device Id",
+            "type": "string"
+          },
+          "employee_id": {
+            "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "title": "Employee Id",
+            "type": "string"
+          },
+          "harness": {
+            "$ref": "#/components/schemas/HarnessId"
+          },
+          "occurred_at": {
+            "$ref": "#/components/schemas/Timestamp"
+          },
+          "operation_id": {
+            "pattern": "^operation_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "title": "Operation Id",
+            "type": "string"
+          },
+          "organization_id": {
+            "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "title": "Organization Id",
+            "type": "string"
+          },
+          "project_id": {
+            "pattern": "^remote_project_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "title": "Project Id",
+            "type": "string"
+          },
+          "result": {
+            "enum": [
+              "verified",
+              "partial",
+              "rolled_back",
+              "failed",
+              "stale"
+            ],
+            "title": "Result",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "scope": {
+            "enum": [
+              "global",
+              "project",
+              "unknown"
+            ],
+            "title": "Scope",
+            "type": "string"
+          },
+          "setup_stable_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Setup Stable Id"
+          },
+          "setup_version": {
+            "anyOf": [
+              {
+                "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Setup Version"
+          }
+        },
+        "required": [
+          "operation_id",
+          "organization_id",
+          "employee_id",
+          "device_id",
+          "project_id",
+          "harness",
+          "scope",
+          "action",
+          "result",
+          "occurred_at"
+        ],
+        "title": "InstallationOperationFact",
+        "type": "object"
+      },
+      "InstallationOperationReceipt": {
+        "additionalProperties": true,
+        "properties": {
+          "accepted_ids": {
+            "items": {
+              "pattern": "^operation_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            },
+            "title": "Accepted Ids",
+            "type": "array"
+          },
+          "duplicate_ids": {
+            "items": {
+              "pattern": "^operation_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            },
+            "title": "Duplicate Ids",
+            "type": "array"
+          },
+          "rejected_ids": {
+            "items": {
+              "pattern": "^operation_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            },
+            "title": "Rejected Ids",
+            "type": "array"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "accepted_ids",
+          "duplicate_ids",
+          "rejected_ids",
+          "schema_version"
+        ],
+        "title": "InstallationOperationReceipt",
+        "type": "object"
+      },
+      "InstalledComponent": {
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "enum": [
+              "instruction",
+              "skill",
+              "mcp",
+              "hook",
+              "command",
+              "agent",
+              "plugin",
+              "setting",
+              "cli"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "stable_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Stable Id",
+            "type": "string"
+          },
+          "version": {
+            "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "stable_id",
+          "version"
+        ],
+        "title": "InstalledComponent",
+        "type": "object"
+      },
+      "InventoryObservedComponent": {
+        "additionalProperties": false,
+        "properties": {
+          "harness": {
+            "$ref": "#/components/schemas/HarnessId"
+          },
+          "kind": {
+            "enum": [
+              "instruction",
+              "skill",
+              "mcp",
+              "hook",
+              "command",
+              "agent",
+              "plugin",
+              "setting",
+              "cli"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "location_digest": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Location Digest",
+            "type": "string"
+          },
+          "setup_stable_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Setup Stable Id"
+          },
+          "setup_version": {
+            "anyOf": [
+              {
+                "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Setup Version"
+          },
+          "source": {
+            "enum": [
+              "managed",
+              "external",
+              "unknown"
+            ],
+            "title": "Source",
+            "type": "string"
+          },
+          "stable_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Stable Id"
+          },
+          "state": {
+            "enum": [
+              "present",
+              "modified",
+              "missing",
+              "unknown"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Version"
+          }
+        },
+        "required": [
+          "location_digest",
+          "kind",
+          "harness",
+          "source",
+          "state"
+        ],
+        "title": "InventoryObservedComponent",
         "type": "object"
       },
       "InvitationState": {
@@ -20021,6 +21006,70 @@
         "pattern": "^revision_[0-9a-f]{64}$",
         "type": "string"
       },
+      "RuntimeUsageAssignedRow": {
+        "additionalProperties": true,
+        "description": "One currently assigned object and its observed use in the selected period.",
+        "properties": {
+          "invocations": {
+            "minimum": 0,
+            "title": "Invocations",
+            "type": "integer"
+          },
+          "last_invoked_at": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Timestamp"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "object_kind": {
+            "enum": [
+              "setup",
+              "component"
+            ],
+            "title": "Object Kind",
+            "type": "string"
+          },
+          "stable_id": {
+            "title": "Stable Id",
+            "type": "string"
+          },
+          "state": {
+            "enum": [
+              "recorded_use",
+              "no_recorded_use"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Version"
+          }
+        },
+        "required": [
+          "invocations",
+          "last_invoked_at",
+          "object_kind",
+          "stable_id",
+          "state",
+          "version"
+        ],
+        "title": "RuntimeUsageAssignedRow",
+        "type": "object"
+      },
       "RuntimeUsageComponentCoordinate": {
         "additionalProperties": false,
         "description": "The exact component that was invoked, kind-qualified.",
@@ -20066,10 +21115,116 @@
         "title": "RuntimeUsageComponentCoordinate",
         "type": "object"
       },
+      "RuntimeUsageDayBucket": {
+        "additionalProperties": false,
+        "properties": {
+          "day": {
+            "title": "Day",
+            "type": "string"
+          },
+          "uses": {
+            "minimum": 0,
+            "title": "Uses",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "day",
+          "uses"
+        ],
+        "title": "RuntimeUsageDayBucket",
+        "type": "object"
+      },
+      "RuntimeUsageEmployeeRow": {
+        "additionalProperties": false,
+        "properties": {
+          "active_days": {
+            "minimum": 0,
+            "title": "Active Days",
+            "type": "integer"
+          },
+          "assigned_components": {
+            "minimum": 0,
+            "title": "Assigned Components",
+            "type": "integer"
+          },
+          "employee_id": {
+            "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "title": "Employee Id",
+            "type": "string"
+          },
+          "installed_components": {
+            "minimum": 0,
+            "title": "Installed Components",
+            "type": "integer"
+          },
+          "last_used_at": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Timestamp"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Name"
+          },
+          "team_ids": {
+            "items": {
+              "pattern": "^operation_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            },
+            "title": "Team Ids",
+            "type": "array"
+          },
+          "used_components": {
+            "minimum": 0,
+            "title": "Used Components",
+            "type": "integer"
+          },
+          "uses": {
+            "minimum": 0,
+            "title": "Uses",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "employee_id",
+          "team_ids",
+          "assigned_components",
+          "installed_components",
+          "used_components",
+          "uses",
+          "active_days"
+        ],
+        "title": "RuntimeUsageEmployeeRow",
+        "type": "object"
+      },
       "RuntimeUsageEvent": {
         "additionalProperties": false,
         "description": "One component invocation. The closed field set is the contract.",
         "properties": {
+          "activity_kind": {
+            "default": "invocation",
+            "enum": [
+              "invocation",
+              "load"
+            ],
+            "title": "Activity Kind",
+            "type": "string"
+          },
           "component": {
             "$ref": "#/components/schemas/RuntimeUsageComponentCoordinate"
           },
@@ -20123,7 +21278,24 @@
             "type": "integer"
           },
           "setup": {
-            "$ref": "#/components/schemas/RuntimeUsageSetupCoordinate"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RuntimeUsageSetupCoordinate"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "source": {
+            "default": "agent_reported",
+            "enum": [
+              "native_hook",
+              "agent_reported"
+            ],
+            "title": "Source",
+            "type": "string"
           }
         },
         "required": [
@@ -20133,7 +21305,6 @@
           "device_id",
           "project_id",
           "harness",
-          "setup",
           "component",
           "invoked_at",
           "outcome"
@@ -20213,6 +21384,22 @@
         "additionalProperties": false,
         "description": "Drill-down filters over redacted event rows; separately permissioned.",
         "properties": {
+          "activity_kind": {
+            "anyOf": [
+              {
+                "enum": [
+                  "invocation",
+                  "load"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Activity Kind"
+          },
           "component_kind": {
             "anyOf": [
               {
@@ -20250,6 +21437,19 @@
             "default": null,
             "title": "Component Stable Id"
           },
+          "component_version": {
+            "anyOf": [
+              {
+                "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Component Version"
+          },
           "device_id": {
             "anyOf": [
               {
@@ -20263,6 +21463,11 @@
             ],
             "default": null,
             "title": "Device Id"
+          },
+          "direct_only": {
+            "default": false,
+            "title": "Direct Only",
+            "type": "boolean"
           },
           "employee_id": {
             "anyOf": [
@@ -20317,6 +21522,47 @@
             "title": "Limit",
             "type": "integer"
           },
+          "local_day": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Local Day"
+          },
+          "local_hour": {
+            "anyOf": [
+              {
+                "maximum": 23,
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Local Hour"
+          },
+          "local_weekday": {
+            "anyOf": [
+              {
+                "maximum": 6,
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Local Weekday"
+          },
           "offset": {
             "default": 0,
             "minimum": 0,
@@ -20367,6 +21613,35 @@
             "default": null,
             "title": "Setup Stable Id"
           },
+          "setup_version": {
+            "anyOf": [
+              {
+                "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Setup Version"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "enum": [
+                  "native_hook",
+                  "agent_reported"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Source"
+          },
           "team_id": {
             "anyOf": [
               {
@@ -20401,6 +21676,14 @@
         "additionalProperties": true,
         "description": "The redacted drill-down row: identities and coordinates, nothing else.",
         "properties": {
+          "activity_kind": {
+            "enum": [
+              "invocation",
+              "load"
+            ],
+            "title": "Activity Kind",
+            "type": "string"
+          },
           "component_kind": {
             "title": "Component Kind",
             "type": "string"
@@ -20446,15 +21729,38 @@
             "type": "string"
           },
           "setup_stable_id": {
-            "title": "Setup Stable Id",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Setup Stable Id"
           },
           "setup_version": {
-            "title": "Setup Version",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Setup Version"
+          },
+          "source": {
+            "enum": [
+              "native_hook",
+              "agent_reported"
+            ],
+            "title": "Source",
             "type": "string"
           }
         },
         "required": [
+          "activity_kind",
           "component_kind",
           "component_stable_id",
           "component_version",
@@ -20466,7 +21772,8 @@
           "outcome",
           "project_id",
           "setup_stable_id",
-          "setup_version"
+          "setup_version",
+          "source"
         ],
         "title": "RuntimeUsageEventView",
         "type": "object"
@@ -20486,6 +21793,7 @@
           "query": {
             "$ref": "#/components/schemas/RuntimeUsageReportQuery",
             "default": {
+              "collection_state": "all",
               "component_kind": null,
               "component_stable_id": null,
               "device_id": null,
@@ -20500,7 +21808,8 @@
               "project_id": null,
               "setup_stable_id": null,
               "team_id": null,
-              "technology_id": null
+              "technology_id": null,
+              "usage_state": "all"
             }
           },
           "schema_version": {
@@ -20566,6 +21875,35 @@
         "title": "RuntimeUsageExportView",
         "type": "object"
       },
+      "RuntimeUsageHourBucket": {
+        "additionalProperties": false,
+        "properties": {
+          "hour": {
+            "maximum": 23,
+            "minimum": 0,
+            "title": "Hour",
+            "type": "integer"
+          },
+          "uses": {
+            "minimum": 0,
+            "title": "Uses",
+            "type": "integer"
+          },
+          "weekday": {
+            "maximum": 6,
+            "minimum": 0,
+            "title": "Weekday",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "weekday",
+          "hour",
+          "uses"
+        ],
+        "title": "RuntimeUsageHourBucket",
+        "type": "object"
+      },
       "RuntimeUsageIngestResult": {
         "additionalProperties": true,
         "description": "Per-batch bookkeeping; the server never returns event content.",
@@ -20574,6 +21912,26 @@
             "minimum": 0,
             "title": "Accepted",
             "type": "integer"
+          },
+          "accepted_ids": {
+            "items": {
+              "maxLength": 80,
+              "minLength": 8,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{7,79}$",
+              "type": "string"
+            },
+            "title": "Accepted Ids",
+            "type": "array"
+          },
+          "duplicate_ids": {
+            "items": {
+              "maxLength": 80,
+              "minLength": 8,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{7,79}$",
+              "type": "string"
+            },
+            "title": "Duplicate Ids",
+            "type": "array"
           },
           "duplicates": {
             "minimum": 0,
@@ -20585,6 +21943,16 @@
             "title": "Rejected",
             "type": "integer"
           },
+          "rejected_ids": {
+            "items": {
+              "maxLength": 80,
+              "minLength": 8,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{7,79}$",
+              "type": "string"
+            },
+            "title": "Rejected Ids",
+            "type": "array"
+          },
           "schema_version": {
             "const": 1,
             "default": 1,
@@ -20594,23 +21962,35 @@
         },
         "required": [
           "accepted",
+          "accepted_ids",
+          "duplicate_ids",
           "duplicates",
           "rejected",
+          "rejected_ids",
           "schema_version"
         ],
         "title": "RuntimeUsageIngestResult",
         "type": "object"
       },
-      "RuntimeUsageInstalledRow": {
-        "additionalProperties": true,
-        "description": "One currently assigned object and whether it was ever invoked.",
+      "RuntimeUsageInventoryEmployeeRow": {
+        "additionalProperties": false,
+        "description": "Current managed observations; no inferred removal from partial scans.",
         "properties": {
-          "invocations": {
-            "minimum": 0,
-            "title": "Invocations",
-            "type": "integer"
+          "coverage": {
+            "enum": [
+              "complete",
+              "partial",
+              "stale"
+            ],
+            "title": "Coverage",
+            "type": "string"
           },
-          "last_invoked_at": {
+          "employee_id": {
+            "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "title": "Employee Id",
+            "type": "string"
+          },
+          "last_complete_at": {
             "anyOf": [
               {
                 "$ref": "#/components/schemas/Timestamp"
@@ -20621,27 +22001,90 @@
             ],
             "default": null
           },
-          "object_kind": {
-            "enum": [
-              "setup",
-              "component"
+          "last_scan_at": {
+            "$ref": "#/components/schemas/Timestamp"
+          },
+          "observed_modified": {
+            "minimum": 0,
+            "title": "Observed Modified",
+            "type": "integer"
+          },
+          "observed_present": {
+            "minimum": 0,
+            "title": "Observed Present",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "employee_id",
+          "observed_present",
+          "observed_modified",
+          "coverage",
+          "last_scan_at"
+        ],
+        "title": "RuntimeUsageInventoryEmployeeRow",
+        "type": "object"
+      },
+      "RuntimeUsageObjectRow": {
+        "additionalProperties": false,
+        "description": "A setup or component, with a component's actual setup relation.",
+        "properties": {
+          "active_days": {
+            "minimum": 0,
+            "title": "Active Days",
+            "type": "integer"
+          },
+          "assigned_to": {
+            "minimum": 0,
+            "title": "Assigned To",
+            "type": "integer"
+          },
+          "installation_state": {
+            "anyOf": [
+              {
+                "enum": [
+                  "present",
+                  "modified",
+                  "missing",
+                  "unknown"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
             ],
-            "title": "Object Kind",
-            "type": "string"
+            "default": null,
+            "title": "Installation State"
           },
-          "stable_id": {
-            "title": "Stable Id",
-            "type": "string"
+          "installed_for": {
+            "minimum": 0,
+            "title": "Installed For",
+            "type": "integer"
           },
-          "state": {
-            "enum": [
-              "invoked",
-              "not_invoked"
+          "last_checked_at": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Timestamp"
+              },
+              {
+                "type": "null"
+              }
             ],
-            "title": "State",
-            "type": "string"
+            "default": null
           },
-          "version": {
+          "last_used_at": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Timestamp"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "name": {
             "anyOf": [
               {
                 "type": "string"
@@ -20651,24 +22094,104 @@
               }
             ],
             "default": null,
-            "title": "Version"
+            "title": "Name"
+          },
+          "object_kind": {
+            "enum": [
+              "setup",
+              "component"
+            ],
+            "title": "Object Kind",
+            "type": "string"
+          },
+          "parent_setup_stable_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Parent Setup Stable Id"
+          },
+          "parent_setup_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Parent Setup Version"
+          },
+          "stable_id": {
+            "title": "Stable Id",
+            "type": "string"
+          },
+          "used_by": {
+            "minimum": 0,
+            "title": "Used By",
+            "type": "integer"
+          },
+          "uses": {
+            "minimum": 0,
+            "title": "Uses",
+            "type": "integer"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
           }
         },
         "required": [
-          "invocations",
-          "last_invoked_at",
           "object_kind",
           "stable_id",
-          "state",
-          "version"
+          "version",
+          "assigned_to",
+          "installed_for",
+          "used_by",
+          "uses",
+          "active_days"
         ],
-        "title": "RuntimeUsageInstalledRow",
+        "title": "RuntimeUsageObjectRow",
         "type": "object"
       },
       "RuntimeUsageReport": {
         "additionalProperties": true,
-        "description": "The aggregate answer plus the installed-vs-invoked comparison.",
+        "description": "The aggregate answer plus current assignments and observed use.",
         "properties": {
+          "assigned": {
+            "items": {
+              "$ref": "#/components/schemas/RuntimeUsageAssignedRow"
+            },
+            "title": "Assigned",
+            "type": "array"
+          },
+          "by_day": {
+            "items": {
+              "$ref": "#/components/schemas/RuntimeUsageDayBucket"
+            },
+            "title": "By Day",
+            "type": "array"
+          },
+          "by_hour": {
+            "items": {
+              "$ref": "#/components/schemas/RuntimeUsageHourBucket"
+            },
+            "title": "By Hour",
+            "type": "array"
+          },
+          "employees": {
+            "items": {
+              "$ref": "#/components/schemas/RuntimeUsageEmployeeRow"
+            },
+            "title": "Employees",
+            "type": "array"
+          },
           "generated_at": {
             "$ref": "#/components/schemas/Timestamp"
           },
@@ -20685,12 +22208,17 @@
             "title": "Group By",
             "type": "string"
           },
-          "installed": {
+          "inventory_employees": {
             "items": {
-              "$ref": "#/components/schemas/RuntimeUsageInstalledRow"
+              "$ref": "#/components/schemas/RuntimeUsageInventoryEmployeeRow"
             },
-            "title": "Installed",
+            "title": "Inventory Employees",
             "type": "array"
+          },
+          "inventory_scan_enabled": {
+            "default": false,
+            "title": "Inventory Scan Enabled",
+            "type": "boolean"
           },
           "invoked_from": {
             "anyOf": [
@@ -20714,9 +22242,21 @@
             ],
             "default": null
           },
+          "objects": {
+            "items": {
+              "$ref": "#/components/schemas/RuntimeUsageObjectRow"
+            },
+            "title": "Objects",
+            "type": "array"
+          },
           "organization_id": {
             "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
             "title": "Organization Id",
+            "type": "string"
+          },
+          "report_timezone": {
+            "default": "UTC",
+            "title": "Report Timezone",
             "type": "string"
           },
           "rows": {
@@ -20736,18 +22276,31 @@
             "minimum": 0,
             "title": "Total Events",
             "type": "integer"
+          },
+          "usage_collection_enabled": {
+            "default": false,
+            "title": "Usage Collection Enabled",
+            "type": "boolean"
           }
         },
         "required": [
+          "assigned",
+          "by_day",
+          "by_hour",
+          "employees",
           "generated_at",
           "group_by",
-          "installed",
+          "inventory_employees",
+          "inventory_scan_enabled",
           "invoked_from",
           "invoked_to",
+          "objects",
           "organization_id",
+          "report_timezone",
           "rows",
           "schema_version",
-          "total_events"
+          "total_events",
+          "usage_collection_enabled"
         ],
         "title": "RuntimeUsageReport",
         "type": "object"
@@ -20756,6 +22309,19 @@
         "additionalProperties": false,
         "description": "Aggregate report filters. Every field narrows; none widens.",
         "properties": {
+          "collection_state": {
+            "default": "all",
+            "enum": [
+              "all",
+              "complete",
+              "partial",
+              "stale",
+              "unknown",
+              "disabled"
+            ],
+            "title": "Collection State",
+            "type": "string"
+          },
           "component_kind": {
             "anyOf": [
               {
@@ -20949,6 +22515,16 @@
             ],
             "default": null,
             "title": "Technology Id"
+          },
+          "usage_state": {
+            "default": "all",
+            "enum": [
+              "all",
+              "recorded",
+              "no_recorded"
+            ],
+            "title": "Usage State",
+            "type": "string"
           }
         },
         "title": "RuntimeUsageReportQuery",
@@ -20958,6 +22534,11 @@
         "additionalProperties": true,
         "description": "One deterministic aggregate bucket over a defined window.",
         "properties": {
+          "active_days": {
+            "minimum": 0,
+            "title": "Active Days",
+            "type": "integer"
+          },
           "cancelled": {
             "minimum": 0,
             "title": "Cancelled",
@@ -21071,6 +22652,7 @@
           }
         },
         "required": [
+          "active_days",
           "cancelled",
           "component_kind",
           "component_stable_id",
@@ -26457,6 +28039,29 @@
         "title": "TechnologyMappingEntry",
         "type": "object"
       },
+      "TechnologyMappingList": {
+        "additionalProperties": true,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/TechnologyMappingSummary"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "organization_id": {
+            "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "title": "Organization Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "items",
+          "organization_id"
+        ],
+        "title": "TechnologyMappingList",
+        "type": "object"
+      },
       "TechnologyMappingRequest": {
         "additionalProperties": false,
         "properties": {
@@ -26474,6 +28079,21 @@
               }
             ],
             "title": "Authorization Revision"
+          },
+          "base_version": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9._+-]+$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Base Version"
           },
           "entries": {
             "items": {
@@ -26507,6 +28127,35 @@
           "entries"
         ],
         "title": "TechnologyMappingRequest",
+        "type": "object"
+      },
+      "TechnologyMappingSummary": {
+        "additionalProperties": true,
+        "properties": {
+          "digest": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Digest",
+            "type": "string"
+          },
+          "entries": {
+            "minimum": 1,
+            "title": "Entries",
+            "type": "integer"
+          },
+          "version": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9._+-]+$",
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "digest",
+          "entries",
+          "version"
+        ],
+        "title": "TechnologyMappingSummary",
         "type": "object"
       },
       "TechnologyMappingView": {
@@ -27032,6 +28681,15 @@
             "pattern": "^[A-Za-z0-9._/-]+$",
             "title": "Scope",
             "type": "string"
+          },
+          "unmapped_coordinates": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/TechnologyUnmappedCoordinate"
+            },
+            "maxItems": 512,
+            "title": "Unmapped Coordinates",
+            "type": "array"
           }
         },
         "required": [
@@ -27404,6 +29062,213 @@
           "team_id"
         ],
         "title": "TechnologyTeamWriteRequest",
+        "type": "object"
+      },
+      "TechnologyUnmappedCoordinate": {
+        "additionalProperties": false,
+        "description": "A coordinate the applied mapping did not resolve — the registry's review queue.\n\nUnmapped coordinates are observations, not identities: the platform retains\nthem so an organization can see what its mapping does not yet name and grow\nthe registry from evidence instead of guesswork.",
+        "properties": {
+          "coordinate": {
+            "maxLength": 512,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9._:/@+*-]+$",
+            "title": "Coordinate",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "package",
+              "image",
+              "executable",
+              "configuration",
+              "alias"
+            ],
+            "title": "Kind",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "coordinate"
+        ],
+        "title": "TechnologyUnmappedCoordinate",
+        "type": "object"
+      },
+      "TechnologyUnmappedEntry": {
+        "additionalProperties": true,
+        "description": "One unmapped coordinate, the projects that reported it and its review state.",
+        "properties": {
+          "candidate_technology_id": {
+            "anyOf": [
+              {
+                "pattern": "^technology_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Candidate Technology Id"
+          },
+          "coordinate": {
+            "maxLength": 512,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9._:/@+*-]+$",
+            "title": "Coordinate",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "package",
+              "image",
+              "executable",
+              "configuration",
+              "alias"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "project_ids": {
+            "items": {
+              "pattern": "^remote_project_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            },
+            "maxItems": 512,
+            "title": "Project Ids",
+            "type": "array"
+          },
+          "resolved_technology_id": {
+            "anyOf": [
+              {
+                "pattern": "^technology_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Resolved Technology Id"
+          },
+          "state": {
+            "default": "open",
+            "enum": [
+              "open",
+              "resolved"
+            ],
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "candidate_technology_id",
+          "coordinate",
+          "kind",
+          "project_ids",
+          "resolved_technology_id",
+          "state"
+        ],
+        "title": "TechnologyUnmappedEntry",
+        "type": "object"
+      },
+      "TechnologyUnmappedReviewRequest": {
+        "additionalProperties": false,
+        "description": "Propose or clear the candidate technology for one unmapped coordinate.",
+        "properties": {
+          "authorization_revision": {
+            "anyOf": [
+              {
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^corporate:organization_[A-Za-z0-9_-]+:[1-9][0-9]*:[1-9][0-9]*$",
+                "type": "string"
+              }
+            ],
+            "title": "Authorization Revision"
+          },
+          "candidate_technology_id": {
+            "anyOf": [
+              {
+                "pattern": "^technology_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Candidate Technology Id"
+          },
+          "coordinate": {
+            "maxLength": 512,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9._:/@+*-]+$",
+            "title": "Coordinate",
+            "type": "string"
+          },
+          "expected_revision": {
+            "default": 0,
+            "maximum": 0,
+            "minimum": 0,
+            "title": "Expected Revision",
+            "type": "integer"
+          },
+          "idempotency_key": {
+            "$ref": "#/components/schemas/IdempotencyKey"
+          },
+          "kind": {
+            "enum": [
+              "package",
+              "image",
+              "executable",
+              "configuration",
+              "alias"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "authorization_revision",
+          "idempotency_key",
+          "kind",
+          "coordinate",
+          "candidate_technology_id"
+        ],
+        "title": "TechnologyUnmappedReviewRequest",
+        "type": "object"
+      },
+      "TechnologyUnmappedView": {
+        "additionalProperties": true,
+        "properties": {
+          "coordinates": {
+            "items": {
+              "$ref": "#/components/schemas/TechnologyUnmappedEntry"
+            },
+            "title": "Coordinates",
+            "type": "array"
+          },
+          "organization_id": {
+            "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "title": "Organization Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "coordinates",
+          "organization_id"
+        ],
+        "title": "TechnologyUnmappedView",
         "type": "object"
       },
       "TechnologyUsageFact": {
@@ -64933,6 +66798,189 @@
         "summary": "Update the organization calendar-month inactivity policy."
       }
     },
+    "/v1/corporate/organizations/{organization_id}/technology-mappings": {
+      "get": {
+        "operationId": "listTechnologyMappings",
+        "parameters": [
+          {
+            "description": "Explicit remote organization selected for this request.",
+            "in": "path",
+            "name": "organization_id",
+            "required": true,
+            "schema": {
+              "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "listTechnologyMappings.technology": {
+                    "summary": "Review picks the freshest snapshot as the base for a derived overlay.",
+                    "value": {
+                      "items": [
+                        {
+                          "digest": "sha256:85dc041a89fc93a23c12dd2970e2156b631aa3bfc132b2a6f0c46559cb52e60a",
+                          "entries": 1,
+                          "version": "v1"
+                        }
+                      ],
+                      "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/TechnologyMappingList"
+                }
+              }
+            },
+            "description": "List the organization's immutable mapping snapshots.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "List the organization's immutable mapping snapshots."
+      }
+    },
     "/v1/corporate/organizations/{organization_id}/technology-mappings/{version}": {
       "get": {
         "operationId": "readTechnologyMapping",
@@ -65649,6 +67697,415 @@
           }
         ],
         "summary": "Import seed v1 without replacing owner edits."
+      }
+    },
+    "/v1/corporate/organizations/{organization_id}/technology-unmapped-coordinates": {
+      "get": {
+        "operationId": "readTechnologyUnmappedCoordinates",
+        "parameters": [
+          {
+            "description": "Explicit remote organization selected for this request.",
+            "in": "path",
+            "name": "organization_id",
+            "required": true,
+            "schema": {
+              "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "readTechnologyUnmappedCoordinates.technology": {
+                    "summary": "Unmapped coordinates stay observations; resolving them is a mapping-snapshot decision.",
+                    "value": {
+                      "coordinates": [
+                        {
+                          "candidate_technology_id": null,
+                          "coordinate": "left-pad",
+                          "kind": "package",
+                          "project_ids": [
+                            "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+                          ],
+                          "resolved_technology_id": null,
+                          "state": "open"
+                        }
+                      ],
+                      "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/TechnologyUnmappedView"
+                }
+              }
+            },
+            "description": "Read the organization's unmapped-coordinate review queue.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Read the organization's unmapped-coordinate review queue."
+      },
+      "patch": {
+        "operationId": "reviewTechnologyUnmappedCoordinate",
+        "parameters": [
+          {
+            "description": "Explicit remote organization selected for this request.",
+            "in": "path",
+            "name": "organization_id",
+            "required": true,
+            "schema": {
+              "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Client-chosen key; a retry must not become a second effect.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "examples": {
+                "reviewTechnologyUnmappedCoordinate.technology": {
+                  "summary": "A candidate is a review suggestion; the coordinate stays open until a snapshot resolves it.",
+                  "value": {
+                    "authorization_revision": 1,
+                    "candidate_technology_id": "technology_00000000000000000000000001",
+                    "coordinate": "left-pad",
+                    "expected_revision": 0,
+                    "idempotency_key": "fixture-unmapped-review-0001",
+                    "kind": "package",
+                    "schema_version": 1
+                  }
+                }
+              },
+              "schema": {
+                "$ref": "#/components/schemas/TechnologyUnmappedReviewRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "reviewTechnologyUnmappedCoordinate.technology": {
+                    "summary": "A candidate is a review suggestion; the coordinate stays open until a snapshot resolves it.",
+                    "value": {
+                      "candidate_technology_id": "technology_00000000000000000000000001",
+                      "coordinate": "left-pad",
+                      "kind": "package",
+                      "project_ids": [
+                        "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+                      ],
+                      "resolved_technology_id": null,
+                      "state": "open"
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/TechnologyUnmappedEntry"
+                }
+              }
+            },
+            "description": "Propose or clear a coordinate's candidate technology.",
+            "headers": {
+              "X-Operation-Id": {
+                "description": "Durable operation id of this mutation.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Propose or clear a coordinate's candidate technology."
       }
     },
     "/v1/corporate/organizations/{organization_id}/telemetry/aggregates": {
@@ -67675,6 +70132,358 @@
         "summary": "Record the authenticated installation heartbeat."
       }
     },
+    "/v1/corporate/organizations/{organization_id}/telemetry/heartbeat-report": {
+      "get": {
+        "operationId": "readCorporateHeartbeatReport",
+        "parameters": [
+          {
+            "description": "Explicit remote organization selected for this request.",
+            "in": "path",
+            "name": "organization_id",
+            "required": true,
+            "schema": {
+              "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "employee",
+            "required": false,
+            "schema": {
+              "default": [],
+              "items": {
+                "type": "string"
+              },
+              "title": "Employee",
+              "type": "array"
+            }
+          },
+          {
+            "in": "query",
+            "name": "from_date",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "From Date"
+            }
+          },
+          {
+            "in": "query",
+            "name": "order",
+            "required": false,
+            "schema": {
+              "default": "desc",
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "title": "Order",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page_size",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "maximum": 50,
+              "minimum": 1,
+              "title": "Page Size",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "period",
+            "required": false,
+            "schema": {
+              "default": "7d",
+              "enum": [
+                "24h",
+                "7d",
+                "30d",
+                "custom"
+              ],
+              "title": "Period",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "default": "last_heartbeat",
+              "enum": [
+                "employee",
+                "team",
+                "last_heartbeat",
+                "status",
+                "coverage"
+              ],
+              "title": "Sort",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "default": [],
+              "items": {
+                "enum": [
+                  "active",
+                  "stale",
+                  "failing",
+                  "disabled",
+                  "unknown"
+                ],
+                "type": "string"
+              },
+              "title": "Status",
+              "type": "array"
+            }
+          },
+          {
+            "in": "query",
+            "name": "team",
+            "required": false,
+            "schema": {
+              "default": [],
+              "items": {
+                "type": "string"
+              },
+              "title": "Team",
+              "type": "array"
+            }
+          },
+          {
+            "in": "query",
+            "name": "to_date",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "To Date"
+            }
+          },
+          {
+            "in": "query",
+            "name": "view",
+            "required": false,
+            "schema": {
+              "default": "current",
+              "enum": [
+                "current",
+                "history"
+              ],
+              "title": "View",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "readCorporateHeartbeatReport.empty": {
+                    "summary": "A scoped organization with no enrolled devices returns an empty fixed report.",
+                    "value": {
+                      "employees": [],
+                      "evaluated_at": "2026-09-25T12:00:00.000Z",
+                      "interval_seconds": 900,
+                      "items": [],
+                      "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "page": 1,
+                      "page_size": 10,
+                      "schema_version": 1,
+                      "stale_after_seconds": 3600,
+                      "teams": [],
+                      "total": 0
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/HeartbeatReport"
+                }
+              }
+            },
+            "description": "Read the fixed scoped device heartbeat report.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Read the fixed scoped device heartbeat report."
+      }
+    },
     "/v1/corporate/organizations/{organization_id}/telemetry/heartbeat/policy": {
       "get": {
         "operationId": "readInstallationHeartbeatPolicy",
@@ -67710,11 +70519,14 @@
                     "value": {
                       "enabled": true,
                       "interval_seconds": 21600,
+                      "inventory_scan_enabled": false,
                       "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "retry_base_seconds": 60,
                       "retry_max_seconds": 3600,
                       "schema_version": 1,
-                      "stale_after_seconds": 86400
+                      "stale_after_seconds": 86400,
+                      "usage_collection_enabled": false,
+                      "usage_registration_required": false
                     }
                   }
                 },
@@ -68038,6 +70850,437 @@
         "summary": "List installation health visible to the caller."
       }
     },
+    "/v1/corporate/organizations/{organization_id}/telemetry/installation-inventory": {
+      "post": {
+        "operationId": "ingestInstallationInventory",
+        "parameters": [
+          {
+            "description": "Explicit remote organization selected for this request.",
+            "in": "path",
+            "name": "organization_id",
+            "required": true,
+            "schema": {
+              "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "examples": {
+                "ingestInstallationInventory.telemetry": {
+                  "summary": "Accepted identities acknowledge durable corporate facts without content.",
+                  "value": {
+                    "schema_version": 1,
+                    "snapshots": [
+                      {
+                        "complete": true,
+                        "components": [],
+                        "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                        "employee_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                        "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                        "project_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                        "scan_id": "inventory-scan-000001",
+                        "scanned_at": "2026-09-22T11:00:00.000Z",
+                        "schema_version": 1,
+                        "scope": "project"
+                      }
+                    ]
+                  }
+                }
+              },
+              "schema": {
+                "$ref": "#/components/schemas/InstallationInventoryBatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "ingestInstallationInventory.telemetry": {
+                    "summary": "Accepted identities acknowledge durable corporate facts without content.",
+                    "value": {
+                      "accepted_ids": [
+                        "inventory-scan-000001"
+                      ],
+                      "duplicate_ids": [],
+                      "rejected_ids": [],
+                      "schema_version": 1
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/InstallationInventoryReceipt"
+                }
+              }
+            },
+            "description": "Ingest bounded installation discovery snapshots.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Ingest bounded installation discovery snapshots."
+      }
+    },
+    "/v1/corporate/organizations/{organization_id}/telemetry/installation-operations": {
+      "post": {
+        "operationId": "ingestInstallationOperations",
+        "parameters": [
+          {
+            "description": "Explicit remote organization selected for this request.",
+            "in": "path",
+            "name": "organization_id",
+            "required": true,
+            "schema": {
+              "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "examples": {
+                "ingestInstallationOperations.telemetry": {
+                  "summary": "Accepted identities acknowledge durable corporate facts without content.",
+                  "value": {
+                    "operations": [
+                      {
+                        "action": "install",
+                        "components": [],
+                        "components_complete": true,
+                        "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                        "employee_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                        "harness": "codex",
+                        "occurred_at": "2026-09-22T11:00:00.000Z",
+                        "operation_id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                        "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                        "project_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                        "result": "verified",
+                        "schema_version": 1,
+                        "scope": "project",
+                        "setup_stable_id": null,
+                        "setup_version": null
+                      }
+                    ],
+                    "schema_version": 1
+                  }
+                }
+              },
+              "schema": {
+                "$ref": "#/components/schemas/InstallationOperationBatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "ingestInstallationOperations.telemetry": {
+                    "summary": "Accepted identities acknowledge durable corporate facts without content.",
+                    "value": {
+                      "accepted_ids": [
+                        "operation_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+                      ],
+                      "duplicate_ids": [],
+                      "rejected_ids": [],
+                      "schema_version": 1
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/InstallationOperationReceipt"
+                }
+              }
+            },
+            "description": "Ingest exact settled installation results.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Ingest exact settled installation results."
+      }
+    },
     "/v1/corporate/organizations/{organization_id}/telemetry/policy": {
       "get": {
         "operationId": "readCorporateTelemetryPolicy",
@@ -68077,14 +71320,18 @@
                       "heartbeat_retry_base_seconds": 60,
                       "heartbeat_retry_max_seconds": 3600,
                       "heartbeat_stale_after_seconds": 86400,
+                      "inventory_scan_enabled": false,
                       "legal_basis": "consent",
                       "notice_revision": 1,
                       "notice_text": "telemetry",
                       "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "policy_version": 1,
                       "raw_retention_days": 30,
+                      "report_timezone": "UTC",
                       "schema_version": 1,
-                      "updated_at": "2026-09-22T11:00:00.000Z"
+                      "updated_at": "2026-09-22T11:00:00.000Z",
+                      "usage_collection_enabled": false,
+                      "usage_registration_required": false
                     }
                   }
                 },
@@ -68305,14 +71552,18 @@
                       "heartbeat_retry_base_seconds": 60,
                       "heartbeat_retry_max_seconds": 3600,
                       "heartbeat_stale_after_seconds": 86400,
+                      "inventory_scan_enabled": false,
                       "legal_basis": "consent",
                       "notice_revision": 1,
                       "notice_text": "telemetry",
                       "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "policy_version": 1,
                       "raw_retention_days": 30,
+                      "report_timezone": "UTC",
                       "schema_version": 1,
-                      "updated_at": "2026-09-22T11:00:00.000Z"
+                      "updated_at": "2026-09-22T11:00:00.000Z",
+                      "usage_collection_enabled": false,
+                      "usage_registration_required": false
                     }
                   }
                 },
@@ -68952,6 +72203,27 @@
           },
           {
             "in": "query",
+            "name": "activity_kind",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "invocation",
+                    "load"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Activity Kind"
+            }
+          },
+          {
+            "in": "query",
             "name": "component_kind",
             "required": false,
             "schema": {
@@ -68999,6 +72271,24 @@
           },
           {
             "in": "query",
+            "name": "component_version",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Component Version"
+            }
+          },
+          {
+            "in": "query",
             "name": "device_id",
             "required": false,
             "schema": {
@@ -69014,6 +72304,16 @@
               ],
               "default": null,
               "title": "Device Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "direct_only",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Direct Only",
+              "type": "boolean"
             }
           },
           {
@@ -69096,6 +72396,62 @@
           },
           {
             "in": "query",
+            "name": "local_day",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Local Day"
+            }
+          },
+          {
+            "in": "query",
+            "name": "local_hour",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 23,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Local Hour"
+            }
+          },
+          {
+            "in": "query",
+            "name": "local_weekday",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 6,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Local Weekday"
+            }
+          },
+          {
+            "in": "query",
             "name": "offset",
             "required": false,
             "schema": {
@@ -69162,6 +72518,45 @@
               ],
               "default": null,
               "title": "Setup Stable Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "setup_version",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Setup Version"
+            }
+          },
+          {
+            "in": "query",
+            "name": "source",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "native_hook",
+                    "agent_reported"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Source"
             }
           },
           {
@@ -69440,8 +72835,11 @@
                     "summary": "A bounded runtime usage batch returns durable counts.",
                     "value": {
                       "accepted": 1,
+                      "accepted_ids": [],
+                      "duplicate_ids": [],
                       "duplicates": 0,
                       "rejected": 0,
+                      "rejected_ids": [],
                       "schema_version": 1
                     }
                   }
@@ -70012,6 +73410,24 @@
           },
           {
             "in": "query",
+            "name": "collection_state",
+            "required": false,
+            "schema": {
+              "default": "all",
+              "enum": [
+                "all",
+                "complete",
+                "partial",
+                "stale",
+                "unknown",
+                "disabled"
+              ],
+              "title": "Collection State",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
             "name": "component_kind",
             "required": false,
             "schema": {
@@ -70280,6 +73696,21 @@
             }
           },
           {
+            "in": "query",
+            "name": "usage_state",
+            "required": false,
+            "schema": {
+              "default": "all",
+              "enum": [
+                "all",
+                "recorded",
+                "no_recorded"
+              ],
+              "title": "Usage State",
+              "type": "string"
+            }
+          },
+          {
             "description": "Wire major the client speaks. An unknown one fails typed.",
             "in": "header",
             "name": "X-AI-STP-Schema-Version",
@@ -70298,15 +73729,23 @@
                   "readRuntimeUsageReport.telemetry": {
                     "summary": "Aggregate runtime usage includes installed-versus-invoked rows.",
                     "value": {
+                      "assigned": [],
+                      "by_day": [],
+                      "by_hour": [],
+                      "employees": [],
                       "generated_at": "2026-09-22T11:00:00.000Z",
                       "group_by": "component",
-                      "installed": [],
+                      "inventory_employees": [],
+                      "inventory_scan_enabled": false,
                       "invoked_from": null,
                       "invoked_to": null,
+                      "objects": [],
                       "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "report_timezone": "UTC",
                       "rows": [],
                       "schema_version": 1,
-                      "total_events": 0
+                      "total_events": 0,
+                      "usage_collection_enabled": false
                     }
                   }
                 },
@@ -70477,6 +73916,7 @@
                           "approximate_location": null,
                           "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                           "device_type": "cli",
+                          "display_name": null,
                           "etag": "W/\"7\"",
                           "last_active_at": "2026-08-05T00:00:00.000Z",
                           "registered_at": "2026-08-05T00:00:00.000Z",
@@ -70502,6 +73942,7 @@
                           "approximate_location": null,
                           "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y70",
                           "device_type": "cli",
+                          "display_name": null,
                           "etag": "W/\"1\"",
                           "last_active_at": "2026-08-05T00:00:00.000Z",
                           "registered_at": "2026-08-05T00:00:00.000Z",
@@ -70685,6 +74126,7 @@
                         "approximate_location": null,
                         "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                         "device_type": "cli",
+                        "display_name": null,
                         "etag": "W/\"1\"",
                         "last_active_at": "2026-08-05T00:00:00.000Z",
                         "registered_at": "2026-08-05T00:00:00.000Z",
@@ -71097,6 +74539,7 @@
                         "approximate_location": null,
                         "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                         "device_type": "cli",
+                        "display_name": null,
                         "etag": "W/\"8\"",
                         "last_active_at": "2026-08-05T00:00:00.000Z",
                         "registered_at": "2026-08-05T00:00:00.000Z",

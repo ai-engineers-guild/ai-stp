@@ -9,6 +9,26 @@
       "title": "Accepted",
       "type": "integer"
     },
+    "accepted_ids": {
+      "items": {
+        "maxLength": 80,
+        "minLength": 8,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{7,79}$",
+        "type": "string"
+      },
+      "title": "Accepted Ids",
+      "type": "array"
+    },
+    "duplicate_ids": {
+      "items": {
+        "maxLength": 80,
+        "minLength": 8,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{7,79}$",
+        "type": "string"
+      },
+      "title": "Duplicate Ids",
+      "type": "array"
+    },
     "duplicates": {
       "minimum": 0,
       "title": "Duplicates",
@@ -19,6 +39,16 @@
       "title": "Rejected",
       "type": "integer"
     },
+    "rejected_ids": {
+      "items": {
+        "maxLength": 80,
+        "minLength": 8,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{7,79}$",
+        "type": "string"
+      },
+      "title": "Rejected Ids",
+      "type": "array"
+    },
     "schema_version": {
       "const": 1,
       "default": 1,
@@ -28,8 +58,11 @@
   },
   "required": [
     "accepted",
+    "accepted_ids",
+    "duplicate_ids",
     "duplicates",
     "rejected",
+    "rejected_ids",
     "schema_version"
   ],
   "title": "RuntimeUsageIngestResult",

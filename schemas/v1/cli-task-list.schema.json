@@ -13,7 +13,8 @@
         "author",
         "switch",
         "account",
-        "publish"
+        "publish",
+        "technology"
       ],
       "type": "string"
     },

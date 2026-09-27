@@ -7,8 +7,8 @@ not an understanding, and the difference is what keeps it cheap and safe.
 
 Three rules decide every path:
 
-**Containment.** Everything is checked against the root with `projects.contains`,
-which resolves both sides — `Path.is_relative_to` is documented as string-based
+**Containment.** The root is resolved once and every candidate is resolved before
+comparison — `Path.is_relative_to` is documented as string-based
 and would accept `..` and a symlink pointing anywhere. `Path.walk` also lists a
 symlinked directory among *files* rather than descending into it, so one that
 points outside would arrive here as something to index.
@@ -23,6 +23,7 @@ produces a typed partial state rather than a short answer that looks complete.
 """
 
 import hashlib
+import stat
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -70,6 +71,10 @@ SECRET_NAMES: Final[frozenset[str]] = frozenset(
         "secrets.yaml",
         "secrets.yml",
         "secrets.json",
+        "token.json",
+        "tokens.json",
+        ".mcp.json",
+        "claude_desktop_config.json",
     }
 )
 
@@ -83,6 +88,7 @@ SECRET_SUFFIXES: Final[tuple[str, ...]] = (
     ".jks",
     ".keystore",
     ".ppk",
+    ".ovpn",
 )
 
 #: Declared, not guessed from a suffix: which file means what is a fact about an
@@ -131,6 +137,8 @@ SOURCE_SUFFIXES: Final[dict[str, str]] = {
     ".pyi": "python",
     ".ts": "typescript",
     ".tsx": "typescript",
+    ".mts": "typescript",
+    ".cts": "typescript",
     ".js": "javascript",
     ".jsx": "javascript",
     ".mjs": "javascript",
@@ -212,7 +220,9 @@ def is_secret_name(name: str) -> bool:
     one inspection that cannot be justified, because doing it is the harm.
     """
     lowered = name.lower()
-    if lowered in {item.lower() for item in SECRET_NAMES}:
+    if lowered in SECRET_NAMES:
+        return True
+    if lowered.endswith(".json") and lowered.startswith(("credentials", "service-account")):
         return True
     if lowered.startswith(SECRET_PREFIXES):
         return True
@@ -281,10 +291,19 @@ def build(root: Path, *, digests: bool = True) -> Index:
     excluded: list[Excluded] = []
     stopped_by: str | None = None
 
-    for directory, subdirectories, filenames in base.walk(on_error=lambda _error: None):
+    def unreadable(_error: OSError) -> None:
+        nonlocal stopped_by
+        stopped_by = stopped_by or "cannot be read"
+
+    for directory, subdirectories, filenames in base.walk(on_error=unreadable):
+        reached = budget.exhausted()
+        if reached is not None:
+            stopped_by = reached
+            break
         depth = len(directory.relative_to(base).parts)
         if depth >= MAX_DEPTH:
             excluded.append(Excluded(_relative(base, directory), "depth budget"))
+            stopped_by = stopped_by or "depth budget"
             subdirectories.clear()
             continue
 
@@ -310,10 +329,12 @@ def build(root: Path, *, digests: bool = True) -> Index:
             outcome = _describe(base, place, digests=digests)
             if isinstance(outcome, Excluded):
                 excluded.append(outcome)
+                if outcome.reason == "cannot be read":
+                    stopped_by = stopped_by or "cannot be read"
                 continue
             entries.append(outcome)
             budget.entries += 1
-        if stopped_by is not None:
+        if reached is not None:
             break
 
     return Index(
@@ -345,21 +366,26 @@ def _describe(base: Path, place: Path, *, digests: bool = True) -> Entry | Exclu
     relative = _relative(base, place)
     if is_secret_name(place.name):
         return Excluded(relative, "looks like a credential")
-    if not projects.contains(base, place):
+    try:
+        resolved = place.resolve()
+    except (OSError, RuntimeError):
+        return Excluded(relative, "cannot be read")
+    if not resolved.is_relative_to(base):
         # `Path.walk` puts a symlinked directory among the file names, so one
         # pointing outside arrives here rather than as a directory.
         return Excluded(relative, "outside the root")
-
-    if place.is_dir():
-        # A symlinked directory arrives among the file names. One pointing
-        # inside the tree is already walked on its own; indexing the link as a
-        # file would report a directory as one.
-        return Excluded(relative, "a directory link is not indexed")
+    if is_secret_name(resolved.name):
+        return Excluded(relative, "looks like a credential")
 
     try:
-        size = place.stat().st_size
+        status = place.stat()
+        size = status.st_size
     except OSError:
         return Excluded(relative, "cannot be read")
+    if stat.S_ISDIR(status.st_mode):
+        return Excluded(relative, "a directory link is not indexed")
+    if not stat.S_ISREG(status.st_mode):
+        return Excluded(relative, "not a regular file")
 
     kind, language = classify(place)
     if size > MAX_FILE_BYTES:
@@ -368,11 +394,15 @@ def _describe(base: Path, place: Path, *, digests: bool = True) -> Entry | Exclu
         return Entry(relative, kind, language, size, None, None)
 
     try:
-        content = place.read_bytes()
+        with place.open("rb") as stream:
+            content = stream.read(min(BINARY_PROBE_BYTES, MAX_FILE_BYTES + 1))
+            if is_binary(content):
+                return Excluded(relative, "binary content")
+            content += stream.read(MAX_FILE_BYTES + 1 - len(content))
     except OSError:
         return Excluded(relative, "cannot be read")
-    if is_binary(content):
-        return Excluded(relative, "binary content")
+    if len(content) > MAX_FILE_BYTES:
+        return Entry(relative, kind, language, len(content), None, None)
     return Entry(
         path=relative,
         kind=kind,

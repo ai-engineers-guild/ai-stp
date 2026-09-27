@@ -1573,6 +1573,48 @@ MIGRATIONS: Final[tuple[Migration, ...]] = (
             "CREATE INDEX consent_by_target ON consent(target)",
         ),
     ),
+    Migration(
+        version=51,
+        summary="bind settled installation operations to their corporate identity",
+        up=(
+            """
+            CREATE TABLE operation_corporate_binding (
+                operation_id TEXT PRIMARY KEY REFERENCES operation(operation_id),
+                organization_id TEXT NOT NULL,
+                project_id TEXT NOT NULL,
+                account_id TEXT NOT NULL,
+                device_id TEXT NOT NULL,
+                scope TEXT NOT NULL CHECK (scope IN ('global','project','unknown')),
+                created_at TEXT NOT NULL,
+                delivered_at TEXT
+            ) STRICT
+            """,
+        ),
+        down=("DROP TABLE operation_corporate_binding",),
+    ),
+    Migration(
+        version=52,
+        summary="queue corporate inventory snapshots until acknowledged",
+        up=(
+            """
+            CREATE TABLE corporate_inventory_outbox (
+                scan_id TEXT PRIMARY KEY,
+                organization_id TEXT NOT NULL,
+                account_id TEXT NOT NULL,
+                device_id TEXT NOT NULL,
+                payload_json TEXT NOT NULL,
+                created_at TEXT NOT NULL
+            ) STRICT
+            """,
+        ),
+        down=("DROP TABLE corporate_inventory_outbox",),
+    ),
+    Migration(
+        version=53,
+        summary="remember the scope a provider operation was planned against",
+        up=("ALTER TABLE operation_plan ADD COLUMN target_scope TEXT",),
+        down=("ALTER TABLE operation_plan DROP COLUMN target_scope",),
+    ),
 )
 
 #: Names for nested savepoints. A counter rather than a fixed name: two nested
@@ -1583,8 +1625,10 @@ _SAVEPOINTS: Final[Iterator[int]] = count()
 #: How long a statement waits for another process to finish writing. Bootstrap
 #: writes take milliseconds; this is generous enough that a wait means trouble.
 # The third measured Windows runner contention held a first-open migration lock
-# for 6439 ms in run 33790300140. Fifteen seconds is more than twice that
-# observed maximum while remaining a bounded refusal.
+# for 6439 ms in run 33790300140; the fourth held 17085 ms in run 36342598486
+# while fifty-odd per-step migration commits flushed one by one. Migrations now
+# apply in a single transaction, so the hold is one flush and the budget no
+# longer races the chain length. Fifteen seconds stays a bounded refusal.
 BUSY_TIMEOUT_MILLISECONDS: Final[int] = 15_000
 
 #: How long to keep trying to switch the journal mode while another opener
@@ -1748,48 +1792,62 @@ def schema_version(connection: sqlite3.Connection) -> int:
     return int(row[0])
 
 
+def _refuse_newer(path: Path, current: int) -> None:
+    # Refused, not downgraded: a newer build may have written rows this one
+    # cannot represent, and opening read-write would be the one way to lose
+    # them. The file is left exactly as it was found.
+    raise CliFailure(
+        "AI_STP_SCHEMA_UNSUPPORTED",
+        "the local registry was written by a newer build",
+        details={
+            "path": redact_home(path),
+            "found": str(current),
+            "supported": str(SCHEMA_VERSION),
+        },
+        next_actions=["version --json"],
+    )
+
+
 def _migrate(connection: sqlite3.Connection, path: Path) -> None:
     current = schema_version(connection)
     if current > SCHEMA_VERSION:
-        # Refused, not downgraded: a newer build may have written rows this one
-        # cannot represent, and opening read-write would be the one way to lose
-        # them. The file is left exactly as it was found.
-        raise CliFailure(
-            "AI_STP_SCHEMA_UNSUPPORTED",
-            "the local registry was written by a newer build",
-            details={
-                "path": redact_home(path),
-                "found": str(current),
-                "supported": str(SCHEMA_VERSION),
-            },
-            next_actions=["version --json"],
-        )
-    for migration in MIGRATIONS:
-        if migration.version <= current:
-            continue
-        _run(connection, migration.up, migration.version, skip_if_reached=migration.version)
+        _refuse_newer(path, current)
+    if current == SCHEMA_VERSION:
+        return
+    # All pending migrations in one transaction. The chain has grown past
+    # fifty steps, and a separate commit per step under `synchronous=FULL`
+    # made a clean open pay a disk flush per step — measured at 17 s on a
+    # contended windows-latest runner, past the busy budget a concurrent
+    # opener waits on. One commit pays one flush however long the chain gets.
+    connection.execute("BEGIN IMMEDIATE")
+    try:
+        # Re-read under the write lock: another opener may have applied the
+        # whole chain while this one waited, and a newer build may have
+        # written the file.
+        current = schema_version(connection)
+        if current > SCHEMA_VERSION:
+            _refuse_newer(path, current)
+        for migration in MIGRATIONS:
+            if migration.version <= current:
+                continue
+            for statement in migration.up:
+                connection.execute(statement)
+        # `PRAGMA user_version` takes no parameter binding.
+        connection.execute(f"PRAGMA user_version={int(SCHEMA_VERSION)}")
+    except BaseException:
+        connection.execute("ROLLBACK")
+        raise
+    connection.execute("COMMIT")
 
 
 def _run(
     connection: sqlite3.Connection,
     statements: Sequence[str],
     version: int,
-    *,
-    skip_if_reached: int | None = None,
 ) -> None:
     """Apply one migration and its version stamp in a single transaction."""
     connection.execute("BEGIN IMMEDIATE")
     try:
-        # The version was read before this transaction began, and another
-        # process may have applied the same migration in between. Asking again
-        # under the write lock is what makes concurrent first runs safe: the
-        # loser here finds the work already done instead of re-creating tables.
-        #
-        # Only meaningful going forward. A downgrade stamps a *lower* version by
-        # design, so the same test would skip every reverse step — which it did.
-        if skip_if_reached is not None and schema_version(connection) >= skip_if_reached:
-            connection.execute("ROLLBACK")
-            return
         for statement in statements:
             connection.execute(statement)
         # `PRAGMA user_version` takes no parameter binding.

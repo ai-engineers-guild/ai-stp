@@ -52,6 +52,18 @@
           "title": "Device Type",
           "type": "string"
         },
+        "display_name": {
+          "anyOf": [
+            {
+              "maxLength": 160,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Display Name"
+        },
         "etag": {
           "maxLength": 128,
           "minLength": 1,
@@ -100,6 +112,7 @@
         "approximate_location",
         "device_id",
         "device_type",
+        "display_name",
         "etag",
         "last_active_at",
         "registered_at",

@@ -4,7 +4,8 @@
  * then the shape here is the source the BFF route and page share.
  */
 
-export type InstallationHealthState = "active" | "stale" | "failing" | "disabled" | "unknown";
+export type InstallationHealthState =
+  "active" | "partial" | "stale" | "failing" | "disabled" | "unknown";
 
 export interface InstallationHeartbeat {
   schema_version: 1;
@@ -14,7 +15,7 @@ export interface InstallationHeartbeat {
   cli_version: string;
   capabilities: string[];
   last_sync_at: string | null;
-  reported_state: "active" | "failing" | "disabled";
+  reported_state: "active" | "partial" | "failing" | "disabled";
   health_state: InstallationHealthState;
   checked_at: string;
   received_at: string;

@@ -24,6 +24,7 @@ dependencies = [
     "ai-stp-foundation==0.0.16",
     "ai-stp-passports==0.0.16",
     "pydantic>=2.9",
+    "tzdata>=2025.1; sys_platform == 'win32'",
 ]
 
 [project.optional-dependencies]

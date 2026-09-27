@@ -35,7 +35,7 @@
       "why": "An installation reads its organization's opt-in and retry cadence.",
       "request": {"path_params": {"organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z"}},
       "status": 200,
-      "body": {"schema_version": 1, "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "enabled": true, "interval_seconds": 21600, "retry_base_seconds": 60, "retry_max_seconds": 3600, "stale_after_seconds": 86400}
+      "body": {"schema_version": 1, "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "enabled": true, "inventory_scan_enabled": false, "usage_collection_enabled": false, "usage_registration_required": false, "interval_seconds": 21600, "retry_base_seconds": 60, "retry_max_seconds": 3600, "stale_after_seconds": 86400}
     },
     {
       "case_id": "recordCorporateTelemetryEvent.telemetry",
@@ -98,7 +98,7 @@
       "why": "The active telemetry policy is readable as a typed view.",
       "request": {"path_params": {"organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z"}},
       "status": 200,
-      "body": {"schema_version": 1, "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "raw_retention_days": 30, "aggregate_retention_days": 365, "legal_basis": "consent", "notice_text": "telemetry", "notice_revision": 1, "heartbeat_enabled": true, "heartbeat_interval_seconds": 21600, "heartbeat_retry_base_seconds": 60, "heartbeat_retry_max_seconds": 3600, "heartbeat_stale_after_seconds": 86400, "policy_version": 1, "updated_at": "2026-09-22T11:00:00.000Z"}
+      "body": {"schema_version": 1, "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "raw_retention_days": 30, "aggregate_retention_days": 365, "legal_basis": "consent", "notice_text": "telemetry", "notice_revision": 1, "heartbeat_enabled": true, "inventory_scan_enabled": false, "usage_collection_enabled": false, "usage_registration_required": false, "report_timezone": "UTC", "heartbeat_interval_seconds": 21600, "heartbeat_retry_base_seconds": 60, "heartbeat_retry_max_seconds": 3600, "heartbeat_stale_after_seconds": 86400, "policy_version": 1, "updated_at": "2026-09-22T11:00:00.000Z"}
     },
     {
       "case_id": "writeCorporateTelemetryPolicy.telemetry",
@@ -107,7 +107,7 @@
       "why": "A policy replacement carries an explicit revision and idempotency key.",
       "request": {"path_params": {"organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z"}, "body": {"schema_version": 1, "raw_retention_days": 30, "aggregate_retention_days": 365, "legal_basis": "consent", "notice_text": "telemetry", "notice_revision": 1, "heartbeat_enabled": true, "heartbeat_interval_seconds": 21600, "heartbeat_retry_base_seconds": 60, "heartbeat_retry_max_seconds": 3600, "heartbeat_stale_after_seconds": 86400, "expected_policy_revision": 0, "authorization_revision": 1, "reason": "telemetry policy", "idempotency_key": "telemetry-policy-0001"}},
       "status": 200,
-      "body": {"schema_version": 1, "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "raw_retention_days": 30, "aggregate_retention_days": 365, "legal_basis": "consent", "notice_text": "telemetry", "notice_revision": 1, "heartbeat_enabled": true, "heartbeat_interval_seconds": 21600, "heartbeat_retry_base_seconds": 60, "heartbeat_retry_max_seconds": 3600, "heartbeat_stale_after_seconds": 86400, "policy_version": 1, "updated_at": "2026-09-22T11:00:00.000Z"}
+      "body": {"schema_version": 1, "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "raw_retention_days": 30, "aggregate_retention_days": 365, "legal_basis": "consent", "notice_text": "telemetry", "notice_revision": 1, "heartbeat_enabled": true, "inventory_scan_enabled": false, "usage_collection_enabled": false, "usage_registration_required": false, "report_timezone": "UTC", "heartbeat_interval_seconds": 21600, "heartbeat_retry_base_seconds": 60, "heartbeat_retry_max_seconds": 3600, "heartbeat_stale_after_seconds": 86400, "policy_version": 1, "updated_at": "2026-09-22T11:00:00.000Z"}
     },
     {
       "case_id": "recordCorporateTelemetryRight.telemetry",
@@ -143,7 +143,7 @@
       "why": "A bounded runtime usage batch returns durable counts.",
       "request": {"path_params": {"organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z"}, "body": {"schema_version": 1, "events": [{"schema_version": 1, "event_id": "usage-evt-00000001", "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "employee_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "project_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "harness": "codex", "setup": {"stable_id": "setup_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "version": "1.0", "passport_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000"}, "component": {"kind": "skill", "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "version": "1.0", "passport_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000"}, "invoked_at": "2026-09-22T11:00:00.000Z", "outcome": "succeeded"}] }},
       "status": 200,
-      "body": {"schema_version": 1, "accepted": 1, "duplicates": 0, "rejected": 0}
+      "body": {"schema_version": 1, "accepted": 1, "duplicates": 0, "rejected": 0, "accepted_ids": [], "duplicate_ids": [], "rejected_ids": []}
     },
     {
       "case_id": "listRuntimeUsageEvents.telemetry",
@@ -161,7 +161,7 @@
       "why": "Aggregate runtime usage includes installed-versus-invoked rows.",
       "request": {"path_params": {"organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z"}, "query": {}},
       "status": 200,
-      "body": {"schema_version": 1, "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "generated_at": "2026-09-22T11:00:00.000Z", "invoked_from": null, "invoked_to": null, "group_by": "component", "total_events": 0, "rows": [], "installed": []}
+      "body": {"schema_version": 1, "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "generated_at": "2026-09-22T11:00:00.000Z", "invoked_from": null, "invoked_to": null, "group_by": "component", "total_events": 0, "report_timezone": "UTC", "inventory_scan_enabled": false, "usage_collection_enabled": false, "inventory_employees": [], "employees": [], "objects": [], "by_day": [], "by_hour": [], "rows": [], "assigned": []}
     },
     {
       "case_id": "createRuntimeUsageExport.telemetry",
@@ -180,6 +180,8 @@
       "request": {"path_params": {"organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "export_id": "usage-export-0001"}},
       "status": 200,
       "body": {"schema_version": 1, "export_id": "usage-export-0001", "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "created_at": "2026-09-22T11:00:00.000Z", "row_count": 0, "content_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000", "state": "completed"}
-    }
+    },
+    {"case_id": "ingestInstallationOperations.telemetry", "operation_id": "ingestInstallationOperations", "kind": "positive", "why": "Accepted identities acknowledge durable corporate facts without content.", "request": {"path_params": {"organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z"}, "body": {"schema_version": 1, "operations": [{"schema_version": 1, "operation_id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "employee_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "project_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "harness": "codex", "scope": "project", "action": "install", "result": "verified", "occurred_at": "2026-09-22T11:00:00.000Z", "setup_stable_id": null, "setup_version": null, "components": [], "components_complete": true}]}}, "status": 200, "body": {"schema_version": 1, "accepted_ids": ["operation_01JQZK7B8N4M6P2R9T5V0X3Y7Z"], "duplicate_ids": [], "rejected_ids": []}},
+    {"case_id": "ingestInstallationInventory.telemetry", "operation_id": "ingestInstallationInventory", "kind": "positive", "why": "Accepted identities acknowledge durable corporate facts without content.", "request": {"path_params": {"organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z"}, "body": {"schema_version": 1, "snapshots": [{"schema_version": 1, "scan_id": "inventory-scan-000001", "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "employee_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "project_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "scope": "project", "scanned_at": "2026-09-22T11:00:00.000Z", "complete": true, "components": []}]}}, "status": 200, "body": {"schema_version": 1, "accepted_ids": ["inventory-scan-000001"], "duplicate_ids": [], "rejected_ids": []}}
   ]
 }

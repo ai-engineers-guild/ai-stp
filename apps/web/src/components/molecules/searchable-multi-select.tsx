@@ -67,6 +67,12 @@ export function SearchableMultiSelect({
   const [open, setOpen] = useState(false);
   const [localChecked, setChecked] = useState<string[]>(() => [...selected]);
   const checked = onChange ? selected : localChecked;
+  const selectedOption = options.find((option) => optionValue(option) === checked[0]);
+  const triggerText = multiple
+    ? `${label}${checked.length > 0 ? ` (${checked.length})` : ""}`
+    : selectedOption
+      ? optionLabel(selectedOption)
+      : emptyHint;
   const filtered = useMemo(
     () =>
       options.filter((option) =>
@@ -109,6 +115,7 @@ export function SearchableMultiSelect({
           ref={triggerRef}
           aria-haspopup="dialog"
           aria-expanded={open}
+          aria-label={multiple ? undefined : `${label}: ${triggerText}`}
           className="border-input bg-background focus-visible:ring-ring flex min-h-11 w-full min-w-0 items-center justify-between gap-3 rounded-sm border px-3 py-2 text-left text-sm focus-visible:ring-2 focus-visible:outline-none"
           onClick={() => {
             const dialog = dialogRef.current;
@@ -118,10 +125,7 @@ export function SearchableMultiSelect({
             setOpen(true);
           }}
         >
-          <span className="min-w-0 truncate">
-            {label}
-            {checked.length > 0 ? ` (${checked.length})` : ""}
-          </span>
+          <span className="min-w-0 truncate">{triggerText}</span>
           <Icon name="chevronDown" size="sm" />
         </button>
         <dialog
@@ -229,12 +233,10 @@ export function SearchableMultiSelect({
     >
       <summary
         aria-expanded={open}
+        aria-label={multiple ? undefined : `${label}: ${triggerText}`}
         className="focus-visible:ring-ring flex min-h-11 min-w-0 cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm whitespace-nowrap marker:content-none focus-visible:ring-2 focus-visible:outline-none [&::-webkit-details-marker]:hidden"
       >
-        <span className="min-w-0 truncate">
-          {label}
-          {checked.length > 0 ? ` (${checked.length})` : ""}
-        </span>
+        <span className="min-w-0 truncate">{triggerText}</span>
         <Icon name={open ? "chevronUp" : "chevronDown"} size="sm" />
       </summary>
       <div className="bg-popover border-border relative z-50 w-full min-w-0 space-y-2 rounded-sm border p-3 shadow-md md:absolute md:top-[calc(100%+0.375rem)] md:right-0 md:left-auto md:w-[min(20rem,calc(100vw-2rem))]">

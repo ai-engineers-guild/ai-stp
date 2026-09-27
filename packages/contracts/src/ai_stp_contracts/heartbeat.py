@@ -9,6 +9,7 @@ and secrets cannot smuggle through the field.
 """
 
 import json
+from datetime import date
 from typing import Annotated, Final, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -109,6 +110,9 @@ class InstallationHeartbeatPolicy(BaseModel):
     schema_version: Literal[1] = 1
     organization_id: OrganizationId
     enabled: bool = True
+    inventory_scan_enabled: bool = False
+    usage_collection_enabled: bool = False
+    usage_registration_required: bool = False
     interval_seconds: Annotated[int, Field(ge=60, le=2_592_000)] = (
         DEFAULT_HEARTBEAT_INTERVAL_SECONDS
     )
@@ -154,3 +158,74 @@ class InstallationHeartbeatList(BaseModel):
     stale_after_seconds: Annotated[int, Field(ge=1)]
     total: Annotated[int, Field(ge=0)]
     items: Annotated[list[InstallationHeartbeat], Field(max_length=256)]
+
+
+class HeartbeatReportTeam(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    id: str
+    name: str
+
+
+class HeartbeatReportEmployee(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    id: AccountId
+    name: str
+    team_ids: list[str]
+
+
+class HeartbeatReportBucket(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    start: Timestamp
+    end: Timestamp
+    expected: int
+    received: int
+    state: Literal["healthy", "partial", "missing", "not_expected"]
+
+
+class HeartbeatReportRow(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    account_id: AccountId
+    employee_name: str
+    teams: list[HeartbeatReportTeam]
+    device_id: DeviceId
+    device_name: str
+    last_heartbeat_at: Timestamp | None
+    status: Literal["active", "stale", "failing", "disabled", "unknown"]
+    buckets: list[HeartbeatReportBucket] = []
+    coverage_percent: int | None = None
+
+
+class HeartbeatReport(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    schema_version: Literal[1] = 1
+    organization_id: OrganizationId
+    evaluated_at: Timestamp
+    interval_seconds: int
+    stale_after_seconds: int
+    total: int
+    page: int
+    page_size: int
+    teams: list[HeartbeatReportTeam]
+    employees: list[HeartbeatReportEmployee]
+    items: list[HeartbeatReportRow]
+
+
+class HeartbeatReportQuery(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    view: Literal["current", "history"] = "current"
+    period: Literal["24h", "7d", "30d", "custom"] = "7d"
+    from_date: date | None = None
+    to_date: date | None = None
+    team: list[str] = []
+    employee: list[str] = []
+    status: list[Literal["active", "stale", "failing", "disabled", "unknown"]] = []
+    sort: Literal["employee", "team", "last_heartbeat", "status", "coverage"] = "last_heartbeat"
+    order: Literal["asc", "desc"] = "desc"
+    page: Annotated[int, Field(ge=1)] = 1
+    page_size: Annotated[int, Field(ge=1, le=50)] = 10

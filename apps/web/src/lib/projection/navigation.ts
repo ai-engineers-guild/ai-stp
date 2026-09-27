@@ -42,6 +42,7 @@ export function isPrimaryNavigationActive(item: NavItem, pathname: string): bool
         "/corporate/catalog",
         "/corporate/technology-landscape",
         "/corporate/categories",
+        "/corporate/technology-mappings",
       ].some((base) => matchesPath(pathname, base));
     case UI.navigation.dashboard:
       return matchesPath(pathname, "/corporate/dashboard");

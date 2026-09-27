@@ -1,0 +1,30 @@
+{
+  "$id": "urn:ai-stp:schema:v1:heartbeat-report-employee",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "title": "Id",
+      "type": "string"
+    },
+    "name": {
+      "title": "Name",
+      "type": "string"
+    },
+    "team_ids": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Team Ids",
+      "type": "array"
+    }
+  },
+  "required": [
+    "id",
+    "name",
+    "team_ids"
+  ],
+  "title": "HeartbeatReportEmployee",
+  "type": "object"
+}

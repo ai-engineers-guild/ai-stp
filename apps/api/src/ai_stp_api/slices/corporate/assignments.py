@@ -46,8 +46,12 @@ from ai_stp_contracts.corporate import (
 )
 from ai_stp_foundation.harnesses import HarnessId
 from ai_stp_foundation.ids import new_id
-from ai_stp_foundation.versioning import parse_version
-from ai_stp_platform.catalog_read import get_visible_metadata, get_visible_object_versions
+from ai_stp_platform.assignment_resolution import (
+    ELIGIBLE_LIFECYCLES,
+    eligible_assignment_versions,
+    select_assignment_winner,
+)
+from ai_stp_platform.catalog_read import get_visible_metadata
 from ai_stp_platform.corporate_authorization import has_corporate_permission
 from ai_stp_platform.models import Account
 from ai_stp_platform.organization_models import (
@@ -72,19 +76,8 @@ from ai_stp_platform.technology_models import (
 
 UsageSubjectKind = Literal["employee", "team", "project", "technology"]
 
-#: Deterministic effective-assignment precedence (ADR-0195): the lower the
-#: rank, the stronger the scope. An explicit employee decision always outranks
-#: every inherited assignment.
-_SCOPE_RANK: dict[str, int] = {
-    "employee": 0,
-    "project": 1,
-    "technology": 2,
-    "team": 3,
-    "organization": 4,
-}
-
 #: A latest assignment resolves to the same lifecycle an exact selector accepts.
-_ELIGIBLE_LIFECYCLES: frozenset[str] = frozenset({"active", "deprecated"})
+_ELIGIBLE_LIFECYCLES = ELIGIBLE_LIFECYCLES
 
 
 def _subject_column(kind: AssignmentSubjectKind) -> InstrumentedAttribute[str | None] | None:
@@ -108,28 +101,6 @@ def _row_scope(row: AssignmentRow) -> tuple[AssignmentSubjectKind, str]:
     return "organization", row.organization_id
 
 
-def _version_key(version: str) -> tuple[int, int]:
-    major, minor = parse_version(version)
-    return major, minor
-
-
-async def _eligible_versions(
-    db: AsyncSession,
-    *,
-    object_kind: Literal["setup", "component"],
-    stable_id: str,
-    account_id: str | None,
-) -> list[tuple[str, str]]:
-    rows = await get_visible_object_versions(
-        db, object_kind=object_kind, stable_id=stable_id, account_id=account_id
-    )
-    eligible = [
-        (row.version, row.passport_digest) for row in rows if row.lifecycle in _ELIGIBLE_LIFECYCLES
-    ]
-    eligible.sort(key=lambda item: _version_key(item[0]))
-    return eligible
-
-
 async def _check_selector(
     db: AsyncSession,
     *,
@@ -138,7 +109,7 @@ async def _check_selector(
 ) -> str | None:
     """Validate the selector and return the pinned digest for an exact write."""
     if payload.selector == "latest":
-        eligible = await _eligible_versions(
+        eligible = await eligible_assignment_versions(
             db,
             object_kind=payload.object_kind,
             stable_id=payload.stable_id,
@@ -505,7 +476,7 @@ async def list_usage(
     ).all()
     latest_version: str | None = None
     if any(row.version is None for row in rows):
-        eligible = await _eligible_versions(
+        eligible = await eligible_assignment_versions(
             db,
             object_kind=query.object_kind,
             stable_id=query.stable_id,
@@ -727,57 +698,20 @@ async def _evaluate_assignment_line(
     assignments or materialized installations.
     """
 
-    def applicable(row: AssignmentRow) -> tuple[AssignmentSubjectKind, str] | None:
-        kind, identity = _row_scope(row)
-        if kind == "employee":
-            return (kind, identity) if identity == query.account_id else None
-        if kind == "team":
-            return (kind, identity) if identity in team_ids else None
-        if kind == "project":
-            return (kind, identity) if identity == query.project_id else None
-        if kind == "technology":
-            return (kind, identity) if identity == query.technology_id else None
-        return kind, identity
-
-    def harness_ok(row: AssignmentRow) -> bool:
-        return row.harness is None or row.harness == query.harness
-
-    def sort_key(
-        entry: tuple[AssignmentRow, tuple[AssignmentSubjectKind, str]],
-    ) -> tuple[int, int, int, str]:
-        row, (kind, _identity) = entry
-        return (
-            _SCOPE_RANK[kind],
-            0 if row.harness is not None else 1,
-            -row.revision,
-            row.id,
-        )
-
-    considered = [
-        (row, scope) for row in rows if (scope := applicable(row)) is not None and harness_ok(row)
-    ]
-    considered.sort(key=sort_key)
-    employee_entries = [entry for entry in considered if entry[1][0] == "employee"]
-
-    winner: AssignmentRow | None = None
-    winner_scope: tuple[AssignmentSubjectKind, str] | None = None
-    revoked = False
-    if employee_entries:
-        top, top_scope = min(employee_entries, key=sort_key)
-        if top.state == "retired":
-            revoked = True
-        else:
-            winner, winner_scope = top, top_scope
-    else:
-        current = [entry for entry in considered if entry[0].state == "current"]
-        if current:
-            winner, winner_scope = current[0]
+    winner, winner_scope, considered, revoked = select_assignment_winner(
+        rows,
+        account_id=query.account_id,
+        team_ids=team_ids,
+        project_id=query.project_id,
+        technology_id=query.technology_id,
+        harness=query.harness,
+    )
 
     resolved_version: str | None = None
     resolved_digest: str | None = None
     if winner is not None:
         if winner.selector == "latest":
-            eligible = await _eligible_versions(
+            eligible = await eligible_assignment_versions(
                 db,
                 object_kind=query.object_kind,
                 stable_id=query.stable_id,
@@ -809,7 +743,7 @@ async def _evaluate_assignment_line(
         candidates.append(
             CorporateEffectiveAssignmentCandidate(
                 assignment_id=row.id,
-                scope=kind,
+                scope=cast(AssignmentSubjectKind, kind),
                 subject_id=identity,
                 selector=cast(AssignmentSelector, row.selector),
                 version=row.version,
@@ -834,7 +768,7 @@ async def _evaluate_assignment_line(
         stable_id=query.stable_id,
         state=state,
         assignment_id=winner.id if winner is not None else None,
-        source_scope=winner_scope[0] if winner_scope is not None else None,
+        source_scope=cast(AssignmentSubjectKind, winner_scope[0]) if winner_scope else None,
         source_subject_id=winner_scope[1] if winner_scope is not None else None,
         selector=cast(AssignmentSelector, winner.selector) if winner is not None else None,
         version=resolved_version,
@@ -1152,7 +1086,7 @@ async def plan_assignments(
         resolved_version, resolved_digest = evaluation.version, evaluation.passport_digest
         supported = True
         if evaluation.state == "assigned":
-            eligible = await _eligible_versions(
+            eligible = await eligible_assignment_versions(
                 db,
                 object_kind=line_query.object_kind,
                 stable_id=stable_id,

@@ -73,6 +73,7 @@ def _device_record(
         "schema_version": 1,
         "device_id": device.id,
         "state": device.state,
+        "display_name": device.display_name,
         "registered_at": _wire_ts(device.created_at),
         "last_active_at": _wire_ts(last),
         "device_type": device.device_type,
@@ -108,7 +109,6 @@ async def device_register(
     auth: Annotated[AuthSettings, Depends(get_auth_settings)],
 ) -> JSONResponse:
     """Register a device after challenge + Ed25519 verification."""
-    del request
     summary, created = await register_device(
         db,
         ctx=ctx,
@@ -117,6 +117,9 @@ async def device_register(
         nonce=body.nonce,
         signature=body.signature,
         display_name=body.display_name,
+        user_agent=(request.headers.get("user-agent") or "")[:512] or None,
+        client_ip=request.headers.get("x-ai-stp-client-ip")
+        or (request.client.host if request.client is not None else None),
     )
     device = await db.get(Device, summary.id)
     if device is None:

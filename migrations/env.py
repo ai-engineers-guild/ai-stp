@@ -15,6 +15,12 @@ from ai_stp_platform import (
 from ai_stp_platform import (
     heartbeat_models as _heartbeat_models,  # noqa: F401 register B2B-04 metadata
 )
+from ai_stp_platform import (
+    installation_inventory_models as _installation_inventory_models,  # noqa: F401 register metadata
+)
+from ai_stp_platform import (
+    installation_usage_models as _installation_usage_models,  # noqa: F401 register metadata
+)
 from ai_stp_platform import models as _platform_models  # noqa: F401  register Sprint-1 metadata
 from ai_stp_platform import (
     organization_models as _organization_models,  # noqa: F401 register B2B-00 metadata

@@ -219,6 +219,20 @@ def test_pending_polls_are_paced_and_the_pace_survives_refusals(
     )
     assert tokens.account_id == approver.account_id
 
+    from ai_stp_platform.models import Device
+
+    async def stored_label() -> tuple[str | None, str | None]:
+        async with cli_server.app.state.sessionmaker() as db:
+            device = await db.get(Device, str(DEVICE_ID))
+            if device is None:
+                return (None, None)
+            return (device.display_name, device.user_agent)
+
+    label, agent = cli_server.call(stored_label)
+    assert label == "boundary-test"
+    # The exchange also captures the caller's transport metadata.
+    assert agent is not None and agent.startswith("ai-stp-cli/")
+
     with pytest.raises(CliFailure) as limited_again:
         login.exchange(
             cli_endpoint,

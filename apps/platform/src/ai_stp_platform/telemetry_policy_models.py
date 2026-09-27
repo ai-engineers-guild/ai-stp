@@ -127,6 +127,10 @@ class TelemetryPolicy(Base):
             "heartbeat_stale_after_seconds between 60 and 31536000",
             name="ck_telemetry_policy_heartbeat_stale_after",
         ),
+        CheckConstraint(
+            "NOT usage_registration_required OR usage_collection_enabled",
+            name="ck_telemetry_policy_usage_required",
+        ),
     )
 
     organization_id: Mapped[str] = mapped_column(
@@ -141,6 +145,18 @@ class TelemetryPolicy(Base):
     notice_revision: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     heartbeat_enabled: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=True, server_default="true"
+    )
+    inventory_scan_enabled: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )
+    usage_collection_enabled: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )
+    usage_registration_required: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )
+    report_timezone: Mapped[str] = mapped_column(
+        String(64), nullable=False, default="UTC", server_default="UTC"
     )
     heartbeat_interval_seconds: Mapped[int] = mapped_column(
         Integer,

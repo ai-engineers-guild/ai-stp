@@ -1,6 +1,6 @@
 ---
 description: "SPEC-004: Project index and passport."
-last_verified: "2026-09-20"
+last_verified: "2026-09-26"
 ---
 
 # SPEC-004: Project Index and Passport
@@ -42,9 +42,23 @@ Level two covers the Git identifier, manifests, lockfiles, versions, frameworks,
 
 Scanning distinguishes `new_project`, `indexed`, `partial`, `unsupported_language`, `resource_limited`, and `failed`. The failure of one analyzer does not destroy proven results from other analyzers, but the overall result is not called complete. Cancellation and timeout preserve a partial report without uploading it to the cloud.
 
+Depth exhaustion and unreadable files or directories produce a partial index.
+Oversized files retain presence metadata without a content digest; reads remain
+bounded even if a file grows after its initial size check. TypeScript includes
+`.mts` and `.cts`. Standard Hypothesis, Next.js, Nuxt, SvelteKit, Turbo, pnpm and
+coverage caches are excluded alongside dependency and version-control directories.
+Generated documentation, Storybook and Playwright MCP output is also excluded.
+Binary files are rejected after the initial 8,000-byte probe without reading
+their remaining content. Unresolvable symlink loops produce a partial index.
+Passport and technology scans do not perform the separate symbol survey.
+
 ## Security and privacy
 
 Paths are normalized before reading. Symlink escape, archive bombs, and excessively large files are blocked. Private source code is not sent to the server during normal indexing. Error messages redact home paths and secret values.
+
+Credential filenames include token/credential/service-account JSON, native MCP
+connection files and VPN profiles. Symlink targets receive the same filename
+exclusions; non-regular files are never opened as source.
 
 ## Compatibility and migration
 

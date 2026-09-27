@@ -33,6 +33,7 @@
       "anyOf": [
         {
           "enum": [
+            "draft",
             "active",
             "archived"
           ],

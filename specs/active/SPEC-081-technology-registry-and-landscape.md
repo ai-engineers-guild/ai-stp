@@ -1,6 +1,6 @@
 ---
 description: "SPEC-081: Governed technology metadata, usage facts, detection handoff, and authorized landscape projections."
-last_verified: "2026-09-23"
+last_verified: "2026-09-26"
 ---
 
 # SPEC-081: Technology registry and landscape
@@ -149,6 +149,27 @@ filtering without changing these registry and relation semantics.
   source revision; old scans without that field remain readable. Publication
   refuses an older local scan because the standing findings reflect the latest
   detector pass and cannot be relabeled as a historical scan.
+- `REQ-8217`: A handoff carries the bounded set of coordinates the declared
+  snapshot did not resolve. The platform persists them as the organization's
+  unmapped-coordinate review queue, keyed by organization, project, scope,
+  kind, and coordinate; a rescan replaces exactly that project and scope's
+  rows, so one coordinate reported by two scopes keeps two independent rows.
+  `GET /v1/corporate/organizations/{organization_id}/technology-unmapped-coordinates`
+  returns the queue grouped by coordinate with the reporting projects. Forge
+  language enrichment feeds unknown language names into the same queue rather
+  than discarding them.
+- `REQ-8218`: The registry grows from this queue. `project technology unmapped`
+  lists one local project's unresolved coordinates under the effective
+  mapping; `project technology unmapped-remote` reads the organization queue.
+  `project technology mappings publish` writes one immutable snapshot from
+  exactly one source — an entries document (JSON or YAML, validated against
+  the mapping-entry contract) or the bundled seed table — then caches the
+  published snapshot locally. The `technology` task intent drains the same
+  operations, asking for the action and any missing required field rather
+  than guessing. A scheduled worker refresh replays forge-language detection
+  on linked provider projects through the same merge path as request-driven
+  publication and emits the same unmapped coordinates; projects whose
+  recorded provider head moved are skipped until discovery re-pins them.
 
 ## States and errors
 
@@ -259,6 +280,19 @@ canonical-pair and original/current technology read permissions. Historical
 reads remain available for retained archived/deleted project identities.
 
 ### Local detection, review and publication
+
+Detector version `2` recognizes Python dependency groups and inline setup.cfg
+requirements, Cargo workspace/target dependencies and renamed packages, scoped
+pnpm coordinates across lockfile generations, Go require blocks and checksum
+versions, and Dockerfile/Compose variants. Cargo editions are not compiler
+versions; Go exclude/replace directives are not dependency declarations; Docker
+build stages are not external images. Multiple checksum versions remain separate
+claims. Dependency URLs and local paths are not version strings.
+
+An unverified, changed, oversized, undecodable or malformed supported manifest
+makes detection incomplete while retaining findings from other inputs. Detection
+also checks its time budget between files. These scans cannot mark prior findings
+absent. Publication retains the stored scan's detector version after a CLI upgrade.
 
 `project detect` builds the one bounded `SPEC-004` index and runs the detector
 over it. Detections persist per project and scan scope with their claims —
@@ -426,6 +460,8 @@ downgrade requires a verified backup and is not an ordinary rollback.
 | `REQ-8214` | Confirm/reject/override decisions survive a rescan that moves the version; an override without an explicit identity and review of an unknown key are refused. |
 | `REQ-8215` | Complete-scan fixtures mark unseen findings absent while a partial scan marks them stale; only current findings appear in the projected handoff. |
 | `REQ-8216` | Publication fixtures refuse an unlinked project, a mismatched organization, and a missing fetched snapshot before demanding a session; a wired mock server receives the exact contract-shaped handoff. |
+| `REQ-8217` | Scope isolation tests show one coordinate under two scopes keeps two rows and a rescan clears exactly one; forge-language fixtures land unknown names in the queue; the organization endpoint groups coordinates across projects. |
+| `REQ-8218` | Command tests cover seed-versus-entries exclusivity, JSON/YAML validation, local and remote unmapped listing, and the intent's action and required-field questions; worker tests cover daily enqueue idempotency, stale-head skip, and merge-path equivalence. |
 
 ## Bounded forge language enrichment
 
@@ -438,3 +474,11 @@ technology IDs. The existing confirm/reject/override path is the only way for
 an observation to become an accepted project/landscape fact. A retained scan
 replay does not require another forge read. No source archive or code execution
 is involved.
+
+## Deferred: organization-wide backend scan
+
+Interactive scanning of every linked organization project directly on the
+backend — replaying GitHub/GitLab sources without a local CLI — is a future
+milestone item, not part of this specification. Scans originate locally: one
+project, one bounded root, one explicit publication. Registry growth is
+review-driven, never scheduled background mutation.

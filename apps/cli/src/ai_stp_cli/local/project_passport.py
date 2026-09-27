@@ -26,7 +26,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Final, cast
 
-from ai_stp_cli.local import journal, project_index, revisions, symbols
+from ai_stp_cli.local import journal, project_index, revisions
 from ai_stp_cli.local.database import transaction
 from ai_stp_cli.local.passports import carry_unchanged, moment, owner
 from ai_stp_cli.paths import redact_any_home
@@ -78,7 +78,6 @@ class Scan:
     toolchain_digest: str
     configuration_digest: str
     index: project_index.Index
-    languages: tuple[symbols.LanguageSummary, ...]
 
 
 def stable_id_for(connection: sqlite3.Connection, root: Path) -> str | None:
@@ -116,9 +115,6 @@ def scan(connection: sqlite3.Connection, root: Path) -> Scan:
     """
     resolved = root.resolve()
     index = project_index.build(resolved)
-    survey = symbols.survey(
-        index.root, [(item.path, item.language) for item in index.entries if item.language]
-    )
 
     # The filesystem reading above runs outside any lock — it is slow and
     # touches no shared state. The identity claim below runs under
@@ -159,7 +155,6 @@ def scan(connection: sqlite3.Connection, root: Path) -> Scan:
         toolchain_digest=_toolchain_digest(),
         configuration_digest=_configuration_digest(index),
         index=index,
-        languages=survey.languages,
     )
 
 

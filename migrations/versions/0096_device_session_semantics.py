@@ -6,7 +6,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision: str = "0096_device_session_semantics"
-down_revision: str | None = "0095_minute_installation_heartbeat"
+down_revision: str | None = "0106_technology_review_queue"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
@@ -30,14 +30,19 @@ def upgrade() -> None:
         "account_session",
         "kind in ('access', 'refresh')",
     )
-    op.add_column(
-        "device",
-        sa.Column("display_name", sa.String(length=160), nullable=True),
-    )
+    # Idempotent for the same reason: heartbeat_reports adds the column too.
+    device_columns = {column["name"] for column in sa.inspect(op.get_bind()).get_columns("device")}
+    if "display_name" not in device_columns:
+        op.add_column(
+            "device",
+            sa.Column("display_name", sa.String(length=160), nullable=True),
+        )
 
 
 def downgrade() -> None:
-    op.drop_column("device", "display_name")
+    device_columns = {column["name"] for column in sa.inspect(op.get_bind()).get_columns("device")}
+    if "display_name" in device_columns:
+        op.drop_column("device", "display_name")
     op.drop_constraint("ck_account_session_kind", "account_session", type_="check")
     op.drop_column("account_session", "kind")
     op.drop_constraint(

@@ -123,7 +123,8 @@ def _windows_remove(name: str) -> None:
         f"Unregister-ScheduledTask -TaskName {_ps(name)} -Confirm:$false }}; "
         "$directory = Join-Path $env:LOCALAPPDATA 'ai-stp\\heartbeat'; "
         f"$launcher = Join-Path $directory {_ps(name + '.vbs')}; "
-        "Remove-Item -LiteralPath $launcher -ErrorAction SilentlyContinue"
+        "if (Test-Path -LiteralPath $launcher) { "
+        "Remove-Item -LiteralPath $launcher -ErrorAction Stop }; exit 0"
     )
 
 

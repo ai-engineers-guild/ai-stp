@@ -32,17 +32,23 @@ it("hides secondary tabs on entity detail pages", () => {
   expect(screen.queryByRole("navigation")).not.toBeInTheDocument();
 });
 
-it("orders the Organization tabs as Projects, Teams, Employees, Technologies", () => {
+it("orders the Organization tabs as Projects, Teams, Employees, Technologies, Reports", () => {
   route.path = "/corporate/organization";
   render(
     <CorporateHubNavigation
-      capabilities={["project.list", "team.list", "member.list", "technology.list"]}
+      capabilities={[
+        "project.list",
+        "team.list",
+        "member.list",
+        "technology.list",
+        "telemetry.read",
+      ]}
     />,
   );
-  expect(screen.getByRole("navigation").querySelectorAll("a")).toHaveLength(4);
+  expect(screen.getByRole("navigation").querySelectorAll("a")).toHaveLength(5);
   expect(
     [...screen.getByRole("navigation").querySelectorAll("a")].map((link) => link.textContent),
-  ).toEqual(["projects", "teams", "employees", "technologies"]);
+  ).toEqual(["projects", "teams", "employees", "technologies", "reports"]);
 });
 
 it("keeps the technology directory in the Organization section", () => {

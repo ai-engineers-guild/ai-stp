@@ -4,6 +4,14 @@
       "additionalProperties": true,
       "description": "The redacted drill-down row: identities and coordinates, nothing else.",
       "properties": {
+        "activity_kind": {
+          "enum": [
+            "invocation",
+            "load"
+          ],
+          "title": "Activity Kind",
+          "type": "string"
+        },
         "component_kind": {
           "title": "Component Kind",
           "type": "string"
@@ -49,15 +57,38 @@
           "type": "string"
         },
         "setup_stable_id": {
-          "title": "Setup Stable Id",
-          "type": "string"
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Setup Stable Id"
         },
         "setup_version": {
-          "title": "Setup Version",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Setup Version"
+        },
+        "source": {
+          "enum": [
+            "native_hook",
+            "agent_reported"
+          ],
+          "title": "Source",
           "type": "string"
         }
       },
       "required": [
+        "activity_kind",
         "component_kind",
         "component_stable_id",
         "component_version",
@@ -69,7 +100,8 @@
         "outcome",
         "project_id",
         "setup_stable_id",
-        "setup_version"
+        "setup_version",
+        "source"
       ],
       "title": "RuntimeUsageEventView",
       "type": "object"

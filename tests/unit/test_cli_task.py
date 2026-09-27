@@ -548,7 +548,7 @@ def test_the_lease_dies_with_the_executor_process() -> None:
         assert executor_lease.held(task_id)
     finally:
         marker.unlink(missing_ok=True)
-        holder.send_signal(signal.SIGKILL)
+        holder.send_signal(getattr(signal, "SIGKILL", signal.SIGTERM))
         holder.wait(timeout=10)
     deadline = time.monotonic() + 10
     while executor_lease.held(task_id):

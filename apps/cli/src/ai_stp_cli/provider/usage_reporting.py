@@ -21,7 +21,7 @@ from typing import Literal
 from ai_stp_cli import runtime_usage
 from ai_stp_cli.application import usage_outbox
 
-RecordResult = Literal["queued", "duplicate", "full", "dropped"]
+RecordResult = Literal["queued", "duplicate", "full", "dropped", "disabled"]
 
 
 def record_invocation(
@@ -31,15 +31,17 @@ def record_invocation(
     device_id: str,
     project_id: str,
     harness: str,
-    setup_stable_id: str,
-    setup_version: str,
-    setup_passport_digest: str,
+    setup_stable_id: str | None,
+    setup_version: str | None,
+    setup_passport_digest: str | None,
     component_kind: str,
     component_stable_id: str,
     component_version: str,
     component_passport_digest: str,
     invoked_at: str,
     outcome: str,
+    source: str = "native_hook",
+    activity_kind: str = "invocation",
     event_id: str | None = None,
     outbox: sqlite3.Connection | None = None,
     outbox_path: Path | None = None,
@@ -71,15 +73,25 @@ def record_invocation(
             component_passport_digest=component_passport_digest,
             invoked_at=invoked_at,
             outcome=outcome,
+            source=source,
+            activity_kind=activity_kind,
             event_id=event_id,
         )
         payload = runtime_usage.event_payload(event)
     except ValueError:
         return "dropped"
     if outbox is not None:
+        cached = usage_outbox.cached_policy(outbox)
+        if cached is not None and not cached[0]:
+            return "disabled"
         return usage_outbox.enqueue(outbox, event.event_id, payload, now=now)
-    connection = usage_outbox.connect(outbox_path)
+    connection = usage_outbox.connect(
+        outbox_path or usage_outbox.scoped_path(employee_id, organization_id)
+    )
     try:
+        cached = usage_outbox.cached_policy(connection)
+        if cached is not None and not cached[0]:
+            return "disabled"
         return usage_outbox.enqueue(connection, event.event_id, payload, now=now)
     finally:
         connection.close()
