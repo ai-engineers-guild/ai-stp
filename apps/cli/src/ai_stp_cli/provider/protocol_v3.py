@@ -177,6 +177,11 @@ class Operation(StrEnum):
     SOFTWARE_REMOVE = "software_remove"
     LAUNCH = "launch"
     PATCH_INSTRUCTION_REGION = "patch_instruction_region"
+    #: Accepted one release before any provider may declare it, same rule as
+    #: `patch_instruction_region` above (ADR-0125). Removes only the owned
+    #: marked section and keeps every byte outside the markers; takes no
+    #: `--instruction-section`.
+    DETACH_INSTRUCTION_REGION = "detach_instruction_region"
 
 
 CORE_OPERATIONS: Final[frozenset[Operation]] = frozenset(
@@ -293,6 +298,13 @@ _STATUS_ALWAYS_PROVENANCE: Final[frozenset[str]] = frozenset(
 STATUS_VERIFIED_FIELDS: Final[tuple[str, ...]] = tuple(
     field for field in PROVENANCE_FIELDS if field not in _STATUS_ALWAYS_PROVENANCE
 )
+
+#: Members a status answer may carry in any state — present or `null`, never
+#: required. `instruction_region` reports the managed instruction attachment
+#: on harnesses that declare a user-global instruction surface; `null` is the
+#: honest answer for one that does not. Accepted one release before a provider
+#: may emit it, the same ordering `patch_instruction_region` rode (ADR-0125).
+STATUS_OPTIONAL_FIELDS: Final[tuple[str, ...]] = ("instruction_region",)
 
 STATUS_STATES: Final[tuple[str, ...]] = ("managed", "unmanaged", "missing")
 DRIFT_STATES: Final[tuple[str, ...]] = ("clean", "local_drift", "unknown")
@@ -462,6 +474,7 @@ OPERATION_NETWORK: Final[Mapping[Operation, tuple[PhasePolicy, ...]]] = MappingP
             PhasePolicy(OperationPhase.EXECUTE, NetworkRequirement.RUNTIME_EXTERNAL),
         ),
         Operation.PATCH_INSTRUCTION_REGION: _LOCAL_PLAN_APPLY,
+        Operation.DETACH_INSTRUCTION_REGION: _LOCAL_PLAN_APPLY,
     }
 )
 
@@ -1028,6 +1041,26 @@ def _build_status_wire_schema() -> dict[str, object]:
         "backup_ref": _nullable({"type": "string", "pattern": BACKUP_REF_PATTERN.pattern}),
         "previous_verified_identity": nullable_digest,
         "drift_state": {"type": "string", "enum": list(DRIFT_STATES)},
+        #: The managed instruction attachment as the provider sees it. Optional
+        #: one release before any provider may emit it (reader first, per
+        #: ADR-0125): `null` says the harness declares no user-global
+        #: instruction surface, an object reports the surface's managed-section
+        #: state. `section_sha256` is the marked region's own digest — kept
+        #: separate from `target_digest`, which the unowned attachment file
+        #: never enters.
+        "instruction_region": _nullable(
+            {
+                "type": "object",
+                "properties": {
+                    "path": {"type": "string", "minLength": 1},
+                    "present": {"type": "boolean"},
+                    "section_present": {"type": "boolean"},
+                    "section_sha256": nullable_digest,
+                },
+                "required": ["path", "present", "section_present", "section_sha256"],
+                "additionalProperties": False,
+            }
+        ),
     }
     return {
         "$schema": "https://json-schema.org/draft/2020-12/schema",

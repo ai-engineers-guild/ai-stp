@@ -49,7 +49,12 @@ KIT_IDENTITY_SCHEMA: Final[str] = "ai-stp-provider-kit-identity/1"
 #: 0.2.13 opens `plan_request_fields` to `instruction_section`. Nothing sends
 #: `--instruction-section` yet — this release lets a provider declare the
 #: field without older consumers refusing its whole `provider-info`.
-KIT_VERSION: Final[str] = "0.2.13"
+#: 0.2.14 names optional `detach_instruction_region` in the operations enum
+#: and opens `status` to `instruction_region`: the managed-section inspect leg
+#: (`#273`). No provider declares the operation or emits the member yet — this
+#: release is what lets one do so without older consumers refusing the whole
+#: `provider-info` or `status` answer.
+KIT_VERSION: Final[str] = "0.2.14"
 
 #: The kit's only artifact with no source to re-derive it from, and therefore
 #: the exact limit of what `--check` can see. Everything else here is rendered

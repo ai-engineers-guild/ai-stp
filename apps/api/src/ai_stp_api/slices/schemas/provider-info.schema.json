@@ -269,7 +269,8 @@
           "software_update",
           "software_remove",
           "launch",
-          "patch_instruction_region"
+          "patch_instruction_region",
+          "detach_instruction_region"
         ],
         "type": "string"
       },
