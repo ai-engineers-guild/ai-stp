@@ -667,6 +667,14 @@ def test_two_threads_opening_a_clean_registry_both_succeed(tmp_path: Path) -> No
     budget under a heavily loaded runner. The budget is now 15000 ms: more
     than twice the measured maximum, still bounded, and tied to this
     observation rather than an unexplained round-number increase.
+
+    **Recurred a fourth time on 2026-09-27** (run 36342598486), twice in a
+    row: opens took 17085 ms and 16296 ms against the 15000 ms budget. The
+    chain had grown past fifty migrations, each applied in its own
+    transaction under `synchronous=FULL` — a disk flush per step, so every
+    budget loses to the next growth in chain length. Migrations now apply
+    in one transaction: a clean open pays a single flush, which is why no
+    further budget raise accompanies this recurrence.
     """
     import concurrent.futures
     import threading
@@ -831,13 +839,16 @@ def test_a_lost_race_to_enable_write_ahead_logging_is_tolerated(
     assert settled.attempts == 0
 
 
-def test_two_openers_racing_the_same_migration_leave_one_applied(tmp_path: Path) -> None:
-    """The loser re-checks under the write lock and finds the work already done.
+def test_two_openers_racing_the_same_migration_leave_one_applied(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The loser re-reads under the write lock and finds the work already done.
 
     The version is read before the migration transaction opens, so a concurrent
-    opener can finish the same step in between. Re-running it would try to
+    opener can finish the whole chain in between. Re-running it would try to
     create tables that exist and crash the second process — which is how six
-    concurrent first runs failed.
+    concurrent first runs failed. The stale first read is played back here;
+    the second read, inside the transaction, must see the finished schema.
     """
     from ai_stp_cli.local import database
 
@@ -847,12 +858,17 @@ def test_two_openers_racing_the_same_migration_leave_one_applied(tmp_path: Path)
     connection = sqlite3.connect(path, isolation_level=None)
     connection.row_factory = sqlite3.Row
     try:
-        # Exactly the loser's position: about to apply a migration the file
-        # already carries.
-        database._run(  # pyright: ignore[reportPrivateUsage]
-            connection, MIGRATIONS[0].up, 1, skip_if_reached=1
-        )
-        assert database.schema_version(connection) == SCHEMA_VERSION
+        # Exactly the loser's position: the pre-lock read returned a version
+        # the winner has already moved past.
+        reads = iter([0])
+        real = database.schema_version
+
+        def stale_read(conn: sqlite3.Connection) -> int:
+            return next(reads, real(conn))
+
+        monkeypatch.setattr(database, "schema_version", stale_read)
+        database._migrate(connection, path)  # pyright: ignore[reportPrivateUsage]
+        assert real(connection) == SCHEMA_VERSION
     finally:
         connection.close()
 
