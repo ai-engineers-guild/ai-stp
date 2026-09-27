@@ -19,4 +19,5 @@ regexes = [
 description = "The REQ-8020 spec-table phrase 'partial/compensated' trips generic-api-key (entropy 3.68 on two English words). Verified false positive on commits 4f744a3f and fca6a854. The suppression is the finding's exact secret text, not a file or commit skip — a real credential, including one added to the same spec file, still scans."
 regexes = [
   '''^partial/compensated$''',
+  '''^gpt-oss-120b-medium$''',
 ]
