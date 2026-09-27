@@ -378,4 +378,6 @@ async def test_list_events_applies_employee_scope(
                 "component_version",
                 "invoked_at",
                 "outcome",
+                "source",
+                "activity_kind",
             }

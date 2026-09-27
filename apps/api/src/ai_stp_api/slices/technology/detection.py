@@ -556,7 +556,7 @@ async def review_unmapped(
     project's row for the coordinate shows the same candidate.
     """
     operation = "technology.unmapped.review"
-    _organization, receipt = await authorize_idempotent(
+    organization, receipt = await authorize_idempotent(
         db,
         ctx=ctx,
         organization_id=organization_id,
@@ -589,6 +589,7 @@ async def review_unmapped(
         raise ApiError(ErrorCategory.PERMISSION, "unmapped coordinate is unavailable")
     for row in rows:
         row.candidate_technology_id = candidate
+    organization.policy_revision += 1
     await db.flush()
     response = _unmapped_entry(rows)
     await finish_mutation(

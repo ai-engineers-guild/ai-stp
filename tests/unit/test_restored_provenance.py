@@ -923,6 +923,7 @@ def test_a_sourceless_rollback_apply_reads_status_at_the_planned_scope(
     target.mkdir()
     executable = tmp_path / "provider"
     executable.write_text("#!/usr/bin/env python3\n", encoding="utf-8")
+    executable.chmod(0o755)
     os_name, architecture = install._release_platform().split("/", 1)  # pyright: ignore[reportPrivateUsage]
     build_digest = "sha256:" + "c" * 64
     info: dict[str, object] = {

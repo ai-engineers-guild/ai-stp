@@ -106,4 +106,6 @@ def downgrade() -> None:
         "ix_installation_heartbeat_event_account", table_name="installation_heartbeat_event"
     )
     op.drop_table("installation_heartbeat_event")
-    op.drop_column("device", "display_name")
+    device_columns = {column["name"] for column in sa.inspect(op.get_bind()).get_columns("device")}
+    if "display_name" in device_columns:
+        op.drop_column("device", "display_name")

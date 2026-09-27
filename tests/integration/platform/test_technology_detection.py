@@ -111,6 +111,9 @@ async def test_mapping_and_scan_replay_review_disagreement_and_scope(
             ],
         }
     )
+    seeded_mappings = await db_session.scalar(
+        select(func.count()).select_from(TechnologyCoordinateMapping)
+    )
     mapping = await publish_mapping(
         db_session,
         ctx=ctx,
@@ -153,7 +156,8 @@ async def test_mapping_and_scan_replay_review_disagreement_and_scope(
             request_id="detection-test",
         )
     assert (
-        await db_session.scalar(select(func.count()).select_from(TechnologyCoordinateMapping)) == 1
+        await db_session.scalar(select(func.count()).select_from(TechnologyCoordinateMapping))
+        == (seeded_mappings or 0) + 1
     )
 
     async def scan(
@@ -600,7 +604,7 @@ async def test_review_queue_candidates_and_base_version_mapping(
             ctx=ctx,
             organization_id=org,
             payload=TechnologyUnmappedReviewRequest(
-                authorization_revision=5,
+                authorization_revision=6,
                 idempotency_key="review-missing-0001",
                 kind="package",
                 coordinate="never-reported",

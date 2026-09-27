@@ -40,7 +40,9 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_column("device", "display_name")
+    device_columns = {column["name"] for column in sa.inspect(op.get_bind()).get_columns("device")}
+    if "display_name" in device_columns:
+        op.drop_column("device", "display_name")
     op.drop_constraint("ck_account_session_kind", "account_session", type_="check")
     op.drop_column("account_session", "kind")
     op.drop_constraint(

@@ -136,7 +136,8 @@
               "toolchain_profile_version": "mvp-full/1.0",
               "summary_updated_at": "2026-08-05T00:00:00.000Z"
             },
-            "etag": "W/\"7\""
+            "etag": "W/\"7\"",
+            "display_name": null
           },
           {
             "schema_version": 1,
@@ -148,7 +149,8 @@
             "approximate_location": null,
             "user_agent": null,
             "summary": null,
-            "etag": "W/\"1\""
+            "etag": "W/\"1\"",
+            "display_name": null
           }
         ],
         "page": {
@@ -191,7 +193,8 @@
               "toolchain_profile_version": "mvp-full/1.0",
               "summary_updated_at": "2026-08-05T00:00:00.000Z"
             },
-            "etag": "W/\"7\""
+            "etag": "W/\"7\"",
+            "display_name": null
           }
         ],
         "page": {
@@ -245,7 +248,8 @@
             "toolchain_profile_version": "mvp-full/1.0",
             "summary_updated_at": "2026-08-05T00:00:00.000Z"
           },
-          "etag": "W/\"8\""
+          "etag": "W/\"8\"",
+          "display_name": null
         },
         "revoked_at": "2026-08-05T00:00:00.000Z"
       }
@@ -380,7 +384,8 @@
           "approximate_location": null,
           "user_agent": null,
           "summary": null,
-          "etag": "W/\"1\""
+          "etag": "W/\"1\"",
+          "display_name": null
         }
       }
     }
