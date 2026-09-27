@@ -52,6 +52,10 @@
     {
       "kit_version": "0.2.13",
       "aggregate_digest": "sha256:e2a35eaf2e0f834913962d9a6337948eeb78290b4ad8c3af7674620215610b0e"
+    },
+    {
+      "kit_version": "0.2.14",
+      "aggregate_digest": "sha256:b8941c16214c49b2e527f75f71df97cdcb18a1923861391d4b0db03db7cbe4e2"
     }
   ],
   "republished": [

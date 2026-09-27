@@ -269,6 +269,45 @@
       "minLength": 1,
       "type": "string"
     },
+    "instruction_region": {
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "path": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "present": {
+              "type": "boolean"
+            },
+            "section_present": {
+              "type": "boolean"
+            },
+            "section_sha256": {
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/digest"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "path",
+            "present",
+            "section_present",
+            "section_sha256"
+          ],
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
     "journal": {
       "oneOf": [
         {
