@@ -1185,12 +1185,7 @@
   "publisher": {
     "title": "Publisher",
     "emptyProfile": "This publisher has not authored a public profile. Only the account id and published objects are shown.",
-    "publishedObjects": "Published objects",
-    "objectsStat": "Published objects",
-    "likesStat": "Likes",
-    "viewsAndDownloadsStat": "Views and downloads",
-    "components": "Components",
-    "setups": "Setups"
+    "publishedObjects": "Published objects"
   },
   "login": {
     "title": "Sign in",

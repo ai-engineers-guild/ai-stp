@@ -9,8 +9,6 @@ import type {
   GitHubConnectRequest,
   GitHubConnectResponse,
   GitHubDisconnectRequest,
-  GitHubSourcePrepareRequest,
-  GitHubSourcePrepared,
   GitHubActionPlanRequest,
   GitHubActionPlanResponse,
   GitHubActionConfirmRequest,
@@ -54,17 +52,8 @@ export async function githubConnect(csrf: string, body: GitHubConnectRequest) {
 export async function githubDisconnect(csrf: string, body: GitHubDisconnectRequest) {
   return request<GitHubConnectorStatus>(csrf, "/v1/connectors/github/disconnect", body);
 }
-export async function githubPrepare(csrf: string, body: GitHubSourcePrepareRequest) {
-  return request<GitHubSourcePrepared>(csrf, "/v1/connectors/github/sources", body);
-}
 export async function githubPlan(csrf: string, body: GitHubActionPlanRequest) {
   return request<GitHubActionPlanResponse>(csrf, "/v1/connectors/github/actions", body);
-}
-export async function githubActionStatus(csrf: string, planId: string) {
-  return request<GitHubActionPlanResponse>(
-    csrf,
-    `/v1/connectors/github/actions/${encodeURIComponent(planId)}`,
-  );
 }
 export async function githubConfirm(
   csrf: string,

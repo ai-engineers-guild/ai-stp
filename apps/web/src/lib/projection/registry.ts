@@ -294,7 +294,7 @@ const PUBLIC_ROUTES: MachineRoute[] = [
         links: profile.links.map((item) => ({ label: item.label, url: item.url })),
         componentIds: [],
         setupIds: [],
-        emptyProfile: t("empty"),
+        emptyProfile: t("emptyProfile"),
       });
     },
   },

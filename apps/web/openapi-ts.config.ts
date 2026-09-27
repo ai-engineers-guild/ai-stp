@@ -7,7 +7,9 @@ import { defineConfig } from "@hey-api/openapi-ts";
 export default defineConfig({
   input: "../../schemas/v1/openapi.json",
   output: {
-    path: "src/lib/api/generated",
+    // `scripts/api-check.mjs` redirects this to a temporary directory so drift
+    // is measured against a fresh render, not a second copy of the output.
+    path: process.env.AI_STP_WEB_API_OUT ?? "src/lib/api/generated",
     postProcess: [],
   },
   plugins: [

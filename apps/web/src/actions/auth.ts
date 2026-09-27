@@ -3,12 +3,7 @@
 import { redirect } from "next/navigation";
 
 import { asAccountId, asDeviceId } from "@/lib/brands";
-import {
-  clearSessionCookies,
-  createCsrfToken,
-  createSessionToken,
-  setSessionCookies,
-} from "@/lib/auth/session";
+import { createCsrfToken, createSessionToken, setSessionCookies } from "@/lib/auth/session";
 import { corporateHref } from "@/lib/features/corporate-path";
 import { getEnv } from "@/lib/env";
 import { FIXTURE_ACCOUNT_ID, FIXTURE_DEVICE_ID } from "@/mocks/fixtures";
@@ -47,11 +42,6 @@ export async function startLoginAction(
   // Provider is recorded only for UX parity tests; tokens never stored client-side.
   void provider;
   redirectTo(target);
-}
-
-export async function logoutAction(locale = "ru") {
-  await clearSessionCookies();
-  redirectTo(corporateHref(`/${locale}/login`));
 }
 
 export async function mockLoginErrorAction(locale = "ru") {

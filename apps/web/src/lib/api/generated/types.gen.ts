@@ -6197,6 +6197,10 @@ export type DeviceRecord = {
    */
   device_type: "cli" | "web";
   /**
+   * Display Name
+   */
+  display_name: string | null;
+  /**
    * Etag
    */
   etag: string;
