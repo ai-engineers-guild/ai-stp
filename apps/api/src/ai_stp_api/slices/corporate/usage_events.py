@@ -15,7 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ai_stp_api.audit import emit_audit
 from ai_stp_api.deps import get_db, require_auth
-from ai_stp_api.errors import ApiError
+from ai_stp_api.errors import ApiError, ErrorCategory
 from ai_stp_api.session import AuthContext
 from ai_stp_api.slices.corporate import service
 from ai_stp_contracts.corporate import OrganizationId
@@ -52,6 +52,10 @@ async def usage_scope(
         )
         return runtime_usage_service.UsageScope(employees=None)
     except ApiError as denied:
+        # Only a permission denial may fall back to team scope; anything else
+        # (stale revision, backend failure) must surface as itself.
+        if denied.category is not ErrorCategory.PERMISSION:
+            raise
         scope = await runtime_usage_service.resolve_scope(
             db,
             organization_id=organization_id,

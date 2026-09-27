@@ -341,6 +341,7 @@ def _capabilities(**named: list[str]) -> dict[str, object]:
 def test_a_consent_records_the_shape_the_candidate_had(registry: sqlite3.Connection) -> None:
     record = consent.grant(
         registry,
+        account_id=OWNER,
         consent_id="request_01J0000000000000000000000N",
         scope=consent.SCOPE_PUBLISHER,
         target="publisher/acme",
@@ -355,7 +356,7 @@ def test_a_consent_records_the_shape_the_candidate_had(registry: sqlite3.Connect
     # Every declared field is present even when the candidate asked for none:
     # an absent field and an empty one must not compare differently later.
     assert set(record.fingerprint) == set(consent.FINGERPRINT_FIELDS)
-    assert consent.active(registry) == (record,)
+    assert consent.active(registry, accounts=(OWNER,)) == (record,)
 
 
 def test_a_fingerprint_carries_only_the_declared_fields(registry: sqlite3.Connection) -> None:
@@ -375,6 +376,7 @@ def test_a_fingerprint_carries_only_the_declared_fields(registry: sqlite3.Connec
 
 def test_a_candidate_asking_for_more_than_recorded_is_no_longer_covered() -> None:
     record = consent.Record(
+        account_id=OWNER,
         consent_id="request_01J0000000000000000000000P",
         scope=consent.SCOPE_PUBLISHER,
         target="publisher/acme",
@@ -401,6 +403,7 @@ def test_a_candidate_asking_for_more_than_recorded_is_no_longer_covered() -> Non
 
 def test_a_candidate_asking_for_less_stays_covered() -> None:
     record = consent.Record(
+        account_id=OWNER,
         consent_id="request_01J0000000000000000000000Q",
         scope=consent.SCOPE_PUBLISHER,
         target="publisher/acme",
@@ -420,6 +423,7 @@ def test_a_candidate_asking_for_less_stays_covered() -> None:
 
 def test_a_new_major_line_is_not_covered_by_the_previous_ones_consent() -> None:
     record = consent.Record(
+        account_id=OWNER,
         consent_id="request_01J0000000000000000000000R",
         scope=consent.SCOPE_OBJECT_MAJOR,
         target="component_01J0000000000000000000000S@2",
@@ -441,6 +445,7 @@ def test_revoking_takes_effect_immediately_and_leaves_the_record(
 ) -> None:
     record = consent.grant(
         registry,
+        account_id=OWNER,
         consent_id="request_01J0000000000000000000000T",
         scope=consent.SCOPE_PUBLISHER,
         target="publisher/acme",
@@ -450,14 +455,24 @@ def test_revoking_takes_effect_immediately_and_leaves_the_record(
         origin="registry search",
         at=MOMENT,
     )
-    assert consent.revoke(registry, scope=record.scope, target=record.target, at=LATER) is True
+    assert (
+        consent.revoke(
+            registry, account_id=OWNER, scope=record.scope, target=record.target, at=LATER
+        )
+        is True
+    )
 
-    withdrawn = consent.held(registry, scope=record.scope, target=record.target)
+    withdrawn = consent.held(registry, accounts=(OWNER,), scope=record.scope, target=record.target)
     assert withdrawn is not None and not withdrawn.active
     assert consent.covers(withdrawn, {}).reason == "the consent was withdrawn"
-    assert consent.active(registry) == ()
+    assert consent.active(registry, accounts=(OWNER,)) == ()
     # Revoking twice is not an error and does not move the moment.
-    assert consent.revoke(registry, scope=record.scope, target=record.target, at=MOMENT) is False
+    assert (
+        consent.revoke(
+            registry, account_id=OWNER, scope=record.scope, target=record.target, at=MOMENT
+        )
+        is False
+    )
 
 
 def test_re_granting_replaces_the_record_rather_than_adding_a_second(
@@ -466,6 +481,7 @@ def test_re_granting_replaces_the_record_rather_than_adding_a_second(
     for moment, hosts in ((MOMENT, ["a.test"]), (LATER, ["a.test", "b.test"])):
         consent.grant(
             registry,
+            account_id=OWNER,
             consent_id=f"request_01J000000000000000000000{moment[-3]}0",
             scope=consent.SCOPE_PUBLISHER,
             target="publisher/acme",
@@ -479,7 +495,9 @@ def test_re_granting_replaces_the_record_rather_than_adding_a_second(
     # Two records for one target would make "which fingerprint applies" a
     # question with two answers.
     assert held["n"] == 1
-    current = consent.held(registry, scope=consent.SCOPE_PUBLISHER, target="publisher/acme")
+    current = consent.held(
+        registry, accounts=(OWNER,), scope=consent.SCOPE_PUBLISHER, target="publisher/acme"
+    )
     assert current is not None and current.created_at == LATER
 
 
@@ -487,6 +505,7 @@ def test_re_granting_a_revoked_target_makes_it_active_again(
     registry: sqlite3.Connection,
 ) -> None:
     grant = {
+        "account_id": OWNER,
         "scope": consent.SCOPE_PUBLISHER,
         "target": "publisher/acme",
         "fingerprint": consent.fingerprint_of({}),
@@ -495,7 +514,9 @@ def test_re_granting_a_revoked_target_makes_it_active_again(
         "origin": "registry search",
     }
     consent.grant(registry, consent_id="request_01J0000000000000000000000V", at=MOMENT, **grant)  # pyright: ignore[reportArgumentType]
-    consent.revoke(registry, scope=consent.SCOPE_PUBLISHER, target="publisher/acme", at=LATER)
+    consent.revoke(
+        registry, account_id=OWNER, scope=consent.SCOPE_PUBLISHER, target="publisher/acme", at=LATER
+    )
     again = consent.grant(
         registry,
         consent_id="request_01J0000000000000000000000W",
@@ -520,6 +541,7 @@ def test_a_consent_that_covers_nothing_definite_is_refused(
     with pytest.raises(CliFailure, match=expected):
         consent.grant(
             registry,
+            account_id=OWNER,
             consent_id="request_01J0000000000000000000000X",
             scope=scope,
             target=target,
@@ -538,6 +560,7 @@ def test_a_fingerprint_field_written_as_a_bare_value_still_compares(
     # scalar. Comparing it as a set is what keeps that from reading as "empty",
     # which would silently make everything look like an expansion.
     record = consent.Record(
+        account_id=OWNER,
         consent_id="request_01J0000000000000000000000Y",
         scope=consent.SCOPE_PUBLISHER,
         target="publisher/acme",
@@ -557,6 +580,7 @@ def test_a_corrupt_fingerprint_reads_as_empty_rather_than_raising(
 ) -> None:
     consent.grant(
         registry,
+        account_id=OWNER,
         consent_id="request_01J0000000000000000000000Z",
         scope=consent.SCOPE_PUBLISHER,
         target="publisher/acme",
@@ -570,7 +594,9 @@ def test_a_corrupt_fingerprint_reads_as_empty_rather_than_raising(
 
     # An empty fingerprint is the safe reading: every candidate then looks like
     # an expansion and the user is asked again, which is the direction to fail.
-    found = consent.held(registry, scope=consent.SCOPE_PUBLISHER, target="publisher/acme")
+    found = consent.held(
+        registry, accounts=(OWNER,), scope=consent.SCOPE_PUBLISHER, target="publisher/acme"
+    )
     assert found is not None and found.fingerprint == {}
     assert not consent.covers(found, _capabilities(network_permissions=["a.test"])).covered  # pyright: ignore[reportArgumentType]
 
@@ -679,6 +705,7 @@ def test_growth_in_any_declared_field_revokes_coverage(field: str) -> None:
     test compares is a field that could quietly stop being compared.
     """
     record = consent.Record(
+        account_id=OWNER,
         consent_id="request_01J00000000000000000000080",
         scope=consent.SCOPE_PUBLISHER,
         target="publisher/acme",
@@ -701,6 +728,7 @@ def test_a_consent_records_the_actor_the_moment_and_where_it_was_given(
     """`#168` asks for actor, time and capability fingerprint on every record."""
     record = consent.grant(
         registry,
+        account_id=OWNER,
         consent_id="request_01J00000000000000000000081",
         scope=consent.SCOPE_OBJECT_MAJOR,
         target="component_01J00000000000000000000082@1",

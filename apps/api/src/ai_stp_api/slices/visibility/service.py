@@ -152,6 +152,11 @@ async def create(
         _expire(existing)
         return _wire(existing, target)
     target = await _owned(db, ctx, body.object_kind, body.stable_id, body.version)
+    if target.visibility == body.visibility:
+        raise ApiError(
+            ErrorCategory.VALIDATION,
+            "the version already carries this distribution visibility",
+        )
     expiry = datetime.now(UTC) + PLAN_TTL
     request_hash = digest_canonical(
         "ai-stp:github-request:v1",

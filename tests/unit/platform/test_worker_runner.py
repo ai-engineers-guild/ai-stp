@@ -23,6 +23,26 @@ def _tenant_scope(  # pyright: ignore[reportUnusedFunction]
     monkeypatch.setattr(runner, "set_tenant_scope", set_scope)
 
 
+@pytest.fixture(autouse=True)
+def _daily_sweep_side_effects(  # pyright: ignore[reportUnusedFunction]
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The fake session cannot run real enqueue/GC statements."""
+
+    async def enqueue(session: object, **kwargs: object) -> object:
+        del session, kwargs
+        return None
+
+    async def gc(session: object) -> int:
+        del session
+        return 0
+
+    monkeypatch.setattr(runner, "enqueue", enqueue)
+    monkeypatch.setattr(runner, "gc_terminal_jobs", gc)
+    monkeypatch.setattr(runner, "gc_expired_sessions", gc)
+    monkeypatch.setattr(runner, "gc_expired_device_authorizations", gc)
+
+
 class _Session:
     def __init__(self, jobs: dict[int, object]) -> None:
         self.jobs = jobs
@@ -87,19 +107,17 @@ async def test_worker_enqueues_official_sources_once_per_process_day(
         batch_size=1,
         poll_interval_seconds=0.001,
     )
-    calls = 0
-    reconciles = 0
+    calls: list[object] = []
+    reconciles: list[object] = []
 
-    async def enqueue(session: object) -> list[object]:
-        nonlocal calls
+    async def enqueue(session: object, *, now: object = None) -> list[object]:
         del session
-        calls += 1
+        calls.append(now)
         return []
 
-    async def reconcile(session: object) -> list[str]:
-        nonlocal reconciles
+    async def reconcile(session: object, *, now: object = None) -> list[str]:
         del session
-        reconciles += 1
+        reconciles.append(now)
         return []
 
     async def reclaim(session: object, *, lease_timeout_seconds: float) -> int:
@@ -116,8 +134,10 @@ async def test_worker_enqueues_official_sources_once_per_process_day(
     monkeypatch.setattr(runner, "claim", claim)
     assert await worker.run_once() == 0
     assert await worker.run_once() == 0
-    assert calls == 1
-    assert reconciles == 1
+    # A fresh worker backfills the missed-day window (bounded at 7 days) —
+    # enqueue_daily is idempotent per day — then the marker stops repeats.
+    assert len(calls) == 8
+    assert len(reconciles) == 8
 
 
 @pytest.mark.asyncio
@@ -125,9 +145,9 @@ async def test_worker_processes_success_missing_unknown_and_failed_jobs(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     jobs: dict[int, object] = {
-        1: SimpleNamespace(id=1, job_type="success", payload={"id": 1}),
-        2: SimpleNamespace(id=2, job_type="unknown", payload={}),
-        3: SimpleNamespace(id=3, job_type="failure", payload={}),
+        1: SimpleNamespace(id=1, job_type="success", payload={"id": 1}, state="running"),
+        2: SimpleNamespace(id=2, job_type="unknown", payload={}, state="running"),
+        3: SimpleNamespace(id=3, job_type="failure", payload={}, state="running"),
     }
     claimed: list[object] = [jobs[1]]
     events: list[tuple[str, object]] = []
@@ -145,8 +165,8 @@ async def test_worker_processes_success_missing_unknown_and_failed_jobs(
         del session, payload
         raise ValueError("expected")
 
-    async def fail(session: object, job: object, *, error: str) -> None:
-        del session
+    async def fail(session: object, job: object, *, error: str, permanent: bool = False) -> None:
+        del session, permanent
         events.append((error, job))
 
     async def succeeded(session: object, job: object) -> None:

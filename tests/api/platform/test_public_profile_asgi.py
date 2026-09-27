@@ -115,6 +115,49 @@ async def test_draft_does_not_change_public_until_publish(
 
 
 @pytest.mark.asyncio
+async def test_publish_retries_replay_the_recorded_operation(
+    harness: tuple[AsyncClient, async_sessionmaker[AsyncSession], Any],
+) -> None:
+    client, sessionmaker, _ = harness
+    _, token = await _seed_session(sessionmaker)
+    headers = _auth(token)
+
+    draft = await client.put(
+        "/v1/account/public-profile/draft",
+        headers=headers,
+        json={
+            "display_name": "Retry Author",
+            "bio": "one draft",
+            "links": [],
+            "avatar_asset_id": None,
+        },
+    )
+    assert draft.status_code == 200, draft.text
+    digest = draft.json()["draft"]["content_digest"]
+
+    first = await client.post(
+        "/v1/account/public-profile/publish",
+        headers={**headers, "Idempotency-Key": "pub-retry"},
+        json={"content_digest": digest},
+    )
+    assert first.status_code == 200, first.text
+    replay = await client.post(
+        "/v1/account/public-profile/publish",
+        headers={**headers, "Idempotency-Key": "pub-retry"},
+        json={"content_digest": digest},
+    )
+    assert replay.status_code == 200, replay.text
+    assert replay.json() == first.json()
+
+    foreign = await client.post(
+        "/v1/account/public-profile/publish",
+        headers={**headers, "Idempotency-Key": "pub-retry"},
+        json={"content_digest": "sha256:" + "0" * 64},
+    )
+    assert foreign.status_code == 409, foreign.text
+
+
+@pytest.mark.asyncio
 async def test_avatar_upload_writes_object_store_and_serves_media(
     harness: tuple[AsyncClient, async_sessionmaker[AsyncSession], Any],
 ) -> None:

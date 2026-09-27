@@ -1444,6 +1444,7 @@ def test_a_durable_consent_admits_an_acquired_object_without_making_it_automatic
     stable_id = _acquired(registry, "D")
     consent.grant(
         registry,
+        account_id=owner().account_id,
         consent_id="request_01J00000000000000000000CNS",
         scope=consent.SCOPE_PUBLISHER,
         target="account_01J00000000000000000000FAR",
@@ -1470,6 +1471,7 @@ def test_a_permission_grown_since_the_consent_is_refused_and_the_field_named(
     stable_id = _acquired(registry, "F", network_permissions="collect.elsewhere.test")
     consent.grant(
         registry,
+        account_id=owner().account_id,
         consent_id="request_01J00000000000000000000GRW",
         scope=consent.SCOPE_PUBLISHER,
         target="account_01J00000000000000000000FAR",

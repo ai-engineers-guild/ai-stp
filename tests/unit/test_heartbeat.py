@@ -16,6 +16,7 @@ from pydantic import ValidationError
 from ai_stp_cli import heartbeat as heartbeat_rules
 from ai_stp_cli import identity, secrets
 from ai_stp_cli.application import heartbeat as heartbeat_app
+from ai_stp_cli.cloud import client as cloud_client
 from ai_stp_cli.cloud import session as cloud_session
 from ai_stp_cli.cloud.client import Endpoint
 from ai_stp_cli.cloud.session import Session
@@ -330,8 +331,8 @@ def test_scheduled_session_renews_before_expiry(monkeypatch: pytest.MonkeyPatch)
             device_id=signer.device_id,
         )
 
-    monkeypatch.setattr(heartbeat_app, "open_client", fake_open_client)
-    monkeypatch.setattr(heartbeat_app, "call", fake_call)
+    monkeypatch.setattr(cloud_client, "open_client", fake_open_client)
+    monkeypatch.setattr(cloud_client, "call", fake_call)
     renewed = heartbeat_app._scheduled_session(Endpoint("http://localhost:8000"))
     assert renewed.access_token == "new-access"
     assert cloud_session.load(store) == renewed

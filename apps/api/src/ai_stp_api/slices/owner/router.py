@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import JSONResponse, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ai_stp_api.deps import get_db, optional_auth, require_auth
+from ai_stp_api.deps import get_db, get_settings, optional_auth, require_auth
 from ai_stp_api.errors import ApiError, ErrorCategory
 from ai_stp_api.media_upload import read_media_upload
 from ai_stp_api.session import AuthContext
@@ -70,15 +70,20 @@ async def read_object_external_products(
 
 @router.get("/owner/objects", response_model=None)
 async def list_owner_objects(
+    request: Request,
     db: Annotated[AsyncSession, Depends(get_db)],
     ctx: Annotated[AuthContext, Depends(require_auth)],
     page_size: Annotated[int, Query(ge=1, le=PAGE_SIZE_MAX)] = PAGE_SIZE_DEFAULT,
     object_kind: Annotated[Literal["component", "setup"] | None, Query()] = None,
     cursor: Annotated[str | None, Query()] = None,
 ) -> JSONResponse:
-    del cursor  # opaque cursor reserved; first page is complete for MVP density
     result = await service.list_owner_objects(
-        db, ctx=ctx, object_kind=object_kind, page_size=page_size
+        db,
+        ctx=ctx,
+        object_kind=object_kind,
+        page_size=page_size,
+        cursor=cursor,
+        cursor_secret=get_settings(request).catalog.cursor_signing_secret,
     )
     return _resource(result)
 

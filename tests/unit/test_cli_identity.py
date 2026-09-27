@@ -195,6 +195,42 @@ def test_a_damaged_device_record_is_named_not_guessed(template: str) -> None:
         identity.load_or_create()
 
 
+def test_reset_survives_the_corruption_it_exists_to_fix() -> None:
+    # The damaged-record refusal names `device reset` as its recovery, so the
+    # command cannot be allowed to refuse on that same corruption.
+    identity.load_or_create()
+    paths.write_private(paths.device_file(), "{not json")
+
+    fresh, warning = identity.reset()
+
+    assert is_valid_id(fresh.device_id, "device")
+    assert warning is not None and "unreadable" in warning
+    # The fresh record is a healthy one: the next command does not fail.
+    current, _ = identity.load_or_create()
+    assert current.device_id == fresh.device_id
+
+
+def test_reset_salvages_the_retired_history_from_a_damaged_record() -> None:
+    # A record corrupt in one field can still be readable enough to keep the
+    # retired history and retire the outgoing id — losing the history would let
+    # a restored backup resurrect a retired device.
+    first, _ = identity.load_or_create()
+    second, _ = identity.reset()
+    damaged = json.loads(paths.device_file().read_text(encoding="utf-8"))
+    damaged["state"] = "confused"
+    paths.write_private(paths.device_file(), json.dumps(damaged))
+
+    third, warning = identity.reset()
+
+    assert [item.device_id for item in identity.retired_identities()] == [
+        first.device_id,
+        second.device_id,
+    ]
+    assert warning is not None and "unreadable" in warning
+    assert secrets.FileStore().get(identity.key_entry(second.device_id)) is None
+    assert third.device_id not in {first.device_id, second.device_id}
+
+
 def test_damaged_key_material_is_named_too() -> None:
     current, _ = identity.load_or_create()
     entry = identity.key_entry(current.device_id)

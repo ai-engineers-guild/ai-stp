@@ -8,6 +8,7 @@ from datetime import UTC, datetime, timedelta
 from typing import cast
 
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ai_stp_api.audit import emit_audit
@@ -1440,7 +1441,6 @@ async def push_project_revision(
         device_id=device.id,
         event_id=payload.event_id,
     )
-    db.add(revision)
     fast_forward = (
         server_head is None
         and not payload.parent_revision_ids
@@ -1452,63 +1452,85 @@ async def push_project_revision(
     )
     if resolution and (server_head is None or payload.expected_head_revision_id != server_head):
         raise ApiError(ErrorCategory.PRECONDITION, "project head is stale")
-    if not fast_forward:
-        common = await _project_common_ancestor(
-            db,
-            organization_id=link.organization_id,
-            remote_project_id=remote_project_id,
-            left=server_head or payload.revision_id,
-            right=payload.revision_id,
-        )
-        body = _project_revision_receipt_body(
-            event_id=payload.event_id,
-            state="conflict",
-            revision_id=payload.revision_id,
-            server_head_revision_id=server_head,
-            client_head_revision_id=payload.expected_head_revision_id,
-            common_ancestor_revision_id=common,
-            error_code="divergent_heads",
-        )
-        link.state = "conflict"
-        link.conflict_server_revision = server_head
-        link.conflict_client_revision = payload.revision_id
-        link.conflict_common_ancestor = common
-        link.revision += 1
-    else:
-        if head is None:
-            head = ProjectRevisionHead(
-                organization_id=link.organization_id,
-                remote_project_id=remote_project_id,
-                revision_id=payload.revision_id,
+    try:
+        async with db.begin_nested():
+            db.add(revision)
+            if not fast_forward:
+                common = await _project_common_ancestor(
+                    db,
+                    organization_id=link.organization_id,
+                    remote_project_id=remote_project_id,
+                    left=server_head or payload.revision_id,
+                    right=payload.revision_id,
+                )
+                body = _project_revision_receipt_body(
+                    event_id=payload.event_id,
+                    state="conflict",
+                    revision_id=payload.revision_id,
+                    server_head_revision_id=server_head,
+                    client_head_revision_id=payload.expected_head_revision_id,
+                    common_ancestor_revision_id=common,
+                    error_code="divergent_heads",
+                )
+                link.state = "conflict"
+                link.conflict_server_revision = server_head
+                link.conflict_client_revision = payload.revision_id
+                link.conflict_common_ancestor = common
+                link.revision += 1
+            else:
+                if head is None:
+                    head = ProjectRevisionHead(
+                        organization_id=link.organization_id,
+                        remote_project_id=remote_project_id,
+                        revision_id=payload.revision_id,
+                    )
+                    db.add(head)
+                else:
+                    head.revision_id = payload.revision_id
+                link.state = "linked"
+                link.remote_revision = payload.revision_id
+                link.conflict_server_revision = None
+                link.conflict_client_revision = None
+                link.conflict_common_ancestor = None
+                link.revision += 1
+                body = _project_revision_receipt_body(
+                    event_id=payload.event_id,
+                    state="accepted",
+                    revision_id=payload.revision_id,
+                    server_head_revision_id=payload.revision_id,
+                    client_head_revision_id=payload.expected_head_revision_id,
+                    common_ancestor_revision_id=None,
+                    error_code=None,
+                )
+            db.add(
+                ProjectRevisionReceiptRow(
+                    organization_id=link.organization_id,
+                    remote_project_id=remote_project_id,
+                    idempotency_key=payload.idempotency_key,
+                    request_fingerprint=fingerprint,
+                    response_body=body.model_dump(mode="json"),
+                )
             )
-            db.add(head)
-        else:
-            head.revision_id = payload.revision_id
-        link.state = "linked"
-        link.remote_revision = payload.revision_id
-        link.conflict_server_revision = None
-        link.conflict_client_revision = None
-        link.conflict_common_ancestor = None
-        link.revision += 1
-        body = _project_revision_receipt_body(
-            event_id=payload.event_id,
-            state="accepted",
-            revision_id=payload.revision_id,
-            server_head_revision_id=payload.revision_id,
-            client_head_revision_id=payload.expected_head_revision_id,
-            common_ancestor_revision_id=None,
-            error_code=None,
+            await db.flush()
+    except IntegrityError as error:
+        # A concurrent push committed a unique row first: replay its receipt
+        # under this idempotency key, or refuse when the collision is not ours.
+        winner = await db.scalar(
+            select(ProjectRevisionReceiptRow).where(
+                ProjectRevisionReceiptRow.organization_id == link.organization_id,
+                ProjectRevisionReceiptRow.remote_project_id == remote_project_id,
+                ProjectRevisionReceiptRow.idempotency_key == payload.idempotency_key,
+            )
         )
-    db.add(
-        ProjectRevisionReceiptRow(
-            organization_id=link.organization_id,
-            remote_project_id=remote_project_id,
-            idempotency_key=payload.idempotency_key,
-            request_fingerprint=fingerprint,
-            response_body=body.model_dump(mode="json"),
-        )
-    )
-    await db.flush()
+        if winner is None:
+            raise ApiError(
+                ErrorCategory.CONFLICT, "project revision was already recorded"
+            ) from error
+        if winner.request_fingerprint != fingerprint:
+            raise ApiError(
+                ErrorCategory.CONFLICT, "idempotency key belongs to another revision"
+            ) from error
+        return ProjectRevisionPushResponse.model_validate(winner.response_body)
     await emit_audit(
         db,
         actor_account_id=ctx.account_id,

@@ -57,6 +57,30 @@ pytestmark = pytest.mark.platform
 COMMIT = "a" * 40
 
 
+async def _published(
+    session: AsyncSession,
+    *,
+    plan_id: str,
+    store: ImmutableObjectStore,
+    now: datetime,
+) -> CatalogMetadata:
+    """A publish that must succeed — settled refusals return None now."""
+    published = await execute_publish(session, plan_id=plan_id, store=store, now=now)
+    if published is None:
+        reasons = list(
+            (
+                await session.scalars(
+                    select(AuditEvent.reason).where(
+                        AuditEvent.action == "publication.publish_refused",
+                        AuditEvent.target_id == plan_id,
+                    )
+                )
+            ).all()
+        )
+        raise AssertionError(f"expected the publish to succeed, got refusal: {reasons}")
+    return published
+
+
 @pytest.mark.asyncio
 async def test_serving_seed_bootstraps_verified_official_profile(
     db_sessionmaker: async_sessionmaker[AsyncSession],
@@ -386,7 +410,7 @@ async def test_sync_noop_then_publish_once_and_redelivery_is_idempotent(
         assert validate is not None
         assert validate.payload == {"plan_id": plan.id}
         await execute_validate(session, plan_id=plan.id, object_store=store, skip_safety=True)
-        published = await execute_publish(session, plan_id=plan.id, store=store)
+        published = await _published(session, plan_id=plan.id, store=store, now=now)
         assert published.version == "1.0"
         assert published.owner_account_id == OFFICIAL_ACCOUNT_ID
         assert original_attempt.state == "published"
@@ -422,7 +446,7 @@ async def test_sync_noop_then_publish_once_and_redelivery_is_idempotent(
         await execute_validate(
             session, plan_id=repair_plan.id, object_store=store, skip_safety=True
         )
-        repaired_metadata = await execute_publish(session, plan_id=repair_plan.id, store=store)
+        repaired_metadata = await _published(session, plan_id=repair_plan.id, store=store, now=now)
         assert repaired_metadata.version == "1.1"
         assert (
             dict(repaired_metadata.passport_document or {}).get("artifact_format")
@@ -440,7 +464,7 @@ async def test_sync_noop_then_publish_once_and_redelivery_is_idempotent(
         await execute_validate(
             session, plan_id=second_plan.id, object_store=store, skip_safety=True
         )
-        second = await execute_publish(session, plan_id=second_plan.id, store=store)
+        second = await _published(session, plan_id=second_plan.id, store=store, now=now)
         assert second.version == "1.2"
         first_read = await session.get(CatalogMetadata, published.id)
         assert first_read is not None
@@ -459,7 +483,7 @@ async def test_failure_and_disable_preserve_history(
         await run_sync(session, SOURCE_ID, fetch=_fetch(_tar("# Demo\n")), store=store, now=now)
         plan = (await session.scalars(select(PublicationPlan))).one()
         await execute_validate(session, plan_id=plan.id, object_store=store, skip_safety=True)
-        published = await execute_publish(session, plan_id=plan.id, store=store)
+        published = await _published(session, plan_id=plan.id, store=store, now=now)
         with pytest.raises(OfficialUpstreamError) as raised:
             await run_sync(
                 session,
@@ -697,8 +721,8 @@ async def test_git_and_package_sources_sync_independently(
         await execute_validate(
             session, plan_id=package_plan.id, object_store=store, skip_safety=True
         )
-        git_published = await execute_publish(session, plan_id=git_plan.id, store=store)
-        package_published = await execute_publish(session, plan_id=package_plan.id, store=store)
+        git_published = await _published(session, plan_id=git_plan.id, store=store, now=now)
+        package_published = await _published(session, plan_id=package_plan.id, store=store, now=now)
         assert git_published.stable_id == git_source.stable_id
         assert package_published.stable_id == package_source.stable_id
         assert git_published.stable_id != package_published.stable_id
@@ -762,8 +786,8 @@ async def test_coordinate_and_digest_match_suggests_without_substituting_identit
         await execute_validate(
             session, plan_id=second_plan.id, object_store=store, skip_safety=True
         )
-        published_first = await execute_publish(session, plan_id=first_plan.id, store=store)
-        published_second = await execute_publish(session, plan_id=second_plan.id, store=store)
+        published_first = await _published(session, plan_id=first_plan.id, store=store, now=now)
+        published_second = await _published(session, plan_id=second_plan.id, store=store, now=now)
         assert published_first.stable_id == first.stable_id
         assert published_second.stable_id == second.stable_id
         assert published_first.stable_id != published_second.stable_id

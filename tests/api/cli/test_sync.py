@@ -34,7 +34,12 @@ from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import passports, revisions, sync_state
 from ai_stp_cli.local.database import configured_path, open_registry
 from ai_stp_contracts.machine_help import SyncPushView
-from ai_stp_contracts.sync import SyncEvent, SyncPullQuery, SyncPushRequest
+from ai_stp_contracts.sync import (
+    SyncEvent,
+    SyncEventReceipt,
+    SyncPullQuery,
+    SyncPushRequest,
+)
 from ai_stp_foundation.canonical import JsonValue
 from ai_stp_foundation.ids import new_id
 from ai_stp_platform.models import Device
@@ -484,7 +489,7 @@ def _sealed_event(
     entity_id: str,
     entity_kind: str,
     operation: str,
-    payload: dict[str, object],
+    payload: dict[str, JsonValue],
     parents: list[str] | None = None,
     expected_head: str | None = None,
 ) -> SyncEvent:
@@ -516,7 +521,7 @@ def _sealed_event(
         created_at=AT,
         idempotency_key=login.new_idempotency_key(),
         expected_head_revision_id=expected_head,
-        payload=payload,
+        payload=cast(dict[str, object], payload),
     )
 
 
@@ -606,7 +611,7 @@ def test_consent_round_trips_through_the_real_ledger_to_a_second_device(
             connection, account_id=account_id, response=page, at=AT
         )
         assert applied >= 1
-        held = consent.held(connection, scope="task", target="full-auto")
+        held = consent.held(connection, accounts=(account_id,), scope="task", target="full-auto")
         assert held is not None and held.active
         assert held.consent_id == entity
 
@@ -625,7 +630,7 @@ def test_consent_round_trips_through_the_real_ledger_to_a_second_device(
     fresh = tmp_path / "device-c.sqlite"
     with open_registry(fresh) as connection:
         sync_state.apply_page(connection, account_id=account_id, response=page2, at=AT)
-        held = consent.held(connection, scope="task", target="full-auto")
+        held = consent.held(connection, accounts=(account_id,), scope="task", target="full-auto")
         assert held is not None and not held.active
 
 
@@ -702,16 +707,14 @@ def test_undelivered_ancestors_reach_the_stream_parents_first(
         name: str,
         expected_head: str | None = None,
         operation: str = "upsert",
-    ) -> tuple[object, str]:
+    ) -> tuple[SyncEventReceipt, str]:
         event = _sealed_event(
             account_id=account_id,
             device_id=device_id,
             entity_id=entity,
             entity_kind="component_private",
             operation=operation,
-            payload=_component_payload(
-                entity, account_id=account_id, parents=parents, name=name
-            ),
+            payload=_component_payload(entity, account_id=account_id, parents=parents, name=name),
             parents=parents,
             expected_head=expected_head,
         )
@@ -808,9 +811,7 @@ def test_a_conflict_retained_tombstone_does_not_free_the_singleton(
         stable_id=new_id("developer"),
         kind="developer",
     )
-    receipt = cloud_sync.push(
-        cli_endpoint, token_b, SyncPushRequest(events=[foreign])
-    ).receipts[0]
+    receipt = cloud_sync.push(cli_endpoint, token_b, SyncPushRequest(events=[foreign])).receipts[0]
     assert receipt.state == "rejected"
     assert receipt.conflicting_entity_id == held
 
@@ -849,9 +850,7 @@ def test_a_parent_of_another_entity_is_refused(
         entity_id=entity_b,
         entity_kind="component_private",
         operation="upsert",
-        payload=_component_payload(
-            entity_b, account_id=account_id, parents=[root_a.revision_id]
-        ),
+        payload=_component_payload(entity_b, account_id=account_id, parents=[root_a.revision_id]),
         parents=[root_a.revision_id],
     )
     receipt = cloud_sync.push(

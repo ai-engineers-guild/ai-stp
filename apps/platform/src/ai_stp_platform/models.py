@@ -1099,6 +1099,9 @@ class PublicProfile(Base):
     )
     published_revision_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
     draft_revision_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    last_publish_key: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    last_publish_fingerprint: Mapped[str | None] = mapped_column(String(71), nullable=True)
+    last_publish_response: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()

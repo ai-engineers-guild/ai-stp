@@ -5,23 +5,30 @@ from __future__ import annotations
 import asyncio
 import time
 from contextlib import suppress
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from typing import cast
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from ai_stp_platform.auth_retention import (
+    gc_expired_device_authorizations,
+    gc_expired_sessions,
+)
 from ai_stp_platform.logging import get_logger
 from ai_stp_platform.models import AuditEvent
 from ai_stp_platform.official_upstream.enqueue import enqueue_daily
 from ai_stp_platform.official_upstream.github import worker_github_token
 from ai_stp_platform.official_upstream.ledger import reconcile_delivery, record_queue_outcome
 from ai_stp_platform.organization_models import CorporateRoleBinding
+from ai_stp_platform.publication_logic import settle_dead_lettered_plan
 from ai_stp_platform.queue.engine import (
     DEFAULT_HEARTBEAT_INTERVAL_SECONDS,
     DEFAULT_LEASE_TIMEOUT_SECONDS,
     claim,
+    enqueue,
     fail,
+    gc_terminal_jobs,
     heartbeat,
     mark_succeeded,
     requeue_locked,
@@ -29,7 +36,7 @@ from ai_stp_platform.queue.engine import (
     validate_tenant_job,
 )
 from ai_stp_platform.queue.models import Job
-from ai_stp_platform.queue.states import JobState, JobType
+from ai_stp_platform.queue.states import JobState, JobType, PermanentJobFailure
 from ai_stp_platform.safety.metrics import record_queue_job
 from ai_stp_platform.tenant_scope import set_tenant_scope
 from ai_stp_worker.handlers import resolve
@@ -111,7 +118,10 @@ class Worker:
         self._lease_timeout = lease_timeout_seconds
         self._heartbeat_interval = heartbeat_interval_seconds
         self._stopping = asyncio.Event()
-        self._official_enqueue_day: date | None = date.min if schedule_official_upstream else None
+        self._schedule_official_upstream = schedule_official_upstream
+        # The daily sweep marker is independent of the upstream flag:
+        # telemetry retention must run even when upstream sync is disabled.
+        self._daily_sweep_day: date | None = date.min
 
     def request_stop(self) -> None:
         """Signal the run loop to stop claiming and drain."""
@@ -120,7 +130,7 @@ class Worker:
     async def run(self) -> None:
         """Run until stop is requested, then drain held jobs."""
         _log.info("worker_start", worker_id=self._worker_id)
-        if self._official_enqueue_day is not None and not worker_github_token():
+        if self._schedule_official_upstream and not worker_github_token():
             _log.warning(
                 "official_upstream_github_unauthenticated",
                 worker_id=self._worker_id,
@@ -176,18 +186,54 @@ class Worker:
         async with self._sessionmaker() as session, session.begin():
             await set_tenant_scope(session, "*")
             today = datetime.now(UTC).date()
-            if self._official_enqueue_day is not None and self._official_enqueue_day != today:
-                await enqueue_daily(session)
-                await reconcile_delivery(session)
+            if self._daily_sweep_day != today:
+                if self._schedule_official_upstream:
+                    # Day-keyed jobs embed utc_day: a worker down across a
+                    # boundary would skip that day forever. Enqueue each missed
+                    # day — the attempt/outbox dedup makes repeats no-ops —
+                    # bounded so a long outage cannot storm the queue.
+                    first = (
+                        today - timedelta(days=7)
+                        if self._daily_sweep_day is None
+                        or self._daily_sweep_day < today - timedelta(days=7)
+                        else self._daily_sweep_day
+                    )
+                    day = first
+                    while day <= today:
+                        moment = datetime.combine(day, datetime.min.time(), tzinfo=UTC)
+                        await enqueue_daily(session, now=moment)
+                        await reconcile_delivery(session, now=moment)
+                        day += timedelta(days=1)
+                # Telemetry retention is a global daily sweep: the handler
+                # covers every governed tenant, and suspended organizations
+                # must be swept too, so it is deliberately not a tenant job.
+                await enqueue(
+                    session,
+                    job_type=JobType.TELEMETRY_RETENTION,
+                    payload={},
+                    idempotency_key=f"telemetry-retention:{today.isoformat()}",
+                )
+                # Terminal rows accumulate forever and payloads can hold
+                # personal data; the sweep deletes them in bounded batches.
+                await gc_terminal_jobs(session)
+                # Dead auth state accumulates the same way: expired sessions
+                # and resolved device grants are rows nobody can use again.
+                await gc_expired_sessions(session)
+                await gc_expired_device_authorizations(session)
                 enqueued_for = today
             await requeue_stale(session, lease_timeout_seconds=self._lease_timeout)
             queue_events = list(
                 (
                     await session.scalars(
-                        select(Job).where(
+                        select(Job)
+                        .where(
                             Job.job_type == JobType.OFFICIAL_UPSTREAM_SYNC,
                             Job.state.in_((JobState.RETRY_SCHEDULED, JobState.DEAD_LETTER)),
                         )
+                        .order_by(Job.updated_at)
+                        # The ledger mapping is idempotent and per-poll; bound
+                        # the scan so accumulated rows cannot grow the poll.
+                        .limit(200)
                     )
                 ).all()
             )
@@ -200,7 +246,7 @@ class Worker:
             )
             job_id = claimed[0].id if claimed else None
         if enqueued_for is not None:
-            self._official_enqueue_day = enqueued_for
+            self._daily_sweep_day = enqueued_for
         if job_id is None:
             return 0
         await self._process(job_id)
@@ -225,12 +271,13 @@ class Worker:
                     await set_tenant_scope(session, "*")
                     current = await session.get(Job, job_id)
                     if current is not None:
-                        await fail(session, current, error="unregistered job type")
+                        await fail(session, current, error="unregistered job type", permanent=True)
                 result = "failed"
                 return
 
             heartbeat_task = asyncio.create_task(self._heartbeat(job_id))
             error: str | None = None
+            permanent_failure = False
             async with self._sessionmaker() as handler_session:
                 try:
                     payload = await validate_tenant_job(handler_session, job)
@@ -240,11 +287,13 @@ class Worker:
                     await handler_session.rollback()
                     detail = str(exc).strip()
                     error = type(exc).__name__ + (f": {detail}" if detail else "")
+                    permanent_failure = isinstance(exc, PermanentJobFailure)
                     _log.error(
                         "job_handler_failed",
                         job_id=job_id,
                         job_type=job_type,
                         error=error,
+                        permanent=permanent_failure,
                     )
 
             async with self._sessionmaker() as status_session, status_session.begin():
@@ -257,8 +306,24 @@ class Worker:
                     await mark_succeeded(status_session, current)
                     result = "succeeded"
                 else:
-                    await fail(status_session, current, error=error)
+                    await fail(
+                        status_session,
+                        current,
+                        error=error,
+                        permanent=permanent_failure,
+                    )
                     await record_queue_outcome(status_session, current)
+                    if current.state == JobState.DEAD_LETTER:
+                        _log.error(
+                            "job_dead_lettered",
+                            job_id=job_id,
+                            job_type=job_type,
+                            error=error,
+                        )
+                        # A dead-lettered validate/publish otherwise leaves its
+                        # plan frozen in validating/publish_planned forever —
+                        # settle the refusal on the plan in the same commit.
+                        await settle_dead_lettered_plan(status_session, current)
                     result = "failed"
                 await audit_tenant_job_outcome(status_session, current, result, error)
         finally:
@@ -276,13 +341,20 @@ class Worker:
         """Keep a live job lease valid using short independent transactions."""
         while True:
             await asyncio.sleep(self._heartbeat_interval)
-            async with self._sessionmaker() as session, session.begin():
-                await set_tenant_scope(session, "*")
-                alive = await heartbeat(
-                    session,
-                    worker_id=self._worker_id,
-                    job_id=job_id,
-                )
+            try:
+                async with self._sessionmaker() as session, session.begin():
+                    await set_tenant_scope(session, "*")
+                    alive = await heartbeat(
+                        session,
+                        worker_id=self._worker_id,
+                        job_id=job_id,
+                    )
+            except Exception:
+                # A transient DB error must not kill the worker: the stored
+                # exception would re-raise under suppress(CancelledError) and
+                # strand a committed job until lease expiry.
+                _log.warning("worker_heartbeat_error", worker_id=self._worker_id, job_id=job_id)
+                continue
             if not alive:
                 _log.warning("worker_lease_lost", worker_id=self._worker_id, job_id=job_id)
                 return

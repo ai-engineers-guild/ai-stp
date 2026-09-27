@@ -48,6 +48,15 @@ class Visibility(StrEnum):
     PRIVATE = "private"
 
 
+class PermanentJobFailure(ValueError):
+    """The job can never succeed — dead-letter immediately, skip retries.
+
+    Raised for structurally invalid payloads and permanent preconditions.
+    A retry cannot repair these, so burning attempts only delays the
+    durable verdict.
+    """
+
+
 CLAIMABLE_STATES: tuple[JobState, ...] = (JobState.QUEUED, JobState.RETRY_SCHEDULED)
 TERMINAL_STATES: tuple[JobState, ...] = (
     JobState.SUCCEEDED,

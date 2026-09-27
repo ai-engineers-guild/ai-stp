@@ -9,8 +9,9 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ai_stp_api.deps import get_db, require_auth
-from ai_stp_api.errors import ApiError, ErrorCategory
+from ai_stp_api.errors import ApiError, ErrorCategory, schema_unsupported
 from ai_stp_api.session import AuthContext
+from ai_stp_api.settings import Settings
 from ai_stp_contracts.http import PAGE_SIZE_DEFAULT, PAGE_SIZE_MAX
 from ai_stp_contracts.seo import (
     SEO_OG_HEIGHT,
@@ -66,9 +67,8 @@ async def read_seo_profile(
     locale: Annotated[str, Query()] = "en",
     schema_version: Annotated[int, Query()] = 1,
 ) -> JSONResponse:
-    del request
     if schema_version != 1:
-        raise ApiError(ErrorCategory.VALIDATION, "unsupported schema version")
+        return schema_unsupported(request, found=schema_version)
     if locale not in {"ru", "en"}:
         raise ApiError(ErrorCategory.VALIDATION, "invalid locale")
     try:
@@ -110,6 +110,7 @@ async def read_seo_sitemap_shard(
 
 @router.get("/seo/catalog", response_model=None)
 async def read_seo_catalog(
+    request: Request,
     db: Annotated[AsyncSession, Depends(get_db)],
     locale: Annotated[str | None, Query()] = None,
     kind: Annotated[str | None, Query()] = None,
@@ -118,7 +119,7 @@ async def read_seo_catalog(
     schema_version: Annotated[int, Query()] = 1,
 ) -> JSONResponse:
     if schema_version != 1:
-        raise ApiError(ErrorCategory.VALIDATION, "unsupported schema version")
+        return schema_unsupported(request, found=schema_version)
     if locale is not None and locale not in {"ru", "en"}:
         raise ApiError(ErrorCategory.VALIDATION, "invalid locale")
     typed_kind = _kind(kind) if kind is not None else None
@@ -168,10 +169,15 @@ async def rollback_seo_revision(
     subject_kind: str,
     subject_id: str,
     body: SeoRollbackRequest,
+    request: Request,
     db: Annotated[AsyncSession, Depends(get_db)],
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> JSONResponse:
-    del ctx
+    # Rolling back generated SEO rewrites another subject's public content;
+    # that is a staff operation, not something any signed-in account may do.
+    settings: Settings = request.app.state.settings
+    if ctx.account_id not in settings.auth.admin_ids():
+        raise ApiError(ErrorCategory.PERMISSION, "staff allowlist required")
     try:
         revision = await rollback_to_base(
             db, kind=_kind(subject_kind), subject_id=subject_id, locale=body.locale

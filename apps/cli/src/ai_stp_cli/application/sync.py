@@ -56,7 +56,9 @@ def _report(connection: sqlite3.Connection, stable_id: str) -> SyncPreview:
         )
     head_ids = sorted(item.revision_id for item in found)
     if len(found) == 1:
-        behind = sync_state.unreachable_server_head(connection, stable_id)
+        behind = sync_state.unreachable_server_head(
+            connection, consent.acting_accounts(), stable_id
+        )
         if behind is not None:
             # One local head and a refused push naming a head this device does
             # not hold. There is nothing to merge locally, so the honest answer
@@ -597,11 +599,22 @@ def _push_consent(
     on every device, because the consent is a property of the account and its
     target, not of the installation that recorded it first.
     """
+    # The push may carry this account's own record or the device owner's: a
+    # record delivered by another account's pull is not this stream's state
+    # to publish. The account's own record answers first when both exist.
+    accounts = [held.account_id]
+    local = consent.local_owner_id()
+    if local is not None and local != held.account_id:
+        accounts.append(local)
     record = None
-    for item in consent.all_records(connection):
+    records = consent.all_records(connection, accounts=tuple(accounts))
+    for item in records:
         if item.consent_id == entity_id or consent.entity_id(item.scope, item.target) == entity_id:
-            record = item
-            break
+            if item.account_id == held.account_id:
+                record = item
+                break
+            if record is None:
+                record = item
     if record is None:
         raise CliFailure(
             "AI_STP_NOT_FOUND",

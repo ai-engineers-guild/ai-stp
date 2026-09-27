@@ -27,6 +27,48 @@ from typing import Final, cast
 from ai_stp_cli.errors import CliFailure
 from ai_stp_foundation.canonical import JsonValue, canonize
 
+
+def local_owner_id() -> str | None:
+    """Identity of records granted on this device before any cloud session.
+
+    The local owner pseudonym is what `decided_by` has always carried, and it
+    is what pre-scoping rows migrate to.
+    """
+    from ai_stp_cli.local import passports
+
+    held_owner = passports.known_owner()
+    return None if held_owner is None else held_owner.account_id
+
+
+def acting_accounts() -> tuple[str, ...]:
+    """The identities a consent record may answer for right now.
+
+    A record belongs to the account whose stream carries it: one pulled under
+    a different signed-in account is not this operator's decision, and the
+    shared table used to let it answer anyway. Records granted on this device
+    with no session belong to the local owner and answer under every later
+    session — the operator's own act is not rescinded by signing in.
+
+    The session account precedes the local owner: when both hold a record for
+    one target, the signed-in account's is the one consulted.
+    """
+    from ai_stp_cli.cloud import session
+    from ai_stp_cli.secrets import open_store
+
+    granted = local_owner_id()
+    accounts: list[str] = []
+    try:
+        store, _warning = open_store()
+        held = session.load(store)
+    except Exception:  # pragma: no cover - a broken store must not void consent reads
+        held = None
+    if held is not None and not held.revoked:
+        accounts.append(held.account_id)
+    if granted is not None and granted not in accounts:
+        accounts.append(granted)
+    return tuple(accounts)
+
+
 #: The three forms of durable record the contract defines. Closed on purpose.
 SCOPE_PUBLISHER: Final[str] = "publisher"
 SCOPE_OBJECT_MAJOR: Final[str] = "object_major"
@@ -56,6 +98,11 @@ class Record:
     """One durable consent, and the shape the candidate had when it was given."""
 
     consent_id: str
+    #: The account whose decision this record is — the session account that
+    #: granted it, the local owner when none was signed in, or the account
+    #: whose sync stream delivered it. One identity per record; a row can
+    #: never answer for an account it does not belong to.
+    account_id: str
     scope: str
     target: str
     fingerprint: dict[str, JsonValue]
@@ -105,6 +152,7 @@ def fingerprint_of(capabilities: dict[str, JsonValue]) -> dict[str, JsonValue]:
 def grant(
     connection: sqlite3.Connection,
     *,
+    account_id: str,
     consent_id: str,
     scope: str,
     target: str,
@@ -118,7 +166,8 @@ def grant(
 
     Re-granting the same target overwrites rather than adding a second row: two
     records for one target would make "which fingerprint applies" a question
-    with two answers, and the safe one would not always be the one read.
+    with two answers, and the safe one would not always be the one read. The
+    overwrite is per account — one account's record cannot rewrite another's.
     """
     if scope not in SCOPES:
         raise CliFailure(
@@ -141,10 +190,10 @@ def grant(
     connection.execute(
         """
         INSERT INTO consent
-            (consent_id, scope, target, fingerprint, observed,
+            (consent_id, account_id, scope, target, fingerprint, observed,
              decided_by, origin, created_at, revoked_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL)
-        ON CONFLICT (scope, target) DO UPDATE SET
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)
+        ON CONFLICT (account_id, scope, target) DO UPDATE SET
             consent_id = excluded.consent_id,
             fingerprint = excluded.fingerprint,
             observed = excluded.observed,
@@ -155,6 +204,7 @@ def grant(
         """,
         (
             consent_id,
+            account_id,
             scope,
             target,
             canonize(fingerprint).decode("utf-8"),
@@ -164,44 +214,80 @@ def grant(
             at,
         ),
     )
-    found = held(connection, scope=scope, target=target)
+    found = held(connection, accounts=(account_id,), scope=scope, target=target)
     if found is None:  # pragma: no cover - the insert above guarantees a row
         raise CliFailure("AI_STP_INTERNAL", "the consent record vanished after being written")
     return found
 
 
-def revoke(connection: sqlite3.Connection, *, scope: str, target: str, at: str) -> bool:
+def revoke(
+    connection: sqlite3.Connection, *, account_id: str, scope: str, target: str, at: str
+) -> bool:
     """Withdraw a consent. Takes effect immediately for every later request.
 
     The row survives, marked. A deleted record would leave nothing to show a
     user who asks why a candidate they once allowed has stopped appearing.
+    The withdrawal touches only the named account's record — one account
+    cannot revoke another's consent.
     """
     cursor = connection.execute(
-        "UPDATE consent SET revoked_at = ? WHERE scope = ? AND target = ? AND revoked_at IS NULL",
-        (at, scope, target),
+        "UPDATE consent SET revoked_at = ? WHERE account_id = ? AND scope = ? "
+        "AND target = ? AND revoked_at IS NULL",
+        (at, account_id, scope, target),
     )
     return cursor.rowcount > 0
 
 
-def held(connection: sqlite3.Connection, *, scope: str, target: str) -> Record | None:
-    """The record covering this target, revoked or not."""
-    row = connection.execute(
-        "SELECT * FROM consent WHERE scope = ? AND target = ?", (scope, target)
-    ).fetchone()
-    return None if row is None else _decode(row)
+def held(
+    connection: sqlite3.Connection, *, accounts: tuple[str, ...], scope: str, target: str
+) -> Record | None:
+    """The record covering this target for one of these identities, revoked or not.
 
-
-def active(connection: sqlite3.Connection) -> tuple[Record, ...]:
-    """Every consent still in force, oldest first."""
+    `accounts` is ordered by precedence: when more than one identity holds a
+    record for the same target — a signed-in account and the local owner — the
+    earlier identity's record answers. Two answers to "does consent apply"
+    would otherwise let the weaker one through on the days it was read first.
+    """
+    if not accounts:
+        return None
     rows = connection.execute(
-        "SELECT * FROM consent WHERE revoked_at IS NULL ORDER BY created_at, consent_id"
+        f"SELECT * FROM consent WHERE scope = ? AND target = ? "
+        f"AND account_id IN ({', '.join('?' for _ in accounts)})",
+        (scope, target, *accounts),
+    ).fetchall()
+    decoded = [_decode(row) for row in rows]
+    for account in accounts:
+        for record in decoded:
+            if record.account_id == account:
+                return record
+    return None
+
+
+def active(connection: sqlite3.Connection, *, accounts: tuple[str, ...]) -> tuple[Record, ...]:
+    """Every consent still in force for these identities, oldest first."""
+    if not accounts:
+        return ()
+    rows = connection.execute(
+        f"SELECT * FROM consent WHERE account_id IN ({', '.join('?' for _ in accounts)}) "
+        f"AND revoked_at IS NULL ORDER BY created_at, consent_id",
+        tuple(accounts),
     ).fetchall()
     return tuple(_decode(row) for row in rows)
 
 
-def all_records(connection: sqlite3.Connection) -> tuple[Record, ...]:
-    """Every record, withdrawn ones included — sync resolves entities from it."""
-    rows = connection.execute("SELECT * FROM consent ORDER BY created_at, consent_id").fetchall()
+def all_records(connection: sqlite3.Connection, *, accounts: tuple[str, ...]) -> tuple[Record, ...]:
+    """Every record for these identities, withdrawn ones included.
+
+    Sync resolves entities from this — the account scope is what stops a push
+    under one account from carrying a record that belongs to another.
+    """
+    if not accounts:
+        return ()
+    rows = connection.execute(
+        f"SELECT * FROM consent WHERE account_id IN ({', '.join('?' for _ in accounts)}) "
+        f"ORDER BY created_at, consent_id",
+        tuple(accounts),
+    ).fetchall()
     return tuple(_decode(row) for row in rows)
 
 
@@ -312,6 +398,7 @@ class Consultation:
 def consulted(
     connection: sqlite3.Connection,
     *,
+    accounts: tuple[str, ...],
     stable_id: str,
     owner_id: str,
     version: str,
@@ -338,14 +425,16 @@ def consulted(
     major = major_of(version)
     held_records: list[tuple[str, Record]] = []
     if major is not None:
-        narrow = held(connection, scope=SCOPE_OBJECT_MAJOR, target=f"{stable_id}@{major}")
+        narrow = held(
+            connection, accounts=accounts, scope=SCOPE_OBJECT_MAJOR, target=f"{stable_id}@{major}"
+        )
         if narrow is not None:
             held_records.append((SCOPE_OBJECT_MAJOR, narrow))
     if owner_id:
-        publisher = held(connection, scope=SCOPE_PUBLISHER, target=owner_id)
+        publisher = held(connection, accounts=accounts, scope=SCOPE_PUBLISHER, target=owner_id)
         if publisher is not None:
             held_records.append((SCOPE_PUBLISHER, publisher))
-    task = held(connection, scope=SCOPE_TASK, target=TASK_PROFILE_FULL_AUTO)
+    task = held(connection, accounts=accounts, scope=SCOPE_TASK, target=TASK_PROFILE_FULL_AUTO)
     if task is not None:
         held_records.append((SCOPE_TASK, task))
 
@@ -394,6 +483,7 @@ def _decode(row: sqlite3.Row) -> Record:
     seen: JsonValue = json.loads(str(row["observed"]))
     return Record(
         consent_id=str(row["consent_id"]),
+        account_id=str(row["account_id"]),
         scope=str(row["scope"]),
         target=str(row["target"]),
         fingerprint=held_fingerprint,

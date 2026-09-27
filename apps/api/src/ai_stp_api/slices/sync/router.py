@@ -10,11 +10,11 @@ from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ai_stp_api.deps import get_auth_settings, get_db, require_auth
-from ai_stp_api.errors import ApiError, ErrorCategory
+from ai_stp_api.errors import ApiError, ErrorCategory, schema_unsupported
 from ai_stp_api.session import AuthContext
 from ai_stp_api.settings import AuthSettings
 from ai_stp_api.slices.sync import service
-from ai_stp_contracts.http import PAGE_SIZE_DEFAULT, PAGE_SIZE_MAX
+from ai_stp_contracts.http import PAGE_SIZE_DEFAULT, PAGE_SIZE_MAX, SCHEMA_VERSION
 from ai_stp_contracts.sync import SyncPushRequest
 
 router = APIRouter(tags=["sync"])
@@ -57,7 +57,10 @@ async def pull_sync_events(
     schema_version: Annotated[int | None, Query()] = None,
 ) -> JSONResponse:
     """Pull accepted revision events from the account outbox."""
-    del schema_version
+    if schema_version is not None and schema_version != SCHEMA_VERSION:
+        # The query parameter is the same version-negotiation channel the
+        # header carries; an unknown major refuses typed, not silently.
+        return schema_unsupported(request, found=schema_version)
     unknown = sorted({key for key in request.query_params if key not in _PULL_KEYS})
     if unknown:
         raise ApiError(

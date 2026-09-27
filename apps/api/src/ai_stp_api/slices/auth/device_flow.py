@@ -5,7 +5,7 @@ from __future__ import annotations
 import secrets
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -183,6 +183,33 @@ async def exchange_device_code(
     if not device_id.startswith("device_"):
         raise ApiError(ErrorCategory.VALIDATION, "invalid device id")
 
+    # Single-use consume, claimed atomically. The reads above cannot serialize
+    # two pollers that both see `approved` — only this conditional UPDATE can.
+    # The loser matches zero rows, reloads, and reports the winner's verdict
+    # instead of minting a second credential pair for the same grant. The claim
+    # shares the request transaction, so a failure below still rolls it back.
+    claimed = await db.execute(
+        update(DeviceAuthorization)
+        .where(
+            DeviceAuthorization.device_code == row.device_code,
+            DeviceAuthorization.status == "approved",
+            DeviceAuthorization.expires_at > now,
+        )
+        .values(status="consumed")
+        .execution_options(synchronize_session=False)
+    )
+    if getattr(claimed, "rowcount", 0) != 1:
+        await db.refresh(row)
+        # The refresh can move the row past `approved`; read it fresh so the
+        # checks below see the winner's verdict, not the stale local value.
+        current = str(row.status)
+        if row.expires_at <= now or current == "consumed":
+            raise ApiError(ErrorCategory.AUTHORIZATION_EXPIRED, "authorization expired")
+        if current == "declined":
+            raise ApiError(ErrorCategory.AUTHORIZATION_DECLINED, "authorization declined")
+        raise ApiError(ErrorCategory.AUTHORIZATION_PENDING, "authorization pending")
+    row.status = "consumed"
+
     pk = normalize_public_key(public_key)
     foreign = await db.execute(
         select(Device).where(Device.public_key == pk, Device.account_id != row.account_id)
@@ -239,8 +266,6 @@ async def exchange_device_code(
         ttl_seconds=auth.session_ttl_seconds,
         kind="refresh",
     )
-
-    row.status = "consumed"
     await db.flush()
 
     return {

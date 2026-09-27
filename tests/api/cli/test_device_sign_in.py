@@ -241,6 +241,58 @@ def test_pending_polls_are_paced_and_the_pace_survives_refusals(
     assert consumed.value.code == "AI_STP_AUTHORIZATION_EXPIRED"
 
 
+def test_concurrent_exchanges_mint_exactly_one_credential_pair(
+    cli_server: SyncAsgiServer,
+    cli_endpoint: Endpoint,
+    web_approver: ApproverFactory,
+) -> None:
+    """Two pollers that both see `approved` must not both get credentials.
+
+    The poll throttle paces sequential polls but cannot order two requests
+    already in flight; the grant's `approved → consumed` transition is claimed
+    in one UPDATE so the loser reloads and sees the winner's verdict.
+    """
+    import asyncio
+
+    from tests.support.api_settings import make_test_auth
+
+    from ai_stp_api.errors import ApiError, ErrorCategory
+    from ai_stp_api.slices.auth.device_flow import exchange_device_code
+
+    approver = web_approver()
+    started = login.start(cli_endpoint, "github")
+    assert approver.approve(started.user_code).status_code == 200
+    _age_device_poll(cli_server, started.device_code)
+
+    async def attempt() -> dict[str, object] | ApiError:
+        async with cli_server.app.state.sessionmaker() as db:
+            try:
+                result = await exchange_device_code(
+                    db,
+                    auth=make_test_auth(),
+                    device_code=started.device_code,
+                    device_id=new_id("device"),
+                    public_key=PUBLIC_KEY,
+                    display_name="boundary-test",
+                )
+                await db.commit()
+            except ApiError as error:
+                await db.rollback()
+                return error
+            return result
+
+    async def race() -> tuple[dict[str, object] | ApiError, dict[str, object] | ApiError]:
+        return await asyncio.gather(attempt(), attempt())
+
+    outcomes = cli_server.call(race)
+    minted = [outcome for outcome in outcomes if isinstance(outcome, dict)]
+    refused = [outcome for outcome in outcomes if isinstance(outcome, ApiError)]
+    assert len(minted) == 1, "exactly one poller may hold credentials"
+    assert minted[0]["account_id"] == approver.account_id
+    assert len(refused) == 1
+    assert refused[0].category == ErrorCategory.AUTHORIZATION_EXPIRED
+
+
 def test_a_pending_answer_keeps_the_pending_record(
     cli_endpoint: Endpoint,
     web_approver: ApproverFactory,

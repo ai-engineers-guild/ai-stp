@@ -150,15 +150,30 @@ async def _find_common_ancestor(
 MAX_UNDELIVERED_ANCESTORS: Final[int] = 64
 
 
+def _affected_fields(event: SyncEvent) -> list[str]:
+    """Conflict field names, bounded to the contract's 64-item cap.
+
+    ``SyncEvent.payload`` is an unbounded mapping; an unbounded sort here makes
+    ``SyncConflictInfo`` unconstructable and the push 500s with no receipt.
+    """
+    if not event.payload:
+        return []
+    return sorted(str(key) for key in event.payload)[:64]
+
+
 async def _undelivered_ancestors(
     db: AsyncSession, *, account_id: str, parents: Sequence[str]
-) -> list[SyncRevision]:
+) -> list[SyncRevision] | None:
     """Revisions this account holds but has never put in its stream, parents first.
 
     The outbox has to be self-contained. A refused push still stores its
     revision, because the server needs it to describe the conflict, and nothing
     enqueues it — so an accepted merge that names it as a parent produces a page
     no fresh device can apply, and the account wedges permanently.
+
+    Returns ``None`` when the undelivered ancestry exceeds
+    ``MAX_UNDELIVERED_ANCESTORS``: the caller must refuse rather than emit a
+    prefix the event's transitive closure does not fully cover.
     """
     delivered = set(
         (
@@ -208,6 +223,11 @@ async def _undelivered_ancestors(
             for parent in (held.parent_revision_ids or [])
             if str(parent) not in delivered and str(parent) not in seen
         )
+    if stack:
+        # Truncated: the prefix is complete, but the accepting event's closure
+        # references revisions the stream can never deliver. Refuse instead of
+        # committing an unapplicable page.
+        return None
     return ordered
 
 
@@ -388,23 +408,58 @@ async def _apply_one(
 
     if existing_revision is not None:
         head_id = head.revision_id if head is not None else None
-        cursor = None
-        if head_id is not None:
-            # Point cursor at the latest outbox for this account if any.
-            seq_result = await db.execute(
-                select(func.max(SyncOutbox.sequence)).where(SyncOutbox.account_id == ctx.account_id)
+        delivered = await db.scalar(
+            select(SyncOutbox.revision_id).where(
+                SyncOutbox.account_id == ctx.account_id,
+                SyncOutbox.revision_id == event.revision_id,
             )
-            max_seq = seq_result.scalar_one()
-            if max_seq:
-                cursor = encode_sync_cursor(
-                    secret=secret, account_id=ctx.account_id, sequence=int(max_seq)
-                )
+        )
+        if delivered is None and head_id != event.revision_id:
+            # Retained by an earlier conflict but never put in the stream:
+            # reporting "superseded" claims the head covers it, which is false.
+            receipt = SyncEventReceipt(
+                event_id=event.event_id,
+                state="conflict",
+                revision_id=event.revision_id,
+                server_head_revision_id=head_id,
+                cursor=None,
+                conflict=SyncConflictInfo(
+                    server_head_revision_id=head_id or event.revision_id,
+                    client_head_revision_id=event.expected_head_revision_id or event.revision_id,
+                    common_ancestor_revision_id=None,
+                    affected_fields=_affected_fields(event),
+                ),
+                conflicting_entity_id=None,
+                error_code=None,
+            )
+            stored = await _store_receipt(
+                db,
+                account_id=ctx.account_id,
+                event=event,
+                fingerprint=fingerprint,
+                receipt=receipt,
+            )
+            await emit_audit(
+                db,
+                actor_account_id=ctx.account_id,
+                action="sync.event_conflict",
+                target_table="sync_revision",
+                target_id=event.revision_id,
+                payload={
+                    "state": "conflict",
+                    "entity_id": event.entity_id,
+                    "entity_kind": event.entity_kind,
+                    "server_head_revision_id": head_id,
+                },
+            )
+            await db.commit()
+            return stored
         receipt = SyncEventReceipt(
             event_id=event.event_id,
             state="superseded",
             revision_id=event.revision_id,
             server_head_revision_id=head_id,
-            cursor=cursor,
+            cursor=None,
             conflict=None,
             conflicting_entity_id=None,
             error_code=None,
@@ -524,10 +579,7 @@ async def _apply_one(
             )
             await db.commit()
             return stored
-        if (
-            parent_row.entity_id != event.entity_id
-            or parent_row.entity_kind != event.entity_kind
-        ):
+        if parent_row.entity_id != event.entity_id or parent_row.entity_kind != event.entity_kind:
             receipt = SyncEventReceipt(
                 event_id=event.event_id,
                 state="rejected",
@@ -582,14 +634,14 @@ async def _apply_one(
                 server_head_revision_id=event.expected_head_revision_id or event.revision_id,
                 client_head_revision_id=client_head,
                 common_ancestor_revision_id=None,
-                affected_fields=sorted(event.payload.keys()) if event.payload else [],
+                affected_fields=_affected_fields(event),
             )
         else:
             conflict = SyncConflictInfo(
                 server_head_revision_id=current_head,
                 client_head_revision_id=client_head,
                 common_ancestor_revision_id=ancestor,
-                affected_fields=sorted(event.payload.keys()) if event.payload else [],
+                affected_fields=_affected_fields(event),
             )
         db.add(
             _revision_from_event(
@@ -635,9 +687,133 @@ async def _apply_one(
     created_at = parse_timestamp(event.created_at)
     # Anything this account holds but never delivered has to go out ahead of the
     # revision that names it, or the page it lands in is unapplicable forever.
-    for ancestor in await _undelivered_ancestors(
+    undelivered = await _undelivered_ancestors(
         db, account_id=ctx.account_id, parents=list(event.parent_revision_ids)
-    ):
+    )
+    if undelivered is None:
+        # The held ancestry exceeds the delivery bound: accepting would commit
+        # a stream page no device can apply. Refuse durably — the revision is
+        # still stored so later merges can name it.
+        db.add(
+            _revision_from_event(
+                account_id=ctx.account_id,
+                event=event,
+                parents=parents,
+                created_at=created_at,
+            )
+        )
+        receipt = SyncEventReceipt(
+            event_id=event.event_id,
+            state="rejected",
+            revision_id=None,
+            server_head_revision_id=current_head,
+            cursor=None,
+            conflict=None,
+            conflicting_entity_id=None,
+            error_code="AI_STP_VALIDATION_ERROR",
+        )
+        stored = await _store_receipt(
+            db,
+            account_id=ctx.account_id,
+            event=event,
+            fingerprint=fingerprint,
+            receipt=receipt,
+        )
+        await emit_audit(
+            db,
+            actor_account_id=ctx.account_id,
+            action="sync.event_rejected",
+            target_table="sync_event_receipt",
+            target_id=event.event_id,
+            payload={
+                "state": "rejected",
+                "entity_id": event.entity_id,
+                "reason": "ancestor_backlog",
+            },
+        )
+        await db.commit()
+        return stored
+    # SyncOutbox is UNIQUE(account_id, event_id). A client-chosen event_id can
+    # collide with an already-delivered event — and two retained revisions can
+    # share one — so refusing here beats surfacing the IntegrityError as a 500.
+    emitted_ids = {a.event_id for a in undelivered}
+    if len(emitted_ids) != len(undelivered) or event.event_id in emitted_ids:
+        receipt = SyncEventReceipt(
+            event_id=event.event_id,
+            state="rejected",
+            revision_id=None,
+            server_head_revision_id=current_head,
+            cursor=None,
+            conflict=None,
+            conflicting_entity_id=None,
+            error_code="AI_STP_VALIDATION_ERROR",
+        )
+        stored = await _store_receipt(
+            db,
+            account_id=ctx.account_id,
+            event=event,
+            fingerprint=fingerprint,
+            receipt=receipt,
+        )
+        await emit_audit(
+            db,
+            actor_account_id=ctx.account_id,
+            action="sync.event_rejected",
+            target_table="sync_event_receipt",
+            target_id=event.event_id,
+            payload={
+                "state": "rejected",
+                "entity_id": event.entity_id,
+                "reason": "event_id_collision",
+            },
+        )
+        await db.commit()
+        return stored
+    prior_ids = set(
+        (
+            await db.execute(
+                select(SyncOutbox.event_id).where(
+                    SyncOutbox.account_id == ctx.account_id,
+                    SyncOutbox.event_id.in_(emitted_ids | {event.event_id}),
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    if prior_ids:
+        receipt = SyncEventReceipt(
+            event_id=event.event_id,
+            state="rejected",
+            revision_id=None,
+            server_head_revision_id=current_head,
+            cursor=None,
+            conflict=None,
+            conflicting_entity_id=None,
+            error_code="AI_STP_VALIDATION_ERROR",
+        )
+        stored = await _store_receipt(
+            db,
+            account_id=ctx.account_id,
+            event=event,
+            fingerprint=fingerprint,
+            receipt=receipt,
+        )
+        await emit_audit(
+            db,
+            actor_account_id=ctx.account_id,
+            action="sync.event_rejected",
+            target_table="sync_event_receipt",
+            target_id=event.event_id,
+            payload={
+                "state": "rejected",
+                "entity_id": event.entity_id,
+                "reason": "event_id_collision",
+            },
+        )
+        await db.commit()
+        return stored
+    for ancestor in undelivered:
         db.add(
             SyncOutbox(
                 account_id=ctx.account_id,

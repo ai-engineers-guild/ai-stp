@@ -10,6 +10,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from enum import StrEnum
 from http import HTTPStatus
+from typing import cast
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
@@ -18,6 +19,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from ai_stp_api.envelope import error_response
 from ai_stp_foundation.errors import exit_class_for
+from ai_stp_foundation.ids import new_id
 from ai_stp_platform.logging import get_logger
 
 _log = get_logger("errors")
@@ -170,11 +172,24 @@ class ApiError(Exception):
 
 
 def _request_id(request: Request) -> str:
-    return getattr(request.state, "request_id", "")
+    request_id = getattr(request.state, "request_id", "")
+    if request_id:
+        return cast(str, request_id)
+    # The envelope requires a stable `request_*` id; an error raised before the
+    # correlation middleware ran would otherwise emit an empty string that
+    # violates the contract pattern.
+    request_id = new_id("request")
+    request.state.request_id = request_id
+    return request_id
 
 
 def _build(
-    request: Request, category: ErrorCategory, message: str, details: Mapping[str, object]
+    request: Request,
+    category: ErrorCategory,
+    message: str,
+    details: Mapping[str, object],
+    *,
+    status_code: int | None = None,
 ) -> JSONResponse:
     code = CATEGORY_CODE[category]
     # exit_class_for validates the code is registered; its value is owned by
@@ -185,7 +200,7 @@ def _build(
         code=code,
         message=message,
         retryable=category in _RETRYABLE,
-        status_code=int(CATEGORY_STATUS[category]),
+        status_code=status_code if status_code is not None else int(CATEGORY_STATUS[category]),
         details=dict(details),
     )
 
@@ -251,9 +266,13 @@ async def _audit_http_outcome(request: Request, error: ApiError) -> None:
 
 
 async def _validation_handler(request: Request, exc: Exception) -> JSONResponse:
-    fields: list[str] = []
+    fields = ""
     if isinstance(exc, RequestValidationError):
-        fields = [".".join(str(part) for part in error["loc"]) for error in exc.errors()]
+        # House convention: `details.fields` is a comma-joined string — the
+        # slice-level refusals and the CLI's sync reader spell it the same way.
+        fields = ", ".join(
+            sorted(".".join(str(part) for part in error["loc"]) for error in exc.errors())
+        )
     await _audit_http_outcome(
         request, ApiError(ErrorCategory.VALIDATION, "request validation failed")
     )
@@ -265,11 +284,33 @@ async def _validation_handler(request: Request, exc: Exception) -> JSONResponse:
 async def _http_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     status_code = exc.status_code if isinstance(exc, StarletteHTTPException) else 500
     category = status_to_category(status_code)
-    await _audit_http_outcome(
-        request,
-        ApiError(category, HTTPStatus(status_code).phrase),
+    try:
+        phrase = HTTPStatus(status_code).phrase
+    except ValueError:
+        phrase = "HTTP error"
+    await _audit_http_outcome(request, ApiError(category, phrase))
+    # The category only names the code; the wire keeps the framework's real
+    # status — a 405 must not be rewritten into a 400 validation failure.
+    return _build(request, category, phrase, {}, status_code=status_code)
+
+
+def schema_unsupported(request: Request, *, found: object) -> JSONResponse:
+    """The ``AI_STP_SCHEMA_UNSUPPORTED`` envelope for a declared wire version.
+
+    The correlation middleware refuses a newer ``X-AI-STP-Schema-Version``
+    header; routes that still carry a ``schema_version`` query parameter use
+    the same code so a version skew always fails the same way.
+    """
+    from ai_stp_contracts.http import SCHEMA_VERSION
+
+    return error_response(
+        request_id=_request_id(request),
+        code="AI_STP_SCHEMA_UNSUPPORTED",
+        message="the requested schema version is not supported by this deployment",
+        retryable=False,
+        status_code=400,
+        details={"found": str(found)[:32], "supported": str(SCHEMA_VERSION)},
     )
-    return _build(request, category, HTTPStatus(status_code).phrase, {})
 
 
 async def _unhandled_handler(request: Request, exc: Exception) -> JSONResponse:

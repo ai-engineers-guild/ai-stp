@@ -123,8 +123,11 @@ _STATUS_OVERRIDES: Final[dict[str, int]] = {
     "AI_STP_HANDLE_CONFLICT": 409,
     "AI_STP_ACCOUNT_DISPLAY_NAME_CONFLICT": 409,
     "AI_STP_CANONICAL_NAME_CONFLICT": 409,
-    "AI_STP_FOREIGN_LINE_OWNERSHIP": 409,
-    "AI_STP_STALE_OWNERSHIP_REVISION": 409,
+    # Foreign ownership denies the caller outright (403); a stale ownership
+    # revision is a precondition on the submitted pin (412), matching the
+    # statuses the API emits for the same categories.
+    "AI_STP_FOREIGN_LINE_OWNERSHIP": 403,
+    "AI_STP_STALE_OWNERSHIP_REVISION": 412,
 }
 
 

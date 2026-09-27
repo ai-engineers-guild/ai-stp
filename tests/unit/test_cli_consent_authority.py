@@ -51,6 +51,7 @@ def _grant(
 ) -> None:
     consent.grant(
         connection,
+        account_id=OWNER,
         consent_id=f"request_01J0000000000000000000{suffix}",
         scope=scope,
         target=target,
@@ -70,6 +71,7 @@ def _ask(
 ) -> consent.Consultation:
     return consent.consulted(
         connection,
+        accounts=(OWNER,),
         stable_id=STABLE,
         owner_id=OWNER,
         version=version,
@@ -214,7 +216,7 @@ def test_consulted_authority_table(registry: sqlite3.Connection, name: str) -> N
             observed=observed,
         )
     for scope, target in case.revokes:
-        assert consent.revoke(registry, scope=scope, target=target, at=LATER)
+        assert consent.revoke(registry, account_id=OWNER, scope=scope, target=target, at=LATER)
     verdict = _ask(registry, version=case.version, capabilities=case.capabilities)
     assert verdict.covered is case.covered, verdict
     if case.source:
@@ -237,10 +239,12 @@ def test_a_task_grant_refuses_any_target_other_than_the_authorized_profile(
 
 
 def test_consent_allow_task_does_not_need_a_registered_object(
-    registry: sqlite3.Connection,
+    registry: sqlite3.Connection, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     from ai_stp_cli.commands import component as command
 
+    # The grant keys to the acting identity — here the named test account.
+    monkeypatch.setattr(consent, "acting_accounts", lambda: (OWNER,))
     granted = command.consent_allow({"scope": TASK, "target": PROFILE}).payload
     assert granted.scope == TASK
     assert granted.target == PROFILE
@@ -251,9 +255,10 @@ def test_consent_allow_task_does_not_need_a_registered_object(
 
 
 def test_a_task_covered_candidate_stays_experimental(
-    registry: sqlite3.Connection,
+    registry: sqlite3.Connection, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     unproven = _register(registry, "A6")
+    monkeypatch.setattr(consent, "acting_accounts", lambda: (OWNER,))
     _grant(registry, suffix="LANE", scope=TASK, target=PROFILE, observed=())
     found = search.search(registry, (unproven,))
     assert [hit.lane for hit in found.experimental] == [search.LANE_EXPERIMENTAL]

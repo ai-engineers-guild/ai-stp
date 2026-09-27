@@ -235,8 +235,7 @@ def _prepare(
         # push. Keep it for audit, marked, and let the intent mint a fresh
         # event bound to the device that exists.
         connection.execute(
-            "UPDATE sync_event SET state = 'failed' "
-            "WHERE account_id = ? AND event_id = ?",
+            "UPDATE sync_event SET state = 'failed' WHERE account_id = ? AND event_id = ?",
             (account_id, str(outstanding[0])),
         )
     payload = payload_for(connection, stored) if payload is None else payload
@@ -288,46 +287,65 @@ def _prepare(
         "created_at": created_at,
     }
     sync_key = revision_id(sealed)
-    known = connection.execute(
-        "SELECT request_json, state FROM sync_event WHERE account_id = ? AND sync_key = ? "
-        "AND direction = 'push'",
-        (account_id, sync_key),
-    ).fetchone()
-    if known is not None:
-        return Pending(SyncEvent.model_validate_json(str(known[0])), str(known[1]))
-    request = SyncEvent(
-        event_id=f"event_{uuid.uuid4().hex}",
-        entity_id=stored.stable_id,
-        entity_kind=entity_kind,  # pyright: ignore[reportArgumentType]
-        revision_id=revision_id(sealed),
-        parent_revision_ids=remote_parents,
-        device_id=device_id,
-        actor_id=account_id,
-        operation="upsert",
-        content_digest=digest_canonical("ai-stp:revision:v1", cast(JsonValue, payload)),
-        created_at=created_at,
-        idempotency_key=login.new_idempotency_key(),
-        expected_head_revision_id=expected_head,
-        payload=payload,
-    )
-    rendered = canonize(cast(JsonValue, request.model_dump(mode="json"))).decode("utf-8")
+    # Check-then-insert lives under the one write lock: a second process
+    # preparing the same event would otherwise pass the lookup, then collide
+    # with `sync_push_by_key` and die on a raw IntegrityError. A concurrent
+    # winner's row is content-identical — the seal is the key — so returning
+    # it is the idempotent answer, not a conflict.
     with transaction(connection):
-        connection.execute(
-            "INSERT INTO sync_event "
-            "(account_id, event_id, sync_key, local_revision_id, remote_revision_id, entity_id, "
-            "direction, request_json, state, receipt_json, created_at) "
-            "VALUES (?, ?, ?, ?, ?, ?, 'push', ?, 'pending', NULL, ?)",
-            (
-                account_id,
-                request.event_id,
-                sync_key,
-                stored.revision_id,
-                request.revision_id,
-                stored.stable_id,
-                rendered,
-                created_at,
-            ),
+        known = connection.execute(
+            "SELECT request_json, state FROM sync_event WHERE account_id = ? AND sync_key = ? "
+            "AND direction = 'push'",
+            (account_id, sync_key),
+        ).fetchone()
+        if known is not None:
+            return Pending(SyncEvent.model_validate_json(str(known[0])), str(known[1]))
+        request = SyncEvent(
+            event_id=f"event_{uuid.uuid4().hex}",
+            entity_id=stored.stable_id,
+            entity_kind=entity_kind,  # pyright: ignore[reportArgumentType]
+            revision_id=revision_id(sealed),
+            parent_revision_ids=remote_parents,
+            device_id=device_id,
+            actor_id=account_id,
+            operation="upsert",
+            content_digest=digest_canonical("ai-stp:revision:v1", cast(JsonValue, payload)),
+            created_at=created_at,
+            idempotency_key=login.new_idempotency_key(),
+            expected_head_revision_id=expected_head,
+            payload=payload,
         )
+        rendered = canonize(cast(JsonValue, request.model_dump(mode="json"))).decode("utf-8")
+        try:
+            connection.execute(
+                "INSERT INTO sync_event "
+                "(account_id, event_id, sync_key, local_revision_id, "
+                "remote_revision_id, entity_id, direction, request_json, state, "
+                "receipt_json, created_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, 'push', ?, 'pending', NULL, ?)",
+                (
+                    account_id,
+                    request.event_id,
+                    sync_key,
+                    stored.revision_id,
+                    request.revision_id,
+                    stored.stable_id,
+                    rendered,
+                    created_at,
+                ),
+            )
+        except sqlite3.IntegrityError:
+            # Nested under an outer transaction the write lock is not ours, so
+            # the window stays open there; the loser still resolves to the
+            # winner's identical row rather than surfacing a driver error.
+            known = connection.execute(
+                "SELECT request_json, state FROM sync_event WHERE account_id = ? "
+                "AND sync_key = ? AND direction = 'push'",
+                (account_id, sync_key),
+            ).fetchone()
+            if known is None:
+                raise
+            return Pending(SyncEvent.model_validate_json(str(known[0])), str(known[1]))
     return Pending(request, "pending")
 
 
@@ -342,25 +360,6 @@ def prepare_tombstone(
     mark = lifecycle.entombed(connection, stable_id)
     if mark is None:
         raise CliFailure("AI_STP_NOT_FOUND", "that identifier has no local tombstone")
-    sync_key = f"tombstone:{stable_id}:{mark.created_at}"
-    known = connection.execute(
-        "SELECT event_id, request_json, state FROM sync_event "
-        "WHERE account_id = ? AND sync_key = ? AND direction = 'push'",
-        (account_id, sync_key),
-    ).fetchone()
-    if known is not None:
-        request = SyncEvent.model_validate_json(str(known[1]))
-        if request.device_id == device_id or str(known[2]) != "pending":
-            return Pending(request, str(known[2]))
-        # Same retired-device rule as `_prepare`: a pending tombstone another
-        # device identity signed can never deliver — the key does not bind the
-        # device, so the check has to.
-        with transaction(connection):
-            connection.execute(
-                "UPDATE sync_event SET state = 'failed' "
-                "WHERE account_id = ? AND event_id = ?",
-                (account_id, str(known[0])),
-            )
     local_head = revisions.head(connection, stable_id)
     if local_head is None:
         raise CliFailure("AI_STP_NOT_FOUND", "the tombstoned entity has no local revision")
@@ -380,6 +379,10 @@ def prepare_tombstone(
             "the entity must be accepted remotely before its tombstone can be pushed",
         )
     remote_head = str(head[0])
+    # The key names the tombstone mark, not the signer or the head it targets:
+    # the same deletion must not be pushed twice, whatever device or remote
+    # head is current when it is re-expressed.
+    sync_key = f"tombstone:{stable_id}:{mark.created_at}"
     payload: dict[str, object] = {}
     sealed: dict[str, JsonValue] = {
         "schema_version": 1,
@@ -408,22 +411,75 @@ def prepare_tombstone(
         payload=payload,
     )
     rendered = canonize(cast(JsonValue, request.model_dump(mode="json"))).decode("utf-8")
+    # Lookup and write share the one write lock, as in `prepare_event`: the
+    # partial unique index covers failed rows too, so a concurrent preparation
+    # colliding mid-window resolves to the row that won rather than surfacing
+    # a driver error.
     with transaction(connection):
-        connection.execute(
-            "INSERT INTO sync_event "
-            "(account_id, event_id, sync_key, local_revision_id, remote_revision_id, entity_id, "
-            "direction, request_json, state, receipt_json, created_at) "
-            "VALUES (?, ?, ?, NULL, ?, ?, 'push', ?, 'pending', NULL, ?)",
-            (
-                account_id,
-                request.event_id,
-                sync_key,
-                request.revision_id,
-                stable_id,
-                rendered,
-                mark.created_at,
-            ),
-        )
+        known = connection.execute(
+            "SELECT event_id, request_json, state FROM sync_event "
+            "WHERE account_id = ? AND sync_key = ? AND direction = 'push'",
+            (account_id, sync_key),
+        ).fetchone()
+        rearm_event_id: str | None = None
+        if known is not None:
+            stored = SyncEvent.model_validate_json(str(known[1]))
+            state = str(known[2])
+            fresh = (
+                state == "pending"
+                and stored.device_id == device_id
+                and stored.expected_head_revision_id == remote_head
+            )
+            if fresh or state == "accepted":
+                # Idempotent reuse, or a tombstone already delivered.
+                return Pending(stored, state)
+            if state == "pending" or stored.expected_head_revision_id != remote_head:
+                # A pending row signed by a retired device can never deliver,
+                # and a refused tombstone pinned to a moved head can never
+                # apply — re-arm the row in place rather than inserting under
+                # the same unique key.
+                rearm_event_id = str(known[0])
+            else:
+                return Pending(stored, state)
+        if rearm_event_id is not None:
+            connection.execute(
+                "UPDATE sync_event SET event_id = ?, remote_revision_id = ?, "
+                "request_json = ?, state = 'pending', receipt_json = NULL "
+                "WHERE account_id = ? AND event_id = ?",
+                (
+                    request.event_id,
+                    request.revision_id,
+                    rendered,
+                    account_id,
+                    rearm_event_id,
+                ),
+            )
+        else:
+            try:
+                connection.execute(
+                    "INSERT INTO sync_event "
+                    "(account_id, event_id, sync_key, local_revision_id, remote_revision_id, "
+                    "entity_id, direction, request_json, state, receipt_json, created_at) "
+                    "VALUES (?, ?, ?, NULL, ?, ?, 'push', ?, 'pending', NULL, ?)",
+                    (
+                        account_id,
+                        request.event_id,
+                        sync_key,
+                        request.revision_id,
+                        stable_id,
+                        rendered,
+                        mark.created_at,
+                    ),
+                )
+            except sqlite3.IntegrityError:
+                known = connection.execute(
+                    "SELECT request_json, state FROM sync_event WHERE account_id = ? "
+                    "AND sync_key = ? AND direction = 'push'",
+                    (account_id, sync_key),
+                ).fetchone()
+                if known is None:
+                    raise
+                return Pending(SyncEvent.model_validate_json(str(known[0])), str(known[1]))
     return Pending(request, "pending")
 
 
@@ -470,57 +526,74 @@ def prepare_event(
         "created_at": created_at,
     }
     sync_key = revision_id(sealed)
-    known = connection.execute(
-        "SELECT request_json, state FROM sync_event WHERE account_id = ? AND sync_key = ? "
-        "AND direction = 'push'",
-        (account_id, sync_key),
-    ).fetchone()
-    if known is not None:
-        return Pending(SyncEvent.model_validate_json(str(known[0])), str(known[1]))
-    accepted = connection.execute(
-        "SELECT request_json FROM sync_event WHERE account_id = ? AND entity_id = ? "
-        "AND direction = 'push' AND state = 'accepted' ORDER BY rowid DESC",
-        (account_id, entity_id),
-    ).fetchall()
-    for row in accepted:
-        request = SyncEvent.model_validate_json(str(row[0]))
-        if request.operation == operation and canonize(
-            cast(JsonValue, request.payload)
-        ) == canonize(cast(JsonValue, payload)):
-            return Pending(request, "accepted")
-    request = SyncEvent(
-        event_id=f"event_{uuid.uuid4().hex}",
-        entity_id=entity_id,
-        entity_kind=entity_kind,  # pyright: ignore[reportArgumentType]
-        revision_id=revision_id(sealed),
-        parent_revision_ids=[] if remote_head is None else [remote_head],
-        device_id=device_id,
-        actor_id=account_id,
-        operation=operation,  # pyright: ignore[reportArgumentType]
-        content_digest=digest_canonical("ai-stp:revision:v1", cast(JsonValue, payload)),
-        created_at=created_at,
-        idempotency_key=login.new_idempotency_key(),
-        expected_head_revision_id=remote_head,
-        payload=payload,
-    )
-    rendered = canonize(cast(JsonValue, request.model_dump(mode="json"))).decode("utf-8")
+    # Check-then-insert lives under the one write lock, as in `prepare`: the
+    # unique `sync_push_by_key` index is a controlled outcome, not a driver
+    # error, and the concurrent winner's row is content-identical.
     with transaction(connection):
-        connection.execute(
-            "INSERT INTO sync_event "
-            "(account_id, event_id, sync_key, local_revision_id, remote_revision_id, entity_id, "
-            "direction, request_json, state, receipt_json, created_at) "
-            "VALUES (?, ?, ?, ?, ?, ?, 'push', ?, 'pending', NULL, ?)",
-            (
-                account_id,
-                request.event_id,
-                sync_key,
-                local_revision_id,
-                request.revision_id,
-                entity_id,
-                rendered,
-                created_at,
-            ),
+        known = connection.execute(
+            "SELECT request_json, state FROM sync_event WHERE account_id = ? AND sync_key = ? "
+            "AND direction = 'push'",
+            (account_id, sync_key),
+        ).fetchone()
+        if known is not None:
+            return Pending(SyncEvent.model_validate_json(str(known[0])), str(known[1]))
+        accepted = connection.execute(
+            "SELECT request_json FROM sync_event WHERE account_id = ? AND entity_id = ? "
+            "AND direction = 'push' AND state = 'accepted' ORDER BY rowid DESC",
+            (account_id, entity_id),
+        ).fetchall()
+        for row in accepted:
+            request = SyncEvent.model_validate_json(str(row[0]))
+            if request.operation == operation and canonize(
+                cast(JsonValue, request.payload)
+            ) == canonize(cast(JsonValue, payload)):
+                return Pending(request, "accepted")
+        request = SyncEvent(
+            event_id=f"event_{uuid.uuid4().hex}",
+            entity_id=entity_id,
+            entity_kind=entity_kind,  # pyright: ignore[reportArgumentType]
+            revision_id=revision_id(sealed),
+            parent_revision_ids=[] if remote_head is None else [remote_head],
+            device_id=device_id,
+            actor_id=account_id,
+            operation=operation,  # pyright: ignore[reportArgumentType]
+            content_digest=digest_canonical("ai-stp:revision:v1", cast(JsonValue, payload)),
+            created_at=created_at,
+            idempotency_key=login.new_idempotency_key(),
+            expected_head_revision_id=remote_head,
+            payload=payload,
         )
+        rendered = canonize(cast(JsonValue, request.model_dump(mode="json"))).decode("utf-8")
+        try:
+            connection.execute(
+                "INSERT INTO sync_event "
+                "(account_id, event_id, sync_key, local_revision_id, "
+                "remote_revision_id, entity_id, direction, request_json, state, "
+                "receipt_json, created_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, 'push', ?, 'pending', NULL, ?)",
+                (
+                    account_id,
+                    request.event_id,
+                    sync_key,
+                    local_revision_id,
+                    request.revision_id,
+                    entity_id,
+                    rendered,
+                    created_at,
+                ),
+            )
+        except sqlite3.IntegrityError:
+            # Under an outer transaction the write lock is not ours; the loser
+            # resolves to the winner's identical row rather than surfacing a
+            # driver error.
+            known = connection.execute(
+                "SELECT request_json, state FROM sync_event WHERE account_id = ? "
+                "AND sync_key = ? AND direction = 'push'",
+                (account_id, sync_key),
+            ).fetchone()
+            if known is None:
+                raise
+            return Pending(SyncEvent.model_validate_json(str(known[0])), str(known[1]))
     return Pending(request, "pending")
 
 
@@ -548,7 +621,9 @@ def record_receipt(
             )
 
 
-def unreachable_server_head(connection: sqlite3.Connection, stable_id: str) -> str | None:
+def unreachable_server_head(
+    connection: sqlite3.Connection, accounts: tuple[str, ...], stable_id: str
+) -> str | None:
     """A server head this device recorded but never received, if there is one.
 
     A receipt is durable local knowledge: when the server refused a push it
@@ -556,12 +631,19 @@ def unreachable_server_head(connection: sqlite3.Connection, stable_id: str) -> s
     device is behind in a way no local read can resolve — and answering
     `up_to_date` from local heads alone would contradict the refusal this
     device already stored.
+
+    `accounts` bounds whose receipts may answer: entity ids repeat across
+    accounts (a consent id is derived, not minted), and a refusal stored under
+    another signed-in account is not this account's divergence.
     """
+    if not accounts:
+        return None
     row = connection.execute(
-        "SELECT account_id, receipt_json FROM sync_event "
-        "WHERE entity_id = ? AND receipt_json IS NOT NULL "
-        "ORDER BY created_at DESC, rowid DESC LIMIT 1",
-        (stable_id,),
+        f"SELECT account_id, receipt_json FROM sync_event "
+        f"WHERE entity_id = ? AND receipt_json IS NOT NULL "
+        f"AND account_id IN ({', '.join('?' for _ in accounts)}) "
+        f"ORDER BY created_at DESC, rowid DESC LIMIT 1",
+        (stable_id, *accounts),
     ).fetchone()
     if row is None or row[1] is None:
         return None
@@ -617,7 +699,9 @@ def _check_device_summary(payload: object) -> None:
         ) from error
 
 
-def _apply_consent(connection: sqlite3.Connection, event: SyncStreamEvent) -> None:
+def _apply_consent(
+    connection: sqlite3.Connection, *, account_id: str, event: SyncStreamEvent
+) -> None:
     """Apply the account's consent record the event carries.
 
     `unverified-consent.md` makes consent records ordinary synchronized
@@ -625,12 +709,17 @@ def _apply_consent(connection: sqlite3.Connection, event: SyncStreamEvent) -> No
     withdraws it here. The payload models are the same contract the server
     enforces at intake, so a record the contract does not define cannot be
     smuggled in by sync — and `consent.grant` enforces the scope set again.
+
+    The record lands under the pulling account alone: the consent table keys
+    rows per account, so a record delivered by one account's stream can never
+    answer — or overwrite — another account's consent on this device.
     """
     try:
         if event.operation == "tombstone":
             record = ConsentTombstonePayload.model_validate(event.payload)
             consent.revoke(
                 connection,
+                account_id=account_id,
                 scope=record.scope,
                 target=record.target,
                 at=record.revoked_at or event.created_at,
@@ -644,6 +733,7 @@ def _apply_consent(connection: sqlite3.Connection, event: SyncStreamEvent) -> No
         ) from error
     consent.grant(
         connection,
+        account_id=account_id,
         consent_id=event.entity_id,
         scope=record.scope,
         target=record.target,
@@ -713,7 +803,7 @@ def _apply_event(
         # one device passport per installation, no shared environment), and a
         # consent record applies to the account's consent table on this device.
         if event.entity_kind == "unverified_consent":
-            _apply_consent(connection, event)
+            _apply_consent(connection, account_id=account_id, event=event)
         elif event.operation == "upsert":
             _check_device_summary(event.payload)
     elif event.operation == "upsert":
