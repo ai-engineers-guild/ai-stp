@@ -125,6 +125,7 @@ services:
   migrate:
     build:
       context: ..
+      dockerfile: deploy/docker/Dockerfile.app
       target: worker
     command: ["alembic", "upgrade", "head"]
     environment: *app-env
@@ -140,6 +141,7 @@ services:
   seed:
     build:
       context: ..
+      dockerfile: deploy/docker/Dockerfile.app
       target: worker
     command: ["python", "-m", "ai_stp_platform.seed_cli"]
     environment: *app-env
@@ -157,6 +159,7 @@ services:
   api:
     build:
       context: ..
+      dockerfile: deploy/docker/Dockerfile.app
       target: api
     environment:
       <<: *app-env
@@ -203,6 +206,7 @@ services:
     # at startup, so no commit build argument is needed.
     build:
       context: ..
+      dockerfile: deploy/docker/Dockerfile.app
       target: content-import
     command: ["python", "-m", "ai_stp_platform.content.importer"]
     environment:

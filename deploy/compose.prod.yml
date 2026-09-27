@@ -75,6 +75,7 @@ services:
   migrate:
     build:
       context: ..
+      dockerfile: deploy/docker/Dockerfile.app
       target: worker
     command: ["alembic", "upgrade", "head"]
     env_file:
@@ -96,6 +97,7 @@ services:
   seed:
     build:
       context: ..
+      dockerfile: deploy/docker/Dockerfile.app
       target: worker
     command: ["python", "-m", "ai_stp_platform.seed_cli"]
     env_file:
@@ -112,6 +114,7 @@ services:
   api:
     build:
       context: ..
+      dockerfile: deploy/docker/Dockerfile.app
       target: api
     environment:
       AI_STP_API_GIT_COMMIT: ${AI_STP_API_GIT_COMMIT:-}
@@ -154,6 +157,7 @@ services:
     # script supplies the exact commit to the API and importer environments.
     build:
       context: ..
+      dockerfile: deploy/docker/Dockerfile.app
       target: content-import
     command: ["python", "-m", "ai_stp_platform.content.importer"]
     environment:
