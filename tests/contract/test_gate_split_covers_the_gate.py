@@ -75,7 +75,7 @@ _LEAF_TOKENS: dict[str, tuple[str, ...]] = {
     "back-resource": ("tests/contract/test_cli_resource_lifecycle.py",),
     "back-build": ("uv build --all-packages",),
     "back-regress": ("clean_install_regress.sh",),
-    "security": ("bun run audit",),
+    "security": ("bun run audit", "scan_lockfile.sh"),
     "web-build": ("AI_STP_WEB_PROFILE=public_saas bun run build",),
     "web-storybook": ("build-storybook",),
     "web-i18n": ("bun run i18n:check",),

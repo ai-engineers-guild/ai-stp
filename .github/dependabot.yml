@@ -10,7 +10,7 @@
 # failed `bun install --frozen-lockfile` with
 # `lockfile had changes, but lockfile is frozen`, five of them at once and none
 # of them mergeable as generated. Bun is a supported ecosystem from bun 1.1.39;
-# this repository pins 1.4.0.
+# this repository pins 1.4.2.
 version: 2
 updates:
   - package-ecosystem: github-actions
