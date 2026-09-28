@@ -221,10 +221,17 @@ class _GroupProcess:
         self.stdout: IO[bytes] | None = self._process.stdout
 
     def kill(self) -> None:
-        try:
-            os.killpg(self._process.pid, signal.SIGKILL)
-        except (ProcessLookupError, PermissionError):
-            self._process.kill()
+        # os.killpg is POSIX-only; Windows providers reach here through the
+        # job-object launcher (its own spawn factory), so this default path
+        # only ever sees a POSIX group — but tests exercise it on Windows
+        # too, where the attribute does not exist at all.
+        if os.name == "posix":
+            try:
+                os.killpg(self._process.pid, signal.SIGKILL)
+                return
+            except (ProcessLookupError, PermissionError):
+                pass
+        self._process.kill()
 
     def wait(self) -> int:
         return self._process.wait()
