@@ -31,7 +31,7 @@ OPEN. Do not touch colleague issues (#254, #256) or
 | Line | GitHub `main` / `dev`. Work branch `feat/agent-task-lifecycle` is gone |
 | PR | [#297](https://github.com/ai-engineers-guild/ai-stp/pull/297) merged into `dev`, then promoted |
 | Released CLI | `0.0.32` on PyPI (release-candidate run 36328279281, publish run 36328558135); tag `v0.0.32` points to `2c8c2054`; it ships the provider-kit `0.2.14` readers — `detach_instruction_region` and the optional `instruction_region` status member |
-| Provider kit | `0.2.14` in `tests/golden/provider-kit/identity-ledger.json` |
+| Provider kit | `0.2.15` in `tests/golden/provider-kit/identity-ledger.json` |
 | Issues | #261–#275 OPEN. setup-systems #316 OPEN. Never close #256. Draft #254: do not touch |
 | Agent 20×5 | GPT OSS 120B through `agy` is the sole current model target; no current-candidate trial is counted yet. Historical Haiku 99/100 is archived evidence only |
 | Branch-policy SC2015 | closed in [#304](https://github.com/ai-engineers-guild/ai-stp/pull/304) |

@@ -1,0 +1,28 @@
+{
+  "$defs": {
+    "UserCode": {
+      "pattern": "^[0-9A-HJKMNP-TV-Z]{4}-[0-9A-HJKMNP-TV-Z]{4}$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:auth-device-approve-request",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "The browser half of device sign-in: bind a pending `user_code` to the\nsigned-in account. Carries no device identity — the key arrives at token\nexchange, after a human has approved.",
+  "properties": {
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "user_code": {
+      "$ref": "#/$defs/UserCode"
+    }
+  },
+  "required": [
+    "user_code"
+  ],
+  "title": "DeviceApproveRequest",
+  "type": "object"
+}

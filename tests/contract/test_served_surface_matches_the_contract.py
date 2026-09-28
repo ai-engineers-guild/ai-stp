@@ -48,7 +48,6 @@ BEYOND_THE_CONTRACT: Final[dict[str, str]] = {
     "/v1/account/public-profile/draft": "publisher profile draft lifecycle",
     "/v1/account/public-profile/preview": "publisher profile draft lifecycle",
     "/v1/account/public-profile/publish": "publisher profile draft lifecycle",
-    "/v1/auth/device/approve": "browser half of the device flow; the CLI drives the other",
     "/v1/auth/link/{provider}": "step-up identity linking, browser-only",
     "/v1/auth/{provider}/login": "browser redirect entry point; the CLI uses the device flow",
     "/v1/organizations/{organization_id}/provider-project-observations": (

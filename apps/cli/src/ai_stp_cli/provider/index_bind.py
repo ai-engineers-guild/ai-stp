@@ -25,6 +25,7 @@ from ai_stp_cli.provider import (
     attested_bind,
     index_attestation,
     index_wheel,
+    network_launcher,
     protocol_v3,
     release,
 )
@@ -139,7 +140,13 @@ def fetch(
         mode = stat.S_IMODE(executable.stat().st_mode)
         executable.chmod(mode | stat.S_IXUSR)
     digest, size = release.artifact_identity(executable)
-    capabilities = (inspect or attested_bind.inspect_provider)(executable)
+    capabilities = (
+        inspect(executable)
+        if inspect is not None
+        else attested_bind.inspect_provider(
+            executable, unisolated_reason=network_launcher.TRUSTED_RELEASE
+        )
+    )
     if capabilities.harness_id != harness:
         raise CliFailure(
             "AI_STP_PRECONDITION_FAILED",

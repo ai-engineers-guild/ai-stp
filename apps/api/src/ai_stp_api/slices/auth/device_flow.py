@@ -124,25 +124,38 @@ async def approve_device_authorization(
     user_code: str,
     account_id: str,
 ) -> DeviceAuthorization:
-    """Human-approved binding of a pending code to the current account."""
+    """Human-approved binding of a pending code to the current account.
+
+    The claim is a conditional UPDATE for the same reason the consume path is:
+    the reads cannot serialize two approvers who both see `pending` — the loser
+    matches zero rows and reads the winner's verdict instead of re-binding the
+    grant to a different account.
+    """
     normalized = user_code.strip().upper()
+    now = datetime.now(UTC)
+    claimed = await db.execute(
+        update(DeviceAuthorization)
+        .where(
+            DeviceAuthorization.user_code == normalized,
+            DeviceAuthorization.status == "pending",
+            DeviceAuthorization.expires_at > now,
+        )
+        .values(status="approved", account_id=account_id)
+        .execution_options(synchronize_session=False)
+    )
     result = await db.execute(
         select(DeviceAuthorization).where(DeviceAuthorization.user_code == normalized)
     )
     row = result.scalar_one_or_none()
+    if getattr(claimed, "rowcount", 0) == 1 and row is not None:
+        return row
     if row is None:
         raise ApiError(ErrorCategory.NOT_FOUND, "unknown user code")
-    now = datetime.now(UTC)
     if row.expires_at <= now or row.status in {"consumed", "declined"}:
         raise ApiError(ErrorCategory.VALIDATION, "authorization expired")
     if row.status == "approved" and row.account_id == account_id:
         return row
-    if row.status != "pending":
-        raise ApiError(ErrorCategory.CONFLICT, "authorization already resolved")
-    row.status = "approved"
-    row.account_id = account_id
-    await db.flush()
-    return row
+    raise ApiError(ErrorCategory.CONFLICT, "authorization already resolved")
 
 
 async def exchange_device_code(

@@ -190,6 +190,13 @@ def test_provider_capabilities_reject_incomplete_or_ambiguous_declarations(
         )
 
 
+def test_every_operation_has_a_network_policy() -> None:
+    """A missing entry is not "no requirement" — it is an operation the
+    isolation boundary has no decided answer for, which must fail here rather
+    than reach a launcher."""
+    assert set(protocol_v3.OPERATION_NETWORK) == set(protocol_v3.Operation)
+
+
 def test_software_download_does_not_widen_apply() -> None:
     software = {
         policy.phase: policy.requirement

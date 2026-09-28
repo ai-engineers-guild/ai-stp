@@ -8,6 +8,8 @@ them (docs/engineering/schema-evolution.md, SPEC-015 REQ-1508).
 """
 
 from ai_stp_contracts.auth import (
+    DeviceApproveRequest,
+    DeviceApproveResponse,
     DeviceAuthorizationRequest,
     DeviceAuthorizationResponse,
     DeviceTokenRequest,
@@ -239,6 +241,8 @@ __all__ = [
     "CorporateTeamView",
     "Cursor",
     "DetectedHarness",
+    "DeviceApproveRequest",
+    "DeviceApproveResponse",
     "DeviceAuthorizationRequest",
     "DeviceAuthorizationResponse",
     "DeviceListResponse",
