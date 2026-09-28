@@ -11,6 +11,15 @@
 # COMPOSE_PROJECT_NAME (env beats the `name:` key).
 name: ai_stp
 
+# Docker's json-file driver rotates nothing by itself: an unbounded
+# container log grows /var/lib/docker until the host disk is the outage.
+# 10m x 3 per container bounds stdout retention for the whole stack.
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   postgres:
     image: postgres:16@sha256:1a6ab3f5345eb6dbe04a1349529caabdb0ab09293a09590fad07b2246bfa4b54
@@ -32,6 +41,7 @@ services:
       timeout: 5s
       retries: 10
     restart: always
+    logging: *default-logging
 
   rustfs:
     # Pinned by digest, like every other dependency here. `:latest` moved under
@@ -71,6 +81,7 @@ services:
       retries: 12
       start_period: 5s
     restart: always
+    logging: *default-logging
 
   migrate:
     build:
@@ -86,6 +97,7 @@ services:
         condition: service_healthy
     networks: [internal]
     restart: "no"
+    logging: *default-logging
 
   # Two steps, and only one runs here. The integrity reconcile reads what is
   # published and checks it against the projection's own rules. The development
@@ -110,6 +122,7 @@ services:
         condition: service_completed_successfully
     networks: [internal]
     restart: "no"
+    logging: *default-logging
 
   api:
     build:
@@ -150,6 +163,7 @@ services:
       retries: 5
       start_period: 15s
     restart: always
+    logging: *default-logging
 
   content-import:
     # One-shot after migrate + healthy API. Web waits for exit 0 (SPEC-054).
@@ -177,6 +191,7 @@ services:
         condition: service_healthy
     networks: [internal]
     restart: "no"
+    logging: *default-logging
 
   osv-refresh:
     build:
@@ -208,6 +223,7 @@ services:
       retries: 10
       start_period: 30s
     restart: always
+    logging: *default-logging
 
   clamav-refresh:
     build:
@@ -234,6 +250,7 @@ services:
       retries: 10
       start_period: 60s
     restart: always
+    logging: *default-logging
 
   worker:
     # Safety validate path: pinned scanners + EXTERNAL_CLI (see deploy/docker/Dockerfile.app).
@@ -292,6 +309,7 @@ services:
       retries: 3
       start_period: 30s
     restart: always
+    logging: *default-logging
 
   web:
     build:
@@ -334,6 +352,7 @@ services:
       retries: 8
       start_period: 30s
     restart: always
+    logging: *default-logging
 
   docs:
     build:
@@ -355,6 +374,7 @@ services:
       retries: 5
       start_period: 5s
     restart: always
+    logging: *default-logging
 
 
 networks:
