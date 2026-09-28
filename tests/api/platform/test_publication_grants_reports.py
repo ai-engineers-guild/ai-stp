@@ -144,7 +144,7 @@ async def _seed_account_device(
         device = Device(
             id=new_id("device"),
             account_id=account.id,
-            public_key="dGVzdC1wdWJsaWMta2V5LXB1Ymxpc2g=",
+            public_key="dGVzdC1wdWJsaWMta2V5LXB1Ymxpc2g=-" + new_id("device"),
             state="active",
         )
         db.add(account)
@@ -714,12 +714,8 @@ async def test_grants_invite_accept_revoke(
     )
     assert denied_owner.status_code == 403
 
-    await _drain_jobs(sessionmaker, worker_id="mail")
-    assert MAIL_PORT.sent
-    assert MAIL_PORT.sent[0]["token_present"] is True
-    assert "accept_token" not in MAIL_PORT.sent[0]
-
-    # fetch token from job table (test-only access)
+    # Fetch the token while the job is still queued: a settled job's payload
+    # is scrubbed, so the accept secret is only readable before the drain.
     async with sessionmaker() as db:
         job = await db.scalar(
             select(Job).where(Job.idempotency_key == f"deliver_invitation:{invitation_id}")
@@ -727,6 +723,11 @@ async def test_grants_invite_accept_revoke(
         assert job is not None
         token = job.payload["accept_token"]
         assert isinstance(token, str)
+
+    await _drain_jobs(sessionmaker, worker_id="mail")
+    assert MAIL_PORT.sent
+    assert MAIL_PORT.sent[0]["token_present"] is True
+    assert "accept_token" not in MAIL_PORT.sent[0]
 
     accept = await client.post(
         f"/v1/grants/invitations/{invitation_id}/accept",

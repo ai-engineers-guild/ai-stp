@@ -104,7 +104,7 @@ async def _seed_device_session(
         device = Device(
             id=new_id("device"),
             account_id=account.id,
-            public_key="dGVzdC1wdWJsaWMta2V5LWZvci1zeW5jLXRlc3Rz",
+            public_key="dGVzdC1wdWJsaWMta2V5LWZvci1zeW5jLXRlc3Rz-" + new_id("device"),
             state="revoked" if revoked else "active",
         )
         db.add(account)

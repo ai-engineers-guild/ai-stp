@@ -73,6 +73,39 @@ async def test_liveness_is_independent_of_dependencies(client: AsyncClient) -> N
     assert response.headers["X-Request-Id"].startswith("request_")
 
 
+async def test_unhandled_error_still_carries_correlation_headers() -> None:
+    """An exception escaping below the route must not produce a bare 500.
+
+    The correlation middleware wraps the whole inner stack; before it caught
+    the fallthrough, a double fault answered without `X-Request-Id`, without
+    `X-Correlation-Id`, and without the error envelope the contract requires.
+    """
+    from fastapi import FastAPI
+
+    from ai_stp_api.correlation import (
+        CORRELATION_HEADER,
+        REQUEST_ID_HEADER,
+        CorrelationMiddleware,
+    )
+
+    app = FastAPI()
+    app.add_middleware(CorrelationMiddleware)
+
+    def _boom() -> None:
+        raise RuntimeError("exploded below the handler layer")
+
+    app.add_api_route("/boom", _boom, methods=["GET"])
+
+    transport = ASGITransport(app=app, raise_app_exceptions=False)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.get("/boom")
+    assert response.status_code == 500
+    assert response.headers[REQUEST_ID_HEADER].startswith("request_")
+    assert response.headers[CORRELATION_HEADER].startswith("request_")
+    body = response.json()
+    assert body["error"]["code"] == "AI_STP_INTERNAL"
+
+
 async def test_version_reports_service_metadata(client: AsyncClient) -> None:
     response = await client.get("/v1/system/version")
     assert response.status_code == 200
@@ -104,6 +137,72 @@ async def test_readiness_reports_missing_dependencies(client: AsyncClient) -> No
     assert body["checks"]["database"] == "fail"
     assert body["checks"]["object_storage"] == "fail"
     assert "checked_at" in body
+
+
+async def test_partial_startup_closes_s3_client_and_engine(
+    tmp_path: Path,
+    migrated_database_url: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Startup that opens the S3 client then fails in `ensure_buckets` must
+    still close the client and dispose the engine: a raised lifespan never
+    reaches `yield`, so nothing downstream would release them."""
+
+    settings = Settings(
+        service=ServiceSettings(
+            environment="dev",
+            log_dir=tmp_path,
+            rate_limit_overall_requests=0,
+            rate_limit_ip_requests=0,
+        ),
+        database=DatabaseSettings(url=migrated_database_url),
+        storage=StorageSettings(
+            endpoint=f"http://{_UNREACHABLE}",
+            bucket="test",
+            access_key_id="test-access",
+            secret_access_key="test-secret",
+        ),
+        auth=AuthSettings(secret_key=_TEST_SECRET, cookie_secure=False),
+        catalog=CatalogSettings(cursor_signing_secret=_TEST_CURSOR_SECRET),
+    )
+
+    closed = False
+    disposed = False
+
+    class _FailingS3:
+        def __init__(self, storage: object) -> None:
+            pass
+
+        async def __aenter__(self) -> _FailingS3:
+            return self
+
+        async def __aexit__(self, *args: object) -> None:
+            nonlocal closed
+            closed = True
+
+        async def ensure_buckets(self) -> None:
+            raise RuntimeError("bucket setup failed")
+
+    # `AsyncEngine.dispose` is a read-only proxy on the instance; patch the
+    # class for this test's duration instead.
+    from sqlalchemy.ext.asyncio import AsyncEngine
+
+    real_dispose = AsyncEngine.dispose
+
+    async def _dispose(self: AsyncEngine) -> None:
+        nonlocal disposed
+        disposed = True
+        await real_dispose(self)
+
+    monkeypatch.setattr("ai_stp_platform.storage.S3ObjectClient", _FailingS3)
+    monkeypatch.setattr(AsyncEngine, "dispose", _dispose)
+
+    app = create_app(settings)
+    with pytest.raises(RuntimeError, match="bucket setup failed"):
+        async with app.router.lifespan_context(app):
+            pass
+    assert closed is True
+    assert disposed is True
 
 
 async def test_rate_limit_rejects_repeated_route_before_handler(tmp_path: Path) -> None:

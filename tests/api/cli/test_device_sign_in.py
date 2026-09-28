@@ -304,7 +304,46 @@ def test_concurrent_exchanges_mint_exactly_one_credential_pair(
     assert len(minted) == 1, "exactly one poller may hold credentials"
     assert minted[0]["account_id"] == approver.account_id
     assert len(refused) == 1
-    assert refused[0].category == ErrorCategory.AUTHORIZATION_EXPIRED
+    # The loser's verdict depends on where its initial read lands: before the
+    # winner's `last_poll_at` commit it loses the atomic consume and sees
+    # `consumed` → EXPIRED; after it, the poll throttle answers first →
+    # RATE_LIMITED. Both are honest refusals; the minted-count assertion above
+    # is the invariant this test exists for.
+    assert refused[0].category in {
+        ErrorCategory.AUTHORIZATION_EXPIRED,
+        ErrorCategory.RATE_LIMITED,
+    }
+
+
+def test_concurrent_starts_share_one_authorization(
+    cli_server: SyncAsgiServer,
+) -> None:
+    """Two starts racing on one idempotency key commit one row and both get
+    it back — the unique key, not the earlier replay read, arbitrates."""
+    import asyncio
+
+    from tests.support.api_settings import make_test_auth
+
+    from ai_stp_api.slices.auth.device_flow import start_device_authorization
+
+    key = login.new_idempotency_key()
+
+    async def attempt() -> str:
+        async with cli_server.app.state.sessionmaker() as db:
+            row = await start_device_authorization(
+                db,
+                provider="github",
+                auth=make_test_auth(),
+                idempotency_key=key,
+            )
+            await db.commit()
+            return row.device_code
+
+    async def race() -> tuple[str, str]:
+        return await asyncio.gather(attempt(), attempt())
+
+    first, second = cli_server.call(race)
+    assert first == second
 
 
 def test_concurrent_approvals_bind_exactly_one_account(

@@ -6,9 +6,10 @@ import hashlib
 import re
 import secrets
 from datetime import UTC, datetime, timedelta
+from typing import Any, cast
 
-from sqlalchemy import or_, select
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy import CursorResult, or_, select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ai_stp_api.audit import emit_audit
@@ -36,6 +37,7 @@ from ai_stp_platform.models import (
     GrantInvitation,
     OAuthIdentity,
 )
+from ai_stp_platform.organization_models import Organization, OrganizationMembership
 from ai_stp_platform.queue.engine import enqueue
 from ai_stp_platform.queue.states import JobType
 
@@ -55,6 +57,62 @@ def _ts(value: datetime) -> str:
     if value.tzinfo is None:
         value = value.replace(tzinfo=UTC)
     return value.strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
+
+
+async def _owner_scope_id(db: AsyncSession, *, owner_account_id: str) -> str:
+    """Resolve the owner's personal organization id, creating it when absent.
+
+    Bulk `pg_insert` writes bypass the `before_flush` hook that fills
+    `organization_id` on ORM writes, so conflict-safe inserts must carry the
+    scope explicitly. Org creation races on the partial unique index are
+    arbitrated by `ON CONFLICT` the same way.
+    """
+    organization_id = await db.scalar(
+        select(Organization.id).where(
+            Organization.owner_account_id == owner_account_id,
+            Organization.kind == "personal",
+        )
+    )
+    if organization_id is not None:
+        return organization_id
+    candidate = new_id("organization")
+    created = cast(
+        CursorResult[Any],
+        await db.execute(
+            pg_insert(Organization)
+            .values(
+                id=candidate,
+                kind="personal",
+                owner_account_id=owner_account_id,
+                display_name="Personal workspace",
+                revision=1,
+            )
+            .on_conflict_do_nothing(
+                index_elements=[Organization.owner_account_id],
+                index_where=Organization.kind == "personal",
+            )
+        ),
+    )
+    if created.rowcount == 1:
+        db.add(
+            OrganizationMembership(
+                organization_id=candidate,
+                account_id=owner_account_id,
+                role="owner",
+                state="active",
+                revision=1,
+            )
+        )
+        await db.flush()
+        return candidate
+    organization_id = await db.scalar(
+        select(Organization.id).where(
+            Organization.owner_account_id == owner_account_id,
+            Organization.kind == "personal",
+        )
+    )
+    assert organization_id is not None
+    return organization_id
 
 
 def invitation_to_wire(row: GrantInvitation) -> GrantInvitationResponse:
@@ -149,28 +207,38 @@ async def create_direct_grant(
             await db.flush()
         reference = await db.get(GrantRecipientReference, existing.id)
         return grant_to_wire(existing, reference)
-    grant = AccessGrant(
-        id=new_id("grant"),
-        object_kind=body.object_kind,
-        stable_id=body.stable_id,
-        major=body.major,
-        owner_account_id=ctx.account_id,
-        grantee_account_id=grantee_account_id,
-        state="active",
+    grant_id = new_id("grant")
+    # `ON CONFLICT DO NOTHING` never raises on the race: a concurrent create
+    # for the same target and grantee commits first, this insert skips, and
+    # the re-select returns the committed winner. (A failed flush inside
+    # `begin_nested` marks the whole session rollback-required in SQLAlchemy,
+    # so the savepoint-replay idiom cannot survive here.)
+    inserted = cast(
+        CursorResult[Any],
+        await db.execute(
+            pg_insert(AccessGrant)
+            .values(
+                id=grant_id,
+                organization_id=await _owner_scope_id(db, owner_account_id=ctx.account_id),
+                object_kind=body.object_kind,
+                stable_id=body.stable_id,
+                major=body.major,
+                owner_account_id=ctx.account_id,
+                grantee_account_id=grantee_account_id,
+                state="active",
+            )
+            .on_conflict_do_nothing(
+                index_elements=[
+                    AccessGrant.object_kind,
+                    AccessGrant.stable_id,
+                    AccessGrant.major,
+                    AccessGrant.grantee_account_id,
+                ]
+            )
+        ),
     )
-    reference = GrantRecipientReference(
-        grant_id=grant.id,
-        identifier_kind=body.recipient_kind,
-        identifier_value=recipient,
-    )
-    db.add(grant)
-    try:
-        async with db.begin_nested():
-            await db.flush()
-    except IntegrityError:
-        # A concurrent create for the same target and grantee committed first:
-        # the unique key already chose the row this request must replay.
-        winner = await db.scalar(
+    grant = (
+        await db.execute(
             select(AccessGrant).where(
                 AccessGrant.object_kind == body.object_kind,
                 AccessGrant.stable_id == body.stable_id,
@@ -178,10 +246,15 @@ async def create_direct_grant(
                 AccessGrant.grantee_account_id == grantee_account_id,
             )
         )
-        if winner is None:
-            raise
-        winner_reference = await db.get(GrantRecipientReference, winner.id)
-        return grant_to_wire(winner, winner_reference)
+    ).scalar_one()
+    if inserted.rowcount != 1:
+        winner_reference = await db.get(GrantRecipientReference, grant.id)
+        return grant_to_wire(grant, winner_reference)
+    reference = GrantRecipientReference(
+        grant_id=grant.id,
+        identifier_kind=body.recipient_kind,
+        identifier_value=recipient,
+    )
     db.add(reference)
     await emit_audit(
         db,
@@ -378,24 +451,39 @@ async def accept_invitation(
         await db.flush()
         return grant_to_wire(existing_grant)
 
-    grant = AccessGrant(
-        id=new_id("grant"),
-        object_kind=invitation.object_kind,
-        stable_id=invitation.stable_id,
-        major=invitation.major,
-        owner_account_id=invitation.owner_account_id,
-        grantee_account_id=ctx.account_id,
-        state="active",
+    # `ON CONFLICT DO NOTHING` keeps the transaction alive through the race:
+    # a concurrent accept of a *different* invitation for the same target and
+    # grantee commits first, this insert skips, and the unique winner is the
+    # grant this acceptance binds to. (A failed flush inside `begin_nested`
+    # marks the whole session rollback-required in SQLAlchemy.)
+    inserted = cast(
+        CursorResult[Any],
+        await db.execute(
+            pg_insert(AccessGrant)
+            .values(
+                id=new_id("grant"),
+                organization_id=await _owner_scope_id(
+                    db, owner_account_id=invitation.owner_account_id
+                ),
+                object_kind=invitation.object_kind,
+                stable_id=invitation.stable_id,
+                major=invitation.major,
+                owner_account_id=invitation.owner_account_id,
+                grantee_account_id=ctx.account_id,
+                state="active",
+            )
+            .on_conflict_do_nothing(
+                index_elements=[
+                    AccessGrant.object_kind,
+                    AccessGrant.stable_id,
+                    AccessGrant.major,
+                    AccessGrant.grantee_account_id,
+                ]
+            )
+        ),
     )
-    db.add(grant)
-    try:
-        async with db.begin_nested():
-            await db.flush()
-    except IntegrityError:
-        # A concurrent accept of a *different* invitation for the same target
-        # and grantee committed first: the unique key is the arbiter, and its
-        # winner's row is the grant this acceptance binds to.
-        winner = await db.scalar(
+    grant = (
+        await db.execute(
             select(AccessGrant).where(
                 AccessGrant.object_kind == invitation.object_kind,
                 AccessGrant.stable_id == invitation.stable_id,
@@ -403,14 +491,12 @@ async def accept_invitation(
                 AccessGrant.grantee_account_id == ctx.account_id,
             )
         )
-        if winner is None:
-            raise
-        invitation.state = "accepted"
-        invitation.accepted_grant_id = winner.id
-        await db.flush()
-        return grant_to_wire(winner)
+    ).scalar_one()
     invitation.state = "accepted"
     invitation.accepted_grant_id = grant.id
+    if inserted.rowcount != 1:
+        await db.flush()
+        return grant_to_wire(grant)
     await emit_audit(
         db,
         actor_account_id=ctx.account_id,

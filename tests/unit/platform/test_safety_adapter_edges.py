@@ -405,6 +405,7 @@ async def test_env_object_store_owns_and_closes_created_client(
 
     class FakeClient:
         entered = 0
+        ensured = 0
         exited = 0
 
         def __init__(self, configured: object) -> None:
@@ -417,11 +418,15 @@ async def test_env_object_store_owns_and_closes_created_client(
         async def __aexit__(self, *_args: object) -> None:
             type(self).exited += 1
 
+        async def ensure_buckets(self) -> None:
+            type(self).ensured += 1
+
     monkeypatch.setattr(artifact_fetch, "S3ObjectClient", FakeClient)
     store = await artifact_fetch.open_env_object_store()
     assert store is not None
     assert store.settings is settings
     assert FakeClient.entered == 1
+    assert FakeClient.ensured == 1
 
     await artifact_fetch.close_env_object_store(store)
     assert FakeClient.exited == 1

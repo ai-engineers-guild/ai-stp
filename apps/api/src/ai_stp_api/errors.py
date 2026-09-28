@@ -230,14 +230,17 @@ async def _audit_http_outcome(request: Request, error: ApiError) -> None:
     app = request.scope.get("app")
     sessionmaker = getattr(getattr(app, "state", None), "sessionmaker", None)
     ctx = getattr(request.state, "auth_context", None)
-    if sessionmaker is None:
+    if sessionmaker is None or ctx is None:
+        # Anonymous failures have no actor to attribute and no tenant to scope:
+        # every scanner's 401 would otherwise be a write. The correlation-id'd
+        # request log already records the event.
         return
     requested = request.path_params.get("organization_id")
     try:
         async with sessionmaker() as db:
             await set_tenant_scope(db, "*")
             organization_id = None
-            if isinstance(requested, str) and ctx is not None:
+            if isinstance(requested, str):
                 organization_id = await db.scalar(
                     select(OrganizationMembership.organization_id).where(
                         OrganizationMembership.organization_id == requested,
@@ -246,7 +249,7 @@ async def _audit_http_outcome(request: Request, error: ApiError) -> None:
                 )
             await emit_audit(
                 db,
-                actor_account_id=ctx.account_id if ctx is not None else None,
+                actor_account_id=ctx.account_id,
                 organization_id=organization_id,
                 action=f"http.{request.method.lower()}."
                 f"{'denied' if error.category is ErrorCategory.PERMISSION else 'failed'}",

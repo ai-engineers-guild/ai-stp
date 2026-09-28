@@ -8,6 +8,7 @@ from datetime import UTC, datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ai_stp_contracts.seo import SEO_LOCALES
+from ai_stp_platform.queue.states import PermanentJobFailure
 from ai_stp_platform.seo.collectors import SubjectMissing
 from ai_stp_platform.seo.facts import parse_locale, parse_subject_kind
 from ai_stp_platform.seo.materialize import (
@@ -31,9 +32,9 @@ async def handle_seo_build(
     subject_id = payload.get("subject_id")
     locale = parse_locale(payload.get("locale"))
     if not isinstance(subject_id, str) or not subject_id:
-        raise ValueError("seo_build requires subject_id")
+        raise PermanentJobFailure("seo_build requires subject_id")
     if locale not in SEO_LOCALES:
-        raise ValueError("seo_build requires locale")
+        raise PermanentJobFailure("seo_build requires locale")
     resolved = settings or load_seo_settings()
     moment = now or datetime.now(UTC)
     try:

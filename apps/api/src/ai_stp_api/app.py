@@ -72,35 +72,45 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.state.oauth = build_oauth(resolved.auth)
         from ai_stp_api.slices.documents.service import sync_builtin_policies
 
-        try:
-            async with app.state.sessionmaker() as legal_db:
-                await sync_builtin_policies(
-                    legal_db,
-                    source_ref=resolved.service.git_commit,
-                )
-                await legal_db.commit()
-        except Exception:
-            if resolved.service.environment != "test":
-                raise
-            log.warning("legal_policy_sync_failed")
-        # Tests and offline environments use in-memory object store; production uses S3/RustFS.
         memory_client: MemoryObjectClient | None = None
         s3_client: S3ObjectClient | None = None
-        if resolved.service.environment == "test" or resolved.storage.endpoint.startswith(
-            "memory://"
-        ):
-            memory_client = MemoryObjectClient()
-            app.state.object_client = memory_client
-            app.state.avatar_store = AvatarObjectStore(
-                settings=resolved.storage, client=memory_client
-            )
-        else:
-            s3_client = S3ObjectClient(resolved.storage)
-            await s3_client.__aenter__()
-            await s3_client.ensure_buckets()
-            app.state.object_client = s3_client
-            app.state.avatar_store = AvatarObjectStore(settings=resolved.storage, client=s3_client)
-        log.info("startup", environment=resolved.service.environment)
+        try:
+            try:
+                async with app.state.sessionmaker() as legal_db:
+                    await sync_builtin_policies(
+                        legal_db,
+                        source_ref=resolved.service.git_commit,
+                    )
+                    await legal_db.commit()
+            except Exception:
+                if resolved.service.environment != "test":
+                    raise
+                log.warning("legal_policy_sync_failed")
+            # Tests and offline environments use in-memory object store; production uses S3/RustFS.
+            if resolved.service.environment == "test" or resolved.storage.endpoint.startswith(
+                "memory://"
+            ):
+                memory_client = MemoryObjectClient()
+                app.state.object_client = memory_client
+                app.state.avatar_store = AvatarObjectStore(
+                    settings=resolved.storage, client=memory_client
+                )
+            else:
+                s3_client = S3ObjectClient(resolved.storage)
+                await s3_client.__aenter__()
+                await s3_client.ensure_buckets()
+                app.state.object_client = s3_client
+                app.state.avatar_store = AvatarObjectStore(
+                    settings=resolved.storage, client=s3_client
+                )
+            log.info("startup", environment=resolved.service.environment)
+        except Exception:
+            # Partial startup owns everything it already opened: a raised
+            # lifespan never reaches `yield`, so nothing else closes them.
+            if s3_client is not None:
+                await s3_client.__aexit__(None, None, None)
+            await engine.dispose()
+            raise
         try:
             yield
         finally:
