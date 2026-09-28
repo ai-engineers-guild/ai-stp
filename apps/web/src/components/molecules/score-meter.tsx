@@ -10,7 +10,16 @@ type ScoreMeterProps = {
   label?: string | undefined;
   valueText?: string | undefined;
   compact?: boolean;
-} & Omit<HTMLAttributes<HTMLSpanElement>, "role" | "aria-label" | "aria-valuemin" | "aria-valuemax" | "aria-valuenow" | "aria-valuetext" | "children">;
+} & Omit<
+  HTMLAttributes<HTMLSpanElement>,
+  | "role"
+  | "aria-label"
+  | "aria-valuemin"
+  | "aria-valuemax"
+  | "aria-valuenow"
+  | "aria-valuetext"
+  | "children"
+>;
 
 /** Shared 0-100 score meter: token-gradient bar plus the numeric readout. */
 export function ScoreMeter({
