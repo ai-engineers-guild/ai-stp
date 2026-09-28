@@ -12,9 +12,8 @@ services:
   worker:
     build:
       target: worker
-    environment:
-      AI_STP_WORKER_INVITATION_BASE_URL: http://localhost:3000/ru
-      AI_STP_WORKER_CORPORATE_MAIL_FROM_ADDRESS: invitations@corp.example
+    # No mail env overrides here: mailpit.env defaults + .env.dev win through
+    # the worker's env_file chain, so real SMTP creds apply in this stack.
   web:
     # Run the image's sources, not the Windows bind mount, for this acceptance deployment.
     volumes: !override

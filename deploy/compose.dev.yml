@@ -246,18 +246,13 @@ services:
       context: ..
       dockerfile: deploy/docker/Dockerfile.app
       target: worker-safety
-    environment:
-      <<: *app-env
-      # Default local mail path: the Mailpit catch-all (web UI on :8025).
-      # .env.dev overrides: MAIL_PROVIDER=resend plus a key for hosted
-      # delivery, or real SMTP_* values for a company/self-hosted relay.
-      AI_STP_WORKER_INVITATION_BASE_URL: http://localhost:3000/ru
-      AI_STP_WORKER_SMTP_HOST: mailpit
-      AI_STP_WORKER_SMTP_PORT: "1025"
-      AI_STP_WORKER_SMTP_USE_STARTTLS: "false"
-    # AI_STP_WORKER_GITHUB_TOKEN comes from .env.dev. Do not add an empty
-    # environment override here: it would wipe the env_file value.
+    environment: *app-env
+    # Mail defaults live in mailpit.env — env_file order decides, so a real
+    # relay in .env.dev (SMTP_* or a Resend key) overrides the catch-all.
+    # AI_STP_WORKER_GITHUB_TOKEN also comes from .env.dev. Do not add
+    # environment overrides for these: they would win over the env_file.
     env_file:
+      - path: mailpit.env
       - path: ../.env.dev
         required: false
     volumes:
