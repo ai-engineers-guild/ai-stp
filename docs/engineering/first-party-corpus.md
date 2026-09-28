@@ -44,6 +44,11 @@ entry, release pin and artifact. Compare their sealed passports and artifact
 bytes with the previous snapshot before accepting the import. A provider
 release does not itself update the packaged corpus or publish its objects.
 
+After an import the corpus' `SHA256SUMS` is stale by construction; refresh it
+with `just back-gen` (`release_scripts/first_party_corpus_digests.py`), which
+is the same command `back-static` compares against. A rebuilt member with an
+unrefreshed manifest is exactly the drift the gate names.
+
 The 2026-09-25 Antigravity capture binds release `0.0.74` at commit
 `8e6d20e7f8b5d63f397a9f3520e22d84a7fc5e27`. Its unchanged minimal family keeps
 its versions; changed baseline, full-auto and nddev-builder content advances

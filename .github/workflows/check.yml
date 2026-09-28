@@ -31,7 +31,7 @@ env:
   PYTHON_VERSION: "3.14"
   NODE_VERSION: "24"
   UV_VERSION: "0.12.1"
-  BUN_VERSION: "1.4.0"
+  BUN_VERSION: "1.4.2"
 
 jobs:
   docs:
@@ -160,10 +160,13 @@ jobs:
           uv run --locked ruff format --check .
           uv run --locked ruff check .
           uv run --locked pyright
-          uv run --locked python -m release_scripts.public_export --report
           uv run --locked python -m ai_stp_contracts.schemas --check schemas/v1
           uv run --locked python -m ai_stp_contracts.web_projections --check
           uv run --locked python release_scripts/provider_kit.py --check provider-kit/v3
+          uv run --locked python release_scripts/verifier_requirements.py --check
+          uv run --locked python release_scripts/first_party_corpus_digests.py --check
+          uv run --locked python release_scripts/safety_requirements.py --check
+          uv run --locked python -m release_scripts.update_component_fixture --check
           uv run --locked --group docs python docs_scripts/skill_projections.py --check
           rm -rf dist
           uv build --all-packages --out-dir dist -q
@@ -217,7 +220,7 @@ jobs:
       postgres:
         # Pinned like every other base in this tree: a republished tag changes
         # what CI ran against and records nothing that it did.
-        image: postgres:16@sha256:f1c3376c26f2609ab9f29f71f824103fe2fcd8ee0346485cb6122a4f93df6f94
+        image: postgres:16@sha256:1a6ab3f5345eb6dbe04a1349529caabdb0ab09293a09590fad07b2246bfa4b54
         env:
           POSTGRES_USER: ai_stp
           POSTGRES_PASSWORD: ai_stp_dev
@@ -405,6 +408,8 @@ jobs:
           bun run type-check
           bun run audit
           bun run build-storybook
+      - name: Python dependency advisory scan
+        run: bash scripts/safety/scan_lockfile.sh
 
   web-unit:
     name: web-unit (${{ matrix.os }})

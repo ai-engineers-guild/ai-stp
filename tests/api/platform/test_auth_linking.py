@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import AsyncIterator, Callable
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from ai_stp_api.app import create_app
@@ -137,6 +138,67 @@ async def test_unlink_identity_and_relink_preserves_row(db: AsyncSession) -> Non
     assert by_provider["github"].display_name == "GH2"
 
 
+async def test_concurrent_unlinks_cannot_strip_the_last_identity(
+    db: AsyncSession,
+    migrated_database_url: str,
+) -> None:
+    """Two unlinks racing on a two-identity account: the account-row lock
+    serializes them so the loser recounts and refuses, never revoking both."""
+    from ai_stp_api.slices.auth.service import unlink_identity
+
+    first = await resolve_login_identity(
+        db,
+        ProviderProfile(
+            provider="google",
+            subject="g-race",
+            email="race@example.com",
+            email_verified=True,
+        ),
+    )
+    second = await resolve_login_identity(
+        db,
+        ProviderProfile(
+            provider="github",
+            subject="gh-race",
+            email="race@example.com",
+            email_verified=True,
+        ),
+    )
+    account_id = first.account_id
+    assert account_id == second.account_id
+    await db.commit()
+
+    engine = create_async_engine(migrated_database_url)
+    sessionmaker = async_sessionmaker(engine, expire_on_commit=False)
+
+    async def unlink(provider: str) -> ApiError | None:
+        async with sessionmaker() as session:
+            try:
+                await unlink_identity(session, account_id=account_id, provider=provider)
+                await session.commit()
+            except ApiError as error:
+                await session.rollback()
+                return error
+            return None
+
+    results = await asyncio.gather(unlink("github"), unlink("google"))
+    await engine.dispose()
+
+    refused = [result for result in results if isinstance(result, ApiError)]
+    assert len(refused) == 1
+    assert refused[0].category is ErrorCategory.VALIDATION
+
+    remaining = await db.scalar(
+        select(func.count())
+        .select_from(OAuthIdentity)
+        .where(
+            OAuthIdentity.account_id == account_id,
+            OAuthIdentity.state == "linked",
+        )
+    )
+    assert remaining == 1
+
+
 async def test_same_email_links_without_creating_second_account(db: AsyncSession) -> None:
     first = await resolve_login_identity(
         db,
@@ -238,6 +300,19 @@ async def test_step_up_conflict_when_identity_owned_by_other_populated_account(
         )
     assert exc.value.category is ErrorCategory.CONFLICT
     assert exc.value.message == "identity link conflict"
+    # The refusal must not mark the foreign identity row: an attacker probing a
+    # link they do not own cannot burn the victim's `linked` state into
+    # `conflict`.
+    foreign = (
+        await db.execute(
+            select(OAuthIdentity).where(
+                OAuthIdentity.provider == "github",
+                OAuthIdentity.provider_subject == "b-sub",
+            )
+        )
+    ).scalar_one()
+    assert foreign.account_id == b.account_id
+    assert foreign.state == "linked"
 
 
 async def test_step_up_links_different_email_from_authenticated_session(
@@ -312,6 +387,47 @@ async def test_session_issue_stores_hash_only_and_verify_works(db: AsyncSession)
             via_cookie=False,
         )
     assert exc.value.category is ErrorCategory.AUTH_REQUIRED
+
+
+async def test_last_seen_at_writes_once_per_minute_not_per_request(
+    db: AsyncSession,
+) -> None:
+    account = Account(id=new_id("account"))
+    device = Device(
+        id=new_id("device"),
+        account_id=account.id,
+        public_key="pk-throttle-" + "x" * 16,
+        state="active",
+    )
+    db.add_all([account, device])
+    await db.flush()
+    issued = await issue_session(db, account_id=account.id, device_id=device.id, ttl_seconds=3600)
+    await db.commit()
+
+    async def verify() -> None:
+        await verify_raw_token(
+            db,
+            issued.raw_token,
+            admin_account_ids=frozenset(),
+            via_cookie=False,
+        )
+
+    # First request establishes the timestamp.
+    await verify()
+    first_seen = device.last_seen_at
+    assert first_seen is not None
+
+    # Immediate follow-up reads do not write again.
+    await verify()
+    assert device.last_seen_at == first_seen
+
+    # Once the write interval has elapsed the next request refreshes it.
+    device.last_seen_at = first_seen - timedelta(seconds=61)
+    await db.commit()
+    await verify()
+    refreshed = device.last_seen_at
+    assert refreshed is not None
+    assert refreshed > first_seen
 
 
 async def test_audit_events_emitted_without_secrets(db: AsyncSession) -> None:

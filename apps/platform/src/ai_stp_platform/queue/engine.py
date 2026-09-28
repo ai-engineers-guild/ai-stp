@@ -200,13 +200,76 @@ async def claim(
     return jobs
 
 
-async def mark_succeeded(session: AsyncSession, job: Job) -> None:
-    """Move a job to its single success state."""
-    job.state = JobState.SUCCEEDED
-    job.locked_by = None
-    job.locked_at = None
-    job.last_error = None
+async def _owned_running_job(
+    session: AsyncSession, *, job_id: int, locked_by: str | None
+) -> Job | None:
+    """The row under `job_id`, write-locked, iff it still runs under `locked_by`.
+
+    The settle paths used to stamp whatever object they were handed: a worker
+    whose lease expired mid-flight could reclaim-settle over a row `requeue_stale`
+    had already handed to somebody else — the stale verdict overwrote the live
+    one. Locking and re-reading the ownership facts in one `SELECT … FOR UPDATE`
+    is the same condition `heartbeat` writes under.
+
+    `locked_by` is the *expected* owner — the caller's claim-time lease, never
+    the value re-read from the row itself (which would always match itself).
+    """
+    if locked_by is None:
+        return None
+    row = (
+        await session.execute(select(Job).where(Job.id == job_id).with_for_update())
+    ).scalar_one_or_none()
+    if row is None or row.state != JobState.RUNNING or row.locked_by != locked_by:
+        return None
+    return row
+
+
+# Payload keys that are credentials in transit: they exist only so the handler
+# can do its work and must not rest in a settled row for the retention window.
+_SENSITIVE_PAYLOAD_KEYS: frozenset[str] = frozenset(
+    {
+        "accept_token",
+        "invitation_token",
+        "refresh_token",
+        "access_token",
+        "secret",
+        "password",
+    }
+)
+
+
+def _scrub_settled_payload(payload: dict[str, object]) -> dict[str, object]:
+    """Return payload with credential-bearing keys replaced by a marker."""
+    return {
+        key: "[delivered]" if key in _SENSITIVE_PAYLOAD_KEYS else value
+        for key, value in payload.items()
+    }
+
+
+async def mark_succeeded(session: AsyncSession, job: Job, *, locked_by: str | None = None) -> bool:
+    """Move a job to its single success state.
+
+    Returns False when the row no longer belongs to this worker — reclaimed
+    after an expired lease or settled by a new owner. The caller then records
+    no outcome: writing over the winner's verdict is the stale settle this
+    guards, and the new owner reports its own.
+
+    `locked_by` overrides the lease checked against the row; defaults to the
+    passed job's own — correct for callers settling the object they claimed.
+    """
+    expected = locked_by if locked_by is not None else job.locked_by
+    row = await _owned_running_job(session, job_id=job.id, locked_by=expected)
+    if row is None:
+        return False
+    row.state = JobState.SUCCEEDED
+    row.locked_by = None
+    row.locked_at = None
+    row.last_error = None
+    # A delivered token is spent: the succeeded row is an audit trail, not a
+    # credential store — nothing may read the token back out of it.
+    row.payload = _scrub_settled_payload(row.payload)
     await session.flush()
+    return True
 
 
 async def fail(
@@ -216,19 +279,36 @@ async def fail(
     error: str,
     permanent: bool = False,
     now: datetime | None = None,
-) -> None:
-    """Record a failure: schedule a bounded retry or move to dead-letter."""
+    locked_by: str | None = None,
+) -> bool:
+    """Record a failure: schedule a bounded retry or move to dead-letter.
+
+    Returns False when the row no longer belongs to this worker — the same
+    ownership condition `mark_succeeded` guards. A failure observed by a stale
+    worker is not evidence about the job that owns the row now.
+
+    `locked_by` overrides the lease checked against the row; defaults to the
+    passed job's own.
+    """
+    expected = locked_by if locked_by is not None else job.locked_by
+    row = await _owned_running_job(session, job_id=job.id, locked_by=expected)
+    if row is None:
+        return False
     moment = now or _now()
-    job.attempts += 1
-    job.last_error = error[:2000]
-    job.locked_by = None
-    job.locked_at = None
-    if permanent or job.attempts >= job.max_attempts:
-        job.state = JobState.DEAD_LETTER
+    row.attempts += 1
+    row.last_error = error[:2000]
+    row.locked_by = None
+    row.locked_at = None
+    if permanent or row.attempts >= row.max_attempts:
+        row.state = JobState.DEAD_LETTER
+        # A dead-lettered row is terminal: no retry will read its payload, so
+        # carried credentials are scrubbed like on success.
+        row.payload = _scrub_settled_payload(row.payload)
     else:
-        job.state = JobState.RETRY_SCHEDULED
-        job.run_after = moment + timedelta(seconds=backoff_seconds(job.attempts))
+        row.state = JobState.RETRY_SCHEDULED
+        row.run_after = moment + timedelta(seconds=backoff_seconds(row.attempts))
     await session.flush()
+    return True
 
 
 async def cancel(

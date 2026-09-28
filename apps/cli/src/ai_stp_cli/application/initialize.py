@@ -44,6 +44,17 @@ You run ai-stp yourself with your tools. Do not ask the human to paste commands.
 
 
 @dataclass(frozen=True)
+class BoundProvider:
+    """A chosen or configured provider, plus its trust basis for isolation."""
+
+    executable: Path
+    #: The reason an unisolated phase may run where the platform allows one —
+    #: `trusted_release` for verified bytes, `explicit_unverified_provider` for
+    #: an operator-named path with no manifest to check against.
+    unisolated_reason: str | None
+
+
+@dataclass(frozen=True)
 class PatchObservation:
     section_digest: str
     wrote: bool
@@ -63,18 +74,35 @@ def _object(value: JsonValue) -> dict[str, JsonValue]:
     return cast(dict[str, JsonValue], value) if isinstance(value, dict) else {}
 
 
-def bound_executable(harness_id: str) -> Path | None:
-    """Chosen or configured provider for this harness. Does not acquire or discover."""
+def bound_executable(harness_id: str) -> BoundProvider | None:
+    """Chosen or configured provider for this harness. Does not acquire or discover.
+
+    An operator-configured path is its own consent — `provider.paths.<h>` names
+    the bytes the way `--unverified-provider` does for one invocation — and a
+    release manifest beside it upgrades the basis to `trusted_release`. A
+    remembered `SOURCE_CHOSEN` row points at bytes an attested fetch produced,
+    so the recorded digest is re-compared: a swapped binary must not ride the
+    remembered choice into a mutation.
+    """
     from contextlib import closing
 
     from ai_stp_cli.local import provider_installations as installations
     from ai_stp_cli.local.database import configured_path, open_readonly
+    from ai_stp_cli.paths import redact_home
+    from ai_stp_cli.provider import network_launcher, release
     from ai_stp_cli.provider.acquire import configured_path as configured_provider
 
     named = configured_provider(harness_id)
     if named:
         place = Path(named)
-        return place if place.is_file() else None
+        if not place.is_file():
+            return None
+        reason = (
+            network_launcher.TRUSTED_RELEASE
+            if installations.manifest_identity(place) is not None
+            else network_launcher.EXPLICIT_UNVERIFIED_PROVIDER
+        )
+        return BoundProvider(place.resolve(), reason)
     registry = configured_path()
     if not registry.is_file():
         return None
@@ -83,18 +111,32 @@ def bound_executable(harness_id: str) -> Path | None:
     if held is None or held.source != installations.SOURCE_CHOSEN or not held.path:
         return None
     place = Path(held.path)
-    return place if place.is_file() else None
+    if not place.is_file():
+        return None
+    verified = (
+        installations.manifest_identity(place) is not None
+        if not held.artifact_digest
+        else release.artifact_identity(place)[0] == held.artifact_digest
+    )
+    if not verified:
+        raise CliFailure(
+            "AI_STP_PRECONDITION_FAILED",
+            "the remembered provider no longer matches the bytes its choice recorded",
+            details={"harness_id": harness_id, "path": redact_home(place)},
+            next_actions=["provider fetch --harness <id> --json"],
+        )
+    return BoundProvider(place.resolve(), network_launcher.TRUSTED_RELEASE)
 
 
 def bound_capabilities(harness_id: str) -> protocol_v3.ProviderCapabilities | None:
     """provider-info of the bound executable. Missing or unreadable is unspoken."""
     from ai_stp_cli.provider.attested_bind import inspect_provider
 
-    executable = bound_executable(harness_id)
-    if executable is None:
+    bound = bound_executable(harness_id)
+    if bound is None:
         return None
     try:
-        return inspect_provider(executable)
+        return inspect_provider(bound.executable, unisolated_reason=bound.unisolated_reason)
     except CliFailure:
         return None
 
@@ -133,21 +175,27 @@ def invoke_region_patch(
     from datetime import UTC, datetime, timedelta
 
     from ai_stp_cli.local import cache
-    from ai_stp_cli.provider import invocation, operation_v3, release
+    from ai_stp_cli.provider import invocation, operation_v3, protocol, release
     from ai_stp_foundation.ids import new_id
     from ai_stp_foundation.timestamps import format_timestamp
 
-    executable = bound_executable(harness_id)
+    bound = bound_executable(harness_id)
     detector = next((item for item in harnesses.DETECTORS if item.harness_id == harness_id), None)
-    if executable is None or detector is None:
+    if bound is None or detector is None:
         raise CliFailure(
             "AI_STP_DEPENDENCY_UNAVAILABLE",
             "the provider does not support the requested native operation",
             details={"harness_id": harness_id, "operation": PATCH_OPERATION.value},
         )
+    executable = bound.executable
     root = harnesses.config_root(detector)
     root.mkdir(parents=True, exist_ok=True)
-    invoke = invocation.provider_invoker(str(executable), str(root), protocol_v3.VERSION)
+    invoke = invocation.provider_invoker(
+        str(executable),
+        str(root),
+        protocol_v3.VERSION,
+        unisolated_reason=bound.unisolated_reason,
+    )
     expected_target_digest = str(_object(invoke("status", ())).get("target_digest", ""))
     if not expected_target_digest:
         raise CliFailure(
@@ -179,7 +227,7 @@ def invoke_region_patch(
         expires_at=expires_at,
     )
     plan_path = cache.store_provider_plan(plan.artifact, plan.digest)
-    operation_v3.require_applied(
+    reported = operation_v3.require_applied(
         _object(
             invoke(
                 "apply-operation",
@@ -196,10 +244,37 @@ def invoke_region_patch(
         plan=plan,
         bundle=None,
     )
-    desired = extract_section(section) or section
+    # The provider's own word on the apply decides, not the plan it declared:
+    # `failed`/`partial`/`stale` used to fall through here and report a write
+    # that never happened. `verified` is the only name for success.
+    if reported != protocol.SUCCESS_STATE:
+        code = (
+            "AI_STP_PARTIAL_OPERATION"
+            if reported in {"partial", "applied_unverified"}
+            else "AI_STP_COMPENSATED"
+            if reported == "rolled_back"
+            else "AI_STP_PRECONDITION_FAILED"
+        )
+        raise CliFailure(
+            code,
+            "the provider did not verify the instruction-region apply",
+            details={"operation": PATCH_OPERATION.value, "state": reported},
+        )
+    # And the verification is re-observed, the way install re-reads `status`
+    # after every apply: the digest reported back is what the provider sees in
+    # the marked section now, not what this process asked it to write.
+    observed = _object(invoke("status", ()))
+    region = _object(observed.get("instruction_region") or {})
+    observed_digest = region.get("section_sha256")
+    if not isinstance(observed_digest, str) or not observed_digest.startswith("sha256:"):
+        raise CliFailure(
+            "AI_STP_PRECONDITION_FAILED",
+            "the provider verified the apply but reports no instruction region",
+            details={"operation": PATCH_OPERATION.value},
+        )
     return PatchObservation(
-        section_digest=section_digest(desired),
-        wrote=_region_wrote(plan.effects),
+        section_digest=observed_digest,
+        wrote=bool(region.get("section_present")),
     )
 
 
@@ -263,11 +338,6 @@ def patch_file_text(existing: str, section: str) -> tuple[str, bool]:
     if not existing:
         return section, True
     return splice_section(existing, desired), True
-
-
-def _region_wrote(effects: tuple[str, ...]) -> bool:
-    """Kernel always emits one effect line; empty would fail require_plan."""
-    return any(item.startswith("patch instruction region at ") for item in effects)
 
 
 def global_instruction(harness_id: str) -> harness_catalog.Layout | None:

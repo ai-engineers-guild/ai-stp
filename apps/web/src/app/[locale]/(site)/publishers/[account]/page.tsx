@@ -11,7 +11,7 @@ import { PublisherActions } from "@/components/organisms/publisher-actions";
 import { StatePanel } from "@/components/molecules/state-panel";
 import { VerifiedAvatar } from "@/components/molecules/verified-avatar";
 import { ApiError } from "@/lib/api/errors";
-import { readPublisherProfile, readPublisherStats } from "@/lib/api/public-profile";
+import { readPublisherProfile } from "@/lib/api/public-profile";
 import { asAccountId } from "@/lib/brands";
 import { catalogQueryToRecord, parseCatalogSearchParams } from "@/lib/catalog-query";
 import { startCatalogResourceReads } from "@/lib/catalog-load";
@@ -19,7 +19,6 @@ import { buildDeepLink, normalizeTarget } from "@/lib/deep-links";
 import { readSession } from "@/lib/auth/session";
 import { publicOrigin } from "@/lib/site";
 import { renderMarkdownOnServer } from "@/lib/markdown/render";
-import { Icon } from "@/theme";
 
 function linkHost(url: string): string {
   try {
@@ -48,36 +47,6 @@ function ProfileLinks({ links }: { links: ReadonlyArray<{ label: string; url: st
         </li>
       ))}
     </ul>
-  );
-}
-
-function ProfileStat({
-  icon,
-  label,
-  value,
-  locale,
-}: {
-  icon: "cards" | "heart" | "eye";
-  label: string;
-  value: number;
-  locale: string;
-}) {
-  const formattedValue = value.toLocaleString(locale);
-  return (
-    <span
-      className="group/stat text-muted-foreground hover:text-foreground relative inline-flex items-center gap-1.5 rounded-sm text-sm transition-colors"
-      title={`${label}: ${formattedValue}`}
-      aria-label={`${label}: ${formattedValue}`}
-    >
-      <Icon name={icon} size="sm" />
-      <span className="font-mono text-xs tabular-nums">{formattedValue}</span>
-      <span
-        role="tooltip"
-        className="border-border bg-popover text-popover-foreground pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 hidden -translate-x-1/2 rounded-md border px-2 py-1 text-xs whitespace-nowrap shadow-md group-hover/stat:block"
-      >
-        {label}
-      </span>
-    </span>
   );
 }
 
@@ -126,10 +95,7 @@ export default async function PublisherPage({ params, searchParams }: PageProps)
   }
   const query = parsed.value;
   const started = startCatalogResourceReads(query);
-  const [services, stats] = await Promise.all([
-    started.services,
-    readPublisherStats(accountId).catch(() => null),
-  ]);
+  const services = await started.services;
   let errorMessage: string | null = null;
   let components: Awaited<typeof started.components> = null;
   let setups: Awaited<typeof started.setups> = null;
@@ -295,28 +261,6 @@ export default async function PublisherPage({ params, searchParams }: PageProps)
         rail={
           <section className="border-border bg-card space-y-4 rounded-lg border p-5">
             <h2 className="text-sm font-medium">{t("publishedObjects")}</h2>
-            {stats ? (
-              <div className="flex flex-wrap gap-4">
-                <ProfileStat
-                  icon="cards"
-                  label={t("objectsStat")}
-                  value={stats.total_objects}
-                  locale={locale}
-                />
-                <ProfileStat
-                  icon="heart"
-                  label={t("likesStat")}
-                  value={stats.likes_count}
-                  locale={locale}
-                />
-                <ProfileStat
-                  icon="eye"
-                  label={t("viewsAndDownloadsStat")}
-                  value={stats.detail_views_count + stats.artifact_downloads_count}
-                  locale={locale}
-                />
-              </div>
-            ) : null}
             <p className="text-muted-foreground font-mono text-xs break-all">
               {profile.account_id}
             </p>

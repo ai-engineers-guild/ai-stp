@@ -4,6 +4,7 @@ from collections.abc import Sequence
 from typing import Literal, cast
 
 from sqlalchemy import and_, or_, select, true
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import InstrumentedAttribute
 from sqlalchemy.sql.elements import ColumnElement
@@ -1579,64 +1580,52 @@ async def distribute_assignment(
             source.state = "retired"
             source.revision += 1
             await db.flush()
-        for index, plan in enumerate(plans):
+        for plan in plans:
             # Reuse a row at this operation revision so a repeat operation can
-            # update the durable outcome without colliding on the composite key.
+            # update the durable outcome without colliding on the composite
+            # key. The upsert is the race arbiter: a failed flush inside
+            # `begin_nested` marks the whole session rollback-required in
+            # SQLAlchemy, so per-target savepoint isolation cannot survive a
+            # concurrent insert.
             prior = existing_by_key.get((plan.target_kind, plan.target_id, operation_revision))
-            try:
-                async with db.begin_nested():
-                    if prior is not None:
-                        prior.action = payload.action
-                        prior.result = plan.result
-                        prior.state = plan.state
-                        prior.diagnostic = plan.diagnostic
-                        prior.overriding_assignment_id = plan.overriding_assignment_id
-                    else:
-                        db.add(
-                            DistributionRow(
-                                organization_id=organization_id,
-                                source_assignment_id=source.id,
-                                target_kind=plan.target_kind,
-                                target_id=plan.target_id,
-                                operation_revision=operation_revision,
-                                action=payload.action,
-                                result=plan.result,
-                                state=plan.state,
-                                diagnostic=plan.diagnostic,
-                                overriding_assignment_id=plan.overriding_assignment_id,
-                            )
-                        )
-            except Exception:
-                plans[index] = plan.model_copy(
-                    update={
-                        "result": "failed",
-                        "state": "failed",
-                        "diagnostic": "distribution record failed",
-                    }
+            if prior is not None:
+                prior.action = payload.action
+                prior.result = plan.result
+                prior.state = plan.state
+                prior.diagnostic = plan.diagnostic
+                prior.overriding_assignment_id = plan.overriding_assignment_id
+            else:
+                await db.execute(
+                    pg_insert(DistributionRow)
+                    .values(
+                        organization_id=organization_id,
+                        source_assignment_id=source.id,
+                        target_kind=plan.target_kind,
+                        target_id=plan.target_id,
+                        operation_revision=operation_revision,
+                        action=payload.action,
+                        result=plan.result,
+                        state=plan.state,
+                        diagnostic=plan.diagnostic,
+                        overriding_assignment_id=plan.overriding_assignment_id,
+                    )
+                    .on_conflict_do_update(
+                        index_elements=[
+                            DistributionRow.organization_id,
+                            DistributionRow.source_assignment_id,
+                            DistributionRow.target_kind,
+                            DistributionRow.target_id,
+                            DistributionRow.operation_revision,
+                        ],
+                        set_={
+                            "action": payload.action,
+                            "result": plan.result,
+                            "state": plan.state,
+                            "diagnostic": plan.diagnostic,
+                            "overriding_assignment_id": plan.overriding_assignment_id,
+                        },
+                    )
                 )
-                try:
-                    async with db.begin_nested():
-                        if prior is not None:
-                            prior.action = payload.action
-                            prior.result = "failed"
-                            prior.state = "failed"
-                            prior.diagnostic = "distribution record failed"
-                        else:
-                            db.add(
-                                DistributionRow(
-                                    organization_id=organization_id,
-                                    source_assignment_id=source.id,
-                                    target_kind=plan.target_kind,
-                                    target_id=plan.target_id,
-                                    operation_revision=operation_revision,
-                                    action=payload.action,
-                                    result="failed",
-                                    state="failed",
-                                    diagnostic="distribution record failed",
-                                )
-                            )
-                except Exception:
-                    pass
         await emit_audit(
             db,
             actor_account_id=ctx.account_id,

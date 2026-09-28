@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ai_stp_platform.official_upstream.github import FetchFn
 from ai_stp_platform.official_upstream.sync import run_sync
+from ai_stp_platform.queue.states import PermanentJobFailure
 from ai_stp_platform.storage.object_store import ImmutableObjectStore
 
 
@@ -22,7 +23,7 @@ async def handle_official_upstream_sync(
 ) -> None:
     source_id = payload.get("source_id")
     if not isinstance(source_id, str) or not source_id:
-        raise ValueError("official_upstream_sync requires source_id")
+        raise PermanentJobFailure("official_upstream_sync requires source_id")
     moment = now if isinstance(now, datetime) else None
     raw_attempt = payload.get("attempt_id")
     attempt_id = raw_attempt if isinstance(raw_attempt, int) else None

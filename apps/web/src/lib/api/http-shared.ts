@@ -1,7 +1,6 @@
 import { getEnv, type AppEnv } from "@/lib/env";
 
 import { ApiError, mapHttpError } from "./errors";
-import { mockFetch, mockResultToData } from "./mock-transport";
 
 /** Auth surface with no dev-reachable backend (OAuth needs provider credentials). */
 const AUTH_MOCK_PREFIXES = ["/v1/auth", "/v1/account", "/v1/devices"] as const;
@@ -63,6 +62,7 @@ export async function executeJsonRequest<T>(
   const mock = usesMock(path, env);
 
   if (mock) {
+    const { mockFetch, mockResultToData } = await import("./mock-transport");
     const mockInit: { query: URLSearchParams; headers: Record<string, string>; body?: string } = {
       query: buildQuery(options.query),
       headers: options.headers,

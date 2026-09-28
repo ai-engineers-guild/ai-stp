@@ -14,6 +14,7 @@ from ai_stp_api.deps import get_auth_settings, get_db, require_auth
 from ai_stp_api.errors import ApiError, ErrorCategory
 from ai_stp_api.session import AuthContext
 from ai_stp_api.settings import AuthSettings
+from ai_stp_api.slices.devices.domain import DeviceState
 from ai_stp_api.slices.devices.dto import (
     ChallengeRequest,
     RegisterDeviceRequest,
@@ -25,10 +26,15 @@ from ai_stp_api.slices.devices.service import (
     revoke_device,
     stored_summaries,
 )
+from ai_stp_contracts.http import PAGE_SIZE_MAX
 from ai_stp_foundation.timestamps import format_timestamp
 from ai_stp_platform.models import Device
 
 router = APIRouter(tags=["devices"])
+
+# The applied bound the endpoint reports in `page.page_size`; the wire type
+# (`DeviceListResponse.items`) forbids returning more than PAGE_SIZE_MAX.
+_DEVICE_PAGE_SIZE = PAGE_SIZE_MAX
 
 
 def _wire_ts(value: datetime | None) -> str:
@@ -41,18 +47,17 @@ def _wire_ts(value: datetime | None) -> str:
 
 
 def _device_etag(device: Device) -> str:
-    # Authentication refreshes ``last_seen_at`` before the route runs. That is
-    # observational activity, not a concurrent edit of the revocable resource;
-    # including ``updated_at`` would therefore invalidate an ETag on every
-    # authenticated request, including the revoke request carrying it.
+    # Authentication refreshes ``last_seen_at``, ``user_agent`` and
+    # ``approximate_location`` on every request. That is observational
+    # activity, not a concurrent edit of the revocable resource; any of them
+    # in the hash would invalidate an ETag between the read that minted it and
+    # the revoke carrying it — ``updated_at`` stays out for the same reason.
     raw = ":".join(
         (
             device.id,
             device.state,
             device.created_at.isoformat() if device.created_at else "",
             device.device_type,
-            device.approximate_location or "",
-            device.user_agent or "",
         )
     )
     digest = hashlib.sha256(raw.encode("utf-8")).hexdigest()[:16]
@@ -142,7 +147,7 @@ async def device_list(
 ) -> JSONResponse:
     """List devices as OpenAPI DeviceListResponse (items + page)."""
     del request
-    summaries = await list_devices(
+    devices = await list_devices(
         db,
         ctx=ctx,
         subject_account_id=account_id,
@@ -150,14 +155,9 @@ async def device_list(
     )
     target = account_id or ctx.account_id
     synced = await stored_summaries(
-        db, account_id=target, device_ids=[summary.id for summary in summaries]
+        db, account_id=target, device_ids=[device.id for device in devices]
     )
-    items: list[dict[str, object]] = []
-    for summary in summaries:
-        device = await db.get(Device, summary.id)
-        if device is None:
-            continue
-        items.append(_device_record(device, summary=synced.get(device.id)))
+    items = [_device_record(device, summary=synced.get(device.id)) for device in devices]
     # Newest activity first (contract).
     items.sort(key=lambda row: str(row.get("last_active_at") or ""), reverse=True)
     return JSONResponse(
@@ -167,7 +167,9 @@ async def device_list(
             "page": {
                 "schema_version": 1,
                 "next_cursor": None,
-                "page_size": max(len(items), 1),
+                # The contract's `page_size` is the maximum the endpoint will
+                # return per page, not however many rows happened to exist.
+                "page_size": _DEVICE_PAGE_SIZE,
             },
         },
         status_code=200,
@@ -196,7 +198,10 @@ async def device_revoke(
         raise ApiError(ErrorCategory.PERMISSION, "permission denied")
 
     current = _device_etag(device)
-    if if_match.strip() != current:
+    # A retry of a completed revoke carries the pre-revoke ETag and would
+    # collide with `state` inside the hash. An already-revoked device is the
+    # idempotent replay: answer 200 rather than a false precondition race.
+    if device.state != DeviceState.REVOKED.value and if_match.strip() != current:
         raise ApiError(ErrorCategory.PRECONDITION, "precondition failed")
 
     await revoke_device(db, ctx=ctx, device_id=device_id)

@@ -165,13 +165,22 @@ async def test_worker_processes_success_missing_unknown_and_failed_jobs(
         del session, payload
         raise ValueError("expected")
 
-    async def fail(session: object, job: object, *, error: str, permanent: bool = False) -> None:
-        del session, permanent
+    async def fail(
+        session: object,
+        job: object,
+        *,
+        error: str,
+        permanent: bool = False,
+        locked_by: str | None = None,
+    ) -> bool:
+        del session, permanent, locked_by
         events.append((error, job))
+        return True
 
-    async def succeeded(session: object, job: object) -> None:
-        del session
+    async def succeeded(session: object, job: object, *, locked_by: str | None = None) -> bool:
+        del session, locked_by
         events.append(("succeeded", job))
+        return True
 
     monkeypatch.setattr(runner, "claim", claim)
 

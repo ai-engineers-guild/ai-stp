@@ -5,9 +5,8 @@ version contract, the rules that are checked mechanically, the features that
 are accepted and the ones that are rejected — with the reason, because a rule
 without its reason gets re-litigated every time it is met.
 
-These are internal working rules for this working copy, like `AGENTS.md`:
-they are withheld from the public export in
-`release_scripts/public_manifest.toml`.
+These are working rules for this repository, like `AGENTS.md`, and are part of
+the public tree.
 
 ## Index
 

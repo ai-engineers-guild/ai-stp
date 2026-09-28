@@ -33,6 +33,8 @@ from ai_stp_contracts.assurance import (
 from ai_stp_contracts.auth import (
     AuthLogoutResponse,
     AuthMeResponse,
+    DeviceApproveRequest,
+    DeviceApproveResponse,
     DeviceAuthorizationRequest,
     DeviceAuthorizationResponse,
     DeviceChallengeRequest,
@@ -2326,6 +2328,16 @@ OPERATIONS: Final[tuple[Operation, ...]] = (
         response=DeviceTokenResponse,
         body=DeviceRefreshRequest,
         authenticated=True,
+    ),
+    Operation(
+        method="post",
+        path="/auth/device/approve",
+        operation_id="approveDeviceAuthorization",
+        summary="Bind a pending user code to the signed-in account.",
+        response=DeviceApproveResponse,
+        body=DeviceApproveRequest,
+        authenticated=True,
+        errors=("AI_STP_NOT_FOUND", "AI_STP_VALIDATION_ERROR", "AI_STP_CONFLICT"),
     ),
     Operation(
         method="get",

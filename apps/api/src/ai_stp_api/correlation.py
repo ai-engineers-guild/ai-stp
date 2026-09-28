@@ -17,10 +17,13 @@ from ai_stp_api.envelope import error_response
 from ai_stp_api.observability import current_trace_id
 from ai_stp_contracts.http import SCHEMA_VERSION, SCHEMA_VERSION_HEADER
 from ai_stp_foundation.ids import new_id
+from ai_stp_platform.logging import get_logger
 
 REQUEST_ID_HEADER = "X-Request-Id"
 CORRELATION_HEADER = "X-Correlation-Id"
 TRACE_ID_HEADER = "X-Trace-Id"
+
+_log = get_logger("correlation")
 
 
 class CorrelationMiddleware(BaseHTTPMiddleware):
@@ -67,7 +70,26 @@ class CorrelationMiddleware(BaseHTTPMiddleware):
                 response.headers[CORRELATION_HEADER] = correlation_id
                 return response
 
-        response = await call_next(request)
+        try:
+            response = await call_next(request)
+        except Exception:
+            # ExceptionMiddleware only sees route-raised errors: a fault inside
+            # an inner middleware — or a second fault inside the error handlers
+            # themselves — propagates through `call_next` and would reach the
+            # server as a bare 500 with no correlation headers and no envelope.
+            _log.exception(
+                "unhandled_exception",
+                request_id=request_id,
+                correlation_id=correlation_id,
+            )
+            response = error_response(
+                request_id=request_id,
+                code="AI_STP_INTERNAL",
+                message="internal error",
+                retryable=False,
+                status_code=500,
+                details={},
+            )
 
         response.headers[REQUEST_ID_HEADER] = request_id
         response.headers[CORRELATION_HEADER] = correlation_id

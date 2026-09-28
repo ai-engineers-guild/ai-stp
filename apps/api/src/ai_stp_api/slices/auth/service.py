@@ -17,7 +17,7 @@ from ai_stp_api.slices.auth.domain import (
 from ai_stp_foundation.ids import new_id
 from ai_stp_platform.grant_identity_models import OAuthIdentityAlias
 from ai_stp_platform.identity import allocate_account_identity
-from ai_stp_platform.models import Account, Device, OAuthIdentity
+from ai_stp_platform.models import Account, OAuthIdentity
 from ai_stp_platform.organization_models import CorporateProvisionedIdentity
 from ai_stp_platform.tenant_scope import set_tenant_scope
 
@@ -47,37 +47,6 @@ async def _accounts_for_verified_email(db: AsyncSession, email: str) -> list[str
         .distinct()
     )
     return list(result.scalars().all())
-
-
-async def is_account_populated(db: AsyncSession, account_id: str) -> bool:
-    """An account is populated if it has linked identities, devices or catalog.
-
-    Two populated accounts must never be silently merged (REQ-202).
-    """
-    identity_count = await db.scalar(
-        select(func.count())
-        .select_from(OAuthIdentity)
-        .where(
-            OAuthIdentity.account_id == account_id,
-            OAuthIdentity.state == LinkState.LINKED.value,
-        )
-    )
-    if identity_count and identity_count > 0:
-        # A single linked identity still counts as populated once the account
-        # also owns devices; pure first-login accounts are handled by callers
-        # before a second identity is attached. Device ownership is the hard
-        # signal of local data; catalog ownership is out of this slice's write
-        # path but still checked for conservatism.
-        device_count = await db.scalar(
-            select(func.count()).select_from(Device).where(Device.account_id == account_id)
-        )
-        if device_count and device_count > 0:
-            return True
-        return identity_count > 1
-    device_count = await db.scalar(
-        select(func.count()).select_from(Device).where(Device.account_id == account_id)
-    )
-    return bool(device_count and device_count > 0)
 
 
 async def _create_account(db: AsyncSession) -> Account:
@@ -331,21 +300,19 @@ async def resolve_step_up_link(
                 linked_identity=was_revoked,
                 state=LinkState(existing.state),
             )
-        # Identity already bound to another account → never silent-merge.
-        other_populated = await is_account_populated(db, existing.account_id)
-        self_populated = await is_account_populated(db, session_account_id)
-        if other_populated or self_populated or existing.account_id != session_account_id:
-            existing.state = LinkState.CONFLICT.value
-            await db.flush()
-            await emit_audit(
-                db,
-                actor_account_id=session_account_id,
-                action="auth.identity_conflict",
-                target_table="oauth_identity",
-                target_id=str(existing.id),
-                payload={"provider": normalized.provider},
-            )
-            raise ApiError(ErrorCategory.CONFLICT, "identity link conflict")
+        # Identity already bound to another account → never silent-merge and
+        # never mutate the foreign row: flipping someone else's identity to
+        # CONFLICT would let a step-up attempt break another account's link.
+        # The audit row — attributed to the requester — is the record.
+        await emit_audit(
+            db,
+            actor_account_id=session_account_id,
+            action="auth.identity_conflict",
+            target_table="oauth_identity",
+            target_id=str(existing.id),
+            payload={"provider": normalized.provider},
+        )
+        raise ApiError(ErrorCategory.CONFLICT, "identity link conflict")
 
     identity = await _attach_identity(db, account_id=session_account_id, profile=normalized)
     await emit_audit(
@@ -390,6 +357,14 @@ async def unlink_identity(
     can re-link without colliding on the unique (provider, subject) key.
     """
     name = provider.strip().lower()
+    # Serialize unlinks for this account: without the row lock two concurrent
+    # unlinks both count `active == 2`, both revoke, and the account is left
+    # with no sign-in path at all. The loser waits, then recounts committed
+    # state (READ COMMITTED re-reads after the lock is granted).
+    locked = await db.execute(select(Account.id).where(Account.id == account_id).with_for_update())
+    if locked.scalar_one_or_none() is None:
+        raise ApiError(ErrorCategory.NOT_FOUND, "account not found")
+
     result = await db.execute(
         select(OAuthIdentity).where(
             OAuthIdentity.account_id == account_id,

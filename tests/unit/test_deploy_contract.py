@@ -1,10 +1,8 @@
 """The deployment contract this repository publishes and this repository runs.
 
-Split out of the private working copy's `test_deploy_hardening.py` when the
-deployment source became the public repository (`ADR-0109`). What stayed behind
-asserts a runner fleet that only that working copy has; what is here asserts the
-promotion workflow and the host-side deployer, both of which are published — and
-must therefore be provable from the tree that actually deploys.
+This tree is the public repository and the deployment source (`ADR-0109`,
+`ADR-0110`): it asserts the promotion workflow and the host-side deployer, both
+of which must be provable from the tree that actually deploys.
 """
 
 from __future__ import annotations
@@ -19,16 +17,8 @@ from urllib.parse import urlsplit
 import pytest
 from deploy import verify_public
 
-#: Only the tree that promotes carries this workflow. The private working copy
-#: stopped promoting under `ADR-0109`, and asserting a file it must not have
-#: would fail there for the right reason but the wrong outcome. The property
-#: that matters for that tree is the opposite one, and it is asserted in
-#: `test_deploy_hardening.py`: it must hold no deployment workflow at all.
-#: Where the workflows this tree runs live. The working copy runs none of its
-#: own since `ADR-0110`, so what it holds is the overlay it publishes; the built
-#: tree holds those same files as its actual gate. One resolution, stated once.
-_OVERLAY = Path("release_scripts/public_overlay/.github/workflows")
-WORKFLOWS = _OVERLAY if _OVERLAY.is_dir() else Path(".github/workflows")
+#: Where the workflows this tree runs live.
+WORKFLOWS = Path(".github/workflows")
 
 DEPLOY_WORKFLOW = WORKFLOWS / "deploy.yml"
 
@@ -767,10 +757,7 @@ def test_the_deploy_workflow_names_the_repository_ancestry_is_asked_of() -> None
     """The predicate is only reachable if the workflow supplies its input.
 
     Read through `_deploy_workflow`, which is where this file resolves that path
-    once — overlay first, then the tree's own, and skip where neither exists. I
-    wrote `Path(".github/workflows/deploy.yml")` here instead and it failed in
-    the copy that holds no workflows: a second resolution of a fact this module
-    states at the top, in the same session spent removing exactly that.
+    once and skips where the workflow is absent.
     """
     assert "--repository" in _deploy_workflow()
 

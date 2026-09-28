@@ -106,10 +106,9 @@ The separation of trust domains from `ADR-0046` rests on three assertions:
 - the source is narrowed twice: `workflow_run` after a completed `check`, plus an explicit
   check for `event == push` and `head_branch == main`.
 
-`tests/unit/test_deploy_contract.py` checks the public workflow's deployment
+`tests/unit/test_deploy_contract.py` checks the workflow's deployment
 credentials, runner boundary, exact source SHA and event guards, together with
-the host pull script. The private authoring tree has separate fleet hardening
-checks; those withheld tests are not part of this public checkout.
+the host pull script.
 
 The public route is verified **off** the host: a separate job
 `verify-public` on a standard GitHub runner, which needs only outbound

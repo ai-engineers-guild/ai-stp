@@ -258,8 +258,7 @@ No `-check` recipe writes anything: generated/source divergence is caught in
 callable so a failure can be reproduced precisely without running neighboring
 groups. The full convention set — settings and attribute policy, parameter
 documentation, and the checklist for adding a recipe — lives in
-`standards/just.md`. That directory is withheld from the public export
-(`release_scripts/public_manifest.toml`). `standards/docker.md` owns the
+`standards/just.md`. `standards/docker.md` owns the
 `infra-*` surface.
 
 Outside the groups are `setup`, `hooks`, `gen`, `check`, `pre-commit`, and
@@ -269,9 +268,10 @@ were second names for `check` and were removed. The Git pre-commit hook calls
 fast `just pre-commit`; there is no pre-push hook for the expensive suites, and
 full `just check` remains the CI gate.
 
-`security` is repository-wide, not group-specific: the dependency scanner is
-currently one tool (`bun audit`). A Python scanner is added to the same recipe when
-chosen, rather than creating an empty `back-security` in advance.
+`security` is repository-wide, not group-specific: the recipe runs `bun audit`
+over the web lockfile and `scripts/safety/scan_lockfile.sh`, which fetches the
+pinned `osv-scanner` (checksum-verified from its own release SHA256SUMS) and
+scans `uv.lock` for Python advisories.
 
 ## Frontend (`apps/web`)
 

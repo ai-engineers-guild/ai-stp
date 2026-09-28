@@ -9,7 +9,7 @@ last_verified: "2026-08-03"
 
 | Document | Description | Verified |
 | -------- | ----- | ------- |
-| [adr/](adr/index.md) | Принятые архитектурные решения и их последствия. | 2026-08-03 |
+| [adr/](adr/index.md) | Adopted architecture decisions and their consequences. | 2026-08-03 |
 | [agent/](agent/index.md) | How the Agent uses the CLI, remaining stops, and machine confirmation. | 2026-08-03 |
 | [architecture/](architecture/index.md) | Product architecture, responsibility boundaries, and key contracts. | 2026-08-03 |
 | [archive/](archive/index.md) | Historical plans, prototypes, and checkpoints retained without semantic edits. | 2026-09-20 |

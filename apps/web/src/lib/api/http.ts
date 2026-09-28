@@ -5,7 +5,6 @@ import { getEnv } from "@/lib/env";
 
 import { ApiError, mapHttpError } from "./errors";
 import { executeJsonRequest, usesMock, type QueryValue } from "./http-shared";
-import { mockFetch, mockResultToData } from "./mock-transport";
 
 export type PrivateRequestOptions = {
   method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
@@ -131,6 +130,7 @@ export async function apiRequestBinary<T>(
       headers: mockHeaders,
       body: options.body,
     };
+    const { mockFetch, mockResultToData } = await import("./mock-transport");
     const [mockPath, rawQuery] = path.split("?", 2);
     const result = mockFetch(method, mockPath ?? path, {
       ...mockInit,
@@ -184,6 +184,7 @@ export async function apiRequestWithMeta<T>(
   const headers = await buildHeaders(method, options, mock);
 
   if (mock) {
+    const { mockFetch, mockResultToData } = await import("./mock-transport");
     const mockInit: { headers: Record<string, string>; body?: string } = { headers };
     if (options.body !== undefined) {
       mockInit.body = JSON.stringify(options.body);

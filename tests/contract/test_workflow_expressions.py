@@ -27,8 +27,7 @@ from typing import Any, cast
 import pytest
 import yaml
 
-_OVERLAY = Path("release_scripts/public_overlay/.github/workflows")
-WORKFLOWS = _OVERLAY if _OVERLAY.is_dir() else Path(".github/workflows")
+WORKFLOWS = Path(".github/workflows")
 
 #: Contexts that exist only inside a step. A job-level `env`, `if` or `name`
 #: naming one of these is a parse error for the whole file.
@@ -37,7 +36,7 @@ STEP_ONLY = ("runner", "steps", "job", "env")
 
 def _files() -> list[Path]:
     if not WORKFLOWS.is_dir():
-        pytest.skip("this tree carries no workflows (ADR-0110)")
+        pytest.skip("this tree carries no workflows")
     found = sorted(WORKFLOWS.glob("*.yml"))
     assert found, "the workflow directory exists and is empty"
     return found
@@ -70,32 +69,3 @@ def test_actionlint_accepts_every_workflow() -> None:
         check=False,
     )
     assert result.returncode == 0, result.stdout or result.stderr
-
-
-#: The same script exists twice: once where this repository keeps it and once in
-#: the overlay that becomes the public tree. Only the overlay copy ever runs,
-#: because this repository has no workflows (`ADR-0110`).
-PRIVATE_SCRIPTS = Path(".github/scripts")
-OVERLAY_SCRIPTS = Path("release_scripts/public_overlay/.github/scripts")
-
-
-def test_both_copies_of_every_workflow_script_agree() -> None:
-    """A fix applied to the copy that never runs is not a fix.
-
-    `just` was dropped from the required PATH when CI stopped depending on it —
-    in `.github/scripts/`, which this repository does not execute. The overlay
-    copy kept requiring it, so every Python job on the public gate failed with
-    `provider-safe PATH has no just` while the private tree looked correct.
-
-    Two copies that can disagree silently is the defect; this makes them
-    disagree loudly instead.
-    """
-    if not OVERLAY_SCRIPTS.is_dir():
-        pytest.skip("this tree does not carry the overlay (ADR-0110)")
-    for overlay in sorted(OVERLAY_SCRIPTS.glob("*.sh")):
-        private = PRIVATE_SCRIPTS / overlay.name
-        assert private.is_file(), f"{overlay.name} exists only in the overlay"
-        assert private.read_text(encoding="utf-8") == overlay.read_text(encoding="utf-8"), (
-            f"{overlay.name} differs between the tree and the overlay; only the "
-            "overlay copy runs, so the difference is what CI will use"
-        )

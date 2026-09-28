@@ -26,8 +26,17 @@ def active_locale() -> str:
 
 @lru_cache(maxsize=4)
 def _catalog(locale: str) -> dict[str, str]:
-    payload = files("ai_stp_cli").joinpath("messages", f"{locale}.json").read_text(encoding="utf-8")
-    parsed: object = json.loads(payload)
+    try:
+        payload = (
+            files("ai_stp_cli").joinpath("messages", f"{locale}.json").read_text(encoding="utf-8")
+        )
+        parsed: object = json.loads(payload)
+    except (OSError, ValueError):
+        # A missing or unreadable catalog degrades to the source strings: the
+        # lookup runs inside `CliFailure` construction, which itself runs inside
+        # `main`'s exception handlers — a packaging defect must not leave the
+        # invocation without any envelope at all.
+        return {}
     if not isinstance(parsed, dict):
         return {}
     catalog: dict[str, str] = {}

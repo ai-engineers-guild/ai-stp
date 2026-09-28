@@ -27,7 +27,13 @@ from typing import Final, Literal, Protocol, cast
 
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.paths import data_dir, ensure_directory, redact_home, write_private
-from ai_stp_cli.provider import build_attestation, conformance, protocol_v3, release
+from ai_stp_cli.provider import (
+    build_attestation,
+    invocation,
+    network_launcher,
+    protocol_v3,
+    release,
+)
 from ai_stp_foundation.canonical import JsonValue
 from ai_stp_foundation.harnesses import HARNESS_IDS
 
@@ -163,9 +169,24 @@ def artifact_url(repository: str, tag: str, asset: str) -> str:
     return f"https://github.com/{_owner_repo(repository)}/releases/download/{tag}/{asset}"
 
 
-def inspect_provider(executable: Path) -> protocol_v3.ProviderCapabilities:
-    """Read `provider-info` from already-attested bytes. Observing, not installing."""
-    raw = conformance.invoke_argv((str(executable), "provider-info"), command="provider-info")
+def inspect_provider(
+    executable: Path, *, unisolated_reason: str | None = None
+) -> protocol_v3.ProviderCapabilities:
+    """Read `provider-info` from already-attested bytes. Observing, not installing.
+
+    The same isolation boundary every other v3 command rides — a `provider-info`
+    probe used to go around it through a bare `invoke_argv`, which ran the
+    executable with ambient network on platforms the boundary exists to guard.
+    `provider-info` takes no target; the artifact's own directory stands in for
+    the target argument the invoker requires and never reaches argv.
+    """
+    invoke = invocation.provider_invoker(
+        str(executable),
+        str(executable.parent),
+        protocol_v3.VERSION,
+        unisolated_reason=unisolated_reason,
+    )
+    raw = invoke("provider-info", ())
     if not isinstance(raw, dict) or "error" in raw:
         raise CliFailure(
             "AI_STP_PRECONDITION_FAILED",
@@ -236,7 +257,11 @@ def fetch(
         ),
         bundle=attestation_bundle,
     )
-    capabilities = (inspect or inspect_provider)(destination)
+    capabilities = (
+        inspect(destination)
+        if inspect is not None
+        else inspect_provider(destination, unisolated_reason=network_launcher.TRUSTED_RELEASE)
+    )
     if capabilities.harness_id != harness:
         raise CliFailure(
             "AI_STP_PRECONDITION_FAILED",

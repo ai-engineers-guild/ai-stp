@@ -1,6 +1,8 @@
 """Regenerate component-version bodies in the HTTP contract corpus."""
 
+import argparse
 import json
+import sys
 from pathlib import Path
 from typing import cast
 
@@ -13,7 +15,7 @@ from ai_stp_passports.envelope import derive_revision_id
 TARGET = Path("packages/contracts/src/ai_stp_contracts/fixtures/v1/catalog.json")
 
 
-def main() -> None:
+def render() -> bytes:
     document = json.loads(TARGET.read_text(encoding="utf-8"))
     current = next(
         passport
@@ -48,8 +50,30 @@ def main() -> None:
         body["passport_digest"] = digest_bytes(
             "ai-stp:passport:v1", canonize(cast(JsonValue, passport))
         )
-    TARGET.write_bytes(json.dumps(document, indent=2, ensure_ascii=False).encode("utf-8") + b"\n")
+    return json.dumps(document, indent=2, ensure_ascii=False).encode("utf-8") + b"\n"
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--check",
+        action="store_true",
+        help="compare the committed corpus against a fresh render, writing nothing",
+    )
+    arguments = parser.parse_args()
+    rendered = render()
+    if arguments.check:
+        if not TARGET.is_file() or TARGET.read_bytes() != rendered:
+            print(
+                f"contract corpus drifted from its seed source: {TARGET}; "
+                "run release_scripts/update_component_fixture.py",
+                file=sys.stderr,
+            )
+            return 1
+        return 0
+    TARGET.write_bytes(rendered)
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

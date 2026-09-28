@@ -156,10 +156,23 @@ def write(target: Path | None = None) -> list[Path]:
 
 
 def check(target: Path | None = None) -> list[str]:
-    """Compare generated TypeScript against the committed files."""
+    """Compare generated TypeScript against the committed files.
+
+    The comparison is a closed set: a rendered member that is missing or
+    changed is drift, and a committed file no generator produced is an
+    undeclared second source. Comparing members alone would let an orphaned
+    file sit beside the projections and read as one of them.
+    """
     root = target or (_repo_root() / WEB_LIB)
     problems: list[str] = []
     rendered = render_all()
+    extra = sorted(
+        path.name
+        for path in (root.iterdir() if root.is_dir() else iter(()))
+        if path.is_file() and path.name not in rendered
+    )
+    for name in extra:
+        problems.append(f"generated web projection has no contract source: {root / name}")
     for name, content in rendered.items():
         path = root / name
         if not path.exists():

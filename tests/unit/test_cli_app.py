@@ -3,6 +3,7 @@
 
 import io
 import json
+import sqlite3
 import sys
 from collections.abc import Callable, Mapping
 from pathlib import Path
@@ -1610,3 +1611,77 @@ def test_everything_after_the_terminator_is_operand_text(
     error = cast(Mapping[str, object], _envelope(out)["error"])
     assert "--help" in str(error["message"])
     assert error["message"] != "usage text is not machine readable"
+
+
+def test_a_hint_lookup_failure_cannot_escape_error_translation(
+    isolated_environment: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """`config.yaml` as a directory used to raise inside the Click handler.
+
+    The hint path reads the configuration and the registry while `main()` is
+    already unwinding a parse refusal; an exception raised inside an `except`
+    block left the process entirely — traceback, empty stdout, no machine
+    envelope. Measured: `task answer --json` exited 1 with an
+    `IsADirectoryError` traceback. A hint is best-effort by definition and
+    degrades to none.
+    """
+    config_dir = isolated_environment / "config" / "ai-stp"
+    config_dir.mkdir(parents=True)
+    (config_dir / "config.yaml").mkdir()
+    code, out, err = _run(["task", "answer", "--json"], capsys)
+    assert code == 2
+    assert err == ""
+    envelope = _envelope(out)
+    assert envelope["ok"] is False
+    assert envelope["error"]["code"] == "AI_STP_VALIDATION_ERROR"  # pyright: ignore[reportIndexIssue]
+
+
+def test_registry_translation_survives_an_unreadable_configuration(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """`_registry_failure` names the registry path — resolving it can itself fail.
+
+    The path comes from `config.yaml`, the very file whose unreadable state may
+    have produced the sqlite error being translated. A second failure inside
+    the handler must not lose the translation.
+    """
+    from ai_stp_cli.local import database
+
+    def broken_path() -> Path:
+        raise IsADirectoryError(21, "Is a directory", "config.yaml")
+
+    monkeypatch.setattr(database, "configured_path", broken_path)
+    failure = app._registry_failure(sqlite3.OperationalError("database is locked"))
+    assert failure is not None
+    assert failure.code == "AI_STP_CONFLICT"
+    assert failure.retryable is True
+
+
+def test_an_unconfigurable_stream_does_not_break_dispatch(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """`reconfigure` can refuse — a detached or foreign-owned stream is not ours."""
+
+    class Fussy(io.TextIOWrapper):
+        def reconfigure(self, **kwargs: object) -> None:
+            raise OSError("stream is not configurable")
+
+    # `ascii` encoding is what reaches `reconfigure` at all; a utf-8 stream is
+    # skipped before the call that can raise.
+    monkeypatch.setattr(sys, "stdout", Fussy(io.BytesIO(), encoding="ascii"))
+    code, _out, _err = _run(["version", "--json"], capsys)
+    assert code == 0
+
+
+def test_failure_render_survives_a_dead_stream() -> None:
+    """A dead output stream still yields the contract exit code, not a traceback."""
+    from ai_stp_cli.errors import CliFailure
+    from ai_stp_cli.output import render_failure
+
+    dead = io.TextIOWrapper(io.BytesIO())
+    dead.close()
+    failure = CliFailure("AI_STP_INTERNAL", "unexpected internal failure")
+    assert (
+        render_failure(failure, machine=True, request_id="r-dead-01", stream=dead)
+        == failure.exit_code
+    )

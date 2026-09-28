@@ -12365,6 +12365,57 @@
         "title": "DetectedHarness",
         "type": "object"
       },
+      "DeviceApproveRequest": {
+        "additionalProperties": false,
+        "description": "The browser half of device sign-in: bind a pending `user_code` to the\nsigned-in account. Carries no device identity — the key arrives at token\nexchange, after a human has approved.",
+        "properties": {
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "user_code": {
+            "$ref": "#/components/schemas/UserCode"
+          }
+        },
+        "required": [
+          "user_code"
+        ],
+        "title": "DeviceApproveRequest",
+        "type": "object"
+      },
+      "DeviceApproveResponse": {
+        "additionalProperties": true,
+        "description": "The grant as the approval page reports it.",
+        "properties": {
+          "provider": {
+            "$ref": "#/components/schemas/OAuthProvider"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "status": {
+            "const": "approved",
+            "title": "Status",
+            "type": "string"
+          },
+          "user_code": {
+            "$ref": "#/components/schemas/UserCode"
+          }
+        },
+        "required": [
+          "provider",
+          "schema_version",
+          "status",
+          "user_code"
+        ],
+        "title": "DeviceApproveResponse",
+        "type": "object"
+      },
       "DeviceAuthorizationRequest": {
         "additionalProperties": false,
         "description": "Start a sign-in. Carries the provider and the key that makes it repeatable.\n\nDeliberately not the device identity: at this point no human has approved\nanything, so there is nothing to bind a key to and no reason to accept one.\n\n`idempotency_key` is here because this route creates. `http-api.md` has always\nrequired one for creates, and `DeviceRevokeRequest` has always carried one —\nthis request simply did not, so a client whose response was lost had no way\nto retry without asking for a second authorization. The value is chosen by\nthe client and opaque to the server, which is what lets one logical start\nsurvive any number of transport attempts.",
@@ -32953,6 +33004,232 @@
         },
         "security": [],
         "summary": "Start a device-code sign-in. Carries no device identity."
+      }
+    },
+    "/v1/auth/device/approve": {
+      "post": {
+        "operationId": "approveDeviceAuthorization",
+        "parameters": [
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "examples": {
+                "approveDeviceAuthorization.approved": {
+                  "summary": "Approval is the human half of the flow: a signed-in account names the user code it is binding, and the answer echoes the code with the provider the device will poll against.",
+                  "value": {
+                    "schema_version": 1,
+                    "user_code": "BCDF-GHJK"
+                  }
+                }
+              },
+              "schema": {
+                "$ref": "#/components/schemas/DeviceApproveRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "approveDeviceAuthorization.approved": {
+                    "summary": "Approval is the human half of the flow: a signed-in account names the user code it is binding, and the answer echoes the code with the provider the device will poll against.",
+                    "value": {
+                      "provider": "google",
+                      "schema_version": 1,
+                      "status": "approved",
+                      "user_code": "BCDF-GHJK"
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/DeviceApproveResponse"
+                }
+              }
+            },
+            "description": "Bind a pending user code to the signed-in account.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_NOT_FOUND.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_CONFLICT.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Bind a pending user code to the signed-in account."
       }
     },
     "/v1/auth/device/refresh": {

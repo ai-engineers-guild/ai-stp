@@ -114,7 +114,9 @@ class Device(Base):
 
     __tablename__ = "device"
     __table_args__ = (
-        UniqueConstraint("account_id", "public_key", name="uq_device_account_public_key"),
+        # A device key identifies one device globally: the same Ed25519 key may
+        # never appear under two accounts, so uniqueness is on the key alone.
+        UniqueConstraint("public_key", name="uq_device_public_key"),
         CheckConstraint("state in ('active', 'revoked')", name="ck_device_state"),
     )
 

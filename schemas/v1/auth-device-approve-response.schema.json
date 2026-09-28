@@ -1,0 +1,46 @@
+{
+  "$defs": {
+    "OAuthProvider": {
+      "enum": [
+        "google",
+        "github"
+      ],
+      "type": "string"
+    },
+    "UserCode": {
+      "pattern": "^[0-9A-HJKMNP-TV-Z]{4}-[0-9A-HJKMNP-TV-Z]{4}$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:auth-device-approve-response",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "The grant as the approval page reports it.",
+  "properties": {
+    "provider": {
+      "$ref": "#/$defs/OAuthProvider"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "status": {
+      "const": "approved",
+      "title": "Status",
+      "type": "string"
+    },
+    "user_code": {
+      "$ref": "#/$defs/UserCode"
+    }
+  },
+  "required": [
+    "provider",
+    "schema_version",
+    "status",
+    "user_code"
+  ],
+  "title": "DeviceApproveResponse",
+  "type": "object"
+}

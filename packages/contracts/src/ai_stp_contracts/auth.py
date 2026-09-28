@@ -163,6 +163,28 @@ class DeviceRefreshRequest(BaseModel):
     signature: Annotated[str, Field(pattern=r"^[A-Za-z0-9_-]{86}$")]
 
 
+class DeviceApproveRequest(BaseModel):
+    """The browser half of device sign-in: bind a pending `user_code` to the
+    signed-in account. Carries no device identity — the key arrives at token
+    exchange, after a human has approved."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
+
+    schema_version: Literal[1] = 1
+    user_code: UserCode
+
+
+class DeviceApproveResponse(BaseModel):
+    """The grant as the approval page reports it."""
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+
+    schema_version: Literal[1] = 1
+    user_code: UserCode
+    status: Literal["approved"]
+    provider: OAuthProvider
+
+
 def device_refresh_message(request: DeviceRefreshRequest) -> bytes:
     return (
         b"ai-stp:device-refresh:v1\n"
