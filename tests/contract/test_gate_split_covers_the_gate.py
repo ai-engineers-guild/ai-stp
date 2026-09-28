@@ -21,11 +21,8 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[2]
 JUSTFILE = ROOT / "justfile"
-#: The gate this tree runs. The working copy runs none of its own any more, so
-#: the file it holds is the one it publishes; the built tree holds that same
-#: file as its actual gate.
-_OVERLAY = ROOT / "release_scripts/public_overlay/.github/workflows/check.yml"
-WORKFLOW = _OVERLAY if _OVERLAY.is_file() else ROOT / ".github/workflows/check.yml"
+#: The gate this tree runs and publishes as its own.
+WORKFLOW = ROOT / ".github/workflows/check.yml"
 WORKFLOW_DIR = WORKFLOW.parent
 
 #: `name: dep dep` at the start of a line. No recipe in the `check` tree takes
@@ -55,10 +52,13 @@ _LEAF_TOKENS: dict[str, tuple[str, ...]] = {
         "ruff format --check",
         "ruff check ",
         "pyright",
-        "-m release_scripts.public_export --report",
         "-m ai_stp_contracts.schemas --check schemas/v1",
         "-m ai_stp_contracts.web_projections --check",
         "release_scripts/provider_kit.py --check provider-kit/v3",
+        "release_scripts/verifier_requirements.py --check",
+        "release_scripts/first_party_corpus_digests.py --check",
+        "release_scripts/safety_requirements.py --check",
+        "-m release_scripts.update_component_fixture --check",
         "docs_scripts/skill_projections.py --check",
     ),
     # Not the worker count. `-n` is a tuning decision the gate is allowed to

@@ -28,7 +28,6 @@ import pytest
 from release_scripts.build_candidate import INTERNAL_DEPENDENCIES, PUBLISHABLE
 
 WORKFLOW = Path(".github/workflows/publish-pypi.yml")
-OVERLAY = Path("release_scripts/public_overlay/.github/workflows/publish-pypi.yml")
 
 
 def _requirements(manifest: Path) -> list[str]:
@@ -84,7 +83,7 @@ def test_every_published_project_can_be_uploaded_by_the_workflow() -> None:
     Each distribution has its own OIDC identity and its own environment, so a
     project absent from the workflow's choices has no way to reach the index.
     """
-    workflow = (OVERLAY if OVERLAY.is_file() else WORKFLOW).read_text(encoding="utf-8")
+    workflow = WORKFLOW.read_text(encoding="utf-8")
     missing = [
         name
         for name in sorted(PUBLISHABLE)

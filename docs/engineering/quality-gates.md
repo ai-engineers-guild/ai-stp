@@ -258,8 +258,7 @@ No `-check` recipe writes anything: generated/source divergence is caught in
 callable so a failure can be reproduced precisely without running neighboring
 groups. The full convention set — settings and attribute policy, parameter
 documentation, and the checklist for adding a recipe — lives in
-`standards/just.md`. That directory is withheld from the public export
-(`release_scripts/public_manifest.toml`). `standards/docker.md` owns the
+`standards/just.md`. `standards/docker.md` owns the
 `infra-*` surface.
 
 Outside the groups are `setup`, `hooks`, `gen`, `check`, `pre-commit`, and

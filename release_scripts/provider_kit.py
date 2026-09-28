@@ -56,26 +56,53 @@ KIT_IDENTITY_SCHEMA: Final[str] = "ai-stp-provider-kit-identity/1"
 #: `provider-info` or `status` answer.
 KIT_VERSION: Final[str] = "0.2.14"
 
-#: The kit's only artifact with no source to re-derive it from, and therefore
-#: the exact limit of what `--check` can see. Everything else here is rendered
-#: and compared byte for byte, which refuses ways of being wrong nobody
-#: enumerated — an emptied `SHA256SUMS`, a doctored `aggregate_digest`, an extra
-#: byte in a member — because it never enumerates them.
-#:
-#: Named as a set rather than left inline in the expression that skips it. The
-#: reach of a re-derivation is exactly the artifacts that have a source, so the
-#: uncovered set is whatever the generator was told to skip: small, knowable,
-#: and worth stating where a reader will meet it. Measured 2026-08-29 across
-#: every generated directory in this repository — `schemas/v1` (187 files, all
-#: rendered, the OpenAPI document included by a second pass of the same
-#: checker), the seven skill projections, the docs indexes — this is the one
-#: member in the whole estate.
-#:
-#: It drifted, and so did its counterpart in the consuming repository, on the
-#: same day and independently. That is what an unheld file does; a digest here
-#: would not have helped, because the failure is a copy falling behind its
-#: upstream and no check in one tree can see the other.
-UNDERIVED: Final[tuple[str, ...]] = ("README.md",)
+#: The kit README. It documents the contract rather than being part of it, so
+#: it is rendered here and compared byte for byte but stays outside
+#: `MACHINE_FILES`: the aggregate digest — and therefore `kit_version` — covers
+#: the machine files alone. It used to have no source to re-derive it from,
+#: and it showed what an unheld file does: it drifted here and in the
+#: consuming repository on the same day, independently.
+README: Final[bytes] = """\
+# Public provider conformance kit v3
+
+This directory is the generated, portable contract for provider protocol v3.
+A public provider can validate its implementation against these JSON files without
+access to the `ai_stp` or authoring repositories and without depending on
+them at runtime.
+
+- `manifest.json` fixes the commands, operations, native vocabularies, provenance,
+  and network phases.
+- `provider-info.schema.json` is the closed JSON Schema for the `provider-info`
+  response.
+- `status-response.schema.json` is the closed JSON Schema for the `status` response.
+- `conformance-cases.json` lists the required fail-closed classes.
+- `SHA256SUMS` binds the exact bytes of the other artifacts.
+- `KIT-IDENTITY.json` names exactly one kit revision: an aggregate digest plus
+  `kit_version`. Pin the aggregate because it cannot be forged; `kit_version` is
+  a readable label, and version `0.1.0` is ambiguous and cannot be a reference
+  (`ADR-0085`).
+
+The aggregate is taken from **the `SHA256SUMS` file as stored**, byte for byte,
+without normalization: `sha256sum SHA256SUMS` gives exactly `aggregate_digest`
+without the `sha256:` prefix. The previous wording said "canonical bytes"; in
+this repository, "canonical" means JSON canonicalization, so a reader that
+applied it to `SHA256SUMS` would calculate a different value. This is verified
+by the kit reader, not by the author.
+
+The tree you are in determines what can be run.
+
+`release_scripts/provider_kit.py` lives in the `ai_stp` repository and generates
+these files; the same command validates them there with `--check`. A kit reader
+does not have this path—the earlier paragraph promises exactly that—and the
+command is named here as the file origin, not as an action.
+
+The kit reader owns a different check, which requires nothing external:
+`SHA256SUMS` binds the exact bytes of the other artifacts, and `KIT-IDENTITY.json`
+names the SHA-256 of the `SHA256SUMS` file itself, without normalization. The kit
+carries these files for that purpose.
+
+Do not edit generated files by hand; run `python release_scripts/provider_kit.py`.
+""".encode()
 
 #: Files the aggregate identity covers, in the order `SHA256SUMS` lists them.
 MACHINE_FILES: Final[tuple[str, ...]] = (
@@ -89,6 +116,7 @@ OUTPUT_FILES: Final[tuple[str, ...]] = (
     "provider-info.schema.json",
     "status-response.schema.json",
     "conformance-cases.json",
+    "README.md",
     "SHA256SUMS",
     "KIT-IDENTITY.json",
 )
@@ -230,6 +258,7 @@ def render() -> dict[str, bytes]:
     ).encode()
     return {
         **files,
+        "README.md": README,
         "SHA256SUMS": checksums,
         "KIT-IDENTITY.json": _json_bytes(_identity(checksums)),
     }
@@ -240,7 +269,7 @@ def synchronize(output: Path, *, check: bool) -> tuple[str, ...]:
     expected = render()
     mismatches: list[str] = []
     actual_names = {path.name for path in output.iterdir()} if output.is_dir() else set()
-    unexpected = actual_names - set(OUTPUT_FILES) - set(UNDERIVED)
+    unexpected = actual_names - set(OUTPUT_FILES)
     mismatches.extend(str(output / name) for name in sorted(unexpected))
     for name in OUTPUT_FILES:
         path = output / name

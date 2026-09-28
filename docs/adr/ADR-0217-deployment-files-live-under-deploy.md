@@ -64,9 +64,9 @@ through `../` or stay inside `deploy/` (`./geoip`, `./cliproxy`,
 ## Consequences
 
 `just infra-static`, `infra-build`, `infra-up`/`infra-down`,
-`deploy/lib.sh`, `run.sh`, `verify.sh`, `load-apparmor.sh`,
-`release_scripts/public_manifest.toml`, the deploy contract tests and the
-runbooks all name the new paths. `docker compose config -q` renders every
+`deploy/lib.sh`, `run.sh`, `verify.sh`, `load-apparmor.sh`, the deploy
+contract tests and the runbooks all name the new paths.
+`docker compose config -q` renders every
 declared combination including `prod + corporate`.
 
 The deploy host unpacks the same tree, so `AI_STP_COMPOSE_FILE` defaults
