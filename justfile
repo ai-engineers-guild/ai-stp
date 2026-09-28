@@ -158,6 +158,7 @@ fonts-licence *args:
 security:
     {{ bunreq }}
     cd apps/web && bun run audit
+    bash scripts/safety/scan_lockfile.sh
 
 # Offline check of an estate record (`docs/contracts/estate-release.md`).
 [arg('path', help='estate record file to validate')]
