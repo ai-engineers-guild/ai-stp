@@ -264,7 +264,10 @@ services:
       - logs:/var/log/ai_stp
       - osv_offline:/var/lib/ai_stp/osv
       - clamav_db:/var/lib/clamav:ro
-    networks: [internal]
+    # edge is required: deliver_invitation reaches api.resend.com and
+    # repository_metrics/github_archive/official_upstream_sync reach
+    # api.github.com/codeload — an internal-only worker dead-letters them.
+    networks: [internal, edge]
     depends_on:
       postgres:
         condition: service_healthy

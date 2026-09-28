@@ -17,8 +17,8 @@ from ai_stp_platform.installation_inventory_models import (
 from ai_stp_platform.models import Device
 from ai_stp_platform.organization_models import CorporateProject
 from ai_stp_platform.runtime_usage_service import (  # pyright: ignore[reportPrivateUsage]
-    _revoked_subjects,  # pyright: ignore[reportPrivateUsage]
     raw_retention_days,
+    revoked_subjects,
 )
 from ai_stp_platform.telemetry_policy_models import TelemetryPolicy
 from ai_stp_platform.tenant_scope import set_tenant_scope
@@ -44,7 +44,7 @@ async def ingest_snapshots(
     cutoff = moment - timedelta(
         days=await raw_retention_days(session, organization_id=organization_id)
     )
-    revoked = await _revoked_subjects(session, organization_id=organization_id)
+    revoked = await revoked_subjects(session, organization_id=organization_id)
     device_query = select(Device.id).where(
         Device.account_id == caller_account_id, Device.state == "active"
     )

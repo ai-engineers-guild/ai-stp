@@ -1,0 +1,95 @@
+import type { getTranslations } from "next-intl/server";
+
+import type { CatalogLabels } from "@/components/organisms/catalog-results";
+
+type Translator = Awaited<ReturnType<typeof getTranslations>>;
+
+type CatalogResultsLabelOverrides = Partial<
+  Pick<
+    CatalogLabels,
+    "resultsHeading" | "emptyAuthoritative" | "emptyExperimental" | "emptyAll" | "publishedAt"
+  >
+>;
+
+/** Shared `CatalogResults` label map; page-specific keys arrive as overrides. */
+export function catalogResultsLabels(
+  tCatalog: Translator,
+  tc: Translator,
+  overrides?: CatalogResultsLabelOverrides,
+): CatalogLabels {
+  return {
+    authoritative: tCatalog("authoritative"),
+    experimental: tCatalog("experimental"),
+    experimentalNote: tCatalog("experimentalNote"),
+    emptyAuthoritative: tCatalog("emptyAuthoritative"),
+    emptyExperimental: tCatalog("emptyExperimental"),
+    emptyAll: tCatalog("emptyAll"),
+    resultsHeading: tCatalog("mixedResults"),
+    nextPage: tCatalog("nextPage"),
+    version: tCatalog("version"),
+    harness: tCatalog("harness"),
+    type: tCatalog("type"),
+    tags: tCatalog("tags"),
+    purpose: tCatalog("purpose"),
+    targetRole: tCatalog("targetRole"),
+    authorVerified: tCatalog("authorVerified"),
+    authorVerifiedDescription: tCatalog("authorVerifiedDescription"),
+    githubStars: tCatalog("githubStars"),
+    componentVerified: tCatalog("componentVerified"),
+    yes: tc("yes"),
+    no: tc("no"),
+    publisher: tCatalog("publisher"),
+    publishedAt: tCatalog("updatedAt"),
+    likes: tCatalog("likes"),
+    detailViews: tCatalog("detailViews"),
+    artifactDownloads: tCatalog("artifactDownloads"),
+    componentKind: tCatalog("componentKind"),
+    setupKind: tCatalog("setupKind"),
+    publicVisibility: tCatalog("public"),
+    privateVisibility: tCatalog("private"),
+    supportTier: tCatalog("supportTier"),
+    supportState: tCatalog("supportState"),
+    supportEvidence: tCatalog("supportEvidence"),
+    noSupportEvidence: tCatalog("noSupportEvidence"),
+    moreActions: tCatalog("moreActions"),
+    copyCli: tCatalog("copyCli"),
+    copyId: tCatalog("copyId"),
+    copyUrl: tCatalog("copyUrl"),
+    copied: tCatalog("copied"),
+    report: tCatalog("report"),
+    reportSetup: tCatalog("reportSetup"),
+    setupsHeading: tCatalog("setupsResults"),
+    componentsHeading: tCatalog("componentsResults"),
+    emptySetups: tCatalog("emptySetups"),
+    emptyComponents: tCatalog("emptyComponents"),
+    pagination: tCatalog("pagination"),
+    setupsPagination: tCatalog("setupsPagination"),
+    componentsPagination: tCatalog("componentsPagination"),
+    whyFailed: tCatalog("whyFailed"),
+    whyWarning: tCatalog("whyWarning"),
+    whyOptionalFailed: tCatalog("whyOptionalFailed"),
+    safetyChecks: tCatalog("safetyChecks"),
+    requirements: tCatalog("requirements"),
+    credentialsRequired: tCatalog("credentialsRequired"),
+    safetyStatus: tCatalog("safetyStatus"),
+    safetyPercent: tCatalog("safetyPercent"),
+    safetyPassed: tCatalog("safetyPassed"),
+    safetyFailed: tCatalog("safetyFailed"),
+    safetyWarning: tCatalog("safetyWarning"),
+    safetyNotRun: tCatalog("safetyNotRun"),
+    safetyIncomplete: tCatalog("safetyIncomplete"),
+    safetyEmpty: tCatalog("safetyEmpty"),
+    safetyNoScan: tCatalog("safetyNoScan"),
+    safetyAvailable: tCatalog("safetyAvailable"),
+    safetyPending: tCatalog("safetyPending"),
+    safetyMandatory: tCatalog("safetyMandatory"),
+    safetyCheckExplanation: tCatalog("safetyCheckExplanation"),
+    like: tCatalog("like"),
+    unlike: tCatalog("unlike"),
+    likeMenu: tCatalog("likeMenu"),
+    unlikeMenu: tCatalog("unlikeMenu"),
+    assuranceCounts: tCatalog("assuranceCounts"),
+    familyMemberCount: tCatalog("familyMemberCount"),
+    ...(overrides ?? {}),
+  };
+}

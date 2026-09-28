@@ -1,6 +1,6 @@
 ---
 description: "Public compatibility snapshot for seven provider systems and ai_stp."
-last_verified: "2026-09-24"
+last_verified: "2026-09-28"
 ---
 
 # Provider integration state
@@ -12,13 +12,13 @@ release, capability, and evidence facts.
 ## Active release
 
 The active public tag for the seven `NDDev-OpenNetwork/*-setup-system`
-repositories is `0.0.74` (published 2026-09-24 UTC). Each GitHub Release contains
+repositories is `0.0.79` (published 2026-09-28 UTC). Each GitHub Release contains
 seven assets (six native binaries and `SHA256SUMS`), read back from GitHub.
-Those trees vendor consumer kit `0.2.13`
-(`sha256:e2a35eaf2e0f834913962d9a6337948eeb78290b4ad8c3af7674620215610b0e`),
+Those trees vendor consumer kit `0.2.15`
+(`sha256:094886dd93108ee823350262d332ddd1b02044fdfb835fb055bde91668ab9ebb`),
 which matches `provider-kit/v3/KIT-IDENTITY.json` and
 `tests/golden/provider-kit/identity-ledger.json` in this repository.
-`0.0.73` remains a prior public tag (2026-09-19); it is not the current
+`0.0.74` remains a prior public tag (2026-09-24); it is not the current
 release.
 
 Antigravity's non-minimal provider setups retain the historical access key and
@@ -49,7 +49,16 @@ Software artifact pins and the provider wire boundary did not change.
 
 ## Evidence
 
-On 2026-09-25 (Asia/Almaty), the released `ai-stp-cli` 0.0.28 automatically
+On 2026-09-28 (UTC), the released `ai-stp-cli` 0.0.33 auto-acquired attested
+`0.0.79` providers through the publish readback: `exact=7 refused=0
+unmeasured=0` — all seven resolved as `verified_publisher` and ran
+protocol-v3 conformance under enforced network isolation in temporary
+HOME/XDG state. The same readback found seven release assets per provider,
+six platform wheels on PyPI, and a non-yanked crates.io version for every
+provider. These are provider-contract checks, not native coding-agent
+qualification on every platform.
+
+Historical: on 2026-09-25 (Asia/Almaty), the released `ai-stp-cli` 0.0.28 automatically
 acquired attested `0.0.74` providers and ran protocol-v3 conformance on
 linux/x86_64 with network isolation required. All seven returned
 `conforms: true`: Antigravity 46, Claude Code 44, Codex 60, Cursor 62,
@@ -58,13 +67,12 @@ previous release for Claude Code and Grok Build during publication propagation;
 those two were repeated after the new wheels appeared in the simple index.
 The earlier version mismatches remain separate failed observations.
 
-Registry readback found six platform wheels on PyPI and a non-yanked crates.io
-version for every provider. The publish workflow checked GitHub assets before
-the tag-triggered builds completed and failed that early readback. A prior
-runner could not provide network isolation and reported `NOT MEASURED`;
-the local conformance run above supplies that missing measurement without
-weakening the isolation requirement. These are provider-contract checks, not
-native coding-agent qualification on every platform.
+Historical: for `0.0.74`, registry readback found six platform wheels on PyPI
+and a non-yanked crates.io version for every provider. The publish workflow
+checked GitHub assets before the tag-triggered builds completed and failed
+that early readback. A prior runner could not provide network isolation and
+reported `NOT MEASURED`; the local conformance run above supplies that missing
+measurement without weakening the isolation requirement.
 
 Historical: conformance was not re-run against `0.0.73`. Historical
 linux/x86_64 counts against attested `0.0.65` bytes were seven

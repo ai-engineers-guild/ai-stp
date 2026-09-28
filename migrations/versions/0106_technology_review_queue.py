@@ -47,6 +47,11 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    has_draft = op.get_bind().scalar(
+        sa.text("SELECT 1 FROM technology_category WHERE state = 'draft' LIMIT 1")
+    )
+    if has_draft:
+        raise RuntimeError("resolve draft technology categories before downgrade")
     op.drop_constraint("fk_unmapped_resolved", TABLE, type_="foreignkey")
     op.drop_constraint("fk_unmapped_candidate", TABLE, type_="foreignkey")
     op.drop_column(TABLE, "resolved_technology_id")

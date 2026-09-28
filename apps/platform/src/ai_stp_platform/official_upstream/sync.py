@@ -17,7 +17,7 @@ from ai_stp_foundation.harnesses import HarnessId
 from ai_stp_foundation.ids import new_id
 from ai_stp_foundation.provider_surfaces import TargetScope, provider_surface
 from ai_stp_foundation.timestamps import format_timestamp
-from ai_stp_foundation.versioning import format_version, parse_version
+from ai_stp_foundation.versioning import VersionError, format_version, parse_version
 from ai_stp_passports import ScopeAdaptation, build_projection, seal_adaptation
 from ai_stp_passports.envelope import derive_revision_id
 from ai_stp_passports.versions import ComponentType, ComponentVersionPassport
@@ -507,7 +507,14 @@ async def _next_unused_minor(session: AsyncSession, stable_id: str) -> str:
 
 
 def next_unused_minor(versions: Sequence[str]) -> str:
-    parsed = [parse_version(item) for item in versions]
+    # A malformed stored version cannot occupy a minor slot: skip it rather
+    # than fail the whole sync on one corrupt row.
+    parsed = []
+    for item in versions:
+        try:
+            parsed.append(parse_version(item))
+        except VersionError:
+            continue
     if not parsed:
         return "1.0"
     major = max(item[0] for item in parsed)

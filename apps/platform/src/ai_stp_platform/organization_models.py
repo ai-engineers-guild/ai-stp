@@ -155,7 +155,7 @@ class OrganizationMembership(EntityProfileColumns, Base):
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    organization: Mapped[Organization] = relationship()
+    organization: Mapped[Organization] = relationship(lazy="raise")
     organization_id: Mapped[str] = mapped_column(
         String(64), ForeignKey("organization.id", ondelete="CASCADE"), nullable=False, index=True
     )

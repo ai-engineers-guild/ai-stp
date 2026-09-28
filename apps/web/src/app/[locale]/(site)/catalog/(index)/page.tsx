@@ -22,6 +22,7 @@ import {
   type CatalogReadScope,
 } from "@/lib/catalog-load";
 import { catalogQueryToRecord, parseCatalogSearchParams } from "@/lib/catalog-query";
+import { catalogResultsLabels } from "@/lib/catalog-results-labels";
 import { filterAndSortOwnerObjects } from "@/lib/owner-catalog";
 import { readCanonicalPathname } from "@/lib/projection/mode";
 import type {
@@ -203,85 +204,14 @@ export default async function CatalogPage({ params, searchParams }: PageProps) {
     );
   }
 
-  const labels = {
-    authoritative: t("authoritative"),
-    experimental: t("experimental"),
-    experimentalNote: t("experimentalNote"),
-    emptyAuthoritative: t("emptyAuthoritative"),
-    emptyExperimental: t("emptyExperimental"),
-    emptyAll: t("emptyAll"),
+  const labels = catalogResultsLabels(t, tc, {
     resultsHeading:
       resource === "all"
         ? t("mixedResults")
         : resource === "setups"
           ? t("setupsResults")
           : t("componentsResults"),
-    nextPage: t("nextPage"),
-    version: t("version"),
-    harness: t("harness"),
-    type: t("type"),
-    tags: t("tags"),
-    purpose: t("purpose"),
-    targetRole: t("targetRole"),
-    authorVerified: t("authorVerified"),
-    authorVerifiedDescription: t("authorVerifiedDescription"),
-    githubStars: t("githubStars"),
-    componentVerified: t("componentVerified"),
-    yes: tc("yes"),
-    no: tc("no"),
-    publisher: t("publisher"),
-    publishedAt: t("updatedAt"),
-    likes: t("likes"),
-    detailViews: t("detailViews"),
-    artifactDownloads: t("artifactDownloads"),
-    componentKind: t("componentKind"),
-    setupKind: t("setupKind"),
-    publicVisibility: t("public"),
-    privateVisibility: t("private"),
-    supportTier: t("supportTier"),
-    supportState: t("supportState"),
-    supportEvidence: t("supportEvidence"),
-    noSupportEvidence: t("noSupportEvidence"),
-    moreActions: t("moreActions"),
-    copyCli: t("copyCli"),
-    copyId: t("copyId"),
-    copyUrl: t("copyUrl"),
-    copied: t("copied"),
-    report: t("report"),
-    reportSetup: t("reportSetup"),
-    setupsHeading: t("setupsResults"),
-    componentsHeading: t("componentsResults"),
-    emptySetups: t("emptySetups"),
-    emptyComponents: t("emptyComponents"),
-    pagination: t("pagination"),
-    setupsPagination: t("setupsPagination"),
-    componentsPagination: t("componentsPagination"),
-    whyFailed: t("whyFailed"),
-    whyWarning: t("whyWarning"),
-    whyOptionalFailed: t("whyOptionalFailed"),
-    safetyChecks: t("safetyChecks"),
-    requirements: t("requirements"),
-    credentialsRequired: t("credentialsRequired"),
-    safetyStatus: t("safetyStatus"),
-    safetyPercent: t("safetyPercent"),
-    safetyPassed: t("safetyPassed"),
-    safetyFailed: t("safetyFailed"),
-    safetyWarning: t("safetyWarning"),
-    safetyNotRun: t("safetyNotRun"),
-    safetyIncomplete: t("safetyIncomplete"),
-    safetyEmpty: t("safetyEmpty"),
-    safetyNoScan: t("safetyNoScan"),
-    safetyAvailable: t("safetyAvailable"),
-    safetyPending: t("safetyPending"),
-    safetyMandatory: t("safetyMandatory"),
-    safetyCheckExplanation: t("safetyCheckExplanation"),
-    like: t("like"),
-    unlike: t("unlike"),
-    likeMenu: t("likeMenu"),
-    unlikeMenu: t("unlikeMenu"),
-    assuranceCounts: t("assuranceCounts"),
-    familyMemberCount: t("familyMemberCount"),
-  };
+  });
 
   let likedIds: string[] = [];
   const session = sessionToken ? await getOptionalSession() : null;

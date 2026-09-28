@@ -143,6 +143,18 @@ class _SyncFacade:
     async def commit(self) -> None:
         self._sync.commit()
 
+    def begin_nested(self) -> Any:
+        transaction = self._sync.begin_nested()
+
+        class _AsyncNested:
+            async def __aenter__(self) -> Any:
+                return transaction.__enter__()
+
+            async def __aexit__(self, *exc_info: object) -> Any:
+                return transaction.__exit__(*exc_info)
+
+        return _AsyncNested()
+
     async def run_sync(self, fn: Callable[..., Any], *args: object) -> Any:
         return fn(self._sync, *args)
 

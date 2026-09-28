@@ -1,5 +1,6 @@
 import type { SafetyCheckEntry, TargetMatrix } from "@/lib/api/generated/types.gen";
 import { Badge } from "@/components/atoms/badge";
+import { ScoreMeter } from "@/components/molecules/score-meter";
 import { UI } from "@/lib/ui-selectors";
 import { Icon } from "@/theme";
 
@@ -328,32 +329,7 @@ function safetyChecksFor(row: TargetMatrix["exact"][number]): SafetyCheckEntry[]
 }
 
 function Score({ score }: { score: ReturnType<typeof checkScore> }) {
-  return (
-    <span
-      className="inline-flex items-center gap-1.5"
-      role="meter"
-      aria-valuemin={0}
-      aria-valuemax={100}
-      aria-valuenow={score.percent}
-      aria-valuetext={`${score.passed} / ${score.total}`}
-    >
-      <span className="bg-muted relative block h-1 w-10 overflow-hidden rounded-full" aria-hidden>
-        <span
-          className="absolute inset-y-0 left-0 overflow-hidden"
-          style={{ width: `${score.percent}%` }}
-        >
-          <span
-            className="block h-full w-10"
-            style={{
-              background:
-                "linear-gradient(90deg, hsl(var(--destructive)), hsl(var(--warning)), hsl(var(--success)))",
-            }}
-          />
-        </span>
-      </span>
-      <span className="font-mono text-sm font-medium tabular-nums">{score.percent}%</span>
-    </span>
-  );
+  return <ScoreMeter percent={score.percent} valueText={`${score.passed} / ${score.total}`} />;
 }
 
 function supportLabel(value: string, labels: TargetMatrixLabels): string {

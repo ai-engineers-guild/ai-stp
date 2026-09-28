@@ -19,6 +19,7 @@ from typing import Final, Literal, cast
 from zoneinfo import ZoneInfo
 
 from sqlalchemy import distinct, func, inspect, select, text, tuple_
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.elements import ColumnElement
 
@@ -103,6 +104,22 @@ _GROUP_COLUMNS: Final[Mapping[str, tuple[object, ...]]] = {
 _GOVERNED_POLICY_TABLE: Final[str] = "telemetry_policy"
 _GOVERNED_REVOCATION_TABLE: Final[str] = "telemetry_revocation"
 
+_DEDUP_COMPARE_FIELDS: Final[tuple[str, ...]] = (
+    "employee_account_id",
+    "device_id",
+    "project_id",
+    "harness",
+    "setup_stable_id",
+    "setup_version",
+    "setup_passport_digest",
+    "component_kind",
+    "component_stable_id",
+    "component_version",
+    "component_passport_digest",
+    "activity_kind",
+    "schema_version",
+)
+
 
 @dataclass(frozen=True)
 class UsageScope:
@@ -163,7 +180,7 @@ async def raw_retention_days(session: AsyncSession, *, organization_id: str) -> 
     return int(days) if days else DEFAULT_RAW_RETENTION_DAYS
 
 
-async def _revoked_subjects(
+async def revoked_subjects(
     session: AsyncSession, *, organization_id: str
 ) -> frozenset[tuple[str, str]]:
     """Revoked or deleted subjects, when the privacy authority table exists."""
@@ -428,7 +445,7 @@ async def _inventory_employees(
             InstallationInventorySnapshot.scan_id.desc(),
         )
     )
-    revoked = await _revoked_subjects(session, organization_id=organization_id)
+    revoked = await revoked_subjects(session, organization_id=organization_id)
     latest: dict[tuple[str, str, str, str | None], InstallationInventorySnapshot] = {}
     last_complete: dict[str, datetime] = {}
     for snapshot in snapshots:
@@ -758,7 +775,7 @@ async def ingest_events(
     retention_cutoff = moment - timedelta(
         days=await raw_retention_days(session, organization_id=organization_id)
     )
-    revoked = await _revoked_subjects(session, organization_id=organization_id)
+    revoked = await revoked_subjects(session, organization_id=organization_id)
     projects = await _active_projects(session, organization_id=organization_id)
     # A session bound to a device can only emit for that device; a session
     # without one (a browser context) may only name an active device the
@@ -805,21 +822,7 @@ async def ingest_events(
         if existing is not None:
             if any(
                 getattr(existing, field) != getattr(candidate, field)
-                for field in (
-                    "employee_account_id",
-                    "device_id",
-                    "project_id",
-                    "harness",
-                    "setup_stable_id",
-                    "setup_version",
-                    "setup_passport_digest",
-                    "component_kind",
-                    "component_stable_id",
-                    "component_version",
-                    "component_passport_digest",
-                    "activity_kind",
-                    "schema_version",
-                )
+                for field in _DEDUP_COMPARE_FIELDS
             ):
                 rejected += 1
                 rejected_ids.append(event.event_id)
@@ -832,6 +835,35 @@ async def ingest_events(
             duplicate_ids.append(event.event_id)
             continue
         session.add(candidate)
+        try:
+            async with session.begin_nested():
+                await session.flush()
+        except IntegrityError:
+            # A concurrent ingest of the same event_id committed between the
+            # existence read and this flush: classify it against the stored
+            # row exactly as the read path does.
+            stored = await session.scalar(
+                select(EventRow).where(
+                    EventRow.organization_id == organization_id,
+                    EventRow.event_id == event.event_id,
+                )
+            )
+            if stored is None:
+                raise
+            if any(
+                getattr(stored, field) != getattr(candidate, field)
+                for field in _DEDUP_COMPARE_FIELDS
+            ):
+                rejected += 1
+                rejected_ids.append(event.event_id)
+            else:
+                if stored.source == "agent_reported" and event.source == "native_hook":
+                    stored.source = event.source
+                    stored.outcome = event.outcome
+                    stored.invoked_at = candidate.invoked_at
+                duplicates += 1
+                duplicate_ids.append(event.event_id)
+            continue
         seen[event.event_id] = candidate
         accepted += 1
         accepted_ids.append(event.event_id)
@@ -902,7 +934,7 @@ async def aggregate_report(
     )
     if employees is not None:
         member_query = member_query.where(OrganizationMembership.account_id.in_(sorted(employees)))
-    revoked = await _revoked_subjects(session, organization_id=organization_id)
+    revoked = await revoked_subjects(session, organization_id=organization_id)
     members = [
         member
         for member in await session.scalars(member_query)
@@ -1310,7 +1342,7 @@ async def list_events(
                 EventRow.invoked_at < day_end.astimezone(UTC),
             ]
         )
-    revoked = await _revoked_subjects(session, organization_id=organization_id)
+    revoked = await revoked_subjects(session, organization_id=organization_id)
     if revoked:
         revoked_accounts = {subject for kind, subject in revoked if kind == "account"}
         revoked_devices = {subject for kind, subject in revoked if kind == "device"}
@@ -1465,4 +1497,5 @@ __all__ = [
     "raw_retention_days",
     "read_export",
     "resolve_scope",
+    "revoked_subjects",
 ]
