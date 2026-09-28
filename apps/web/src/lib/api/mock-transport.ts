@@ -1,7 +1,7 @@
 /* eslint-disable max-lines -- One exhaustive in-process mirror of the HTTP mock surface. */
 /**
  * In-process mock transport for server reads when AI_STP_USE_MOCKS=true.
- * Serves the same seed/fixture shapes as MSW handlers so RSC and tests share one corpus.
+ * Serves the seed/fixture shapes so RSC and tests share one corpus.
  */
 import {
   accountProfile,

@@ -1,14 +1,14 @@
 "use client";
 
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
-import { useState, useTransition, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { toast } from "sonner";
 
 import { corporateAssignContextAction, type CorporateAssignContext } from "@/actions/corporate";
 import { Button } from "@/components/atoms/button";
 import { ContactReportDialog } from "@/components/organisms/contact-report-dialog";
 import { CorporateAssignDialog } from "@/components/organisms/corporate-assign-dialog";
-import { updateCatalogReaction } from "@/lib/actions/catalog-reactions";
+import { useCatalogLike } from "@/components/organisms/use-catalog-like";
 import { registryCommand } from "@/lib/cli-copy";
 import { buildDeepLink, normalizeTarget } from "@/lib/deep-links";
 import { Icon } from "@/theme";
@@ -49,8 +49,7 @@ export function CatalogItemMenu({
   const [reportOpen, setReportOpen] = useState(false);
   const [assignCtx, setAssignCtx] = useState<CorporateAssignContext | null>(null);
   const [assignOpen, setAssignOpen] = useState(false);
-  const [liked, setLiked] = useState(initiallyLiked);
-  const [pending, startTransition] = useTransition();
+  const like = useCatalogLike({ stableId, objectKind: kind, initiallyLiked, labels });
   const cliCommand = registryCommand(stableId);
 
   async function copy(value: string) {
@@ -135,21 +134,13 @@ export function CatalogItemMenu({
             <DropdownMenu.Separator className="border-border my-1 border-t" />
             <DropdownMenu.Item
               className={itemClassName}
-              disabled={pending}
+              disabled={like.pending}
               onSelect={() => {
-                const next = !liked;
-                startTransition(async () => {
-                  try {
-                    const state = await updateCatalogReaction(kind, stableId, next);
-                    setLiked(state.liked);
-                  } catch {
-                    toast.error(labels.like);
-                  }
-                });
+                like.toggle();
               }}
             >
-              <Icon name="heart" size="sm" fill={liked ? "currentColor" : "none"} />
-              {liked ? labels.unlike : labels.like}
+              <Icon name="heart" size="sm" fill={like.liked ? "currentColor" : "none"} />
+              {like.liked ? labels.unlike : labels.like}
             </DropdownMenu.Item>
             {assignCtx?.ok ? (
               <DropdownMenu.Item

@@ -679,6 +679,7 @@ web-i18n:
 web-static: web-i18n
     {{ bunreq }}
     cd apps/web && bun run lint
+    cd apps/web && bun run api:check
     cd apps/web && bun run format:check
     cd apps/web && bun run type-check
 
