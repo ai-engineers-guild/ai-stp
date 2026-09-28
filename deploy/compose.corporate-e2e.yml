@@ -1,8 +1,9 @@
 # Corporate hub end-to-end acceptance stack (#201): real API, worker,
-# Postgres, and RustFS over compose.dev + compose.corporate-local. No mocks.
-# One-off bootstrap credential provisions the first corporate organization;
-# the worker sends invitation mail through the recording port (no provider
-# key configured) and settles the corporate_mail_delivery ledger.
+# Postgres, and RustFS over compose.dev. No mocks, corporate_hub web
+# profile. One-off bootstrap credential provisions the first corporate
+# organization; the worker sends invitation mail through the recording
+# port unless a provider key is configured, and settles the
+# corporate_mail_delivery ledger.
 services:
   api:
     environment:
@@ -14,3 +15,18 @@ services:
     environment:
       AI_STP_WORKER_INVITATION_BASE_URL: http://localhost:3000
       AI_STP_WORKER_CORPORATE_MAIL_FROM_ADDRESS: invitations@corp.example
+  web:
+    # Run the image's sources, not the Windows bind mount, for this acceptance deployment.
+    volumes: !override
+      - web_node_modules:/app/node_modules
+      - ../docs-user-facing:/docs-user-facing:ro
+      - ../packages/contracts/src/ai_stp_contracts/fixtures/v1/corporate-overview.json:/packages/contracts/src/ai_stp_contracts/fixtures/v1/corporate-overview.json:ro
+    # Corporate module exclusions use the incumbent webpack aliases. Keep the
+    # real API/auth transport in this stack; fixtures are opt-in for tests.
+    environment:
+      AI_STP_WEB_PROFILE: corporate_hub
+      AI_STP_USE_MOCKS: "false"
+      AI_STP_MOCK_AUTH: "false"
+      AI_STP_FEATURE_CONTENT_HUB: "false"
+      AI_STP_FEATURE_SAAS_PUBLIC_PAGES: "false"
+      AI_STP_FEATURE_CATALOG_USAGE_METRICS: "false"

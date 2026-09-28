@@ -51,6 +51,15 @@ export async function POST(request: Request, context: RouteContext) {
       { status: 401 },
     );
   }
+  // Fresh registrations are onboarding_pending: the API rejects their accept
+  // until legal onboarding completes. Distinct code so the client redirects to
+  // onboarding instead of looping back to login.
+  if (session.accountStatus === "onboarding_pending") {
+    return NextResponse.json(
+      { error: { code: "AI_STP_ONBOARDING_REQUIRED", message: "complete onboarding first" } },
+      { status: 409 },
+    );
+  }
 
   let body: { token?: unknown; idempotency_key?: unknown };
   try {

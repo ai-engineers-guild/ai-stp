@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useSyncExternalStore, useTransition } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore, useTransition } from "react";
 
 import { Button } from "@/components/atoms/button";
 import { MutationReference } from "@/components/molecules/mutation-reference";
@@ -11,6 +11,17 @@ type AcceptInvitationProps = {
   invitationId: string;
   /** Same-origin accept endpoint; defaults to the grant invitation hop. */
   endpoint?: string;
+  /**
+   * Where an unauthenticated accept click is sent to sign in. The current
+   * path plus the still-held fragment becomes `returnTo`, so the bearer token
+   * survives the OAuth round trip in the browser only.
+   */
+  signInHref?: string;
+  /**
+   * Where a signed-in but not-yet-onboarded account is sent. Same `returnTo`
+   * fragment carry as `signInHref`; onboarding redirects back when done.
+   */
+  onboardingHref?: string;
   labels: {
     accept: string;
     accepting: string;
@@ -59,7 +70,13 @@ function scrubFragment(): void {
  * Fragment-only invitation accept (REQ-2714 / ADR-0047).
  * Token lives in memory; never Server Action / RSC / storage / logs.
  */
-export function AcceptInvitation({ invitationId, endpoint, labels }: AcceptInvitationProps) {
+export function AcceptInvitation({
+  invitationId,
+  endpoint,
+  signInHref,
+  onboardingHref,
+  labels,
+}: AcceptInvitationProps) {
   // The token lives in the URL fragment, which the server never sees. Reading
   // it during render and scrubbing it in an effect separates the question from
   // the side effect; setting both from one effect cost a render pass and made
@@ -79,9 +96,16 @@ export function AcceptInvitation({ invitationId, endpoint, labels }: AcceptInvit
   // still says. Scrubbing removes it from the URL as well, but the flag is
   // what makes a remount unable to re-use it.
   const token = consumed ? null : fragmentToken;
+  // The scrubbed fragment is kept in memory so a sign-in redirect can rebuild
+  // it into `returnTo` — the login round trip loses the URL hash otherwise.
+  // Ref, not state: the value must not be rendered and must not re-render.
+  const heldFragment = useRef<string | null>(null);
 
   useEffect(() => {
     if (fragmentToken) {
+      if (heldFragment.current === null) {
+        heldFragment.current = window.location.hash;
+      }
       scrubFragment();
     }
   }, [fragmentToken]);
@@ -121,10 +145,27 @@ export function AcceptInvitation({ invitationId, endpoint, labels }: AcceptInvit
               const held = token;
               // Marked consumed immediately so remounts cannot re-use it.
               setConsumed(true);
+              const redirectToAuth = (target: string) => {
+                const { pathname, search } = window.location;
+                const returnTo = `${pathname}${search}${heldFragment.current ?? ""}`;
+                window.location.assign(`${target}?${new URLSearchParams({ returnTo }).toString()}`);
+              };
               try {
                 const csrf = readCsrfFromDocument();
-                if (!csrf || !held) {
+                if (!held) {
                   setError(labels.error);
+                  return;
+                }
+                // The CSRF cookie is minted with the session at login — its
+                // absence means this browser is not signed in. Send them to
+                // sign in rather than failing on a request that cannot pass
+                // the route's CSRF check anyway.
+                if (!csrf) {
+                  if (signInHref) {
+                    redirectToAuth(signInHref);
+                  } else {
+                    setError(labels.error);
+                  }
                   return;
                 }
                 const idempotencyKey = crypto.randomUUID().replaceAll("-", "");
@@ -144,6 +185,23 @@ export function AcceptInvitation({ invitationId, endpoint, labels }: AcceptInvit
                     }),
                   },
                 );
+                let redirectTarget: string | null = null;
+                if (response.status === 401 && signInHref) {
+                  redirectTarget = signInHref;
+                } else if (response.status === 409 && onboardingHref) {
+                  // The API also uses 409 for replayed/revoked invitations —
+                  // only the route's own code means "go finish onboarding".
+                  const data = (await response.json().catch(() => null)) as {
+                    error?: { code?: string };
+                  } | null;
+                  if (data?.error?.code === "AI_STP_ONBOARDING_REQUIRED") {
+                    redirectTarget = onboardingHref;
+                  }
+                }
+                if (redirectTarget) {
+                  redirectToAuth(redirectTarget);
+                  return;
+                }
                 if (!response.ok) {
                   setError(labels.error);
                   return;

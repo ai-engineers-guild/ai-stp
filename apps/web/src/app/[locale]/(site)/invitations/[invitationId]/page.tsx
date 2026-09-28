@@ -1,16 +1,22 @@
 import { getTranslations, setRequestLocale } from "next-intl/server";
 
 import { AcceptInvitation } from "@/components/organisms/accept-invitation";
-import { requireSession } from "@/lib/auth/require-session";
+import { corporateHref } from "@/lib/features/corporate-path";
 
 type PageProps = {
   params: Promise<{ locale: string; invitationId: string }>;
 };
 
+/**
+ * No server session gate on purpose: the invitation token lives in the URL
+ * fragment, which the server never sees. Gating here would 307 to login and
+ * drop `#token=…` before the client could read it. The accept POST enforces
+ * auth; a 401 sends the client to login with the fragment carried inside
+ * `returnTo`.
+ */
 export default async function AcceptInvitationPage({ params }: PageProps) {
   const { locale, invitationId } = await params;
   setRequestLocale(locale);
-  await requireSession(locale, `/${locale}/invitations/${invitationId}`);
   const t = await getTranslations("invitations");
 
   const tc = await getTranslations("common");
@@ -24,6 +30,8 @@ export default async function AcceptInvitationPage({ params }: PageProps) {
       </div>
       <AcceptInvitation
         invitationId={invitationId}
+        signInHref={corporateHref(`/${locale}/login`)}
+        onboardingHref={corporateHref(`/${locale}/onboarding`)}
         labels={{
           accept: t("accept"),
           accepting: t("accepting"),
