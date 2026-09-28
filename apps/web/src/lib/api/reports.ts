@@ -8,7 +8,23 @@ import type {
 } from "@/lib/api/generated/types.gen";
 
 export async function listOwnReports(sessionToken: string): Promise<ReportCaseListResponse> {
-  return apiRequest<ReportCaseListResponse>("/v1/reports", { sessionToken });
+  // Drain every page — a first-page slice would silently hide older cases.
+  const items: ReportCaseListResponse["items"][number][] = [];
+  let cursor: string | null = null;
+  let page: ReportCaseListResponse["page"] | null = null;
+  for (let i = 0; i < 100; i += 1) {
+    const result: ReportCaseListResponse = await apiRequest<ReportCaseListResponse>("/v1/reports", {
+      sessionToken,
+      query: cursor === null ? { page_size: 100 } : { page_size: 100, cursor },
+    });
+    items.push(...result.items);
+    page = result.page;
+    cursor = result.page.next_cursor;
+    if (cursor === null) {
+      break;
+    }
+  }
+  return { schema_version: 1, items, page: page ?? { schema_version: 1, next_cursor: null, page_size: 100 } };
 }
 
 export async function readOwnReport(

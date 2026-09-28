@@ -159,7 +159,10 @@ async def transfer_catalog_line(
         attempts = list(
             (
                 await session.scalars(
-                    select(OfficialUpstreamSync).where(OfficialUpstreamSync.source_id == source.id)
+                    select(OfficialUpstreamSync).where(
+                        OfficialUpstreamSync.source_id == source.id,
+                        OfficialUpstreamSync.state.not_in(tuple(_TERMINAL_ATTEMPTS)),
+                    )
                 )
             ).all()
         )
@@ -202,6 +205,7 @@ async def transfer_catalog_line(
                     select(Job).where(
                         Job.job_type == JobType.OFFICIAL_UPSTREAM_SYNC,
                         Job.state.in_(tuple(CLAIMABLE_STATES)),
+                        Job.payload["source_id"].as_string() == source.id,
                     )
                 )
             ).all()

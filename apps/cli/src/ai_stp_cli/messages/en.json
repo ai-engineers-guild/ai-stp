@@ -386,6 +386,7 @@
   "renewal changed the enrolled device": "renewal changed the enrolled device",
   "replace every TODO(ai-stp-scaffold) marker before compose": "replace every TODO(ai-stp-scaffold) marker before compose",
   "replace every TODO(ai-stp-scaffold) marker before release": "replace every TODO(ai-stp-scaffold) marker before release",
+  "report list pagination never terminated": "report list pagination never terminated",
   "report submission requires confirmation of the exact preview digest": "report submission requires confirmation of the exact preview digest",
   "required environment entries must be uppercase variable names, never NAME=value": "required environment entries must be uppercase variable names, never NAME=value",
   "required options were not supplied": "required options were not supplied",

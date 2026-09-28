@@ -5,17 +5,9 @@ from __future__ import annotations
 from collections.abc import Sequence
 from xml.sax.saxutils import escape
 
-from ai_stp_contracts.seo import SEO_SITEMAP_SHARD_LIMIT, SeoSitemapShard, SeoSitemapUrl
+from ai_stp_contracts.seo import SeoSitemapShard, SeoSitemapUrl
 from ai_stp_platform.seo.metrics import record_sitemap_generation
 from ai_stp_platform.seo.urls import sitemap_shard_url
-
-
-def split_urls(
-    urls: Sequence[SeoSitemapUrl], limit: int = SEO_SITEMAP_SHARD_LIMIT
-) -> list[list[SeoSitemapUrl]]:
-    if limit < 1:
-        raise ValueError("shard limit must be positive")
-    return [list(urls[index : index + limit]) for index in range(0, len(urls), limit)] or [[]]
 
 
 def render_urlset(urls: Sequence[SeoSitemapUrl]) -> str:

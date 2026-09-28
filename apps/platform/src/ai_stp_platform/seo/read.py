@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import base64
 
-from sqlalchemy import select
+from sqlalchemy import Integer, cast, func, select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ai_stp_contracts.http import PageInfo
@@ -28,7 +28,7 @@ from ai_stp_platform.seo.markdown import render_subject_markdown
 from ai_stp_platform.seo.materialize import existing_locale_urls
 from ai_stp_platform.seo.orm import SeoActiveRevision, SeoGeneration, SeoRevision
 from ai_stp_platform.seo.settings import load_seo_settings
-from ai_stp_platform.seo.sitemap import render_sitemap_index, render_urlset, split_urls
+from ai_stp_platform.seo.sitemap import render_sitemap_index, render_urlset
 from ai_stp_platform.seo.urls import markdown_url, sitemap_shard_url
 
 
@@ -77,13 +77,18 @@ async def read_revision_profile(session: AsyncSession, revision_id: str) -> SeoP
     return SeoProfileDocument.model_validate(revision.profile)
 
 
-async def list_eligible_urls(
+async def list_eligible_urls_page(
     session: AsyncSession,
     *,
     kind: SeoSubjectKind,
     locale: str,
     origin: str,
+    limit: int,
+    offset: int,
 ) -> list[SeoSitemapUrl]:
+    """One bounded window of the eligible-URL set: the sitemap shard asks for
+    exactly one page, so materializing the whole set first is the same O(n)
+    mistake the catalog page made."""
     rows = list(
         (
             await session.execute(
@@ -96,6 +101,8 @@ async def list_eligible_urls(
                     SeoRevision.state == "active",
                 )
                 .order_by(SeoActiveRevision.subject_id)
+                .limit(limit)
+                .offset(offset)
             )
         ).all()
     )
@@ -123,25 +130,46 @@ async def read_sitemap_index(session: AsyncSession, *, origin: str) -> SeoIndexR
     shards: list[SeoIndexShardRef] = []
     built: list[SeoSitemapShard] = []
     latest = "1970-01-01T00:00:00.000Z"
+    limit = sitemap_shard_limit()
     for kind in ("component", "setup", "article", "service", "country"):
         for locale in ("en", "ru"):
-            urls = await list_eligible_urls(
-                session,
-                kind=kind,
-                locale=locale,
-                origin=origin,  # type: ignore[arg-type]
+            # The index needs shard boundaries and per-shard lastmod, not the
+            # URLs themselves: number the eligible rows, bucket by shard, and
+            # aggregate — one grouped row per shard instead of a full
+            # materialization per (kind, locale) pair.
+            numbered = (
+                select(
+                    func.row_number().over(order_by=SeoActiveRevision.subject_id).label("position"),
+                    SeoRevision.profile["modified_at"].as_string().label("lastmod"),
+                )
+                .join(SeoRevision, SeoRevision.id == SeoActiveRevision.revision_id)
+                .where(
+                    SeoActiveRevision.subject_kind == kind,
+                    SeoActiveRevision.locale == locale,
+                    SeoActiveRevision.index_eligible.is_(True),
+                    SeoRevision.state == "active",
+                )
+                .subquery()
             )
-            pages = split_urls(urls, sitemap_shard_limit())
-            for index, page_urls in enumerate(pages, start=1):
-                if not page_urls and index > 1:
+            # Integer division truncates the bucket; the cast keeps the
+            # expression typed Integer instead of SQLAlchemy's Numeric
+            # inference, so `page` arrives as a whole number.
+            bucket = cast((numbered.c.position - 1) / limit + 1, Integer).label("page")
+            grouped = (
+                select(
+                    bucket,
+                    func.max(numbered.c.lastmod).label("lastmod"),
+                )
+                .group_by(bucket)
+                .order_by(bucket)
+            )
+            for page, lastmod in (await session.execute(grouped)).all():
+                if lastmod is None:
                     continue
-                if not page_urls:
-                    continue
-                lastmod = max(item.lastmod for item in page_urls)
                 latest = max(latest, lastmod)
                 shards.append(
                     SeoIndexShardRef(
-                        loc=sitemap_shard_url(origin, kind, locale, index),  # type: ignore[arg-type]
+                        loc=sitemap_shard_url(origin, kind, locale, page),  # type: ignore[arg-type]
                         lastmod=lastmod,
                     )
                 )
@@ -150,8 +178,8 @@ async def read_sitemap_index(session: AsyncSession, *, origin: str) -> SeoIndexR
                         generation=generation,
                         kind=kind,  # type: ignore[arg-type]
                         locale=locale,  # type: ignore[arg-type]
-                        page=index,
-                        urls=page_urls,
+                        page=page,
+                        urls=[],
                     )
                 )
     if built:
@@ -173,18 +201,27 @@ async def read_sitemap_shard(
 ) -> SeoSitemapShard:
     if page < 1:
         raise SubjectMissing(str(page))
-    urls = await list_eligible_urls(session, kind=kind, locale=locale, origin=origin)
-    pages = split_urls(urls, sitemap_shard_limit())
-    if page > len(pages) or not pages[page - 1]:
+    limit = sitemap_shard_limit()
+    # The shard serves exactly one page: bound the query instead of
+    # materializing the whole set and slicing it in Python.
+    urls = await list_eligible_urls_page(
+        session,
+        kind=kind,
+        locale=locale,
+        origin=origin,
+        limit=limit,
+        offset=(page - 1) * limit,
+    )
+    if not urls:
         raise SubjectMissing(f"{kind}-{locale}-{page}")
     generation = await current_generation(session)
-    render_urlset(pages[page - 1])
+    render_urlset(urls)
     return SeoSitemapShard(
         generation=generation,
         kind=kind,
         locale=locale,  # type: ignore[arg-type]
         page=page,
-        urls=pages[page - 1],
+        urls=urls,
     )
 
 
@@ -226,21 +263,23 @@ async def read_catalog_page(
         stmt = stmt.where(SeoActiveRevision.locale == locale)
     if kind is not None:
         stmt = stmt.where(SeoActiveRevision.subject_kind == kind)
-    rows = list((await session.execute(stmt)).all())
-    start = 0
     if cursor:
+        # The cursor names the last served sort key, so the next page is a
+        # range scan on the (kind, subject_id, locale) unique index — not a
+        # full materialization that Python then re-slices.
         after_kind, after_id, after_locale = decode_catalog_cursor(cursor)
-        for index, (pointer, _revision) in enumerate(rows):
-            key = (pointer.subject_kind, pointer.subject_id, pointer.locale)
-            if key > (after_kind, after_id, after_locale):
-                start = index
-                break
-            if key == (after_kind, after_id, after_locale):
-                start = index + 1
-                break
-        else:
-            start = len(rows)
-    window = rows[start : start + page_size]
+        stmt = stmt.where(
+            tuple_(
+                SeoActiveRevision.subject_kind,
+                SeoActiveRevision.subject_id,
+                SeoActiveRevision.locale,
+            )
+            > (after_kind, after_id, after_locale)
+        )
+    # One extra row answers has-more without a second query.
+    rows = list((await session.execute(stmt.limit(page_size + 1))).all())
+    has_more = len(rows) > page_size
+    window = rows[:page_size]
     items: list[SeoCatalogEntry] = []
     for pointer, revision in window:
         profile = SeoProfileDocument.model_validate(revision.profile)
@@ -264,7 +303,7 @@ async def read_catalog_page(
             )
         )
     next_cursor = None
-    if start + page_size < len(rows) and window:
+    if has_more and window:
         last = window[-1][0]
         next_cursor = encode_catalog_cursor(last.subject_kind, last.subject_id, last.locale)
     generation = await current_generation(session)

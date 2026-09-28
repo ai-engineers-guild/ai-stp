@@ -69,17 +69,18 @@ export default async function SetupVersionPage({ params }: PageProps) {
     throw error;
   }
 
-  const t = await getTranslations("catalog");
-  const tCli = await getTranslations("cli");
+  const [t, tCli, catalogDetail, metadata, budgetResult] = await Promise.all([
+    getTranslations("catalog"),
+    getTranslations("cli"),
+    readSetup(setupId).catch(() => null),
+    loadGithubMetadata(setupId, version),
+    loadContextBudget(readSetupContextBudget(setupId, asVersionId(version))),
+  ]);
+  const { budget, failure: budgetFailure } = budgetResult;
 
   const passport = response.passport;
-  const catalogDetail = await readSetup(setupId).catch(() => null);
   const publisherId = catalogDetail?.summary.publisher_id || passport.owner_id;
   const harnesses = [passport.harness_id];
-  const metadata = await loadGithubMetadata(setupId, version);
-  const { budget, failure: budgetFailure } = await loadContextBudget(
-    readSetupContextBudget(setupId, asVersionId(version)),
-  );
   const canonical = buildDeepLink(
     publicOrigin().origin,
     normalizeTarget({

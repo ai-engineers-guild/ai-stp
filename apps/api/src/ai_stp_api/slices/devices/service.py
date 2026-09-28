@@ -20,6 +20,13 @@ from ai_stp_api.slices.devices.domain import DeviceState, DeviceSummary
 from ai_stp_contracts.http import PAGE_SIZE_MAX
 from ai_stp_contracts.identity import DeviceSummary as SyncedDeviceSummary
 from ai_stp_foundation.ids import new_id
+from ai_stp_platform.catalog_cursor import (
+    CursorError,
+    CursorKey,
+    decode_cursor,
+    encode_cursor,
+    filter_signature,
+)
 from ai_stp_platform.models import AccountSession, Device, SyncEntityHead, SyncRevision
 
 
@@ -145,8 +152,19 @@ async def list_devices(
     ctx: AuthContext,
     subject_account_id: str | None,
     admin_reason: str | None,
-) -> list[Device]:
-    """List device rows for the owner or an audited admin read."""
+    page_size: int = PAGE_SIZE_MAX,
+    cursor: str | None = None,
+    cursor_secret: str | None = None,
+) -> tuple[list[Device], str | None]:
+    """List device rows for the owner or an audited admin read.
+
+    Keyset-paginated on the ULID primary key ascending: ids are immutable and
+    lexicographically time-ordered, so the cursor position survives both a
+    `last_seen_at` refresh and the millisecond precision of wire timestamps.
+    `page.next_cursor` stays the only signal that more rows exist — a
+    truncated page without a continuation would silently hide a
+    hundred-and-first device.
+    """
     target = subject_account_id or ctx.account_id
     if target != ctx.account_id:
         if not ctx.is_admin:
@@ -163,15 +181,38 @@ async def list_devices(
             payload={"subject_account_id": target},
         )
 
-    result = await db.execute(
-        select(Device)
-        .where(Device.account_id == target)
-        .order_by(Device.created_at.asc())
-        # The wire type bounds `items` at PAGE_SIZE_MAX; an unbounded fetch
-        # would violate the response model for a hundred-and-first device.
-        .limit(PAGE_SIZE_MAX)
+    # The signature binds the listed account: a cursor minted for account A
+    # must not page account B's devices.
+    filter_sig = filter_signature(
+        object_kind=f"devices:{target}",
+        q=None,
+        tags=[],
+        harness_id=None,
+        component_type=None,
+        include_experimental=False,
     )
-    return list(result.scalars().all())
+    statement = select(Device).where(Device.account_id == target).order_by(Device.id.asc())
+    if cursor is not None:
+        if cursor_secret is None:
+            raise ApiError(ErrorCategory.DEPENDENCY, "cursor signing is not configured")
+        try:
+            key = decode_cursor(secret=cursor_secret, token=cursor, filter_sig=filter_sig)
+        except CursorError as error:
+            raise ApiError(ErrorCategory.VALIDATION, "invalid cursor") from error
+        statement = statement.where(Device.id > key.stable_id)
+    rows = list((await db.execute(statement.limit(page_size + 1))).scalars().all())
+    has_more = len(rows) > page_size
+    rows = rows[:page_size]
+    next_cursor: str | None = None
+    if has_more and cursor_secret is not None:
+        last = rows[-1]
+        created = last.created_at if last.created_at.tzinfo else last.created_at.replace(tzinfo=UTC)
+        next_cursor = encode_cursor(
+            secret=cursor_secret,
+            filter_sig=filter_sig,
+            key=CursorKey(published_at=created, stable_id=last.id),
+        )
+    return rows, next_cursor
 
 
 async def stored_summaries(
