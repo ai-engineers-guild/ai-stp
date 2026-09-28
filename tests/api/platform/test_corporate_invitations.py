@@ -14,9 +14,12 @@ from ai_stp_foundation.ids import new_id
 from ai_stp_platform.models import Account, AuditEvent, OAuthIdentity
 from ai_stp_platform.organization_models import (
     CorporateInvitation,
+    CorporateMailDelivery,
     Organization,
     OrganizationMembership,
 )
+from ai_stp_platform.queue.models import Job
+from ai_stp_platform.queue.states import JobType
 
 pytestmark = pytest.mark.platform
 
@@ -135,7 +138,7 @@ async def test_invitation_lifecycle_create_accept_reuse_and_revoke(
     _, stranger_token = await _provisioned_account(sessionmaker, "stranger@example.com")
     wrong_email = await client.post(
         f"/v1/corporate/invitations/{invitation['invitation_id']}/accept",
-        json={"schema_version": 1, "token": token, "idempotency_key": "accept-wrong-1"},
+        json={"schema_version": 1, "token": token, "idempotency_key": "accept-wrong-0001"},
         headers={"Authorization": f"Bearer {stranger_token}"},
     )
     assert wrong_email.status_code == 400, wrong_email.text
@@ -147,7 +150,7 @@ async def test_invitation_lifecycle_create_accept_reuse_and_revoke(
         json={
             "schema_version": 1,
             "token": "tok_" + "0" * 40,
-            "idempotency_key": "accept-bad-1",
+            "idempotency_key": "accept-bad-00001",
         },
         headers={"Authorization": f"Bearer {invitee_token}"},
     )
@@ -155,7 +158,7 @@ async def test_invitation_lifecycle_create_accept_reuse_and_revoke(
 
     accepted = await client.post(
         f"/v1/corporate/invitations/{invitation['invitation_id']}/accept",
-        json={"schema_version": 1, "token": token, "idempotency_key": "accept-ok-1"},
+        json={"schema_version": 1, "token": token, "idempotency_key": "accept-ok-000001"},
         headers={"Authorization": f"Bearer {invitee_token}"},
     )
     assert accepted.status_code == 200, accepted.text
@@ -174,13 +177,13 @@ async def test_invitation_lifecycle_create_accept_reuse_and_revoke(
     # The accepting account can safely replay; anyone else cannot reuse it.
     replay_accept = await client.post(
         f"/v1/corporate/invitations/{invitation['invitation_id']}/accept",
-        json={"schema_version": 1, "token": token, "idempotency_key": "accept-replay-1"},
+        json={"schema_version": 1, "token": token, "idempotency_key": "accept-replay-001"},
         headers={"Authorization": f"Bearer {invitee_token}"},
     )
     assert replay_accept.status_code == 200, replay_accept.text
     reuse = await client.post(
         f"/v1/corporate/invitations/{invitation['invitation_id']}/accept",
-        json={"schema_version": 1, "token": token, "idempotency_key": "accept-reuse-1"},
+        json={"schema_version": 1, "token": token, "idempotency_key": "accept-reuse-0001"},
         headers={"Authorization": f"Bearer {stranger_token}"},
     )
     assert reuse.status_code == 409, reuse.text
@@ -380,7 +383,7 @@ async def test_invitation_expiry_and_domain_policy(
         json={
             "schema_version": 1,
             "token": pending.json()["token"],
-            "idempotency_key": "accept-domain-1",
+            "idempotency_key": "accept-domain-001",
         },
         headers={"Authorization": f"Bearer {else_token}"},
     )
@@ -428,7 +431,7 @@ async def test_invitation_authorization_and_duplicate_member(
         json={
             **body,
             "recipient_email": "joined@example.com",
-            "idempotency_key": "invite-dup-0001",
+            "idempotency_key": "invite-dup-000001",
         },
         headers=auth,
     )
@@ -443,7 +446,95 @@ async def test_invitation_authorization_and_duplicate_member(
 
     unknown = await client.post(
         "/v1/corporate/invitations/invite_00000000000000000000000000/accept",
-        json={"schema_version": 1, "token": "tok_" + "0" * 40, "idempotency_key": "accept-404-1"},
+        json={
+            "schema_version": 1,
+            "token": "tok_" + "0" * 40,
+            "idempotency_key": "accept-404-00001",
+        },
         headers=auth,
     )
     assert unknown.status_code == 404, unknown.text
+
+
+async def test_invitation_mail_delivery_state_surfaces(
+    db_api_client: tuple[AsyncClient, async_sessionmaker[AsyncSession], object],
+) -> None:
+    """The invitation views join the mail ledger so a failed delivery is
+    visible to admins instead of failing silently."""
+    client, sessionmaker, _settings = db_api_client
+    organization_id, auth, revision = await _bootstrap(client, sessionmaker, "invite-mail-000001")
+    base = f"/v1/corporate/organizations/{organization_id}"
+
+    create = await client.post(
+        f"{base}/invitations",
+        json={
+            "schema_version": 1,
+            "recipient_email": "mail@example.com",
+            "display_name": "Mail User",
+            "role": "staff",
+            "authorization_revision": revision,
+            "idempotency_key": "invite-mail-00001",
+        },
+        headers=auth,
+    )
+    assert create.status_code == 200, create.text
+    invitation = create.json()
+    assert invitation["delivery_state"] == "queued"
+    assert invitation["delivery_error"] is None
+
+    # A ledger row and a delivery job exist; the ledger never holds the token.
+    async with sessionmaker() as db:
+        delivery = await db.scalar(
+            select(CorporateMailDelivery).where(
+                CorporateMailDelivery.invitation_id == invitation["invitation_id"]
+            )
+        )
+        assert delivery is not None
+        assert delivery.state == "queued"
+        assert delivery.to_email_normalized == "mail@example.com"
+        token = invitation["token"]
+        for value in vars(delivery).values():
+            assert token not in str(value)
+        job = await db.scalar(
+            select(Job).where(
+                Job.idempotency_key == f"deliver_corporate_invitation:{invitation['invitation_id']}"
+            )
+        )
+        assert job is not None
+        assert job.job_type == JobType.DELIVER_CORPORATE_INVITATION
+        assert job.payload.get("delivery_id") == delivery.id
+
+    # Idempotent replay answers the stored view.
+    replay = await client.post(
+        f"{base}/invitations",
+        json={
+            "schema_version": 1,
+            "recipient_email": "mail@example.com",
+            "display_name": "Mail User",
+            "role": "staff",
+            "authorization_revision": revision,
+            "idempotency_key": "invite-mail-00001",
+        },
+        headers=auth,
+    )
+    assert replay.status_code == 200, replay.text
+    assert replay.json()["delivery_state"] == "queued"
+    assert replay.json()["token"] is None
+
+    # A worker failure lands in the ledger and surfaces on the list.
+    async with sessionmaker() as db:
+        row = await db.get(CorporateMailDelivery, delivery.id)
+        assert row is not None
+        row.state = "failed"
+        row.error = "resend: sender domain is not verified"
+        await db.commit()
+    listed = await client.get(f"{base}/invitations", headers=auth)
+    assert listed.status_code == 200, listed.text
+    item = next(
+        entry
+        for entry in listed.json()["items"]
+        if entry["invitation_id"] == invitation["invitation_id"]
+    )
+    assert item["delivery_state"] == "failed"
+    assert item["delivery_error"] == "resend: sender domain is not verified"
+    assert item["token"] is None
