@@ -20,6 +20,11 @@ updates:
     open-pull-requests-limit: 5
     commit-message:
       prefix: "chore(ci)"
+    # Only `default-days`: Dependabot rejects `semver-major-days` for the
+    # github-actions ecosystem, which has no semver-major notion in its
+    # cooldown model.
+    cooldown:
+      default-days: 7
   - package-ecosystem: bun
     directory: /docs_scripts
     schedule:
@@ -27,6 +32,12 @@ updates:
     open-pull-requests-limit: 5
     commit-message:
       prefix: "chore(docs)"
+    # A version published minutes ago has been reviewed by nobody. The
+    # cooldown is the cheapest defence against a compromised release being
+    # pulled in before anyone has looked at it.
+    cooldown:
+      default-days: 7
+      semver-major-days: 14
   - package-ecosystem: bun
     directory: /apps/web
     schedule:
@@ -34,6 +45,9 @@ updates:
     open-pull-requests-limit: 5
     commit-message:
       prefix: "chore(web)"
+    cooldown:
+      default-days: 7
+      semver-major-days: 14
   - package-ecosystem: uv
     directory: /
     schedule:
@@ -41,3 +55,6 @@ updates:
     open-pull-requests-limit: 5
     commit-message:
       prefix: "chore(deps)"
+    cooldown:
+      default-days: 7
+      semver-major-days: 14
