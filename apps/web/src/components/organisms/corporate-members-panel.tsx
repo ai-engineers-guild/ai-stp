@@ -107,7 +107,8 @@ export function CorporateMembersPanel({
 }) {
   const router = useRouter();
   const [busy, startTransition] = useTransition();
-  const [message, setMessage] = useState<string | null>(null);
+  const [message, setMessage] = useState<{ text: string; error?: boolean } | null>(null);
+  const report = (text: string, error = false) => setMessage({ text, error });
   const [links, setLinks] = useState<GeneratedLink[]>([]);
   const [exportFormat, setExportFormat] = useState<ExportFormat>("csv");
   const [parsed, setParsed] = useState<ImportedMember[]>([]);
@@ -133,7 +134,7 @@ export function CorporateMembersPanel({
     reset?: () => void,
   ) {
     if (!rows.length || !role) {
-      setMessage(labels.failed);
+      report(labels.failed, true);
       return;
     }
     setMessage(null);
@@ -157,7 +158,7 @@ export function CorporateMembersPanel({
           },
         });
         if (!result.ok) {
-          setMessage(`${row.email}: ${result.message}`);
+          report(`${row.email}: ${result.message}`, true);
           setProgress({ done: index, total: rows.length });
           setLinks((current) => [...generated, ...current]);
           router.refresh();
@@ -169,7 +170,7 @@ export function CorporateMembersPanel({
       }
       setLinks((current) => [...generated, ...current]);
       setProgress(null);
-      setMessage(labels.saved);
+      report(labels.saved);
       reset?.();
       router.refresh();
     });
@@ -189,7 +190,7 @@ export function CorporateMembersPanel({
           idempotency_key: crypto.randomUUID(),
         },
       });
-      setMessage(result.ok ? labels.saved : result.message);
+      report(result.ok ? labels.saved : result.message, !result.ok);
       if (result.ok) router.refresh();
     });
   }
@@ -217,7 +218,7 @@ export function CorporateMembersPanel({
           idempotency_key: crypto.randomUUID(),
         },
       });
-      setMessage(result.ok ? labels.saved : result.message);
+      report(result.ok ? labels.saved : result.message, !result.ok);
       if (result.ok) router.refresh();
     });
   }
@@ -230,7 +231,16 @@ export function CorporateMembersPanel({
       </div>
 
       <div aria-live="polite" className="mt-3 min-h-5">
-        {message ? <p className="text-muted-foreground text-sm">{message}</p> : null}
+        {message ? (
+          <p
+            role={message.error ? "alert" : undefined}
+            className={
+              message.error ? "text-destructive text-sm font-medium" : "text-muted-foreground text-sm"
+            }
+          >
+            {message.text}
+          </p>
+        ) : null}
       </div>
 
       {members.length ? (
@@ -332,7 +342,7 @@ export function CorporateMembersPanel({
                         setImportText(text);
                         setParsed(parseMemberImport(text, file.name));
                       })
-                      .catch(() => setMessage(labels.failed));
+                      .catch(() => report(labels.failed, true));
                   }}
                 />
               </div>
@@ -355,10 +365,11 @@ export function CorporateMembersPanel({
                 onClick={() => {
                   const result = parseMemberImport(importText);
                   setParsed(result);
-                  setMessage(
+                  report(
                     result.length
                       ? labels.parsedCount.replace("{count}", String(result.length))
                       : labels.failed,
+                    !result.length,
                   );
                 }}
               >
