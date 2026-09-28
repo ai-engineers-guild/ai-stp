@@ -3836,6 +3836,11 @@ export type CorporateInvitation = {
   accepted_account_id: string | null;
   created_at: Timestamp;
   /**
+   * Delivery Error
+   */
+  delivery_error: string | null;
+  delivery_state: CorporateMailDeliveryState | null;
+  /**
    * Display Name
    */
   display_name: string;
@@ -4097,6 +4102,15 @@ export type CorporateJobTitleView = {
   state: "current" | "retired";
   [key: string]: unknown;
 };
+
+export const CorporateMailDeliveryState = {
+  QUEUED: "queued",
+  SENT: "sent",
+  FAILED: "failed",
+} as const;
+
+export type CorporateMailDeliveryState =
+  (typeof CorporateMailDeliveryState)[keyof typeof CorporateMailDeliveryState];
 
 /**
  * CorporateMember

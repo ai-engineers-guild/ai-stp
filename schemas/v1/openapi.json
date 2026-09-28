@@ -7931,6 +7931,29 @@
           "created_at": {
             "$ref": "#/components/schemas/Timestamp"
           },
+          "delivery_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Delivery Error"
+          },
+          "delivery_state": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CorporateMailDeliveryState"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
           "display_name": {
             "title": "Display Name",
             "type": "string"
@@ -8018,6 +8041,8 @@
         "required": [
           "accepted_account_id",
           "created_at",
+          "delivery_error",
+          "delivery_state",
           "display_name",
           "expires_at",
           "invitation_id",
@@ -8393,6 +8418,14 @@
         ],
         "title": "CorporateJobTitleView",
         "type": "object"
+      },
+      "CorporateMailDeliveryState": {
+        "enum": [
+          "queued",
+          "sent",
+          "failed"
+        ],
+        "type": "string"
       },
       "CorporateMember": {
         "additionalProperties": true,

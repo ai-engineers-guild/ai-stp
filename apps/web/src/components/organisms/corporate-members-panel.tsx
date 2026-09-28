@@ -29,6 +29,12 @@ const INVITATION_STATE_VARIANT = {
   revoked: "destructive",
 } as const;
 
+const MAIL_STATE_VARIANT = {
+  queued: "secondary",
+  sent: "success",
+  failed: "destructive",
+} as const;
+
 const selectClass =
   "border-input bg-background ring-offset-background focus-visible:ring-ring flex h-10 w-full rounded-md border px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none";
 
@@ -103,6 +109,10 @@ export function CorporateMembersPanel({
     failed: string;
     exportFormat: string;
     download: string;
+    mail: string;
+    mailQueued: string;
+    mailSent: string;
+    mailFailed: string;
   };
 }) {
   const router = useRouter();
@@ -235,7 +245,9 @@ export function CorporateMembersPanel({
           <p
             role={message.error ? "alert" : undefined}
             className={
-              message.error ? "text-destructive text-sm font-medium" : "text-muted-foreground text-sm"
+              message.error
+                ? "text-destructive text-sm font-medium"
+                : "text-muted-foreground text-sm"
             }
           >
             {message.text}
@@ -493,11 +505,31 @@ export function CorporateMembersPanel({
                   <p className="text-muted-foreground text-sm">
                     {invitation.role} · {labels.expiresAt} {invitation.expires_at.slice(0, 10)}
                   </p>
+                  {invitation.delivery_error ? (
+                    <p className="text-destructive text-xs">
+                      {labels.mail}: {invitation.delivery_error}
+                    </p>
+                  ) : null}
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
                   <Badge variant={INVITATION_STATE_VARIANT[invitation.state]}>
                     {invitation.state}
                   </Badge>
+                  {invitation.delivery_state ? (
+                    <Badge
+                      variant={MAIL_STATE_VARIANT[invitation.delivery_state]}
+                      title={invitation.delivery_error ?? undefined}
+                    >
+                      {labels.mail}{" "}
+                      {
+                        {
+                          queued: labels.mailQueued,
+                          sent: labels.mailSent,
+                          failed: labels.mailFailed,
+                        }[invitation.delivery_state]
+                      }
+                    </Badge>
+                  ) : null}
                   {invitation.state === "pending" ? (
                     <Button
                       type="button"

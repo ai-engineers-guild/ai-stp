@@ -1216,6 +1216,8 @@ export function corporateHandlers(
         job_title_id: null,
         accepted_account_id: null,
         state: "pending",
+        delivery_state: "sent",
+        delivery_error: null,
         created_at: new Date().toISOString(),
         expires_at: new Date(Date.now() + 24 * 3_600_000).toISOString(),
         token: `tok_${Math.random().toString(36).slice(2, 18)}`,

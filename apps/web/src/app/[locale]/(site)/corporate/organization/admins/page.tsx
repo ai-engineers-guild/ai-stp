@@ -189,6 +189,10 @@ export default async function CorporateAdministrationPage({ params }: PageProps)
             failed: t("failed"),
             exportFormat: t("exportFormat"),
             download: t("download"),
+            mail: t("mail"),
+            mailQueued: t("mailQueued"),
+            mailSent: t("mailSent"),
+            mailFailed: t("mailFailed"),
           }}
         />
       ) : null}

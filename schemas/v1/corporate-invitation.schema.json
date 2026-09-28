@@ -9,6 +9,14 @@
       ],
       "type": "string"
     },
+    "CorporateMailDeliveryState": {
+      "enum": [
+        "queued",
+        "sent",
+        "failed"
+      ],
+      "type": "string"
+    },
     "Timestamp": {
       "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$",
       "type": "string"
@@ -34,6 +42,29 @@
     },
     "created_at": {
       "$ref": "#/$defs/Timestamp"
+    },
+    "delivery_error": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Delivery Error"
+    },
+    "delivery_state": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/CorporateMailDeliveryState"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
     },
     "display_name": {
       "title": "Display Name",
@@ -122,6 +153,8 @@
   "required": [
     "accepted_account_id",
     "created_at",
+    "delivery_error",
+    "delivery_state",
     "display_name",
     "expires_at",
     "invitation_id",

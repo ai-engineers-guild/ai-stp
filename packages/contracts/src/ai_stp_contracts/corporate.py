@@ -967,6 +967,8 @@ class CorporateOverview(BaseModel):
 
 type CorporateInvitationState = Literal["pending", "accepted", "expired", "revoked"]
 
+type CorporateMailDeliveryState = Literal["queued", "sent", "failed"]
+
 
 class CorporateInvitationCreateRequest(BaseModel):
     """POST /v1/corporate/organizations/{organization_id}/invitations body."""
@@ -1002,6 +1004,8 @@ class CorporateInvitation(BaseModel):
     created_at: Timestamp
     accepted_account_id: AccountId | None = None
     token: str | None = None
+    delivery_state: CorporateMailDeliveryState | None = None
+    delivery_error: str | None = None
 
 
 class CorporateInvitationList(BaseModel):

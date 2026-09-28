@@ -519,6 +519,7 @@ export {
   type CorporateJobTitleList,
   type CorporateJobTitleUpdateRequest,
   type CorporateJobTitleView,
+  CorporateMailDeliveryState,
   type CorporateMember,
   type CorporateMemberCatalogAssignment,
   type CorporateMemberCreateRequest,

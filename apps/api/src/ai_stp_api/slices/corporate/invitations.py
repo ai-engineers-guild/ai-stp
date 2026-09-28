@@ -43,6 +43,7 @@ from ai_stp_contracts.corporate import (
     CorporateInvitationList,
     CorporateInvitationRevokeRequest,
     CorporateInvitationState,
+    CorporateMailDeliveryState,
     CorporateMember,
     CorporateMembershipPolicy,
     CorporateMembershipPolicyRequest,
@@ -85,7 +86,12 @@ def _expired(row: CorporateInvitationRow) -> bool:
     return row.state == "pending" and expires <= datetime.now(UTC)
 
 
-def _view(row: CorporateInvitationRow, *, token: str | None = None) -> CorporateInvitation:
+def _view(
+    row: CorporateInvitationRow,
+    *,
+    token: str | None = None,
+    delivery: CorporateMailDelivery | None = None,
+) -> CorporateInvitation:
     state = "expired" if _expired(row) else row.state
     return CorporateInvitation(
         schema_version=1,
@@ -102,6 +108,10 @@ def _view(row: CorporateInvitationRow, *, token: str | None = None) -> Corporate
         created_at=_ts(row.created_at),
         accepted_account_id=row.accepted_account_id,
         token=token,
+        delivery_state=cast(
+            CorporateMailDeliveryState | None, delivery.state if delivery else None
+        ),
+        delivery_error=delivery.error if delivery else None,
     )
 
 
@@ -254,9 +264,9 @@ async def create_invitation(
         key=payload.idempotency_key,
         operation="member.invitation.create",
         fingerprint=fingerprint,
-        response=_view(row),
+        response=_view(row, delivery=delivery),
     )
-    return _view(row, token=token)
+    return _view(row, token=token, delivery=delivery)
 
 
 @router.get(
@@ -281,7 +291,21 @@ async def list_invitations(
         .scalars()
         .all()
     )
-    return CorporateInvitationList(items=[_view(row) for row in rows])
+    deliveries = (
+        (
+            await db.execute(
+                select(CorporateMailDelivery).where(
+                    CorporateMailDelivery.invitation_id.in_([row.id for row in rows])
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    by_invitation = {delivery.invitation_id: delivery for delivery in deliveries}
+    return CorporateInvitationList(
+        items=[_view(row, delivery=by_invitation.get(row.id)) for row in rows]
+    )
 
 
 @router.post(
