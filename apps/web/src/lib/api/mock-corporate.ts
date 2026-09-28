@@ -112,8 +112,18 @@ members.forEach((item, index) =>
   ),
 );
 const memberById = new Map(members.map((item) => [item.account_id, item]));
-const mockInvitations: CorporateInvitation[] = [];
-const mockPolicy = { allowed_email_domains: [] as string[], authorization_revision: 1 };
+// Standalone bundles this module into two module realms (page render and
+// /api routes). Mutable mock state must live on globalThis or a mutation in
+// one realm stays invisible to a read in the other.
+const mockState = ((globalThis as Record<string, unknown>).__aiStpCorporateMock ??= {
+  invitations: [] as CorporateInvitation[],
+  policy: { allowed_email_domains: [] as string[], authorization_revision: 1 },
+}) as {
+  invitations: CorporateInvitation[];
+  policy: { allowed_email_domains: string[]; authorization_revision: number };
+};
+const mockInvitations = mockState.invitations;
+const mockPolicy = mockState.policy;
 const graphEdges = graph.edges;
 const teamMembers = (teamId: string) =>
   graphEdges
@@ -388,9 +398,11 @@ const capabilities = [
   "member.invite",
   "member.list",
   "organization.read",
+  "organization.manage",
   "role.list",
   "binding.list",
   "audit.list",
+  "job_title.list",
   "technology.list",
   "technology.read",
   "technology.update",
@@ -999,6 +1011,20 @@ export function corporateHandlers(
     return ok(list([{ ...organization, kind: "corporate" }]));
   if (path === capabilityPath && method === "GET")
     return ok({ schema_version: 1, authorization_revision: "1", capabilities });
+  const acceptMatch = path.match(/^\/v1\/corporate\/invitations\/([^/]+)\/accept$/);
+  if (acceptMatch && method === "POST") {
+    const invitation = mockInvitations.find(
+      (item) => item.invitation_id === decodeURIComponent(acceptMatch[1] ?? ""),
+    );
+    const acceptBody = (body ?? {}) as { token?: unknown };
+    if (!invitation || invitation.token !== acceptBody.token) return error(404, "AI_STP_NOT_FOUND");
+    if (invitation.state !== "pending" || new Date(invitation.expires_at) < new Date())
+      return error(409, "AI_STP_CONFLICT");
+    invitation.state = "accepted";
+    invitation.token = null;
+    invitation.accepted_account_id = member.account_id;
+    return ok(member);
+  }
   if (!path.startsWith(`${base}/`)) return error(404, "AI_STP_NOT_FOUND");
   const suffix = path.slice(base.length + 1);
   if (suffix === "telemetry/heartbeat-report" && method === "GET") {
@@ -1191,7 +1217,7 @@ export function corporateHandlers(
         accepted_account_id: null,
         state: "pending",
         created_at: new Date().toISOString(),
-        expires_at: new Date(Date.now() + 72 * 3_600_000).toISOString(),
+        expires_at: new Date(Date.now() + 24 * 3_600_000).toISOString(),
         token: `tok_${Math.random().toString(36).slice(2, 18)}`,
       };
       mockInvitations.push(invitation);
@@ -1267,6 +1293,10 @@ export function corporateHandlers(
       ).length,
     });
   if (suffix === "catalog-usage") return ok({ schema_version: 1, items: [], total: 0 });
+  if (suffix === "bindings") return ok({ schema_version: 1, items: [] });
+  if (suffix === "service-principals") return ok({ schema_version: 1, items: [] });
+  if (suffix === "job-titles") return ok({ schema_version: 1, items: [] });
+  if (suffix === "audit") return ok({ schema_version: 1, items: [] });
   if (suffix === "technology-categories") return ok({ schema_version: 1, items: categoryViews });
   const categoryMatch = suffix.match(/^technology-categories\/([^/]+)$/);
   if (categoryMatch) {

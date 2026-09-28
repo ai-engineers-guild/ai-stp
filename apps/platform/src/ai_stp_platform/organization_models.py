@@ -541,6 +541,40 @@ class CorporateInvitation(Base):
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
+class CorporateMailDelivery(Base):
+    """Mail-service ledger: one outbound delivery per corporate invitation.
+
+    Records only delivery metadata — the invitation token never lands here;
+    it travels inside the queue payload until the worker sends the mail.
+    """
+
+    __tablename__ = "corporate_mail_delivery"
+    __table_args__ = (
+        UniqueConstraint("invitation_id", name="uq_corporate_mail_delivery_invitation"),
+        CheckConstraint(
+            "state in ('queued', 'sent', 'failed')",
+            name="ck_corporate_mail_delivery_state",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    organization_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("organization.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    invitation_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("corporate_invitation.id", ondelete="CASCADE"), nullable=False
+    )
+    to_email_normalized: Mapped[str] = mapped_column(String(320), nullable=False)
+    display_name: Mapped[str] = mapped_column(String(80), nullable=False)
+    template_key: Mapped[str] = mapped_column(String(256), nullable=False)
+    state: Mapped[str] = mapped_column(String(16), nullable=False, default="queued")
+    attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    provider_message_id: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    error: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
 class CorporateMutationReceipt(Base):
     """Idempotent response for one corporate create operation."""
 

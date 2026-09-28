@@ -8,6 +8,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ai_stp_platform.queue.states import JobType
 from ai_stp_worker.handlers.catalog_enrichment import handle_catalog_enrichment
+from ai_stp_worker.handlers.deliver_corporate_invitation import (
+    handle_deliver_corporate_invitation,
+)
 from ai_stp_worker.handlers.deliver_invitation import handle_deliver_invitation
 from ai_stp_worker.handlers.github_archive import handle_github_archive
 from ai_stp_worker.handlers.official_upstream import handle_official_upstream_sync
@@ -41,6 +44,7 @@ REGISTRY: Mapping[JobType, JobHandler] = {
     JobType.PUBLISH: handle_publish,
     JobType.REEVALUATE_ELIGIBILITY: handle_reevaluate,
     JobType.DELIVER_INVITATION: handle_deliver_invitation,
+    JobType.DELIVER_CORPORATE_INVITATION: handle_deliver_corporate_invitation,
     JobType.REPOSITORY_METRICS: handle_repository_metrics,
     JobType.GITHUB_ARCHIVE: handle_github_archive,
     JobType.CATALOG_ENRICHMENT: handle_catalog_enrichment,

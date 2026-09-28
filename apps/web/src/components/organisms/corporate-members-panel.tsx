@@ -1,89 +1,42 @@
+/* eslint-disable max-lines, max-lines-per-function, @typescript-eslint/no-confusing-void-expression */
 "use client";
 
-/* eslint-disable max-lines, @typescript-eslint/no-confusing-void-expression */
-
-import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { useRef, useState, useTransition } from "react";
 
 import { corporateMutationAction } from "@/actions/corporate";
+import { Badge } from "@/components/atoms/badge";
 import { Button } from "@/components/atoms/button";
 import { Input } from "@/components/atoms/input";
 import { Label } from "@/components/atoms/label";
+import { Switch } from "@/components/atoms/switch";
 import { Textarea } from "@/components/atoms/textarea";
-import { parseMemberImport, type ImportedMember } from "@/lib/member-import";
-
+import { CopyValue } from "@/components/molecules/copy-value";
 import type {
   CorporateInvitation,
   CorporateMember,
   CorporateRoleView,
 } from "@/lib/api/generated/types.gen";
+import { downloadInvitationLinks, EXPORT_FORMATS, type ExportFormat } from "@/lib/member-export";
+import { parseMemberImport, type ImportedMember } from "@/lib/member-import";
 
-type GeneratedLink = { email: string; link: string };
+type GeneratedLink = { displayName: string; email: string; link: string };
 
-type Labels = {
-  members: string;
-  noMembers: string;
-  invite: string;
-  inviteTitle: string;
-  inviteBody: string;
-  email: string;
-  displayName: string;
-  role: string;
-  expiresInDays: string;
-  create: string;
-  creating: string;
-  invitations: string;
-  noInvitations: string;
-  state: string;
-  expiresAt: string;
-  revoke: string;
-  revoking: string;
-  invitationLinks: string;
-  copy: string;
-  copyAll: string;
-  copied: string;
-  bulkImport: string;
-  bulkImportBody: string;
-  importFile: string;
-  importText: string;
-  importPlaceholder: string;
-  parse: string;
-  parsedCount: string;
-  inviteAll: string;
-  bulkProgress: string;
-  bulkFailed: string;
-  domainPolicy: string;
-  domainPolicyBody: string;
-  domainRestrict: string;
-  domains: string;
-  domainsPlaceholder: string;
-  domainsHint: string;
-  save: string;
-  saving: string;
-  saved: string;
-  failed: string;
+const INVITATION_STATE_VARIANT = {
+  pending: "secondary",
+  accepted: "success",
+  expired: "warning",
+  revoked: "destructive",
+} as const;
+
+const selectClass =
+  "border-input bg-background ring-offset-background focus-visible:ring-ring flex h-10 w-full rounded-md border px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none";
+
+const field = (formData: FormData, name: string) => {
+  const value = formData.get(name);
+  return typeof value === "string" ? value.trim() : "";
 };
 
-type Props = {
-  csrfToken: string;
-  organizationId: string;
-  authorizationRevision: number;
-  locale: string;
-  members: readonly CorporateMember[];
-  roles: readonly CorporateRoleView[];
-  invitations: readonly CorporateInvitation[];
-  allowedDomains: readonly string[];
-  canInvite: boolean;
-  canManagePolicy: boolean;
-  labels: Labels;
-};
-
-function roleNames(roles: readonly CorporateRoleView[]): string[] {
-  const names = roles.map((role) => role.name);
-  return names.length ? names : ["staff"];
-}
-
-// eslint-disable-next-line max-lines-per-function
 export function CorporateMembersPanel({
   csrfToken,
   organizationId,
@@ -96,56 +49,94 @@ export function CorporateMembersPanel({
   canInvite,
   canManagePolicy,
   labels,
-}: Props) {
+}: {
+  csrfToken: string;
+  organizationId: string;
+  authorizationRevision: number;
+  locale: string;
+  members: CorporateMember[];
+  roles: CorporateRoleView[];
+  invitations: CorporateInvitation[];
+  allowedDomains: string[];
+  canInvite: boolean;
+  canManagePolicy: boolean;
+  labels: {
+    members: string;
+    noMembers: string;
+    inviteTitle: string;
+    inviteBody: string;
+    email: string;
+    displayName: string;
+    role: string;
+    expiresInDays: string;
+    create: string;
+    invite: string;
+    creating: string;
+    invitations: string;
+    noInvitations: string;
+    expiresAt: string;
+    revoke: string;
+    revoking: string;
+    invitationLinks: string;
+    copy: string;
+    copyAll: string;
+    copied: string;
+    bulkImport: string;
+    bulkImportBody: string;
+    importFile: string;
+    importText: string;
+    importPlaceholder: string;
+    parse: string;
+    parsedCount: string;
+    inviteAll: string;
+    bulkProgress: string;
+    bulkFailed: string;
+    domainPolicy: string;
+    domainPolicyBody: string;
+    domainRestrict: string;
+    domains: string;
+    domainsPlaceholder: string;
+    domainsHint: string;
+    save: string;
+    saving: string;
+    saved: string;
+    failed: string;
+    exportFormat: string;
+    download: string;
+  };
+}) {
   const router = useRouter();
   const [busy, startTransition] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
-  const availableRoles = roleNames(roles);
-
-  const [invite, setInvite] = useState({
-    email: "",
-    displayName: "",
-    role: availableRoles[0] ?? "staff",
-  });
-  const [bulkRole, setBulkRole] = useState(availableRoles[0] ?? "staff");
+  const [links, setLinks] = useState<GeneratedLink[]>([]);
+  const [exportFormat, setExportFormat] = useState<ExportFormat>("csv");
   const [parsed, setParsed] = useState<ImportedMember[]>([]);
   const [importText, setImportText] = useState("");
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
-  const [links, setLinks] = useState<GeneratedLink[]>([]);
-  const [restricted, setRestricted] = useState(allowedDomains.length > 0);
-  const [domains, setDomains] = useState(allowedDomains.join(", "));
   const fileRef = useRef<HTMLInputElement>(null);
+  const roleNames = [...new Set(roles.map((role) => role.name))];
+  const bulkRole = roleNames[0] ?? "staff";
 
-  function invitationLink(invitation: CorporateInvitation): string | null {
+  function linkFor(invitation: CorporateInvitation): GeneratedLink | null {
     if (!invitation.token || typeof window === "undefined") return null;
-    return `${window.location.origin}/${locale}/corporate-invitations/${invitation.invitation_id}#token=${invitation.token}`;
+    return {
+      displayName: invitation.display_name,
+      email: invitation.recipient_email,
+      link: `${window.location.origin}/${locale}/corporate-invitations/${invitation.invitation_id}#token=${invitation.token}`,
+    };
   }
 
-  function copyText(value: string) {
-    void navigator.clipboard.writeText(value).catch(() => undefined);
-  }
-
-  function submit(method: "POST" | "PUT", path: string, body: unknown, after?: () => void) {
+  function createInvitations(
+    rows: ImportedMember[],
+    role: string,
+    ttlSeconds?: number,
+    reset?: () => void,
+  ) {
+    if (!rows.length || !role) {
+      setMessage(labels.failed);
+      return;
+    }
     setMessage(null);
-    startTransition(async () => {
-      const result = await corporateMutationAction({
-        csrfToken,
-        organizationId,
-        path,
-        method,
-        body,
-      });
-      setMessage(result.ok ? labels.saved : result.message);
-      if (result.ok) {
-        after?.();
-        router.refresh();
-      }
-    });
-  }
-
-  function createInvitations(rows: ImportedMember[], role: string) {
-    setMessage(null);
-    setLinks([]);
     setProgress({ done: 0, total: rows.length });
     startTransition(async () => {
       const generated: GeneratedLink[] = [];
@@ -160,6 +151,7 @@ export function CorporateMembersPanel({
             recipient_email: row.email,
             display_name: row.displayName,
             role,
+            ...(ttlSeconds ? { ttl_seconds: ttlSeconds } : {}),
             authorization_revision: authorizationRevision,
             idempotency_key: crypto.randomUUID(),
           },
@@ -167,329 +159,392 @@ export function CorporateMembersPanel({
         if (!result.ok) {
           setMessage(`${row.email}: ${result.message}`);
           setProgress({ done: index, total: rows.length });
-          setLinks(generated);
+          setLinks((current) => [...generated, ...current]);
+          router.refresh();
           return;
         }
-        const invitation = result.data as CorporateInvitation;
-        const link = invitationLink(invitation);
-        if (link) generated.push({ email: row.email, link });
+        const link = linkFor(result.data as CorporateInvitation);
+        if (link) generated.push(link);
         setProgress({ done: index + 1, total: rows.length });
       }
-      setLinks(generated);
+      setLinks((current) => [...generated, ...current]);
+      setProgress(null);
       setMessage(labels.saved);
+      reset?.();
       router.refresh();
     });
   }
 
-  async function parseFile(file: File) {
-    setParsed(parseMemberImport(await file.text(), file.name));
+  function revokeInvitation(invitationId: string) {
+    setMessage(null);
+    startTransition(async () => {
+      const result = await corporateMutationAction({
+        csrfToken,
+        organizationId,
+        method: "POST",
+        path: `/v1/corporate/organizations/${organizationId}/invitations/${invitationId}/revoke`,
+        body: {
+          schema_version: 1,
+          authorization_revision: authorizationRevision,
+          idempotency_key: crypto.randomUUID(),
+        },
+      });
+      setMessage(result.ok ? labels.saved : result.message);
+      if (result.ok) router.refresh();
+    });
+  }
+
+  function savePolicy(form: HTMLFormElement) {
+    const formData = new FormData(form);
+    const restricted = formData.get("domainRestrict") === "true";
+    const domains = restricted
+      ? field(formData, "domains")
+          .split(/[\s,]+/)
+          .map((domain) => domain.trim().toLowerCase())
+          .filter(Boolean)
+      : [];
+    setMessage(null);
+    startTransition(async () => {
+      const result = await corporateMutationAction({
+        csrfToken,
+        organizationId,
+        method: "PUT",
+        path: `/v1/corporate/organizations/${organizationId}/membership/policy`,
+        body: {
+          schema_version: 1,
+          authorization_revision: authorizationRevision,
+          allowed_email_domains: domains,
+        },
+      });
+      setMessage(result.ok ? labels.saved : result.message);
+      if (result.ok) router.refresh();
+    });
   }
 
   return (
-    <section className="border-border bg-card space-y-8 rounded-lg border p-5 shadow-sm sm:p-6">
-      {canInvite ? (
-        <form
-          className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5"
-          onSubmit={(event) => {
-            event.preventDefault();
-            createInvitations(
-              [{ displayName: invite.displayName || invite.email, email: invite.email }],
-              invite.role,
-            );
-          }}
-        >
-          <h2 className="font-medium sm:col-span-2 lg:col-span-5">{labels.inviteTitle}</h2>
-          <div>
-            <Label htmlFor="corporate-invite-email">{labels.email}</Label>
-            <Input
-              id="corporate-invite-email"
-              type="email"
-              required
-              value={invite.email}
-              onChange={(event) => setInvite({ ...invite, email: event.target.value })}
-            />
-          </div>
-          <div>
-            <Label htmlFor="corporate-invite-name">{labels.displayName}</Label>
-            <Input
-              id="corporate-invite-name"
-              value={invite.displayName}
-              maxLength={80}
-              onChange={(event) => setInvite({ ...invite, displayName: event.target.value })}
-            />
-          </div>
-          <SelectField
-            id="corporate-invite-role"
-            label={labels.role}
-            value={invite.role}
-            onChange={(role) => setInvite({ ...invite, role })}
-            options={availableRoles.map((role) => ({ value: role, label: role }))}
-          />
-          <Button type="submit" disabled={busy} className="self-end">
-            {busy ? labels.creating : labels.invite}
-          </Button>
-        </form>
-      ) : null}
+    <section className="border-border bg-card rounded-lg border p-5 shadow-sm sm:p-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-xl font-medium">{labels.members}</h2>
+        <Badge variant="secondary">{members.length}</Badge>
+      </div>
+
+      <div aria-live="polite" className="mt-3 min-h-5">
+        {message ? <p className="text-muted-foreground text-sm">{message}</p> : null}
+      </div>
+
+      {members.length ? (
+        <ul className="mt-2 space-y-2">
+          {members.map((member) => (
+            <li
+              key={member.account_id}
+              className="border-border flex flex-wrap items-center justify-between gap-2 rounded border p-3"
+            >
+              <div className="min-w-0">
+                <p className="truncate font-medium">{member.display_name ?? member.account_id}</p>
+                {member.job_title_name ? (
+                  <p className="text-muted-foreground truncate text-sm">{member.job_title_name}</p>
+                ) : null}
+              </div>
+              <div className="flex shrink-0 items-center gap-2">
+                <Badge variant="outline">{member.role}</Badge>
+                <Badge variant={member.state === "active" ? "success" : "secondary"}>
+                  {member.state}
+                </Badge>
+              </div>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="text-muted-foreground mt-2 text-sm">{labels.noMembers}</p>
+      )}
 
       {canInvite ? (
-        <div className="border-border space-y-4 border-t pt-6">
-          <div className="space-y-1">
-            <h2 className="font-medium">{labels.bulkImport}</h2>
-            <p className="text-muted-foreground text-sm">{labels.bulkImportBody}</p>
+        <div className="border-border mt-6 space-y-8 border-t pt-6">
+          <div>
+            <h3 className="font-medium">{labels.inviteTitle}</h3>
+            <p className="text-muted-foreground mt-1 text-sm">{labels.inviteBody}</p>
+            <form
+              className="mt-4 grid items-end gap-3 sm:grid-cols-2 lg:grid-cols-5"
+              onSubmit={(event) => {
+                event.preventDefault();
+                const form = event.currentTarget;
+                const formData = new FormData(form);
+                const ttlDays = Number.parseInt(field(formData, "ttlDays"), 10);
+                createInvitations(
+                  [
+                    {
+                      displayName: field(formData, "displayName") || field(formData, "email"),
+                      email: field(formData, "email"),
+                    },
+                  ],
+                  field(formData, "role"),
+                  Number.isFinite(ttlDays) && ttlDays > 0 ? ttlDays * 86400 : undefined,
+                  () => form.reset(),
+                );
+              }}
+            >
+              <div className="space-y-1.5">
+                <Label htmlFor="invite-email">{labels.email}</Label>
+                <Input id="invite-email" name="email" type="email" required autoComplete="off" />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="invite-display-name">{labels.displayName}</Label>
+                <Input id="invite-display-name" name="displayName" required autoComplete="off" />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="invite-role">{labels.role}</Label>
+                <select id="invite-role" name="role" required className={selectClass}>
+                  {roleNames.map((name) => (
+                    <option key={name} value={name}>
+                      {name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="invite-ttl">{labels.expiresInDays}</Label>
+                <Input id="invite-ttl" name="ttlDays" type="number" min={1} placeholder="1" />
+              </div>
+              <Button type="submit" disabled={busy}>
+                {busy ? labels.creating : labels.invite}
+              </Button>
+            </form>
           </div>
-          <div className="grid gap-3 lg:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="corporate-import-file">{labels.importFile}</Label>
-              <Input
-                id="corporate-import-file"
-                ref={fileRef}
-                type="file"
-                accept=".csv,.txt,.md,.markdown,.json,.xml,.html,.htm"
-                onChange={(event) => {
-                  const file = event.target.files?.[0];
-                  if (file) void parseFile(file);
-                }}
-              />
-              <Label htmlFor="corporate-import-text">{labels.importText}</Label>
-              <Textarea
-                id="corporate-import-text"
-                rows={5}
-                value={importText}
-                placeholder={labels.importPlaceholder}
-                onChange={(event) => setImportText(event.target.value)}
-              />
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={busy || !importText.trim()}
-                  onClick={() => setParsed(parseMemberImport(importText))}
-                >
-                  {labels.parse}
-                </Button>
-                <SelectField
-                  id="corporate-bulk-role"
-                  label={labels.role}
-                  value={bulkRole}
-                  onChange={setBulkRole}
-                  options={availableRoles.map((role) => ({ value: role, label: role }))}
+
+          <div>
+            <h3 className="font-medium">{labels.bulkImport}</h3>
+            <p className="text-muted-foreground mt-1 text-sm">{labels.bulkImportBody}</p>
+            <div className="mt-4 grid gap-3 lg:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="import-file">{labels.importFile}</Label>
+                <Input
+                  id="import-file"
+                  ref={fileRef}
+                  type="file"
+                  accept=".csv,.md,.markdown,.json,.xml,.html,.htm,.txt,text/*,application/json,application/xml"
+                  onChange={(event) => {
+                    const file = event.target.files?.[0];
+                    if (!file) return;
+                    void file
+                      .text()
+                      .then((text) => {
+                        setImportText(text);
+                        setParsed(parseMemberImport(text, file.name));
+                      })
+                      .catch(() => setMessage(labels.failed));
+                  }}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="import-text">{labels.importText}</Label>
+                <Textarea
+                  id="import-text"
+                  value={importText}
+                  placeholder={labels.importPlaceholder}
+                  rows={4}
+                  onChange={(event) => setImportText(event.target.value)}
                 />
               </div>
             </div>
-            <div className="space-y-2">
-              {parsed.length ? (
-                <>
-                  <p className="text-muted-foreground text-sm" role="status">
-                    {labels.parsedCount.replace("{count}", String(parsed.length))}
-                  </p>
-                  <ul className="border-border max-h-56 space-y-1 overflow-y-auto rounded border p-3 text-sm">
-                    {parsed.map((row) => (
-                      <li key={row.email} className="flex justify-between gap-3">
-                        <span className="truncate">{row.displayName}</span>
-                        <span className="text-muted-foreground truncate">{row.email}</span>
-                      </li>
-                    ))}
-                  </ul>
-                  <Button
-                    type="button"
-                    disabled={busy}
-                    onClick={() => createInvitations(parsed, bulkRole)}
-                  >
-                    {busy ? labels.creating : labels.inviteAll}
-                  </Button>
-                </>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={!importText.trim()}
+                onClick={() => {
+                  const result = parseMemberImport(importText);
+                  setParsed(result);
+                  setMessage(
+                    result.length
+                      ? labels.parsedCount.replace("{count}", String(result.length))
+                      : labels.failed,
+                  );
+                }}
+              >
+                {labels.parse}
+              </Button>
+              <Button
+                type="button"
+                disabled={busy || !parsed.length}
+                onClick={() =>
+                  createInvitations(parsed, bulkRole, undefined, () => {
+                    setParsed([]);
+                    setImportText("");
+                    if (fileRef.current) fileRef.current.value = "";
+                  })
+                }
+              >
+                {labels.inviteAll} ({parsed.length})
+              </Button>
+              {progress ? (
+                <Badge variant="secondary">
+                  {labels.bulkProgress
+                    .replace("{done}", String(progress.done))
+                    .replace("{total}", String(progress.total))}
+                </Badge>
               ) : null}
             </div>
+            {parsed.length ? (
+              <ul className="border-border mt-3 max-h-40 space-y-1 overflow-y-auto rounded border p-3 text-sm">
+                {parsed.map((member) => (
+                  <li key={member.email} className="flex flex-wrap gap-x-2">
+                    <span className="font-medium">{member.displayName}</span>
+                    <span className="text-muted-foreground">{member.email}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
           </div>
-          {progress ? (
-            <p className="text-muted-foreground text-sm" role="status" aria-live="polite">
-              {labels.bulkProgress
-                .replace("{done}", String(progress.done))
-                .replace("{total}", String(progress.total))}
-            </p>
+
+          {links.length ? (
+            <div>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <h3 className="flex items-center gap-2 font-medium">
+                  {labels.invitationLinks}
+                  <Badge variant="secondary">{links.length}</Badge>
+                </h3>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      void navigator.clipboard.writeText(links.map((link) => link.link).join("\n"));
+                    }}
+                  >
+                    {labels.copyAll}
+                  </Button>
+                  <Label htmlFor="export-format" className="sr-only">
+                    {labels.exportFormat}
+                  </Label>
+                  <select
+                    id="export-format"
+                    value={exportFormat}
+                    aria-label={labels.exportFormat}
+                    className="border-input bg-background ring-offset-background focus-visible:ring-ring flex h-9 rounded-md border px-2 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+                    onChange={(event) => setExportFormat(event.target.value as ExportFormat)}
+                  >
+                    {EXPORT_FORMATS.map((format) => (
+                      <option key={format} value={format}>
+                        {format.toUpperCase()}
+                      </option>
+                    ))}
+                  </select>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => downloadInvitationLinks(links, exportFormat)}
+                  >
+                    {labels.download}
+                  </Button>
+                </div>
+              </div>
+              <ul className="mt-3 space-y-2">
+                {links.map((link) => (
+                  <li
+                    key={link.link}
+                    className="border-border flex flex-wrap items-center justify-between gap-3 rounded border p-3"
+                  >
+                    <div className="w-full min-w-0 sm:w-52">
+                      <p className="truncate text-sm font-medium">{link.displayName}</p>
+                      <p className="text-muted-foreground truncate text-sm">{link.email}</p>
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <CopyValue value={link.link} label={labels.copy} copied={labels.copied} />
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
           ) : null}
         </div>
       ) : null}
 
-      {links.length ? (
-        <div className="border-border space-y-3 border-t pt-6">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <h2 className="font-medium">{labels.invitationLinks}</h2>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => copyText(links.map((item) => item.link).join("\n"))}
-            >
-              {labels.copyAll}
-            </Button>
-          </div>
-          <ul className="space-y-2">
-            {links.map((item) => (
-              <li
-                key={item.link}
-                className="border-border flex flex-wrap items-center gap-2 rounded border p-3 text-sm"
-              >
-                <span className="min-w-0 flex-1 truncate font-mono text-xs">{item.email}</span>
-                <Button type="button" variant="outline" onClick={() => copyText(item.link)}>
-                  {labels.copy}
-                </Button>
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
-
-      <div className="border-border space-y-3 border-t pt-6">
-        <h2 className="font-medium">{labels.invitations}</h2>
+      <div className="border-border mt-6 border-t pt-6">
+        <h3 className="font-medium">{labels.invitations}</h3>
         {invitations.length ? (
-          <ul className="space-y-2">
-            {invitations.map((item) => (
+          <ul className="mt-3 space-y-2">
+            {invitations.map((invitation) => (
               <li
-                key={item.invitation_id}
-                className="border-border flex flex-wrap items-center gap-2 rounded border p-3 text-sm"
+                key={invitation.invitation_id}
+                className="border-border flex flex-wrap items-center justify-between gap-3 rounded border p-3"
               >
-                <span className="min-w-0 flex-1 truncate">
-                  {item.display_name} · {item.recipient_email}
-                </span>
-                <span className="text-muted-foreground">{item.role}</span>
-                <span className="text-muted-foreground">{item.state}</span>
-                <span className="text-muted-foreground text-xs">
-                  {labels.expiresAt} {item.expires_at.slice(0, 10)}
-                </span>
-                {item.state === "pending" && canInvite ? (
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    disabled={busy}
-                    onClick={() =>
-                      submit(
-                        "POST",
-                        `/v1/corporate/organizations/${organizationId}/invitations/${item.invitation_id}/revoke`,
-                        {
-                          schema_version: 1,
-                          authorization_revision: authorizationRevision,
-                          idempotency_key: crypto.randomUUID(),
-                        },
-                      )
-                    }
-                  >
-                    {busy ? labels.revoking : labels.revoke}
-                  </Button>
-                ) : null}
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium">
+                    {invitation.display_name}
+                    <span className="text-muted-foreground font-normal">
+                      {" "}
+                      · {invitation.recipient_email}
+                    </span>
+                  </p>
+                  <p className="text-muted-foreground text-sm">
+                    {invitation.role} · {labels.expiresAt} {invitation.expires_at.slice(0, 10)}
+                  </p>
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  <Badge variant={INVITATION_STATE_VARIANT[invitation.state]}>
+                    {invitation.state}
+                  </Badge>
+                  {invitation.state === "pending" ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={busy}
+                      onClick={() => revokeInvitation(invitation.invitation_id)}
+                    >
+                      {busy ? labels.revoking : labels.revoke}
+                    </Button>
+                  ) : null}
+                </div>
               </li>
             ))}
           </ul>
         ) : (
-          <p className="text-muted-foreground text-sm">{labels.noInvitations}</p>
-        )}
-      </div>
-
-      <div className="border-border space-y-3 border-t pt-6">
-        <h2 className="font-medium">{labels.members}</h2>
-        {members.length ? (
-          <ul className="space-y-2">
-            {members.map((item) => (
-              <li
-                key={item.account_id}
-                className="border-border flex flex-wrap items-center gap-2 rounded border p-3 text-sm"
-              >
-                <span className="min-w-0 flex-1 truncate">
-                  {item.display_name ?? item.account_id}
-                </span>
-                <span className="text-muted-foreground">{item.role}</span>
-                <span className="text-muted-foreground">{item.state}</span>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="text-muted-foreground text-sm">{labels.noMembers}</p>
+          <p className="text-muted-foreground mt-3 text-sm">{labels.noInvitations}</p>
         )}
       </div>
 
       {canManagePolicy ? (
-        <form
-          className="border-border space-y-3 border-t pt-6"
-          onSubmit={(event) => {
-            event.preventDefault();
-            submit("PUT", `/v1/corporate/organizations/${organizationId}/membership/policy`, {
-              schema_version: 1,
-              allowed_email_domains: restricted
-                ? domains
-                    .split(/[\s,;]+/)
-                    .map((item) => item.trim())
-                    .filter(Boolean)
-                : [],
-              authorization_revision: authorizationRevision,
-              idempotency_key: crypto.randomUUID(),
-            });
-          }}
-        >
-          <h2 className="font-medium">{labels.domainPolicy}</h2>
-          <p className="text-muted-foreground text-sm">{labels.domainPolicyBody}</p>
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={restricted}
-              onChange={(event) => setRestricted(event.target.checked)}
-            />
-            {labels.domainRestrict}
-          </label>
-          {restricted ? (
-            <div className="space-y-1">
-              <Label htmlFor="corporate-domains">{labels.domains}</Label>
-              <Input
-                id="corporate-domains"
-                value={domains}
-                placeholder={labels.domainsPlaceholder}
-                onChange={(event) => setDomains(event.target.value)}
+        <div className="border-border mt-6 border-t pt-6">
+          <h3 className="font-medium">{labels.domainPolicy}</h3>
+          <p className="text-muted-foreground mt-1 text-sm">{labels.domainPolicyBody}</p>
+          <form
+            className="mt-4 space-y-3"
+            onSubmit={(event) => {
+              event.preventDefault();
+              savePolicy(event.currentTarget);
+            }}
+          >
+            <div className="flex items-center gap-3">
+              <Switch
+                id="domain-restrict"
+                name="domainRestrict"
+                defaultChecked={allowedDomains.length > 0}
+                aria-label={labels.domainRestrict}
               />
-              <p className="text-muted-foreground text-xs">{labels.domainsHint}</p>
+              <Label htmlFor="domain-restrict" className="font-normal">
+                {labels.domainRestrict}
+              </Label>
             </div>
-          ) : null}
-          <Button type="submit" disabled={busy}>
-            {busy ? labels.saving : labels.save}
-          </Button>
-        </form>
-      ) : null}
-
-      {message ? (
-        <p className="text-muted-foreground text-sm" role="status" aria-live="polite">
-          {message}
-        </p>
+            <div className="space-y-1.5">
+              <Label htmlFor="domains">{labels.domains}</Label>
+              <Input
+                id="domains"
+                name="domains"
+                defaultValue={allowedDomains.join(", ")}
+                placeholder={labels.domainsPlaceholder}
+                autoComplete="off"
+              />
+              <p className="text-muted-foreground text-sm">{labels.domainsHint}</p>
+            </div>
+            <Button type="submit" disabled={busy}>
+              {busy ? labels.saving : labels.save}
+            </Button>
+          </form>
+        </div>
       ) : null}
     </section>
-  );
-}
-
-function SelectField({
-  id,
-  label,
-  value,
-  onChange,
-  options,
-}: {
-  id: string;
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  options: readonly { value: string; label: string }[];
-}) {
-  return (
-    <div>
-      <Label htmlFor={id}>{label}</Label>
-      <select
-        id={id}
-        required
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        className="border-border bg-background h-9 w-full rounded-sm border px-3 text-sm"
-      >
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
-    </div>
   );
 }

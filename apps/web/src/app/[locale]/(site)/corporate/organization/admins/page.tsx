@@ -149,7 +149,6 @@ export default async function CorporateAdministrationPage({ params }: PageProps)
           labels={{
             members: t("members"),
             noMembers: t("noMembers"),
-            invite: t("invite"),
             inviteTitle: t("inviteTitle"),
             inviteBody: t("inviteBody"),
             email: t("email"),
@@ -157,10 +156,10 @@ export default async function CorporateAdministrationPage({ params }: PageProps)
             role: t("organizationRole"),
             expiresInDays: t("expiresInDays"),
             create: t("create"),
+            invite: t("invite"),
             creating: t("creating"),
             invitations: t("invitations"),
             noInvitations: t("noInvitations"),
-            state: t("state"),
             expiresAt: t("expiresAt"),
             revoke: t("revoke"),
             revoking: t("revoking"),
@@ -184,10 +183,12 @@ export default async function CorporateAdministrationPage({ params }: PageProps)
             domains: t("domains"),
             domainsPlaceholder: t("domainsPlaceholder"),
             domainsHint: t("domainsHint"),
-            save: t("jobTitleSave"),
+            save: t("save"),
             saving: t("saving"),
             saved: t("saved"),
             failed: t("failed"),
+            exportFormat: t("exportFormat"),
+            download: t("download"),
           }}
         />
       ) : null}

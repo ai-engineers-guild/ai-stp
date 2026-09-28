@@ -37,6 +37,14 @@ class WorkerSettings(BaseSettings):
     # Public web origin used to build the one-time accept link carried by the
     # invitation email, e.g. https://app.example.invalid (NEXT_PUBLIC_APP_URL).
     invitation_base_url: str = Field(default="")
+    # Corporate invitation mail (#201): a dedicated sender on its own domain.
+    # corporate_resend_api_key falls back to resend_api_key when empty.
+    corporate_resend_api_key: str = Field(default="")
+    corporate_mail_from_address: str = Field(default="invitations@ai-stp.invalid")
+    # S3 location of the invitation mail template; missing object falls back
+    # to the embedded default. Empty bucket selects the storage asset bucket.
+    corporate_mail_template_bucket: str = Field(default="")
+    corporate_mail_template_key: str = Field(default="mail/corporate-invitation.txt")
 
 
 @dataclass(frozen=True)

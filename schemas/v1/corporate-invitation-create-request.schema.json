@@ -75,11 +75,18 @@
       "type": "array"
     },
     "ttl_seconds": {
-      "default": 604800,
-      "maximum": 2592000,
-      "minimum": 60,
-      "title": "Ttl Seconds",
-      "type": "integer"
+      "anyOf": [
+        {
+          "maximum": 2592000,
+          "minimum": 60,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Ttl Seconds"
     }
   },
   "required": [

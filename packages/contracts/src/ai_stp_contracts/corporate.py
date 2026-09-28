@@ -979,7 +979,7 @@ class CorporateInvitationCreateRequest(BaseModel):
     team_ids: Annotated[list[str], Field(max_length=64)] = Field(default_factory=list)
     project_ids: Annotated[list[ProjectId], Field(max_length=64)] = Field(default_factory=list)
     job_title_id: JobTitleId | None = None
-    ttl_seconds: Annotated[int, Field(default=604_800, ge=60, le=2_592_000)] = 604_800
+    ttl_seconds: Annotated[int | None, Field(ge=60, le=2_592_000)] = None
     authorization_revision: Annotated[int, Field(ge=1)]
     idempotency_key: IdempotencyKey
 

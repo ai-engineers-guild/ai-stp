@@ -54,10 +54,13 @@ from ai_stp_platform.organization_models import (
     CorporateInvitation as CorporateInvitationRow,
 )
 from ai_stp_platform.organization_models import (
+    CorporateMailDelivery,
     CorporateProvisionedIdentity,
     Organization,
     OrganizationMembership,
 )
+from ai_stp_platform.queue.engine import enqueue
+from ai_stp_platform.queue.states import JobType
 
 router = APIRouter(tags=["corporate"])
 
@@ -183,6 +186,12 @@ async def create_invitation(
     ):
         raise ApiError(ErrorCategory.CONFLICT, "member already exists")
     token = secrets.token_urlsafe(32)
+    ttl_seconds = (
+        payload.ttl_seconds
+        if payload.ttl_seconds is not None
+        else request.app.state.settings.corporate.invitation_ttl_seconds
+    )
+    expires_at = datetime.now(UTC) + timedelta(seconds=ttl_seconds)
     row = CorporateInvitationRow(
         id=new_id("invite"),
         organization_id=organization_id,
@@ -196,9 +205,36 @@ async def create_invitation(
         token_hash=_hash(token),
         state="pending",
         idempotency_key=payload.idempotency_key,
-        expires_at=datetime.now(UTC) + timedelta(seconds=payload.ttl_seconds),
+        expires_at=expires_at,
     )
     db.add(row)
+    delivery = CorporateMailDelivery(
+        id=new_id("mail"),
+        organization_id=organization_id,
+        invitation_id=row.id,
+        to_email_normalized=normalized_email,
+        display_name=row.display_name,
+        template_key="",
+        state="queued",
+    )
+    db.add(delivery)
+    await enqueue(
+        db,
+        job_type=JobType.DELIVER_CORPORATE_INVITATION,
+        payload={
+            "delivery_id": delivery.id,
+            "invitation_id": row.id,
+            "to_email": normalized_email,
+            "display_name": row.display_name,
+            "organization_name": organization.display_name,
+            "role": row.role,
+            "expires_at": _ts(expires_at),
+            # Token travels only in the job payload until delivered; the
+            # ledger and the audit trail never see it.
+            "accept_token": token,
+        },
+        idempotency_key=f"deliver_corporate_invitation:{row.id}",
+    )
     await emit_audit(
         db,
         actor_account_id=ctx.account_id,

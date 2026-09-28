@@ -278,6 +278,9 @@ class CorporateSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="AI_STP_CORPORATE_", extra="ignore")
 
     bootstrap_secret: str = Field(default="")
+    # Default organization-invitation lifetime when the request omits
+    # ttl_seconds: one day. Explicit request values win within contract bounds.
+    invitation_ttl_seconds: int = Field(default=86_400, ge=60, le=2_592_000)
 
 
 class GitLabConnection(BaseModel):

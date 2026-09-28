@@ -66,11 +66,11 @@ const MARKUP_ROW_BOUNDARY =
 function fromLine(line: string, out: ImportedMember[], seen: Set<string>): void {
   const matches = [...line.matchAll(EMAIL_GLOBAL)];
   for (const [index, match] of matches.entries()) {
-    const start = match.index ?? 0;
+    const start = match.index;
     const previous = index > 0 ? matches[index - 1] : undefined;
-    const previousEnd = previous ? (previous.index ?? 0) + previous[0].length : 0;
+    const previousEnd = previous ? previous.index + previous[0].length : 0;
     const next = index + 1 < matches.length ? matches[index + 1] : undefined;
-    const nextStart = next ? (next.index ?? line.length) : line.length;
+    const nextStart = next ? next.index : line.length;
     const name =
       cleanName(line.slice(previousEnd, start)) ||
       cleanName(line.slice(start + match[0].length, nextStart));

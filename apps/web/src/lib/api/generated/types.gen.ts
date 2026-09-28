@@ -3943,7 +3943,7 @@ export type CorporateInvitationCreateRequest = {
   /**
    * Ttl Seconds
    */
-  ttl_seconds?: number;
+  ttl_seconds?: number | null;
 };
 
 /**
