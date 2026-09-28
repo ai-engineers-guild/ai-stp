@@ -509,7 +509,7 @@ async def _next_unused_minor(session: AsyncSession, stable_id: str) -> str:
 def next_unused_minor(versions: Sequence[str]) -> str:
     # A malformed stored version cannot occupy a minor slot: skip it rather
     # than fail the whole sync on one corrupt row.
-    parsed = []
+    parsed: list[tuple[int, int]] = []
     for item in versions:
         try:
             parsed.append(parse_version(item))

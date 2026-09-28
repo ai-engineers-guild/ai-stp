@@ -164,8 +164,11 @@ async def session(tmp_path: Path) -> AsyncIterator[AsyncSession]:
     engine = create_engine(f"sqlite:///{tmp_path}/service.db")
     Base.metadata.create_all(engine, tables=cast("Sequence[Table]", TABLES))
     maker = sessionmaker(engine, expire_on_commit=False)
-    with maker() as sync:
-        yield cast(AsyncSession, _SyncFacade(sync))
+    try:
+        with maker() as sync:
+            yield cast(AsyncSession, _SyncFacade(sync))
+    finally:
+        engine.dispose()
 
 
 class Tenant:
