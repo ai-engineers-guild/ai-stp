@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import Mapping, Sequence
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any, cast
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -149,6 +149,10 @@ FORBIDDEN_FIELD_NAMES: frozenset[str] = frozenset(
 )
 
 MAX_EXPORT_ROWS = 1000
+
+#: Clock skew allowance for `occurred_at`: a buffered event is old, never from
+#: the future — the same boundary the usage and heartbeat ingests enforce.
+MAX_FUTURE_SKEW = timedelta(minutes=5)
 
 _ABSOLUTE_PATH_RE = re.compile(r"(^[A-Za-z]:[\\/])|(^[\\/]{1,2}[^\\/])|(^~[\\/])|(^file://)")
 _ENV_ASSIGNMENT_RE = re.compile(r"^[A-Z_][A-Z0-9_]{1,63}=")
@@ -307,6 +311,12 @@ async def ingest_event(
     await set_tenant_scope(session, organization_id)
     columns = event_columns(kind, fields)
     await _subject_blocked(session, organization_id=organization_id, columns=columns)
+    occurred = _parse_timestamp(columns.get("occurred_at"))
+    if occurred is not None and occurred > datetime.now(UTC) + MAX_FUTURE_SKEW:
+        # A buffered event is old, never from the future: a far-future
+        # timestamp would pin ordering and outlive every retention sweep —
+        # the same boundary the usage-event ingest already enforces.
+        raise TelemetryBoundaryError(("occurred_at",))
     existing = await session.scalar(
         select(TelemetryEvent).where(
             TelemetryEvent.organization_id == organization_id,

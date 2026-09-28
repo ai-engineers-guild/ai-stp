@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import re
 import stat
@@ -686,9 +687,11 @@ def _skill_markdown(name: str) -> bytes:
 
 
 def _codex_agent_toml(name: str) -> bytes:
+    # A heading carrying a quote or a backslash would break out of the TOML
+    # basic string; JSON string escaping is a valid TOML basic string.
     return (
         f"# {DRAFT} replace this draft Codex agent.\n"
-        f'name = "{name}"\n'
+        f"name = {json.dumps(name)}\n"
         f'description = "{DRAFT} replace with the agent purpose."\n'
     ).encode()
 

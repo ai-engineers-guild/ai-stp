@@ -6,12 +6,11 @@ from __future__ import annotations
 import io
 import json
 import sys
-import urllib.error
-import urllib.request
-from email.message import Message
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
+import httpx
 import pytest
 from tests.unit.platform.article_fixtures import pair_snapshot
 
@@ -20,19 +19,22 @@ from ai_stp_platform.content import importer
 pytestmark = pytest.mark.platform
 
 
-class _Response:
-    def __init__(self, status: int, payload: dict[str, Any]) -> None:
-        self.status = status
-        self._payload = payload
+def _mock_client(handler: Callable[[httpx.Request], httpx.Response]) -> Callable[[], httpx.Client]:
+    """The same client policy the importer uses, over an in-process transport."""
+    return lambda: httpx.Client(
+        transport=httpx.MockTransport(handler),
+        timeout=60,
+        follow_redirects=False,
+        trust_env=False,
+    )
 
-    def read(self) -> bytes:
-        return json.dumps(self._payload).encode("utf-8")
 
-    def __enter__(self) -> _Response:
-        return self
-
-    def __exit__(self, *_args: object) -> None:
+def _payload(request: httpx.Request) -> dict[str, Any] | None:
+    if not request.content:
         return None
+    parsed: object = json.loads(request.content)
+    assert isinstance(parsed, dict)
+    return cast("dict[str, Any]", parsed)
 
 
 def test_importer_posts_expected_generation_from_state(
@@ -43,19 +45,15 @@ def test_importer_posts_expected_generation_from_state(
     snapshot_path.write_text(snapshot.model_dump_json(), encoding="utf-8")
     calls: list[tuple[str, str, dict[str, Any] | None]] = []
 
-    def fake_urlopen(request: Any, timeout: int = 0) -> _Response:
-        del timeout
-        method = request.get_method()
-        url = request.full_url
-        payload = None
-        if request.data:
-            payload = json.loads(request.data.decode("utf-8"))
-        calls.append((method, url, payload))
-        if method == "GET":
-            return _Response(200, {"generation": 3, "snapshot_digest": None, "commit": None})
-        return _Response(
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append((request.method, str(request.url), _payload(request)))
+        if request.method == "GET":
+            return httpx.Response(
+                200, json={"generation": 3, "snapshot_digest": None, "commit": None}
+            )
+        return httpx.Response(
             200,
-            {
+            json={
                 "generation": 4,
                 "snapshot_digest": snapshot.snapshot_digest,
                 "created": 2,
@@ -68,7 +66,7 @@ def test_importer_posts_expected_generation_from_state(
     monkeypatch.setenv("AI_STP_CONTENT_IMPORT_TOKEN", "token")
     monkeypatch.setenv("AI_STP_API_BASE_URL", "http://api.test:8000")
     monkeypatch.setenv("AI_STP_CONTENT_SNAPSHOT", str(snapshot_path))
-    monkeypatch.setattr(urllib.request, "urlopen", fake_urlopen)
+    monkeypatch.setattr(importer, "_client", _mock_client(handler))
     monkeypatch.setattr(sys, "stdout", io.StringIO())
     assert importer.main() == 0
     assert calls[0][0] == "GET"
@@ -114,11 +112,6 @@ def test_importer_fails_closed_without_token(monkeypatch: pytest.MonkeyPatch) ->
     assert importer.main() == 1
 
 
-def _http_error(url: str, status: int, payload: dict[str, Any]) -> urllib.error.HTTPError:
-    body = io.BytesIO(json.dumps(payload).encode("utf-8"))
-    return urllib.error.HTTPError(url, status, "error", Message(), body)
-
-
 def _prepare_importer(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> tuple[list[float], io.StringIO]:
@@ -148,17 +141,17 @@ def test_importer_retries_unreachable_state_then_succeeds(
     sleeps, _stderr = _prepare_importer(tmp_path, monkeypatch)
     remaining_failures = {"n": 2}
 
-    def fake_urlopen(request: Any, timeout: int = 0) -> _Response:
-        del timeout
-        method = request.get_method()
-        if method == "GET" and remaining_failures["n"]:
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.method == "GET" and remaining_failures["n"]:
             remaining_failures["n"] -= 1
-            raise urllib.error.URLError("connection refused")
-        if method == "GET":
-            return _Response(200, {"generation": 1, "snapshot_digest": None, "commit": None})
-        return _Response(
+            raise httpx.ConnectError("connection refused", request=request)
+        if request.method == "GET":
+            return httpx.Response(
+                200, json={"generation": 1, "snapshot_digest": None, "commit": None}
+            )
+        return httpx.Response(
             200,
-            {
+            json={
                 "generation": 2,
                 "snapshot_digest": pair_snapshot().snapshot_digest,
                 "created": 0,
@@ -168,7 +161,7 @@ def test_importer_retries_unreachable_state_then_succeeds(
             },
         )
 
-    monkeypatch.setattr(urllib.request, "urlopen", fake_urlopen)
+    monkeypatch.setattr(importer, "_client", _mock_client(handler))
     assert importer.main() == 0
     assert remaining_failures["n"] == 0
     assert sleeps == [0.25, 0.25]
@@ -180,17 +173,17 @@ def test_importer_retries_transient_http_on_import(
     sleeps, _stderr = _prepare_importer(tmp_path, monkeypatch)
     remaining_failures = {"n": 1}
 
-    def fake_urlopen(request: Any, timeout: int = 0) -> _Response:
-        del timeout
-        method = request.get_method()
-        if method == "GET":
-            return _Response(200, {"generation": 1, "snapshot_digest": None, "commit": None})
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.method == "GET":
+            return httpx.Response(
+                200, json={"generation": 1, "snapshot_digest": None, "commit": None}
+            )
         if remaining_failures["n"]:
             remaining_failures["n"] -= 1
-            raise _http_error(request.full_url, 503, {"error": {"code": "unavailable"}})
-        return _Response(
+            return httpx.Response(503, json={"error": {"code": "unavailable"}})
+        return httpx.Response(
             200,
-            {
+            json={
                 "generation": 2,
                 "snapshot_digest": pair_snapshot().snapshot_digest,
                 "created": 0,
@@ -200,7 +193,7 @@ def test_importer_retries_transient_http_on_import(
             },
         )
 
-    monkeypatch.setattr(urllib.request, "urlopen", fake_urlopen)
+    monkeypatch.setattr(importer, "_client", _mock_client(handler))
     assert importer.main() == 0
     assert remaining_failures["n"] == 0
     assert sleeps == [0.25]
@@ -211,17 +204,14 @@ def test_importer_does_not_retry_client_error(
 ) -> None:
     sleeps, stderr = _prepare_importer(tmp_path, monkeypatch)
 
-    def fake_urlopen(request: Any, timeout: int = 0) -> _Response:
-        del timeout
-        if request.get_method() == "GET":
-            return _Response(200, {"generation": 1, "snapshot_digest": None, "commit": None})
-        raise _http_error(
-            request.full_url,
-            400,
-            {"error": {"code": "AI_STP_CONTENT_INVALID"}},
-        )
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.method == "GET":
+            return httpx.Response(
+                200, json={"generation": 1, "snapshot_digest": None, "commit": None}
+            )
+        return httpx.Response(400, json={"error": {"code": "AI_STP_CONTENT_INVALID"}})
 
-    monkeypatch.setattr(urllib.request, "urlopen", fake_urlopen)
+    monkeypatch.setattr(importer, "_client", _mock_client(handler))
     assert importer.main() == 1
     assert sleeps == []
     assert "AI_STP_CONTENT_INVALID" in stderr.getvalue()
@@ -232,12 +222,40 @@ def test_importer_exhausted_retries_fail_closed(
 ) -> None:
     sleeps, stderr = _prepare_importer(tmp_path, monkeypatch)
 
-    def fake_urlopen(request: Any, timeout: int = 0) -> _Response:
-        del timeout
-        del request
-        raise urllib.error.URLError("connection refused")
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError("connection refused", request=request)
 
-    monkeypatch.setattr(urllib.request, "urlopen", fake_urlopen)
+    monkeypatch.setattr(importer, "_client", _mock_client(handler))
     assert importer.main() == 1
     assert sleeps == [0.25, 0.25]
+    assert "state_failed" in stderr.getvalue()
+
+
+def test_importer_never_follows_redirects(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    sleeps, stderr = _prepare_importer(tmp_path, monkeypatch)
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.method == "GET":
+            # Even pointing at the same host, a redirect answer is a refusal:
+            # following it would re-issue the Bearer header to the new origin.
+            return httpx.Response(302, headers={"location": "https://api.test:8000/state"})
+        raise AssertionError("the import POST must never run after a redirect")
+
+    monkeypatch.setattr(importer, "_client", _mock_client(handler))
+    assert importer.main() == 1
+    assert sleeps == []
+    assert "state_failed" in stderr.getvalue()
+
+
+def test_importer_caps_oversized_responses(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    sleeps, stderr = _prepare_importer(tmp_path, monkeypatch)
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.method == "GET":
+            return httpx.Response(200, content=b"x" * (5 * 1024 * 1024))
+        raise AssertionError("the import POST must never run on an unreadable state")
+
+    monkeypatch.setattr(importer, "_client", _mock_client(handler))
+    assert importer.main() == 1
+    assert sleeps == []
     assert "state_failed" in stderr.getvalue()

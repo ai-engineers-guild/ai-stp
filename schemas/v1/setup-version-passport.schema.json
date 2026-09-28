@@ -451,8 +451,10 @@
       "items": {
         "$ref": "#/$defs/RevisionId"
       },
+      "maxItems": 2,
       "title": "Parent Revision Ids",
-      "type": "array"
+      "type": "array",
+      "uniqueItems": true
     },
     "permissions": {
       "$ref": "#/$defs/Permissions"

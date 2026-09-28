@@ -442,3 +442,46 @@ async def test_heartbeat_keeps_a_live_lease_claimed(
             )
             == 0
         )
+
+
+@pytest.mark.asyncio
+async def test_stale_requeue_to_dead_letter_scrubs_the_payload(
+    db_sessionmaker: async_sessionmaker[AsyncSession],
+) -> None:
+    """The lease-expiry dead-letter path applies the same scrub `fail` does.
+
+    A credential-bearing payload in a terminal row would otherwise rest for
+    the 30-day GC window; a bulk UPDATE could not rewrite it per row, which
+    is why the reclaim is a bounded per-row pass.
+    """
+    now = datetime(2026, 8, 7, 12, 0, tzinfo=UTC)
+    async with db_sessionmaker() as session, session.begin():
+        await enqueue(
+            session,
+            job_type=JobType.UPLOAD,
+            payload={"path": "kept", "access_token": "dead-secret"},
+            idempotency_key="queue-dead-letter-scrub",
+            max_attempts=1,
+            run_after=now,
+        )
+
+    async with db_sessionmaker() as session, session.begin():
+        claimed = await claim(session, worker_id="worker-doomed", batch=1, now=now)
+        assert len(claimed) == 1
+        job_id = claimed[0].id
+
+    expired = now + timedelta(seconds=DEFAULT_LEASE_TIMEOUT_SECONDS + 1)
+    async with db_sessionmaker() as session, session.begin():
+        assert (
+            await requeue_stale(
+                session,
+                lease_timeout_seconds=DEFAULT_LEASE_TIMEOUT_SECONDS,
+                now=expired,
+            )
+            == 1
+        )
+        row = await session.get(Job, job_id)
+        assert row is not None
+        assert row.state == JobState.DEAD_LETTER
+        assert row.payload == {"path": "kept", "access_token": "[delivered]"}
+        assert row.last_error == "stale worker lease expired"

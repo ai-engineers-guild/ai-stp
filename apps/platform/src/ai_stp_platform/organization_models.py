@@ -391,6 +391,7 @@ class CorporateTeam(EntityProfileColumns, Base):
         UniqueConstraint("organization_id", "name", name="uq_corporate_team_name"),
         CheckConstraint("state in ('active', 'archived')", name="ck_corporate_team_state"),
         CheckConstraint("profile_revision >= 0", name="ck_corporate_team_profile_revision"),
+        CheckConstraint("revision >= 1", name="ck_corporate_team_revision"),
     )
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)

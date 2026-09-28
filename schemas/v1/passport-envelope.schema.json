@@ -129,8 +129,10 @@
       "items": {
         "$ref": "#/$defs/RevisionId"
       },
+      "maxItems": 2,
       "title": "Parent Revision Ids",
-      "type": "array"
+      "type": "array",
+      "uniqueItems": true
     },
     "revision_id": {
       "$ref": "#/$defs/RevisionId"

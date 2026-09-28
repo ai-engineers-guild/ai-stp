@@ -643,3 +643,17 @@ def test_refresh_mints_a_new_pair_and_logout_ends_both_halves(
     with pytest.raises(CliFailure) as dead:
         login.renew(cli_endpoint, renewed)
     assert dead.value.code == "AI_STP_AUTH_REQUIRED"
+
+
+def test_a_malformed_body_answers_the_validation_envelope(
+    cli_server: SyncAsgiServer,
+) -> None:
+    """A body that is not JSON must not fall through to the 500 handler."""
+    assert cli_server.transport is not None
+    with httpx.Client(transport=cli_server.transport, base_url="http://127.0.0.1") as http:
+        for path in ("/v1/auth/device", "/v1/auth/device/token"):
+            response = http.post(
+                path, content=b"{not json", headers={"Content-Type": "application/json"}
+            )
+            assert response.status_code == 400, response.text
+            assert response.json()["error"]["code"] == "AI_STP_VALIDATION_ERROR"

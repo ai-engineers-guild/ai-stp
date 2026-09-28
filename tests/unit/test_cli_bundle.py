@@ -234,6 +234,12 @@ def test_both_reports_are_inside_the_hashed_manifest() -> None:
         (bundle.Source("./a.md", b"x", "c"), "path_empty_segment"),
         (bundle.Source("bad\u0000name.md", b"x", "c"), "path_invalid_character"),
         (bundle.Source("bad\nname.md", b"x", "c"), "path_invalid_character"),
+        # The provider reader refuses Rust's whole char::is_control class, so
+        # the writer refuses the same set — DEL and the C1 range included,
+        # not only ord < 32.
+        (bundle.Source("bad\u007fname.md", b"x", "c"), "path_invalid_character"),
+        (bundle.Source("bad\u0085name.md", b"x", "c"), "path_invalid_character"),
+        (bundle.Source("bad\u009fname.md", b"x", "c"), "path_invalid_character"),
         (bundle.Source("x" * 256, b"x", "c"), "path_too_long"),
         # Windows portability. The owner chose one globally portable bundle, so
         # a digest means one installability everywhere rather than depending on
