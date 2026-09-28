@@ -17,8 +17,10 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
+from email.message import EmailMessage
 from typing import Protocol
 
+from ai_stp_platform.mail import SmtpConfig
 from ai_stp_platform.storage.object_store import ObjectClient
 
 DEFAULT_TEMPLATE_KEY = "mail/corporate-invitation.txt"
@@ -167,3 +169,28 @@ class ResendCorporateMailPort:
             raise RuntimeError(msg) from exc
         message_id = payload.get("id")
         return message_id if isinstance(message_id, str) else None
+
+
+@dataclass(frozen=True)
+class SmtpCorporateMailPort:
+    """SMTP adapter on the dedicated corporate sender — the company
+    mailbox's SMTP, a self-hosted MTA, or a dev catch-all; the endpoint
+    shape lives in SmtpConfig. SMTP yields no provider message id."""
+
+    smtp: SmtpConfig
+    from_address: str
+
+    def send_invitation(
+        self,
+        *,
+        to_email: str,
+        subject: str,
+        text: str,
+    ) -> str | None:
+        message = EmailMessage()
+        message["From"] = self.from_address
+        message["To"] = to_email
+        message["Subject"] = subject
+        message.set_content(text)
+        self.smtp.send(message)
+        return None

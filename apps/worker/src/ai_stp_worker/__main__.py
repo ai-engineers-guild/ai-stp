@@ -11,15 +11,16 @@ from pydantic import ValidationError
 from ai_stp_platform.corporate_mail import (
     CorporateMailTemplateLoader,
     ResendCorporateMailPort,
+    SmtpCorporateMailPort,
 )
 from ai_stp_platform.db import make_engine, make_sessionmaker
 from ai_stp_platform.logging import configure_logging, get_logger
-from ai_stp_platform.mail import ResendMailPort
+from ai_stp_platform.mail import ResendMailPort, SmtpConfig, SmtpMailPort
 from ai_stp_platform.settings import StorageSettings
 from ai_stp_platform.storage.s3 import S3ObjectClient
 from ai_stp_worker.handlers import deliver_corporate_invitation, deliver_invitation
 from ai_stp_worker.runner import Worker
-from ai_stp_worker.settings import Settings, load_settings
+from ai_stp_worker.settings import Settings, WorkerSettings, load_settings
 
 _log = get_logger("worker_main")
 
@@ -45,26 +46,68 @@ def _load_storage_settings() -> StorageSettings | None:
         return None
 
 
-async def _run(settings: Settings) -> None:
-    if settings.worker.resend_api_key:
-        deliver_invitation.MAIL_PORT = ResendMailPort(
-            api_key=settings.worker.resend_api_key,
-            from_address=settings.worker.mail_from_address,
-            accept_base_url=settings.worker.invitation_base_url,
+def select_mail_provider(worker: WorkerSettings) -> str:
+    """Resolve the delivery provider: explicit setting, else the auto order.
+
+    auto = Resend when an API key is present (hosted delivery), else SMTP
+    when a relay host is configured (company SMTP / self-hosted MTA /
+    Mailpit), else the recording port — nothing leaves the host.
+    """
+    if worker.mail_provider != "auto":
+        return worker.mail_provider
+    if worker.corporate_resend_api_key or worker.resend_api_key:
+        return "resend"
+    if worker.smtp_host:
+        return "smtp"
+    return "recording"
+
+
+def _configure_mail_ports(worker: WorkerSettings) -> None:
+    """Wire the invitation mail ports for the resolved provider."""
+    provider = select_mail_provider(worker)
+    if provider == "smtp":
+        smtp = SmtpConfig(
+            host=worker.smtp_host,
+            port=worker.smtp_port,
+            username=worker.smtp_username,
+            password=worker.smtp_password,
+            use_tls=worker.smtp_use_tls,
+            use_starttls=worker.smtp_use_starttls,
         )
+        deliver_invitation.MAIL_PORT = SmtpMailPort(
+            smtp=smtp,
+            from_address=worker.mail_from_address,
+            accept_base_url=worker.invitation_base_url,
+        )
+        deliver_corporate_invitation.MAIL_PORT = SmtpCorporateMailPort(
+            smtp=smtp,
+            from_address=worker.corporate_mail_from_address,
+        )
+    elif provider == "resend":
+        if worker.resend_api_key:
+            deliver_invitation.MAIL_PORT = ResendMailPort(
+                api_key=worker.resend_api_key,
+                from_address=worker.mail_from_address,
+                accept_base_url=worker.invitation_base_url,
+            )
+        corporate_key = worker.corporate_resend_api_key or worker.resend_api_key
+        if corporate_key:
+            deliver_corporate_invitation.MAIL_PORT = ResendCorporateMailPort(
+                api_key=corporate_key,
+                from_address=worker.corporate_mail_from_address,
+            )
     else:
-        # Without a key the recording port keeps mails in process memory —
-        # invitations are created but never reach the recipient's inbox.
+        # Recording: mails stay in process memory — invitations are created
+        # but never reach the recipient's inbox.
         _log.warning(
             "mail_delivery_unconfigured",
-            detail="AI_STP_WORKER_RESEND_API_KEY unset; invitations are recorded only",
+            detail="no mail provider configured; invitations are recorded only",
         )
-    corporate_key = settings.worker.corporate_resend_api_key or settings.worker.resend_api_key
-    if corporate_key:
-        deliver_corporate_invitation.MAIL_PORT = ResendCorporateMailPort(
-            api_key=corporate_key,
-            from_address=settings.worker.corporate_mail_from_address,
-        )
+    _log.info("mail_provider_selected", provider=provider)
+
+
+async def _run(settings: Settings) -> None:
+    _configure_mail_ports(settings.worker)
     deliver_corporate_invitation.ACCEPT_BASE_URL = settings.worker.invitation_base_url
 
     async with contextlib.AsyncExitStack() as stack:

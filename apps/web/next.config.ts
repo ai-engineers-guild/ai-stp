@@ -4,6 +4,7 @@ import type { NextConfig } from "next";
 import createNextIntlPlugin from "next-intl/plugin";
 
 import { resolveDevApiRewrites } from "./src/lib/dev-api-rewrites";
+import { defaultLocale } from "./src/lib/i18n/routing";
 import {
   disabledWebModuleAliases,
   resolveFeatureProfile,
@@ -114,6 +115,19 @@ const nextConfig: NextConfig = {
       dynamic: 30,
       static: 180,
     },
+  },
+  // Invitation links arrive through email where the recipient's locale is
+  // unknown, and the app only serves `/<locale>/` paths (localePrefix:
+  // "always") — bare accept URLs would 404. Redirect them to the default
+  // locale; the fragment token rides through the 308 untouched.
+  redirects() {
+    return Promise.resolve(
+      ["/corporate-invitations/:id", "/invitations/:id"].map((source) => ({
+        source,
+        destination: `/${defaultLocale}${source}`,
+        permanent: true,
+      })),
+    );
   },
   // Dev-only: same-origin /v1 (and API docs) → internal API without a host proxy.
   // Prod keeps the path split in the host's nginx (ADR-0135); rewrites stay empty there.

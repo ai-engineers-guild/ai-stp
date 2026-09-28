@@ -1,9 +1,9 @@
 # Corporate hub end-to-end acceptance stack (#201): real API, worker,
 # Postgres, and RustFS over compose.dev. No mocks, corporate_hub web
 # profile. One-off bootstrap credential provisions the first corporate
-# organization; the worker sends invitation mail through the recording
-# port unless a provider key is configured, and settles the
-# corporate_mail_delivery ledger.
+# organization; invitation mail goes through SMTP to the Mailpit
+# catch-all (web UI on :8025) unless .env.dev selects another provider,
+# and the worker settles the corporate_mail_delivery ledger.
 services:
   api:
     environment:
@@ -13,7 +13,7 @@ services:
     build:
       target: worker
     environment:
-      AI_STP_WORKER_INVITATION_BASE_URL: http://localhost:3000
+      AI_STP_WORKER_INVITATION_BASE_URL: http://localhost:3000/ru
       AI_STP_WORKER_CORPORATE_MAIL_FROM_ADDRESS: invitations@corp.example
   web:
     # Run the image's sources, not the Windows bind mount, for this acceptance deployment.

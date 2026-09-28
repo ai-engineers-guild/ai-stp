@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Literal
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -45,6 +46,20 @@ class WorkerSettings(BaseSettings):
     # to the embedded default. Empty bucket selects the storage asset bucket.
     corporate_mail_template_bucket: str = Field(default="")
     corporate_mail_template_key: str = Field(default="mail/corporate-invitation.txt")
+    # Delivery provider for both invitation mail paths. "auto" picks Resend
+    # when a key is set, else SMTP when a relay host is configured, else the
+    # recording port. An explicit value pins the provider.
+    mail_provider: Literal["auto", "resend", "smtp", "recording"] = Field(default="auto")
+    # SMTP relay — the company mailbox's SMTP, a self-hosted MTA
+    # (Mailcow/Postal), or a dev catch-all like Mailpit. TLS flags follow the
+    # endpoint: implicit TLS on 465, STARTTLS on 587, or a plain listener
+    # with both flags off (Mailpit's default).
+    smtp_host: str = Field(default="")
+    smtp_port: int = Field(default=25, ge=1, le=65535)
+    smtp_username: str = Field(default="")
+    smtp_password: str = Field(default="")
+    smtp_use_tls: bool = Field(default=False)
+    smtp_use_starttls: bool = Field(default=True)
 
 
 @dataclass(frozen=True)
