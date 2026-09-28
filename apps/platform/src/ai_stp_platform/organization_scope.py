@@ -22,7 +22,7 @@ class OrganizationScopedMixin:
 
     @declared_attr
     def organization(cls) -> Mapped[Organization | None]:
-        return relationship(Organization)
+        return relationship(Organization, lazy="raise")
 
 
 def _populate_legacy_personal_scope(

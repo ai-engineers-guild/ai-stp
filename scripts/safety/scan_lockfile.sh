@@ -47,4 +47,8 @@ printf '%s  %s\n' "${expected}" "${tmp}/osv-scanner" | sha256sum -c - >/dev/null
 chmod +x "${tmp}/osv-scanner"
 
 cd "${REPO_ROOT}"
-"${tmp}/osv-scanner" scan source --lockfile=uv.lock
+scanner="${tmp}/osv-scanner"
+# Every committed lockfile is weighed: Python, the web app, and docs tooling.
+"${scanner}" scan source --lockfile=uv.lock
+"${scanner}" scan source --lockfile=apps/web/bun.lock
+"${scanner}" scan source --lockfile=docs_scripts/bun.lock

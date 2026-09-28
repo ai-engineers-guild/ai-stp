@@ -66,6 +66,15 @@ export function SearchableMultiSelect({
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
   const [localChecked, setChecked] = useState<string[]>(() => [...selected]);
+  const [prevSelected, setPrevSelected] = useState(selected);
+  if (
+    !onChange &&
+    (prevSelected.length !== selected.length ||
+      !prevSelected.every((value, index) => value === selected[index]))
+  ) {
+    setPrevSelected(selected);
+    setChecked([...selected]);
+  }
   const checked = onChange ? selected : localChecked;
   const selectedOption = options.find((option) => optionValue(option) === checked[0]);
   const triggerText = multiple

@@ -30,7 +30,7 @@ Local data—the registry, passports, device identity, and cache—remain in `${
 ## Requirements
 
 - Python 3.12 or 3.14;
-- `uv` 0.12.1;
+- `uv` 0.12.17 or later (the gate pins `.uv-version`);
 - `just` 1.43.0 or later;
 - Node.js 24 and npm;
 - Git.

@@ -22,6 +22,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from sqlalchemy import Select, func, select, update
 from sqlalchemy import delete as sql_delete
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ai_stp_contracts.heartbeat import (
@@ -337,7 +338,22 @@ async def ingest_event(
         occurred_at=_parse_timestamp(columns["occurred_at"]) or datetime.now(UTC),
     )
     session.add(row)
-    await session.flush()
+    try:
+        async with session.begin_nested():
+            await session.flush()
+    except IntegrityError:
+        # A concurrent ingest of the same event_id committed between the
+        # existence read and this flush: the stored row wins, the verdict is
+        # the same duplicate outcome the read path returns.
+        existing = await session.scalar(
+            select(TelemetryEvent).where(
+                TelemetryEvent.organization_id == organization_id,
+                TelemetryEvent.event_id == str(columns["event_id"]),
+            )
+        )
+        if existing is None:
+            raise
+        return existing, False
     return row, True
 
 

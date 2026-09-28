@@ -143,6 +143,18 @@ class _SyncFacade:
     async def commit(self) -> None:
         self._sync.commit()
 
+    def begin_nested(self) -> Any:
+        transaction = self._sync.begin_nested()
+
+        class _AsyncNested:
+            async def __aenter__(self) -> Any:
+                return transaction.__enter__()
+
+            async def __aexit__(self, *exc_info: object) -> Any:
+                return transaction.__exit__(*exc_info)
+
+        return _AsyncNested()
+
     async def run_sync(self, fn: Callable[..., Any], *args: object) -> Any:
         return fn(self._sync, *args)
 
@@ -152,8 +164,11 @@ async def session(tmp_path: Path) -> AsyncIterator[AsyncSession]:
     engine = create_engine(f"sqlite:///{tmp_path}/service.db")
     Base.metadata.create_all(engine, tables=cast("Sequence[Table]", TABLES))
     maker = sessionmaker(engine, expire_on_commit=False)
-    with maker() as sync:
-        yield cast(AsyncSession, _SyncFacade(sync))
+    try:
+        with maker() as sync:
+            yield cast(AsyncSession, _SyncFacade(sync))
+    finally:
+        engine.dispose()
 
 
 class Tenant:

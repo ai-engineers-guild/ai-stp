@@ -5,6 +5,7 @@ import { Badge } from "@/components/atoms/badge";
 import { CatalogEngagement } from "@/components/molecules/catalog-engagement";
 import { CatalogUsageStats } from "@/components/molecules/catalog-usage-stats";
 import { CompactChipList } from "@/components/molecules/compact-chip-list";
+import { ScoreMeter } from "@/components/molecules/score-meter";
 import { VerifiedAvatar } from "@/components/molecules/verified-avatar";
 import { CatalogItemMenu } from "@/components/organisms/catalog-item-menu";
 import { VisibilityLabel } from "@/components/molecules/visibility-label";
@@ -683,38 +684,13 @@ function SafetyScore({
   const score = Math.max(0, Math.min(100, computed));
   const accessibleName = `${explanation} ${score}%`;
   return (
-    <div
-      className="flex min-w-0 items-center gap-1.5"
+    <ScoreMeter
+      percent={score}
+      label={accessibleName}
+      compact={compact}
       title={explanation}
       data-safety={summary.status}
-      role="meter"
-      aria-label={accessibleName}
-      aria-valuemin={0}
-      aria-valuemax={100}
-      aria-valuenow={score}
-    >
-      <span
-        className={cn(
-          "bg-muted relative block h-1 overflow-hidden rounded-full",
-          compact ? "w-8" : "w-10",
-        )}
-        aria-hidden="true"
-      >
-        <span
-          data-safety-fill=""
-          className="absolute inset-y-0 left-0 overflow-hidden"
-          style={{ width: `${score}%` }}
-        >
-          <span
-            className={cn("block h-full", compact ? "w-8" : "w-10")}
-            style={{
-              background:
-                "linear-gradient(90deg, hsl(var(--destructive)), hsl(var(--warning)), hsl(var(--success)))",
-            }}
-          />
-        </span>
-      </span>
-      <span className="font-mono text-sm font-medium tabular-nums">{score}%</span>
-    </div>
+      className="flex"
+    />
   );
 }
