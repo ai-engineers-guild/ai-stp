@@ -20,6 +20,7 @@ import io
 import sqlite3
 import sys
 from collections.abc import Mapping, Sequence
+from contextlib import suppress
 from typing import Any, Final
 
 import click
@@ -638,7 +639,13 @@ def _use_utf8_streams() -> None:
             "utf-8",
             "utf8",
         }:
-            stream.reconfigure(encoding="utf-8")
+            try:
+                stream.reconfigure(encoding="utf-8")
+            except (OSError, ValueError):
+                # A stream that refuses reconfiguration — detached, closed, or
+                # owned by a host that forbids it — cannot stop dispatch; what
+                # it later fails to encode is already the stream's own failure.
+                continue
 
 
 def _registry_failure(error: sqlite3.DatabaseError) -> CliFailure | None:
@@ -653,19 +660,25 @@ def _registry_failure(error: sqlite3.DatabaseError) -> CliFailure | None:
     from ai_stp_cli.paths import redact_home
 
     text = str(error).lower()
-    place = redact_home(configured_path())
+    details: dict[str, str] = {}
+    # The registry path comes from the configuration file — the very read that
+    # may be broken in this invocation. The sqlite error is the subject; it
+    # still translates without its location detail. A second exception inside
+    # this handler would leave the process envelope-less.
+    with suppress(CliFailure, OSError, ValueError):
+        details["registry"] = redact_home(configured_path())
     if "database is locked" in text or "database table is locked" in text:
         return CliFailure(
             "AI_STP_CONFLICT",
             "another process holds the local registry; retry when it finishes",
             retryable=True,
-            details={"registry": place},
+            details=details,
         )
     if "file is not a database" in text or "database disk image is malformed" in text:
         return CliFailure(
             "AI_STP_PRECONDITION_FAILED",
             "the local registry file cannot be read as a database",
-            details={"registry": place, "reason": type(error).__name__},
+            details={**details, "reason": type(error).__name__},
         )
     return None
 
