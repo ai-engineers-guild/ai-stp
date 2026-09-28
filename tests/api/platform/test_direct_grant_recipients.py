@@ -76,7 +76,7 @@ async def test_github_username_grant_normalizes(
 ) -> None:
     client, sessionmaker, _settings = db_api_client
     owner_id, owner_token = await _account_token(sessionmaker)
-    grantee_id, grantee_token = await _account_token(sessionmaker, github_username="octo-cat")
+    grantee_id, _grantee_token = await _account_token(sessionmaker, github_username="octo-cat")
     await _owned_component(sessionmaker, owner_account_id=owner_id)
 
     created = await client.post(
