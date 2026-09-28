@@ -199,8 +199,9 @@ The real RustFS owner/bucket-isolation test passed against a separate disposable
 container. `just evidence-live` passed anonymously against `0bc51644`, listing
 187 components and 28 setups and checking exact-version, machine-projection
 and offline-cache parity. Its login/revocation scenarios remain `not_verified`.
-The initial web command correctly refused installed Bun 1.4.2; subsequent web
-checks use the repository pin 1.4.0 from a temporary tool directory.
+The initial web command correctly refused an installed Bun other than the
+pin; subsequent web checks use the repository pin from a temporary tool
+directory.
 Full-suite and final-SHA results belong to the work PR, not this baseline.
 
 The user-directed workstation run installed the `f64befa0` CLI wheel into an

@@ -182,7 +182,7 @@ def test_worker_safety_dockerfile_enables_external_cli() -> None:
     assert "AI_STP_OSV_OFFLINE_DIR" in text
     assert "OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY" in text
     assert "install_scanners.sh" in text
-    assert "snapshot.debian.org/archive/debian/20260822T000000Z" in text
+    assert "snapshot.debian.org/archive/debian/20260927T000000Z" in text
     assert "requirements.lock" in text
     assert text.count("FROM python:3.12-slim@sha256:") == 1
     # Required skill engines + govulncheck (not optional extras).
@@ -261,11 +261,12 @@ def test_no_compose_file_resolves_an_image_by_a_moving_tag() -> None:
             reference = stripped.removeprefix("image:").strip()
             if "${" in reference or "@sha256:" in reference:
                 continue
-            # A major tag is a pin in this repository's sense: `postgres:16`
-            # moves within a major and keeps its interface, which is
-            # the same discipline `check.yml` uses. `:latest` is the one that
-            # crosses majors and changed endpoints under us, and an untagged
-            # reference is `:latest` spelled shorter.
+            # A major tag is a pin in this repository's sense for dev only:
+            # `postgres:16` moves within a major and keeps its interface,
+            # the one named exemption `standards/docker.md` records. Prod and
+            # `check.yml` carry the same service digest-pinned instead.
+            # `:latest` is the one that crosses majors and changed endpoints
+            # under us, and an untagged reference is `:latest` spelled shorter.
             _, _, tag = reference.rpartition(":")
             assert tag and tag != reference, f"{name}: {reference} has no tag"
             assert tag != "latest", f"{name}: {reference} resolves through a moving tag"

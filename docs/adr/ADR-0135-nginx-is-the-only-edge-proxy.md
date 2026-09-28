@@ -58,7 +58,7 @@ lineage is a separate input from the host name because certbot names a directory
 after the first request for a name: a reissue lands in `example.com-0001` while
 the site is still `example.com`.
 
-The documentation image serves its built site with `nginx:1.27-alpine` and
+The documentation image serves its built site with `nginx:1.30-alpine` and
 `deploy/nginx/user-docs.conf`. This is not the edge; it is a static file server
 that happens to now be the same program.
 
