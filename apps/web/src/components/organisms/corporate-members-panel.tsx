@@ -214,6 +214,7 @@ export function CorporateMembersPanel({
           schema_version: 1,
           authorization_revision: authorizationRevision,
           allowed_email_domains: domains,
+          idempotency_key: crypto.randomUUID(),
         },
       });
       setMessage(result.ok ? labels.saved : result.message);

@@ -1,0 +1,16 @@
+# Corporate hub end-to-end acceptance stack (#201): real API, worker,
+# Postgres, and RustFS over compose.dev + compose.corporate-local. No mocks.
+# One-off bootstrap credential provisions the first corporate organization;
+# the worker sends invitation mail through the recording port (no provider
+# key configured) and settles the corporate_mail_delivery ledger.
+services:
+  api:
+    environment:
+      AI_STP_CORPORATE_BOOTSTRAP_SECRET: >-
+        ${AI_STP_CORPORATE_BOOTSTRAP_SECRET:-e2e-only-bootstrap-secret-change-me}
+  worker:
+    build:
+      target: worker
+    environment:
+      AI_STP_WORKER_INVITATION_BASE_URL: http://localhost:3000
+      AI_STP_WORKER_CORPORATE_MAIL_FROM_ADDRESS: invitations@corp.example
