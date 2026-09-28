@@ -125,13 +125,18 @@ def _subprocess_boundary(monkeypatch: pytest.MonkeyPatch) -> None:
     the payload checks behind it and must not depend on the host owning
     bwrap, sandbox-exec, or any other launcher the runner image may lack.
     """
-    monkeypatch.setattr(
-        invocation,
-        "provider_invoker",
-        lambda executable, target, *_args, **_kwargs: conformance.subprocess_invoker(
-            executable, target
-        ),
-    )
+
+    def unisolated(
+        executable: str,
+        target: str,
+        _version: int,
+        *,
+        unisolated_reason: str | None = None,
+        writable: tuple[Path, ...] = (),
+    ) -> conformance.Invoker:
+        return conformance.subprocess_invoker(executable, target)
+
+    monkeypatch.setattr(invocation, "provider_invoker", unisolated)
 
 
 def _attest(monkeypatch: pytest.MonkeyPatch, order: list[str] | None = None) -> None:
