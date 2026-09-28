@@ -3,8 +3,14 @@ import path from "node:path";
 import { defineConfig } from "vitest/config";
 
 export default defineConfig({
-  esbuild: {
-    jsx: "automatic",
+  // Vitest resolves its `vite` dependency to rolldown-vite (8.x) in this
+  // tree, where transforms run through oxc and the `esbuild` option is
+  // ignored. JSX must be enabled here — `esbuild: { jsx: "automatic" }`
+  // leaves `.tsx` unparsed under the nested rolldown-vite.
+  oxc: {
+    jsx: {
+      runtime: "automatic",
+    },
   },
   test: {
     environment: "jsdom",
