@@ -2,8 +2,7 @@
 
 from pathlib import Path
 
-OVERLAY = Path("release_scripts/public_overlay/.github/workflows/publish-pypi.yml")
-WORKFLOW = OVERLAY if OVERLAY.is_file() else Path(".github/workflows/publish-pypi.yml")
+WORKFLOW = Path(".github/workflows/publish-pypi.yml")
 
 
 def test_each_distribution_has_a_distinct_trusted_publisher_identity() -> None:
@@ -20,8 +19,8 @@ def test_each_distribution_has_a_distinct_trusted_publisher_identity() -> None:
 
 
 def test_the_pypi_runbook_describes_the_live_per_package_upload() -> None:
-    """The overlay uploads. A runbook that still calls that an activation
-    contract is a second source of truth that disagrees with production.
+    """A runbook that still calls publication an activation contract is a
+    second source of truth that disagrees with production.
     """
     runbook = Path("docs/operations/runbooks/pypi-release.md").read_text(encoding="utf-8")
     assert "activation contract" not in runbook
@@ -29,16 +28,3 @@ def test_the_pypi_runbook_describes_the_live_per_package_upload() -> None:
     assert "publish-pypi" in runbook
     assert "pypi-cli" in runbook
     assert "id-token: write" in runbook
-
-
-def test_the_public_overlay_pypi_runbook_is_not_a_stub() -> None:
-    """The public tree reads the overlay at this path. A stub there fails CI."""
-    overlay = Path("release_scripts/public_overlay/docs/operations/runbooks/pypi-release.md")
-    if not overlay.is_file():
-        return
-    text = overlay.read_text(encoding="utf-8")
-    assert "Placeholder" not in text
-    assert "activation contract" not in text
-    assert "publish-pypi" in text
-    assert "pypi-cli" in text
-    assert "id-token: write" in text

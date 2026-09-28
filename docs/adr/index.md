@@ -1,5 +1,5 @@
 ---
-description: "Принятые архитектурные решения и их последствия."
+description: "Adopted architecture decisions and their consequences."
 last_verified: "2026-08-03"
 ---
 

@@ -160,10 +160,13 @@ jobs:
           uv run --locked ruff format --check .
           uv run --locked ruff check .
           uv run --locked pyright
-          uv run --locked python -m release_scripts.public_export --report
           uv run --locked python -m ai_stp_contracts.schemas --check schemas/v1
           uv run --locked python -m ai_stp_contracts.web_projections --check
           uv run --locked python release_scripts/provider_kit.py --check provider-kit/v3
+          uv run --locked python release_scripts/verifier_requirements.py --check
+          uv run --locked python release_scripts/first_party_corpus_digests.py --check
+          uv run --locked python release_scripts/safety_requirements.py --check
+          uv run --locked python -m release_scripts.update_component_fixture --check
           uv run --locked --group docs python docs_scripts/skill_projections.py --check
           rm -rf dist
           uv build --all-packages --out-dir dist -q

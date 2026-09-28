@@ -12,9 +12,8 @@ out of the contract silently, and the only symptom is a client that cannot call
 something everybody assumes is callable.
 
 So the difference is declared here instead. Adding a route without adding it to
-the contract still works — it just has to be written down with a reason, the
-same way `release_scripts/public_manifest.toml` makes withholding a decision
-rather than an omission.
+the contract still works — it just has to be written down with a reason, a
+decision rather than an omission.
 """
 
 from __future__ import annotations

@@ -20,6 +20,28 @@ A PR must be narrow in its primary purpose and include the exact base/head, affe
 
 Do not weaken checks or update golden output without semantic analysis.
 
+### Golden fixtures
+
+`tests/golden/cli/machine-help.json` pins the `help --agent` registry — the
+machine boundary five harness projections read. When a command is added,
+renamed, or re-described, regenerate it rather than editing by hand:
+
+```bash
+uv run python - <<'PY'
+import json
+from pathlib import Path
+from ai_stp_cli.commands import machine_help
+
+data = machine_help.registry({}).payload.model_dump(mode="json")
+data["cli_version"] = "0.0.0-pinned"
+Path("tests/golden/cli/machine-help.json").write_text(
+    json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+)
+PY
+```
+
+Review the diff: it is the reviewed record of a machine-contract change.
+
 ## External actions
 
 Push, PR, release, provider promotion, deployment, data deletion, and credential changes are performed only after explicit authorization.

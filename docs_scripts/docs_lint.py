@@ -189,11 +189,11 @@ class Linter:
     def collect_files(self) -> list[Path]:
         files: list[Path] = []
         for name in ROOT_DOCS:
-            p = ROOT / name
+            p = self.root / name
             if p.exists():
                 files.append(p)
         for root in DOC_ROOTS:
-            base = ROOT / root
+            base = self.root / root
             if base.exists():
                 files.extend(sorted(base.rglob("*.md")))
         return files
@@ -204,9 +204,9 @@ class Linter:
         A STRUCTURE_EXEMPT root describes itself only through its index; its other
         files are short-lived and do not need individual index entries.
         """
-        if path.parent == ROOT:
+        if path.parent == self.root:
             return False
-        rel = path.relative_to(ROOT)
+        rel = path.relative_to(self.root)
         if rel.parts[0] in STRUCTURE_EXEMPT:
             return path.name == "index.md" and len(rel.parts) == 2
         return rel.parts[0] in ("docs", "specs") or path.name in ("index.md", "README.md")
@@ -464,6 +464,23 @@ class Linter:
                 f"    in file:  {expected[:80]}",
             )
 
+    def _language_error_on(
+        self, path: Path, line_no: int, prose: str, min_words: int = MIN_WORDS
+    ) -> None:
+        prose = IDENTIFIER_RE.sub(" ", prose)
+        cyr = len(CYRILLIC_WORD_RE.findall(prose))
+        lat = len(LATIN_WORD_RE.findall(prose))
+        if cyr + lat < min_words:
+            return
+        if cyr / (cyr + lat) >= MAX_CYRILLIC_RATIO:
+            self.error(
+                path,
+                line_no,
+                "EN001",
+                "the line is not in English; non-English text is allowed only "
+                "in explicit localized data, paths, commands, and identifiers",
+            )
+
     def check_language(self, path: Path, text: str) -> None:
         """Documentation prose is written in English.
 
@@ -473,9 +490,25 @@ class Linter:
         """
         if path.name in LOCALIZED_ROOT_READMES:
             return
-        # Skip frontmatter: it contains service fields rather than reader prose.
+        # Frontmatter is service fields rather than reader prose, with one
+        # exception: `description` renders to a reader (index annotations copy
+        # it verbatim), so it answers to the same rule as body prose.
         m = FRONTMATTER_RE.match(text)
         skip_until = text[: m.end()].count("\n") if m else 0
+        if m:
+            for offset, field_line in enumerate(m.group(1).splitlines(), start=2):
+                field = re.match(r"^description:\s*(.*)$", field_line)
+                if field:
+                    # A description is one short phrase, not a paragraph: the
+                    # paragraph floor (MIN_WORDS=8) would pass any localized
+                    # value, which is exactly the miss that put a Russian
+                    # description into adr/index.md.
+                    self._language_error_on(
+                        path,
+                        offset,
+                        field.group(1).strip().strip('"').strip("'"),
+                        min_words=2,
+                    )
 
         for line_no, line in iter_lines_outside_fences(text):
             if line_no <= skip_until:
@@ -485,19 +518,7 @@ class Linter:
                 continue
             # Remove the full link, which usually contains a path.
             prose = MD_LINK_RE.sub(" ", CODE_SPAN_RE.sub(" ", stripped))
-            prose = IDENTIFIER_RE.sub(" ", prose)
-            cyr = len(CYRILLIC_WORD_RE.findall(prose))
-            lat = len(LATIN_WORD_RE.findall(prose))
-            if cyr + lat < MIN_WORDS:
-                continue
-            if cyr / (cyr + lat) >= MAX_CYRILLIC_RATIO:
-                self.error(
-                    path,
-                    line_no,
-                    "EN001",
-                    "the line is not in English; non-English text is allowed only "
-                    "in explicit localized data, paths, commands, and identifiers",
-                )
+            self._language_error_on(path, line_no, prose)
 
     # -- content table generation ----------------------------------------
 
@@ -547,10 +568,10 @@ class Linter:
             # no content table is generated for it.
             if root in STRUCTURE_EXEMPT:
                 continue
-            base = ROOT / root
+            base = self.root / root
             if not base.exists():
                 continue
-            for index in [base / "index.md", *base.rglob("index.md")]:
+            for index in dict.fromkeys([base / "index.md", *base.rglob("index.md")]):
                 if not index.exists():
                     continue
                 text = index.read_text(encoding="utf-8")
@@ -606,7 +627,7 @@ class Linter:
         for root in DOC_ROOTS:
             if root in STRUCTURE_EXEMPT:
                 continue
-            base = ROOT / root
+            base = self.root / root
             if not base.exists():
                 continue
             for directory in [base, *[d for d in base.rglob("*") if d.is_dir()]]:
@@ -669,31 +690,6 @@ class Linter:
                     f"heading ADR-{heading.group(1)} does not match the filename ADR-{identifier}",
                 )
 
-    def _withheld_adrs(self) -> frozenset[str]:
-        """ADR identifiers the publication manifest keeps out of the public tree.
-
-        Read from `release_scripts/public_manifest.toml`, which owns the
-        boundary; restating the list here would be the second copy this
-        repository forbids. Absent manifest means nothing is withheld, which is
-        the honest answer for a tree that does not publish.
-        """
-        manifest = self.root / "release_scripts" / "public_manifest.toml"
-        if not manifest.is_file():
-            return frozenset()
-        found: set[str] = set()
-        section = False
-        for line in manifest.read_text(encoding="utf-8").splitlines():
-            stripped = line.strip()
-            if stripped.startswith("["):
-                section = stripped == "[withheld]"
-                continue
-            if not section:
-                continue
-            match = re.search(r"docs/adr/ADR-(\d{4})-", stripped)
-            if match:
-                found.add(f"ADR-{match.group(1)}")
-        return frozenset(found)
-
     def check_adr_chain(self) -> None:
         """A record that changed another must be findable from the one it changed.
 
@@ -721,17 +717,9 @@ class Linter:
             heads[identifier] = region.group(0) if region else text[:1200]
             lines_of[identifier] = path
 
-        withheld = self._withheld_adrs()
         for identifier, region in sorted(heads.items()):
             path = lines_of[identifier]
             for verb, _between, target in ADR_SUPERSEDES_RE.findall(region):
-                # A withheld record may point at a published one; the published
-                # one must not point back. Requiring it would put a reference to
-                # a document the public reader cannot open into the published
-                # tree, which is the defect this check exists to prevent — one
-                # boundary along. The manifest owns which records those are.
-                if identifier in withheld and target not in withheld:
-                    continue
                 if target not in heads:
                     self.error(
                         path,

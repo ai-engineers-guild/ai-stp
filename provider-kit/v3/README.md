@@ -2,7 +2,7 @@
 
 This directory is the generated, portable contract for provider protocol v3.
 A public provider can validate its implementation against these JSON files without
-access to the private `ai_stp` or authoring repositories and without depending on
+access to the `ai_stp` or authoring repositories and without depending on
 them at runtime.
 
 - `manifest.json` fixes the commands, operations, native vocabularies, provenance,
@@ -36,4 +36,4 @@ The kit reader owns a different check, which requires nothing external:
 names the SHA-256 of the `SHA256SUMS` file itself, without normalization. The kit
 carries these files for that purpose.
 
-Do not edit generated JSON by hand.
+Do not edit generated files by hand; run `python release_scripts/provider_kit.py`.

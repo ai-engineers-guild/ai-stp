@@ -60,7 +60,7 @@ memorized:
 | `-check` | the group's aggregate |
 
 Recipes outside those prefixes name a domain directly: `evidence-*`
-(deployed/released proof, never in the gate), `safety-*`, `public-*`,
+(deployed/released proof, never in the gate), `safety-*`,
 `release-*`, `estate-*`.
 
 ## Rules
@@ -172,7 +172,6 @@ Recipes outside those prefixes name a domain directly: `evidence-*`
 | `test_quality_gate_policy.py` | same | recipes stay POSIX (no bash), no `sudo`, dry-run expansion works |
 | `test_coverage_gate.py` | same | `COVERAGE_CORE` pin and coverage recipe shape |
 | `test_bootstrap_just.py` | same | pin table resolves every supported platform, retries and checksums behave |
-| `public_export --report` (`back-static`) | gate | every tracked root is named in the manifest — `standards/` is withheld |
 
 ## Adding or changing a recipe — checklist
 

@@ -12,18 +12,8 @@ import yaml
 ROOT = Path(__file__).parents[2]
 JUSTFILE = ROOT / "justfile"
 QUICKSTART = ROOT / "QUICKSTART.md"
-#: Where the workflows this tree runs actually live. The working copy stopped
-#: running any of its own (`ADR-0110` made it a mirror, and the fleet is not
-#: spent on proving a mirror), so what it holds is the overlay it publishes. In
-#: the built tree the overlay is absent and the workflows are local, and the
-#: same assertions then describe the gate that really runs there.
-OVERLAY = ROOT / "release_scripts" / "public_overlay" / ".github" / "workflows"
-_REQUIRED_WORKFLOWS = {"check.yml", "platform-evidence.yml", "codeql.yml"}
-WORKFLOWS = (
-    OVERLAY
-    if OVERLAY.is_dir() and {path.name for path in OVERLAY.iterdir()} >= _REQUIRED_WORKFLOWS
-    else ROOT / ".github" / "workflows"
-)
+#: Where the workflows this tree runs live.
+WORKFLOWS = ROOT / ".github" / "workflows"
 
 CHECK_WORKFLOW = WORKFLOWS / "check.yml"
 CODEQL_WORKFLOW = WORKFLOWS / "codeql.yml"
