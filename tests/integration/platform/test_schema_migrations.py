@@ -57,6 +57,57 @@ def test_migrations_upgrade_repeat_downgrade_and_upgrade_again(
     assert _version(isolated_database_url) == head
 
 
+def test_models_match_migrated_ddl(
+    isolated_database_url: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Model metadata must equal the migrated DDL; drift is a missing migration."""
+    # Same module set migrations/env.py registers on Base.metadata.
+    import importlib
+
+    from alembic.autogenerate import compare_metadata
+    from alembic.migration import MigrationContext
+
+    from ai_stp_platform.db import Base
+
+    for _module in (
+        "ai_stp_platform.catalog_ownership_models",
+        "ai_stp_platform.dashboard_models",
+        "ai_stp_platform.github_models",
+        "ai_stp_platform.grant_identity_models",
+        "ai_stp_platform.heartbeat_models",
+        "ai_stp_platform.installation_inventory_models",
+        "ai_stp_platform.installation_usage_models",
+        "ai_stp_platform.models",
+        "ai_stp_platform.organization_models",
+        "ai_stp_platform.queue.models",
+        "ai_stp_platform.runtime_usage_models",
+        "ai_stp_platform.technology_models",
+        "ai_stp_platform.telemetry_policy_models",
+        "ai_stp_platform.content.orm",
+        "ai_stp_platform.seo.orm",
+    ):
+        importlib.import_module(_module)
+
+    monkeypatch.setenv("AI_STP_DB_URL", isolated_database_url)
+    config = Config("alembic.ini")
+    command.upgrade(config, "head")
+
+    async def diff() -> list[object]:
+        engine = create_async_engine(isolated_database_url)
+        try:
+            async with engine.connect() as connection:
+                return await connection.run_sync(
+                    lambda sync_connection: compare_metadata(
+                        MigrationContext.configure(sync_connection), Base.metadata
+                    )
+                )
+        finally:
+            await engine.dispose()
+
+    assert asyncio.run(diff()) == []
+
+
 def test_dashboard_migration_has_tenant_policies_and_downgrades(
     isolated_database_url: str,
     monkeypatch: pytest.MonkeyPatch,
