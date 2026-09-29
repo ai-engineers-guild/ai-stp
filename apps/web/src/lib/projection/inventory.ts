@@ -136,6 +136,11 @@ export const PAGE_INVENTORY: readonly PageInventoryEntry[] = [
     access: "session",
     presenter: "domain",
   },
+  {
+    pattern: "corporate-invitations/:invitationId/confirm",
+    access: "session",
+    presenter: "domain",
+  },
   { pattern: "staff/reports", access: "session", presenter: "domain" },
   { pattern: "staff/reports/:caseId", access: "session", presenter: "domain" },
 ];

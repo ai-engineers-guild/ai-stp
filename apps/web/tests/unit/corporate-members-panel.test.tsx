@@ -34,6 +34,7 @@ const labels = {
   copy: "Copy",
   copyAll: "Copy all",
   copied: "Copied",
+  copyFailed: "Copy failed",
   bulkImport: "Bulk import",
   bulkImportBody: "Paste recipients",
   importFile: "Import file",

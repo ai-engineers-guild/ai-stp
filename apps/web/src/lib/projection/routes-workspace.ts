@@ -264,6 +264,20 @@ export const WORKSPACE_ROUTES: MachineRoute[] = [
     },
   },
   {
+    pattern: "corporate-invitations/:invitationId/confirm",
+    resolve: async ({ segments }) => {
+      const t = await getTranslations("invitations");
+      const tm = await getTranslations("machineDoc");
+      const facts = invitationPublicFacts(segments[1] ?? "");
+      return presentInvitation({
+        title: t("confirmTitle"),
+        subtitle: t("confirmSubtitle"),
+        invitationId: facts.invitationId,
+        labels: { invitationId: tm("invitationId") },
+      });
+    },
+  },
+  {
     pattern: "staff/reports",
     resolve: async () => {
       const t = await getTranslations("staff");

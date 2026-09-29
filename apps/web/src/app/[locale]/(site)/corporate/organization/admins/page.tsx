@@ -167,6 +167,7 @@ export default async function CorporateAdministrationPage({ params }: PageProps)
             copy: tc("copy"),
             copyAll: tc("copyAll"),
             copied: tc("copied"),
+            copyFailed: tc("error"),
             bulkImport: t("bulkImport"),
             bulkImportBody: t("bulkImportBody"),
             importFile: t("importFile"),

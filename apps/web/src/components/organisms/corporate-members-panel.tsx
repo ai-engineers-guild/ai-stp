@@ -88,6 +88,7 @@ export function CorporateMembersPanel({
     copy: string;
     copyAll: string;
     copied: string;
+    copyFailed: string;
     bulkImport: string;
     bulkImportBody: string;
     importFile: string;
@@ -476,7 +477,12 @@ export function CorporateMembersPanel({
                       <p className="text-muted-foreground truncate text-sm">{link.email}</p>
                     </div>
                     <div className="min-w-0 flex-1">
-                      <CopyValue value={link.link} label={labels.copy} copied={labels.copied} />
+                      <CopyValue
+                        value={link.link}
+                        label={labels.copy}
+                        copied={labels.copied}
+                        failed={labels.copyFailed}
+                      />
                     </div>
                   </li>
                 ))}

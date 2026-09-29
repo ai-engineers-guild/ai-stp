@@ -11,8 +11,11 @@ from collections.abc import Sequence
 import sqlalchemy as sa
 from alembic import op
 
-revision: str = "0109_invitation_email_confirmation"
-down_revision: str | None = "0108_corporate_mail_delivery"
+revision: str = "0110_invitation_email_confirmation"
+down_revision: str | Sequence[str] | None = (
+    "0108_corporate_mail_delivery",
+    "0109_schema_model_parity",
+)
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
