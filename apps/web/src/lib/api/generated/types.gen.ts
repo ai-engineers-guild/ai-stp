@@ -3834,6 +3834,10 @@ export type CorporateInvitation = {
    * Accepted Account Id
    */
   accepted_account_id: string | null;
+  /**
+   * Claimant Account Id
+   */
+  claimant_account_id: string | null;
   created_at: Timestamp;
   /**
    * Delivery Error
@@ -3987,6 +3991,7 @@ export type CorporateInvitationRevokeRequest = {
 
 export const CorporateInvitationState = {
   PENDING: "pending",
+  EMAIL_CONFIRM_PENDING: "email_confirm_pending",
   ACCEPTED: "accepted",
   EXPIRED: "expired",
   REVOKED: "revoked",

@@ -45,3 +45,24 @@ export async function acceptCorporateInvitation(
   );
   return { body: result.data, operationId: result.operationId };
 }
+
+export async function confirmCorporateInvitation(
+  sessionToken: string,
+  invitationId: string,
+  token: string,
+  idempotencyKey: string,
+): Promise<{ body: CorporateMember; operationId: string | null }> {
+  const result = await apiRequestWithMeta<CorporateMember>(
+    `/v1/corporate/invitations/${invitationId}/confirm`,
+    {
+      method: "POST",
+      sessionToken,
+      body: {
+        schema_version: 1,
+        token,
+        idempotency_key: idempotencyKey,
+      },
+    },
+  );
+  return { body: result.data, operationId: result.operationId };
+}

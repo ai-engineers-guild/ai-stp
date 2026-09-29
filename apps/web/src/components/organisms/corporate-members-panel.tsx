@@ -24,6 +24,7 @@ type GeneratedLink = { displayName: string; email: string; link: string };
 
 const INVITATION_STATE_VARIANT = {
   pending: "secondary",
+  email_confirm_pending: "warning",
   accepted: "success",
   expired: "warning",
   revoked: "destructive",
@@ -530,7 +531,8 @@ export function CorporateMembersPanel({
                       }
                     </Badge>
                   ) : null}
-                  {invitation.state === "pending" ? (
+                  {invitation.state === "pending" ||
+                  invitation.state === "email_confirm_pending" ? (
                     <Button
                       type="button"
                       variant="outline"

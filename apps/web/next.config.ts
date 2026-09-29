@@ -122,11 +122,13 @@ const nextConfig: NextConfig = {
   // locale; the fragment token rides through the 308 untouched.
   redirects() {
     return Promise.resolve(
-      ["/corporate-invitations/:id", "/invitations/:id"].map((source) => ({
-        source,
-        destination: `/${defaultLocale}${source}`,
-        permanent: true,
-      })),
+      ["/corporate-invitations/:id", "/corporate-invitations/:id/confirm", "/invitations/:id"].map(
+        (source) => ({
+          source,
+          destination: `/${defaultLocale}${source}`,
+          permanent: true,
+        }),
+      ),
     );
   },
   // Dev-only: same-origin /v1 (and API docs) → internal API without a host proxy.

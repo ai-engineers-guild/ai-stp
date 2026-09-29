@@ -8,13 +8,11 @@ type PageProps = {
 };
 
 /**
- * No server session gate on purpose: the invitation token lives in the URL
- * fragment, which the server never sees. Gating here would 307 to login and
- * drop `#token=…` before the client could read it. The accept POST enforces
- * auth; a 401 sends the client to login with the fragment carried inside
- * `returnTo`.
+ * Public confirm page for claimed invitations (#201). Same fragment-token
+ * contract as the accept page: no server session gate, the POST enforces
+ * auth and sends a 401 to login with the fragment inside `returnTo`.
  */
-export default async function AcceptCorporateInvitationPage({ params }: PageProps) {
+export default async function ConfirmCorporateInvitationPage({ params }: PageProps) {
   const { locale, invitationId } = await params;
   setRequestLocale(locale);
   const t = await getTranslations("invitations");
@@ -23,26 +21,24 @@ export default async function AcceptCorporateInvitationPage({ params }: PageProp
   return (
     <div className="mx-auto max-w-lg space-y-6">
       <div className="space-y-2">
-        <h1 className="text-3xl font-medium tracking-tight">{t("corporateTitle")}</h1>
-        <p className="text-muted-foreground text-sm">{t("corporateSubtitle")}</p>
+        <h1 className="text-3xl font-medium tracking-tight">{t("confirmTitle")}</h1>
+        <p className="text-muted-foreground text-sm">{t("confirmSubtitle")}</p>
         <p className="text-muted-foreground font-mono text-xs">{invitationId}</p>
       </div>
       <AcceptInvitation
         invitationId={invitationId}
-        endpoint={`/api/corporate/invitations/${encodeURIComponent(invitationId)}/accept`}
+        endpoint={`/api/corporate/invitations/${encodeURIComponent(invitationId)}/confirm`}
         holdEndpoint={`/api/corporate/invitations/${encodeURIComponent(invitationId)}/hold`}
-        holdVariant="accept"
+        holdVariant="confirm"
         signInHref={corporateHref(`/${locale}/login`)}
         onboardingHref={corporateHref(`/${locale}/onboarding`)}
         labels={{
-          accept: t("accept"),
-          accepting: t("accepting"),
+          accept: t("confirm"),
+          accepting: t("confirming"),
           missingToken: t("missingToken"),
-          success: t("corporateSuccess"),
+          success: t("confirmSuccess"),
           error: t("error"),
           referenceId: tc("referenceId"),
-          confirmationSent: t("confirmationSent"),
-          resendConfirmation: t("resendConfirmation"),
         }}
       />
     </div>

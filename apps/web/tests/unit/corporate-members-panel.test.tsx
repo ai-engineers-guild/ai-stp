@@ -77,6 +77,7 @@ function invitation(overrides: Partial<CorporateInvitation>): CorporateInvitatio
     expires_at: "2026-01-01T00:00:00Z",
     created_at: "2025-12-31T00:00:00Z",
     accepted_account_id: null,
+    claimant_account_id: null,
     token: null,
     delivery_state: null,
     delivery_error: null,

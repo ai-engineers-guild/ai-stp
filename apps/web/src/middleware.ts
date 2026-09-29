@@ -51,7 +51,8 @@ function requestOriginUrl(request: NextRequest) {
  * client to login with the fragment carried inside `returnTo`. Machine
  * projections stay rejected — the `/ai/` segment does not match.
  */
-const INVITATION_ACCEPT_PATH = /^\/(?:en|ru)\/(?:corporate\/)?(?:corporate-)?invitations\/[^/]+$/;
+const INVITATION_ACCEPT_PATH =
+  /^\/(?:en|ru)\/(?:corporate\/)?(?:corporate-)?invitations\/[^/]+(?:\/confirm)?$/;
 
 function isBlockedPath(pathname: string, sharedPath: string | null): boolean {
   const contentMatch = pathname.match(/^\/(?:ru|en)\/(?:ai\/)?content(?:\/|$)/);

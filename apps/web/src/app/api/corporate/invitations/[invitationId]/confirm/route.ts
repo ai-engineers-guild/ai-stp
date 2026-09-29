@@ -2,7 +2,7 @@ import { randomBytes } from "node:crypto";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
-import { acceptCorporateInvitation } from "@/lib/api/corporate-invitations";
+import { confirmCorporateInvitation } from "@/lib/api/corporate-invitations";
 import { ApiError } from "@/lib/api/errors";
 import {
   invitationClaimCookieName,
@@ -22,11 +22,12 @@ type RouteContext = {
 };
 
 /**
- * Same-origin accept hop for organization invitation tokens (#201).
+ * Same-origin confirm hop for claimed organization invitations (#201).
  *
- * Token arrives only in the JSON body from a client that read the URL fragment.
- * Never use a Server Action or RSC prop for the raw token: both can log form
- * data and land the secret in server-rendered traces.
+ * The confirmation token arrives only in the JSON body from a client that
+ * read the emailed link's URL fragment. It proves the claimant controls the
+ * invited inbox; the API binds the resulting membership to the session's
+ * account.
  */
 export async function POST(request: Request, context: RouteContext) {
   const { invitationId } = await context.params;
@@ -56,7 +57,7 @@ export async function POST(request: Request, context: RouteContext) {
       { status: 401 },
     );
   }
-  // Fresh registrations are onboarding_pending: the API rejects their accept
+  // Fresh registrations are onboarding_pending: the API rejects their confirm
   // until legal onboarding completes. Distinct code so the client redirects to
   // onboarding instead of looping back to login.
   if (session.accountStatus === "onboarding_pending") {
@@ -76,13 +77,13 @@ export async function POST(request: Request, context: RouteContext) {
     );
   }
 
-  // Body token wins; otherwise fall back to the parked claim cookie — the
-  // flag-only revisit path submits without a token and relies on this.
+  // Body token wins; otherwise the parked claim cookie — same revisit path
+  // as accept: the emailed confirm link may land after a login round trip.
   const bodyToken = typeof body.token === "string" ? body.token : "";
   const token =
     bodyToken.length >= 8
       ? bodyToken
-      : (jar.get(invitationClaimCookieName(invitationId, "accept"))?.value ?? "");
+      : (jar.get(invitationClaimCookieName(invitationId, "confirm"))?.value ?? "");
   if (!token || token.length < 8 || token.length > 512) {
     return NextResponse.json(
       { error: { code: "AI_STP_VALIDATION_ERROR", message: "token required" } },
@@ -95,7 +96,7 @@ export async function POST(request: Request, context: RouteContext) {
       : randomBytes(16).toString("hex");
 
   try {
-    const result = await acceptCorporateInvitation(
+    const result = await confirmCorporateInvitation(
       sessionToken,
       invitationId,
       token,
@@ -103,11 +104,11 @@ export async function POST(request: Request, context: RouteContext) {
     );
     // Consumed: drop the parked claim and its flag (path must match `hold`).
     const claimPath = invitationClaimCookiePath(invitationId);
-    jar.set(invitationClaimCookieName(invitationId, "accept"), "", {
+    jar.set(invitationClaimCookieName(invitationId, "confirm"), "", {
       path: claimPath,
       maxAge: 0,
     });
-    jar.set(invitationClaimFlagName(invitationId, "accept"), "", {
+    jar.set(invitationClaimFlagName(invitationId, "confirm"), "", {
       path: "/",
       maxAge: 0,
     });
@@ -118,23 +119,13 @@ export async function POST(request: Request, context: RouteContext) {
     return NextResponse.json({ schema_version: 1, member: result.body }, { status: 200, headers });
   } catch (error) {
     if (error instanceof ApiError) {
-      // The API answers 409 + details.reason=email_confirmation_sent when the
-      // claimant's verified emails miss the invited address: the invitation is
-      // bound to this account and a confirm link was mailed. The client needs
-      // a distinct code to show "check your inbox" instead of an error.
-      const confirmationSent = error.details.reason === "email_confirmation_sent";
       return NextResponse.json(
-        {
-          error: {
-            code: confirmationSent ? "AI_STP_EMAIL_CONFIRMATION_SENT" : error.code,
-            message: error.message,
-          },
-        },
+        { error: { code: error.code, message: error.message } },
         { status: error.status || 400 },
       );
     }
     return NextResponse.json(
-      { error: { code: "AI_STP_INTERNAL", message: "accept failed" } },
+      { error: { code: "AI_STP_INTERNAL", message: "confirm failed" } },
       { status: 500 },
     );
   } finally {

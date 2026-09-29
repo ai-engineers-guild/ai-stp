@@ -19,6 +19,9 @@ const envSchema = z.object({
     .default("false")
     .transform((value) => value === "true"),
   AI_STP_SESSION_SECRET: z.string().min(32),
+  // How long a parked invitation claim cookie may live; matches the default
+  // invitation TTL on the API side. Secret stays httpOnly the whole time.
+  AI_STP_INVITATION_CLAIM_TTL_SECONDS: z.coerce.number().int().min(60).default(86400),
 });
 
 export type AppEnv = z.infer<typeof envSchema>;
@@ -31,6 +34,7 @@ function readRawEnv(): Record<string, string | undefined> {
     AI_STP_USE_MOCKS: process.env["AI_STP_USE_MOCKS"] ?? "false",
     AI_STP_MOCK_AUTH: process.env["AI_STP_MOCK_AUTH"] ?? "false",
     AI_STP_SESSION_SECRET: process.env["AI_STP_SESSION_SECRET"],
+    AI_STP_INVITATION_CLAIM_TTL_SECONDS: process.env["AI_STP_INVITATION_CLAIM_TTL_SECONDS"],
   };
 }
 

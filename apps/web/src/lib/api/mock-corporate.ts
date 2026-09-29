@@ -1215,6 +1215,7 @@ export function corporateHandlers(
         project_ids: [],
         job_title_id: null,
         accepted_account_id: null,
+        claimant_account_id: null,
         state: "pending",
         delivery_state: "sent",
         delivery_error: null,
