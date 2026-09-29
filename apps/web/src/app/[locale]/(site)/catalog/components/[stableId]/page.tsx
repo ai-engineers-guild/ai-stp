@@ -156,13 +156,7 @@ export default async function ComponentDetailPage({ params, searchParams }: Page
   const [author, corporateOwnership, corporateUsage] = await Promise.all([
     readAuthor(ownerId),
     token
-      ? readCorporateCatalogOwnership(
-          token,
-          "component",
-          componentId,
-          versionId,
-          corporateContext,
-        )
+      ? readCorporateCatalogOwnership(token, "component", componentId, versionId, corporateContext)
       : Promise.resolve(null),
     token && corporateContext
       ? readCorporateCatalogUsage(
@@ -177,9 +171,7 @@ export default async function ComponentDetailPage({ params, searchParams }: Page
     corporateOwnership?.ownership.can_edit
       ? readCsrfToken().then((value) => value ?? "")
       : Promise.resolve(""),
-    objectActions?.canDelete
-      ? readCsrfToken().then((value) => value ?? "")
-      : Promise.resolve(""),
+    objectActions?.canDelete ? readCsrfToken().then((value) => value ?? "") : Promise.resolve(""),
   ]);
   const reportHref = latest?.passport_digest
     ? `/${locale}/reports?object_kind=component&stable_id=${encodeURIComponent(stableId)}&version=${encodeURIComponent(summary.latest_version)}&digest=${encodeURIComponent(latest.passport_digest)}`

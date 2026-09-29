@@ -24,7 +24,11 @@ export async function listOwnReports(sessionToken: string): Promise<ReportCaseLi
       break;
     }
   }
-  return { schema_version: 1, items, page: page ?? { schema_version: 1, next_cursor: null, page_size: 100 } };
+  return {
+    schema_version: 1,
+    items,
+    page: page ?? { schema_version: 1, next_cursor: null, page_size: 100 },
+  };
 }
 
 export async function readOwnReport(
