@@ -439,6 +439,14 @@ def test_attribution_leads_and_ends_with_required_notice() -> None:
 def test_next_unused_minor_advances_the_stable_line() -> None:
     assert next_unused_minor([]) == "1.0"
     assert next_unused_minor(["1.0", "1.1"]) == "1.2"
+    assert next_unused_minor(["2.0", "1.9", "1.4"]) == "2.1"
+
+
+def test_next_unused_minor_skips_malformed_stored_versions() -> None:
+    # Both version sources (catalog rows and publication plans) can hold a
+    # malformed string; one corrupt row must not fail the whole sync.
+    assert next_unused_minor(["1.0", "not-a-version", "1.1"]) == "1.2"
+    assert next_unused_minor(["2.x", ""]) == "1.0"
 
 
 def test_catalog_projection_separates_publisher_from_upstream_attribution() -> None:

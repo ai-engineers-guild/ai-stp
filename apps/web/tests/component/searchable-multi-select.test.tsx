@@ -140,6 +140,59 @@ describe("SearchableMultiSelect", () => {
     expect(harness).toHaveAttribute("open", "");
   });
 
+  it("syncs uncontrolled state when the selected prop changes", () => {
+    const { rerender } = render(
+      <SearchableMultiSelect
+        name="tag"
+        label="Tags"
+        searchLabel="Search tags"
+        options={["python", "security", "TypeScript"]}
+        selected={["security"]}
+        form="catalog-form"
+      />,
+    );
+
+    expect(screen.getByText("Tags (1)")).toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: "security" })).toBeChecked();
+
+    rerender(
+      <SearchableMultiSelect
+        name="tag"
+        label="Tags"
+        searchLabel="Search tags"
+        options={["python", "security", "TypeScript"]}
+        selected={["python", "TypeScript"]}
+        form="catalog-form"
+      />,
+    );
+
+    expect(screen.getByText("Tags (2)")).toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: "python" })).toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "TypeScript" })).toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "security" })).not.toBeChecked();
+
+    // A selection whose option is not listed stays in the form via a hidden
+    // input rather than silently dropping out of the submitted values.
+    rerender(
+      <SearchableMultiSelect
+        name="tag"
+        label="Tags"
+        searchLabel="Search tags"
+        options={["python", "security", "TypeScript"]}
+        selected={["removed-option"]}
+        form="catalog-form"
+      />,
+    );
+
+    expect(screen.getByText("Tags (1)")).toBeInTheDocument();
+    const hidden = Array.from(
+      document.querySelectorAll<HTMLInputElement>(
+        'input[type="hidden"][name="tag"]',
+      ),
+    ).map((input) => input.value);
+    expect(hidden).toEqual(["removed-option"]);
+  });
+
   it("closes a modal on cancel and close events", async () => {
     const user = userEvent.setup();
     render(
