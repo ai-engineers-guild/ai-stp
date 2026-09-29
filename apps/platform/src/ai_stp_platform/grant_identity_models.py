@@ -16,11 +16,12 @@ class OAuthIdentityAlias(Base):
     __tablename__ = "oauth_identity_alias"
     __table_args__ = (
         UniqueConstraint("provider", "normalized_value", name="uq_oauth_identity_alias_value"),
+        UniqueConstraint("oauth_identity_id", name="uq_oauth_identity_alias_identity"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     oauth_identity_id: Mapped[int] = mapped_column(
-        ForeignKey("oauth_identity.id", ondelete="CASCADE"), unique=True, index=True
+        ForeignKey("oauth_identity.id", ondelete="CASCADE")
     )
     provider: Mapped[str] = mapped_column(String(32))
     normalized_value: Mapped[str] = mapped_column(String(64))

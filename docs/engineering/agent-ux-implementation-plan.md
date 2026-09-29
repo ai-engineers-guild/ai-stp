@@ -18,21 +18,25 @@ prompt, GPT OSS 120B through `agy` operates ai-stp. The agent picks an intent,
 relays answers, and reports verification. The CLI owns acquisition,
 composition, backup, plan, approve, apply, verify, retries, and recovery.
 
-## Checkpoint (2026-09-26)
+## Checkpoint (2026-09-29)
 
-Eight drained intents are on GitHub `main` (PR
+Nine drained intents are on GitHub `main` (the eighth-intent wave landed via PR
 [#297](https://github.com/ai-engineers-guild/ai-stp/pull/297) merged
-2026-09-19). Source and the released `ai-stp-cli` line are `0.0.33`. Epic #261–#275 stay
-OPEN. Do not touch colleague issues (#254, #256) or
-`feat/milestone-6-b2b-03`.
+2026-09-19; the ninth, `technology`, landed in `cc1cdf60`). Source and tag are
+`0.0.34` (`v0.0.34` @ `309f77f4`, promotion PR #530); the latest PyPI release is
+still `0.0.33` — the `publish-pypi` dispatch for 0.0.34 is person-reserved and
+was not run. Epic #261–#275 are CLOSED. Do not touch
+`feat/milestone-6-b2b-03` or colleague corporate work.
 
 | Object | Identity |
 | --- | --- |
 | Line | GitHub `main` / `dev`. Work branch `feat/agent-task-lifecycle` is gone |
 | PR | [#297](https://github.com/ai-engineers-guild/ai-stp/pull/297) merged into `dev`, then promoted |
-| Released CLI | `0.0.33` on PyPI (release-candidate run 36384276021, publish run 36384484011); tag `v0.0.33` points to `c1cd3f27`; it ships provider-kit `0.2.15` — the `authorization` status member accepted — behind the unified v2/v3 invocation boundary |
+| Tagged CLI | `0.0.34` at `v0.0.34` (`309f77f4`); release-candidate run `36522578596` built and attested the artifact |
+| Released CLI | `0.0.33` on PyPI (release-candidate run 36384276021, publish run 36384484011); it ships provider-kit `0.2.15` — the `authorization` status member accepted — behind the unified v2/v3 invocation boundary |
 | Provider kit | `0.2.15` in `tests/golden/provider-kit/identity-ledger.json` |
-| Issues | #261–#275 OPEN. setup-systems #316 OPEN. Never close #256. Draft #254: do not touch |
+| Issues | #261–#275 CLOSED. setup-systems #316 OPEN. Issues #254/#256 are CLOSED |
+| Public provider | `0.0.80` on all seven `*-setup-system` trees (2026-09-29), vendoring kit `0.2.15`; kit bytes unchanged since 0.0.79 |
 | Agent 20×5 | GPT OSS 120B through `agy` is the sole current model target; no current-candidate trial is counted yet. Historical Haiku 99/100 is archived evidence only |
 | Branch-policy SC2015 | closed in [#304](https://github.com/ai-engineers-guild/ai-stp/pull/304) |
 
@@ -47,8 +51,8 @@ attempts currently encounter individual quota exhaustion. See the
 ### Live CLI
 
 - Root `--help` Commands: **`task` only**. Expert leaves stay invokable, hidden from the dump.
-- Eight shipped intents (`SHIPPED_INTENT_NAMES`): `inspect`, `initialize`,
-  `install`, `change`, `author`, `switch`, `account`, `publish`.
+- Nine shipped intents (`SHIPPED_INTENT_NAMES`): `inspect`, `initialize`,
+  `install`, `change`, `author`, `switch`, `account`, `publish`, `technology`.
 - `component publish` stays `task_pending`.
 - `application/` does not import `ai_stp_cli.commands` (ADR-0181).
 
@@ -94,8 +98,8 @@ rest of the corpus against a known exhausted quota.
 3. **Epic acceptance** requires qualification of current bytes. The maintenance
    `0.0.31` cut repairs qualification infrastructure and does not close this
    threshold or establish autonomous model acceptance. `0.0.29` is on PyPI from tag `v0.0.29`; the native Antigravity user journey verified its official upgrade from `0.0.28`, public wheel bytes, and a fresh baseline consumer. That run used `gpt-oss-120b-medium` with corrective prompts, so it does not qualify autonomous GPT OSS 120B behavior on this candidate. The qualification record in #368 remains historical evidence.
-4. **setup-systems #316** stays OPEN. The Antigravity user journey consumed its public provider `0.0.74` baseline in a fresh native session. Other provider and platform cells remain unverified by that run. Vendor kit `0.2.13` remains the recorded contract baseline. Do not close #316 from this plan.
-5. Issue comments with SHA; close only for measured scope. **Never close #256**. Do not touch #254.
+4. **setup-systems #316** stays OPEN. The Antigravity user journey consumed its public provider `0.0.74` baseline in a fresh native session; the current public release is `0.0.80` vendoring kit `0.2.15` (kit bytes unchanged since `0.0.79`; conformance was not re-run on `0.0.80` and was last measured on `0.0.79`). Other provider and platform cells remain unverified by that run. Do not close #316 from this plan.
+5. Issue comments with SHA; close only for measured scope. Issues #254/#256 are CLOSED — the earlier do-not-touch injunctions are history, not live guidance.
 6. `component publish` stays `task_pending`. Do not compact `help --agent`. Do not shrink capabilities `command_paths` (REQ-8006).
 
 ## 0. How this plan was locked
@@ -126,8 +130,8 @@ External practice used (not copied as a second normative system):
 | Work branch | `feat/agent-task-lifecycle` @ `6f19972f` (gone; kernel is on `main` via #297) |
 | `origin/dev` then | `de37d6f3` after #277 (typed continuations exist; **no** PyPI cut at that date) |
 | Open PRs then | [#279](https://github.com/ai-engineers-guild/ai-stp/pull/279) envelope truth; [#280](https://github.com/ai-engineers-guild/ai-stp/pull/280) inspect engine (contains #279) |
-| Released CLI then | `0.0.22`. Current PyPI is `0.0.30` |
-| Issues | #261–#275 OPEN. setup-systems #316 OPEN. #256 OPEN (never close from this epic). Draft #254 colleague / B2B: do not touch |
+| Released CLI then | `0.0.22` (PyPI `0.0.33` as of the 2026-09-29 checkpoint above) |
+| Issues | #261–#275 OPEN then; all CLOSED since 2026-09-26. setup-systems #316 OPEN. #256/#254 now CLOSED |
 
 Kernel that already exists and must be **evolved**, not replaced:
 
@@ -518,8 +522,8 @@ Keep **one** `SPEC-080`. Do not shrink MUST to match a PR.
 ### 2.15 Out of scope
 
 Rust CLI, desktop, embedded LLM, daemon, MCP (headless `application/` is
-the future adapter). #254 / B2B. #256 F10/R05 / estate (never put
-GitHub “close” near #256). Branch-protection changes. PyPI 0.0.23 before
+the future adapter). #254 / B2B (closed). #256 F10/R05 / estate (closed
+2026-09-26 outside this epic). Branch-protection changes. PyPI 0.0.23 before
 Phase D of the **same** bytes. Closing the epic from a kernel PR.
 
 ## 3. Wire sketches (target)
@@ -832,7 +836,7 @@ side effect, unsafe replay.
 | #274 | Driver + GPT OSS 120B through `agy` + native cells with identities |
 | #275 | Same bytes on website/Skill/wheel/providers |
 | #261 | All of the above |
-| #256 | Never from this epic |
+| #256 | Closed 2026-09-26 by the estate wave, not this epic |
 
 ## 9. Risks
 
