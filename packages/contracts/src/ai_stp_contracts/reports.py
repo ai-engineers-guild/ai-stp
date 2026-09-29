@@ -7,7 +7,11 @@ from typing import Annotated, Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from ai_stp_contracts.http import (
+    PAGE_SIZE_MAX,
+    Cursor,
     IdempotencyKey,
+    PageInfo,
+    PageSize,
     Timestamp,
     open_wire_object,
     strict_request_object,
@@ -205,6 +209,16 @@ class ReportCaseResponse(BaseModel):
     created_at: Timestamp
 
 
+class ReportCaseListQuery(BaseModel):
+    """GET /v1/reports and /v1/requests query."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
+
+    schema_version: Literal[1] = 1
+    cursor: Cursor | None = None
+    page_size: PageSize = PAGE_SIZE_MAX
+
+
 class ReportCaseListResponse(BaseModel):
     """Reporter's own cases."""
 
@@ -212,6 +226,7 @@ class ReportCaseListResponse(BaseModel):
 
     schema_version: Literal[1] = 1
     items: Annotated[list[ReportCaseResponse], Field(default_factory=list)]
+    page: PageInfo
 
 
 class StaffTriageRequest(BaseModel):

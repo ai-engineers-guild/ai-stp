@@ -74,20 +74,22 @@ export default async function ComponentVersionPage({ params }: PageProps) {
     throw error;
   }
 
-  const t = await getTranslations("catalog");
-  const tc = await getTranslations("common");
-  const tCli = await getTranslations("cli");
-  const isPrivate = await isAuthorizedPrivateComponentVersion(
-    componentId,
-    asVersionId(version),
-    token,
-  );
-
-  const { budget, failure } = await loadContextBudget(
-    readComponentContextBudget(componentId, asVersionId(version), token),
-  );
+  const versionId = asVersionId(version);
+  const [t, tc, tCli, isPrivate, budgetResult, catalogDetail, metadata] = await Promise.all([
+    getTranslations("catalog"),
+    getTranslations("common"),
+    getTranslations("cli"),
+    isAuthorizedPrivateComponentVersion(componentId, versionId, token),
+    loadContextBudget(readComponentContextBudget(componentId, versionId, token)),
+    readComponent(componentId, token).catch(() => null),
+    readComponentGithubMetadata(componentId, versionId, token).catch(() => ({
+      schema_version: 1 as const,
+      stars: null,
+      archived: null,
+    })),
+  ]);
+  const { budget, failure } = budgetResult;
   const passport = response.passport;
-  const catalogDetail = await readComponent(componentId, token).catch(() => null);
   const publisherId = catalogDetail?.summary.publisher_id || passport.owner_id;
   const harnesses = namedPassportHarnesses(passport);
   const supportedOperatingSystems = namedOperatingSystems(passport);
@@ -96,11 +98,6 @@ export default async function ComponentVersionPage({ params }: PageProps) {
     ...item,
     label: item.provider === "Source" ? t("viewSource") : `${t("viewSourceOn")} ${item.provider}`,
   }));
-  const metadata = await readComponentGithubMetadata(
-    componentId,
-    asVersionId(version),
-    token,
-  ).catch(() => ({ schema_version: 1 as const, stars: null, archived: null }));
   const canonical = buildDeepLink(
     publicOrigin().origin,
     normalizeTarget({

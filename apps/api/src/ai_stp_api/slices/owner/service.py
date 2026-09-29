@@ -7,7 +7,7 @@ from datetime import UTC, datetime
 from typing import Any, Final, Literal, cast
 from uuid import uuid4
 
-from sqlalchemy import String, delete, select, update
+from sqlalchemy import String, and_, delete, func, or_, select, true, tuple_, update
 from sqlalchemy import cast as sql_cast
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -1008,11 +1008,88 @@ async def list_owner_objects(
     cursor: str | None = None,
     cursor_secret: str | None = None,
 ) -> OwnerObjectListResponse:
-    stmt = select(CatalogMetadata).where(CatalogMetadata.owner_account_id == ctx.account_id)
-    if object_kind in {"component", "setup"}:
-        stmt = stmt.where(CatalogMetadata.object_kind == object_kind)
-    stmt = stmt.order_by(CatalogMetadata.updated_at.desc(), CatalogMetadata.id.desc())
-    rows = list((await db.execute(stmt)).scalars().all())
+    filter_sig = filter_signature(
+        object_kind=object_kind or "",
+        q=None,
+        tags=[],
+        harness_id=None,
+        component_type=None,
+        include_experimental=False,
+        owner_ids=[ctx.account_id],
+    )
+    after: tuple[datetime, str] | None = None
+    if cursor is not None:
+        if cursor_secret is None:
+            raise ApiError(ErrorCategory.DEPENDENCY, "cursor signing is not configured")
+        try:
+            key = decode_cursor(secret=cursor_secret, token=cursor, filter_sig=filter_sig)
+        except CursorError as error:
+            raise ApiError(ErrorCategory.VALIDATION, "invalid cursor") from error
+        # SQLite stores the column naive; PostgreSQL compares timestamptz.
+        after_dt = (
+            key.published_at
+            if db.get_bind().dialect.name == "postgresql"
+            else key.published_at.replace(tzinfo=None)
+        )
+        after = (after_dt, key.stable_id)
+
+    # The group position is its newest member's updated_at, so the page window
+    # is a grouped keyset query — same (newest DESC, stable_id) order the
+    # in-Python collapse used, without reading every owner version row.
+    size = max(page_size, 1)
+    grouped = (
+        select(
+            CatalogMetadata.object_kind,
+            CatalogMetadata.stable_id,
+            func.max(CatalogMetadata.updated_at).label("newest"),
+        )
+        .where(
+            CatalogMetadata.owner_account_id == ctx.account_id,
+            *(
+                [CatalogMetadata.object_kind == object_kind]
+                if object_kind in {"component", "setup"}
+                else []
+            ),
+        )
+        .group_by(CatalogMetadata.object_kind, CatalogMetadata.stable_id)
+        .subquery()
+    )
+    keyset = (
+        true()
+        if after is None
+        else or_(
+            grouped.c.newest < after[0],
+            and_(grouped.c.newest == after[0], grouped.c.stable_id > after[1]),
+        )
+    )
+    windows = (
+        await db.execute(
+            select(grouped.c.object_kind, grouped.c.stable_id, grouped.c.newest)
+            .where(keyset)
+            .order_by(grouped.c.newest.desc(), grouped.c.stable_id)
+            .limit(size + 1)
+        )
+    ).all()
+    if not windows:
+        return OwnerObjectListResponse(
+            schema_version=1,
+            items=[],
+            page=PageInfo(schema_version=1, next_cursor=None, page_size=size),
+        )
+
+    window_keys = [(row.object_kind, row.stable_id) for row in windows[:size]]
+    rows = list(
+        (
+            await db.execute(
+                select(CatalogMetadata).where(
+                    CatalogMetadata.owner_account_id == ctx.account_id,
+                    tuple_(CatalogMetadata.object_kind, CatalogMetadata.stable_id).in_(window_keys),
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
 
     # Collapse versions into one object summary by (kind, stable_id).
     by_key: dict[tuple[str, str], list[CatalogMetadata]] = {}
@@ -1065,30 +1142,11 @@ async def list_owner_objects(
 
     groups.sort(key=position)
 
-    filter_sig = filter_signature(
-        object_kind=object_kind or "",
-        q=None,
-        tags=[],
-        harness_id=None,
-        component_type=None,
-        include_experimental=False,
-        owner_ids=[ctx.account_id],
-    )
-    if cursor is not None:
-        if cursor_secret is None:
-            raise ApiError(ErrorCategory.DEPENDENCY, "cursor signing is not configured")
-        try:
-            key = decode_cursor(secret=cursor_secret, token=cursor, filter_sig=filter_sig)
-        except CursorError as error:
-            raise ApiError(ErrorCategory.VALIDATION, "invalid cursor") from error
-        after = (-key.published_at.timestamp(), key.stable_id)
-        groups = [entry for entry in groups if position(entry) > after]
-
-    page = groups[: max(page_size, 1)]
-    items = [entry[2] for entry in page]
+    page_groups = groups[:size]
+    items = [entry[2] for entry in page_groups]
     next_cursor: str | None = None
-    if len(groups) > len(page) and cursor_secret is not None:
-        last = page[-1]
+    if len(windows) > size and page_groups and cursor_secret is not None:
+        last = page_groups[-1]
         next_cursor = encode_cursor(
             secret=cursor_secret,
             filter_sig=filter_sig,
@@ -1098,7 +1156,7 @@ async def list_owner_objects(
     return OwnerObjectListResponse(
         schema_version=1,
         items=items,
-        page=PageInfo(schema_version=1, next_cursor=next_cursor, page_size=max(page_size, 1)),
+        page=PageInfo(schema_version=1, next_cursor=next_cursor, page_size=size),
     )
 
 

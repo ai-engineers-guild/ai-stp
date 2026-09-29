@@ -10,10 +10,8 @@ from pydantic import ValidationError
 from ai_stp_contracts.seo import (
     SEO_OG_HEIGHT,
     SEO_OG_WIDTH,
-    SEO_SITEMAP_SHARD_LIMIT,
     SeoEnrichmentOutput,
     SeoProfileDocument,
-    SeoSitemapUrl,
 )
 from ai_stp_platform.queue.states import JobType
 from ai_stp_platform.seo.builder import build_base_profile, profile_digest
@@ -34,7 +32,6 @@ from ai_stp_platform.seo.facts import (
 from ai_stp_platform.seo.index_decision import decide_index
 from ai_stp_platform.seo.metrics import record_seo_build, reset_seo_metrics, seo_metrics_snapshot
 from ai_stp_platform.seo.og import png_dimensions, render_og_png
-from ai_stp_platform.seo.sitemap import split_urls
 from ai_stp_platform.seo.urls import canonical_url
 from ai_stp_worker.handlers import REGISTRY
 
@@ -157,19 +154,6 @@ def test_ineligible_profile_is_noindex() -> None:
     profile = _profile(_facts(lifecycle="hidden"))
     assert profile.robots == "noindex,follow"
     assert profile.index_decision.eligible is False
-
-
-def test_sitemap_splits_above_shard_limit() -> None:
-    sample = SeoSitemapUrl(
-        loc="https://example.test/en/catalog/components/x",
-        lastmod="2026-08-01T00:00:00.000Z",
-        alternates={"en": "https://example.test/en/catalog/components/x"},
-    )
-    urls = [sample] * (SEO_SITEMAP_SHARD_LIMIT + 1)
-    pages = split_urls(urls)
-    assert len(pages) == 2
-    assert len(pages[0]) == SEO_SITEMAP_SHARD_LIMIT
-    assert len(pages[1]) == 1
 
 
 def test_og_png_is_1200_by_630() -> None:

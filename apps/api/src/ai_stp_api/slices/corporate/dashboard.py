@@ -32,7 +32,10 @@ from ai_stp_contracts.dashboard import (
 )
 from ai_stp_foundation.ids import new_id
 from ai_stp_foundation.timestamps import format_timestamp, parse_timestamp
-from ai_stp_platform.corporate_authorization import has_corporate_permission
+from ai_stp_platform.corporate_authorization import (
+    bulk_effective_permissions,
+    has_corporate_permission,
+)
 from ai_stp_platform.dashboard_models import CorporateCiCheck, CorporateDashboardView
 from ai_stp_platform.heartbeat_models import InstallationHeartbeat
 from ai_stp_platform.heartbeat_service import evaluate_health, organization_policy
@@ -225,18 +228,21 @@ async def _visible_accounts(
     )
     team_ids = sorted({team_id for _, team_id in team_rows})
     allowed_teams: set[str] = set(team_ids) if superadmin else set()
-    if not superadmin:
-        for team_id in team_ids:
-            if await has_corporate_permission(
-                db,
-                organization_id=organization_id,
-                principal_type="user",
-                principal_id=ctx.account_id,
-                permission="team.read",
-                scope_kind="team",
-                scope_id=team_id,
-            ):
-                allowed_teams.add(team_id)
+    if not superadmin and team_ids:
+        team_grants = await bulk_effective_permissions(
+            db,
+            organization_id=organization_id,
+            principal_type="user",
+            principal_id=ctx.account_id,
+            scope_kind="team",
+            scope_ids=team_ids,
+        )
+        if team_grants:
+            allowed_teams = {
+                team_id
+                for team_id in team_ids
+                if "team.read" in team_grants.get(team_id, frozenset())
+            }
     teams_by_account: dict[str, list[str]] = defaultdict(list)
     for account_id, team_id in team_rows:
         if team_id in allowed_teams:
@@ -253,20 +259,28 @@ async def _visible_accounts(
         scope_id=organization_id,
     )
     allowed_accounts: set[str] = set()
-    for membership in memberships:
-        if org_wide or (
-            membership.account_id in teams_by_account
-            and await has_corporate_permission(
-                db,
-                organization_id=organization_id,
-                principal_type="user",
-                principal_id=ctx.account_id,
-                permission="telemetry.read",
-                scope_kind="member",
-                scope_id=membership.account_id,
-            )
-        ):
-            allowed_accounts.add(membership.account_id)
+    member_ids = [
+        membership.account_id
+        for membership in memberships
+        if membership.account_id in teams_by_account
+    ]
+    if org_wide:
+        allowed_accounts = {membership.account_id for membership in memberships}
+    elif member_ids:
+        member_grants = await bulk_effective_permissions(
+            db,
+            organization_id=organization_id,
+            principal_type="user",
+            principal_id=ctx.account_id,
+            scope_kind="member",
+            scope_ids=member_ids,
+        )
+        if member_grants:
+            allowed_accounts = {
+                account_id
+                for account_id in member_ids
+                if "telemetry.read" in member_grants.get(account_id, frozenset())
+            }
     return allowed_accounts, teams_by_account
 
 
@@ -435,18 +449,21 @@ async def query_dashboard(
     )
     # Project visibility is checked after the bounded read and before filtering or aggregation.
     if payload.query.dataset == "ci" and not superadmin:
-        visible_projects: dict[str, bool] = {}
-        for project_id in {row["project"] for row in rows}:
-            visible_projects[project_id] = await has_corporate_permission(
-                db,
-                organization_id=organization_id,
-                principal_type="user",
-                principal_id=ctx.account_id,
-                permission="project.read",
-                scope_kind="project",
-                scope_id=project_id,
-            )
-        rows = [row for row in rows if visible_projects[row["project"]]]
+        project_ids = {row["project"] for row in rows}
+        project_grants = await bulk_effective_permissions(
+            db,
+            organization_id=organization_id,
+            principal_type="user",
+            principal_id=ctx.account_id,
+            scope_kind="project",
+            scope_ids=project_ids,
+        )
+        rows = [
+            row
+            for row in rows
+            if project_grants is not None
+            and "project.read" in project_grants.get(row["project"], frozenset())
+        ]
     expanded: list[dict[str, str]] = []
     for row in rows:
         teams = sorted(teams_by_account.get(row["account"], []))

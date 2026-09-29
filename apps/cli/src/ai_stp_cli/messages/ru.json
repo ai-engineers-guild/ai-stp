@@ -386,6 +386,7 @@
   "renewal changed the enrolled device": "при продлении сессии изменилось зарегистрированное устройство",
   "replace every TODO(ai-stp-scaffold) marker before compose": "замените каждый маркер TODO(ai-stp-scaffold) перед compose",
   "replace every TODO(ai-stp-scaffold) marker before release": "замените каждый маркер TODO(ai-stp-scaffold) перед выпуском",
+  "report list pagination never terminated": "пагинация списка жалоб не завершилась",
   "report submission requires confirmation of the exact preview digest": "отправка жалобы требует подтверждения точного digest предпросмотра",
   "required environment entries must be uppercase variable names, never NAME=value": "записи required environment должны быть именами переменных в верхнем регистре, никогда NAME=value",
   "required options were not supplied": "обязательные опции не переданы",

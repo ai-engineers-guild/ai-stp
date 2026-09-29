@@ -52,3 +52,46 @@ async def test_public_seo_read_has_no_session_and_public_cache(
         params={"locale": "en", "schema_version": 1},
     )
     assert missing.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_sitemap_shards_split_and_serve_disjoint_pages(
+    db_api_client: tuple[AsyncClient, async_sessionmaker[AsyncSession], Settings],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Shard boundaries now live in SQL: the index must number the same
+    buckets the paged shard query serves, or a shard ref could point at an
+    empty window."""
+    monkeypatch.setenv("AI_STP_SEO_PUBLIC_ORIGIN", "http://test")
+    monkeypatch.setattr("ai_stp_platform.seo.read.sitemap_shard_limit", lambda: 1)
+    client, sessionmaker, _settings = db_api_client
+    async with sessionmaker() as session, session.begin():
+        for slug in ("safe-setup", "second-setup"):
+            await seed_published_article(session, now=NOW, slug=slug, title=f"Title {slug}")
+            await handle_seo_build(
+                session,
+                {
+                    "subject_kind": "article",
+                    "subject_id": f"article:{slug}",
+                    "locale": "en",
+                },
+                settings=SeoSettings(public_origin="http://test"),
+                now=NOW,
+            )
+    index = await client.get("/v1/seo/sitemap")
+    assert index.status_code == 200
+    article_shards = [
+        ref for ref in index.json()["shards"] if "/sitemaps/article-en-" in ref["loc"]
+    ]
+    assert len(article_shards) == 2
+    first = await client.get("/v1/seo/sitemaps/article/en/1")
+    second = await client.get("/v1/seo/sitemaps/article/en/2")
+    assert first.status_code == 200
+    assert second.status_code == 200
+    first_urls = [item["loc"] for item in first.json()["urls"]]
+    second_urls = [item["loc"] for item in second.json()["urls"]]
+    assert len(first_urls) == 1
+    assert len(second_urls) == 1
+    assert first_urls[0] != second_urls[0]
+    beyond = await client.get("/v1/seo/sitemaps/article/en/3")
+    assert beyond.status_code == 404

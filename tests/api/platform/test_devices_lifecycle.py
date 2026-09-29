@@ -263,6 +263,64 @@ async def test_list_summary_and_outsider_denied(
     assert outsider.status_code == 403
 
 
+async def test_device_list_keyset_cursor_pages_and_binds_account(
+    harness: tuple[AsyncClient, async_sessionmaker[AsyncSession], str],
+) -> None:
+    """A page at the bound must carry a continuation, and the cursor must not
+    page a different account's devices (filter signature binds the target)."""
+    client, sessionmaker, _ = harness
+    _, token = await _seed_account_with_session(sessionmaker)
+    headers = {"Authorization": f"Bearer {token}"}
+    device_ids: list[str] = []
+    for _ in range(3):
+        pk, private = _keypair()
+        challenge = await client.post(
+            "/v1/devices/challenge", headers=headers, json={"public_key": pk}
+        )
+        nonce = challenge.json()["nonce"]
+        created = await client.post(
+            "/v1/devices",
+            headers=headers,
+            json={"public_key": pk, "nonce": nonce, "signature": _sign(private, nonce)},
+        )
+        assert created.status_code in (200, 201)
+        device_ids.append(created.json()["device"]["device_id"])
+
+    first = await client.get("/v1/devices", headers=headers, params={"page_size": 2})
+    assert first.status_code == 200
+    page1 = first.json()
+    assert page1["page"]["page_size"] == 2
+    assert len(page1["items"]) == 2
+    cursor = page1["page"]["next_cursor"]
+    assert cursor is not None
+
+    second = await client.get(
+        "/v1/devices", headers=headers, params={"page_size": 2, "cursor": cursor}
+    )
+    assert second.status_code == 200
+    page2 = second.json()
+    assert len(page2["items"]) == 1
+    assert page2["page"]["next_cursor"] is None
+
+    seen = {item["device_id"] for item in page1["items"]} | {
+        item["device_id"] for item in page2["items"]
+    }
+    assert seen == set(device_ids)
+
+    # The cursor minted for this account must not page another account's list.
+    _, other_token = await _seed_account_with_session(sessionmaker)
+    cross = await client.get(
+        "/v1/devices",
+        headers={"Authorization": f"Bearer {other_token}"},
+        params={"cursor": cursor},
+    )
+    assert cross.status_code == 400
+    assert cross.json()["error"]["code"] == "AI_STP_VALIDATION_ERROR"
+
+    malformed = await client.get("/v1/devices", headers=headers, params={"cursor": "not-a-cursor"})
+    assert malformed.status_code == 400
+
+
 async def test_admin_list_requires_reason_and_emits_audit(
     migrated_database_url: str,
     settings_factory: Callable[..., Settings],
