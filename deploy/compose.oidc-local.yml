@@ -8,6 +8,8 @@ services:
       - "localhost:host-gateway"
   web:
     environment:
-      # Show corporate SSO buttons on /login for the providers this override
-      # enables on the API side.
+      # SSO entry is a corporate-hub surface; the override runs the corporate
+      # build so the /corporate/login page exposes it.
+      AI_STP_WEB_PROFILE: "corporate_hub"
+      # Show the SSO button for the providers this override enables API-side.
       AI_STP_AUTH_SSO_PROVIDERS: "authentik,keycloak"

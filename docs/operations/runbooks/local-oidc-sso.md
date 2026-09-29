@@ -171,10 +171,12 @@ after accepting the two documents, `/ru/corporate/account` lists the identity
 (`authentik`/`keycloak` with the IdP display name).
 
 The same login is reachable from the UI: `compose.oidc-local.yml` sets
-`AI_STP_AUTH_SSO_PROVIDERS=authentik,keycloak` on the web service, so
-`http://localhost:3000/ru/login` shows one SSO button per provider. Without the
-override, set `AI_STP_AUTH_SSO_PROVIDERS` in `.env.dev` to the providers whose
-API credentials are filled.
+`AI_STP_AUTH_SSO_PROVIDERS=authentik,keycloak` on the web service, so the login
+page gains a single "Войти через SSO" button (one provider links straight
+through; several open a chooser). The button only exists in the `corporate_hub`
+web build — the override also sets `AI_STP_WEB_PROFILE=corporate_hub`, so the
+canonical URL is `http://localhost:3000/ru/corporate/login`. Without the
+override, set both variables in `.env.dev`.
 
 CLI sign-in uses the device flow and never sees an IdP password:
 

@@ -124,3 +124,20 @@ it("keeps SaaS page URLs physical without corporate aliases", async () => {
   expect(response.headers.get("location")).toBeNull();
   expect(response.headers.get("x-middleware-rewrite")).toBeNull();
 });
+
+it("exposes configured SSO providers only in the corporate_hub build", async () => {
+  vi.stubEnv("AI_STP_COMPILED_FEATURE_PROFILE", "corporate_hub");
+  const { corporateSsoProviders } = await import("@/lib/features/corporate-path");
+  expect(corporateSsoProviders(["authentik", "keycloak"])).toEqual(["authentik", "keycloak"]);
+});
+
+it("hides SSO providers in non-corporate builds even when configured", async () => {
+  vi.stubEnv("AI_STP_COMPILED_FEATURE_PROFILE", "public_saas");
+  const { corporateSsoProviders } = await import("@/lib/features/corporate-path");
+  expect(corporateSsoProviders(["authentik", "keycloak"])).toEqual([]);
+
+  vi.stubEnv("AI_STP_COMPILED_FEATURE_PROFILE", "self_hosted");
+  vi.resetModules();
+  const again = await import("@/lib/features/corporate-path");
+  expect(again.corporateSsoProviders(["authentik"])).toEqual([]);
+});
