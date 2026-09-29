@@ -7,10 +7,12 @@ from enum import StrEnum
 
 
 class OAuthProvider(StrEnum):
-    """Supported OAuth providers for MVP."""
+    """Supported OAuth providers (ADR-0218)."""
 
     GOOGLE = "google"
     GITHUB = "github"
+    AUTHENTIK = "authentik"
+    KEYCLOAK = "keycloak"
 
 
 class LinkState(StrEnum):

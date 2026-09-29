@@ -86,6 +86,20 @@ def build_oauth(auth: AuthSettings) -> OAuth:
                 "code_challenge_method": "S256",
             },
         )
+    # Corporate OIDC providers (ADR-0218): same registration as Google, the
+    # issuer is deployment-configured instead of a constant.
+    for name in ("authentik", "keycloak"):
+        if auth.provider_enabled(name):
+            register(
+                name=name,
+                client_id=getattr(auth, f"{name}_client_id"),
+                client_secret=getattr(auth, f"{name}_client_secret"),
+                server_metadata_url=f"{auth.oidc_issuer(name)}/.well-known/openid-configuration",
+                client_kwargs={
+                    "scope": "openid email profile",
+                    "code_challenge_method": "S256",
+                },
+            )
     return oauth
 
 
@@ -103,8 +117,8 @@ async def profile_from_token(
     token: Mapping[str, Any],
 ) -> ProviderProfile:
     """Extract a ProviderProfile from a provider token response."""
-    if provider == "google":
-        return _google_profile(token)
+    if provider in {"google", "authentik", "keycloak"}:
+        return _oidc_profile(provider, token)
     if provider == "github":
         return await _github_profile(oauth, token)
     raise ApiError(ErrorCategory.VALIDATION, "unsupported oauth provider")
@@ -122,7 +136,7 @@ def _as_object_mapping(value: object) -> Mapping[str, object] | None:
     return cast(Mapping[str, object], value)
 
 
-def _google_profile(token: Mapping[str, Any]) -> ProviderProfile:
+def _oidc_profile(provider: str, token: Mapping[str, Any]) -> ProviderProfile:
     raw_userinfo: object = token.get("userinfo") or token.get("id_token") or {}
     userinfo = _as_object_mapping(raw_userinfo)
     if userinfo is None:
@@ -133,7 +147,7 @@ def _google_profile(token: Mapping[str, Any]) -> ProviderProfile:
     if not subject or not email:
         raise ApiError(ErrorCategory.AUTH_REQUIRED, "authentication failed")
     return ProviderProfile(
-        provider="google",
+        provider=provider,
         subject=normalize_subject(subject),
         email=normalize_email(email),
         email_verified=verified,

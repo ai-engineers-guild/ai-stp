@@ -8700,7 +8700,12 @@ export type OAuthCallbackResult = {
   [key: string]: unknown;
 };
 
-export const OAuthProvider = { GOOGLE: "google", GITHUB: "github" } as const;
+export const OAuthProvider = {
+  GOOGLE: "google",
+  GITHUB: "github",
+  AUTHENTIK: "authentik",
+  KEYCLOAK: "keycloak",
+} as const;
 
 export type OAuthProvider = (typeof OAuthProvider)[keyof typeof OAuthProvider];
 
@@ -18408,6 +18413,76 @@ export type AcceptCorporateInvitationResponses = {
 
 export type AcceptCorporateInvitationResponse =
   AcceptCorporateInvitationResponses[keyof AcceptCorporateInvitationResponses];
+
+export type ConfirmCorporateInvitationData = {
+  body: CorporateInvitationAcceptRequest;
+  headers: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+    /**
+     * Client-chosen key; a retry must not become a second effect.
+     */
+    "Idempotency-Key": string;
+  };
+  path: {
+    /**
+     * Organization invitation identifier.
+     */
+    invitation_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/invitations/{invitation_id}/confirm";
+};
+
+export type ConfirmCorporateInvitationErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_NOT_FOUND.
+   */
+  404: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_CONFLICT.
+   */
+  409: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ConfirmCorporateInvitationError =
+  ConfirmCorporateInvitationErrors[keyof ConfirmCorporateInvitationErrors];
+
+export type ConfirmCorporateInvitationResponses = {
+  /**
+   * Activate a claimed invitation once the invited inbox proves ownership.
+   */
+  200: CorporateMember;
+};
+
+export type ConfirmCorporateInvitationResponse =
+  ConfirmCorporateInvitationResponses[keyof ConfirmCorporateInvitationResponses];
 
 export type ListCorporateAuditData = {
   body?: never;

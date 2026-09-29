@@ -1016,7 +1016,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             option(
                 "provider",
                 "string",
-                "Which identity provider to sign in with: google or github.",
+                "Which identity provider to sign in with.",
                 required=True,
                 choices=OAUTH_PROVIDERS,
             ),

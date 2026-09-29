@@ -3,6 +3,15 @@
     "DeviceId": {
       "pattern": "^device_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
       "type": "string"
+    },
+    "OAuthProvider": {
+      "enum": [
+        "google",
+        "github",
+        "authentik",
+        "keycloak"
+      ],
+      "type": "string"
     }
   },
   "$id": "urn:ai-stp:schema:v1:cli-device-approval",
@@ -23,12 +32,7 @@
       "type": "integer"
     },
     "provider": {
-      "enum": [
-        "google",
-        "github"
-      ],
-      "title": "Provider",
-      "type": "string"
+      "$ref": "#/$defs/OAuthProvider"
     },
     "schema_version": {
       "const": 1,

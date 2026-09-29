@@ -8,7 +8,9 @@ import { corporateHref } from "@/lib/features/corporate-path";
 import { getEnv } from "@/lib/env";
 import { FIXTURE_ACCOUNT_ID, FIXTURE_DEVICE_ID } from "@/mocks/fixtures";
 
-export type LoginProvider = "google" | "github";
+import type { LoginProvider } from "@/lib/generated/cli-copy";
+
+export type { LoginProvider };
 
 function redirectTo(path: string): never {
   redirect(path);

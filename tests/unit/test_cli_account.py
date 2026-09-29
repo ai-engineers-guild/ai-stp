@@ -56,7 +56,7 @@ def test_account_asks_for_provider_once(tmp_path: Path) -> None:
     )
     question = continued.payload.questions[0]
     assert question.question_id == "provider"
-    assert question.choices == ["google", "github"]
+    assert question.choices == ["google", "github", "authentik", "keycloak"]
 
 
 def test_declined_login_fails_the_task(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

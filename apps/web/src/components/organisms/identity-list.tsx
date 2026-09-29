@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { unlinkIdentityAction } from "@/actions/account";
 import { Badge } from "@/components/atoms/badge";
 import { Button } from "@/components/atoms/button";
-import type { LinkedIdentity } from "@/lib/api/generated/types.gen";
+import type { LinkedIdentity, OAuthProvider } from "@/lib/api/generated/types.gen";
 import { Icon } from "@/theme";
 
 const ALL_PROVIDERS = ["google", "github"] as const;
@@ -27,10 +27,16 @@ function providerLabel(provider: string, t: (key: string) => string): string {
   if (provider === "github") {
     return t("providerGithub");
   }
+  if (provider === "authentik") {
+    return t("providerAuthentik");
+  }
+  if (provider === "keycloak") {
+    return t("providerKeycloak");
+  }
   return provider;
 }
 
-function linkHref(provider: "google" | "github", returnTo: string): string {
+function linkHref(provider: OAuthProvider, returnTo: string): string {
   const params = new URLSearchParams({ return_to: returnTo });
   // Browser navigates via the edge proxy so the OAuth handshake cookie is set client-side.
   return `/v1/auth/link/${provider}?${params.toString()}`;
@@ -53,7 +59,7 @@ export function IdentityList({ identities, csrfToken, returnTo }: IdentityListPr
   const canUnlink = identities.length > 1;
   const missing = ALL_PROVIDERS.filter((provider) => !linked.has(provider));
 
-  function onUnlink(provider: "google" | "github") {
+  function onUnlink(provider: OAuthProvider) {
     if (!canUnlink) {
       toast.error(t("unlinkLastBlocked"));
       return;

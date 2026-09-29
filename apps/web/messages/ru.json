@@ -1227,6 +1227,8 @@
     "provider": "Провайдер",
     "providerGoogle": "Google",
     "providerGithub": "GitHub",
+    "providerAuthentik": "authentik",
+    "providerKeycloak": "Keycloak",
     "linkedAt": "Привязан",
     "unlink": "Отвязать",
     "unlinked": "Идентичность отвязана",

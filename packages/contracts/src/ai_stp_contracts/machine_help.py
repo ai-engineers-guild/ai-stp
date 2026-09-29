@@ -25,7 +25,7 @@ from typing import Annotated, Literal, Self
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from ai_stp_assurance import AuthorAttestation as AssuranceAuthorAttestation
-from ai_stp_contracts.auth import AccountId, DeviceId, PublicKey
+from ai_stp_contracts.auth import AccountId, DeviceId, OAuthProvider, PublicKey
 from ai_stp_contracts.catalog import (
     CatalogTrust,
     ComponentSummary,
@@ -506,7 +506,7 @@ class TaskAccountInput(BaseModel):
 
     schema_version: Literal[1] = 1
     action: Literal["login", "logout", "sync"] | None = None
-    provider: Literal["google", "github"] | None = None
+    provider: OAuthProvider | None = None
     stable_id: str | None = Field(default=None, description="Exact local account-sync entity id.")
     project_root: str | None = Field(
         default=None,
@@ -525,7 +525,7 @@ class TaskPublishInput(BaseModel):
     object_version: Annotated[str, Field(pattern=VERSION_PATTERN)] | None = None
     visibility: Literal["public", "private"] | None = None
     directory: str | None = None
-    provider: Literal["google", "github"] | None = None
+    provider: OAuthProvider | None = None
 
 
 class TaskTechnologyDecision(BaseModel):
@@ -1203,7 +1203,7 @@ class DeviceApproval(BaseModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 
     schema_version: Literal[1] = 1
-    provider: Literal["google", "github"]
+    provider: OAuthProvider
 
     #: Typed by a human from a terminal into a browser.
     user_code: Annotated[str, Field(min_length=1)]
