@@ -186,9 +186,7 @@ describe("SearchableMultiSelect", () => {
 
     expect(screen.getByText("Tags (1)")).toBeInTheDocument();
     const hidden = Array.from(
-      document.querySelectorAll<HTMLInputElement>(
-        'input[type="hidden"][name="tag"]',
-      ),
+      document.querySelectorAll<HTMLInputElement>('input[type="hidden"][name="tag"]'),
     ).map((input) => input.value);
     expect(hidden).toEqual(["removed-option"]);
   });
