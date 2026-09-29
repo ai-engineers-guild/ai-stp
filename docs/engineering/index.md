@@ -25,7 +25,7 @@ last_verified: "2026-08-03"
 | [implementation-canon.md](implementation-canon.md) | Classification of specs, docs, and tests against implemented non-corporate code. | 2026-09-20 |
 | [implementation-roadmap.md](implementation-roadmap.md) | Current ai_stp status and the ordered plan for remaining work. | 2026-09-26 |
 | [local-technology-detection-plan.md](local-technology-detection-plan.md) | Implementation plan for issue #222: deterministic local technology-stack detection in the CLI producing the versioned TechnologyScanHandoff. | 2026-09-21 |
-| [quality-gates.md](quality-gates.md) | Required checks and release evidence. | 2026-09-20 |
+| [quality-gates.md](quality-gates.md) | Required checks and release evidence. | 2026-09-29 |
 | [real-provider-evidence.md](real-provider-evidence.md) | How to run the full lifecycle against released providers and what is checked in the process. | 2026-08-29 |
 | [release-evidence.md](release-evidence.md) | Required release evidence for the CLI, platform, and providers. | 2026-09-24 |
 | [repository-structure.md](repository-structure.md) | Target monorepository structure and code ownership rules. | 2026-09-20 |

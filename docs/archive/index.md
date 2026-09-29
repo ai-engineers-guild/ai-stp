@@ -13,6 +13,7 @@ last_verified: "2026-09-20"
 | [artifact-storage-private-delivery-implementation-plan.md](artifact-storage-private-delivery-implementation-plan.md) | Implementation sequence for owner-scoped artifacts, platform assets, private delivery, and verified backups. | 2026-09-07 |
 | [audit-remediation-status.md](audit-remediation-status.md) | Historical audit dispositions reconciled with current mechanism owners. | 2026-09-07 |
 | [github-connector-implementation-plan.md](github-connector-implementation-plan.md) | Implementation and verification sequence for GitHub Connector issues 181 through 186. | 2026-09-08 |
+| [macos-evidence.md](macos-evidence.md) | Collecting CLI/package evidence on a standard GitHub-hosted macOS runner. | 2026-08-18 |
 | [official-registry-identity-and-requests-implementation-plan.md](official-registry-identity-and-requests-implementation-plan.md) | Implementation sequence for unique public identities, the Git-owned Official registry, recoverable updates, and unified ownership and verification requests. | 2026-09-04 |
 | [runner-separation-readiness.md](runner-separation-readiness.md) | Dated images of inventory of separate CI/deploy trust domains and the solutions that replaced the planned barrier. | 2026-08-16 |
 | [seo-publication-implementation-plan.md](seo-publication-implementation-plan.md) | Procedure for implementing the server-side SEO loop without mixing domain publication and model enrichment. | 2026-08-29 |
