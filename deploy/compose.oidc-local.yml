@@ -6,3 +6,8 @@ services:
   api:
     extra_hosts:
       - "localhost:host-gateway"
+  web:
+    environment:
+      # Show corporate SSO buttons on /login for the providers this override
+      # enables on the API side.
+      AI_STP_AUTH_SSO_PROVIDERS: "authentik,keycloak"

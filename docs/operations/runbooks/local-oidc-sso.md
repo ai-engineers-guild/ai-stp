@@ -170,6 +170,21 @@ callback â†’ `http://localhost:3000/ru/corporate/onboarding` for a new account â
 after accepting the two documents, `/ru/corporate/account` lists the identity
 (`authentik`/`keycloak` with the IdP display name).
 
+The same login is reachable from the UI: `compose.oidc-local.yml` sets
+`AI_STP_AUTH_SSO_PROVIDERS=authentik,keycloak` on the web service, so
+`http://localhost:3000/ru/login` shows one SSO button per provider. Without the
+override, set `AI_STP_AUTH_SSO_PROVIDERS` in `.env.dev` to the providers whose
+API credentials are filled.
+
+CLI sign-in uses the device flow and never sees an IdP password:
+
+```bash
+ai-stp config set --set catalog.url=http://localhost:8000
+ai-stp auth login --provider keycloak   # or authentik
+# open the printed verification_uri_complete, sign in, approve the code
+ai-stp auth complete --json
+```
+
 Headless check that registration + PKCE are wired:
 
 ```bash
