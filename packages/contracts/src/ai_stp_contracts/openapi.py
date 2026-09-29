@@ -1414,6 +1414,18 @@ OPERATIONS: Final[tuple[Operation, ...]] = (
         errors=("AI_STP_NOT_FOUND", "AI_STP_VALIDATION_ERROR", "AI_STP_CONFLICT"),
     ),
     Operation(
+        method="post",
+        path="/corporate/invitations/{invitation_id}/confirm",
+        operation_id="confirmCorporateInvitation",
+        summary="Activate a claimed invitation once the invited inbox proves ownership.",
+        response=CorporateMember,
+        body=CorporateInvitationAcceptRequest,
+        path_params=(_INVITATION_ID,),
+        authenticated=True,
+        idempotent_mutation=True,
+        errors=("AI_STP_NOT_FOUND", "AI_STP_VALIDATION_ERROR", "AI_STP_CONFLICT"),
+    ),
+    Operation(
         method="get",
         path="/corporate/organizations/{organization_id}/membership/policy",
         operation_id="readCorporateMembershipPolicy",

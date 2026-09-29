@@ -42148,6 +42148,264 @@
         "summary": "Accept an organization invitation when the verified email matches."
       }
     },
+    "/v1/corporate/invitations/{invitation_id}/confirm": {
+      "post": {
+        "operationId": "confirmCorporateInvitation",
+        "parameters": [
+          {
+            "description": "Organization invitation identifier.",
+            "in": "path",
+            "name": "invitation_id",
+            "required": true,
+            "schema": {
+              "pattern": "^invite_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Client-chosen key; a retry must not become a second effect.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "examples": {
+                "confirmCorporateInvitation.corporate": {
+                  "summary": "The claimant activates membership after the invited inbox clicks the confirmation link.",
+                  "value": {
+                    "idempotency_key": "invite-confirm-0001",
+                    "schema_version": 1,
+                    "token": "tok_confirm_fixture0000000000000"
+                  }
+                }
+              },
+              "schema": {
+                "$ref": "#/components/schemas/CorporateInvitationAcceptRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "confirmCorporateInvitation.corporate": {
+                    "summary": "The claimant activates membership after the invited inbox clicks the confirmation link.",
+                    "value": {
+                      "account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "available_actions": [],
+                      "display_name": "Invited User",
+                      "job_title_id": null,
+                      "job_title_name": null,
+                      "revision": 1,
+                      "role": "staff",
+                      "schema_version": 1,
+                      "state": "active"
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/CorporateMember"
+                }
+              }
+            },
+            "description": "Activate a claimed invitation once the invited inbox proves ownership.",
+            "headers": {
+              "X-Operation-Id": {
+                "description": "Durable operation id of this mutation.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_NOT_FOUND.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_CONFLICT.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Activate a claimed invitation once the invited inbox proves ownership."
+      }
+    },
     "/v1/corporate/organizations/{organization_id}/audit": {
       "get": {
         "operationId": "listCorporateAudit",
@@ -50848,7 +51106,10 @@
                       "items": [
                         {
                           "accepted_account_id": null,
+                          "claimant_account_id": null,
                           "created_at": "2026-09-24T00:00:00.000Z",
+                          "delivery_error": null,
+                          "delivery_state": null,
                           "display_name": "Invited User",
                           "expires_at": "2026-10-01T00:00:00.000Z",
                           "invitation_id": "invite_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
@@ -51070,7 +51331,10 @@
                     "summary": "An authorized issuer receives the invitation view with the one-time token.",
                     "value": {
                       "accepted_account_id": null,
+                      "claimant_account_id": null,
                       "created_at": "2026-09-24T00:00:00.000Z",
+                      "delivery_error": null,
+                      "delivery_state": null,
                       "display_name": "Invited User",
                       "expires_at": "2026-10-01T00:00:00.000Z",
                       "invitation_id": "invite_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
@@ -51305,7 +51569,10 @@
                     "summary": "Revocation returns the invitation view in the revoked state.",
                     "value": {
                       "accepted_account_id": null,
+                      "claimant_account_id": null,
                       "created_at": "2026-09-24T00:00:00.000Z",
+                      "delivery_error": null,
+                      "delivery_state": null,
                       "display_name": "Invited User",
                       "expires_at": "2026-10-01T00:00:00.000Z",
                       "invitation_id": "invite_01JQZK7B8N4M6P2R9T5V0X3Y7Z",

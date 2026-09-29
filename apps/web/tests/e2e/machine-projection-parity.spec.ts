@@ -56,13 +56,24 @@ test.describe("machine projection parity (REQ-3624, REQ-3626)", () => {
     for (const route of [
       "/en/publications/plan_missing",
       "/en/ai/publications/plan_missing",
-      "/en/invitations/invitation_missing",
       "/en/ai/invitations/invitation_missing",
     ]) {
       const response = await page.goto(route);
       expect(response?.status(), route).toBe(200);
       await expect(page, route).toHaveURL(/\/login/);
     }
+  });
+
+  test("the human invitation page renders for anonymous visitors", async ({ page }) => {
+    // The one-time token travels in the URL fragment, so a server-side login
+    // gate would drop it before the page could park it. The accept POST
+    // enforces auth instead and redirects through login with the token held.
+    const response = await page.goto("/en/invitations/invitation_missing");
+    expect(response?.status()).toBe(200);
+    await expect(page).toHaveURL(/\/invitations\/invitation_missing/);
+    await expect(
+      page.getByRole("heading", { name: "Accept invitation", exact: true }),
+    ).toBeVisible();
   });
 
   test("technology registry, details and landscape pairs deny anonymous access", async ({
