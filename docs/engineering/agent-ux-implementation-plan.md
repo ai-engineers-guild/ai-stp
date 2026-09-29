@@ -24,8 +24,9 @@ Nine drained intents are on GitHub `main` (the eighth-intent wave landed via PR
 [#297](https://github.com/ai-engineers-guild/ai-stp/pull/297) merged
 2026-09-19; the ninth, `technology`, landed in `cc1cdf60`). Source and tag are
 `0.0.35` (`v0.0.35` @ `dd476cef`, promotion PR #535); the latest PyPI release is
-still `0.0.33` — `publish-pypi` dispatches for 0.0.34/0.0.35 are person-reserved
-and were not run. Epic #261–#275 are CLOSED. Do not touch
+`0.0.35` — published 2026-09-29 through run `36548752992` (attested candidate
+`36540669341`, owner-approved `pypi-cli` environment). `0.0.34` was tagged and
+attested but never published; it is superseded. Epic #261–#275 are CLOSED. Do not touch
 `feat/milestone-6-b2b-03` or colleague corporate work.
 
 | Object | Identity |
@@ -33,7 +34,7 @@ and were not run. Epic #261–#275 are CLOSED. Do not touch
 | Line | GitHub `main` / `dev`. Work branch `feat/agent-task-lifecycle` is gone |
 | PR | [#297](https://github.com/ai-engineers-guild/ai-stp/pull/297) merged into `dev`, then promoted |
 | Tagged CLI | `0.0.35` at `v0.0.35` (`dd476cef`); release-candidate run `36540669341` built and attested the artifact |
-| Released CLI | `0.0.33` on PyPI (release-candidate run 36384276021, publish run 36384484011); it ships provider-kit `0.2.15` — the `authorization` status member accepted — behind the unified v2/v3 invocation boundary |
+| Released CLI | `0.0.35` on PyPI (release-candidate run `36540669341`, publish run `36548752992`); it ships provider-kit `0.2.15` — the `authorization` status member accepted — behind the unified v2/v3 invocation boundary |
 | Provider kit | `0.2.15` in `tests/golden/provider-kit/identity-ledger.json` |
 | Issues | #261–#275 CLOSED. setup-systems #316 OPEN. Issues #254/#256 are CLOSED |
 | Public provider | `0.0.80` on all seven `*-setup-system` trees (2026-09-29), vendoring kit `0.2.15`; kit bytes unchanged since 0.0.79 |
