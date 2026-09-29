@@ -150,3 +150,39 @@ async def test_handler_requires_all_fields() -> None:
     payload["accept_token"] = ""
     with pytest.raises(PermanentJobFailure):
         await handler.handle_deliver_corporate_invitation(AsyncMock(), payload)
+
+
+async def test_handler_confirmation_variant_uses_confirm_template(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Confirmation mails carry the claimant-activation URL and the confirm
+    token in the fragment — the accept token is not required."""
+    port = RecordingCorporateMailPort()
+    texts: list[str] = []
+    original = port.send_invitation
+
+    def capture(**kwargs: str) -> str | None:
+        texts.append(kwargs["text"])
+        return original(**kwargs)
+
+    monkeypatch.setattr(port, "send_invitation", capture)
+    monkeypatch.setattr(handler, "MAIL_PORT", port)
+    monkeypatch.setattr(handler, "ACCEPT_BASE_URL", "https://app.example/en")
+    delivery = _delivery()
+    payload = _payload()
+    del payload["accept_token"]
+    payload["mail_variant"] = "confirmation"
+    payload["confirm_token"] = "confirm-secret"
+    await handler.handle_deliver_corporate_invitation(_session(delivery), payload)
+    assert delivery.state == "sent"
+    assert len(texts) == 1
+    assert "/confirm#token=confirm-secret" in texts[0]
+    assert "secret" not in texts[0].replace("confirm-secret", "")
+
+
+async def test_handler_confirmation_requires_confirm_token() -> None:
+    payload = _payload()
+    del payload["accept_token"]
+    payload["mail_variant"] = "confirmation"
+    with pytest.raises(PermanentJobFailure):
+        await handler.handle_deliver_corporate_invitation(AsyncMock(), payload)

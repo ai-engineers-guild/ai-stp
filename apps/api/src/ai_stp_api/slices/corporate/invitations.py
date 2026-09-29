@@ -83,7 +83,7 @@ def _ts(value: datetime) -> str:
 
 def _expired(row: CorporateInvitationRow) -> bool:
     expires = row.expires_at if row.expires_at.tzinfo else row.expires_at.replace(tzinfo=UTC)
-    return row.state == "pending" and expires <= datetime.now(UTC)
+    return row.state in ("pending", "email_confirm_pending") and expires <= datetime.now(UTC)
 
 
 def _view(
@@ -107,6 +107,7 @@ def _view(
         expires_at=_ts(row.expires_at),
         created_at=_ts(row.created_at),
         accepted_account_id=row.accepted_account_id,
+        claimant_account_id=row.claimant_account_id,
         token=token,
         delivery_state=cast(
             CorporateMailDeliveryState | None, delivery.state if delivery else None
@@ -135,6 +136,251 @@ async def _invitation(
     if row is None or row.organization_id != organization_id:
         raise ApiError(ErrorCategory.NOT_FOUND, "invitation not found")
     return row
+
+
+async def _reject(
+    db: AsyncSession,
+    *,
+    row: CorporateInvitationRow | None,
+    ctx: AuthContext,
+    request_id: str | None,
+    action: str,
+    category: ErrorCategory,
+    message: str,
+) -> NoReturn:
+    if row is not None:
+        # The request session rolls back once ApiError propagates, so the
+        # failure audit is committed before the raise — the row itself is
+        # only locked, never mutated on this path.
+        await emit_audit(
+            db,
+            actor_account_id=ctx.account_id,
+            organization_id=row.organization_id,
+            action=action,
+            target_table="corporate_invitation",
+            target_id=row.id,
+            outcome="failed",
+            request_id=request_id,
+        )
+        await db.commit()
+    raise ApiError(category, message)
+
+
+async def _expire(
+    db: AsyncSession,
+    *,
+    row: CorporateInvitationRow,
+    ctx: AuthContext,
+    request_id: str | None,
+) -> NoReturn:
+    row.state = "expired"
+    await emit_audit(
+        db,
+        actor_account_id=ctx.account_id,
+        organization_id=row.organization_id,
+        action="member.invitation_expired",
+        target_table="corporate_invitation",
+        target_id=row.id,
+        request_id=request_id,
+    )
+    await db.commit()
+    raise ApiError(ErrorCategory.VALIDATION, "invitation expired")
+
+
+async def _require_organization(
+    db: AsyncSession,
+    *,
+    row: CorporateInvitationRow,
+    ctx: AuthContext,
+    request_id: str | None,
+) -> Organization:
+    organization = await db.get(Organization, row.organization_id)
+    if organization is None or organization.state != "active":
+        await _reject(
+            db,
+            row=row,
+            ctx=ctx,
+            request_id=request_id,
+            action="member.invitation_org_inactive",
+            category=ErrorCategory.CONFLICT,
+            message="organization is unavailable",
+        )
+    if not email_domain_allowed(
+        list(organization.allowed_email_domains or []), row.recipient_email_normalized
+    ):
+        await _reject(
+            db,
+            row=row,
+            ctx=ctx,
+            request_id=request_id,
+            action="member.invitation_domain_rejected",
+            category=ErrorCategory.VALIDATION,
+            message="email domain is not allowed",
+        )
+    return organization
+
+
+async def _accepted_member(
+    db: AsyncSession, *, row: CorporateInvitationRow, ctx: AuthContext
+) -> CorporateMember | None:
+    if row.state != "accepted" or row.accepted_account_id != ctx.account_id:
+        return None
+    membership = await db.scalar(
+        select(OrganizationMembership).where(
+            OrganizationMembership.organization_id == row.organization_id,
+            OrganizationMembership.account_id == ctx.account_id,
+        )
+    )
+    account = await db.get(Account, ctx.account_id)
+    if membership is None or account is None:
+        return None
+    return member_view(membership, account)
+
+
+async def _send_confirmation(
+    db: AsyncSession,
+    *,
+    row: CorporateInvitationRow,
+    organization: Organization,
+    ctx: AuthContext,
+    request_id: str | None,
+) -> NoReturn:
+    """Bind the claimant and mail a confirmation token to the invited address.
+
+    The invited inbox — not the sign-in provider — proves ownership, so any
+    OAuth or SSO identity may claim the invitation. The confirmation token is
+    hashed at rest and never leaves the mail pipeline in the ledger.
+    """
+    confirm_token = secrets.token_urlsafe(32)
+    row.state = "email_confirm_pending"
+    row.claimant_account_id = ctx.account_id
+    row.confirmation_token_hash = _hash(confirm_token)
+    # The ledger keeps one row per invitation: a resend resets it to queued so
+    # admins always see the latest mail state; past jobs keep the history.
+    delivery = await db.scalar(
+        select(CorporateMailDelivery).where(CorporateMailDelivery.invitation_id == row.id)
+    )
+    if delivery is None:
+        delivery = CorporateMailDelivery(
+            id=new_id("mail"),
+            organization_id=row.organization_id,
+            invitation_id=row.id,
+            to_email_normalized=row.recipient_email_normalized,
+            display_name=row.display_name,
+            template_key="",
+            state="queued",
+        )
+        db.add(delivery)
+    else:
+        delivery.state = "queued"
+        delivery.error = None
+        delivery.provider_message_id = None
+        delivery.sent_at = None
+    await enqueue(
+        db,
+        job_type=JobType.DELIVER_CORPORATE_INVITATION,
+        payload={
+            "delivery_id": delivery.id,
+            "invitation_id": row.id,
+            "to_email": row.recipient_email_normalized,
+            "display_name": row.display_name,
+            "organization_name": organization.display_name,
+            "role": row.role,
+            "expires_at": _ts(row.expires_at),
+            "mail_variant": "confirmation",
+            # Same secrecy rule as accept_token: payload only until delivery.
+            "confirm_token": confirm_token,
+        },
+        # Each send gets a unique key: the same delivery row may be resent.
+        idempotency_key=f"deliver_corporate_invitation:{delivery.id}:{secrets.token_hex(8)}",
+    )
+    await emit_audit(
+        db,
+        actor_account_id=ctx.account_id,
+        organization_id=row.organization_id,
+        action="member.invitation_email_confirm_sent",
+        target_table="corporate_invitation",
+        target_id=row.id,
+        request_id=request_id,
+    )
+    await db.commit()
+    raise ApiError(
+        ErrorCategory.CONFLICT,
+        "confirmation email sent to the invited address",
+        details={"reason": "email_confirmation_sent"},
+    )
+
+
+async def _activate_membership(
+    db: AsyncSession,
+    *,
+    row: CorporateInvitationRow,
+    ctx: AuthContext,
+    request_id: str | None,
+) -> OrganizationMembership:
+    existing = await db.scalar(
+        select(OrganizationMembership).where(
+            OrganizationMembership.organization_id == row.organization_id,
+            OrganizationMembership.account_id == ctx.account_id,
+        )
+    )
+    if existing is not None:
+        await _reject(
+            db,
+            row=row,
+            ctx=ctx,
+            request_id=request_id,
+            action="member.invitation_duplicate",
+            category=ErrorCategory.CONFLICT,
+            message="member already exists",
+        )
+
+    await ensure_active_teams(
+        db, organization_id=row.organization_id, team_ids=list(row.team_ids or [])
+    )
+    await ensure_active_projects(
+        db, organization_id=row.organization_id, project_ids=list(row.project_ids or [])
+    )
+    await ensure_current_job_title(
+        db, organization_id=row.organization_id, job_title_id=row.job_title_id
+    )
+    membership = await insert_membership_graph(
+        db,
+        organization_id=row.organization_id,
+        account_id=ctx.account_id,
+        display_name=row.display_name,
+        role=row.role,
+        team_ids=list(row.team_ids or []),
+        project_ids=list(row.project_ids or []),
+        job_title_id=row.job_title_id,
+    )
+    try:
+        async with db.begin_nested():
+            db.add(
+                CorporateProvisionedIdentity(
+                    organization_id=row.organization_id,
+                    normalized_email=row.recipient_email_normalized,
+                    account_id=ctx.account_id,
+                )
+            )
+            await db.flush()
+    except IntegrityError:
+        # The email is already provisioned elsewhere; membership still stands.
+        pass
+    row.state = "accepted"
+    row.accepted_account_id = ctx.account_id
+    row.confirmation_token_hash = None
+    await emit_audit(
+        db,
+        actor_account_id=ctx.account_id,
+        organization_id=row.organization_id,
+        action="member.invitation_accepted",
+        target_table="corporate_invitation",
+        target_id=row.id,
+        request_id=request_id,
+    )
+    await db.flush()
+    return membership
 
 
 @router.post(
@@ -372,71 +618,63 @@ async def accept_invitation(
     request_id = _request_id(request)
     row = await db.get(CorporateInvitationRow, invitation_id, with_for_update=True)
 
-    async def reject(action: str, category: ErrorCategory, message: str) -> NoReturn:
-        if row is not None:
-            # The request session rolls back once ApiError propagates, so the
-            # failure audit is committed before the raise — the row itself is
-            # only locked, never mutated on this path.
-            await emit_audit(
-                db,
-                actor_account_id=ctx.account_id,
-                organization_id=row.organization_id,
-                action=action,
-                target_table="corporate_invitation",
-                target_id=row.id,
-                outcome="failed",
-                request_id=request_id,
-            )
-            await db.commit()
-        raise ApiError(category, message)
-
     if row is None:
         raise ApiError(ErrorCategory.NOT_FOUND, "invitation not found")
-    if row.state == "accepted" and row.accepted_account_id == ctx.account_id:
-        membership = await db.scalar(
-            select(OrganizationMembership).where(
-                OrganizationMembership.organization_id == row.organization_id,
-                OrganizationMembership.account_id == ctx.account_id,
+    if accepted := await _accepted_member(db, row=row, ctx=ctx):
+        return accepted
+    if row.state == "email_confirm_pending":
+        # A claim already bound the invitation to one account: re-accept by the
+        # same claimant resends the confirmation mail; anyone else is denied.
+        if row.claimant_account_id != ctx.account_id:
+            await _reject(
+                db,
+                row=row,
+                ctx=ctx,
+                request_id=request_id,
+                action="member.invitation_claimed",
+                category=ErrorCategory.CONFLICT,
+                message="invitation is claimed by another account",
             )
+        if _expired(row):
+            await _expire(db, row=row, ctx=ctx, request_id=request_id)
+        if _hash(payload.token) != row.token_hash:
+            await _reject(
+                db,
+                row=row,
+                ctx=ctx,
+                request_id=request_id,
+                action="member.invitation_token_invalid",
+                category=ErrorCategory.VALIDATION,
+                message="invitation token invalid",
+            )
+        organization = await _require_organization(db, row=row, ctx=ctx, request_id=request_id)
+        await _send_confirmation(
+            db, row=row, organization=organization, ctx=ctx, request_id=request_id
         )
-        account = await db.get(Account, ctx.account_id)
-        if membership is not None and account is not None:
-            return member_view(membership, account)
     if row.state != "pending":
-        await reject(
-            "member.invitation_replayed", ErrorCategory.CONFLICT, f"invitation is {row.state}"
+        await _reject(
+            db,
+            row=row,
+            ctx=ctx,
+            request_id=request_id,
+            action="member.invitation_replayed",
+            category=ErrorCategory.CONFLICT,
+            message=f"invitation is {row.state}",
         )
     if _expired(row):
-        row.state = "expired"
-        await emit_audit(
-            db,
-            actor_account_id=ctx.account_id,
-            organization_id=row.organization_id,
-            action="member.invitation_expired",
-            target_table="corporate_invitation",
-            target_id=row.id,
-            request_id=request_id,
-        )
-        await db.commit()
-        raise ApiError(ErrorCategory.VALIDATION, "invitation expired")
+        await _expire(db, row=row, ctx=ctx, request_id=request_id)
     if _hash(payload.token) != row.token_hash:
-        await reject(
-            "member.invitation_token_invalid", ErrorCategory.VALIDATION, "invitation token invalid"
+        await _reject(
+            db,
+            row=row,
+            ctx=ctx,
+            request_id=request_id,
+            action="member.invitation_token_invalid",
+            category=ErrorCategory.VALIDATION,
+            message="invitation token invalid",
         )
 
-    organization = await db.get(Organization, row.organization_id)
-    if organization is None or organization.state != "active":
-        await reject(
-            "member.invitation_org_inactive", ErrorCategory.CONFLICT, "organization is unavailable"
-        )
-    if not email_domain_allowed(
-        list(organization.allowed_email_domains or []), row.recipient_email_normalized
-    ):
-        await reject(
-            "member.invitation_domain_rejected",
-            ErrorCategory.VALIDATION,
-            "email domain is not allowed",
-        )
+    organization = await _require_organization(db, row=row, ctx=ctx, request_id=request_id)
 
     emails = {
         normalize_email(identity.email)
@@ -453,65 +691,70 @@ async def accept_invitation(
         .all()
     }
     if row.recipient_email_normalized not in emails:
-        await reject(
-            "member.invitation_email_mismatch",
-            ErrorCategory.VALIDATION,
-            "verified email does not match invitation",
+        # Not a dead end: bind the claimant and prove the invited inbox by mail.
+        await _send_confirmation(
+            db, row=row, organization=organization, ctx=ctx, request_id=request_id
         )
 
-    existing = await db.scalar(
-        select(OrganizationMembership).where(
-            OrganizationMembership.organization_id == row.organization_id,
-            OrganizationMembership.account_id == ctx.account_id,
-        )
-    )
-    if existing is not None:
-        await reject("member.invitation_duplicate", ErrorCategory.CONFLICT, "member already exists")
+    membership = await _activate_membership(db, row=row, ctx=ctx, request_id=request_id)
+    account = cast(Account, await db.get(Account, ctx.account_id))
+    return member_view(membership, account)
 
-    await ensure_active_teams(
-        db, organization_id=row.organization_id, team_ids=list(row.team_ids or [])
-    )
-    await ensure_active_projects(
-        db, organization_id=row.organization_id, project_ids=list(row.project_ids or [])
-    )
-    await ensure_current_job_title(
-        db, organization_id=row.organization_id, job_title_id=row.job_title_id
-    )
-    membership = await insert_membership_graph(
-        db,
-        organization_id=row.organization_id,
-        account_id=ctx.account_id,
-        display_name=row.display_name,
-        role=row.role,
-        team_ids=list(row.team_ids or []),
-        project_ids=list(row.project_ids or []),
-        job_title_id=row.job_title_id,
-    )
-    try:
-        async with db.begin_nested():
-            db.add(
-                CorporateProvisionedIdentity(
-                    organization_id=row.organization_id,
-                    normalized_email=row.recipient_email_normalized,
-                    account_id=ctx.account_id,
-                )
-            )
-            await db.flush()
-    except IntegrityError:
-        # The email is already provisioned elsewhere; membership still stands.
-        pass
-    row.state = "accepted"
-    row.accepted_account_id = ctx.account_id
-    await emit_audit(
-        db,
-        actor_account_id=ctx.account_id,
-        organization_id=row.organization_id,
-        action="member.invitation_accepted",
-        target_table="corporate_invitation",
-        target_id=row.id,
-        request_id=request_id,
-    )
-    await db.flush()
+
+@router.post("/corporate/invitations/{invitation_id}/confirm", response_model=CorporateMember)
+async def confirm_invitation(
+    invitation_id: str,
+    payload: CorporateInvitationAcceptRequest,
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    ctx: Annotated[AuthContext, Depends(require_auth)],
+) -> CorporateMember:
+    """Activate a claimed invitation after the invited inbox proves ownership.
+
+    The confirmation token lives in the emailed link's fragment; only the
+    account that claimed the invitation may redeem it.
+    """
+    request_id = _request_id(request)
+    row = await db.get(CorporateInvitationRow, invitation_id, with_for_update=True)
+
+    if row is None:
+        raise ApiError(ErrorCategory.NOT_FOUND, "invitation not found")
+    if accepted := await _accepted_member(db, row=row, ctx=ctx):
+        return accepted
+    if row.state != "email_confirm_pending":
+        await _reject(
+            db,
+            row=row,
+            ctx=ctx,
+            request_id=request_id,
+            action="member.invitation_replayed",
+            category=ErrorCategory.CONFLICT,
+            message=f"invitation is {row.state}",
+        )
+    if _expired(row):
+        await _expire(db, row=row, ctx=ctx, request_id=request_id)
+    if row.claimant_account_id != ctx.account_id:
+        await _reject(
+            db,
+            row=row,
+            ctx=ctx,
+            request_id=request_id,
+            action="member.invitation_confirm_account_mismatch",
+            category=ErrorCategory.CONFLICT,
+            message="signed-in account did not claim the invitation",
+        )
+    if not row.confirmation_token_hash or _hash(payload.token) != row.confirmation_token_hash:
+        await _reject(
+            db,
+            row=row,
+            ctx=ctx,
+            request_id=request_id,
+            action="member.invitation_confirm_token_invalid",
+            category=ErrorCategory.VALIDATION,
+            message="confirmation token invalid",
+        )
+    await _require_organization(db, row=row, ctx=ctx, request_id=request_id)
+    membership = await _activate_membership(db, row=row, ctx=ctx, request_id=request_id)
     account = cast(Account, await db.get(Account, ctx.account_id))
     return member_view(membership, account)
 

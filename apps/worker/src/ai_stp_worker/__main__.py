@@ -9,6 +9,7 @@ import signal
 from pydantic import ValidationError
 
 from ai_stp_platform.corporate_mail import (
+    DEFAULT_CONFIRM_TEMPLATE,
     CorporateMailTemplateLoader,
     ResendCorporateMailPort,
     SmtpCorporateMailPort,
@@ -114,12 +115,19 @@ async def _run(settings: Settings) -> None:
         storage = _load_storage_settings()
         if storage is not None:
             object_client = await stack.enter_async_context(S3ObjectClient(storage))
+            template_bucket = (
+                settings.worker.corporate_mail_template_bucket or storage.asset_bucket_name
+            )
             deliver_corporate_invitation.TEMPLATE_LOADER = CorporateMailTemplateLoader(
                 client=object_client,
-                bucket=(
-                    settings.worker.corporate_mail_template_bucket or storage.asset_bucket_name
-                ),
+                bucket=template_bucket,
                 key=settings.worker.corporate_mail_template_key,
+            )
+            deliver_corporate_invitation.CONFIRM_TEMPLATE_LOADER = CorporateMailTemplateLoader(
+                client=object_client,
+                bucket=template_bucket,
+                key=settings.worker.corporate_mail_confirm_template_key,
+                fallback=DEFAULT_CONFIRM_TEMPLATE,
             )
         engine = make_engine(settings.database)
         stack.push_async_callback(engine.dispose)

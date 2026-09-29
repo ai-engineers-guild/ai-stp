@@ -7928,6 +7928,19 @@
             "default": null,
             "title": "Accepted Account Id"
           },
+          "claimant_account_id": {
+            "anyOf": [
+              {
+                "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Claimant Account Id"
+          },
           "created_at": {
             "$ref": "#/components/schemas/Timestamp"
           },
@@ -8040,6 +8053,7 @@
         },
         "required": [
           "accepted_account_id",
+          "claimant_account_id",
           "created_at",
           "delivery_error",
           "delivery_state",
@@ -8238,6 +8252,7 @@
       "CorporateInvitationState": {
         "enum": [
           "pending",
+          "email_confirm_pending",
           "accepted",
           "expired",
           "revoked"

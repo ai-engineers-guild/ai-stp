@@ -508,7 +508,7 @@ class CorporateInvitation(Base):
     __table_args__ = (
         UniqueConstraint("organization_id", "idempotency_key", name="uq_corporate_invitation_key"),
         CheckConstraint(
-            "state in ('pending', 'accepted', 'expired', 'revoked')",
+            "state in ('pending', 'email_confirm_pending', 'accepted', 'expired', 'revoked')",
             name="ck_corporate_invitation_state",
         ),
     )
@@ -531,12 +531,16 @@ class CorporateInvitation(Base):
     )
     job_title_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
     token_hash: Mapped[str] = mapped_column(String(64), nullable=False)
-    state: Mapped[str] = mapped_column(String(16), nullable=False, default="pending")
+    state: Mapped[str] = mapped_column(String(32), nullable=False, default="pending")
     idempotency_key: Mapped[str] = mapped_column(String(128), nullable=False)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     accepted_account_id: Mapped[str | None] = mapped_column(
         String(64), ForeignKey("account.id", ondelete="SET NULL"), nullable=True
     )
+    claimant_account_id: Mapped[str | None] = mapped_column(
+        String(64), ForeignKey("account.id", ondelete="SET NULL"), nullable=True
+    )
+    confirmation_token_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 

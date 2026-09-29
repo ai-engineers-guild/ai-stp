@@ -134,15 +134,6 @@ async def test_invitation_lifecycle_create_accept_reuse_and_revoke(
     ]
     assert listed.json()["items"][0]["token"] is None
 
-    # Wrong verified email cannot accept.
-    _, stranger_token = await _provisioned_account(sessionmaker, "stranger@example.com")
-    wrong_email = await client.post(
-        f"/v1/corporate/invitations/{invitation['invitation_id']}/accept",
-        json={"schema_version": 1, "token": token, "idempotency_key": "accept-wrong-0001"},
-        headers={"Authorization": f"Bearer {stranger_token}"},
-    )
-    assert wrong_email.status_code == 400, wrong_email.text
-
     # Bad token is rejected and audited.
     _, invitee_token = await _provisioned_account(sessionmaker, "invitee@example.com")
     bad_token = await client.post(
@@ -175,6 +166,7 @@ async def test_invitation_lifecycle_create_accept_reuse_and_revoke(
         assert membership is not None and membership.role == "staff"
 
     # The accepting account can safely replay; anyone else cannot reuse it.
+    _, stranger_token = await _provisioned_account(sessionmaker, "stranger@example.com")
     replay_accept = await client.post(
         f"/v1/corporate/invitations/{invitation['invitation_id']}/accept",
         json={"schema_version": 1, "token": token, "idempotency_key": "accept-replay-001"},
@@ -244,7 +236,6 @@ async def test_invitation_lifecycle_create_accept_reuse_and_revoke(
             "member.invitation_created",
             "member.invitation_accepted",
             "member.invitation_revoked",
-            "member.invitation_email_mismatch",
             "member.invitation_token_invalid",
             "member.invitation_replayed",
         } <= actions
@@ -538,3 +529,208 @@ async def test_invitation_mail_delivery_state_surfaces(
     assert item["delivery_state"] == "failed"
     assert item["delivery_error"] == "resend: sender domain is not verified"
     assert item["token"] is None
+
+
+async def test_invitation_email_confirmation_flow(
+    db_api_client: tuple[AsyncClient, async_sessionmaker[AsyncSession], object],
+) -> None:
+    """A sign-in whose verified email misses the invite claims it; the invited
+    inbox confirms by mailed token and activates the membership."""
+    client, sessionmaker, _settings = db_api_client
+    organization_id, auth, revision = await _bootstrap(client, sessionmaker, "invite-confirm-01")
+    base = f"/v1/corporate/organizations/{organization_id}"
+
+    create = await client.post(
+        f"{base}/invitations",
+        json={
+            "schema_version": 1,
+            "recipient_email": "invitee@example.com",
+            "display_name": "Invited User",
+            "role": "staff",
+            "authorization_revision": revision,
+            "idempotency_key": "invite-confirm-0001",
+        },
+        headers=auth,
+    )
+    assert create.status_code == 200, create.text
+    invitation = create.json()
+    token = invitation["token"]
+    accept_url = f"/v1/corporate/invitations/{invitation['invitation_id']}/accept"
+    confirm_url = f"/v1/corporate/invitations/{invitation['invitation_id']}/confirm"
+
+    # Confirm on an unclaimed invitation cannot proceed.
+    claimant_id, claimant_token = await _provisioned_account(sessionmaker, "other-mail@example.com")
+    early = await client.post(
+        confirm_url,
+        json={"schema_version": 1, "token": token, "idempotency_key": "confirm-early-01"},
+        headers={"Authorization": f"Bearer {claimant_token}"},
+    )
+    assert early.status_code == 409, early.text
+
+    # A sign-in whose verified email differs claims the invitation: the API
+    # binds the claimant and mails a confirmation to the invited address.
+    claimed = await client.post(
+        accept_url,
+        json={"schema_version": 1, "token": token, "idempotency_key": "accept-claim-001"},
+        headers={"Authorization": f"Bearer {claimant_token}"},
+    )
+    assert claimed.status_code == 409, claimed.text
+    assert claimed.json()["error"]["details"]["reason"] == "email_confirmation_sent"
+
+    async with sessionmaker() as db:
+        row = await db.get(CorporateInvitation, invitation["invitation_id"])
+        assert row is not None
+        assert row.state == "email_confirm_pending"
+        assert row.claimant_account_id == claimant_id
+        assert row.confirmation_token_hash
+        assert token not in row.confirmation_token_hash
+        jobs = (
+            (
+                await db.execute(
+                    select(Job).where(Job.idempotency_key.like("deliver_corporate_invitation:%"))
+                )
+            )
+            .scalars()
+            .all()
+        )
+        confirm_jobs = [job for job in jobs if job.payload.get("mail_variant") == "confirmation"]
+        assert len(confirm_jobs) == 1
+        confirm_token = confirm_jobs[0].payload["confirm_token"]
+        assert isinstance(confirm_token, str) and confirm_token != token
+        delivery = await db.scalar(
+            select(CorporateMailDelivery).where(CorporateMailDelivery.invitation_id == row.id)
+        )
+        assert delivery is not None and delivery.state == "queued"
+        for value in vars(delivery).values():
+            assert confirm_token not in str(value)
+
+    # The listed view exposes the claim state to admins.
+    listed = await client.get(f"{base}/invitations", headers=auth)
+    item = next(
+        entry
+        for entry in listed.json()["items"]
+        if entry["invitation_id"] == invitation["invitation_id"]
+    )
+    assert item["state"] == "email_confirm_pending"
+    assert item["claimant_account_id"] == claimant_id
+
+    # A different account cannot hijack the claim.
+    _, rival_token = await _provisioned_account(sessionmaker, "rival@example.com")
+    rival = await client.post(
+        accept_url,
+        json={"schema_version": 1, "token": token, "idempotency_key": "accept-rival-001"},
+        headers={"Authorization": f"Bearer {rival_token}"},
+    )
+    assert rival.status_code == 409, rival.text
+
+    # Confirm needs the mailed token and the claimant session.
+    bad_confirm = await client.post(
+        confirm_url,
+        json={
+            "schema_version": 1,
+            "token": "tok_" + "0" * 40,
+            "idempotency_key": "confirm-bad-0001",
+        },
+        headers={"Authorization": f"Bearer {claimant_token}"},
+    )
+    assert bad_confirm.status_code == 400, bad_confirm.text
+    wrong_account = await client.post(
+        confirm_url,
+        json={
+            "schema_version": 1,
+            "token": confirm_token,
+            "idempotency_key": "confirm-rival-01",
+        },
+        headers={"Authorization": f"Bearer {rival_token}"},
+    )
+    assert wrong_account.status_code == 409, wrong_account.text
+
+    # The claimant re-accepting resends the confirmation with a rotated token.
+    resend = await client.post(
+        accept_url,
+        json={"schema_version": 1, "token": token, "idempotency_key": "accept-resend-01"},
+        headers={"Authorization": f"Bearer {claimant_token}"},
+    )
+    assert resend.status_code == 409, resend.text
+    async with sessionmaker() as db:
+        jobs = (
+            (
+                await db.execute(
+                    select(Job).where(Job.idempotency_key.like("deliver_corporate_invitation:%"))
+                )
+            )
+            .scalars()
+            .all()
+        )
+        confirm_jobs = [job for job in jobs if job.payload.get("mail_variant") == "confirmation"]
+        assert len(confirm_jobs) == 2
+        rotated = [
+            job.payload["confirm_token"]
+            for job in confirm_jobs
+            if job.payload["confirm_token"] != confirm_token
+        ]
+        assert len(rotated) == 1
+        confirm_token = rotated[0]
+        assert isinstance(confirm_token, str)
+
+    confirmed = await client.post(
+        confirm_url,
+        json={
+            "schema_version": 1,
+            "token": confirm_token,
+            "idempotency_key": "confirm-ok-000001",
+        },
+        headers={"Authorization": f"Bearer {claimant_token}"},
+    )
+    assert confirmed.status_code == 200, confirmed.text
+    member = confirmed.json()
+    assert member["role"] == "staff" and member["state"] == "active"
+
+    async with sessionmaker() as db:
+        row = await db.get(CorporateInvitation, invitation["invitation_id"])
+        assert row is not None
+        assert row.state == "accepted"
+        assert row.accepted_account_id == claimant_id
+        assert row.confirmation_token_hash is None
+        membership = await db.scalar(
+            select(OrganizationMembership).where(
+                OrganizationMembership.organization_id == organization_id,
+                OrganizationMembership.account_id == claimant_id,
+            )
+        )
+        assert membership is not None and membership.role == "staff"
+        events = (
+            (
+                await db.execute(
+                    select(AuditEvent).where(
+                        AuditEvent.organization_id == organization_id,
+                        AuditEvent.action.like("member.invitation%"),
+                    )
+                )
+            )
+            .scalars()
+            .all()
+        )
+        actions = {event.action for event in events}
+        assert {
+            "member.invitation_email_confirm_sent",
+            "member.invitation_claimed",
+            "member.invitation_confirm_token_invalid",
+            "member.invitation_confirm_account_mismatch",
+            "member.invitation_accepted",
+        } <= actions
+        for event in events:
+            assert confirm_token not in str(event.payload)
+            assert confirm_token not in str(event.reason)
+
+    # Confirm replays idempotently for the accepting account.
+    replay = await client.post(
+        confirm_url,
+        json={
+            "schema_version": 1,
+            "token": confirm_token,
+            "idempotency_key": "confirm-replay-01",
+        },
+        headers={"Authorization": f"Bearer {claimant_token}"},
+    )
+    assert replay.status_code == 200, replay.text

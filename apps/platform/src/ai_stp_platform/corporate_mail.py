@@ -24,6 +24,7 @@ from ai_stp_platform.mail import SmtpConfig
 from ai_stp_platform.storage.object_store import ObjectClient
 
 DEFAULT_TEMPLATE_KEY = "mail/corporate-invitation.txt"
+DEFAULT_CONFIRM_TEMPLATE_KEY = "mail/corporate-invitation-confirm.txt"
 
 DEFAULT_TEMPLATE = (
     "Subject: {{organization_name}} invitation\n"
@@ -35,6 +36,19 @@ DEFAULT_TEMPLATE = (
     "Accept the invitation: {{accept_url}}\n"
     "\n"
     "The link carries a one-time token in its fragment and expires at "
+    "{{expires_at}}.\n"
+)
+
+DEFAULT_CONFIRM_TEMPLATE = (
+    "Subject: Confirm your {{organization_name}} membership\n"
+    "\n"
+    "Hello {{display_name}},\n"
+    "\n"
+    "A membership in {{organization_name}} was claimed for this address.\n"
+    "\n"
+    "Confirm it to activate your access: {{confirm_url}}\n"
+    "\n"
+    "If you did not expect this, ignore this mail. The link expires at "
     "{{expires_at}}.\n"
 )
 
@@ -65,6 +79,7 @@ class CorporateMailTemplateLoader:
     client: ObjectClient | None = None
     bucket: str = ""
     key: str = DEFAULT_TEMPLATE_KEY
+    fallback: str = DEFAULT_TEMPLATE
 
     async def load(self) -> tuple[str, str]:
         """Return (template_source_label, template_text), embedded fallback."""
@@ -72,7 +87,7 @@ class CorporateMailTemplateLoader:
             payload = await self.client.get_object_bytes(bucket=self.bucket, key=self.key)
             if payload:
                 return self.key, payload.decode("utf-8")
-        return "embedded", DEFAULT_TEMPLATE
+        return "embedded", self.fallback
 
 
 class CorporateMailPort(Protocol):

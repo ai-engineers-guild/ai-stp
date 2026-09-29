@@ -965,7 +965,9 @@ class CorporateOverview(BaseModel):
         return self
 
 
-type CorporateInvitationState = Literal["pending", "accepted", "expired", "revoked"]
+type CorporateInvitationState = Literal[
+    "pending", "email_confirm_pending", "accepted", "expired", "revoked"
+]
 
 type CorporateMailDeliveryState = Literal["queued", "sent", "failed"]
 
@@ -1003,6 +1005,7 @@ class CorporateInvitation(BaseModel):
     expires_at: Timestamp
     created_at: Timestamp
     accepted_account_id: AccountId | None = None
+    claimant_account_id: AccountId | None = None
     token: str | None = None
     delivery_state: CorporateMailDeliveryState | None = None
     delivery_error: str | None = None

@@ -14,6 +14,8 @@ from datetime import UTC, datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ai_stp_platform.corporate_mail import (
+    DEFAULT_CONFIRM_TEMPLATE,
+    DEFAULT_CONFIRM_TEMPLATE_KEY,
     CorporateMailTemplateLoader,
     RecordingCorporateMailPort,
     render_template,
@@ -25,6 +27,9 @@ from ai_stp_platform.queue.states import PermanentJobFailure
 # replace them. ACCEPT_BASE_URL builds the fragment-token accept link.
 MAIL_PORT = RecordingCorporateMailPort()
 TEMPLATE_LOADER = CorporateMailTemplateLoader()
+CONFIRM_TEMPLATE_LOADER = CorporateMailTemplateLoader(
+    key=DEFAULT_CONFIRM_TEMPLATE_KEY, fallback=DEFAULT_CONFIRM_TEMPLATE
+)
 ACCEPT_BASE_URL = ""
 
 
@@ -46,29 +51,45 @@ async def handle_deliver_corporate_invitation(
     organization_name = _require_str(payload, "organization_name")
     role = _require_str(payload, "role")
     expires_at = _require_str(payload, "expires_at")
-    accept_token = _require_str(payload, "accept_token")
 
     delivery = await session.get(CorporateMailDelivery, delivery_id)
     if delivery is None:
         msg = f"mail delivery {delivery_id} not found"
         raise PermanentJobFailure(msg)
 
-    accept_url = (
-        f"{ACCEPT_BASE_URL.rstrip('/')}/corporate-invitations/{invitation_id}#token={accept_token}"
-        if ACCEPT_BASE_URL
-        else f"{invitation_id}#token={accept_token}"
-    )
-    template_source, template = await TEMPLATE_LOADER.load()
-    subject, text = render_template(
-        template,
-        {
+    if payload.get("mail_variant") == "confirmation":
+        confirm_token = _require_str(payload, "confirm_token")
+        confirm_url = (
+            f"{ACCEPT_BASE_URL.rstrip('/')}"
+            f"/corporate-invitations/{invitation_id}/confirm#token={confirm_token}"
+            if ACCEPT_BASE_URL
+            else f"{invitation_id}/confirm#token={confirm_token}"
+        )
+        template_source, template = await CONFIRM_TEMPLATE_LOADER.load()
+        values = {
+            "display_name": display_name,
+            "organization_name": organization_name,
+            "role": role,
+            "confirm_url": confirm_url,
+            "expires_at": expires_at,
+        }
+    else:
+        accept_token = _require_str(payload, "accept_token")
+        accept_url = (
+            f"{ACCEPT_BASE_URL.rstrip('/')}"
+            f"/corporate-invitations/{invitation_id}#token={accept_token}"
+            if ACCEPT_BASE_URL
+            else f"{invitation_id}#token={accept_token}"
+        )
+        template_source, template = await TEMPLATE_LOADER.load()
+        values = {
             "display_name": display_name,
             "organization_name": organization_name,
             "role": role,
             "accept_url": accept_url,
             "expires_at": expires_at,
-        },
-    )
+        }
+    subject, text = render_template(template, values)
 
     delivery.attempts += 1
     delivery.template_key = template_source

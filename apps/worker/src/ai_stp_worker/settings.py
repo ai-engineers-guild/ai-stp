@@ -46,6 +46,9 @@ class WorkerSettings(BaseSettings):
     # to the embedded default. Empty bucket selects the storage asset bucket.
     corporate_mail_template_bucket: str = Field(default="")
     corporate_mail_template_key: str = Field(default="mail/corporate-invitation.txt")
+    corporate_mail_confirm_template_key: str = Field(
+        default="mail/corporate-invitation-confirm.txt"
+    )
     # Delivery provider for both invitation mail paths. "auto" picks Resend
     # when a key is set, else SMTP when a relay host is configured, else the
     # recording port. An explicit value pins the provider.
