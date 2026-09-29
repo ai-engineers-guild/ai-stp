@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, Header, Request
 from fastapi.responses import JSONResponse, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ai_stp_api.deps import get_db, require_auth
+from ai_stp_api.deps import get_db, request_json, require_auth
 from ai_stp_api.errors import ApiError, ErrorCategory
 from ai_stp_api.media_upload import read_media_upload
 from ai_stp_api.session import AuthContext
@@ -27,7 +27,7 @@ def _avatar_store(request: Request) -> AvatarObjectStore:
 
 
 async def _json_object(request: Request) -> dict[str, Any]:
-    payload = await request.json()
+    payload = await request_json(request)
     if not isinstance(payload, dict):
         raise ApiError(ErrorCategory.VALIDATION, "invalid body")
     return cast(dict[str, Any], payload)

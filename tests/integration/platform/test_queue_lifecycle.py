@@ -30,6 +30,7 @@ from ai_stp_platform.queue.engine import (
     requeue_stale,
     validate_tenant_job,
 )
+from ai_stp_platform.queue.models import Job
 from ai_stp_platform.queue.states import JobState, JobType
 from ai_stp_worker.runner import audit_tenant_job_outcome
 
@@ -209,6 +210,72 @@ async def test_claim_succeed_and_retry_dead_letter(
 
 
 @pytest.mark.asyncio
+async def test_terminal_settlement_scrubs_sensitive_payload_keys(
+    db_sessionmaker: async_sessionmaker[AsyncSession],
+) -> None:
+    """Credentials in the payload must not sit in retained terminal rows."""
+    now = datetime(2026, 8, 7, 12, 0, tzinfo=UTC)
+    async with db_sessionmaker() as session, session.begin():
+        await enqueue(
+            session,
+            job_type=JobType.UPLOAD,
+            payload={"path": "ok", "accept_token": "secret-a", "note": "kept"},
+            idempotency_key="queue-scrub-success",
+            max_attempts=1,
+            run_after=now,
+        )
+        await enqueue(
+            session,
+            job_type=JobType.UPLOAD,
+            payload={"path": "ko", "invitation_token": "secret-b", "note": "kept"},
+            idempotency_key="queue-scrub-dead",
+            max_attempts=1,
+            run_after=now,
+        )
+        await enqueue(
+            session,
+            job_type=JobType.UPLOAD,
+            payload={"path": "retry", "accept_token": "secret-c"},
+            idempotency_key="queue-scrub-retry",
+            max_attempts=2,
+            run_after=now,
+        )
+
+    async with db_sessionmaker() as session, session.begin():
+        claimed = await claim(session, worker_id="worker-scrub", batch=3, now=now)
+        by_key = {job.idempotency_key: job for job in claimed}
+        await mark_succeeded(session, by_key["queue-scrub-success"])
+        await fail(session, by_key["queue-scrub-dead"], error="done", now=now)
+        assert by_key["queue-scrub-dead"].state is JobState.DEAD_LETTER
+        await fail(session, by_key["queue-scrub-retry"], error="again", now=now)
+        assert by_key["queue-scrub-retry"].state is JobState.RETRY_SCHEDULED
+
+    async with db_sessionmaker() as session, session.begin():
+        rows = (
+            await session.execute(
+                select(Job).where(
+                    Job.idempotency_key.in_(
+                        [
+                            "queue-scrub-success",
+                            "queue-scrub-dead",
+                            "queue-scrub-retry",
+                        ]
+                    )
+                )
+            )
+        ).scalars()
+        by_key = {row.idempotency_key: row for row in rows}
+        for key in ("queue-scrub-success", "queue-scrub-dead"):
+            payload = by_key[key].payload
+            assert payload["note"] == "kept"
+            assert "secret" not in str(payload.values())
+        assert by_key["queue-scrub-success"].payload["accept_token"] == "[delivered]"
+        assert by_key["queue-scrub-dead"].payload["invitation_token"] == "[delivered]"
+        # A job that will run again keeps its payload — the retry still needs it.
+        assert by_key["queue-scrub-retry"].payload["accept_token"] == "secret-c"
+
+
+@pytest.mark.asyncio
 async def test_cancel_and_requeue_locked(
     db_sessionmaker: async_sessionmaker[AsyncSession],
 ) -> None:
@@ -287,6 +354,59 @@ async def test_stale_lease_is_reclaimed_and_counts_as_a_delivery(
 
 
 @pytest.mark.asyncio
+async def test_stale_worker_cannot_settle_over_a_reclaimed_job(
+    db_sessionmaker: async_sessionmaker[AsyncSession],
+) -> None:
+    """An expired lease loses the verdict: settle returns False and writes nothing."""
+    now = datetime(2026, 8, 7, 12, 0, tzinfo=UTC)
+    async with db_sessionmaker() as session, session.begin():
+        await enqueue(
+            session,
+            job_type=JobType.UPLOAD,
+            payload={"path": "superseded"},
+            idempotency_key="queue-superseded-settle",
+            max_attempts=5,
+            run_after=now,
+        )
+
+    async with db_sessionmaker() as session, session.begin():
+        claimed = await claim(session, worker_id="worker-stale", batch=1, now=now)
+        stale_job = claimed[0]
+        stale_job_id = stale_job.id
+
+    expired = now + timedelta(seconds=DEFAULT_LEASE_TIMEOUT_SECONDS + 1)
+    async with db_sessionmaker() as session, session.begin():
+        assert (
+            await requeue_stale(
+                session,
+                lease_timeout_seconds=DEFAULT_LEASE_TIMEOUT_SECONDS,
+                now=expired,
+            )
+            == 1
+        )
+        reclaimed = await claim(session, worker_id="worker-live", batch=1, now=expired)
+        assert len(reclaimed) == 1
+        live_job = reclaimed[0]
+
+    async with db_sessionmaker() as session, session.begin():
+        # The stale worker still holds its detached Job object; every settle
+        # path must refuse to stamp it over the live row.
+        assert await mark_succeeded(session, stale_job) is False
+        assert await fail(session, stale_job, error="late failure", now=expired) is False
+        row = await session.get(Job, stale_job_id)
+        assert row is not None
+        assert row.state == JobState.RUNNING
+        assert row.locked_by == "worker-live"
+        # `requeue_stale` itself records the lease expiry; the stale worker's
+        # late failure must not overwrite it.
+        assert row.last_error == "stale worker lease expired"
+        # Positive control: the owning worker settles the same row normally
+        # (`row` shares this session's identity map, so it reflects the write).
+        assert await mark_succeeded(session, live_job) is True
+        assert row.state == JobState.SUCCEEDED
+
+
+@pytest.mark.asyncio
 async def test_heartbeat_keeps_a_live_lease_claimed(
     db_sessionmaker: async_sessionmaker[AsyncSession],
 ) -> None:
@@ -322,3 +442,46 @@ async def test_heartbeat_keeps_a_live_lease_claimed(
             )
             == 0
         )
+
+
+@pytest.mark.asyncio
+async def test_stale_requeue_to_dead_letter_scrubs_the_payload(
+    db_sessionmaker: async_sessionmaker[AsyncSession],
+) -> None:
+    """The lease-expiry dead-letter path applies the same scrub `fail` does.
+
+    A credential-bearing payload in a terminal row would otherwise rest for
+    the 30-day GC window; a bulk UPDATE could not rewrite it per row, which
+    is why the reclaim is a bounded per-row pass.
+    """
+    now = datetime(2026, 8, 7, 12, 0, tzinfo=UTC)
+    async with db_sessionmaker() as session, session.begin():
+        await enqueue(
+            session,
+            job_type=JobType.UPLOAD,
+            payload={"path": "kept", "access_token": "dead-secret"},
+            idempotency_key="queue-dead-letter-scrub",
+            max_attempts=1,
+            run_after=now,
+        )
+
+    async with db_sessionmaker() as session, session.begin():
+        claimed = await claim(session, worker_id="worker-doomed", batch=1, now=now)
+        assert len(claimed) == 1
+        job_id = claimed[0].id
+
+    expired = now + timedelta(seconds=DEFAULT_LEASE_TIMEOUT_SECONDS + 1)
+    async with db_sessionmaker() as session, session.begin():
+        assert (
+            await requeue_stale(
+                session,
+                lease_timeout_seconds=DEFAULT_LEASE_TIMEOUT_SECONDS,
+                now=expired,
+            )
+            == 1
+        )
+        row = await session.get(Job, job_id)
+        assert row is not None
+        assert row.state == JobState.DEAD_LETTER
+        assert row.payload == {"path": "kept", "access_token": "[delivered]"}
+        assert row.last_error == "stale worker lease expired"

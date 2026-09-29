@@ -74,6 +74,30 @@
         }
       ]
     },
+    "authorization": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "enum": [
+            "user_account",
+            "external_service"
+          ],
+          "type": "string"
+        },
+        "state": {
+          "enum": [
+            "pending",
+            "ready"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "state"
+      ],
+      "type": "object"
+    },
     "backup_ref": {
       "oneOf": [
         {

@@ -33,6 +33,8 @@ from ai_stp_contracts.assurance import (
 from ai_stp_contracts.auth import (
     AuthLogoutResponse,
     AuthMeResponse,
+    DeviceApproveRequest,
+    DeviceApproveResponse,
     DeviceAuthorizationRequest,
     DeviceAuthorizationResponse,
     DeviceChallengeRequest,
@@ -278,6 +280,7 @@ from ai_stp_contracts.identity import (
     AccountIdentityUpdate,
     AccountPrivacyUpdate,
     AccountProfile,
+    DeviceListQuery,
     DeviceListResponse,
     DeviceRegisterResponse,
     DeviceRevokeRequest,
@@ -332,6 +335,7 @@ from ai_stp_contracts.publication import (
 )
 from ai_stp_contracts.reports import (
     ReportCaseCreateRequest,
+    ReportCaseListQuery,
     ReportCaseListResponse,
     ReportCaseResponse,
     StaffActionResponse,
@@ -2406,6 +2410,16 @@ OPERATIONS: Final[tuple[Operation, ...]] = (
         authenticated=True,
     ),
     Operation(
+        method="post",
+        path="/auth/device/approve",
+        operation_id="approveDeviceAuthorization",
+        summary="Bind a pending user code to the signed-in account.",
+        response=DeviceApproveResponse,
+        body=DeviceApproveRequest,
+        authenticated=True,
+        errors=("AI_STP_NOT_FOUND", "AI_STP_VALIDATION_ERROR", "AI_STP_CONFLICT"),
+    ),
+    Operation(
         method="get",
         path="/auth/{provider}/callback",
         operation_id="readOAuthCallbackResult",
@@ -2497,6 +2511,7 @@ OPERATIONS: Final[tuple[Operation, ...]] = (
         operation_id="listDevices",
         summary="List the devices of the current account.",
         response=DeviceListResponse,
+        query=DeviceListQuery,
         authenticated=True,
     ),
     Operation(
@@ -2806,6 +2821,7 @@ OPERATIONS: Final[tuple[Operation, ...]] = (
         operation_id="listReportCases",
         summary="List the caller's own report cases.",
         response=ReportCaseListResponse,
+        query=ReportCaseListQuery,
         authenticated=True,
     ),
     Operation(
@@ -2826,6 +2842,7 @@ OPERATIONS: Final[tuple[Operation, ...]] = (
         operation_id="listRequestCases",
         summary="List the caller's own request cases.",
         response=ReportCaseListResponse,
+        query=ReportCaseListQuery,
         authenticated=True,
     ),
     Operation(

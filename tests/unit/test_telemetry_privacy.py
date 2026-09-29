@@ -243,6 +243,8 @@ async def test_retention_discovers_heartbeat_only_tenants_and_applies_default_wi
             return None
 
         async def execute(self, statement: Any) -> SimpleNamespace:
+            if str(statement).lstrip().upper().startswith("SELECT"):
+                return SimpleNamespace(all=lambda: [("org_heartbeat_only", "key")])
             self.delete_statements.append(statement)
             return SimpleNamespace(rowcount=1)
 

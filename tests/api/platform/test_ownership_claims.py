@@ -76,7 +76,7 @@ async def _seed_account_device(
         device = Device(
             id=new_id("device"),
             account_id=account.id,
-            public_key="dGVzdC1wdWJsaWMta2V5LWNsYWltcw==",
+            public_key="dGVzdC1wdWJsaWMta2V5LWNsYWltcw==-" + new_id("device"),
             state="active",
         )
         db.add(account)

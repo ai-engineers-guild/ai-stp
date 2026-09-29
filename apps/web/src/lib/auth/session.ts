@@ -2,6 +2,7 @@ import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { cache } from "react";
 
 import { cookies } from "next/headers";
+import { getTranslations } from "next-intl/server";
 
 import { CORPORATE_ORG_COOKIE, CSRF_COOKIE, SESSION_COOKIE } from "@/lib/auth/cookies";
 import { ApiError } from "@/lib/api/errors";
@@ -207,5 +208,22 @@ export function assertCsrf(headerToken: string | null, cookieToken: string | nul
   const b = Buffer.from(cookieToken);
   if (a.length !== b.length || !timingSafeEqual(a, b)) {
     throw new Error("CSRF token mismatch");
+  }
+}
+
+/**
+ * CSRF guard for throw-style server actions: failures surface as an ApiError
+ * whose localized message consumers render directly.
+ */
+export async function requireCsrf(headerToken: string | null): Promise<void> {
+  try {
+    assertCsrf(headerToken, await readCsrfToken());
+  } catch {
+    const common = await getTranslations("common");
+    throw new ApiError({
+      code: "AI_STP_FORBIDDEN",
+      message: common("formExpired"),
+      status: 403,
+    });
   }
 }

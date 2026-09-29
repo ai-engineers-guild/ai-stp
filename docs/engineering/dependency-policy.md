@@ -127,7 +127,7 @@ client code, browser logs, and visible errors do not get captured (`ADR-0041`, `
 | `eslint` (flat config) + `eslint-plugin-react`, `eslint-plugin-react-hooks`, `eslint-plugin-jsx-a11y`, `eslint-plugin-import` | Lint as a gate: rules for React/hooks, accessibility, import boundaries of atomic layers, and prohibition of god objects (`coding-rules.md`, `REQ-2213`). | Current stable; pin in lock. | MIT |
 | `vitest`, `@testing-library/react`, `@testing-library/jest-dom`, `@testing-library/user-event`, `jsdom` | Unit and component tests of states, themes, and accessibility (`REQ-2202`, `REQ-2213`, `REQ-2214`). | Current stable; pinned in lock. | MIT |
 | `@playwright/test` | Browser smoke `landing → search → detail` and login/review flows (`REQ-2213`, `REQ-2311`). | Current stable; pin in lock. | Apache-2.0 |
-| `msw` | Mock-first development and tests against fixtures `#71` until ready `#80`/`#81`. | Current stable; pin in lock. | MIT |
+| `msw` | Mock-first development and tests against fixtures `#71` until ready `#80`/`#81`. | Removed: the in-process `mock-transport` fixture corpus replaced MSW; no consumer remained. | MIT |
 | `prettier` | Frontend code formatting. | Current stable; pin in lock. | MIT |
 | `storybook` + `@storybook/react-vite` + `@storybook/addon-essentials` + `@storybook/addon-a11y` + `@storybook/addon-themes` + `vite` + `@vitejs/plugin-react` + `@tailwindcss/vite` | UI kit / design-token Storybook for foundations and atomic components; dev-only, not runtime. Allows changing theme (tokens) without mixing with product routes. | Storybook 8.x; pin in `bun.lock`. | MIT |
 

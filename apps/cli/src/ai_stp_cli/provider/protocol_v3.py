@@ -302,9 +302,11 @@ STATUS_VERIFIED_FIELDS: Final[tuple[str, ...]] = tuple(
 #: Members a status answer may carry in any state — present or `null`, never
 #: required. `instruction_region` reports the managed instruction attachment
 #: on harnesses that declare a user-global instruction surface; `null` is the
-#: honest answer for one that does not. Accepted one release before a provider
-#: may emit it, the same ordering `patch_instruction_region` rode (ADR-0125).
-STATUS_OPTIONAL_FIELDS: Final[tuple[str, ...]] = ("instruction_region",)
+#: honest answer for one that does not. `authorization` is the optional
+#: command-specific evidence the contract and ADR-0052 document — the parser
+#: has always read it, so the wire schema names it rather than refusing what
+#: it was written to accept (ADR-0125 ordering, again: reader first).
+STATUS_OPTIONAL_FIELDS: Final[tuple[str, ...]] = ("instruction_region", "authorization")
 
 STATUS_STATES: Final[tuple[str, ...]] = ("managed", "unmanaged", "missing")
 DRIFT_STATES: Final[tuple[str, ...]] = ("clean", "local_drift", "unknown")
@@ -1061,6 +1063,18 @@ def _build_status_wire_schema() -> dict[str, object]:
                 "additionalProperties": False,
             }
         ),
+        #: Command-specific evidence per the contract and ADR-0052 — never a
+        #: readiness proof on its own, and never a secret carrier: the closed
+        #: `kind`/`state` pair is all it may say.
+        "authorization": {
+            "type": "object",
+            "properties": {
+                "kind": {"type": "string", "enum": ["user_account", "external_service"]},
+                "state": {"type": "string", "enum": ["pending", "ready"]},
+            },
+            "required": ["kind", "state"],
+            "additionalProperties": False,
+        },
     }
     return {
         "$schema": "https://json-schema.org/draft/2020-12/schema",

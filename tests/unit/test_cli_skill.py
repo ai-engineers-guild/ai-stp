@@ -210,3 +210,22 @@ def test_the_skill_destination_is_declared_as_mandatory_as_it_behaves() -> None:
         declared = next(item for item in registry.DECLARATIONS if item.path == path)
         target = next(item for item in declared.parameters if item.name == "target")
         assert target.required, f"{' '.join(path)} refuses without --target"
+
+
+def test_an_install_interrupted_after_the_manifest_is_recoverable(tmp_path: Path) -> None:
+    """The manifest lands first, so a half-written package reads stale — not foreign."""
+    files = skill.package_files(None)
+    manifest = {
+        "digest": skill.digest_of_package(files),
+        "harness": None,
+        "locale": "en",
+        "files": sorted(files),
+    }
+    (tmp_path / skill.MANIFEST).write_text(json.dumps(manifest) + "\n", encoding="utf-8")
+
+    interrupted = skill.inspect(tmp_path)
+    assert interrupted.state == "stale"
+    # The recovery path remove() must reach: a stale claim may be taken back.
+    assert skill.remove(tmp_path).state == "absent"
+    assert not (tmp_path / skill.MANIFEST).exists()
+    assert skill.install(tmp_path, None).state == "owned"

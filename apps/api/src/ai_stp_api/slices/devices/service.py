@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from typing import Any, cast
 
-from sqlalchemy import select
+from sqlalchemy import CursorResult, select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ai_stp_api.audit import emit_audit
@@ -15,8 +17,16 @@ from ai_stp_api.settings import AuthSettings
 from ai_stp_api.slices.devices.challenge import issue_challenge, message_to_sign, verify_challenge
 from ai_stp_api.slices.devices.crypto import normalize_public_key, verify_ed25519
 from ai_stp_api.slices.devices.domain import DeviceState, DeviceSummary
+from ai_stp_contracts.http import PAGE_SIZE_MAX
 from ai_stp_contracts.identity import DeviceSummary as SyncedDeviceSummary
 from ai_stp_foundation.ids import new_id
+from ai_stp_platform.catalog_cursor import (
+    CursorError,
+    CursorKey,
+    decode_cursor,
+    encode_cursor,
+    filter_signature,
+)
 from ai_stp_platform.models import AccountSession, Device, SyncEntityHead, SyncRevision
 
 
@@ -69,14 +79,36 @@ async def register_device(
     )
     verify_ed25519(public_key=pk, message=message_to_sign(nonce), signature=signature)
 
-    # Reject attach of this public key to another account (REQ-204 acceptance).
-    foreign = await db.execute(
-        select(Device).where(
-            Device.public_key == pk,
-            Device.account_id != ctx.account_id,
+    # `public_key` is globally unique: one lookup answers both the
+    # foreign-account rejection (REQ-204 acceptance) and the upsert question.
+    device = (await db.execute(select(Device).where(Device.public_key == pk))).scalar_one_or_none()
+    created = False
+    now = datetime.now(UTC)
+    if device is None:
+        # `ON CONFLICT DO NOTHING` never raises on the race: a concurrent
+        # attach of the same key commits first, this insert skips, and the
+        # re-select below returns the committed winner. (A failed flush inside
+        # `begin_nested` marks the whole session rollback-required in
+        # SQLAlchemy, so the savepoint-replay idiom cannot survive here.)
+        inserted = cast(
+            CursorResult[Any],
+            await db.execute(
+                pg_insert(Device)
+                .values(
+                    id=new_id("device"),
+                    account_id=ctx.account_id,
+                    public_key=pk,
+                    device_type="cli",
+                    state=DeviceState.ACTIVE.value,
+                    display_name=display_name,
+                    last_seen_at=now,
+                )
+                .on_conflict_do_nothing(index_elements=[Device.public_key])
+            ),
         )
-    )
-    if foreign.scalar_one_or_none() is not None:
+        created = inserted.rowcount == 1
+        device = (await db.execute(select(Device).where(Device.public_key == pk))).scalar_one()
+    if device.account_id != ctx.account_id:
         # `reason` reaches the CLI through its forwarded-details allowlist and
         # names the rebind path; an unqualified denial must not (#359).
         raise ApiError(
@@ -84,37 +116,15 @@ async def register_device(
             "device key belongs to another account",
             details={"reason": "device_key_foreign"},
         )
-
-    existing = await db.execute(
-        select(Device).where(
-            Device.account_id == ctx.account_id,
-            Device.public_key == pk,
+    if device.state == DeviceState.REVOKED.value:
+        # Resuming cloud access requires a new login and a new key (REQ-207).
+        raise ApiError(
+            ErrorCategory.PERMISSION,
+            "device is revoked; register a new device key",
         )
-    )
-    device = existing.scalar_one_or_none()
-    created = False
-    now = datetime.now(UTC)
-    if device is None:
-        device = Device(
-            id=new_id("device"),
-            account_id=ctx.account_id,
-            public_key=pk,
-            state=DeviceState.ACTIVE.value,
-            display_name=display_name,
-            last_seen_at=now,
-        )
-        db.add(device)
-        created = True
-    else:
-        if device.state == DeviceState.REVOKED.value:
-            # Resuming cloud access requires a new login and a new key (REQ-207).
-            raise ApiError(
-                ErrorCategory.PERMISSION,
-                "device is revoked; register a new device key",
-            )
-        device.last_seen_at = now
-        if display_name:
-            device.display_name = display_name
+    device.last_seen_at = now
+    if display_name:
+        device.display_name = display_name
     device.user_agent = user_agent
     device.approximate_location = approximate_location(client_ip, auth.geoip_city_db_path)
     await db.flush()
@@ -142,8 +152,19 @@ async def list_devices(
     ctx: AuthContext,
     subject_account_id: str | None,
     admin_reason: str | None,
-) -> list[DeviceSummary]:
-    """List device summaries for the owner or an audited admin read."""
+    page_size: int = PAGE_SIZE_MAX,
+    cursor: str | None = None,
+    cursor_secret: str | None = None,
+) -> tuple[list[Device], str | None]:
+    """List device rows for the owner or an audited admin read.
+
+    Keyset-paginated on the ULID primary key ascending: ids are immutable and
+    lexicographically time-ordered, so the cursor position survives both a
+    `last_seen_at` refresh and the millisecond precision of wire timestamps.
+    `page.next_cursor` stays the only signal that more rows exist — a
+    truncated page without a continuation would silently hide a
+    hundred-and-first device.
+    """
     target = subject_account_id or ctx.account_id
     if target != ctx.account_id:
         if not ctx.is_admin:
@@ -160,10 +181,38 @@ async def list_devices(
             payload={"subject_account_id": target},
         )
 
-    result = await db.execute(
-        select(Device).where(Device.account_id == target).order_by(Device.created_at.asc())
+    # The signature binds the listed account: a cursor minted for account A
+    # must not page account B's devices.
+    filter_sig = filter_signature(
+        object_kind=f"devices:{target}",
+        q=None,
+        tags=[],
+        harness_id=None,
+        component_type=None,
+        include_experimental=False,
     )
-    return [_to_summary(row) for row in result.scalars().all()]
+    statement = select(Device).where(Device.account_id == target).order_by(Device.id.asc())
+    if cursor is not None:
+        if cursor_secret is None:
+            raise ApiError(ErrorCategory.DEPENDENCY, "cursor signing is not configured")
+        try:
+            key = decode_cursor(secret=cursor_secret, token=cursor, filter_sig=filter_sig)
+        except CursorError as error:
+            raise ApiError(ErrorCategory.VALIDATION, "invalid cursor") from error
+        statement = statement.where(Device.id > key.stable_id)
+    rows = list((await db.execute(statement.limit(page_size + 1))).scalars().all())
+    has_more = len(rows) > page_size
+    rows = rows[:page_size]
+    next_cursor: str | None = None
+    if has_more and cursor_secret is not None:
+        last = rows[-1]
+        created = last.created_at if last.created_at.tzinfo else last.created_at.replace(tzinfo=UTC)
+        next_cursor = encode_cursor(
+            secret=cursor_secret,
+            filter_sig=filter_sig,
+            key=CursorKey(published_at=created, stable_id=last.id),
+        )
+    return rows, next_cursor
 
 
 async def stored_summaries(
@@ -223,11 +272,9 @@ async def revoke_device(
     device = await db.get(Device, device_id)
     if device is None:
         raise ApiError(ErrorCategory.PERMISSION, "permission denied")
-    if device.account_id != ctx.account_id and not ctx.is_admin:
-        # Do not leak existence to outsiders (same body as missing).
-        raise ApiError(ErrorCategory.PERMISSION, "permission denied")
-    if device.account_id != ctx.account_id and ctx.is_admin:
-        # Admin revoke still requires ownership policy; MVP: owners only.
+    # Owners only — an admin cannot revoke another account's device either
+    # (MVP policy). The same denial for missing and foreign leaks nothing.
+    if device.account_id != ctx.account_id:
         raise ApiError(ErrorCategory.PERMISSION, "permission denied")
 
     if device.state != DeviceState.REVOKED.value:

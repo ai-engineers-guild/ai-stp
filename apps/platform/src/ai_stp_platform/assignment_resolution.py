@@ -5,11 +5,19 @@ from typing import Literal
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ai_stp_foundation.versioning import parse_version
+from ai_stp_foundation.versioning import VersionError, parse_version
 from ai_stp_platform.catalog_read import get_visible_object_versions
 from ai_stp_platform.organization_models import CorporateCatalogAssignment
 
 ELIGIBLE_LIFECYCLES = frozenset({"active", "deprecated"})
+
+
+def _canonical(version: str) -> bool:
+    try:
+        parse_version(version)
+    except VersionError:
+        return False
+    return True
 
 
 async def eligible_assignment_versions(
@@ -25,8 +33,12 @@ async def eligible_assignment_versions(
         stable_id=stable_id,
         account_id=account_id,
     )
+    # A malformed stored version is ineligible rather than fatal: the same
+    # rule catalog_read applies when resolving grant scope.
     eligible = [
-        (row.version, row.passport_digest) for row in rows if row.lifecycle in ELIGIBLE_LIFECYCLES
+        (row.version, row.passport_digest)
+        for row in rows
+        if row.lifecycle in ELIGIBLE_LIFECYCLES and _canonical(row.version)
     ]
     eligible.sort(key=lambda item: parse_version(item[0]))
     return eligible

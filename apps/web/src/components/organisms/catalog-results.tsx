@@ -8,7 +8,7 @@ import { PageNav, SingleResourcePager } from "@/components/organisms/catalog-pag
 import { catalogHref } from "@/lib/catalog-query";
 import { UI } from "@/lib/ui-selectors";
 
-type CatalogLabels = {
+export type CatalogLabels = {
   authoritative: string;
   experimental: string;
   experimentalNote: string;
@@ -24,6 +24,7 @@ type CatalogLabels = {
   purpose?: string;
   targetRole?: string;
   authorVerified: string;
+  authorVerifiedDescription?: string;
   githubStars?: string;
   componentVerified: string;
   supportTier?: string;
@@ -121,6 +122,7 @@ function objectCardLabels(labels: CatalogLabels): Parameters<typeof ObjectCard>[
     purpose: labels.purpose,
     targetRole: labels.targetRole,
     authorVerified: labels.authorVerified,
+    authorVerifiedDescription: labels.authorVerifiedDescription,
     githubStars: labels.githubStars,
     componentVerified: labels.componentVerified,
     supportTier: labels.supportTier,

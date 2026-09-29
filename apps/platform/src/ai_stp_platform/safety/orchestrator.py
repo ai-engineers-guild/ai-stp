@@ -356,7 +356,7 @@ async def _run_safety_suite(
 
     if object_kind == "setup":
         # pin_context may be set by execute_validate before calling the suite
-        outcomes = _run_setup_only(prof)
+        outcomes = await asyncio.to_thread(_run_setup_only, prof)
         result = SafetyScanResult(
             content_digest=content_digest,
             policy_version=policy_version,
@@ -483,6 +483,38 @@ async def _run_safety_suite(
             _cache_put(cache_key, result, cacheable=False)
         return _finish(result)
 
+    # The materialize → detect → execute tail is minutes of CPU and filesystem
+    # on the event loop it has no business sharing: one scan used to starve
+    # every other coroutine in the worker for its whole duration. A worker
+    # thread is the honest place for it — `scan_deadline` rides the copied
+    # context and the cache/lock state is already thread-guarded.
+    return await asyncio.to_thread(
+        _scan_materialized,
+        payload,
+        content_digest=content_digest,
+        policy_version=policy_version,
+        prof=prof,
+        object_kind=object_kind,
+        passport_dict=passport_dict,
+        started=started,
+        use_cache=use_cache,
+        cache_key=cache_key,
+    )
+
+
+def _scan_materialized(
+    payload: bytes,
+    *,
+    content_digest: str,
+    policy_version: str,
+    prof: SafetyProfile,
+    object_kind: str,
+    passport_dict: dict[str, object],
+    started: float,
+    use_cache: bool,
+    cache_key: CacheKey,
+) -> SafetyScanResult:
+    """The synchronous half of `_run_safety_suite`: unpack, plan, execute."""
     with isolated_workdir() as workdir:
         try:
             tree = materialize_artifact(workdir, payload)

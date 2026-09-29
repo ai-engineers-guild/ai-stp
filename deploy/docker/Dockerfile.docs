@@ -13,14 +13,14 @@ ENV PYTHONUNBUFFERED=1 \
 # rather than moving references. The version also now matches the one every
 # gate installs, so what production resolves the lockfile with is what CI
 # proved it with; a contract test holds the two together.
-COPY --from=ghcr.io/astral-sh/uv:0.12.1@sha256:cf4eedcaa81655197f625739489effcbe71b61ceb1506f332c3facae5deceded /uv /bin/uv
+COPY --from=ghcr.io/astral-sh/uv:0.12.18@sha256:3adc3706091ce7c2fe595e669628caedd6d951551b92b258b7e7dbe06d9440bc /uv /bin/uv
 WORKDIR /app
 # Same apt discipline as the api stage in `deploy/docker/Dockerfile.app`: a dated snapshot plus an
 # exact version is the only form of apt install that is reproducible from the
 # commit. `git` exists here for the dev target's volume-mounted rebuilds.
 RUN sed -i \
-      -e 's|http://deb.debian.org/debian-security|https://snapshot.debian.org/archive/debian-security/20260822T000000Z|g' \
-      -e 's|http://deb.debian.org/debian|https://snapshot.debian.org/archive/debian/20260822T000000Z|g' \
+      -e 's|http://deb.debian.org/debian-security|https://snapshot.debian.org/archive/debian-security/20260927T000000Z|g' \
+      -e 's|http://deb.debian.org/debian|https://snapshot.debian.org/archive/debian/20260927T000000Z|g' \
       /etc/apt/sources.list.d/debian.sources \
     && apt-get -o Acquire::Check-Valid-Until=false update \
     && apt-get install -y --no-install-recommends git=1:2.47.3-0+deb13u1 \
@@ -54,7 +54,7 @@ ENV AI_STP_USER_DOCS_EN_SITE_URL=${AI_STP_USER_DOCS_SITE_URL}en/
 RUN python -m mkdocs build --strict -f docs_scripts/user-mkdocs.yml \
     && python -m mkdocs build --strict -f docs_scripts/user-mkdocs.en.yml
 
-FROM nginx:1.27-alpine@sha256:65645c7bb6a0661892a8b03b89d0743208a18dd2f3f17a54ef4b76fb8e2f2a10 AS prod
+FROM nginx:1.30-alpine@sha256:0985e772fb9f729e6fa0980da05fca5d9c468e870eed43071545afa9d2e27d94 AS prod
 COPY deploy/nginx/user-docs.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /app/.site-user-docs /srv
 EXPOSE 8080

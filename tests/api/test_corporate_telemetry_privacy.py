@@ -570,3 +570,19 @@ async def test_privileged_telemetry_reads_and_writes_are_audited(
         ).all()
         assert {"telemetry.list", "telemetry.export"} <= {row.action for row in governed}
         await db.rollback()
+
+
+async def test_ingest_rejects_a_far_future_occurred_at(
+    db_api_client: tuple[AsyncClient, async_sessionmaker[AsyncSession], Settings],
+) -> None:
+    """A future timestamp pins ordering and outlives every retention sweep."""
+    client, sessionmaker, _settings = db_api_client
+    organization_id, _account_id, auth = await _tenant(client, sessionmaker, "tp-future-0001-x")
+    response = await _ingest(
+        client,
+        organization_id,
+        auth,
+        _heartbeat("evt-future-0001", occurred_at="2099-01-01T00:00:00.000Z"),
+        "tp-future-key-1x",
+    )
+    assert response.status_code == 400, response.text

@@ -159,7 +159,10 @@ async def transfer_catalog_line(
         attempts = list(
             (
                 await session.scalars(
-                    select(OfficialUpstreamSync).where(OfficialUpstreamSync.source_id == source.id)
+                    select(OfficialUpstreamSync).where(
+                        OfficialUpstreamSync.source_id == source.id,
+                        OfficialUpstreamSync.state.not_in(tuple(_TERMINAL_ATTEMPTS)),
+                    )
                 )
             ).all()
         )
@@ -202,6 +205,7 @@ async def transfer_catalog_line(
                     select(Job).where(
                         Job.job_type == JobType.OFFICIAL_UPSTREAM_SYNC,
                         Job.state.in_(tuple(CLAIMABLE_STATES)),
+                        Job.payload["source_id"].as_string() == source.id,
                     )
                 )
             ).all()
@@ -290,6 +294,10 @@ async def apply_author_verification(
     )
     for version in versions:
         version.author_verified = verified
+        if version.lifecycle_state == "blocked":
+            # A safety-blocked version is never re-marked component-verified —
+            # author verification must not quietly overturn the safety verdict.
+            continue
         if verified:
             # Author verification is still stored separately from component
             # verification, but it is the default for the author's existing

@@ -171,6 +171,62 @@ async def test_device_register_idempotent_and_unique(
     assert "challenge" not in denied.json()["error"]["message"] or True
 
 
+async def test_concurrent_registers_of_one_key_replay_the_winner(
+    harness: tuple[AsyncClient, async_sessionmaker[AsyncSession], str],
+) -> None:
+    """Two attaches of the same key racing on the unique index: the loser's
+    INSERT blocks on the winner's transaction, fails on commit, and the
+    savepoint replay must return the winning row — not a 500."""
+    import asyncio
+
+    from sqlalchemy import func, select
+
+    from ai_stp_api.session import AuthContext, hash_session_token
+    from ai_stp_api.settings import AuthSettings
+    from ai_stp_api.slices.devices.domain import DeviceSummary
+    from ai_stp_api.slices.devices.service import create_challenge, register_device
+
+    _client, sessionmaker, secret_key = harness
+    account_id, raw_token = await _seed_account_with_session(sessionmaker)
+    pk, private = _keypair()
+    auth = AuthSettings(secret_key=secret_key, cookie_secure=False)
+    nonce, _ = await create_challenge(auth, pk)
+    signature = _sign(private, nonce)
+
+    async def attempt() -> tuple[DeviceSummary, bool]:
+        async with sessionmaker() as db:
+            ctx = AuthContext(
+                account_id=account_id,
+                session_id=hash_session_token(raw_token),
+                device_id=None,
+                account_status="active",
+                is_admin=False,
+                via_cookie=False,
+            )
+            result = await register_device(
+                db,
+                ctx=ctx,
+                auth=auth,
+                public_key=pk,
+                nonce=nonce,
+                signature=signature,
+                display_name=None,
+            )
+            await db.commit()
+            return result
+
+    results = await asyncio.gather(attempt(), attempt())
+
+    async with sessionmaker() as db:
+        devices = await db.scalar(
+            select(func.count()).select_from(Device).where(Device.account_id == account_id)
+        )
+    assert devices == 1
+    # Both callers got a usable summary; exactly one reports `created`.
+    assert sum(1 for _summary, created in results if created) == 1
+    assert results[0][0].id == results[1][0].id
+
+
 async def test_list_summary_and_outsider_denied(
     harness: tuple[AsyncClient, async_sessionmaker[AsyncSession], str],
 ) -> None:
@@ -205,6 +261,64 @@ async def test_list_summary_and_outsider_denied(
         params={"account_id": account_id},
     )
     assert outsider.status_code == 403
+
+
+async def test_device_list_keyset_cursor_pages_and_binds_account(
+    harness: tuple[AsyncClient, async_sessionmaker[AsyncSession], str],
+) -> None:
+    """A page at the bound must carry a continuation, and the cursor must not
+    page a different account's devices (filter signature binds the target)."""
+    client, sessionmaker, _ = harness
+    _, token = await _seed_account_with_session(sessionmaker)
+    headers = {"Authorization": f"Bearer {token}"}
+    device_ids: list[str] = []
+    for _ in range(3):
+        pk, private = _keypair()
+        challenge = await client.post(
+            "/v1/devices/challenge", headers=headers, json={"public_key": pk}
+        )
+        nonce = challenge.json()["nonce"]
+        created = await client.post(
+            "/v1/devices",
+            headers=headers,
+            json={"public_key": pk, "nonce": nonce, "signature": _sign(private, nonce)},
+        )
+        assert created.status_code in (200, 201)
+        device_ids.append(created.json()["device"]["device_id"])
+
+    first = await client.get("/v1/devices", headers=headers, params={"page_size": 2})
+    assert first.status_code == 200
+    page1 = first.json()
+    assert page1["page"]["page_size"] == 2
+    assert len(page1["items"]) == 2
+    cursor = page1["page"]["next_cursor"]
+    assert cursor is not None
+
+    second = await client.get(
+        "/v1/devices", headers=headers, params={"page_size": 2, "cursor": cursor}
+    )
+    assert second.status_code == 200
+    page2 = second.json()
+    assert len(page2["items"]) == 1
+    assert page2["page"]["next_cursor"] is None
+
+    seen = {item["device_id"] for item in page1["items"]} | {
+        item["device_id"] for item in page2["items"]
+    }
+    assert seen == set(device_ids)
+
+    # The cursor minted for this account must not page another account's list.
+    _, other_token = await _seed_account_with_session(sessionmaker)
+    cross = await client.get(
+        "/v1/devices",
+        headers={"Authorization": f"Bearer {other_token}"},
+        params={"cursor": cursor},
+    )
+    assert cross.status_code == 400
+    assert cross.json()["error"]["code"] == "AI_STP_VALIDATION_ERROR"
+
+    malformed = await client.get("/v1/devices", headers=headers, params={"cursor": "not-a-cursor"})
+    assert malformed.status_code == 400
 
 
 async def test_admin_list_requires_reason_and_emits_audit(

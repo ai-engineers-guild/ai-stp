@@ -26,7 +26,7 @@ ENV PYTHONUNBUFFERED=1 \
 # rather than moving references. The version also now matches the one every
 # gate installs, so what production resolves the lockfile with is what CI
 # proved it with; a contract test holds the two together.
-COPY --from=ghcr.io/astral-sh/uv:0.12.1@sha256:cf4eedcaa81655197f625739489effcbe71b61ceb1506f332c3facae5deceded /uv /bin/uv
+COPY --from=ghcr.io/astral-sh/uv:0.12.18@sha256:3adc3706091ce7c2fe595e669628caedd6d951551b92b258b7e7dbe06d9440bc /uv /bin/uv
 RUN useradd --create-home --uid 10001 appuser \
     && mkdir /app \
     && chown appuser:appuser /app
@@ -67,8 +67,8 @@ CMD ["python", "-m", "ai_stp_worker"]
 FROM base AS api
 USER root
 RUN sed -i \
-      -e 's|http://deb.debian.org/debian-security|https://snapshot.debian.org/archive/debian-security/20260822T000000Z|g' \
-      -e 's|http://deb.debian.org/debian|https://snapshot.debian.org/archive/debian/20260822T000000Z|g' \
+      -e 's|http://deb.debian.org/debian-security|https://snapshot.debian.org/archive/debian-security/20260927T000000Z|g' \
+      -e 's|http://deb.debian.org/debian|https://snapshot.debian.org/archive/debian/20260927T000000Z|g' \
       /etc/apt/sources.list.d/debian.sources \
     && apt-get -o Acquire::Check-Valid-Until=false update \
     && apt-get install -y --no-install-recommends ffmpeg=7:7.1.5-0+deb13u1 \
@@ -94,7 +94,7 @@ CMD ["python", "-m", "ai_stp_platform.content.importer"]
 # -----------------------------------------------------------------------------
 
 # go-tools: build govulncheck only (no Go toolchain in the final image)
-FROM golang:1.24-bookworm@sha256:1a6d4452c65dea36aac2e2d606b01b4a029ec90cc1ae53890540ce6173ea77ac AS go-tools
+FROM golang:1.27-bookworm@sha256:69a7b9788769bec032d238959b61854e9ae87f57be9029ec04e9885fabf99195 AS go-tools
 ARG GOVULNCHECK_VERSION=v1.1.4
 RUN GOBIN=/out CGO_ENABLED=0 go install \
       "golang.org/x/vuln/cmd/govulncheck@${GOVULNCHECK_VERSION}" \
@@ -113,16 +113,16 @@ ENV DEBIAN_FRONTEND=noninteractive \
     PATH="/opt/safety-bin:${PATH}"
 
 RUN sed -i \
-      -e 's|http://deb.debian.org/debian-security|https://snapshot.debian.org/archive/debian-security/20260822T000000Z|g' \
-      -e 's|http://deb.debian.org/debian|https://snapshot.debian.org/archive/debian/20260822T000000Z|g' \
+      -e 's|http://deb.debian.org/debian-security|https://snapshot.debian.org/archive/debian-security/20260927T000000Z|g' \
+      -e 's|http://deb.debian.org/debian|https://snapshot.debian.org/archive/debian/20260927T000000Z|g' \
       /etc/apt/sources.list.d/debian.sources \
     && apt-get -o Acquire::Check-Valid-Until=false update \
     && apt-get install -y --no-install-recommends \
       ca-certificates=20250419 \
-      curl=8.14.1-2+deb13u4 \
+      curl=8.14.1-2+deb13u5 \
       git=1:2.47.3-0+deb13u1 \
       xz-utils=5.8.1-1+deb13u1 \
-      bubblewrap=0.11.0-2+deb13u1 \
+      bubblewrap=0.12.0-1~deb13u1 \
       clamav=1.4.3+dfsg-1 \
       clamav-daemon=1.4.3+dfsg-1 \
       yara=4.5.2-1 \
@@ -150,14 +150,14 @@ RUN chmod +x /tmp/safety/install_scanners.sh /opt/safety-bin/govulncheck \
 FROM worker AS worker-safety
 USER root
 RUN sed -i \
-      -e 's|http://deb.debian.org/debian-security|https://snapshot.debian.org/archive/debian-security/20260822T000000Z|g' \
-      -e 's|http://deb.debian.org/debian|https://snapshot.debian.org/archive/debian/20260822T000000Z|g' \
+      -e 's|http://deb.debian.org/debian-security|https://snapshot.debian.org/archive/debian-security/20260927T000000Z|g' \
+      -e 's|http://deb.debian.org/debian|https://snapshot.debian.org/archive/debian/20260927T000000Z|g' \
       /etc/apt/sources.list.d/debian.sources \
     && apt-get -o Acquire::Check-Valid-Until=false update \
     && apt-get install -y --no-install-recommends \
       ca-certificates=20250419 \
-      curl=8.14.1-2+deb13u4 \
-      bubblewrap=0.11.0-2+deb13u1 \
+      curl=8.14.1-2+deb13u5 \
+      bubblewrap=0.12.0-1~deb13u1 \
       clamav=1.4.3+dfsg-1 \
       yara=4.5.2-1 \
     && rm -rf /var/lib/apt/lists/* \

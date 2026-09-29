@@ -91,7 +91,16 @@ class S3ObjectClient:
                 ) from exc
             else:
                 raise
-            await client.create_bucket(Bucket=bucket_name)
+            try:
+                await client.create_bucket(Bucket=bucket_name)
+            except ClientError as exc:
+                err = cast(dict[str, Any], getattr(exc, "response", {}))
+                code = str(err.get("Error", {}).get("Code", ""))
+                # A second replica creating the same bucket between the head
+                # and this call is the steady state, not a failure: the
+                # bucket exists, which is all this ensure asks.
+                if code not in {"BucketAlreadyOwnedByYou", "BucketAlreadyExists"}:
+                    raise
 
         # RustFS supports the standard S3 public-access-block API.  Apply it on
         # every startup so a pre-existing bucket cannot silently retain a public

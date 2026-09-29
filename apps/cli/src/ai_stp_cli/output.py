@@ -13,6 +13,7 @@ reads.
 
 import json
 import sys
+from contextlib import suppress
 from typing import Final, TextIO, cast
 
 from pydantic import BaseModel
@@ -108,23 +109,28 @@ def render_failure(
     the error stream, which is what `cli-json.md` reserves it for.
     """
     out = stream if stream is not None else (sys.stdout if machine else sys.stderr)
-    if machine:
-        envelope = ErrorEnvelope(
-            request_id=request_id,
-            operation_id=failure.operation_id,
-            error=CliError(
-                code=failure.code,
-                message=failure.message,
-                retryable=failure.retryable,
-                details=dict(failure.details),
-            ),
-            next_actions=failure.next_actions,
-            continuations=[bind_continuation(item) for item in failure.continuations],
-        )
-        out.write(json.dumps(envelope.model_dump(mode="json"), ensure_ascii=False) + "\n")
-    else:
-        out.write(f"{failure.code}: {failure.message}\n")
-        _write_next(out, failure.continuations, failure.next_actions)
+    # A stream refusing the bytes — closed, broken pipe, unencodable — cannot
+    # be told about its own refusal. This runs inside `main`'s exception
+    # handlers, where a raise would leave the process without an exit code;
+    # the contract code is all that is left to return.
+    with suppress(OSError, ValueError):
+        if machine:
+            envelope = ErrorEnvelope(
+                request_id=request_id,
+                operation_id=failure.operation_id,
+                error=CliError(
+                    code=failure.code,
+                    message=failure.message,
+                    retryable=failure.retryable,
+                    details=dict(failure.details),
+                ),
+                next_actions=failure.next_actions,
+                continuations=[bind_continuation(item) for item in failure.continuations],
+            )
+            out.write(json.dumps(envelope.model_dump(mode="json"), ensure_ascii=False) + "\n")
+        else:
+            out.write(f"{failure.code}: {failure.message}\n")
+            _write_next(out, failure.continuations, failure.next_actions)
     return failure.exit_code
 
 

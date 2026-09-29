@@ -4,20 +4,31 @@ import { randomBytes } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 
+import { getTranslations } from "next-intl/server";
+
 import { createReportCase } from "@/lib/api/reports";
 import { ApiError } from "@/lib/api/errors";
-import { assertCsrf, readCsrfToken, readSession, SESSION_COOKIE } from "@/lib/auth/session";
+import { readSession, requireCsrf, SESSION_COOKIE } from "@/lib/auth/session";
 import type { ReportTopic } from "@/components/organisms/report-form";
 
 async function sessionTokenOrThrow(): Promise<string> {
+  const common = await getTranslations("common");
   const session = await readSession();
   if (!session) {
-    throw new ApiError({ code: "AI_STP_UNAUTHORIZED", message: "not signed in", status: 401 });
+    throw new ApiError({
+      code: "AI_STP_UNAUTHORIZED",
+      message: common("notSignedIn"),
+      status: 401,
+    });
   }
   const jar = await cookies();
   const token = jar.get(SESSION_COOKIE)?.value;
   if (!token) {
-    throw new ApiError({ code: "AI_STP_UNAUTHORIZED", message: "not signed in", status: 401 });
+    throw new ApiError({
+      code: "AI_STP_UNAUTHORIZED",
+      message: common("notSignedIn"),
+      status: 401,
+    });
   }
   return token;
 }
@@ -49,11 +60,12 @@ export async function createReportAction(input: {
   };
   country?: { code: string; name_ru: string; name_en: string };
 }): Promise<{ caseId: string; operationId: string | null }> {
-  assertCsrf(input.csrfToken, await readCsrfToken());
+  await requireCsrf(input.csrfToken);
   if (!input.diagnosticsPreviewed) {
+    const reports = await getTranslations("reports");
     throw new ApiError({
       code: "AI_STP_VALIDATION_ERROR",
-      message: "diagnostics preview required",
+      message: reports("needPreview"),
       status: 400,
     });
   }

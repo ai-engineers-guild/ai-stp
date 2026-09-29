@@ -110,7 +110,7 @@ compose stop rustfs >/dev/null 2>&1 || true
 if ! docker run --rm \
   -v "${RUSTFS_VOLUME}:/dest" \
   -v "${FROM}/rustfs:/source:ro" \
-  alpine:3.20 \
+  alpine:3.20@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc \
   sh -c 'rm -rf /dest/* /dest/.[!.]* 2>/dev/null || true; cp -a /source/. /dest/'; then
   die "rustfs_restore_failed"
 fi

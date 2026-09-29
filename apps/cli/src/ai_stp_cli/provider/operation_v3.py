@@ -431,6 +431,7 @@ def require_plan(
     capture_mode: str | None = None,
 ) -> ProviderPlan:
     """Require the provider's exact canonical plan and its redundant echoes."""
+    _raise_invocation_error(answer)
     if answer.get("state") != "planned":
         # An answered refusal is not a broken provider, and saying only that
         # the answer "was not planned" throws away the one part of it a person
@@ -545,6 +546,7 @@ def require_applied(
     half that has to come first: response-field evolution is tolerate-then-emit,
     never the reverse.
     """
+    _raise_invocation_error(answer)
     state = _reported_operation_state(answer)
     if state == "refused":
         # The mirror of the plan path. `reason=stale` already maps to `stale`
@@ -700,15 +702,15 @@ def require_verified_status(
     # was read. Two records of one fact where only one is checked is a fail-open
     # by construction, and its silence is what would keep it alive.
     #
-    # Both spellings of "no drift" stay admissible on both, so a release mixing
-    # the legacy `verified` with the current `clean` is not caught in a
-    # vocabulary difference that means nothing.
+    # `clean` is the only spelling of "no drift" a provider ever emitted: the
+    # wire enum was born `clean|local_drift|unknown`, so accepting `verified`
+    # here tolerated a producer that never existed.
     stated = [
         value
         for value in (answer.get("drift_state"), nested.get("drift_state"))
         if value is not None
     ]
-    if not stated or any(str(value) not in {"verified", "clean"} for value in stated):
+    if not stated or any(str(value) != "clean" for value in stated):
         raise _refused("provider status does not prove a clean managed target")
     # These two are what make the status about *this* operation rather than
     # about some installation. Without them a provider answering `managed` and
@@ -915,6 +917,20 @@ def _strings(value: JsonValue, label: str) -> tuple[str, ...]:
     ):
         raise _refused(f"{label} must be a non-empty string array")
     return cast(tuple[str, ...], tuple(value))
+
+
+def _raise_invocation_error(answer: dict[str, JsonValue]) -> None:
+    """Surface the invoker's own failure before any answer-shape check.
+
+    `conformance.invoke_argv` reports an unreadable, over-loud or non-JSON
+    provider as `{"error": "...", "command": "..."}`. Reading such a dict as a
+    response used to discard that reason and refuse with a shape complaint —
+    the difference between "the provider said nothing" and "the provider's
+    answer was malformed", which is exactly what a person needs to act on.
+    """
+    error = answer.get("error")
+    if isinstance(error, str) and error:
+        raise _refused("the provider invocation failed before answering", reason=error)
 
 
 def _refused(message: str, **details: str) -> CliFailure:

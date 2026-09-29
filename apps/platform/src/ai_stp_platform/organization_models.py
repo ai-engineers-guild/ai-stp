@@ -158,7 +158,7 @@ class OrganizationMembership(EntityProfileColumns, Base):
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    organization: Mapped[Organization] = relationship()
+    organization: Mapped[Organization] = relationship(lazy="raise")
     organization_id: Mapped[str] = mapped_column(
         String(64), ForeignKey("organization.id", ondelete="CASCADE"), nullable=False, index=True
     )
@@ -394,6 +394,7 @@ class CorporateTeam(EntityProfileColumns, Base):
         UniqueConstraint("organization_id", "name", name="uq_corporate_team_name"),
         CheckConstraint("state in ('active', 'archived')", name="ck_corporate_team_state"),
         CheckConstraint("profile_revision >= 0", name="ck_corporate_team_profile_revision"),
+        CheckConstraint("revision >= 1", name="ck_corporate_team_revision"),
     )
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
@@ -601,16 +602,18 @@ class OrganizationResource(Base):
     __tablename__ = "organization_resource"
     __table_args__ = (
         UniqueConstraint("table_name", "row_key", name="uq_organization_resource_row"),
+        Index("ix_organization_resource_organization", "organization_id"),
+        Index("ix_organization_resource_account", "attribution_account_id"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     organization_id: Mapped[str] = mapped_column(
-        String(64), ForeignKey("organization.id", ondelete="CASCADE"), nullable=False, index=True
+        String(64), ForeignKey("organization.id", ondelete="CASCADE"), nullable=False
     )
     table_name: Mapped[str] = mapped_column(String(128), nullable=False)
     row_key: Mapped[str] = mapped_column(String(512), nullable=False)
     attribution_account_id: Mapped[str] = mapped_column(
-        String(64), ForeignKey("account.id", ondelete="RESTRICT"), nullable=False, index=True
+        String(64), ForeignKey("account.id", ondelete="RESTRICT"), nullable=False
     )
     attribution_column: Mapped[str] = mapped_column(String(64), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
@@ -635,6 +638,16 @@ class ProjectIdentity(Base):
             "state in ('active', 'archived', 'deleted')", name="ck_project_identity_state"
         ),
         CheckConstraint("revision >= 1", name="ck_project_identity_revision"),
+        Index(
+            "uq_project_identity_provider_repository",
+            "organization_id",
+            "immutable_repository_id",
+            unique=True,
+            postgresql_where=text(
+                "namespace = 'provider' and state = 'active' "
+                "and immutable_repository_id is not null"
+            ),
+        ),
     )
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)

@@ -146,6 +146,28 @@ describe("ObjectCard compact catalog presentation (REQ-3411)", () => {
     expect(screen.queryByText("Component verified")).not.toBeInTheDocument();
   });
 
+  it("falls back to the fixed disclaimer when no verified description label is given", () => {
+    render(
+      <ObjectCard
+        kind="component"
+        item={{
+          ...componentSummaryFixture,
+          latest_trust: {
+            ...componentSummaryFixture.latest_trust,
+            author_verified: true,
+            component_verified: false,
+          },
+        }}
+        href="/catalog/x"
+        labels={{ ...labels, authorVerifiedDescription: undefined }}
+        author={{ displayName: "River Guild", avatarUrl: null }}
+      />,
+    );
+    expect(
+      screen.getByLabelText("Author verified; this does not indicate content safety"),
+    ).toBeVisible();
+  });
+
   it("shows cached GitHub stars without presenting them as trust", () => {
     render(
       <ObjectCard

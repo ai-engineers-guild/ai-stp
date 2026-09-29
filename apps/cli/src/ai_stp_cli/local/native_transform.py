@@ -216,13 +216,23 @@ def _agents(
     return NativeTransform(rewritten, new_modes, new_sources, tuple(dict.fromkeys(losses)))
 
 
+def _toml_string(value: str) -> str:
+    """One value as a TOML basic string — the escaping both fields need."""
+    out = json.dumps(value.replace("\n", " "), ensure_ascii=False)
+    # json's escape table stops at U+001F, but a TOML basic string must also
+    # escape U+007F — and strict readers refuse the C1 block, the rest of the
+    # same Cc class the bundle writer already refuses in paths.
+    for code in range(0x7F, 0xA0):
+        out = out.replace(chr(code), f"\\u{code:04x}")
+    return out
+
+
 def _markdown_to_codex_agent(path: str, payload: bytes) -> bytes:
     text = payload.decode("utf-8", errors="replace")
     heading = _HEADING.search(text)
     name = heading.group(1).strip() if heading else PurePosixPath(path).stem
     description = _HEADING.sub("", text, count=1).strip() or name
-    escaped = description.replace("\\", "\\\\").replace('"', '\\"').replace("\n", " ")
-    return f'name = "{name}"\ndescription = "{escaped}"\n'.encode()
+    return f"name = {_toml_string(name)}\ndescription = {_toml_string(description)}\n".encode()
 
 
 def _codex_agent_to_markdown(payload: bytes) -> bytes:

@@ -31,6 +31,8 @@ from ai_stp_platform.official_upstream.errors import (
 )
 from ai_stp_platform.official_upstream.source import SourceUpsert, upsert_source
 
+STATUS_SYNC_ATTEMPT_LIMIT = 200
+
 
 def _empty_strings() -> list[str]:
     return []
@@ -297,11 +299,24 @@ async def official_status(session: AsyncSession) -> dict[str, object]:
     attempts = list(
         (
             await session.scalars(
-                select(OfficialUpstreamSync).order_by(OfficialUpstreamSync.id.desc())
+                select(OfficialUpstreamSync)
+                .order_by(OfficialUpstreamSync.id.desc())
+                .limit(STATUS_SYNC_ATTEMPT_LIMIT)
             )
         ).all()
     )
-    outboxes = list((await session.scalars(select(OfficialSyncOutbox))).all())
+    attempt_ids = [row.id for row in attempts]
+    outboxes = (
+        list(
+            (
+                await session.scalars(
+                    select(OfficialSyncOutbox).where(OfficialSyncOutbox.attempt_id.in_(attempt_ids))
+                )
+            ).all()
+        )
+        if attempt_ids
+        else []
+    )
     outbox_by_attempt = {row.attempt_id: row for row in outboxes}
     return {
         "manifest_digest": manifest.digest(),

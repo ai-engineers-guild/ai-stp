@@ -1,6 +1,6 @@
 ---
 description: "Required checks and release evidence."
-last_verified: "2026-09-20"
+last_verified: "2026-09-29"
 ---
 
 # Quality gates
@@ -258,8 +258,7 @@ No `-check` recipe writes anything: generated/source divergence is caught in
 callable so a failure can be reproduced precisely without running neighboring
 groups. The full convention set — settings and attribute policy, parameter
 documentation, and the checklist for adding a recipe — lives in
-`standards/just.md`. That directory is withheld from the public export
-(`release_scripts/public_manifest.toml`). `standards/docker.md` owns the
+`standards/just.md`. `standards/docker.md` owns the
 `infra-*` surface.
 
 Outside the groups are `setup`, `hooks`, `gen`, `check`, `pre-commit`, and
@@ -269,25 +268,33 @@ were second names for `check` and were removed. The Git pre-commit hook calls
 fast `just pre-commit`; there is no pre-push hook for the expensive suites, and
 full `just check` remains the CI gate.
 
-`security` is repository-wide, not group-specific: the dependency scanner is
-currently one tool (`bun audit`). A Python scanner is added to the same recipe when
-chosen, rather than creating an empty `back-security` in advance.
+`security` is repository-wide, not group-specific: the recipe runs `bun audit`
+over the web lockfile and `scripts/safety/scan_lockfile.sh`, which fetches the
+pinned `osv-scanner` (checksum-verified from its own release SHA256SUMS) and
+scans `uv.lock` for Python advisories.
 
 ## Frontend (`apps/web`)
 
 Frontend checks enter `just check` through `web-check`. Local and CI paths match
 (issues #82/#83, ADR-0043). The runner needs `bun` (the workflow installs it through
-`oven-sh/setup-bun`); missing `bun` fails the recipe rather than skipping the step.
-Dependency installation from `bun.lock` lives in shared `just setup`, not in a
-separate recipe.
+`.github/scripts/install-bun.sh`, a checksum-verified pinned archive); missing `bun`
+fails the recipe rather than skipping the step. Dependency installation from
+`bun.lock` lives in shared `just setup`, not in a separate recipe.
 
-`web-check` order is fixed: static checks, tests, build, and browser regression. The
-default site profile for `web-build` and CI is `public_saas`; `self_hosted` is checked
-by a separate explicit profile run. `web-regress` depends on `web-build` because
-Playwright starts `next start` over the production build and checks desktop and
-mobile viewports. The recipe installs only pinned browser bytes in the user cache.
-System libraries belong to the self-hosted runner image and are not installed by a
-check: `just check` does not call `sudo` or wait for an administrator password.
+`web-check` order is fixed: `web-build`, `web-storybook`, `web-static`, `web-test`,
+`web-regress`, `web-feature-profiles`. The build goes first deliberately —
+`tsconfig` includes the `.next/types/**` route validators `next build` generates,
+so building first is what lets `web-static` type-check them. The default site
+profile for `web-build` and CI is `public_saas`; `self_hosted` is checked by a
+separate explicit profile run in `web-feature-profiles`. `web-regress` depends on
+`web-build` because Playwright serves the production build with
+`node .next/standalone/server.js` — the standalone server is the artifact
+production runs, so `next start` would exercise a different one — and checks
+desktop and mobile viewports. The suite drives the stable Chrome already on the
+machine (`channel: "chrome"`); `ensure-chrome.sh` downloads pinned browser bytes
+into the user cache only as the fallback for a machine without one. System
+libraries belong to the runner image and are not installed by a check:
+`just check` does not call `sudo` or wait for an administrator password.
 
 `web-test` always measures coverage: first ordinary `test:coverage`, then
 `test:coverage:catalog` from `vitest.catalog.config.ts` with a 95% threshold for
@@ -332,10 +339,9 @@ request code and deployment share no job.
 CodeQL is not a gate. Who runs it and on which runner is defined in
 `docs/operations/ci-cd.md`.
 
-CodeQL is not a gate. Who runs it and on which runner is defined in
-`docs/operations/ci-cd.md`.
-
-`check` and `back-python-3.12` jobs run on pushes to `dev` and `main` and on every pull
+The `check.yml` jobs — `docs`, `package`, `tests`, `coverage`, `web-static`,
+`web-unit`, `web-e2e`, `web-profiles`, and `cli` — run on pushes to `dev` and
+`main` and on every pull
 request. Push branches in the workflow must match the line from `git-workflow.md`.
 An obsolete run is superseded on every event: there is nothing else to interrupt,
 and the freed slot goes to the current run.

@@ -1,6 +1,6 @@
 ---
 description: "Commands, execution boundary, and state mapping of a public provider."
-last_verified: "2026-09-24"
+last_verified: "2026-09-29"
 ---
 
 # Provider protocol
@@ -81,8 +81,9 @@ control directory and entries it does not own are excluded.
 This is not a cosmetic clarification. If read as "over the entire target" under
 `user_root`, any neighboring product entry created between plan and apply is
 indistinguishable from drift, and the operation fails at a root intentionally
-shared by four products. The more successful the convention, the more frequent
-the failures. When read as "over managed paths," another product's `skills` do
+shared by the five products that read the convention today — codex, cursor,
+grok-build, opencode, and pi. The more successful the convention, the more
+frequent the failures. When read as "over managed paths," another product's `skills` do
 not enter the digest, and the scopes retain the same meaning.
 
 Before traversal, the declared set is reduced to its **coverage**: a namespace
@@ -334,7 +335,7 @@ lock is `state=refused` with `reason=stale` (no effect) or `state=stale`. A
 mismatched or expired plan has no effect. A timeout/malformed response after a
 possible effect yields `partial` without automatic retry. After install, `status`
 proves `state=managed`, `target_digest`, protocol/provider identity, and drift
-`clean` or `verified`; nested `provider_state` is allowed.
+`clean`; nested `provider_state` is allowed.
 
 Before the first write, the provider publishes a target-local durable journal in
 phase `prepared`, bound to the exact plan digest, operation ID, and target-bound

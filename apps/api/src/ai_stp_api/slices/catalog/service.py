@@ -8,7 +8,7 @@ from datetime import UTC, date, datetime
 from typing import Literal, cast
 
 import httpx
-from sqlalchemy import delete, func, select, update
+from sqlalchemy import delete, func, select, tuple_, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -72,12 +72,15 @@ from ai_stp_platform.catalog_projection import (
 )
 from ai_stp_platform.catalog_query_language import QuerySyntaxError, parse_query
 from ai_stp_platform.catalog_read import (
+    PUBLIC_LIFECYCLES,
     CatalogIntegrityError,
     PublicVersionRow,
+    current_author_verification,
     get_public_object_versions,
     get_public_version,
     get_visible_metadata,
     get_visible_object_versions,
+    public_version_row,
 )
 from ai_stp_platform.catalog_search import (
     relation_filter_signature,
@@ -163,27 +166,82 @@ async def set_reaction(
 
 async def list_reactions(db: AsyncSession, *, account_id: str) -> CatalogReactionList:
     """Return public catalog projections liked by one account."""
-    rows = (
-        await db.execute(
-            select(CatalogReaction)
-            .where(CatalogReaction.account_id == account_id)
-            .order_by(CatalogReaction.created_at.desc(), CatalogReaction.id.desc())
-        )
-    ).scalars()
-    items: list[LikedCatalogItem] = []
-    for reaction in rows:
-        try:
-            detail = await (
-                read_component(db, reaction.stable_id)
-                if reaction.object_kind == "component"
-                else read_setup(db, reaction.stable_id)
+    reactions = list(
+        (
+            await db.execute(
+                select(CatalogReaction)
+                .where(CatalogReaction.account_id == account_id)
+                .order_by(CatalogReaction.created_at.desc(), CatalogReaction.id.desc())
             )
-        except CatalogNotFound:
+        )
+        .scalars()
+        .all()
+    )
+    if not reactions:
+        return CatalogReactionList(items=[])
+    pairs = {(reaction.object_kind, reaction.stable_id) for reaction in reactions}
+    # One publication read for every liked object: the same public-version
+    # gate `read_component`/`read_setup` apply per object, then the latest
+    # version per identity is picked exactly as they do.
+    metas = (
+        await db.scalars(
+            select(CatalogMetadata).where(
+                CatalogMetadata.visibility == "public",
+                CatalogMetadata.lifecycle_state.in_(tuple(PUBLIC_LIFECYCLES)),
+                CatalogMetadata.published_at.is_not(None),
+                CatalogMetadata.version.is_not(None),
+                CatalogMetadata.passport_document.is_not(None),
+                CatalogMetadata.passport_digest.is_not(None),
+                CatalogMetadata.trust_lane.is_not(None),
+                tuple_(CatalogMetadata.object_kind, CatalogMetadata.stable_id).in_(pairs),
+            )
+        )
+    ).all()
+    latest: dict[tuple[str, str], PublicVersionRow] = {}
+    for meta in metas:
+        row = public_version_row(meta)
+        key = (meta.object_kind, meta.stable_id)
+        current = latest.get(key)
+        if current is None or tuple(int(part) for part in row.version.split(".")) > tuple(
+            int(part) for part in current.version.split(".")
+        ):
+            latest[key] = row
+    verified = await current_author_verification(db, list(latest.values()))
+    latest = {(row.object_kind, row.stable_id): row for row in verified}
+    component_pairs = [
+        (row.stable_id, row.version) for row in verified if row.object_kind == "component"
+    ]
+    loaded = await load_effective_assessments_for_versions(db, component_pairs)
+    now = datetime.now(UTC)
+    items: list[LikedCatalogItem] = []
+    for reaction in reactions:
+        row = latest.get((reaction.object_kind, reaction.stable_id))
+        if row is None:
+            # Not a public offered object anymore: the old per-object read
+            # answered CatalogNotFound for the same condition.
             continue
         object_kind: Literal["component", "setup"] = (
             "component" if reaction.object_kind == "component" else "setup"
         )
-        items.append(LikedCatalogItem(object_kind=object_kind, summary=detail.summary))
+        try:
+            if object_kind == "component":
+                assessments = {
+                    (adaptation, harness, scope): assessment
+                    for (
+                        stable_id,
+                        version,
+                        adaptation,
+                        harness,
+                        scope,
+                    ), assessment in loaded.items()
+                    if (stable_id, version) == (row.stable_id, row.version)
+                }
+                summary = component_summary(row, now=now, assessments=assessments)
+            else:
+                summary = setup_summary(row, now=now)
+        except CatalogIntegrityError as exc:
+            raise _corrupt(exc, object_kind=object_kind, stable_id=row.stable_id) from exc
+        items.append(LikedCatalogItem(object_kind=object_kind, summary=summary))
     return CatalogReactionList(items=items)
 
 

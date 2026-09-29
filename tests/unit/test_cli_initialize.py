@@ -18,8 +18,8 @@ from ai_stp_cli.application.initialize import (
     PATCH_OPERATION,
     SECTION_BEGIN,
     SECTION_END,
+    BoundProvider,
     PatchObservation,
-    _region_wrote,
     drain,
     extract_section,
     global_instruction,
@@ -93,12 +93,6 @@ def test_empty_cursor_file_keeps_always_apply_prefix() -> None:
     assert spliced.count("alwaysApply: true") == 1
     assert "hello from a later patch" in spliced
     assert extract_section(spliced) == extract_section(changed)
-
-
-def test_region_wrote_reads_the_kernel_effect_line() -> None:
-    assert _region_wrote(("patch instruction region at rules/ai-stp.mdc",)) is True
-    assert _region_wrote(("instruction region at rules/ai-stp.mdc already matches",)) is False
-    assert _region_wrote(()) is False
 
 
 def test_cursor_rules_stay_under_literal_home(
@@ -407,6 +401,7 @@ def _remember(harness_id: str, executable: Path, *, source: str) -> None:
 
     from ai_stp_cli.local import provider_installations as installations
     from ai_stp_cli.local.database import configured_path, open_registry
+    from ai_stp_cli.provider import release
 
     with closing(open_registry(configured_path(), create=True)) as connection:
         installations.remember(
@@ -416,6 +411,7 @@ def _remember(harness_id: str, executable: Path, *, source: str) -> None:
                 path=str(executable),
                 source=source,
                 state=installations.STATE_INSTALLED,
+                artifact_digest=release.artifact_identity(executable)[0],
             ),
         )
 
@@ -484,7 +480,7 @@ def test_remembered_provider_without_patch_stays_too_old(
     dummy = _dummy_provider(tmp_path)
     _remember("claude-code", dummy, source=installations.SOURCE_CHOSEN)
 
-    def inspect(_path: Path) -> protocol_v3.ProviderCapabilities:
+    def inspect(_path: Path, **_kwargs: object) -> protocol_v3.ProviderCapabilities:
         return _capabilities(patch=False, section=False)
 
     monkeypatch.setattr(attested_bind, "inspect_provider", inspect)
@@ -505,7 +501,7 @@ def test_remembered_provider_without_instruction_section_stays_too_old(
     dummy = _dummy_provider(tmp_path)
     _remember("claude-code", dummy, source=installations.SOURCE_CHOSEN)
 
-    def inspect(_path: Path) -> protocol_v3.ProviderCapabilities:
+    def inspect(_path: Path, **_kwargs: object) -> protocol_v3.ProviderCapabilities:
         return _capabilities(patch=True, section=False)
 
     monkeypatch.setattr(attested_bind, "inspect_provider", inspect)
@@ -528,7 +524,7 @@ def test_bound_provider_declaring_both_invokes_the_region_patch(
     dummy = _dummy_provider(tmp_path)
     _remember("claude-code", dummy, source=installations.SOURCE_CHOSEN)
 
-    def inspect(_path: Path) -> protocol_v3.ProviderCapabilities:
+    def inspect(_path: Path, **_kwargs: object) -> protocol_v3.ProviderCapabilities:
         return _capabilities(patch=True, section=True)
 
     called: list[str] = []
@@ -568,7 +564,13 @@ def test_invoke_region_patch_sends_instruction_section_when_declared(
     def fake_invoke(command: str, arguments: Sequence[str]) -> JsonValue:
         captured.append((command, tuple(arguments)))
         if command == "status":
-            return {"target_digest": "sha256:" + "d" * 64}
+            return {
+                "target_digest": "sha256:" + "d" * 64,
+                "instruction_region": {
+                    "section_sha256": "sha256:" + "f" * 64,
+                    "section_present": True,
+                },
+            }
         return {"state": "planned"}
 
     def fake_invoker(*_args: object, **_kwargs: object) -> Invoker:
@@ -582,7 +584,7 @@ def test_invoke_region_patch_sends_instruction_section_when_declared(
         )
 
     def fake_applied(*_args: object, **_kwargs: object) -> str:
-        return "ok"
+        return "verified"
 
     def fake_store(*_args: object, **_kwargs: object) -> Path:
         return tmp_path / "plan.json"
@@ -592,8 +594,8 @@ def test_invoke_region_patch_sends_instruction_section_when_declared(
 
     dummy = _dummy_provider(tmp_path)
 
-    def bound(_harness: str) -> Path:
-        return dummy
+    def bound(_harness: str) -> BoundProvider:
+        return BoundProvider(dummy, None)
 
     monkeypatch.setattr(initialize_service, "bound_executable", bound)
     monkeypatch.setattr(invocation, "provider_invoker", fake_invoker)
@@ -606,6 +608,7 @@ def test_invoke_region_patch_sends_instruction_section_when_declared(
         "claude-code", section, _capabilities(patch=True, section=True)
     )
     assert observation.wrote is True
+    assert observation.section_digest == "sha256:" + "f" * 64
     planned = next(item for item in captured if item[0] == "plan-operation")
     argv = planned[1]
     assert "--instruction-section" in argv

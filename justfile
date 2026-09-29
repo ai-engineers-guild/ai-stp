@@ -2,7 +2,6 @@
 # never a CI dependency: workflows write the recipe bodies out inline, and
 # tests/contract/test_gate_split_covers_the_gate.py proves the two unions
 # match. The conventions this file follows live in standards/just.md.
-# That directory is withheld from the public export.
 #
 # The file rests on a duality: `gen` writes, `check` reads. Everything else is
 # the same operations narrowed to one group.
@@ -159,6 +158,7 @@ fonts-licence *args:
 security:
     {{ bunreq }}
     cd apps/web && bun run audit
+    bash scripts/safety/scan_lockfile.sh
 
 # Offline check of an estate record (`docs/contracts/estate-release.md`).
 [arg('path', help='estate record file to validate')]
@@ -505,58 +505,8 @@ back-gen:
     {{ run }} python -m ai_stp_contracts.web_projections
     {{ run }} python release_scripts/provider_kit.py provider-kit/v3
     {{ run }} python release_scripts/verifier_requirements.py
+    {{ run }} python release_scripts/first_party_corpus_digests.py
     {{ py }} {{ scripts }}/skill_projections.py
-
-# Format, lint, types and generated-vs-source drift in one pass.
-# What may enter the public `ai-stp` repository, and what may never.
-# The report writes nothing and refuses if an unnamed root or private
-# infrastructure appears in a published file.
-[doc('Report what may and may never enter the public tree')]
-[group('release')]
-public-report:
-    {{ run }} python -m release_scripts.public_export --report
-
-# Builds the public tree into `public/build`: manifest, overlay, its own git
-# and rebuilt indexes.
-[doc('Build the public tree into public/build')]
-[group('release')]
-public-build:
-    {{ run }} python -m release_scripts.public_export
-
-# Publishes the built tree to `ai-stp` in one commit from the identity of the
-# global git config. The delta is computed through the API, so nothing needs
-# downloading.
-[arg('tree', help='built public tree')]
-[arg('message', help='file containing the commit message')]
-[doc('Publish the built tree to ai-stp in one commit')]
-[group('release')]
-public-publish tree message:
-    {{ run }} python -m release_scripts.public_publish --tree "{{ tree }}" --message-file "{{ message }}"
-
-# Pulls the public tree back here (`ADR-0110`). The argument is a checkout of
-# `ai-stp`. Generators are called next, because the public tree's indexes
-# enumerate only its own documents and this tree has more.
-[arg('tree', help='checkout of the public ai-stp repository')]
-[doc('Pull the public tree back here (ADR-0110)')]
-[group('release')]
-public-sync tree:
-    {{ run }} python -m release_scripts.public_import --tree "{{ tree }}"
-    just docs-gen
-    just back-gen
-
-# Shows what a sync would change, writing nothing.
-[arg('tree', help='checkout of the public ai-stp repository')]
-[group('release')]
-public-sync-report tree:
-    {{ run }} python -m release_scripts.public_import --tree "{{ tree }}" --report
-
-# Verifies the published half of this tree matches the public repository byte
-# for byte. This is a round-trip check of sync and export at once.
-[arg('tree', help='checkout of the public ai-stp repository')]
-[doc('Verify the published half matches the public repository')]
-[group('release')]
-public-sync-verify tree:
-    {{ run }} python -m release_scripts.public_import --tree "{{ tree }}" --verify
 
 [doc('Format, lint, types and generated drift in one pass')]
 [group('back')]
@@ -564,11 +514,13 @@ back-static:
     {{ run }} ruff format --check .
     {{ run }} ruff check .
     {{ run }} python -m pyright
-    {{ run }} python -m release_scripts.public_export --report
     {{ run }} python -m ai_stp_contracts.schemas --check schemas/v1
     {{ run }} python -m ai_stp_contracts.web_projections --check
     {{ run }} python release_scripts/provider_kit.py --check provider-kit/v3
     {{ run }} python release_scripts/verifier_requirements.py --check
+    {{ run }} python release_scripts/first_party_corpus_digests.py --check
+    {{ run }} python release_scripts/safety_requirements.py --check
+    {{ run }} python -m release_scripts.update_component_fixture --check
     {{ py }} {{ scripts }}/skill_projections.py --check
 
 # Coverage is printed, not a fail-under (ADR-0147). The second call reads
@@ -679,6 +631,7 @@ web-i18n:
 web-static: web-i18n
     {{ bunreq }}
     cd apps/web && bun run lint
+    cd apps/web && bun run api:check
     cd apps/web && bun run format:check
     cd apps/web && bun run type-check
 

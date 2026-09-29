@@ -19,6 +19,8 @@ from sqlalchemy.orm import selectinload
 from ai_stp_api.errors import ApiError, ErrorCategory
 from ai_stp_platform.models import AccountSession, Device
 
+_LAST_SEEN_WRITE_INTERVAL = timedelta(seconds=60)
+
 
 def hash_session_token(raw_token: str) -> str:
     """Return the durable primary-key form of a raw session token."""
@@ -174,8 +176,14 @@ async def verify_raw_token(
             details={"reason": "onboarding_pending"},
         )
     if row.device is not None:
-        row.device.last_seen_at = datetime.now(UTC)
-        await db.flush()
+        now = datetime.now(UTC)
+        last_seen = row.device.last_seen_at
+        # `last_seen_at` is observational, not a correctness input: writing it
+        # on every request turns the hot auth path into a write per read. A
+        # one-minute granularity keeps "last active" honest without the churn.
+        if last_seen is None or now - last_seen >= _LAST_SEEN_WRITE_INTERVAL:
+            row.device.last_seen_at = now
+            await db.flush()
     return AuthContext(
         account_id=row.account_id,
         session_id=row.id,

@@ -3,9 +3,11 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Button } from "@/components/atoms/button";
 import { StatePanel } from "@/components/molecules/state-panel";
 import { CatalogResults } from "@/components/organisms/catalog-results";
+import { ApiError } from "@/lib/api/errors";
 import { listCatalogReactions } from "@/lib/api/reactions";
 import { requireSession, sessionCookieValue } from "@/lib/auth/require-session";
 import { loadPublisherProfiles } from "@/lib/catalog-load";
+import { catalogResultsLabels } from "@/lib/catalog-results-labels";
 import { Link } from "@/lib/i18n/navigation";
 import { Icon } from "@/theme";
 
@@ -20,7 +22,15 @@ export default async function MyLikesPage({ params }: PageProps) {
     getTranslations("common"),
     getTranslations("catalog"),
   ]);
-  const reactions = await listCatalogReactions(await sessionCookieValue());
+  let reactions;
+  try {
+    reactions = await listCatalogReactions(await sessionCookieValue());
+  } catch (error) {
+    if (error instanceof ApiError && error.code === "AI_STP_UNAVAILABLE") {
+      return <StatePanel kind="error" title={tc("error")} description={tc("apiUnavailable")} />;
+    }
+    throw error;
+  }
   const items = reactions.items.map((item) => item.summary);
   const authors = await loadPublisherProfiles(items.map((item) => item.publisher_id));
 
@@ -59,52 +69,13 @@ export default async function MyLikesPage({ params }: PageProps) {
           query={{}}
           locale={locale}
           authors={authors}
-          labels={{
-            authoritative: tCatalog("authoritative"),
-            experimental: tCatalog("experimental"),
-            experimentalNote: tCatalog("experimentalNote"),
+          labels={catalogResultsLabels(tCatalog, tc, {
+            resultsHeading: t("results"),
             emptyAuthoritative: t("empty"),
             emptyExperimental: t("empty"),
             emptyAll: t("empty"),
-            resultsHeading: t("results"),
-            nextPage: tCatalog("nextPage"),
-            version: tCatalog("version"),
-            harness: tCatalog("harness"),
-            type: tCatalog("type"),
-            tags: tCatalog("tags"),
-            purpose: tCatalog("purpose"),
-            targetRole: tCatalog("targetRole"),
-            authorVerified: tCatalog("authorVerified"),
-            githubStars: tCatalog("githubStars"),
-            componentVerified: tCatalog("componentVerified"),
-            yes: tc("yes"),
-            no: tc("no"),
-            publisher: tCatalog("publisher"),
             publishedAt: tCatalog("publishedAt"),
-            likes: tCatalog("likes"),
-            detailViews: tCatalog("detailViews"),
-            artifactDownloads: tCatalog("artifactDownloads"),
-            componentKind: tCatalog("componentKind"),
-            setupKind: tCatalog("setupKind"),
-            moreActions: tCatalog("moreActions"),
-            copyCli: tCatalog("copyCli"),
-            copyId: tCatalog("copyId"),
-            copyUrl: tCatalog("copyUrl"),
-            copied: tCatalog("copied"),
-            report: tCatalog("report"),
-            reportSetup: tCatalog("reportSetup"),
-            whyFailed: tCatalog("whyFailed"),
-            whyWarning: tCatalog("whyWarning"),
-            requirements: tCatalog("requirements"),
-            credentialsRequired: tCatalog("credentialsRequired"),
-            safetyChecks: tCatalog("safetyChecks"),
-            safetyNoScan: tCatalog("safetyNoScan"),
-            safetyCheckExplanation: tCatalog("safetyCheckExplanation"),
-            like: tCatalog("like"),
-            unlike: tCatalog("unlike"),
-            likeMenu: tCatalog("likeMenu"),
-            unlikeMenu: tCatalog("unlikeMenu"),
-          }}
+          })}
           likedIds={items.map((item) => item.stable_id)}
         />
       )}

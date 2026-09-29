@@ -41,7 +41,7 @@ review. The code-backed canon remains the owner of the domain inventory.
 
 | Session lead | Current implementation and second check | Decision |
 | --- | --- | --- |
-| Cursor task kernel, stdin and control attachment | `application/task.py`, `application/initialize.py`, `app.py`, task-driver regressions; eight intents already ship | Keep implementation; do not rebuild #297 |
+| Cursor task kernel, stdin and control attachment | `application/task.py`, `application/initialize.py`, `app.py`, task-driver regressions; nine intents already ship | Keep implementation; do not rebuild #297 |
 | Claude sync digests and durable receipts | Project sync/revision services and `test_cli_project_sync_apply.py`, `test_cli_project_revision.py` | Repairs implemented; retain live multi-device evidence separately |
 | Grok stale specifications and fake API journeys | `implementation-canon.md`, `tests/api/cli`, real PostgreSQL fixtures, generated-contract checks | Preserve current code-backed classification; do not revive mass archive proposals |
 | Codex native Antigravity, private publication and provider instruction preservation | September 24 native evidence, publication services, exact synced local versions, public provider 0.0.76 release receipts | Historical assisted native proof is valid for its recorded bytes; full fresh-session/platform matrix is still separate |
@@ -60,7 +60,7 @@ review. The code-backed canon remains the owner of the domain inventory.
 | 4 | Preserve attempts | Reject nonempty direct workspaces; fill uses unique directories; validate scenario and run before effects; retain unavailable and failed attempts |
 | 5 | Bind execution inputs | Hash actual first-party payload and copied Skill, record installation/archive metadata and website prompt; refuse mixed/unknown candidate overlays; retain prompt and driver identity per attempt; recheck input bytes before score |
 | 6 | Recheck reported UX failures | Only reproducible product failures justify runtime changes. Unsupported model commands and invalid fixtures remain explicit findings |
-| 7 | Finish delivery | PyPI 0.0.30 published in run 36229099123; public wheel/sdist match the candidate; unpinned isolated install resolves 0.0.30. Maintenance 0.0.31 shipped; 0.0.32 published through release-candidate 36328279281 and publish-pypi 36328558135 carrying the detach_operation reader — still no autonomous-model acceptance claim |
+| 7 | Finish delivery | PyPI 0.0.30 published in run 36229099123; public wheel/sdist match the candidate; unpinned isolated install resolves 0.0.30. Maintenance 0.0.31 shipped; 0.0.32 published through release-candidate 36328279281 and publish-pypi 36328558135 carrying the detach_operation reader; 0.0.33 published through release-candidate 36384276021 and publish-pypi 36384484011 carrying provider-kit 0.2.15 and the unified provider invocation boundary — still no autonomous-model acceptance claim; 0.0.34 tagged `v0.0.34` @ `309f77f4` (promotion #530, attested candidate 36522578596); 0.0.35 tagged `v0.0.35` @ `dd476cef` (promotion #535, candidate run 36540669341) and published to PyPI through run 36548752992 after owner approval — 0.0.34 was tagged+attested but intentionally never published |
 | 8 | Repeat private publication | Verified a new synthetic private setup through author/publish, worker completion, fresh owner version/artifact reads and anonymous not-found; no grants or existing visibility changes |
 | 9 | Repeat GPT OSS 120B acceptance | New unassisted attempt returned individual quota exhaustion with a 4h42m reset; it remains `not_run`. Do not fill the corpus while this condition persists |
 | 10 | Update canonical documents | SPEC-080 follows tested oracles, prerequisites and identity binding; this roadmap owns the current order; Agent UX preserves historical scores |
@@ -199,8 +199,9 @@ The real RustFS owner/bucket-isolation test passed against a separate disposable
 container. `just evidence-live` passed anonymously against `0bc51644`, listing
 187 components and 28 setups and checking exact-version, machine-projection
 and offline-cache parity. Its login/revocation scenarios remain `not_verified`.
-The initial web command correctly refused installed Bun 1.4.2; subsequent web
-checks use the repository pin 1.4.0 from a temporary tool directory.
+The initial web command correctly refused an installed Bun other than the
+pin; subsequent web checks use the repository pin from a temporary tool
+directory.
 Full-suite and final-SHA results belong to the work PR, not this baseline.
 
 The user-directed workstation run installed the `f64befa0` CLI wheel into an
@@ -265,10 +266,10 @@ qualification work is erased.
 
 | Remainder | Next concrete proof or owner |
 | --- | --- |
-| Agent UX #261–#275 and setup-systems #316 | Retain implementation evidence per child issue; native Windows x86_64/macOS arm64 and fresh-session loading must be measured against exact candidate/provider bytes before epic closure |
+| Agent UX #261–#275 (closed 2026-09-26) and setup-systems #316 (open) | Retain implementation evidence per child issue; native Windows x86_64/macOS arm64 and fresh-session loading stay `not_run` at the test level; #316 still needs measured provider/platform cells |
 | Full-beta 28 setups × 3 required platforms | Follow SPEC-061 and ADR-0172, including retained evidence files and artifact binding; Linux arm64, Windows arm64 and macOS x86_64 remain optional, not release blockers |
 | Account/private publication/grants/two-device journeys | Use isolated authenticated devices and explicit test objects; anonymous health and local API tests do not prove these live journeys |
-| #256 estate ledger, ancestry performance and promotion policy | Existing owner; keep the issue open and its missing measurements visible; do not narrow deployment checks to make an audit green |
+| #256 estate ledger, ancestry performance and promotion policy | Closed with evidence 2026-09-26; its missing-measurement record stays visible; do not narrow deployment checks to make an audit green |
 | #358 standalone corporate component assignments and other corporate backlog | Colleague scope; do not equate task-based component installation with corporate assignment verification |
 | Old PyPI internal-project cleanup (#100) | Recheck existence; deletion has no recovery path and is not part of reversible code repair |
 | Rust rewrites, new component kinds, new integrations | Backlog proposals, not defects inferred from old session requests |
@@ -295,12 +296,12 @@ On `main` now, and not in the September 8 snapshot below:
 - `standards/just.md` and `standards/docker.md` ([#306](https://github.com/ai-engineers-guild/ai-stp/pull/306)–[#308](https://github.com/ai-engineers-guild/ai-stp/pull/308)); `infra-*` is outside `just check`
 - Deploy secret preflight, least-privilege compose env, docs origin probe ([#309](https://github.com/ai-engineers-guild/ai-stp/pull/309) / [#311](https://github.com/ai-engineers-guild/ai-stp/pull/311))
 - Host `.env.prod` must name `AI_STP_STORAGE_ARTIFACT_BUCKET` and `AI_STP_STORAGE_ASSET_BUCKET` (they may equal the existing `AI_STP_STORAGE_BUCKET` during upgrade)
-- Consumer kit in this tree is `0.2.14`. Public `NDDev-OpenNetwork/*-setup-system` tags are `0.0.77` and vendor kit `0.2.13`
+- Consumer kit in this tree is `0.2.15`. Public `NDDev-OpenNetwork/*-setup-system` tags are `0.0.79` and vendor kit `0.2.15`
 - Observed live 2026-09-20: `GET /v1/system/version` `git_commit` matched `origin/main` and `origin/deploy/prod` (`34dde4bb`); API package `0.0.16`; `/v1/health/ready` 200; `https://docs.nddev.asia` 200
 - Observed live 2026-09-22: `GET /v1/system/version` `git_commit` `6f9ef8f5` matches `origin/main` and `origin/deploy/prod` (tag `v0.0.24`); API package `0.0.16`; `/v1/health/live` and `/v1/health/ready` 200
 - Observed live 2026-09-22 (later): `origin/main` and `origin/deploy/prod` at `60aec921` (tag `v0.0.25`); PyPI `ai-stp-cli` latest `0.0.25`; host `git_commit` follows the deploy/prod pull interval
 
-Still open on this owner's line: Agent UX epic [#261](https://github.com/ai-engineers-guild/ai-stp/issues/261)–#275 (Haiku qualify, native win/mac), setup-systems #316. Corporate / `feat/milestone-6-b2b-03` is a colleague scope — do not close those issues from this plan.
+Agent UX epic [#261](https://github.com/ai-engineers-guild/ai-stp/issues/261)–#275 closed with evidence on 2026-09-26 (native win/mac remain `not_run` at the test level). Still open on this owner's line: setup-systems #316. Corporate / `feat/milestone-6-b2b-03` is a colleague scope — do not close those issues from this plan.
 
 The September 8 table below is a historical snapshot. Its CLI `0.0.21` and
 production SHA are not current.
@@ -744,7 +745,9 @@ The September 26 estate pass terminated with these measured results:
 - `ai-stp` 0.0.31 (`baf94a29`) is the deployed production commit;
   `/v1/system/version` and `/feed.xml` verified live. Provider releases
   0.0.76 (seven harnesses), provider-kit 0.2.13; since then providers
-  released 0.0.77 and this tree's kit moved to 0.2.14.
+  released 0.0.77 and this tree's kit moved to 0.2.14. As of 2026-09-28 the
+  public tags are 0.0.79 on all seven and the vendored kit is 0.2.15 — the
+  same version this consumer reads.
 - GPT OSS 120B corpus terminated by owner decision at 104/200 cells:
   guided layer 51/100 raw, corrected to 66/77 recorded after re-scoring with
   the fixed scorer (all five core journeys 5/5); unassisted 14/27 with a

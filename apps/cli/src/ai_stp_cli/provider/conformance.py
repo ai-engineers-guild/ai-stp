@@ -22,6 +22,7 @@ malicious bundle might not crash it.
 
 import json
 import os
+import signal
 import subprocess
 import sys
 import threading
@@ -198,17 +199,54 @@ class ProcessLike(Protocol):
 type SpawnProcess = Callable[[list[str], dict[str, str]], ProcessLike]
 
 
-def _popen(command: list[str], environment: dict[str, str]) -> ProcessLike:
-    """The ordinary factory, and the one every platform but Windows uses."""
-    return cast(
-        ProcessLike,
-        subprocess.Popen(
+class _GroupProcess:
+    """A provider in its own session, so the watchdog reaches its descendants.
+
+    `Popen.kill()` signals only the direct child. A provider that forked a
+    helper inheriting the stdout pipe used to leave the read waiting on that
+    helper even after the watchdog fired: the child was dead, the pipe was
+    still held. Starting the provider as a session leader and signaling the
+    process group closes that gap; a descendant that calls `setsid` itself is
+    the residual a group cannot cover.
+    """
+
+    def __init__(self, command: list[str], environment: dict[str, str]) -> None:
+        self._process = subprocess.Popen(
             command,
             stdout=subprocess.PIPE,
             stderr=subprocess.DEVNULL,
             env=environment,
-        ),
-    )
+            start_new_session=True,
+        )
+        self.stdout: IO[bytes] | None = self._process.stdout
+
+    def kill(self) -> None:
+        # os.killpg is POSIX-only; Windows providers reach here through the
+        # job-object launcher (its own spawn factory), so this default path
+        # only ever sees a POSIX group — but tests exercise it on Windows
+        # too, where the attribute does not exist at all.
+        if os.name == "posix":
+            try:
+                os.killpg(self._process.pid, signal.SIGKILL)
+                return
+            except (ProcessLookupError, PermissionError):
+                pass
+        self._process.kill()
+
+    def wait(self) -> int:
+        return self._process.wait()
+
+    def __enter__(self) -> Self:
+        self._process.__enter__()
+        return self
+
+    def __exit__(self, *_: object) -> None:
+        self._process.__exit__(None, None, None)
+
+
+def _popen(command: list[str], environment: dict[str, str]) -> ProcessLike:
+    """The ordinary factory, and the one every platform but Windows uses."""
+    return _GroupProcess(command, environment)
 
 
 def invoke_argv(

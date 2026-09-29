@@ -32,18 +32,17 @@ async def test_catalog_write_rollback_removes_metadata_and_enqueue(
     await _create_account(db_sessionmaker, account_id)
 
     with pytest.raises(RuntimeError, match="force rollback"):
-        async with db_sessionmaker() as session:
-            async with session.begin():
-                await create_catalog_metadata_and_enqueue_upload(
-                    session,
-                    owner_account_id=account_id,
-                    object_kind="component",
-                    stable_id="component_outbox_rollback",
-                    current_revision_id="revision_" + "a" * 64,
-                    visibility=Visibility.PRIVATE,
-                    idempotency_key="catalog-outbox-rollback",
-                )
-                raise RuntimeError("force rollback")
+        async with db_sessionmaker() as session, session.begin():
+            await create_catalog_metadata_and_enqueue_upload(
+                session,
+                owner_account_id=account_id,
+                object_kind="component",
+                stable_id="component_outbox_rollback",
+                current_revision_id="revision_" + "a" * 64,
+                visibility=Visibility.PRIVATE,
+                idempotency_key="catalog-outbox-rollback",
+            )
+            raise RuntimeError("force rollback")
 
     async with db_sessionmaker() as session:
         metadata_count = await session.scalar(select(func.count()).select_from(CatalogMetadata))

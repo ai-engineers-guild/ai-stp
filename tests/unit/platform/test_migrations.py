@@ -182,6 +182,7 @@ def test_organization_backfill_is_idempotent_and_fails_closed_for_orphans() -> N
         connection.execute(text("INSERT INTO account (id) VALUES ('orphan_account')"))
         with pytest.raises(RuntimeError, match="missing or ambiguous"):
             migration._backfill_organization_resources(connection, rows)
+    engine.dispose()
 
 
 def test_organization_migration_repairs_the_unapplied_visibility_branch() -> None:
@@ -202,6 +203,7 @@ def test_organization_migration_repairs_the_unapplied_visibility_branch() -> Non
             for column in connection.dialect.get_columns(connection, "visibility_plan")
         }
         assert columns == {"id", "actor_account_id", "idempotency_key", "state", "document"}
+    engine.dispose()
 
 
 def test_official_upstream_sync_does_not_cascade_on_source_delete() -> None:

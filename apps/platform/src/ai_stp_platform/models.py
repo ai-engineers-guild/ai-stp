@@ -106,7 +106,7 @@ class OAuthIdentity(Base):
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
 
-    account: Mapped[Account] = relationship()
+    account: Mapped[Account] = relationship(lazy="raise")
 
 
 class Device(Base):
@@ -114,7 +114,9 @@ class Device(Base):
 
     __tablename__ = "device"
     __table_args__ = (
-        UniqueConstraint("account_id", "public_key", name="uq_device_account_public_key"),
+        # A device key identifies one device globally: the same Ed25519 key may
+        # never appear under two accounts, so uniqueness is on the key alone.
+        UniqueConstraint("public_key", name="uq_device_public_key"),
         CheckConstraint("state in ('active', 'revoked')", name="ck_device_state"),
     )
 
@@ -134,7 +136,7 @@ class Device(Base):
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
 
-    account: Mapped[Account] = relationship()
+    account: Mapped[Account] = relationship(lazy="raise")
 
 
 class AccountSession(Base):
@@ -154,11 +156,11 @@ class AccountSession(Base):
     )
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    kind: Mapped[str] = mapped_column(String(16), default="access")
+    kind: Mapped[str] = mapped_column(String(16), default="access", server_default="access")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
-    account: Mapped[Account] = relationship()
-    device: Mapped[Device | None] = relationship()
+    account: Mapped[Account] = relationship(lazy="raise")
+    device: Mapped[Device | None] = relationship(lazy="raise")
 
 
 class DeviceAuthorization(Base):
@@ -172,6 +174,7 @@ class DeviceAuthorization(Base):
             "status in ('pending', 'approved', 'declined', 'consumed')",
             name="ck_device_authorization_status",
         ),
+        Index("ix_device_authorization_status_expires", "status", "expires_at"),
     )
 
     device_code: Mapped[str] = mapped_column(String(256), primary_key=True)
@@ -209,6 +212,14 @@ class CatalogMetadata(OrganizationScopedMixin, Base):
             "trust_lane is null or trust_lane in ('authoritative', 'experimental')",
             name="ck_catalog_metadata_trust_lane",
         ),
+        Index(
+            "ix_catalog_metadata_public_list",
+            "object_kind",
+            "visibility",
+            "lifecycle_state",
+            "published_at",
+            "stable_id",
+        ),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -241,7 +252,7 @@ class CatalogMetadata(OrganizationScopedMixin, Base):
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
 
-    owner: Mapped[Account] = relationship()
+    owner: Mapped[Account] = relationship(lazy="raise")
 
 
 class CatalogIdentity(OrganizationScopedMixin, Base):
@@ -419,8 +430,12 @@ class ExternalProduct(Base):
     """Mutable curated product/service presentation, deduplicated by domain."""
 
     __tablename__ = "external_product"
+    __table_args__ = (
+        UniqueConstraint("canonical_domain", name="uq_external_product_canonical_domain"),
+    )
+
     id: Mapped[int] = mapped_column(primary_key=True)
-    canonical_domain: Mapped[str] = mapped_column(String(253), unique=True, index=True)
+    canonical_domain: Mapped[str] = mapped_column(String(253))
     primary_url: Mapped[str] = mapped_column(String(512))
     name: Mapped[str] = mapped_column(String(160))
     description: Mapped[str | None] = mapped_column(String(2000), nullable=True)
@@ -579,11 +594,14 @@ class ObjectLocation(OrganizationScopedMixin, Base):
     size_bytes: Mapped[int] = mapped_column(BigInteger)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
-    catalog_metadata: Mapped[CatalogMetadata] = relationship()
+    catalog_metadata: Mapped[CatalogMetadata] = relationship(lazy="raise")
 
 
 class AuditEvent(OrganizationScopedMixin, Base):
     """Append-only audit row for sensitive server actions."""
+
+    # Anonymous audit entries carry no tenant; 0059 keeps the column nullable.
+    _organization_scope_nullable = True
 
     __tablename__ = "audit_event"
     __table_args__ = (
@@ -612,7 +630,7 @@ class AuditEvent(OrganizationScopedMixin, Base):
     payload: Mapped[dict[str, object]] = mapped_column(JSON, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
-    actor: Mapped[Account | None] = relationship()
+    actor: Mapped[Account | None] = relationship(lazy="raise")
 
 
 class SyncRevision(OrganizationScopedMixin, Base):
@@ -631,6 +649,7 @@ class SyncRevision(OrganizationScopedMixin, Base):
             name="ck_sync_revision_operation",
         ),
         CheckConstraint("schema_version = 1", name="ck_sync_revision_schema_version"),
+        Index("ix_sync_revision_account_entity", "account_id", "entity_id"),
     )
 
     account_id: Mapped[str] = mapped_column(
@@ -710,7 +729,7 @@ class SyncOutbox(OrganizationScopedMixin, Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     account_id: Mapped[str] = mapped_column(
-        String(64), ForeignKey("account.id", ondelete="CASCADE"), index=True
+        String(64), ForeignKey("account.id", ondelete="CASCADE")
     )
     sequence: Mapped[int] = mapped_column(BigInteger)
     event_id: Mapped[str] = mapped_column(String(128))
@@ -771,7 +790,7 @@ class PublicationPlan(OrganizationScopedMixin, Base):
     version: Mapped[str] = mapped_column(String(32))
     content_digest: Mapped[str] = mapped_column(String(71))
     artifact_inventory: Mapped[list[str]] = mapped_column(JSON, default=list)
-    visibility: Mapped[str] = mapped_column(String(16), default="private", server_default="private")
+    visibility: Mapped[str] = mapped_column(String(16), default="private")
     policy_version: Mapped[str] = mapped_column(String(32), default="1")
     plan_hash: Mapped[str] = mapped_column(String(128))
     state: Mapped[str] = mapped_column(String(32), default="ready")
@@ -884,10 +903,11 @@ class SafetyScanRun(Base):
             "state in ('running', 'complete', 'failed')",
             name="ck_safety_scan_run_state",
         ),
+        Index("ix_safety_scan_run_digest", "content_digest"),
     )
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
-    content_digest: Mapped[str] = mapped_column(String(71), index=True)
+    content_digest: Mapped[str] = mapped_column(String(71))
     policy_version: Mapped[str] = mapped_column(String(32))
     profile: Mapped[str] = mapped_column(String(32))
     object_kind: Mapped[str] = mapped_column(String(32), default="component")
@@ -1079,7 +1099,7 @@ class ComplaintIntake(Base):
     submitter_account_id: Mapped[str | None] = mapped_column(
         String(64), ForeignKey("account.id", ondelete="SET NULL"), nullable=True
     )
-    submitter_key: Mapped[str] = mapped_column(String(330), index=True)
+    submitter_key: Mapped[str] = mapped_column(String(330))
     target_kind: Mapped[str] = mapped_column(String(32))
     target: Mapped[str] = mapped_column(String(256))
     sender_name: Mapped[str] = mapped_column(String(120))
@@ -1165,6 +1185,7 @@ class PublicDocument(Base):
 
     __tablename__ = "public_document"
     __table_args__ = (
+        UniqueConstraint("slug", name="uq_public_document_slug"),
         CheckConstraint(
             "kind in ('technical', 'privacy', 'cookies', 'service_rules', "
             "'author_content_and_license', 'personal_data_consent')",
@@ -1173,7 +1194,7 @@ class PublicDocument(Base):
     )
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
-    slug: Mapped[str] = mapped_column(String(128), unique=True, index=True)
+    slug: Mapped[str] = mapped_column(String(128))
     kind: Mapped[str] = mapped_column(String(64))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
@@ -1588,7 +1609,7 @@ class TargetAssessment(Base):
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    target_key_digest: Mapped[str] = mapped_column(String(71), index=True)
+    target_key_digest: Mapped[str] = mapped_column(String(71))
     identity: Mapped[dict[str, object]] = mapped_column(JSON)
     stored_state: Mapped[str] = mapped_column(String(32))
     compatibility_result: Mapped[str] = mapped_column(String(16), default="not_run")
@@ -1607,17 +1628,18 @@ class TargetAssessmentLatest(Base):
 
     __tablename__ = "target_assessment_latest"
     __table_args__ = (
-        UniqueConstraint("target_key_digest", name="uq_target_assessment_latest_key"),
+        Index("ix_target_assessment_latest_component", "component_stable_id"),
+        Index("ix_target_assessment_latest_harness", "harness_id"),
     )
 
     target_key_digest: Mapped[str] = mapped_column(String(71), primary_key=True)
     assessment_id: Mapped[int] = mapped_column(
         ForeignKey("target_assessment.id", ondelete="RESTRICT")
     )
-    component_stable_id: Mapped[str] = mapped_column(String(64), index=True)
+    component_stable_id: Mapped[str] = mapped_column(String(64))
     version: Mapped[str] = mapped_column(String(32))
     adaptation_id: Mapped[str] = mapped_column(String(76))
-    harness_id: Mapped[str] = mapped_column(String(32), index=True)
+    harness_id: Mapped[str] = mapped_column(String(32))
     scope: Mapped[str] = mapped_column(String(32))
     stored_state: Mapped[str] = mapped_column(String(32))
     expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
@@ -1634,11 +1656,12 @@ class SetupFamily(OrganizationScopedMixin, Base):
             "created_from in ('recast', 'owner', 'staff_migration', 'migration')",
             name="ck_setup_family_created_from",
         ),
+        Index("ix_setup_family_owner", "owner_account_id"),
     )
 
     family_id: Mapped[str] = mapped_column(String(64), primary_key=True)
     owner_account_id: Mapped[str] = mapped_column(
-        String(64), ForeignKey("account.id", ondelete="RESTRICT"), index=True
+        String(64), ForeignKey("account.id", ondelete="RESTRICT")
     )
     name: Mapped[str] = mapped_column(String(200))
     baseline_stable_id: Mapped[str] = mapped_column(String(64))
@@ -1659,11 +1682,12 @@ class SetupFamilyMember(Base):
         UniqueConstraint("family_id", "stable_id", name="uq_setup_family_member_setup"),
         UniqueConstraint("family_id", "harness_id", name="uq_setup_family_member_harness"),
         UniqueConstraint("stable_id", name="uq_setup_family_member_one_family"),
+        Index("ix_setup_family_member_family", "family_id"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     family_id: Mapped[str] = mapped_column(
-        String(64), ForeignKey("setup_family.family_id", ondelete="CASCADE"), index=True
+        String(64), ForeignKey("setup_family.family_id", ondelete="CASCADE")
     )
     stable_id: Mapped[str] = mapped_column(String(64))
     harness_id: Mapped[str] = mapped_column(String(32))
@@ -1680,7 +1704,7 @@ class SetupFamilyRevision(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     family_id: Mapped[str] = mapped_column(
-        String(64), ForeignKey("setup_family.family_id", ondelete="CASCADE"), index=True
+        String(64), ForeignKey("setup_family.family_id", ondelete="CASCADE")
     )
     revision: Mapped[int] = mapped_column(Integer)
     actor_account_id: Mapped[str] = mapped_column(String(64))

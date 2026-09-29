@@ -53,7 +53,7 @@ async def _seed_staff(
         device = Device(
             id=new_id("device"),
             account_id=account.id,
-            public_key="dGVzdC1wdWJsaWMta2V5LXB1Ymxpc2g=",
+            public_key="dGVzdC1wdWJsaWMta2V5LXB1Ymxpc2g=-" + new_id("device"),
             state="active",
         )
         db.add(account)

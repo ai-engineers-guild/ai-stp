@@ -1,7 +1,7 @@
 "use client";
 
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
-import { createContext, useContext, useState, useTransition, type ReactNode } from "react";
+import { createContext, useContext, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 
 import { corporateAssignContextAction, type CorporateAssignContext } from "@/actions/corporate";
@@ -16,7 +16,7 @@ import {
   CorporateCatalogOwnerDialog,
   type CorporateCatalogOwnerEdit,
 } from "@/components/organisms/corporate-catalog-owner-editor";
-import { updateCatalogReaction } from "@/lib/actions/catalog-reactions";
+import { useCatalogLike, type LikeState } from "@/components/organisms/use-catalog-like";
 import { Link } from "@/lib/i18n/navigation";
 import { UI } from "@/lib/ui-selectors";
 import { Icon } from "@/theme/icons";
@@ -80,52 +80,15 @@ export type ObjectActionProps = {
   objectDelete?: { csrfToken: string; locale: string; catalogHref: string };
 };
 
-type LikeState = {
-  liked: boolean;
-  count: number;
-  pending: boolean;
-  toggle: () => void;
-};
-
 const LikeContext = createContext<LikeState | null>(null);
 
 const itemClassName =
   "hover:bg-muted focus-visible:bg-muted flex min-h-11 w-full cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-left text-sm focus-visible:outline-none";
 
-function useCatalogLike(props: {
-  stableId: string;
-  objectKind?: "component" | "setup";
-  likesCount: number;
-  initiallyLiked?: boolean;
-  labels: Pick<ObjectActionLabels, "like">;
-}): LikeState {
-  const [liked, setLiked] = useState(props.initiallyLiked ?? false);
-  const [count, setCount] = useState(props.likesCount);
-  const [pending, startTransition] = useTransition();
-  const objectKind = props.objectKind ?? "component";
-  const likeLabel = props.labels.like;
-  const stableId = props.stableId;
-
-  function toggle() {
-    const next = !liked;
-    startTransition(async () => {
-      try {
-        const state = await updateCatalogReaction(objectKind, stableId, next);
-        setLiked(state.liked);
-        setCount(state.likes_count);
-      } catch {
-        toast.error(likeLabel);
-      }
-    });
-  }
-
-  return { liked, count, pending, toggle };
-}
-
 function useLikeState(props: {
   stableId: string;
   objectKind?: "component" | "setup";
-  likesCount: number;
+  likesCount?: number;
   initiallyLiked?: boolean;
   labels: Pick<ObjectActionLabels, "like">;
 }): LikeState {
@@ -239,7 +202,11 @@ export function ObjectOverflowMenu({
         modal={false}
         onOpenChange={(open) => {
           if (open && assignCtx === null) {
-            void corporateAssignContextAction().then(setAssignCtx);
+            void corporateAssignContextAction()
+              .then(setAssignCtx)
+              .catch(() => {
+                /* A dropped probe keeps the assign entry disabled. */
+              });
           }
         }}
       >

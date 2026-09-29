@@ -1,8 +1,9 @@
 import { getTranslations, setRequestLocale } from "next-intl/server";
-import { notFound } from "next/navigation";
 
+import { StatePanel } from "@/components/molecules/state-panel";
 import { CorporateCreateForm } from "@/components/organisms/corporate-create-form";
 import { readCorporateCreateOptions } from "@/lib/api/corporate-create";
+import { ApiError } from "@/lib/api/errors";
 import { requireSession, sessionCookieValue } from "@/lib/auth/require-session";
 import { readCsrfToken } from "@/lib/auth/session";
 import { Link } from "@/lib/i18n/navigation";
@@ -18,12 +19,23 @@ export async function CorporateCreatePage({
   setRequestLocale(locale);
   await requireSession(locale, `/${locale}/corporate/${routeResource}/new`);
   const token = (await sessionCookieValue()) ?? "";
-  const data = await readCorporateCreateOptions(token);
-  if (!data) notFound();
-  const capability = resource === "members" ? "member.create" : `${resource.slice(0, -1)}.create`;
-  if (!data.context.capabilities.includes(capability)) notFound();
   const t = await getTranslations("hub");
   const c = await getTranslations("corporate");
+  const common = await getTranslations("common");
+  const title = t(
+    resource === "members" ? "addEmployee" : resource === "teams" ? "addTeam" : "addProject",
+  );
+  let data;
+  try {
+    data = await readCorporateCreateOptions(token);
+  } catch (error) {
+    if (!(error instanceof ApiError)) throw error;
+    return <StatePanel kind="error" title={title} description={common("apiUnavailable")} />;
+  }
+  if (!data) return <StatePanel kind="empty" title={title} description={c("noOrganization")} />;
+  const capability = resource === "members" ? "member.create" : `${resource.slice(0, -1)}.create`;
+  if (!data.context.capabilities.includes(capability))
+    return <StatePanel kind="empty" title={title} description={common("accessDenied")} />;
   const option = (id: string, name: string) => ({ value: id, label: name });
   return (
     <div className="min-w-0 space-y-6">
@@ -34,15 +46,7 @@ export async function CorporateCreatePage({
         >
           {c("backToWorkspace")}
         </Link>
-        <h1 className="text-4xl font-medium tracking-tight">
-          {t(
-            resource === "members"
-              ? "addEmployee"
-              : resource === "teams"
-                ? "addTeam"
-                : "addProject",
-          )}
-        </h1>
+        <h1 className="text-4xl font-medium tracking-tight">{title}</h1>
       </header>
       <CorporateCreateForm
         resource={resource}

@@ -3,16 +3,12 @@
 import { randomBytes } from "node:crypto";
 import { revalidatePath } from "next/cache";
 
+import { getTranslations } from "next-intl/server";
+
 import { asDeviceId, asETag } from "@/lib/brands";
 import { revokeDevice } from "@/lib/api/devices";
 import { ApiError } from "@/lib/api/errors";
-import {
-  assertCsrf,
-  clearSessionCookies,
-  readCsrfToken,
-  readSession,
-  SESSION_COOKIE,
-} from "@/lib/auth/session";
+import { clearSessionCookies, readSession, requireCsrf, SESSION_COOKIE } from "@/lib/auth/session";
 import { cookies } from "next/headers";
 
 export async function revokeDeviceAction(input: {
@@ -20,14 +16,14 @@ export async function revokeDeviceAction(input: {
   etag: string;
   csrfToken: string;
 }): Promise<{ operationId: string | null; signedOut: boolean }> {
-  const cookieCsrf = await readCsrfToken();
-  assertCsrf(input.csrfToken, cookieCsrf);
+  await requireCsrf(input.csrfToken);
 
+  const common = await getTranslations("common");
   const session = await readSession();
   if (!session) {
     throw new ApiError({
       code: "AI_STP_UNAUTHORIZED",
-      message: "not signed in",
+      message: common("notSignedIn"),
       status: 401,
     });
   }
@@ -37,7 +33,7 @@ export async function revokeDeviceAction(input: {
   if (!sessionToken) {
     throw new ApiError({
       code: "AI_STP_UNAUTHORIZED",
-      message: "not signed in",
+      message: common("notSignedIn"),
       status: 401,
     });
   }

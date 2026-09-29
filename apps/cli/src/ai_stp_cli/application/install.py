@@ -1398,12 +1398,8 @@ def resume(parameters: Mapping[str, object]) -> Answer[InstallationView]:
                 else release.artifact_identity(Path(executable))[0]
             )
             status_answer = _object(invoke("status", _status_tail(capabilities, held)))
-            recovery_state = str(status_answer.get("state", ""))
             cleanup_state = str(status_answer.get("cleanup_state", ""))
-            if (
-                recovery_state == "recovery_required"
-                or cleanup_state in protocol_v3.CLEANUP_NEEDS_RECOVERY
-            ):
+            if cleanup_state in protocol_v3.CLEANUP_NEEDS_RECOVERY:
                 _register_preserved_snapshot(
                     connection, held, provider_plan, capabilities, status_answer, required=False
                 )
@@ -1544,10 +1540,7 @@ def recover_preserved(
         capabilities = _v3_capabilities(info, harness_id, held.bundle_format)
         answer = _object(invoke("status", _status_tail(capabilities, held)))
         _register_preserved_snapshot(connection, held, provider_plan, capabilities, answer)
-        if settle_provider and (
-            answer.get("state") == "recovery_required"
-            or answer.get("cleanup_state") in protocol_v3.CLEANUP_NEEDS_RECOVERY
-        ):
+        if settle_provider and answer.get("cleanup_state") in protocol_v3.CLEANUP_NEEDS_RECOVERY:
             _require_independent_operation(connection, operation_id)
             pending = answer.get("journal")
             if pending is not None and (

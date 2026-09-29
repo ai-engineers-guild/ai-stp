@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Mapping
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -30,7 +31,11 @@ async def handle_deliver_invitation(session: AsyncSession, payload: Mapping[str,
     if not isinstance(accept_token, str):
         msg = "deliver_invitation requires accept_token"
         raise PermanentJobFailure(msg)
-    MAIL_PORT.send_invitation(
+    # The mail port is a synchronous urlopen under the hood — up to its full
+    # timeout on the worker's loop for every slow or dead mail API. A thread
+    # holds that wait instead of every other job's heartbeat.
+    await asyncio.to_thread(
+        MAIL_PORT.send_invitation,
         to_email=to_email,
         invitation_id=invitation_id,
         object_stable_id=object_stable_id,

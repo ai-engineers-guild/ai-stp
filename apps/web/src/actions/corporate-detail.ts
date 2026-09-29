@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { z } from "zod";
 
+import { getTranslations } from "next-intl/server";
+
 import { ApiError, type ApiErrorCode } from "@/lib/api/errors";
 import {
   fieldErrorsFromDetails,
@@ -31,32 +33,33 @@ export async function updateCorporatePresentationAction(input: {
   resourceId: string;
   data: unknown;
 }): Promise<CorporateDetailMutationResult> {
+  const common = await getTranslations("common");
   const resource = z
     .enum(["teams", "projects", "members", "technologies"])
     .safeParse(input.resource);
-  if (!resource.success) return { ok: false, message: "invalid corporate target", fieldErrors: {} };
+  if (!resource.success) return { ok: false, message: common("invalidRequest"), fieldErrors: {} };
   let path: string;
   try {
     path = corporatePresentationPath(input.organizationId, resource.data, input.resourceId);
   } catch {
-    return { ok: false, message: "invalid corporate target", fieldErrors: {} };
+    return { ok: false, message: common("invalidRequest"), fieldErrors: {} };
   }
   const parsed = entityProfileWriteRequestSchema.safeParse(input.data);
   if (!parsed.success) {
     return {
       ok: false,
-      message: "invalid corporate profile",
+      message: common("invalidRequest"),
       fieldErrors: fieldErrorsFromIssues(parsed.error.issues),
     };
   }
   try {
     assertCsrf(input.csrfToken, await readCsrfToken());
   } catch {
-    return { ok: false, message: "csrf failed", fieldErrors: {} };
+    return { ok: false, message: common("formExpired"), fieldErrors: {} };
   }
-  if (!(await readSession())) return { ok: false, message: "not signed in", fieldErrors: {} };
+  if (!(await readSession())) return { ok: false, message: common("notSignedIn"), fieldErrors: {} };
   const sessionToken = (await cookies()).get(SESSION_COOKIE)?.value;
-  if (!sessionToken) return { ok: false, message: "not signed in", fieldErrors: {} };
+  if (!sessionToken) return { ok: false, message: common("notSignedIn"), fieldErrors: {} };
   try {
     const data = entityProfileViewSchema.parse(
       await privateApiRequest<unknown>(path, {
@@ -75,6 +78,6 @@ export async function updateCorporatePresentationAction(input: {
           code: error.code,
           fieldErrors: fieldErrorsFromDetails(error.details, error.message),
         }
-      : { ok: false, message: "request failed", fieldErrors: {} };
+      : { ok: false, message: common("requestFailed"), fieldErrors: {} };
   }
 }

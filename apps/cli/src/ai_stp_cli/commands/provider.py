@@ -498,27 +498,40 @@ def _planned_or_applied(
             next_actions=[f"provider {operation} plan --harness {harness_id} --json"],
         )
 
-    outcome = _install(bound.artifact, target, current)
-    _write_bound_manifest(target, bound)
-    installations.remember(
-        connection,
-        installations.Installation(
-            harness_id=harness_id,
-            path=str(target),
-            # An update is a decision, so the row it writes settles the
-            # question that discovery only observed.
-            source=installations.SOURCE_CHOSEN,
-            state=installations.STATE_INSTALLED,
-            provider_id=bound.provider_id,
-            provider_version=bound.provider_version,
-            tag=bound.tag,
-            commit=bound.commit,
-            artifact_digest=bound.artifact_digest,
-            checked_at=moment(),
-            source_checked_at=moment(),
-        ),
-    )
-    connection.commit()
+    # The executable, its release manifest and the registry row are one write.
+    # `_install` already keeps the replaced bytes, so before any of it runs the
+    # sidecars the bind may touch are stashed under the same digest-named name;
+    # a failure anywhere after the rename restores the exact prior state rather
+    # than leaving new bytes next to an old manifest and no registry row.
+    _stash_sidecars(target, current.digest, _bound_sidecar_names(bound))
+    try:
+        outcome = _install(bound.artifact, target, current)
+        _write_bound_manifest(target, bound)
+        installations.remember(
+            connection,
+            installations.Installation(
+                harness_id=harness_id,
+                path=str(target),
+                # An update is a decision, so the row it writes settles the
+                # question that discovery only observed.
+                source=installations.SOURCE_CHOSEN,
+                state=installations.STATE_INSTALLED,
+                provider_id=bound.provider_id,
+                provider_version=bound.provider_version,
+                tag=bound.tag,
+                commit=bound.commit,
+                artifact_digest=bound.artifact_digest,
+                checked_at=moment(),
+                source_checked_at=moment(),
+            ),
+        )
+        connection.commit()
+    except Exception:
+        # The filesystem goes back to the prior bytes; the registry must not
+        # keep a half-written row for them either.
+        connection.rollback()
+        _restore_replacement(target, current.digest, _bound_sidecar_names(bound))
+        raise
 
     return Answer(
         ProviderReplacementResult(
@@ -573,6 +586,58 @@ def _is_managed(connection: sqlite3.Connection, executable: Path) -> bool:
     return False
 
 
+def _bound_wheel_metadata(bound: attested_bind.BoundRelease) -> tuple[str, str] | None:
+    """The wheel and provenance filenames the bound index receipt carries."""
+    index_receipt = bound.artifact.parent / "index-release.json"
+    if not index_receipt.is_file():
+        return None
+    metadata = json.loads(index_receipt.read_text("utf-8"))
+    wheel_name = metadata["wheel"]
+    if not isinstance(wheel_name, str) or Path(wheel_name).name != wheel_name:
+        raise CliFailure(
+            "AI_STP_PRECONDITION_FAILED",
+            "the provider wheel has no acceptable PEP 740 provenance",
+        )
+    return wheel_name, f"{wheel_name}.provenance.json"
+
+
+def _bound_sidecar_names(bound: attested_bind.BoundRelease) -> tuple[str, ...]:
+    """Every sibling file a bind may write or overwrite next to `target`."""
+    names = [attested_bind.MANIFEST_NAME, "index-release.json"]
+    wheel = _bound_wheel_metadata(bound)
+    if wheel is not None:
+        names.extend(wheel)
+    return tuple(names)
+
+
+def _stash_sidecars(target: Path, digest: str, names: tuple[str, ...]) -> None:
+    """Copy each present sidecar beside the digest-named executable backup."""
+    backup = _backup_path(target, digest)
+    for name in names:
+        original = target.parent / name
+        if original.is_file() and not original.is_symlink():
+            shutil.copy2(original, backup.with_name(f"{backup.name}.{name}"))
+
+
+def _restore_replacement(target: Path, digest: str, names: tuple[str, ...]) -> None:
+    """Undo a confirmed replacement after a post-install step failed.
+
+    Every file is restored when its stash exists and removed when it does not
+    and the bind wrote a fresh one — the state the target had before `_install`.
+    """
+    backup = _backup_path(target, digest)
+    if backup.is_file():
+        shutil.copy2(backup, target)
+    for name in names:
+        stashed = backup.with_name(f"{backup.name}.{name}")
+        original = target.parent / name
+        if stashed.is_file():
+            shutil.copy2(stashed, original)
+            stashed.unlink()
+        elif original.is_file() and not original.is_symlink():
+            original.unlink()
+
+
 def _write_bound_manifest(target: Path, bound: attested_bind.BoundRelease) -> None:
     """Keep the sibling release.json covering the exact bytes at `target`.
 
@@ -581,16 +646,9 @@ def _write_bound_manifest(target: Path, bound: attested_bind.BoundRelease) -> No
     unmanaged: the old manifest named a different digest, and the command
     refuses to spawn an unmatched file to ask who it is.
     """
-    index_receipt = bound.artifact.parent / "index-release.json"
-    if index_receipt.is_file():
-        metadata = json.loads(index_receipt.read_text("utf-8"))
-        wheel_name = metadata["wheel"]
-        if not isinstance(wheel_name, str) or Path(wheel_name).name != wheel_name:
-            raise CliFailure(
-                "AI_STP_PRECONDITION_FAILED",
-                "the provider wheel has no acceptable PEP 740 provenance",
-            )
-        for name in (wheel_name, f"{wheel_name}.provenance.json", "index-release.json"):
+    wheel = _bound_wheel_metadata(bound)
+    if wheel is not None:
+        for name in (*wheel, "index-release.json"):
             source = bound.artifact.parent / name
             destination = target.parent / name
             if source.resolve() != destination.resolve():

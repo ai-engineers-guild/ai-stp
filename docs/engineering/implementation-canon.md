@@ -33,16 +33,16 @@ Test tags used in later rows: **keep** (real I/O against live modules), **replac
 | ADRs | ADR-0176 and later corporate ADRs |
 | Docs | `docs/engineering/corporate-*`, `docs/operations/runbooks/corporate-bootstrap.md` |
 | Branch | `feat/milestone-6-b2b-03` |
-| Issues | #254, #256 — do not close from this program |
+| Issues | #254, #256 — colleague scope; both CLOSED as of 2026-09-26 |
 
 ## Surfaces (code owners)
 
 | Surface | Code | Notes |
 | --- | --- | --- |
-| CLI task engine | `apps/cli/src/ai_stp_cli/application/`, SPEC-080 | Eight drained intents on `main`; code-backed |
+| CLI task engine | `apps/cli/src/ai_stp_cli/application/`, SPEC-080 | Nine drained intents on `main` (incl. `technology`); code-backed |
 | CLI expert registry | `apps/cli/src/ai_stp_cli/commands/`, `registry.py` | ~35 command modules; leaf audit in P3 |
 | Local registry / passports | `apps/cli/src/ai_stp_cli/local/` (~70 modules), `packages/passports` | code-backed |
-| Providers / install | `apps/cli/src/ai_stp_cli/provider/`, `provider-kit/v3` | kit `0.2.14`; code-backed |
+| Providers / install | `apps/cli/src/ai_stp_cli/provider/`, `provider-kit/v3` | kit `0.2.15`; code-backed |
 | API `/v1` | `apps/api/src/ai_stp_api/slices/` (24 slices), `packages/contracts`, `schemas/v1` | code-backed |
 | Platform | `apps/platform/src/ai_stp_platform/` (content, legal, official_upstream, queue, safety, seo, storage) | code-backed |
 | Web | `apps/web/` | code-backed |

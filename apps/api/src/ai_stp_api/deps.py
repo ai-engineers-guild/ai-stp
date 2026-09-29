@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import json
 import secrets
 from collections.abc import AsyncIterator
 from typing import Annotated
 
 from fastapi import Depends, Request, Response
+from fastapi.exceptions import RequestValidationError
+from pydantic import BaseModel, ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from ai_stp_api.errors import ApiError, ErrorCategory
@@ -37,6 +40,27 @@ async def get_db(request: Request) -> AsyncIterator[AsyncSession]:
         except Exception:
             await session.rollback()
             raise
+
+
+async def request_json(request: Request) -> object:
+    """Parse a JSON body for routes validated outside the dependency path.
+
+    `await request.json()` lets a malformed body fall through to the unhandled
+    handler as a 500; the refusal here lands in the same validation envelope
+    the framework produces for its own parsing.
+    """
+    try:
+        return await request.json()
+    except json.JSONDecodeError as exc:
+        raise RequestValidationError(errors=()) from exc
+
+
+async def validated_body[BodyT: BaseModel](request: Request, model: type[BodyT]) -> BodyT:
+    """`request_json` plus the contract model the raw `model_validate` skipped."""
+    try:
+        return model.model_validate(await request_json(request))
+    except ValidationError as exc:
+        raise RequestValidationError(errors=exc.errors()) from exc
 
 
 def _extract_bearer(request: Request) -> str | None:
@@ -132,13 +156,15 @@ async def require_onboarding_auth(
     else:
         raise ApiError(ErrorCategory.AUTH_REQUIRED, "authentication required")
     ensure_csrf(request, auth=auth, via_cookie=via_cookie)
-    return await verify_raw_token(
+    context = await verify_raw_token(
         db,
         raw,
         admin_account_ids=auth.admin_ids(),
         via_cookie=via_cookie,
         allow_onboarding=True,
     )
+    request.state.auth_context = context
+    return context
 
 
 async def require_refresh_auth(

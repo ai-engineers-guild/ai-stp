@@ -8,7 +8,10 @@ last_verified: "2026-08-20"
 Status: accepted. Clarifies `#188`, which planned to make this repository itself
 public: what becomes public is a tree assembled from it, not this repository.
 The build direction was changed by `ADR-0110`: work takes place in the public
-tree, and the private copy follows it.
+tree, and the private copy follows it. In 2026-09 the private copy ceased to
+exist as a separate tree — this repository is the public `ai-stp` — and the
+export machinery it described (`public_manifest.toml`, `public_export.py`,
+`public_publish.py`) was retired with it.
 
 ## Context
 

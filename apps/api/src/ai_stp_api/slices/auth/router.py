@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
-from typing import Annotated, Any, cast
+from typing import Annotated, Any
 from urllib.parse import urlencode
 
 from authlib.integrations.base_client import OAuthError
@@ -496,13 +496,11 @@ async def start_device_auth(
     auth: Annotated[AuthSettings, Depends(get_auth_settings)],
 ) -> JSONResponse:
     """Start RFC 8628 device-code authorization (CLI)."""
+    from ai_stp_api.deps import validated_body
     from ai_stp_api.slices.auth.device_flow import start_device_authorization, verification_uris
     from ai_stp_contracts.auth import DeviceAuthorizationRequest
 
-    try:
-        body = DeviceAuthorizationRequest.model_validate(await request.json())
-    except Exception as exc:
-        raise ApiError(ErrorCategory.VALIDATION, "request validation failed") from exc
+    body = await validated_body(request, DeviceAuthorizationRequest)
 
     row = await start_device_authorization(
         db,
@@ -542,13 +540,11 @@ async def exchange_device_auth(
     auth: Annotated[AuthSettings, Depends(get_auth_settings)],
 ) -> JSONResponse:
     """Poll device-code exchange and bind the device public key."""
+    from ai_stp_api.deps import validated_body
     from ai_stp_api.slices.auth.device_flow import exchange_device_code
     from ai_stp_contracts.auth import DeviceTokenRequest
 
-    try:
-        body = DeviceTokenRequest.model_validate(await request.json())
-    except Exception as exc:
-        raise ApiError(ErrorCategory.VALIDATION, "request validation failed") from exc
+    body = await validated_body(request, DeviceTokenRequest)
 
     payload = await exchange_device_code(
         db,
@@ -632,21 +628,14 @@ async def approve_device_auth(
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> JSONResponse:
     """Browser-approved binding of a user_code to the signed-in account."""
+    from ai_stp_api.deps import validated_body
     from ai_stp_api.slices.auth.device_flow import approve_device_authorization
+    from ai_stp_contracts.auth import DeviceApproveRequest
 
-    try:
-        # request.json() is Any; annotating as object forces the narrowing below
-        # instead of letting an unknown type leak into the handler.
-        raw: object = await request.json()
-    except Exception as exc:
-        raise ApiError(ErrorCategory.VALIDATION, "request validation failed") from exc
-    if not isinstance(raw, dict):
-        raise ApiError(ErrorCategory.VALIDATION, "user_code required")
-    body = cast("dict[str, object]", raw)
-    user_code = body.get("user_code")
-    if not isinstance(user_code, str) or not user_code.strip():
-        raise ApiError(ErrorCategory.VALIDATION, "user_code required")
-    row = await approve_device_authorization(db, user_code=user_code, account_id=ctx.account_id)
+    body = await validated_body(request, DeviceApproveRequest)
+    row = await approve_device_authorization(
+        db, user_code=body.user_code, account_id=ctx.account_id
+    )
     await emit_audit(
         db,
         actor_account_id=ctx.account_id,

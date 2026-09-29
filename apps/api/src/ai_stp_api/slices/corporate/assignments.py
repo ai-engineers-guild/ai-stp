@@ -4,6 +4,7 @@ from collections.abc import Sequence
 from typing import Literal, cast
 
 from sqlalchemy import and_, or_, select, true
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import InstrumentedAttribute
 from sqlalchemy.sql.elements import ColumnElement
@@ -52,7 +53,10 @@ from ai_stp_platform.assignment_resolution import (
     select_assignment_winner,
 )
 from ai_stp_platform.catalog_read import get_visible_metadata
-from ai_stp_platform.corporate_authorization import has_corporate_permission
+from ai_stp_platform.corporate_authorization import (
+    corporate_effective_permissions,
+    has_corporate_permission,
+)
 from ai_stp_platform.models import Account
 from ai_stp_platform.organization_models import (
     CorporateAssignmentDistribution as DistributionRow,
@@ -558,15 +562,23 @@ async def list_usage(
     async def readable(kind: str, identity: str) -> bool:
         key = (kind, identity)
         if key not in permission_cache:
-            permission_cache[key] = await has_corporate_permission(
+            if kind == "employee":
+                scope_kind, scope_id, permission = (
+                    "organization",
+                    organization_id,
+                    "member.read",
+                )
+            else:
+                scope_kind, scope_id, permission = kind, identity, f"{kind}.read"
+            effective = await corporate_effective_permissions(
                 db,
                 organization_id=organization_id,
                 principal_type="user",
                 principal_id=ctx.account_id,
-                permission="member.read" if kind == "employee" else f"{kind}.read",
-                scope_kind="organization" if kind == "employee" else kind,
-                scope_id=organization_id if kind == "employee" else identity,
+                scope_kind=scope_kind,
+                scope_id=scope_id,
             )
+            permission_cache[key] = effective is not None and permission in effective
         return permission_cache[key]
 
     def subject(row: AssignmentRow) -> tuple[UsageSubjectKind, str, str] | None:
@@ -1579,64 +1591,52 @@ async def distribute_assignment(
             source.state = "retired"
             source.revision += 1
             await db.flush()
-        for index, plan in enumerate(plans):
+        for plan in plans:
             # Reuse a row at this operation revision so a repeat operation can
-            # update the durable outcome without colliding on the composite key.
+            # update the durable outcome without colliding on the composite
+            # key. The upsert is the race arbiter: a failed flush inside
+            # `begin_nested` marks the whole session rollback-required in
+            # SQLAlchemy, so per-target savepoint isolation cannot survive a
+            # concurrent insert.
             prior = existing_by_key.get((plan.target_kind, plan.target_id, operation_revision))
-            try:
-                async with db.begin_nested():
-                    if prior is not None:
-                        prior.action = payload.action
-                        prior.result = plan.result
-                        prior.state = plan.state
-                        prior.diagnostic = plan.diagnostic
-                        prior.overriding_assignment_id = plan.overriding_assignment_id
-                    else:
-                        db.add(
-                            DistributionRow(
-                                organization_id=organization_id,
-                                source_assignment_id=source.id,
-                                target_kind=plan.target_kind,
-                                target_id=plan.target_id,
-                                operation_revision=operation_revision,
-                                action=payload.action,
-                                result=plan.result,
-                                state=plan.state,
-                                diagnostic=plan.diagnostic,
-                                overriding_assignment_id=plan.overriding_assignment_id,
-                            )
-                        )
-            except Exception:
-                plans[index] = plan.model_copy(
-                    update={
-                        "result": "failed",
-                        "state": "failed",
-                        "diagnostic": "distribution record failed",
-                    }
+            if prior is not None:
+                prior.action = payload.action
+                prior.result = plan.result
+                prior.state = plan.state
+                prior.diagnostic = plan.diagnostic
+                prior.overriding_assignment_id = plan.overriding_assignment_id
+            else:
+                await db.execute(
+                    pg_insert(DistributionRow)
+                    .values(
+                        organization_id=organization_id,
+                        source_assignment_id=source.id,
+                        target_kind=plan.target_kind,
+                        target_id=plan.target_id,
+                        operation_revision=operation_revision,
+                        action=payload.action,
+                        result=plan.result,
+                        state=plan.state,
+                        diagnostic=plan.diagnostic,
+                        overriding_assignment_id=plan.overriding_assignment_id,
+                    )
+                    .on_conflict_do_update(
+                        index_elements=[
+                            DistributionRow.organization_id,
+                            DistributionRow.source_assignment_id,
+                            DistributionRow.target_kind,
+                            DistributionRow.target_id,
+                            DistributionRow.operation_revision,
+                        ],
+                        set_={
+                            "action": payload.action,
+                            "result": plan.result,
+                            "state": plan.state,
+                            "diagnostic": plan.diagnostic,
+                            "overriding_assignment_id": plan.overriding_assignment_id,
+                        },
+                    )
                 )
-                try:
-                    async with db.begin_nested():
-                        if prior is not None:
-                            prior.action = payload.action
-                            prior.result = "failed"
-                            prior.state = "failed"
-                            prior.diagnostic = "distribution record failed"
-                        else:
-                            db.add(
-                                DistributionRow(
-                                    organization_id=organization_id,
-                                    source_assignment_id=source.id,
-                                    target_kind=plan.target_kind,
-                                    target_id=plan.target_id,
-                                    operation_revision=operation_revision,
-                                    action=payload.action,
-                                    result="failed",
-                                    state="failed",
-                                    diagnostic="distribution record failed",
-                                )
-                            )
-                except Exception:
-                    pass
         await emit_audit(
             db,
             actor_account_id=ctx.account_id,

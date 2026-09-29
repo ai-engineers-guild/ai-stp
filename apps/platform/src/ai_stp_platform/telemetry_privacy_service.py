@@ -16,12 +16,13 @@ from __future__ import annotations
 
 import re
 from collections.abc import Mapping, Sequence
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any, cast
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from sqlalchemy import Select, func, select, update
+from sqlalchemy import Select, func, insert, select, update
 from sqlalchemy import delete as sql_delete
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ai_stp_contracts.heartbeat import (
@@ -148,6 +149,10 @@ FORBIDDEN_FIELD_NAMES: frozenset[str] = frozenset(
 )
 
 MAX_EXPORT_ROWS = 1000
+
+#: Clock skew allowance for `occurred_at`: a buffered event is old, never from
+#: the future — the same boundary the usage and heartbeat ingests enforce.
+MAX_FUTURE_SKEW = timedelta(minutes=5)
 
 _ABSOLUTE_PATH_RE = re.compile(r"(^[A-Za-z]:[\\/])|(^[\\/]{1,2}[^\\/])|(^~[\\/])|(^file://)")
 _ENV_ASSIGNMENT_RE = re.compile(r"^[A-Z_][A-Z0-9_]{1,63}=")
@@ -306,6 +311,12 @@ async def ingest_event(
     await set_tenant_scope(session, organization_id)
     columns = event_columns(kind, fields)
     await _subject_blocked(session, organization_id=organization_id, columns=columns)
+    occurred = _parse_timestamp(columns.get("occurred_at"))
+    if occurred is not None and occurred > datetime.now(UTC) + MAX_FUTURE_SKEW:
+        # A buffered event is old, never from the future: a far-future
+        # timestamp would pin ordering and outlive every retention sweep —
+        # the same boundary the usage-event ingest already enforces.
+        raise TelemetryBoundaryError(("occurred_at",))
     existing = await session.scalar(
         select(TelemetryEvent).where(
             TelemetryEvent.organization_id == organization_id,
@@ -336,9 +347,37 @@ async def ingest_event(
         subject_state="active",
         occurred_at=_parse_timestamp(columns["occurred_at"]) or datetime.now(UTC),
     )
-    session.add(row)
-    await session.flush()
-    return row, True
+    try:
+        # The race insert runs inside an engine-level savepoint, not
+        # ``session.begin_nested``: a failed ORM flush marks the session
+        # transaction itself rollback-only, while a statement inside a
+        # connection savepoint rolls back alone and leaves the session
+        # free to read the stored row and to keep ingesting.
+        async with (await session.connection()).begin_nested():
+            with session.no_autoflush:
+                values = {
+                    column.key: getattr(row, column.key)
+                    for column in TelemetryEvent.__table__.columns
+                    if getattr(row, column.key) is not None
+                }
+                await session.execute(insert(TelemetryEvent).values(values))
+    except IntegrityError:
+        # A concurrent ingest of the same event_id committed between the
+        # existence read and this flush: the stored row wins, the verdict is
+        # the same duplicate outcome the read path returns.
+        existing = await session.scalar(
+            select(TelemetryEvent).where(
+                TelemetryEvent.organization_id == organization_id,
+                TelemetryEvent.event_id == str(columns["event_id"]),
+            )
+        )
+        if existing is None:
+            raise
+        return existing, False
+    # The Core insert leaves ``row`` transient and without the server-assigned
+    # ``received_at``; ``merge`` re-reads it so callers observe the stored row,
+    # exactly as the ORM flush path returned it.
+    return await session.merge(row), True
 
 
 async def read_policy(session: AsyncSession, *, organization_id: str) -> TelemetryPolicy | None:

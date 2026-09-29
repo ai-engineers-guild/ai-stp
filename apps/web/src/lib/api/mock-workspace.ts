@@ -555,6 +555,7 @@ function reportHandlers(
       status: 200,
       body: {
         schema_version: 1,
+        page: { schema_version: 1, next_cursor: null, page_size: 100 },
         items: [
           {
             schema_version: 1,

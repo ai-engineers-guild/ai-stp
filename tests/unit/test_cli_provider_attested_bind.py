@@ -12,7 +12,14 @@ import pytest
 
 from ai_stp_cli.commands import select
 from ai_stp_cli.errors import CliFailure
-from ai_stp_cli.provider import attested_bind, build_attestation, protocol_v3, release
+from ai_stp_cli.provider import (
+    attested_bind,
+    build_attestation,
+    conformance,
+    invocation,
+    protocol_v3,
+    release,
+)
 from ai_stp_foundation.canonical import JsonValue
 from ai_stp_foundation.digests import digest_canonical
 from ai_stp_foundation.harnesses import HARNESS_IDS
@@ -104,11 +111,32 @@ class _Github:
 def _inspect(harness_id: str = "pi") -> Callable[[Path], protocol_v3.ProviderCapabilities]:
     payload = _info(harness_id=harness_id)
 
-    def inspect(executable: Path) -> protocol_v3.ProviderCapabilities:
+    def inspect(executable: Path, **_kwargs: object) -> protocol_v3.ProviderCapabilities:
         assert executable.is_file()
         return protocol_v3.parse_capabilities(payload)
 
     return inspect
+
+
+def _subprocess_boundary(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Invoke through the real subprocess, not the runner's isolation boundary.
+
+    The isolation decision belongs to `provider_invoker`; these cases exercise
+    the payload checks behind it and must not depend on the host owning
+    bwrap, sandbox-exec, or any other launcher the runner image may lack.
+    """
+
+    def unisolated(
+        executable: str,
+        target: str,
+        _version: int,
+        *,
+        unisolated_reason: str | None = None,
+        writable: tuple[Path, ...] = (),
+    ) -> conformance.Invoker:
+        return conformance.subprocess_invoker(executable, target)
+
+    monkeypatch.setattr(invocation, "provider_invoker", unisolated)
 
 
 def _attest(monkeypatch: pytest.MonkeyPatch, order: list[str] | None = None) -> None:
@@ -175,7 +203,7 @@ def test_fetch_writes_a_closed_manifest_after_attestation(
     _attest(monkeypatch, order)
     payload = _info()
 
-    def inspect(executable: Path) -> protocol_v3.ProviderCapabilities:
+    def inspect(executable: Path, **_kwargs: object) -> protocol_v3.ProviderCapabilities:
         order.append("inspect")
         return protocol_v3.parse_capabilities(payload)
 
@@ -246,7 +274,7 @@ def test_provider_fetch_command_binds_into_the_named_directory(
     _attest(monkeypatch)
     payload = _info()
 
-    def inspect(executable: Path) -> protocol_v3.ProviderCapabilities:
+    def inspect(executable: Path, **_kwargs: object) -> protocol_v3.ProviderCapabilities:
         return protocol_v3.parse_capabilities(payload)
 
     monkeypatch.setattr(attested_bind, "GithubReleases", lambda: _Github())
@@ -271,7 +299,7 @@ def test_provider_fetch_names_the_bind_step_while_unbound(
     payload = _info()
     monkeypatch.setattr(attested_bind, "GithubReleases", lambda: _Github())
 
-    def inspect(executable: Path) -> protocol_v3.ProviderCapabilities:
+    def inspect(executable: Path, **_kwargs: object) -> protocol_v3.ProviderCapabilities:
         return protocol_v3.parse_capabilities(payload)
 
     monkeypatch.setattr(attested_bind, "inspect_provider", inspect)
@@ -290,7 +318,7 @@ def test_provider_fetch_stays_quiet_once_bound(
     payload = _info()
     monkeypatch.setattr(attested_bind, "GithubReleases", lambda: _Github())
 
-    def inspect(executable: Path) -> protocol_v3.ProviderCapabilities:
+    def inspect(executable: Path, **_kwargs: object) -> protocol_v3.ProviderCapabilities:
         return protocol_v3.parse_capabilities(payload)
 
     monkeypatch.setattr(attested_bind, "inspect_provider", inspect)
@@ -308,6 +336,7 @@ def test_fetch_runs_provider_info_only_after_attestation(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     _attest(monkeypatch)
+    _subprocess_boundary(monkeypatch)
     bound = attested_bind.fetch(
         harness="pi",
         tag="0.0.1",
@@ -323,6 +352,7 @@ def test_fetch_binds_an_existing_artifact_without_downloading(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     _attest(monkeypatch)
+    _subprocess_boundary(monkeypatch)
     source = tmp_path / "local-provider"
     source.write_bytes(_provider_script())
     bound = attested_bind.fetch(
@@ -411,7 +441,10 @@ def test_an_unknown_harness_has_no_repository() -> None:
     assert raised.value.code == "AI_STP_VALIDATION_ERROR"
 
 
-def test_inspect_provider_refuses_a_non_v3_payload(tmp_path: Path) -> None:
+def test_inspect_provider_refuses_a_non_v3_payload(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _subprocess_boundary(monkeypatch)
     place = tmp_path / "broken"
     place.write_text(
         "#!/usr/bin/env python3\nimport json\nprint(json.dumps({'error': 'no'}))\n",
@@ -423,7 +456,10 @@ def test_inspect_provider_refuses_a_non_v3_payload(tmp_path: Path) -> None:
     assert raised.value.code == "AI_STP_PRECONDITION_FAILED"
 
 
-def test_inspect_provider_refuses_a_payload_that_fails_the_v3_schema(tmp_path: Path) -> None:
+def test_inspect_provider_refuses_a_payload_that_fails_the_v3_schema(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _subprocess_boundary(monkeypatch)
     place = tmp_path / "partial"
     place.write_text(
         "#!/usr/bin/env python3\nimport json\nprint(json.dumps({'protocol_version': 3}))\n",
@@ -601,6 +637,7 @@ def test_fetch_binds_an_existing_artifact_in_place(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     _attest(monkeypatch)
+    _subprocess_boundary(monkeypatch)
     repository = attested_bind.repository_for_harness("pi")
     source = tmp_path / attested_bind.asset_name(repository, release.current_platform())
     source.write_bytes(_provider_script())

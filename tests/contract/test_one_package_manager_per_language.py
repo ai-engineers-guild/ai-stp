@@ -35,8 +35,7 @@ WATCHED = ("npm", "npx", "pip", "pipx", "pnpm", "poetry", "yarn")
 #: Files that make up the toolchain: what CI runs and what a developer runs.
 def _toolchain() -> dict[str, str]:
     paths: list[Path] = [ROOT / "justfile"]
-    overlay = ROOT / "release_scripts" / "public_overlay" / ".github"
-    for directory in (overlay / "workflows", overlay / "scripts", ROOT / ".github" / "scripts"):
+    for directory in (ROOT / ".github" / "workflows", ROOT / ".github" / "scripts"):
         if directory.is_dir():
             paths.extend(sorted(directory.rglob("*")))
     paths.extend(sorted((ROOT / "release_scripts").glob("*.sh")))
@@ -83,12 +82,10 @@ def _policy_names() -> tuple[frozenset[str], frozenset[str]]:
 def test_the_policy_still_says_what_this_test_enforces() -> None:
     """A test that reads a policy is worth only as much as the policy it read.
 
-    Skipped where the policy is not present. `.gds` is withheld from the
-    published tree by `release_scripts/public_manifest.toml` — it belongs to
-    another system — and the gate runs there. Which is why the check below
-    names the tools itself instead of reading them from a file that may be
-    absent: an enforcement that disappears in the tree where the gate runs is
-    not an enforcement.
+    Skipped where the policy is not present: `.gds` belongs to another system
+    and is not part of this tree. Which is why the check below names the tools
+    itself instead of reading them from a file that may be absent — an
+    enforcement that disappears where the gate runs is not an enforcement.
     """
     if not POLICY.is_file():
         pytest.skip("this tree does not carry the compiled policy")
@@ -167,9 +164,7 @@ def test_every_bun_lockfile_is_readable_by_the_pinned_bun() -> None:
     with the bun being pinned, and this is what refuses to let one happen
     without the other.
     """
-    workflow = ROOT / "release_scripts" / "public_overlay" / ".github" / "workflows" / "check.yml"
-    if not workflow.is_file():
-        workflow = ROOT / ".github" / "workflows" / "check.yml"
+    workflow = ROOT / ".github" / "workflows" / "check.yml"
     pinned = re.search(r'BUN_VERSION:\s*"([0-9][^"]*)"', workflow.read_text(encoding="utf-8"))
     assert pinned, "the gate no longer pins a bun version"
 
@@ -203,9 +198,7 @@ def test_the_local_and_gate_bun_pins_are_the_same_version() -> None:
     """
     declared = (ROOT / ".bun-version").read_text(encoding="utf-8").strip()
     assert declared, ".bun-version is empty"
-    workflow = ROOT / "release_scripts" / "public_overlay" / ".github" / "workflows" / "check.yml"
-    if not workflow.is_file():
-        workflow = ROOT / ".github" / "workflows" / "check.yml"
+    workflow = ROOT / ".github" / "workflows" / "check.yml"
     pinned = re.search(r'BUN_VERSION:\s*"([0-9][^"]*)"', workflow.read_text(encoding="utf-8"))
     assert pinned, "the gate no longer pins a bun version"
     assert declared == pinned.group(1), (
@@ -231,9 +224,7 @@ def test_the_local_and_gate_uv_pins_are_the_same_version() -> None:
     """
     declared = (ROOT / ".uv-version").read_text(encoding="utf-8").strip()
     assert declared, ".uv-version is empty"
-    workflow = ROOT / "release_scripts" / "public_overlay" / ".github" / "workflows" / "check.yml"
-    if not workflow.is_file():
-        workflow = ROOT / ".github" / "workflows" / "check.yml"
+    workflow = ROOT / ".github" / "workflows" / "check.yml"
     pinned = re.search(r'UV_VERSION:\s*"([0-9][^"]*)"', workflow.read_text(encoding="utf-8"))
     assert pinned, "the gate no longer pins a uv version"
     assert declared == pinned.group(1), (

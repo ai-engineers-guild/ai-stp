@@ -12,9 +12,8 @@ out of the contract silently, and the only symptom is a client that cannot call
 something everybody assumes is callable.
 
 So the difference is declared here instead. Adding a route without adding it to
-the contract still works — it just has to be written down with a reason, the
-same way `release_scripts/public_manifest.toml` makes withholding a decision
-rather than an omission.
+the contract still works — it just has to be written down with a reason, a
+decision rather than an omission.
 """
 
 from __future__ import annotations
@@ -49,7 +48,6 @@ BEYOND_THE_CONTRACT: Final[dict[str, str]] = {
     "/v1/account/public-profile/draft": "publisher profile draft lifecycle",
     "/v1/account/public-profile/preview": "publisher profile draft lifecycle",
     "/v1/account/public-profile/publish": "publisher profile draft lifecycle",
-    "/v1/auth/device/approve": "browser half of the device flow; the CLI drives the other",
     "/v1/auth/link/{provider}": "step-up identity linking, browser-only",
     "/v1/auth/{provider}/login": "browser redirect entry point; the CLI uses the device flow",
     "/v1/organizations/{organization_id}/provider-project-observations": (

@@ -19,6 +19,9 @@ from ai_stp_platform.queue.states import JobState
 class Job(OrganizationScopedMixin, Base):
     """A single unit of background work with its own state and retry accounting."""
 
+    # Global jobs carry no tenant attribution; 0059 keeps the column nullable.
+    _organization_scope_nullable = True
+
     __tablename__ = "job"
     __table_args__ = (
         Index(
@@ -36,6 +39,9 @@ class Job(OrganizationScopedMixin, Base):
             postgresql_where=text("organization_id IS NULL"),
             sqlite_where=text("organization_id IS NULL"),
         ),
+        # The claim scan orders by priority/run_after over claimable states —
+        # declared in 0001 and required on the hot path.
+        Index("ix_job_claim", "state", "run_after", "priority"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)

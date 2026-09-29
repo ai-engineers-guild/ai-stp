@@ -470,7 +470,7 @@ def test_v3_plan_load_apply_and_status_require_the_same_exact_identity(tmp_path:
     status: dict[str, JsonValue] = {
         "state": "managed",
         "target_digest": _digest("e"),
-        "drift_state": "verified",
+        "drift_state": "clean",
         "protocol_version": 3,
         "provider_id": capabilities.provider_id,
         "provider_version": capabilities.provider_version,
@@ -667,10 +667,12 @@ def test_every_drift_statement_a_status_carries_has_to_hold(tmp_path: Path) -> N
     clean top level beside a nested `drifted` verified on the strength of the
     half that happened to be read — and nothing would ever have said so.
 
-    Both spellings of no-drift stay admissible on both, so a release that mixes
-    the legacy `verified` with the current `clean` is not caught in a vocabulary
-    difference that means nothing. `#431` reported the opposite failure against
-    a build predating `c7844cd`, where only `verified` was accepted at all.
+    `#431` reported the opposite failure against a build predating `c7844cd`,
+    where only `verified` was accepted at all, and for a while both spellings
+    stayed admissible against a "legacy verified" producer. None exists: the
+    wire enum was born `clean|local_drift|unknown`, so `clean` is now the only
+    accepted spelling and `verified` is a refusal like any other non-clean
+    statement.
     """
     answer, bound, expiry, digest = _plan_answer(tmp_path)
     capabilities = _capabilities()
@@ -715,11 +717,13 @@ def test_every_drift_statement_a_status_carries_has_to_hold(tmp_path: Path) -> N
             operation=protocol_v3.Operation.INSTALL,
         )
 
-    for top, nested in (("clean", "clean"), ("verified", "clean"), ("clean", None)):
+    for top, nested in (("clean", "clean"), ("clean", None)):
         assert verify(status(top, nested)) == _digest("e"), (top, nested)
 
     # The one this exists for: the read half says clean, the other does not.
-    for top, nested in (("clean", "drifted"), ("verified", "unknown")):
+    # `verified` belongs in the refused half now — no released provider ever
+    # spelled drift that way.
+    for top, nested in (("clean", "drifted"), ("verified", "clean"), ("verified", "unknown")):
         with pytest.raises(CliFailure, match="clean managed target"):
             verify(status(top, nested))
 
@@ -1601,3 +1605,34 @@ def test_an_apply_refusal_is_a_decision_with_a_reason_not_an_unknown_state(
         )
         == "stale"
     )
+
+
+@pytest.mark.skipif(platform.system() == "Windows", reason="process groups are POSIX")
+def test_the_watchdog_reaches_a_descendant_still_holding_the_pipe() -> None:
+    """A provider that forks a helper inheriting stdout must not hang the read.
+
+    `Popen.kill()` signals only the direct child; the forked helper keeps the
+    pipe open and `read()` would outlive the watchdog. `_popen` starts the
+    provider as a session leader and signals the group instead.
+    """
+    import subprocess
+    import sys
+    import time
+
+    script = (
+        "import os, sys, time\n"
+        "if os.fork() == 0:\n"
+        "    time.sleep(30)\n"  # the helper inherits stdout and holds it open
+        "    sys.exit(0)\n"
+        "time.sleep(30)\n"  # the direct child never answers either
+    )
+    started_at = time.monotonic()
+    with pytest.raises(subprocess.TimeoutExpired):
+        conformance._bounded_output(  # pyright: ignore[reportPrivateUsage]
+            [sys.executable, "-c", script],
+            limit=1024,
+            timeout_seconds=1.0,
+            environment={},
+        )
+    # Without the group signal the read would hang until the helper exits (~30s).
+    assert time.monotonic() - started_at < 20

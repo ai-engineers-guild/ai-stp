@@ -106,10 +106,9 @@ The separation of trust domains from `ADR-0046` rests on three assertions:
 - the source is narrowed twice: `workflow_run` after a completed `check`, plus an explicit
   check for `event == push` and `head_branch == main`.
 
-`tests/unit/test_deploy_contract.py` checks the public workflow's deployment
+`tests/unit/test_deploy_contract.py` checks the workflow's deployment
 credentials, runner boundary, exact source SHA and event guards, together with
-the host pull script. The private authoring tree has separate fleet hardening
-checks; those withheld tests are not part of this public checkout.
+the host pull script.
 
 The public route is verified **off** the host: a separate job
 `verify-public` on a standard GitHub runner, which needs only outbound
@@ -306,6 +305,13 @@ It has no options to disable TLS or override DNS.
 - the documentation host → the docs bind
 - only nginx is exposed externally; the stack's own ports stay on loopback
 
+**Container networks:** the Compose `edge` network is outbound-capable while
+`internal` is not. The worker joins both — `deliver_invitation` reaches
+`api.resend.com`, and `repository_metrics` / `github_archive` /
+`official_upstream_sync` reach `api.github.com` and codeload; an internal-only
+worker dead-letters those jobs. `postgres` and `rustfs` stay on `internal`
+only, so the worker's egress grants it no new path to them.
+
 **Local dev (no host proxy):**
 
 - host `web:3000`—UI; Next rewrite `/v1/*` (and docs paths) → `api:8000`
@@ -358,6 +364,12 @@ Rehearse on a restored copy before making a production change.
 
 Rollback = redeploying the **previous exact** Git commit from
 `.deploy-state/previous`. A destructive reverse migration is **not** performed.
+
+On a repository root the script detaches the checkout to that commit. On a
+pull-model root there is no `.git`, so it restores the retained
+`releases/<sha>` tree the deployer kept for exactly this case — the same
+bytes `pull-deploy.sh` promoted, synced back with the same runtime-state
+exclusions.
 
 ```bash
 ./deploy/rollback.sh --yes

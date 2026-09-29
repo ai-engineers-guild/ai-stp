@@ -6,7 +6,11 @@ last_verified: "2026-08-21"
 # ADR-0110: Work lands in the public tree
 
 Status: accepted. Changes the build direction from `ADR-0108` without
-superseding its rules.
+superseding its rules. In 2026-09 the private copy ceased to exist as a
+separate tree — this repository is the public `ai-stp` — and the
+synchronization machinery below (`public_import.py`, `just public-sync`,
+`public_overlay/`, the publication manifest) was retired with it. The
+direction decision stands: there is one tree, and it is public.
 
 ## Context
 

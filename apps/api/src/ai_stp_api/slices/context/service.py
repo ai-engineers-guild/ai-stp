@@ -43,7 +43,7 @@ from ai_stp_foundation.canonical import JsonValue
 from ai_stp_foundation.digests import digest_canonical
 from ai_stp_foundation.ids import new_id
 from ai_stp_foundation.timestamps import format_timestamp
-from ai_stp_platform.corporate_authorization import has_corporate_permission
+from ai_stp_platform.corporate_authorization import corporate_effective_permissions
 from ai_stp_platform.models import Account, Device
 from ai_stp_platform.organization_models import (
     CorporateProject,
@@ -400,6 +400,7 @@ async def remote_projection(
 ) -> CapabilityProjection:
     """Authorize and project one remote organization."""
     organization, membership = await _membership(db, ctx=ctx, organization_id=organization_id)
+    granted: set[str] | None = None
     if scope_kind == "organization":
         if scope_id not in {None, organization_id}:
             raise ApiError(ErrorCategory.PERMISSION, "organization scope is unavailable")
@@ -419,15 +420,15 @@ async def remote_projection(
         }
         if scope_kind not in queries or await db.scalar(queries[scope_kind]) is None:
             raise ApiError(ErrorCategory.PERMISSION, "resource scope is unavailable")
-        if not await has_corporate_permission(
+        granted = await corporate_effective_permissions(
             db,
             organization_id=organization_id,
             principal_type="user",
             principal_id=ctx.account_id,
-            permission=f"{scope_kind}.read",
             scope_kind=scope_kind,
             scope_id=scope_id,
-        ):
+        )
+        if granted is None or f"{scope_kind}.read" not in granted:
             raise ApiError(ErrorCategory.PERMISSION, "resource scope is unavailable")
     effective: set[str] | None = None
     if organization.kind == "corporate":
@@ -441,20 +442,23 @@ async def remote_projection(
         )
         is not None
     ):
-        effective = set()
-        for capability in _IMPLEMENTED_CAPABILITIES:
-            if await has_corporate_permission(
+        if granted is None:
+            granted = await corporate_effective_permissions(
                 db,
                 organization_id=organization.id,
                 principal_type="user",
                 principal_id=ctx.account_id,
-                permission="technology.scan.publish"
-                if capability == "technology.scan_publish"
-                else capability,
                 scope_kind=scope_kind,
                 scope_id=scope_id,
-            ):
-                effective.add(capability)
+            )
+        effective = {
+            capability
+            for capability in _IMPLEMENTED_CAPABILITIES
+            if (
+                "technology.scan.publish" if capability == "technology.scan_publish" else capability
+            )
+            in (granted or set())
+        }
     return projection_for(
         mode=organization.kind,
         organization_id=organization.id,
@@ -1515,6 +1519,11 @@ async def push_project_revision(
     except IntegrityError as error:
         # A concurrent push committed a unique row first: replay its receipt
         # under this idempotency key, or refuse when the collision is not ours.
+        # The failed flush marked the whole transaction rollback-required
+        # (SQLAlchemy deactivates the parent on any `begin_nested` exception),
+        # so clear it before the replay read — the replay answer is entirely
+        # the winner's committed state anyway.
+        await db.rollback()
         winner = await db.scalar(
             select(ProjectRevisionReceiptRow).where(
                 ProjectRevisionReceiptRow.organization_id == link.organization_id,

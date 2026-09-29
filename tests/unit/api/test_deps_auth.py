@@ -6,7 +6,10 @@ Breakage: CSRF skipped on cookie POSTs, or Bearer headers misparsed as sessions.
 
 from __future__ import annotations
 
+from typing import cast
+
 import pytest
+from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.requests import Request
 
 from ai_stp_api.deps import (
@@ -121,3 +124,47 @@ def test_ensure_csrf_rejects_mismatch_or_missing_on_unsafe_cookie_write() -> Non
         auth=auth,
         via_cookie=True,
     )
+
+
+async def test_require_variants_publish_auth_context_on_request_state(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Every auth dependency must leave `request.state.auth_context` populated:
+    error auditing keys off it, and a missing context reads as anonymous."""
+    import ai_stp_api.deps as deps
+    from ai_stp_api.session import AuthContext
+
+    context = AuthContext(
+        account_id="account-x",
+        session_id="session-x",
+        device_id=None,
+        account_status="active",
+        is_admin=False,
+        via_cookie=False,
+    )
+    calls: list[dict[str, object]] = []
+
+    async def _verify(db: object, raw: str, **kwargs: object) -> AuthContext:
+        calls.append(kwargs)
+        return context
+
+    monkeypatch.setattr(deps, "verify_raw_token", _verify)
+    auth = _auth()
+    db = cast(AsyncSession, object())
+
+    for dependency in (
+        deps.require_auth,
+        deps.require_onboarding_auth,
+        deps.require_refresh_auth,
+    ):
+        request = _request(
+            method="GET",
+            headers=[(b"authorization", b"Bearer opaque-token")],
+        )
+        resolved = await dependency(request, db, auth)
+        assert resolved is context
+        assert request.state.auth_context is context
+
+    assert calls[0].get("allow_onboarding") in (None, False)
+    assert calls[1]["allow_onboarding"] is True
+    assert calls[2]["allow_refresh"] is True

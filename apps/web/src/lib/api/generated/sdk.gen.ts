@@ -12,6 +12,9 @@ import type {
   ApplyProjectSyncPlanData,
   ApplyProjectSyncPlanErrors,
   ApplyProjectSyncPlanResponses,
+  ApproveDeviceAuthorizationData,
+  ApproveDeviceAuthorizationErrors,
+  ApproveDeviceAuthorizationResponses,
   AssignCorporateMemberData,
   AssignCorporateMemberErrors,
   AssignCorporateMemberResponses,
@@ -1032,6 +1035,30 @@ export const startDeviceAuthorization = <ThrowOnError extends boolean = false>(
     ThrowOnError
   >({
     url: "/v1/auth/device",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Bind a pending user code to the signed-in account.
+ */
+export const approveDeviceAuthorization = <ThrowOnError extends boolean = false>(
+  options: Options<ApproveDeviceAuthorizationData, ThrowOnError>,
+): RequestResult<
+  ApproveDeviceAuthorizationResponses,
+  ApproveDeviceAuthorizationErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).post<
+    ApproveDeviceAuthorizationResponses,
+    ApproveDeviceAuthorizationErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/auth/device/approve",
     ...options,
     headers: {
       "Content-Type": "application/json",

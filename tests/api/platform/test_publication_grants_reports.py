@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 from collections.abc import AsyncIterator, Callable
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import cast
 
@@ -12,6 +13,7 @@ import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+from tests.support.api_settings import TEST_CURSOR_SECRET
 from tests.support.private_distribution import component_version, setup_version
 from tests.support.publication_artifacts import (
     ARTIFACT_BY_DIGEST,
@@ -30,6 +32,7 @@ from ai_stp_api.errors import CATEGORY_STATUS, ErrorCategory
 from ai_stp_api.session import issue_session
 from ai_stp_api.settings import Settings
 from ai_stp_foundation.ids import new_id
+from ai_stp_platform.catalog_cursor import CursorKey, encode_cursor, filter_signature
 from ai_stp_platform.external_catalog_admin import apply_case as apply_catalog_request
 from ai_stp_platform.models import (
     Account,
@@ -144,7 +147,7 @@ async def _seed_account_device(
         device = Device(
             id=new_id("device"),
             account_id=account.id,
-            public_key="dGVzdC1wdWJsaWMta2V5LXB1Ymxpc2g=",
+            public_key="dGVzdC1wdWJsaWMta2V5LXB1Ymxpc2g=-" + new_id("device"),
             state="active",
         )
         db.add(account)
@@ -714,12 +717,8 @@ async def test_grants_invite_accept_revoke(
     )
     assert denied_owner.status_code == 403
 
-    await _drain_jobs(sessionmaker, worker_id="mail")
-    assert MAIL_PORT.sent
-    assert MAIL_PORT.sent[0]["token_present"] is True
-    assert "accept_token" not in MAIL_PORT.sent[0]
-
-    # fetch token from job table (test-only access)
+    # Fetch the token while the job is still queued: a settled job's payload
+    # is scrubbed, so the accept secret is only readable before the drain.
     async with sessionmaker() as db:
         job = await db.scalar(
             select(Job).where(Job.idempotency_key == f"deliver_invitation:{invitation_id}")
@@ -727,6 +726,11 @@ async def test_grants_invite_accept_revoke(
         assert job is not None
         token = job.payload["accept_token"]
         assert isinstance(token, str)
+
+    await _drain_jobs(sessionmaker, worker_id="mail")
+    assert MAIL_PORT.sent
+    assert MAIL_PORT.sent[0]["token_present"] is True
+    assert "accept_token" not in MAIL_PORT.sent[0]
 
     accept = await client.post(
         f"/v1/grants/invitations/{invitation_id}/accept",
@@ -1153,3 +1157,83 @@ async def test_staff_reports_paginate_with_signed_cursor(
         assert len(seen) == 3
         assert len(set(seen)) == 3, "a report was returned twice across pages"
         assert cursor is None
+
+
+async def test_own_reports_paginate_with_signed_cursor(
+    migrated_database_url: str,
+    settings_factory: Callable[..., Settings],
+) -> None:
+    """The reporter list must page its full history and refuse foreign cursors."""
+    settings = settings_factory(database_url=migrated_database_url)
+    app = create_app(settings)
+    async with app.router.lifespan_context(app):
+        sessionmaker_tmp: async_sessionmaker[AsyncSession] = app.state.sessionmaker
+        _rid, _rd, reporter_token = await _seed_account_device(sessionmaker_tmp)
+        _oid, _od, other_token = await _seed_account_device(sessionmaker_tmp)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        for index in range(3):
+            created = await client.post(
+                "/v1/reports",
+                headers=_auth(reporter_token),
+                json={
+                    "schema_version": 1,
+                    "object_kind": "component",
+                    "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                    "version": "2.0",
+                    "content_digest": DIGEST,
+                    "error_code": "AI_STP_VALIDATION_ERROR",
+                    "diagnostics": "",
+                    "diagnostics_previewed": False,
+                    "idempotency_key": f"own-report-page-{index:04d}",
+                },
+            )
+            assert created.status_code == 201, created.text
+
+        seen: list[str] = []
+        cursor: str | None = None
+        for _ in range(10):
+            url = "/v1/reports?page_size=2"
+            if cursor is not None:
+                url += f"&cursor={cursor}"
+            page = await client.get(url, headers=_auth(reporter_token))
+            assert page.status_code == 200, page.text
+            body = page.json()
+            assert body["page"]["page_size"] == 2
+            seen.extend(item["case_id"] for item in body["items"])
+            cursor = body["page"]["next_cursor"]
+            if cursor is None:
+                break
+        else:
+            raise AssertionError("own report pagination never terminated")
+
+        assert len(seen) == 3
+        assert len(set(seen)) == 3, "a report was returned twice across pages"
+
+        # A cursor minted for the reporter must not page another account.
+        first_page = await client.get("/v1/reports?page_size=2", headers=_auth(reporter_token))
+        live_cursor = first_page.json()["page"]["next_cursor"]
+        assert live_cursor is not None
+        cross = await client.get(
+            f"/v1/reports?page_size=2&cursor={live_cursor}",
+            headers=_auth(other_token),
+        )
+        assert cross.status_code == 400
+
+        # Nor may the staff queue's cursor be replayed here.
+        staff_sig = filter_signature(
+            object_kind="staff_reports",
+            q=None,
+            tags=[],
+            harness_id=None,
+            component_type=None,
+            include_experimental=False,
+        )
+        foreign = encode_cursor(
+            secret=TEST_CURSOR_SECRET,
+            filter_sig=staff_sig,
+            key=CursorKey(published_at=datetime.now(UTC), stable_id="report_0"),
+        )
+        foreign_page = await client.get(
+            f"/v1/reports?page_size=2&cursor={foreign}", headers=_auth(reporter_token)
+        )
+        assert foreign_page.status_code == 400

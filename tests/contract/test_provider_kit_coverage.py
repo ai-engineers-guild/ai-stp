@@ -7,10 +7,9 @@ nineteen, an implementation could be wrong in six distinct reasons and still be
 told it conformed.
 
 This file is deliberately public. The guard first lived in
-`tests/unit/test_provider_kit.py`, which the export manifest withholds for
-naming a private repository, so it never ran in the gate that decides a
-deployment — a guard that guards nothing, which is the shape of defect it was
-written to prevent.
+`tests/unit/test_provider_kit.py`, where naming the provider repositories it
+exercises kept it out of the gate that decides a deployment — a guard that
+guards nothing, which is the shape of defect it was written to prevent.
 """
 
 from __future__ import annotations
