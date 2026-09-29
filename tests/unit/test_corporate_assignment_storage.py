@@ -3,6 +3,7 @@
 # pyright: reportUnknownVariableType=false, reportUnknownMemberType=false, reportAttributeAccessIssue=false
 
 from sqlalchemy import CheckConstraint, ForeignKeyConstraint, UniqueConstraint
+from sqlalchemy.sql.schema import ForeignKey
 
 from ai_stp_platform.organization_models import (
     CorporateAssignmentDistribution,
@@ -10,10 +11,21 @@ from ai_stp_platform.organization_models import (
 )
 
 
+def _fk_target(element: ForeignKey) -> str:
+    # SQLAlchemy 2.1 exposes the target as named tokens; the legacy
+    # ``target_fullname`` string form cannot represent a dot inside a name.
+    tokens = getattr(element, "target_tokens", None)
+    if tokens is not None:
+        return ".".join(
+            part for part in (tokens.schema, tokens.table_name, tokens.column_name) if part
+        )
+    return element.target_fullname
+
+
 def test_assignment_storage_restricts_subjects_to_the_same_tenant() -> None:
     table = CorporateCatalogAssignment.__table__
     keys = {
-        tuple(element.target_fullname for element in constraint.elements)
+        tuple(_fk_target(element) for element in constraint.elements)
         for constraint in table.constraints
         if isinstance(constraint, ForeignKeyConstraint)
     }
@@ -85,7 +97,7 @@ def test_distribution_storage_is_derived_and_never_copies_policy() -> None:
         "ck_distribution_operation_revision",
     } <= checks
     keys = {
-        tuple(element.target_fullname for element in constraint.elements)
+        tuple(_fk_target(element) for element in constraint.elements)
         for constraint in table.constraints
         if isinstance(constraint, ForeignKeyConstraint)
     }

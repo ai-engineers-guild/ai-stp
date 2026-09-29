@@ -70,7 +70,7 @@ def test_candidate_workflow_has_attestation_but_no_publish_authority() -> None:
     # commit rather than by a tag a publisher can move, which is the reason
     # `dependabot.yml` pins actions by commit at all. Which commit is a fact for
     # review, and a review is what a dependabot pull request is.
-    pinned = re.search(r"uses:\s*actions/attest-build-provenance@([0-9a-f]{40})\b", workflow)
+    pinned = re.search(r"uses:\s*actions/attest(?:-build-provenance)?@([0-9a-f]{40})\b", workflow)
     assert pinned, "the attestation step is absent or not pinned by a 40-character commit"
 
     for forbidden in ("gh-action-pypi-publish", "password:", "api-token"):
