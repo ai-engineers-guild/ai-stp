@@ -76,3 +76,23 @@ def test_a_plugin_manifest_is_retargeted_for_cursor() -> None:
     )
     assert result is not None
     assert ".cursor-plugin/plugin.json" in result.files
+
+
+def test_an_agent_name_with_quotes_still_produces_valid_toml() -> None:
+    """A heading breaking out of the basic string would corrupt the agent file."""
+    import tomlkit
+
+    target = composition.rule_for("agent", "codex")
+    assert target is not None
+    result = native_transform.transform(
+        component_type="agent",
+        source_harness="claude-code",
+        target=target,
+        files={"agents/reviewer.md": b'# say "hi" \\ now\n\nDescribe it.\n'},
+        modes={"agents/reviewer.md": 0o644},
+        source_paths={"agents/reviewer.md": "agents/reviewer.md"},
+    )
+    assert result is not None
+    text = result.files["agents/reviewer.toml"].decode("utf-8")
+    parsed = tomlkit.parse(text)
+    assert parsed["name"] == 'say "hi" \\ now'

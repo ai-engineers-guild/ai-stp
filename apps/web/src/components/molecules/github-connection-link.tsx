@@ -24,14 +24,18 @@ export function GitHubConnectionLink({
   const [error, setError] = useState(false);
 
   useEffect(() => {
-    void githubStatus(csrfToken).then((result) => {
-      const source = result.ok
-        ? result.data.connections.find((item) => item.purpose === "source")
-        : undefined;
-      setConnectionState(source?.state ?? (result.ok ? "disconnected" : null));
-      setConnected(source?.state === "connected");
-      setError(!result.ok);
-    });
+    void githubStatus(csrfToken)
+      .then((result) => {
+        const source = result.ok
+          ? result.data.connections.find((item) => item.purpose === "source")
+          : undefined;
+        setConnectionState(source?.state ?? (result.ok ? "disconnected" : null));
+        setConnected(source?.state === "connected");
+        setError(!result.ok);
+      })
+      .catch(() => {
+        setError(true);
+      });
   }, [csrfToken]);
 
   const statusLabel =

@@ -105,6 +105,7 @@ export default async function AccountPage({ params }: PageProps) {
                   value={profile.account_id}
                   label={t("copyAccountId")}
                   copied={tc("copied")}
+                  failed={tc("error")}
                 />
               </div>
               <p className="text-muted-foreground text-xs">{t("accountIdHint")}</p>

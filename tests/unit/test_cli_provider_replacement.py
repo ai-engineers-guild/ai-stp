@@ -154,3 +154,94 @@ def test_an_in_place_replacement_rewrites_the_sibling_manifest(tmp_path: Path) -
     assert identity is not None
     assert identity.provider_version == "0.0.65"
     assert identity.provider_id == "claude-setup-system"
+
+
+def test_a_post_install_failure_restores_bytes_manifest_and_registry(
+    registry: sqlite3.Connection, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The replacement is one write: a failure after the rename must not leave
+    new bytes beside an old manifest and no registry row.
+    """
+    from ai_stp_cli.provider import attested_bind
+    from ai_stp_cli.provider.release import ReleaseManifest
+
+    place = _executable(tmp_path, b"old-bytes\n")
+    (tmp_path / "release.json").write_text("old-release", encoding="utf-8")
+    old_digest, old_size = release.artifact_identity(place)
+
+    fetch_dir = tmp_path / "fetch"
+    fetch_dir.mkdir()
+    fetched = _executable(fetch_dir, b"new-bytes\n")
+    new_digest, new_size = release.artifact_identity(fetched)
+    bound = attested_bind.BoundRelease(
+        harness_id="claude-code",
+        repository="github.com/NDDev-OpenNetwork/claude-setup-system",
+        tag="0.0.66",
+        commit="b" * 40,
+        provider_id="claude-setup-system",
+        provider_version="0.0.66",
+        protocol_version=3,
+        sequence=66,
+        artifact=fetched,
+        manifest_path=fetch_dir / "release.json",
+        artifact_digest=new_digest,
+        artifact_url="https://example.invalid/artifact",
+        trust_level="verified_publisher",
+        manifest=ReleaseManifest(
+            provider_id="claude-setup-system",
+            provider_version="0.0.66",
+            protocol_version=3,
+            repository="github.com/NDDev-OpenNetwork/claude-setup-system",
+            commit="b" * 40,
+            license="AGPL-3.0-or-later",
+            artifact_url="https://example.invalid/artifact",
+            artifact_size=new_size,
+            artifact_digest=new_digest,
+            entry_point=fetched.name,
+            supported_os=frozenset({"linux"}),
+            supported_arch=frozenset({"x86_64"}),
+            sequence=66,
+            policy_id="nddev/provider/1",
+            publisher="nddev-opennetwork",
+            signing_key="attested",
+            signature_subject="ai-stp:provider-release-manifest:v1",
+            signature="",
+        ),
+    )
+    current = provider_commands.Identity("0.0.53", old_digest)
+    assert old_size > 0
+    plan_answer = provider_commands._planned_or_applied(  # pyright: ignore[reportPrivateUsage]
+        registry,
+        bound=bound,
+        operation="update",
+        harness_id="claude-code",
+        target=place,
+        current=current,
+        foreign=False,
+        confirmed=False,
+        expected="",
+    )
+    expected = plan_answer.payload.plan_digest
+
+    def fail_remember(*_args: object, **_kwargs: object) -> None:
+        raise RuntimeError("registry write failed")
+
+    monkeypatch.setattr(installations, "remember", fail_remember)
+    with pytest.raises(RuntimeError, match="registry write failed"):
+        provider_commands._planned_or_applied(  # pyright: ignore[reportPrivateUsage]
+            registry,
+            bound=bound,
+            operation="update",
+            harness_id="claude-code",
+            target=place,
+            current=current,
+            foreign=False,
+            confirmed=True,
+            expected=expected,
+        )
+
+    # Exact prior state: old bytes, the manifest that described them, and no
+    # registry row pointing at either.
+    assert release.artifact_identity(place)[0] == old_digest
+    assert (tmp_path / "release.json").read_text(encoding="utf-8") == "old-release"
+    assert installations.remembered(registry, "claude-code") is None

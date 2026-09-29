@@ -21,6 +21,32 @@ from ai_stp_foundation.ids import new_id
 from ai_stp_platform.organization_models import CorporateProject, CorporateTeam
 from ai_stp_platform.technology_models import Technology
 
+# Every permission read_directory may ask about; the mocked evaluators grant
+# all of them unless the test's own predicate denies one.
+_DIRECTORY_PERMISSIONS = frozenset(
+    {
+        "category.read",
+        "member.read",
+        "member.update",
+        "project.list",
+        "project.read",
+        "project.update",
+        "project.delete",
+        "project_technology.list",
+        "project_technology.read",
+        "team.list",
+        "team.read",
+        "team.update",
+        "team.delete",
+        "technology.list",
+        "technology.read",
+        "technology.update",
+        "technology.delete",
+        "technology_team.list",
+        "technology_team.read",
+    }
+)
+
 
 def organization() -> CorporateOrganization:
     return CorporateOrganization(
@@ -179,7 +205,25 @@ async def test_named_technology_relations_are_authorized_before_facets(
             kwargs["permission"] == "team.list" and kwargs["scope_id"] == other_id
         )
 
-    monkeypatch.setattr(directory, "has_corporate_permission", AsyncMock(side_effect=permitted))
+    async def effective(*args: Any, **kwargs: Any) -> frozenset[str]:
+        return frozenset(
+            permission
+            for permission in _DIRECTORY_PERMISSIONS
+            if permitted(permission=permission, **kwargs)
+        )
+
+    async def bulk(*args: Any, **kwargs: Any) -> dict[str, frozenset[str]]:
+        return {
+            scope_id: frozenset(
+                permission
+                for permission in _DIRECTORY_PERMISSIONS
+                if permitted(permission=permission, scope_id=scope_id, **kwargs)
+            )
+            for scope_id in kwargs["scope_ids"]
+        }
+
+    monkeypatch.setattr(directory, "corporate_effective_permissions", effective)
+    monkeypatch.setattr(directory, "bulk_effective_permissions", bulk)
     db = AsyncMock()
     streams: list[list[Any]] = [
         technologies,
@@ -244,7 +288,14 @@ async def test_project_lead_uses_directory_field_without_changing_graph_contract
         }
     )
     monkeypatch.setattr(overview, "read_overview", AsyncMock(return_value=graph))
-    monkeypatch.setattr(directory, "has_corporate_permission", AsyncMock(return_value=True))
+
+    async def bulk(*args: Any, **kwargs: Any) -> dict[str, frozenset[str]]:
+        return dict.fromkeys(kwargs["scope_ids"], _DIRECTORY_PERMISSIONS)
+
+    monkeypatch.setattr(
+        directory, "corporate_effective_permissions", AsyncMock(return_value=_DIRECTORY_PERMISSIONS)
+    )
+    monkeypatch.setattr(directory, "bulk_effective_permissions", bulk)
     db = AsyncMock()
     streams = [
         [],

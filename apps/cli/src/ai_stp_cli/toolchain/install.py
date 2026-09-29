@@ -43,6 +43,12 @@ from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.paths import DIRECTORY_MODE, data_dir, ensure_directory
 from ai_stp_cli.toolchain import Artifact, Tool
 
+_UNIX_SYMLINK: Final[int] = 0xA000
+_UNIX_CHAR: Final[int] = 0x2000
+_UNIX_BLOCK: Final[int] = 0x6000
+_UNIX_FIFO: Final[int] = 0x1000
+_UNIX_TYPE: Final[int] = 0xF000
+
 #: The pointer every invocation goes through (`REQ-1404`).
 CURRENT: Final[str] = "current"
 
@@ -410,8 +416,18 @@ def _unpack_zip(holder: Path, into: Path) -> None:
         entries = archive.infolist()
         _within_budget(len(entries), sum(item.file_size for item in entries))
         # `ZipFile.extract` sanitises member names — absolute paths and `..` are
-        # stripped — and zip has no symlink to follow, so there is nothing here
-        # the tar filter is needed for.
+        # stripped — and current CPython never materialises unix special files.
+        # The mode check is still kept explicit, in parity with artifact_bind:
+        # a zip made on another host can carry symlink/device modes and the
+        # answer must not silently depend on one interpreter's extraction rules.
+        for entry in entries:
+            mode = (entry.external_attr >> 16) & 0xFFFF
+            if mode & _UNIX_TYPE in {_UNIX_SYMLINK, _UNIX_CHAR, _UNIX_BLOCK, _UNIX_FIFO}:
+                raise CliFailure(
+                    "AI_STP_PRECONDITION_FAILED",
+                    "the artifact contains a link or special file",
+                    details={"member": entry.filename},
+                )
         archive.extractall(into)
     for path in into.rglob("*"):
         if path.is_dir():

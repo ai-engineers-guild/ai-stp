@@ -1,6 +1,6 @@
 ---
 description: "Runbook: platform safety scan for publication validation."
-last_verified: "2026-09-03"
+last_verified: "2026-09-29"
 ---
 
 # Runbook: platform safety scan
@@ -138,7 +138,9 @@ export OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY=/var/lib/ai_stp/osv
 - `RUSTFS_ACCESS_KEY` / `RUSTFS_SECRET_KEY` must match
   `AI_STP_STORAGE_ACCESS_KEY_ID` / `AI_STP_STORAGE_SECRET_ACCESS_KEY` on the first
   RustFS volume startup.
-- Compose healthcheck: `curl -sf http://127.0.0.1:9000/minio/health/live`.
+- Compose healthcheck: `curl -sf http://127.0.0.1:9000/health`. The
+  MinIO-compatible `/minio/health/live` answers 403 on the RustFS image —
+  `/health` is what answers 200.
 - API and worker: `depends_on: rustfs (service_healthy)`.
 
 ## Honest checks summary

@@ -119,8 +119,28 @@ export function normalizeDeviceList(raw: unknown): DeviceListResponse {
 }
 
 export async function listDevices(sessionToken: string): Promise<DeviceListResponse> {
-  const raw = await apiRequest<unknown>("/v1/devices", { sessionToken });
-  return normalizeDeviceList(raw);
+  // Drain every page — a first-page slice would silently hide older devices.
+  const items: DeviceRecord[] = [];
+  let cursor: string | null = null;
+  let page: DeviceListResponse["page"] | null = null;
+  for (let i = 0; i < 100; i += 1) {
+    const raw = await apiRequest<unknown>("/v1/devices", {
+      sessionToken,
+      query: cursor === null ? { page_size: 100 } : { page_size: 100, cursor },
+    });
+    const result = normalizeDeviceList(raw);
+    items.push(...result.items);
+    page = result.page;
+    cursor = result.page.next_cursor;
+    if (cursor === null) {
+      break;
+    }
+  }
+  return {
+    schema_version: 1,
+    items,
+    page: page ?? { schema_version: 1, next_cursor: null, page_size: 100 },
+  };
 }
 
 export async function revokeDevice(

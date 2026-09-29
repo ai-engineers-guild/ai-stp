@@ -13,8 +13,9 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 from typing import Final, cast
 
-from sqlalchemy import select
+from sqlalchemy import and_, false, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.sql.elements import ColumnElement
 
 from ai_stp_contracts.heartbeat import (
     DEFAULT_HEARTBEAT_INTERVAL_SECONDS,
@@ -119,6 +120,29 @@ def evaluate_health(
     if reported_state == "partial":
         return "partial"
     return "active"
+
+
+def health_clause(
+    state: HeartbeatHealthState, *, now: datetime, stale_after: timedelta
+) -> ColumnElement[bool]:
+    """SQL mirror of `evaluate_health` for set-based heartbeat listing.
+
+    `now - received_at > stale_after` is `received_at < now - stale_after`;
+    "unknown" names no stored row, so it matches nothing.
+    """
+    cutoff = now - stale_after
+    fresh = HeartbeatRow.received_at >= cutoff
+    if state == "disabled":
+        return HeartbeatRow.reported_state == "disabled"
+    if state == "stale":
+        return and_(HeartbeatRow.reported_state != "disabled", HeartbeatRow.received_at < cutoff)
+    if state == "failing":
+        return and_(HeartbeatRow.reported_state == "failing", fresh)
+    if state == "partial":
+        return and_(HeartbeatRow.reported_state == "partial", fresh)
+    if state == "active":
+        return and_(HeartbeatRow.reported_state.not_in(["disabled", "failing", "partial"]), fresh)
+    return false()
 
 
 def health_state_for(
@@ -280,13 +304,3 @@ async def get_heartbeat(
         )
     )
     return result.scalar_one_or_none()
-
-
-async def list_heartbeats(db: AsyncSession, *, organization_id: str) -> list[HeartbeatRow]:
-    await set_tenant_scope(db, organization_id)
-    result = await db.execute(
-        select(HeartbeatRow)
-        .where(HeartbeatRow.organization_id == organization_id)
-        .order_by(HeartbeatRow.account_id, HeartbeatRow.device_id)
-    )
-    return list(result.scalars().all())

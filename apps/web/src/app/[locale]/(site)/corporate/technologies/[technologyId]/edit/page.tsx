@@ -1,10 +1,11 @@
 import { getTranslations, setRequestLocale } from "next-intl/server";
-import { notFound } from "next/navigation";
 
 import { HistoryBackButton } from "@/components/molecules/history-back-button";
+import { StatePanel } from "@/components/molecules/state-panel";
 import { CorporateRichEditor } from "@/components/organisms/corporate-rich-editor";
 import { readCorporateContext } from "@/lib/api/corporate";
 import { readCorporatePresentation } from "@/lib/api/corporate-detail";
+import { ApiError } from "@/lib/api/errors";
 import { readTechnologyDetail } from "@/lib/api/technology";
 import { requireSession, sessionCookieValue } from "@/lib/auth/require-session";
 import { readCsrfToken } from "@/lib/auth/session";
@@ -18,23 +19,62 @@ export default async function TechnologyPresentationEditPage({
   setRequestLocale(locale);
   await requireSession(locale, `/${locale}/corporate/technologies/${technologyId}/edit`);
   const session = (await sessionCookieValue()) ?? "";
-  const workspace = await readCorporateContext(session);
-  if (!workspace) notFound();
-  const presentation = await readCorporatePresentation(
-    session,
-    workspace.organization.organization_id,
-    "technologies",
-    technologyId,
-    workspace.organization.authorization_revision,
-  );
-  const detail = await readTechnologyDetail(
-    session,
-    workspace.organization.organization_id,
-    technologyId,
-  );
-  if (!presentation?.can_edit || !detail) notFound();
   const corporate = await getTranslations("corporate");
   const technology = await getTranslations("technology");
+  let workspace;
+  try {
+    workspace = await readCorporateContext(session);
+  } catch (error) {
+    if (!(error instanceof ApiError)) throw error;
+    return (
+      <StatePanel
+        kind="error"
+        title={technology("registry")}
+        description={technology("registryUnavailable")}
+      />
+    );
+  }
+  if (!workspace)
+    return (
+      <StatePanel
+        kind="empty"
+        title={technology("registry")}
+        description={corporate("noOrganization")}
+      />
+    );
+  let presentation;
+  let detail;
+  try {
+    presentation = await readCorporatePresentation(
+      session,
+      workspace.organization.organization_id,
+      "technologies",
+      technologyId,
+      workspace.organization.authorization_revision,
+    );
+    detail = await readTechnologyDetail(
+      session,
+      workspace.organization.organization_id,
+      technologyId,
+    );
+  } catch (error) {
+    if (!(error instanceof ApiError)) throw error;
+    return (
+      <StatePanel
+        kind="error"
+        title={technology("registry")}
+        description={technology("registryUnavailable")}
+      />
+    );
+  }
+  if (!presentation?.can_edit || !detail)
+    return (
+      <StatePanel
+        kind="empty"
+        title={technology("registry")}
+        description={technology("notPermitted")}
+      />
+    );
   const detailHref = `/corporate/technologies/${technologyId}`;
   return (
     <article className="mx-auto w-full max-w-5xl min-w-0 space-y-6">

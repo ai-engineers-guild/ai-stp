@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Collection, Mapping
 from datetime import UTC, datetime
 from typing import Literal, cast
 
@@ -61,7 +61,7 @@ from ai_stp_contracts.technology_seed import (
 )
 from ai_stp_foundation.ids import new_id
 from ai_stp_foundation.timestamps import format_timestamp, parse_timestamp
-from ai_stp_platform.corporate_authorization import has_corporate_permission
+from ai_stp_platform.corporate_authorization import bulk_effective_permissions
 from ai_stp_platform.organization_models import (
     CorporateProject,
     CorporateTeam,
@@ -517,8 +517,14 @@ async def read_landscape(
             )
         ).all()
     )
+    technology_grants = await _bulk_grants(
+        db, ctx, organization_id, "technology", {row.id for row in technologies}
+    )
+    project_grants = await _bulk_grants(
+        db, ctx, organization_id, "project", {row.project_id for row in relations}
+    )
     rows: list[TechnologyLandscapeRow] = []
-    # ponytail: O(technologies * relations) and per-row policy reads; batch for large tenants.
+    # ponytail: O(technologies * relations) in memory; the policy reads are batched.
     for technology in technologies:
         if technology.redirect_id or (
             not filters.include_history and technology.lifecycle == "archived"
@@ -528,9 +534,8 @@ async def read_landscape(
             continue
         if filters.lifecycle and technology.lifecycle != filters.lifecycle:
             continue
-        if not await _readable(
-            db, ctx, organization_id, "technology.read", "technology", technology.id
-        ):
+        grants = technology_grants.get(technology.id, frozenset())
+        if "technology.read" not in grants:
             continue
         metadata = await technology_view(db, technology)
         if filters.query and not any(
@@ -541,9 +546,7 @@ async def read_landscape(
         if filters.category_id and filters.category_id not in metadata.category_ids:
             continue
         decision = None
-        readable_decision = await _readable(
-            db, ctx, organization_id, "technology_decision.read", "technology", technology.id
-        )
+        readable_decision = "technology_decision.read" in grants
         if readable_decision:
             decision = await db.get(
                 OrganizationTechnologyDecision, (organization_id, technology.id)
@@ -574,16 +577,11 @@ async def read_landscape(
                 project.state != "active" or relation.state != "current"
             ):
                 continue
-            if not all(
-                [
-                    await _readable(db, ctx, organization_id, permission, "project", project.id)
-                    for permission in (
-                        "project.read",
-                        "project_technology.list",
-                        "project_technology.read",
-                    )
-                ]
-            ):
+            if not {
+                "project.read",
+                "project_technology.list",
+                "project_technology.read",
+            } <= project_grants.get(project.id, frozenset()):
                 continue
             activity = project_activity(
                 project.repository_activity_at,
@@ -1056,23 +1054,25 @@ async def readable_decision_view(
     return response
 
 
-async def _readable(
+async def _bulk_grants(
     db: AsyncSession,
     ctx: AuthContext,
     organization_id: str,
-    permission: str,
     scope_kind: str,
-    scope_id: str,
-) -> bool:
-    return await has_corporate_permission(
+    scope_ids: Collection[str],
+) -> dict[str, frozenset[str]]:
+    """One `bulk_effective_permissions` call shaped for per-row filtering:
+    a gate denial maps to "nothing holds anywhere", which is exactly what the
+    per-row `_readable` calls used to answer one scope at a time."""
+    granted = await bulk_effective_permissions(
         db,
         organization_id=organization_id,
         principal_type="user",
         principal_id=ctx.account_id,
-        permission=permission,
         scope_kind=scope_kind,
-        scope_id=scope_id,
+        scope_ids=scope_ids,
     )
+    return {} if granted is None else granted
 
 
 async def list_project_teams(
@@ -1146,17 +1146,20 @@ async def list_project_teams(
             )
         ).all()
     )
+    project_grants = await _bulk_grants(
+        db, ctx, organization_id, "project", {row.project_id for row in rows}
+    )
+    team_grants = await _bulk_grants(
+        db, ctx, organization_id, "team", {row.team_id for row in rows}
+    )
     visible: list[ProjectTeamView] = []
     for row in rows:
-        if (
-            await _readable(
-                db, ctx, organization_id, "project_team.list", "project", row.project_id
-            )
-            and await _readable(
-                db, ctx, organization_id, "project_team.read", "project", row.project_id
-            )
-            and await _readable(db, ctx, organization_id, "project.read", "project", row.project_id)
-            and await _readable(db, ctx, organization_id, "team.read", "team", row.team_id)
+        if {
+            "project_team.list",
+            "project_team.read",
+            "project.read",
+        } <= project_grants.get(row.project_id, frozenset()) and "team.read" in team_grants.get(
+            row.team_id, frozenset()
         ):
             visible.append(_project_team_view(row))
     await emit_audit(
@@ -1239,20 +1242,21 @@ async def list_technology_teams(
             )
         ).all()
     )
+    technology_grants = await _bulk_grants(
+        db, ctx, organization_id, "technology", {row.technology_id for row in rows}
+    )
+    team_grants = await _bulk_grants(
+        db, ctx, organization_id, "team", {row.team_id for row in rows}
+    )
     visible: list[TechnologyTeamView] = []
     for row in rows:
-        if (
-            await _readable(
-                db, ctx, organization_id, "technology_team.list", "technology", row.technology_id
-            )
-            and await _readable(
-                db, ctx, organization_id, "technology_team.read", "technology", row.technology_id
-            )
-            and await _readable(
-                db, ctx, organization_id, "technology.read", "technology", row.technology_id
-            )
-            and await _readable(db, ctx, organization_id, "team.read", "team", row.team_id)
-        ):
+        if {
+            "technology_team.list",
+            "technology_team.read",
+            "technology.read",
+        } <= technology_grants.get(
+            row.technology_id, frozenset()
+        ) and "team.read" in team_grants.get(row.team_id, frozenset()):
             visible.append(technology_team_view(row))
     await emit_audit(
         db,
@@ -1340,20 +1344,21 @@ async def list_project_technologies(
             )
         ).all()
     )
+    project_grants = await _bulk_grants(
+        db, ctx, organization_id, "project", {row.project_id for row in rows}
+    )
+    technology_grants = await _bulk_grants(
+        db, ctx, organization_id, "technology", {row.technology_id for row in rows}
+    )
     visible: list[ProjectTechnologyView] = []
     for row in rows:
-        if (
-            await _readable(
-                db, ctx, organization_id, "project_technology.list", "project", row.project_id
-            )
-            and await _readable(
-                db, ctx, organization_id, "project_technology.read", "project", row.project_id
-            )
-            and await _readable(db, ctx, organization_id, "project.read", "project", row.project_id)
-            and await _readable(
-                db, ctx, organization_id, "technology.read", "technology", row.technology_id
-            )
-        ):
+        if {
+            "project_technology.list",
+            "project_technology.read",
+            "project.read",
+        } <= project_grants.get(
+            row.project_id, frozenset()
+        ) and "technology.read" in technology_grants.get(row.technology_id, frozenset()):
             visible.append(await project_technology_view(db, row))
     await emit_audit(
         db,
@@ -1548,19 +1553,8 @@ async def list_technologies(
     if not include_archived:
         query = query.where(Technology.lifecycle != "archived", Technology.redirect_id.is_(None))
     rows = list((await db.scalars(query.order_by(Technology.name, Technology.id))).all())
-    authorized: list[Technology] = []
-    # ponytail: per-row policy checks; batch the same evaluator if large registries need it.
-    for row in rows:
-        if await has_corporate_permission(
-            db,
-            organization_id=organization_id,
-            principal_type="user",
-            principal_id=ctx.account_id,
-            permission="technology.read",
-            scope_kind="technology",
-            scope_id=row.id,
-        ):
-            authorized.append(row)
+    grants = await _bulk_grants(db, ctx, organization_id, "technology", {row.id for row in rows})
+    authorized = [row for row in rows if "technology.read" in grants.get(row.id, frozenset())]
     await emit_audit(
         db,
         actor_account_id=ctx.account_id,

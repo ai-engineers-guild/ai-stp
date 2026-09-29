@@ -122,6 +122,10 @@ class Worker:
         # The daily sweep marker is independent of the upstream flag:
         # telemetry retention must run even when upstream sync is disabled.
         self._daily_sweep_day: date = date.min
+        # Consecutive run_once() infrastructure failures (DB unreachable,
+        # sessionmaker breakage). Handler failures are job outcomes and never
+        # reach this counter; a dying poll loop must not restart-storm.
+        self._tick_failures = 0
 
     def request_stop(self) -> None:
         """Signal the run loop to stop claiming and drain."""
@@ -149,7 +153,22 @@ class Worker:
                     stop_waiter.cancel()
                     with suppress(asyncio.CancelledError):
                         await stop_waiter
-                    processed = active.result()
+                    try:
+                        processed = active.result()
+                    except Exception as exc:
+                        # An infra failure in run_once is not a job outcome —
+                        # a crashing poll loop would restart-storm the process.
+                        # Back off exponentially (bounded) and keep polling.
+                        self._tick_failures += 1
+                        _log.error(
+                            "worker_tick_failed",
+                            worker_id=self._worker_id,
+                            error=f"{type(exc).__name__}: {exc}",
+                            consecutive_failures=self._tick_failures,
+                        )
+                        processed = -1
+                    else:
+                        self._tick_failures = 0
                     active = None
                 else:
                     stop_waiter.result()
@@ -158,6 +177,10 @@ class Worker:
                     break
                 if processed == 0:
                     await self._wait_or_stop(self._poll_interval)
+                elif processed < 0:
+                    await self._wait_or_stop(
+                        min(300.0, self._poll_interval * 2**self._tick_failures)
+                    )
         finally:
             if active is not None and not active.done():
                 safe_to_requeue = await self._cancel_active(active)

@@ -100,9 +100,13 @@ export function DashboardBuilder({
 
   useEffect(() => {
     let active = true;
-    void listDashboardViewsAction({ csrfToken }).then((response) => {
-      if (active && response.ok) setSaved(response.data.items);
-    });
+    void listDashboardViewsAction({ csrfToken })
+      .then((response) => {
+        if (active && response.ok) setSaved(response.data.items);
+      })
+      .catch(() => {
+        /* Saved views fail closed; the query flow still owns errors. */
+      });
     return () => {
       active = false;
     };

@@ -119,16 +119,15 @@ async def enqueue_refresh_for_active(
     resolved = settings or load_seo_settings()
     rows = (
         await session.execute(
-            select(SeoActiveRevision, SeoRevision).join(
-                SeoRevision, SeoRevision.id == SeoActiveRevision.revision_id
-            )
+            select(SeoActiveRevision, SeoRevision, SeoFactSnapshot)
+            .join(SeoRevision, SeoRevision.id == SeoActiveRevision.revision_id)
+            # An active revision whose snapshot is gone is skipped exactly as
+            # the per-row `session.get` miss used to skip it.
+            .join(SeoFactSnapshot, SeoFactSnapshot.id == SeoActiveRevision.snapshot_id)
         )
     ).all()
     builds = enrichments = 0
-    for pointer, revision in rows:
-        snapshot = await session.get(SeoFactSnapshot, pointer.snapshot_id)
-        if snapshot is None:
-            continue
+    for pointer, revision, snapshot in rows:
         kind = parse_subject_kind(pointer.subject_kind)
         locale = parse_locale(pointer.locale)
         if revision.template_version != resolved.template_version:

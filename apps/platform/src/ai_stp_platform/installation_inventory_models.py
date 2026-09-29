@@ -2,7 +2,7 @@
 
 from datetime import datetime
 
-from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Index, String, func
+from sqlalchemy import JSON, Boolean, CheckConstraint, DateTime, ForeignKey, Index, String, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from ai_stp_platform.db import Base
@@ -19,6 +19,12 @@ class InstallationInventorySnapshot(Base):
             "scope",
             "project_id",
             "scanned_at",
+        ),
+        CheckConstraint("scope in ('global','project')", name="ck_install_inventory_scope"),
+        CheckConstraint(
+            "(scope = 'global' AND project_id IS NULL) OR "
+            "(scope = 'project' AND project_id IS NOT NULL)",
+            name="ck_install_inventory_project_scope",
         ),
     )
 

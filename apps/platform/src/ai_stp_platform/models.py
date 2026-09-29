@@ -587,6 +587,9 @@ class ObjectLocation(OrganizationScopedMixin, Base):
 class AuditEvent(OrganizationScopedMixin, Base):
     """Append-only audit row for sensitive server actions."""
 
+    # Anonymous audit entries carry no tenant; 0059 keeps the column nullable.
+    _organization_scope_nullable = True
+
     __tablename__ = "audit_event"
     __table_args__ = (
         CheckConstraint(

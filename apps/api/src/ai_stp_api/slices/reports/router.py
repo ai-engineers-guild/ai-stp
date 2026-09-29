@@ -57,19 +57,37 @@ async def create_request_case(
 
 @router.get("/reports", response_model=None)
 async def list_report_cases(
+    request: Request,
     db: Annotated[AsyncSession, Depends(get_db)],
     ctx: Annotated[AuthContext, Depends(require_auth)],
+    page_size: Annotated[int, Query(ge=1, le=PAGE_SIZE_MAX)] = PAGE_SIZE_MAX,
+    cursor: Annotated[str | None, Query()] = None,
 ) -> JSONResponse:
-    result = await service.list_reports(db, ctx=ctx)
+    result = await service.list_reports(
+        db,
+        ctx=ctx,
+        page_size=page_size,
+        cursor=cursor,
+        cursor_secret=get_settings(request).catalog.cursor_signing_secret,
+    )
     return _resource(result)
 
 
 @router.get("/requests", response_model=None)
 async def list_request_cases(
+    request: Request,
     db: Annotated[AsyncSession, Depends(get_db)],
     ctx: Annotated[AuthContext, Depends(require_auth)],
+    page_size: Annotated[int, Query(ge=1, le=PAGE_SIZE_MAX)] = PAGE_SIZE_MAX,
+    cursor: Annotated[str | None, Query()] = None,
 ) -> JSONResponse:
-    result = await service.list_reports(db, ctx=ctx)
+    result = await service.list_reports(
+        db,
+        ctx=ctx,
+        page_size=page_size,
+        cursor=cursor,
+        cursor_secret=get_settings(request).catalog.cursor_signing_secret,
+    )
     return _resource(result)
 
 

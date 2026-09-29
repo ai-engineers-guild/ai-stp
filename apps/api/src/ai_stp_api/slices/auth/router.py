@@ -496,13 +496,11 @@ async def start_device_auth(
     auth: Annotated[AuthSettings, Depends(get_auth_settings)],
 ) -> JSONResponse:
     """Start RFC 8628 device-code authorization (CLI)."""
+    from ai_stp_api.deps import validated_body
     from ai_stp_api.slices.auth.device_flow import start_device_authorization, verification_uris
     from ai_stp_contracts.auth import DeviceAuthorizationRequest
 
-    try:
-        body = DeviceAuthorizationRequest.model_validate(await request.json())
-    except Exception as exc:
-        raise ApiError(ErrorCategory.VALIDATION, "request validation failed") from exc
+    body = await validated_body(request, DeviceAuthorizationRequest)
 
     row = await start_device_authorization(
         db,
@@ -542,13 +540,11 @@ async def exchange_device_auth(
     auth: Annotated[AuthSettings, Depends(get_auth_settings)],
 ) -> JSONResponse:
     """Poll device-code exchange and bind the device public key."""
+    from ai_stp_api.deps import validated_body
     from ai_stp_api.slices.auth.device_flow import exchange_device_code
     from ai_stp_contracts.auth import DeviceTokenRequest
 
-    try:
-        body = DeviceTokenRequest.model_validate(await request.json())
-    except Exception as exc:
-        raise ApiError(ErrorCategory.VALIDATION, "request validation failed") from exc
+    body = await validated_body(request, DeviceTokenRequest)
 
     payload = await exchange_device_code(
         db,
@@ -632,10 +628,11 @@ async def approve_device_auth(
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> JSONResponse:
     """Browser-approved binding of a user_code to the signed-in account."""
+    from ai_stp_api.deps import validated_body
     from ai_stp_api.slices.auth.device_flow import approve_device_authorization
     from ai_stp_contracts.auth import DeviceApproveRequest
 
-    body = DeviceApproveRequest.model_validate(await request.json())
+    body = await validated_body(request, DeviceApproveRequest)
     row = await approve_device_authorization(
         db, user_code=body.user_code, account_id=ctx.account_id
     )

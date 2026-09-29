@@ -75,6 +75,13 @@ fi
 
 if [[ ${current} == "${candidate}" ]]; then
   prune_release_archives "${candidate}" "${previous_commit}"
+  # "Already current" is not "healthy": the ref only proves nothing new was
+  # published. This timer tick is the host's only scheduled check, so the
+  # external verification still runs against the serving stack.
+  (
+    cd "${root}"
+    bash -lc './deploy/verify.sh'
+  )
   printf 'pull_deploy_already_current commit=%s\n' "${candidate}"
   exit 0
 fi

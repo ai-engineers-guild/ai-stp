@@ -15,7 +15,7 @@ from ai_stp_contracts.corporate_governance import (
     CorporatePermissionDefinition,
     CorporatePermissionMatrix,
 )
-from ai_stp_platform.corporate_authorization import has_corporate_permission
+from ai_stp_platform.corporate_authorization import corporate_effective_permissions
 from ai_stp_platform.organization_models import CorporateRoleBinding
 
 router = APIRouter(tags=["corporate"])
@@ -59,19 +59,23 @@ async def read_permission_matrix(
         for permission in sorted(service.KNOWN_PERMISSIONS)
     ]
     effective: list[CorporateEffectivePermission] = []
+    scope_grants: dict[tuple[str, str], set[str]] = {}
     for binding in bindings:
         scope_kind = binding.scope_kind if binding.scope_kind in _SCOPES else "organization"
         scope_id = organization_id if binding.scope_id == "*" else binding.scope_id
-        for permission in sorted(service.KNOWN_PERMISSIONS):
-            if await has_corporate_permission(
+        key = (scope_kind, scope_id)
+        if key not in scope_grants:
+            granted = await corporate_effective_permissions(
                 db,
                 organization_id=organization_id,
                 principal_type="user",
                 principal_id=ctx.account_id,
-                permission=permission,
                 scope_kind=scope_kind,
                 scope_id=scope_id,
-            ):
+            )
+            scope_grants[key] = granted or set()
+        for permission in sorted(service.KNOWN_PERMISSIONS):
+            if permission in scope_grants[key]:
                 existing = next(
                     (
                         item

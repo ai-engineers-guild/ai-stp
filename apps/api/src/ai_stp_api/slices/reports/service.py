@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ai_stp_api.audit import emit_audit
 from ai_stp_api.errors import ApiError, ErrorCategory
 from ai_stp_api.session import AuthContext
-from ai_stp_contracts.http import PageInfo
+from ai_stp_contracts.http import PAGE_SIZE_MAX, PageInfo
 from ai_stp_contracts.owner import StaffReportDetail, StaffReportListResponse, StaffReportSummary
 from ai_stp_contracts.reports import (
     ReportCaseCreateRequest,
@@ -227,17 +227,55 @@ async def read_own_report(
     return case_to_wire(row)
 
 
-async def list_reports(db: AsyncSession, *, ctx: AuthContext) -> ReportCaseListResponse:
-    rows = list(
-        (
-            await db.execute(
-                select(ReportCase).where(ReportCase.reporter_account_id == ctx.account_id)
-            )
-        )
-        .scalars()
-        .all()
+async def list_reports(
+    db: AsyncSession,
+    *,
+    ctx: AuthContext,
+    page_size: int = PAGE_SIZE_MAX,
+    cursor: str | None = None,
+    cursor_secret: str | None = None,
+) -> ReportCaseListResponse:
+    # ULID ids are lexicographically time-ordered, so `id DESC` is an exact
+    # newest-first keyset — no cursor drift from the wire's millisecond
+    # timestamp precision. The cursor signature binds the reporter.
+    filter_sig = filter_signature(
+        object_kind=f"reports:{ctx.account_id}",
+        q=None,
+        tags=[],
+        harness_id=None,
+        component_type=None,
+        include_experimental=False,
     )
-    return ReportCaseListResponse(schema_version=1, items=[case_to_wire(r) for r in rows])
+    statement = (
+        select(ReportCase)
+        .where(ReportCase.reporter_account_id == ctx.account_id)
+        .order_by(ReportCase.id.desc())
+    )
+    if cursor is not None:
+        if cursor_secret is None:
+            raise ApiError(ErrorCategory.DEPENDENCY, "cursor signing is not configured")
+        try:
+            key = decode_cursor(secret=cursor_secret, token=cursor, filter_sig=filter_sig)
+        except CursorError as error:
+            raise ApiError(ErrorCategory.VALIDATION, "invalid cursor") from error
+        statement = statement.where(ReportCase.id < key.stable_id)
+    rows = list((await db.execute(statement.limit(page_size + 1))).scalars().all())
+    has_more = len(rows) > page_size
+    rows = rows[:page_size]
+    next_cursor: str | None = None
+    if has_more and cursor_secret is not None:
+        last = rows[-1]
+        created = last.created_at if last.created_at.tzinfo else last.created_at.replace(tzinfo=UTC)
+        next_cursor = encode_cursor(
+            secret=cursor_secret,
+            filter_sig=filter_sig,
+            key=CursorKey(published_at=created, stable_id=last.id),
+        )
+    return ReportCaseListResponse(
+        schema_version=1,
+        items=[case_to_wire(r) for r in rows],
+        page=PageInfo(schema_version=1, next_cursor=next_cursor, page_size=max(page_size, 1)),
+    )
 
 
 async def list_staff_reports(

@@ -34,7 +34,6 @@ import { SetupComposition } from "@/components/organisms/setup-composition";
 import { SetupFamilyBlock, setupFamilyLabels } from "@/components/molecules/setup-family";
 import {
   catalogRelations,
-  readComponentVersion,
   readSetup,
   readSetupContextBudget,
   readSetupGithubMetadata,
@@ -49,10 +48,10 @@ import { listCatalogReactions } from "@/lib/api/reactions";
 import { readCorporateContext } from "@/lib/api/corporate";
 import { readOwnerObjectActions } from "@/lib/api/owner";
 import { objectActionLabels } from "@/lib/object-action-labels";
-import { readPublisherProfile, type PublicProfileProjection } from "@/lib/api/public-profile";
+import { loadCatalogComponents, readAuthor } from "./setup-catalog-components";
 import { sessionCookieValue } from "@/lib/auth/require-session";
 import { readCsrfToken } from "@/lib/auth/session";
-import { asAccountId, asComponentId, asVersionId, tryAsSetupId } from "@/lib/brands";
+import { asVersionId, tryAsSetupId } from "@/lib/brands";
 import { installSetupStart, registryVersion } from "@/lib/cli-copy";
 import { isFeatureEnabled } from "@/lib/features/gate";
 import { buildDeepLink, normalizeTarget } from "@/lib/deep-links";
@@ -61,7 +60,6 @@ import { SeoJsonLd } from "@/components/molecules/seo-json-ld";
 import { readSeoProfile } from "@/lib/api/seo";
 import { metadataFromSeo } from "@/lib/seo/metadata";
 import { UI } from "@/lib/ui-selectors";
-import { sourceLinksFor } from "@/lib/source-url";
 import { visibleCorporateState } from "@/lib/corporate-detail";
 
 type PageProps = {
@@ -103,92 +101,80 @@ export default async function SetupDetailPage({ params, searchParams }: PageProp
     throw error;
   }
 
-  const t = await getTranslations("catalog");
-  const th = await getTranslations("hub");
-  const to = await getTranslations("objects");
-  const tc = await getTranslations("common");
-  const tCli = await getTranslations("cli");
-  const reportLabel = t("reportSetup");
-
-  const seo = await readSeoProfile("setup", stableId, locale);
   const summary = detail.summary;
+  const versionId = asVersionId(summary.latest_version);
+  // Tier 1: reads that need only the detail payload, the token, or the
+  // version — translations, SEO, latest version, reactions, corporate
+  // context, owner actions, GitHub metadata and context budget.
+  const [
+    t,
+    th,
+    to,
+    tc,
+    tCli,
+    seo,
+    latest,
+    initiallyLiked,
+    corporateContext,
+    objectActions,
+    metadata,
+    budgetResult,
+  ] = await Promise.all([
+    getTranslations("catalog"),
+    getTranslations("hub"),
+    getTranslations("objects"),
+    getTranslations("common"),
+    getTranslations("cli"),
+    readSeoProfile("setup", stableId, locale),
+    readSetupVersion(setupId, versionId).catch(() => null),
+    token ? isLiked(token, stableId) : Promise.resolve(false),
+    token ? readCorporateContext(token).catch(() => null) : Promise.resolve(null),
+    token ? readOwnerObjectActions(token, "setup", stableId) : Promise.resolve(null),
+    readSetupGithubMetadata(setupId, versionId).catch(() => ({
+      schema_version: 1 as const,
+      stars: null,
+      archived: null,
+    })),
+    loadContextBudget(readSetupContextBudget(setupId, versionId)),
+  ]);
+  const { budget, failure: budgetFailure } = budgetResult;
+  const reportLabel = t("reportSetup");
   const visibleLifecycle = visibleCorporateState(summary.latest_lifecycle);
   const media = detail.media;
-  const initiallyLiked = token ? await isLiked(token, stableId) : false;
-  let latest: Awaited<ReturnType<typeof readSetupVersion>> | null = null;
-  try {
-    latest = await readSetupVersion(setupId, asVersionId(summary.latest_version));
-  } catch {
-    latest = null;
-  }
   const passport = latest?.passport;
   const documentDescription = detail.presentation_bio;
   const catalogComponents = passport
-    ? await Promise.all(
-        passport.components.map(async (ref) => {
-          try {
-            const component = await readComponentVersion(
-              asComponentId(ref.stable_id),
-              asVersionId(ref.version),
-            );
-            const componentOwnerId = summary.publisher_id || component.passport.owner_id || "";
-            const componentAuthor = await readAuthor(componentOwnerId);
-            return {
-              stableId: ref.stable_id,
-              version: ref.version,
-              componentType: component.passport.component_type,
-              ownerId: componentOwnerId,
-              authorName: componentAuthor?.display_name,
-              sourceUrl: sourceLinksFor(component.passport.source, component.passport.facts)[0]
-                ?.href,
-              passport: component.passport,
-            };
-          } catch {
-            return null;
-          }
-        }),
-      ).then((items) => items.filter((item) => item !== null))
+    ? await loadCatalogComponents(passport, summary.publisher_id || "")
     : [];
   const aggregatedRequirements = passport
     ? mergeRequirements([passport, ...catalogComponents.map((item) => item.passport)])
     : null;
   const ownerId = summary.publisher_id || passport?.owner_id || "";
-  const author = await readAuthor(ownerId);
-  const corporateContext = token ? await readCorporateContext(token).catch(() => null) : null;
-  const corporateOwnership = token
-    ? await readCorporateCatalogOwnership(
-        token,
-        "setup",
-        setupId,
-        asVersionId(summary.latest_version),
-        corporateContext,
-      )
-    : null;
-  const corporateCsrfToken = corporateOwnership?.ownership.can_edit
-    ? ((await readCsrfToken()) ?? "")
-    : "";
-  const corporateUsage =
+  // Tier 2: reads that need the latest passport or the corporate context.
+  const [author, corporateOwnership, corporateUsage] = await Promise.all([
+    readAuthor(ownerId),
+    token
+      ? readCorporateCatalogOwnership(token, "setup", setupId, versionId, corporateContext)
+      : Promise.resolve(null),
     token && corporateContext
-      ? await readCorporateCatalogUsage(
+      ? readCorporateCatalogUsage(
           token,
           corporateContext.organization.organization_id,
           "setup",
           setupId,
         )
-      : null;
-  const objectActions = token ? await readOwnerObjectActions(token, "setup", stableId) : null;
-  const deleteCsrfToken = objectActions?.canDelete ? ((await readCsrfToken()) ?? "") : "";
+      : Promise.resolve(null),
+  ]);
+  const [corporateCsrfToken, deleteCsrfToken] = await Promise.all([
+    corporateOwnership?.ownership.can_edit
+      ? readCsrfToken().then((value) => value ?? "")
+      : Promise.resolve(""),
+    objectActions?.canDelete ? readCsrfToken().then((value) => value ?? "") : Promise.resolve(""),
+  ]);
   const reportHref = latest?.passport_digest
     ? `/${locale}/reports?object_kind=setup&stable_id=${encodeURIComponent(stableId)}&version=${encodeURIComponent(summary.latest_version)}&digest=${encodeURIComponent(latest.passport_digest)}`
     : undefined;
   const relations = catalogRelations(detail);
-  const metadata = await readSetupGithubMetadata(
-    setupId,
-    asVersionId(summary.latest_version),
-  ).catch(() => ({ schema_version: 1 as const, stars: null, archived: null }));
-  const { budget, failure: budgetFailure } = await loadContextBudget(
-    readSetupContextBudget(setupId, asVersionId(summary.latest_version)),
-  );
   const cliCommand = registryVersion("setup", summary.stable_id, summary.latest_version);
   const canonical = buildDeepLink(
     publicOrigin().origin,
@@ -441,14 +427,6 @@ export default async function SetupDetailPage({ params, searchParams }: PageProp
       />
     </article>
   );
-}
-
-async function readAuthor(accountId: string): Promise<PublicProfileProjection | null> {
-  try {
-    return await readPublisherProfile(asAccountId(accountId));
-  } catch {
-    return null;
-  }
 }
 
 async function isLiked(token: string, stableId: string) {
