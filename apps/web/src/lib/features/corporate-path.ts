@@ -30,3 +30,13 @@ export function corporateSharedPath(pathname: string): string | null {
   if (match?.[2] === "/catalog") return null;
   return match?.[2] && SHARED_PAGE.test(match[2]) ? `${match[1]}${match[2]}` : null;
 }
+
+/**
+ * Corporate SSO is a corporate-hub surface (ADR-0218): outside the
+ * `corporate_hub` build the login page shows no SSO button at all, whatever
+ * AI_STP_AUTH_SSO_PROVIDERS says. Inside it every login lives under
+ * /corporate/login, so the profile check is the context check.
+ */
+export function corporateSsoProviders<T>(providers: readonly T[]): readonly T[] {
+  return COMPILED_FEATURE_PROFILE === "corporate_hub" ? providers : [];
+}

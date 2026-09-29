@@ -215,6 +215,7 @@ last_verified: "2026-08-03"
 | [ADR-0215-bound-native-usage-hooks.md](ADR-0215-bound-native-usage-hooks.md) | Bind native usage observations to a verified local installation without exposing corporate credentials to components. | 2026-09-26 |
 | [ADR-0216-rollback-provenance-from-the-journal.md](ADR-0216-rollback-provenance-from-the-journal.md) | Recover a rollback's component coordinates from the prior verified bundle, or leave them unknown. | 2026-09-26 |
 | [ADR-0217-deployment-files-live-under-deploy.md](ADR-0217-deployment-files-live-under-deploy.md) | Consolidate every compose file under deploy/ and every Dockerfile under deploy/docker/, with one app Dockerfile for all Python stages. | 2026-09-27 |
+| [ADR-0218-corporate-oidc-providers.md](ADR-0218-corporate-oidc-providers.md) | Corporate single sign-on runs over OIDC through named providers configured by issuer URL; authentik and keycloak are the first two. | 2026-09-29 |
 | [binding.md](binding.md) | Which accepted ADRs still constrain non-corporate work; default is binding. | 2026-09-20 |
 | [template.md](template.md) | Architecture decision record template. | 2026-08-03 |
 

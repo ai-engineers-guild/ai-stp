@@ -12,15 +12,17 @@ release, capability, and evidence facts.
 ## Active release
 
 The active public tag for the seven `NDDev-OpenNetwork/*-setup-system`
-repositories is `0.0.80` (published 2026-09-29 UTC). The vendored consumer
+repositories is `0.0.81` (published 2026-09-29 UTC; a ZIP deflate-stream fix).
+`0.0.82` — the eight-tree prose audit — is in the publish pipeline on the
+authoring repository's `main` at the time of writing. The vendored consumer
 kit is unchanged at `0.2.15`
 (`sha256:094886dd93108ee823350262d332ddd1b02044fdfb835fb055bde91668ab9ebb`),
 byte-identical to `provider-kit/v3/` in this repository — verified by a
 recursive diff of the two trees on 2026-09-29 — and matches
 `provider-kit/v3/KIT-IDENTITY.json` and
 `tests/golden/provider-kit/identity-ledger.json`.
-`0.0.79` (2026-09-28) and `0.0.74` (2026-09-24) remain prior public tags;
-they are not the current release.
+`0.0.80` (2026-09-29), `0.0.79` (2026-09-28) and `0.0.74` (2026-09-24) remain
+prior public tags; they are not the current release.
 
 Antigravity's non-minimal provider setups retain the historical access key and
 add `allowNonWorkspaceAccess`. A fresh native Antigravity CLI 1.2.10 process on
@@ -32,8 +34,10 @@ Software artifact pins and the provider wire boundary did not change.
 - Core configuration binary/provider-info exists on six OS/architecture lines
   for all seven systems.
 - Software install/update/remove is declared for all seven systems.
-- Claude Code, Codex, Grok Build, OpenCode, and Pi declare complete launch;
-  Cursor and Antigravity do not.
+- All seven systems declare `launch`: five bind the documented config-home
+  variable, Cursor launches under a copied process home because its product
+  resolves those surfaces from `HOME` itself, and Antigravity launches only
+  against the documented `~/.gemini` home.
 - Provider-kit `0.2.7` publishes a closed status-response schema; the consumer
   validates the complete envelope at the single invocation boundary.
 - Provider-kit `0.2.8` opens `plan_request_fields` to `end_state` (`#54`).
@@ -50,9 +54,9 @@ Software artifact pins and the provider wire boundary did not change.
 
 ## Evidence
 
-Conformance was not re-run against `0.0.80`; the `0.0.79` readback below is
-the most recent measured pass, and the vendored-kit bytes it covered are
-unchanged in `0.0.80`.
+Conformance was not re-run against `0.0.80` or `0.0.81`; the `0.0.79` readback
+below is the most recent measured pass, and the vendored-kit bytes it covered
+are unchanged in `0.0.81`.
 
 On 2026-09-28 (UTC), the released `ai-stp-cli` 0.0.33 auto-acquired attested
 `0.0.79` providers through the publish readback: `exact=7 refused=0

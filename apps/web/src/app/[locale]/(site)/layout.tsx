@@ -5,8 +5,20 @@ import { AppShell } from "@/components/layouts/app-shell";
 import { requireSession } from "@/lib/auth/require-session";
 import { COMPILED_FEATURE_PROFILE } from "@/lib/features/compiled";
 
-/** Corporate pages that render without an active session. */
-const CORPORATE_PUBLIC_PAGES = new Set(["login", "device-login", "onboarding"]);
+/**
+ * Corporate pages that render without an active session. The invitation
+ * accept pages stay public because their bearer token lives in the URL
+ * fragment: gating them would 307 to login and destroy the token before the
+ * client could read it. The accept POST enforces auth itself and sends a 401
+ * to login with the fragment inside `returnTo`.
+ */
+const CORPORATE_PUBLIC_PAGES = new Set([
+  "login",
+  "device-login",
+  "onboarding",
+  "corporate-invitations",
+  "invitations",
+]);
 
 type SiteLayoutProps = {
   children: ReactNode;

@@ -3,10 +3,12 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 import { mockLoginCancelAction, mockLoginErrorAction, startLoginAction } from "@/actions/auth";
 import { Button } from "@/components/atoms/button";
 import { CliCopyBlock } from "@/components/molecules/cli-copy-block";
+import { SsoSignIn } from "@/components/molecules/sso-sign-in";
 import { StatePanel } from "@/components/molecules/state-panel";
 import { login } from "@/lib/cli-copy";
+import type { LoginProvider } from "@/lib/generated/cli-copy";
 import { getEnv } from "@/lib/env";
-import { corporateHref } from "@/lib/features/corporate-path";
+import { corporateHref, corporateSsoProviders } from "@/lib/features/corporate-path";
 import { Icon } from "@/theme";
 
 type PageProps = {
@@ -19,7 +21,7 @@ type PageProps = {
   }>;
 };
 
-function oauthLoginHref(provider: "google" | "github", returnTo: string): string {
+function oauthLoginHref(provider: LoginProvider, returnTo: string): string {
   const params = new URLSearchParams({
     client: "web",
     return_to: returnTo,
@@ -28,7 +30,9 @@ function oauthLoginHref(provider: "google" | "github", returnTo: string): string
 }
 
 /**
- * Login UX (SPEC-023, ADR-0041). Provider buttons always render.
+ * Login UX (SPEC-023, ADR-0041). Provider buttons always render; the
+ * corporate SSO entry (ADR-0218) shows only in the corporate_hub build for
+ * providers listed in AI_STP_AUTH_SSO_PROVIDERS.
  * Real OAuth uses same-origin /v1/auth/... (Next rewrite to API in dev; the host proxy
  * path split in staging/prod). Offline e2e keeps mock forms when
  * AI_STP_USE_MOCKS is true. OAuth status=error|cancel|conflict is driven by
@@ -45,6 +49,7 @@ export default async function LoginPage({ params, searchParams }: PageProps) {
   const env = getEnv();
   const showMockSimulators = env.AI_STP_USE_MOCKS && sp.debug === "1";
   const useMockLogin = env.AI_STP_USE_MOCKS;
+  const ssoProviders = corporateSsoProviders(env.AI_STP_AUTH_SSO_PROVIDERS);
   const defaultReturn = corporateHref(`/${locale}/account`);
   const returnTo =
     sp.returnTo && sp.returnTo.startsWith("/") ? corporateHref(sp.returnTo) : defaultReturn;
@@ -113,6 +118,13 @@ export default async function LoginPage({ params, searchParams }: PageProps) {
             </Button>
           </>
         )}
+        <SsoSignIn
+          label={t("sso")}
+          options={ssoProviders.map((provider) => ({
+            label: t(provider),
+            href: oauthLoginHref(provider, returnTo),
+          }))}
+        />
         <CliCopyBlock
           command={login("github")}
           title={tCli("loginHint")}

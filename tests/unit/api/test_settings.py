@@ -184,3 +184,36 @@ def test_zero_remains_the_explicit_way_to_turn_the_limiter_off() -> None:
         max_keys=8,
     )
     assert all(gate.allow("probe", now=float(index)) for index in range(500))
+
+
+def test_corporate_oidc_providers_enable_on_issuer_and_client_pair() -> None:
+    from ai_stp_api.settings import AuthSettings
+
+    auth = AuthSettings(
+        secret_key="s" * 32,
+        authentik_issuer_url="https://id.example.com/application/o/stp/",
+        authentik_client_id="stp-client",
+        authentik_client_secret="secret",
+    )
+    assert auth.provider_enabled("authentik") is True
+    # Trailing slash is stripped so discovery joins cleanly.
+    assert auth.oidc_issuer("authentik") == "https://id.example.com/application/o/stp"
+    assert auth.provider_enabled("keycloak") is False
+
+    partial = AuthSettings(
+        secret_key="s" * 32,
+        keycloak_issuer_url="https://sso.example.com/realms/corp",
+        keycloak_client_id="stp",
+    )
+    assert partial.provider_enabled("keycloak") is False
+
+
+def test_corporate_oidc_issuer_must_be_an_http_url() -> None:
+    from pydantic import ValidationError
+
+    from ai_stp_api.settings import AuthSettings
+
+    with pytest.raises(ValidationError):
+        AuthSettings(secret_key="s" * 32, authentik_issuer_url="not-a-url")
+    with pytest.raises(ValidationError):
+        AuthSettings(secret_key="s" * 32, keycloak_issuer_url="https://sso.example.com/r?q=1")

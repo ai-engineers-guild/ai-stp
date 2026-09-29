@@ -33,9 +33,12 @@ from ai_stp_contracts.http import (
 )
 from ai_stp_foundation.ids import stable_id_pattern
 
-#: The two identity providers of the MVP (SPEC-002 REQ-1002). A third one is a
-#: new enum value and therefore a schema change, not a configuration flag.
-type OAuthProvider = Literal["google", "github"]
+#: The identity providers of the deployment (SPEC-002 REQ-1002). Google and
+#: GitHub are the public MVP pair; ``authentik`` and ``keycloak`` are generic
+#: OIDC corporate providers configured by issuer URL (ADR-0218). A new
+#: provider is a new enum value and therefore a schema change, not a
+#: configuration flag.
+type OAuthProvider = Literal["google", "github", "authentik", "keycloak"]
 
 #: The same set as a sequence, derived rather than restated. A second literal
 #: list agrees today and drifts the first time the type changes; this is the

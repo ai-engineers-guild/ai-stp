@@ -1,0 +1,31 @@
+# Corporate hub end-to-end acceptance stack (#201): real API, worker,
+# Postgres, and RustFS over compose.dev. No mocks, corporate_hub web
+# profile. One-off bootstrap credential provisions the first corporate
+# organization; invitation mail goes through SMTP to the Mailpit
+# catch-all (web UI on :8025) unless .env.dev selects another provider,
+# and the worker settles the corporate_mail_delivery ledger.
+services:
+  api:
+    environment:
+      AI_STP_CORPORATE_BOOTSTRAP_SECRET: >-
+        ${AI_STP_CORPORATE_BOOTSTRAP_SECRET:-e2e-only-bootstrap-secret-change-me}
+  worker:
+    build:
+      target: worker
+    # No mail env overrides here: mailpit.env defaults + .env.dev win through
+    # the worker's env_file chain, so real SMTP creds apply in this stack.
+  web:
+    # Run the image's sources, not the Windows bind mount, for this acceptance deployment.
+    volumes: !override
+      - web_node_modules:/app/node_modules
+      - ../docs-user-facing:/docs-user-facing:ro
+      - ../packages/contracts/src/ai_stp_contracts/fixtures/v1/corporate-overview.json:/packages/contracts/src/ai_stp_contracts/fixtures/v1/corporate-overview.json:ro
+    # Corporate module exclusions use the incumbent webpack aliases. Keep the
+    # real API/auth transport in this stack; fixtures are opt-in for tests.
+    environment:
+      AI_STP_WEB_PROFILE: corporate_hub
+      AI_STP_USE_MOCKS: "false"
+      AI_STP_MOCK_AUTH: "false"
+      AI_STP_FEATURE_CONTENT_HUB: "false"
+      AI_STP_FEATURE_SAAS_PUBLIC_PAGES: "false"
+      AI_STP_FEATURE_CATALOG_USAGE_METRICS: "false"

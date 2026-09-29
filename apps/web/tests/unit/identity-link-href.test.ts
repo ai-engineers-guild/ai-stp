@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
  * Mirrors the browser step-up start URL from IdentityList.
  * Server-side fetch must never start OAuth: the handshake cookie belongs to the browser.
  */
-function linkHref(provider: "google" | "github", returnTo: string): string {
+function linkHref(provider: string, returnTo: string): string {
   const params = new URLSearchParams({ return_to: returnTo });
   return `/v1/auth/link/${provider}?${params.toString()}`;
 }

@@ -3825,6 +3825,182 @@ export type CorporateEffectivePermission = {
 };
 
 /**
+ * CorporateInvitation
+ *
+ * One organization invitation. The raw token is returned only on create.
+ */
+export type CorporateInvitation = {
+  /**
+   * Accepted Account Id
+   */
+  accepted_account_id: string | null;
+  /**
+   * Claimant Account Id
+   */
+  claimant_account_id: string | null;
+  created_at: Timestamp;
+  /**
+   * Delivery Error
+   */
+  delivery_error: string | null;
+  delivery_state: CorporateMailDeliveryState | null;
+  /**
+   * Display Name
+   */
+  display_name: string;
+  expires_at: Timestamp;
+  /**
+   * Invitation Id
+   */
+  invitation_id: string;
+  /**
+   * Job Title Id
+   */
+  job_title_id: string | null;
+  /**
+   * Organization Id
+   */
+  organization_id: string;
+  /**
+   * Project Ids
+   */
+  project_ids: Array<string>;
+  /**
+   * Recipient Email
+   */
+  recipient_email: string;
+  /**
+   * Role
+   *
+   * Tenant-local role name.
+   */
+  role: string;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  state: CorporateInvitationState;
+  /**
+   * Team Ids
+   */
+  team_ids: Array<string>;
+  /**
+   * Token
+   */
+  token: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * CorporateInvitationAcceptRequest
+ *
+ * POST /v1/corporate/invitations/{invitation_id}/accept body.
+ */
+export type CorporateInvitationAcceptRequest = {
+  idempotency_key: IdempotencyKey;
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
+  /**
+   * Token
+   */
+  token: string;
+};
+
+/**
+ * CorporateInvitationCreateRequest
+ *
+ * POST /v1/corporate/organizations/{organization_id}/invitations body.
+ */
+export type CorporateInvitationCreateRequest = {
+  /**
+   * Authorization Revision
+   */
+  authorization_revision: number;
+  /**
+   * Display Name
+   */
+  display_name: string;
+  idempotency_key: IdempotencyKey;
+  /**
+   * Job Title Id
+   */
+  job_title_id?: string | null;
+  /**
+   * Project Ids
+   */
+  project_ids?: Array<string>;
+  /**
+   * Recipient Email
+   */
+  recipient_email: string;
+  /**
+   * Role
+   *
+   * Tenant-local role name.
+   */
+  role: string;
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
+  /**
+   * Team Ids
+   */
+  team_ids?: Array<string>;
+  /**
+   * Ttl Seconds
+   */
+  ttl_seconds?: number | null;
+};
+
+/**
+ * CorporateInvitationList
+ */
+export type CorporateInvitationList = {
+  /**
+   * Items
+   */
+  items: Array<CorporateInvitation>;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  [key: string]: unknown;
+};
+
+/**
+ * CorporateInvitationRevokeRequest
+ */
+export type CorporateInvitationRevokeRequest = {
+  /**
+   * Authorization Revision
+   */
+  authorization_revision: number;
+  idempotency_key: IdempotencyKey;
+  /**
+   * Reason
+   */
+  reason?: string;
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
+};
+
+export const CorporateInvitationState = {
+  PENDING: "pending",
+  EMAIL_CONFIRM_PENDING: "email_confirm_pending",
+  ACCEPTED: "accepted",
+  EXPIRED: "expired",
+  REVOKED: "revoked",
+} as const;
+
+export type CorporateInvitationState =
+  (typeof CorporateInvitationState)[keyof typeof CorporateInvitationState];
+
+/**
  * CorporateJobTitleCreateRequest
  */
 export type CorporateJobTitleCreateRequest = {
@@ -3931,6 +4107,15 @@ export type CorporateJobTitleView = {
   state: "current" | "retired";
   [key: string]: unknown;
 };
+
+export const CorporateMailDeliveryState = {
+  QUEUED: "queued",
+  SENT: "sent",
+  FAILED: "failed",
+} as const;
+
+export type CorporateMailDeliveryState =
+  (typeof CorporateMailDeliveryState)[keyof typeof CorporateMailDeliveryState];
 
 /**
  * CorporateMember
@@ -4183,6 +4368,50 @@ export type CorporateMembershipAssignmentRequest = {
    * Team Role
    */
   team_role?: "lead" | "staff";
+};
+
+/**
+ * CorporateMembershipPolicy
+ *
+ * Email-domain allowlist for joining the organization.
+ */
+export type CorporateMembershipPolicy = {
+  /**
+   * Allowed Email Domains
+   */
+  allowed_email_domains: Array<string>;
+  /**
+   * Authorization Revision
+   */
+  authorization_revision: number;
+  /**
+   * Organization Id
+   */
+  organization_id: string;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  [key: string]: unknown;
+};
+
+/**
+ * CorporateMembershipPolicyRequest
+ */
+export type CorporateMembershipPolicyRequest = {
+  /**
+   * Allowed Email Domains
+   */
+  allowed_email_domains?: Array<string>;
+  /**
+   * Authorization Revision
+   */
+  authorization_revision: number;
+  idempotency_key: IdempotencyKey;
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
 };
 
 /**
@@ -8471,7 +8700,12 @@ export type OAuthCallbackResult = {
   [key: string]: unknown;
 };
 
-export const OAuthProvider = { GOOGLE: "google", GITHUB: "github" } as const;
+export const OAuthProvider = {
+  GOOGLE: "google",
+  GITHUB: "github",
+  AUTHENTIK: "authentik",
+  KEYCLOAK: "keycloak",
+} as const;
 
 export type OAuthProvider = (typeof OAuthProvider)[keyof typeof OAuthProvider];
 
@@ -18110,6 +18344,146 @@ export type BootstrapCorporateOrganizationResponses = {
 export type BootstrapCorporateOrganizationResponse =
   BootstrapCorporateOrganizationResponses[keyof BootstrapCorporateOrganizationResponses];
 
+export type AcceptCorporateInvitationData = {
+  body: CorporateInvitationAcceptRequest;
+  headers: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+    /**
+     * Client-chosen key; a retry must not become a second effect.
+     */
+    "Idempotency-Key": string;
+  };
+  path: {
+    /**
+     * Organization invitation identifier.
+     */
+    invitation_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/invitations/{invitation_id}/accept";
+};
+
+export type AcceptCorporateInvitationErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_NOT_FOUND.
+   */
+  404: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_CONFLICT.
+   */
+  409: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type AcceptCorporateInvitationError =
+  AcceptCorporateInvitationErrors[keyof AcceptCorporateInvitationErrors];
+
+export type AcceptCorporateInvitationResponses = {
+  /**
+   * Accept an organization invitation when the verified email matches.
+   */
+  200: CorporateMember;
+};
+
+export type AcceptCorporateInvitationResponse =
+  AcceptCorporateInvitationResponses[keyof AcceptCorporateInvitationResponses];
+
+export type ConfirmCorporateInvitationData = {
+  body: CorporateInvitationAcceptRequest;
+  headers: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+    /**
+     * Client-chosen key; a retry must not become a second effect.
+     */
+    "Idempotency-Key": string;
+  };
+  path: {
+    /**
+     * Organization invitation identifier.
+     */
+    invitation_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/invitations/{invitation_id}/confirm";
+};
+
+export type ConfirmCorporateInvitationErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_NOT_FOUND.
+   */
+  404: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_CONFLICT.
+   */
+  409: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ConfirmCorporateInvitationError =
+  ConfirmCorporateInvitationErrors[keyof ConfirmCorporateInvitationErrors];
+
+export type ConfirmCorporateInvitationResponses = {
+  /**
+   * Activate a claimed invitation once the invited inbox proves ownership.
+   */
+  200: CorporateMember;
+};
+
+export type ConfirmCorporateInvitationResponse =
+  ConfirmCorporateInvitationResponses[keyof ConfirmCorporateInvitationResponses];
+
 export type ListCorporateAuditData = {
   body?: never;
   headers?: {
@@ -20561,6 +20935,196 @@ export type RegisterGitLabRepositoryResponses = {
 export type RegisterGitLabRepositoryResponse =
   RegisterGitLabRepositoryResponses[keyof RegisterGitLabRepositoryResponses];
 
+export type ListCorporateInvitationsData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/invitations";
+};
+
+export type ListCorporateInvitationsErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ListCorporateInvitationsError =
+  ListCorporateInvitationsErrors[keyof ListCorporateInvitationsErrors];
+
+export type ListCorporateInvitationsResponses = {
+  /**
+   * List organization invitations.
+   */
+  200: CorporateInvitationList;
+};
+
+export type ListCorporateInvitationsResponse =
+  ListCorporateInvitationsResponses[keyof ListCorporateInvitationsResponses];
+
+export type CreateCorporateInvitationData = {
+  body: CorporateInvitationCreateRequest;
+  headers: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+    /**
+     * Client-chosen key; a retry must not become a second effect.
+     */
+    "Idempotency-Key": string;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/invitations";
+};
+
+export type CreateCorporateInvitationErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type CreateCorporateInvitationError =
+  CreateCorporateInvitationErrors[keyof CreateCorporateInvitationErrors];
+
+export type CreateCorporateInvitationResponses = {
+  /**
+   * Create a single-use, short-lived organization invitation link.
+   */
+  200: CorporateInvitation;
+};
+
+export type CreateCorporateInvitationResponse =
+  CreateCorporateInvitationResponses[keyof CreateCorporateInvitationResponses];
+
+export type RevokeCorporateInvitationData = {
+  body: CorporateInvitationRevokeRequest;
+  headers: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+    /**
+     * Client-chosen key; a retry must not become a second effect.
+     */
+    "Idempotency-Key": string;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+    /**
+     * Organization invitation identifier.
+     */
+    invitation_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/invitations/{invitation_id}/revoke";
+};
+
+export type RevokeCorporateInvitationErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_NOT_FOUND.
+   */
+  404: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type RevokeCorporateInvitationError =
+  RevokeCorporateInvitationErrors[keyof RevokeCorporateInvitationErrors];
+
+export type RevokeCorporateInvitationResponses = {
+  /**
+   * Revoke a pending organization invitation.
+   */
+  200: CorporateInvitation;
+};
+
+export type RevokeCorporateInvitationResponse =
+  RevokeCorporateInvitationResponses[keyof RevokeCorporateInvitationResponses];
+
 export type ListCorporateJobTitlesData = {
   body?: never;
   headers?: {
@@ -21323,6 +21887,126 @@ export type AssignCorporateMemberResponses = {
 
 export type AssignCorporateMemberResponse =
   AssignCorporateMemberResponses[keyof AssignCorporateMemberResponses];
+
+export type ReadCorporateMembershipPolicyData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/membership/policy";
+};
+
+export type ReadCorporateMembershipPolicyErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ReadCorporateMembershipPolicyError =
+  ReadCorporateMembershipPolicyErrors[keyof ReadCorporateMembershipPolicyErrors];
+
+export type ReadCorporateMembershipPolicyResponses = {
+  /**
+   * Read the organization's email-domain allowlist.
+   */
+  200: CorporateMembershipPolicy;
+};
+
+export type ReadCorporateMembershipPolicyResponse =
+  ReadCorporateMembershipPolicyResponses[keyof ReadCorporateMembershipPolicyResponses];
+
+export type WriteCorporateMembershipPolicyData = {
+  body: CorporateMembershipPolicyRequest;
+  headers: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+    /**
+     * Client-chosen key; a retry must not become a second effect.
+     */
+    "Idempotency-Key": string;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/membership/policy";
+};
+
+export type WriteCorporateMembershipPolicyErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type WriteCorporateMembershipPolicyError =
+  WriteCorporateMembershipPolicyErrors[keyof WriteCorporateMembershipPolicyErrors];
+
+export type WriteCorporateMembershipPolicyResponses = {
+  /**
+   * Restrict invitations and member provisioning to email domains.
+   */
+  200: CorporateMembershipPolicy;
+};
+
+export type WriteCorporateMembershipPolicyResponse =
+  WriteCorporateMembershipPolicyResponses[keyof WriteCorporateMembershipPolicyResponses];
 
 export type ReadCorporateOverviewData = {
   body?: never;

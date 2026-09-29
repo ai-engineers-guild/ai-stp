@@ -23,20 +23,21 @@ composition, backup, plan, approve, apply, verify, retries, and recovery.
 Nine drained intents are on GitHub `main` (the eighth-intent wave landed via PR
 [#297](https://github.com/ai-engineers-guild/ai-stp/pull/297) merged
 2026-09-19; the ninth, `technology`, landed in `cc1cdf60`). Source and tag are
-`0.0.34` (`v0.0.34` @ `309f77f4`, promotion PR #530); the latest PyPI release is
-still `0.0.33` — the `publish-pypi` dispatch for 0.0.34 is person-reserved and
-was not run. Epic #261–#275 are CLOSED. Do not touch
+`0.0.35` (`v0.0.35` @ `dd476cef`, promotion PR #535); the latest PyPI release is
+`0.0.35` — published 2026-09-29 through run `36548752992` (attested candidate
+`36540669341`, owner-approved `pypi-cli` environment). `0.0.34` was tagged and
+attested but never published; it is superseded. Epic #261–#275 are CLOSED. Do not touch
 `feat/milestone-6-b2b-03` or colleague corporate work.
 
 | Object | Identity |
 | --- | --- |
 | Line | GitHub `main` / `dev`. Work branch `feat/agent-task-lifecycle` is gone |
 | PR | [#297](https://github.com/ai-engineers-guild/ai-stp/pull/297) merged into `dev`, then promoted |
-| Tagged CLI | `0.0.34` at `v0.0.34` (`309f77f4`); release-candidate run `36522578596` built and attested the artifact |
-| Released CLI | `0.0.33` on PyPI (release-candidate run 36384276021, publish run 36384484011); it ships provider-kit `0.2.15` — the `authorization` status member accepted — behind the unified v2/v3 invocation boundary |
+| Tagged CLI | `0.0.35` at `v0.0.35` (`dd476cef`); release-candidate run `36540669341` built and attested the artifact |
+| Released CLI | `0.0.35` on PyPI (release-candidate run `36540669341`, publish run `36548752992`); it ships provider-kit `0.2.15` — the `authorization` status member accepted — behind the unified v2/v3 invocation boundary |
 | Provider kit | `0.2.15` in `tests/golden/provider-kit/identity-ledger.json` |
 | Issues | #261–#275 CLOSED. setup-systems #316 OPEN. Issues #254/#256 are CLOSED |
-| Public provider | `0.0.80` on all seven `*-setup-system` trees (2026-09-29), vendoring kit `0.2.15`; kit bytes unchanged since 0.0.79 |
+| Public provider | `0.0.81` on all seven `*-setup-system` trees (2026-09-29), vendoring kit `0.2.15`; `0.0.82` (eight-tree prose audit) publishing on authoring main |
 | Agent 20×5 | GPT OSS 120B through `agy` is the sole current model target; no current-candidate trial is counted yet. Historical Haiku 99/100 is archived evidence only |
 | Branch-policy SC2015 | closed in [#304](https://github.com/ai-engineers-guild/ai-stp/pull/304) |
 
@@ -98,7 +99,7 @@ rest of the corpus against a known exhausted quota.
 3. **Epic acceptance** requires qualification of current bytes. The maintenance
    `0.0.31` cut repairs qualification infrastructure and does not close this
    threshold or establish autonomous model acceptance. `0.0.29` is on PyPI from tag `v0.0.29`; the native Antigravity user journey verified its official upgrade from `0.0.28`, public wheel bytes, and a fresh baseline consumer. That run used `gpt-oss-120b-medium` with corrective prompts, so it does not qualify autonomous GPT OSS 120B behavior on this candidate. The qualification record in #368 remains historical evidence.
-4. **setup-systems #316** stays OPEN. The Antigravity user journey consumed its public provider `0.0.74` baseline in a fresh native session; the current public release is `0.0.80` vendoring kit `0.2.15` (kit bytes unchanged since `0.0.79`; conformance was not re-run on `0.0.80` and was last measured on `0.0.79`). Other provider and platform cells remain unverified by that run. Do not close #316 from this plan.
+4. **setup-systems #316** stays OPEN. The Antigravity user journey consumed its public provider `0.0.74` baseline in a fresh native session; the current public release is `0.0.81` vendoring kit `0.2.15` (kit bytes unchanged since `0.0.79`; conformance was not re-run on `0.0.80`/`0.0.81` and was last measured on `0.0.79`). Other provider and platform cells remain unverified by that run. Do not close #316 from this plan.
 5. Issue comments with SHA; close only for measured scope. Issues #254/#256 are CLOSED — the earlier do-not-touch injunctions are history, not live guidance.
 6. `component publish` stays `task_pending`. Do not compact `help --agent`. Do not shrink capabilities `command_paths` (REQ-8006).
 

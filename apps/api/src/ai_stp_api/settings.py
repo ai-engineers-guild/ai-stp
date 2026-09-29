@@ -144,6 +144,16 @@ class AuthSettings(BaseSettings):
     google_callback_path: str = Field(default="/v1/auth/google/callback")
     github_client_id: str = Field(default="")
     github_client_secret: str = Field(default="")
+    # Corporate OIDC providers (ADR-0218). Each is a generic OIDC client:
+    # the issuer is the IdP realm/application base and discovery runs against
+    # ``{issuer}/.well-known/openid-configuration``. An empty issuer disables
+    # the provider, so a deployment may configure either, both, or none.
+    authentik_issuer_url: str = Field(default="")
+    authentik_client_id: str = Field(default="")
+    authentik_client_secret: str = Field(default="")
+    keycloak_issuer_url: str = Field(default="")
+    keycloak_client_id: str = Field(default="")
+    keycloak_client_secret: str = Field(default="")
     # Comma-separated account ids that may perform audited admin reads.
     admin_account_ids: str = Field(default="")
 
@@ -201,6 +211,20 @@ class AuthSettings(BaseSettings):
             raise ValueError(msg)
         return value
 
+    @field_validator("authentik_issuer_url", "keycloak_issuer_url")
+    @classmethod
+    def _issuer_url_is_http(cls, value: str) -> str:
+        trimmed = value.strip()
+        if not trimmed:
+            return ""
+        if not trimmed.startswith(("http://", "https://")):
+            msg = "oidc issuer url must be an http(s) URL"
+            raise ValueError(msg)
+        if any(marker in trimmed for marker in ("?", "#", "\n", "\r")):
+            msg = "oidc issuer url must not contain a query, fragment or separator"
+            raise ValueError(msg)
+        return trimmed
+
     def admin_ids(self) -> frozenset[str]:
         """Return the configured admin account id set."""
         parts = [part.strip() for part in self.admin_account_ids.split(",")]
@@ -212,7 +236,18 @@ class AuthSettings(BaseSettings):
             return bool(self.google_client_id and self.google_client_secret)
         if provider == "github":
             return bool(self.github_client_id and self.github_client_secret)
+        if provider in {"authentik", "keycloak"}:
+            issuer = self.oidc_issuer(provider)
+            return bool(
+                issuer
+                and getattr(self, f"{provider}_client_id")
+                and getattr(self, f"{provider}_client_secret")
+            )
         return False
+
+    def oidc_issuer(self, provider: str) -> str:
+        """Issuer base URL for a corporate OIDC provider, or empty."""
+        return getattr(self, f"{provider}_issuer_url", "").strip().rstrip("/")
 
 
 class CatalogSettings(BaseSettings):
@@ -278,6 +313,9 @@ class CorporateSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="AI_STP_CORPORATE_", extra="ignore")
 
     bootstrap_secret: str = Field(default="")
+    # Default organization-invitation lifetime when the request omits
+    # ttl_seconds: one day. Explicit request values win within contract bounds.
+    invitation_ttl_seconds: int = Field(default=86_400, ge=60, le=2_592_000)
 
 
 class GitLabConnection(BaseModel):
