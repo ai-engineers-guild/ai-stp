@@ -1,0 +1,15 @@
+# Local-only override: lets the api container reach host-published IdPs
+# (authentik :59000, Keycloak :58080) under the same `localhost` issuer URLs
+# that the browser uses. `localhost` inside the container resolves to the
+# host gateway, so issuer strings stay identical on both sides.
+services:
+  api:
+    extra_hosts:
+      - "localhost:host-gateway"
+  web:
+    environment:
+      # SSO entry is a corporate-hub surface; the override runs the corporate
+      # build so the /corporate/login page exposes it.
+      AI_STP_WEB_PROFILE: "corporate_hub"
+      # Show the SSO button for the providers this override enables API-side.
+      AI_STP_AUTH_SSO_PROVIDERS: "authentik,keycloak"

@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "cli_version": "0.0.0-pinned",
-  "registry_digest": "sha256:5fcab361fb87cce4835ed9f5a06da46e3ec52f12bb59a7a59e82192786ff628d",
+  "registry_digest": "sha256:49e0ebeb2b7be88aebae4dfdf0280430183b95617efb430ff442ea2157a72a8c",
   "global_options": [
     {
       "name": "json",
@@ -202,10 +202,12 @@
           "value_type": "string",
           "required": true,
           "repeatable": false,
-          "summary": "Which identity provider to sign in with: google or github.",
+          "summary": "Which identity provider to sign in with.",
           "choices": [
             "google",
-            "github"
+            "github",
+            "authentik",
+            "keycloak"
           ]
         },
         {

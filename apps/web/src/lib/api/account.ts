@@ -1,6 +1,6 @@
 import { apiRequest } from "@/lib/api/http";
 
-import type { AccountPrivacyUpdate, AccountProfile } from "./generated/types.gen";
+import type { AccountPrivacyUpdate, AccountProfile, OAuthProvider } from "./generated/types.gen";
 
 export async function readAccount(sessionToken: string): Promise<AccountProfile> {
   return apiRequest<AccountProfile>("/v1/account", { sessionToken });
@@ -17,7 +17,7 @@ export async function updateAccountPrivacy(
   });
 }
 
-export type UnlinkProvider = "google" | "github";
+export type UnlinkProvider = OAuthProvider;
 
 /** Unlink one OAuth identity. Fails when it would leave the account with none. */
 export async function unlinkAccountIdentity(

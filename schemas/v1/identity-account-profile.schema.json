@@ -51,7 +51,9 @@
     "OAuthProvider": {
       "enum": [
         "google",
-        "github"
+        "github",
+        "authentik",
+        "keycloak"
       ],
       "type": "string"
     },

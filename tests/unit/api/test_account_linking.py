@@ -21,6 +21,6 @@ def test_subject_normalization_does_not_case_fold() -> None:
     assert normalize_subject("  AbC123  ") == "AbC123"
 
 
-def test_supported_providers_are_google_and_github() -> None:
-    assert frozenset({"google", "github"}) == SUPPORTED_PROVIDERS
+def test_supported_providers_match_the_contract_enum() -> None:
+    assert frozenset({"google", "github", "authentik", "keycloak"}) == SUPPORTED_PROVIDERS
     assert validate_provider("Google") == "google"

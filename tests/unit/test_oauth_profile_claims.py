@@ -168,3 +168,83 @@ async def test_github_profile_requires_registered_client(monkeypatch: pytest.Mon
     with pytest.raises(ApiError) as raised:
         await profile_from_token(OAuth(), "github", {})
     assert raised.value.category is ErrorCategory.VALIDATION
+
+
+async def test_authentik_profile_uses_generic_oidc_claims() -> None:
+    profile = await profile_from_token(
+        OAuth(),
+        "authentik",
+        {
+            "userinfo": {
+                "sub": "a1b2c3",
+                "email": "Corp@Example.LOCAL",
+                "email_verified": True,
+                "preferred_username": "corp.user",
+            }
+        },
+    )
+    assert profile.provider == "authentik"
+    assert profile.subject == "a1b2c3"
+    assert profile.email == "corp@example.local"
+    assert profile.email_verified is True
+
+
+async def test_keycloak_profile_uses_generic_oidc_claims() -> None:
+    profile = await profile_from_token(
+        OAuth(),
+        "keycloak",
+        {
+            "userinfo": {
+                "sub": "f:realm:uuid-1",
+                "email": "user@corp.example",
+                "email_verified": True,
+                "name": "Realm User",
+            }
+        },
+    )
+    assert profile.provider == "keycloak"
+    assert profile.subject == "f:realm:uuid-1"
+    assert profile.email == "user@corp.example"
+    assert profile.display_name == "Realm User"
+
+
+async def test_corporate_oidc_profile_rejects_missing_subject() -> None:
+    with pytest.raises(ApiError) as exc:
+        await profile_from_token(
+            OAuth(),
+            "keycloak",
+            {"userinfo": {"email": "user@corp.example", "email_verified": True}},
+        )
+    assert exc.value.category is ErrorCategory.AUTH_REQUIRED
+
+
+def test_build_oauth_registers_corporate_oidc_only_when_configured() -> None:
+    from ai_stp_api.settings import AuthSettings
+    from ai_stp_api.slices.auth.oauth import build_oauth, get_client
+
+    auth = AuthSettings(
+        secret_key="s" * 32,
+        keycloak_issuer_url="https://sso.example.com/realms/corp/",
+        keycloak_client_id="ai-stp",
+        keycloak_client_secret="kc-secret",
+    )
+    oauth = build_oauth(auth)
+    assert get_client(oauth, "keycloak") is not None
+    # Issuer unset → the provider is off entirely.
+    for off in ("authentik", "google"):
+        with pytest.raises(ApiError) as exc:
+            get_client(oauth, off)
+        assert exc.value.category is ErrorCategory.VALIDATION
+
+    both = AuthSettings(
+        secret_key="s" * 32,
+        authentik_issuer_url="http://localhost:9000/application/o/stp",
+        authentik_client_id="stp",
+        authentik_client_secret="ak-secret",
+        keycloak_issuer_url="https://sso.example.com/realms/corp",
+        keycloak_client_id="ai-stp",
+        keycloak_client_secret="kc-secret",
+    )
+    oauth = build_oauth(both)
+    assert get_client(oauth, "authentik") is not None
+    assert get_client(oauth, "keycloak") is not None

@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Final
 
 from ai_stp_contracts import cli_copy
+from ai_stp_contracts.auth import OAUTH_PROVIDERS
 
 WEB_LIB = Path("apps") / "web" / "src" / "lib" / "generated"
 CLI_COPY_NAME: Final[str] = "cli-copy.ts"
@@ -35,7 +36,9 @@ def render_cli_copy() -> str:
         "/* Generated from ai_stp_contracts.cli_copy. Do not edit. */",
         "",
         'export type ObjectKind = "component" | "setup";',
-        'export type LoginProvider = "google" | "github";',
+        "export type LoginProvider = "
+        + " | ".join(_ts_string(provider) for provider in OAUTH_PROVIDERS)
+        + ";",
         "",
         f"export const DISTRIBUTION = {_ts_string(cli_copy.DISTRIBUTION)} as const;",
         f"export const INSTALL_CLI = {_ts_string(cli_copy.INSTALL_CLI)} as const;",

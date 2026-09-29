@@ -44,6 +44,9 @@ import type {
   CompleteLegalOnboardingData,
   CompleteLegalOnboardingErrors,
   CompleteLegalOnboardingResponses,
+  ConfirmCorporateInvitationData,
+  ConfirmCorporateInvitationErrors,
+  ConfirmCorporateInvitationResponses,
   ConfirmGithubActionData,
   ConfirmGithubActionErrors,
   ConfirmGithubActionResponses,
@@ -1633,6 +1636,30 @@ export const acceptCorporateInvitation = <ThrowOnError extends boolean = false>(
   >({
     security: [{ scheme: "bearer", type: "http" }],
     url: "/v1/corporate/invitations/{invitation_id}/accept",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Activate a claimed invitation once the invited inbox proves ownership.
+ */
+export const confirmCorporateInvitation = <ThrowOnError extends boolean = false>(
+  options: Options<ConfirmCorporateInvitationData, ThrowOnError>,
+): RequestResult<
+  ConfirmCorporateInvitationResponses,
+  ConfirmCorporateInvitationErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).post<
+    ConfirmCorporateInvitationResponses,
+    ConfirmCorporateInvitationErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/invitations/{invitation_id}/confirm",
     ...options,
     headers: {
       "Content-Type": "application/json",

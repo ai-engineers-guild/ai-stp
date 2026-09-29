@@ -27,6 +27,8 @@ import json
 import re
 from typing import Final, Literal
 
+from ai_stp_contracts.auth import OAuthProvider
+
 type ObjectKind = Literal["component", "setup"]
 
 REGISTRY_SHOW: Final = "ai-stp registry show --kind {kind} --id {stable_id}"
@@ -124,7 +126,7 @@ def _install_key(stable_id: str, version: str | None = None) -> str:
     return key
 
 
-def login(provider: Literal["google", "github"]) -> str:
+def login(provider: OAuthProvider) -> str:
     """Device sign-in through the account intent. Provider is a task question."""
     del provider
     return LOGIN

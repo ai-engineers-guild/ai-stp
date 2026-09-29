@@ -1,4 +1,15 @@
 {
+  "$defs": {
+    "OAuthProvider": {
+      "enum": [
+        "google",
+        "github",
+        "authentik",
+        "keycloak"
+      ],
+      "type": "string"
+    }
+  },
   "$id": "urn:ai-stp:schema:v1:cli-task-input-account",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
@@ -37,18 +48,13 @@
     "provider": {
       "anyOf": [
         {
-          "enum": [
-            "google",
-            "github"
-          ],
-          "type": "string"
+          "$ref": "#/$defs/OAuthProvider"
         },
         {
           "type": "null"
         }
       ],
-      "default": null,
-      "title": "Provider"
+      "default": null
     },
     "schema_version": {
       "const": 1,
