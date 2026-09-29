@@ -37,9 +37,7 @@ export default async function CategoryDirectoryPage({
     );
   }
   if (!context)
-    return (
-      <StatePanel kind="empty" title={h("categories")} description={c("noOrganization")} />
-    );
+    return <StatePanel kind="empty" title={h("categories")} description={c("noOrganization")} />;
   let result;
   try {
     result = await readCategoryDirectory(session, context.organization.organization_id);

@@ -26,9 +26,7 @@ export default async function NewTechnologyPage({
     });
   } catch (error) {
     if (!(error instanceof ApiError)) throw error;
-    return (
-      <StatePanel kind="error" title={t("registry")} description={t("registryUnavailable")} />
-    );
+    return <StatePanel kind="error" title={t("registry")} description={t("registryUnavailable")} />;
   }
   if (!registry)
     return <StatePanel kind="empty" title={t("registry")} description={c("noOrganization")} />;

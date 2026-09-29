@@ -26,9 +26,7 @@ export default async function JobTitlesPage({ params }: { params: Promise<{ loca
   if (!workspace)
     return <StatePanel kind="empty" title={t("jobTitles")} description={t("noOrganization")} />;
   if (!workspace.context.capabilities.includes("job_title.list"))
-    return (
-      <StatePanel kind="empty" title={t("jobTitles")} description={common("accessDenied")} />
-    );
+    return <StatePanel kind="empty" title={t("jobTitles")} description={common("accessDenied")} />;
   return (
     <div className="min-w-0 space-y-6">
       <HistoryBackButton label={t("backToWorkspace")} fallback="/corporate/organization/admins" />

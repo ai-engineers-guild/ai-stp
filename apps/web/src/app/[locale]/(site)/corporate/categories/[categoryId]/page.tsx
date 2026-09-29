@@ -34,16 +34,10 @@ export default async function CategoryDetailPage({
     );
   }
   if (!context)
-    return (
-      <StatePanel kind="empty" title={h("categories")} description={c("noOrganization")} />
-    );
+    return <StatePanel kind="empty" title={h("categories")} description={c("noOrganization")} />;
   let detail;
   try {
-    detail = await readCategoryDetail(
-      session,
-      context.organization.organization_id,
-      categoryId,
-    );
+    detail = await readCategoryDetail(session, context.organization.organization_id, categoryId);
   } catch (error) {
     if (!(error instanceof ApiError)) throw error;
     return (
@@ -51,9 +45,7 @@ export default async function CategoryDetailPage({
     );
   }
   if (!detail)
-    return (
-      <StatePanel kind="empty" title={h("categories")} description={t("notPermitted")} />
-    );
+    return <StatePanel kind="empty" title={h("categories")} description={t("notPermitted")} />;
   const mutation = {
     organizationId: context.organization.organization_id,
     authorizationRevision: detail.permissions.authorization_revision,
