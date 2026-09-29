@@ -114,6 +114,8 @@ jobs:
           name: ai-stp-python-${{ inputs.version }}-${{ github.sha }}
           path: release
       - name: Issue GitHub/Sigstore build provenance
-        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8
+        # actions/attest v4.2.2 — attest-build-provenance's successor; the
+        # default predicate is the same SLSA v1 build provenance.
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6
         with:
           subject-path: release/*
