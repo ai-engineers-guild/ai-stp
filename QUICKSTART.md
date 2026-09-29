@@ -2,7 +2,7 @@
 
 ## Current status
 
-Work status is tracked in `docs/engineering/implementation-roadmap.md`. The `uv` workspace exists, the `foundation`, `passports`, `assurance`, and `contracts` packages are materialized, the `apps/cli` application exists, and both per-file schemas and `openapi.json` are generated in `schemas/v1`. Remaining work is tracked in GitHub issues.
+Work status is tracked in `docs/engineering/implementation-roadmap.md`. The `uv` workspace materializes the shared packages (`foundation`, `passports`, `assurance`, `contracts`, `sources`) and the applications (`cli`, `api`, `platform`, `worker`); `apps/web` is a Node/bun workspace outside `uv`. Per-file schemas and `openapi.json` are generated in `schemas/v1`. Remaining work is tracked in GitHub issues.
 
 Useful facts about `apps/cli`: the command is installed as `ai-stp`; `uv run ai-stp task intents --json` is the agent bootstrap; `uv run ai-stp doctor --json` reports installation state when asked what is broken; `uv run ai-stp device init --json` creates this device's identity; `uv run ai-stp device show --json` shows it and the key location without creating anything; `uv run ai-stp passport developer init --json` creates the local registry and developer passport; and `uv run ai-stp auth status --json` shows the installation's relationship to the platform: `local_only`, `authenticated`, `expired`, or `revoked`. Expert `help --agent --json` is the full command registry — do not type `ai-stp capabilities` as the first move. Each command is declared exactly once: the parser is built from the registry and machine help is rendered from the same source, so they cannot diverge. See `docs/agent/machine-help.md` for details.
 
@@ -31,22 +31,29 @@ Local data—the registry, passports, device identity, and cache—remain in `${
 
 - Python 3.12 or 3.14;
 - `uv` 0.12.17 or later (the gate pins `.uv-version`);
-- `just` 1.43.0 or later;
-- Node.js 24 and npm;
+- `just` — the recipe runner every command below goes through;
+- `bun` matching `.bun-version` (1.4.2) — recipes check it exactly because
+  `bun install` from another release line rewrites the lockfile into a format
+  the gate cannot read;
+- Node.js 24 — `web-regress` serves the standalone build through
+  `node .next/standalone/server.js`;
 - Git.
 
-For `web-regress`, Chromium system libraries must already be installed in the
-workstation image or self-hosted runner. The project itself downloads pinned
-Chromium only into the user's Playwright cache and never invokes `sudo`;
-system preparation of the machine is not part of `just check`.
+For `web-regress`, the suite drives the stable Chrome already on the machine
+(`channel: "chrome"`); `ensure-chrome.sh` downloads a pinned Chrome into the
+user's Playwright cache only as the fallback when none is found. Every current
+CI runner image ships Chrome; the project never invokes `sudo`, and system
+preparation of the machine is not part of `just check`.
 
 Provider protocol v3 on Linux uses the system `bwrap` only after a runtime
 capability probe. Command presence is insufficient: the test requires a positive
-control of local DNS-UDP/IPv4/IPv6 endpoints and proof that they are unavailable inside the network
-namespace. Without `bwrap`, or for any unproven result, the local v2 phase
-fails closed before the provider starts. This does not make protocol v1
-network-isolated. The current release profile is Linux x86_64; macOS receives
-`not_verified` until a dedicated launcher and real-host evidence exist under `ADR-0062`.
+control of local DNS-UDP/IPv4/IPv6 endpoints and proof that they are unavailable
+inside the network namespace. `ai-stp provider network --json` reports the v3
+local phase for this machine as exactly one of: `network_denied` (launcher
+proven), `unisolated_by_trust` (Windows only, and only with the explicit trust
+reasons), or `refused` — no launcher and no trust basis, which is the answer on
+macOS and on a Linux host without `bwrap`. Refusal is fail-closed: the phase is
+denied before the provider starts rather than run unisolated.
 
 Observable result for the current machine:
 
@@ -66,7 +73,7 @@ The entire `justfile` uses two verbs: `gen` writes and `check` reads. `just gen`
 
 The verbs are identical within each group, so there is no command list to memorize: `<group>-static` reads source, `<group>-test` runs tests, `<group>-build` builds an artifact, and `<group>-regress` runs the built artifact in the real engine. The complete table is in `docs/engineering/quality-gates.md`.
 
-`pre-commit` maintains the fast path (`docs-static` + `docs-test` + `back-static`); full documentation, backend/BT regression, package/install, web, E2E, profile, and security suites are CI-only and run for pull requests and pushes to `main`. There are no separate `ci` / `pre-push` recipes because they would only be aliases for the CI gate.
+`pre-commit` maintains the fast path (`docs-static` + `docs-test` + `back-static` + `just-fmt`); the remaining documentation, backend regression, package/install, web, E2E, profile, and security suites run in CI on pull requests and on pushes to `dev` and `main`. There are no separate `ci` / `pre-push` recipes because they would only be aliases for the CI gate.
 
 ### PostgreSQL for platform tests
 
@@ -85,12 +92,12 @@ just back-test
 just check
 ```
 
-In CI, the `check` workflow sets the same URL for the `postgres:16` service. Do not use production data or commit real passwords; the throwaway credentials above are sufficient for tests.
+In CI, the `check` workflow sets the same variable against its `postgres:16` service (the CI-side value is `postgresql+asyncpg://ai_stp:ai_stp_dev@127.0.0.1:5432/ai_stp`). Do not use production data or commit real passwords; the throwaway credentials above are sufficient for tests.
 
 ## Starting a change
 
 1. Read `AGENTS.md`.
-2. Work in your personal contributor branch (`rldyourmnd` or `letya999`) under `docs/engineering/git-workflow.md`: merge the latest `dev` into it, then send the completed change to `dev` through a PR. After the PR is merged, publish the personal branch again with a normal push.
+2. Create a work branch from current `dev` under `docs/engineering/git-workflow.md`; the name must use one of the accepted prefixes — `feat/`, `chore/`, `docs/`, `test/`, `fix/`, or `refactor/` — or branch policy rejects it. Publish the branch and open a PR into GitHub `dev`; after green CI on the exact final HEAD, merge it into `dev`. Release is a separate promotion PR from same-repository `dev` into `main`; local `dev` is never pushed to `main` directly.
 3. Find the applicable active specification.
 4. If requirements are absent or contradictory, fix the specification before the code.
 5. In the draft PR, state the acceptance criteria, plan, affected contracts, and validation commands.
