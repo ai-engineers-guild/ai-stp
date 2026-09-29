@@ -4,8 +4,13 @@ import { Badge } from "@/components/atoms/badge";
 import { StatePanel } from "@/components/molecules/state-panel";
 import { CorporateAdminPanel } from "@/components/organisms/corporate-admin-panel";
 import { CorporateAccessPanel } from "@/components/organisms/corporate-access-panel";
+import { CorporateMembersPanel } from "@/components/organisms/corporate-members-panel";
 import { ApiError } from "@/lib/api/errors";
 import { readCorporateContext, readCorporateWorkspace } from "@/lib/api/corporate";
+import {
+  listCorporateInvitations,
+  readCorporateMembershipPolicy,
+} from "@/lib/api/corporate-invitations";
 import { canViewCorporateAdministration } from "@/lib/corporate-hub";
 import { requireSession, sessionCookieValue } from "@/lib/auth/require-session";
 import { readCsrfToken } from "@/lib/auth/session";
@@ -24,12 +29,26 @@ export default async function CorporateAdministrationPage({ params }: PageProps)
   const technology = await getTranslations("technology");
 
   let workspace;
+  let invitations = null;
+  let membershipPolicy = null;
   let forbidden = false;
   try {
     const session = (await sessionCookieValue()) ?? "";
     const context = await readCorporateContext(session);
     forbidden = Boolean(context && !canViewCorporateAdministration(context.capabilities));
-    if (!forbidden) workspace = await readCorporateWorkspace(session, false);
+    if (!forbidden) {
+      workspace = await readCorporateWorkspace(session, false);
+      const organizationId = workspace?.context.organization.organization_id ?? "";
+      const capabilities = workspace?.context.capabilities ?? [];
+      if (capabilities.includes("member.invite")) {
+        invitations = await listCorporateInvitations(session, organizationId).catch(() => null);
+      }
+      if (capabilities.includes("organization.read")) {
+        membershipPolicy = await readCorporateMembershipPolicy(session, organizationId).catch(
+          () => null,
+        );
+      }
+    }
   } catch (error) {
     if (error instanceof ApiError && error.code === "AI_STP_UNAVAILABLE") {
       return <StatePanel kind="error" title={tc("error")} description={tc("apiUnavailable")} />;
@@ -45,6 +64,8 @@ export default async function CorporateAdministrationPage({ params }: PageProps)
   }
 
   const { context, members, roles, bindings, servicePrincipals, jobTitles } = workspace;
+  const canInvite = context.capabilities.includes("member.invite");
+  const canManagePolicy = context.capabilities.includes("organization.manage");
   const canManageRoles = context.capabilities.includes("role.create");
   const canManageJobTitles = context.capabilities.some((permission) =>
     ["job_title.create", "job_title.update"].includes(permission),
@@ -113,21 +134,70 @@ export default async function CorporateAdministrationPage({ params }: PageProps)
           </Link>
         )}
       </nav>
+      {members || invitations || membershipPolicy ? (
+        <CorporateMembersPanel
+          csrfToken={(await readCsrfToken()) ?? ""}
+          organizationId={context.organization.organization_id}
+          authorizationRevision={context.organization.authorization_revision}
+          locale={locale}
+          members={members?.items ?? []}
+          roles={roles?.items ?? []}
+          invitations={invitations?.items ?? []}
+          allowedDomains={membershipPolicy?.allowed_email_domains ?? []}
+          canInvite={canInvite}
+          canManagePolicy={canManagePolicy}
+          labels={{
+            members: t("members"),
+            noMembers: t("noMembers"),
+            inviteTitle: t("inviteTitle"),
+            inviteBody: t("inviteBody"),
+            email: t("email"),
+            displayName: t("displayName"),
+            role: t("organizationRole"),
+            expiresInDays: t("expiresInDays"),
+            create: t("create"),
+            invite: t("invite"),
+            creating: t("creating"),
+            invitations: t("invitations"),
+            noInvitations: t("noInvitations"),
+            expiresAt: t("expiresAt"),
+            revoke: t("revoke"),
+            revoking: t("revoking"),
+            invitationLinks: t("invitationLinks"),
+            copy: tc("copy"),
+            copyAll: tc("copyAll"),
+            copied: tc("copied"),
+            copyFailed: tc("error"),
+            bulkImport: t("bulkImport"),
+            bulkImportBody: t("bulkImportBody"),
+            importFile: t("importFile"),
+            importText: t("importText"),
+            importPlaceholder: t("importPlaceholder"),
+            parse: t("parse"),
+            parsedCount: String(t.raw("parsedCount")),
+            inviteAll: t("inviteAll"),
+            bulkProgress: String(t.raw("bulkProgress")),
+            bulkFailed: t("bulkFailed"),
+            domainPolicy: t("domainPolicy"),
+            domainPolicyBody: t("domainPolicyBody"),
+            domainRestrict: t("domainRestrict"),
+            domains: t("domains"),
+            domainsPlaceholder: t("domainsPlaceholder"),
+            domainsHint: t("domainsHint"),
+            save: t("save"),
+            saving: t("saving"),
+            saved: t("saved"),
+            failed: t("failed"),
+            exportFormat: t("exportFormat"),
+            download: t("download"),
+            mail: t("mail"),
+            mailQueued: t("mailQueued"),
+            mailSent: t("mailSent"),
+            mailFailed: t("mailFailed"),
+          }}
+        />
+      ) : null}
       <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
-        {members ? (
-          <CorporateList
-            title={t("members")}
-            empty={t("noMembers")}
-            items={members.items.map((item) => ({
-              id: item.account_id,
-              name: item.display_name ?? item.account_id,
-              state: item.role,
-              revision: item.revision,
-            }))}
-            kind="members"
-            openLabel={t("open")}
-          />
-        ) : null}
         {context.capabilities.includes("project.list") ? (
           <CorporateList
             title={t("projects")}

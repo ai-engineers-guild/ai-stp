@@ -32,6 +32,7 @@ class JobType(StrEnum):
     PUBLISH = "publish"
     REEVALUATE_ELIGIBILITY = "reevaluate_eligibility"
     DELIVER_INVITATION = "deliver_invitation"
+    DELIVER_CORPORATE_INVITATION = "deliver_corporate_invitation"
     REPOSITORY_METRICS = "repository_metrics"
     GITHUB_ARCHIVE = "github_archive"
     CATALOG_ENRICHMENT = "catalog_enrichment"

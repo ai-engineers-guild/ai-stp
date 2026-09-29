@@ -1,0 +1,41 @@
+{
+  "$id": "urn:ai-stp:schema:v1:corporate-membership-policy",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "Email-domain allowlist for joining the organization.",
+  "properties": {
+    "allowed_email_domains": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "maxItems": 64,
+      "title": "Allowed Email Domains",
+      "type": "array"
+    },
+    "authorization_revision": {
+      "minimum": 1,
+      "title": "Authorization Revision",
+      "type": "integer"
+    },
+    "organization_id": {
+      "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "title": "Organization Id",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "allowed_email_domains",
+    "authorization_revision",
+    "organization_id",
+    "schema_version"
+  ],
+  "title": "CorporateMembershipPolicy",
+  "type": "object"
+}

@@ -23,6 +23,7 @@ from ai_stp_api.slices.corporate import (
     heartbeat_report,
     installation_inventory,
     installation_usage,
+    invitations,
     overview,
     permissions,
     profiles,
@@ -109,6 +110,7 @@ router.include_router(gitlab.router)
 router.include_router(github_languages.router)
 router.include_router(usage_events.router)
 router.include_router(usage_reports.router)
+router.include_router(invitations.router)
 
 
 @router.get(

@@ -122,6 +122,17 @@ services:
       start_period: 5s
     restart: unless-stopped
 
+  mailpit:
+    # Local catch-all SMTP + web UI (http://localhost:8025): the default mail
+    # path in dev — invitation mail really sends and is readable in the UI.
+    # It accepts and stores every message; nothing is relayed outside.
+    image: axllent/mailpit:v1.31.3
+    ports:
+      - "8025:8025"
+      - "127.0.0.1:1025:1025"
+    networks: [internal]
+    restart: unless-stopped
+
   migrate:
     build:
       context: ..
@@ -236,9 +247,12 @@ services:
       dockerfile: deploy/docker/Dockerfile.app
       target: worker-safety
     environment: *app-env
-    # AI_STP_WORKER_GITHUB_TOKEN comes from .env.dev. Do not add an empty
-    # environment override here: it would wipe the env_file value.
+    # Mail defaults live in mailpit.env — env_file order decides, so a real
+    # relay in .env.dev (SMTP_* or a Resend key) overrides the catch-all.
+    # AI_STP_WORKER_GITHUB_TOKEN also comes from .env.dev. Do not add
+    # environment overrides for these: they would win over the env_file.
     env_file:
+      - path: mailpit.env
       - path: ../.env.dev
         required: false
     volumes:
@@ -250,6 +264,8 @@ services:
         condition: service_healthy
       rustfs:
         condition: service_healthy
+      mailpit:
+        condition: service_started
       migrate:
         condition: service_completed_successfully
     restart: unless-stopped

@@ -32,6 +32,7 @@ ID_PREFIXES: Final[Mapping[str, str]] = MappingProxyType(
         "grant": "major-line access grant",
         "invite": "access grant invitation",
         "job_title": "corporate job title",
+        "mail": "corporate mail delivery record",
         "operation": "durable mutating operation",
         "organization": "remote organization",
         "outbox": "official upstream synchronization outbox event",

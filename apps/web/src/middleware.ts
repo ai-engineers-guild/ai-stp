@@ -44,6 +44,16 @@ function requestOriginUrl(request: NextRequest) {
   return url;
 }
 
+/**
+ * Accept pages must render unauthenticated: the invitation token lives in the
+ * URL fragment, which this gate never sees, so a login redirect here would
+ * destroy it. The accept POST enforces the session itself; a 401 sends the
+ * client to login with the fragment carried inside `returnTo`. Machine
+ * projections stay rejected — the `/ai/` segment does not match.
+ */
+const INVITATION_ACCEPT_PATH =
+  /^\/(?:en|ru)\/(?:corporate\/)?(?:corporate-)?invitations\/[^/]+(?:\/confirm)?$/;
+
 function isBlockedPath(pathname: string, sharedPath: string | null): boolean {
   const contentMatch = pathname.match(/^\/(?:ru|en)\/(?:ai\/)?content(?:\/|$)/);
   const disabledSaasPage =
@@ -137,7 +147,11 @@ export default function middleware(request: NextRequest) {
     parsed.canonicalPage !== "device-login";
 
   // A projection never changes access: private routes keep one session gate.
-  if (parsed.isProtected || corporateSessionRequired) {
+  // Invitation accept pages are the exception — the fragment token they carry
+  // cannot survive a server-side login redirect (INVITATION_ACCEPT_PATH).
+  const sessionGated =
+    (parsed.isProtected || corporateSessionRequired) && !INVITATION_ACCEPT_PATH.test(pathname);
+  if (sessionGated) {
     const raw = request.cookies.get(SESSION_COOKIE)?.value;
     if (!raw) {
       const loginUrl = requestOriginUrl(request);
