@@ -25,6 +25,12 @@ server {
     include /etc/letsencrypt/options-ssl-nginx.conf;
     ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
 
+    # One year of TLS-only including subdomains (the docs host is one).
+    # `always` keeps the header on error responses too; without it a 4xx/5xx
+    # answer carries no HSTS and the browser learns nothing. No `preload`:
+    # submission is a separate one-way decision, not a config default.
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+
     client_max_body_size 100M;
 
     # Inherited by every location below, so each one carries only its upstream.

@@ -128,13 +128,15 @@ if ! sha256sum "${DEST}/postgres/object_manifest.tsv" \
 fi
 
 # RustFS object copy: copy the service data volume contents without listing object bytes.
-# Uses a temporary alpine helper sharing the rustfs volume.
+# Uses a temporary alpine helper sharing the rustfs volume. Digest-pinned like
+# every image in the compose file: a tag that moves under a backup/restore run
+# is a third state neither run was tested against.
 RUSTFS_VOLUME="$(compose_service_volume rustfs /data)"
 
 if ! docker run --rm \
   -v "${RUSTFS_VOLUME}:/source:ro" \
   -v "${DEST}/rustfs:/dest" \
-  alpine:3.20 \
+  alpine:3.20@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc \
   sh -c 'cp -a /source/. /dest/ && find /dest -type f | wc -l' \
   >"${DEST}/rustfs.file_count.txt"; then
   die "rustfs_copy_failed"

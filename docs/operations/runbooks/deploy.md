@@ -365,6 +365,12 @@ Rehearse on a restored copy before making a production change.
 Rollback = redeploying the **previous exact** Git commit from
 `.deploy-state/previous`. A destructive reverse migration is **not** performed.
 
+On a repository root the script detaches the checkout to that commit. On a
+pull-model root there is no `.git`, so it restores the retained
+`releases/<sha>` tree the deployer kept for exactly this case — the same
+bytes `pull-deploy.sh` promoted, synced back with the same runtime-state
+exclusions.
+
 ```bash
 ./deploy/rollback.sh --yes
 ```
