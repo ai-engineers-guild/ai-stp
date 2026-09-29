@@ -4,6 +4,8 @@ import { randomBytes } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 
+import { getTranslations } from "next-intl/server";
+
 import {
   createDirectGrant,
   createGrantInvitation,
@@ -11,17 +13,26 @@ import {
   revokeGrantInvitation,
 } from "@/lib/api/grants";
 import { ApiError } from "@/lib/api/errors";
-import { assertCsrf, readCsrfToken, readSession, SESSION_COOKIE } from "@/lib/auth/session";
+import { readSession, requireCsrf, SESSION_COOKIE } from "@/lib/auth/session";
 
 async function sessionTokenOrThrow(): Promise<string> {
+  const common = await getTranslations("common");
   const session = await readSession();
   if (!session) {
-    throw new ApiError({ code: "AI_STP_UNAUTHORIZED", message: "not signed in", status: 401 });
+    throw new ApiError({
+      code: "AI_STP_UNAUTHORIZED",
+      message: common("notSignedIn"),
+      status: 401,
+    });
   }
   const jar = await cookies();
   const token = jar.get(SESSION_COOKIE)?.value;
   if (!token) {
-    throw new ApiError({ code: "AI_STP_UNAUTHORIZED", message: "not signed in", status: 401 });
+    throw new ApiError({
+      code: "AI_STP_UNAUTHORIZED",
+      message: common("notSignedIn"),
+      status: 401,
+    });
   }
   return token;
 }
@@ -33,7 +44,7 @@ export async function createInvitationAction(input: {
   major: number;
   recipientEmail: string;
 }): Promise<{ operationId: string | null }> {
-  assertCsrf(input.csrfToken, await readCsrfToken());
+  await requireCsrf(input.csrfToken);
   const sessionToken = await sessionTokenOrThrow();
   const result = await createGrantInvitation(sessionToken, {
     object_kind: input.objectKind,
@@ -54,7 +65,7 @@ export async function createDirectGrantAction(input: {
   recipientKind: "github_username" | "user_id";
   recipient: string;
 }): Promise<{ operationId: string | null }> {
-  assertCsrf(input.csrfToken, await readCsrfToken());
+  await requireCsrf(input.csrfToken);
   const sessionToken = await sessionTokenOrThrow();
   const result = await createDirectGrant(sessionToken, {
     object_kind: input.objectKind,
@@ -73,7 +84,7 @@ export async function revokeInvitationAction(input: {
   invitationId: string;
   reason: string;
 }): Promise<{ operationId: string | null }> {
-  assertCsrf(input.csrfToken, await readCsrfToken());
+  await requireCsrf(input.csrfToken);
   const sessionToken = await sessionTokenOrThrow();
   const result = await revokeGrantInvitation(
     sessionToken,
@@ -90,7 +101,7 @@ export async function revokeGrantAction(input: {
   grantId: string;
   reason: string;
 }): Promise<{ operationId: string | null }> {
-  assertCsrf(input.csrfToken, await readCsrfToken());
+  await requireCsrf(input.csrfToken);
   const sessionToken = await sessionTokenOrThrow();
   const result = await revokeAccessGrant(
     sessionToken,

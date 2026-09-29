@@ -9,10 +9,12 @@ export function CopyValue({
   value,
   label,
   copied,
+  failed,
 }: {
   value: string;
   label: string;
   copied: string;
+  failed: string;
 }) {
   return (
     <div className="flex min-w-0 items-center gap-2">
@@ -25,7 +27,10 @@ export function CopyValue({
         size="icon"
         aria-label={label}
         onClick={() => {
-          void navigator.clipboard.writeText(value).then(() => toast.success(copied));
+          void navigator.clipboard
+            .writeText(value)
+            .then(() => toast.success(copied))
+            .catch(() => toast.error(failed));
         }}
       >
         <Icon name="copy" size="sm" />

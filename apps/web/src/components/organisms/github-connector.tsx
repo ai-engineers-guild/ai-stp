@@ -132,10 +132,14 @@ export function GithubConnector({
   }
 
   function refresh() {
-    void githubStatus(csrfToken).then((result) => {
-      if (result.ok) setStatus(result.data);
-      else setError(result.code);
-    });
+    void githubStatus(csrfToken)
+      .then((result) => {
+        if (result.ok) setStatus(result.data);
+        else setError(result.code);
+      })
+      .catch(() => {
+        setError("unavailable");
+      });
   }
 
   useEffect(refresh, [csrfToken]);

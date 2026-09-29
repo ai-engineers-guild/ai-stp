@@ -3,7 +3,7 @@
 import { cookies } from "next/headers";
 import { privateApiRequest } from "@/lib/api/http";
 import { ApiError } from "@/lib/api/errors";
-import { assertCsrf, readCsrfToken, readSession, SESSION_COOKIE } from "@/lib/auth/session";
+import { readSession, requireCsrf, SESSION_COOKIE } from "@/lib/auth/session";
 import type {
   GitHubConnectorStatus,
   GitHubConnectRequest,
@@ -21,7 +21,7 @@ type Result<T> = { ok: true; data: T } | { ok: false; code: string; reason?: str
 
 async function request<T>(csrf: string, path: string, body?: unknown): Promise<Result<T>> {
   try {
-    assertCsrf(csrf, await readCsrfToken());
+    await requireCsrf(csrf);
     if (!(await readSession())) return { ok: false, code: "AI_STP_UNAUTHORIZED" };
     const sessionToken = (await cookies()).get(SESSION_COOKIE)?.value;
     if (!sessionToken) return { ok: false, code: "AI_STP_UNAUTHORIZED" };

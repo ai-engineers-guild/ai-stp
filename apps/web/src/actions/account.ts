@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
+import { getTranslations } from "next-intl/server";
 import { z } from "zod";
 
 import {
@@ -25,9 +26,10 @@ export async function updatePublicProfileAction(input: {
   void input;
   // Satisfy require-await while remaining a Server Action (must be async).
   await Promise.resolve();
+  const t = await getTranslations("account");
   throw new ApiError({
     code: "AI_STP_VALIDATION_ERROR",
-    message: "public profile write is not available on the frozen /v1 contract",
+    message: t("profileWriteUnavailable"),
     status: 400,
   });
 }
@@ -48,16 +50,18 @@ export async function updatePrivacyAction(input: {
   allowPublisherListing: boolean;
   csrfToken: string;
 }): Promise<{ ok: true } | { ok: false; message: string }> {
+  const common = await getTranslations("common");
+  const t = await getTranslations("account");
   const parsed = privacySchema.safeParse(input);
-  if (!parsed.success) return { ok: false, message: "invalid request" };
+  if (!parsed.success) return { ok: false, message: common("invalidRequest") };
   try {
     assertCsrf(parsed.data.csrfToken, await readCsrfToken());
   } catch {
-    return { ok: false, message: "csrf failed" };
+    return { ok: false, message: common("formExpired") };
   }
   const session = await readSession();
   const token = (await cookies()).get(SESSION_COOKIE)?.value;
-  if (!session || !token) return { ok: false, message: "not signed in" };
+  if (!session || !token) return { ok: false, message: common("notSignedIn") };
   try {
     await updateAccountPrivacy(
       {
@@ -68,7 +72,10 @@ export async function updatePrivacyAction(input: {
       token,
     );
   } catch (error) {
-    return { ok: false, message: error instanceof ApiError ? error.message : "save failed" };
+    return {
+      ok: false,
+      message: error instanceof ApiError ? error.message : t("privacySaveFailed"),
+    };
   }
   revalidatePath("/[locale]/account/privacy", "page");
   return { ok: true };
@@ -78,24 +85,26 @@ export async function unlinkIdentityAction(input: {
   provider: UnlinkProvider;
   csrfToken: string;
 }): Promise<{ ok: true } | { ok: false; message: string }> {
+  const common = await getTranslations("common");
+  const t = await getTranslations("account");
   const parsed = unlinkSchema.safeParse(input);
   if (!parsed.success) {
-    return { ok: false, message: "invalid request" };
+    return { ok: false, message: common("invalidRequest") };
   }
   const cookieCsrf = await readCsrfToken();
   try {
     assertCsrf(parsed.data.csrfToken, cookieCsrf);
   } catch {
-    return { ok: false, message: "csrf failed" };
+    return { ok: false, message: common("formExpired") };
   }
   const session = await readSession();
   if (!session) {
-    return { ok: false, message: "not signed in" };
+    return { ok: false, message: common("notSignedIn") };
   }
   const jar = await cookies();
   const token = jar.get(SESSION_COOKIE)?.value;
   if (!token) {
-    return { ok: false, message: "not signed in" };
+    return { ok: false, message: common("notSignedIn") };
   }
   try {
     await unlinkAccountIdentity(parsed.data.provider, token);
@@ -103,7 +112,7 @@ export async function unlinkIdentityAction(input: {
     if (error instanceof ApiError) {
       return { ok: false, message: error.message };
     }
-    return { ok: false, message: "unlink failed" };
+    return { ok: false, message: t("unlinkFailed") };
   }
   revalidatePath("/[locale]/account", "page");
   revalidatePath("/[locale]/account/privacy", "page");

@@ -202,7 +202,11 @@ export function ObjectOverflowMenu({
         modal={false}
         onOpenChange={(open) => {
           if (open && assignCtx === null) {
-            void corporateAssignContextAction().then(setAssignCtx);
+            void corporateAssignContextAction()
+              .then(setAssignCtx)
+              .catch(() => {
+                /* A dropped probe keeps the assign entry disabled. */
+              });
           }
         }}
       >
