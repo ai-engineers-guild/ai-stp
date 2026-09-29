@@ -14,6 +14,7 @@ from ai_stp_api.errors import ApiError, ErrorCategory
 from ai_stp_api.geoip import approximate_location
 from ai_stp_api.session import issue_session
 from ai_stp_api.settings import AuthSettings
+from ai_stp_api.slices.auth.domain import SUPPORTED_PROVIDERS
 from ai_stp_api.slices.devices.crypto import normalize_public_key
 from ai_stp_api.slices.devices.domain import DeviceState
 from ai_stp_foundation.ids import new_id
@@ -51,7 +52,7 @@ async def start_device_authorization(
     `idempotency_key` replays the original row so a lost answer cannot mint a
     second pending authorization for the same user intent.
     """
-    if provider not in {"google", "github"}:
+    if provider not in SUPPORTED_PROVIDERS:
         raise ApiError(ErrorCategory.VALIDATION, "unsupported oauth provider")
     if not auth.provider_enabled(provider):
         raise ApiError(ErrorCategory.DEPENDENCY, "oauth provider is not configured")

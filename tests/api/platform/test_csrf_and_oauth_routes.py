@@ -697,3 +697,37 @@ async def test_step_up_callback_links_second_provider_with_avatar(
             assert google_row["display_name"] == "Step Up User"
 
     await engine.dispose()
+
+
+async def test_oidc_login_redirects_when_keycloak_configured(
+    migrated_database_url: str,
+    settings_factory: Callable[..., Settings],
+) -> None:
+    """Corporate OIDC login reaches the provider redirect when fully configured."""
+    settings = settings_factory(
+        database_url=migrated_database_url,
+        keycloak_issuer_url="http://idp.example/realms/corp",
+        keycloak_client_id="ai-stp",
+        keycloak_client_secret="kc-secret",
+    )
+    app = create_app(settings)
+    async with app.router.lifespan_context(app):
+        keycloak = app.state.oauth.create_client("keycloak")  # type: ignore[attr-defined]
+        assert keycloak is not None
+        fake = AsyncMock(return_value=RedirectResponse(url="http://idp.example/auth"))
+        keycloak.authorize_redirect = fake  # type: ignore[method-assign]
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            response = await client.get("/v1/auth/keycloak/login", follow_redirects=False)
+    assert response.status_code in {302, 307}
+    fake.assert_awaited()
+
+
+async def test_oidc_login_fails_closed_when_provider_not_configured(
+    app_client: tuple[AsyncClient, FastAPI],
+) -> None:
+    """An unconfigured corporate provider is a typed dependency error, not a crash."""
+    client, _ = app_client
+    response = await client.get("/v1/auth/authentik/login")
+    assert response.status_code == 503
+    assert response.json()["error"]["code"] == "AI_STP_DEPENDENCY_UNAVAILABLE"

@@ -216,3 +216,35 @@ async def test_corporate_oidc_profile_rejects_missing_subject() -> None:
             {"userinfo": {"email": "user@corp.example", "email_verified": True}},
         )
     assert exc.value.category is ErrorCategory.AUTH_REQUIRED
+
+
+def test_build_oauth_registers_corporate_oidc_only_when_configured() -> None:
+    from ai_stp_api.settings import AuthSettings
+    from ai_stp_api.slices.auth.oauth import build_oauth, get_client
+
+    auth = AuthSettings(
+        secret_key="s" * 32,
+        keycloak_issuer_url="https://sso.example.com/realms/corp/",
+        keycloak_client_id="ai-stp",
+        keycloak_client_secret="kc-secret",
+    )
+    oauth = build_oauth(auth)
+    assert get_client(oauth, "keycloak") is not None
+    # Issuer unset → the provider is off entirely.
+    for off in ("authentik", "google"):
+        with pytest.raises(ApiError) as exc:
+            get_client(oauth, off)
+        assert exc.value.category is ErrorCategory.VALIDATION
+
+    both = AuthSettings(
+        secret_key="s" * 32,
+        authentik_issuer_url="http://localhost:9000/application/o/stp",
+        authentik_client_id="stp",
+        authentik_client_secret="ak-secret",
+        keycloak_issuer_url="https://sso.example.com/realms/corp",
+        keycloak_client_id="ai-stp",
+        keycloak_client_secret="kc-secret",
+    )
+    oauth = build_oauth(both)
+    assert get_client(oauth, "authentik") is not None
+    assert get_client(oauth, "keycloak") is not None
