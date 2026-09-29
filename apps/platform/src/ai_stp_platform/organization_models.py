@@ -572,7 +572,7 @@ class CorporateMailDelivery(Base):
     to_email_normalized: Mapped[str] = mapped_column(String(320), nullable=False)
     display_name: Mapped[str] = mapped_column(String(80), nullable=False)
     template_key: Mapped[str] = mapped_column(String(256), nullable=False)
-    state: Mapped[str] = mapped_column(String(16), nullable=False, default="queued")
+    state: Mapped[str] = mapped_column(String(16), nullable=False, default="queued", index=True)
     attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     provider_message_id: Mapped[str | None] = mapped_column(String(256), nullable=True)
     error: Mapped[str | None] = mapped_column(String(512), nullable=True)

@@ -41,9 +41,35 @@ def upgrade() -> None:
         "corporate_invitation",
         sa.Column("confirmation_token_hash", sa.String(64), nullable=True),
     )
+    # Server-defaulted timestamps the invitation branch created without an
+    # explicit nullability; the models declare them Mapped[datetime].
+    op.alter_column(
+        "corporate_invitation",
+        "created_at",
+        existing_type=sa.DateTime(timezone=True),
+        nullable=False,
+    )
+    op.alter_column(
+        "corporate_mail_delivery",
+        "created_at",
+        existing_type=sa.DateTime(timezone=True),
+        nullable=False,
+    )
 
 
 def downgrade() -> None:
+    op.alter_column(
+        "corporate_mail_delivery",
+        "created_at",
+        existing_type=sa.DateTime(timezone=True),
+        nullable=True,
+    )
+    op.alter_column(
+        "corporate_invitation",
+        "created_at",
+        existing_type=sa.DateTime(timezone=True),
+        nullable=True,
+    )
     op.drop_column("corporate_invitation", "confirmation_token_hash")
     op.drop_column("corporate_invitation", "claimant_account_id")
     op.drop_constraint("ck_corporate_invitation_state", "corporate_invitation", type_="check")
