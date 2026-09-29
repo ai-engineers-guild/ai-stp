@@ -1,6 +1,6 @@
 ---
 description: "Public compatibility snapshot for seven provider systems and ai_stp."
-last_verified: "2026-09-28"
+last_verified: "2026-09-29"
 ---
 
 # Provider integration state
@@ -12,14 +12,15 @@ release, capability, and evidence facts.
 ## Active release
 
 The active public tag for the seven `NDDev-OpenNetwork/*-setup-system`
-repositories is `0.0.79` (published 2026-09-28 UTC). Each GitHub Release contains
-seven assets (six native binaries and `SHA256SUMS`), read back from GitHub.
-Those trees vendor consumer kit `0.2.15`
+repositories is `0.0.80` (published 2026-09-29 UTC). The vendored consumer
+kit is unchanged at `0.2.15`
 (`sha256:094886dd93108ee823350262d332ddd1b02044fdfb835fb055bde91668ab9ebb`),
-which matches `provider-kit/v3/KIT-IDENTITY.json` and
-`tests/golden/provider-kit/identity-ledger.json` in this repository.
-`0.0.74` remains a prior public tag (2026-09-24); it is not the current
-release.
+byte-identical to `provider-kit/v3/` in this repository — verified by a
+recursive diff of the two trees on 2026-09-29 — and matches
+`provider-kit/v3/KIT-IDENTITY.json` and
+`tests/golden/provider-kit/identity-ledger.json`.
+`0.0.79` (2026-09-28) and `0.0.74` (2026-09-24) remain prior public tags;
+they are not the current release.
 
 Antigravity's non-minimal provider setups retain the historical access key and
 add `allowNonWorkspaceAccess`. A fresh native Antigravity CLI 1.2.10 process on
@@ -48,6 +49,10 @@ Software artifact pins and the provider wire boundary did not change.
   declare that operation leaves `initialize` blocked.
 
 ## Evidence
+
+Conformance was not re-run against `0.0.80`; the `0.0.79` readback below is
+the most recent measured pass, and the vendored-kit bytes it covered are
+unchanged in `0.0.80`.
 
 On 2026-09-28 (UTC), the released `ai-stp-cli` 0.0.33 auto-acquired attested
 `0.0.79` providers through the publish readback: `exact=7 refused=0

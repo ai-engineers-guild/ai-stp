@@ -96,3 +96,24 @@ def test_an_agent_name_with_quotes_still_produces_valid_toml() -> None:
     text = result.files["agents/reviewer.toml"].decode("utf-8")
     parsed = tomlkit.parse(text)
     assert parsed["name"] == 'say "hi" \\ now'
+
+
+def test_an_agent_name_with_high_control_chars_still_produces_valid_toml() -> None:
+    """json stops escaping at U+001F, but TOML requires U+007F escaped too —
+    and strict readers refuse the C1 block entirely."""
+    import tomlkit
+
+    target = composition.rule_for("agent", "codex")
+    assert target is not None
+    result = native_transform.transform(
+        component_type="agent",
+        source_harness="claude-code",
+        target=target,
+        files={"agents/reviewer.md": "# re\x7fview\x85er\n\nDescribe it.\n".encode()},
+        modes={"agents/reviewer.md": 0o644},
+        source_paths={"agents/reviewer.md": "agents/reviewer.md"},
+    )
+    assert result is not None
+    text = result.files["agents/reviewer.toml"].decode("utf-8")
+    assert "\\u007f" in text and "\\u0085" in text
+    assert tomlkit.parse(text)["name"] == "re\x7fview\x85er"
