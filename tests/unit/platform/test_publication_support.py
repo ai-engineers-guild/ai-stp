@@ -5,9 +5,11 @@ from __future__ import annotations
 import base64
 import urllib.error
 import urllib.request
+from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
+from http.client import HTTPMessage
 from types import SimpleNamespace
-from typing import Any, cast
+from typing import IO, Any, cast
 from unittest.mock import AsyncMock, Mock
 
 import pytest
@@ -320,6 +322,13 @@ def test_resend_port_dry_run_and_http_error_paths(monkeypatch: pytest.MonkeyPatc
         def __exit__(self, *_args: object) -> None:
             return None
 
+    class Opener:
+        def __init__(self, open_fn: Callable[..., object]) -> None:
+            self._open = open_fn
+
+        def open(self, request: urllib.request.Request, *, timeout: int) -> object:
+            return self._open(request, timeout=timeout)
+
     captured: list[urllib.request.Request] = []
 
     def success(request: urllib.request.Request, *, timeout: int) -> Response:
@@ -327,7 +336,13 @@ def test_resend_port_dry_run_and_http_error_paths(monkeypatch: pytest.MonkeyPatc
         assert timeout == 15
         return Response()
 
-    monkeypatch.setattr(urllib.request, "urlopen", success)
+    # The port opens through its own redirect-refusing opener, so the seam is
+    # build_opener rather than urlopen.
+    monkeypatch.setattr(
+        urllib.request,
+        "build_opener",
+        lambda *_h: Opener(success),  # type: ignore[arg-type]
+    )
     ResendMailPort(api_key="key", api_base="https://mail.example.test/").send_invitation(
         to_email="owner@example.test",
         invitation_id="invite_1",
@@ -353,7 +368,11 @@ def test_resend_port_dry_run_and_http_error_paths(monkeypatch: pytest.MonkeyPatc
     def bad_response(*_args: object, **_kwargs: object) -> BadResponse:
         return BadResponse()
 
-    monkeypatch.setattr(urllib.request, "urlopen", bad_response)
+    monkeypatch.setattr(
+        urllib.request,
+        "build_opener",
+        lambda *_h: Opener(bad_response),  # type: ignore[arg-type]
+    )
     with pytest.raises(RuntimeError, match="resend status 500"):
         ResendMailPort(api_key="key").send_invitation(
             to_email="owner@example.test",
@@ -366,7 +385,11 @@ def test_resend_port_dry_run_and_http_error_paths(monkeypatch: pytest.MonkeyPatc
     def transport_failure(*_args: object, **_kwargs: object) -> None:
         raise urllib.error.URLError("offline")
 
-    monkeypatch.setattr(urllib.request, "urlopen", transport_failure)
+    monkeypatch.setattr(
+        urllib.request,
+        "build_opener",
+        lambda *_h: Opener(transport_failure),  # type: ignore[arg-type]
+    )
     with pytest.raises(RuntimeError, match="resend transport failure"):
         ResendMailPort(api_key="key").send_invitation(
             to_email="owner@example.test",
@@ -375,6 +398,34 @@ def test_resend_port_dry_run_and_http_error_paths(monkeypatch: pytest.MonkeyPatc
             major=1,
             accept_token="secret-token",
         )
+
+
+def test_resend_port_refuses_redirects_and_validates_base() -> None:
+    """A 307 would re-POST the Bearer credential and the accept token."""
+    from ai_stp_platform.mail import _NoRedirects  # pyright: ignore[reportPrivateUsage]
+
+    handler = _NoRedirects()
+    assert (
+        handler.redirect_request(
+            urllib.request.Request("https://api.resend.com/emails"),
+            cast("IO[bytes]", None),
+            307,
+            "Temporary Redirect",
+            cast("HTTPMessage", {}),
+            "https://evil.test/",
+        )
+        is None
+    )
+
+    for bad in (
+        "http://api.resend.com",  # cleartext carries the Bearer header
+        "https://user:pw@api.resend.com",
+        "https://api.resend.com/?probe=1",
+        "https://api.resend.com/#frag",
+        "ftp://api.resend.com",
+    ):
+        with pytest.raises(ValueError, match="plain https origin"):
+            ResendMailPort(api_key="key", api_base=bad)
 
 
 @pytest.mark.asyncio

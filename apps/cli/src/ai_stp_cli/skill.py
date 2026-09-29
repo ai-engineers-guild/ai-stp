@@ -133,8 +133,11 @@ def install(target: Path, harness: str | None, locale: str = "en") -> Installed:
             next_actions=["skill remove --target <path> --json"],
         )
 
-    for relative, payload in files.items():
-        write_private(target / relative, payload.decode("utf-8"))
+    # The ownership claim lands before the payload it describes. The opposite
+    # order left an interrupted run holding files with no manifest, which
+    # `inspect` then had to call foreign — a state `remove` refuses by design.
+    # With the manifest first the same interruption is read as stale instead,
+    # and `skill remove` can always take the installation back to absent.
     write_private(
         target / MANIFEST,
         json.dumps(
@@ -148,6 +151,8 @@ def install(target: Path, harness: str | None, locale: str = "en") -> Installed:
         )
         + "\n",
     )
+    for relative, payload in files.items():
+        write_private(target / relative, payload.decode("utf-8"))
     return Installed("owned", wanted, harness, locale, tuple(sorted(files)))
 
 

@@ -293,3 +293,42 @@ async def test_worker_stop_cancels_handler_before_requeue(monkeypatch: pytest.Mo
     await run_task
 
     assert events == ["requeued"]
+
+
+@pytest.mark.asyncio
+async def test_worker_run_survives_infrastructure_tick_failures(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A poll-loop exception backs off and retries rather than killing the process."""
+    worker = _worker({})
+    calls = 0
+    waits: list[float] = []
+
+    async def run_once() -> int:
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            raise RuntimeError("database unreachable")
+        worker.request_stop()
+        return 0
+
+    async def requeue(session: object, *, worker_id: str) -> int:
+        del session, worker_id
+        return 0
+
+    original = worker._wait_or_stop  # pyright: ignore[reportPrivateUsage]
+
+    async def spy(seconds: float) -> None:
+        waits.append(seconds)
+        await original(seconds)
+
+    monkeypatch.setattr(worker, "run_once", run_once)
+    monkeypatch.setattr(worker, "_wait_or_stop", spy)
+    monkeypatch.setattr(runner, "requeue_locked", requeue)
+
+    await worker.run()
+
+    assert calls == 2
+    # First failure backs off poll*2; the recovered tick idles normally.
+    assert waits == [pytest.approx(0.002), pytest.approx(0.001)]
+    assert worker._tick_failures == 0  # pyright: ignore[reportPrivateUsage]

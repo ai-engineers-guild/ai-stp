@@ -216,13 +216,17 @@ def _agents(
     return NativeTransform(rewritten, new_modes, new_sources, tuple(dict.fromkeys(losses)))
 
 
+def _toml_string(value: str) -> str:
+    """One value as a TOML basic string — the escaping both fields need."""
+    return json.dumps(value.replace("\n", " "), ensure_ascii=False)
+
+
 def _markdown_to_codex_agent(path: str, payload: bytes) -> bytes:
     text = payload.decode("utf-8", errors="replace")
     heading = _HEADING.search(text)
     name = heading.group(1).strip() if heading else PurePosixPath(path).stem
     description = _HEADING.sub("", text, count=1).strip() or name
-    escaped = description.replace("\\", "\\\\").replace('"', '\\"').replace("\n", " ")
-    return f'name = "{name}"\ndescription = "{escaped}"\n'.encode()
+    return f"name = {_toml_string(name)}\ndescription = {_toml_string(description)}\n".encode()
 
 
 def _codex_agent_to_markdown(payload: bytes) -> bytes:

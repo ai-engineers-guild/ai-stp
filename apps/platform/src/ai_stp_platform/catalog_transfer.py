@@ -290,6 +290,10 @@ async def apply_author_verification(
     )
     for version in versions:
         version.author_verified = verified
+        if version.lifecycle_state == "blocked":
+            # A safety-blocked version is never re-marked component-verified —
+            # author verification must not quietly overturn the safety verdict.
+            continue
         if verified:
             # Author verification is still stored separately from component
             # verification, but it is the default for the author's existing

@@ -484,6 +484,7 @@
   "the approved operation requires its author's corporate session": "для одобренной операции требуется корпоративная сессия её автора",
   "the approved provider plan effects differ from the durable operation": "эффекты одобренного плана провайдера отличаются от устойчивой операции",
   "the artifact address does not identify exact bytes": "адрес артефакта не указывает точные байты",
+  "the artifact contains a link or special file": "артефакт содержит ссылку или специальный файл",
   "the artifact could not be safely unpacked": "артефакт не удалось безопасно распаковать",
   "the artifact holds more entries than an installation may": "в артефакте больше записей, чем допускается установке",
   "the artifact is larger than its passport declares": "артефакт больше, чем объявляет его паспорт",

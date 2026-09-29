@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from sqlalchemy import ForeignKey, String, event, inspect, select, text
+from sqlalchemy import ForeignKey, String, event, select, text
 from sqlalchemy.orm import Mapped, Session, declared_attr, mapped_column, relationship
 
 from ai_stp_platform.organization_models import Organization
@@ -13,12 +13,20 @@ __all__ = ["OrganizationScopedMixin", "_populate_legacy_personal_scope"]
 class OrganizationScopedMixin:
     """Additive scope during the account-to-organization compatibility window."""
 
-    organization_id: Mapped[str | None] = mapped_column(
-        String(64),
-        ForeignKey("organization.id", ondelete="RESTRICT"),
-        nullable=True,
-        index=True,
-    )
+    #: Rows that legitimately exist without tenant attribution — global jobs
+    #: and anonymous audit entries — keep the column nullable. Every scoped
+    #: table is NOT NULL after 0059 backfilled it, so the model defaults to
+    #: the majority rather than describing a state only two tables have.
+    _organization_scope_nullable: bool = False
+
+    @declared_attr
+    def organization_id(cls) -> Mapped[str | None]:
+        return mapped_column(
+            String(64),
+            ForeignKey("organization.id", ondelete="RESTRICT"),
+            nullable=cls._organization_scope_nullable,
+            index=True,
+        )
 
     @declared_attr
     def organization(cls) -> Mapped[Organization | None]:
@@ -36,67 +44,78 @@ def _populate_legacy_personal_scope(
     new_instances = tuple(session.new)
     if not any(isinstance(instance, OrganizationScopedMixin) for instance in new_instances):
         return
-    if not inspect(session.get_bind()).has_table("organization"):
+    # `inspect(bind)` would wrap its catalog read in its own transaction
+    # context and roll the session's pending writes back on exit; the dialect
+    # call on the session's own connection runs the same check inside this
+    # transaction instead.
+    with session.no_autoflush:
+        bind = session.connection()
+    if not bind.dialect.has_table(bind, "organization"):
         return
 
-    _ensure_personal_organizations(session)
-    from ai_stp_platform.organization_models import Organization
+    # Every statement below must not autoflush: this already runs inside
+    # before_flush, and a nested flush would INSERT the scoped rows before
+    # their organization attribution lands — silently un-attributed under a
+    # nullable column, a hard IntegrityError under the real NOT NULL one.
+    with session.no_autoflush:
+        _ensure_personal_organizations(session)
+        from ai_stp_platform.organization_models import Organization
 
-    pending_personal = {
-        organization.owner_account_id: organization
-        for organization in session.new
-        if isinstance(organization, Organization)
-        and organization.kind == "personal"
-        and organization.owner_account_id is not None
-    }
-    for instance in tuple(session.new):
-        if not isinstance(instance, OrganizationScopedMixin):
-            continue
-        if instance.organization_id is not None:
-            continue
-        account_id = next(
-            (
-                getattr(instance, field, None)
-                for field in (
-                    "owner_account_id",
-                    "actor_account_id",
-                    "account_id",
-                    "reporter_account_id",
-                )
-                if getattr(instance, field, None) is not None
-            ),
-            None,
-        )
-        if account_id is None:
-            catalog_metadata_id = getattr(instance, "catalog_metadata_id", None)
-            if catalog_metadata_id is None:
+        pending_personal = {
+            organization.owner_account_id: organization
+            for organization in session.new
+            if isinstance(organization, Organization)
+            and organization.kind == "personal"
+            and organization.owner_account_id is not None
+        }
+        for instance in tuple(session.new):
+            if not isinstance(instance, OrganizationScopedMixin):
                 continue
-            from ai_stp_platform.models import CatalogMetadata
-
-            instance.organization_id = session.scalar(
-                select(CatalogMetadata.organization_id).where(
-                    CatalogMetadata.id == catalog_metadata_id
-                )
-            )
-            continue
-        if account_id in pending_personal:
-            instance.organization = pending_personal[account_id]
-            continue
-        organization_ids = (
-            session.execute(
-                text(
-                    "SELECT id FROM organization "
-                    "WHERE owner_account_id = :account_id AND kind = 'personal'"
+            if instance.organization_id is not None:
+                continue
+            account_id = next(
+                (
+                    getattr(instance, field, None)
+                    for field in (
+                        "owner_account_id",
+                        "actor_account_id",
+                        "account_id",
+                        "reporter_account_id",
+                    )
+                    if getattr(instance, field, None) is not None
                 ),
-                {"account_id": account_id},
+                None,
             )
-            .scalars()
-            .all()
-        )
-        if len(organization_ids) > 1:
-            raise ValueError("personal organization attribution is ambiguous")
-        if organization_ids:
-            instance.organization_id = organization_ids[0]
+            if account_id is None:
+                catalog_metadata_id = getattr(instance, "catalog_metadata_id", None)
+                if catalog_metadata_id is None:
+                    continue
+                from ai_stp_platform.models import CatalogMetadata
+
+                instance.organization_id = session.scalar(
+                    select(CatalogMetadata.organization_id).where(
+                        CatalogMetadata.id == catalog_metadata_id
+                    )
+                )
+                continue
+            if account_id in pending_personal:
+                instance.organization = pending_personal[account_id]
+                continue
+            organization_ids = (
+                session.execute(
+                    text(
+                        "SELECT id FROM organization "
+                        "WHERE owner_account_id = :account_id AND kind = 'personal'"
+                    ),
+                    {"account_id": account_id},
+                )
+                .scalars()
+                .all()
+            )
+            if len(organization_ids) > 1:
+                raise ValueError("personal organization attribution is ambiguous")
+            if organization_ids:
+                instance.organization_id = organization_ids[0]
 
 
 def _ensure_personal_organizations(session: Session) -> None:

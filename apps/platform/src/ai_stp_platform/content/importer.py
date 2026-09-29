@@ -6,12 +6,12 @@ import json
 import os
 import sys
 import time
-import urllib.error
-import urllib.request
+import urllib.parse
 from collections.abc import Callable
-from contextlib import closing
 from pathlib import Path
 from typing import cast
+
+import httpx
 
 from ai_stp_contracts.content import ContentRepositoryImportRequest
 from ai_stp_foundation.canonical import JsonValue, canonize
@@ -25,6 +25,7 @@ from ai_stp_platform.content.snapshot import (
 _TRANSIENT_STATUS = frozenset({502, 503, 504})
 _DEFAULT_ATTEMPTS = 8
 _DEFAULT_RETRY_SECONDS = 1.0
+_MAX_RESPONSE_BYTES = 4 * 1024 * 1024
 
 
 class _Transient(Exception):
@@ -93,36 +94,52 @@ def _load_snapshot(snapshot_path: Path) -> ContentRepositoryImportRequest:
     return snapshot
 
 
+def _client() -> httpx.Client:
+    """The one transport policy the importer uses (also the test seam).
+
+    `follow_redirects=False` is the security boundary: a redirect would carry
+    the Bearer token to whatever origin `Location` names.
+    """
+    return httpx.Client(timeout=60, follow_redirects=False, trust_env=False)
+
+
 def _request(
     method: str,
     url: str,
     token: str,
     payload: dict[str, object] | None = None,
 ) -> tuple[int, dict[str, object]]:
-    data = None
     headers = {"Authorization": f"Bearer {token}", "Accept": "application/json"}
-    if payload is not None:
-        data = json.dumps(payload).encode("utf-8")
-        headers["Content-Type"] = "application/json"
-    request = urllib.request.Request(url, data=data, headers=headers, method=method)
     try:
-        with urllib.request.urlopen(request, timeout=60) as response:
-            loaded: object = json.loads(response.read().decode("utf-8"))
-            return int(response.status), _as_object(loaded)
-    except urllib.error.HTTPError as error:
-        with closing(error):
-            raw = error.read().decode("utf-8")
-        try:
-            parsed: object = json.loads(raw)
-        except json.JSONDecodeError:
-            parsed = {}
-        status = int(error.code)
-        body = _as_object(parsed)
-        if status in _TRANSIENT_STATUS:
-            raise _Transient(status, _error_code(body) or "unavailable") from error
-        return status, body
-    except urllib.error.URLError as error:
+        with (
+            _client() as client,
+            client.stream(method, url, headers=headers, json=payload) as response,
+        ):
+            status = int(response.status_code)
+            # A redirect is never followed: it would carry the Bearer
+            # token to whatever origin Location names.
+            body = bytearray()
+            too_large = False
+            if not 300 <= status < 400:
+                for chunk in response.iter_bytes():
+                    body.extend(chunk)
+                    if len(body) > _MAX_RESPONSE_BYTES:
+                        too_large = True
+                        break
+    except httpx.HTTPError as error:
         raise _Transient(0, "unreachable") from error
+    if too_large:
+        # A fake failure status keeps the answer out of the 200-path: the cap
+        # is a refusal to trust the body, not a version of it.
+        return 0, {"error": {"code": "response_too_large"}}
+    try:
+        parsed: object = json.loads(body.decode("utf-8"))
+    except ValueError:
+        parsed = {}
+    decoded = _as_object(parsed)
+    if status in _TRANSIENT_STATUS:
+        raise _Transient(status, _error_code(decoded) or "unavailable")
+    return status, decoded
 
 
 def _with_retry(
@@ -149,6 +166,20 @@ def main() -> int:
         sys.stderr.write("AI_STP_CONTENT_IMPORT_FORBIDDEN\n")
         return 1
     base = os.environ.get("AI_STP_API_BASE_URL", "http://api:8000").rstrip("/")
+    parsed_base = urllib.parse.urlsplit(base)
+    if (
+        parsed_base.scheme not in {"http", "https"}
+        or not parsed_base.hostname
+        or parsed_base.username
+        or parsed_base.password
+        or parsed_base.query
+        or parsed_base.fragment
+    ):
+        # The cleartext http default is deliberate: it names a service on the
+        # deploy-internal compose network. Anything outside a plain http(s)
+        # origin is refused rather than interpreted.
+        sys.stderr.write("AI_STP_CONTENT_INVALID: malformed AI_STP_API_BASE_URL\n")
+        return 1
     snapshot_path = Path(os.environ.get("AI_STP_CONTENT_SNAPSHOT", "/app/content-snapshot.json"))
     try:
         snapshot = _load_snapshot(snapshot_path)

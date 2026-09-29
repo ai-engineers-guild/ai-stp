@@ -3059,8 +3059,10 @@
             "items": {
               "$ref": "#/components/schemas/RevisionId"
             },
+            "maxItems": 2,
             "title": "Parent Revision Ids",
-            "type": "array"
+            "type": "array",
+            "uniqueItems": true
           },
           "permissions": {
             "$ref": "#/components/schemas/Permissions"
@@ -25455,8 +25457,10 @@
             "items": {
               "$ref": "#/components/schemas/RevisionId"
             },
+            "maxItems": 2,
             "title": "Parent Revision Ids",
-            "type": "array"
+            "type": "array",
+            "uniqueItems": true
           },
           "permissions": {
             "$ref": "#/components/schemas/Permissions"

@@ -484,6 +484,7 @@
   "the approved operation requires its author's corporate session": "the approved operation requires its author's corporate session",
   "the approved provider plan effects differ from the durable operation": "the approved provider plan effects differ from the durable operation",
   "the artifact address does not identify exact bytes": "the artifact address does not identify exact bytes",
+  "the artifact contains a link or special file": "the artifact contains a link or special file",
   "the artifact could not be safely unpacked": "the artifact could not be safely unpacked",
   "the artifact holds more entries than an installation may": "the artifact holds more entries than an installation may",
   "the artifact is larger than its passport declares": "the artifact is larger than its passport declares",

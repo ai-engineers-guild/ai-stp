@@ -57,7 +57,12 @@ class PassportEnvelope(BaseModel):
     kind: PassportKind
     stable_id: str
     revision_id: RevisionId
-    parent_revision_ids: list[RevisionId] = Field(default_factory=list)
+    # A revision has at most two parents — root/linear or one merge — the same
+    # bound the wire schemas carry. Duplicates are refused rather than stored:
+    # they used to reach the local revision table as a raw IntegrityError.
+    parent_revision_ids: list[RevisionId] = Field(
+        default_factory=list, max_length=2, json_schema_extra={"uniqueItems": True}
+    )
     owner_id: Annotated[str, Field(pattern=stable_id_pattern("account"))]
     created_at: Timestamp
     visibility: Literal["private", "public"] = "private"
@@ -67,6 +72,8 @@ class PassportEnvelope(BaseModel):
     def _kind_consistency(self) -> "PassportEnvelope":
         if re.fullmatch(stable_id_pattern(self.kind).strip("^$"), self.stable_id) is None:
             raise ValueError(f"stable_id prefix must match kind {self.kind!r}: {self.stable_id!r}")
+        if len(self.parent_revision_ids) != len(set(self.parent_revision_ids)):
+            raise ValueError("parent_revision_ids must not contain duplicates")
         return self
 
 

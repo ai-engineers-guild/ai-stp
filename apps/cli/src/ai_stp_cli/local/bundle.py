@@ -691,7 +691,11 @@ def _path_problem(path: str) -> tuple[str, str] | None:
     """Which rule a path breaks, if it breaks one."""
     if not path:
         return "path_empty_segment", "a bundled path cannot be empty"
-    if any(ord(character) < 32 or ord(character) == 127 for character in path):
+    # Category Cc, not ord<32: the provider reader refuses Rust
+    # char::is_control, which is the whole Unicode control class including
+    # C1 (U+0080-U+009F). Refusing the same set here keeps the writer from
+    # compiling bundles every reader would reject whole.
+    if any(unicodedata.category(character) == "Cc" for character in path):
         return "path_invalid_character", "a bundled path cannot contain control characters"
     encoded = path.encode("utf-8")
     if len(encoded) > MAX_PATH_BYTES or any(

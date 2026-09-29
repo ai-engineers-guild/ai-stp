@@ -123,3 +123,24 @@ def test_an_omitted_default_seals_to_the_same_id_as_the_spelled_one() -> None:
     spelled = _base("developer")
     omitted = {key: value for key, value in spelled.items() if key != "visibility"}
     assert seal_envelope(omitted).revision_id == seal_envelope(spelled).revision_id
+
+
+def test_parent_revisions_are_bounded_at_two_and_unique() -> None:
+    """A revision is root/linear or one merge; duplicates are refused outright."""
+    first = derive_revision_id(_base("component"))
+    second = derive_revision_id({**_base("component"), "stable_id": new_id("component")})
+
+    data = _base("component")
+    data["parent_revision_ids"] = [first, second]
+    assert seal_envelope(data).parent_revision_ids == [first, second]
+
+    duplicated = _base("component")
+    duplicated["parent_revision_ids"] = [first, first]
+    with pytest.raises(ValidationError):
+        seal_envelope(duplicated)
+
+    third = derive_revision_id({**_base("component"), "owner_id": new_id("account")})
+    over = _base("component")
+    over["parent_revision_ids"] = [first, second, third]
+    with pytest.raises(ValidationError):
+        seal_envelope(over)
