@@ -59,6 +59,10 @@ function apiErrorObjects(source: string): string[] {
 
 describe("server-action ApiError fixed messages", () => {
   it("every thrown ApiError uses literal code, message, and status", () => {
+    // `message` is either a string literal or a single-argument translator
+    // call over a literal key — never a template, variable, or expression
+    // that could carry request or server data into the UI.
+    const fixedMessage = /message\s*:\s*(?:[A-Za-z_$][\w$]*\(\s*"[^"]*"\s*\)|"[^"]*")\s*[,}]/;
     const offenders: string[] = [];
     let sites = 0;
     for (const { file, source } of actionSources()) {
@@ -67,7 +71,7 @@ describe("server-action ApiError fixed messages", () => {
         if (!/code\s*:\s*"AI_STP_[A-Z_]+"/.test(object)) {
           offenders.push(`${file}: non-literal code in ${object}`);
         }
-        if (!/message\s*:\s*"[^"]*"/.test(object)) {
+        if (!fixedMessage.test(object)) {
           offenders.push(`${file}: non-literal message in ${object}`);
         }
         if (!/status\s*:\s*\d+/.test(object)) {
