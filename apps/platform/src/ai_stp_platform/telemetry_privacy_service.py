@@ -20,7 +20,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any, cast
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from sqlalchemy import Select, func, select, update
+from sqlalchemy import Select, func, insert, select, update
 from sqlalchemy import delete as sql_delete
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -347,10 +347,20 @@ async def ingest_event(
         subject_state="active",
         occurred_at=_parse_timestamp(columns["occurred_at"]) or datetime.now(UTC),
     )
-    session.add(row)
     try:
-        async with session.begin_nested():
-            await session.flush()
+        # The race insert runs inside an engine-level savepoint, not
+        # ``session.begin_nested``: a failed ORM flush marks the session
+        # transaction itself rollback-only, while a statement inside a
+        # connection savepoint rolls back alone and leaves the session
+        # free to read the stored row and to keep ingesting.
+        async with (await session.connection()).begin_nested():
+            with session.no_autoflush:
+                values = {
+                    column.key: getattr(row, column.key)
+                    for column in TelemetryEvent.__table__.columns
+                    if getattr(row, column.key) is not None
+                }
+                await session.execute(insert(TelemetryEvent).values(values))
     except IntegrityError:
         # A concurrent ingest of the same event_id committed between the
         # existence read and this flush: the stored row wins, the verdict is
@@ -364,7 +374,10 @@ async def ingest_event(
         if existing is None:
             raise
         return existing, False
-    return row, True
+    # The Core insert leaves ``row`` transient and without the server-assigned
+    # ``received_at``; ``merge`` re-reads it so callers observe the stored row,
+    # exactly as the ORM flush path returned it.
+    return await session.merge(row), True
 
 
 async def read_policy(session: AsyncSession, *, organization_id: str) -> TelemetryPolicy | None:

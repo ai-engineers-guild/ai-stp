@@ -2,7 +2,7 @@
 
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import select
+from sqlalchemy import insert, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -78,10 +78,21 @@ async def ingest_operations(
         if fact.operation_id in seen or existing is not None:
             duplicates.append(fact.operation_id)
             continue
-        session.add(_row(organization_id, fact, occurred, digest))
+        row = _row(organization_id, fact, occurred, digest)
         try:
-            async with session.begin_nested():
-                await session.flush()
+            # The race insert runs inside an engine-level savepoint, not
+            # ``session.begin_nested``: a failed ORM flush marks the session
+            # transaction itself rollback-only, while a statement inside a
+            # connection savepoint rolls back alone and leaves the session
+            # free to classify the stored row and to keep ingesting the batch.
+            async with (await session.connection()).begin_nested():
+                with session.no_autoflush:
+                    values = {
+                        column.key: getattr(row, column.key)
+                        for column in FactRow.__table__.columns
+                        if getattr(row, column.key) is not None
+                    }
+                    await session.execute(insert(FactRow).values(values))
         except IntegrityError:
             # A concurrent ingest of the same operation_id committed between
             # the existence read and this flush: classify it by the stored

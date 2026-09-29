@@ -18,10 +18,11 @@ from datetime import UTC, datetime, time, timedelta
 from typing import Final, Literal, cast
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import Date, Integer, distinct, func, inspect, select, text, tuple_
+from sqlalchemy import Date, Integer, distinct, func, insert, inspect, select, text, tuple_
 from sqlalchemy import cast as sa_cast
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import make_transient_to_detached
 from sqlalchemy.sql.elements import ColumnElement
 
 from ai_stp_contracts.runtime_usage import (
@@ -835,10 +836,20 @@ async def ingest_events(
             duplicates += 1
             duplicate_ids.append(event.event_id)
             continue
-        session.add(candidate)
         try:
-            async with session.begin_nested():
-                await session.flush()
+            # The race insert runs inside an engine-level savepoint, not
+            # ``session.begin_nested``: a failed ORM flush marks the session
+            # transaction itself rollback-only, while a statement inside a
+            # connection savepoint rolls back alone and leaves the session
+            # free to classify the stored row and to keep ingesting the batch.
+            async with (await session.connection()).begin_nested():
+                with session.no_autoflush:
+                    values = {
+                        column.key: getattr(candidate, column.key)
+                        for column in EventRow.__table__.columns
+                        if getattr(candidate, column.key) is not None
+                    }
+                    await session.execute(insert(EventRow).values(values))
         except IntegrityError:
             # A concurrent ingest of the same event_id committed between the
             # existence read and this flush: classify it against the stored
@@ -865,7 +876,14 @@ async def ingest_events(
                 duplicates += 1
                 duplicate_ids.append(event.event_id)
             continue
-        seen[event.event_id] = candidate
+        # ``candidate`` is still transient after the Core insert; ``seen`` must
+        # hold a persistent row so a same-batch native confirmation promotes
+        # the stored event instead of mutating an object the flush never sees.
+        # Marking it detached lets ``merge(load=False)`` attach it without a
+        # re-read: the row was just inserted, so its state matches the
+        # database, and unset columns stay expired for lazy load.
+        make_transient_to_detached(candidate)
+        seen[event.event_id] = await session.merge(candidate, load=False)
         accepted += 1
         accepted_ids.append(event.event_id)
     await session.flush()

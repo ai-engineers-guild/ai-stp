@@ -15,9 +15,10 @@ from pathlib import Path
 from typing import Any, cast
 
 import pytest
-from sqlalchemy import Table, create_engine, select, text
+from sqlalchemy import Connection, Table, create_engine, select, text
+from sqlalchemy.exc import InvalidRequestError
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.orm import RelationshipProperty, Session, sessionmaker
 
 from ai_stp_contracts.installation_inventory import (
     InstallationInventoryBatch,
@@ -35,6 +36,7 @@ from ai_stp_contracts.runtime_usage import (
     RuntimeUsageExportRequest,
     RuntimeUsageReportQuery,
 )
+from ai_stp_foundation.digests import digest_canonical
 from ai_stp_foundation.ids import new_id
 from ai_stp_foundation.timestamps import format_timestamp
 from ai_stp_platform import (
@@ -42,8 +44,11 @@ from ai_stp_platform import (
     installation_usage_service,
     runtime_usage_service,
     telemetry_privacy_service,
+    telemetry_retention,
 )
 from ai_stp_platform.db import Base
+from ai_stp_platform.heartbeat_models import InstallationHeartbeat as HeartbeatRow
+from ai_stp_platform.heartbeat_models import InstallationHeartbeatEvent as HeartbeatEventRow
 from ai_stp_platform.installation_inventory_models import (
     InstallationInventorySnapshot as InventoryRow,
 )
@@ -74,7 +79,13 @@ from ai_stp_platform.technology_models import (
     ProjectTechnologyRelation,
     Technology,
 )
-from ai_stp_platform.telemetry_policy_models import TelemetryPolicy
+from ai_stp_platform.telemetry_policy_models import (
+    TelemetryEvent as TelemetryEventRow,
+)
+from ai_stp_platform.telemetry_policy_models import (
+    TelemetryPolicy,
+    TelemetryRevocation,
+)
 
 DIGEST = "sha256:" + "cd" * 32
 NOW = datetime(2026, 2, 1, 12, 0, 0, tzinfo=UTC)
@@ -103,6 +114,10 @@ TABLES = [
     ExportRow.__table__,
     InstallationRow.__table__,
     InventoryRow.__table__,
+    HeartbeatRow.__table__,
+    HeartbeatEventRow.__table__,
+    TelemetryEventRow.__table__,
+    TelemetryRevocation.__table__,
     TelemetryPolicy.__table__,
 ]
 
@@ -137,6 +152,19 @@ class _SyncFacade:
     async def get(self, entity: object, ident: object) -> Any:
         return self._sync.get(entity, ident)  # type: ignore[arg-type]
 
+    async def merge(self, instance: object, *, load: bool = True) -> Any:
+        return self._sync.merge(instance, load=load)  # type: ignore[arg-type]
+
+    def expunge(self, row: object) -> None:
+        self._sync.expunge(row)
+
+    @property
+    def no_autoflush(self) -> Any:
+        return self._sync.no_autoflush
+
+    async def connection(self) -> _ConnectionFacade:
+        return _ConnectionFacade(self._sync.connection())
+
     async def flush(self) -> None:
         self._sync.flush()
 
@@ -157,6 +185,25 @@ class _SyncFacade:
 
     async def run_sync(self, fn: Callable[..., Any], *args: object) -> Any:
         return fn(self._sync, *args)
+
+
+class _ConnectionFacade:
+    """The AsyncConnection surface over the session's bound connection."""
+
+    def __init__(self, connection: Connection) -> None:
+        self._connection = connection
+
+    def begin_nested(self) -> Any:
+        transaction = self._connection.begin_nested()
+
+        class _AsyncNested:
+            async def __aenter__(self) -> Any:
+                return transaction.__enter__()
+
+            async def __aexit__(self, *exc_info: object) -> Any:
+                return transaction.__exit__(*exc_info)
+
+        return _AsyncNested()
 
 
 @pytest.fixture()
@@ -333,6 +380,72 @@ async def _ingest(
     )
 
 
+def _race_committed_row(
+    session: AsyncSession, conflict: object, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Land `conflict` in the transaction before the service's savepoint.
+
+    The IntegrityError path exists for one interleaving: the service's
+    existence read finds nothing, a concurrent transaction commits the same
+    key, and the service's own insert then violates the constraint. On
+    Postgres that competing row arrives from outside; on the fixture's single
+    SQLite connection the equivalent state is the row already inserted *inside*
+    the transaction before the connection savepoint opens — the failed
+    statement rolls back only the savepoint, so the competing row is the
+    stored row the classification read must see. The violation is a real
+    constraint violation, not a mocked error.
+    """
+    sync = cast(_SyncFacade, session)._sync  # pyright: ignore[reportPrivateUsage]
+    columns = {
+        key: value
+        for key, value in vars(conflict).items()
+        if not key.startswith("_") and value is not None
+    }
+    table = cast(
+        "Table",
+        conflict.__table__,  # pyright: ignore[reportAttributeAccessIssue, reportUnknownMemberType]
+    )
+    statement = table.insert().values(**columns)
+    raced = False
+
+    async def connection() -> _ConnectionFacade:
+        wrapper = _ConnectionFacade(sync.connection())
+
+        def begin_nested() -> Any:
+            nonlocal raced
+            if not raced:
+                raced = True
+                wrapper._connection.execute(statement)  # pyright: ignore[reportPrivateUsage]
+            return _ConnectionFacade.begin_nested(wrapper)
+
+        monkeypatch.setattr(wrapper, "begin_nested", begin_nested)
+        return wrapper
+
+    monkeypatch.setattr(session, "connection", connection)
+
+
+def test_no_platform_relationship_loads_lazily() -> None:
+    # ``lazy="raise"`` is a guard, not a preference: an implicit SELECT on
+    # attribute access is a defect the model layer must refuse, for every
+    # relationship the platform declares.
+    offenders = sorted(
+        f"{mapper.class_.__name__}.{prop.key}"
+        for mapper in Base.registry.mappers
+        for prop in mapper.attrs
+        if isinstance(prop, RelationshipProperty) and prop.lazy in {"select", "immediate", "merged"}
+    )
+    assert offenders == []
+
+
+async def test_lazy_raise_relationship_access_raises(session: AsyncSession) -> None:
+    tenant = await _seed(session)
+    await session.flush()
+    device = await session.get(Device, tenant.device_a)
+    assert device is not None
+    with pytest.raises(InvalidRequestError, match="lazy='raise'"):
+        _ = device.account
+
+
 class TestIngest:
     async def test_collection_policy_is_independent_of_inventory(
         self, session: AsyncSession
@@ -415,6 +528,142 @@ class TestIngest:
         result = await _ingest(session, tenant, [changed])
         assert result.rejected_ids == [event.event_id]
         assert result.duplicates == 0
+
+    async def test_committed_duplicate_race_classifies_against_stored_row(
+        self, session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        tenant = await _seed(session)
+        raced = _event(tenant, "usage_event_0000000000031")
+        other = _event(tenant, "usage_event_0000000000032")
+        # The competing transaction commits the same key; its stored row is
+        # byte-identical to what this batch would have written.
+        conflict = runtime_usage_service._row_for(  # pyright: ignore[reportPrivateUsage]
+            tenant.organization_id, raced
+        )
+        _race_committed_row(session, conflict, monkeypatch)
+
+        result = await _ingest(session, tenant, [raced, other])
+
+        assert result.duplicates == 1
+        assert result.duplicate_ids == [raced.event_id]
+        assert result.accepted == 1
+        assert result.accepted_ids == [other.event_id]
+
+    async def test_committed_conflicting_event_race_is_rejected_not_raised(
+        self, session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        tenant = await _seed(session)
+        raced = _event(tenant, "usage_event_0000000000033")
+        conflict = runtime_usage_service._row_for(  # pyright: ignore[reportPrivateUsage]
+            tenant.organization_id,
+            raced.model_copy(
+                update={
+                    "component": raced.component.model_copy(
+                        update={"stable_id": "skill_competitor"}
+                    )
+                }
+            ),
+        )
+        # The stored competitor keeps the same event_id: this batch's payload
+        # disagrees with what committed, so the verdict is rejection.
+        _race_committed_row(session, conflict, monkeypatch)
+
+        result = await _ingest(session, tenant, [raced])
+
+        assert result.accepted == 0
+        assert result.rejected == 1
+        assert result.rejected_ids == [raced.event_id]
+
+    async def test_installation_operation_race_uses_stored_digest(
+        self, session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        tenant = await _seed(session)
+        fact = InstallationOperationFact(
+            operation_id=new_id("operation"),
+            organization_id=tenant.organization_id,
+            employee_id=tenant.alice,
+            device_id=tenant.device_a,
+            project_id=tenant.project_id,
+            harness="codex",
+            scope="global",
+            action="install",
+            result="verified",
+            occurred_at=format_timestamp(RECENT),
+            setup_stable_id="setup_demo",
+            setup_version="1.0",
+        )
+        other = fact.model_copy(update={"operation_id": new_id("operation")})
+        occurred = datetime.fromisoformat(fact.occurred_at.replace("Z", "+00:00"))
+        digest = digest_canonical("ai-stp:installation-operation:v1", fact.model_dump(mode="json"))
+        conflict = installation_usage_service._row(  # pyright: ignore[reportPrivateUsage]
+            tenant.organization_id, fact, occurred, digest
+        )
+        _race_committed_row(session, conflict, monkeypatch)
+
+        result = await installation_usage_service.ingest_operations(
+            session,
+            organization_id=tenant.organization_id,
+            batch=InstallationOperationBatch(operations=[fact, other]),
+            caller_account_id=tenant.alice,
+            caller_device_id=tenant.device_a,
+            now=NOW,
+        )
+
+        assert result.duplicate_ids == [fact.operation_id]
+        assert result.accepted_ids == [other.operation_id]
+
+    async def test_telemetry_ingest_race_returns_the_stored_row(
+        self, session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        tenant = await _seed(session)
+        fields = {
+            "event_id": "telemetry_event_race_0001",
+            "account_id": tenant.alice,
+            "device_id": tenant.device_a,
+            "harness": "claude-code",
+            "occurred_at": format_timestamp(RECENT),
+        }
+        conflict = TelemetryEventRow(
+            organization_id=tenant.organization_id,
+            event_id=str(fields["event_id"]),
+            kind="invocation",
+            account_id=tenant.alice,
+            device_id=tenant.device_a,
+            harness="claude-code",
+            subject_state="active",
+            occurred_at=RECENT,
+        )
+        _race_committed_row(session, conflict, monkeypatch)
+
+        stored, created = await telemetry_privacy_service.ingest_event(
+            session, organization_id=tenant.organization_id, kind="invocation", fields=fields
+        )
+
+        assert created is False
+        assert stored.event_id == fields["event_id"]
+
+    async def test_telemetry_ingest_returns_server_assigned_columns(
+        self, session: AsyncSession
+    ) -> None:
+        # The Core-insert path must hand callers the materialized row: the
+        # event view renders ``received_at``, which only the database assigns.
+        tenant = await _seed(session)
+        stored, created = await telemetry_privacy_service.ingest_event(
+            session,
+            organization_id=tenant.organization_id,
+            kind="invocation",
+            fields={
+                "event_id": "telemetry_event_received_0001",
+                "account_id": tenant.alice,
+                "device_id": tenant.device_a,
+                "harness": "claude-code",
+                "occurred_at": format_timestamp(RECENT),
+            },
+        )
+
+        assert created is True
+        assert stored.received_at is not None
+        assert stored.subject_state == "active"
 
     async def test_installation_fact_is_bound_and_idempotent(self, session: AsyncSession) -> None:
         tenant = await _seed(session)
@@ -1270,18 +1519,16 @@ class TestDrillDown:
 
     async def test_revoked_subject_is_redacted_from_drilldown(self, session: AsyncSession) -> None:
         tenant = await _seed(session)
-        await session.execute(
-            text(
-                "CREATE TABLE telemetry_revocation ("
-                "organization_id TEXT NOT NULL, subject_kind TEXT NOT NULL, "
-                "subject_id TEXT NOT NULL, state TEXT NOT NULL)"
+        await _ingest(session, tenant, [_event(tenant, "usage_event_0000000000018")])
+        session.add(
+            TelemetryRevocation(
+                organization_id=tenant.organization_id,
+                subject_kind="account",
+                subject_id=tenant.alice,
+                state="revoked",
             )
         )
-        await _ingest(session, tenant, [_event(tenant, "usage_event_0000000000018")])
-        await session.execute(
-            text("INSERT INTO telemetry_revocation VALUES (:org, 'account', :account, 'revoked')"),
-            {"org": tenant.organization_id, "account": tenant.alice},
-        )
+        await session.flush()
         listing = await runtime_usage_service.list_events(
             session,
             organization_id=tenant.organization_id,
@@ -1302,17 +1549,15 @@ class TestDrillDown:
 
     async def test_revoked_subject_cannot_ingest(self, session: AsyncSession) -> None:
         tenant = await _seed(session)
-        await session.execute(
-            text(
-                "CREATE TABLE telemetry_revocation ("
-                "organization_id TEXT NOT NULL, subject_kind TEXT NOT NULL, "
-                "subject_id TEXT NOT NULL, state TEXT NOT NULL)"
+        session.add(
+            TelemetryRevocation(
+                organization_id=tenant.organization_id,
+                subject_kind="device",
+                subject_id=tenant.device_a,
+                state="revoked",
             )
         )
-        await session.execute(
-            text("INSERT INTO telemetry_revocation VALUES (:org, 'device', :device, 'revoked')"),
-            {"org": tenant.organization_id, "device": tenant.device_a},
-        )
+        await session.flush()
         result = await _ingest(session, tenant, [_event(tenant, "usage_event_0000000000019")])
         assert result.rejected == 1
 
@@ -1349,6 +1594,40 @@ class TestRetention:
             )
             == runtime_usage_service.DEFAULT_RAW_RETENTION_DAYS
         )
+
+    async def test_sweep_deletes_at_most_limit_rows_per_table(self, session: AsyncSession) -> None:
+        tenant = await _seed(session)
+        policy = await session.get(TelemetryPolicy, tenant.organization_id)
+        assert policy is not None
+        policy.raw_retention_days = 30
+        expired = format_timestamp(NOW - timedelta(days=60))
+        for index in range(5):
+            session.add(
+                runtime_usage_service._row_for(  # pyright: ignore[reportPrivateUsage]
+                    tenant.organization_id,
+                    _event(
+                        tenant,
+                        f"usage_event_expired_{index:04d}",
+                        invoked_at=expired,
+                    ),
+                )
+            )
+        await session.flush()
+
+        first = await telemetry_retention.apply_retention(
+            session, organization_id=tenant.organization_id, now=NOW, limit=2
+        )
+        second = await telemetry_retention.apply_retention(
+            session, organization_id=tenant.organization_id, now=NOW, limit=2
+        )
+        third = await telemetry_retention.apply_retention(
+            session, organization_id=tenant.organization_id, now=NOW, limit=2
+        )
+        drained = await telemetry_retention.apply_retention(
+            session, organization_id=tenant.organization_id, now=NOW, limit=2
+        )
+
+        assert (first, second, third, drained) == (2, 2, 1, 0)
 
 
 class TestExport:
