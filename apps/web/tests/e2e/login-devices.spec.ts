@@ -100,3 +100,42 @@ test.describe("device approval says which refusal it is", () => {
     await expect(page.locator('[data-kind="error"]')).toContainText(/did not reach the service/i);
   });
 });
+
+test.describe("device list timestamps", () => {
+  // The card used to format `last_active_at` in the viewer's zone, so the SSR
+  // bytes (built in the server's zone) and the hydrated label (built in the
+  // browser's zone) disagreed — suppressed by `suppressHydrationWarning`, which
+  // hid the drift instead of fixing it. The list is account data; its absolute
+  // instant does not depend on where the reader sits, so it renders in UTC.
+  test.use({ timezoneId: "Pacific/Kiritimati" });
+
+  test("last connected renders in UTC under a shifted browser zone", async ({ page }) => {
+    await page.goto("/en/login");
+    await page
+      .getByRole("button", {
+        name: /Continue with GitHub|\u0412\u043e\u0439\u0442\u0438 \u0447\u0435\u0440\u0435\u0437 GitHub/i,
+      })
+      .click();
+    await expect(page).toHaveURL(/\/en\/account/);
+    await page.goto("/en/devices");
+
+    const instant = "2026-08-05T00:00:00.000Z";
+    const utc = new Intl.DateTimeFormat("en", {
+      dateStyle: "medium",
+      timeStyle: "short",
+      timeZone: "UTC",
+    }).format(new Date(instant));
+    // The control proves the shifted zone took effect: the same instant in the
+    // browser's zone must differ from the UTC label, otherwise the assertion
+    // below would pass while measuring nothing.
+    const browserLocal = await page.evaluate(
+      (iso) =>
+        new Intl.DateTimeFormat("en", { dateStyle: "medium", timeStyle: "short" }).format(
+          new Date(iso),
+        ),
+      instant,
+    );
+    expect(browserLocal).not.toBe(utc);
+    await expect(page.getByText(utc).first()).toBeVisible();
+  });
+});

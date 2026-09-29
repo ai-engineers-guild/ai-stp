@@ -1,10 +1,11 @@
 import { getTranslations, setRequestLocale } from "next-intl/server";
-import { notFound } from "next/navigation";
 import { Badge } from "@/components/atoms/badge";
 import { TechnologyRegistryCreate } from "@/components/organisms/technology-registry-create";
 import { CategoryLifecycleControls } from "@/components/organisms/corporate-governance-controls";
 import { HistoryBackButton } from "@/components/molecules/history-back-button";
+import { StatePanel } from "@/components/molecules/state-panel";
 import { readCorporateContext } from "@/lib/api/corporate";
+import { ApiError } from "@/lib/api/errors";
 import { readCategoryDetail } from "@/lib/api/technology";
 import { requireSession, sessionCookieValue } from "@/lib/auth/require-session";
 import { readCsrfToken } from "@/lib/auth/session";
@@ -19,16 +20,40 @@ export default async function CategoryDetailPage({
   setRequestLocale(locale);
   await requireSession(locale, `/${locale}/corporate/categories/${categoryId}`);
   const session = (await sessionCookieValue()) ?? "";
-  const context = await readCorporateContext(session);
-  if (!context) notFound();
-  const detail = await readCategoryDetail(
-    session,
-    context.organization.organization_id,
-    categoryId,
-  );
-  if (!detail) notFound();
   const h = await getTranslations("hub");
   const t = await getTranslations("technology");
+  const c = await getTranslations("corporate");
+  const common = await getTranslations("common");
+  let context;
+  try {
+    context = await readCorporateContext(session);
+  } catch (error) {
+    if (!(error instanceof ApiError)) throw error;
+    return (
+      <StatePanel kind="error" title={h("categories")} description={common("apiUnavailable")} />
+    );
+  }
+  if (!context)
+    return (
+      <StatePanel kind="empty" title={h("categories")} description={c("noOrganization")} />
+    );
+  let detail;
+  try {
+    detail = await readCategoryDetail(
+      session,
+      context.organization.organization_id,
+      categoryId,
+    );
+  } catch (error) {
+    if (!(error instanceof ApiError)) throw error;
+    return (
+      <StatePanel kind="error" title={h("categories")} description={common("apiUnavailable")} />
+    );
+  }
+  if (!detail)
+    return (
+      <StatePanel kind="empty" title={h("categories")} description={t("notPermitted")} />
+    );
   const mutation = {
     organizationId: context.organization.organization_id,
     authorizationRevision: detail.permissions.authorization_revision,

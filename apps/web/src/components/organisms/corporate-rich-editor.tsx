@@ -142,10 +142,14 @@ export function CorporateRichEditor({
       itemError: null,
       url: "",
     });
-    void readLocalMediaPreview(file).then((localPreview) => {
-      if (uploadGeneration.current.get(clientKey) === generation)
-        patchMediaByKey(clientKey, { localPreview });
-    });
+    void readLocalMediaPreview(file)
+      .then((localPreview) => {
+        if (uploadGeneration.current.get(clientKey) === generation)
+          patchMediaByKey(clientKey, { localPreview });
+      })
+      .catch(() => {
+        /* A preview that cannot be decoded must not cancel the upload. */
+      });
     const previous = uploadReceipts.current.get(clientKey);
     const key = previous?.file === file ? previous.key : crypto.randomUUID();
     uploadReceipts.current.set(clientKey, { file, key });

@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { getTranslations } from "next-intl/server";
 import { z } from "zod";
 
 import { ApiError } from "@/lib/api/errors";
@@ -16,54 +17,62 @@ import {
 import { sessionCookieValue } from "@/lib/auth/require-session";
 import { assertCsrf, readCsrfToken } from "@/lib/auth/session";
 
-const mediaSchema = z
-  .object({
-    kind: z.enum(["image", "video", "youtube"]),
-    url: z.string().min(1).max(2048),
-    alt: z.string().max(240),
-    caption: z.string().max(500),
-  })
-  .superRefine((item, ctx) => {
-    if (item.kind === "youtube") {
-      if (!normalizeYoutubeUrl(item.url) && !isYoutubeVideoId(item.url)) {
+type ObjectsTranslator = Awaited<ReturnType<typeof getTranslations<"objects">>>;
+
+function mediaSchema(t: ObjectsTranslator) {
+  return z
+    .object({
+      kind: z.enum(["image", "video", "youtube"]),
+      url: z.string().min(1).max(2048),
+      alt: z.string().max(240),
+      caption: z.string().max(500),
+    })
+    .superRefine((item, ctx) => {
+      if (item.kind === "youtube") {
+        if (!normalizeYoutubeUrl(item.url) && !isYoutubeVideoId(item.url)) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: t("mediaYoutubeInvalid"),
+            path: ["url"],
+          });
+        }
+        return;
+      }
+      if (
+        !isUploadedMediaUrl(item.url) &&
+        !isGithubRawUrl(item.url) &&
+        !isExternalMediaUrl(item.url)
+      ) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          message: "youtube media requires an 11-character video id",
+          message: t("mediaSourceInvalid"),
           path: ["url"],
         });
       }
-      return;
-    }
-    if (
-      !isUploadedMediaUrl(item.url) &&
-      !isGithubRawUrl(item.url) &&
-      !isExternalMediaUrl(item.url)
-    ) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "image and video require an HTTPS URL or uploaded storage path",
-        path: ["url"],
-      });
-    }
-  });
+    });
+}
 
-const inputSchema = z.object({
-  csrfToken: z.string().min(1),
-  stableId: z.string().min(8).max(64),
-  objectKind: z.enum(["component", "setup"]).default("component"),
-  locale: z.string().min(2).max(5),
-  bio: z.string().max(2000),
-  media: z.array(mediaSchema).max(5),
-});
+function inputSchema(t: ObjectsTranslator) {
+  return z.object({
+    csrfToken: z.string().min(1),
+    stableId: z.string().min(8).max(64),
+    objectKind: z.enum(["component", "setup"]).default("component"),
+    locale: z.string().min(2).max(5),
+    bio: z.string().max(2000),
+    media: z.array(mediaSchema(t)).max(5),
+  });
+}
 
 export async function updateObjectPresentationAction(input: unknown) {
-  const parsed = inputSchema.safeParse(input);
+  const t = await getTranslations("objects");
+  const common = await getTranslations("common");
+  const parsed = inputSchema(t).safeParse(input);
   if (!parsed.success) {
     const fieldErrors = fieldErrorsFromIssues(parsed.error.issues);
     return {
       ok: false as const,
       code: "CLIENT_VALIDATION_ERROR",
-      message: "Fix the highlighted fields before saving.",
+      message: t("fixHighlightedFields"),
       fieldErrors,
     };
   }
@@ -73,7 +82,7 @@ export async function updateObjectPresentationAction(input: unknown) {
     return {
       ok: false as const,
       code: "CSRF_ERROR",
-      message: "The form expired. Reload the page.",
+      message: common("formExpired"),
       fieldErrors: {},
     };
   }
@@ -82,7 +91,7 @@ export async function updateObjectPresentationAction(input: unknown) {
     return {
       ok: false as const,
       code: "UNAUTHENTICATED",
-      message: "Not signed in.",
+      message: common("notSignedIn"),
       fieldErrors: {},
     };
   }
@@ -109,7 +118,7 @@ export async function updateObjectPresentationAction(input: unknown) {
               .join("; ")
           : error instanceof ApiError
             ? error.message
-            : "Could not save presentation.",
+            : t("presentationSaveFailed"),
       fieldErrors,
     };
   }
@@ -134,25 +143,27 @@ const deleteSchema = z.object({
 });
 
 export async function deleteObjectAction(input: unknown) {
+  const t = await getTranslations("objects");
+  const common = await getTranslations("common");
   const parsed = deleteSchema.safeParse(input);
   if (!parsed.success) {
-    return { ok: false as const, message: "Invalid delete request." };
+    return { ok: false as const, message: t("invalidDeleteRequest") };
   }
   try {
     assertCsrf(parsed.data.csrfToken, await readCsrfToken());
   } catch {
-    return { ok: false as const, message: "The form expired. Reload the page." };
+    return { ok: false as const, message: common("formExpired") };
   }
   const token = await sessionCookieValue();
   if (!token) {
-    return { ok: false as const, message: "Not signed in." };
+    return { ok: false as const, message: common("notSignedIn") };
   }
   try {
     await deleteOwnerObject(token, parsed.data.objectKind, parsed.data.stableId);
   } catch (error) {
     return {
       ok: false as const,
-      message: error instanceof ApiError ? error.message : "Could not delete the object.",
+      message: error instanceof ApiError ? error.message : t("deleteFailed"),
     };
   }
   revalidatePath(`/${parsed.data.locale}/catalog`);
