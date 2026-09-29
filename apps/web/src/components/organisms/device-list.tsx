@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/lib/i18n/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
@@ -67,6 +67,7 @@ function DeviceCard({
   const lastConnected = new Intl.DateTimeFormat(locale, {
     dateStyle: "medium",
     timeStyle: "short",
+    timeZone: "UTC",
   }).format(new Date(device.last_active_at));
 
   return (
@@ -185,6 +186,7 @@ function DeviceCard({
               void navigator.clipboard
                 .writeText(device.device_id)
                 .then(() => toast.success(tc("copied")))
+                .catch(() => toast.error(tc("error")))
             }
           >
             <Icon name="copy" size="sm" />

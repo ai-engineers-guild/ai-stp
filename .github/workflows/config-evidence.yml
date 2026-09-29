@@ -54,7 +54,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  UV_VERSION: "0.12.1"
+  UV_VERSION: "0.12.18"
 
 jobs:
   consume:

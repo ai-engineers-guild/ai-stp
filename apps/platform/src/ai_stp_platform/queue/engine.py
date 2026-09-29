@@ -11,7 +11,7 @@ from collections.abc import Mapping
 from datetime import UTC, datetime, timedelta
 from typing import Any, cast
 
-from sqlalchemy import CursorResult, case, select, update
+from sqlalchemy import CursorResult, select, update
 from sqlalchemy import delete as sql_delete
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -375,46 +375,59 @@ async def heartbeat(
     return result.rowcount == 1
 
 
+REQUEUE_STALE_BATCH_LIMIT = 500
+
+
 async def requeue_stale(
     session: AsyncSession,
     *,
     lease_timeout_seconds: float = DEFAULT_LEASE_TIMEOUT_SECONDS,
     now: datetime | None = None,
+    limit: int = REQUEUE_STALE_BATCH_LIMIT,
 ) -> int:
     """Reclaim jobs whose worker lease expired after a crash or hard stop.
 
     A reclaimed delivery consumes one attempt. This prevents a repeatedly
     crashing job from remaining retryable forever while preserving the queue's
-    at-least-once semantics.
+    at-least-once semantics. Reclaiming is bounded per pass — a mass expiry
+    drains over successive polls — and rows dead-lettered here get the same
+    payload scrub `fail` applies, because no retry will ever read a credential
+    back out of a terminal row.
     """
     await set_tenant_scope(session, "*")
     moment = now or _now()
     cutoff = moment - timedelta(seconds=lease_timeout_seconds)
-    next_attempts = Job.attempts + 1
-    stmt = (
-        update(Job)
-        .where(
-            Job.state == JobState.RUNNING,
-            Job.locked_at.is_not(None),
-            Job.locked_at <= cutoff,
-        )
-        .values(
-            state=case(
-                (next_attempts >= Job.max_attempts, JobState.DEAD_LETTER),
-                else_=JobState.QUEUED,
-            ),
-            attempts=next_attempts,
-            run_after=moment,
-            locked_by=None,
-            locked_at=None,
-            last_error=STALE_LEASE_ERROR,
-        )
+    stale = list(
+        (
+            await session.scalars(
+                select(Job)
+                .where(
+                    Job.state == JobState.RUNNING,
+                    Job.locked_at.is_not(None),
+                    Job.locked_at <= cutoff,
+                )
+                .order_by(Job.locked_at)
+                .limit(limit)
+                .with_for_update(skip_locked=True)
+            )
+        ).all()
     )
-    result = cast("CursorResult[Any]", await session.execute(stmt))
+    for job in stale:
+        job.attempts += 1
+        job.run_after = moment
+        job.locked_by = None
+        job.locked_at = None
+        job.last_error = STALE_LEASE_ERROR
+        if job.attempts >= job.max_attempts:
+            job.state = JobState.DEAD_LETTER
+            # A dead-lettered row is terminal: same scrub as the settled
+            # paths so carried credentials do not rest for the GC window.
+            job.payload = _scrub_settled_payload(job.payload)
+        else:
+            job.state = JobState.QUEUED
     await session.flush()
-    count = result.rowcount
-    record_queue_requeue(count=count)
-    return count
+    record_queue_requeue(count=len(stale))
+    return len(stale)
 
 
 QUEUE_GC_RETENTION_DAYS = 30

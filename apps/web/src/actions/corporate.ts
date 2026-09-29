@@ -82,11 +82,12 @@ export async function corporateCatalogSearchAction(input: {
   query: string;
   csrfToken: string;
 }): Promise<{ ok: true; items: { id: string; name: string }[] } | { ok: false; message: string }> {
+  const common = await getTranslations("common");
   try {
     assertCsrf(input.csrfToken, await readCsrfToken());
-    if (!(await readSession())) return { ok: false, message: "not signed in" };
+    if (!(await readSession())) return { ok: false, message: common("notSignedIn") };
     if ((input.kind !== "setup" && input.kind !== "component") || input.query.length > 200)
-      return { ok: false, message: "invalid catalog search" };
+      return { ok: false, message: common("invalidRequest") };
     const sessionToken = (await cookies()).get(SESSION_COOKIE)?.value;
     const options = {
       ...(sessionToken ? { sessionToken } : {}),
@@ -106,7 +107,7 @@ export async function corporateCatalogSearchAction(input: {
   } catch (error) {
     return {
       ok: false,
-      message: error instanceof ApiError ? error.message : "request failed",
+      message: error instanceof ApiError ? error.message : common("requestFailed"),
     };
   }
 }
@@ -116,13 +117,14 @@ export async function corporateCatalogVersionsAction(input: {
   id: string;
   csrfToken: string;
 }): Promise<{ ok: true; versions: string[] } | { ok: false; message: string }> {
+  const common = await getTranslations("common");
   try {
     assertCsrf(input.csrfToken, await readCsrfToken());
-    if (!(await readSession())) return { ok: false, message: "not signed in" };
+    if (!(await readSession())) return { ok: false, message: common("notSignedIn") };
     const validId =
       (input.kind === "setup" && /^setup_[0-9A-HJKMNP-TV-Z]{26}$/.test(input.id)) ||
       (input.kind === "component" && /^component_[0-9A-HJKMNP-TV-Z]{26}$/.test(input.id));
-    if (!validId) return { ok: false, message: "invalid catalog target" };
+    if (!validId) return { ok: false, message: common("invalidRequest") };
     const sessionToken = (await cookies()).get(SESSION_COOKIE)?.value;
     const result = await privateApiRequest<SetupDetail | ComponentDetail>(
       `/v1/catalog/${input.kind === "setup" ? "setups" : "components"}/${input.id}`,
@@ -137,7 +139,7 @@ export async function corporateCatalogVersionsAction(input: {
   } catch (error) {
     return {
       ok: false,
-      message: error instanceof ApiError ? error.message : "request failed",
+      message: error instanceof ApiError ? error.message : common("requestFailed"),
     };
   }
 }
@@ -148,17 +150,18 @@ export async function corporateProjectUsageAction(input: {
   projectId: string;
   technologyId: string;
 }): Promise<{ ok: true; data: ProjectTechnologyView } | { ok: false; message: string }> {
+  const common = await getTranslations("common");
   if (
     !/^organization_[A-Za-z0-9_-]{20,80}$/.test(input.organizationId) ||
     !/^remote_project_[0-9A-HJKMNP-TV-Z]{26}$/.test(input.projectId) ||
     !/^technology_[0-9A-HJKMNP-TV-Z]{26}$/.test(input.technologyId)
   )
-    return { ok: false, message: "invalid corporate target" };
+    return { ok: false, message: common("invalidRequest") };
   try {
     assertCsrf(input.csrfToken, await readCsrfToken());
-    if (!(await readSession())) return { ok: false, message: "not signed in" };
+    if (!(await readSession())) return { ok: false, message: common("notSignedIn") };
     const sessionToken = (await cookies()).get(SESSION_COOKIE)?.value;
-    if (!sessionToken) return { ok: false, message: "not signed in" };
+    if (!sessionToken) return { ok: false, message: common("notSignedIn") };
     const data = await privateApiRequest<ProjectTechnologyView>(
       `/v1/corporate/organizations/${input.organizationId}/projects/${input.projectId}/technologies/${input.technologyId}`,
       { sessionToken },
@@ -167,7 +170,7 @@ export async function corporateProjectUsageAction(input: {
   } catch (error) {
     return {
       ok: false,
-      message: error instanceof ApiError ? error.message : "request failed",
+      message: error instanceof ApiError ? error.message : common("requestFailed"),
     };
   }
 }
@@ -178,16 +181,17 @@ export async function corporateTechnologyMergePlanAction(input: {
   sourceId: string;
   targetId: string;
 }): Promise<{ ok: true; data: TechnologyMergePlanView } | { ok: false; message: string }> {
+  const common = await getTranslations("common");
   if (
     !/^organization_[A-Za-z0-9_-]{20,80}$/.test(input.organizationId) ||
     ![input.sourceId, input.targetId].every((id) => /^technology_[0-9A-HJKMNP-TV-Z]{26}$/.test(id))
   )
-    return { ok: false, message: "invalid corporate target" };
+    return { ok: false, message: common("invalidRequest") };
   try {
     assertCsrf(input.csrfToken, await readCsrfToken());
-    if (!(await readSession())) return { ok: false, message: "not signed in" };
+    if (!(await readSession())) return { ok: false, message: common("notSignedIn") };
     const sessionToken = (await cookies()).get(SESSION_COOKIE)?.value;
-    if (!sessionToken) return { ok: false, message: "not signed in" };
+    if (!sessionToken) return { ok: false, message: common("notSignedIn") };
     const data = await privateApiRequest<TechnologyMergePlanView>(
       `/v1/corporate/organizations/${input.organizationId}/technologies/${input.sourceId}/merge-plan`,
       { sessionToken, query: { target_id: input.targetId } },
@@ -196,24 +200,26 @@ export async function corporateTechnologyMergePlanAction(input: {
   } catch (error) {
     return {
       ok: false,
-      message: error instanceof ApiError ? error.message : "request failed",
+      message: error instanceof ApiError ? error.message : common("requestFailed"),
     };
   }
 }
 
 export async function corporateMutationAction(input: CorporateMutation): Promise<MutationResult> {
+  const common = await getTranslations("common");
   if (
     !/^organization_[A-Za-z0-9_-]{20,80}$/.test(input.organizationId) ||
     !input.path.startsWith(`/v1/corporate/organizations/${input.organizationId}/`) ||
     input.path.includes("..")
   ) {
-    return { ok: false, message: "invalid corporate target", fieldErrors: {} };
+    return { ok: false, message: common("invalidRequest"), fieldErrors: {} };
   }
   try {
     assertCsrf(input.csrfToken, await readCsrfToken());
-    if (!(await readSession())) return { ok: false, message: "not signed in", fieldErrors: {} };
+    if (!(await readSession()))
+      return { ok: false, message: common("notSignedIn"), fieldErrors: {} };
     const sessionToken = (await cookies()).get(SESSION_COOKIE)?.value;
-    if (!sessionToken) return { ok: false, message: "not signed in", fieldErrors: {} };
+    if (!sessionToken) return { ok: false, message: common("notSignedIn"), fieldErrors: {} };
     const options: PrivateRequestOptions = {
       method: input.method,
       body: input.body,
@@ -230,7 +236,7 @@ export async function corporateMutationAction(input: CorporateMutation): Promise
           code: error.code,
           fieldErrors: fieldErrorsFromDetails(error.details, error.message),
         }
-      : { ok: false, message: "request failed", fieldErrors: {} };
+      : { ok: false, message: common("requestFailed"), fieldErrors: {} };
   }
 }
 
@@ -245,19 +251,20 @@ export async function corporateTeamAssignmentsAction(input: {
     idempotencyKey: string;
   }>;
 }): Promise<{ completed: string[]; message?: string }> {
+  const common = await getTranslations("common");
   const completed: string[] = [];
   if (
     !/^organization_[A-Za-z0-9_-]{20,80}$/.test(input.organizationId) ||
     !input.assignments.length ||
     input.assignments.length > 256
   ) {
-    return { completed, message: "invalid corporate target" };
+    return { completed, message: common("invalidRequest") };
   }
   try {
     assertCsrf(input.csrfToken, await readCsrfToken());
-    if (!(await readSession())) return { completed, message: "not signed in" };
+    if (!(await readSession())) return { completed, message: common("notSignedIn") };
     const sessionToken = (await cookies()).get(SESSION_COOKIE)?.value;
-    if (!sessionToken) return { completed, message: "not signed in" };
+    if (!sessionToken) return { completed, message: common("notSignedIn") };
     const path = `/v1/corporate/organizations/${input.organizationId}`;
     for (const assignment of input.assignments) {
       const context = await privateApiRequest<CorporateContext>(`${path}/context`, {
@@ -282,7 +289,7 @@ export async function corporateTeamAssignmentsAction(input: {
   } catch (error) {
     return {
       completed,
-      message: error instanceof ApiError ? error.message : "request failed",
+      message: error instanceof ApiError ? error.message : common("requestFailed"),
     };
   } finally {
     revalidatePath("/[locale]/corporate", "layout");
@@ -293,13 +300,14 @@ export async function corporateAuditExportAction(
   organizationId: string,
   filters: CorporateAuditFilterValues = {},
 ): Promise<AuditExportResult> {
+  const common = await getTranslations("common");
   if (!/^organization_[A-Za-z0-9_-]{20,80}$/.test(organizationId)) {
-    return { ok: false, message: "invalid corporate target" };
+    return { ok: false, message: common("invalidRequest") };
   }
   try {
-    if (!(await readSession())) return { ok: false, message: "not signed in" };
+    if (!(await readSession())) return { ok: false, message: common("notSignedIn") };
     const sessionToken = (await cookies()).get(SESSION_COOKIE)?.value;
-    if (!sessionToken) return { ok: false, message: "not signed in" };
+    if (!sessionToken) return { ok: false, message: common("notSignedIn") };
     const data = await privateApiRequest<CorporateAuditExport>(
       `/v1/corporate/organizations/${organizationId}/audit/export`,
       { sessionToken, query: corporateAuditFilters(filters) },
@@ -308,7 +316,7 @@ export async function corporateAuditExportAction(
   } catch (error) {
     return {
       ok: false,
-      message: error instanceof ApiError ? error.message : "request failed",
+      message: error instanceof ApiError ? error.message : common("requestFailed"),
     };
   }
 }
@@ -394,13 +402,15 @@ export async function corporateSubjectSearchAction(input: {
 }): Promise<
   { ok: true; items: { value: string; label: string }[] } | { ok: false; message: string }
 > {
+  const common = await getTranslations("common");
   if (!/^organization_[A-Za-z0-9_-]{20,80}$/.test(input.organizationId)) {
-    return { ok: false, message: "invalid corporate target" };
+    return { ok: false, message: common("invalidRequest") };
   }
   try {
     assertCsrf(input.csrfToken, await readCsrfToken());
     const sessionToken = (await cookies()).get(SESSION_COOKIE)?.value;
-    if (!sessionToken || !(await readSession())) return { ok: false, message: "not signed in" };
+    if (!sessionToken || !(await readSession()))
+      return { ok: false, message: common("notSignedIn") };
     const data = await privateApiRequest<CorporateDirectoryView>(
       `/v1/corporate/organizations/${input.organizationId}/directory`,
       {
@@ -419,7 +429,7 @@ export async function corporateSubjectSearchAction(input: {
   } catch (error) {
     return {
       ok: false,
-      message: error instanceof ApiError ? error.message : "request failed",
+      message: error instanceof ApiError ? error.message : common("requestFailed"),
     };
   }
 }

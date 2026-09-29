@@ -53,7 +53,10 @@ from ai_stp_platform.assignment_resolution import (
     select_assignment_winner,
 )
 from ai_stp_platform.catalog_read import get_visible_metadata
-from ai_stp_platform.corporate_authorization import has_corporate_permission
+from ai_stp_platform.corporate_authorization import (
+    corporate_effective_permissions,
+    has_corporate_permission,
+)
 from ai_stp_platform.models import Account
 from ai_stp_platform.organization_models import (
     CorporateAssignmentDistribution as DistributionRow,
@@ -559,15 +562,23 @@ async def list_usage(
     async def readable(kind: str, identity: str) -> bool:
         key = (kind, identity)
         if key not in permission_cache:
-            permission_cache[key] = await has_corporate_permission(
+            if kind == "employee":
+                scope_kind, scope_id, permission = (
+                    "organization",
+                    organization_id,
+                    "member.read",
+                )
+            else:
+                scope_kind, scope_id, permission = kind, identity, f"{kind}.read"
+            effective = await corporate_effective_permissions(
                 db,
                 organization_id=organization_id,
                 principal_type="user",
                 principal_id=ctx.account_id,
-                permission="member.read" if kind == "employee" else f"{kind}.read",
-                scope_kind="organization" if kind == "employee" else kind,
-                scope_id=organization_id if kind == "employee" else identity,
+                scope_kind=scope_kind,
+                scope_id=scope_id,
             )
+            permission_cache[key] = effective is not None and permission in effective
         return permission_cache[key]
 
     def subject(row: AssignmentRow) -> tuple[UsageSubjectKind, str, str] | None:

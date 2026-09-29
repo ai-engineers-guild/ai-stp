@@ -74,6 +74,12 @@ export default [
       // next-intl still documents setRequestLocale for App Router static rendering.
       "@typescript-eslint/no-deprecated": "off",
       "@typescript-eslint/no-unnecessary-type-parameters": "off",
+      // `void <identifier>` is this tree's marker for a binding held
+      // deliberately — an unused action param that must keep its signature, a
+      // name touched so a co-owned static check sees the pair, or the
+      // never-typed sentinel of an exhaustive switch. Only calls count as
+      // meaningful to this rule, which would erase all eleven sites.
+      "@typescript-eslint/no-meaningless-void-operator": "off",
       "@typescript-eslint/restrict-template-expressions": [
         "error",
         { allowNumber: true, allowBoolean: true },

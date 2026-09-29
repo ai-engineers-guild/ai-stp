@@ -10,7 +10,7 @@ from fastapi import APIRouter, Depends, Header, Query, Request
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ai_stp_api.deps import get_auth_settings, get_db, require_auth
+from ai_stp_api.deps import get_auth_settings, get_db, get_settings, require_auth
 from ai_stp_api.errors import ApiError, ErrorCategory
 from ai_stp_api.session import AuthContext
 from ai_stp_api.settings import AuthSettings
@@ -143,15 +143,19 @@ async def device_list(
     db: Annotated[AsyncSession, Depends(get_db)],
     ctx: Annotated[AuthContext, Depends(require_auth)],
     account_id: str | None = Query(default=None),
+    page_size: Annotated[int, Query(ge=1, le=PAGE_SIZE_MAX)] = _DEVICE_PAGE_SIZE,
+    cursor: Annotated[str | None, Query()] = None,
     x_admin_reason: Annotated[str | None, Header(alias="X-Admin-Reason")] = None,
 ) -> JSONResponse:
     """List devices as OpenAPI DeviceListResponse (items + page)."""
-    del request
-    devices = await list_devices(
+    devices, next_cursor = await list_devices(
         db,
         ctx=ctx,
         subject_account_id=account_id,
         admin_reason=x_admin_reason,
+        page_size=page_size,
+        cursor=cursor,
+        cursor_secret=get_settings(request).catalog.cursor_signing_secret,
     )
     target = account_id or ctx.account_id
     synced = await stored_summaries(
@@ -166,10 +170,10 @@ async def device_list(
             "items": items,
             "page": {
                 "schema_version": 1,
-                "next_cursor": None,
-                # The contract's `page_size` is the maximum the endpoint will
-                # return per page, not however many rows happened to exist.
-                "page_size": _DEVICE_PAGE_SIZE,
+                "next_cursor": next_cursor,
+                # The contract's `page_size` is the bound the endpoint actually
+                # applied, not however many rows happened to exist.
+                "page_size": page_size,
             },
         },
         status_code=200,

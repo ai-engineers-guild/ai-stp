@@ -69,7 +69,6 @@ export function CookieConsent({ labels, privacyHref }: { labels: Labels; privacy
   return createPortal(
     <section
       role="dialog"
-      aria-modal="true"
       aria-labelledby="consent-title"
       className="border-border bg-background fixed bottom-4 left-1/2 z-50 w-[calc(100%-2rem)] max-w-2xl -translate-x-1/2 rounded-lg border p-4 shadow-xl sm:p-5"
     >

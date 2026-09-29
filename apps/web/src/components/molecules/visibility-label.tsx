@@ -17,7 +17,7 @@ export function VisibilityLabel({
       className={cn(
         "inline-flex min-h-7 items-center border border-t-0 px-3 py-1 font-mono text-xs shadow-sm",
         isPrivate
-          ? "border-orange-500 bg-orange-500 font-semibold text-black"
+          ? "border-warning bg-warning text-warning-foreground font-semibold"
           : "border-border bg-muted text-muted-foreground",
         className,
       )}

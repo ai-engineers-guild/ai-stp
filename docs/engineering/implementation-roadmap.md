@@ -60,7 +60,7 @@ review. The code-backed canon remains the owner of the domain inventory.
 | 4 | Preserve attempts | Reject nonempty direct workspaces; fill uses unique directories; validate scenario and run before effects; retain unavailable and failed attempts |
 | 5 | Bind execution inputs | Hash actual first-party payload and copied Skill, record installation/archive metadata and website prompt; refuse mixed/unknown candidate overlays; retain prompt and driver identity per attempt; recheck input bytes before score |
 | 6 | Recheck reported UX failures | Only reproducible product failures justify runtime changes. Unsupported model commands and invalid fixtures remain explicit findings |
-| 7 | Finish delivery | PyPI 0.0.30 published in run 36229099123; public wheel/sdist match the candidate; unpinned isolated install resolves 0.0.30. Maintenance 0.0.31 shipped; 0.0.32 published through release-candidate 36328279281 and publish-pypi 36328558135 carrying the detach_operation reader — still no autonomous-model acceptance claim |
+| 7 | Finish delivery | PyPI 0.0.30 published in run 36229099123; public wheel/sdist match the candidate; unpinned isolated install resolves 0.0.30. Maintenance 0.0.31 shipped; 0.0.32 published through release-candidate 36328279281 and publish-pypi 36328558135 carrying the detach_operation reader; 0.0.33 published through release-candidate 36384276021 and publish-pypi 36384484011 carrying provider-kit 0.2.15 and the unified provider invocation boundary — still no autonomous-model acceptance claim |
 | 8 | Repeat private publication | Verified a new synthetic private setup through author/publish, worker completion, fresh owner version/artifact reads and anonymous not-found; no grants or existing visibility changes |
 | 9 | Repeat GPT OSS 120B acceptance | New unassisted attempt returned individual quota exhaustion with a 4h42m reset; it remains `not_run`. Do not fill the corpus while this condition persists |
 | 10 | Update canonical documents | SPEC-080 follows tested oracles, prerequisites and identity binding; this roadmap owns the current order; Agent UX preserves historical scores |
@@ -296,7 +296,7 @@ On `main` now, and not in the September 8 snapshot below:
 - `standards/just.md` and `standards/docker.md` ([#306](https://github.com/ai-engineers-guild/ai-stp/pull/306)–[#308](https://github.com/ai-engineers-guild/ai-stp/pull/308)); `infra-*` is outside `just check`
 - Deploy secret preflight, least-privilege compose env, docs origin probe ([#309](https://github.com/ai-engineers-guild/ai-stp/pull/309) / [#311](https://github.com/ai-engineers-guild/ai-stp/pull/311))
 - Host `.env.prod` must name `AI_STP_STORAGE_ARTIFACT_BUCKET` and `AI_STP_STORAGE_ASSET_BUCKET` (they may equal the existing `AI_STP_STORAGE_BUCKET` during upgrade)
-- Consumer kit in this tree is `0.2.15`. Public `NDDev-OpenNetwork/*-setup-system` tags are `0.0.78` and vendor kit `0.2.14`
+- Consumer kit in this tree is `0.2.15`. Public `NDDev-OpenNetwork/*-setup-system` tags are `0.0.79` and vendor kit `0.2.15`
 - Observed live 2026-09-20: `GET /v1/system/version` `git_commit` matched `origin/main` and `origin/deploy/prod` (`34dde4bb`); API package `0.0.16`; `/v1/health/ready` 200; `https://docs.nddev.asia` 200
 - Observed live 2026-09-22: `GET /v1/system/version` `git_commit` `6f9ef8f5` matches `origin/main` and `origin/deploy/prod` (tag `v0.0.24`); API package `0.0.16`; `/v1/health/live` and `/v1/health/ready` 200
 - Observed live 2026-09-22 (later): `origin/main` and `origin/deploy/prod` at `60aec921` (tag `v0.0.25`); PyPI `ai-stp-cli` latest `0.0.25`; host `git_commit` follows the deploy/prod pull interval
@@ -745,7 +745,9 @@ The September 26 estate pass terminated with these measured results:
 - `ai-stp` 0.0.31 (`baf94a29`) is the deployed production commit;
   `/v1/system/version` and `/feed.xml` verified live. Provider releases
   0.0.76 (seven harnesses), provider-kit 0.2.13; since then providers
-  released 0.0.77 and this tree's kit moved to 0.2.14.
+  released 0.0.77 and this tree's kit moved to 0.2.14. As of 2026-09-28 the
+  public tags are 0.0.79 on all seven and the vendored kit is 0.2.15 — the
+  same version this consumer reads.
 - GPT OSS 120B corpus terminated by owner decision at 104/200 cells:
   guided layer 51/100 raw, corrected to 66/77 recorded after re-scoring with
   the fixed scorer (all five core journeys 5/5); unassisted 14/27 with a

@@ -30,6 +30,9 @@ export function DocsSearch({ locale }: { locale: string }) {
               setResults(
                 (items as Result[]).filter((item) => item.url.includes(`/${locale}/`)).slice(0, 6),
               );
+            })
+            .catch(() => {
+              setResults([]);
             });
         }}
       />

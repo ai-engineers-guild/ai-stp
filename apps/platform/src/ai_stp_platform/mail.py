@@ -2,8 +2,18 @@
 
 from __future__ import annotations
 
+import urllib.error
+import urllib.parse
+import urllib.request
 from dataclasses import dataclass, field
 from typing import Protocol
+
+
+class _NoRedirects(urllib.request.HTTPRedirectHandler):
+    """Refuse every redirect so credentials never follow a Location header."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):  # type: ignore[no-untyped-def]
+        return None
 
 
 class MailPort(Protocol):
@@ -73,6 +83,23 @@ class ResendMailPort:
     # URL fragment so servers and proxies never see it (REQ-2714, ADR-0047).
     accept_base_url: str = ""
 
+    def __post_init__(self) -> None:
+        # The request carries a Bearer credential and a one-time token, so the
+        # origin must be a plain https host: no redirect following (a 307/308
+        # would re-POST both to an arbitrary Location), no credentials or
+        # extra parts smuggled into the base URL itself.
+        parsed = urllib.parse.urlsplit(self.api_base)
+        if (
+            parsed.scheme != "https"
+            or not parsed.hostname
+            or parsed.username
+            or parsed.password
+            or parsed.query
+            or parsed.fragment
+        ):
+            msg = "resend api_base must be a plain https origin"
+            raise ValueError(msg)
+
     def send_invitation(
         self,
         *,
@@ -87,8 +114,6 @@ class ResendMailPort:
             return
         # Avoid importing httpx at module level so platform unit tests need no client.
         import json
-        import urllib.error
-        import urllib.request
 
         accept_url = (
             f"{self.accept_base_url.rstrip('/')}/invitations/{invitation_id}#token={accept_token}"
@@ -119,7 +144,8 @@ class ResendMailPort:
             method="POST",
         )
         try:
-            with urllib.request.urlopen(request, timeout=15) as response:
+            opener = urllib.request.build_opener(_NoRedirects)
+            with opener.open(request, timeout=15) as response:
                 if response.status >= 400:
                     msg = f"resend status {response.status}"
                     raise RuntimeError(msg)

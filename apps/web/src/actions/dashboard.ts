@@ -1,10 +1,12 @@
 "use server";
 
+import { getTranslations } from "next-intl/server";
+
 import { ApiError } from "@/lib/api/errors";
 import { readCorporateContext } from "@/lib/api/corporate";
 import { privateApiRequest } from "@/lib/api/http";
 import { sessionCookieValue } from "@/lib/auth/require-session";
-import { assertCsrf, readCsrfToken, readSession } from "@/lib/auth/session";
+import { readSession, requireCsrf } from "@/lib/auth/session";
 import type {
   DashboardQuery,
   DashboardResult,
@@ -15,18 +17,33 @@ import type {
 
 type Result<T> = { ok: true; data: T } | { ok: false; message: string };
 
+class ContextError extends Error {
+  constructor(readonly key: "notSignedIn" | "noOrganization") {
+    super(key);
+  }
+}
+
 async function context(csrfToken: string) {
-  assertCsrf(csrfToken, await readCsrfToken());
-  if (!(await readSession())) throw new Error("not signed in");
+  await requireCsrf(csrfToken);
+  if (!(await readSession())) throw new ContextError("notSignedIn");
   const token = await sessionCookieValue();
-  if (!token) throw new Error("not signed in");
+  if (!token) throw new ContextError("notSignedIn");
   const value = await readCorporateContext(token);
-  if (!value) throw new Error("corporate organization unavailable");
+  if (!value) throw new ContextError("noOrganization");
   return { value, token };
 }
 
-function failure(error: unknown): { ok: false; message: string } {
-  return { ok: false, message: error instanceof ApiError ? error.message : "request failed" };
+async function failure(error: unknown): Promise<{ ok: false; message: string }> {
+  if (error instanceof ApiError) return { ok: false, message: error.message };
+  const common = await getTranslations("common");
+  if (error instanceof ContextError) {
+    if (error.key === "noOrganization") {
+      const corporate = await getTranslations("corporate");
+      return { ok: false, message: corporate("noOrganization") };
+    }
+    return { ok: false, message: common("notSignedIn") };
+  }
+  return { ok: false, message: common("requestFailed") };
 }
 
 export async function queryDashboardAction(input: {

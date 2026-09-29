@@ -22,8 +22,10 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from ai_stp_contracts.auth import AccountId, DeviceId, DisplayName, OAuthProvider
 from ai_stp_contracts.http import (
     PAGE_SIZE_MAX,
+    Cursor,
     IdempotencyKey,
     PageInfo,
+    PageSize,
     Timestamp,
     open_wire_object,
     strict_request_object,
@@ -103,6 +105,18 @@ class DeviceRecord(BaseModel):
     #: value answers `AI_STP_PRECONDITION_FAILED`, which is distinct from a
     #: concurrent-change conflict.
     etag: Annotated[str, Field(min_length=1, max_length=128)]
+
+
+class DeviceListQuery(BaseModel):
+    """GET /v1/devices query."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
+
+    schema_version: Literal[1] = 1
+    #: Staff-only: list another account's devices (requires X-Admin-Reason).
+    account_id: AccountId | None = None
+    cursor: Cursor | None = None
+    page_size: PageSize = PAGE_SIZE_MAX
 
 
 class DeviceListResponse(BaseModel):

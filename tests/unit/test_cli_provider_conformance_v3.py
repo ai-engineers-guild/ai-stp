@@ -1605,3 +1605,34 @@ def test_an_apply_refusal_is_a_decision_with_a_reason_not_an_unknown_state(
         )
         == "stale"
     )
+
+
+@pytest.mark.skipif(platform.system() == "Windows", reason="process groups are POSIX")
+def test_the_watchdog_reaches_a_descendant_still_holding_the_pipe() -> None:
+    """A provider that forks a helper inheriting stdout must not hang the read.
+
+    `Popen.kill()` signals only the direct child; the forked helper keeps the
+    pipe open and `read()` would outlive the watchdog. `_popen` starts the
+    provider as a session leader and signals the group instead.
+    """
+    import subprocess
+    import sys
+    import time
+
+    script = (
+        "import os, sys, time\n"
+        "if os.fork() == 0:\n"
+        "    time.sleep(30)\n"  # the helper inherits stdout and holds it open
+        "    sys.exit(0)\n"
+        "time.sleep(30)\n"  # the direct child never answers either
+    )
+    started_at = time.monotonic()
+    with pytest.raises(subprocess.TimeoutExpired):
+        conformance._bounded_output(  # pyright: ignore[reportPrivateUsage]
+            [sys.executable, "-c", script],
+            limit=1024,
+            timeout_seconds=1.0,
+            environment={},
+        )
+    # Without the group signal the read would hang until the helper exits (~30s).
+    assert time.monotonic() - started_at < 20

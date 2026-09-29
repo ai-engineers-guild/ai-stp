@@ -1,5 +1,4 @@
 import { getTranslations, setRequestLocale } from "next-intl/server";
-import { notFound } from "next/navigation";
 import { Badge } from "@/components/atoms/badge";
 import { Input } from "@/components/atoms/input";
 import { Label } from "@/components/atoms/label";
@@ -7,6 +6,7 @@ import { Button } from "@/components/atoms/button";
 import { StatePanel } from "@/components/molecules/state-panel";
 import { TechnologyRegistryCreate } from "@/components/organisms/technology-registry-create";
 import { readCorporateContext } from "@/lib/api/corporate";
+import { ApiError } from "@/lib/api/errors";
 import { readCategoryDirectory } from "@/lib/api/technology";
 import { requireSession, sessionCookieValue } from "@/lib/auth/require-session";
 import { readCsrfToken } from "@/lib/auth/session";
@@ -23,11 +23,30 @@ export default async function CategoryDirectoryPage({
   setRequestLocale(locale);
   await requireSession(locale, `/${locale}/corporate/categories`);
   const session = (await sessionCookieValue()) ?? "";
-  const context = await readCorporateContext(session);
-  if (!context) notFound();
   const h = await getTranslations("hub");
   const t = await getTranslations("technology");
-  const result = await readCategoryDirectory(session, context.organization.organization_id);
+  const c = await getTranslations("corporate");
+  const common = await getTranslations("common");
+  let context;
+  try {
+    context = await readCorporateContext(session);
+  } catch (error) {
+    if (!(error instanceof ApiError)) throw error;
+    return (
+      <StatePanel kind="error" title={h("categories")} description={common("apiUnavailable")} />
+    );
+  }
+  if (!context)
+    return <StatePanel kind="empty" title={h("categories")} description={c("noOrganization")} />;
+  let result;
+  try {
+    result = await readCategoryDirectory(session, context.organization.organization_id);
+  } catch (error) {
+    if (!(error instanceof ApiError)) throw error;
+    return (
+      <StatePanel kind="error" title={h("categories")} description={common("apiUnavailable")} />
+    );
+  }
   if (!result)
     return <StatePanel kind="empty" title={h("categories")} description={t("notPermitted")} />;
   const raw = (await searchParams).query;

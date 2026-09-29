@@ -4,6 +4,9 @@ import { corporateTeamAssignmentsAction } from "@/actions/corporate";
 import { privateApiRequest } from "@/lib/api/http";
 
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
+vi.mock("next-intl/server", () => ({
+  getTranslations: vi.fn(() => Promise.resolve((key: string) => key)),
+}));
 vi.mock("next/headers", () => ({
   cookies: () => Promise.resolve({ get: () => ({ value: "session-fixture" }) }),
 }));

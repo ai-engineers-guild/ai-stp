@@ -23,7 +23,7 @@ Do not weaken checks or update golden output without semantic analysis.
 ### Golden fixtures
 
 `tests/golden/cli/machine-help.json` pins the `help --agent` registry — the
-machine boundary five harness projections read. When a command is added,
+machine boundary seven harness projections read. When a command is added,
 renamed, or re-described, regenerate it rather than editing by hand:
 
 ```bash

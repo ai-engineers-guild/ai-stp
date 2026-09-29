@@ -6071,6 +6071,40 @@ export type DetectedHarness = {
 };
 
 /**
+ * DeviceApproveRequest
+ *
+ * The browser half of device sign-in: bind a pending `user_code` to the
+ * signed-in account. Carries no device identity — the key arrives at token
+ * exchange, after a human has approved.
+ */
+export type DeviceApproveRequest = {
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
+  user_code: UserCode;
+};
+
+/**
+ * DeviceApproveResponse
+ *
+ * The grant as the approval page reports it.
+ */
+export type DeviceApproveResponse = {
+  provider: OAuthProvider;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  /**
+   * Status
+   */
+  status: "approved";
+  user_code: UserCode;
+  [key: string]: unknown;
+};
+
+/**
  * DeviceAuthorizationRequest
  *
  * Start a sign-in. Carries the provider and the key that makes it repeatable.
@@ -6162,6 +6196,21 @@ export type DeviceChallengeResponse = {
 export type DeviceCode = string;
 
 export type DeviceId = string;
+
+/**
+ * DeviceListQuery
+ *
+ * GET /v1/devices query.
+ */
+export type DeviceListQuery = {
+  account_id?: AccountId | null;
+  cursor?: Cursor | null;
+  page_size?: PageSize;
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
+};
 
 /**
  * DeviceListResponse
@@ -10576,6 +10625,20 @@ export type ReportCaseCreateRequest = {
 };
 
 /**
+ * ReportCaseListQuery
+ *
+ * GET /v1/reports and /v1/requests query.
+ */
+export type ReportCaseListQuery = {
+  cursor?: Cursor | null;
+  page_size?: PageSize;
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
+};
+
+/**
  * ReportCaseListResponse
  *
  * Reporter's own cases.
@@ -10585,6 +10648,7 @@ export type ReportCaseListResponse = {
    * Items
    */
   items: Array<ReportCaseResponse>;
+  page: PageInfo;
   /**
    * Schema Version
    */
@@ -15752,6 +15816,67 @@ export type StartDeviceAuthorizationResponses = {
 
 export type StartDeviceAuthorizationResponse =
   StartDeviceAuthorizationResponses[keyof StartDeviceAuthorizationResponses];
+
+export type ApproveDeviceAuthorizationData = {
+  body: DeviceApproveRequest;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path?: never;
+  query?: never;
+  url: "/v1/auth/device/approve";
+};
+
+export type ApproveDeviceAuthorizationErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_NOT_FOUND.
+   */
+  404: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_CONFLICT.
+   */
+  409: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ApproveDeviceAuthorizationError =
+  ApproveDeviceAuthorizationErrors[keyof ApproveDeviceAuthorizationErrors];
+
+export type ApproveDeviceAuthorizationResponses = {
+  /**
+   * Bind a pending user code to the signed-in account.
+   */
+  200: DeviceApproveResponse;
+};
+
+export type ApproveDeviceAuthorizationResponse =
+  ApproveDeviceAuthorizationResponses[keyof ApproveDeviceAuthorizationResponses];
 
 export type RefreshDeviceSessionData = {
   body: DeviceRefreshRequest;
@@ -27257,7 +27382,11 @@ export type ListDevicesData = {
     "X-AI-STP-Schema-Version"?: 1;
   };
   path?: never;
-  query?: never;
+  query?: {
+    account_id?: AccountId | null;
+    cursor?: Cursor | null;
+    page_size?: PageSize;
+  };
   url: "/v1/devices";
 };
 
@@ -30223,7 +30352,10 @@ export type ListReportCasesData = {
     "X-AI-STP-Schema-Version"?: 1;
   };
   path?: never;
-  query?: never;
+  query?: {
+    cursor?: Cursor | null;
+    page_size?: PageSize;
+  };
   url: "/v1/reports";
 };
 
@@ -30329,7 +30461,10 @@ export type ListRequestCasesData = {
     "X-AI-STP-Schema-Version"?: 1;
   };
   path?: never;
-  query?: never;
+  query?: {
+    cursor?: Cursor | null;
+    page_size?: PageSize;
+  };
   url: "/v1/requests";
 };
 

@@ -305,6 +305,13 @@ It has no options to disable TLS or override DNS.
 - the documentation host → the docs bind
 - only nginx is exposed externally; the stack's own ports stay on loopback
 
+**Container networks:** the Compose `edge` network is outbound-capable while
+`internal` is not. The worker joins both — `deliver_invitation` reaches
+`api.resend.com`, and `repository_metrics` / `github_archive` /
+`official_upstream_sync` reach `api.github.com` and codeload; an internal-only
+worker dead-letters those jobs. `postgres` and `rustfs` stay on `internal`
+only, so the worker's egress grants it no new path to them.
+
 **Local dev (no host proxy):**
 
 - host `web:3000`—UI; Next rewrite `/v1/*` (and docs paths) → `api:8000`
@@ -357,6 +364,12 @@ Rehearse on a restored copy before making a production change.
 
 Rollback = redeploying the **previous exact** Git commit from
 `.deploy-state/previous`. A destructive reverse migration is **not** performed.
+
+On a repository root the script detaches the checkout to that commit. On a
+pull-model root there is no `.git`, so it restores the retained
+`releases/<sha>` tree the deployer kept for exactly this case — the same
+bytes `pull-deploy.sh` promoted, synced back with the same runtime-state
+exclusions.
 
 ```bash
 ./deploy/rollback.sh --yes

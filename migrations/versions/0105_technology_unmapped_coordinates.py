@@ -49,17 +49,22 @@ def upgrade() -> None:
         sa.CheckConstraint("project_namespace = 'remote'", name="ck_unmapped_namespace"),
     )
     op.create_index("ix_unmapped_coordinate_scan", TABLE, ["organization_id", "scan_id"])
-    op.execute(f"ALTER TABLE {TABLE} ENABLE ROW LEVEL SECURITY")
-    op.execute(f"ALTER TABLE {TABLE} FORCE ROW LEVEL SECURITY")
-    op.execute(
-        f'CREATE POLICY "{TABLE}_tenant_policy" ON "{TABLE}" USING ({TENANT}) WITH CHECK ({TENANT})'
-    )
-    op.execute(
-        f'CREATE TRIGGER "{TABLE}_identity_immutable" BEFORE INSERT OR UPDATE '
-        f'ON "{TABLE}" FOR EACH ROW EXECUTE FUNCTION '
-        "ai_stp_technology_identity_immutable()"
-    )
+    if op.get_bind().dialect.name == "postgresql":
+        op.execute(f"ALTER TABLE {TABLE} ENABLE ROW LEVEL SECURITY")
+        op.execute(f"ALTER TABLE {TABLE} FORCE ROW LEVEL SECURITY")
+        op.execute(
+            f'CREATE POLICY "{TABLE}_tenant_policy" ON "{TABLE}" '
+            f"USING ({TENANT}) WITH CHECK ({TENANT})"
+        )
+        op.execute(
+            f'CREATE TRIGGER "{TABLE}_identity_immutable" BEFORE INSERT OR UPDATE '
+            f'ON "{TABLE}" FOR EACH ROW EXECUTE FUNCTION '
+            "ai_stp_technology_identity_immutable()"
+        )
 
 
 def downgrade() -> None:
+    if op.get_bind().dialect.name == "postgresql":
+        op.execute(f'DROP POLICY "{TABLE}_tenant_policy" ON "{TABLE}"')
+        op.execute(f'DROP TRIGGER "{TABLE}_identity_immutable" ON "{TABLE}"')
     op.drop_table(TABLE)

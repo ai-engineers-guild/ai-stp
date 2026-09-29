@@ -106,7 +106,7 @@ class OAuthIdentity(Base):
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
 
-    account: Mapped[Account] = relationship()
+    account: Mapped[Account] = relationship(lazy="raise")
 
 
 class Device(Base):
@@ -136,7 +136,7 @@ class Device(Base):
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
 
-    account: Mapped[Account] = relationship()
+    account: Mapped[Account] = relationship(lazy="raise")
 
 
 class AccountSession(Base):
@@ -156,11 +156,11 @@ class AccountSession(Base):
     )
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    kind: Mapped[str] = mapped_column(String(16), default="access")
+    kind: Mapped[str] = mapped_column(String(16), default="access", server_default="access")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
-    account: Mapped[Account] = relationship()
-    device: Mapped[Device | None] = relationship()
+    account: Mapped[Account] = relationship(lazy="raise")
+    device: Mapped[Device | None] = relationship(lazy="raise")
 
 
 class DeviceAuthorization(Base):
@@ -243,7 +243,7 @@ class CatalogMetadata(OrganizationScopedMixin, Base):
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
 
-    owner: Mapped[Account] = relationship()
+    owner: Mapped[Account] = relationship(lazy="raise")
 
 
 class CatalogIdentity(OrganizationScopedMixin, Base):
@@ -581,11 +581,14 @@ class ObjectLocation(OrganizationScopedMixin, Base):
     size_bytes: Mapped[int] = mapped_column(BigInteger)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
-    catalog_metadata: Mapped[CatalogMetadata] = relationship()
+    catalog_metadata: Mapped[CatalogMetadata] = relationship(lazy="raise")
 
 
 class AuditEvent(OrganizationScopedMixin, Base):
     """Append-only audit row for sensitive server actions."""
+
+    # Anonymous audit entries carry no tenant; 0059 keeps the column nullable.
+    _organization_scope_nullable = True
 
     __tablename__ = "audit_event"
     __table_args__ = (
@@ -614,7 +617,7 @@ class AuditEvent(OrganizationScopedMixin, Base):
     payload: Mapped[dict[str, object]] = mapped_column(JSON, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
-    actor: Mapped[Account | None] = relationship()
+    actor: Mapped[Account | None] = relationship(lazy="raise")
 
 
 class SyncRevision(OrganizationScopedMixin, Base):
@@ -773,7 +776,7 @@ class PublicationPlan(OrganizationScopedMixin, Base):
     version: Mapped[str] = mapped_column(String(32))
     content_digest: Mapped[str] = mapped_column(String(71))
     artifact_inventory: Mapped[list[str]] = mapped_column(JSON, default=list)
-    visibility: Mapped[str] = mapped_column(String(16), default="private", server_default="private")
+    visibility: Mapped[str] = mapped_column(String(16), default="private")
     policy_version: Mapped[str] = mapped_column(String(32), default="1")
     plan_hash: Mapped[str] = mapped_column(String(128))
     state: Mapped[str] = mapped_column(String(32), default="ready")

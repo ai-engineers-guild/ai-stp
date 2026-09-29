@@ -2,7 +2,8 @@
 
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import select
+from sqlalchemy import insert, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ai_stp_contracts.installation_usage import (
@@ -15,8 +16,8 @@ from ai_stp_platform.installation_usage_models import InstallationOperationFact 
 from ai_stp_platform.models import Device
 from ai_stp_platform.organization_models import CorporateProject
 from ai_stp_platform.runtime_usage_service import (  # pyright: ignore[reportPrivateUsage]
-    _revoked_subjects,  # pyright: ignore[reportPrivateUsage]
     raw_retention_days,
+    revoked_subjects,
 )
 from ai_stp_platform.tenant_scope import set_tenant_scope
 
@@ -36,7 +37,7 @@ async def ingest_operations(
     cutoff = moment - timedelta(
         days=await raw_retention_days(session, organization_id=organization_id)
     )
-    revoked = await _revoked_subjects(session, organization_id=organization_id)
+    revoked = await revoked_subjects(session, organization_id=organization_id)
     device_query = select(Device.id).where(
         Device.account_id == caller_account_id, Device.state == "active"
     )
@@ -47,6 +48,7 @@ async def ingest_operations(
         await session.scalars(
             select(CorporateProject.id).where(
                 CorporateProject.organization_id == organization_id,
+                CorporateProject.state == "active",
             )
         )
     )
@@ -76,7 +78,33 @@ async def ingest_operations(
         if fact.operation_id in seen or existing is not None:
             duplicates.append(fact.operation_id)
             continue
-        session.add(_row(organization_id, fact, occurred, digest))
+        row = _row(organization_id, fact, occurred, digest)
+        try:
+            # The race insert runs inside an engine-level savepoint, not
+            # ``session.begin_nested``: a failed ORM flush marks the session
+            # transaction itself rollback-only, while a statement inside a
+            # connection savepoint rolls back alone and leaves the session
+            # free to classify the stored row and to keep ingesting the batch.
+            async with (await session.connection()).begin_nested():
+                with session.no_autoflush:
+                    values = {
+                        column.key: getattr(row, column.key)
+                        for column in FactRow.__table__.columns
+                        if getattr(row, column.key) is not None
+                    }
+                    await session.execute(insert(FactRow).values(values))
+        except IntegrityError:
+            # A concurrent ingest of the same operation_id committed between
+            # the existence read and this flush: classify it by the stored
+            # row's digest, the same verdict the read path would produce.
+            stored = await session.get(FactRow, (organization_id, fact.operation_id))
+            if stored is None:
+                raise
+            if stored.fact_digest != digest:
+                rejected.append(fact.operation_id)
+            else:
+                duplicates.append(fact.operation_id)
+            continue
         seen.add(fact.operation_id)
         accepted.append(fact.operation_id)
     await session.flush()

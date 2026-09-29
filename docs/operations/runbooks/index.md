@@ -20,15 +20,14 @@ last_verified: "2026-08-03"
 | [github-repository-metrics.md](github-repository-metrics.md) | Runbook: best-effort GitHub stars cache for the public catalog. | 2026-09-03 |
 | [gitlab-discovery.md](gitlab-discovery.md) | Operate per-tenant GitLab discovery and retained provider observations. | 2026-09-22 |
 | [installation-recovery.md](installation-recovery.md) | Runbook: installation recovery. | 2026-08-03 |
-| [macos-evidence.md](macos-evidence.md) | Collecting CLI/package evidence on a standard GitHub-hosted macOS runner. | 2026-08-18 |
 | [official-upstream-components.md](official-upstream-components.md) | Runbook: operator-managed official GitHub and package upstream component snapshots. | 2026-09-04 |
-| [platform-evidence.md](platform-evidence.md) | Six-leg platform evidence for the exact CLI candidate without publish or deploy authority. | 2026-08-31 |
+| [platform-evidence.md](platform-evidence.md) | Native platform evidence for the exact CLI candidate without publish or deploy authority. | 2026-09-29 |
 | [provider-lifecycle.md](provider-lifecycle.md) | Discovery, version checking, updating, and reinstalling a setup-system provider. | 2026-09-04 |
 | [provider-update.md](provider-update.md) | Runbook: provider update. | 2026-08-28 |
 | [publish-recovery.md](publish-recovery.md) | Runbook: publish recovery. | 2026-09-24 |
 | [pypi-release.md](pypi-release.md) | Build, verify, publish, yank, and recover a Python release. | 2026-09-20 |
 | [report-triage.md](report-triage.md) | Runbook: report case triage. | 2026-08-04 |
-| [safety-scan.md](safety-scan.md) | Runbook: platform safety scan for publication validation. | 2026-09-03 |
+| [safety-scan.md](safety-scan.md) | Runbook: platform safety scan for publication validation. | 2026-09-29 |
 | [security-incident.md](security-incident.md) | Runbook: security incident. | 2026-08-03 |
 | [seo-publication.md](seo-publication.md) | Runbook: server SEO revisions, sitemap, and optional LiteLLM enrichment. | 2026-08-29 |
 | [sync-conflict.md](sync-conflict.md) | Runbook: sync conflict. | 2026-08-03 |

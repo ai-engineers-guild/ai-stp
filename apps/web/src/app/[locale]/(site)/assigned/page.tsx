@@ -14,6 +14,7 @@ import { requireSession, sessionCookieValue } from "@/lib/auth/require-session";
 import { readCsrfToken } from "@/lib/auth/session";
 import { loadPublisherProfiles, mapPool, readAssignedObjectSummary } from "@/lib/catalog-load";
 import { catalogQueryToRecord, parseCatalogSearchParams } from "@/lib/catalog-query";
+import { catalogResultsLabels } from "@/lib/catalog-results-labels";
 import { probeObjectMenu, type ObjectMenuOrgContext } from "@/lib/object-menu";
 import { filterAndSortOwnerObjects, ownerCatalogItem } from "@/lib/owner-catalog";
 import { OwnerObjectActions } from "@/components/organisms/owner-object-actions";
@@ -151,74 +152,7 @@ export default async function AssignedObjectsPage({ params, searchParams }: Page
       ];
     }),
   );
-  const labels = {
-    authoritative: tCatalog("authoritative"),
-    experimental: tCatalog("experimental"),
-    experimentalNote: tCatalog("experimentalNote"),
-    emptyAuthoritative: tCatalog("emptyAuthoritative"),
-    emptyExperimental: tCatalog("emptyExperimental"),
-    emptyAll: tCatalog("emptyAll"),
-    resultsHeading: tCatalog("mixedResults"),
-    nextPage: tCatalog("nextPage"),
-    version: tCatalog("version"),
-    harness: tCatalog("harness"),
-    type: tCatalog("type"),
-    tags: tCatalog("tags"),
-    purpose: tCatalog("purpose"),
-    targetRole: tCatalog("targetRole"),
-    authorVerified: tCatalog("authorVerified"),
-    authorVerifiedDescription: tCatalog("authorVerifiedDescription"),
-    githubStars: tCatalog("githubStars"),
-    componentVerified: tCatalog("componentVerified"),
-    yes: tc("yes"),
-    no: tc("no"),
-    publisher: tCatalog("publisher"),
-    publishedAt: tCatalog("updatedAt"),
-    likes: tCatalog("likes"),
-    detailViews: tCatalog("detailViews"),
-    artifactDownloads: tCatalog("artifactDownloads"),
-    componentKind: tCatalog("componentKind"),
-    setupKind: tCatalog("setupKind"),
-    publicVisibility: tCatalog("public"),
-    privateVisibility: tCatalog("private"),
-    supportTier: tCatalog("supportTier"),
-    supportState: tCatalog("supportState"),
-    supportEvidence: tCatalog("supportEvidence"),
-    noSupportEvidence: tCatalog("noSupportEvidence"),
-    moreActions: tCatalog("moreActions"),
-    copyCli: tCatalog("copyCli"),
-    copyId: tCatalog("copyId"),
-    copyUrl: tCatalog("copyUrl"),
-    copied: tCatalog("copied"),
-    report: tCatalog("report"),
-    reportSetup: tCatalog("reportSetup"),
-    pagination: tCatalog("pagination"),
-    whyFailed: tCatalog("whyFailed"),
-    whyWarning: tCatalog("whyWarning"),
-    whyOptionalFailed: tCatalog("whyOptionalFailed"),
-    safetyChecks: tCatalog("safetyChecks"),
-    requirements: tCatalog("requirements"),
-    credentialsRequired: tCatalog("credentialsRequired"),
-    safetyStatus: tCatalog("safetyStatus"),
-    safetyPercent: tCatalog("safetyPercent"),
-    safetyPassed: tCatalog("safetyPassed"),
-    safetyFailed: tCatalog("safetyFailed"),
-    safetyWarning: tCatalog("safetyWarning"),
-    safetyNotRun: tCatalog("safetyNotRun"),
-    safetyIncomplete: tCatalog("safetyIncomplete"),
-    safetyEmpty: tCatalog("safetyEmpty"),
-    safetyNoScan: tCatalog("safetyNoScan"),
-    safetyAvailable: tCatalog("safetyAvailable"),
-    safetyPending: tCatalog("safetyPending"),
-    safetyMandatory: tCatalog("safetyMandatory"),
-    safetyCheckExplanation: tCatalog("safetyCheckExplanation"),
-    like: tCatalog("like"),
-    unlike: tCatalog("unlike"),
-    likeMenu: tCatalog("likeMenu"),
-    unlikeMenu: tCatalog("unlikeMenu"),
-    assuranceCounts: tCatalog("assuranceCounts"),
-    familyMemberCount: tCatalog("familyMemberCount"),
-  };
+  const labels = catalogResultsLabels(tCatalog, tc);
 
   return (
     <div className="min-w-0 space-y-8 overflow-x-hidden">

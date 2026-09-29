@@ -21,6 +21,11 @@ server {
     include /etc/letsencrypt/options-ssl-nginx.conf;
     ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
 
+    # Same HSTS posture as the main host; the apex's includeSubDomains only
+    # takes effect after a client has visited the apex, so the docs name
+    # declares it for itself. `always` keeps it on error responses.
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+
     proxy_http_version 1.1;
     proxy_set_header Host $host;
     proxy_set_header X-Real-IP $remote_addr;
