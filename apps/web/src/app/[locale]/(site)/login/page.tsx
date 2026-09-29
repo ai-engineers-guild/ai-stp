@@ -3,6 +3,7 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 import { mockLoginCancelAction, mockLoginErrorAction, startLoginAction } from "@/actions/auth";
 import { Button } from "@/components/atoms/button";
 import { CliCopyBlock } from "@/components/molecules/cli-copy-block";
+import { SsoSignIn } from "@/components/molecules/sso-sign-in";
 import { StatePanel } from "@/components/molecules/state-panel";
 import { login } from "@/lib/cli-copy";
 import type { LoginProvider } from "@/lib/generated/cli-copy";
@@ -117,14 +118,13 @@ export default async function LoginPage({ params, searchParams }: PageProps) {
             </Button>
           </>
         )}
-        {ssoProviders.map((provider) => (
-          <Button key={provider} asChild variant="outline" className="min-h-11 w-full">
-            <a href={oauthLoginHref(provider, returnTo)}>
-              <Icon name="access" size="sm" />
-              {t(provider)}
-            </a>
-          </Button>
-        ))}
+        <SsoSignIn
+          label={t("sso")}
+          options={ssoProviders.map((provider) => ({
+            label: t(provider),
+            href: oauthLoginHref(provider, returnTo),
+          }))}
+        />
         <CliCopyBlock
           command={login("github")}
           title={tCli("loginHint")}
