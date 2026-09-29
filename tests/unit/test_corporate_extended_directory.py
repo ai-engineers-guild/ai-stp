@@ -6,6 +6,9 @@ from unittest.mock import AsyncMock
 
 import pytest
 from pydantic import ValidationError
+from tests.unit.test_corporate_directory import (
+    _DIRECTORY_PERMISSIONS,  # pyright: ignore[reportPrivateUsage]
+)
 
 from ai_stp_api.session import AuthContext
 from ai_stp_api.slices.corporate import directory, overview
@@ -132,14 +135,17 @@ async def test_extended_projection_authorizes_names_before_facets(
     )
     monkeypatch.setattr(overview, "read_overview", AsyncMock(return_value=graph))
 
-    def permitted(*args: Any, **kwargs: Any) -> bool:
-        return kwargs["scope_id"] != hidden
+    async def effective(*args: Any, **kwargs: Any) -> frozenset[str]:
+        return frozenset() if kwargs["scope_id"] == hidden else frozenset(_DIRECTORY_PERMISSIONS)
 
-    monkeypatch.setattr(
-        directory,
-        "has_corporate_permission",
-        AsyncMock(side_effect=permitted),
-    )
+    async def bulk(*args: Any, **kwargs: Any) -> dict[str, frozenset[str]]:
+        return {
+            scope_id: (frozenset() if scope_id == hidden else frozenset(_DIRECTORY_PERMISSIONS))
+            for scope_id in kwargs["scope_ids"]
+        }
+
+    monkeypatch.setattr(directory, "corporate_effective_permissions", effective)
+    monkeypatch.setattr(directory, "bulk_effective_permissions", bulk)
     technologies = [
         SimpleNamespace(
             id=identity,

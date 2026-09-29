@@ -34,7 +34,6 @@ import { SetupComposition } from "@/components/organisms/setup-composition";
 import { SetupFamilyBlock, setupFamilyLabels } from "@/components/molecules/setup-family";
 import {
   catalogRelations,
-  readComponentVersion,
   readSetup,
   readSetupContextBudget,
   readSetupGithubMetadata,
@@ -49,10 +48,10 @@ import { listCatalogReactions } from "@/lib/api/reactions";
 import { readCorporateContext } from "@/lib/api/corporate";
 import { readOwnerObjectActions } from "@/lib/api/owner";
 import { objectActionLabels } from "@/lib/object-action-labels";
-import { readPublisherProfile, type PublicProfileProjection } from "@/lib/api/public-profile";
+import { loadCatalogComponents, readAuthor } from "./setup-catalog-components";
 import { sessionCookieValue } from "@/lib/auth/require-session";
 import { readCsrfToken } from "@/lib/auth/session";
-import { asAccountId, asComponentId, asVersionId, tryAsSetupId } from "@/lib/brands";
+import { asVersionId, tryAsSetupId } from "@/lib/brands";
 import { installSetupStart, registryVersion } from "@/lib/cli-copy";
 import { isFeatureEnabled } from "@/lib/features/gate";
 import { buildDeepLink, normalizeTarget } from "@/lib/deep-links";
@@ -61,7 +60,6 @@ import { SeoJsonLd } from "@/components/molecules/seo-json-ld";
 import { readSeoProfile } from "@/lib/api/seo";
 import { metadataFromSeo } from "@/lib/seo/metadata";
 import { UI } from "@/lib/ui-selectors";
-import { sourceLinksFor } from "@/lib/source-url";
 import { visibleCorporateState } from "@/lib/corporate-detail";
 
 type PageProps = {
@@ -146,30 +144,7 @@ export default async function SetupDetailPage({ params, searchParams }: PageProp
   const passport = latest?.passport;
   const documentDescription = detail.presentation_bio;
   const catalogComponents = passport
-    ? await Promise.all(
-        passport.components.map(async (ref) => {
-          try {
-            const component = await readComponentVersion(
-              asComponentId(ref.stable_id),
-              asVersionId(ref.version),
-            );
-            const componentOwnerId = summary.publisher_id || component.passport.owner_id || "";
-            const componentAuthor = await readAuthor(componentOwnerId);
-            return {
-              stableId: ref.stable_id,
-              version: ref.version,
-              componentType: component.passport.component_type,
-              ownerId: componentOwnerId,
-              authorName: componentAuthor?.display_name,
-              sourceUrl: sourceLinksFor(component.passport.source, component.passport.facts)[0]
-                ?.href,
-              passport: component.passport,
-            };
-          } catch {
-            return null;
-          }
-        }),
-      ).then((items) => items.filter((item) => item !== null))
+    ? await loadCatalogComponents(passport, summary.publisher_id || "")
     : [];
   const aggregatedRequirements = passport
     ? mergeRequirements([passport, ...catalogComponents.map((item) => item.passport)])
@@ -194,9 +169,7 @@ export default async function SetupDetailPage({ params, searchParams }: PageProp
     corporateOwnership?.ownership.can_edit
       ? readCsrfToken().then((value) => value ?? "")
       : Promise.resolve(""),
-    objectActions?.canDelete
-      ? readCsrfToken().then((value) => value ?? "")
-      : Promise.resolve(""),
+    objectActions?.canDelete ? readCsrfToken().then((value) => value ?? "") : Promise.resolve(""),
   ]);
   const reportHref = latest?.passport_digest
     ? `/${locale}/reports?object_kind=setup&stable_id=${encodeURIComponent(stableId)}&version=${encodeURIComponent(summary.latest_version)}&digest=${encodeURIComponent(latest.passport_digest)}`
@@ -454,14 +427,6 @@ export default async function SetupDetailPage({ params, searchParams }: PageProp
       />
     </article>
   );
-}
-
-async function readAuthor(accountId: string): Promise<PublicProfileProjection | null> {
-  try {
-    return await readPublisherProfile(asAccountId(accountId));
-  } catch {
-    return null;
-  }
 }
 
 async function isLiked(token: string, stableId: string) {
