@@ -91,7 +91,12 @@ def test_task_intents_describe_input_fields() -> None:
 
     account = {field.name: field for field in by_name["account"].input_fields}
     assert account["action"].choices == ["login", "logout", "sync"]
-    assert account["provider"].choices == ["github", "google"]
+    assert account["provider"].choices == [
+        "authentik",
+        "github",
+        "google",
+        "keycloak",
+    ]
 
     assert by_name["inspect"].input_fields == []
     for intent in catalog.intents:
