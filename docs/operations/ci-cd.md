@@ -43,9 +43,11 @@ analysis, packaging, and documentation have their own jobs. Browser E2E specs
 are split by the workflow's explicit shard mechanism; its matrix is the source
 of the current partition, not a copied count in this document.
 
-Independent checks do not wait for one another (`ADR-0104`, `ADR-0105`). Coverage
-is the data dependency: it combines the Linux test shards' coverage files and
-prints the union (`ADR-0147`). Coverage percentage does not fail the gate.
+Independent checks do not wait for one another (`ADR-0116`; the originating
+`ADR-0104` and `ADR-0105` are private-infrastructure decisions, unpublished per
+`ADR-0110`). Coverage is the data dependency: it combines the Linux test shards'
+coverage files and prints the union (`ADR-0147`). Coverage percentage does not
+fail the gate.
 A newer push cancels the older `check` for that ref. The workflow verdict already
 combines its jobs; no extra aggregation job is needed.
 

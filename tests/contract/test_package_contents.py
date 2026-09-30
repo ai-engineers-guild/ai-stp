@@ -277,9 +277,9 @@ MODEL_CLIENTS = (
 
 
 def test_no_source_file_reaches_for_a_model_client() -> None:
-    # The dependency closure is checked in `just smoke-cli`, where the real
-    # installed set exists. This is the other half: an import that would make
-    # the CLI need one.
+    # The dependency closure is checked in `just release-candidate-install`,
+    # where the real installed set exists. This is the other half: an import
+    # that would make the CLI need one.
     for source in (ROOT / "apps").rglob("*.py"):
         text = source.read_text(encoding="utf-8")
         for client in MODEL_CLIENTS:

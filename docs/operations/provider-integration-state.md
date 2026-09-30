@@ -31,7 +31,11 @@ recursive diff of the two trees on 2026-09-29 — and matches
 `provider-kit/v3/KIT-IDENTITY.json` and
 `tests/golden/provider-kit/identity-ledger.json`.
 `0.0.81`/`0.0.80` (2026-09-29), `0.0.79` (2026-09-28) and `0.0.74`
-(2026-09-24) remain prior public tags; they are not the current release.
+(2026-09-24) remain prior public tags; they are not the current release. The
+`corpus-release-pins.json` tags (`0.0.67`/`0.0.74`) are provenance of the
+captured first-party corpus bytes, not the current release — drift against
+them is measured by `just corpus-drift`, documented in
+`docs/engineering/first-party-corpus.md`.
 
 Antigravity's non-minimal provider setups retain the historical access key and
 add `allowNonWorkspaceAccess`. A fresh native Antigravity CLI 1.2.10 process on

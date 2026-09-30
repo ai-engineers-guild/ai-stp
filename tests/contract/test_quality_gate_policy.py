@@ -52,7 +52,8 @@ def test_python_ci_jobs_do_not_reuse_a_persistent_checkout_venv() -> None:
     """Every job that runs `uv` isolates its environment, and no two share one.
 
     Counted jobs rather than occurrences, because the count changed the moment
-    the gate was split into five (`ADR-0105`) and a hard-coded `== 2` fails for
+    the gate was split into five (`ADR-0105`, unpublished; `ADR-0116`) and a
+    hard-coded `== 2` fails for
     a reason that has nothing to do with the property. What has to hold is that
     a job running `uv` never resolves the checkout's `.venv`, and that two jobs
     never write to the same environment — a shared path is how a 3.12 run ends

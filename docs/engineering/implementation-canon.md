@@ -29,7 +29,7 @@ Test tags used in later rows: **keep** (real I/O against live modules), **replac
 
 | Kind | Identity |
 | --- | --- |
-| Specs | SPEC-074, SPEC-075, SPEC-076, SPEC-077, SPEC-079, SPEC-081, SPEC-082, SPEC-083, SPEC-084, SPEC-085, SPEC-086 |
+| Specs | SPEC-074, SPEC-075, SPEC-076, SPEC-077, SPEC-079, SPEC-081, SPEC-082, SPEC-083, SPEC-084, SPEC-085, SPEC-086, SPEC-087, SPEC-088, SPEC-089, SPEC-090, SPEC-091, SPEC-092, SPEC-093, SPEC-094 |
 | ADRs | ADR-0176 and later corporate ADRs |
 | Docs | `docs/engineering/corporate-*`, `docs/operations/runbooks/corporate-bootstrap.md` |
 | Branch | `feat/milestone-6-b2b-03` |
@@ -146,6 +146,14 @@ owning code.
 | SPEC-084 | colleague | frozen |
 | SPEC-085 | colleague | frozen |
 | SPEC-086 | colleague | frozen |
+| SPEC-087 | colleague | frozen |
+| SPEC-088 | colleague | frozen |
+| SPEC-089 | colleague | frozen |
+| SPEC-090 | colleague | frozen |
+| SPEC-091 | colleague | frozen |
+| SPEC-092 | colleague | frozen |
+| SPEC-093 | colleague | frozen |
+| SPEC-094 | colleague | frozen |
 
 ## Docs
 
