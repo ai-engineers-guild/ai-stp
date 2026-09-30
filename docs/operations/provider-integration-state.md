@@ -12,7 +12,10 @@ release, capability, and evidence facts.
 ## Active release
 
 The active public tag for the seven `NDDev-OpenNetwork/*-setup-system`
-repositories is `0.0.85` (published 2026-09-30 UTC; the third audit wave —
+repositories is `0.0.87` (published 2026-09-30 UTC; a same-day pin
+refresh — codex 0.159.2, antigravity 1.2.14 — on top of `0.0.86`, which
+moved the rendered workflows to `setup-rust-toolchain` 2.0.0). `0.0.85`
+(also 2026-09-30) was the third audit wave —
 opencode `tui.jsonc` declared a shadow of the owned `tui.json`, pi's
 environment record re-measured on 0.99.1 including `PI_STARTUP_BENCHMARK`,
 antigravity's settings note lists the six keys the setups write, grok's
@@ -60,7 +63,8 @@ Software artifact pins and the provider wire boundary did not change.
 
 ## Evidence
 
-On 2026-09-30 (UTC), the `0.0.85` publish readback ran the released
+On 2026-09-30 (UTC), the `0.0.85`, `0.0.86` and `0.0.87` publish
+readbacks each ran the released
 `ai-stp-cli` in an isolated container under enforced network isolation:
 `exact=7 refused=0 unmeasured=0` — every provider auto-acquired as
 `verified_publisher` and returned `conforms` on protocol-v3 conformance
