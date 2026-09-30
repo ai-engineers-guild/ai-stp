@@ -87,7 +87,8 @@ default:
 # Split into three parts not for taste. In CI the gate executes as several
 # jobs, and a job needing only Python used to install Node, bun and the web
 # dependencies — a measured 1 m 35 s on `setup-node` and 1 m 55 s on the bun
-# cache, wasted every time (`ADR-0105`).
+# cache, wasted every time (`ADR-0105`, unpublished; `ADR-0116` publishes the
+# job split).
 [doc('Prepare the whole environment: Python, documentation and web tools')]
 [group('gate')]
 setup: setup-python setup-docs setup-web
@@ -532,7 +533,8 @@ back-test:
     {{ run }} python -m coverage report --precision=2
 
 # Iteration run without coverage. Collecting coverage costs about a third of
-# gate time (ADR-0104: 325 s with it versus 252 s without), and in the
+# gate time (ADR-0104, unpublished, measured 325 s with it versus 252 s
+# without; `ADR-0117` publishes the no-repeated-work rule), and in the
 # edit-run loop it answers no question a failing test would not. It is not
 # the gate: no threshold is checked here or should be.
 [arg('args', help='extra pytest arguments')]

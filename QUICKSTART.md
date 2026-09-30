@@ -17,7 +17,7 @@ uv tool install ai-stp-cli
 ai-stp task intents --json
 ```
 
-This is the same command promised by the landing page, and `just back-smoke` verifies it on every run: build, installation into an isolated tool directory, execution outside the source tree, and removal. Administrator privileges are not required.
+This is the same command promised by the landing page, and the release gate verifies the full path: `just release-candidate` builds the wheel, and `just release-candidate-install` installs it into an isolated tool directory, executes it outside the source tree, and removes it. Administrator privileges are not required.
 
 Uninstallation removes only the CLI files:
 

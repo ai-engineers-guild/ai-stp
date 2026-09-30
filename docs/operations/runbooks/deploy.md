@@ -236,7 +236,7 @@ the importer. Web is bind-mounted in dev and waits for `content-import` with
 `service_completed_successfully`.
 
 The Compose defaults set `AI_STP_USE_MOCKS=false` (the real API). A purely offline frontend
-sets `AI_STP_USE_MOCKS=true` in `.env.dev`. Staging smoke always uses `false`.
+sets `AI_STP_USE_MOCKS=true` in `.env.dev`. The prod smoke always uses `false`.
 
 ## Migration and seeding order
 

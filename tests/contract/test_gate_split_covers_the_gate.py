@@ -1,7 +1,8 @@
 """The gate split across jobs covers exactly what `just check` covers.
 
-Splitting by required capability (`ADR-0105`) is worth having right up to the
-moment one check silently falls out of the union. Nothing fails when it does:
+Splitting by required capability (`ADR-0105`, unpublished; `ADR-0116`) is worth
+having right up to the moment one check silently falls out of the union. Nothing
+fails when it does:
 the run stays green and the check simply stops running, and the only trace is a
 line missing from a log nobody reads.
 
