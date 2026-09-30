@@ -391,11 +391,11 @@ after the new commit answers does `verify-public` record the readback.
 | --- | --- | --- |
 | broad CI → ref move | one `check` run | required checks on `main` |
 | host pull tick | ≤ 1 min | the systemd timer period |
-| build / migrate / restart | measured 29–31 min per roll | image rebuilds on the host |
-| service transition | seconds-scale probe blips | container swap |
-| promote → public readback | ≤ 65 min (`verify-public` wait = two queued rolls) | the two phases above |
+| build / migrate / restart | measured 29–31 min per roll warm, ~75 min cold | image rebuilds on the host |
+| service transition | seconds-scale probe blips warm; a sustained 502 window is possible when a cold rebuild leaves replacement containers `Created` behind stopped old ones | container swap |
+| promote → public readback | ≤ 65 min (`verify-public` wait = two queued rolls); a cold rebuild can exceed it — the host finishes and a `verify-public` rerun proves the same ref | the two phases above |
 
-Two measured rolls:
+Three measured rolls:
 
 - `b35536eb` (job 108114839932, 2026-09-25): first probe 14:38:06Z, success
   14:54:51Z after 55 attempts; discrete 503/502 probe failures at 14:38:06,
@@ -405,14 +405,24 @@ Two measured rolls:
   previous commit answering, success 10:17:26Z after 78 attempts; three
   discrete 503s (09:51:32, 09:58:20, 10:04:53) and one read timeout (09:59:26)
   during the image swap.
+- `bdf78485` (run 36750316106, 2026-09-30): cold rebuild — uv.lock, bun.lock
+  and Dockerfile-relevant changes invalidated every image layer. Host journal
+  shows `compose build` from ~17:18Z through ~18:26Z, bring-up completing
+  18:30Z; nginx served 502 continuously from ~17:55Z while old containers
+  were already stopped and replacements sat `Created` behind the build.
+  `verify-public` exhausted its 65-min window (178 probes) and the rerun
+  passed; `pull_deploy_already_current commit=bdf78485` in the host journal.
 
 Accepted target: the previously deployed artifact keeps answering throughout a
 roll; readiness probes may fail discretely (seconds) while containers swap.
-A sustained readiness failure, a roll exceeding the 65-minute bound, or a
-readback naming the wrong commit is a breach to investigate—not a condition to
-poll longer against. Discrete failed probes are transition noise, not an
-outage duration: the probe cadence (~23 s) cannot observe sub-interval
-continuity, so no continuous-outage claim is made either way.
+On a cold rebuild the swap window is not seconds — it is bounded by the build,
+and nginx has no maintenance page, so the gap reads as sustained 502.
+A sustained readiness failure beyond the cold-build window, a roll exceeding
+the 65-minute bound with the host idle, or a readback naming the wrong commit
+is a breach to investigate—not a condition to poll longer against. Discrete
+failed probes are transition noise, not an outage duration: the probe cadence
+(~23 s) cannot observe sub-interval continuity, so no continuous-outage claim
+is made either way.
 
 Rollback latency is the same class as a forward roll (a redeploy of the
 previous exact artifact, ~30 min on the measured host) and does not revert the
