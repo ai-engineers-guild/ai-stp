@@ -12,12 +12,15 @@ release, capability, and evidence facts.
 ## Active release
 
 The active public tag for the seven `NDDev-OpenNetwork/*-setup-system`
-repositories is `0.0.84` (published 2026-09-29 UTC; a vendor pin refresh —
-claude 2.1.285, codex 0.159.1, grok 1.0.45, pi 0.99.1, cursor
-2026.09.28-64d2043, antigravity 1.2.13; opencode 1.18.33 unchanged). Pi's
-standalone archive retired its `0.0.0` `--version` placeholder and now prints
-its release version. `0.0.83` (second audit wave) and `0.0.82` (eight-tree
-prose audit) were published 2026-09-29. The vendored consumer
+repositories is `0.0.85` (published 2026-09-30 UTC; the third audit wave —
+opencode `tui.jsonc` declared a shadow of the owned `tui.json`, pi's
+environment record re-measured on 0.99.1 including `PI_STARTUP_BENCHMARK`,
+antigravity's settings note lists the six keys the setups write, grok's
+platform record reports the six-platform matrix, and a dispatched release run
+now checks out the requested tag). `0.0.84` (vendor pin refresh — claude
+2.1.285, codex 0.159.1, grok 1.0.45, pi 0.99.1, cursor 2026.09.28-64d2043,
+antigravity 1.2.13; opencode 1.18.33 unchanged) retired pi's `0.0.0`
+`--version` placeholder. `0.0.83` and `0.0.82` were published 2026-09-29. The vendored consumer
 kit is unchanged at `0.2.15`
 (`sha256:094886dd93108ee823350262d332ddd1b02044fdfb835fb055bde91668ab9ebb`),
 byte-identical to `provider-kit/v3/` in this repository — verified by a
@@ -57,13 +60,13 @@ Software artifact pins and the provider wire boundary did not change.
 
 ## Evidence
 
-On 2026-09-29 (UTC), the `0.0.84` publish readback ran the released
+On 2026-09-30 (UTC), the `0.0.85` publish readback ran the released
 `ai-stp-cli` in an isolated container under enforced network isolation:
 `exact=7 refused=0 unmeasured=0` — every provider auto-acquired as
 `verified_publisher` and returned `conforms` on protocol-v3 conformance
 (Antigravity 46, Claude Code 44, Codex 60, Cursor 62, Grok Build 44,
-OpenCode 44, Pi 43 cases). The same readback legs ran for `0.0.82` and
-`0.0.83`. Conformance was not re-run against `0.0.80` or `0.0.81`; the
+OpenCode 44, Pi 43 cases). The same readback legs ran for `0.0.82`,
+`0.0.83` and `0.0.84`. Conformance was not re-run against `0.0.80` or `0.0.81`; the
 `0.0.79` readback below was the last pass measured before the readback leg
 carried the consumer check.
 
