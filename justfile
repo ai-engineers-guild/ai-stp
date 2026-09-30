@@ -727,7 +727,10 @@ infra-static:
     docker compose -f deploy/compose.dev.yml config -q
     docker compose -f deploy/compose.dev.yml -f deploy/compose.corporate-local.yml config -q
     docker compose -f deploy/compose.dev.yml -f deploy/compose.seo-enrichment.yml --profile seo_enrichment config -q
+    docker compose -f deploy/compose.dev.yml -f deploy/compose.oidc-local.yml config -q
+    docker compose -f deploy/compose.dev.yml -f deploy/compose.corporate-e2e.yml config -q
     docker compose -f deploy/compose.prod.yml -f deploy/compose.corporate.yml config -q
+    AI_STP_OPENOBSERVE_IMAGE=openobserve/openobserve@sha256:0000000000000000000000000000000000000000000000000000000000000000 docker compose -f deploy/compose.prod.yml -f deploy/compose.observability.yml config -q
 
 # The same contract deploy.sh enforces on the host, run against the local
 # `.env.prod` before a deploy window: required values present and non-
