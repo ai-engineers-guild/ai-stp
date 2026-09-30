@@ -9,7 +9,7 @@ tags: [changelog, cli]
 draft: false
 ---
 
-This changelog describes the current `ai-stp-cli` line, package version `0.0.15`. It is a product log for operators and agents, not a note about web deploy profiles.
+This changelog describes the `ai-stp-cli` `0.0.15` line as published on 2026-08-10 — it is not updated per release; `ai-stp version --json` names the line you run. It is a product log for operators and agents, not a note about web deploy profiles.
 
 The executable is `ai-stp`. The PyPI distribution is `ai-stp-cli`. Every command an agent should copy from documentation is meant to be run with `--json`.
 

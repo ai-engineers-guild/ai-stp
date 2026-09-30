@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any, Protocol
 
 from ai_stp_foundation.digests import digest_bytes
+from ai_stp_platform.logging import get_logger
 from ai_stp_platform.safety.adapters import get_adapter
 from ai_stp_platform.safety.adapters._cli import deadline_expired, scan_deadline
 from ai_stp_platform.safety.detect import detect_manifest
@@ -30,6 +31,8 @@ from ai_stp_platform.safety.workdir import (
     materialize_artifact,
 )
 from ai_stp_platform.storage.object_store import ARTIFACT_DIGEST_DOMAIN, ImmutableObjectStore
+
+_log = get_logger("safety.orchestrator")
 
 # Global wall-clock hard cap for the full suite (ms).
 HARD_CAP_MS = 8 * 60 * 1000
@@ -245,7 +248,9 @@ def _finish(result: SafetyScanResult) -> SafetyScanResult:
             outcomes=result.outcomes,
         )
     except Exception:
-        pass
+        # Metrics are best-effort; a recording failure must not fail the scan,
+        # but it also must not vanish silently.
+        _log.warning("safety metrics recording failed", exc_info=True)
     return result
 
 

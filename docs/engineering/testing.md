@@ -34,6 +34,26 @@ The pull-request workflow is the required oracle for a branch, and the push
 workflow revalidates `main`. A local focused run may explain a failure but cannot
 replace a CI result; a skipped required lane remains unverified.
 
+### Corporate E2E acceptance lane
+
+The two `apps/web/tests/e2e/corporate-*.spec.ts` files are an opt-in acceptance
+lane, not part of the SaaS E2E set: without `AI_STP_CORPORATE_E2E` they report a
+declared skip, which is not verification. To exercise them, run the dedicated
+stack and point Playwright at it:
+
+```bash
+docker compose -f deploy/compose.dev.yml -f deploy/compose.corporate-e2e.yml up -d
+cd apps/web
+AI_STP_CORPORATE_E2E=offline PLAYWRIGHT_EXTERNAL_BASE_URL=http://localhost:3000 \
+  bun run test:e2e -- corporate
+```
+
+`offline` runs against the populated fixture transport; `live` additionally
+requires `AI_STP_CORPORATE_STORAGE_STATE` (an authenticated storage-state file)
+and a populated organization, and never creates or saves live data. The overlay
+combination is kept honest by `just infra-static`; the lane's results are
+reported honestly — a skipped or unrun corporate lane stays `not_verified`.
+
 ## Mandatory Scenarios
 
 - The passport retains the origin when moving to confirmed;
