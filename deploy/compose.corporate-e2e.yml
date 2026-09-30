@@ -10,10 +10,10 @@ services:
       AI_STP_CORPORATE_BOOTSTRAP_SECRET: >-
         ${AI_STP_CORPORATE_BOOTSTRAP_SECRET:-e2e-only-bootstrap-secret-change-me}
   worker:
-    build:
-      target: worker
     # No mail env overrides here: mailpit.env defaults + .env.dev win through
     # the worker's env_file chain, so real SMTP creds apply in this stack.
+    build:
+      target: worker
   web:
     # Run the image's sources, not the Windows bind mount, for this acceptance deployment.
     volumes: !override
