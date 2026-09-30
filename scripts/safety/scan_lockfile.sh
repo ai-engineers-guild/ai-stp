@@ -52,3 +52,8 @@ scanner="${tmp}/osv-scanner"
 "${scanner}" scan source --lockfile=uv.lock
 "${scanner}" scan source --lockfile=apps/web/bun.lock
 "${scanner}" scan source --lockfile=docs_scripts/bun.lock
+# The compiled requirements sets ship to provider verification and the
+# worker-safety venv; urllib3 GHSA-8988-9cw3-xx77 would have escaped the
+# gate above because neither file is named like a conventional lockfile.
+"${scanner}" scan source --lockfile=apps/cli/src/ai_stp_cli/provider/verifier-requirements.txt
+"${scanner}" scan source --lockfile=requirements.txt:scripts/safety/requirements.lock
