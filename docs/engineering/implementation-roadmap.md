@@ -768,3 +768,39 @@ The September 26 estate pass terminated with these measured results:
 - Still open by scope decision: #275 pending the armed promotion merge,
   and the colleague/enterprise backlog (#18–#24, #48–#52, #57–#60, #180,
   #199–#235, #247).
+
+## Closing record — 2026-09-30 evening
+
+The session audit of the last ten days of agent work (five parallel review
+tracks over Codex/Claude Code/Devin/Cursor/Grok artifacts plus the live tree)
+ended with the repo green and three follow-on findings closed:
+
+- Documentation truthfulness wave (PR #553): retired recipe names in
+  QUICKSTART and test comments, unpublished-ADR markers, prod naming in
+  the deploy runbook, provider-corpus pin caveat, frozen colleague spec
+  range, historical release-note scoping.
+- Infrastructure validation wave (PR #554): `infra-static` covers all
+  eight compose base+overlay combinations; the corporate E2E lane is
+  documented opt-in.
+- Platform hygiene wave (PR #555): the safety orchestrator logs metric
+  failures instead of swallowing them; `.env.prod.example` carries the
+  worker mail block.
+- Release hygiene: GitHub Releases for `v0.0.32`–`v0.0.35` created from
+  byte-identical attested artifacts; `uv` bump deferred per the 7-day
+  dependabot cooldown.
+- CodeQL sweep (PR #557 → #558): both open alerts triaged as documented
+  false positives and dismissed; the ld+json escape comment corrected.
+- Dependency security wave (PR #559 → #560, #561 → #562): `urllib3 2.8.0`
+  (GHSA-8988-9cw3-xx77, GHSA-vxq7-64xx-v4gw), `pyjwt 2.15.0`
+  (GHSA-42vr-xj54-vc7v), `dompurify 3.4.16` (GHSA-p98j-92pf-mc4p) — the
+  last two published mid-session by OSV. `scan_lockfile.sh` now weighs
+  all five committed lockfiles and always reports every one of them;
+  the vendored verifier env and the scanner venv lock had pinned the
+  same vulnerable `urllib3` unscanned.
+- Production: `main` = `deploy/prod` = `bdf78485`, verified through
+  `/v1/system/version`; the roll took ~75 min as a cold rebuild and is
+  recorded in the deploy runbook as the third measured roll.
+- Still open by scope decision: colleague/enterprise backlog
+  (#18–#24, #48–#52, #57–#60, #180, #199–#235, #247, #541–#544),
+  corporate E2E lane `not_verified`, conformance `unmeasured=7` pending
+  the isolation launcher.
