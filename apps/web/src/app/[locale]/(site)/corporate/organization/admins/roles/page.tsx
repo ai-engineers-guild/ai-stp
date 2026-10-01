@@ -6,11 +6,13 @@ import { StatePanel } from "@/components/molecules/state-panel";
 import { CorporateRolePanel } from "@/components/organisms/corporate-role-panel";
 import { BUILT_IN_ROLES } from "@/lib/corporate-roles";
 import { ApiError } from "@/lib/api/errors";
+import { apiRequest } from "@/lib/api/http";
 import { readCorporateContext, readCorporateWorkspace } from "@/lib/api/corporate";
 import type {
   CorporateBinding,
   CorporateMember,
   CorporateRoleView,
+  CorporatePermissionMatrix,
 } from "@/lib/api/generated/types.gen";
 import { canViewCorporateAdministration } from "@/lib/corporate-hub";
 import { requireSession, sessionCookieValue } from "@/lib/auth/require-session";
@@ -118,67 +120,35 @@ function RoleTable({
   t: (key: string) => string;
 }) {
   return (
-    <section className="border-border bg-card rounded-lg border p-5 shadow-sm sm:p-6">
-      <div className="-mx-4 overflow-x-auto px-4 sm:-mx-5 sm:px-5">
-        <table className="w-full min-w-max border-collapse text-sm">
-          <thead>
-            <tr className="border-border border-b">
-              <th scope="col" className={`${headCellClass} pl-0 text-left`}>
-                {t("name")}
-              </th>
-              <th scope="col" className={`${headCellClass} text-left`}>
-                {t("parentRole")}
-              </th>
-              <th scope="col" className={`${headCellClass} text-left`}>
-                {t("permissions")}
-              </th>
-              <th scope="col" className={`${headCellClass} text-left`}>
-                {t("roleUsedBy")}
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {roles.map((role) => (
-              <tr
-                key={role.name}
-                className={rowClass}
-                data-ui-state={role.name === selectedName ? "selected" : undefined}
-              >
-                <td className="py-2 pr-4">
-                  <Link
-                    href={`/corporate/organization/admins/roles?role=${encodeURIComponent(role.name)}`}
-                    className="text-foreground font-medium underline-offset-4 hover:underline"
-                    aria-current={role.name === selectedName ? "page" : undefined}
-                  >
-                    {role.name}
-                  </Link>{" "}
-                  {BUILT_IN_ROLES.has(role.name) ? (
-                    <Badge variant="secondary">{t("systemRole")}</Badge>
-                  ) : (
-                    <Badge variant="outline">{t("customRole")}</Badge>
-                  )}
-                </td>
-                <td className="px-3 py-2">
-                  {role.parent_role ?? (
-                    <span className="text-muted-foreground/60" aria-hidden>
-                      —
-                    </span>
-                  )}
-                </td>
-                <td className="px-3 py-2">{role.permissions.length}</td>
-                <td className="px-3 py-2">
-                  {bindings.filter((binding) => binding.role === role.name).length}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      {!roles.length ? <p className="text-muted-foreground mt-4 text-sm">{t("noRoles")}</p> : null}
-    </section>
+    <nav className="border-border bg-card min-w-0 rounded-lg border" aria-label={t("roles")}>
+      <h2 className="border-border border-b px-4 py-3 font-medium">
+        {t("roles")} ({roles.length})
+      </h2>
+      {roles.map((role) => (
+        <Link
+          key={role.name}
+          href={`/corporate/organization/admins/roles?role=${encodeURIComponent(role.name)}`}
+          aria-label={role.name}
+          className="border-border hover:bg-muted/40 focus-visible:ring-ring data-[ui-state=selected]:bg-primary/10 block border-b px-4 py-3 text-sm last:border-0 focus-visible:ring-2 focus-visible:outline-none"
+          aria-current={role.name === selectedName ? "page" : undefined}
+          data-ui-state={role.name === selectedName ? "selected" : undefined}
+        >
+          <span className="flex flex-wrap items-center gap-2">
+            <span className="font-medium">{role.name}</span>
+            <Badge variant={BUILT_IN_ROLES.has(role.name) ? "secondary" : "outline"}>
+              {BUILT_IN_ROLES.has(role.name) ? t("systemRole") : t("customRole")}
+            </Badge>
+          </span>
+          <span className="text-muted-foreground mt-1 block text-xs">
+            {t("permissions")}: {role.permissions.length} · {t("roleUsedBy")}:{" "}
+            {bindings.filter((binding) => binding.role === role.name).length}
+          </span>
+        </Link>
+      ))}
+      {!roles.length ? <p className="text-muted-foreground p-4 text-sm">{t("noRoles")}</p> : null}
+    </nav>
   );
 }
-
 function RoleAssignments({
   assignments,
   members,
@@ -246,6 +216,7 @@ function SelectedRole({
   roles,
   workspace,
   assignments,
+  definitions,
   t,
   tc,
   csrfToken,
@@ -254,6 +225,7 @@ function SelectedRole({
   roles: readonly CorporateRoleView[];
   workspace: Workspace;
   assignments: readonly CorporateBinding[];
+  definitions: CorporatePermissionMatrix["definitions"];
   t: (key: string) => string;
   tc: (key: string) => string;
   csrfToken: string;
@@ -261,7 +233,7 @@ function SelectedRole({
   const inherited = inheritedPermissions(selected, roles);
   return (
     <section
-      className="border-border bg-card space-y-6 rounded-lg border p-5 shadow-sm sm:p-6"
+      className="border-border bg-card min-w-0 space-y-6 rounded-lg border p-5 shadow-sm sm:p-6"
       aria-label={selected.name}
     >
       <div className="flex flex-wrap items-center gap-3">
@@ -330,6 +302,7 @@ function SelectedRole({
         authorizationRevision={workspace.context.organization.authorization_revision}
         capabilities={workspace.context.capabilities}
         roles={roles}
+        definitions={definitions}
         selected={selected}
         labels={panelLabels(t)}
       />
@@ -373,8 +346,32 @@ export default async function CorporateRolesPage({ params, searchParams }: PageP
   const bindings = (workspace.bindings?.items ?? []).filter(
     (binding) => binding.state === "active",
   );
-  const selected = roles.find((role) => role.name === selectedName) ?? null;
+  const selected = roles.find((role) => role.name === selectedName) ?? roles[0] ?? null;
   const csrfToken = (await readCsrfToken()) ?? "";
+  const session = (await sessionCookieValue()) ?? "";
+  const matrix = workspace.context.capabilities.includes("role.read")
+    ? await apiRequest<CorporatePermissionMatrix>(
+        `/v1/corporate/organizations/${workspace.organization.organization_id}/permissions/matrix`,
+        { sessionToken: session },
+      )
+    : null;
+  const definitions: CorporatePermissionMatrix["definitions"] =
+    matrix?.definitions ??
+    [...new Set([...workspace.context.capabilities, ...roles.flatMap((role) => role.permissions)])]
+      .filter((permission) => permission.includes("."))
+      .sort()
+      .map((name) => {
+        const [resource = "", action = ""] = name.split(".", 2);
+        return {
+          name,
+          resource,
+          action,
+          group: resource,
+          scopes: ["organization"],
+          create_parent: null,
+          implementation: "enforced",
+        };
+      });
 
   return (
     <div className="min-w-0 space-y-6">
@@ -386,29 +383,32 @@ export default async function CorporateRolesPage({ params, searchParams }: PageP
         <p className="text-muted-foreground max-w-2xl text-sm">{t("rolesBody")}</p>
       </header>
 
-      <RoleTable roles={roles} bindings={bindings} selectedName={selectedName} t={t} />
-
-      {selected ? (
-        <SelectedRole
-          selected={selected}
-          roles={roles}
-          workspace={workspace}
-          assignments={bindings.filter((binding) => binding.role === selected.name)}
-          t={t}
-          tc={tc}
-          csrfToken={csrfToken}
-        />
-      ) : workspace.context.capabilities.includes("role.create") ? (
-        <CorporateRolePanel
-          csrfToken={csrfToken}
-          organizationId={workspace.organization.organization_id}
-          authorizationRevision={workspace.context.organization.authorization_revision}
-          capabilities={workspace.context.capabilities}
-          roles={roles}
-          selected={null}
-          labels={panelLabels(t)}
-        />
-      ) : null}
+      <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(15rem,1fr)_minmax(0,3fr)]">
+        <RoleTable roles={roles} bindings={bindings} selectedName={selected?.name ?? ""} t={t} />
+        {selected ? (
+          <SelectedRole
+            selected={selected}
+            roles={roles}
+            workspace={workspace}
+            assignments={bindings.filter((binding) => binding.role === selected.name)}
+            definitions={definitions}
+            t={t}
+            tc={tc}
+            csrfToken={csrfToken}
+          />
+        ) : workspace.context.capabilities.includes("role.create") ? (
+          <CorporateRolePanel
+            csrfToken={csrfToken}
+            organizationId={workspace.organization.organization_id}
+            authorizationRevision={workspace.context.organization.authorization_revision}
+            capabilities={workspace.context.capabilities}
+            roles={roles}
+            definitions={definitions}
+            selected={null}
+            labels={panelLabels(t)}
+          />
+        ) : null}
+      </div>
     </div>
   );
 }
