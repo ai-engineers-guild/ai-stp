@@ -24,8 +24,9 @@ holds user credentials.
   `transport.ts` choke point; replies are typed `CmdResult`. Pages:
   Overview (CLI health/doctor/device), Account (device-code sign-in),
   Catalog (registry search/detail via CLI), Tasks (intents + status
-  polling), Install (plan → digest review → apply), Targets
-  (status/backups/diff/recover), Commands (live machine-help browser),
+  polling), Install (task-engine journeys: questions → continuations →
+  gated apply), Targets (status/backups/diff/rollback preview + stopped
+  transaction recovery), Commands (live machine-help browser),
   Debug (IPC trace, resolved engine, envelope inspector, diagnostic
   bundle), Settings (scope selector: All is read-only aggregation).
 
@@ -75,11 +76,28 @@ Run the dev app (needs a display): `bunx tauri dev` from `apps/desktop`.
 - unknown `actor` values degrade to `human` — the app never auto-runs an
   argv it was not explicitly handed.
 
+## Releases
+
+`.github/workflows/desktop-release.yml` builds and publishes a GitHub
+Release for all three OSes. Tag the release commit `desktop-vX.Y.Z` where
+`X.Y.Z` equals `src-tauri/tauri.conf.json` → `version`, push the tag, then
+dispatch the workflow with that version. The run refuses to proceed on any
+other ref, verifies the tag/version match, runs the full check set per OS,
+checksums every artifact (`SHA256SUMS`), and attaches bundles to the
+release. Bundles are unsigned — signing/notarization is a separate track.
+
+## Requirements
+
+The app needs the `ai-stp` CLI at runtime. Resolution order: a bundled
+`ai-stp`/`ai-stp.exe` next to the app binary, then a configured path, then
+PATH. A pinned path that is missing is an error, not a silent fallback.
+Install it with `uv tool install ai-stp-cli`.
+
 ## Not yet done
 
-- Per-target mutation serialization and cross-window coordination.
-- CLI distribution: currently resolves a bundled `ai-stp` sidecar next to
-  the executable, then PATH — no pinned runtime is shipped yet (D1).
-- macOS/Windows packaging is configured but untested on those hosts.
-- Recovery write flows (`install transaction recover`, `update recover`)
-  are read-visible but have no dedicated apply UX yet.
+- CLI distribution as a pinned sidecar inside the bundle (D1) — currently
+  the CLI must be installed separately; the resolver is ready for a
+  bundled binary.
+- Native Rust HTTP catalog reads against `/v1` (the CLI proxies catalog
+  traffic today, which also covers private acquisitions on its own
+  credentials — deliberate, not a gap).

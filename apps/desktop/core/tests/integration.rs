@@ -1,5 +1,7 @@
 use aistp_desktop_core::cli_runner::{CliLocator, CliRunner, RunError};
 use aistp_desktop_core::commands::{CommandRegistry, MachineHelp};
+#[cfg(unix)]
+use aistp_desktop_core::envelope::Envelope;
 use aistp_desktop_core::envelope::{parse, ParseFailure};
 use std::collections::BTreeMap;
 
@@ -246,8 +248,13 @@ fn warnings_and_nonzero_exit_envelope() {
 fn fake_cli(body: &str) -> (std::path::PathBuf, std::path::PathBuf) {
     use std::io::Write;
     use std::os::unix::fs::PermissionsExt;
-    let dir =
-        std::env::temp_dir().join(format!("aistp-test-{}-{}", std::process::id(), body.len()));
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    static SEQ: AtomicUsize = AtomicUsize::new(0);
+    let dir = std::env::temp_dir().join(format!(
+        "aistp-test-{}-{}",
+        std::process::id(),
+        SEQ.fetch_add(1, Ordering::Relaxed)
+    ));
     std::fs::create_dir_all(&dir).unwrap();
     let exe = dir.join("fake-ai-stp");
     std::fs::File::create(&exe)
@@ -258,18 +265,36 @@ fn fake_cli(body: &str) -> (std::path::PathBuf, std::path::PathBuf) {
     (dir, exe)
 }
 
+/// Run a fake CLI, tolerating a transient ETXTBSY: on loaded CI filesystems
+/// the exec can race the just-written file's page-cache flush.
+#[cfg(unix)]
+fn run_fake(exe: &std::path::Path, timeout_ms: u64) -> Result<Envelope, RunError> {
+    let mut runner = CliRunner::system(&CliLocator {
+        bundled: Some(exe.to_path_buf()),
+        configured: None,
+    })
+    .unwrap();
+    runner.timeout = std::time::Duration::from_millis(timeout_ms);
+    let mut last = None;
+    for _ in 0..5 {
+        match runner.run(&[]) {
+            Err(RunError::Spawn(e)) if e.raw_os_error() == Some(26) => {
+                last = Some(RunError::Spawn(e));
+                std::thread::sleep(std::time::Duration::from_millis(100));
+            }
+            other => return other,
+        }
+    }
+    Err(last.unwrap())
+}
+
 #[cfg(unix)]
 #[test]
 fn error_envelope_on_nonzero_exit_is_parsed() {
     let (dir, exe) = fake_cli(
         "#!/bin/sh\nprintf '%s' '{\"schema_version\":1,\"ok\":false,\"error\":{\"code\":\"X\",\"message\":\"m\",\"retryable\":true},\"warnings\":[],\"continuations\":[]}'; exit 1",
     );
-    let runner = CliRunner::system(&CliLocator {
-        bundled: Some(exe),
-        configured: None,
-    })
-    .unwrap();
-    let env = runner.run(&[]).unwrap();
+    let env = run_fake(&exe, 30_000).unwrap();
     assert!(!env.ok);
     assert!(env.error.unwrap().retryable);
     let _ = std::fs::remove_dir_all(&dir);
@@ -279,12 +304,7 @@ fn error_envelope_on_nonzero_exit_is_parsed() {
 #[test]
 fn garbage_stdout_reports_exit_and_stderr() {
     let (dir, exe) = fake_cli("#!/bin/sh\necho boom >&2\necho not-json\nexit 3");
-    let runner = CliRunner::system(&CliLocator {
-        bundled: Some(exe),
-        configured: None,
-    })
-    .unwrap();
-    match runner.run(&[]) {
+    match run_fake(&exe, 30_000) {
         Err(RunError::NoEnvelope { exit, stderr }) => {
             assert_eq!(exit, Some(3));
             assert!(stderr.contains("boom"));
@@ -298,13 +318,7 @@ fn garbage_stdout_reports_exit_and_stderr() {
 #[test]
 fn hanging_child_is_killed_as_unconfirmed() {
     let (dir, exe) = fake_cli("#!/bin/sh\nsleep 30");
-    let mut runner = CliRunner::system(&CliLocator {
-        bundled: Some(exe),
-        configured: None,
-    })
-    .unwrap();
-    runner.timeout = std::time::Duration::from_millis(300);
-    match runner.run(&[]) {
+    match run_fake(&exe, 300) {
         Err(RunError::TimeoutUnconfirmed) => {}
         other => panic!("expected TimeoutUnconfirmed, got {other:?}"),
     }
