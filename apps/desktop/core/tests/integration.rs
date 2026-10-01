@@ -1,6 +1,8 @@
 use aistp_desktop_core::cli_runner::{CliLocator, CliRunner, RunError};
 use aistp_desktop_core::commands::{CommandRegistry, MachineHelp};
-use aistp_desktop_core::envelope::{parse, Envelope, ParseFailure};
+#[cfg(unix)]
+use aistp_desktop_core::envelope::Envelope;
+use aistp_desktop_core::envelope::{parse, ParseFailure};
 use std::collections::BTreeMap;
 
 fn fixture(name: &str) -> Vec<u8> {
