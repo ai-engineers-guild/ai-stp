@@ -509,12 +509,12 @@ class CorporateMember(BaseModel):
     role: CorporateRole
     state: CorporateState
     revision: Annotated[int, Field(ge=1)]
-    job_title_id: JobTitleId | None = None
-    job_title_name: str | None = None
-    contact_email: str | None = None
-    joined_at: Timestamp | None = None
-    last_activity_at: Timestamp | None = None
-    available_actions: Annotated[list[str], Field(max_length=128)] = []
+    job_title_id: JobTitleId | None
+    job_title_name: str | None
+    contact_email: str | None
+    joined_at: Timestamp | None
+    last_activity_at: Timestamp | None
+    available_actions: Annotated[list[str], Field(max_length=128)]
 
 
 class CorporateMemberList(BaseModel):
@@ -1090,18 +1090,18 @@ class CorporateInvitation(BaseModel):
     recipient_email: str
     display_name: str
     role: CorporateRole
-    team_ids: Annotated[list[str], Field(max_length=64)] = []
-    project_ids: Annotated[list[ProjectId], Field(max_length=64)] = []
-    job_title_id: JobTitleId | None = None
+    team_ids: Annotated[list[str], Field(max_length=64)]
+    project_ids: Annotated[list[ProjectId], Field(max_length=64)]
+    job_title_id: JobTitleId | None
     state: CorporateInvitationState
     expires_at: Timestamp
     created_at: Timestamp
-    issuer_account_id: AccountId | None = None
-    accepted_account_id: AccountId | None = None
-    claimant_account_id: AccountId | None = None
-    token: str | None = None
-    delivery_state: CorporateMailDeliveryState | None = None
-    delivery_error: str | None = None
+    issuer_account_id: AccountId | None
+    accepted_account_id: AccountId | None
+    claimant_account_id: AccountId | None
+    token: str | None
+    delivery_state: CorporateMailDeliveryState | None
+    delivery_error: str | None
 
 
 class CorporateInvitationList(BaseModel):

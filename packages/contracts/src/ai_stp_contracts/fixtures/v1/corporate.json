@@ -55,7 +55,10 @@
           "revision": 1,
           "job_title_id": null,
           "job_title_name": null,
-          "available_actions": []
+          "available_actions": [],
+          "contact_email": null,
+          "joined_at": null,
+          "last_activity_at": null
         },
         "bindings": [],
         "projects": [],
@@ -93,7 +96,10 @@
         "revision": 1,
         "job_title_id": null,
         "job_title_name": null,
-        "available_actions": []
+        "available_actions": [],
+        "contact_email": null,
+        "joined_at": null,
+        "last_activity_at": null
       }
     },
     {
@@ -133,7 +139,10 @@
         "revision": 1,
         "job_title_id": null,
         "job_title_name": null,
-        "available_actions": []
+        "available_actions": [],
+        "contact_email": null,
+        "joined_at": null,
+        "last_activity_at": null
       }
     },
     {
@@ -165,7 +174,10 @@
         "revision": 2,
         "job_title_id": null,
         "job_title_name": null,
-        "available_actions": []
+        "available_actions": [],
+        "contact_email": null,
+        "joined_at": null,
+        "last_activity_at": null
       }
     },
     {
@@ -1024,7 +1036,10 @@
         "revision": 2,
         "job_title_id": null,
         "job_title_name": null,
-        "available_actions": []
+        "available_actions": [],
+        "contact_email": null,
+        "joined_at": null,
+        "last_activity_at": null
       }
     },
     {
@@ -1644,7 +1659,8 @@
         "claimant_account_id": null,
         "token": "tok_fixture0000000000000000000000",
         "delivery_state": null,
-        "delivery_error": null
+        "delivery_error": null,
+        "issuer_account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
       }
     },
     {
@@ -1678,7 +1694,8 @@
             "claimant_account_id": null,
             "token": null,
             "delivery_state": null,
-            "delivery_error": null
+            "delivery_error": null,
+            "issuer_account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
           }
         ]
       }
@@ -1717,7 +1734,8 @@
         "claimant_account_id": null,
         "token": null,
         "delivery_state": null,
-        "delivery_error": null
+        "delivery_error": null,
+        "issuer_account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
       }
     },
     {
@@ -1745,7 +1763,10 @@
         "revision": 1,
         "job_title_id": null,
         "job_title_name": null,
-        "available_actions": []
+        "available_actions": [],
+        "contact_email": null,
+        "joined_at": null,
+        "last_activity_at": null
       }
     },
     {
@@ -1773,7 +1794,10 @@
         "revision": 1,
         "job_title_id": null,
         "job_title_name": null,
-        "available_actions": []
+        "available_actions": [],
+        "contact_email": null,
+        "joined_at": null,
+        "last_activity_at": null
       }
     },
     {

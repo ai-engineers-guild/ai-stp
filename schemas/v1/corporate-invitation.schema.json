@@ -38,7 +38,6 @@
           "type": "null"
         }
       ],
-      "default": null,
       "title": "Accepted Account Id"
     },
     "claimant_account_id": {
@@ -51,7 +50,6 @@
           "type": "null"
         }
       ],
-      "default": null,
       "title": "Claimant Account Id"
     },
     "created_at": {
@@ -66,7 +64,6 @@
           "type": "null"
         }
       ],
-      "default": null,
       "title": "Delivery Error"
     },
     "delivery_state": {
@@ -77,8 +74,7 @@
         {
           "type": "null"
         }
-      ],
-      "default": null
+      ]
     },
     "display_name": {
       "title": "Display Name",
@@ -103,7 +99,6 @@
           "type": "null"
         }
       ],
-      "default": null,
       "title": "Issuer Account Id"
     },
     "job_title_id": {
@@ -116,7 +111,6 @@
           "type": "null"
         }
       ],
-      "default": null,
       "title": "Job Title Id"
     },
     "organization_id": {
@@ -125,7 +119,6 @@
       "type": "string"
     },
     "project_ids": {
-      "default": [],
       "items": {
         "pattern": "^remote_project_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
         "type": "string"
@@ -156,7 +149,6 @@
       "$ref": "#/$defs/CorporateInvitationState"
     },
     "team_ids": {
-      "default": [],
       "items": {
         "type": "string"
       },
@@ -173,7 +165,6 @@
           "type": "null"
         }
       ],
-      "default": null,
       "title": "Token"
     }
   },

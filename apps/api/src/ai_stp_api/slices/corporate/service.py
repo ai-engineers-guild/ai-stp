@@ -299,6 +299,12 @@ def member_view(
         revision=row.revision,
         job_title_id=row.job_title_id,
         job_title_name=job_title_name,
+        contact_email=None,
+        joined_at=format_timestamp(
+            row.created_at.replace(tzinfo=UTC) if row.created_at.tzinfo is None else row.created_at
+        ),
+        last_activity_at=None,
+        available_actions=[],
     )
 
 

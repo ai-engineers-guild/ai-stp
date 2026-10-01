@@ -8047,7 +8047,6 @@
                 "type": "null"
               }
             ],
-            "default": null,
             "title": "Accepted Account Id"
           },
           "claimant_account_id": {
@@ -8060,7 +8059,6 @@
                 "type": "null"
               }
             ],
-            "default": null,
             "title": "Claimant Account Id"
           },
           "created_at": {
@@ -8075,7 +8073,6 @@
                 "type": "null"
               }
             ],
-            "default": null,
             "title": "Delivery Error"
           },
           "delivery_state": {
@@ -8086,8 +8083,7 @@
               {
                 "type": "null"
               }
-            ],
-            "default": null
+            ]
           },
           "display_name": {
             "title": "Display Name",
@@ -8112,7 +8108,6 @@
                 "type": "null"
               }
             ],
-            "default": null,
             "title": "Issuer Account Id"
           },
           "job_title_id": {
@@ -8125,7 +8120,6 @@
                 "type": "null"
               }
             ],
-            "default": null,
             "title": "Job Title Id"
           },
           "organization_id": {
@@ -8134,7 +8128,6 @@
             "type": "string"
           },
           "project_ids": {
-            "default": [],
             "items": {
               "pattern": "^remote_project_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
               "type": "string"
@@ -8165,7 +8158,6 @@
             "$ref": "#/components/schemas/CorporateInvitationState"
           },
           "team_ids": {
-            "default": [],
             "items": {
               "type": "string"
             },
@@ -8182,7 +8174,6 @@
                 "type": "null"
               }
             ],
-            "default": null,
             "title": "Token"
           }
         },
@@ -8587,7 +8578,6 @@
             "type": "string"
           },
           "available_actions": {
-            "default": [],
             "items": {
               "type": "string"
             },
@@ -8604,7 +8594,6 @@
                 "type": "null"
               }
             ],
-            "default": null,
             "title": "Contact Email"
           },
           "display_name": {
@@ -8628,7 +8617,6 @@
                 "type": "null"
               }
             ],
-            "default": null,
             "title": "Job Title Id"
           },
           "job_title_name": {
@@ -8640,7 +8628,6 @@
                 "type": "null"
               }
             ],
-            "default": null,
             "title": "Job Title Name"
           },
           "joined_at": {
@@ -8651,8 +8638,7 @@
               {
                 "type": "null"
               }
-            ],
-            "default": null
+            ]
           },
           "last_activity_at": {
             "anyOf": [
@@ -8662,8 +8648,7 @@
               {
                 "type": "null"
               }
-            ],
-            "default": null
+            ]
           },
           "revision": {
             "minimum": 1,
@@ -42616,9 +42601,12 @@
                     "value": {
                       "account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "available_actions": [],
+                      "contact_email": null,
                       "display_name": "Invited User",
                       "job_title_id": null,
                       "job_title_name": null,
+                      "joined_at": null,
+                      "last_activity_at": null,
                       "revision": 1,
                       "role": "staff",
                       "schema_version": 1,
@@ -42874,9 +42862,12 @@
                     "value": {
                       "account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "available_actions": [],
+                      "contact_email": null,
                       "display_name": "Invited User",
                       "job_title_id": null,
                       "job_title_name": null,
+                      "joined_at": null,
+                      "last_activity_at": null,
                       "revision": 1,
                       "role": "staff",
                       "schema_version": 1,
@@ -47958,9 +47949,12 @@
                       "member": {
                         "account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                         "available_actions": [],
+                        "contact_email": null,
                         "display_name": "admin",
                         "job_title_id": null,
                         "job_title_name": null,
+                        "joined_at": null,
+                        "last_activity_at": null,
                         "revision": 1,
                         "role": "superadmin",
                         "schema_version": 1,
@@ -51968,6 +51962,7 @@
                           "display_name": "Invited User",
                           "expires_at": "2026-10-01T00:00:00.000Z",
                           "invitation_id": "invite_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                          "issuer_account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                           "job_title_id": null,
                           "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                           "project_ids": [],
@@ -52193,6 +52188,7 @@
                       "display_name": "Invited User",
                       "expires_at": "2026-10-01T00:00:00.000Z",
                       "invitation_id": "invite_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "issuer_account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "job_title_id": null,
                       "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "project_ids": [],
@@ -52431,6 +52427,7 @@
                       "display_name": "Invited User",
                       "expires_at": "2026-10-01T00:00:00.000Z",
                       "invitation_id": "invite_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "issuer_account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "job_title_id": null,
                       "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "project_ids": [],
@@ -53506,9 +53503,12 @@
                     "value": {
                       "account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "available_actions": [],
+                      "contact_email": null,
                       "display_name": "staff",
                       "job_title_id": null,
                       "job_title_name": null,
+                      "joined_at": null,
+                      "last_activity_at": null,
                       "revision": 1,
                       "role": "staff",
                       "schema_version": 1,
@@ -53945,9 +53945,12 @@
                     "value": {
                       "account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "available_actions": [],
+                      "contact_email": null,
                       "display_name": "staff",
                       "job_title_id": null,
                       "job_title_name": null,
+                      "joined_at": null,
+                      "last_activity_at": null,
                       "revision": 1,
                       "role": "staff",
                       "schema_version": 1,
@@ -54178,9 +54181,12 @@
                     "value": {
                       "account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "available_actions": [],
+                      "contact_email": null,
                       "display_name": "staff",
                       "job_title_id": null,
                       "job_title_name": null,
+                      "joined_at": null,
+                      "last_activity_at": null,
                       "revision": 2,
                       "role": "staff",
                       "schema_version": 1,
@@ -54664,9 +54670,12 @@
                     "value": {
                       "account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "available_actions": [],
+                      "contact_email": null,
                       "display_name": "Mobile lead",
                       "job_title_id": null,
                       "job_title_name": null,
+                      "joined_at": null,
+                      "last_activity_at": null,
                       "revision": 2,
                       "role": "staff",
                       "schema_version": 1,
