@@ -59,6 +59,9 @@ dist/
 build/
 *.egg-info/
 
+# Rust build output (apps/desktop)
+target/
+
 # Tool caches
 .pytest_cache/
 .mypy_cache/
@@ -87,3 +90,6 @@ htmlcov/
 # ImageGen originals are preserved in the Codex asset store; web uses optimized WebP.
 apps/web/storybook-static/
 apps/web/public/catalog-art/*.png
+
+# Local ai-stp project-link state (created by `task`/project link runs)
+.ai-stp/

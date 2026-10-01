@@ -219,6 +219,7 @@ last_verified: "2026-08-03"
 | [ADR-0219-contextual-corporate-navigation.md](ADR-0219-contextual-corporate-navigation.md) | Shared contextual Human navigation for SaaS and Corporate, with server-owned availability. | 2026-09-30 |
 | [ADR-0220-explainable-corporate-access.md](ADR-0220-explainable-corporate-access.md) | Proposed authoritative access descriptors, scoped provenance, and bounded delegation for corporate authorization. | 2026-09-29 |
 | [ADR-0221-corporate-private-catalog-access.md](ADR-0221-corporate-private-catalog-access.md) | Proposed separation of corporate assignments, operational ownership, and private major-line access. | 2026-09-29 |
+| [ADR-0222-desktop-application.md](ADR-0222-desktop-application.md) | The desktop application is a Tauri shell that consumes the CLI machine contract and the /v1 catalog API; the CLI remains the sole authority for selection, installation, and recovery. | 2026-10-01 |
 | [binding.md](binding.md) | Which accepted ADRs still constrain non-corporate work; default is binding. | 2026-09-20 |
 | [template.md](template.md) | Architecture decision record template. | 2026-08-03 |
 
