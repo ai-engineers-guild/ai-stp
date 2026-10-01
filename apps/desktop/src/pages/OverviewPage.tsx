@@ -74,9 +74,23 @@ export default function OverviewPage() {
       {doctor && !doctor.ok && <ResultMeta r={doctor} />}
       {caps && !caps.ok && <ResultMeta r={caps} />}
       {doctor?.data && (
-        <section>
-          <h2 className="mb-2 section-title">Checks</h2>
-          <Json v={doctor.data} />
+        <section className="space-y-2">
+          <h2 className="section-title">Checks</h2>
+          <ul className="card divide-y divide-border text-sm">
+            {(((doctor.data as Record<string, unknown>).checks ?? []) as Array<Record<string, unknown>>).map(
+              (c, i) => (
+                <li key={i} className="flex items-center gap-3 px-4 py-2">
+                  <span
+                    className={`h-1.5 w-1.5 shrink-0 rounded-full ${
+                      c.state === "ready" ? "bg-success" : "bg-destructive"
+                    }`}
+                  />
+                  <span className="w-44 shrink-0 font-mono text-xs">{String(c.name)}</span>
+                  <span className="flex-1 text-xs text-muted-foreground">{String(c.detail ?? "")}</span>
+                </li>
+              ),
+            )}
+          </ul>
         </section>
       )}
     </div>

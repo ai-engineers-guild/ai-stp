@@ -53,7 +53,17 @@ export default function AuthPage() {
       }
     }
     setWaiting(true);
-    const res = await cmdAuthComplete(true);
+    // Poll without --wait: the CLI's blocking wait can outlive the runner's
+    // bounded deadline, which would surface as a false "unconfirmed" kill.
+    const deadline = Date.now() + (expiresIn > 0 ? expiresIn * 1000 : 5 * 60_000);
+    let res: CmdResult | null = null;
+    while (Date.now() < deadline) {
+      res = await cmdAuthComplete(false);
+      // Closed code set: AUTHORIZATION_PENDING keeps polling; DECLINED /
+      // EXPIRED / anything else terminates immediately.
+      if (res.ok || res.error_code !== "AI_STP_AUTHORIZATION_PENDING") break;
+      await new Promise((r) => setTimeout(r, 4000));
+    }
     setWaiting(false);
     setStatus(res);
     await refreshAuth();
