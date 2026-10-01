@@ -105,10 +105,8 @@ impl AppState {
                 .map(|e| e.message)
                 .unwrap_or_else(|| "help --agent failed".into()));
         }
-        let help: MachineHelp = serde_json::from_value(
-            env.data.ok_or("help --agent: empty data")?,
-        )
-        .map_err(|e| format!("machine-help parse: {e}"))?;
+        let help: MachineHelp = serde_json::from_value(env.data.ok_or("help --agent: empty data")?)
+            .map_err(|e| format!("machine-help parse: {e}"))?;
         let reg = CommandRegistry::from_help(&help);
         *self.registry.lock().map_err(|_| "state poisoned")? = Some(reg.clone());
         Ok(reg)
@@ -117,7 +115,11 @@ impl AppState {
 
 fn bundled_cli_path() -> Option<PathBuf> {
     let exe = std::env::current_exe().ok()?;
-    let name = if cfg!(windows) { "ai-stp.exe" } else { "ai-stp" };
+    let name = if cfg!(windows) {
+        "ai-stp.exe"
+    } else {
+        "ai-stp"
+    };
     let candidate = exe.parent()?.join(name);
     candidate.is_file().then_some(candidate)
 }
@@ -210,12 +212,20 @@ async fn cli_run_read(
         };
         let desc = match reg.descriptor(&path) {
             Some(d) => d,
-            None => return CmdResult::failed("AI_STP_VALIDATION_ERROR", format!("unknown command: {path}")),
+            None => {
+                return CmdResult::failed(
+                    "AI_STP_VALIDATION_ERROR",
+                    format!("unknown command: {path}"),
+                )
+            }
         };
         if desc.mutability != "read" {
             return CmdResult::failed(
                 "AI_STP_PERMISSION_DENIED",
-                format!("{path} is mutability={} — read-only passthrough refused", desc.mutability),
+                format!(
+                    "{path} is mutability={} — read-only passthrough refused",
+                    desc.mutability
+                ),
             );
         }
         match reg.build_argv(&path, &values, &flags, &BTreeMap::new()) {
@@ -284,7 +294,10 @@ async fn gated_run(
         if desc.mutability != want_mutability {
             return CmdResult::failed(
                 "AI_STP_PERMISSION_DENIED",
-                format!("{path} is mutability={} — refused by {} gate", desc.mutability, want_mutability),
+                format!(
+                    "{path} is mutability={} — refused by {} gate",
+                    desc.mutability, want_mutability
+                ),
             );
         }
         match reg.build_argv(&path, &values, &flags, &BTreeMap::new()) {
@@ -336,17 +349,26 @@ async fn debug_info(state: tauri::State<'_, Arc<AppState>>) -> Result<CmdResult,
 // credentials at any point.
 
 #[tauri::command]
-async fn auth_login(state: tauri::State<'_, Arc<AppState>>, provider: String) -> Result<CmdResult, String> {
+async fn auth_login(
+    state: tauri::State<'_, Arc<AppState>>,
+    provider: String,
+) -> Result<CmdResult, String> {
     let st = state.inner().clone();
     tauri::async_runtime::spawn_blocking(move || {
-        run_cli(&st, &["auth".into(), "login".into(), "--provider".into(), provider])
+        run_cli(
+            &st,
+            &["auth".into(), "login".into(), "--provider".into(), provider],
+        )
     })
     .await
     .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-async fn auth_complete(state: tauri::State<'_, Arc<AppState>>, wait: bool) -> Result<CmdResult, String> {
+async fn auth_complete(
+    state: tauri::State<'_, Arc<AppState>>,
+    wait: bool,
+) -> Result<CmdResult, String> {
     let st = state.inner().clone();
     tauri::async_runtime::spawn_blocking(move || {
         let mut a = argv("auth complete");
@@ -425,8 +447,12 @@ async fn catalog_show(
         run_cli(
             &st,
             &[
-                "registry".into(), "show".into(), "--kind".into(), kind,
-                "--id".into(), stable_id,
+                "registry".into(),
+                "show".into(),
+                "--kind".into(),
+                kind,
+                "--id".into(),
+                stable_id,
             ],
         )
     })
@@ -445,15 +471,22 @@ async fn task_intents(state: tauri::State<'_, Arc<AppState>>) -> Result<CmdResul
 }
 
 #[tauri::command]
-async fn task_start(state: tauri::State<'_, Arc<AppState>>, intent: String) -> Result<CmdResult, String> {
+async fn task_start(
+    state: tauri::State<'_, Arc<AppState>>,
+    intent: String,
+) -> Result<CmdResult, String> {
     let st = state.inner().clone();
     tauri::async_runtime::spawn_blocking(move || {
         let key = idem_key(&format!("desktop-{intent}"));
         run_cli(
             &st,
             &[
-                "task".into(), "start".into(), "--intent".into(), intent,
-                "--idempotency-key".into(), key,
+                "task".into(),
+                "start".into(),
+                "--intent".into(),
+                intent,
+                "--idempotency-key".into(),
+                key,
             ],
         )
     })
@@ -462,10 +495,16 @@ async fn task_start(state: tauri::State<'_, Arc<AppState>>, intent: String) -> R
 }
 
 #[tauri::command]
-async fn task_status(state: tauri::State<'_, Arc<AppState>>, task_id: String) -> Result<CmdResult, String> {
+async fn task_status(
+    state: tauri::State<'_, Arc<AppState>>,
+    task_id: String,
+) -> Result<CmdResult, String> {
     let st = state.inner().clone();
     tauri::async_runtime::spawn_blocking(move || {
-        run_cli(&st, &["task".into(), "status".into(), "--task".into(), task_id])
+        run_cli(
+            &st,
+            &["task".into(), "status".into(), "--task".into(), task_id],
+        )
     })
     .await
     .map_err(|e| e.to_string())
@@ -486,11 +525,16 @@ async fn task_answer(
         run_cli(
             &st,
             &[
-                "task".into(), "answer".into(),
-                "--task".into(), task,
-                "--revision".into(), revision,
-                "--question-id".into(), question_id,
-                "--value".into(), value,
+                "task".into(),
+                "answer".into(),
+                "--task".into(),
+                task,
+                "--revision".into(),
+                revision,
+                "--question-id".into(),
+                question_id,
+                "--value".into(),
+                value,
             ],
         )
     })
@@ -511,9 +555,12 @@ async fn task_continue(
         run_cli(
             &st,
             &[
-                "task".into(), "continue".into(),
-                "--task".into(), task,
-                "--revision".into(), revision,
+                "task".into(),
+                "continue".into(),
+                "--task".into(),
+                task,
+                "--revision".into(),
+                revision,
             ],
         )
     })
@@ -532,9 +579,12 @@ async fn task_cancel(
         run_cli(
             &st,
             &[
-                "task".into(), "cancel".into(),
-                "--task".into(), task,
-                "--revision".into(), revision,
+                "task".into(),
+                "cancel".into(),
+                "--task".into(),
+                task,
+                "--revision".into(),
+                revision,
             ],
         )
     })
@@ -619,7 +669,10 @@ mod tests {
         assert!(reg.all_descriptors().len() > 200);
         assert!(!reg.registry_digest.is_empty());
         // digest-keyed cache: second call returns the same registry
-        assert_eq!(st.command_registry().unwrap().registry_digest, reg.registry_digest);
+        assert_eq!(
+            st.command_registry().unwrap().registry_digest,
+            reg.registry_digest
+        );
     }
 
     #[test]
@@ -642,7 +695,9 @@ mod tests {
         }
         let st = AppState::new();
         let reg = st.command_registry().unwrap();
-        let desc = reg.descriptor("harness list").or_else(|| reg.descriptor("device show"));
+        let desc = reg
+            .descriptor("harness list")
+            .or_else(|| reg.descriptor("device show"));
         let desc = desc.expect("a known read command exists");
         assert_eq!(desc.mutability, "read");
         let av = reg

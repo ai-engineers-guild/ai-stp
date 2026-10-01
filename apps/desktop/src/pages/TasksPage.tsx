@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router";
 import { Play } from "lucide-react";
 import {
@@ -16,22 +16,13 @@ export default function TasksPage() {
   const [list, setList] = useState<CmdResult | null>(null);
 
   const [status, setStatus] = useState<CmdResult | null>(null);
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     void (async () => {
       setIntents(await cmdTaskIntents());
       setList(await cmdTaskList());
     })();
-    return () => stopPoll();
   }, []);
-
-  function stopPoll() {
-    if (pollRef.current) {
-      clearInterval(pollRef.current);
-      pollRef.current = null;
-    }
-  }
 
   async function pollOnce(id: string) {
     setStatus(await cmdTaskStatus(id));

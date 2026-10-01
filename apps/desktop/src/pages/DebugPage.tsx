@@ -27,7 +27,7 @@ export default function DebugPage() {
     const bundle = {
       generated_at: new Date().toISOString(),
       environment: info?.data,
-      ipc_log: log.slice(0, 50).map(({ result: _r, ...e }) => e),
+      ipc_log: log.slice(0, 50),
     };
     await navigator.clipboard.writeText(JSON.stringify(bundle, null, 2));
     setCopied(true);

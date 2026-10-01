@@ -117,7 +117,7 @@ impl CommandRegistry {
     /// All descriptors, sorted by path — deterministic UI ordering.
     pub fn all_descriptors(&self) -> Vec<CommandDescriptor> {
         let mut v: Vec<_> = self.by_path.values().cloned().collect();
-        v.sort_by(|a, b| a.path_key().cmp(&b.path_key()));
+        v.sort_by_key(|a| a.path_key());
         v
     }
 
@@ -220,28 +220,24 @@ impl CommandRegistry {
         flags: &[String],
     ) -> Result<(), BuildError> {
         let is_set = |n: &str| {
-            seen.contains_key(n)
-                || values.contains_key(n)
-                || flags.iter().any(|f| f == n)
+            seen.contains_key(n) || values.contains_key(n) || flags.iter().any(|f| f == n)
         };
         for rule in &desc.parameter_rules {
-            let count = rule
-                .parameters
-                .iter()
-                .filter(|p| is_set(p))
-                .count();
+            let count = rule.parameters.iter().filter(|p| is_set(p)).count();
             // `when_values` may carry the sentinel "present" (the parameter is
             // set to any value) or a closed value list; `when_parameter` may be
             // "" when the rule is unconditional.
             let conditioned = match rule.when_parameter.as_str() {
                 "" => true,
                 wp if rule.when_values == ["present"] => is_set(wp),
-                wp => values
-                    .get(wp)
-                    .map(|v| rule.when_values.iter().any(|w| w == v))
-                    .unwrap_or(false)
-                    || (flags.iter().any(|f| f == wp)
-                        && rule.when_values.iter().any(|w| w == "true")),
+                wp => {
+                    values
+                        .get(wp)
+                        .map(|v| rule.when_values.iter().any(|w| w == v))
+                        .unwrap_or(false)
+                        || (flags.iter().any(|f| f == wp)
+                            && rule.when_values.iter().any(|w| w == "true"))
+                }
             };
             match (rule.kind.as_str(), conditioned) {
                 ("exactly_one", _) if count != 1 => {
