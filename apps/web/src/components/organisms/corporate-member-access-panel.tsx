@@ -7,12 +7,12 @@ import { useState, useTransition } from "react";
 import { corporateMutationAction } from "@/actions/corporate";
 import { Badge } from "@/components/atoms/badge";
 import { Button } from "@/components/atoms/button";
-import { Input } from "@/components/atoms/input";
 import { Label } from "@/components/atoms/label";
 
 import type {
   CorporateBinding,
   CorporatePermissionGrant,
+  CorporatePermissionDefinition,
   CorporateProjectView,
   CorporateRoleView,
   CorporateTeamView,
@@ -78,6 +78,7 @@ export function CorporateMemberAccessPanel({
   bindings,
   grants,
   capabilities,
+  definitions,
   labels,
 }: {
   csrfToken: string;
@@ -91,11 +92,13 @@ export function CorporateMemberAccessPanel({
   bindings: readonly CorporateBinding[];
   grants: readonly CorporatePermissionGrant[];
   capabilities: readonly string[];
+  definitions: readonly CorporatePermissionDefinition[];
   labels: Labels;
 }) {
   const router = useRouter();
   const [busy, startTransition] = useTransition();
   const [message, setMessage] = useState<{ text: string; error?: boolean } | null>(null);
+  const [grantScopeKind, setGrantScopeKind] = useState("organization");
   const report = (text: string, error = false) => setMessage({ text, error });
   const can = (permission: string) => capabilities.includes(permission);
   const roleOptions =
@@ -349,19 +352,29 @@ export function CorporateMemberAccessPanel({
             >
               <div className="space-y-1.5">
                 <Label htmlFor="grant-permission">{labels.permission}</Label>
-                <Input
+                <select
                   id="grant-permission"
                   name="permission"
                   required
-                  list="grantable-permissions"
-                  autoComplete="off"
-                  className="font-mono text-xs"
-                />
-                <datalist id="grantable-permissions">
-                  {capabilities.map((permission) => (
-                    <option key={permission} value={permission} />
+                  className="border-input bg-background focus-visible:ring-ring h-10 w-full rounded-md border px-3 font-mono text-xs focus-visible:ring-2 focus-visible:outline-none"
+                >
+                  <option value="">—</option>
+                  {(definitions.length
+                    ? definitions
+                        .filter(
+                          (definition) =>
+                            definition.scopes.includes(
+                              grantScopeKind as (typeof definition.scopes)[number],
+                            ) && capabilities.includes(definition.name),
+                        )
+                        .map((definition) => definition.name)
+                    : capabilities.filter((permission) => permission.includes("."))
+                  ).map((permission) => (
+                    <option key={permission} value={permission}>
+                      {permission}
+                    </option>
                   ))}
-                </datalist>
+                </select>
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="grant-scope">{labels.scope}</Label>
@@ -371,6 +384,7 @@ export function CorporateMemberAccessPanel({
                   projects={projects}
                   organizationId={organizationId}
                   organizationLabel={labels.organization}
+                  onKindChange={setGrantScopeKind}
                 />
               </div>
               <Button type="submit" disabled={busy}>
@@ -472,18 +486,21 @@ function ScopeField({
   projects,
   organizationId,
   organizationLabel,
+  onKindChange,
 }: {
   id: string;
   teams: readonly CorporateTeamView[];
   projects: readonly CorporateProjectView[];
   organizationId: string;
   organizationLabel: string;
+  onKindChange?: (kind: string) => void;
 }) {
   return (
     <select
       id={id}
       name="scope"
       defaultValue={`organization:${organizationId}`}
+      onChange={(event) => onKindChange?.(event.target.value.split(":", 1)[0] ?? "organization")}
       className="border-input bg-background focus-visible:ring-ring flex h-10 w-full rounded-md border px-3 text-sm focus-visible:ring-2 focus-visible:outline-none"
     >
       <option value={`organization:${organizationId}`}>{organizationLabel}</option>
