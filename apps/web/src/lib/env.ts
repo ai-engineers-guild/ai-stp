@@ -40,6 +40,11 @@ const envSchema = z.object({
   // Corporate OIDC providers enabled on the API (ADR-0218), comma-separated.
   // Each name renders one SSO button on /login; empty hides them.
   AI_STP_AUTH_SSO_PROVIDERS: ssoProvidersSchema,
+  // Contextual corporate rail (ADR-0219). "false" reverts to the secondary tabs.
+  AI_STP_CORPORATE_CONTEXT_NAV: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((value) => value === "true"),
 });
 
 export type AppEnv = z.infer<typeof envSchema>;
@@ -54,6 +59,7 @@ function readRawEnv(): Record<string, string | undefined> {
     AI_STP_SESSION_SECRET: process.env["AI_STP_SESSION_SECRET"],
     AI_STP_INVITATION_CLAIM_TTL_SECONDS: process.env["AI_STP_INVITATION_CLAIM_TTL_SECONDS"],
     AI_STP_AUTH_SSO_PROVIDERS: process.env["AI_STP_AUTH_SSO_PROVIDERS"] ?? "",
+    AI_STP_CORPORATE_CONTEXT_NAV: process.env["AI_STP_CORPORATE_CONTEXT_NAV"],
   };
 }
 

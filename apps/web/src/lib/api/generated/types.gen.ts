@@ -2206,6 +2206,14 @@ export type CorporateBinding = {
    */
   binding_id: string;
   /**
+   * Coverage
+   */
+  coverage: "self" | "descendants";
+  /**
+   * Origin
+   */
+  origin: "membership" | "assignment" | "direct" | "service_principal";
+  /**
    * Principal Type
    */
   principal_type: "user" | "service_principal";
@@ -2270,6 +2278,10 @@ export type CorporateBindingRequest = {
    * Authorization Revision
    */
   authorization_revision: number;
+  /**
+   * Coverage
+   */
+  coverage?: "self" | "descendants";
   idempotency_key: IdempotencyKey;
   /**
    * Role
@@ -2300,6 +2312,10 @@ export type CorporateBindingUpdateRequest = {
    * Authorization Revision
    */
   authorization_revision: number;
+  /**
+   * Coverage
+   */
+  coverage?: "self" | "descendants";
   /**
    * Expected Revision
    */
@@ -3168,6 +3184,35 @@ export type CorporateContext = {
 };
 
 /**
+ * CorporateDelegationView
+ *
+ * What the current principal may delegate, computed server-side.
+ */
+export type CorporateDelegationView = {
+  /**
+   * Authorization Revision
+   */
+  authorization_revision: number;
+  /**
+   * Descendants Coverage
+   */
+  descendants_coverage: boolean;
+  /**
+   * Grantable Roles
+   */
+  grantable_roles: Array<CorporateGrantableRole>;
+  /**
+   * Organization Id
+   */
+  organization_id: string;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  [key: string]: unknown;
+};
+
+/**
  * CorporateDeleteRequest
  */
 export type CorporateDeleteRequest = {
@@ -3816,11 +3861,34 @@ export type CorporateEffectivePermission = {
   /**
    * Scope Kind
    */
-  scope_kind: "organization" | "team" | "project" | "technology" | "catalog_object";
+  scope_kind: "organization" | "team" | "project" | "technology" | "catalog_object" | "member";
+  /**
+   * Source Records
+   */
+  source_records: Array<CorporatePermissionSource>;
   /**
    * Sources
    */
   sources: Array<string>;
+  [key: string]: unknown;
+};
+
+/**
+ * CorporateGrantableRole
+ *
+ * A role whose closed permission set the caller may delegate.
+ */
+export type CorporateGrantableRole = {
+  /**
+   * Name
+   *
+   * Tenant-local role name.
+   */
+  name: string;
+  /**
+   * Permissions
+   */
+  permissions: Array<string>;
   [key: string]: unknown;
 };
 
@@ -3853,6 +3921,10 @@ export type CorporateInvitation = {
    * Invitation Id
    */
   invitation_id: string;
+  /**
+   * Issuer Account Id
+   */
+  issuer_account_id: string | null;
   /**
    * Job Title Id
    */
@@ -4130,6 +4202,10 @@ export type CorporateMember = {
    */
   available_actions: Array<string>;
   /**
+   * Contact Email
+   */
+  contact_email: string | null;
+  /**
    * Display Name
    */
   display_name: string | null;
@@ -4141,6 +4217,8 @@ export type CorporateMember = {
    * Job Title Name
    */
   job_title_name: string | null;
+  joined_at: Timestamp | null;
+  last_activity_at: Timestamp | null;
   /**
    * Revision
    */
@@ -4160,6 +4238,71 @@ export type CorporateMember = {
    */
   state: "active" | "suspended";
   [key: string]: unknown;
+};
+
+/**
+ * CorporateMemberAccess
+ *
+ * Everything that grants one member access, split by independent source:
+ * role bindings, direct scoped allows, private major-line grants, and the
+ * evaluator's effective set at the requested scope with per-source records.
+ */
+export type CorporateMemberAccess = {
+  /**
+   * Account Id
+   */
+  account_id: string;
+  /**
+   * Authorization Revision
+   */
+  authorization_revision: number;
+  /**
+   * Bindings
+   */
+  bindings: Array<CorporateBinding>;
+  /**
+   * Effective
+   */
+  effective: Array<CorporateEffectivePermission>;
+  /**
+   * Grants
+   */
+  grants: Array<CorporatePermissionGrant>;
+  /**
+   * Organization Id
+   */
+  organization_id: string;
+  /**
+   * Private Grants
+   */
+  private_grants: Array<CorporateMemberPrivateGrant>;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  /**
+   * Scope Id
+   */
+  scope_id: string;
+  /**
+   * Scope Kind
+   */
+  scope_kind: "organization" | "team" | "project" | "technology" | "catalog_object" | "member";
+  [key: string]: unknown;
+};
+
+/**
+ * CorporateMemberAccessQuery
+ */
+export type CorporateMemberAccessQuery = {
+  /**
+   * Scope Id
+   */
+  scope_id?: string | null;
+  /**
+   * Scope Kind
+   */
+  scope_kind?: "organization" | "team" | "project" | "technology" | "catalog_object" | "member";
 };
 
 /**
@@ -4241,6 +4384,44 @@ export type CorporateMemberList = {
    * Schema Version
    */
   schema_version: 1;
+  [key: string]: unknown;
+};
+
+/**
+ * CorporateMemberPrivateGrant
+ *
+ * Read-only projection of a private major-line AccessGrant (SPEC-002) for
+ * the employee-access view — never a source of corporate permissions.
+ */
+export type CorporateMemberPrivateGrant = {
+  /**
+   * Grant Id
+   */
+  grant_id: string;
+  /**
+   * Issuer Account Id
+   */
+  issuer_account_id: string;
+  /**
+   * Major
+   */
+  major: number;
+  /**
+   * Object Kind
+   */
+  object_kind: "setup" | "component";
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  /**
+   * Stable Id
+   */
+  stable_id: string;
+  /**
+   * State
+   */
+  state: "active" | "revoked";
   [key: string]: unknown;
 };
 
@@ -4517,21 +4698,152 @@ export type CorporateOverviewNode = {
 
 /**
  * CorporatePermissionDefinition
+ *
+ * One action the server actually checks, with the scopes it honors.
  */
 export type CorporatePermissionDefinition = {
+  /**
+   * Action
+   */
+  action: string;
+  /**
+   * Create Parent
+   */
+  create_parent: string | null;
   /**
    * Group
    */
   group: string;
   /**
+   * Implementation
+   */
+  implementation: "enforced";
+  /**
    * Name
    */
   name: string;
   /**
+   * Resource
+   */
+  resource: string;
+  /**
    * Scopes
    */
-  scopes: Array<"organization" | "team" | "project" | "technology" | "catalog_object">;
+  scopes: Array<"organization" | "team" | "project" | "technology" | "catalog_object" | "member">;
   [key: string]: unknown;
+};
+
+/**
+ * CorporatePermissionGrant
+ */
+export type CorporatePermissionGrant = {
+  /**
+   * Account Id
+   */
+  account_id: string | null;
+  /**
+   * Grant Id
+   */
+  grant_id: string;
+  /**
+   * Issuer Account Id
+   */
+  issuer_account_id: string;
+  /**
+   * Permission
+   */
+  permission: string;
+  /**
+   * Principal Type
+   */
+  principal_type: "user" | "service_principal";
+  /**
+   * Revision
+   */
+  revision: number;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  /**
+   * Scope Id
+   */
+  scope_id: string;
+  /**
+   * Scope Kind
+   */
+  scope_kind: "organization" | "team" | "project" | "technology";
+  /**
+   * Service Principal Id
+   */
+  service_principal_id: string | null;
+  /**
+   * State
+   */
+  state: "active" | "revoked";
+  [key: string]: unknown;
+};
+
+/**
+ * CorporatePermissionGrantList
+ */
+export type CorporatePermissionGrantList = {
+  /**
+   * Items
+   */
+  items: Array<CorporatePermissionGrant>;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  [key: string]: unknown;
+};
+
+/**
+ * CorporatePermissionGrantQuery
+ */
+export type CorporatePermissionGrantQuery = {
+  /**
+   * Account Id
+   */
+  account_id?: string | null;
+};
+
+/**
+ * CorporatePermissionGrantRequest
+ *
+ * One direct action allow — no role — checked against the issuer's delegation bound.
+ */
+export type CorporatePermissionGrantRequest = {
+  /**
+   * Account Id
+   */
+  account_id?: string | null;
+  /**
+   * Authorization Revision
+   */
+  authorization_revision: number;
+  idempotency_key: IdempotencyKey;
+  /**
+   * Permission
+   */
+  permission: string;
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
+  /**
+   * Scope Id
+   */
+  scope_id?: string;
+  /**
+   * Scope Kind
+   */
+  scope_kind: "organization" | "team" | "project" | "technology";
+  /**
+   * Service Principal Id
+   */
+  service_principal_id?: string | null;
 };
 
 /**
@@ -4558,6 +4870,39 @@ export type CorporatePermissionMatrix = {
    * Schema Version
    */
   schema_version: 1;
+  [key: string]: unknown;
+};
+
+/**
+ * CorporatePermissionSource
+ *
+ * One record that actually contributes a permission at this scope.
+ */
+export type CorporatePermissionSource = {
+  /**
+   * Kind
+   */
+  kind: "binding" | "grant";
+  /**
+   * Origin
+   */
+  origin: string | null;
+  /**
+   * Role
+   */
+  role: string | null;
+  /**
+   * Scope Id
+   */
+  scope_id: string;
+  /**
+   * Scope Kind
+   */
+  scope_kind: string;
+  /**
+   * Source Id
+   */
+  source_id: string;
   [key: string]: unknown;
 };
 
@@ -20222,6 +20567,64 @@ export type UpdateCorporateDashboardViewResponses = {
 export type UpdateCorporateDashboardViewResponse =
   UpdateCorporateDashboardViewResponses[keyof UpdateCorporateDashboardViewResponses];
 
+export type ReadCorporateDelegationData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/delegation";
+};
+
+export type ReadCorporateDelegationErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ReadCorporateDelegationError =
+  ReadCorporateDelegationErrors[keyof ReadCorporateDelegationErrors];
+
+export type ReadCorporateDelegationResponses = {
+  /**
+   * Read what the caller may delegate, computed server-side.
+   */
+  200: CorporateDelegationView;
+};
+
+export type ReadCorporateDelegationResponse =
+  ReadCorporateDelegationResponses[keyof ReadCorporateDelegationResponses];
+
 export type ReadCorporateDirectoryData = {
   body?: never;
   headers?: {
@@ -21636,6 +22039,77 @@ export type UpdateCorporateMemberResponses = {
 export type UpdateCorporateMemberResponse =
   UpdateCorporateMemberResponses[keyof UpdateCorporateMemberResponses];
 
+export type ReadCorporateMemberAccessData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+    /**
+     * Typed account identifier.
+     */
+    account_id: string;
+  };
+  query?: {
+    /**
+     * Scope Id
+     */
+    scope_id?: string | null;
+    /**
+     * Scope Kind
+     */
+    scope_kind?: "organization" | "team" | "project" | "technology" | "catalog_object" | "member";
+  };
+  url: "/v1/corporate/organizations/{organization_id}/members/{account_id}/access";
+};
+
+export type ReadCorporateMemberAccessErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ReadCorporateMemberAccessError =
+  ReadCorporateMemberAccessErrors[keyof ReadCorporateMemberAccessErrors];
+
+export type ReadCorporateMemberAccessResponses = {
+  /**
+   * Explain one member's access with the exact contributing rows.
+   */
+  200: CorporateMemberAccess;
+};
+
+export type ReadCorporateMemberAccessResponse =
+  ReadCorporateMemberAccessResponses[keyof ReadCorporateMemberAccessResponses];
+
 export type UpdateCorporateMemberProfileData = {
   body: CorporateMemberProfileRequest;
   headers: {
@@ -22065,6 +22539,201 @@ export type ReadCorporateOverviewResponses = {
 
 export type ReadCorporateOverviewResponse =
   ReadCorporateOverviewResponses[keyof ReadCorporateOverviewResponses];
+
+export type ListCorporatePermissionGrantsData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+  };
+  query?: {
+    /**
+     * Account Id
+     */
+    account_id?: string | null;
+  };
+  url: "/v1/corporate/organizations/{organization_id}/permission-grants";
+};
+
+export type ListCorporatePermissionGrantsErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ListCorporatePermissionGrantsError =
+  ListCorporatePermissionGrantsErrors[keyof ListCorporatePermissionGrantsErrors];
+
+export type ListCorporatePermissionGrantsResponses = {
+  /**
+   * List direct scoped permission grants.
+   */
+  200: CorporatePermissionGrantList;
+};
+
+export type ListCorporatePermissionGrantsResponse =
+  ListCorporatePermissionGrantsResponses[keyof ListCorporatePermissionGrantsResponses];
+
+export type CreateCorporatePermissionGrantData = {
+  body: CorporatePermissionGrantRequest;
+  headers: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+    /**
+     * Client-chosen key; a retry must not become a second effect.
+     */
+    "Idempotency-Key": string;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/permission-grants";
+};
+
+export type CreateCorporatePermissionGrantErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type CreateCorporatePermissionGrantError =
+  CreateCorporatePermissionGrantErrors[keyof CreateCorporatePermissionGrantErrors];
+
+export type CreateCorporatePermissionGrantResponses = {
+  /**
+   * Grant one scoped permission directly, within delegated authority.
+   */
+  200: CorporatePermissionGrant;
+};
+
+export type CreateCorporatePermissionGrantResponse =
+  CreateCorporatePermissionGrantResponses[keyof CreateCorporatePermissionGrantResponses];
+
+export type RevokeCorporatePermissionGrantData = {
+  body: CorporateDeleteRequest;
+  headers: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+    /**
+     * Client-chosen key; a retry must not become a second effect.
+     */
+    "Idempotency-Key": string;
+    /**
+     * Expected ETag. A stale value fails AI_STP_PRECONDITION_FAILED.
+     */
+    "If-Match": string;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+    /**
+     * Typed corporate permission grant identifier.
+     */
+    grant_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/permission-grants/{grant_id}";
+};
+
+export type RevokeCorporatePermissionGrantErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type RevokeCorporatePermissionGrantError =
+  RevokeCorporatePermissionGrantErrors[keyof RevokeCorporatePermissionGrantErrors];
+
+export type RevokeCorporatePermissionGrantResponses = {
+  /**
+   * Revoke a direct scoped permission grant.
+   */
+  200: CorporatePermissionGrant;
+};
+
+export type RevokeCorporatePermissionGrantResponse =
+  RevokeCorporatePermissionGrantResponses[keyof RevokeCorporatePermissionGrantResponses];
 
 export type ReadCorporatePermissionMatrixData = {
   body?: never;

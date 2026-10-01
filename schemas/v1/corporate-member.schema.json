@@ -1,4 +1,10 @@
 {
+  "$defs": {
+    "Timestamp": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$",
+      "type": "string"
+    }
+  },
   "$id": "urn:ai-stp:schema:v1:corporate-member",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": true,
@@ -9,13 +15,23 @@
       "type": "string"
     },
     "available_actions": {
-      "default": [],
       "items": {
         "type": "string"
       },
       "maxItems": 128,
       "title": "Available Actions",
       "type": "array"
+    },
+    "contact_email": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Contact Email"
     },
     "display_name": {
       "anyOf": [
@@ -38,7 +54,6 @@
           "type": "null"
         }
       ],
-      "default": null,
       "title": "Job Title Id"
     },
     "job_title_name": {
@@ -50,8 +65,27 @@
           "type": "null"
         }
       ],
-      "default": null,
       "title": "Job Title Name"
+    },
+    "joined_at": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Timestamp"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "last_activity_at": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Timestamp"
+        },
+        {
+          "type": "null"
+        }
+      ]
     },
     "revision": {
       "minimum": 1,
@@ -84,9 +118,12 @@
   "required": [
     "account_id",
     "available_actions",
+    "contact_email",
     "display_name",
     "job_title_id",
     "job_title_name",
+    "joined_at",
+    "last_activity_at",
     "revision",
     "role",
     "schema_version",

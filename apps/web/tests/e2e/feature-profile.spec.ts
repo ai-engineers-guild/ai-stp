@@ -33,10 +33,8 @@ test("compiled content profile is consistent across every public projection", as
   await expect(page.locator('[data-ui="nav-services"]')).toHaveCount(corporate ? 0 : 1);
   await expect(page.locator('footer a[href$="/services"]')).toHaveCount(corporate ? 0 : 1);
   if (corporate) {
-    await expect(page.locator('[data-ui="nav-overview"]')).toHaveAttribute(
-      "href",
-      "/en/corporate/overview",
-    );
+    await expect(page.locator('[data-ui="context-sidebar"]')).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Open menu", exact: true })).toHaveCount(0);
     await expect(page.locator('[data-ui="nav-admins"]')).toHaveCount(0);
     await expect(page.locator('footer a[href$="/corporate/dashboard"]')).toHaveCount(1);
   }

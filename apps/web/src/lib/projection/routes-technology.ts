@@ -1,9 +1,9 @@
 import { getTranslations } from "next-intl/server";
 import { canViewCorporateSection } from "@/lib/corporate-hub";
 
+import { readCorporateAudit } from "@/lib/api/corporate-audit";
 import {
   readCorporateContext,
-  readCorporateAudit,
   readCorporateMemberAccess,
   readCorporateWorkspace,
 } from "@/lib/api/corporate";
@@ -73,12 +73,7 @@ export const TECHNOLOGY_ROUTES: MachineRoute[] = [
       const t = await getTranslations("corporate");
       const technology = await getTranslations("technology");
       const result = await readCorporateMemberAccess((await sessionCookieValue()) ?? "", accountId);
-      if (
-        !result?.member ||
-        !result.context.capabilities.some((capability) =>
-          ["member.update", "member.delete"].includes(capability),
-        )
-      )
+      if (!result?.member || !result.context.capabilities.includes("member.read"))
         return presentPage({ title: t("accessAdministration"), summary: technology("forbidden") });
       return presentPage({
         title: t("accessAdministration"),
@@ -135,6 +130,24 @@ export const TECHNOLOGY_ROUTES: MachineRoute[] = [
       return presentPage({
         title: t("accessMatrix"),
         summary: t("accessMatrixBody"),
+        fields: roles.map((role) => [role.name, role.permissions.join(", ")] as const),
+        emptyMessage: t("noRoles"),
+        links: [[t("backToWorkspace"), "/corporate/organization/admins"]],
+      });
+    },
+  },
+  {
+    pattern: "corporate/organization/admins/roles",
+    resolve: async () => {
+      const t = await getTranslations("corporate");
+      const workspace = await readCorporateWorkspace((await sessionCookieValue()) ?? "").catch(
+        () => null,
+      );
+      const roles = workspace?.roles?.items ?? [];
+      const hub = await getTranslations("hub");
+      return presentPage({
+        title: hub("roles"),
+        summary: t("rolesBody"),
         fields: roles.map((role) => [role.name, role.permissions.join(", ")] as const),
         emptyMessage: t("noRoles"),
         links: [[t("backToWorkspace"), "/corporate/organization/admins"]],

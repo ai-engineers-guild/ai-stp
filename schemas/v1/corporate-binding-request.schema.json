@@ -19,6 +19,15 @@
       "title": "Authorization Revision",
       "type": "integer"
     },
+    "coverage": {
+      "default": "self",
+      "enum": [
+        "self",
+        "descendants"
+      ],
+      "title": "Coverage",
+      "type": "string"
+    },
     "idempotency_key": {
       "$ref": "#/$defs/IdempotencyKey"
     },

@@ -1,11 +1,40 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("next-intl/server", () => ({
+  getMessages: vi.fn(),
+  getTranslations: vi.fn(),
+  setRequestLocale: vi.fn(),
+}));
+vi.mock("@/components/providers/app-providers", () => ({ AppProviders: vi.fn() }));
+vi.mock("@/components/organisms/docs-nav", () => ({ DocsNav: vi.fn() }));
+vi.mock("@/components/organisms/docs-search", () => ({ DocsSearch: vi.fn() }));
+vi.mock("@/lib/docs-source", () => ({
+  docsSource: {
+    generateParams: () => [{ slug: ["ru", "overview"] }, { slug: ["en", "overview"] }],
+  },
+}));
+import { generateStaticParams } from "@/app/[locale]/layout";
+import { generateStaticParams as generateDocsParams } from "@/app/[locale]/(site)/docs/[[...slug]]/page";
+
+afterEach(() => vi.unstubAllEnvs());
 
 const webSrc = path.resolve(__dirname, "../../src");
 
 describe("locale layout dynamic boundary", () => {
+  it("avoids dev prerender-manifest writes while retaining production locale generation", () => {
+    vi.stubEnv("NODE_ENV", "development");
+    expect(generateStaticParams()).toEqual([]);
+    expect(generateDocsParams()).toEqual([]);
+    vi.stubEnv("NODE_ENV", "production");
+    expect(generateStaticParams()).toEqual([{ locale: "ru" }, { locale: "en" }]);
+    expect(generateDocsParams()).toEqual([
+      { locale: "ru", slug: ["overview"] },
+      { locale: "en", slug: ["overview"] },
+    ]);
+  });
   it("does not declare a global force-dynamic on the locale layout", () => {
     const source = readFileSync(path.join(webSrc, "app/[locale]/layout.tsx"), "utf8");
     expect(source).not.toMatch(/dynamic\s*=\s*["']force-dynamic["']/);

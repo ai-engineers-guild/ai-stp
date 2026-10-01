@@ -17,7 +17,7 @@ export type NavigationTab = {
 type NavigationTabsProps = {
   items: readonly NavigationTab[];
   ariaLabel: string;
-  variant?: "primary" | "secondary" | "segmented";
+  variant?: "primary" | "secondary" | "segmented" | "underline";
   className?: string;
   dataUi?: string;
 };
@@ -32,6 +32,8 @@ const linkVariants = {
     "min-h-14 border-b-2 border-transparent text-muted-foreground hover:text-foreground aria-[current=page]:border-primary aria-[current=page]:text-primary",
   segmented:
     "text-muted-foreground hover:bg-accent hover:text-foreground aria-[current=page]:bg-primary aria-[current=page]:text-primary-foreground",
+  underline:
+    "rounded-none border-b-2 border-transparent text-muted-foreground hover:text-foreground aria-[current=page]:border-primary aria-[current=page]:text-foreground",
 } as const;
 
 /** Shareable link-based tabs for shell and section navigation. */
@@ -50,6 +52,7 @@ export function NavigationTabs({
         "flex min-w-0 items-center",
         variant === "secondary" && "gap-2 overflow-x-auto",
         variant === "segmented" && "border-border gap-1 rounded-sm border p-1",
+        variant === "underline" && "border-border gap-2 overflow-x-auto border-b",
         className,
       )}
     >

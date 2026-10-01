@@ -1,0 +1,476 @@
+{
+  "$defs": {
+    "CorporateBinding": {
+      "additionalProperties": true,
+      "properties": {
+        "account_id": {
+          "anyOf": [
+            {
+              "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Account Id"
+        },
+        "binding_id": {
+          "title": "Binding Id",
+          "type": "string"
+        },
+        "coverage": {
+          "default": "self",
+          "enum": [
+            "self",
+            "descendants"
+          ],
+          "title": "Coverage",
+          "type": "string"
+        },
+        "origin": {
+          "default": "direct",
+          "enum": [
+            "membership",
+            "assignment",
+            "direct",
+            "service_principal"
+          ],
+          "title": "Origin",
+          "type": "string"
+        },
+        "principal_type": {
+          "default": "user",
+          "enum": [
+            "user",
+            "service_principal"
+          ],
+          "title": "Principal Type",
+          "type": "string"
+        },
+        "revision": {
+          "minimum": 1,
+          "title": "Revision",
+          "type": "integer"
+        },
+        "role": {
+          "description": "Tenant-local role name.",
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_-]*$",
+          "title": "Role",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "scope_id": {
+          "title": "Scope Id",
+          "type": "string"
+        },
+        "scope_kind": {
+          "enum": [
+            "system",
+            "organization",
+            "team",
+            "project",
+            "technology",
+            "catalog_object",
+            "telemetry"
+          ],
+          "title": "Scope Kind",
+          "type": "string"
+        },
+        "service_principal_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Service Principal Id"
+        },
+        "state": {
+          "enum": [
+            "active",
+            "revoked"
+          ],
+          "title": "State",
+          "type": "string"
+        }
+      },
+      "required": [
+        "account_id",
+        "binding_id",
+        "coverage",
+        "origin",
+        "principal_type",
+        "revision",
+        "role",
+        "schema_version",
+        "scope_id",
+        "scope_kind",
+        "service_principal_id",
+        "state"
+      ],
+      "title": "CorporateBinding",
+      "type": "object"
+    },
+    "CorporateEffectivePermission": {
+      "additionalProperties": true,
+      "properties": {
+        "permission": {
+          "title": "Permission",
+          "type": "string"
+        },
+        "scope_id": {
+          "title": "Scope Id",
+          "type": "string"
+        },
+        "scope_kind": {
+          "enum": [
+            "organization",
+            "team",
+            "project",
+            "technology",
+            "catalog_object",
+            "member"
+          ],
+          "title": "Scope Kind",
+          "type": "string"
+        },
+        "source_records": {
+          "items": {
+            "$ref": "#/$defs/CorporatePermissionSource"
+          },
+          "title": "Source Records",
+          "type": "array"
+        },
+        "sources": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Sources",
+          "type": "array"
+        }
+      },
+      "required": [
+        "permission",
+        "scope_id",
+        "scope_kind",
+        "source_records",
+        "sources"
+      ],
+      "title": "CorporateEffectivePermission",
+      "type": "object"
+    },
+    "CorporateMemberPrivateGrant": {
+      "additionalProperties": true,
+      "description": "Read-only projection of a private major-line AccessGrant (SPEC-002) for\nthe employee-access view — never a source of corporate permissions.",
+      "properties": {
+        "grant_id": {
+          "title": "Grant Id",
+          "type": "string"
+        },
+        "issuer_account_id": {
+          "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+          "title": "Issuer Account Id",
+          "type": "string"
+        },
+        "major": {
+          "minimum": 0,
+          "title": "Major",
+          "type": "integer"
+        },
+        "object_kind": {
+          "enum": [
+            "setup",
+            "component"
+          ],
+          "title": "Object Kind",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "stable_id": {
+          "title": "Stable Id",
+          "type": "string"
+        },
+        "state": {
+          "enum": [
+            "active",
+            "revoked"
+          ],
+          "title": "State",
+          "type": "string"
+        }
+      },
+      "required": [
+        "grant_id",
+        "issuer_account_id",
+        "major",
+        "object_kind",
+        "schema_version",
+        "stable_id",
+        "state"
+      ],
+      "title": "CorporateMemberPrivateGrant",
+      "type": "object"
+    },
+    "CorporatePermissionGrant": {
+      "additionalProperties": true,
+      "properties": {
+        "account_id": {
+          "anyOf": [
+            {
+              "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Account Id"
+        },
+        "grant_id": {
+          "title": "Grant Id",
+          "type": "string"
+        },
+        "issuer_account_id": {
+          "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+          "title": "Issuer Account Id",
+          "type": "string"
+        },
+        "permission": {
+          "title": "Permission",
+          "type": "string"
+        },
+        "principal_type": {
+          "enum": [
+            "user",
+            "service_principal"
+          ],
+          "title": "Principal Type",
+          "type": "string"
+        },
+        "revision": {
+          "minimum": 1,
+          "title": "Revision",
+          "type": "integer"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "scope_id": {
+          "title": "Scope Id",
+          "type": "string"
+        },
+        "scope_kind": {
+          "enum": [
+            "organization",
+            "team",
+            "project",
+            "technology"
+          ],
+          "title": "Scope Kind",
+          "type": "string"
+        },
+        "service_principal_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Service Principal Id"
+        },
+        "state": {
+          "enum": [
+            "active",
+            "revoked"
+          ],
+          "title": "State",
+          "type": "string"
+        }
+      },
+      "required": [
+        "account_id",
+        "grant_id",
+        "issuer_account_id",
+        "permission",
+        "principal_type",
+        "revision",
+        "schema_version",
+        "scope_id",
+        "scope_kind",
+        "service_principal_id",
+        "state"
+      ],
+      "title": "CorporatePermissionGrant",
+      "type": "object"
+    },
+    "CorporatePermissionSource": {
+      "additionalProperties": true,
+      "description": "One record that actually contributes a permission at this scope.",
+      "properties": {
+        "kind": {
+          "enum": [
+            "binding",
+            "grant"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "origin": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Origin"
+        },
+        "role": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Role"
+        },
+        "scope_id": {
+          "title": "Scope Id",
+          "type": "string"
+        },
+        "scope_kind": {
+          "title": "Scope Kind",
+          "type": "string"
+        },
+        "source_id": {
+          "title": "Source Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "origin",
+        "role",
+        "scope_id",
+        "scope_kind",
+        "source_id"
+      ],
+      "title": "CorporatePermissionSource",
+      "type": "object"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:corporate-member-access",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "Everything that grants one member access, split by independent source:\nrole bindings, direct scoped allows, private major-line grants, and the\nevaluator's effective set at the requested scope with per-source records.",
+  "properties": {
+    "account_id": {
+      "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "title": "Account Id",
+      "type": "string"
+    },
+    "authorization_revision": {
+      "minimum": 1,
+      "title": "Authorization Revision",
+      "type": "integer"
+    },
+    "bindings": {
+      "items": {
+        "$ref": "#/$defs/CorporateBinding"
+      },
+      "title": "Bindings",
+      "type": "array"
+    },
+    "effective": {
+      "items": {
+        "$ref": "#/$defs/CorporateEffectivePermission"
+      },
+      "title": "Effective",
+      "type": "array"
+    },
+    "grants": {
+      "items": {
+        "$ref": "#/$defs/CorporatePermissionGrant"
+      },
+      "title": "Grants",
+      "type": "array"
+    },
+    "organization_id": {
+      "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "title": "Organization Id",
+      "type": "string"
+    },
+    "private_grants": {
+      "items": {
+        "$ref": "#/$defs/CorporateMemberPrivateGrant"
+      },
+      "title": "Private Grants",
+      "type": "array"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "scope_id": {
+      "title": "Scope Id",
+      "type": "string"
+    },
+    "scope_kind": {
+      "enum": [
+        "organization",
+        "team",
+        "project",
+        "technology",
+        "catalog_object",
+        "member"
+      ],
+      "title": "Scope Kind",
+      "type": "string"
+    }
+  },
+  "required": [
+    "account_id",
+    "authorization_revision",
+    "bindings",
+    "effective",
+    "grants",
+    "organization_id",
+    "private_grants",
+    "schema_version",
+    "scope_id",
+    "scope_kind"
+  ],
+  "title": "CorporateMemberAccess",
+  "type": "object"
+}

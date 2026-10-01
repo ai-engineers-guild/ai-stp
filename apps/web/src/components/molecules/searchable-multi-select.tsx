@@ -17,6 +17,7 @@ type SearchableMultiSelectProps = {
   onChange?: (values: string[]) => void;
   multiple?: boolean;
   modal?: boolean;
+  inline?: boolean;
   closeLabel?: string;
   selectionSuffix?: string | undefined;
   emptyHint?: string | undefined;
@@ -55,6 +56,7 @@ export function SearchableMultiSelect({
   onChange,
   multiple = true,
   modal = false,
+  inline = false,
   closeLabel = "Close",
   selectionSuffix = "selected",
   emptyHint = "Select one or more options",
@@ -248,7 +250,9 @@ export function SearchableMultiSelect({
         <span className="min-w-0 truncate">{triggerText}</span>
         <Icon name={open ? "chevronUp" : "chevronDown"} size="sm" />
       </summary>
-      <div className="bg-popover border-border relative z-50 w-full min-w-0 space-y-2 rounded-sm border p-3 shadow-md md:absolute md:top-[calc(100%+0.375rem)] md:right-0 md:left-auto md:w-[min(20rem,calc(100vw-2rem))]">
+      <div
+        className={`bg-popover border-border relative z-50 w-full min-w-0 space-y-2 rounded-sm border p-3 shadow-md ${inline ? "" : "md:absolute md:top-[calc(100%+0.375rem)] md:right-0 md:left-auto md:w-[min(20rem,calc(100vw-2rem))]"}`}
+      >
         <label htmlFor={id} className="sr-only">
           {searchLabel}
         </label>

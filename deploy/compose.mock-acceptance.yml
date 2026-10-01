@@ -1,0 +1,8 @@
+# Local-only browser-acceptance override: runs the web tier on in-process
+# corporate fixtures (AI_STP_USE_MOCKS) instead of the api. Untracked file;
+# add to the compose chain for acceptance runs, never for delivery.
+services:
+  web:
+    environment:
+      AI_STP_USE_MOCKS: "true"
+      AI_STP_MOCK_AUTH: "true"

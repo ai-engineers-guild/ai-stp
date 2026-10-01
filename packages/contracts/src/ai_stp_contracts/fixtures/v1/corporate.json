@@ -55,7 +55,10 @@
           "revision": 1,
           "job_title_id": null,
           "job_title_name": null,
-          "available_actions": []
+          "available_actions": [],
+          "contact_email": null,
+          "joined_at": null,
+          "last_activity_at": null
         },
         "bindings": [],
         "projects": [],
@@ -93,7 +96,10 @@
         "revision": 1,
         "job_title_id": null,
         "job_title_name": null,
-        "available_actions": []
+        "available_actions": [],
+        "contact_email": null,
+        "joined_at": null,
+        "last_activity_at": null
       }
     },
     {
@@ -133,7 +139,10 @@
         "revision": 1,
         "job_title_id": null,
         "job_title_name": null,
-        "available_actions": []
+        "available_actions": [],
+        "contact_email": null,
+        "joined_at": null,
+        "last_activity_at": null
       }
     },
     {
@@ -165,7 +174,10 @@
         "revision": 2,
         "job_title_id": null,
         "job_title_name": null,
-        "available_actions": []
+        "available_actions": [],
+        "contact_email": null,
+        "joined_at": null,
+        "last_activity_at": null
       }
     },
     {
@@ -198,7 +210,9 @@
         "scope_kind": "project",
         "scope_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
         "state": "active",
-        "revision": 1
+        "revision": 1,
+        "origin": "direct",
+        "coverage": "self"
       }
     },
     {
@@ -415,7 +429,9 @@
           "scope_kind": "project",
           "scope_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
           "state": "active",
-          "revision": 1
+          "revision": 1,
+          "origin": "service_principal",
+          "coverage": "self"
         }
       }
     },
@@ -455,7 +471,9 @@
           "scope_kind": "project",
           "scope_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
           "state": "revoked",
-          "revision": 2
+          "revision": 2,
+          "origin": "service_principal",
+          "coverage": "self"
         }
       }
     },
@@ -520,7 +538,9 @@
         "scope_kind": "organization",
         "scope_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
         "state": "active",
-        "revision": 1
+        "revision": 1,
+        "origin": "direct",
+        "coverage": "self"
       }
     },
     {
@@ -555,7 +575,9 @@
         "scope_kind": "organization",
         "scope_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
         "state": "revoked",
-        "revision": 2
+        "revision": 2,
+        "origin": "direct",
+        "coverage": "self"
       }
     },
     {
@@ -768,7 +790,9 @@
           "scope_kind": "project",
           "scope_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
           "state": "active",
-          "revision": 1
+          "revision": 1,
+          "origin": "service_principal",
+          "coverage": "self"
         }
       }
     },
@@ -1012,7 +1036,10 @@
         "revision": 2,
         "job_title_id": null,
         "job_title_name": null,
-        "available_actions": []
+        "available_actions": [],
+        "contact_email": null,
+        "joined_at": null,
+        "last_activity_at": null
       }
     },
     {
@@ -1632,7 +1659,8 @@
         "claimant_account_id": null,
         "token": "tok_fixture0000000000000000000000",
         "delivery_state": null,
-        "delivery_error": null
+        "delivery_error": null,
+        "issuer_account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
       }
     },
     {
@@ -1666,7 +1694,8 @@
             "claimant_account_id": null,
             "token": null,
             "delivery_state": null,
-            "delivery_error": null
+            "delivery_error": null,
+            "issuer_account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
           }
         ]
       }
@@ -1705,7 +1734,8 @@
         "claimant_account_id": null,
         "token": null,
         "delivery_state": null,
-        "delivery_error": null
+        "delivery_error": null,
+        "issuer_account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
       }
     },
     {
@@ -1733,7 +1763,10 @@
         "revision": 1,
         "job_title_id": null,
         "job_title_name": null,
-        "available_actions": []
+        "available_actions": [],
+        "contact_email": null,
+        "joined_at": null,
+        "last_activity_at": null
       }
     },
     {
@@ -1761,7 +1794,10 @@
         "revision": 1,
         "job_title_id": null,
         "job_title_name": null,
-        "available_actions": []
+        "available_actions": [],
+        "contact_email": null,
+        "joined_at": null,
+        "last_activity_at": null
       }
     },
     {
@@ -1810,6 +1846,157 @@
           "example.com"
         ],
         "authorization_revision": 2
+      }
+    },
+    {
+      "case_id": "readCorporateMemberAccess.corporate",
+      "operation_id": "readCorporateMemberAccess",
+      "kind": "positive",
+      "why": "A member's access lists each independent granting source.",
+      "request": {
+        "path_params": {
+          "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        },
+        "query": {
+          "scope_kind": "organization"
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "scope_kind": "organization",
+        "scope_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "bindings": [
+          {
+            "schema_version": 1,
+            "binding_id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+            "principal_type": "user",
+            "account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+            "service_principal_id": null,
+            "role": "staff",
+            "scope_kind": "organization",
+            "scope_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+            "state": "active",
+            "origin": "membership",
+            "coverage": "self",
+            "revision": 1
+          }
+        ],
+        "grants": [],
+        "private_grants": [],
+        "effective": [],
+        "authorization_revision": 1
+      }
+    },
+    {
+      "case_id": "readCorporateDelegation.corporate",
+      "operation_id": "readCorporateDelegation",
+      "kind": "positive",
+      "why": "The server returns the caller's delegable roles and coverage.",
+      "request": {
+        "path_params": {
+          "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "grantable_roles": [
+          {
+            "name": "staff",
+            "permissions": [
+              "project.read"
+            ]
+          }
+        ],
+        "descendants_coverage": false,
+        "authorization_revision": 1
+      }
+    },
+    {
+      "case_id": "createCorporatePermissionGrant.corporate",
+      "operation_id": "createCorporatePermissionGrant",
+      "kind": "positive",
+      "why": "A direct scoped allow is returned exactly.",
+      "request": {
+        "path_params": {
+          "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        },
+        "body": {
+          "schema_version": 1,
+          "account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "permission": "project.read",
+          "scope_kind": "project",
+          "scope_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "authorization_revision": 1,
+          "idempotency_key": "corporate-grant-0001"
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "grant_id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "principal_type": "user",
+        "account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "service_principal_id": null,
+        "permission": "project.read",
+        "scope_kind": "project",
+        "scope_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "issuer_account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "state": "active",
+        "revision": 1
+      }
+    },
+    {
+      "case_id": "listCorporatePermissionGrants.corporate",
+      "operation_id": "listCorporatePermissionGrants",
+      "kind": "positive",
+      "why": "The grant list is returned exactly.",
+      "request": {
+        "path_params": {
+          "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "items": []
+      }
+    },
+    {
+      "case_id": "revokeCorporatePermissionGrant.corporate",
+      "operation_id": "revokeCorporatePermissionGrant",
+      "kind": "positive",
+      "why": "Revocation returns the grant in its revoked state.",
+      "request": {
+        "path_params": {
+          "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "grant_id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        },
+        "body": {
+          "schema_version": 1,
+          "expected_revision": 1,
+          "authorization_revision": 1,
+          "idempotency_key": "revoke-grant-0001"
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "grant_id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "principal_type": "user",
+        "account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "service_principal_id": null,
+        "permission": "project.read",
+        "scope_kind": "project",
+        "scope_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "issuer_account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "state": "revoked",
+        "revision": 2
       }
     }
   ]

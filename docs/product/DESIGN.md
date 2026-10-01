@@ -53,7 +53,7 @@ page does not load Cyrillic font files. The reason for the replacement and its v
 | Radius xl | 16px | Large shells |
 | Border | 1px | Never thick frames |
 | Space baseline | 8px | 2 / 4 / 8 / 12 / 16 / 24 / 32 / 40 / 48… |
-| Content width | `max-w-6xl` | App shell main |
+| Content width | Flexible remaining width | Human main beside the shared sidebar |
 | Horizontal pad | 16–24px | Header and main |
 | Narrow public screen | 360–430 px | landing, catalog, object card, sign-in, account |
 
@@ -89,6 +89,12 @@ Path root: `apps/web/src/components/`
 | Skeleton | `atoms/skeleton.tsx` | muted pulse |
 | Dialog | `atoms/dialog.tsx` | Radix dialog shell |
 
+Modal backdrops use the theme-independent `scrim` role so dark surfaces dim rather
+than brighten. The default border reset belongs to the CSS base layer; semantic
+state utilities must remain able to override it. `SearchableMultiSelect` supports
+an inline disclosure for constrained dialogs, keeping options in the form flow
+and the submit action reachable.
+
 ### Molecules
 
 SearchField · StatePanel · ThemeToggle · RouteLoading · DetailAccordion · PassportJsonViewer · CatalogAuthorLink · ObjectTechnicalDetails · RequirementsSummary · ObjectVersionHistory
@@ -117,3 +123,48 @@ Groups: Foundations · UI Kit / Atoms · Molecules · Organisms · Layouts. Tool
 2. Mirror channels into `globals.css` (`:root` / `.dark` and `@theme inline`).
 3. Keep React on semantic utilities only.
 4. Rebuild Storybook to verify foundations and kit stories.
+
+## Shared Human navigation
+
+`layouts/context-rail.tsx` extends the original corporate rail and is mounted
+once by `AppShell` for SaaS and Corporate. Its atoms are the existing Button,
+Dialog and registered Icon; no page creates a separate sidebar. The header holds
+utilities and spans the viewport above the rail. The desktop collapse control
+sits beside the brand in that global bar. The rail begins below the bar, with no
+second logo row. Desktop is expanded or an icon rail; narrow screens use the same
+links in a focus-contained dialog. The active page comes from the URL, and
+page links never double as group-disclosure buttons. Administration groups and
+semantic parent links follow ADR-0219 and SPEC-095. Personal account navigation
+belongs to the header popup, not the sidebar. The drawer has no Corporate label.
+Preserve the normal profile-aware full-width footer with brand, summary and
+destination columns, including Documentation and `llms.txt`.
+
+Corporate authentication screens and unverified sessions have no drawer or
+trigger. Protected Corporate routes receive server-verified page IDs so the
+rail is present in the first HTML and first hydration. The header carries the
+brand when the rail is unavailable. Desktop collapsed navigation has one
+icon per top-level entry, with Radix flyouts for grouped destinations. Mobile
+uses the existing Dialog and closes at 1024 px without changing the desktop
+preference. Initial HTML and hydration agree before stored preferences apply.
+`ContextSidebar` exposes the incumbent rail frame for the 13 Storybook scenarios;
+`ContextRail` owns session/capability availability. The light active surface uses
+a 5% primary tint to keep small primary text above WCAG AA contrast; dark keeps
+the existing 10% tint.
+
+### People administration component reuse
+
+Members & Invitations extends the existing directory kit. The existing generic
+resource cards do not cover checkbox selection, membership-specific contact/date
+columns or invitation history/actions. The domain table organisms therefore
+compose the incumbent Badge, Button, Input, Dialog, CompactChipList,
+SearchableMultiSelect and registered Icon components. NavigationTabs adds an
+underline variant; CatalogChoiceMenu adds callback options for sorting/export and
+revoke. Neither change introduces another controls system or dependency.
+Tables scroll locally at narrow widths with keyboard access; toolbars wrap and
+modal content is bounded by the viewport. Summary counts stay separate from tabs.
+
+The shared Dialog returns focus to its external opener when a flow does not use
+DialogTrigger, while honoring explicit autofocus handlers. Its backdrop uses
+the semantic scrim token in both themes. Base border defaults stay in the base
+CSS layer so component state utilities retain their intended colors. Invitation
+team selection expands inline to keep submission controls reachable.

@@ -14,7 +14,6 @@
               "type": "null"
             }
           ],
-          "default": null,
           "title": "Accepted Account Id"
         },
         "claimant_account_id": {
@@ -27,7 +26,6 @@
               "type": "null"
             }
           ],
-          "default": null,
           "title": "Claimant Account Id"
         },
         "created_at": {
@@ -42,7 +40,6 @@
               "type": "null"
             }
           ],
-          "default": null,
           "title": "Delivery Error"
         },
         "delivery_state": {
@@ -53,8 +50,7 @@
             {
               "type": "null"
             }
-          ],
-          "default": null
+          ]
         },
         "display_name": {
           "title": "Display Name",
@@ -69,6 +65,18 @@
           "title": "Invitation Id",
           "type": "string"
         },
+        "issuer_account_id": {
+          "anyOf": [
+            {
+              "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Issuer Account Id"
+        },
         "job_title_id": {
           "anyOf": [
             {
@@ -79,7 +87,6 @@
               "type": "null"
             }
           ],
-          "default": null,
           "title": "Job Title Id"
         },
         "organization_id": {
@@ -88,7 +95,6 @@
           "type": "string"
         },
         "project_ids": {
-          "default": [],
           "items": {
             "pattern": "^remote_project_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
             "type": "string"
@@ -119,7 +125,6 @@
           "$ref": "#/$defs/CorporateInvitationState"
         },
         "team_ids": {
-          "default": [],
           "items": {
             "type": "string"
           },
@@ -136,7 +141,6 @@
               "type": "null"
             }
           ],
-          "default": null,
           "title": "Token"
         }
       },
@@ -149,6 +153,7 @@
         "display_name",
         "expires_at",
         "invitation_id",
+        "issuer_account_id",
         "job_title_id",
         "organization_id",
         "project_ids",

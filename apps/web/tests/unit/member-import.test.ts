@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { parseMemberImport } from "@/lib/member-import";
+import { inspectMemberImport, inspectMemberCells, parseMemberImport } from "@/lib/member-import";
 
 describe("parseMemberImport", () => {
   it("parses CSV/TSV lines into name and email pairs", () => {
@@ -70,4 +70,38 @@ describe("parseMemberImport", () => {
     );
     expect(rows.map((row) => row.email)).toEqual(["jane@example.com", "john@example.com"]);
   });
+});
+
+it("projects headed CSV columns and handles quoted commas without applying file roles", () => {
+  expect(
+    inspectMemberImport('email,role,display_name\nalex@example.com,lead,"Morgan, Alex"'),
+  ).toEqual([
+    { email: "alex@example.com", displayName: "Morgan, Alex", rowNumber: 2, error: null },
+  ]);
+});
+it("retains invalid, duplicate and oversized names for review", () => {
+  const rows = inspectMemberImport(
+    `email,display_name\na@example.com,A\nA@example.com,Duplicate\nbad,Bad\nb@example.com,${"B".repeat(81)}`,
+  );
+  expect(rows.map((row) => row.error)).toEqual([
+    null,
+    "duplicateEmail",
+    "invalidEmail",
+    "nameTooLong",
+  ]);
+});
+it("shares spreadsheet projection and bounds the row count", () => {
+  expect(
+    inspectMemberCells([
+      ["display_name", "email"],
+      ["Alex", "Alex@Example.com"],
+    ])[0],
+  ).toMatchObject({ email: "alex@example.com", displayName: "Alex", error: null });
+  expect(() =>
+    inspectMemberImport(
+      Array.from({ length: 501 }, (_, index) => `a${index}@example.com`).join("\n"),
+    ),
+  ).toThrow("Too many recipients");
+  expect(() => inspectMemberImport('email,display_name\na@example.com,"Unclosed')).toThrow();
+  expect(() => inspectMemberImport("{", "people.json")).toThrow();
 });

@@ -16,6 +16,7 @@ AccountId = Annotated[str, Field(pattern=stable_id_pattern("account"))]
 JobTitleId = Annotated[str, Field(pattern=stable_id_pattern("job_title"))]
 TeamId = Annotated[str, Field(pattern=stable_id_pattern("operation"))]
 ProjectId = Annotated[str, Field(pattern=stable_id_pattern("remote_project"))]
+ServicePrincipalId = Annotated[str, Field(pattern=stable_id_pattern("service_principal"))]
 TechnologyId = Annotated[str, Field(pattern=stable_id_pattern("technology"))]
 CorporateRole = Annotated[
     str,
@@ -508,9 +509,12 @@ class CorporateMember(BaseModel):
     role: CorporateRole
     state: CorporateState
     revision: Annotated[int, Field(ge=1)]
-    job_title_id: JobTitleId | None = None
-    job_title_name: str | None = None
-    available_actions: Annotated[list[str], Field(max_length=128)] = []
+    job_title_id: JobTitleId | None
+    job_title_name: str | None
+    contact_email: str | None
+    joined_at: Timestamp | None
+    last_activity_at: Timestamp | None
+    available_actions: Annotated[list[str], Field(max_length=128)]
 
 
 class CorporateMemberList(BaseModel):
@@ -557,6 +561,10 @@ class CorporateJobTitleList(BaseModel):
     items: Annotated[list[CorporateJobTitleView], Field(max_length=256)]
 
 
+BindingCoverage = Literal["self", "descendants"]
+BindingOrigin = Literal["membership", "assignment", "direct", "service_principal"]
+
+
 class CorporateBindingRequest(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
     schema_version: Literal[1] = 1
@@ -564,8 +572,15 @@ class CorporateBindingRequest(BaseModel):
     role: CorporateRole
     scope_kind: ScopeKind
     scope_id: Annotated[str, Field(min_length=1, max_length=64)] = "*"
+    coverage: BindingCoverage = "self"
     authorization_revision: Annotated[int, Field(ge=1)]
     idempotency_key: IdempotencyKey
+
+    @model_validator(mode="after")
+    def descendants_need_organization_scope(self) -> Self:
+        if self.scope_kind != "organization" and self.coverage == "descendants":
+            raise ValueError("descendants coverage applies to organization scope only")
+        return self
 
 
 class CorporateBinding(BaseModel):
@@ -579,6 +594,8 @@ class CorporateBinding(BaseModel):
     scope_kind: ScopeKind
     scope_id: str
     state: Literal["active", "revoked"]
+    origin: BindingOrigin = "direct"
+    coverage: BindingCoverage = "self"
     revision: Annotated[int, Field(ge=1)]
 
 
@@ -588,10 +605,85 @@ class CorporateBindingUpdateRequest(BaseModel):
     role: CorporateRole
     scope_kind: ScopeKind
     scope_id: Annotated[str, Field(min_length=1, max_length=64)] = "*"
+    coverage: BindingCoverage = "self"
     state: Literal["active", "revoked"]
     expected_revision: Annotated[int, Field(ge=1)]
     authorization_revision: Annotated[int, Field(ge=1)]
     idempotency_key: IdempotencyKey
+
+    @model_validator(mode="after")
+    def descendants_need_organization_scope(self) -> Self:
+        if self.scope_kind != "organization" and self.coverage == "descendants":
+            raise ValueError("descendants coverage applies to organization scope only")
+        return self
+
+
+GrantScopeKind = Literal["organization", "team", "project", "technology"]
+
+
+class CorporatePermissionGrantRequest(BaseModel):
+    """One direct action allow — no role — checked against the issuer's delegation bound."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
+    schema_version: Literal[1] = 1
+    account_id: AccountId | None = None
+    service_principal_id: ServicePrincipalId | None = None
+    permission: Annotated[str, Field(min_length=1, max_length=64)]
+    scope_kind: GrantScopeKind
+    scope_id: Annotated[str, Field(min_length=1, max_length=64)] = "*"
+    authorization_revision: Annotated[int, Field(ge=1)]
+    idempotency_key: IdempotencyKey
+
+    @model_validator(mode="after")
+    def exactly_one_principal(self) -> Self:
+        if (self.account_id is None) == (self.service_principal_id is None):
+            raise ValueError("exactly one of account_id or service_principal_id is required")
+        return self
+
+
+class CorporatePermissionGrant(BaseModel):
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+    schema_version: Literal[1] = 1
+    grant_id: str
+    principal_type: Literal["user", "service_principal"]
+    account_id: AccountId | None = None
+    service_principal_id: str | None = None
+    permission: str
+    scope_kind: GrantScopeKind
+    scope_id: str
+    issuer_account_id: AccountId
+    state: Literal["active", "revoked"]
+    revision: Annotated[int, Field(ge=1)]
+
+
+class CorporatePermissionGrantList(BaseModel):
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+    schema_version: Literal[1] = 1
+    items: Annotated[list[CorporatePermissionGrant], Field(max_length=256)]
+
+
+class CorporateGrantableRole(BaseModel):
+    """A role whose closed permission set the caller may delegate."""
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+    name: CorporateRole
+    permissions: Annotated[list[str], Field(max_length=128)]
+
+
+class CorporateDelegationView(BaseModel):
+    """What the current principal may delegate, computed server-side."""
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+    schema_version: Literal[1] = 1
+    organization_id: OrganizationId
+    grantable_roles: Annotated[list[CorporateGrantableRole], Field(max_length=256)]
+    descendants_coverage: bool
+    authorization_revision: Annotated[int, Field(ge=1)]
+
+
+class CorporatePermissionGrantQuery(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
+    account_id: AccountId | None = None
 
 
 class CorporateBindingList(BaseModel):
@@ -998,17 +1090,18 @@ class CorporateInvitation(BaseModel):
     recipient_email: str
     display_name: str
     role: CorporateRole
-    team_ids: Annotated[list[str], Field(max_length=64)] = []
-    project_ids: Annotated[list[ProjectId], Field(max_length=64)] = []
-    job_title_id: JobTitleId | None = None
+    team_ids: Annotated[list[str], Field(max_length=64)]
+    project_ids: Annotated[list[ProjectId], Field(max_length=64)]
+    job_title_id: JobTitleId | None
     state: CorporateInvitationState
     expires_at: Timestamp
     created_at: Timestamp
-    accepted_account_id: AccountId | None = None
-    claimant_account_id: AccountId | None = None
-    token: str | None = None
-    delivery_state: CorporateMailDeliveryState | None = None
-    delivery_error: str | None = None
+    issuer_account_id: AccountId | None
+    accepted_account_id: AccountId | None
+    claimant_account_id: AccountId | None
+    token: str | None
+    delivery_state: CorporateMailDeliveryState | None
+    delivery_error: str | None
 
 
 class CorporateInvitationList(BaseModel):

@@ -56,6 +56,7 @@ from ai_stp_platform.installation_usage_models import InstallationOperationFact 
 from ai_stp_platform.models import Account, CatalogMetadata, Device
 from ai_stp_platform.organization_models import (
     CorporateCatalogAssignment,
+    CorporatePermissionGrant,
     CorporateProject,
     CorporateProjectMember,
     CorporateRole,
@@ -100,6 +101,7 @@ TABLES = [
     CorporateRolePermission.__table__,
     CorporateServicePrincipal.__table__,
     CorporateRoleBinding.__table__,
+    CorporatePermissionGrant.__table__,
     CorporateTeam.__table__,
     CorporateTeamMember.__table__,
     CorporateProjectMember.__table__,

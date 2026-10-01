@@ -20,6 +20,26 @@
           "title": "Binding Id",
           "type": "string"
         },
+        "coverage": {
+          "default": "self",
+          "enum": [
+            "self",
+            "descendants"
+          ],
+          "title": "Coverage",
+          "type": "string"
+        },
+        "origin": {
+          "default": "direct",
+          "enum": [
+            "membership",
+            "assignment",
+            "direct",
+            "service_principal"
+          ],
+          "title": "Origin",
+          "type": "string"
+        },
         "principal_type": {
           "default": "user",
           "enum": [
@@ -89,6 +109,8 @@
       "required": [
         "account_id",
         "binding_id",
+        "coverage",
+        "origin",
         "principal_type",
         "revision",
         "role",
@@ -262,13 +284,23 @@
           "type": "string"
         },
         "available_actions": {
-          "default": [],
           "items": {
             "type": "string"
           },
           "maxItems": 128,
           "title": "Available Actions",
           "type": "array"
+        },
+        "contact_email": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Contact Email"
         },
         "display_name": {
           "anyOf": [
@@ -291,7 +323,6 @@
               "type": "null"
             }
           ],
-          "default": null,
           "title": "Job Title Id"
         },
         "job_title_name": {
@@ -303,8 +334,27 @@
               "type": "null"
             }
           ],
-          "default": null,
           "title": "Job Title Name"
+        },
+        "joined_at": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "last_activity_at": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "revision": {
           "minimum": 1,
@@ -337,9 +387,12 @@
       "required": [
         "account_id",
         "available_actions",
+        "contact_email",
         "display_name",
         "job_title_id",
         "job_title_name",
+        "joined_at",
+        "last_activity_at",
         "revision",
         "role",
         "schema_version",

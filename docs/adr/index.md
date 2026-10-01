@@ -216,6 +216,9 @@ last_verified: "2026-08-03"
 | [ADR-0216-rollback-provenance-from-the-journal.md](ADR-0216-rollback-provenance-from-the-journal.md) | Recover a rollback's component coordinates from the prior verified bundle, or leave them unknown. | 2026-09-26 |
 | [ADR-0217-deployment-files-live-under-deploy.md](ADR-0217-deployment-files-live-under-deploy.md) | Consolidate every compose file under deploy/ and every Dockerfile under deploy/docker/, with one app Dockerfile for all Python stages. | 2026-09-27 |
 | [ADR-0218-corporate-oidc-providers.md](ADR-0218-corporate-oidc-providers.md) | Corporate single sign-on runs over OIDC through named providers configured by issuer URL; authentik and keycloak are the first two. | 2026-09-29 |
+| [ADR-0219-contextual-corporate-navigation.md](ADR-0219-contextual-corporate-navigation.md) | Shared contextual Human navigation for SaaS and Corporate, with server-owned availability. | 2026-09-30 |
+| [ADR-0220-explainable-corporate-access.md](ADR-0220-explainable-corporate-access.md) | Proposed authoritative access descriptors, scoped provenance, and bounded delegation for corporate authorization. | 2026-09-29 |
+| [ADR-0221-corporate-private-catalog-access.md](ADR-0221-corporate-private-catalog-access.md) | Proposed separation of corporate assignments, operational ownership, and private major-line access. | 2026-09-29 |
 | [binding.md](binding.md) | Which accepted ADRs still constrain non-corporate work; default is binding. | 2026-09-20 |
 | [template.md](template.md) | Architecture decision record template. | 2026-08-03 |
 

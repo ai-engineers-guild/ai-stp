@@ -5,6 +5,10 @@ last_verified: "2026-09-18"
 
 # SPEC-086: Corporate workspace consolidation
 
+The canonical employee and catalog routes here remain binding. Proposed
+navigation and access pages in SPEC-095–097 reuse those identities; they do
+not create a second employee directory or corporate catalog.
+
 ## Purpose
 
 Make the Corporate Hub a stable, capability-driven workspace in which each person,
@@ -155,3 +159,58 @@ downgrade is a separate explicit operation.
 | `REQ-8612` | API tests cover setup/component usage, pagination, authorization-before-count, direct/effective deduplication, and tenant isolation; browser tests cover named navigation. |
 | `REQ-8613` | Overview component tests omit descriptions only in By organization cards and preserve detail descriptions. |
 | `REQ-8614` | GitHub Actions builds and starts the production Web artifact and fails on hydration warnings, recoverable rendering errors, uncaught page errors, or HTTP 500 across the acceptance route matrix. |
+
+## Members and invitations administration (2026-10-01)
+
+This is the code-backed administration view over the existing authorized member
+and invitation lists, separate from the resource directories in REQ-8603.
+
+- `REQ-8615`: `/corporate/organization/admins` renders breadcrumbs, four summary
+  counts, and URL-backed Members/Invitations tabs. Each administration table has
+  name/email search, role/team/status filters, ten rows per page, selected-row CSV
+  export and keyboard-accessible row actions. Query changes reset the page. The
+  status column explicitly shows normal and exceptional membership states; this
+  administration table is the exception to REQ-8607's ordinary entity cards.
+  Empty and unavailable data remain distinguishable. A missing contact is labeled
+  No email, while unknown dates/activity remain absent rather than synthesized.
+- `REQ-8616`: The member list exposes nullable `contact_email`, `joined_at`, and
+  `last_activity_at`. Contact comes only from the current organization's corporate
+  provisioned identity; private OAuth email is never a fallback. Joined time comes
+  from the membership; activity is the latest registered-device visit. Invitations
+  expose nullable issuer identity for the Invited by column. Authorization and
+  tenant filtering precede enrichment. The response fields are additive; no
+  migration or role semantics change is required.
+- `REQ-8617`: Invitations initially show unexpired pending/confirmation-pending
+  records; the status filter exposes completed history. Invite member opens the
+  existing focus-contained Dialog with required email and explicit role, optional
+  display name and teams, and supported expiry choices of 1/3/7/14/30 days. Seven
+  days is the initial expiry. Import from file opens a native click/drop file field for CSV, JSON, Markdown,
+  XLSX (first sheet), or TXT, bounded to 2 MB and 500 recipients. It projects
+  email/display_name columns, ignores file roles, and previews every recognized
+  row in the reusable MemberImportPreview table. Invalid emails, duplicate emails
+  and oversized names remain visible and are skipped. Localized help opens a
+  modal with the format example and validation rules. Role/team/expiry choices
+  survive invitation-mode changes. The full authorized role catalog remains
+  visible: roles outside the server delegation projection are disabled with a
+  localized explanation. Failed or stale delegation reads block submission with
+  a distinct recovery message. The API still checks current closed permissions.
+  Errors release request
+  busy state independently of route refresh. Revision checks and per-effect idempotency prevent
+  duplicate mutations on retry; successful receipts survive a partial failure.
+  Generated bearer links appear only in the receipt dialog/export, never directory
+  exports or URLs used for filtering. Revoke is confirmed in a dialog and retains
+  the history row. Domain policy remains in Security.
+
+Executable oracles: `corporate-people.test.tsx`, `member-export.test.ts`,
+`test_member_directory_uses_corporate_contacts_and_nullable_activity`,
+`test_corporate_invitations.py`, `corporate-people-access.spec.ts`, and
+`context-sidebar.spec.ts` and `corporate-members-screenshot.spec.ts`. The CorporatePeople stories cover light/dark, empty,
+read-only, mobile, invitations/unavailable, invite/error/busy and bulk input.
+
+Role badges and team chips in member/invitation tables link to the existing role
+matrix and team details. Row action menus use nonmodal Radix menus, preserving
+page scrolling and keyboard focus return. Administration's drawer return action
+is specified in SPEC-095. Component oracles additionally include
+`corporate-members-table.test.tsx`, `member-import.test.tsx`,
+`corporate-invitation-actions.test.tsx`, and `member-import-file.test.ts`.
+Storybook includes independent member table and recipient preview states.

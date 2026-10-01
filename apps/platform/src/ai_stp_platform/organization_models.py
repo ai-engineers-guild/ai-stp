@@ -286,6 +286,11 @@ class CorporateRoleBinding(Base):
         ),
         CheckConstraint("state in ('active', 'revoked')", name="ck_role_binding_state"),
         CheckConstraint(
+            "origin in ('membership', 'assignment', 'direct', 'service_principal')",
+            name="ck_role_binding_origin",
+        ),
+        CheckConstraint("coverage in ('self', 'descendants')", name="ck_role_binding_coverage"),
+        CheckConstraint(
             "(principal_type = 'user' AND account_id IS NOT NULL "
             "AND service_principal_id IS NULL) OR "
             "(principal_type = 'service_principal' AND account_id IS NULL "
@@ -307,6 +312,100 @@ class CorporateRoleBinding(Base):
     role: Mapped[str] = mapped_column(String(64), nullable=False)
     scope_kind: Mapped[str] = mapped_column(String(32), nullable=False)
     scope_id: Mapped[str] = mapped_column(String(64), nullable=False, default="*")
+    state: Mapped[str] = mapped_column(String(16), nullable=False, default="active")
+    # Which write path owns this row. Membership synchronization mutates only
+    # `membership`/`assignment` rows it created; `direct` rows are only touched
+    # through the binding API (ADR-0220).
+    origin: Mapped[str] = mapped_column(
+        String(24), nullable=False, default="direct", server_default="direct"
+    )
+    # An organization-scope binding reaches descendant scopes only when the
+    # issuer explicitly delegated coverage='descendants'; evaluation never
+    # infers that reach from the role name.
+    coverage: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="self", server_default="self"
+    )
+    revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class CorporatePermissionGrant(Base):
+    """One tenant-scoped direct action allow for a principal (ADR-0220).
+
+    Grants a single permission without a role: revisioned, audited, and
+    revocable. There is no deny record and no descendant propagation — an
+    organization-scope grant applies to organization-scope checks only.
+    """
+
+    __tablename__ = "corporate_permission_grant"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["organization_id", "service_principal_id"],
+            [
+                "corporate_service_principal.organization_id",
+                "corporate_service_principal.id",
+            ],
+            ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(
+            ["organization_id", "account_id"],
+            ["organization_membership.organization_id", "organization_membership.account_id"],
+            ondelete="CASCADE",
+        ),
+        Index(
+            "uq_corporate_permission_grant_active_user_scope",
+            "organization_id",
+            "account_id",
+            "permission",
+            "scope_kind",
+            "scope_id",
+            unique=True,
+            postgresql_where=text("state = 'active' AND principal_type = 'user'"),
+        ),
+        Index(
+            "uq_corporate_permission_grant_active_service_scope",
+            "organization_id",
+            "service_principal_id",
+            "permission",
+            "scope_kind",
+            "scope_id",
+            unique=True,
+            postgresql_where=text("state = 'active' AND principal_type = 'service_principal'"),
+        ),
+        CheckConstraint(
+            "scope_kind in ('system', 'organization', 'team', 'project', 'technology', "
+            "'catalog_object', 'telemetry')",
+            name="ck_permission_grant_scope_kind",
+        ),
+        CheckConstraint("state in ('active', 'revoked')", name="ck_permission_grant_state"),
+        CheckConstraint(
+            "(principal_type = 'user' AND account_id IS NOT NULL "
+            "AND service_principal_id IS NULL) OR "
+            "(principal_type = 'service_principal' AND account_id IS NULL "
+            "AND service_principal_id IS NOT NULL)",
+            name="ck_permission_grant_principal",
+        ),
+        CheckConstraint("revision >= 1", name="ck_permission_grant_revision"),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    organization_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("organization.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    principal_type: Mapped[str] = mapped_column(String(24), nullable=False, default="user")
+    account_id: Mapped[str | None] = mapped_column(
+        String(64), ForeignKey("account.id", ondelete="CASCADE"), nullable=True, index=True
+    )
+    service_principal_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    permission: Mapped[str] = mapped_column(String(64), nullable=False)
+    scope_kind: Mapped[str] = mapped_column(String(32), nullable=False)
+    scope_id: Mapped[str] = mapped_column(String(64), nullable=False, default="*")
+    issuer_account_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("account.id", ondelete="RESTRICT"), nullable=False
+    )
     state: Mapped[str] = mapped_column(String(16), nullable=False, default="active")
     revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

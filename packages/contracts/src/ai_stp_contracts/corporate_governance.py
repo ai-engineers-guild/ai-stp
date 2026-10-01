@@ -5,7 +5,13 @@ from typing import Annotated, Literal, Self
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from ai_stp_contracts.corporate import AccountId, CorporateAuditEntry, OrganizationId
+from ai_stp_contracts.corporate import (
+    AccountId,
+    CorporateAuditEntry,
+    CorporateBinding,
+    CorporatePermissionGrant,
+    OrganizationId,
+)
 from ai_stp_contracts.corporate_catalog_ownership import CorporateCatalogOwnership
 from ai_stp_contracts.http import IdempotencyKey, open_wire_object, strict_request_object
 from ai_stp_foundation.ids import stable_id_pattern
@@ -129,18 +135,41 @@ class CorporateCatalogGovernanceView(BaseModel):
 
 
 class CorporatePermissionDefinition(BaseModel):
+    """One action the server actually checks, with the scopes it honors."""
+
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     name: str
-    scopes: list[Literal["organization", "team", "project", "technology", "catalog_object"]]
+    resource: str
+    action: str
+    scopes: list[
+        Literal["organization", "team", "project", "technology", "catalog_object", "member"]
+    ]
     group: str
+    create_parent: str | None = None
+    implementation: Literal["enforced"] = "enforced"
+
+
+class CorporatePermissionSource(BaseModel):
+    """One record that actually contributes a permission at this scope."""
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+    kind: Literal["binding", "grant"]
+    source_id: str
+    role: str | None = None
+    origin: str | None = None
+    scope_kind: str
+    scope_id: str
 
 
 class CorporateEffectivePermission(BaseModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     permission: str
-    scope_kind: Literal["organization", "team", "project", "technology", "catalog_object"]
+    scope_kind: Literal["organization", "team", "project", "technology", "catalog_object", "member"]
     scope_id: str
     sources: list[str] = Field(default_factory=list)
+    source_records: list[CorporatePermissionSource] = Field(
+        default_factory=list[CorporatePermissionSource]
+    )
 
 
 class CorporatePermissionMatrix(BaseModel):
@@ -154,3 +183,47 @@ class CorporatePermissionMatrix(BaseModel):
     effective: list[CorporateEffectivePermission] = Field(
         default_factory=list[CorporateEffectivePermission]
     )
+
+
+class CorporateMemberPrivateGrant(BaseModel):
+    """Read-only projection of a private major-line AccessGrant (SPEC-002) for
+    the employee-access view — never a source of corporate permissions."""
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+    schema_version: Literal[1] = 1
+    grant_id: str
+    object_kind: GovernanceObjectKind
+    stable_id: str
+    major: Annotated[int, Field(ge=0)]
+    state: Literal["active", "revoked"]
+    issuer_account_id: AccountId
+
+
+class CorporateMemberAccessQuery(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
+    scope_kind: Literal[
+        "organization", "team", "project", "technology", "catalog_object", "member"
+    ] = "organization"
+    scope_id: Annotated[str | None, Field(min_length=1, max_length=64)] = None
+
+
+class CorporateMemberAccess(BaseModel):
+    """Everything that grants one member access, split by independent source:
+    role bindings, direct scoped allows, private major-line grants, and the
+    evaluator's effective set at the requested scope with per-source records."""
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+    schema_version: Literal[1] = 1
+    organization_id: OrganizationId
+    account_id: AccountId
+    scope_kind: Literal["organization", "team", "project", "technology", "catalog_object", "member"]
+    scope_id: str
+    bindings: list[CorporateBinding] = Field(default_factory=list[CorporateBinding])
+    grants: list[CorporatePermissionGrant] = Field(default_factory=list[CorporatePermissionGrant])
+    private_grants: list[CorporateMemberPrivateGrant] = Field(
+        default_factory=list[CorporateMemberPrivateGrant]
+    )
+    effective: list[CorporateEffectivePermission] = Field(
+        default_factory=list[CorporateEffectivePermission]
+    )
+    authorization_revision: Annotated[int, Field(ge=1)]

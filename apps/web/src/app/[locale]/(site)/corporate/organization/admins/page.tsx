@@ -1,402 +1,218 @@
 import { getTranslations, setRequestLocale } from "next-intl/server";
-
-import { Badge } from "@/components/atoms/badge";
+import { NavigationTabs } from "@/components/molecules/navigation-tabs";
 import { StatePanel } from "@/components/molecules/state-panel";
-import { CorporateAdminPanel } from "@/components/organisms/corporate-admin-panel";
-import { CorporateAccessPanel } from "@/components/organisms/corporate-access-panel";
-import { CorporateMembersPanel } from "@/components/organisms/corporate-members-panel";
+import { CorporateInvitationsPanel } from "@/components/organisms/corporate-invitations-panel";
+import { isOutstandingInvitation } from "@/lib/corporate-invitation-state";
+import { CorporateMembersDirectory } from "@/components/organisms/corporate-members-directory";
+import { apiRequest } from "@/lib/api/http";
+import type { CorporateDelegationView } from "@/lib/api/generated/types.gen";
 import { ApiError } from "@/lib/api/errors";
 import { readCorporateContext, readCorporateWorkspace } from "@/lib/api/corporate";
-import {
-  listCorporateInvitations,
-  readCorporateMembershipPolicy,
-} from "@/lib/api/corporate-invitations";
+import { listCorporateInvitations } from "@/lib/api/corporate-invitations";
 import { canViewCorporateAdministration } from "@/lib/corporate-hub";
 import { requireSession, sessionCookieValue } from "@/lib/auth/require-session";
 import { readCsrfToken } from "@/lib/auth/session";
 import { Link } from "@/lib/i18n/navigation";
-import { Icon } from "@/theme";
+import { Icon, type IconName } from "@/theme";
 
-type PageProps = { params: Promise<{ locale: string }> };
+type PageProps = {
+  params: Promise<{ locale: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
 
-// eslint-disable-next-line max-lines-per-function, complexity
-export default async function CorporateAdministrationPage({ params }: PageProps) {
-  const { locale } = await params;
-  setRequestLocale(locale);
-  await requireSession(locale, `/${locale}/corporate/organization/admins`);
-  const t = await getTranslations("corporate");
-  const tc = await getTranslations("common");
-  const technology = await getTranslations("technology");
+async function loadAdminData() {
+  const session = (await sessionCookieValue()) ?? "";
+  const context = await readCorporateContext(session);
+  if (context && !canViewCorporateAdministration(context.capabilities))
+    return { status: "forbidden" } as const;
+  const workspace = await readCorporateWorkspace(session, false);
+  if (!workspace) return { status: "empty" } as const;
+  const invitations = workspace.context.capabilities.includes("member.invite")
+    ? await listCorporateInvitations(session, workspace.context.organization.organization_id).catch(
+        () => null,
+      )
+    : null;
+  const delegation = workspace.context.capabilities.includes("member.invite")
+    ? await apiRequest<CorporateDelegationView>(
+        `/v1/corporate/organizations/${workspace.context.organization.organization_id}/delegation`,
+        { sessionToken: session },
+      ).catch(() => null)
+    : null;
+  return {
+    status: "ok",
+    workspace,
+    invitations,
+    grantableRoles:
+      delegation?.authorization_revision === workspace.context.organization.authorization_revision
+        ? delegation.grantable_roles.map((role) => role.name)
+        : null,
+  } as const;
+}
 
-  let workspace;
-  let invitations = null;
-  let membershipPolicy = null;
-  let forbidden = false;
-  try {
-    const session = (await sessionCookieValue()) ?? "";
-    const context = await readCorporateContext(session);
-    forbidden = Boolean(context && !canViewCorporateAdministration(context.capabilities));
-    if (!forbidden) {
-      workspace = await readCorporateWorkspace(session, false);
-      const organizationId = workspace?.context.organization.organization_id ?? "";
-      const capabilities = workspace?.context.capabilities ?? [];
-      if (capabilities.includes("member.invite")) {
-        invitations = await listCorporateInvitations(session, organizationId).catch(() => null);
-      }
-      if (capabilities.includes("organization.read")) {
-        membershipPolicy = await readCorporateMembershipPolicy(session, organizationId).catch(
-          () => null,
-        );
-      }
-    }
-  } catch (error) {
-    if (error instanceof ApiError && error.code === "AI_STP_UNAVAILABLE") {
-      return <StatePanel kind="error" title={tc("error")} description={tc("apiUnavailable")} />;
-    }
-    throw error;
-  }
-  if (forbidden)
-    return (
-      <StatePanel kind="error" title={t("administration")} description={technology("forbidden")} />
-    );
-  if (!workspace) {
-    return <StatePanel kind="empty" title={t("emptyTitle")} description={t("emptyBody")} />;
-  }
-
-  const { context, members, roles, bindings, servicePrincipals, jobTitles } = workspace;
-  const canInvite = context.capabilities.includes("member.invite");
-  const canManagePolicy = context.capabilities.includes("organization.manage");
-  const canManageRoles = context.capabilities.includes("role.create");
-  const canManageJobTitles = context.capabilities.some((permission) =>
-    ["job_title.create", "job_title.update"].includes(permission),
-  );
-
+function PeopleStats({
+  items,
+}: {
+  items: readonly { label: string; count: number | null; icon: IconName }[];
+}) {
   return (
-    <div className="min-w-0 space-y-8">
-      <header className="space-y-2">
-        <div className="flex flex-wrap items-center gap-3">
-          <h1 className="text-3xl font-medium tracking-tight sm:text-4xl">{t("administration")}</h1>
-          <Badge variant="secondary">{context.member.role}</Badge>
-        </div>
-        <p className="text-muted-foreground">{t("subtitle")}</p>
-      </header>
-
-      <nav className="flex flex-wrap gap-x-5 gap-y-2" aria-label={t("administration")}>
-        {context.capabilities.includes("category.list") && (
-          <Link
-            href="/corporate/categories"
-            className="inline-flex min-h-11 items-center underline underline-offset-4"
-          >
-            {technology("categories")}
-          </Link>
-        )}
-        {context.capabilities.includes("role.list") && (
-          <Link
-            href="/corporate/organization/admins/access"
-            className="inline-flex min-h-11 items-center underline underline-offset-4"
-          >
-            {t("accessMatrix")}
-          </Link>
-        )}
-        {context.capabilities.includes("job_title.list") && (
-          <Link
-            href="/corporate/organization/admins/job-titles"
-            className="inline-flex min-h-11 items-center underline underline-offset-4"
-          >
-            {t("jobTitles")}
-          </Link>
-        )}
-        {(context.capabilities.includes("technology.list") ||
-          context.capabilities.includes("technology.create") ||
-          context.capabilities.includes("category.create")) && (
-          <Link
-            href="/corporate/technologies"
-            className="inline-flex min-h-11 items-center underline underline-offset-4"
-          >
-            {technology("registry")}
-          </Link>
-        )}
-        {context.capabilities.includes("landscape.read") && (
-          <Link
-            href="/corporate/technology-landscape"
-            className="inline-flex min-h-11 items-center underline underline-offset-4"
-          >
-            {technology("title")}
-          </Link>
-        )}
-        {(context.capabilities.includes("landscape.manage") ||
-          context.capabilities.includes("telemetry.manage")) && (
-          <Link
-            href="/corporate/organization/admins/settings"
-            className="inline-flex min-h-11 items-center underline underline-offset-4"
-          >
-            {technology("organizationSettings")}
-          </Link>
-        )}
-      </nav>
-      {members || invitations || membershipPolicy ? (
-        <CorporateMembersPanel
-          csrfToken={(await readCsrfToken()) ?? ""}
-          organizationId={context.organization.organization_id}
-          authorizationRevision={context.organization.authorization_revision}
-          locale={locale}
-          members={members?.items ?? []}
-          roles={roles?.items ?? []}
-          invitations={invitations?.items ?? []}
-          allowedDomains={membershipPolicy?.allowed_email_domains ?? []}
-          canInvite={canInvite}
-          canManagePolicy={canManagePolicy}
-          labels={{
-            members: t("members"),
-            noMembers: t("noMembers"),
-            inviteTitle: t("inviteTitle"),
-            inviteBody: t("inviteBody"),
-            email: t("email"),
-            displayName: t("displayName"),
-            role: t("organizationRole"),
-            expiresInDays: t("expiresInDays"),
-            create: t("create"),
-            invite: t("invite"),
-            creating: t("creating"),
-            invitations: t("invitations"),
-            noInvitations: t("noInvitations"),
-            expiresAt: t("expiresAt"),
-            revoke: t("revoke"),
-            revoking: t("revoking"),
-            invitationLinks: t("invitationLinks"),
-            copy: tc("copy"),
-            copyAll: tc("copyAll"),
-            copied: tc("copied"),
-            copyFailed: tc("error"),
-            bulkImport: t("bulkImport"),
-            bulkImportBody: t("bulkImportBody"),
-            importFile: t("importFile"),
-            importText: t("importText"),
-            importPlaceholder: t("importPlaceholder"),
-            parse: t("parse"),
-            parsedCount: String(t.raw("parsedCount")),
-            inviteAll: t("inviteAll"),
-            bulkProgress: String(t.raw("bulkProgress")),
-            bulkFailed: t("bulkFailed"),
-            domainPolicy: t("domainPolicy"),
-            domainPolicyBody: t("domainPolicyBody"),
-            domainRestrict: t("domainRestrict"),
-            domains: t("domains"),
-            domainsPlaceholder: t("domainsPlaceholder"),
-            domainsHint: t("domainsHint"),
-            save: t("save"),
-            saving: t("saving"),
-            saved: t("saved"),
-            failed: t("failed"),
-            exportFormat: t("exportFormat"),
-            download: t("download"),
-            mail: t("mail"),
-            mailQueued: t("mailQueued"),
-            mailSent: t("mailSent"),
-            mailFailed: t("mailFailed"),
-          }}
-        />
-      ) : null}
-      <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
-        {context.capabilities.includes("project.list") ? (
-          <CorporateList
-            title={t("projects")}
-            empty={t("noProjects")}
-            items={context.projects.map((item) => ({
-              id: item.project_id,
-              name: item.name,
-              state: item.state,
-              revision: item.revision,
-            }))}
-            kind="projects"
-            openLabel={t("open")}
-          />
-        ) : null}
-        {context.capabilities.includes("team.list") ? (
-          <CorporateList
-            title={t("teams")}
-            empty={t("noTeams")}
-            items={context.teams.map((item) => ({
-              id: item.team_id,
-              name: item.name,
-              state: item.state,
-              revision: item.revision,
-            }))}
-            kind="teams"
-            openLabel={t("open")}
-          />
-        ) : null}
-        {roles ? (
-          <CorporateList
-            title={t("roles")}
-            empty={t("noRoles")}
-            items={roles.items.map((item) => ({
-              id: item.name,
-              name: item.name,
-              state: item.parent_role ?? "base",
-              revision: item.revision,
-            }))}
-            kind="roles"
-            openLabel={t("open")}
-          />
-        ) : null}
-      </div>
-
-      {(canManageRoles || canManageJobTitles) && (
-        <details open className="border-border border-t pt-4">
-          <summary className="cursor-pointer font-medium">{t("administration")}</summary>
-          <div className="mt-4">
-            <CorporateAdminPanel
-              csrfToken={(await readCsrfToken()) ?? ""}
-              organizationId={context.organization.organization_id}
-              authorizationRevision={context.organization.authorization_revision}
-              roles={roles?.items ?? []}
-              permissions={context.capabilities}
-              jobTitles={jobTitles?.items ?? []}
-              labels={{
-                title: t("administration"),
-                description: t("administrationBody"),
-                members: t("members"),
-                projects: t("projects"),
-                teams: t("teams"),
-                roles: t("roles"),
-                displayName: t("displayName"),
-                email: t("email"),
-                name: t("name"),
-                role: t("organizationRole"),
-                parentRole: t("parentRole"),
-                permissions: t("permissions"),
-                create: t("create"),
-                creating: t("creating"),
-                saved: t("saved"),
-                failed: t("failed"),
-                staff: t("staff"),
-                lead: t("lead"),
-                jobTitles: t("jobTitles"),
-                jobTitleName: t("jobTitleName"),
-                jobTitleDescription: t("jobTitleDescription"),
-                jobTitleState: t("jobTitleState"),
-                jobTitleCurrent: t("jobTitleCurrent"),
-                jobTitleRetired: t("jobTitleRetired"),
-                jobTitleSave: t("jobTitleSave"),
-                jobTitleNoItems: t("jobTitleNoItems"),
-              }}
-            />
-          </div>
-        </details>
-      )}
-      {(context.capabilities.includes("member.manage") ||
-        context.capabilities.includes("binding.create") ||
-        context.capabilities.includes("service_principal.manage")) && (
-        <details open className="border-border border-t pt-4">
-          <summary className="cursor-pointer font-medium">{t("accessAdministration")}</summary>
-          <div className="mt-4">
-            <CorporateAccessPanel
-              csrfToken={(await readCsrfToken()) ?? ""}
-              organizationId={context.organization.organization_id}
-              authorizationRevision={context.organization.authorization_revision}
-              members={members?.items ?? []}
-              projects={context.projects}
-              teams={context.teams}
-              roles={roles?.items ?? []}
-              bindings={bindings?.items ?? []}
-              servicePrincipals={servicePrincipals?.items ?? []}
-              permissions={context.capabilities}
-              labels={{
-                title: t("accessAdministration"),
-                assignments: t("assignments"),
-                bindings: t("bindings"),
-                servicePrincipals: t("servicePrincipals"),
-                member: t("member"),
-                team: t("team"),
-                project: t("project"),
-                role: t("role"),
-                state: t("state"),
-                scope: t("scope"),
-                organization: t("organization"),
-                operation: t("operation"),
-                assign: t("assign"),
-                remove: t("remove"),
-                create: t("create"),
-                creating: t("creating"),
-                update: t("update"),
-                saving: t("saving"),
-                delete: t("delete"),
-                deleting: t("deleting"),
-                activate: t("active"),
-                suspend: t("suspended"),
-                staff: t("staff"),
-                lead: t("lead"),
-                superadmin: t("superadmin"),
-                noBindings: t("noBindings"),
-                noServicePrincipals: t("noServicePrincipals"),
-                confirmDelete: t("confirmDelete"),
-                targetRequired: t("targetRequired"),
-                saved: t("saved"),
-                failed: t("failed"),
-              }}
-            />
-          </div>
-        </details>
-      )}
-      {context.capabilities.includes("audit.list") ? (
-        <Link
-          href="/corporate/organization/admins/audit"
-          className="inline-flex min-h-11 items-center underline underline-offset-4"
+    <dl className="grid grid-cols-2 gap-3 xl:grid-cols-4" data-ui="people-stats">
+      {items.map((item) => (
+        <div
+          key={item.label}
+          className="border-border bg-card flex min-w-0 items-center gap-4 rounded-lg border px-5 py-4"
         >
-          {t("auditJournal")}
-        </Link>
-      ) : null}
-    </div>
+          <Icon name={item.icon} size="lg" className="shrink-0" />
+          <div>
+            <dd className="text-2xl leading-tight font-medium tabular-nums">{item.count ?? "—"}</dd>
+            <dt className="text-muted-foreground mt-1 text-sm">{item.label}</dt>
+          </div>
+        </div>
+      ))}
+    </dl>
   );
 }
 
-function CorporateList({
-  title,
-  empty,
-  items,
-  kind,
-  openLabel,
-}: {
-  title: string;
-  empty: string;
-  items: ReadonlyArray<{
-    id: string;
-    name: string;
-    state: string;
-    revision: number;
-  }>;
-  kind: "members" | "projects" | "teams" | "roles";
-  openLabel: string;
-}) {
+export default async function CorporateAdministrationPage({
+  params,
+  searchParams,
+  accessView = false,
+}: PageProps & { accessView?: boolean }) {
+  const { locale } = await params;
+  const filters = await searchParams;
+  const tab = !accessView && filters.tab === "invitations" ? "invitations" : "members";
+  setRequestLocale(locale);
+  await requireSession(locale, `/${locale}/corporate/organization/admins`);
+  const t = await getTranslations("people");
+  const h = await getTranslations("hub");
+  const common = await getTranslations("common");
+  let data: Awaited<ReturnType<typeof loadAdminData>>;
+  try {
+    data = await loadAdminData();
+  } catch (error) {
+    if (error instanceof ApiError && error.code === "AI_STP_UNAVAILABLE")
+      return (
+        <StatePanel kind="error" title={common("error")} description={common("apiUnavailable")} />
+      );
+    throw error;
+  }
+  if (data.status !== "ok")
+    return (
+      <StatePanel
+        kind={data.status === "empty" ? "empty" : "error"}
+        title={h("membersAndInvitations")}
+        description={data.status === "empty" ? t("noOrganization") : t("forbidden")}
+      />
+    );
+  const csrfToken = (await readCsrfToken()) ?? "";
   return (
-    <section className="border-border bg-card rounded-lg border p-5 shadow-sm sm:p-6">
-      <h2 className="text-xl font-medium">{title}</h2>
-      {items.length ? (
-        <ul className="mt-4 space-y-2">
-          {items.map((item) => (
-            <li key={item.id} className="border-border rounded border">
-              <Link
-                href={`/corporate/${kind === "members" ? "employees" : kind}/${encodeURIComponent(item.id)}`}
-                className="focus-visible:ring-ring group flex min-h-14 items-center justify-between gap-3 rounded p-3 outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
-              >
-                <span className="min-w-0 truncate">{item.name}</span>
-                <span className="text-muted-foreground flex shrink-0 items-center gap-2 text-sm">
-                  {item.state}
-                  <span className="sr-only">{openLabel}</span>
-                  <Icon
-                    name="chevronRight"
-                    size="sm"
-                    className="transition-transform group-hover:translate-x-0.5"
-                  />
-                </span>
-              </Link>
-            </li>
-          ))}
-        </ul>
+    <AdministrationContent data={data} accessView={accessView} tab={tab} csrfToken={csrfToken} />
+  );
+}
+async function AdministrationContent({
+  data,
+  accessView,
+  tab,
+  csrfToken,
+}: {
+  data: Extract<Awaited<ReturnType<typeof loadAdminData>>, { status: "ok" }>;
+  accessView: boolean;
+  tab: string;
+  csrfToken: string;
+}) {
+  const t = await getTranslations("people");
+  const h = await getTranslations("hub");
+  const { workspace, invitations } = data;
+
+  const { context, members, roles, jobTitles } = workspace;
+  const now = new Date().toISOString();
+  const title = h(accessView ? "employeeAccess" : "membersAndInvitations");
+  const canViewInvitations = context.capabilities.includes("member.invite");
+  return (
+    <div className="min-w-0 space-y-5" data-ui="members-invitations-page">
+      <header className="space-y-3">
+        <nav
+          aria-label={t("breadcrumbs")}
+          className="text-muted-foreground flex flex-wrap items-center gap-2 text-xs sm:text-sm"
+        >
+          <Link href="/corporate/overview" className="hover:text-foreground">
+            {t("corporate")}
+          </Link>
+          <span aria-hidden>/</span>
+          <span>{t("administration")}</span>
+          <span aria-hidden>/</span>
+          <span>{t("peopleAndAccess")}</span>
+          <span aria-hidden>/</span>
+          <span aria-current="page" className="text-foreground">
+            {title}
+          </span>
+        </nav>
+        <div className="space-y-1">
+          <h1 className="text-3xl leading-tight font-medium tracking-tight">{title}</h1>
+          <p className="text-muted-foreground text-sm sm:text-base">{t("pageBody")}</p>
+        </div>
+      </header>
+      {!accessView ? (
+        <>
+          <PeopleStats
+            items={[
+              { label: t("totalMembers"), count: members?.items.length ?? null, icon: "team" },
+              {
+                label: t("pendingInvitations"),
+                count:
+                  invitations?.items.filter((invitation) =>
+                    isOutstandingInvitation(invitation, Date.parse(now)),
+                  ).length ?? null,
+                icon: "mail",
+              },
+              { label: t("teams"), count: context.teams.length, icon: "team" },
+              { label: t("roles"), count: roles?.items.length ?? null, icon: "access" },
+            ]}
+          />
+          <NavigationTabs
+            variant="underline"
+            ariaLabel={title}
+            items={[
+              {
+                key: "members",
+                href: "/corporate/organization/admins?tab=members",
+                label: t("members"),
+                active: tab === "members",
+              },
+              ...(canViewInvitations
+                ? [
+                    {
+                      key: "invitations",
+                      href: "/corporate/organization/admins?tab=invitations",
+                      label: t("invitations"),
+                      active: tab === "invitations",
+                    },
+                  ]
+                : []),
+            ]}
+          />
+        </>
+      ) : null}
+      {tab === "invitations" && canViewInvitations ? (
+        <CorporateInvitationsPanel
+          csrfToken={csrfToken}
+          context={context}
+          roles={roles?.items ?? []}
+          members={members?.items ?? []}
+          invitations={invitations?.items ?? []}
+          grantableRoles={data.grantableRoles}
+          now={now}
+          unavailable={invitations === null}
+        />
       ) : (
-        <p className="text-muted-foreground mt-4 text-sm">{empty}</p>
+        <CorporateMembersDirectory
+          members={members?.items ?? []}
+          context={context}
+          roles={roles?.items ?? []}
+          jobTitles={jobTitles?.items ?? []}
+          csrfToken={csrfToken}
+          now={now}
+        />
       )}
-    </section>
+    </div>
   );
 }

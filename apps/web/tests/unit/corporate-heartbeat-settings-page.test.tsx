@@ -3,6 +3,7 @@ import { expect, it, vi } from "vitest";
 
 const context = vi.hoisted(() => ({
   capabilities: ["telemetry.read", "telemetry.manage"],
+  member: { role: "superadmin" },
   organization: { organization_id: "organization_test", authorization_revision: 7 },
 }));
 const readPolicy = vi.hoisted(() =>

@@ -252,7 +252,15 @@ def test_every_bun_base_image_is_the_pinned_bun() -> None:
     #: `public/build` is a generated copy of this tree and carries its own
     #: `.bun-version`; checking it from here would read one tree's pin against
     #: another tree's image. It runs this same test on itself.
-    ignored = {".venv", "node_modules", "public", "dist", ".site", ".site-user-docs"}
+    ignored = {
+        ".venv",
+        "node_modules",
+        "public",
+        "dist",
+        ".site",
+        ".site-user-docs",
+        ".work",
+    }
     seen = False
     for path in sorted(ROOT.glob("**/Dockerfile*")):
         if ignored.intersection(path.relative_to(ROOT).parts):

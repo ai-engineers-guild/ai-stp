@@ -6,7 +6,7 @@ import { useFormatter, useTranslations } from "next-intl";
 import { corporateAuditExportAction } from "@/actions/corporate";
 import { Button } from "@/components/atoms/button";
 import { Link } from "@/lib/i18n/navigation";
-import type { CorporateAuditFilterValues } from "@/lib/api/corporate";
+import type { CorporateAuditFilterValues } from "@/lib/api/corporate-audit";
 
 import type { CorporateAuditExport, CorporateAuditList } from "@/lib/api/generated/types.gen";
 

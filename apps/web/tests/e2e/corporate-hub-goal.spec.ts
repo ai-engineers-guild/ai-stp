@@ -42,11 +42,11 @@ async function assertCorporateArtifact(page: Page) {
     "Corporate E2E requires the corporate_hub artifact; the old SaaS build redirects this path",
   ).toHaveURL(/\/en\/corporate\//);
   await expect(
-    page.locator('#site-header [data-ui="nav-overview"]'),
+    page.locator('[data-ui="corporate-nav-overview"]'),
     "Corporate E2E requires the Corporate Hub navigation",
   ).toHaveCount(1);
   await expect(
-    page.locator('#site-header [data-ui="nav-services"]'),
+    page.locator('[data-ui="context-sidebar"] [data-ui="nav-services"]'),
     "Corporate E2E must not run against the SaaS navigation",
   ).toHaveCount(0);
 }

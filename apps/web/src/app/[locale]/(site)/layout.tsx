@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 
 import { AppShell } from "@/components/layouts/app-shell";
 import { requireSession } from "@/lib/auth/require-session";
+import { readCorporateNavigationSnapshot } from "@/lib/corporate-navigation-server";
 import { COMPILED_FEATURE_PROFILE } from "@/lib/features/compiled";
 
 /**
@@ -36,13 +37,28 @@ type SiteLayoutProps = {
  */
 export default async function SiteLayout({ children, params }: SiteLayoutProps) {
   const { locale } = await params;
+  let corporateSessionVerified = false;
+  let corporateNavigationPages: readonly string[] | null = null;
   if (COMPILED_FEATURE_PROFILE === "corporate_hub") {
     const pathname = (await headers()).get("x-ai-stp-request-pathname") ?? "";
     const segments = pathname.split("/").filter(Boolean);
     const page = segments[1] === "corporate" ? segments[2] : segments[1];
     if (!CORPORATE_PUBLIC_PAGES.has(page ?? "")) {
       await requireSession(locale, pathname || `/${locale}/corporate`);
+      corporateSessionVerified = true;
+      const navigation = await readCorporateNavigationSnapshot();
+      corporateNavigationPages = navigation.status === 503 ? null : navigation.pages;
+    } else {
+      corporateNavigationPages = null;
     }
   }
-  return <AppShell locale={locale}>{children}</AppShell>;
+  return (
+    <AppShell
+      locale={locale}
+      corporateSessionVerified={corporateSessionVerified}
+      corporateNavigationPages={corporateNavigationPages}
+    >
+      {children}
+    </AppShell>
+  );
 }

@@ -279,6 +279,8 @@ services:
       <<: *web-env
       # Keep compile cache off the Windows bind mount (major I/O win under Docker Desktop).
       NEXT_TELEMETRY_DISABLED: "1"
+      # Docker Desktop bind mounts may omit file-change events from Windows.
+      WATCHPACK_POLLING: "true"
       AI_STP_USER_FACING_ROOT: /docs-user-facing
     # The cache lives in a persistent Linux volume for Docker Desktop I/O speed.
     # Clear it before boot so a long-lived HMR graph cannot survive a restart.

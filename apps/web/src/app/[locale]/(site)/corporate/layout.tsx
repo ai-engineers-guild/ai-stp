@@ -2,13 +2,8 @@ import type { ReactNode } from "react";
 import { cookies } from "next/headers";
 import { getTranslations } from "next-intl/server";
 
-import { CorporateHubNavigation } from "@/components/layouts/corporate-hub-navigation";
 import { CorporateOrganizationSwitcher } from "@/components/molecules/corporate-organization-switcher";
-import {
-  readCorporateContext,
-  readCorporateOrganizations,
-  resolveCorporateOrganization,
-} from "@/lib/api/corporate";
+import { readCorporateOrganizations, resolveCorporateOrganization } from "@/lib/api/corporate";
 import { sessionCookieValue } from "@/lib/auth/require-session";
 import { CORPORATE_ORG_COOKIE } from "@/lib/auth/cookies";
 import { ApiError } from "@/lib/api/errors";
@@ -17,11 +12,9 @@ import type { OrganizationSummary } from "@/lib/api/generated/types.gen";
 
 export default async function CorporateHubLayout({ children }: { children: ReactNode }) {
   const session = await sessionCookieValue();
-  let capabilities: string[] = [];
   let organizations: OrganizationSummary[] = [];
   try {
     // The page owns its error state; unavailable navigation must not expose forbidden links.
-    capabilities = session ? ((await readCorporateContext(session))?.capabilities ?? []) : [];
     organizations = session ? await readCorporateOrganizations(session) : [];
   } catch (error) {
     if (!(error instanceof ApiError)) throw error;
@@ -48,7 +41,6 @@ export default async function CorporateHubLayout({ children }: { children: React
           </div>
         </div>
       ) : null}
-      <CorporateHubNavigation capabilities={capabilities} bleed={organizations.length <= 1} />
       {children}
     </>
   );

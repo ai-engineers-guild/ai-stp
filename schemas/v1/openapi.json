@@ -4673,6 +4673,26 @@
             "title": "Binding Id",
             "type": "string"
           },
+          "coverage": {
+            "default": "self",
+            "enum": [
+              "self",
+              "descendants"
+            ],
+            "title": "Coverage",
+            "type": "string"
+          },
+          "origin": {
+            "default": "direct",
+            "enum": [
+              "membership",
+              "assignment",
+              "direct",
+              "service_principal"
+            ],
+            "title": "Origin",
+            "type": "string"
+          },
           "principal_type": {
             "default": "user",
             "enum": [
@@ -4742,6 +4762,8 @@
         "required": [
           "account_id",
           "binding_id",
+          "coverage",
+          "origin",
           "principal_type",
           "revision",
           "role",
@@ -4791,6 +4813,15 @@
             "minimum": 1,
             "title": "Authorization Revision",
             "type": "integer"
+          },
+          "coverage": {
+            "default": "self",
+            "enum": [
+              "self",
+              "descendants"
+            ],
+            "title": "Coverage",
+            "type": "string"
           },
           "idempotency_key": {
             "$ref": "#/components/schemas/IdempotencyKey"
@@ -4847,6 +4878,15 @@
             "minimum": 1,
             "title": "Authorization Revision",
             "type": "integer"
+          },
+          "coverage": {
+            "default": "self",
+            "enum": [
+              "self",
+              "descendants"
+            ],
+            "title": "Coverage",
+            "type": "string"
           },
           "expected_revision": {
             "minimum": 1,
@@ -6535,6 +6575,49 @@
         "title": "CorporateContext",
         "type": "object"
       },
+      "CorporateDelegationView": {
+        "additionalProperties": true,
+        "description": "What the current principal may delegate, computed server-side.",
+        "properties": {
+          "authorization_revision": {
+            "minimum": 1,
+            "title": "Authorization Revision",
+            "type": "integer"
+          },
+          "descendants_coverage": {
+            "title": "Descendants Coverage",
+            "type": "boolean"
+          },
+          "grantable_roles": {
+            "items": {
+              "$ref": "#/components/schemas/CorporateGrantableRole"
+            },
+            "maxItems": 256,
+            "title": "Grantable Roles",
+            "type": "array"
+          },
+          "organization_id": {
+            "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "title": "Organization Id",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "authorization_revision",
+          "descendants_coverage",
+          "grantable_roles",
+          "organization_id",
+          "schema_version"
+        ],
+        "title": "CorporateDelegationView",
+        "type": "object"
+      },
       "CorporateDeleteRequest": {
         "additionalProperties": false,
         "properties": {
@@ -7891,10 +7974,18 @@
               "team",
               "project",
               "technology",
-              "catalog_object"
+              "catalog_object",
+              "member"
             ],
             "title": "Scope Kind",
             "type": "string"
+          },
+          "source_records": {
+            "items": {
+              "$ref": "#/components/schemas/CorporatePermissionSource"
+            },
+            "title": "Source Records",
+            "type": "array"
           },
           "sources": {
             "items": {
@@ -7908,9 +7999,38 @@
           "permission",
           "scope_id",
           "scope_kind",
+          "source_records",
           "sources"
         ],
         "title": "CorporateEffectivePermission",
+        "type": "object"
+      },
+      "CorporateGrantableRole": {
+        "additionalProperties": true,
+        "description": "A role whose closed permission set the caller may delegate.",
+        "properties": {
+          "name": {
+            "description": "Tenant-local role name.",
+            "maxLength": 64,
+            "minLength": 1,
+            "pattern": "^[a-z][a-z0-9_-]*$",
+            "title": "Name",
+            "type": "string"
+          },
+          "permissions": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 128,
+            "title": "Permissions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "name",
+          "permissions"
+        ],
+        "title": "CorporateGrantableRole",
         "type": "object"
       },
       "CorporateInvitation": {
@@ -7927,7 +8047,6 @@
                 "type": "null"
               }
             ],
-            "default": null,
             "title": "Accepted Account Id"
           },
           "claimant_account_id": {
@@ -7940,7 +8059,6 @@
                 "type": "null"
               }
             ],
-            "default": null,
             "title": "Claimant Account Id"
           },
           "created_at": {
@@ -7955,7 +8073,6 @@
                 "type": "null"
               }
             ],
-            "default": null,
             "title": "Delivery Error"
           },
           "delivery_state": {
@@ -7966,8 +8083,7 @@
               {
                 "type": "null"
               }
-            ],
-            "default": null
+            ]
           },
           "display_name": {
             "title": "Display Name",
@@ -7982,6 +8098,18 @@
             "title": "Invitation Id",
             "type": "string"
           },
+          "issuer_account_id": {
+            "anyOf": [
+              {
+                "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Issuer Account Id"
+          },
           "job_title_id": {
             "anyOf": [
               {
@@ -7992,7 +8120,6 @@
                 "type": "null"
               }
             ],
-            "default": null,
             "title": "Job Title Id"
           },
           "organization_id": {
@@ -8001,7 +8128,6 @@
             "type": "string"
           },
           "project_ids": {
-            "default": [],
             "items": {
               "pattern": "^remote_project_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
               "type": "string"
@@ -8032,7 +8158,6 @@
             "$ref": "#/components/schemas/CorporateInvitationState"
           },
           "team_ids": {
-            "default": [],
             "items": {
               "type": "string"
             },
@@ -8049,7 +8174,6 @@
                 "type": "null"
               }
             ],
-            "default": null,
             "title": "Token"
           }
         },
@@ -8062,6 +8186,7 @@
           "display_name",
           "expires_at",
           "invitation_id",
+          "issuer_account_id",
           "job_title_id",
           "organization_id",
           "project_ids",
@@ -8453,13 +8578,23 @@
             "type": "string"
           },
           "available_actions": {
-            "default": [],
             "items": {
               "type": "string"
             },
             "maxItems": 128,
             "title": "Available Actions",
             "type": "array"
+          },
+          "contact_email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contact Email"
           },
           "display_name": {
             "anyOf": [
@@ -8482,7 +8617,6 @@
                 "type": "null"
               }
             ],
-            "default": null,
             "title": "Job Title Id"
           },
           "job_title_name": {
@@ -8494,8 +8628,27 @@
                 "type": "null"
               }
             ],
-            "default": null,
             "title": "Job Title Name"
+          },
+          "joined_at": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Timestamp"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "last_activity_at": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Timestamp"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "revision": {
             "minimum": 1,
@@ -8528,15 +8681,137 @@
         "required": [
           "account_id",
           "available_actions",
+          "contact_email",
           "display_name",
           "job_title_id",
           "job_title_name",
+          "joined_at",
+          "last_activity_at",
           "revision",
           "role",
           "schema_version",
           "state"
         ],
         "title": "CorporateMember",
+        "type": "object"
+      },
+      "CorporateMemberAccess": {
+        "additionalProperties": true,
+        "description": "Everything that grants one member access, split by independent source:\nrole bindings, direct scoped allows, private major-line grants, and the\nevaluator's effective set at the requested scope with per-source records.",
+        "properties": {
+          "account_id": {
+            "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "title": "Account Id",
+            "type": "string"
+          },
+          "authorization_revision": {
+            "minimum": 1,
+            "title": "Authorization Revision",
+            "type": "integer"
+          },
+          "bindings": {
+            "items": {
+              "$ref": "#/components/schemas/CorporateBinding"
+            },
+            "title": "Bindings",
+            "type": "array"
+          },
+          "effective": {
+            "items": {
+              "$ref": "#/components/schemas/CorporateEffectivePermission"
+            },
+            "title": "Effective",
+            "type": "array"
+          },
+          "grants": {
+            "items": {
+              "$ref": "#/components/schemas/CorporatePermissionGrant"
+            },
+            "title": "Grants",
+            "type": "array"
+          },
+          "organization_id": {
+            "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "title": "Organization Id",
+            "type": "string"
+          },
+          "private_grants": {
+            "items": {
+              "$ref": "#/components/schemas/CorporateMemberPrivateGrant"
+            },
+            "title": "Private Grants",
+            "type": "array"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "scope_id": {
+            "title": "Scope Id",
+            "type": "string"
+          },
+          "scope_kind": {
+            "enum": [
+              "organization",
+              "team",
+              "project",
+              "technology",
+              "catalog_object",
+              "member"
+            ],
+            "title": "Scope Kind",
+            "type": "string"
+          }
+        },
+        "required": [
+          "account_id",
+          "authorization_revision",
+          "bindings",
+          "effective",
+          "grants",
+          "organization_id",
+          "private_grants",
+          "schema_version",
+          "scope_id",
+          "scope_kind"
+        ],
+        "title": "CorporateMemberAccess",
+        "type": "object"
+      },
+      "CorporateMemberAccessQuery": {
+        "additionalProperties": false,
+        "properties": {
+          "scope_id": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Scope Id"
+          },
+          "scope_kind": {
+            "default": "organization",
+            "enum": [
+              "organization",
+              "team",
+              "project",
+              "technology",
+              "catalog_object",
+              "member"
+            ],
+            "title": "Scope Kind",
+            "type": "string"
+          }
+        },
+        "title": "CorporateMemberAccessQuery",
         "type": "object"
       },
       "CorporateMemberCatalogAssignment": {
@@ -8697,6 +8972,63 @@
           "schema_version"
         ],
         "title": "CorporateMemberList",
+        "type": "object"
+      },
+      "CorporateMemberPrivateGrant": {
+        "additionalProperties": true,
+        "description": "Read-only projection of a private major-line AccessGrant (SPEC-002) for\nthe employee-access view — never a source of corporate permissions.",
+        "properties": {
+          "grant_id": {
+            "title": "Grant Id",
+            "type": "string"
+          },
+          "issuer_account_id": {
+            "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "title": "Issuer Account Id",
+            "type": "string"
+          },
+          "major": {
+            "minimum": 0,
+            "title": "Major",
+            "type": "integer"
+          },
+          "object_kind": {
+            "enum": [
+              "setup",
+              "component"
+            ],
+            "title": "Object Kind",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "stable_id": {
+            "title": "Stable Id",
+            "type": "string"
+          },
+          "state": {
+            "enum": [
+              "active",
+              "revoked"
+            ],
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "grant_id",
+          "issuer_account_id",
+          "major",
+          "object_kind",
+          "schema_version",
+          "stable_id",
+          "state"
+        ],
+        "title": "CorporateMemberPrivateGrant",
         "type": "object"
       },
       "CorporateMemberProfileRequest": {
@@ -9198,13 +9530,40 @@
       },
       "CorporatePermissionDefinition": {
         "additionalProperties": true,
+        "description": "One action the server actually checks, with the scopes it honors.",
         "properties": {
+          "action": {
+            "title": "Action",
+            "type": "string"
+          },
+          "create_parent": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Create Parent"
+          },
           "group": {
             "title": "Group",
             "type": "string"
           },
+          "implementation": {
+            "const": "enforced",
+            "default": "enforced",
+            "title": "Implementation",
+            "type": "string"
+          },
           "name": {
             "title": "Name",
+            "type": "string"
+          },
+          "resource": {
+            "title": "Resource",
             "type": "string"
           },
           "scopes": {
@@ -9214,7 +9573,8 @@
                 "team",
                 "project",
                 "technology",
-                "catalog_object"
+                "catalog_object",
+                "member"
               ],
               "type": "string"
             },
@@ -9223,11 +9583,236 @@
           }
         },
         "required": [
+          "action",
+          "create_parent",
           "group",
+          "implementation",
           "name",
+          "resource",
           "scopes"
         ],
         "title": "CorporatePermissionDefinition",
+        "type": "object"
+      },
+      "CorporatePermissionGrant": {
+        "additionalProperties": true,
+        "properties": {
+          "account_id": {
+            "anyOf": [
+              {
+                "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Account Id"
+          },
+          "grant_id": {
+            "title": "Grant Id",
+            "type": "string"
+          },
+          "issuer_account_id": {
+            "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "title": "Issuer Account Id",
+            "type": "string"
+          },
+          "permission": {
+            "title": "Permission",
+            "type": "string"
+          },
+          "principal_type": {
+            "enum": [
+              "user",
+              "service_principal"
+            ],
+            "title": "Principal Type",
+            "type": "string"
+          },
+          "revision": {
+            "minimum": 1,
+            "title": "Revision",
+            "type": "integer"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "scope_id": {
+            "title": "Scope Id",
+            "type": "string"
+          },
+          "scope_kind": {
+            "enum": [
+              "organization",
+              "team",
+              "project",
+              "technology"
+            ],
+            "title": "Scope Kind",
+            "type": "string"
+          },
+          "service_principal_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Service Principal Id"
+          },
+          "state": {
+            "enum": [
+              "active",
+              "revoked"
+            ],
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "account_id",
+          "grant_id",
+          "issuer_account_id",
+          "permission",
+          "principal_type",
+          "revision",
+          "schema_version",
+          "scope_id",
+          "scope_kind",
+          "service_principal_id",
+          "state"
+        ],
+        "title": "CorporatePermissionGrant",
+        "type": "object"
+      },
+      "CorporatePermissionGrantList": {
+        "additionalProperties": true,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/CorporatePermissionGrant"
+            },
+            "maxItems": 256,
+            "title": "Items",
+            "type": "array"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "schema_version"
+        ],
+        "title": "CorporatePermissionGrantList",
+        "type": "object"
+      },
+      "CorporatePermissionGrantQuery": {
+        "additionalProperties": false,
+        "properties": {
+          "account_id": {
+            "anyOf": [
+              {
+                "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Account Id"
+          }
+        },
+        "title": "CorporatePermissionGrantQuery",
+        "type": "object"
+      },
+      "CorporatePermissionGrantRequest": {
+        "additionalProperties": false,
+        "description": "One direct action allow — no role — checked against the issuer's delegation bound.",
+        "properties": {
+          "account_id": {
+            "anyOf": [
+              {
+                "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Account Id"
+          },
+          "authorization_revision": {
+            "minimum": 1,
+            "title": "Authorization Revision",
+            "type": "integer"
+          },
+          "idempotency_key": {
+            "$ref": "#/components/schemas/IdempotencyKey"
+          },
+          "permission": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Permission",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "scope_id": {
+            "default": "*",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Scope Id",
+            "type": "string"
+          },
+          "scope_kind": {
+            "enum": [
+              "organization",
+              "team",
+              "project",
+              "technology"
+            ],
+            "title": "Scope Kind",
+            "type": "string"
+          },
+          "service_principal_id": {
+            "anyOf": [
+              {
+                "pattern": "^service_principal_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Service Principal Id"
+          }
+        },
+        "required": [
+          "permission",
+          "scope_kind",
+          "authorization_revision",
+          "idempotency_key"
+        ],
+        "title": "CorporatePermissionGrantRequest",
         "type": "object"
       },
       "CorporatePermissionMatrix": {
@@ -9272,6 +9857,66 @@
           "schema_version"
         ],
         "title": "CorporatePermissionMatrix",
+        "type": "object"
+      },
+      "CorporatePermissionSource": {
+        "additionalProperties": true,
+        "description": "One record that actually contributes a permission at this scope.",
+        "properties": {
+          "kind": {
+            "enum": [
+              "binding",
+              "grant"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "origin": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Origin"
+          },
+          "role": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Role"
+          },
+          "scope_id": {
+            "title": "Scope Id",
+            "type": "string"
+          },
+          "scope_kind": {
+            "title": "Scope Kind",
+            "type": "string"
+          },
+          "source_id": {
+            "title": "Source Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "origin",
+          "role",
+          "scope_id",
+          "scope_kind",
+          "source_id"
+        ],
+        "title": "CorporatePermissionSource",
         "type": "object"
       },
       "CorporatePlanMaterializedItem": {
@@ -41956,9 +42601,12 @@
                     "value": {
                       "account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "available_actions": [],
+                      "contact_email": null,
                       "display_name": "Invited User",
                       "job_title_id": null,
                       "job_title_name": null,
+                      "joined_at": null,
+                      "last_activity_at": null,
                       "revision": 1,
                       "role": "staff",
                       "schema_version": 1,
@@ -42214,9 +42862,12 @@
                     "value": {
                       "account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "available_actions": [],
+                      "contact_email": null,
                       "display_name": "Invited User",
                       "job_title_id": null,
                       "job_title_name": null,
+                      "joined_at": null,
+                      "last_activity_at": null,
                       "revision": 1,
                       "role": "staff",
                       "schema_version": 1,
@@ -43253,6 +43904,8 @@
                     "value": {
                       "account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "binding_id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "coverage": "self",
+                      "origin": "direct",
                       "principal_type": "user",
                       "revision": 1,
                       "role": "staff",
@@ -43693,6 +44346,8 @@
                     "value": {
                       "account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "binding_id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "coverage": "self",
+                      "origin": "direct",
                       "principal_type": "user",
                       "revision": 1,
                       "role": "staff",
@@ -43929,6 +44584,8 @@
                     "value": {
                       "account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "binding_id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "coverage": "self",
+                      "origin": "direct",
                       "principal_type": "user",
                       "revision": 2,
                       "role": "staff",
@@ -47292,9 +47949,12 @@
                       "member": {
                         "account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                         "available_actions": [],
+                        "contact_email": null,
                         "display_name": "admin",
                         "job_title_id": null,
                         "job_title_name": null,
+                        "joined_at": null,
+                        "last_activity_at": null,
                         "revision": 1,
                         "role": "superadmin",
                         "schema_version": 1,
@@ -48594,6 +49254,193 @@
           }
         ],
         "summary": "Update a saved dashboard query without changing its scope."
+      }
+    },
+    "/v1/corporate/organizations/{organization_id}/delegation": {
+      "get": {
+        "operationId": "readCorporateDelegation",
+        "parameters": [
+          {
+            "description": "Explicit remote organization selected for this request.",
+            "in": "path",
+            "name": "organization_id",
+            "required": true,
+            "schema": {
+              "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "readCorporateDelegation.corporate": {
+                    "summary": "The server returns the caller's delegable roles and coverage.",
+                    "value": {
+                      "authorization_revision": 1,
+                      "descendants_coverage": false,
+                      "grantable_roles": [
+                        {
+                          "name": "staff",
+                          "permissions": [
+                            "project.read"
+                          ]
+                        }
+                      ],
+                      "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "schema_version": 1
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/CorporateDelegationView"
+                }
+              }
+            },
+            "description": "Read what the caller may delegate, computed server-side.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Read what the caller may delegate, computed server-side."
       }
     },
     "/v1/corporate/organizations/{organization_id}/directory": {
@@ -51115,6 +51962,7 @@
                           "display_name": "Invited User",
                           "expires_at": "2026-10-01T00:00:00.000Z",
                           "invitation_id": "invite_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                          "issuer_account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                           "job_title_id": null,
                           "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                           "project_ids": [],
@@ -51340,6 +52188,7 @@
                       "display_name": "Invited User",
                       "expires_at": "2026-10-01T00:00:00.000Z",
                       "invitation_id": "invite_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "issuer_account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "job_title_id": null,
                       "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "project_ids": [],
@@ -51578,6 +52427,7 @@
                       "display_name": "Invited User",
                       "expires_at": "2026-10-01T00:00:00.000Z",
                       "invitation_id": "invite_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "issuer_account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "job_title_id": null,
                       "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "project_ids": [],
@@ -52653,9 +53503,12 @@
                     "value": {
                       "account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "available_actions": [],
+                      "contact_email": null,
                       "display_name": "staff",
                       "job_title_id": null,
                       "job_title_name": null,
+                      "joined_at": null,
+                      "last_activity_at": null,
                       "revision": 1,
                       "role": "staff",
                       "schema_version": 1,
@@ -53092,9 +53945,12 @@
                     "value": {
                       "account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "available_actions": [],
+                      "contact_email": null,
                       "display_name": "staff",
                       "job_title_id": null,
                       "job_title_name": null,
+                      "joined_at": null,
+                      "last_activity_at": null,
                       "revision": 1,
                       "role": "staff",
                       "schema_version": 1,
@@ -53325,9 +54181,12 @@
                     "value": {
                       "account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "available_actions": [],
+                      "contact_email": null,
                       "display_name": "staff",
                       "job_title_id": null,
                       "job_title_name": null,
+                      "joined_at": null,
+                      "last_activity_at": null,
                       "revision": 2,
                       "role": "staff",
                       "schema_version": 1,
@@ -53488,6 +54347,253 @@
         "summary": "Update a member role or state."
       }
     },
+    "/v1/corporate/organizations/{organization_id}/members/{account_id}/access": {
+      "get": {
+        "operationId": "readCorporateMemberAccess",
+        "parameters": [
+          {
+            "description": "Explicit remote organization selected for this request.",
+            "in": "path",
+            "name": "organization_id",
+            "required": true,
+            "schema": {
+              "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Typed account identifier.",
+            "in": "path",
+            "name": "account_id",
+            "required": true,
+            "schema": {
+              "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "scope_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Scope Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "scope_kind",
+            "required": false,
+            "schema": {
+              "default": "organization",
+              "enum": [
+                "organization",
+                "team",
+                "project",
+                "technology",
+                "catalog_object",
+                "member"
+              ],
+              "title": "Scope Kind",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "readCorporateMemberAccess.corporate": {
+                    "summary": "A member's access lists each independent granting source.",
+                    "value": {
+                      "account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "authorization_revision": 1,
+                      "bindings": [
+                        {
+                          "account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                          "binding_id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                          "coverage": "self",
+                          "origin": "membership",
+                          "principal_type": "user",
+                          "revision": 1,
+                          "role": "staff",
+                          "schema_version": 1,
+                          "scope_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                          "scope_kind": "organization",
+                          "service_principal_id": null,
+                          "state": "active"
+                        }
+                      ],
+                      "effective": [],
+                      "grants": [],
+                      "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "private_grants": [],
+                      "schema_version": 1,
+                      "scope_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "scope_kind": "organization"
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/CorporateMemberAccess"
+                }
+              }
+            },
+            "description": "Explain one member's access with the exact contributing rows.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Explain one member's access with the exact contributing rows."
+      }
+    },
     "/v1/corporate/organizations/{organization_id}/members/{account_id}/profile": {
       "patch": {
         "operationId": "updateCorporateMemberProfile",
@@ -53564,9 +54670,12 @@
                     "value": {
                       "account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "available_actions": [],
+                      "contact_email": null,
                       "display_name": "Mobile lead",
                       "job_title_id": null,
                       "job_title_name": null,
+                      "joined_at": null,
+                      "last_activity_at": null,
                       "revision": 2,
                       "role": "staff",
                       "schema_version": 1,
@@ -55200,6 +56309,674 @@
           }
         ],
         "summary": "Read the authorized project/team/employee graph and catalog assignments."
+      }
+    },
+    "/v1/corporate/organizations/{organization_id}/permission-grants": {
+      "get": {
+        "operationId": "listCorporatePermissionGrants",
+        "parameters": [
+          {
+            "description": "Explicit remote organization selected for this request.",
+            "in": "path",
+            "name": "organization_id",
+            "required": true,
+            "schema": {
+              "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "account_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Account Id"
+            }
+          },
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "listCorporatePermissionGrants.corporate": {
+                    "summary": "The grant list is returned exactly.",
+                    "value": {
+                      "items": [],
+                      "schema_version": 1
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/CorporatePermissionGrantList"
+                }
+              }
+            },
+            "description": "List direct scoped permission grants.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "List direct scoped permission grants."
+      },
+      "post": {
+        "operationId": "createCorporatePermissionGrant",
+        "parameters": [
+          {
+            "description": "Explicit remote organization selected for this request.",
+            "in": "path",
+            "name": "organization_id",
+            "required": true,
+            "schema": {
+              "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Client-chosen key; a retry must not become a second effect.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "examples": {
+                "createCorporatePermissionGrant.corporate": {
+                  "summary": "A direct scoped allow is returned exactly.",
+                  "value": {
+                    "account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                    "authorization_revision": 1,
+                    "idempotency_key": "corporate-grant-0001",
+                    "permission": "project.read",
+                    "schema_version": 1,
+                    "scope_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                    "scope_kind": "project"
+                  }
+                }
+              },
+              "schema": {
+                "$ref": "#/components/schemas/CorporatePermissionGrantRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "createCorporatePermissionGrant.corporate": {
+                    "summary": "A direct scoped allow is returned exactly.",
+                    "value": {
+                      "account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "grant_id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "issuer_account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "permission": "project.read",
+                      "principal_type": "user",
+                      "revision": 1,
+                      "schema_version": 1,
+                      "scope_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "scope_kind": "project",
+                      "service_principal_id": null,
+                      "state": "active"
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/CorporatePermissionGrant"
+                }
+              }
+            },
+            "description": "Grant one scoped permission directly, within delegated authority.",
+            "headers": {
+              "X-Operation-Id": {
+                "description": "Durable operation id of this mutation.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Grant one scoped permission directly, within delegated authority."
+      }
+    },
+    "/v1/corporate/organizations/{organization_id}/permission-grants/{grant_id}": {
+      "delete": {
+        "operationId": "revokeCorporatePermissionGrant",
+        "parameters": [
+          {
+            "description": "Explicit remote organization selected for this request.",
+            "in": "path",
+            "name": "organization_id",
+            "required": true,
+            "schema": {
+              "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Typed corporate permission grant identifier.",
+            "in": "path",
+            "name": "grant_id",
+            "required": true,
+            "schema": {
+              "pattern": "^operation_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Client-chosen key; a retry must not become a second effect.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Expected ETag. A stale value fails AI_STP_PRECONDITION_FAILED.",
+            "in": "header",
+            "name": "If-Match",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "examples": {
+                "revokeCorporatePermissionGrant.corporate": {
+                  "summary": "Revocation returns the grant in its revoked state.",
+                  "value": {
+                    "authorization_revision": 1,
+                    "expected_revision": 1,
+                    "idempotency_key": "revoke-grant-0001",
+                    "schema_version": 1
+                  }
+                }
+              },
+              "schema": {
+                "$ref": "#/components/schemas/CorporateDeleteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "revokeCorporatePermissionGrant.corporate": {
+                    "summary": "Revocation returns the grant in its revoked state.",
+                    "value": {
+                      "account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "grant_id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "issuer_account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "permission": "project.read",
+                      "principal_type": "user",
+                      "revision": 2,
+                      "schema_version": 1,
+                      "scope_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "scope_kind": "project",
+                      "service_principal_id": null,
+                      "state": "revoked"
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/CorporatePermissionGrant"
+                }
+              }
+            },
+            "description": "Revoke a direct scoped permission grant.",
+            "headers": {
+              "ETag": {
+                "description": "Current version, for a later If-Match.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Operation-Id": {
+                "description": "Durable operation id of this mutation.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Revoke a direct scoped permission grant."
       }
     },
     "/v1/corporate/organizations/{organization_id}/permissions/matrix": {
@@ -60574,6 +62351,8 @@
                       "binding": {
                         "account_id": null,
                         "binding_id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                        "coverage": "self",
+                        "origin": "service_principal",
                         "principal_type": "service_principal",
                         "revision": 1,
                         "role": "staff",
@@ -61022,6 +62801,8 @@
                       "binding": {
                         "account_id": null,
                         "binding_id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                        "coverage": "self",
+                        "origin": "service_principal",
                         "principal_type": "service_principal",
                         "revision": 1,
                         "role": "staff",
@@ -61263,6 +63044,8 @@
                       "binding": {
                         "account_id": null,
                         "binding_id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                        "coverage": "self",
+                        "origin": "service_principal",
                         "principal_type": "service_principal",
                         "revision": 2,
                         "role": "staff",
