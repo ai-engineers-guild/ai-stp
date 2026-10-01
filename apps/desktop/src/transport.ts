@@ -88,6 +88,25 @@ export function cmdCatalogShow(kind: string, stableId: string): Promise<CmdResul
   return invoke<CmdResult>("catalog_show", { kind, stableId });
 }
 
+// -- install: plan → digest confirm → apply, all through descriptor-built argv
+
+export function cliPlan(
+  path: string,
+  values: Record<string, string>,
+  flags: string[] = [],
+): Promise<CmdResult> {
+  return invoke<CmdResult>("cli_plan", { path, values, flags });
+}
+
+export function cliApplyConfirmed(
+  path: string,
+  values: Record<string, string>,
+  flags: string[] = [],
+  confirmed = false,
+): Promise<CmdResult> {
+  return invoke<CmdResult>("cli_apply_confirmed", { path, values, flags, confirmed });
+}
+
 // -- tasks (durable journeys)
 
 export function cmdTaskIntents(): Promise<CmdResult> {

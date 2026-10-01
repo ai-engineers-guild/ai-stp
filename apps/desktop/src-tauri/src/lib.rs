@@ -227,6 +227,75 @@ async fn cli_run_read(
     .map_err(|e| e.to_string())
 }
 
+/// Plan-tier passthrough: descriptor-driven argv for commands whose
+/// mutability is `plan` (e.g. `install plan`). Plans are durable, digest-
+/// bound proposals — nothing is written to a target yet.
+#[tauri::command]
+async fn cli_plan(
+    state: tauri::State<'_, Arc<AppState>>,
+    path: String,
+    values: BTreeMap<String, String>,
+    flags: Vec<String>,
+) -> Result<CmdResult, String> {
+    gated_run(state.inner().clone(), path, values, flags, "plan").await
+}
+
+/// Apply-tier passthrough: requires the explicit `confirmed` flag — the
+/// frontend sets it only after the user approved the exact plan digest on
+/// screen. Descriptor `parameter_rules` and `confirmation` still apply.
+#[tauri::command]
+async fn cli_apply_confirmed(
+    state: tauri::State<'_, Arc<AppState>>,
+    path: String,
+    values: BTreeMap<String, String>,
+    flags: Vec<String>,
+    confirmed: bool,
+) -> Result<CmdResult, String> {
+    if !confirmed {
+        return Ok(CmdResult::failed(
+            "AI_STP_VALIDATION_ERROR",
+            "apply requires an explicit confirmation from the UI",
+        ));
+    }
+    gated_run(state.inner().clone(), path, values, flags, "apply").await
+}
+
+async fn gated_run(
+    st: Arc<AppState>,
+    path: String,
+    values: BTreeMap<String, String>,
+    flags: Vec<String>,
+    want_mutability: &'static str,
+) -> Result<CmdResult, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let reg = match st.command_registry() {
+            Ok(r) => r,
+            Err(e) => return CmdResult::failed("AI_STP_TRANSPORT", e),
+        };
+        let desc = match reg.descriptor(&path) {
+            Some(d) => d,
+            None => {
+                return CmdResult::failed(
+                    "AI_STP_VALIDATION_ERROR",
+                    format!("unknown command: {path}"),
+                )
+            }
+        };
+        if desc.mutability != want_mutability {
+            return CmdResult::failed(
+                "AI_STP_PERMISSION_DENIED",
+                format!("{path} is mutability={} — refused by {} gate", desc.mutability, want_mutability),
+            );
+        }
+        match reg.build_argv(&path, &values, &flags, &BTreeMap::new()) {
+            Ok(av) => run_cli(&st, &av),
+            Err(e) => CmdResult::failed("AI_STP_VALIDATION_ERROR", e),
+        }
+    })
+    .await
+    .map_err(|e| e.to_string())
+}
+
 // ---- auth: device-code flow, driven through the CLI; the app holds no
 // credentials at any point.
 
@@ -389,6 +458,8 @@ pub fn run() {
             cli_doctor,
             machine_help,
             cli_run_read,
+            cli_plan,
+            cli_apply_confirmed,
             auth_login,
             auth_complete,
             auth_status,
