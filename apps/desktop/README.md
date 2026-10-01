@@ -16,9 +16,17 @@ holds user credentials.
   wait, timeout = effect unconfirmed).
 - `src-tauri/` — thin Tauri shell: `#[tauri::command]` wrappers run core
   calls on `spawn_blocking`; capabilities are restricted to invoke/dialog/
-  opener/process/window-state; strict CSP.
-- `src/` — React + Vite + Tailwind v4 UI. Single `transport.ts` choke
-  point; replies are typed `CmdResult`.
+  opener/process/window-state; strict CSP. IPC tiers: `cli_run_read`
+  (mutability=`read` only), `cli_plan` (`plan` only),
+  `cli_apply_confirmed` (`apply` + explicit UI confirmation), plus typed
+  commands for auth, catalog, tasks.
+- `src/` — React + Vite + Tailwind v4 UI, `HashRouter` + Zustand. Single
+  `transport.ts` choke point; replies are typed `CmdResult`. Pages:
+  Overview (CLI health/doctor/device), Account (device-code sign-in),
+  Catalog (registry search/detail via CLI), Tasks (intents + status
+  polling), Install (plan → digest review → apply), Targets
+  (status/backups/diff/recover), Commands (live machine-help browser),
+  Settings (scope selector: All is read-only aggregation).
 
 ## Build and test
 
@@ -45,4 +53,14 @@ Run the dev app (needs a display): `bunx tauri dev` from `apps/desktop`.
   closed with an update prompt;
 - errors are routed by `error.code` + `handling`, never message text;
 - `actor="external"` continuations mean poll, not re-run;
-- mutating calls are serialized per target (wired in the shell layer).
+- unknown `actor` values degrade to `human` — the app never auto-runs an
+  argv it was not explicitly handed.
+
+## Not yet done
+
+- Per-target mutation serialization and cross-window coordination.
+- CLI distribution: currently resolves a bundled `ai-stp` sidecar next to
+  the executable, then PATH — no pinned runtime is shipped yet (D1).
+- macOS/Windows packaging is configured but untested on those hosts.
+- Recovery write flows (`install transaction recover`, `update recover`)
+  are read-visible but have no dedicated apply UX yet.
