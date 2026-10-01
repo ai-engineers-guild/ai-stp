@@ -1,0 +1,10 @@
+[package]
+name = "aistp-desktop-core"
+version = "0.2.0"
+edition = "2021"
+description = "Contract consumer core for the ai-stp desktop app: CLI envelope parsing, continuation rendering, per-target serialization."
+license = "AGPL-3.0-or-later"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
