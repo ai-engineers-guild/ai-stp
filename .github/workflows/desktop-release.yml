@@ -131,13 +131,28 @@ jobs:
           pattern: desktop-release-${{ inputs.version }}-*
           merge-multiple: true
           path: bundles
-      - name: Checksum everything and reject an empty bundle set
+      - name: Flatten bundle directories and reject collisions
         working-directory: bundles
         run: |
           set -euo pipefail
-          test -n "$(find . -type f -print -quit)" || {
+          test -n "$(find . -mindepth 1 -type f -print -quit)" || {
             echo "no bundles produced" >&2; exit 1;
           }
+          # Artifacts keep their per-format subdirs (deb/, dmg/, nsis/, ...).
+          # Release assets are the files themselves, so flatten first and let
+          # a duplicate basename fail loudly instead of silently overwriting.
+          while IFS= read -r f; do
+            base="$(basename "${f}")"
+            if [[ -e "./${base}" ]]; then
+              echo "bundle basename collision: ${base}" >&2; exit 1;
+            fi
+            mv "${f}" .
+          done < <(find . -mindepth 2 -type f)
+          find . -mindepth 1 -type d -empty -delete
+      - name: Checksum everything
+        working-directory: bundles
+        run: |
+          set -euo pipefail
           sha256sum -- * > SHA256SUMS
           cat SHA256SUMS
       - name: Create the GitHub release
