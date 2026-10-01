@@ -1,4 +1,3 @@
-/* eslint-disable max-lines */
 import { getTranslations, setRequestLocale } from "next-intl/server";
 
 import { Badge } from "@/components/atoms/badge";
@@ -126,81 +125,6 @@ function MatrixTable({
   );
 }
 
-function DefinitionTable({
-  definitions,
-  roles,
-  labels,
-}: {
-  definitions: readonly CorporatePermissionDefinition[];
-  roles: readonly CorporateRoleView[];
-  labels: {
-    action: string;
-    scopes: string;
-    roles: string;
-    requiresParent: (parent: string) => string;
-  };
-}) {
-  return (
-    <div className="-mx-4 overflow-x-auto px-4 sm:-mx-5 sm:px-5">
-      <table className="w-full min-w-max border-collapse text-sm">
-        <thead>
-          <tr className="border-border border-b">
-            <th scope="col" className={`${headCellClass} py-2 pr-4 pl-0 text-left`}>
-              {labels.action}
-            </th>
-            <th scope="col" className={`${headCellClass} text-left`}>
-              {labels.scopes}
-            </th>
-            <th scope="col" className={`${headCellClass} text-left`}>
-              {labels.roles}
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {definitions.map((definition) => (
-            <tr key={definition.name} className={rowClass}>
-              <td className="py-2 pr-4">
-                <span className="font-medium">{definition.action}</span>
-                <span className="text-muted-foreground mt-0.5 block font-mono text-xs">
-                  {definition.name}
-                </span>
-                {definition.create_parent ? (
-                  <span className="text-muted-foreground mt-0.5 block text-xs">
-                    {labels.requiresParent(definition.create_parent)}
-                  </span>
-                ) : null}
-              </td>
-              <td className="px-3 py-2">
-                <span className="inline-flex flex-wrap gap-1">
-                  {definition.scopes.map((scope) => (
-                    <Badge key={scope} variant="outline">
-                      {scope}
-                    </Badge>
-                  ))}
-                </span>
-              </td>
-              <td className="px-3 py-2">
-                <span className="inline-flex flex-wrap gap-1">
-                  {roles
-                    .filter((role) => roleHasPermission(role, definition.name, roles))
-                    .map((role) => (
-                      <Link
-                        key={role.name}
-                        href={`/corporate/organization/admins/roles?role=${encodeURIComponent(role.name)}`}
-                      >
-                        <Badge variant="secondary">{role.name}</Badge>
-                      </Link>
-                    ))}
-                </span>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
 function EffectiveAccessTable({
   effective,
   labels,
@@ -306,18 +230,38 @@ function EntitiesView({
         <p className="text-muted-foreground mt-1 text-sm">
           {byResource.get(activeEntity)?.length ?? 0} {t("actions").toLowerCase()}
         </p>
-        <div className="mt-3">
-          <DefinitionTable
-            definitions={byResource.get(activeEntity) ?? []}
-            labels={{
-              action: t("actions"),
-              scopes: t("scope"),
-              roles: t("roles"),
-              requiresParent: (parent: string) => t("requiresParent", { parent }),
-            }}
-            roles={roles}
-          />
-        </div>
+        <ul className="border-border mt-3 divide-y border-t">
+          {(byResource.get(activeEntity) ?? []).map((definition) => (
+            <li key={definition.name} className="space-y-2 py-3 text-sm">
+              <p className="font-medium">{definition.action.replaceAll("_", " ")}</p>
+              <p className="text-muted-foreground font-mono text-xs break-all">{definition.name}</p>
+              {definition.create_parent ? (
+                <p className="text-muted-foreground text-xs">
+                  {t("requiresParent", { parent: definition.create_parent })}
+                </p>
+              ) : null}
+              <div className="flex flex-wrap gap-1" aria-label={t("scope")}>
+                {definition.scopes.map((scope) => (
+                  <Badge key={scope} variant="outline">
+                    {scope}
+                  </Badge>
+                ))}
+              </div>
+              <div className="flex flex-wrap gap-1" aria-label={t("roles")}>
+                {roles
+                  .filter((role) => roleHasPermission(role, definition.name, roles))
+                  .map((role) => (
+                    <Link
+                      key={role.name}
+                      href={`/corporate/organization/admins/roles?role=${encodeURIComponent(role.name)}`}
+                    >
+                      <Badge variant="secondary">{role.name}</Badge>
+                    </Link>
+                  ))}
+              </div>
+            </li>
+          ))}
+        </ul>
       </aside>
     </div>
   );

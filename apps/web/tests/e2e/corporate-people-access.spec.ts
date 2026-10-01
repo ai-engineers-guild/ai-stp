@@ -169,7 +169,7 @@ test.describe("People & Access administration", () => {
     await authenticate(page);
     await page.goto(`${adminsBase}/access?view=entities`);
     await expect(main(page).getByRole("heading", { level: 1, name: /Access model/ })).toBeVisible();
-    await expect(main(page).getByRole("heading", { name: "member" })).toBeVisible();
+    await expect(main(page).getByRole("link", { name: "member", exact: true })).toBeVisible();
     await screenshot(page, info, "access-entities");
     await main(page)
       .getByRole("link", { name: /matrix|sections/i })
@@ -194,6 +194,7 @@ test.describe("People & Access administration", () => {
     await authenticate(page);
     await page.goto(`${adminsBase}/roles`);
     await expect(main(page).getByRole("heading", { level: 1, name: "Roles" })).toBeVisible();
+    await fitsViewport(page);
     await expect(main(page).getByRole("link", { name: "superadmin" })).toBeVisible();
     await screenshot(page, info, "roles");
     await main(page).getByRole("link", { name: "superadmin" }).click();

@@ -120,7 +120,7 @@ function RoleTable({
   t: (key: string) => string;
 }) {
   return (
-    <nav className="border-border bg-card rounded-lg border" aria-label={t("roles")}>
+    <nav className="border-border bg-card min-w-0 rounded-lg border" aria-label={t("roles")}>
       <h2 className="border-border border-b px-4 py-3 font-medium">
         {t("roles")} ({roles.length})
       </h2>
@@ -233,7 +233,7 @@ function SelectedRole({
   const inherited = inheritedPermissions(selected, roles);
   return (
     <section
-      className="border-border bg-card space-y-6 rounded-lg border p-5 shadow-sm sm:p-6"
+      className="border-border bg-card min-w-0 space-y-6 rounded-lg border p-5 shadow-sm sm:p-6"
       aria-label={selected.name}
     >
       <div className="flex flex-wrap items-center gap-3">
