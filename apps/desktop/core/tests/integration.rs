@@ -111,6 +111,43 @@ fn argv_enforces_declared_rules() {
     assert!(reg.build_argv("target status", &values, &[], &BTreeMap::new()).is_ok());
 }
 
+/// Regression: a child emitting more than a pipe buffer's worth of stdout
+/// (typical for `help --agent`) must not deadlock the runner. The previous
+/// implementation read stdout only after exit; the child blocked on write
+/// and hit the deadline every time.
+#[test]
+fn large_stdout_does_not_deadlock() {
+    use std::io::Write;
+    use std::os::unix::fs::PermissionsExt;
+
+    let dir = std::env::temp_dir().join(format!("aistp-test-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let exe = dir.join("fake-ai-stp");
+    {
+        let mut f = std::fs::File::create(&exe).unwrap();
+        // ~200KB JSON envelope — far beyond the 64KB pipe buffer.
+        writeln!(
+            f,
+            "#!/bin/sh\nprintf '{{\"schema_version\":1,\"ok\":true,\"request_id\":null,\"operation_id\":null,\"data\":{{\"blob\":\"%s\"}},\"warnings\":[],\"next_actions\":[],\"continuations\":[],\"error\":null}}' \"$(head -c 150000 /dev/zero | tr '\\0' 'x')\""
+        )
+        .unwrap();
+    }
+    std::fs::set_permissions(&exe, std::fs::Permissions::from_mode(0o755)).unwrap();
+
+    let runner = CliRunner::system(&CliLocator {
+        bundled: Some(exe.clone()),
+        configured: None,
+    })
+    .unwrap();
+    let env = runner.run(&["anything".to_string()]).expect("spawn + drain");
+    assert!(env.ok);
+    assert_eq!(
+        env.data.unwrap()["blob"].as_str().unwrap().len(),
+        150_000
+    );
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
 #[test]
 #[ignore = "requires ai-stp on PATH; run explicitly"]
 fn runs_real_cli_version() {

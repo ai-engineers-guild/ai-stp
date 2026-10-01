@@ -68,17 +68,17 @@ export default function TasksPage() {
   return (
     <div className="space-y-5">
       <header>
-        <h1 className="text-xl font-bold">Tasks</h1>
-        <p className="text-sm opacity-60">
+        <h1 className="page-title">Tasks</h1>
+        <p className="text-sm text-muted-foreground">
           Long-running journeys (install, switch, sync) with durable status and recovery.
         </p>
       </header>
 
       <section>
-        <h2 className="mb-2 text-sm font-semibold">Available intents</h2>
+        <h2 className="mb-2 section-title">Available intents</h2>
         {intents && !intents.ok && <ResultMeta r={intents} />}
         {intentList.length === 0 && intents?.ok && (
-          <p className="text-sm opacity-60">No intents reported.</p>
+          <p className="text-sm text-muted-foreground">No intents reported.</p>
         )}
         <div className="flex flex-wrap gap-2">
           {intentList.map((it, i) => {
@@ -87,7 +87,7 @@ export default function TasksPage() {
               <button
                 key={i}
                 onClick={() => void start(name)}
-                className="flex items-center gap-1.5 rounded-lg border border-current/20 px-3 py-1.5 text-sm hover:bg-black/5 dark:hover:bg-white/5"
+                className="flex items-center gap-1.5 rounded-lg border border-input px-3 py-1.5 text-sm hover:bg-accent dark:hover:bg-accent"
               >
                 <Play size={12} /> {name}
               </button>
@@ -105,8 +105,8 @@ export default function TasksPage() {
 
       {taskId && (
         <section className="space-y-2">
-          <h2 className="text-sm font-semibold">
-            Status <span className="font-mono text-xs opacity-60">{taskId}</span>
+          <h2 className="section-title">
+            Status <span className="font-mono text-xs text-muted-foreground">{taskId}</span>
           </h2>
           {status ? (
             <>
@@ -120,11 +120,11 @@ export default function TasksPage() {
       )}
 
       <section>
-        <h2 className="mb-2 text-sm font-semibold">Recent tasks</h2>
+        <h2 className="mb-2 section-title">Recent tasks</h2>
         {taskList.length === 0 ? (
-          <p className="text-sm opacity-60">None yet.</p>
+          <p className="text-sm text-muted-foreground">None yet.</p>
         ) : (
-          <ul className="divide-y divide-current/10 rounded-xl border border-current/15">
+          <ul className="divide-y divide-border card">
             {taskList.map((t, i) => (
               <li key={i} className="flex items-center justify-between px-4 py-2 text-sm">
                 <span className="font-mono text-xs">{String(t.task_id ?? t.id ?? "")}</span>

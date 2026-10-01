@@ -54,69 +54,69 @@ export default function InstallPage() {
   return (
     <div className="space-y-5">
       <header>
-        <h1 className="text-xl font-bold">Install</h1>
-        <p className="text-sm opacity-60">
+        <h1 className="page-title">Install</h1>
+        <p className="text-sm text-muted-foreground">
           Plan is a durable, digest-bound proposal. Apply executes exactly the approved operation — nothing else.
         </p>
       </header>
 
-      <section className="grid max-w-2xl grid-cols-2 gap-3 rounded-xl border border-current/15 p-4">
+      <section className="grid max-w-2xl grid-cols-2 gap-3 card p-4">
         <label className="text-xs">
           Action
           <select value={action} onChange={(e) => setAction(e.target.value)}
-            className="mt-1 w-full rounded-lg border border-current/20 bg-transparent px-2 py-1.5 text-sm">
+            className="mt-1 w-full rounded-lg border border-input bg-transparent px-2 py-1.5 text-sm">
             {ACTIONS.map((a) => <option key={a}>{a}</option>)}
           </select>
         </label>
         <label className="text-xs">
           Harness
           <select value={harness} onChange={(e) => setHarness(e.target.value)}
-            className="mt-1 w-full rounded-lg border border-current/20 bg-transparent px-2 py-1.5 text-sm">
+            className="mt-1 w-full rounded-lg border border-input bg-transparent px-2 py-1.5 text-sm">
             {HARNESSES.map((h) => <option key={h}>{h}</option>)}
           </select>
         </label>
         <label className="col-span-2 text-xs">
-          Setup id <span className="opacity-50">(stable id from Catalog; exactly one of proposal/setup)</span>
+          Setup id <span className="text-muted-foreground">(stable id from Catalog; exactly one of proposal/setup)</span>
           <input value={setup} onChange={(e) => setSetup(e.target.value)}
             placeholder="e.g. author/slug@1.2.0"
-            className="mt-1 w-full rounded-lg border border-current/20 bg-transparent px-3 py-1.5 font-mono text-sm" />
+            className="mt-1 w-full rounded-lg border border-input bg-transparent px-3 py-1.5 font-mono text-sm" />
         </label>
         <label className="col-span-2 text-xs">
-          Project <span className="opacity-50">(required when setup is given)</span>
+          Project <span className="text-muted-foreground">(required when setup is given)</span>
           <input value={project} onChange={(e) => setProject(e.target.value)}
             placeholder="/absolute/path/to/project"
-            className="mt-1 w-full rounded-lg border border-current/20 bg-transparent px-3 py-1.5 font-mono text-sm" />
+            className="mt-1 w-full rounded-lg border border-input bg-transparent px-3 py-1.5 font-mono text-sm" />
         </label>
         <label className="text-xs">
           Scope
           <select value={scope} onChange={(e) => setScope(e.target.value)}
-            className="mt-1 w-full rounded-lg border border-current/20 bg-transparent px-2 py-1.5 text-sm">
+            className="mt-1 w-full rounded-lg border border-input bg-transparent px-2 py-1.5 text-sm">
             {SCOPES.map((s) => <option key={s}>{s}</option>)}
           </select>
         </label>
         <label className="text-xs">
-          Target <span className="opacity-50">(required for project/user_root scope)</span>
+          Target <span className="text-muted-foreground">(required for project/user_root scope)</span>
           <input value={target} onChange={(e) => setTarget(e.target.value)}
             placeholder="target path or id"
-            className="mt-1 w-full rounded-lg border border-current/20 bg-transparent px-3 py-1.5 font-mono text-sm" />
+            className="mt-1 w-full rounded-lg border border-input bg-transparent px-3 py-1.5 font-mono text-sm" />
         </label>
       </section>
 
       <button
         onClick={() => void doPlan()}
         disabled={busy !== null}
-        className="flex items-center gap-2 rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+        className="btn-primary"
       >
         <FileCheck2 size={14} /> {busy === "plan" ? "Planning…" : "Create plan"}
       </button>
 
       {plan && (
-        <section className="space-y-3 rounded-xl border border-current/15 p-4">
+        <section className="space-y-3 card p-4">
           <ResultMeta r={plan} />
           {plan.ok && planData && (
             <>
               <Json v={planData} />
-              <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-xs">
+              <div className="card border-warning/50 bg-warning/10 p-3 text-xs">
                 <p className="flex items-center gap-1.5 font-semibold">
                   <ShieldAlert size={13} /> Review before applying
                 </p>
@@ -128,7 +128,7 @@ export default function InstallPage() {
               <button
                 onClick={() => void doApply()}
                 disabled={busy !== null || !operationId}
-                className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                className="btn-danger"
               >
                 {busy === "apply" ? "Applying…" : "Apply exactly this plan"}
               </button>
@@ -138,7 +138,7 @@ export default function InstallPage() {
       )}
 
       {busy === "apply" && (
-        <p className="text-xs opacity-60">
+        <p className="text-xs text-muted-foreground">
           Apply is opaque up to ~120s — a timeout means “effect unconfirmed”; check status, do not retry blindly.
         </p>
       )}

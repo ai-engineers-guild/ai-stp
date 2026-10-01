@@ -72,24 +72,24 @@ export default function AuthPage() {
   return (
     <div className="space-y-5">
       <header>
-        <h1 className="text-xl font-bold">Account</h1>
-        <p className="text-sm opacity-60">
+        <h1 className="page-title">Account</h1>
+        <p className="text-sm text-muted-foreground">
           Sign in with your provider's device flow. Credentials live in the OS
           keyring via the CLI — the app never sees a token.
         </p>
       </header>
 
-      <section className="rounded-xl border border-current/15 p-4">
+      <section className="card p-4">
         <div className="flex items-center gap-2">
-          <ShieldCheck size={16} className={authenticated ? "text-emerald-500" : "opacity-40"} />
+          <ShieldCheck size={16} className={authenticated ? "text-success" : "text-muted-foreground"} />
           <p className="font-semibold">{authenticated ? "Signed in" : "Signed out"}</p>
         </div>
         {auth && <div className="mt-3"><Json v={auth} /></div>}
       </section>
 
       {!authenticated && (
-        <section className="space-y-3 rounded-xl border border-current/15 p-4">
-          <p className="text-sm font-semibold">Choose a provider</p>
+        <section className="space-y-3 card p-4">
+          <p className="section-title">Choose a provider</p>
           <div className="flex gap-2">
             {PROVIDERS.map((p) => (
               <button
@@ -97,8 +97,8 @@ export default function AuthPage() {
                 onClick={() => setProvider(p.id)}
                 className={`rounded-lg border px-3 py-1.5 text-sm ${
                   provider === p.id
-                    ? "border-brand bg-brand/10 font-semibold"
-                    : "border-current/20 opacity-70"
+                    ? "border-primary bg-primary/10 font-medium text-primary"
+                    : "border-current/20 text-muted-foreground"
                 }`}
               >
                 {p.label}
@@ -107,7 +107,7 @@ export default function AuthPage() {
           </div>
           <button
             onClick={() => void startLogin()}
-            className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white"
+            className="btn-primary"
           >
             Start sign-in
           </button>
@@ -127,14 +127,14 @@ export default function AuthPage() {
                 <button
                   onClick={() => void openAndWait()}
                   disabled={waiting}
-                  className="flex items-center gap-2 rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                  className="btn-primary"
                 >
                   <ExternalLink size={14} />
                   {waiting ? "Waiting for confirmation…" : "Open browser & confirm"}
                 </button>
               )}
               {expiresIn > 0 && (
-                <p className="text-xs opacity-60">Code valid for {Math.round(expiresIn / 60)} min.</p>
+                <p className="text-xs text-muted-foreground">Code valid for {Math.round(expiresIn / 60)} min.</p>
               )}
             </>
           )}
@@ -144,7 +144,7 @@ export default function AuthPage() {
       {authenticated && (
         <button
           onClick={() => void logout()}
-          className="flex items-center gap-2 rounded-lg border border-red-500/40 px-3 py-1.5 text-sm text-red-500 hover:bg-red-500/10"
+          className="flex items-center gap-2 rounded-lg border border-red-500/40 px-3 py-1.5 text-sm text-destructive hover:bg-destructive/10"
         >
           <LogOut size={14} /> Sign out
         </button>

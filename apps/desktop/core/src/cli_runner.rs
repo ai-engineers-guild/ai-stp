@@ -136,16 +136,27 @@ impl CliRunner {
             .stderr(Stdio::piped());
 
         let mut child = cmd.spawn().map_err(RunError::Spawn)?;
+        // stdout/stderr must be drained while the child runs: a large
+        // envelope (e.g. `help --agent`) would fill the pipe buffer and
+        // deadlock the child on write until the deadline hits.
+        let out_handle = child.stdout.take().map(|mut s| {
+            thread::spawn(move || {
+                let mut buf = Vec::new();
+                let _ = s.read_to_end(&mut buf);
+                buf
+            })
+        });
+        let err_handle = child.stderr.take().map(|mut s| {
+            thread::spawn(move || {
+                let mut buf = String::new();
+                let _ = s.read_to_string(&mut buf);
+                buf
+            })
+        });
         match wait_bounded(&mut child, self.timeout) {
             Ok(status) => {
-                let mut out = Vec::new();
-                if let Some(mut s) = child.stdout.take() {
-                    let _ = s.read_to_end(&mut out);
-                }
-                let mut err = String::new();
-                if let Some(mut s) = child.stderr.take() {
-                    let _ = s.read_to_string(&mut err);
-                }
+                let out = out_handle.and_then(|h| h.join().ok()).unwrap_or_default();
+                let err = err_handle.and_then(|h| h.join().ok()).unwrap_or_default();
                 match parse(&out) {
                     Ok(env) => Ok(env),
                     Err(e) => Err(RunError::NoEnvelope {

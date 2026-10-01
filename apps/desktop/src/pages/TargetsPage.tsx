@@ -33,8 +33,8 @@ export default function TargetsPage() {
   return (
     <div className="space-y-5">
       <header>
-        <h1 className="text-xl font-bold">Targets</h1>
-        <p className="text-sm opacity-60">
+        <h1 className="page-title">Targets</h1>
+        <p className="text-sm text-muted-foreground">
           Installed state, backups and drift per project×harness. Read-only;
           changes go through Install.
         </p>
@@ -45,12 +45,12 @@ export default function TargetsPage() {
           Project path
           <input value={project} onChange={(e) => setProject(e.target.value)}
             placeholder="/absolute/path/to/project"
-            className="mt-1 w-full rounded-lg border border-current/20 bg-transparent px-3 py-1.5 font-mono text-sm" />
+            className="mt-1 w-full rounded-lg border border-input bg-transparent px-3 py-1.5 font-mono text-sm" />
         </label>
         <label className="w-44 text-xs">
           Harness
           <select value={harness} onChange={(e) => setHarness(e.target.value)}
-            className="mt-1 w-full rounded-lg border border-current/20 bg-transparent px-2 py-1.5 text-sm">
+            className="mt-1 w-full rounded-lg border border-input bg-transparent px-2 py-1.5 text-sm">
             {HARNESSES.map((h) => <option key={h}>{h}</option>)}
           </select>
         </label>
@@ -61,7 +61,7 @@ export default function TargetsPage() {
           <button key={q.path}
             onClick={() => void run(q)}
             disabled={!project || busy !== null}
-            className="flex items-center gap-1.5 rounded-lg border border-current/20 px-3 py-1.5 text-sm hover:bg-black/5 disabled:opacity-40 dark:hover:bg-white/5">
+            className="flex items-center gap-1.5 rounded-lg border border-input px-3 py-1.5 text-sm hover:bg-accent disabled:text-muted-foreground dark:hover:bg-accent">
             {busy === q.path ? <RefreshCw size={12} className="animate-spin" /> : <HardDrive size={12} />}
             {q.label}
           </button>
