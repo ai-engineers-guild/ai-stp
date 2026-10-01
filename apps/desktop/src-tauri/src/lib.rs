@@ -45,11 +45,15 @@ impl CmdResult {
     }
 }
 
-/// Shared shell state: the CLI runner and the cached command registry
-/// keyed by `registry_digest`.
+/// Shared shell state: the CLI runner, the cached command registry keyed
+/// by `registry_digest`, and a mutation mutex serializing plan/apply work.
 struct AppState {
     runner: Mutex<Option<CliRunner>>,
     registry: Mutex<Option<CommandRegistry>>,
+    /// Two mutating runs in flight could interleave writes against the same
+    /// target or the CLI's own journal — plan/apply hold this for the whole
+    /// run so mutations are ordered, not concurrent.
+    mutation_lock: Mutex<()>,
 }
 
 impl AppState {
@@ -57,6 +61,7 @@ impl AppState {
         Self {
             runner: Mutex::new(None),
             registry: Mutex::new(None),
+            mutation_lock: Mutex::new(()),
         }
     }
 
@@ -301,7 +306,15 @@ async fn gated_run(
             );
         }
         match reg.build_argv(&path, &values, &flags, &BTreeMap::new()) {
-            Ok(av) => run_cli(&st, &av),
+            Ok(av) => {
+                let _mutation = match st.mutation_lock.lock() {
+                    Ok(g) => g,
+                    Err(_) => {
+                        return CmdResult::failed("AI_STP_TRANSPORT", "mutation lock poisoned")
+                    }
+                };
+                run_cli(&st, &av)
+            }
             Err(e) => CmdResult::failed("AI_STP_VALIDATION_ERROR", e),
         }
     })
