@@ -3,6 +3,7 @@
 // so the UI never parses stderr or prose.
 
 import { invoke } from "@tauri-apps/api/core";
+import { redact } from "./redact";
 import { useDebug } from "./store";
 
 export interface CliContinuation {
@@ -33,7 +34,8 @@ function call(command: string, args?: Record<string, unknown>): Promise<CmdResul
     (r) => {
       useDebug.getState().push({
         cmd: command, args: argsRec, ms: Math.round(performance.now() - t0),
-        ok: r.ok, error_code: r.error_code, error: r.error, result: r,
+        ok: r.ok, error_code: r.error_code, error: r.error,
+        result: redact(r) as CmdResult,
       });
       return r;
     },

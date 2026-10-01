@@ -5,13 +5,15 @@ import { Json, ResultMeta, Spinner } from "../components/Result";
 
 const HARNESSES = ["antigravity", "claude-code", "codex", "cursor", "grok-build", "opencode", "pi"];
 
-const QUERIES: { label: string; path: string }[] = [
-  { label: "Target status", path: "target status" },
-  { label: "Backups", path: "target backups" },
-  { label: "Diff vs installed", path: "target diff" },
-  { label: "Install status", path: "install status" },
-  { label: "Update status", path: "update status" },
-  { label: "Recoverable ops", path: "install recover" },
+const QUERIES: { label: string; path: string; needs: ("project" | "harness")[] }[] = [
+  { label: "Target status", path: "target status", needs: ["project", "harness"] },
+  { label: "Backups", path: "target backups", needs: ["project", "harness"] },
+  { label: "Diff vs installed", path: "target diff", needs: ["project", "harness"] },
+  { label: "Rollback preview", path: "target rollback", needs: ["project", "harness"] },
+  { label: "Select session", path: "select session", needs: ["harness"] },
+  { label: "Select eligibility", path: "select eligibility", needs: ["harness"] },
+  { label: "Stopped transactions", path: "install status", needs: [] },
+  { label: "Update status", path: "update status", needs: [] },
 ];
 
 /** Per-target state: installed footprint, backups, drift, recovery handles.
@@ -24,7 +26,8 @@ export default function TargetsPage() {
 
   async function run(q: (typeof QUERIES)[number]) {
     setBusy(q.path);
-    const values: Record<string, string> = { project, harness };
+    const values: Record<string, string> = {};
+    for (const n of q.needs) values[n] = n === "project" ? project : harness;
     const r = await cmdRunRead(q.path, values);
     setResults((prev) => ({ ...prev, [q.path]: r }));
     setBusy(null);
@@ -60,7 +63,7 @@ export default function TargetsPage() {
         {QUERIES.map((q) => (
           <button key={q.path}
             onClick={() => void run(q)}
-            disabled={!project || busy !== null}
+            disabled={(q.needs.includes("project") && !project) || busy !== null}
             className="flex items-center gap-1.5 rounded-lg border border-input px-3 py-1.5 text-sm hover:bg-accent disabled:text-muted-foreground dark:hover:bg-accent">
             {busy === q.path ? <RefreshCw size={12} className="animate-spin" /> : <HardDrive size={12} />}
             {q.label}

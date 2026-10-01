@@ -25,7 +25,10 @@ pub enum RunError {
     /// Process exceeded the deadline; effect on the target is unconfirmed.
     TimeoutUnconfirmed,
     /// Process died before emitting an envelope.
-    NoEnvelope { exit: Option<i32>, stderr: String },
+    NoEnvelope {
+        exit: Option<i32>,
+        stderr: String,
+    },
     Parse(ParseFailure),
 }
 
@@ -35,7 +38,10 @@ impl std::fmt::Display for RunError {
             Self::NotFound(m) => write!(f, "ai-stp executable not found: {m}"),
             Self::Spawn(e) => write!(f, "failed to spawn ai-stp: {e}"),
             Self::TimeoutUnconfirmed => {
-                write!(f, "cli exceeded deadline; effect unconfirmed — inspect before retrying")
+                write!(
+                    f,
+                    "cli exceeded deadline; effect unconfirmed — inspect before retrying"
+                )
             }
             Self::NoEnvelope { exit, stderr } => {
                 write!(f, "cli exited {exit:?} without an envelope: {stderr}")
@@ -60,7 +66,11 @@ impl CliLocator {
     /// A bundled/configured path that does not exist is an error, not a
     /// silent fallthrough — a missing pinned binary is a tamper signal.
     pub fn resolve(&self) -> Result<PathBuf, RunError> {
-        for candidate in [&self.bundled, &self.configured].into_iter().flatten() {
+        if let Some(candidate) = [&self.bundled, &self.configured]
+            .into_iter()
+            .flatten()
+            .next()
+        {
             if candidate.is_file() {
                 return Ok(candidate.clone());
             }
@@ -88,7 +98,9 @@ fn which(name: &str) -> Option<PathBuf> {
 #[cfg(unix)]
 fn is_executable(p: &Path) -> bool {
     use std::os::unix::fs::PermissionsExt;
-    p.metadata().map(|m| m.permissions().mode() & 0o111 != 0).unwrap_or(false)
+    p.metadata()
+        .map(|m| m.permissions().mode() & 0o111 != 0)
+        .unwrap_or(false)
 }
 
 #[cfg(not(unix))]
@@ -123,7 +135,15 @@ impl CliRunner {
         cmd.args(args).arg("--json");
         cmd.env_clear();
         // Minimal base env; the caller's managed profile adds XDG_*.
-        for key in ["PATH", "HOME", "USER", "LANG", "SystemRoot", "WINDIR", "COMSPEC"] {
+        for key in [
+            "PATH",
+            "HOME",
+            "USER",
+            "LANG",
+            "SystemRoot",
+            "WINDIR",
+            "COMSPEC",
+        ] {
             if let Ok(v) = std::env::var(key) {
                 cmd.env(key, v);
             }
@@ -186,7 +206,10 @@ enum WaitError {
 
 /// Bounded non-blocking wait; `Child` stays in the caller so a timeout can
 /// kill the process.
-fn wait_bounded(child: &mut Child, timeout: Duration) -> Result<std::process::ExitStatus, WaitError> {
+fn wait_bounded(
+    child: &mut Child,
+    timeout: Duration,
+) -> Result<std::process::ExitStatus, WaitError> {
     let started = std::time::Instant::now();
     loop {
         match child.try_wait() {

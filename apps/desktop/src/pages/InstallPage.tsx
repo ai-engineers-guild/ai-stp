@@ -1,8 +1,12 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router";
 import { Ban, Play, StepForward } from "lucide-react";
+import { argvToCall } from "../argv";
 import {
   cliApplyConfirmed,
+  cliPlan,
+  cmdMachineHelp,
+  cmdRunRead,
   cmdTaskAnswer,
   cmdTaskCancel,
   cmdTaskContinue,
@@ -31,34 +35,6 @@ interface TaskView {
   goal_satisfied?: boolean;
   questions: Question[];
   outcome?: unknown;
-}
-
-/** Turn a continuation argv (["install","apply","--operation","x",…]) into
- *  (path, values, flags) so it can pass through the gated apply command.
- *  Positional arguments are refused — contract continuations are flag-based. */
-function argvToCall(argv: string[]): { path: string; values: Record<string, string>; flags: string[] } | null {
-  const words = argv.filter((a) => a !== "--json");
-  const cmdWords: string[] = [];
-  let i = 0;
-  while (i < words.length && !words[i].startsWith("--")) {
-    cmdWords.push(words[i]);
-    i++;
-  }
-  if (cmdWords.length === 0) return null;
-  const values: Record<string, string> = {};
-  const flags: string[] = [];
-  for (; i < words.length; i++) {
-    const w = words[i];
-    if (!w.startsWith("--")) return null; // positional — refuse
-    const name = w.slice(2);
-    if (i + 1 < words.length && !words[i + 1].startsWith("--")) {
-      values[name] = words[i + 1];
-      i++;
-    } else {
-      flags.push(name);
-    }
-  }
-  return { path: cmdWords.join(" "), values, flags };
 }
 
 const INTENTS = [
@@ -163,7 +139,7 @@ export default function InstallPage() {
   }
 
   async function runContinuation(c: CliContinuation) {
-    const callArgs = argvToCall(c.argv);
+    const callArgs = argvToCall(c.path, c.argv);
     if (!callArgs) {
       setLastResult({
         ok: false, data: null, warnings: [], continuations: [],
@@ -173,7 +149,23 @@ export default function InstallPage() {
       return;
     }
     setBusy(true);
-    const r = await cliApplyConfirmed(callArgs.path, callArgs.values, callArgs.flags, true);
+    const help = await cmdMachineHelp();
+    const mut = (
+      ((help.data ?? {}) as Record<string, unknown>).commands as
+        | { path: string[]; mutability: string }[]
+        | undefined
+    )?.find((d) => d.path.join(" ") === callArgs.path)?.mutability;
+    let r: CmdResult;
+    if (mut === "read") r = await cmdRunRead(callArgs.path, callArgs.values);
+    else if (mut === "plan") r = await cliPlan(callArgs.path, callArgs.values, callArgs.flags);
+    else if (mut === "apply")
+      r = await cliApplyConfirmed(callArgs.path, callArgs.values, callArgs.flags, true);
+    else
+      r = {
+        ok: false, data: null, warnings: [], continuations: [],
+        error: `continuation to ${callArgs.path} (mutability=${mut ?? "unknown"}) is not runnable from the UI`,
+        error_code: "UI_UNSUPPORTED_CONTINUATION",
+      };
     setLastResult(r);
     setContinuations(r.continuations);
     if (task) await refresh(task.task_id);
