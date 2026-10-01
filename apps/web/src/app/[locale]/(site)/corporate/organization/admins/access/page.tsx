@@ -1,3 +1,4 @@
+/* eslint-disable max-lines */
 import { getTranslations, setRequestLocale } from "next-intl/server";
 
 import { Badge } from "@/components/atoms/badge";
@@ -49,6 +50,22 @@ function groupDefinitions(definitions: readonly CorporatePermissionDefinition[])
   return { byResource, byGroup };
 }
 
+function roleHasPermission(
+  role: CorporateRoleView,
+  permission: string,
+  roles: readonly CorporateRoleView[],
+): boolean {
+  const byName = new Map(roles.map((item) => [item.name, item]));
+  const seen = new Set<string>();
+  let current: CorporateRoleView | undefined = role;
+  while (current && !seen.has(current.name)) {
+    if (current.permissions.includes(permission)) return true;
+    seen.add(current.name);
+    current = current.parent_role ? byName.get(current.parent_role) : undefined;
+  }
+  return false;
+}
+
 function MatrixTable({
   permissions,
   roles,
@@ -69,7 +86,7 @@ function MatrixTable({
             {roles.map((role) => (
               <th key={role.name} scope="col" className={`${headCellClass} text-center`}>
                 <Link
-                  href={`/corporate/roles/${encodeURIComponent(role.name)}`}
+                  href={`/corporate/organization/admins/roles?role=${encodeURIComponent(role.name)}`}
                   className="text-foreground underline underline-offset-4"
                 >
                   {role.name}
@@ -84,7 +101,7 @@ function MatrixTable({
               <td className="py-2 pr-4 font-mono text-xs whitespace-nowrap">{permission}</td>
               {roles.map((role) => (
                 <td key={role.name} className="px-3 py-2 text-center align-middle">
-                  {role.permissions.includes(permission) ? (
+                  {roleHasPermission(role, permission, roles) ? (
                     <Icon
                       name="check"
                       size="sm"
@@ -111,10 +128,17 @@ function MatrixTable({
 
 function DefinitionTable({
   definitions,
+  roles,
   labels,
 }: {
   definitions: readonly CorporatePermissionDefinition[];
-  labels: { action: string; scopes: string; requiresParent: (parent: string) => string };
+  roles: readonly CorporateRoleView[];
+  labels: {
+    action: string;
+    scopes: string;
+    roles: string;
+    requiresParent: (parent: string) => string;
+  };
 }) {
   return (
     <div className="-mx-4 overflow-x-auto px-4 sm:-mx-5 sm:px-5">
@@ -126,6 +150,9 @@ function DefinitionTable({
             </th>
             <th scope="col" className={`${headCellClass} text-left`}>
               {labels.scopes}
+            </th>
+            <th scope="col" className={`${headCellClass} text-left`}>
+              {labels.roles}
             </th>
           </tr>
         </thead>
@@ -150,6 +177,20 @@ function DefinitionTable({
                       {scope}
                     </Badge>
                   ))}
+                </span>
+              </td>
+              <td className="px-3 py-2">
+                <span className="inline-flex flex-wrap gap-1">
+                  {roles
+                    .filter((role) => roleHasPermission(role, definition.name, roles))
+                    .map((role) => (
+                      <Link
+                        key={role.name}
+                        href={`/corporate/organization/admins/roles?role=${encodeURIComponent(role.name)}`}
+                      >
+                        <Badge variant="secondary">{role.name}</Badge>
+                      </Link>
+                    ))}
                 </span>
               </td>
             </tr>
@@ -204,12 +245,89 @@ function EffectiveAccessTable({
   );
 }
 
-// eslint-disable-next-line max-lines-per-function
+function EntitiesView({
+  byResource,
+  activeEntity,
+  query,
+  roles,
+  t,
+}: {
+  byResource: Map<string, CorporatePermissionDefinition[]>;
+  activeEntity: string;
+  query: string;
+  roles: readonly CorporateRoleView[];
+  t: (key: string, values?: Record<string, string>) => string;
+}) {
+  return (
+    <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,3fr)_minmax(19rem,1fr)]">
+      <div className="border-border bg-card min-w-0 overflow-x-auto rounded-lg border">
+        <table className="w-full min-w-[36rem] border-collapse text-sm">
+          <thead>
+            <tr className="border-border border-b">
+              <th scope="col" className={`${headCellClass} text-left`}>
+                {t("entitiesAndActions")}
+              </th>
+              <th scope="col" className={`${headCellClass} text-left`}>
+                {t("actions")}
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {[...byResource.entries()].map(([resource, resourceDefinitions]) => (
+              <tr key={resource} className={rowClass}>
+                <th scope="row" className="px-3 py-3 text-left align-top">
+                  <Link
+                    href={`/corporate/organization/admins/access?view=entities&entity=${encodeURIComponent(resource)}${query ? `&query=${encodeURIComponent(query)}` : ""}`}
+                    aria-current={resource === activeEntity ? "true" : undefined}
+                    className="text-foreground font-medium underline-offset-4 hover:underline"
+                  >
+                    {resource.replaceAll("_", " ")}
+                  </Link>
+                </th>
+                <td className="px-3 py-3">
+                  <span className="flex flex-wrap gap-1">
+                    {resourceDefinitions.map((definition) => (
+                      <Badge key={definition.name} variant="outline" title={definition.name}>
+                        {definition.action.replaceAll("_", " ")}
+                      </Badge>
+                    ))}
+                  </span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <aside
+        className="border-border bg-card min-w-0 self-start rounded-lg border p-4"
+        aria-label={activeEntity}
+      >
+        <h2 className="text-lg font-medium">{activeEntity.replaceAll("_", " ")}</h2>
+        <p className="text-muted-foreground mt-1 text-sm">
+          {byResource.get(activeEntity)?.length ?? 0} {t("actions").toLowerCase()}
+        </p>
+        <div className="mt-3">
+          <DefinitionTable
+            definitions={byResource.get(activeEntity) ?? []}
+            labels={{
+              action: t("actions"),
+              scopes: t("scope"),
+              roles: t("roles"),
+              requiresParent: (parent: string) => t("requiresParent", { parent }),
+            }}
+            roles={roles}
+          />
+        </div>
+      </aside>
+    </div>
+  );
+}
 export default async function CorporateAccessModelPage({ params, searchParams }: PageProps) {
   const { locale } = await params;
   const filters = await searchParams;
   const view = filters.view === "matrix" ? "matrix" : "entities";
   const query = typeof filters.query === "string" ? filters.query.trim() : "";
+  const selectedEntity = typeof filters.entity === "string" ? filters.entity : "";
   setRequestLocale(locale);
   await requireSession(locale, `/${locale}/corporate/organization/admins/access`);
   const t = await getTranslations("corporate");
@@ -248,6 +366,9 @@ export default async function CorporateAccessModelPage({ params, searchParams }:
     matchesQuery(definition, normalized),
   );
   const { byResource, byGroup } = groupDefinitions(definitions);
+  const activeEntity = byResource.has(selectedEntity)
+    ? selectedEntity
+    : (byResource.keys().next().value ?? "");
   const effective = matrix?.effective ?? [];
   const groupsCount = view === "entities" ? byResource.size : byGroup.size;
 
@@ -287,7 +408,7 @@ export default async function CorporateAccessModelPage({ params, searchParams }:
           {
             key: "matrix",
             href: "/corporate/organization/admins/access?view=matrix",
-            label: t("sections"),
+            label: t("roleMatrix"),
             active: view === "matrix",
           },
         ]}
@@ -317,25 +438,13 @@ export default async function CorporateAccessModelPage({ params, searchParams }:
           description={query ? t("noMatchingPermissions") : t("noRoles")}
         />
       ) : view === "entities" ? (
-        <div className="space-y-4">
-          {[...byResource.entries()].map(([resource, resourceDefinitions]) => (
-            <DetailAccordion
-              key={resource}
-              title={resource}
-              summary={String(resourceDefinitions.length)}
-              defaultOpen={Boolean(query)}
-            >
-              <DefinitionTable
-                definitions={resourceDefinitions}
-                labels={{
-                  action: t("actions"),
-                  scopes: t("scope"),
-                  requiresParent: (parent: string) => t("requiresParent", { parent }),
-                }}
-              />
-            </DetailAccordion>
-          ))}
-        </div>
+        <EntitiesView
+          byResource={byResource}
+          activeEntity={activeEntity}
+          query={query}
+          roles={roles}
+          t={t}
+        />
       ) : (
         <div className="space-y-4">
           {[...byGroup.entries()].map(([group, names]) => (

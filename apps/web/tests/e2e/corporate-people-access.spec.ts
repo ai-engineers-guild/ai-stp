@@ -209,7 +209,7 @@ test.describe("People & Access administration", () => {
     const name = `e2e_role_${Date.now() % 1_000_000}`;
     await main(page).getByText("Create role").click();
     await main(page).locator("#role-create-name").fill(name);
-    await main(page).locator("#role-create-permissions").fill("member.list");
+    await main(page).locator('#role-create-permissions input[value="member.list"]').check();
     await main(page)
       .locator("form", { has: page.locator("#role-create-name") })
       .getByRole("button", { name: "Create", exact: true })

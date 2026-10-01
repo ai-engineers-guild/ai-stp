@@ -7,6 +7,7 @@ import { LocalizedResourceActions } from "@/components/organisms/localized-corpo
 import { CorporateMemberAccessPanel } from "@/components/organisms/corporate-member-access-panel";
 import { StatePanel } from "@/components/molecules/state-panel";
 import { ApiError } from "@/lib/api/errors";
+import { apiRequest } from "@/lib/api/http";
 import { readCorporateMemberAccess } from "@/lib/api/corporate";
 import { requireSession, sessionCookieValue } from "@/lib/auth/require-session";
 import { readCsrfToken } from "@/lib/auth/session";
@@ -15,6 +16,7 @@ import type {
   CorporateEffectivePermission,
   CorporateMember,
   CorporateMemberPrivateGrant,
+  CorporatePermissionMatrix,
 } from "@/lib/api/generated/types.gen";
 
 const SCOPE_KINDS = [
@@ -73,6 +75,13 @@ export default async function EmployeeAccessPage({
   const { member, access, delegation, context, organization, roles } = result;
   const capabilities = context.capabilities;
   const csrfToken = (await readCsrfToken()) ?? "";
+  const session = (await sessionCookieValue()) ?? "";
+  const permissionMatrix = capabilities.includes("role.read")
+    ? await apiRequest<CorporatePermissionMatrix>(
+        `/v1/corporate/organizations/${organization.organization_id}/permissions/matrix`,
+        { sessionToken: session },
+      )
+    : null;
   const grantableRoleNames = delegation?.grantable_roles.map((grantable) => grantable.name) ?? null;
   const { scopeOptions, currentScope, effective } = deriveAccessView(
     result,
@@ -126,6 +135,7 @@ export default async function EmployeeAccessPage({
             bindings={access?.bindings ?? []}
             grants={access?.grants ?? []}
             capabilities={capabilities}
+            definitions={permissionMatrix?.definitions ?? []}
             labels={memberAccessLabels(t)}
           />
         </div>

@@ -146,6 +146,12 @@ not redesign administration or Technology Landscape. Dashboard is an empty route
   scope id, and source roles from `permissions/matrix`. Subject detail pages
   render edit, presentation, and delete affordances from the subject's own
   `available_actions` instead of organization-wide capabilities.
+  The UI shows inherited role permissions and uses server-defined actions for
+  role editing and direct grants when the matrix is readable; otherwise it
+  uses the caller's capabilities and visible role actions. A direct grant
+  offers actions available to the caller and filters by scope kind when the
+  caller may read the permission matrix; the API remains authoritative for
+  delegation and scope validation.
 - `REQ-8317`: An account holding more than one corporate membership selects its
   active organization through a switcher in the Corporate Hub chrome. The
   selection is a session-scoped preference cookie written by a server action

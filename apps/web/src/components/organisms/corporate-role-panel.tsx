@@ -7,8 +7,10 @@ import { corporateMutationAction } from "@/actions/corporate";
 import { Button } from "@/components/atoms/button";
 import { Input } from "@/components/atoms/input";
 import { Label } from "@/components/atoms/label";
-import { Textarea } from "@/components/atoms/textarea";
-import type { CorporateRoleView } from "@/lib/api/generated/types.gen";
+import type {
+  CorporatePermissionDefinition,
+  CorporateRoleView,
+} from "@/lib/api/generated/types.gen";
 import { BUILT_IN_ROLES } from "@/lib/corporate-roles";
 
 const selectClass =
@@ -37,16 +39,11 @@ const field = (formData: FormData, name: string) => {
   return typeof value === "string" ? value.trim() : "";
 };
 
-const parsePermissions = (value: string) =>
-  value
-    .split(/[\s,]+/)
-    .map((permission) => permission.trim())
-    .filter(Boolean);
-
 function RoleForm({
   idPrefix,
   labels,
   roles,
+  definitions,
   excludeName,
   role,
   withName = false,
@@ -58,6 +55,7 @@ function RoleForm({
   idPrefix: string;
   labels: Labels;
   roles: readonly CorporateRoleView[];
+  definitions: readonly CorporatePermissionDefinition[];
   excludeName?: string;
   role?: CorporateRoleView;
   withName?: boolean;
@@ -98,14 +96,37 @@ function RoleForm({
         </select>
       </div>
       <div className="space-y-1.5 sm:col-span-2">
-        <Label htmlFor={`${idPrefix}-permissions`}>{labels.permissions}</Label>
-        <Textarea
+        <span className="text-sm font-medium">{labels.permissions}</span>
+        <div
           id={`${idPrefix}-permissions`}
-          name="permissions"
-          rows={3}
-          defaultValue={role?.permissions.join(", ")}
-          className="font-mono text-xs"
-        />
+          className="border-border max-h-72 space-y-3 overflow-y-auto rounded-md border p-3"
+        >
+          {[...new Set(definitions.map((definition) => definition.resource))].map((resource) => (
+            <fieldset key={resource} className="space-y-1">
+              <legend className="mb-1 text-sm font-medium">{resource}</legend>
+              {definitions
+                .filter((definition) => definition.resource === resource)
+                .map((definition) => (
+                  <label
+                    key={definition.name}
+                    className="flex cursor-pointer items-center gap-2 text-sm"
+                  >
+                    <input
+                      type="checkbox"
+                      name="permissions"
+                      value={definition.name}
+                      defaultChecked={role?.permissions.includes(definition.name)}
+                      className="accent-primary size-4"
+                    />
+                    <span>{definition.action}</span>
+                    <span className="text-muted-foreground font-mono text-xs">
+                      {definition.name}
+                    </span>
+                  </label>
+                ))}
+            </fieldset>
+          ))}
+        </div>
       </div>
       <Button type="submit" disabled={busy}>
         {busy ? busyLabel : submitLabel}
@@ -125,6 +146,7 @@ export function CorporateRolePanel({
   authorizationRevision,
   capabilities,
   roles,
+  definitions,
   selected,
   labels,
 }: {
@@ -133,6 +155,7 @@ export function CorporateRolePanel({
   authorizationRevision: number;
   capabilities: readonly string[];
   roles: readonly CorporateRoleView[];
+  definitions: readonly CorporatePermissionDefinition[];
   selected: CorporateRoleView | null;
   labels: Labels;
 }) {
@@ -173,6 +196,7 @@ export function CorporateRolePanel({
             idPrefix="role-edit"
             labels={labels}
             roles={roles}
+            definitions={definitions}
             excludeName={selected.name}
             role={selected}
             busy={busy}
@@ -182,7 +206,7 @@ export function CorporateRolePanel({
               submit("PATCH", rolePath(selected.name), {
                 schema_version: 1,
                 parent_role: field(formData, "parentRole") || null,
-                permissions: parsePermissions(field(formData, "permissions")),
+                permissions: formData.getAll("permissions").map(String),
                 expected_revision: selected.revision,
                 authorization_revision: authorizationRevision,
                 idempotency_key: crypto.randomUUID(),
@@ -216,6 +240,7 @@ export function CorporateRolePanel({
             idPrefix="role-create"
             labels={labels}
             roles={roles}
+            definitions={definitions}
             withName
             busy={busy}
             submitLabel={labels.create}
@@ -225,7 +250,7 @@ export function CorporateRolePanel({
                 schema_version: 1,
                 name: field(formData, "name"),
                 parent_role: field(formData, "parentRole") || null,
-                permissions: parsePermissions(field(formData, "permissions")),
+                permissions: formData.getAll("permissions").map(String),
                 authorization_revision: authorizationRevision,
                 idempotency_key: crypto.randomUUID(),
               });
