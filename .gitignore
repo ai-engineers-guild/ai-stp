@@ -59,6 +59,9 @@ dist/
 build/
 *.egg-info/
 
+# Rust build output (apps/desktop)
+target/
+
 # Tool caches
 .pytest_cache/
 .mypy_cache/
