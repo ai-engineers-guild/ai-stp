@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { HardDrive, RefreshCw } from "lucide-react";
-import { cmdRunRead, type CmdResult } from "../transport";
+import { HardDrive, RefreshCw, Wrench } from "lucide-react";
+import { cliApplyConfirmed, cmdRunRead, type CmdResult } from "../transport";
 import { Json, ResultMeta, Spinner } from "../components/Result";
 
 const HARNESSES = ["antigravity", "claude-code", "codex", "cursor", "grok-build", "opencode", "pi"];
@@ -23,6 +23,9 @@ export default function TargetsPage() {
   const [harness, setHarness] = useState("claude-code");
   const [results, setResults] = useState<Record<string, CmdResult>>({});
   const [busy, setBusy] = useState<string | null>(null);
+  const [txId, setTxId] = useState("");
+  const [txResult, setTxResult] = useState<CmdResult | null>(null);
+  const [txConfirm, setTxConfirm] = useState(false);
 
   async function run(q: (typeof QUERIES)[number]) {
     setBusy(q.path);
@@ -31,6 +34,40 @@ export default function TargetsPage() {
     const r = await cmdRunRead(q.path, values);
     setResults((prev) => ({ ...prev, [q.path]: r }));
     setBusy(null);
+  }
+
+  /** Stopped transactions from `install status` — ids may arrive as plain
+   *  strings or objects carrying a transaction_id/id field. */
+  const stopped: string[] = (() => {
+    const s = (results["install status"]?.data?.stopped ?? []) as unknown[];
+    return s
+      .map((e) =>
+        typeof e === "string"
+          ? e
+          : ((e as Record<string, unknown>)?.transaction_id ??
+              (e as Record<string, unknown>)?.id) as string | undefined,
+      )
+      .filter((x): x is string => typeof x === "string" && x.length > 0);
+  })();
+
+  async function txInspect(id: string) {
+    setBusy("tx");
+    setTxResult(await cmdRunRead("install transaction status", { transaction: id }));
+    setBusy(null);
+  }
+
+  async function txRecover(id: string) {
+    setBusy("tx");
+    setTxResult(
+      await cliApplyConfirmed("install transaction recover", { transaction: id }, [], true),
+    );
+    setTxConfirm(false);
+    setBusy(null);
+    // Recovery changes the stopped list — refresh it if it was loaded.
+    if (results["install status"]) {
+      const r = await cmdRunRead("install status");
+      setResults((prev) => ({ ...prev, "install status": r }));
+    }
   }
 
   return (
@@ -70,6 +107,54 @@ export default function TargetsPage() {
           </button>
         ))}
       </div>
+
+      {stopped.length > 0 && (
+        <section className="card space-y-2 p-4">
+          <h2 className="section-title">Stopped transactions</h2>
+          <ul className="space-y-1.5">
+            {stopped.map((id) => (
+              <li key={id} className="flex items-center gap-2 font-mono text-xs">
+                <span className="flex-1 truncate">{id}</span>
+                <button onClick={() => { setTxId(id); void txInspect(id); }}
+                  className="btn-outline !py-0.5 !text-[11px]">inspect</button>
+                <button onClick={() => { setTxId(id); setTxConfirm(true); }}
+                  className="btn-danger !py-0.5 !text-[11px]">recover</button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      <section className="card space-y-2 p-4">
+        <h2 className="section-title">Transaction recovery</h2>
+        <p className="text-xs text-muted-foreground">
+          A stopped install transaction can be inspected and rolled back to a
+          verified state. Recover is an apply-tier mutation — confirm explicitly.
+        </p>
+        <div className="flex gap-2">
+          <input value={txId} onChange={(e) => setTxId(e.target.value)}
+            placeholder="tx id, e.g. from Stopped transactions above"
+            className="input w-80 font-mono" />
+          <button onClick={() => void txInspect(txId)} disabled={!txId || busy !== null}
+            className="btn-outline">Inspect</button>
+          {txConfirm ? (
+            <button onClick={() => void txRecover(txId)} className="btn-danger">
+              Confirm recover
+            </button>
+          ) : (
+            <button onClick={() => setTxConfirm(true)} disabled={!txId || busy !== null}
+              className="btn-outline text-destructive">
+              <Wrench size={13} /> Recover
+            </button>
+          )}
+        </div>
+        {txResult && (
+          <>
+            <ResultMeta r={txResult} />
+            {txResult.data && <Json v={txResult.data} />}
+          </>
+        )}
+      </section>
 
       {busy && <Spinner label="Querying target" />}
 
