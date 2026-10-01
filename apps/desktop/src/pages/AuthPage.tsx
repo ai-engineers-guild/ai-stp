@@ -65,9 +65,8 @@ export default function AuthPage() {
     await refreshAuth();
   }
 
-  const authenticated = Boolean(
-    auth && (auth.authenticated ?? auth.status === "authenticated"),
-  );
+  // Closed state set from the CLI: authenticated | expired | revoked | local_only.
+  const authenticated = auth?.state === "authenticated";
 
   return (
     <div className="space-y-5">

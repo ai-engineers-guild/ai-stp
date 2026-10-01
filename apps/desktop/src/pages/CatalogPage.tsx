@@ -77,26 +77,37 @@ export default function CatalogPage() {
         <ul className="divide-y divide-border card">
           {items.map((it, i) => {
             const id = String(it.stable_id ?? it.id ?? "");
+            const trust = (it.latest_trust ?? it.trust ?? {}) as Record<string, unknown>;
             return (
               <li key={i}>
                 <button
                   onClick={() => void show(id)}
-                  className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-accent dark:hover:bg-accent"
+                  className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-accent"
                 >
                   <div>
-                    <p className="section-title">{String(it.title ?? it.name ?? id)}</p>
+                    <p className="section-title">
+                      {String(it.latest_name ?? it.title ?? it.name ?? id)}
+                      <span className="ml-2 font-mono text-xs text-muted-foreground">
+                        {String(it.latest_version ?? "")}
+                      </span>
+                    </p>
                     <p className="font-mono text-xs text-muted-foreground">{id}</p>
+                    {it.latest_description != null && (
+                      <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">
+                        {String(it.latest_description)}
+                      </p>
+                    )}
                   </div>
-                  <div className="flex gap-1 text-[10px]">
-                    {Boolean(it.author_verified) && (
-                      <span className="rounded bg-success/15 px-1.5 py-0.5 text-success">author✓</span>
+                  <div className="flex shrink-0 gap-1 text-[10px]">
+                    {trust.author_verified === true && (
+                      <span className="chip bg-success/15 text-success">author✓</span>
                     )}
-                    {Boolean(it.component_verified) && (
-                      <span className="rounded bg-primary/15 px-1.5 py-0.5 text-primary">component✓</span>
+                    {trust.component_verified === true && (
+                      <span className="chip bg-primary/15 text-primary">component✓</span>
                     )}
-                    {it.lane != null && (
-                      <span className="rounded bg-black/10 px-1.5 py-0.5 dark:bg-white/10">
-                        {String(it.lane)}
+                    {trust.trust_lane != null && (
+                      <span className="chip bg-muted text-muted-foreground">
+                        {String(trust.trust_lane)}
                       </span>
                     )}
                   </div>

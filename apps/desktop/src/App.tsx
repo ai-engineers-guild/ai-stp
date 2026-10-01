@@ -54,9 +54,7 @@ export default function App() {
     void refreshAuth();
   }, [refreshCli, refreshAuth]);
 
-  const signedIn = Boolean(
-    auth && (auth.authenticated ?? auth.status === "authenticated"),
-  );
+  const signedIn = auth?.state === "authenticated";
   const failures = log.filter((e) => e.ok === false || e.ok === null).length;
 
   function toggleTheme() {
