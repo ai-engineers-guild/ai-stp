@@ -7,12 +7,16 @@ import {
   Settings,
   ShieldCheck,
   SquareTerminal,
+  Wrench,
+  MonitorSmartphone,
 } from "lucide-react";
 import { useApp } from "./store";
 import OverviewPage from "./pages/OverviewPage";
 import AuthPage from "./pages/AuthPage";
 import CatalogPage from "./pages/CatalogPage";
 import TasksPage from "./pages/TasksPage";
+import InstallPage from "./pages/InstallPage";
+import TargetsPage from "./pages/TargetsPage";
 import RegistryPage from "./pages/RegistryPage";
 import SettingsPage from "./pages/SettingsPage";
 
@@ -21,6 +25,8 @@ const NAV = [
   { to: "/auth", icon: ShieldCheck, label: "Account" },
   { to: "/catalog", icon: Package, label: "Catalog" },
   { to: "/tasks", icon: ListChecks, label: "Tasks" },
+  { to: "/install", icon: Wrench, label: "Install" },
+  { to: "/targets", icon: MonitorSmartphone, label: "Targets" },
   { to: "/registry", icon: SquareTerminal, label: "Commands" },
   { to: "/settings", icon: Settings, label: "Settings" },
 ];
@@ -81,6 +87,8 @@ export default function App() {
             <Route path="/auth" element={<AuthPage />} />
             <Route path="/catalog" element={<CatalogPage />} />
             <Route path="/tasks" element={<TasksPage />} />
+            <Route path="/install" element={<InstallPage />} />
+            <Route path="/targets" element={<TargetsPage />} />
             <Route path="/registry" element={<RegistryPage />} />
             <Route path="/settings" element={<SettingsPage />} />
           </Routes>
