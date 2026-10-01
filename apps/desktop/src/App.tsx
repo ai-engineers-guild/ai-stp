@@ -1,84 +1,91 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
+import { HashRouter, NavLink, Route, Routes } from "react-router";
 import {
-  cmdAuthStatus,
-  cmdCapabilities,
-  cmdDoctor,
-  cmdVersion,
-  type CmdResult,
-} from "./transport";
+  Home,
+  ListChecks,
+  Package,
+  Settings,
+  ShieldCheck,
+  SquareTerminal,
+} from "lucide-react";
+import { useApp } from "./store";
+import OverviewPage from "./pages/OverviewPage";
+import AuthPage from "./pages/AuthPage";
+import CatalogPage from "./pages/CatalogPage";
+import TasksPage from "./pages/TasksPage";
+import RegistryPage from "./pages/RegistryPage";
+import SettingsPage from "./pages/SettingsPage";
 
-interface Probe {
-  label: string;
-  run: () => Promise<CmdResult>;
-}
-
-const PROBES: Probe[] = [
-  { label: "version", run: cmdVersion },
-  { label: "capabilities", run: cmdCapabilities },
-  { label: "doctor", run: cmdDoctor },
-  { label: "auth status", run: cmdAuthStatus },
+const NAV = [
+  { to: "/", icon: Home, label: "Overview" },
+  { to: "/auth", icon: ShieldCheck, label: "Account" },
+  { to: "/catalog", icon: Package, label: "Catalog" },
+  { to: "/tasks", icon: ListChecks, label: "Tasks" },
+  { to: "/registry", icon: SquareTerminal, label: "Commands" },
+  { to: "/settings", icon: Settings, label: "Settings" },
 ];
 
-export function App() {
-  const [results, setResults] = useState<Record<string, CmdResult>>({});
-  const [pending, setPending] = useState(false);
+export default function App() {
+  const { auth, cliOk, scope, refreshAuth, refreshCli } = useApp();
 
   useEffect(() => {
-    setPending(true);
-    let cancelled = false;
-    Promise.all(
-      PROBES.map(async (p) => [p.label, await p.run()] as const),
-    ).then((entries) => {
-      if (!cancelled) {
-        setResults(Object.fromEntries(entries));
-        setPending(false);
-      }
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    void refreshCli();
+    void refreshAuth();
+  }, [refreshCli, refreshAuth]);
+
+  const signedIn = Boolean(
+    auth && (auth.authenticated ?? auth.status === "authenticated"),
+  );
 
   return (
-    <main className="mx-auto max-w-3xl p-8 font-sans">
-      <h1 className="text-2xl font-semibold">ai-stp</h1>
-      <p className="mt-1 text-sm opacity-70">
-        Desktop spike — CLI contract verification via{" "}
-        <code>ai-stp --json</code>
-      </p>
-      {pending && <p className="mt-4 text-sm">Probing CLI…</p>}
-      <dl className="mt-6 space-y-4">
-        {PROBES.map((p) => {
-          const r = results[p.label];
-          return (
-            <div key={p.label} className="rounded-lg border p-4">
-              <dt className="text-sm font-medium">
-                {p.label}{" "}
-                {r && (
-                  <span className={r.ok ? "text-green-700" : "text-red-700"}>
-                    {r.ok ? "ok" : "failed"}
-                  </span>
-                )}
-              </dt>
-              {r?.error && (
-                <dd className="mt-1 text-sm text-red-700">{r.error}</dd>
-              )}
-              {r && r.warnings.length > 0 && (
-                <dd className="mt-1 text-sm text-amber-700">
-                  {r.warnings.join("; ")}
-                </dd>
-              )}
-              {r?.data && (
-                <dd className="mt-2">
-                  <pre className="overflow-x-auto rounded bg-black/5 p-2 text-xs">
-                    {JSON.stringify(r.data, null, 2)}
-                  </pre>
-                </dd>
-              )}
-            </div>
-          );
-        })}
-      </dl>
-    </main>
+    <HashRouter>
+      <div className="flex h-screen bg-canvas text-ink">
+        <aside className="flex w-52 shrink-0 flex-col border-r border-current/10 p-3">
+          <div className="mb-4 flex items-center gap-2 px-2">
+            <span className="h-2.5 w-2.5 rounded-sm bg-brand" />
+            <span className="font-bold">ai-stp</span>
+            <span
+              className={`ml-auto h-2 w-2 rounded-full ${
+                cliOk === null ? "bg-amber-400" : cliOk ? "bg-emerald-500" : "bg-red-500"
+              }`}
+              title={cliOk ? "CLI connected" : "CLI unavailable"}
+            />
+          </div>
+          <nav className="flex flex-col gap-0.5">
+            {NAV.map((n) => (
+              <NavLink
+                key={n.to}
+                to={n.to}
+                end={n.to === "/"}
+                className={({ isActive }) =>
+                  `flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm ${
+                    isActive
+                      ? "bg-brand/10 font-semibold text-brand"
+                      : "opacity-70 hover:bg-black/5 dark:hover:bg-white/5"
+                  }`
+                }
+              >
+                <n.icon size={15} />
+                {n.label}
+              </NavLink>
+            ))}
+          </nav>
+          <div className="mt-auto space-y-1 px-2 text-[11px] opacity-60">
+            <p>scope: {scope.kind}</p>
+            <p>{signedIn ? "signed in" : "signed out"}</p>
+          </div>
+        </aside>
+        <main className="flex-1 overflow-auto p-6">
+          <Routes>
+            <Route path="/" element={<OverviewPage />} />
+            <Route path="/auth" element={<AuthPage />} />
+            <Route path="/catalog" element={<CatalogPage />} />
+            <Route path="/tasks" element={<TasksPage />} />
+            <Route path="/registry" element={<RegistryPage />} />
+            <Route path="/settings" element={<SettingsPage />} />
+          </Routes>
+        </main>
+      </div>
+    </HashRouter>
   );
 }
