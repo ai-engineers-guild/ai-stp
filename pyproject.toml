@@ -94,7 +94,8 @@ default-groups = ["dev"]
 [tool.uv.workspace]
 members = ["packages/*", "apps/*"]
 # apps/web is a Node/bun workspace (ADR-0043), not a Python package; keep it out of uv.
-exclude = ["apps/web"]
+# apps/desktop is a Tauri (Rust/Vite) app (ADR-0219), not a Python package either.
+exclude = ["apps/web", "apps/desktop"]
 
 [tool.uv.sources]
 ai-stp-foundation = { workspace = true }

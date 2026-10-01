@@ -1,0 +1,16 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Default window capabilities — IPC invoke only; no shell/fs/network scopes open to the webview.",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "core:event:default",
+    "core:window:default",
+    "dialog:default",
+    "opener:allow-open-url",
+    "process:allow-restart",
+    "process:allow-exit",
+    "window-state:default"
+  ]
+}

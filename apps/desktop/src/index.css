@@ -1,0 +1,12 @@
+@import "tailwindcss";
+
+@theme inline {
+  --color-brand: #fb631b;
+  --color-canvas: #f9f8f4;
+  --color-ink: #181818;
+}
+
+.dark {
+  --color-canvas: #101010;
+  --color-ink: #f9f8f4;
+}

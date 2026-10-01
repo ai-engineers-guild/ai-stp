@@ -50,6 +50,16 @@ Open beta ships all seven harnesses. Completeness of the product requirements an
 - CLI removal with data retained and a separate purge;
 - Agent Skill in Russian and English with a native projection for seven harnesses.
 
+## Desktop application
+
+A desktop application for macOS, Linux, and Windows is in development as a
+contract consumer of the CLI and the `/v1` API (ADR-0219). It renders
+catalog, plan, apply, status, and recovery surfaces; the CLI remains the
+only engine. It is not a persistent daemon and does not run a local server.
+Its v1 excludes corporate surfaces, publishing, and any feature that calls
+a model API. Its own signed-update channel is application packaging, not a
+new product release channel.
+
 ## Not included
 
 - real payments and payouts;
@@ -57,7 +67,7 @@ Open beta ships all seven harnesses. Completeness of the product requirements an
 - browser-based setup editor;
 - installing the managed toolchain on Windows (`SPEC-014` REQ-1419); harness detection, provider apply, and the OS vocabulary include Windows;
 - persistent desktop daemon;
-- automatic updates and release channels;
+- automatic updates and release channels for the CLI/API product (the desktop app's own updater, if shipped, is packaging for `apps/desktop`, not this item);
 - platform-authored packaging of third-party open-source components to populate the catalog;
 - free-form tags outside the glossary;
 - organization/team/enterprise landscape;

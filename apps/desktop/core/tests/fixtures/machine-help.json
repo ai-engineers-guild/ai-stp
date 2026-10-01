@@ -1,0 +1,387 @@
+{
+ "cli_version": "0.0.31",
+ "registry_digest": "sha256:960a20bf95b0ccec7d55c421985bb8c692c9edfd63ac242c70002484c43ebc33",
+ "commands": [
+  {
+   "path": [
+    "install",
+    "plan"
+   ],
+   "summary": "Compute an immutable installation plan. Has no effect of its own.",
+   "mutability": "plan",
+   "confirmation": "none",
+   "parameters": [
+    {
+     "name": "proposal",
+     "kind": "option",
+     "value_type": "string",
+     "required": false,
+     "repeatable": false,
+     "summary": "The newly confirmed composition to install.",
+     "choices": []
+    },
+    {
+     "name": "setup",
+     "kind": "option",
+     "value_type": "string",
+     "required": false,
+     "repeatable": false,
+     "summary": "An immutable prepared SetupVersion as <stable_id>@<X.Y>.",
+     "choices": []
+    },
+    {
+     "name": "component",
+     "kind": "option",
+     "value_type": "string",
+     "required": false,
+     "repeatable": true,
+     "summary": "An exact standalone component as <stable_id>@<X.Y>, repeatable. Installed alongside the named prepared SetupVersion so a managed assignment of loose components can reach a verified baseline; the bundle manifest covers each one.",
+     "choices": []
+    },
+    {
+     "name": "project",
+     "kind": "option",
+     "value_type": "string",
+     "required": false,
+     "repeatable": false,
+     "summary": "Local project root that binds a catalogue setup to the current context.",
+     "choices": []
+    },
+    {
+     "name": "harness",
+     "kind": "option",
+     "value_type": "string",
+     "required": false,
+     "repeatable": false,
+     "summary": "The harness of the pair, when no proposal or setup names it.",
+     "choices": [
+      "antigravity",
+      "claude-code",
+      "codex",
+      "cursor",
+      "grok-build",
+      "opencode",
+      "pi"
+     ]
+    },
+    {
+     "name": "provider",
+     "kind": "option",
+     "value_type": "string",
+     "required": false,
+     "repeatable": false,
+     "summary": "Provider executable. Omitted, the CLI uses a configured, remembered or managed provider, or acquires the attested OpenNetwork release.",
+     "choices": []
+    },
+    {
+     "name": "provider-manifest",
+     "kind": "option",
+     "value_type": "string",
+     "required": false,
+     "repeatable": false,
+     "summary": "Release manifest whose exact artifact is the provider executable. Required by protocol v3 unless unverified-provider is given. A repository pinned for build attestation is verified that way.",
+     "choices": []
+    },
+    {
+     "name": "provider-build-attestation",
+     "kind": "option",
+     "value_type": "boolean",
+     "required": false,
+     "repeatable": false,
+     "summary": "Verify exact provider bytes through the repository, source commit and signer workflow pinned by the local policy. Implied when the manifest repository already has a pinned build-attestation rule.",
+     "choices": []
+    },
+    {
+     "name": "provider-attestation-bundle",
+     "kind": "option",
+     "value_type": "string",
+     "required": false,
+     "repeatable": false,
+     "summary": "Optional local GitHub attestation bundle for offline verification.",
+     "choices": []
+    },
+    {
+     "name": "unverified-provider",
+     "kind": "option",
+     "value_type": "boolean",
+     "required": false,
+     "repeatable": false,
+     "summary": "Install from a provider executable no signed or attested release covers, such as one you built yourself. The pinned trust policy checks nothing here, and the plan records provider_release_trusted false.",
+     "choices": []
+    },
+    {
+     "name": "provider-release-recovery",
+     "kind": "option",
+     "value_type": "boolean",
+     "required": false,
+     "repeatable": false,
+     "summary": "Explicitly recover an older exact provider release verified on this machine.",
+     "choices": []
+    },
+    {
+     "name": "action",
+     "kind": "option",
+     "value_type": "string",
+     "required": false,
+     "repeatable": false,
+     "summary": "Provider lifecycle action.",
+     "choices": [
+      "install",
+      "update",
+      "backup",
+      "remove",
+      "rollback"
+     ]
+    },
+    {
+     "name": "protocol-version",
+     "kind": "option",
+     "value_type": "integer",
+     "required": false,
+     "repeatable": false,
+     "summary": "Provider protocol selected before invocation. A trusted release manifest selects it; without one this defaults to frozen v1.",
+     "choices": []
+    },
+    {
+     "name": "target",
+     "kind": "option",
+     "value_type": "string",
+     "required": false,
+     "repeatable": false,
+     "summary": "Existing absolute provider target directory. Required by protocol v2/v3.",
+     "choices": []
+    },
+    {
+     "name": "backup-ref",
+     "kind": "option",
+     "value_type": "string",
+     "required": false,
+     "repeatable": false,
+     "summary": "Exact provider-owned BackupRef required by a protocol-v3 rollback.",
+     "choices": []
+    },
+    {
+     "name": "permission-profile",
+     "kind": "option",
+     "value_type": "string",
+     "required": false,
+     "repeatable": false,
+     "summary": "Provider-declared execution posture, separate from setup identity.",
+     "choices": []
+    },
+    {
+     "name": "allow-permission",
+     "kind": "option",
+     "value_type": "string",
+     "required": false,
+     "repeatable": true,
+     "summary": "A permission this target grants the composition, spelled family:value as the component passport declares it, such as process:git or filesystem:.herdr/**. Repeatable. Without a grant the target permits nothing and the plan refuses.",
+     "choices": []
+    },
+    {
+     "name": "scope",
+     "kind": "option",
+     "value_type": "string",
+     "required": false,
+     "repeatable": false,
+     "summary": "Projection scope the plan installs into: the harness home (global), the workspace named by --target (project) or the shared ~/.agents root named by --target (user_root). Default global.",
+     "choices": [
+      "global",
+      "project",
+      "user_root"
+     ]
+    }
+   ],
+   "parameter_rules": [
+    {
+     "kind": "exactly_one",
+     "parameters": [
+      "proposal",
+      "setup"
+     ],
+     "when_parameter": "action",
+     "when_values": [
+      "install",
+      "update",
+      "remove"
+     ]
+    },
+    {
+     "kind": "at_most_one",
+     "parameters": [
+      "proposal",
+      "setup"
+     ],
+     "when_parameter": "action",
+     "when_values": [
+      "backup",
+      "rollback"
+     ]
+    },
+    {
+     "kind": "forbidden_when",
+     "parameters": [
+      "component"
+     ],
+     "when_parameter": "action",
+     "when_values": [
+      "backup",
+      "rollback"
+     ]
+    },
+    {
+     "kind": "required_when",
+     "parameters": [
+      "project"
+     ],
+     "when_parameter": "setup",
+     "when_values": [
+      "present"
+     ]
+    },
+    {
+     "kind": "required_when",
+     "parameters": [
+      "setup"
+     ],
+     "when_parameter": "component",
+     "when_values": [
+      "present"
+     ]
+    },
+    {
+     "kind": "required_when",
+     "parameters": [
+      "target"
+     ],
+     "when_parameter": "protocol-version",
+     "when_values": [
+      "2",
+      "3"
+     ]
+    },
+    {
+     "kind": "required_when",
+     "parameters": [
+      "target"
+     ],
+     "when_parameter": "scope",
+     "when_values": [
+      "project",
+      "user_root"
+     ]
+    }
+   ],
+   "result_schema": "urn:ai-stp:schema:v1:cli-installation",
+   "next_actions": [
+    "help --path install --json"
+   ]
+  },
+  {
+   "path": [
+    "target",
+    "status"
+   ],
+   "summary": "The daily state of one project and harness. Reads; never updates anything.",
+   "mutability": "read",
+   "confirmation": "none",
+   "parameters": [
+    {
+     "name": "project",
+     "kind": "option",
+     "value_type": "string",
+     "required": true,
+     "repeatable": false,
+     "summary": "The project passport's stable id.",
+     "choices": []
+    },
+    {
+     "name": "harness",
+     "kind": "option",
+     "value_type": "string",
+     "required": true,
+     "repeatable": false,
+     "summary": "The harness of the pair.",
+     "choices": [
+      "antigravity",
+      "claude-code",
+      "codex",
+      "cursor",
+      "grok-build",
+      "opencode",
+      "pi"
+     ]
+    },
+    {
+     "name": "provider",
+     "kind": "option",
+     "value_type": "string",
+     "required": false,
+     "repeatable": false,
+     "summary": "Provider executable, to read the target as it is now.",
+     "choices": []
+    },
+    {
+     "name": "provider-manifest",
+     "kind": "option",
+     "value_type": "string",
+     "required": false,
+     "repeatable": false,
+     "summary": "Signed provider release manifest proving these exact bytes. Optional: the release this pair was last verified under is read from the journal when the named executable is its exact bytes.",
+     "choices": []
+    },
+    {
+     "name": "protocol-version",
+     "kind": "option",
+     "value_type": "integer",
+     "required": false,
+     "repeatable": false,
+     "summary": "Provider protocol selected before invocation. A signed release selects it, named or recorded; without one the read asks in v3, the protocol released providers speak.",
+     "choices": []
+    },
+    {
+     "name": "unverified-provider",
+     "kind": "option",
+     "value_type": "boolean",
+     "required": false,
+     "repeatable": false,
+     "summary": "Read the target through an executable no signed or attested release covers. It does not relax isolation: the read still runs under the launcher its system proved.",
+     "choices": []
+    },
+    {
+     "name": "target",
+     "kind": "option",
+     "value_type": "string",
+     "required": false,
+     "repeatable": false,
+     "summary": "Existing absolute provider target directory. Required by protocol v2 and v3.",
+     "choices": []
+    },
+    {
+     "name": "requires-env",
+     "kind": "option",
+     "value_type": "string",
+     "required": false,
+     "repeatable": true,
+     "summary": "An additional uppercase variable this target needs beyond its setup passport. Never NAME=value.",
+     "choices": []
+    },
+    {
+     "name": "catalog-version",
+     "kind": "option",
+     "value_type": "string",
+     "required": false,
+     "repeatable": false,
+     "summary": "Newest known version, to report catalog drift.",
+     "choices": []
+    }
+   ],
+   "parameter_rules": [],
+   "result_schema": "urn:ai-stp:schema:v1:cli-target-survey",
+   "next_actions": [
+    "help --path install --json",
+    "help --path target --json"
+   ]
+  }
+ ]
+}
