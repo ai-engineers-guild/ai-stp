@@ -271,7 +271,12 @@ full `just check` remains the CI gate.
 `security` is repository-wide, not group-specific: the recipe runs `bun audit`
 over the web lockfile and `scripts/safety/scan_lockfile.sh`, which fetches the
 pinned `osv-scanner` (checksum-verified from its own release SHA256SUMS) and
-scans `uv.lock` for Python advisories.
+scans every committed lockfile — `uv.lock`, `apps/web/bun.lock`,
+`docs_scripts/bun.lock`, the vendored provider-verifier environment
+(`apps/cli/src/ai_stp_cli/provider/verifier-requirements.txt`), and the
+scanner venv lock (`scripts/safety/requirements.lock`). All five always
+report: the script exits nonzero at the end if any one of them trips rather
+than aborting at the first advisory.
 
 ## Frontend (`apps/web`)
 

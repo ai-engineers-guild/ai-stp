@@ -181,7 +181,7 @@ reach the root, so the same file works from any caller's cwd.
 
 | Check | Where it runs | What it proves |
 | --- | --- | --- |
-| `just infra-static` | local, on demand (outside `check`) | hadolint clean at `warning` threshold (`.hadolint.yaml`), shellcheck clean on `deploy/*.sh`, all six compose combinations render |
+| `just infra-static` | local, on demand (outside `check`) | hadolint clean at `warning` threshold (`.hadolint.yaml`), shellcheck clean on `deploy/*.sh`, all eight compose combinations render |
 | `just infra-build` | local, on demand | the prod images build from this checkout exactly as the host builds them |
 | `just infra-up` / `infra-down` | local dev | the dev stack lifecycle |
 | `test_container_bases_are_pinned.py` | `back-test`, CI | every `FROM` digest-pinned, prod `image:` digested, one tag → one digest, `${VAR:-}` defaults digested |

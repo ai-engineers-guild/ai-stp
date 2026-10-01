@@ -82,7 +82,7 @@ review. The code-backed canon remains the owner of the domain inventory.
 | 4 | Preserve attempts | Reject nonempty direct workspaces; fill uses unique directories; validate scenario and run before effects; retain unavailable and failed attempts |
 | 5 | Bind execution inputs | Hash actual first-party payload and copied Skill, record installation/archive metadata and website prompt; refuse mixed/unknown candidate overlays; retain prompt and driver identity per attempt; recheck input bytes before score |
 | 6 | Recheck reported UX failures | Only reproducible product failures justify runtime changes. Unsupported model commands and invalid fixtures remain explicit findings |
-| 7 | Finish delivery | PyPI 0.0.30 published in run 36229099123; public wheel/sdist match the candidate; unpinned isolated install resolves 0.0.30. Maintenance 0.0.31 shipped; 0.0.32 published through release-candidate 36328279281 and publish-pypi 36328558135 carrying the detach_operation reader; 0.0.33 published through release-candidate 36384276021 and publish-pypi 36384484011 carrying provider-kit 0.2.15 and the unified provider invocation boundary — still no autonomous-model acceptance claim; 0.0.34 tagged `v0.0.34` @ `309f77f4` (promotion #530, attested candidate 36522578596); 0.0.35 tagged `v0.0.35` @ `dd476cef` (promotion #535, candidate run 36540669341) and published to PyPI through run 36548752992 after owner approval — 0.0.34 was tagged+attested but intentionally never published |
+| 7 | Finish delivery | PyPI 0.0.30 published in run 36229099123; public wheel/sdist match the candidate; unpinned isolated install resolves 0.0.30. Maintenance 0.0.31 shipped; 0.0.32 published through release-candidate 36328279281 and publish-pypi 36328558135 carrying the detach_operation reader; 0.0.33 published through release-candidate 36384276021 and publish-pypi 36384484011 carrying provider-kit 0.2.15 and the unified provider invocation boundary — still no autonomous-model acceptance claim; 0.0.34 tagged `v0.0.34` @ `309f77f4` (promotion #530, attested candidate 36522578596); 0.0.35 tagged `v0.0.35` @ `dd476cef` (promotion #535, candidate run 36540669341) and published to PyPI through run 36548752992 after owner approval — 0.0.34 was tagged+attested but intentionally never published. On 2026-09-30 the GitHub Release records for `v0.0.32`–`v0.0.35` were created retroactively with the attested candidate bytes (wheel, sdist, CycloneDX SBOM, release manifest, `SHA256SUMS`); every uploaded wheel was verified byte-identical against the published PyPI artifact before the release went up |
 | 8 | Repeat private publication | Verified a new synthetic private setup through author/publish, worker completion, fresh owner version/artifact reads and anonymous not-found; no grants or existing visibility changes |
 | 9 | Repeat GPT OSS 120B acceptance | New unassisted attempt returned individual quota exhaustion with a 4h42m reset; it remains `not_run`. Do not fill the corpus while this condition persists |
 | 10 | Update canonical documents | SPEC-080 follows tested oracles, prerequisites and identity binding; this roadmap owns the current order; Agent UX preserves historical scores |
@@ -790,3 +790,39 @@ The September 26 estate pass terminated with these measured results:
 - Still open by scope decision: #275 pending the armed promotion merge,
   and the colleague/enterprise backlog (#18–#24, #48–#52, #57–#60, #180,
   #199–#235, #247).
+
+## Closing record — 2026-09-30 evening
+
+The session audit of the last ten days of agent work (five parallel review
+tracks over Codex/Claude Code/Devin/Cursor/Grok artifacts plus the live tree)
+ended with the repo green and three follow-on findings closed:
+
+- Documentation truthfulness wave (PR #553): retired recipe names in
+  QUICKSTART and test comments, unpublished-ADR markers, prod naming in
+  the deploy runbook, provider-corpus pin caveat, frozen colleague spec
+  range, historical release-note scoping.
+- Infrastructure validation wave (PR #554): `infra-static` covers all
+  eight compose base+overlay combinations; the corporate E2E lane is
+  documented opt-in.
+- Platform hygiene wave (PR #555): the safety orchestrator logs metric
+  failures instead of swallowing them; `.env.prod.example` carries the
+  worker mail block.
+- Release hygiene: GitHub Releases for `v0.0.32`–`v0.0.35` created from
+  byte-identical attested artifacts; `uv` bump deferred per the 7-day
+  dependabot cooldown.
+- CodeQL sweep (PR #557 → #558): both open alerts triaged as documented
+  false positives and dismissed; the ld+json escape comment corrected.
+- Dependency security wave (PR #559 → #560, #561 → #562): `urllib3 2.8.0`
+  (GHSA-8988-9cw3-xx77, GHSA-vxq7-64xx-v4gw), `pyjwt 2.15.0`
+  (GHSA-42vr-xj54-vc7v), `dompurify 3.4.16` (GHSA-p98j-92pf-mc4p) — the
+  last two published mid-session by OSV. `scan_lockfile.sh` now weighs
+  all five committed lockfiles and always reports every one of them;
+  the vendored verifier env and the scanner venv lock had pinned the
+  same vulnerable `urllib3` unscanned.
+- Production: `main` = `deploy/prod` = `bdf78485`, verified through
+  `/v1/system/version`; the roll took ~75 min as a cold rebuild and is
+  recorded in the deploy runbook as the third measured roll.
+- Still open by scope decision: colleague/enterprise backlog
+  (#18–#24, #48–#52, #57–#60, #180, #199–#235, #247, #541–#544),
+  corporate E2E lane `not_verified`, conformance `unmeasured=7` pending
+  the isolation launcher.
