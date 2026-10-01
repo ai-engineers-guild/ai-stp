@@ -152,6 +152,29 @@ not redesign administration or Technology Landscape. Dashboard is an empty route
   offers actions available to the caller and filters by scope kind when the
   caller may read the permission matrix; the API remains authoritative for
   delegation and scope validation.
+  The Human access model starts with a semantic entity table with discovery,
+  content, relationships, presentation and lifecycle columns. Relationship
+  resources remain visible under their owning entity; no enforced action is
+  removed. Row/action controls open a closable right Sheet with action codes,
+  accepted scopes and granting roles. `view=matrix` opens the Sections table
+  derived from the canonical navigation manifest, with routes, visibility
+  conditions and required permissions; `view=roles` opens the role comparison
+  table without collapsed groups. Section details show caller availability and
+  provide a link to the real route. Search and area filters apply to the tables.
+  Roles use a searchable role list beside the selected role's entity/action
+  matrix, details and assignments. Assignments include active organization
+  memberships and explicit bindings. Inherited permissions are resolved through
+  parent roles; system roles remain immutable. Custom role forms use the same
+  matrix with selectable actions and retain revision/idempotency checks.
+  Employee access has its own table with contact, teams, roles, access scope and
+  status. Selecting an employee preserves the directory and opens an addressable
+  right Sheet (`employee` query) with Access, Profile and Activity tabs. Access
+  reuses authorized role-binding/direct-grant forms and groups effective actions
+  with their actual sources, optional matrix view and scope selection. The
+  full individual access route remains reachable for the detailed breakdown.
+  Issuance offers only caller actions valid for the selected scope, and role
+  choices come from delegation. This presentation does not introduce new rights,
+  change system role definitions or fabricate actions absent from the server.
 - `REQ-8317`: An account holding more than one corporate membership selects its
   active organization through a switcher in the Corporate Hub chrome. The
   selection is a session-scoped preference cookie written by a server action

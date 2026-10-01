@@ -6,14 +6,16 @@ import { HistoryBackButton } from "@/components/molecules/history-back-button";
 import { LocalizedResourceActions } from "@/components/organisms/localized-corporate-resource-actions";
 import { CorporateMemberAccessPanel } from "@/components/organisms/corporate-member-access-panel";
 import { StatePanel } from "@/components/molecules/state-panel";
+import { CorporateEmployeeAccessDrawer } from "@/components/organisms/corporate-employee-access-drawer";
 import { ApiError } from "@/lib/api/errors";
 import { apiRequest } from "@/lib/api/http";
-import { readCorporateMemberAccess } from "@/lib/api/corporate";
+import { readCorporateDirectoryPages, readCorporateMemberAccess } from "@/lib/api/corporate";
 import { requireSession, sessionCookieValue } from "@/lib/auth/require-session";
 import { readCsrfToken } from "@/lib/auth/session";
 import { Link } from "@/lib/i18n/navigation";
 import type {
   CorporateEffectivePermission,
+  CorporateDirectoryItem,
   CorporateMember,
   CorporateMemberPrivateGrant,
   CorporatePermissionMatrix,
@@ -82,13 +84,62 @@ export default async function EmployeeAccessPage({
         { sessionToken: session },
       )
     : null;
+  const roleItems = roles?.items ?? [];
+  const technologies = await readScopeTechnologies(
+    session,
+    organization.organization_id,
+    capabilities,
+  );
+  const definitions = permissionMatrix?.definitions ?? [];
   const grantableRoleNames = delegation?.grantable_roles.map((grantable) => grantable.name) ?? null;
   const { scopeOptions, currentScope, effective } = deriveAccessView(
     result,
     requestedScopeKind,
     requestedScopeId,
     t,
+    technologies,
   );
+
+  const embedded = filters.embedded === "1";
+  const a = await getTranslations("accessUi");
+  const accessPanel = (
+    <CorporateMemberAccessPanel
+      compact={embedded}
+      csrfToken={csrfToken}
+      organizationId={organization.organization_id}
+      authorizationRevision={organization.authorization_revision}
+      accountId={accountId}
+      membershipRole={member.role}
+      scopeOptions={scopeOptions}
+      teams={context.teams}
+      projects={context.projects}
+      roles={roleItems}
+      grantableRoleNames={grantableRoleNames}
+      bindings={access?.bindings ?? []}
+      grants={access?.grants ?? []}
+      capabilities={capabilities}
+      definitions={definitions}
+      labels={{
+        ...memberAccessLabels(t),
+        ...(embedded ? { create: a("grantAccess"), bindings: a("rolesAndAssignments") } : {}),
+      }}
+    />
+  );
+  if (embedded) {
+    return (
+      <CorporateEmployeeAccessDrawer
+        member={member}
+        teams={context.teams}
+        effective={effective}
+        definitions={definitions}
+        scopeOptions={scopeOptions}
+        currentScope={currentScope}
+        canAudit={capabilities.includes("audit.list")}
+      >
+        {accessPanel}
+      </CorporateEmployeeAccessDrawer>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -105,7 +156,7 @@ export default async function EmployeeAccessPage({
         organizationId={organization.organization_id}
         authorizationRevision={organization.authorization_revision}
         csrfToken={csrfToken}
-        roles={roles?.items ?? []}
+        roles={roleItems}
         permissions={capabilities}
         availableActions={capabilities}
       />
@@ -122,23 +173,7 @@ export default async function EmployeeAccessPage({
 
       <section className="border-border bg-card rounded-lg border p-5 shadow-sm sm:p-6">
         <h2 className="text-xl font-medium">{t("accessAdministration")}</h2>
-        <div className="mt-4">
-          <CorporateMemberAccessPanel
-            csrfToken={csrfToken}
-            organizationId={organization.organization_id}
-            authorizationRevision={organization.authorization_revision}
-            accountId={accountId}
-            teams={context.teams}
-            projects={context.projects}
-            roles={roles?.items ?? []}
-            grantableRoleNames={grantableRoleNames}
-            bindings={access?.bindings ?? []}
-            grants={access?.grants ?? []}
-            capabilities={capabilities}
-            definitions={permissionMatrix?.definitions ?? []}
-            labels={memberAccessLabels(t)}
-          />
-        </div>
+        <div className="mt-4">{accessPanel}</div>
       </section>
 
       <PrivateGrants grants={access?.private_grants ?? []} t={t} />
@@ -326,6 +361,18 @@ function memberAccessLabels(t: (key: string) => string) {
 
 type MemberAccessResult = Awaited<ReturnType<typeof readCorporateMemberAccess>>;
 
+async function readScopeTechnologies(
+  session: string,
+  organizationId: string,
+  capabilities: readonly string[],
+) {
+  if (!capabilities.includes("technology.list")) return [];
+  const directory = await readCorporateDirectoryPages(session, organizationId, {
+    resource: "technologies",
+  });
+  return directory.items;
+}
+
 async function loadMemberAccess(
   accountId: string,
   scopeKind: string,
@@ -370,6 +417,7 @@ function deriveAccessView(
   requestedScopeKind: string,
   requestedScopeId: string | undefined,
   t: (key: string) => string,
+  technologies: readonly CorporateDirectoryItem[],
 ) {
   const { access, context, organization } = result;
   const scopeKind = access?.scope_kind ?? requestedScopeKind;
@@ -386,6 +434,10 @@ function deriveAccessView(
       ...context.projects.map((project) => ({
         value: `project:${project.project_id}`,
         label: `${t("project")}: ${project.name}`,
+      })),
+      ...technologies.map((item) => ({
+        value: `technology:${item.id}`,
+        label: item.name,
       })),
     ],
   };

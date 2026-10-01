@@ -72,14 +72,10 @@ function PeopleStats({
   );
 }
 
-export default async function CorporateAdministrationPage({
-  params,
-  searchParams,
-  accessView = false,
-}: PageProps & { accessView?: boolean }) {
+export default async function CorporateAdministrationPage({ params, searchParams }: PageProps) {
   const { locale } = await params;
   const filters = await searchParams;
-  const tab = !accessView && filters.tab === "invitations" ? "invitations" : "members";
+  const tab = filters.tab === "invitations" ? "invitations" : "members";
   setRequestLocale(locale);
   await requireSession(locale, `/${locale}/corporate/organization/admins`);
   const t = await getTranslations("people");
@@ -104,18 +100,14 @@ export default async function CorporateAdministrationPage({
       />
     );
   const csrfToken = (await readCsrfToken()) ?? "";
-  return (
-    <AdministrationContent data={data} accessView={accessView} tab={tab} csrfToken={csrfToken} />
-  );
+  return <AdministrationContent data={data} tab={tab} csrfToken={csrfToken} />;
 }
 async function AdministrationContent({
   data,
-  accessView,
   tab,
   csrfToken,
 }: {
   data: Extract<Awaited<ReturnType<typeof loadAdminData>>, { status: "ok" }>;
-  accessView: boolean;
   tab: string;
   csrfToken: string;
 }) {
@@ -125,7 +117,7 @@ async function AdministrationContent({
 
   const { context, members, roles, jobTitles } = workspace;
   const now = new Date().toISOString();
-  const title = h(accessView ? "employeeAccess" : "membersAndInvitations");
+  const title = h("membersAndInvitations");
   const canViewInvitations = context.capabilities.includes("member.invite");
   return (
     <div className="min-w-0 space-y-5" data-ui="members-invitations-page">
@@ -151,47 +143,45 @@ async function AdministrationContent({
           <p className="text-muted-foreground text-sm sm:text-base">{t("pageBody")}</p>
         </div>
       </header>
-      {!accessView ? (
-        <>
-          <PeopleStats
-            items={[
-              { label: t("totalMembers"), count: members?.items.length ?? null, icon: "team" },
-              {
-                label: t("pendingInvitations"),
-                count:
-                  invitations?.items.filter((invitation) =>
-                    isOutstandingInvitation(invitation, Date.parse(now)),
-                  ).length ?? null,
-                icon: "mail",
-              },
-              { label: t("teams"), count: context.teams.length, icon: "team" },
-              { label: t("roles"), count: roles?.items.length ?? null, icon: "access" },
-            ]}
-          />
-          <NavigationTabs
-            variant="underline"
-            ariaLabel={title}
-            items={[
-              {
-                key: "members",
-                href: "/corporate/organization/admins?tab=members",
-                label: t("members"),
-                active: tab === "members",
-              },
-              ...(canViewInvitations
-                ? [
-                    {
-                      key: "invitations",
-                      href: "/corporate/organization/admins?tab=invitations",
-                      label: t("invitations"),
-                      active: tab === "invitations",
-                    },
-                  ]
-                : []),
-            ]}
-          />
-        </>
-      ) : null}
+      <>
+        <PeopleStats
+          items={[
+            { label: t("totalMembers"), count: members?.items.length ?? null, icon: "team" },
+            {
+              label: t("pendingInvitations"),
+              count:
+                invitations?.items.filter((invitation) =>
+                  isOutstandingInvitation(invitation, Date.parse(now)),
+                ).length ?? null,
+              icon: "mail",
+            },
+            { label: t("teams"), count: context.teams.length, icon: "team" },
+            { label: t("roles"), count: roles?.items.length ?? null, icon: "access" },
+          ]}
+        />
+        <NavigationTabs
+          variant="underline"
+          ariaLabel={title}
+          items={[
+            {
+              key: "members",
+              href: "/corporate/organization/admins?tab=members",
+              label: t("members"),
+              active: tab === "members",
+            },
+            ...(canViewInvitations
+              ? [
+                  {
+                    key: "invitations",
+                    href: "/corporate/organization/admins?tab=invitations",
+                    label: t("invitations"),
+                    active: tab === "invitations",
+                  },
+                ]
+              : []),
+          ]}
+        />
+      </>
       {tab === "invitations" && canViewInvitations ? (
         <CorporateInvitationsPanel
           csrfToken={csrfToken}

@@ -7,6 +7,7 @@ import { corporateMutationAction } from "@/actions/corporate";
 import { Button } from "@/components/atoms/button";
 import { Input } from "@/components/atoms/input";
 import { Label } from "@/components/atoms/label";
+import { CorporatePermissionTable } from "@/components/organisms/corporate-permission-table";
 import type {
   CorporatePermissionDefinition,
   CorporateRoleView,
@@ -95,37 +96,14 @@ function RoleForm({
           ))}
         </select>
       </div>
-      <div className="space-y-1.5 sm:col-span-2">
+      <div className="space-y-1.5 sm:col-span-3">
         <span className="text-sm font-medium">{labels.permissions}</span>
-        <div
-          id={`${idPrefix}-permissions`}
-          className="border-border max-h-72 space-y-3 overflow-y-auto rounded-md border p-3"
-        >
-          {[...new Set(definitions.map((definition) => definition.resource))].map((resource) => (
-            <fieldset key={resource} className="space-y-1">
-              <legend className="mb-1 text-sm font-medium">{resource}</legend>
-              {definitions
-                .filter((definition) => definition.resource === resource)
-                .map((definition) => (
-                  <label
-                    key={definition.name}
-                    className="flex cursor-pointer items-center gap-2 text-sm"
-                  >
-                    <input
-                      type="checkbox"
-                      name="permissions"
-                      value={definition.name}
-                      defaultChecked={role?.permissions.includes(definition.name)}
-                      className="accent-primary size-4"
-                    />
-                    <span>{definition.action}</span>
-                    <span className="text-muted-foreground font-mono text-xs">
-                      {definition.name}
-                    </span>
-                  </label>
-                ))}
-            </fieldset>
-          ))}
+        <div id={`${idPrefix}-permissions`} className="max-h-[50dvh] overflow-y-auto">
+          <CorporatePermissionTable
+            definitions={definitions}
+            permissions={role?.permissions ?? []}
+            editable
+          />
         </div>
       </div>
       <Button type="submit" disabled={busy}>
@@ -149,6 +127,7 @@ export function CorporateRolePanel({
   definitions,
   selected,
   labels,
+  mode = "all",
 }: {
   csrfToken: string;
   organizationId: string;
@@ -158,6 +137,7 @@ export function CorporateRolePanel({
   definitions: readonly CorporatePermissionDefinition[];
   selected: CorporateRoleView | null;
   labels: Labels;
+  mode?: "all" | "create" | "edit";
 }) {
   const router = useRouter();
   const [busy, startTransition] = useTransition();
@@ -188,8 +168,11 @@ export function CorporateRolePanel({
 
   return (
     <div className="space-y-4">
-      {customSelected && can("role.update") ? (
-        <details className="border-border rounded-lg border p-4">
+      {mode !== "create" && customSelected && can("role.update") ? (
+        <details
+          open={mode === "edit" ? true : undefined}
+          className="border-border rounded-lg border p-4"
+        >
           <summary className="cursor-pointer font-medium">{labels.update}</summary>
           <p className="text-muted-foreground mt-1 text-sm">{labels.editRoleBody}</p>
           <RoleForm
@@ -215,7 +198,7 @@ export function CorporateRolePanel({
           />
         </details>
       ) : null}
-      {customSelected && can("role.delete") ? (
+      {mode !== "create" && customSelected && can("role.delete") ? (
         <Button
           type="button"
           variant="destructive"
@@ -233,8 +216,11 @@ export function CorporateRolePanel({
           {busy ? labels.deleting : labels.delete}
         </Button>
       ) : null}
-      {can("role.create") ? (
-        <details className="border-border rounded-lg border p-4">
+      {mode !== "edit" && can("role.create") ? (
+        <details
+          open={mode === "create" ? true : undefined}
+          className="border-border rounded-lg border p-4"
+        >
           <summary className="cursor-pointer font-medium">{labels.createRole}</summary>
           <RoleForm
             idPrefix="role-create"

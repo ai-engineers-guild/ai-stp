@@ -14,6 +14,9 @@ import {
 import type { CorporateMember, CorporateContext } from "@/lib/api/generated/types.gen";
 import { Link } from "@/lib/i18n/navigation";
 import { Icon } from "@/theme";
+import type { CorporateBinding } from "@/lib/api/generated/types.gen";
+import { roleTitle } from "@/lib/corporate-permission-ui";
+import { Button } from "@/components/atoms/button";
 
 function activityLabel(value: string | null | undefined, now: string, locale: string) {
   if (!value) return "—";
@@ -138,6 +141,9 @@ export function CorporateMembersTable({
   sort,
   update,
   empty,
+  accessView = false,
+  bindings = [],
+  inspect,
 }: {
   rows: CorporateMember[];
   context: CorporateContext;
@@ -147,8 +153,15 @@ export function CorporateMembersTable({
   sort: string;
   update: (name: string, value: string) => void;
   empty: boolean;
+  accessView?: boolean;
+  bindings?: readonly CorporateBinding[];
+  inspect?: ((accountId: string) => void) | undefined;
 }) {
   const t = useTranslations("people");
+  if (accessView)
+    return (
+      <EmployeeAccessTable rows={rows} context={context} bindings={bindings} inspect={inspect} />
+    );
   return (
     <div
       className="focus-visible:ring-ring min-w-0 overflow-x-auto focus-visible:ring-2 focus-visible:outline-none"
@@ -234,6 +247,124 @@ export function CorporateMembersTable({
             <tr>
               <td colSpan={10} className="text-muted-foreground py-14 text-center text-sm">
                 {t(empty ? "noMembers" : "noMatchingMembers")}
+              </td>
+            </tr>
+          ) : null}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function EmployeeAccessTable({
+  rows,
+  context,
+  bindings,
+  inspect,
+}: {
+  rows: readonly CorporateMember[];
+  context: CorporateContext;
+  bindings: readonly CorporateBinding[];
+  inspect?: ((accountId: string) => void) | undefined;
+}) {
+  const t = useTranslations("accessUi");
+  const p = useTranslations("people");
+  return (
+    <div className="border-border min-w-0 overflow-x-auto rounded-lg border">
+      <table className="w-full min-w-[52rem] border-collapse" aria-label={t("employee")}>
+        <thead>
+          <tr className="bg-muted/30 text-muted-foreground text-xs uppercase">
+            {[
+              p("nameColumn"),
+              p("email"),
+              p("teams"),
+              p("roles"),
+              t("accessLevel"),
+              p("status"),
+              p("actions"),
+            ].map((label) => (
+              <th key={label} className="px-3 py-3 text-left font-medium">
+                {label}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((member) => {
+            const assignments = bindings.filter(
+              (binding) => binding.account_id === member.account_id && binding.state === "active",
+            );
+            const roles = [
+              ...new Set([member.role, ...assignments.map((binding) => binding.role)]),
+            ];
+            return (
+              <tr key={member.account_id} className="border-border hover:bg-muted/20 border-t">
+                <td className="px-3 py-3">
+                  <button
+                    type="button"
+                    onClick={() => inspect?.(member.account_id)}
+                    className="focus-visible:ring-ring rounded-sm text-left focus-visible:ring-2"
+                  >
+                    <PersonIdentity name={member.display_name ?? member.account_id} />
+                  </button>
+                </td>
+                <td className="text-muted-foreground px-3 py-3 text-sm">
+                  {member.contact_email ?? "—"}
+                </td>
+                <td className="max-w-64 px-3 py-3">
+                  <PeopleTeams
+                    teams={context.teams.filter((team) =>
+                      team.members.some((person) => person.account_id === member.account_id),
+                    )}
+                  />
+                </td>
+                <td className="max-w-56 px-3 py-3">
+                  <div className="flex flex-wrap gap-1">
+                    {roles.map((role) => (
+                      <Badge
+                        key={role}
+                        variant="secondary"
+                        className="font-sans text-xs font-normal"
+                      >
+                        {roleTitle(role, t)}
+                      </Badge>
+                    ))}
+                  </div>
+                </td>
+                <td className="px-3 py-3 text-sm">
+                  {t(
+                    assignments.some((binding) => binding.scope_kind !== "organization")
+                      ? "scopedAccess"
+                      : "organizationAccess",
+                  )}
+                </td>
+                <td className="px-3 py-3">
+                  <Badge
+                    variant={member.state === "active" ? "success" : "warning"}
+                    className="font-sans"
+                  >
+                    {p(member.state)}
+                  </Badge>
+                </td>
+                <td className="px-3 py-3">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label={t("openDetails", {
+                      name: member.display_name ?? member.account_id,
+                    })}
+                    onClick={() => inspect?.(member.account_id)}
+                  >
+                    <Icon name="chevronRight" size="sm" />
+                  </Button>
+                </td>
+              </tr>
+            );
+          })}
+          {!rows.length ? (
+            <tr>
+              <td colSpan={7} className="text-muted-foreground p-6 text-center text-sm">
+                {p("noMatchingMembers")}
               </td>
             </tr>
           ) : null}

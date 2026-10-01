@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Badge } from "@/components/atoms/badge";
@@ -10,6 +10,63 @@ import { Button } from "@/components/atoms/button";
 import { Input } from "@/components/atoms/input";
 import { pageWindow } from "@/lib/page-window";
 import { Icon } from "@/theme";
+import {
+  Sheet,
+  SheetClose,
+  SheetContent,
+  SheetDescription,
+  SheetTitle,
+} from "@/components/atoms/sheet";
+
+/** Shared detail drawer for the three People & Access workspaces. */
+export function CorporateDetailDrawer({
+  open,
+  onOpenChange,
+  title,
+  description,
+  children,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  title: string;
+  description?: string;
+  children: ReactNode;
+}) {
+  const t = useTranslations("people");
+  const returnFocus = useRef<HTMLElement | null>(null);
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange} modal={false}>
+      <SheetContent
+        className="top-20 w-[min(calc(100vw-1rem),26rem)] overflow-y-auto p-5"
+        onOpenAutoFocus={() => {
+          returnFocus.current =
+            document.activeElement instanceof HTMLElement ? document.activeElement : null;
+        }}
+        onCloseAutoFocus={(event) => {
+          event.preventDefault();
+          returnFocus.current?.focus();
+        }}
+      >
+        <div className="mb-5 flex shrink-0 items-start justify-between gap-3">
+          <div>
+            <SheetTitle className="text-lg font-medium">{title}</SheetTitle>
+            <SheetDescription
+              className={description ? "text-muted-foreground mt-1 text-sm" : "sr-only"}
+            >
+              {description ?? title}
+            </SheetDescription>
+          </div>
+          <SheetClose asChild>
+            <Button variant="ghost" size="icon" aria-label={t("close")}>
+              <Icon name="close" size="sm" />
+            </Button>
+          </SheetClose>
+        </div>
+        {children}
+      </SheetContent>
+    </Sheet>
+  );
+}
 
 export const PEOPLE_PAGE_SIZE = 10;
 export const peopleSelectClass =

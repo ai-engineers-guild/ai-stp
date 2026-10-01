@@ -3,6 +3,8 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
+import { useTranslations } from "next-intl";
+import { permissionEntity, permissionLabel, roleTitle } from "@/lib/corporate-permission-ui";
 
 import { corporateMutationAction } from "@/actions/corporate";
 import { Badge } from "@/components/atoms/badge";
@@ -80,6 +82,9 @@ export function CorporateMemberAccessPanel({
   capabilities,
   definitions,
   labels,
+  compact = false,
+  membershipRole,
+  scopeOptions = [],
 }: {
   csrfToken: string;
   organizationId: string;
@@ -94,7 +99,11 @@ export function CorporateMemberAccessPanel({
   capabilities: readonly string[];
   definitions: readonly CorporatePermissionDefinition[];
   labels: Labels;
+  compact?: boolean;
+  membershipRole?: string;
+  scopeOptions?: readonly { value: string; label: string }[];
 }) {
+  const a = useTranslations("accessUi");
   const router = useRouter();
   const [busy, startTransition] = useTransition();
   const [message, setMessage] = useState<{ text: string; error?: boolean } | null>(null);
@@ -103,6 +112,19 @@ export function CorporateMemberAccessPanel({
   const can = (permission: string) => capabilities.includes(permission);
   const roleOptions =
     grantableRoleNames !== null ? grantableRoleNames : roles.map((role) => role.name);
+  const scopeName = (kind: string, id: string) =>
+    kind === "organization"
+      ? labels.organization
+      : (scopeOptions.find((scope) => scope.value === `${kind}:${id}`)?.label ??
+        teams.find((team) => team.team_id === id)?.name ??
+        projects.find((project) => project.project_id === id)?.name ??
+        id);
+  const permissionName = (name: string) => {
+    const definition = definitions.find((item) => item.name === name);
+    return definition
+      ? `${a(`entities.${permissionEntity(definition.resource)}.name`)} · ${permissionLabel(definition, a)}`
+      : name;
+  };
 
   function submit(method: Method, path: string, body: unknown) {
     setMessage(null);
@@ -158,7 +180,7 @@ export function CorporateMemberAccessPanel({
 
   return (
     <div className="space-y-6">
-      <div aria-live="polite" className="min-h-5">
+      <div aria-live="polite">
         {message ? (
           <p
             role={message.error ? "alert" : undefined}
@@ -175,44 +197,62 @@ export function CorporateMemberAccessPanel({
 
       <section>
         <h3 className="font-medium">{labels.bindings}</h3>
-        {bindings.length ? (
-          <ul className="mt-3 space-y-2">
-            {bindings.map((binding) => (
-              <li
-                key={binding.binding_id}
-                className="border-border flex flex-wrap items-center justify-between gap-2 rounded border p-3 text-sm"
-              >
-                <span className="min-w-0">
-                  <span className="font-medium">{binding.role}</span>
-                  <span className="text-muted-foreground font-mono text-xs">
-                    {" "}
-                    {binding.scope_kind}:{binding.scope_id}
-                  </span>
-                </span>
-                <span className="flex shrink-0 items-center gap-2">
-                  <Badge variant="secondary">{originLabel(binding.origin)}</Badge>
-                  <Badge variant="outline">
-                    {binding.coverage === "descendants"
-                      ? labels.coverageDescendants
-                      : labels.coverageSelf}
-                  </Badge>
-                  {binding.state === "active" && can("binding.delete") ? (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      disabled={busy}
-                      onClick={() => revokeBinding(binding)}
-                    >
-                      {busy ? labels.revoking : labels.revoke}
-                    </Button>
-                  ) : (
-                    <Badge variant="warning">{binding.state}</Badge>
-                  )}
-                </span>
-              </li>
-            ))}
-          </ul>
+        {bindings.length || membershipRole ? (
+          <div className="border-border mt-3 overflow-x-auto rounded-md border">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-muted/30 text-muted-foreground">
+                <tr>
+                  <th className="p-2">{labels.role}</th>
+                  <th className="p-2">{labels.scope}</th>
+                  <th className="p-2">{a("source")}</th>
+                  <th className="p-2">
+                    <span className="sr-only">{labels.revoke}</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {membershipRole && !bindings.some((binding) => binding.origin === "membership") ? (
+                  <tr className="border-border border-t">
+                    <td className="p-2 font-medium">{roleTitle(membershipRole, a)}</td>
+                    <td className="p-2">{labels.organization}</td>
+                    <td className="text-muted-foreground p-2">{labels.originMembership}</td>
+                    <td />
+                  </tr>
+                ) : null}
+                {bindings.map((binding) => (
+                  <tr key={binding.binding_id} className="border-border border-t">
+                    <td className="p-2 font-medium">{roleTitle(binding.role, a)}</td>
+                    <td className="p-2">
+                      <span className="block">
+                        {scopeName(binding.scope_kind, binding.scope_id)}
+                      </span>
+                      <span className="text-muted-foreground">
+                        {binding.coverage === "descendants"
+                          ? labels.coverageDescendants
+                          : labels.coverageSelf}
+                      </span>
+                    </td>
+                    <td className="text-muted-foreground p-2">{originLabel(binding.origin)}</td>
+                    <td className="p-2">
+                      {binding.state === "active" && can("binding.delete") ? (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          disabled={busy}
+                          onClick={() => revokeBinding(binding)}
+                        >
+                          {busy ? labels.revoking : labels.revoke}
+                        </Button>
+                      ) : (
+                        <Badge variant="warning">{binding.state}</Badge>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         ) : (
           <p className="text-muted-foreground mt-2 text-sm">{labels.noBindings}</p>
         )}
@@ -221,7 +261,11 @@ export function CorporateMemberAccessPanel({
           <details className="mt-4">
             <summary className="cursor-pointer text-sm font-medium">{labels.create}</summary>
             <form
-              className="mt-3 grid items-end gap-3 sm:grid-cols-2 lg:grid-cols-5"
+              className={
+                compact
+                  ? "mt-3 grid gap-3"
+                  : "mt-3 grid items-end gap-3 sm:grid-cols-2 lg:grid-cols-4"
+              }
               onSubmit={(event) => {
                 event.preventDefault();
                 const formData = new FormData(event.currentTarget);
@@ -252,7 +296,7 @@ export function CorporateMemberAccessPanel({
                 >
                   {roleOptions.map((name) => (
                     <option key={name} value={name}>
-                      {name}
+                      {roleTitle(name, a)}
                     </option>
                   ))}
                 </select>
@@ -265,6 +309,7 @@ export function CorporateMemberAccessPanel({
                   projects={projects}
                   organizationId={organizationId}
                   organizationLabel={labels.organization}
+                  options={scopeOptions}
                 />
               </div>
               <div className="space-y-1.5">
@@ -297,10 +342,10 @@ export function CorporateMemberAccessPanel({
                 className="border-border flex flex-wrap items-center justify-between gap-2 rounded border p-3 text-sm"
               >
                 <span className="min-w-0">
-                  <span className="font-mono text-xs font-medium">{grant.permission}</span>
-                  <span className="text-muted-foreground font-mono text-xs">
+                  <span className="text-xs font-medium">{permissionName(grant.permission)}</span>
+                  <span className="text-muted-foreground block text-xs">
                     {" "}
-                    {grant.scope_kind}:{grant.scope_id}
+                    {scopeName(grant.scope_kind, grant.scope_id)}
                   </span>
                   <span className="text-muted-foreground block text-xs">
                     {labels.issuer} {grant.issuer_account_id}
@@ -330,7 +375,11 @@ export function CorporateMemberAccessPanel({
           <details className="mt-4">
             <summary className="cursor-pointer text-sm font-medium">{labels.grantAction}</summary>
             <form
-              className="mt-3 grid items-end gap-3 sm:grid-cols-2 lg:grid-cols-4"
+              className={
+                compact
+                  ? "mt-3 grid gap-3"
+                  : "mt-3 grid items-end gap-3 sm:grid-cols-2 lg:grid-cols-4"
+              }
               onSubmit={(event) => {
                 event.preventDefault();
                 const formData = new FormData(event.currentTarget);
@@ -371,7 +420,7 @@ export function CorporateMemberAccessPanel({
                     : capabilities.filter((permission) => permission.includes("."))
                   ).map((permission) => (
                     <option key={permission} value={permission}>
-                      {permission}
+                      {permissionName(permission)}
                     </option>
                   ))}
                 </select>
@@ -384,6 +433,7 @@ export function CorporateMemberAccessPanel({
                   projects={projects}
                   organizationId={organizationId}
                   organizationLabel={labels.organization}
+                  options={scopeOptions}
                   onKindChange={setGrantScopeKind}
                 />
               </div>
@@ -396,10 +446,14 @@ export function CorporateMemberAccessPanel({
       </section>
 
       {can("member.manage") ? (
-        <section>
-          <h3 className="font-medium">{labels.assignments}</h3>
+        <details open={!compact}>
+          <summary className="cursor-pointer text-sm font-medium">{labels.assignments}</summary>
           <form
-            className="mt-3 grid items-end gap-3 sm:grid-cols-2 lg:grid-cols-4"
+            className={
+              compact
+                ? "mt-3 grid gap-3"
+                : "mt-3 grid items-end gap-3 sm:grid-cols-2 lg:grid-cols-4"
+            }
             onSubmit={(event) => {
               event.preventDefault();
               const formData = new FormData(event.currentTarget);
@@ -470,7 +524,7 @@ export function CorporateMemberAccessPanel({
               {busy ? labels.creating : labels.update}
             </Button>
           </form>
-        </section>
+        </details>
       ) : null}
     </div>
   );
@@ -487,6 +541,7 @@ function ScopeField({
   organizationId,
   organizationLabel,
   onKindChange,
+  options,
 }: {
   id: string;
   teams: readonly CorporateTeamView[];
@@ -494,7 +549,9 @@ function ScopeField({
   organizationId: string;
   organizationLabel: string;
   onKindChange?: (kind: string) => void;
+  options: readonly { value: string; label: string }[];
 }) {
+  const a = useTranslations("accessUi");
   return (
     <select
       id={id}
@@ -504,14 +561,23 @@ function ScopeField({
       className="border-input bg-background focus-visible:ring-ring flex h-10 w-full rounded-md border px-3 text-sm focus-visible:ring-2 focus-visible:outline-none"
     >
       <option value={`organization:${organizationId}`}>{organizationLabel}</option>
-      <optgroup label="teams">
+      <optgroup label={a("entities.team.name")}>
         {teams.map((team) => (
           <option key={team.team_id} value={`team:${team.team_id}`}>
             {team.name}
           </option>
         ))}
       </optgroup>
-      <optgroup label="projects">
+      <optgroup label={a("entities.technology.name")}>
+        {options
+          .filter((option) => !/^(organization|team|project):/.test(option.value))
+          .map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+      </optgroup>
+      <optgroup label={a("entities.project.name")}>
         {projects.map((project) => (
           <option key={project.project_id} value={`project:${project.project_id}`}>
             {project.name}

@@ -22,6 +22,7 @@ const peopleAccessRoutes = [
   `${adminsBase}/employees`,
 ] as const;
 test.use({
+  navigationTimeout: 60_000,
   ...(mode === "live" && state ? { storageState: state } : {}),
   trace: "off",
   video: "off",
@@ -42,6 +43,7 @@ const watchErrors = (page: Page, sink: string[]) => {
 };
 
 async function authenticate(page: Page) {
+  page.setDefaultNavigationTimeout(urlTimeout);
   if (mode === "live") {
     expect(
       Boolean(state),
@@ -51,16 +53,29 @@ async function authenticate(page: Page) {
     expect(me.status(), "Existing real API session must be valid").toBe(200);
     return;
   }
-  await page.goto("/en/login?returnTo=%2Fen%2Fcorporate%2Faccount");
+  await page.goto("/en/login?returnTo=%2Fen%2Fcorporate%2Faccount", {
+    waitUntil: "domcontentloaded",
+  });
   await page.getByRole("button", { name: /Continue with GitHub/i }).click();
   await page.waitForURL("**/en/corporate/account", { timeout: urlTimeout });
+  const darkTheme = page.getByRole("button", { name: "Use dark theme", exact: true });
+  if (await darkTheme.count()) await darkTheme.click();
 }
 
 async function screenshot(page: Page, info: TestInfo, name: string) {
   const directory = path.resolve(process.cwd(), "../../.impeccable/review");
   await mkdir(directory, { recursive: true });
   const file = path.join(directory, `people-access-${mode}-${info.project.name}-${name}.png`);
-  await page.screenshot({ path: file, fullPage: name !== "mobile-navigation" });
+  await page.screenshot({
+    path: file,
+    fullPage: ![
+      "mobile-navigation",
+      "entity-drawer",
+      "access-sections",
+      "roles",
+      "employee-access",
+    ].includes(name),
+  });
   await info.attach(name, { path: file, contentType: "image/png" });
 }
 
@@ -71,6 +86,10 @@ async function fitsViewport(page: Page) {
 }
 
 test.describe("People & Access administration", () => {
+  test.beforeEach(async ({ page }, info) => {
+    await page.emulateMedia({ colorScheme: "dark" });
+    if (info.project.name === "chromium") await page.setViewportSize({ width: 1920, height: 1080 });
+  });
   test.skip(
     !mode,
     "Opt in with AI_STP_CORPORATE_E2E=offline or live; this skip is not corporate verification",
@@ -169,7 +188,16 @@ test.describe("People & Access administration", () => {
     await authenticate(page);
     await page.goto(`${adminsBase}/access?view=entities`);
     await expect(main(page).getByRole("heading", { level: 1, name: /Access model/ })).toBeVisible();
-    await expect(main(page).getByRole("link", { name: "member", exact: true })).toBeVisible();
+    const entities = main(page).getByRole("table", { name: "Entities & actions" });
+    await expect(entities.getByRole("columnheader", { name: "Discovery" })).toBeVisible();
+    await expect(entities.getByRole("columnheader", { name: "Relations" })).toBeVisible();
+    await entities.getByRole("button", { name: "Open Teams details" }).click();
+    const drawer = page.getByRole("dialog", { name: "Teams", exact: true });
+    await expect(drawer.getByRole("heading", { name: /Available actions/ })).toBeVisible();
+    await expect(drawer.getByRole("button", { name: "Actions", exact: true })).toBeVisible();
+    await screenshot(page, info, "entity-drawer");
+    await drawer.getByRole("button", { name: "Close", exact: true }).click();
+    await expect(drawer).toBeHidden();
     await screenshot(page, info, "access-entities");
     await main(page)
       .getByRole("link", { name: /matrix|sections/i })
@@ -177,6 +205,18 @@ test.describe("People & Access administration", () => {
       .click();
     await expect(page).toHaveURL(/view=matrix/, { timeout: urlTimeout });
     await fitsViewport(page);
+    const sections = main(page).getByRole("table", { name: "Sections", exact: true });
+    await expect(sections.getByRole("columnheader", { name: "Visible when" })).toBeVisible();
+    await sections.getByRole("button", { name: "Open Overview details" }).click();
+    await expect(
+      page
+        .getByRole("dialog", { name: "Section details" })
+        .getByRole("link", { name: "Open section" }),
+    ).toBeVisible();
+    await screenshot(page, info, "access-sections");
+    await page.getByRole("dialog").getByRole("button", { name: "Close", exact: true }).click();
+    await main(page).getByRole("link", { name: "Role matrix", exact: true }).click();
+    await expect(main(page).getByRole("table", { name: "Role matrix", exact: true })).toBeVisible();
     await screenshot(page, info, "access-matrix");
     expect(
       pageErrors,
@@ -195,29 +235,32 @@ test.describe("People & Access administration", () => {
     await page.goto(`${adminsBase}/roles`);
     await expect(main(page).getByRole("heading", { level: 1, name: "Roles" })).toBeVisible();
     await fitsViewport(page);
-    await expect(main(page).getByRole("link", { name: "superadmin" })).toBeVisible();
-    await screenshot(page, info, "roles");
-    await main(page).getByRole("link", { name: "superadmin" }).click();
+    const roleList = main(page).getByRole("navigation", { name: "Roles", exact: true });
+    await roleList.getByRole("button", { name: /^Superadmin Full/ }).click();
     await expect(page).toHaveURL(/role=superadmin/, { timeout: urlTimeout });
-    await expect(
-      main(page).getByRole("region", { name: "superadmin" }).getByRole("button", {
-        name: "Delete",
-        exact: true,
-      }),
-      "Built-in roles must not offer destructive actions",
-    ).toHaveCount(0);
+    await expect(main(page).getByRole("table", { name: "Permissions", exact: true })).toBeVisible();
+    await expect(main(page).getByRole("button", { name: "Edit role", exact: true })).toHaveCount(0);
+    await roleList.getByRole("button", { name: "Open Team lead details" }).click();
+    await expect(page.getByRole("dialog", { name: "Role details" })).toBeVisible();
+    await screenshot(page, info, "roles");
+    await page.getByRole("dialog").getByRole("button", { name: "Close", exact: true }).click();
     test.skip(mode !== "offline", "Role mutation uses the offline fixture");
     const name = `e2e_role_${Date.now() % 1_000_000}`;
-    await main(page).getByText("Create role").click();
-    await main(page).locator("#role-create-name").fill(name);
-    await main(page).locator('#role-create-permissions input[value="member.list"]').check();
-    await main(page)
-      .locator("form", { has: page.locator("#role-create-name") })
-      .getByRole("button", { name: "Create", exact: true })
-      .click();
-    await expect(main(page).getByRole("link", { name, exact: true })).toBeVisible({
-      timeout: urlTimeout,
-    });
+    await main(page).getByRole("button", { name: "Create role", exact: true }).click();
+    const editor = page.getByRole("dialog", { name: "Create role", exact: true });
+    await editor.locator("#role-create-name").fill(name);
+    await editor.getByRole("checkbox", { name: "member.list", exact: true }).check();
+    await editor.getByRole("button", { name: "Create", exact: true }).click();
+    await expect(editor.getByText("Created", { exact: true })).toBeVisible({ timeout: urlTimeout });
+    await editor.getByRole("button", { name: "Cancel", exact: true }).click();
+    await roleList.getByRole("button", { name: new RegExp(`^${name} `) }).click();
+    await main(page).getByRole("button", { name: "Edit role", exact: true }).click();
+    const edit = page.getByRole("dialog", { name: "Edit role", exact: true });
+    await edit.getByRole("checkbox", { name: "team.list", exact: true }).check();
+    await edit.getByRole("button", { name: "Save changes", exact: true }).click();
+    await expect(edit.getByText("Created", { exact: true })).toBeVisible({ timeout: urlTimeout });
+    await edit.getByRole("button", { name: "Cancel", exact: true }).click();
+    await expect(main(page).locator('[aria-label="team.list: Granted"]')).toBeVisible();
     expect(pageErrors, "Browser runtime errors are failures").toEqual([]);
   });
 
@@ -227,33 +270,72 @@ test.describe("People & Access administration", () => {
     const pageErrors: string[] = [];
     watchErrors(page, pageErrors);
     await authenticate(page);
-    await page.goto(adminsBase);
-    await main(page)
-      .locator("tbody")
-      .getByRole("button", { name: /Actions for/ })
+    await page.goto(`${adminsBase}/employees`);
+    const table = main(page).getByRole("table", { name: "Employee", exact: true });
+    await expect(
+      table.getByRole("columnheader", { name: "Access level", exact: true }),
+    ).toBeVisible();
+    await expect(main(page).getByRole("button", { name: "Add member", exact: true })).toHaveCount(
+      0,
+    );
+    await table
+      .getByRole("button", { name: /^Open .* details$/ })
       .first()
       .click();
-    await page.getByRole("menuitem", { name: "Manage access", exact: true }).click();
-    await expect(page).toHaveURL(/\/admins\/employees\//, { timeout: urlTimeout });
-    await expect(
-      main(page).getByRole("heading", { level: 1, name: "Employee access" }),
-    ).toBeVisible();
-    await expect(main(page).getByRole("heading", { name: "Effective access" })).toBeVisible();
-    await expect(main(page).getByRole("heading", { name: "Private catalog grants" })).toBeVisible();
-    const scope = main(page).locator("#access-scope");
-    await expect(scope).toBeVisible();
-    const options = await scope.locator("option").count();
-    expect(options, "Scope selector must offer organization, teams and projects").toBeGreaterThan(
-      1,
-    );
+    await expect(page).toHaveURL(/employee=/, { timeout: urlTimeout });
+    const drawer = page.getByRole("dialog");
+    await expect(drawer.getByRole("heading", { name: /Effective permissions/ })).toBeVisible();
+    await expect(drawer.getByRole("heading", { name: "Roles and assignments" })).toBeVisible();
+    await drawer.getByRole("button", { name: "Profile", exact: true }).click();
+    await expect(drawer.getByText("Contact", { exact: true })).toBeVisible();
+    await drawer.getByRole("button", { name: "Access", exact: true }).click();
+    const scope = drawer.locator("#access-scope");
+    expect(await scope.locator("option").count()).toBeGreaterThan(1);
     const team = await scope.locator('option[value^="team:"]').first().getAttribute("value");
     if (team) {
       await scope.selectOption(team);
-      await main(page).getByRole("button", { name: "Access", exact: true }).click();
+      await scope.locator("..").getByRole("button", { name: "Access", exact: true }).click();
       await expect(page).toHaveURL(/scope=team/, { timeout: urlTimeout });
-      await expect(main(page).getByRole("heading", { name: "Effective access" })).toBeVisible();
+      await expect(page).toHaveURL(/employee=/);
+      await expect(drawer.getByRole("heading", { name: /Effective permissions/ })).toBeVisible();
+    }
+    if (mode === "offline") {
+      await drawer
+        .locator("summary")
+        .filter({ hasText: /^Grant action$/ })
+        .click();
+      const technologyScope = await drawer
+        .locator('#grant-scope option[value^="technology:"]')
+        .first()
+        .getAttribute("value");
+      expect(technologyScope).toBeTruthy();
+      await drawer.locator("#grant-scope").selectOption(technologyScope ?? "");
+      await expect(drawer.locator('#grant-permission option[value="technology.read"]')).toHaveCount(
+        1,
+      );
+      await expect(drawer.locator('#grant-permission option[value="team.list"]')).toHaveCount(0);
+      await drawer
+        .locator("#grant-scope")
+        .selectOption(
+          (await drawer
+            .locator('#grant-scope option[value^="organization:"]')
+            .getAttribute("value")) ?? "",
+        );
+      await drawer.locator("#grant-permission").selectOption("team.list");
+      await drawer.getByRole("button", { name: "Grant action", exact: true }).click();
+      await expect(drawer.getByText("Created", { exact: true })).toBeVisible({
+        timeout: urlTimeout,
+      });
+      await expect(drawer.locator("li").getByText("Teams · List", { exact: true })).toBeVisible();
+      await drawer
+        .locator("summary")
+        .filter({ hasText: /^Grant action$/ })
+        .click();
     }
     await screenshot(page, info, "employee-access");
+    await drawer.getByRole("button", { name: "Close", exact: true }).click();
+    await expect(drawer).toBeHidden();
+    await expect(page).not.toHaveURL(/employee=/);
     expect(pageErrors, "Browser runtime errors are failures").toEqual([]);
   });
 
