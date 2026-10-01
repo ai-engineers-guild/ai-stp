@@ -169,6 +169,18 @@
           "title": "Available Actions",
           "type": "array"
         },
+        "contact_email": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Contact Email"
+        },
         "display_name": {
           "anyOf": [
             {
@@ -205,6 +217,28 @@
           "default": null,
           "title": "Job Title Name"
         },
+        "joined_at": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "last_activity_at": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
         "revision": {
           "minimum": 1,
           "title": "Revision",
@@ -236,9 +270,12 @@
       "required": [
         "account_id",
         "available_actions",
+        "contact_email",
         "display_name",
         "job_title_id",
         "job_title_name",
+        "joined_at",
+        "last_activity_at",
         "revision",
         "role",
         "schema_version",
@@ -492,6 +529,10 @@
         "cursor",
         "antigravity"
       ],
+      "type": "string"
+    },
+    "Timestamp": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$",
       "type": "string"
     }
   },

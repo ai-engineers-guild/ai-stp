@@ -33,3 +33,14 @@ Primary signal: `#fb631b` → hover `#f4793f`. Type: plexSans + plexMono.
 5. One solid primary per action per viewport.
 6. Icons only via `@/theme` `Icon`.
 7. Public landing, catalog, detail, login, and account stay usable at 360–430px: no document overflow, visible install/view CTA, 44px primary actions.
+
+## Recipient import reuse
+
+The existing kit has no validated file-drop field or recipient review table.
+`MemberImportFields` composes native file input/drop/paste with the existing Label,
+Textarea and Icon; `MemberImportPreview` owns the reusable, read-only semantic table
+and its empty/loading/validation states. Invitation Dialog, Button, Badge and
+CompactChipList remain shared kit components. Files are parsed locally; the preview
+never sends mutations. `read-excel-file` is dynamically loaded by
+`src/lib/member-import-file.ts` solely for XLSX. That adapter owns the dependency;
+remove it when XLSX support is removed. Other formats use the existing text parser.

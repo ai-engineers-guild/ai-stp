@@ -57,6 +57,8 @@ type NavigationInput = {
   signedIn: boolean;
   docsHref: string;
   corporateAdministration?: boolean;
+  /** ADR-0219: the contextual rail owns corporate destinations; the header must not list them. */
+  corporateRail?: boolean;
 };
 
 /**
@@ -68,15 +70,17 @@ export function siteNavigation({
   signedIn,
   docsHref,
   corporateAdministration = false,
+  corporateRail = false,
 }: NavigationInput): NavItem[] {
   const corporate = COMPILED_FEATURE_PROFILE === "corporate_hub";
+  const railOwned = corporate && corporateRail;
   const items: NavItem[] = [
     { ui: UI.navigation.home, labelKey: "home", href: "/" },
-    ...(corporate
+    ...(corporate && !railOwned
       ? [{ ui: UI.navigation.overview, labelKey: "overview", href: "/corporate/overview" }]
       : []),
-    { ui: UI.navigation.catalog, labelKey: "catalog", href: "/catalog" },
-    ...(corporate
+    ...(railOwned ? [] : [{ ui: UI.navigation.catalog, labelKey: "catalog", href: "/catalog" }]),
+    ...(corporate && !railOwned
       ? [
           {
             ui: UI.navigation.organization,
@@ -99,7 +103,9 @@ export function siteNavigation({
               ]
             : []),
         ]
-      : [{ ui: UI.navigation.services, labelKey: "services", href: "/services" }]),
+      : corporate
+        ? []
+        : [{ ui: UI.navigation.services, labelKey: "services", href: "/services" }]),
     ...(!corporate
       ? [{ ui: UI.navigation.docs, labelKey: "docs", href: docsHref, external: true }]
       : []),

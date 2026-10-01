@@ -1,0 +1,75 @@
+{
+  "$defs": {
+    "CorporateGrantableRole": {
+      "additionalProperties": true,
+      "description": "A role whose closed permission set the caller may delegate.",
+      "properties": {
+        "name": {
+          "description": "Tenant-local role name.",
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_-]*$",
+          "title": "Name",
+          "type": "string"
+        },
+        "permissions": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 128,
+          "title": "Permissions",
+          "type": "array"
+        }
+      },
+      "required": [
+        "name",
+        "permissions"
+      ],
+      "title": "CorporateGrantableRole",
+      "type": "object"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:corporate-delegation",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "What the current principal may delegate, computed server-side.",
+  "properties": {
+    "authorization_revision": {
+      "minimum": 1,
+      "title": "Authorization Revision",
+      "type": "integer"
+    },
+    "descendants_coverage": {
+      "title": "Descendants Coverage",
+      "type": "boolean"
+    },
+    "grantable_roles": {
+      "items": {
+        "$ref": "#/$defs/CorporateGrantableRole"
+      },
+      "maxItems": 256,
+      "title": "Grantable Roles",
+      "type": "array"
+    },
+    "organization_id": {
+      "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "title": "Organization Id",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "authorization_revision",
+    "descendants_coverage",
+    "grantable_roles",
+    "organization_id",
+    "schema_version"
+  ],
+  "title": "CorporateDelegationView",
+  "type": "object"
+}

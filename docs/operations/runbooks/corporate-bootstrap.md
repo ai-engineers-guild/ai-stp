@@ -82,6 +82,35 @@ valid substitutes.
 
 ## Teams and leads
 
+### Invitation delegation diagnosis
+
+If an invitation fails with `grant exceeds delegated authority`, compare the
+organization's role catalog with `GET /v1/corporate/organizations/{organization_id}/delegation`.
+The latter lists roles whose inherited permission closure fits the caller's
+current authority. A `superadmin` label does not bypass this bound. The web keeps
+the authorized catalog visible and disables roles outside it; an unavailable or
+stale delegation response blocks sending and asks for a refresh.
+
+Legacy matrices can retain `lead -> superadmin` and `staff -> lead` inheritance.
+Migration `0083_scoped_lead_permissions` added `team.delete` to persisted leads
+without adding it to persisted superadmins. With that inheritance, staff and lead
+can exceed the superadmin's closure by this permission. Current bootstrap includes
+it in superadmin. Diagnose the persisted matrix before considering a repair.
+
+Repairing existing rights requires the owner's explicit decision. Record the
+tenant, exact permission delta, role and policy revisions, and a SHA-256 of the
+reviewed repair. Apply in one tenant-scoped transaction with locks, checked
+preconditions, revision increments, an audit record, and idempotent replay.
+Verify role closures and delegation afterward. Keep a rollback that removes only
+the added permission and refuses intervening policy changes. Do not normalize
+other legacy inheritance or substitute a role-label bypass during this repair.
+
+Removing legacy inheritance is a separate access change and owner decision.
+Check the exact parent edges and preserve every direct permission before removing
+only `staff -> lead` and `lead -> superadmin`. Increment the affected role and
+policy revisions, audit the repair, and verify the resulting permission closures.
+Its rollback restores only those edges and rejects intervening policy changes.
+
 Create or rename teams through the corporate team routes and assign staff or leads
 through `membership-assignments` with a team identifier. A member may belong to and
 lead multiple teams. Reassigning `team_role` replaces that member's scoped binding;

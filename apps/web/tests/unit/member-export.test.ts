@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { EXPORT_FORMATS, exportInvitationLinks } from "@/lib/member-export";
+import { EXPORT_FORMATS, exportInvitationLinks, exportPeopleCsv } from "@/lib/member-export";
 import { parseMemberImport } from "@/lib/member-import";
 
 const ROWS = [
@@ -58,4 +58,14 @@ describe("exportInvitationLinks", () => {
       expect(parsed.map((row) => row.email)).toEqual(ROWS.map((row) => row.email));
     }
   });
+});
+
+it("keeps cells intact and neutralizes spreadsheet formulas in directory exports", () => {
+  expect(
+    exportPeopleCsv([
+      ["name", "email"],
+      ["=CMD()", 'a,"b"\nc'],
+      ["  @SUM(A1)", "safe"],
+    ]),
+  ).toBe('name,email\r\n\'=CMD(),"a,""b""\nc"\r\n\'  @SUM(A1),safe');
 });

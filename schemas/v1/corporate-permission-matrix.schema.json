@@ -17,10 +17,18 @@
             "team",
             "project",
             "technology",
-            "catalog_object"
+            "catalog_object",
+            "member"
           ],
           "title": "Scope Kind",
           "type": "string"
+        },
+        "source_records": {
+          "items": {
+            "$ref": "#/$defs/CorporatePermissionSource"
+          },
+          "title": "Source Records",
+          "type": "array"
         },
         "sources": {
           "items": {
@@ -34,6 +42,7 @@
         "permission",
         "scope_id",
         "scope_kind",
+        "source_records",
         "sources"
       ],
       "title": "CorporateEffectivePermission",
@@ -41,13 +50,40 @@
     },
     "CorporatePermissionDefinition": {
       "additionalProperties": true,
+      "description": "One action the server actually checks, with the scopes it honors.",
       "properties": {
+        "action": {
+          "title": "Action",
+          "type": "string"
+        },
+        "create_parent": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Create Parent"
+        },
         "group": {
           "title": "Group",
           "type": "string"
         },
+        "implementation": {
+          "const": "enforced",
+          "default": "enforced",
+          "title": "Implementation",
+          "type": "string"
+        },
         "name": {
           "title": "Name",
+          "type": "string"
+        },
+        "resource": {
+          "title": "Resource",
           "type": "string"
         },
         "scopes": {
@@ -57,7 +93,8 @@
               "team",
               "project",
               "technology",
-              "catalog_object"
+              "catalog_object",
+              "member"
             ],
             "type": "string"
           },
@@ -66,11 +103,75 @@
         }
       },
       "required": [
+        "action",
+        "create_parent",
         "group",
+        "implementation",
         "name",
+        "resource",
         "scopes"
       ],
       "title": "CorporatePermissionDefinition",
+      "type": "object"
+    },
+    "CorporatePermissionSource": {
+      "additionalProperties": true,
+      "description": "One record that actually contributes a permission at this scope.",
+      "properties": {
+        "kind": {
+          "enum": [
+            "binding",
+            "grant"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "origin": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Origin"
+        },
+        "role": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Role"
+        },
+        "scope_id": {
+          "title": "Scope Id",
+          "type": "string"
+        },
+        "scope_kind": {
+          "title": "Scope Kind",
+          "type": "string"
+        },
+        "source_id": {
+          "title": "Source Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "origin",
+        "role",
+        "scope_id",
+        "scope_kind",
+        "source_id"
+      ],
+      "title": "CorporatePermissionSource",
       "type": "object"
     }
   },

@@ -23,6 +23,7 @@ from ai_stp_api.errors import ApiError, ErrorCategory
 from ai_stp_api.session import AuthContext
 from ai_stp_api.slices.auth.domain import normalize_email
 from ai_stp_api.slices.corporate.service import (
+    assert_delegable_roles,
     assert_email_domain_allowed,
     authorize,
     authorize_idempotent,
@@ -50,6 +51,7 @@ from ai_stp_contracts.corporate import (
 )
 from ai_stp_foundation.ids import new_id
 from ai_stp_foundation.timestamps import format_timestamp
+from ai_stp_platform.corporate_authorization import has_corporate_permission
 from ai_stp_platform.models import Account, OAuthIdentity
 from ai_stp_platform.organization_models import (
     CorporateInvitation as CorporateInvitationRow,
@@ -106,6 +108,7 @@ def _view(
         state=cast(CorporateInvitationState, state),
         expires_at=_ts(row.expires_at),
         created_at=_ts(row.created_at),
+        issuer_account_id=row.issuer_account_id,
         accepted_account_id=row.accepted_account_id,
         claimant_account_id=row.claimant_account_id,
         token=token,
@@ -344,6 +347,35 @@ async def _activate_membership(
     await ensure_current_job_title(
         db, organization_id=row.organization_id, job_title_id=row.job_title_id
     )
+    # The issuer's authority is re-evaluated at acceptance, not trusted from
+    # issue time: rights revoked in between must stop the grant (ADR-0220).
+    issuer_ok = await has_corporate_permission(
+        db,
+        organization_id=row.organization_id,
+        principal_type="user",
+        principal_id=row.issuer_account_id,
+        permission="member.invite",
+    )
+    if issuer_ok:
+        try:
+            await assert_delegable_roles(
+                db,
+                organization_id=row.organization_id,
+                account_id=row.issuer_account_id,
+                roles={row.role, *({"staff"} if row.team_ids else set())},
+            )
+        except ApiError:
+            issuer_ok = False
+    if not issuer_ok:
+        await _reject(
+            db,
+            row=row,
+            ctx=ctx,
+            request_id=request_id,
+            action="member.invitation_issuer_denied",
+            category=ErrorCategory.CONFLICT,
+            message="invitation can no longer be honored",
+        )
     membership = await insert_membership_graph(
         db,
         organization_id=row.organization_id,
@@ -413,6 +445,12 @@ async def create_invitation(
         db, organization_id=organization_id, project_ids=payload.project_ids
     )
     await ensure_role_exists(db, organization_id=organization_id, role=payload.role)
+    await assert_delegable_roles(
+        db,
+        organization_id=organization_id,
+        account_id=ctx.account_id,
+        roles={payload.role, *({"staff"} if payload.team_ids else set())},
+    )
     await ensure_current_job_title(
         db, organization_id=organization_id, job_title_id=payload.job_title_id
     )

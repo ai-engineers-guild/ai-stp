@@ -29,6 +29,8 @@ import {
   Loader2,
   LogOut,
   Mail,
+  Send,
+  Upload,
   Link2,
   LockKeyhole,
   Monitor,
@@ -83,6 +85,8 @@ export type IconName =
   | "chevronDown"
   | "user"
   | "mail"
+  | "send"
+  | "upload"
   | "arrowLeft"
   | "flag"
   | "globe"
@@ -137,6 +141,8 @@ const REGISTRY: Record<IconName, LucideIcon> = {
   chevronDown: ChevronDown,
   user: UserRound,
   mail: Mail,
+  send: Send,
+  upload: Upload,
   arrowLeft: ArrowLeft,
   flag: Flag,
   globe: Globe2,

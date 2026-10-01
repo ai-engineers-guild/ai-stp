@@ -65,7 +65,7 @@ export function CliCopyBlock({
         />
       </div>
       <p className="text-muted-foreground text-sm">
-        <Link href={docsHref} className="underline underline-offset-2">
+        <Link href={docsHref} prefetch={false} className="underline underline-offset-2">
           {docsLabel}
         </Link>
       </p>

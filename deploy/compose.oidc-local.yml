@@ -13,3 +13,5 @@ services:
       AI_STP_WEB_PROFILE: "corporate_hub"
       # Show the SSO button for the providers this override enables API-side.
       AI_STP_AUTH_SSO_PROVIDERS: "authentik,keycloak"
+      # Contextual corporate rail (ADR-0219); set "false" to roll back to tabs.
+      AI_STP_CORPORATE_CONTEXT_NAV: "true"

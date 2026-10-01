@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { getTranslations } from "next-intl/server";
 
 import { SiteHeader } from "@/components/layouts/site-header";
+import { ContextRail } from "@/components/layouts/context-rail";
 import { ProjectionDock } from "@/components/molecules/projection-dock";
 import { ProjectionDockEnhancer } from "@/components/molecules/projection-dock-enhancer";
 import { ConsentedAnalytics } from "@/components/organisms/consented-analytics";
@@ -18,136 +19,49 @@ import { corporateHref } from "@/lib/features/corporate-path";
 type AppShellProps = {
   children: React.ReactNode;
   locale: string;
+  corporateSessionVerified?: boolean;
+  corporateNavigationPages?: readonly string[] | null;
 };
 
-export async function AppShell({ children, locale }: AppShellProps) {
+export async function AppShell({
+  children,
+  locale,
+  corporateSessionVerified = false,
+  corporateNavigationPages = null,
+}: AppShellProps) {
   const t = await getTranslations("a11y");
-  const tf = await getTranslations("footer");
   const tc = await getTranslations("consent");
-  const tm = await getTranslations("machine");
   const docsHref = getEnv().AI_STP_USER_DOCS_URL;
   const saasPublicPages = isFeatureEnabled("saas_public_pages");
-  const corporateHub = COMPILED_FEATURE_PROFILE === "corporate_hub";
-  const th = await getTranslations("hub");
 
   return (
-    <div
-      data-ui={UI.shell.root}
-      className="grid min-h-dvh min-w-0 grid-cols-[minmax(0,1fr)] grid-rows-[auto_1fr_auto] overflow-x-clip"
-    >
+    <div data-ui={UI.shell.root} className="flex min-h-dvh min-w-0 flex-col">
       <a
         href="#main-content"
         className="focus:bg-background focus:ring-ring sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:rounded-sm focus:px-3 focus:py-2 focus:ring-2"
       >
         {t("skipToContent")}
       </a>
-      <SiteHeader docsHref={docsHref} />
-      <main
-        id={UI.shell.main}
-        data-ui={UI.shell.main}
-        className="mx-auto w-full max-w-6xl min-w-0 px-4 py-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:px-6"
-      >
-        {children}
-      </main>
-      <footer
-        id="site-footer"
-        data-ui={UI.shell.footer}
-        className="border-border bg-background border-t"
-      >
-        <div
-          className={`mx-auto grid max-w-6xl gap-10 px-4 py-10 sm:px-6 ${
-            saasPublicPages
-              ? "lg:grid-cols-[1.25fr_1fr_1fr_1fr]"
-              : corporateHub
-                ? "lg:grid-cols-[1.25fr_1fr_1fr]"
-                : "lg:grid-cols-[1.25fr_1fr]"
-          }`}
+      <SiteHeader
+        docsHref={docsHref}
+        corporateSessionVerified={corporateSessionVerified}
+        corporateNavigationPages={corporateNavigationPages}
+      />
+      <div className="flex min-w-0 flex-1 items-stretch">
+        <ContextRail
+          docsHref={docsHref}
+          serverAuthorized={corporateSessionVerified}
+          allowedPages={corporateNavigationPages}
+        />
+        <main
+          id={UI.shell.main}
+          data-ui={UI.shell.main}
+          className="mx-auto flex w-full min-w-0 flex-1 flex-col px-4 py-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:px-6 lg:px-8"
         >
-          <div className="space-y-4">
-            <Link href={corporateHref("/")} className="inline-flex items-center gap-3 font-medium">
-              <img
-                src="/brand/logo-mark-64.png"
-                alt=""
-                width={32}
-                height={32}
-                className="h-8 w-8"
-              />
-              <span>{SITE_NAME}</span>
-            </Link>
-            <p className="text-muted-foreground max-w-xs text-sm leading-relaxed">
-              {tf("summary")}
-            </p>
-            <a href="/llms.txt" className="font-mono text-xs underline underline-offset-4">
-              {tm("llms")}
-            </a>
-          </div>
-          <FooterColumn
-            title={tf("product")}
-            links={[
-              { label: tf("catalog"), href: corporateHref("/catalog") },
-              ...(!corporateHub ? [{ label: tf("services"), href: "/services" }] : []),
-              { label: tf("docs"), href: docsHref },
-              ...(isFeatureEnabled("content_hub")
-                ? [{ label: tf("content"), href: "/content" }]
-                : []),
-            ]}
-          />
-          {corporateHub && (
-            <FooterColumn
-              title={th("navigation")}
-              links={[
-                { label: th("overview"), href: "/corporate/overview" },
-                { label: th("organization"), href: "/corporate/organization" },
-                { label: th("landscape"), href: "/corporate/technology-landscape" },
-                { label: th("dashboard"), href: "/corporate/dashboard" },
-              ]}
-            />
-          )}
-          {saasPublicPages ? (
-            <>
-              <FooterColumn
-                title={tf("company")}
-                links={[
-                  { label: tf("contact"), href: "/contact" },
-                  { label: tf("privacy"), href: "/legal/privacy" },
-                ]}
-              />
-              <FooterColumn
-                title={tf("legal")}
-                links={[
-                  { label: tf("cookies"), href: "/legal/cookies" },
-                  { label: tf("serviceRules"), href: "/legal/service-rules" },
-                  { label: tf("licensing"), href: "/legal/licensing" },
-                ]}
-              />
-            </>
-          ) : null}
-        </div>
-        <div className="border-border border-t">
-          <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-4 py-4 sm:px-6 md:flex-row">
-            <p className="text-muted-foreground font-mono text-[11px] tracking-wide">
-              {tf("licenseLine", { year: 2026 })}
-            </p>
-            <div
-              data-ui={UI.navigation.shortcuts}
-              className="text-muted-foreground hidden items-center gap-2 font-mono text-[11px] lg:flex"
-            >
-              <span>{tf("shortcuts")}</span>
-              {saasPublicPages ? (
-                <kbd className="border-border rounded-sm border px-1.5 py-0.5">
-                  {tf("shortcutContact")}
-                </kbd>
-              ) : null}
-              <kbd className="border-border rounded-sm border px-1.5 py-0.5">
-                {tf("shortcutProfile")}
-              </kbd>
-              <kbd className="border-border rounded-sm border px-1.5 py-0.5">
-                {tf("shortcutCatalog")}
-              </kbd>
-            </div>
-          </div>
-        </div>
-      </footer>
+          {children}
+        </main>
+      </div>
+      <SiteFooter docsHref={docsHref} />
       <ProjectionDock locale={locale} projection="human" />
       <Suspense fallback={null}>
         <ProjectionDockEnhancer locale={locale} />
@@ -171,6 +85,112 @@ export async function AppShell({ children, locale }: AppShellProps) {
         />
       ) : null}
     </div>
+  );
+}
+
+async function SiteFooter({ docsHref }: { docsHref: string }) {
+  const tf = await getTranslations("footer");
+  const tm = await getTranslations("machine");
+  const th = await getTranslations("hub");
+  const saasPublicPages = isFeatureEnabled("saas_public_pages");
+  const corporateHub = COMPILED_FEATURE_PROFILE === "corporate_hub";
+
+  return (
+    <footer
+      id="site-footer"
+      data-ui={UI.shell.footer}
+      className="border-border bg-background border-t"
+    >
+      <div
+        className={`mx-auto grid max-w-6xl gap-10 px-4 py-10 sm:px-6 ${
+          saasPublicPages
+            ? "lg:grid-cols-[1.25fr_1fr_1fr_1fr]"
+            : corporateHub
+              ? "lg:grid-cols-[1.25fr_1fr_1fr]"
+              : "lg:grid-cols-[1.25fr_1fr]"
+        }`}
+      >
+        <div className="space-y-4">
+          <Link
+            href={corporateHref("/")}
+            prefetch={corporateHub ? false : undefined}
+            className="inline-flex items-center gap-3 font-medium"
+          >
+            <img src="/brand/logo-mark-64.png" alt="" width={32} height={32} className="h-8 w-8" />
+            <span>{SITE_NAME}</span>
+          </Link>
+          <p className="text-muted-foreground max-w-xs text-sm leading-relaxed">{tf("summary")}</p>
+          <a href="/llms.txt" className="font-mono text-xs underline underline-offset-4">
+            {tm("llms")}
+          </a>
+        </div>
+        <FooterColumn
+          title={tf("product")}
+          links={[
+            { label: tf("catalog"), href: corporateHref("/catalog") },
+            ...(!corporateHub ? [{ label: tf("services"), href: "/services" }] : []),
+            { label: tf("docs"), href: docsHref },
+            ...(isFeatureEnabled("content_hub")
+              ? [{ label: tf("content"), href: "/content" }]
+              : []),
+          ]}
+        />
+        {corporateHub && (
+          <FooterColumn
+            title={th("navigation")}
+            links={[
+              { label: th("overview"), href: "/corporate/overview" },
+              { label: th("organization"), href: "/corporate/organization" },
+              { label: th("landscape"), href: "/corporate/technology-landscape" },
+              { label: th("dashboard"), href: "/corporate/dashboard" },
+            ]}
+          />
+        )}
+        {saasPublicPages ? (
+          <>
+            <FooterColumn
+              title={tf("company")}
+              links={[
+                { label: tf("contact"), href: "/contact" },
+                { label: tf("privacy"), href: "/legal/privacy" },
+              ]}
+            />
+            <FooterColumn
+              title={tf("legal")}
+              links={[
+                { label: tf("cookies"), href: "/legal/cookies" },
+                { label: tf("serviceRules"), href: "/legal/service-rules" },
+                { label: tf("licensing"), href: "/legal/licensing" },
+              ]}
+            />
+          </>
+        ) : null}
+      </div>
+      <div className="border-border border-t">
+        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-4 py-4 sm:px-6 md:flex-row">
+          <p className="text-muted-foreground font-mono text-[11px] tracking-wide">
+            {tf("licenseLine", { year: 2026 })}
+          </p>
+          <div
+            data-ui={UI.navigation.shortcuts}
+            className="text-muted-foreground hidden items-center gap-2 font-mono text-[11px] lg:flex"
+          >
+            <span>{tf("shortcuts")}</span>
+            {saasPublicPages ? (
+              <kbd className="border-border rounded-sm border px-1.5 py-0.5">
+                {tf("shortcutContact")}
+              </kbd>
+            ) : null}
+            <kbd className="border-border rounded-sm border px-1.5 py-0.5">
+              {tf("shortcutProfile")}
+            </kbd>
+            <kbd className="border-border rounded-sm border px-1.5 py-0.5">
+              {tf("shortcutCatalog")}
+            </kbd>
+          </div>
+        </div>
+      </div>
+    </footer>
   );
 }
 
@@ -198,6 +218,7 @@ function FooterColumn({
               ) : (
                 <Link
                   href={href}
+                  prefetch={COMPILED_FEATURE_PROFILE === "corporate_hub" ? false : undefined}
                   className="text-muted-foreground hover:text-foreground underline-offset-4 hover:underline"
                 >
                   {label}

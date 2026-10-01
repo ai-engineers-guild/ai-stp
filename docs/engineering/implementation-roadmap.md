@@ -1,9 +1,31 @@
 ---
 description: "Current ai_stp status and the ordered plan for remaining work."
-last_verified: "2026-09-26"
+last_verified: "2026-09-30"
 ---
 
 # Current status and plan
+
+## Corporate navigation and People & Access design — 2026-09-29
+
+ADR-0219 and active SPEC-095 describe the shared Human sidebar for both profiles.
+ADR-0220–0221, proposed SPEC-096–097, and
+`corporate-navigation-access-plan.md` retain the remaining access workstream.
+The proposed access documents do not replace the current active corporate
+specifications. SPEC-095 owns the implemented sidebar behavior. The completed corporate-core foundation plan
+is retained in `docs/archive/`. The older workspace consolidation ledger
+remains evidence for SPEC-086, not a queue to replay without checking its
+current implementation and exact-SHA gates.
+GitHub #541–#544 track bounded implementation slices under open program #224.
+
+The 2026-09-30 navigation correction is implemented on
+`fix/shared-context-navigation`, preserving prior unfinished access and OIDC
+work. It mounts one sidebar in the Human shell for both profiles, adds collapse
+and grouped disclosure states, and separates Security from invitations/settings.
+A signed-in Chrome profile on local `:3000` supplies live Corporate evidence;
+the temporary SaaS preview supplies the second-profile evidence. The detailed
+gap table and repair scope are in `corporate-navigation-access-plan.md`.
+Remaining People & Access content redesign and policy migration retain their
+own exit gates; sidebar completion does not close those work packages.
 
 This is the sole owner of the current plan. GitHub issues remain backlog, ADRs
 record decisions, and specifications define requirements; review and session

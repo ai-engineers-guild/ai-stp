@@ -8,12 +8,18 @@ import { create } from "zustand";
  */
 type SessionUiSlice = {
   signedInHint: boolean;
+  corporateNavPages: readonly string[] | null;
+  setCorporateNavPages: (pages: readonly string[] | null) => void;
   setSignedInHint: (value: boolean) => void;
 };
 
 export const useSessionUiSlice = create<SessionUiSlice>((set) => ({
   signedInHint: false,
+  corporateNavPages: null,
+  setCorporateNavPages: (corporateNavPages) => {
+    set({ corporateNavPages });
+  },
   setSignedInHint: (signedInHint) => {
-    set({ signedInHint });
+    set(signedInHint ? { signedInHint } : { signedInHint, corporateNavPages: [] });
   },
 }));

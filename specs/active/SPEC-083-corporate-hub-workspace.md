@@ -5,6 +5,10 @@ last_verified: "2026-09-18"
 
 # SPEC-083: Corporate Hub workspace
 
+ADR-0219 and SPEC-095 own the shared Human sidebar, grouped Administration,
+collapse/mobile behavior and server availability. The former header and nested
+corporate rail are replaced; workspace domain requirements below remain active.
+
 ## Purpose
 
 Provide a familiar corporate workspace inside the existing ai_stp visual system.
@@ -38,7 +42,8 @@ details below without changing this specification's relation semantics.
 - `REQ-8301`: Corporate navigation preserves Catalog, documentation in the footer,
   theme, locale, and the complete account drawer. Articles and regional services
   are absent from corporate header/footer. Hub groups Overview, Organization,
-  and Landscape; Organization groups employees, projects, teams, and Admins.
+  and Landscape; Organization groups employees, projects, and teams.
+  Administration is a separate context with the disclosures specified by SPEC-095.
 - `REQ-8302`: Employees, projects, teams, technologies, and technology categories
   have separate directories and linked detail pages. Viewing precedes editing.
   Search, empty/error/loading states, keyboard access, mobile layouts, and stable

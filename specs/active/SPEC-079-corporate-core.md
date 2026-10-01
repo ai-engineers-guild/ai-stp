@@ -5,6 +5,11 @@ last_verified: "2026-09-18"
 
 # SPEC-079: Corporate core
 
+The proposed access-administration changes are tracked in ADR-0220 and
+`specs/proposed/SPEC-096-corporate-access-administration.md`. This active spec
+continues to describe the incumbent authorization contract; the proposal does
+not change its requirements until implementation and tests ship.
+
 ## Purpose
 
 Make one self-hosted installation capable of creating its first corporate tenant and

@@ -103,5 +103,6 @@ last_verified: "2026-08-03"
 | [SPEC-092-fixed-corporate-reports.md](SPEC-092-fixed-corporate-reports.md) | SPEC-092: Fixed corporate reports and scoped current/history device heartbeat views. | 2026-09-25 |
 | [SPEC-093-corporate-installation-operation-facts.md](SPEC-093-corporate-installation-operation-facts.md) | SPEC-093: Authenticated, durable facts for corporate installation operations. | 2026-09-26 |
 | [SPEC-094-corporate-installation-inventory.md](SPEC-094-corporate-installation-inventory.md) | SPEC-094: Opt-in, bounded corporate installation inventory snapshots. | 2026-09-26 |
+| [SPEC-095-contextual-corporate-navigation.md](SPEC-095-contextual-corporate-navigation.md) | SPEC-095: Shared contextual Human sidebar for SaaS and Corporate. | 2026-10-01 |
 
 <!-- END CONTENTS -->

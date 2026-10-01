@@ -20,6 +20,26 @@
       "title": "Binding Id",
       "type": "string"
     },
+    "coverage": {
+      "default": "self",
+      "enum": [
+        "self",
+        "descendants"
+      ],
+      "title": "Coverage",
+      "type": "string"
+    },
+    "origin": {
+      "default": "direct",
+      "enum": [
+        "membership",
+        "assignment",
+        "direct",
+        "service_principal"
+      ],
+      "title": "Origin",
+      "type": "string"
+    },
     "principal_type": {
       "default": "user",
       "enum": [
@@ -89,6 +109,8 @@
   "required": [
     "account_id",
     "binding_id",
+    "coverage",
+    "origin",
     "principal_type",
     "revision",
     "role",

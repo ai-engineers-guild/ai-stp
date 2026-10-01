@@ -34,7 +34,25 @@ const MIME: Record<ExportFormat, string> = {
 const esc = (value: string, pattern: RegExp, wrap: (s: string) => string) =>
   pattern.test(value) ? wrap(value) : value;
 
-const csvCell = (value: string) => esc(value, /[",\n]/, (s) => `"${s.replace(/"/g, '""')}"`);
+const csvCell = (value: string) => {
+  const safe = /^[\s]*[=+@-]/.test(value) ? `'${value}` : value;
+  return esc(safe, /[",\r\n]/, (s) => `"${s.replace(/"/g, '""')}"`);
+};
+
+export function exportPeopleCsv(rows: readonly (readonly string[])[]): string {
+  return rows.map((row) => row.map(csvCell).join(",")).join("\r\n");
+}
+
+export function downloadPeopleCsv(filename: string, rows: readonly (readonly string[])[]): void {
+  const url = URL.createObjectURL(
+    new Blob(["\uFEFF", exportPeopleCsv(rows)], { type: "text/csv;charset=utf-8" }),
+  );
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.click();
+  URL.revokeObjectURL(url);
+}
 
 const xmlEscape = (value: string) =>
   value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");

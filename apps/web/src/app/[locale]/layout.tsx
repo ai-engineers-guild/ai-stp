@@ -27,6 +27,9 @@ type LocaleLayoutProps = {
 // cache via the public GET helper (SPEC-048 / ADR-0095).
 
 export function generateStaticParams() {
+  // Next 15 dev rewrites the shared prerender manifest concurrently per route.
+  // Render locales on demand in dev; production still generates both locales.
+  if (process.env.NODE_ENV === "development") return [];
   return locales.map((locale) => ({ locale }));
 }
 
@@ -94,7 +97,7 @@ export default async function LocaleLayout({ children, params }: LocaleLayoutPro
     notFound();
   }
   setRequestLocale(locale);
-  const messages = await getMessages();
+  const messages = await getMessages({ locale });
   const projection = await readProjection();
   const canonical = (await readCanonicalPathname()) ?? `/${locale}`;
   const pagePath = pathWithoutLocale(canonical, locale);
@@ -108,7 +111,7 @@ export default async function LocaleLayout({ children, params }: LocaleLayoutPro
         <link rel="alternate" href={alternateHref} />
       </head>
       <body>
-        <NextIntlClientProvider messages={messages}>
+        <NextIntlClientProvider locale={locale} messages={messages}>
           <AppProviders>{children}</AppProviders>
         </NextIntlClientProvider>
       </body>

@@ -1,0 +1,85 @@
+{
+  "$defs": {
+    "IdempotencyKey": {
+      "pattern": "^[A-Za-z0-9._~-]{16,128}$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:corporate-permission-grant-request",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "One direct action allow — no role — checked against the issuer's delegation bound.",
+  "properties": {
+    "account_id": {
+      "anyOf": [
+        {
+          "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Account Id"
+    },
+    "authorization_revision": {
+      "minimum": 1,
+      "title": "Authorization Revision",
+      "type": "integer"
+    },
+    "idempotency_key": {
+      "$ref": "#/$defs/IdempotencyKey"
+    },
+    "permission": {
+      "maxLength": 64,
+      "minLength": 1,
+      "title": "Permission",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "scope_id": {
+      "default": "*",
+      "maxLength": 64,
+      "minLength": 1,
+      "title": "Scope Id",
+      "type": "string"
+    },
+    "scope_kind": {
+      "enum": [
+        "organization",
+        "team",
+        "project",
+        "technology"
+      ],
+      "title": "Scope Kind",
+      "type": "string"
+    },
+    "service_principal_id": {
+      "anyOf": [
+        {
+          "pattern": "^service_principal_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Service Principal Id"
+    }
+  },
+  "required": [
+    "permission",
+    "scope_kind",
+    "authorization_revision",
+    "idempotency_key"
+  ],
+  "title": "CorporatePermissionGrantRequest",
+  "type": "object"
+}

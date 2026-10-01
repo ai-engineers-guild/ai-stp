@@ -134,7 +134,10 @@ export function relationSectionLabels(
   };
 }
 
-export function usageSectionLabels(h: (key: string) => string, catalog: (key: string) => string) {
+export function usageSectionLabels(
+  h: (key: string, values?: Record<string, string | number>) => string,
+  catalog: (key: string) => string,
+) {
   return {
     subjectSections: {
       employee: h("employees"),
@@ -143,7 +146,7 @@ export function usageSectionLabels(h: (key: string) => string, catalog: (key: st
       technology: h("technologies"),
     },
     relation: relationSectionLabels(h, catalog),
-    truncated: h("usageTruncated"),
+    truncated: (shown: number, total: number) => h("usageTruncated", { shown, total }),
   };
 }
 

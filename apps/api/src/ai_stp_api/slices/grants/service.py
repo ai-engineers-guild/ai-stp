@@ -33,6 +33,7 @@ from ai_stp_platform.grant_identity_models import (
 from ai_stp_platform.models import (
     AccessGrant,
     Account,
+    CatalogIdentity,
     CatalogMetadata,
     GrantInvitation,
     OAuthIdentity,
@@ -162,7 +163,7 @@ async def create_direct_grant(
     body: DirectGrantCreateRequest,
 ) -> AccessGrantResponse:
     """Create an active grant after resolving an explicit stable identity."""
-    await _assert_owner(
+    issuer_scope = await _issuer_scope(
         db, account_id=ctx.account_id, object_kind=body.object_kind, stable_id=body.stable_id
     )
     if body.recipient_kind == "github_username":
@@ -219,7 +220,7 @@ async def create_direct_grant(
             pg_insert(AccessGrant)
             .values(
                 id=grant_id,
-                organization_id=await _owner_scope_id(db, owner_account_id=ctx.account_id),
+                organization_id=issuer_scope,
                 object_kind=body.object_kind,
                 stable_id=body.stable_id,
                 major=body.major,
@@ -268,19 +269,84 @@ async def create_direct_grant(
     return grant_to_wire(grant, reference)
 
 
-async def _assert_owner(
-    db: AsyncSession, *, account_id: str, object_kind: str, stable_id: str
-) -> None:
-    owned = await db.scalar(
-        select(CatalogMetadata.id).where(
-            CatalogMetadata.owner_account_id == account_id,
+async def _object_organization_id(
+    db: AsyncSession, *, object_kind: str, stable_id: str
+) -> str | None:
+    """The object's owning organization, from identity or metadata."""
+    organization_id = await db.scalar(
+        select(CatalogIdentity.organization_id).where(CatalogIdentity.stable_id == stable_id)
+    )
+    if organization_id is not None:
+        return organization_id
+    return await db.scalar(
+        select(CatalogMetadata.organization_id)
+        .where(
             CatalogMetadata.object_kind == object_kind,
             CatalogMetadata.stable_id == stable_id,
+            CatalogMetadata.organization_id.is_not(None),
         )
+        .limit(1)
     )
-    if owned is None:
-        # Ownership may also be future private draft; for MVP require catalog row.
-        raise ApiError(ErrorCategory.PERMISSION, "not the owner of the object")
+
+
+async def _corporate_owner_scope(
+    db: AsyncSession, *, account_id: str, object_kind: str, stable_id: str
+) -> str | None:
+    """The object's corporate organization when the caller is its current
+    resolved operational owner; `None` otherwise. Bare corporate membership
+    never qualifies (ADR-0221)."""
+    from ai_stp_api.slices.corporate.subject_access import resolves_catalog_ownership
+
+    organization_id = await _object_organization_id(
+        db, object_kind=object_kind, stable_id=stable_id
+    )
+    if organization_id is None:
+        return None
+    organization = await db.get(Organization, organization_id)
+    if organization is None or organization.kind != "corporate":
+        return None
+    if not await resolves_catalog_ownership(
+        db,
+        organization_id=organization_id,
+        object_kind=object_kind,
+        stable_id=stable_id,
+        account_id=account_id,
+    ):
+        return None
+    return organization_id
+
+
+async def _is_personal_owner(
+    db: AsyncSession, *, account_id: str, object_kind: str, stable_id: str
+) -> bool:
+    return (
+        await db.scalar(
+            select(CatalogMetadata.id).where(
+                CatalogMetadata.owner_account_id == account_id,
+                CatalogMetadata.object_kind == object_kind,
+                CatalogMetadata.stable_id == stable_id,
+            )
+        )
+    ) is not None
+
+
+async def _issuer_scope(
+    db: AsyncSession, *, account_id: str, object_kind: str, stable_id: str
+) -> str:
+    """The organization scope an issuance runs under: the author's personal
+    workspace for personal objects, or the object's corporate organization
+    when the caller is its current resolved owner."""
+    if await _is_personal_owner(
+        db, account_id=account_id, object_kind=object_kind, stable_id=stable_id
+    ):
+        return await _owner_scope_id(db, owner_account_id=account_id)
+    corporate_scope = await _corporate_owner_scope(
+        db, account_id=account_id, object_kind=object_kind, stable_id=stable_id
+    )
+    if corporate_scope is not None:
+        return corporate_scope
+    # Ownership may also be future private draft; for MVP require catalog row.
+    raise ApiError(ErrorCategory.PERMISSION, "not the owner of the object")
 
 
 async def create_invitation(
@@ -289,7 +355,7 @@ async def create_invitation(
     ctx: AuthContext,
     body: GrantInvitationCreateRequest,
 ) -> GrantInvitationResponse:
-    await _assert_owner(
+    issuer_scope = await _issuer_scope(
         db, account_id=ctx.account_id, object_kind=body.object_kind, stable_id=body.stable_id
     )
     existing = await db.scalar(
@@ -305,6 +371,7 @@ async def create_invitation(
     token = secrets.token_urlsafe(32)
     invitation = GrantInvitation(
         id=new_id("invite"),
+        organization_id=issuer_scope,
         owner_account_id=ctx.account_id,
         object_kind=body.object_kind,
         stable_id=body.stable_id,
@@ -462,9 +529,8 @@ async def accept_invitation(
             pg_insert(AccessGrant)
             .values(
                 id=new_id("grant"),
-                organization_id=await _owner_scope_id(
-                    db, owner_account_id=invitation.owner_account_id
-                ),
+                organization_id=invitation.organization_id
+                or await _owner_scope_id(db, owner_account_id=invitation.owner_account_id),
                 object_kind=invitation.object_kind,
                 stable_id=invitation.stable_id,
                 major=invitation.major,
@@ -509,6 +575,26 @@ async def accept_invitation(
     return grant_to_wire(grant)
 
 
+async def _may_withdraw(
+    db: AsyncSession,
+    *,
+    account_id: str,
+    issuer_account_id: str,
+    object_kind: str,
+    stable_id: str,
+) -> bool:
+    """The issuer or the object's current resolved corporate owner may
+    withdraw — the same authority context issuance was checked against."""
+    if issuer_account_id == account_id:
+        return True
+    return (
+        await _corporate_owner_scope(
+            db, account_id=account_id, object_kind=object_kind, stable_id=stable_id
+        )
+        is not None
+    )
+
+
 async def revoke_invitation(
     db: AsyncSession,
     *,
@@ -517,7 +603,13 @@ async def revoke_invitation(
     body: GrantRevokeRequest,
 ) -> GrantRevokeResponse:
     invitation = await db.get(GrantInvitation, invitation_id)
-    if invitation is None or invitation.owner_account_id != ctx.account_id:
+    if invitation is None or not await _may_withdraw(
+        db,
+        account_id=ctx.account_id,
+        issuer_account_id=invitation.owner_account_id,
+        object_kind=invitation.object_kind,
+        stable_id=invitation.stable_id,
+    ):
         raise ApiError(ErrorCategory.NOT_FOUND, "invitation not found")
     if invitation.state == "pending":
         invitation.state = "revoked"
@@ -542,7 +634,13 @@ async def revoke_grant(
     body: GrantRevokeRequest,
 ) -> GrantRevokeResponse:
     grant = await db.get(AccessGrant, grant_id)
-    if grant is None or grant.owner_account_id != ctx.account_id:
+    if grant is None or not await _may_withdraw(
+        db,
+        account_id=ctx.account_id,
+        issuer_account_id=grant.owner_account_id,
+        object_kind=grant.object_kind,
+        stable_id=grant.stable_id,
+    ):
         raise ApiError(ErrorCategory.NOT_FOUND, "grant not found")
     if grant.state == "active":
         grant.state = "revoked"
