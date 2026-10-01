@@ -91,7 +91,7 @@ release. Bundles are unsigned — signing/notarization is a separate track.
 The app needs the `ai-stp` CLI at runtime. Resolution order: a bundled
 `ai-stp`/`ai-stp.exe` next to the app binary, then a configured path, then
 PATH. A pinned path that is missing is an error, not a silent fallback.
-Install it with `pipx install ai-stp-cli`.
+Install it with `uv tool install ai-stp-cli`.
 
 ## Not yet done
 

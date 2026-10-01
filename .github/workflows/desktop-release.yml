@@ -48,7 +48,8 @@ jobs:
           EXPECTED_VERSION: ${{ inputs.version }}
         run: |
           set -euo pipefail
-          actual=$(python3 -c 'import json; print(json.load(open("apps/desktop/src-tauri/tauri.conf.json"))["version"])')
+          actual=$(sed -n 's/.*"version": *"\([^"]*\)".*/\1/p' \
+            apps/desktop/src-tauri/tauri.conf.json | head -1)
           [[ "${actual}" == "${EXPECTED_VERSION}" ]] || {
             echo "tauri.conf.json has ${actual}, tag wants ${EXPECTED_VERSION}" >&2
             exit 1
@@ -150,7 +151,7 @@ jobs:
           Desktop application over the ai-stp CLI (ADR-0222).
 
           **Requires the `ai-stp` CLI** installed separately
-          (`pipx install ai-stp-cli`); the app resolves it next to the
+          (`uv tool install ai-stp-cli`); the app resolves it next to the
           binary first, then on PATH.
 
           Bundles are unsigned: macOS will ask to allow the app in
