@@ -139,6 +139,7 @@ fn argv_enforces_declared_rules() {
 /// (typical for `help --agent`) must not deadlock the runner. The previous
 /// implementation read stdout only after exit; the child blocked on write
 /// and hit the deadline every time.
+#[cfg(unix)]
 #[test]
 fn large_stdout_does_not_deadlock() {
     use std::io::Write;
@@ -241,6 +242,7 @@ fn warnings_and_nonzero_exit_envelope() {
     assert_eq!(env.error.unwrap().code, "AI_STP_CONFLICT");
 }
 
+#[cfg(unix)]
 fn fake_cli(body: &str) -> (std::path::PathBuf, std::path::PathBuf) {
     use std::io::Write;
     use std::os::unix::fs::PermissionsExt;
@@ -256,6 +258,7 @@ fn fake_cli(body: &str) -> (std::path::PathBuf, std::path::PathBuf) {
     (dir, exe)
 }
 
+#[cfg(unix)]
 #[test]
 fn error_envelope_on_nonzero_exit_is_parsed() {
     let (dir, exe) = fake_cli(
@@ -272,6 +275,7 @@ fn error_envelope_on_nonzero_exit_is_parsed() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
+#[cfg(unix)]
 #[test]
 fn garbage_stdout_reports_exit_and_stderr() {
     let (dir, exe) = fake_cli("#!/bin/sh\necho boom >&2\necho not-json\nexit 3");
@@ -290,6 +294,7 @@ fn garbage_stdout_reports_exit_and_stderr() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
+#[cfg(unix)]
 #[test]
 fn hanging_child_is_killed_as_unconfirmed() {
     let (dir, exe) = fake_cli("#!/bin/sh\nsleep 30");

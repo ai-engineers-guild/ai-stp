@@ -86,8 +86,13 @@ impl CliLocator {
 
 fn which(name: &str) -> Option<PathBuf> {
     let path_var = std::env::var_os("PATH")?;
+    let name = if cfg!(windows) {
+        format!("{name}.exe")
+    } else {
+        name.to_string()
+    };
     for dir in std::env::split_paths(&path_var) {
-        let candidate = dir.join(name);
+        let candidate = dir.join(&name);
         if candidate.is_file() && is_executable(&candidate) {
             return Some(candidate);
         }
