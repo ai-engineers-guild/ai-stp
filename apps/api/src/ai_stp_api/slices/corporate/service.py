@@ -291,6 +291,7 @@ def organization_view(row: Organization) -> CorporateOrganization:
 def member_view(
     row: OrganizationMembership, account: Account, job_title_name: str | None = None
 ) -> CorporateMember:
+    created_at = cast(datetime | None, row.created_at)
     return CorporateMember(
         account_id=row.account_id,
         display_name=row.display_name if row.display_name is not None else account.display_name,
@@ -300,8 +301,12 @@ def member_view(
         job_title_id=row.job_title_id,
         job_title_name=job_title_name,
         contact_email=None,
-        joined_at=format_timestamp(
-            row.created_at.replace(tzinfo=UTC) if row.created_at.tzinfo is None else row.created_at
+        joined_at=(
+            format_timestamp(
+                created_at.replace(tzinfo=UTC) if created_at.tzinfo is None else created_at
+            )
+            if created_at is not None
+            else None
         ),
         last_activity_at=None,
         available_actions=[],
