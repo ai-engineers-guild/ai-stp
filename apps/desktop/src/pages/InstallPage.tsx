@@ -1,154 +1,311 @@
-import { useState } from "react";
-import { FileCheck2, ShieldAlert } from "lucide-react";
-import { cliApplyConfirmed, cliPlan, type CmdResult } from "../transport";
-import { Json, ResultMeta } from "../components/Result";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router";
+import { Ban, Play, StepForward } from "lucide-react";
+import {
+  cliApplyConfirmed,
+  cmdTaskAnswer,
+  cmdTaskCancel,
+  cmdTaskContinue,
+  cmdTaskStart,
+  cmdTaskStatus,
+  type CliContinuation,
+  type CmdResult,
+} from "../transport";
+import { Json, ResultMeta, Spinner } from "../components/Result";
 
-const ACTIONS = ["install", "update", "remove", "backup", "rollback"];
-const HARNESSES = ["antigravity", "claude-code", "codex", "cursor", "grok-build", "opencode", "pi"];
-const SCOPES = ["global", "project", "user_root"];
+interface Question {
+  question_id: string;
+  prompt: string;
+  value_type?: string;
+  choices?: string[];
+  recommended?: string;
+  why?: string;
+  actor?: string;
+}
 
-/** plan → approve(exact digest) → apply. Mirrors the CLI contract: a plan is
- *  a durable digest-bound proposal; apply executes exactly the approved
- *  operation. Timeout ⇒ "effect unconfirmed", never auto-retry. */
+interface TaskView {
+  task_id: string;
+  revision: number;
+  intent: string;
+  state: string;
+  goal_satisfied?: boolean;
+  questions: Question[];
+  outcome?: unknown;
+}
+
+/** Turn a continuation argv (["install","apply","--operation","x",…]) into
+ *  (path, values, flags) so it can pass through the gated apply command.
+ *  Positional arguments are refused — contract continuations are flag-based. */
+function argvToCall(argv: string[]): { path: string; values: Record<string, string>; flags: string[] } | null {
+  const words = argv.filter((a) => a !== "--json");
+  const cmdWords: string[] = [];
+  let i = 0;
+  while (i < words.length && !words[i].startsWith("--")) {
+    cmdWords.push(words[i]);
+    i++;
+  }
+  if (cmdWords.length === 0) return null;
+  const values: Record<string, string> = {};
+  const flags: string[] = [];
+  for (; i < words.length; i++) {
+    const w = words[i];
+    if (!w.startsWith("--")) return null; // positional — refuse
+    const name = w.slice(2);
+    if (i + 1 < words.length && !words[i + 1].startsWith("--")) {
+      values[name] = words[i + 1];
+      i++;
+    } else {
+      flags.push(name);
+    }
+  }
+  return { path: cmdWords.join(" "), values, flags };
+}
+
+const INTENTS = [
+  { id: "install", label: "Install" },
+  { id: "change", label: "Change" },
+  { id: "switch", label: "Switch harness" },
+  { id: "initialize", label: "Initialize" },
+  { id: "inspect", label: "Inspect" },
+];
+
+/** Task-engine wizard: the CLI asks questions, we render them, the engine
+ *  decides the next step. The app never guesses the flow — `questions[]`,
+ *  `continuations[]` and `state` are the whole protocol. */
 export default function InstallPage() {
-  const [action, setAction] = useState("install");
-  const [setup, setSetup] = useState("");
-  const [project, setProject] = useState("");
-  const [target, setTarget] = useState("");
-  const [harness, setHarness] = useState("claude-code");
-  const [scope, setScope] = useState("project");
-  const [plan, setPlan] = useState<CmdResult | null>(null);
-  const [applied, setApplied] = useState<CmdResult | null>(null);
-  const [busy, setBusy] = useState<"plan" | "apply" | null>(null);
+  const [params] = useSearchParams();
+  const [intent, setIntent] = useState(params.get("intent") ?? "install");
+  const [task, setTask] = useState<TaskView | null>(null);
+  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [continuations, setContinuations] = useState<CliContinuation[]>([]);
+  const [lastResult, setLastResult] = useState<CmdResult | null>(null);
+  const [busy, setBusy] = useState(false);
 
-  const planData = (plan?.data ?? {}) as Record<string, unknown>;
-  const operationId = String(planData.operation_id ?? "");
-  const planDigest = String(planData.plan_digest ?? planData.digest ?? "");
+  useEffect(() => {
+    const q = params.get("intent");
+    if (q) setIntent(q);
+  }, [params]);
 
-  function planValues(): Record<string, string> {
-    const v: Record<string, string> = { action };
-    if (setup) v.setup = setup;
-    if (project) v.project = project;
-    if (scope) v.scope = scope;
-    if (target) v.target = target;
-    if (harness) v.harness = harness;
-    return v;
+  function view(r: CmdResult): TaskView | null {
+    return (r.data as unknown as TaskView) ?? null;
   }
 
-  async function doPlan() {
-    setBusy("plan");
-    setApplied(null);
-    setPlan(await cliPlan("install plan", planValues()));
-    setBusy(null);
+  async function refresh(taskId: string) {
+    const r = await cmdTaskStatus(taskId);
+    if (r.ok && r.data) setTask(view(r));
+    return r;
   }
 
-  async function doApply() {
-    if (!operationId) return;
-    setBusy("apply");
-    setApplied(
-      await cliApplyConfirmed("install apply", { operation: operationId }, [], true),
-    );
-    setBusy(null);
+  async function start() {
+    setBusy(true);
+    setAnswers({});
+    const r = await cmdTaskStart(intent);
+    setLastResult(r);
+    setContinuations(r.continuations);
+    if (r.ok) setTask(view(r));
+    setBusy(false);
   }
+
+  async function submitAnswers() {
+    if (!task) return;
+    setBusy(true);
+    let current = task;
+    for (const q of task.questions) {
+      const v = answers[q.question_id] ?? q.recommended ?? "";
+      if (v === "") {
+        setLastResult({
+          ok: false, data: null, warnings: [], continuations: [],
+          error: `missing answer: ${q.question_id}`, error_code: "UI_VALIDATION",
+        });
+        setBusy(false);
+        return;
+      }
+      const r = await cmdTaskAnswer(
+        current.task_id,
+        String(current.revision),
+        q.question_id,
+        v,
+      );
+      setLastResult(r);
+      setContinuations(r.continuations);
+      if (!r.ok) {
+        setBusy(false);
+        return;
+      }
+      if (r.data) current = r.data as unknown as TaskView;
+      setTask(current);
+      await refresh(current.task_id).then((rr) => {
+        if (rr.ok && rr.data) current = rr.data as unknown as TaskView;
+      });
+      setTask(current);
+    }
+    setAnswers({});
+    setBusy(false);
+  }
+
+  async function continueTask() {
+    if (!task) return;
+    setBusy(true);
+    const r = await cmdTaskContinue(task.task_id, String(task.revision));
+    setLastResult(r);
+    setContinuations(r.continuations);
+    if (r.ok) await refresh(task.task_id);
+    setBusy(false);
+  }
+
+  async function cancel() {
+    if (!task) return;
+    setBusy(true);
+    const r = await cmdTaskCancel(task.task_id, String(task.revision));
+    setLastResult(r);
+    if (r.ok) setTask(null);
+    setBusy(false);
+  }
+
+  async function runContinuation(c: CliContinuation) {
+    const callArgs = argvToCall(c.argv);
+    if (!callArgs) {
+      setLastResult({
+        ok: false, data: null, warnings: [], continuations: [],
+        error: `cannot translate continuation argv: ${c.argv.join(" ")}`,
+        error_code: "UI_UNSUPPORTED_CONTINUATION",
+      });
+      return;
+    }
+    setBusy(true);
+    const r = await cliApplyConfirmed(callArgs.path, callArgs.values, callArgs.flags, true);
+    setLastResult(r);
+    setContinuations(r.continuations);
+    if (task) await refresh(task.task_id);
+    setBusy(false);
+  }
+
+  const terminal = task && ["completed", "failed", "cancelled"].includes(task.state);
+  const pendingContinuations = continuations.filter(
+    (c) => c.actor === "cli" && c.argv.length > 0 && c.path.join(" ") !== "task answer",
+  );
 
   return (
     <div className="space-y-5">
       <header>
-        <h1 className="page-title">Install</h1>
-        <p className="text-sm text-muted-foreground">
-          Plan is a durable, digest-bound proposal. Apply executes exactly the approved operation — nothing else.
+        <h1 className="page-title">Install &amp; flows</h1>
+        <p className="page-sub">
+          The task engine drives every journey: it asks, you answer, it plans,
+          you approve the digest, it applies. Nothing is written before that approval.
         </p>
       </header>
 
-      <section className="grid max-w-2xl grid-cols-2 gap-3 card p-4">
-        <label className="text-xs">
-          Action
-          <select value={action} onChange={(e) => setAction(e.target.value)}
-            className="mt-1 w-full rounded-lg border border-input bg-transparent px-2 py-1.5 text-sm">
-            {ACTIONS.map((a) => <option key={a}>{a}</option>)}
-          </select>
-        </label>
-        <label className="text-xs">
-          Harness
-          <select value={harness} onChange={(e) => setHarness(e.target.value)}
-            className="mt-1 w-full rounded-lg border border-input bg-transparent px-2 py-1.5 text-sm">
-            {HARNESSES.map((h) => <option key={h}>{h}</option>)}
-          </select>
-        </label>
-        <label className="col-span-2 text-xs">
-          Setup id <span className="text-muted-foreground">(stable id from Catalog; exactly one of proposal/setup)</span>
-          <input value={setup} onChange={(e) => setSetup(e.target.value)}
-            placeholder="e.g. author/slug@1.2.0"
-            className="mt-1 w-full rounded-lg border border-input bg-transparent px-3 py-1.5 font-mono text-sm" />
-        </label>
-        <label className="col-span-2 text-xs">
-          Project <span className="text-muted-foreground">(required when setup is given)</span>
-          <input value={project} onChange={(e) => setProject(e.target.value)}
-            placeholder="/absolute/path/to/project"
-            className="mt-1 w-full rounded-lg border border-input bg-transparent px-3 py-1.5 font-mono text-sm" />
-        </label>
-        <label className="text-xs">
-          Scope
-          <select value={scope} onChange={(e) => setScope(e.target.value)}
-            className="mt-1 w-full rounded-lg border border-input bg-transparent px-2 py-1.5 text-sm">
-            {SCOPES.map((s) => <option key={s}>{s}</option>)}
-          </select>
-        </label>
-        <label className="text-xs">
-          Target <span className="text-muted-foreground">(required for project/user_root scope)</span>
-          <input value={target} onChange={(e) => setTarget(e.target.value)}
-            placeholder="target path or id"
-            className="mt-1 w-full rounded-lg border border-input bg-transparent px-3 py-1.5 font-mono text-sm" />
-        </label>
-      </section>
-
-      <button
-        onClick={() => void doPlan()}
-        disabled={busy !== null}
-        className="btn-primary"
-      >
-        <FileCheck2 size={14} /> {busy === "plan" ? "Planning…" : "Create plan"}
-      </button>
-
-      {plan && (
-        <section className="space-y-3 card p-4">
-          <ResultMeta r={plan} />
-          {plan.ok && planData && (
-            <>
-              <Json v={planData} />
-              <div className="card border-warning/50 bg-warning/10 p-3 text-xs">
-                <p className="flex items-center gap-1.5 font-semibold">
-                  <ShieldAlert size={13} /> Review before applying
-                </p>
-                {planDigest && (
-                  <p className="mt-1 font-mono">plan digest: {planDigest}</p>
-                )}
-                <p className="mt-1 font-mono">operation: {operationId || "—"}</p>
-              </div>
+      {!task && (
+        <section className="card max-w-xl space-y-3 p-4">
+          <h2 className="section-title">Start a flow</h2>
+          <div className="flex flex-wrap gap-2">
+            {INTENTS.map((it) => (
               <button
-                onClick={() => void doApply()}
-                disabled={busy !== null || !operationId}
-                className="btn-danger"
+                key={it.id}
+                onClick={() => setIntent(it.id)}
+                className={`rounded-sm border px-3 py-1.5 text-sm ${
+                  intent === it.id
+                    ? "border-primary bg-primary/10 font-medium text-primary"
+                    : "border-input text-muted-foreground"
+                }`}
               >
-                {busy === "apply" ? "Applying…" : "Apply exactly this plan"}
+                {it.label}
               </button>
-            </>
+            ))}
+          </div>
+          <button onClick={() => void start()} disabled={busy} className="btn-primary">
+            <Play size={14} /> Start
+          </button>
+        </section>
+      )}
+
+      {task && (
+        <section className="card space-y-3 p-4">
+          <div className="flex items-center justify-between">
+            <h2 className="section-title">
+              {task.intent} <span className="font-mono text-xs text-muted-foreground">{task.task_id}</span>
+            </h2>
+            <span className={`chip ${
+              task.state === "completed" ? "bg-success/15 text-success"
+              : task.state === "blocked" ? "bg-warning/15 text-warning"
+              : "bg-muted text-muted-foreground"
+            }`}>{task.state} · rev {task.revision}</span>
+          </div>
+
+          {task.questions.length > 0 && (
+            <div className="space-y-3">
+              {task.questions.map((q) => (
+                <label key={q.question_id} className="block text-xs">
+                  <span className="font-medium">{q.prompt}</span>
+                  {q.why && <span className="ml-1 text-muted-foreground">— {q.why}</span>}
+                  {q.choices && q.choices.length > 0 ? (
+                    <select
+                      value={answers[q.question_id] ?? q.recommended ?? ""}
+                      onChange={(e) =>
+                        setAnswers((a) => ({ ...a, [q.question_id]: e.target.value }))
+                      }
+                      className="input mt-1 w-full"
+                    >
+                      <option value="">—</option>
+                      {q.choices.map((c) => <option key={c}>{c}</option>)}
+                    </select>
+                  ) : (
+                    <input
+                      value={answers[q.question_id] ?? q.recommended ?? ""}
+                      onChange={(e) =>
+                        setAnswers((a) => ({ ...a, [q.question_id]: e.target.value }))
+                      }
+                      className="input mt-1 w-full font-mono"
+                    />
+                  )}
+                </label>
+              ))}
+              <button onClick={() => void submitAnswers()} disabled={busy} className="btn-primary">
+                <StepForward size={14} /> Submit answers
+              </button>
+            </div>
           )}
+
+          {task.outcome != null && (
+            <section className="space-y-2">
+              <h3 className="section-title">Outcome</h3>
+              <Json v={task.outcome} />
+            </section>
+          )}
+
+          {pendingContinuations.length > 0 && (
+            <div className="space-y-2">
+              <h3 className="section-title">Engine requests</h3>
+              {pendingContinuations.map((c, i) => (
+                <button
+                  key={i}
+                  onClick={() => void runContinuation(c)}
+                  disabled={busy}
+                  className="btn-danger"
+                >
+                  Approve &amp; run: <code className="font-mono text-xs">{c.path.join(" ")}</code>
+                </button>
+              ))}
+            </div>
+          )}
+
+          <div className="flex gap-2">
+            <button onClick={() => void continueTask()} disabled={busy || !!terminal} className="btn-outline">
+              <StepForward size={14} /> Continue
+            </button>
+            <button onClick={() => void cancel()} disabled={busy || !!terminal} className="btn-outline">
+              <Ban size={14} /> Cancel task
+            </button>
+            <button onClick={() => setTask(null)} disabled={busy} className="btn-outline">
+              Close
+            </button>
+          </div>
         </section>
       )}
 
-      {busy === "apply" && (
-        <p className="text-xs text-muted-foreground">
-          Apply is opaque up to ~120s — a timeout means “effect unconfirmed”; check status, do not retry blindly.
-        </p>
-      )}
-
-      {applied && (
-        <section className="space-y-2">
-          <ResultMeta r={applied} />
-          {applied.data && <Json v={applied.data} />}
-        </section>
-      )}
+      {busy && <Spinner label="Talking to the task engine" />}
+      {lastResult && !lastResult.ok && <ResultMeta r={lastResult} />}
+      {lastResult?.data && <details className="text-xs"><summary className="cursor-pointer text-muted-foreground">Last envelope</summary><Json v={lastResult.data} /></details>}
     </div>
   );
 }

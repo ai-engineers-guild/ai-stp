@@ -471,6 +471,77 @@ async fn task_status(state: tauri::State<'_, Arc<AppState>>, task_id: String) ->
     .map_err(|e| e.to_string())
 }
 
+/// Answer one task-engine question. The wizard submits user form input
+/// here; the engine re-derives the next state, questions or continuations.
+#[tauri::command]
+async fn task_answer(
+    state: tauri::State<'_, Arc<AppState>>,
+    task: String,
+    revision: String,
+    question_id: String,
+    value: String,
+) -> Result<CmdResult, String> {
+    let st = state.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        run_cli(
+            &st,
+            &[
+                "task".into(), "answer".into(),
+                "--task".into(), task,
+                "--revision".into(), revision,
+                "--question-id".into(), question_id,
+                "--value".into(), value,
+            ],
+        )
+    })
+    .await
+    .map_err(|e| e.to_string())
+}
+
+/// Continue a task after it produced a plan/continuation (e.g. confirm an
+/// install). The engine decides the next step — we never shortcut it.
+#[tauri::command]
+async fn task_continue(
+    state: tauri::State<'_, Arc<AppState>>,
+    task: String,
+    revision: String,
+) -> Result<CmdResult, String> {
+    let st = state.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        run_cli(
+            &st,
+            &[
+                "task".into(), "continue".into(),
+                "--task".into(), task,
+                "--revision".into(), revision,
+            ],
+        )
+    })
+    .await
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn task_cancel(
+    state: tauri::State<'_, Arc<AppState>>,
+    task: String,
+    revision: String,
+) -> Result<CmdResult, String> {
+    let st = state.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        run_cli(
+            &st,
+            &[
+                "task".into(), "cancel".into(),
+                "--task".into(), task,
+                "--revision".into(), revision,
+            ],
+        )
+    })
+    .await
+    .map_err(|e| e.to_string())
+}
+
 #[tauri::command]
 async fn task_list(state: tauri::State<'_, Arc<AppState>>) -> Result<CmdResult, String> {
     let st = state.inner().clone();
@@ -507,6 +578,9 @@ pub fn run() {
             task_intents,
             task_start,
             task_status,
+            task_answer,
+            task_continue,
+            task_cancel,
             task_list
         ])
         .run(tauri::generate_context!())

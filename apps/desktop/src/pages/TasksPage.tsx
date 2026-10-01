@@ -1,22 +1,21 @@
 import { useEffect, useRef, useState } from "react";
+import { Link } from "react-router";
 import { Play } from "lucide-react";
 import {
   cmdTaskIntents,
   cmdTaskList,
-  cmdTaskStart,
   cmdTaskStatus,
   type CmdResult,
 } from "../transport";
-import { Json, ResultMeta, Spinner } from "../components/Result";
+import { Json, ResultMeta } from "../components/Result";
 
 /** Durable task journeys. Progress is phases/status, not fake percentages —
  * the CLI has no streaming progress protocol, so we poll `task status`. */
 export default function TasksPage() {
   const [intents, setIntents] = useState<CmdResult | null>(null);
   const [list, setList] = useState<CmdResult | null>(null);
-  const [started, setStarted] = useState<CmdResult | null>(null);
+
   const [status, setStatus] = useState<CmdResult | null>(null);
-  const [taskId, setTaskId] = useState("");
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
@@ -34,27 +33,12 @@ export default function TasksPage() {
     }
   }
 
-  function startPoll(id: string) {
-    stopPoll();
-    pollRef.current = setInterval(async () => {
-      const r = await cmdTaskStatus(id);
-      setStatus(r);
-      const s = String((r.data as Record<string, unknown> | null)?.status ?? "");
-      if (["completed", "failed", "cancelled", "rejected"].includes(s)) stopPoll();
-    }, 3000);
+  async function pollOnce(id: string) {
+    setStatus(await cmdTaskStatus(id));
   }
 
-  async function start(intent: string) {
-    const r = await cmdTaskStart(intent);
-    setStarted(r);
-    const d = (r.data ?? {}) as Record<string, unknown>;
-    const id = String(d.task_id ?? d.id ?? "");
-    if (r.ok && id) {
-      setTaskId(id);
-      startPoll(id);
-    }
-    setList(await cmdTaskList());
-  }
+  // Starting a journey lives on the Flows page — it owns the question loop.
+  // This page watches the durable status of tasks started anywhere.
 
   const intentsData = (intents?.data ?? {}) as Record<string, unknown>;
   const listData = (list?.data ?? {}) as Record<string, unknown>;
@@ -84,40 +68,41 @@ export default function TasksPage() {
           {intentList.map((it, i) => {
             const name = String(it.intent ?? it.name ?? it.id ?? "");
             return (
-              <button
+              <Link
                 key={i}
-                onClick={() => void start(name)}
-                className="flex items-center gap-1.5 rounded-lg border border-input px-3 py-1.5 text-sm hover:bg-accent dark:hover:bg-accent"
+                to={`/install?intent=${encodeURIComponent(name)}`}
+                className="flex items-center gap-1.5 rounded-lg border border-input px-3 py-1.5 text-sm hover:bg-accent"
               >
                 <Play size={12} /> {name}
-              </button>
+              </Link>
             );
           })}
         </div>
       </section>
 
-      {started && (
-        <section className="space-y-2">
-          <ResultMeta r={started} />
-          {started.data && <Json v={started.data} />}
-        </section>
-      )}
 
-      {taskId && (
-        <section className="space-y-2">
-          <h2 className="section-title">
-            Status <span className="font-mono text-xs text-muted-foreground">{taskId}</span>
-          </h2>
-          {status ? (
-            <>
-              <ResultMeta r={status} />
-              {status.data && <Json v={status.data} />}
-            </>
-          ) : (
-            <Spinner label="Polling task status" />
-          )}
-        </section>
-      )}
+
+      <section className="space-y-2">
+        <h2 className="section-title">Inspect a task</h2>
+        <div className="flex gap-2">
+          <input id="task-inspect" placeholder="task_01…" className="input w-72 font-mono" />
+          <button
+            onClick={() => {
+              const el = document.getElementById("task-inspect") as HTMLInputElement;
+              if (el?.value) void pollOnce(el.value.trim());
+            }}
+            className="btn-outline"
+          >
+            Check status
+          </button>
+        </div>
+        {status && (
+          <>
+            <ResultMeta r={status} />
+            {status.data && <Json v={status.data} />}
+          </>
+        )}
+      </section>
 
       <section>
         <h2 className="mb-2 section-title">Recent tasks</h2>

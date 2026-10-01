@@ -150,6 +150,23 @@ export function cmdTaskStatus(taskId: string): Promise<CmdResult> {
   return call("task_status", { taskId });
 }
 
+export function cmdTaskAnswer(
+  task: string,
+  revision: string,
+  questionId: string,
+  value: string,
+): Promise<CmdResult> {
+  return call("task_answer", { task, revision, questionId, value });
+}
+
+export function cmdTaskContinue(task: string, revision: string): Promise<CmdResult> {
+  return call("task_continue", { task, revision });
+}
+
+export function cmdTaskCancel(task: string, revision: string): Promise<CmdResult> {
+  return call("task_cancel", { task, revision });
+}
+
 export function cmdTaskList(): Promise<CmdResult> {
   return call("task_list");
 }
