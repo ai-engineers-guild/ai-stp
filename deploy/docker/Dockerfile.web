@@ -19,7 +19,9 @@ FROM deps AS dev
 # Alpine keeps no version history, so an `=` pin breaks the build the day the
 # index rolls; this dev-only image takes the index's nodejs over a dead pin.
 # hadolint ignore=DL3018
-RUN apk add --no-cache nodejs
+# Server Intl must support the same locales as the browser to hydrate dates.
+RUN apk add --no-cache nodejs icu-data-full \
+    && /usr/bin/node -e "require('node:assert/strict').deepEqual(Intl.RelativeTimeFormat.supportedLocalesOf(['en', 'ru']), ['en', 'ru'])"
 
 COPY apps/web .
 

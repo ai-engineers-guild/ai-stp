@@ -3,14 +3,27 @@
 import { create } from "zustand";
 
 type UiSlice = {
-  mobileNavOpen: boolean;
-  setMobileNavOpen: (open: boolean) => void;
+  sidebarCollapsed: boolean;
+  setSidebarCollapsed: (collapsed: boolean) => void;
+  restoreSidebar: () => void;
 };
 
 /** Thin UI chrome slice — no server data. */
 export const useUiSlice = create<UiSlice>((set) => ({
-  mobileNavOpen: false,
-  setMobileNavOpen: (mobileNavOpen) => {
-    set({ mobileNavOpen });
+  sidebarCollapsed: false,
+  setSidebarCollapsed: (sidebarCollapsed) => {
+    set({ sidebarCollapsed });
+    try {
+      sessionStorage.setItem("ai-stp-sidebar-collapsed", String(sidebarCollapsed));
+    } catch {
+      /* Storage is optional. */
+    }
+  },
+  restoreSidebar: () => {
+    try {
+      set({ sidebarCollapsed: sessionStorage.getItem("ai-stp-sidebar-collapsed") === "true" });
+    } catch {
+      /* Storage is optional. */
+    }
   },
 }));

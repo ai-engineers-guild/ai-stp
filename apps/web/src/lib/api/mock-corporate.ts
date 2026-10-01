@@ -29,6 +29,16 @@ import type {
   CorporateProjectView,
   CorporateMember,
   CorporateInvitation,
+  CorporateBinding,
+  CorporateEffectivePermission,
+  CorporateMemberAccess,
+  CorporateMemberPrivateGrant,
+  CorporateDelegationView,
+  CorporatePermissionGrant,
+  CorporatePermissionMatrix,
+  CorporatePermissionDefinition,
+  CorporateRoleView,
+  CorporateServicePrincipalView,
   TechnologyView,
   ProjectTeamView,
   ProjectTechnologyView,
@@ -86,6 +96,9 @@ const members: CorporateMember[] = employeeNodes.map((item, index) => ({
   role: roles[index] ?? "staff",
   job_title_id: null,
   job_title_name: null,
+  contact_email: index % 4 === 3 ? null : `member${index + 1}@corp.example`,
+  joined_at: new Date(Date.UTC(2026, 4, 12 + index)).toISOString(),
+  last_activity_at: new Date(Date.now() - (index + 1) * 3_600_000).toISOString(),
   revision: 1,
   available_actions: [],
 }));
@@ -115,15 +128,189 @@ const memberById = new Map(members.map((item) => [item.account_id, item]));
 // Standalone bundles this module into two module realms (page render and
 // /api routes). Mutable mock state must live on globalThis or a mutation in
 // one realm stays invisible to a read in the other.
-const mockState = ((globalThis as Record<string, unknown>).__aiStpCorporateMock ??= {
-  invitations: [] as CorporateInvitation[],
+const builtInRoles = new Set(["staff", "lead", "superadmin"]);
+const initialRoleViews: CorporateRoleView[] = [
+  {
+    schema_version: 1,
+    name: "staff",
+    parent_role: null,
+    permissions: [
+      "member.list",
+      "member.read",
+      "project.list",
+      "project.read",
+      "team.list",
+      "technology.list",
+      "technology.read",
+    ],
+    revision: 1,
+  },
+  {
+    schema_version: 1,
+    name: "lead",
+    parent_role: "staff",
+    permissions: ["member.update", "member.invite", "project.update", "team.read", "team.update"],
+    revision: 1,
+  },
+  {
+    schema_version: 1,
+    name: "superadmin",
+    parent_role: "lead",
+    permissions: [
+      "binding.create",
+      "binding.delete",
+      "binding.list",
+      "member.create",
+      "member.delete",
+      "member.manage",
+      "organization.manage",
+      "role.create",
+      "role.delete",
+      "role.list",
+      "role.update",
+      "service_principal.list",
+      "service_principal.manage",
+      "audit.list",
+    ],
+    revision: 1,
+  },
+  {
+    schema_version: 1,
+    name: "platform_auditor",
+    parent_role: "staff",
+    permissions: ["audit.export", "audit.list"],
+    revision: 1,
+  },
+];
+const initMockState = () => ({
+  invitations: [
+    {
+      schema_version: 1,
+      invitation_id: "invitation_0001",
+      issuer_account_id: employeeNodes[0]?.id ?? null,
+      organization_id: organization.organization_id,
+      recipient_email: "new.joiner@corp.example",
+      display_name: "New Joiner",
+      role: "staff",
+      team_ids: [],
+      project_ids: [],
+      job_title_id: null,
+      accepted_account_id: null,
+      claimant_account_id: null,
+      state: "pending",
+      delivery_state: "sent",
+      delivery_error: null,
+      created_at: new Date(Date.now() - 12 * 3_600_000).toISOString(),
+      expires_at: new Date(Date.now() + 84 * 3_600_000).toISOString(),
+      token: null,
+    },
+    {
+      schema_version: 1,
+      invitation_id: "invitation_0002",
+      issuer_account_id: employeeNodes[0]?.id ?? null,
+      organization_id: organization.organization_id,
+      recipient_email: "revoked@corp.example",
+      display_name: "Revoked Invite",
+      role: "lead",
+      team_ids: [],
+      project_ids: [],
+      job_title_id: null,
+      accepted_account_id: null,
+      claimant_account_id: null,
+      state: "revoked",
+      delivery_state: "failed",
+      delivery_error: "550 mailbox unavailable",
+      created_at: new Date(Date.now() - 5 * 24 * 3_600_000).toISOString(),
+      expires_at: new Date(Date.now() - 2 * 24 * 3_600_000).toISOString(),
+      token: null,
+    },
+  ] as CorporateInvitation[],
   policy: { allowed_email_domains: [] as string[], authorization_revision: 1 },
-}) as {
-  invitations: CorporateInvitation[];
-  policy: { allowed_email_domains: string[]; authorization_revision: number };
-};
-const mockInvitations = mockState.invitations;
-const mockPolicy = mockState.policy;
+  roles: [...initialRoleViews] as CorporateRoleView[],
+  bindings: [
+    {
+      schema_version: 1,
+      binding_id: "binding_0000000000000000001",
+      account_id: members[0]!.account_id,
+      service_principal_id: null,
+      principal_type: "user",
+      role: "superadmin",
+      scope_kind: "organization",
+      scope_id: organization.organization_id,
+      state: "active",
+      revision: 1,
+      origin: "membership",
+      coverage: "descendants",
+    },
+    {
+      schema_version: 1,
+      binding_id: "binding_0000000000000000002",
+      account_id: members[1]?.account_id ?? "",
+      service_principal_id: null,
+      principal_type: "user",
+      role: "lead",
+      scope_kind: "team",
+      scope_id: teamViews[0]?.team_id ?? "team_unknown",
+      state: "active",
+      revision: 1,
+      origin: "assignment",
+      coverage: "self",
+    },
+    {
+      schema_version: 1,
+      binding_id: "binding_0000000000000000003",
+      account_id: members[2]?.account_id ?? "",
+      service_principal_id: null,
+      principal_type: "user",
+      role: "staff",
+      scope_kind: "project",
+      scope_id: projectViews[0]?.project_id ?? "project_unknown",
+      state: "active",
+      revision: 1,
+      origin: "direct",
+      coverage: "self",
+    },
+  ] as CorporateBinding[],
+  grants: [
+    {
+      schema_version: 1,
+      grant_id: "grant_0000000000000000001",
+      account_id: members[3]?.account_id ?? "",
+      service_principal_id: null,
+      principal_type: "user",
+      permission: "technology.update",
+      scope_kind: "technology",
+      scope_id: technologies[0]?.technology_id ?? "technology_unknown",
+      state: "active",
+      issuer_account_id: members[0]!.account_id,
+      revision: 1,
+    },
+  ] as CorporatePermissionGrant[],
+  servicePrincipals: [
+    {
+      schema_version: 1,
+      service_principal_id: "service_principal_0000000000000001",
+      organization_id: organization.organization_id,
+      name: "telemetry-ingest",
+      state: "active",
+      revision: 1,
+      binding: {
+        schema_version: 1,
+        binding_id: "binding_0000000000000000099",
+        account_id: null,
+        service_principal_id: "service_principal_0000000000000001",
+        principal_type: "service_principal",
+        role: "staff",
+        scope_kind: "organization",
+        scope_id: organization.organization_id,
+        state: "active",
+        revision: 1,
+        origin: "service_principal",
+        coverage: "self",
+      },
+    },
+  ] as CorporateServicePrincipalView[],
+});
 const graphEdges = graph.edges;
 const teamMembers = (teamId: string) =>
   graphEdges
@@ -210,6 +397,15 @@ const technologies: TechnologyView[] = technologySpecs.map(([id, name, category]
   provenance: "manual",
   available_actions: [],
 }));
+
+const mockState = ((globalThis as Record<string, unknown>).__aiStpCorporateMock ??=
+  initMockState()) as ReturnType<typeof initMockState>;
+const mockInvitations = mockState.invitations;
+const mockPolicy = mockState.policy;
+const mockRoles = mockState.roles;
+const mockBindings = mockState.bindings;
+const mockGrants = mockState.grants;
+const mockServicePrincipals = mockState.servicePrincipals;
 const technologyById = new Map(technologies.map((item) => [item.technology_id, item]));
 // Server actions and page renders can load separate module instances (dev
 // compilers, per-entry server chunks); hoist mutable review state so every
@@ -391,17 +587,40 @@ const technologyTeams = new Map<string, string[]>([
 // This fixture projection is not evidence of production RBAC enforcement.
 const capabilities = [
   "team.list",
+  "team.create",
+  "team.read",
+  "team.update",
+  "team.delete",
   "project.list",
   "project.read",
+  "project.create",
+  "project.update",
+  "project.delete",
   "member.read",
+  "member.create",
+  "member.update",
+  "member.delete",
   "member.manage",
   "member.invite",
   "member.list",
   "organization.read",
   "organization.manage",
   "role.list",
+  "role.create",
+  "role.read",
+  "role.update",
+  "role.delete",
   "binding.list",
+  "binding.create",
+  "binding.read",
+  "binding.update",
+  "binding.delete",
+  "service_principal.list",
+  "service_principal.read",
+  "service_principal.manage",
+  "service_principal.delete",
   "audit.list",
+  "audit.export",
   "job_title.list",
   "technology.list",
   "technology.read",
@@ -425,7 +644,7 @@ const context: CorporateContext = {
   member,
   teams: teamViews,
   projects: projectViews,
-  bindings: [],
+  bindings: mockBindings.filter((item) => item.account_id === member.account_id),
   capabilities,
 };
 const dashboardViews: DashboardView[] = [];
@@ -1209,9 +1428,10 @@ export function corporateHandlers(
         invitation_id: `invitation_${String(mockInvitations.length + 1).padStart(4, "0")}`,
         organization_id: organization.organization_id,
         recipient_email: text("recipient_email"),
+        issuer_account_id: employeeNodes[0]?.id ?? null,
         display_name: text("display_name"),
         role: text("role", "staff"),
-        team_ids: [],
+        team_ids: Array.isArray(payload.team_ids) ? (payload.team_ids as string[]) : [],
         project_ids: [],
         job_title_id: null,
         accepted_account_id: null,
@@ -1220,7 +1440,9 @@ export function corporateHandlers(
         delivery_state: "sent",
         delivery_error: null,
         created_at: new Date().toISOString(),
-        expires_at: new Date(Date.now() + 24 * 3_600_000).toISOString(),
+        expires_at: new Date(
+          Date.now() + Number(payload.ttl_seconds ?? 86_400) * 1000,
+        ).toISOString(),
         token: `tok_${Math.random().toString(36).slice(2, 18)}`,
       };
       mockInvitations.push(invitation);
@@ -1247,6 +1469,223 @@ export function corporateHandlers(
       ...mockPolicy,
     });
   }
+  const textField = (key: string, fallback = "") => {
+    const value = ((body ?? {}) as Record<string, unknown>)[key];
+    return typeof value === "string" ? value.trim() : fallback;
+  };
+  if (suffix === "roles" && method === "POST") {
+    const name = textField("name");
+    const parent = textField("parent_role") || null;
+    if (!name || builtInRoles.has(name) || mockRoles.some((item) => item.name === name))
+      return error(409, "AI_STP_CONFLICT");
+    if (parent && !mockRoles.some((item) => item.name === parent))
+      return error(422, "AI_STP_VALIDATION_ERROR");
+    const permissions = ((body ?? {}) as Record<string, unknown>).permissions;
+    const role: CorporateRoleView = {
+      schema_version: 1,
+      name,
+      parent_role: parent,
+      permissions: Array.isArray(permissions)
+        ? permissions.filter((item): item is string => typeof item === "string")
+        : [],
+      revision: 1,
+    };
+    mockRoles.push(role);
+    return ok(role);
+  }
+  const roleMatch = suffix.match(/^roles\/([^/]+)$/);
+  if (roleMatch && method !== "GET") {
+    const name = decodeURIComponent(roleMatch[1] ?? "");
+    const role = mockRoles.find((item) => item.name === name);
+    if (!role) return error(404, "AI_STP_NOT_FOUND");
+    if (builtInRoles.has(role.name)) return error(403, "AI_STP_FORBIDDEN");
+    if (method === "DELETE") {
+      mockRoles.splice(mockRoles.indexOf(role), 1);
+      return ok({ schema_version: 1, resource_id: name });
+    }
+    if (method === "PATCH") {
+      const parent = textField("parent_role");
+      role.parent_role = parent || null;
+      const permissions = ((body ?? {}) as Record<string, unknown>).permissions;
+      if (Array.isArray(permissions))
+        role.permissions = permissions.filter((item): item is string => typeof item === "string");
+      role.revision += 1;
+      return ok(role);
+    }
+  }
+  if (suffix === "bindings" && method === "POST") {
+    const role = textField("role");
+    const accountId = textField("account_id");
+    if (!role || !accountId) return error(422, "AI_STP_VALIDATION_ERROR");
+    const binding: CorporateBinding = {
+      schema_version: 1,
+      binding_id: `binding_${crypto.randomUUID().replaceAll("-", "").slice(0, 21)}`,
+      account_id: accountId,
+      service_principal_id: null,
+      principal_type: "user",
+      role,
+      scope_kind: (textField("scope_kind", "organization") || "organization") as never,
+      scope_id: textField("scope_id") || organization.organization_id,
+      state: "active",
+      revision: 1,
+      origin: "direct",
+      coverage: textField("coverage") === "descendants" ? "descendants" : "self",
+    };
+    mockBindings.push(binding);
+    return ok(binding);
+  }
+  const bindingMatch = suffix.match(/^bindings\/([^/]+)$/);
+  if (bindingMatch && method !== "GET") {
+    const binding = mockBindings.find((item) => item.binding_id === bindingMatch[1]);
+    if (!binding) return error(404, "AI_STP_NOT_FOUND");
+    if (method === "DELETE") {
+      binding.state = "revoked";
+      return ok({ schema_version: 1, resource_id: binding.binding_id });
+    }
+    if (method === "PATCH") {
+      binding.state = textField("state", "active") === "revoked" ? "revoked" : "active";
+      binding.revision += 1;
+      return ok(binding);
+    }
+  }
+  if (suffix === "permission-grants") {
+    if (method === "POST") {
+      const permission = textField("permission");
+      if (!permission) return error(422, "AI_STP_VALIDATION_ERROR");
+      const grant: CorporatePermissionGrant = {
+        schema_version: 1,
+        grant_id: `grant_${crypto.randomUUID().replaceAll("-", "").slice(0, 21)}`,
+        account_id: textField("account_id") || null,
+        service_principal_id: textField("service_principal_id") || null,
+        principal_type: "user",
+        permission,
+        scope_kind: (textField("scope_kind", "organization") || "organization") as never,
+        scope_id: textField("scope_id") || organization.organization_id,
+        state: "active",
+        issuer_account_id: member.account_id,
+        revision: 1,
+      };
+      mockGrants.push(grant);
+      return ok(grant);
+    }
+  }
+  const grantMatch = suffix.match(/^permission-grants\/([^/]+)$/);
+  if (grantMatch && method === "DELETE") {
+    const grant = mockGrants.find((item) => item.grant_id === grantMatch[1]);
+    if (!grant) return error(404, "AI_STP_NOT_FOUND");
+    grant.state = "revoked";
+    grant.revision += 1;
+    return ok(grant);
+  }
+  if (suffix === "service-principals" && method === "POST") {
+    const name = textField("name");
+    if (!name) return error(422, "AI_STP_VALIDATION_ERROR");
+    const principal: CorporateServicePrincipalView = {
+      schema_version: 1,
+      service_principal_id: `service_principal_${crypto.randomUUID().replaceAll("-", "").slice(0, 16)}`,
+      organization_id: organization.organization_id,
+      name,
+      state: "active",
+      revision: 1,
+      binding: {
+        schema_version: 1,
+        binding_id: `binding_${crypto.randomUUID().replaceAll("-", "").slice(0, 21)}`,
+        account_id: null,
+        service_principal_id: null,
+        principal_type: "service_principal",
+        role: textField("role", "staff") || "staff",
+        scope_kind: (textField("scope_kind", "organization") || "organization") as never,
+        scope_id: textField("scope_id") || organization.organization_id,
+        state: "active",
+        revision: 1,
+        origin: "service_principal",
+        coverage: "self",
+      },
+    };
+    principal.binding.service_principal_id = principal.service_principal_id;
+    mockServicePrincipals.push(principal);
+    return ok(principal);
+  }
+  const principalMatch = suffix.match(/^service-principals\/([^/]+)$/);
+  if (principalMatch && method !== "GET") {
+    const principal = mockServicePrincipals.find(
+      (item) => item.service_principal_id === principalMatch[1],
+    );
+    if (!principal) return error(404, "AI_STP_NOT_FOUND");
+    if (method === "DELETE") {
+      mockServicePrincipals.splice(mockServicePrincipals.indexOf(principal), 1);
+      return ok({ schema_version: 1, resource_id: principal.service_principal_id });
+    }
+    if (method === "PATCH") {
+      principal.state = textField("state") === "suspended" ? "suspended" : "active";
+      principal.revision += 1;
+      return ok(principal);
+    }
+  }
+  if (suffix === "members" && method === "POST") {
+    const accountId = `account_${crypto.randomUUID().replaceAll("-", "").slice(0, 26)}`;
+    const created: CorporateMember = {
+      schema_version: 1,
+      account_id: accountId,
+      display_name: textField("display_name") || null,
+      state: "active",
+      role: textField("role", "staff") || "staff",
+      job_title_id: null,
+      job_title_name: null,
+      contact_email: textField("email") || null,
+      joined_at: new Date().toISOString(),
+      last_activity_at: null,
+      revision: 1,
+      available_actions: [],
+    };
+    members.push(created);
+    memberById.set(accountId, created);
+    resources.members.push({
+      id: accountId,
+      name: created.display_name ?? accountId,
+      kind: "employee",
+      detail: created,
+    });
+    return ok(created);
+  }
+  const memberMutationMatch = suffix.match(/^members\/([^/]+)$/);
+  if (memberMutationMatch && method === "PATCH") {
+    const target = memberById.get(decodeURIComponent(memberMutationMatch[1] ?? ""));
+    if (!target) return error(404, "AI_STP_NOT_FOUND");
+    const role = textField("role");
+    const state = textField("state");
+    if (role) target.role = role;
+    if (state === "suspended" || state === "active") target.state = state;
+    target.revision += 1;
+    return ok(target);
+  }
+  if (memberMutationMatch && method === "DELETE") {
+    const accountId = decodeURIComponent(memberMutationMatch[1] ?? "");
+    const target = memberById.get(accountId);
+    if (!target) return error(404, "AI_STP_NOT_FOUND");
+    const index = members.indexOf(target);
+    if (index >= 0) members.splice(index, 1);
+    memberById.delete(accountId);
+    resources.members = resources.members.filter((item) => item.id !== accountId);
+    return ok({ schema_version: 1, resource_id: accountId });
+  }
+  if (suffix === "membership-assignments" && method === "POST") {
+    const accountId = textField("account_id");
+    const target = memberById.get(accountId);
+    if (!target) return error(404, "AI_STP_NOT_FOUND");
+    const teamId = textField("team_id");
+    if (teamId) {
+      const team = teamViews.find((item) => item.team_id === teamId);
+      const operation = textField("operation", "assign") || "assign";
+      if (team) {
+        const already = team.members.some((item) => item.account_id === accountId);
+        if (operation === "assign" && !already) team.members.push(target);
+        if (operation === "remove")
+          team.members = team.members.filter((item) => item.account_id !== accountId);
+      }
+    }
+    return ok({ schema_version: 1, member: target });
+  }
   if (method !== "GET") return error(405, "AI_STP_VALIDATION_ERROR");
   if (suffix === "technology-unmapped-coordinates")
     return ok({
@@ -1272,17 +1711,7 @@ export function corporateHandlers(
   if (suffix === "context") return ok(context);
   if (suffix === "overview") return ok(overviewResponse());
   if (suffix === "directory") return corporateDirectoryResponse(query);
-  if (suffix === "roles")
-    return ok({
-      schema_version: 1,
-      items: [...new Set(roles)].map((name) => ({
-        schema_version: 1,
-        name,
-        parent_role: null,
-        permissions: [],
-        revision: 1,
-      })),
-    });
+  if (suffix === "roles") return ok({ schema_version: 1, items: mockRoles });
   if (suffix === "catalog-assignments")
     return ok({
       schema_version: 1,
@@ -1296,8 +1725,125 @@ export function corporateHandlers(
       ).length,
     });
   if (suffix === "catalog-usage") return ok({ schema_version: 1, items: [], total: 0 });
-  if (suffix === "bindings") return ok({ schema_version: 1, items: [] });
-  if (suffix === "service-principals") return ok({ schema_version: 1, items: [] });
+  if (suffix === "bindings") return ok({ schema_version: 1, items: mockBindings });
+  if (suffix === "service-principals")
+    return ok({ schema_version: 1, items: mockServicePrincipals });
+  if (suffix === "permission-grants") {
+    const accountId = query.get("account_id");
+    return ok({
+      schema_version: 1,
+      items: accountId ? mockGrants.filter((item) => item.account_id === accountId) : mockGrants,
+    });
+  }
+  if (suffix === "delegation")
+    return ok({
+      schema_version: 1,
+      organization_id: organization.organization_id,
+      authorization_revision: 1,
+      descendants_coverage: true,
+      grantable_roles: mockRoles.map((item) => ({
+        name: item.name,
+        permissions: item.permissions,
+      })),
+    } satisfies CorporateDelegationView);
+  const accessMatch = suffix.match(/^members\/([^/]+)\/access$/);
+  if (accessMatch) {
+    const accountId = decodeURIComponent(accessMatch[1] ?? "");
+    const target = memberById.get(accountId);
+    if (!target) return error(404, "AI_STP_NOT_FOUND");
+    const bindings = mockBindings.filter((item) => item.account_id === accountId);
+    const grants = mockGrants.filter((item) => item.account_id === accountId);
+    const scopeKind = query.get("scope_kind") ?? "organization";
+    const scopeId =
+      query.get("scope_id") ??
+      (scopeKind === "organization" ? organization.organization_id : (teamViews[0]?.team_id ?? ""));
+    const effective: CorporateEffectivePermission[] = bindings.flatMap((binding) =>
+      (mockRoles.find((item) => item.name === binding.role)?.permissions ?? []).map(
+        (permission) => ({
+          permission,
+          scope_kind: scopeKind as never,
+          scope_id: scopeId,
+          sources: ["binding", "membership"],
+          source_records: [
+            {
+              kind: "binding",
+              source_id: binding.binding_id,
+              role: binding.role,
+              scope_kind: binding.scope_kind,
+              scope_id: binding.scope_id,
+              origin: binding.origin,
+            },
+          ],
+        }),
+      ),
+    );
+    const privateGrants: CorporateMemberPrivateGrant[] = grants.map((grant) => ({
+      schema_version: 1,
+      grant_id: grant.grant_id,
+      issuer_account_id: grant.issuer_account_id,
+      object_kind: "component",
+      stable_id: grant.scope_id,
+      major: 1,
+      state: grant.state === "active" ? "active" : "revoked",
+    }));
+    return ok({
+      schema_version: 1,
+      account_id: accountId,
+      organization_id: organization.organization_id,
+      scope_kind: scopeKind as never,
+      scope_id: scopeId,
+      authorization_revision: 1,
+      bindings,
+      grants,
+      private_grants: privateGrants,
+      effective,
+    } satisfies CorporateMemberAccess);
+  }
+  if (suffix === "permissions/matrix") {
+    const scopeMap: Record<string, CorporatePermissionDefinition["scopes"]> = {
+      member: ["organization", "member"],
+      project: ["organization", "project"],
+      team: ["organization", "team"],
+      technology: ["organization", "technology"],
+      catalog_object: ["organization", "catalog_object"],
+      telemetry: ["organization", "member"],
+    };
+    const definitions = capabilities.map((permission) => {
+      const [resource, action] = permission.split(".", 2);
+      return {
+        name: permission,
+        resource: resource ?? permission,
+        action: action ?? "",
+        group: resource ?? permission,
+        scopes: scopeMap[resource ?? ""] ?? ["organization"],
+        create_parent: action === "create" || action === "invite" ? "organization" : null,
+        implementation: "enforced",
+      } satisfies CorporatePermissionDefinition;
+    });
+    const effective: CorporateEffectivePermission[] = capabilities.map((permission) => ({
+      permission,
+      scope_kind: "organization",
+      scope_id: organization.organization_id,
+      sources: ["binding"],
+      source_records: [
+        {
+          kind: "binding",
+          source_id: mockBindings[0]?.binding_id ?? "binding_0",
+          role: "superadmin",
+          scope_kind: "organization",
+          scope_id: organization.organization_id,
+          origin: "membership",
+        },
+      ],
+    }));
+    return ok({
+      schema_version: 1,
+      organization_id: organization.organization_id,
+      authorization_revision: 1,
+      definitions,
+      effective,
+    } satisfies CorporatePermissionMatrix);
+  }
   if (suffix === "job-titles") return ok({ schema_version: 1, items: [] });
   if (suffix === "audit") return ok({ schema_version: 1, items: [] });
   if (suffix === "technology-categories") return ok({ schema_version: 1, items: categoryViews });

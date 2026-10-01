@@ -76,7 +76,10 @@ export const PAGE_INVENTORY: readonly PageInventoryEntry[] = [
   { pattern: "corporate/organization/admins", access: "session", presenter: "domain" },
   { pattern: "corporate/organization/admins/access", access: "session", presenter: "domain" },
   { pattern: "corporate/organization/admins/settings", access: "session", presenter: "domain" },
+  { pattern: "corporate/organization/admins/security", access: "session", presenter: "domain" },
+  { pattern: "corporate/organization/admins/employees", access: "session", presenter: "domain" },
   { pattern: "corporate/organization/admins/audit", access: "session", presenter: "domain" },
+  { pattern: "corporate/organization/admins/roles", access: "session", presenter: "domain" },
   {
     pattern: "corporate/organization/admins/job-titles",
     access: "session",

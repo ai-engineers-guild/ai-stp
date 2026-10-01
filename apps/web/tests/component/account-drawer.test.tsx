@@ -43,7 +43,6 @@ vi.mock("@/lib/i18n/navigation", () => ({
 }));
 
 const { AccountControl } = await import("@/components/organisms/account-drawer");
-const { MobilePrimaryNav } = await import("@/components/layouts/site-header");
 
 describe("AccountControl", () => {
   it("keeps unauthenticated profile as a sign-in link", () => {
@@ -75,51 +74,6 @@ describe("AccountControl", () => {
     await user.keyboard("{Escape}");
     expect(screen.queryByRole("menu")).not.toBeInTheDocument();
     expect(trigger).toHaveFocus();
-  });
-
-  it("opens a keyboard-safe mobile primary nav without overflowing the viewport", async () => {
-    const user = userEvent.setup();
-    const onOpenChange = vi.fn();
-    const { rerender } = render(
-      <MobilePrimaryNav
-        items={[
-          { ui: "nav-catalog", labelKey: "catalog", href: "/catalog" },
-          { ui: "nav-docs", labelKey: "docs", href: "https://docs.example", external: true },
-        ]}
-        open={false}
-        onOpenChange={onOpenChange}
-        openLabel="Open menu"
-        closeLabel="Close menu"
-        title="Primary navigation"
-        labelFor={(item) => item.labelKey}
-      />,
-    );
-    const trigger = screen.getByRole("button", { name: "Open menu" });
-    expect(trigger).toHaveClass("size-11");
-    await user.click(trigger);
-    expect(onOpenChange).toHaveBeenCalledWith(true);
-
-    rerender(
-      <MobilePrimaryNav
-        items={[
-          { ui: "nav-catalog", labelKey: "catalog", href: "/catalog" },
-          { ui: "nav-docs", labelKey: "docs", href: "https://docs.example", external: true },
-        ]}
-        open
-        onOpenChange={onOpenChange}
-        openLabel="Open menu"
-        closeLabel="Close menu"
-        title="Primary navigation"
-        labelFor={(item) => item.labelKey}
-      />,
-    );
-    const dialog = screen.getByRole("dialog", { name: "Primary navigation" });
-    expect(dialog).toBeVisible();
-    expect(dialog.className).toContain("w-[min(20rem,calc(100vw-1.5rem))]");
-    expect(screen.getByRole("link", { name: "catalog" })).toHaveAttribute("href", "/catalog");
-    expect(screen.getByRole("link", { name: "catalog" })).toHaveClass("min-h-11");
-    await user.keyboard("{Escape}");
-    expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 
   it("posts logout from a form that survives the menu unmount", async () => {

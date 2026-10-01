@@ -7,12 +7,8 @@ import { getTranslations } from "next-intl/server";
 import { ApiError } from "@/lib/api/errors";
 import { fieldErrorsFromDetails, type FieldErrors } from "@/lib/api/field-errors";
 import { privateApiRequest, type PrivateRequestOptions } from "@/lib/api/http";
-import {
-  corporateAuditFilters,
-  readCorporateContext,
-  readCorporateOrganizations,
-  type CorporateAuditFilterValues,
-} from "@/lib/api/corporate";
+import { corporateAuditFilters, type CorporateAuditFilterValues } from "@/lib/api/corporate-audit";
+import { readCorporateContext, readCorporateOrganizations } from "@/lib/api/corporate";
 import { CORPORATE_ORG_COOKIE } from "@/lib/auth/cookies";
 import {
   assertCsrf,

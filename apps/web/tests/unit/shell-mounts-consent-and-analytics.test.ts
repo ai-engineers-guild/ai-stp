@@ -42,3 +42,11 @@ describe("the site shell mounts consent and analytics", () => {
     expect(shell).not.toContain('privacyHref="/legal/privacy"');
   });
 });
+
+it("mounts one shared sidebar and keeps the page layout and header free of a second menu", () => {
+  const source = (file: string) =>
+    readFileSync(path.resolve(__dirname, "../../src/", file), "utf8");
+  expect(source("components/layouts/app-shell.tsx").match(/<ContextRail\b/g)).toHaveLength(1);
+  expect(source("app/[locale]/(site)/corporate/layout.tsx")).not.toContain("<CorporateContextRail");
+  expect(source("components/layouts/site-header.tsx")).not.toContain("<NavigationTabs");
+});

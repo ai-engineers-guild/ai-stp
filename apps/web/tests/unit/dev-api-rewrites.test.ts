@@ -69,9 +69,13 @@ describe("dev API rewrites (same-origin hop without a host proxy)", () => {
     vi.stubEnv("NODE_ENV", "development");
     vi.stubEnv("AI_STP_USE_MOCKS", "true");
     vi.stubEnv("AI_STP_API_BASE_URL", "http://api:8000");
-    expect(await nextConfig.rewrites?.()).toEqual(buildDevApiRewrites("http://api:8000"));
+    const faviconRewrite = { source: "/favicon.ico", destination: "/brand/favicon-32.png" };
+    expect(await nextConfig.rewrites?.()).toEqual([
+      faviconRewrite,
+      ...buildDevApiRewrites("http://api:8000"),
+    ]);
 
     vi.stubEnv("NODE_ENV", "production");
-    expect(await nextConfig.rewrites?.()).toEqual([]);
+    expect(await nextConfig.rewrites?.()).toEqual([faviconRewrite]);
   });
 });

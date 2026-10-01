@@ -16,6 +16,8 @@ type MachineChromeProps = {
   signedIn: boolean;
   locale: string;
   docsHref: string;
+  /** ADR-0219: matches the human header — corporate destinations live in the rail. */
+  corporateRail?: boolean;
 };
 
 function MdLink({ href, children }: { href: string; children: string }) {
@@ -26,14 +28,19 @@ function MdLink({ href, children }: { href: string; children: string }) {
   );
 }
 
-export function MachineHeader({ signedIn, locale, docsHref }: MachineChromeProps) {
+export function MachineHeader({
+  signedIn,
+  locale,
+  docsHref,
+  corporateRail = false,
+}: MachineChromeProps) {
   const nav = useTranslations("nav");
   const machine = useTranslations("machine");
   const pathname = usePathname();
   const router = useRouter();
   const accountPath = signedIn ? "/account" : "/login";
   // Same model as the human header, rendered as Markdown links.
-  const items = siteNavigation({ signedIn, docsHref });
+  const items = siteNavigation({ signedIn, docsHref, corporateRail });
 
   return (
     <header
@@ -45,7 +52,7 @@ export function MachineHeader({ signedIn, locale, docsHref }: MachineChromeProps
         accountHref={accountPath}
         contactEnabled={COMPILED_FEATURES.saas_public_pages}
       />
-      <div className="mx-auto flex h-16 max-w-6xl flex-nowrap items-center gap-x-4 px-4 text-xs sm:px-6">
+      <div className="mx-auto flex h-14 max-w-6xl flex-nowrap items-center gap-x-4 px-4 text-xs sm:px-6">
         <span aria-hidden>{"$"}</span>
         {items.map((item) => (
           <span

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import secrets
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, Header, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -52,6 +52,7 @@ from ai_stp_contracts.corporate import (
     CorporateCatalogUsageList,
     CorporateCatalogUsageQuery,
     CorporateContext,
+    CorporateDelegationView,
     CorporateDeleteRequest,
     CorporateDeleteResult,
     CorporateDistributionRequest,
@@ -73,6 +74,9 @@ from ai_stp_contracts.corporate import (
     CorporateMemberUpdateRequest,
     CorporateOrganization,
     CorporateOverview,
+    CorporatePermissionGrant,
+    CorporatePermissionGrantList,
+    CorporatePermissionGrantRequest,
     CorporateProjectCreateRequest,
     CorporateProjectLifecycleRequest,
     CorporateProjectList,
@@ -93,6 +97,7 @@ from ai_stp_contracts.corporate import (
     OrganizationId,
 )
 from ai_stp_contracts.corporate_directory import CorporateDirectoryQuery, CorporateDirectoryView
+from ai_stp_contracts.corporate_governance import CorporateMemberAccess
 from ai_stp_contracts.http import Timestamp
 
 router = APIRouter(tags=["corporate"])
@@ -537,6 +542,33 @@ async def read_member(
     )
 
 
+@router.get(
+    "/corporate/organizations/{organization_id}/members/{account_id}/access",
+    response_model=CorporateMemberAccess,
+)
+async def read_member_access(
+    organization_id: str,
+    account_id: str,
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    ctx: Annotated[AuthContext, Depends(require_auth)],
+    scope_kind: Annotated[
+        Literal["organization", "team", "project", "technology", "catalog_object", "member"],
+        Query(),
+    ] = "organization",
+    scope_id: Annotated[str | None, Query(min_length=1, max_length=64)] = None,
+) -> CorporateMemberAccess:
+    return await service.read_member_access(
+        db,
+        ctx=ctx,
+        organization_id=organization_id,
+        account_id=account_id,
+        scope_kind=scope_kind,
+        scope_id=scope_id,
+        request_id=_request_id(request),
+    )
+
+
 @router.post("/corporate/organizations/{organization_id}/bindings", response_model=CorporateBinding)
 async def create_binding(
     organization_id: str,
@@ -627,6 +659,83 @@ async def delete_binding(
         ctx=ctx,
         organization_id=organization_id,
         binding_id=binding_id,
+        payload=payload,
+        request_id=_request_id(request),
+    )
+
+
+@router.get(
+    "/corporate/organizations/{organization_id}/delegation",
+    response_model=CorporateDelegationView,
+)
+async def read_delegation(
+    organization_id: str,
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    ctx: Annotated[AuthContext, Depends(require_auth)],
+) -> CorporateDelegationView:
+    return await service.read_delegation(
+        db, ctx=ctx, organization_id=organization_id, request_id=_request_id(request)
+    )
+
+
+@router.post(
+    "/corporate/organizations/{organization_id}/permission-grants",
+    response_model=CorporatePermissionGrant,
+)
+async def create_permission_grant(
+    organization_id: str,
+    payload: CorporatePermissionGrantRequest,
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    ctx: Annotated[AuthContext, Depends(require_auth)],
+) -> CorporatePermissionGrant:
+    return await service.create_permission_grant(
+        db,
+        ctx=ctx,
+        organization_id=organization_id,
+        payload=payload,
+        request_id=_request_id(request),
+    )
+
+
+@router.get(
+    "/corporate/organizations/{organization_id}/permission-grants",
+    response_model=CorporatePermissionGrantList,
+)
+async def list_permission_grants(
+    organization_id: str,
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    ctx: Annotated[AuthContext, Depends(require_auth)],
+    account_id: Annotated[str | None, Query()] = None,
+) -> CorporatePermissionGrantList:
+    return await service.list_permission_grants(
+        db,
+        ctx=ctx,
+        organization_id=organization_id,
+        account_id=account_id,
+        request_id=_request_id(request),
+    )
+
+
+@router.delete(
+    "/corporate/organizations/{organization_id}/permission-grants/{grant_id}",
+    response_model=CorporatePermissionGrant,
+)
+async def revoke_permission_grant(
+    organization_id: str,
+    grant_id: str,
+    payload: CorporateDeleteRequest,
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    ctx: Annotated[AuthContext, Depends(require_auth)],
+) -> CorporatePermissionGrant:
+    return await service.revoke_permission_grant(
+        db,
+        ctx=ctx,
+        organization_id=organization_id,
+        grant_id=grant_id,
         payload=payload,
         request_id=_request_id(request),
     )

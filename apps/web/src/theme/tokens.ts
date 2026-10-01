@@ -8,6 +8,7 @@ import raw from "./tokens.json";
 export type ColorRole =
   | "background"
   | "foreground"
+  | "scrim"
   | "card"
   | "card-foreground"
   | "popover"

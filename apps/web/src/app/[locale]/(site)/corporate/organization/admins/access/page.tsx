@@ -1,22 +1,53 @@
 import { getTranslations, setRequestLocale } from "next-intl/server";
 
 import { Badge } from "@/components/atoms/badge";
+import { Button } from "@/components/atoms/button";
+import { Input } from "@/components/atoms/input";
+import { Label } from "@/components/atoms/label";
 import { StatePanel } from "@/components/molecules/state-panel";
 import { DetailAccordion } from "@/components/molecules/detail-accordion";
-import { HistoryBackButton } from "@/components/molecules/history-back-button";
+import { NavigationTabs } from "@/components/molecules/navigation-tabs";
 import { ApiError } from "@/lib/api/errors";
 import { apiRequest } from "@/lib/api/http";
-import type { CorporatePermissionMatrix, CorporateRoleView } from "@/lib/api/generated/types.gen";
+import type {
+  CorporatePermissionDefinition,
+  CorporatePermissionMatrix,
+  CorporateRoleView,
+} from "@/lib/api/generated/types.gen";
 import { readCorporateContext, readCorporateWorkspace } from "@/lib/api/corporate";
 import { canViewCorporateAdministration } from "@/lib/corporate-hub";
 import { requireSession, sessionCookieValue } from "@/lib/auth/require-session";
 import { Link } from "@/lib/i18n/navigation";
 import { Icon } from "@/theme";
 
-type PageProps = { params: Promise<{ locale: string }> };
+type PageProps = {
+  params: Promise<{ locale: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
 
 const rowClass = "border-border hover:bg-muted/40 border-b transition-colors last:border-0";
 const headCellClass = "text-muted-foreground px-3 py-2 text-xs font-medium";
+
+function matchesQuery(definition: CorporatePermissionDefinition, query: string): boolean {
+  if (!query) return true;
+  return [definition.name, definition.resource, definition.action, definition.group].some((value) =>
+    value.toLowerCase().includes(query),
+  );
+}
+
+function groupDefinitions(definitions: readonly CorporatePermissionDefinition[]) {
+  const byResource = new Map<string, CorporatePermissionDefinition[]>();
+  const byGroup = new Map<string, string[]>();
+  for (const definition of definitions) {
+    const resourceBucket = byResource.get(definition.resource) ?? [];
+    resourceBucket.push(definition);
+    byResource.set(definition.resource, resourceBucket);
+    const groupBucket = byGroup.get(definition.group) ?? [];
+    groupBucket.push(definition.name);
+    byGroup.set(definition.group, groupBucket);
+  }
+  return { byResource, byGroup };
+}
 
 function MatrixTable({
   permissions,
@@ -78,6 +109,57 @@ function MatrixTable({
   );
 }
 
+function DefinitionTable({
+  definitions,
+  labels,
+}: {
+  definitions: readonly CorporatePermissionDefinition[];
+  labels: { action: string; scopes: string; requiresParent: (parent: string) => string };
+}) {
+  return (
+    <div className="-mx-4 overflow-x-auto px-4 sm:-mx-5 sm:px-5">
+      <table className="w-full min-w-max border-collapse text-sm">
+        <thead>
+          <tr className="border-border border-b">
+            <th scope="col" className={`${headCellClass} py-2 pr-4 pl-0 text-left`}>
+              {labels.action}
+            </th>
+            <th scope="col" className={`${headCellClass} text-left`}>
+              {labels.scopes}
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {definitions.map((definition) => (
+            <tr key={definition.name} className={rowClass}>
+              <td className="py-2 pr-4">
+                <span className="font-medium">{definition.action}</span>
+                <span className="text-muted-foreground mt-0.5 block font-mono text-xs">
+                  {definition.name}
+                </span>
+                {definition.create_parent ? (
+                  <span className="text-muted-foreground mt-0.5 block text-xs">
+                    {labels.requiresParent(definition.create_parent)}
+                  </span>
+                ) : null}
+              </td>
+              <td className="px-3 py-2">
+                <span className="inline-flex flex-wrap gap-1">
+                  {definition.scopes.map((scope) => (
+                    <Badge key={scope} variant="outline">
+                      {scope}
+                    </Badge>
+                  ))}
+                </span>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 function EffectiveAccessTable({
   effective,
   labels,
@@ -122,8 +204,12 @@ function EffectiveAccessTable({
   );
 }
 
-export default async function CorporateAccessMatrixPage({ params }: PageProps) {
+// eslint-disable-next-line max-lines-per-function
+export default async function CorporateAccessModelPage({ params, searchParams }: PageProps) {
   const { locale } = await params;
+  const filters = await searchParams;
+  const view = filters.view === "matrix" ? "matrix" : "entities";
+  const query = typeof filters.query === "string" ? filters.query.trim() : "";
   setRequestLocale(locale);
   await requireSession(locale, `/${locale}/corporate/organization/admins/access`);
   const t = await getTranslations("corporate");
@@ -147,7 +233,7 @@ export default async function CorporateAccessMatrixPage({ params }: PageProps) {
     !context.capabilities.includes("role.list")
   ) {
     return (
-      <StatePanel kind="error" title={t("administration")} description={technology("forbidden")} />
+      <StatePanel kind="error" title={h("accessModel")} description={technology("forbidden")} />
     );
   }
   const organizationId = context.organization.organization_id;
@@ -157,30 +243,28 @@ export default async function CorporateAccessMatrixPage({ params }: PageProps) {
     { sessionToken: session },
   ).catch(() => null);
   const roles = workspace?.roles?.items ?? [];
-  const definitions = matrix?.definitions ?? [];
-  const groups = new Map<string, string[]>();
-  for (const definition of definitions) {
-    const bucket = groups.get(definition.group) ?? [];
-    bucket.push(definition.name);
-    groups.set(definition.group, bucket);
-  }
+  const normalized = query.toLowerCase();
+  const definitions = (matrix?.definitions ?? []).filter((definition) =>
+    matchesQuery(definition, normalized),
+  );
+  const { byResource, byGroup } = groupDefinitions(definitions);
   const effective = matrix?.effective ?? [];
+  const groupsCount = view === "entities" ? byResource.size : byGroup.size;
 
   return (
-    <div className="min-w-0 space-y-8">
-      <HistoryBackButton label={h("backToAdmins")} fallback="/corporate/organization/admins" />
+    <div className="min-w-0 space-y-6">
       <header className="space-y-3">
         <div className="flex flex-wrap items-center gap-3">
           <h1 className="text-2xl font-medium tracking-tight break-words sm:text-3xl">
-            {t("accessMatrix")}
+            {h("accessModel")}
           </h1>
           <Badge variant="secondary">{context.member.role}</Badge>
         </div>
-        <p className="text-muted-foreground max-w-2xl text-sm">{t("accessMatrixBody")}</p>
+        <p className="text-muted-foreground max-w-2xl text-sm">{t("accessModelBody")}</p>
         <dl className="text-muted-foreground flex flex-wrap gap-x-6 gap-y-1 font-mono text-xs">
           {[
             [t("roles"), roles.length],
-            [t("accessMatrixGroups"), groups.size],
+            [t("accessMatrixGroups"), groupsCount],
             [t("permission"), definitions.length],
           ].map(([label, value]) => (
             <div key={String(label)} className="flex gap-2">
@@ -191,12 +275,76 @@ export default async function CorporateAccessMatrixPage({ params }: PageProps) {
         </dl>
       </header>
 
-      {groups.size === 0 ? (
-        <StatePanel kind="empty" title={t("accessMatrix")} description={t("noRoles")} />
+      <NavigationTabs
+        ariaLabel={h("accessModel")}
+        items={[
+          {
+            key: "entities",
+            href: "/corporate/organization/admins/access?view=entities",
+            label: t("entitiesAndActions"),
+            active: view === "entities",
+          },
+          {
+            key: "matrix",
+            href: "/corporate/organization/admins/access?view=matrix",
+            label: t("sections"),
+            active: view === "matrix",
+          },
+        ]}
+      />
+
+      <form method="get" className="flex items-end gap-2" role="search">
+        <input type="hidden" name="view" value={view} />
+        <div className="min-w-0 flex-1 space-y-1.5 sm:max-w-sm">
+          <Label htmlFor="permission-query">{t("searchPermissions")}</Label>
+          <Input
+            id="permission-query"
+            name="query"
+            type="search"
+            defaultValue={query}
+            autoComplete="off"
+          />
+        </div>
+        <Button type="submit" variant="outline">
+          {h("search")}
+        </Button>
+      </form>
+
+      {groupsCount === 0 ? (
+        <StatePanel
+          kind="empty"
+          title={h("accessModel")}
+          description={query ? t("noMatchingPermissions") : t("noRoles")}
+        />
+      ) : view === "entities" ? (
+        <div className="space-y-4">
+          {[...byResource.entries()].map(([resource, resourceDefinitions]) => (
+            <DetailAccordion
+              key={resource}
+              title={resource}
+              summary={String(resourceDefinitions.length)}
+              defaultOpen={Boolean(query)}
+            >
+              <DefinitionTable
+                definitions={resourceDefinitions}
+                labels={{
+                  action: t("actions"),
+                  scopes: t("scope"),
+                  requiresParent: (parent: string) => t("requiresParent", { parent }),
+                }}
+              />
+            </DetailAccordion>
+          ))}
+        </div>
       ) : (
         <div className="space-y-4">
-          {[...groups.entries()].map(([group, names]) => (
-            <DetailAccordion key={group} title={group} summary={String(names.length)}>
+          {[...byGroup.entries()].map(([group, names]) => (
+            <DetailAccordion
+              key={group}
+              title={group}
+              summary={String(names.length)}
+              defaultOpen={Boolean(query)}
+            >
               <MatrixTable
                 permissions={names}
                 roles={roles}

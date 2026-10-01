@@ -66,7 +66,7 @@ export function GitHubConnectionLink({
           </span>
           <span className="truncate text-sm font-medium">{t("title")}</span>
         </div>
-        <div className="ml-auto flex items-center gap-3">
+        <div className="ml-auto flex min-w-0 flex-wrap items-center gap-3">
           <span
             role="status"
             aria-live="polite"
@@ -86,7 +86,10 @@ export function GitHubConnectionLink({
           </span>
           {checking ? <Skeleton className="h-11 w-24 shrink-0" /> : action}
           {error ? (
-            <span role="alert" className="text-destructive text-xs">
+            <span
+              role="alert"
+              className="text-destructive max-w-full text-xs [overflow-wrap:anywhere]"
+            >
               {t("error")}
             </span>
           ) : null}

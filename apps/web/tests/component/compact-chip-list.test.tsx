@@ -1,8 +1,10 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { CompactChipList } from "@/components/molecules/compact-chip-list";
+
+vi.mock("@/lib/i18n/navigation", () => ({ Link: () => null }));
 
 describe("CompactChipList", () => {
   it("shows three chips and exposes the rest through an accessible disclosure", async () => {

@@ -11,6 +11,7 @@ last_verified: "2026-08-03"
 | -------- | ----- | ------- |
 | [active/](active/index.md) | Active specifications for the MVP. | 2026-08-03 |
 | [archive/](archive/index.md) | Superseded specifications retained for history. | 2026-08-03 |
+| [proposed/](proposed/index.md) | Design-stage corporate specification proposals; not implemented or active contracts. | 2026-09-29 |
 | [template.md](template.md) | Template for a verifiable specification. | 2026-08-03 |
 
 <!-- END CONTENTS -->

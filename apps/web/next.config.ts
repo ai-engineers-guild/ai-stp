@@ -121,20 +121,25 @@ const nextConfig: NextConfig = {
   // "always") — bare accept URLs would 404. Redirect them to the default
   // locale; the fragment token rides through the 308 untouched.
   redirects() {
-    return Promise.resolve(
-      ["/corporate-invitations/:id", "/corporate-invitations/:id/confirm", "/invitations/:id"].map(
-        (source) => ({
-          source,
-          destination: `/${defaultLocale}${source}`,
-          permanent: true,
-        }),
-      ),
-    );
+    return Promise.resolve([
+      ...[
+        "/corporate-invitations/:id",
+        "/corporate-invitations/:id/confirm",
+        "/invitations/:id",
+      ].map((source) => ({
+        source,
+        destination: `/${defaultLocale}${source}`,
+        permanent: true,
+      })),
+    ]);
   },
-  // Dev-only: same-origin /v1 (and API docs) → internal API without a host proxy.
-  // Prod keeps the path split in the host's nginx (ADR-0135); rewrites stay empty there.
+  // Reuse the brand asset for browsers requesting the conventional favicon path.
+  // API rewrites are dev-only; production owns that path split in nginx (ADR-0135).
   rewrites() {
-    const rules = resolveDevApiRewrites(process.env.NODE_ENV, process.env.AI_STP_API_BASE_URL);
+    const rules = [
+      { source: "/favicon.ico", destination: "/brand/favicon-32.png" },
+      ...resolveDevApiRewrites(process.env.NODE_ENV, process.env.AI_STP_API_BASE_URL),
+    ];
     if (process.env.NODE_ENV !== "development" || process.env.AI_STP_USE_MOCKS === "true")
       return Promise.resolve(rules);
     return Promise.resolve({

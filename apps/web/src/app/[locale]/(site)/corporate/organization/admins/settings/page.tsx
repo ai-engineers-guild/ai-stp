@@ -1,5 +1,6 @@
 import { getTranslations, setRequestLocale } from "next-intl/server";
 
+import { Badge } from "@/components/atoms/badge";
 import { HistoryBackButton } from "@/components/molecules/history-back-button";
 import { StatePanel } from "@/components/molecules/state-panel";
 import { TechnologyActivityPolicy } from "@/components/organisms/corporate-governance-controls";
@@ -67,11 +68,20 @@ export default async function CorporateSettingsPage({
     csrfToken: (await readCsrfToken()) ?? "",
   };
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 space-y-6">
+      <header className="space-y-2">
+        <div className="flex flex-wrap items-center gap-3">
+          <h1 className="text-3xl font-medium tracking-tight sm:text-4xl">
+            {t("organizationSettings")}
+          </h1>
+          <Badge variant="secondary">{context.member.role}</Badge>
+        </div>
+      </header>
       <HistoryBackButton
         label={corporate("backToWorkspace")}
         fallback="/corporate/organization/admins"
       />
+
       {canManageTelemetry &&
         (telemetryUnavailable ? (
           <StatePanel

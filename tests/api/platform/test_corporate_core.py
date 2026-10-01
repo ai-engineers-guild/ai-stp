@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import uuid
+from datetime import UTC, datetime
 from typing import Any
 
 import pytest
@@ -19,10 +20,11 @@ from ai_stp_api.slices.auth.service import resolve_login_identity
 from ai_stp_foundation.ids import new_id
 from ai_stp_foundation.timestamps import format_timestamp
 from ai_stp_platform.corporate_authorization import has_corporate_permission
-from ai_stp_platform.models import Account, AuditEvent
+from ai_stp_platform.models import Account, AuditEvent, Device
 from ai_stp_platform.organization_models import (
     CorporateProject,
     CorporateProjectMember,
+    CorporateProvisionedIdentity,
     CorporateTeam,
     CorporateTeamMember,
     Organization,
@@ -46,6 +48,78 @@ async def _account_token(
         issued = await issue_session(db, account_id=account.id, device_id=None, ttl_seconds=3600)
         await db.commit()
         return account.id, issued.raw_token
+
+
+async def test_member_directory_uses_corporate_contacts_and_nullable_activity(
+    db_api_client: tuple[AsyncClient, async_sessionmaker[AsyncSession], object],
+) -> None:
+    client, sessionmaker, _settings = db_api_client
+    async with sessionmaker() as db:
+        owner = await resolve_login_identity(
+            db,
+            ProviderProfile(
+                provider="google",
+                subject="directory-owner",
+                email="private-owner@example.com",
+                email_verified=True,
+            ),
+        )
+        account = await db.get(Account, owner.account_id)
+        assert account is not None
+        account.status = "active"
+        await db.commit()
+    owner_id, token = await _account_token(sessionmaker, account_id=owner.account_id)
+    staff_id, _ = await _account_token(sessionmaker)
+    response = await client.post(
+        "/v1/corporate/bootstrap",
+        json={
+            "schema_version": 1,
+            "organization_name": "Directory metadata",
+            "superadmin_account_id": owner_id,
+            "idempotency_key": "directory-metadata-bootstrap",
+        },
+        headers={"X-AI-STP-Bootstrap-Secret": "corporate-bootstrap-test-secret"},
+    )
+    assert response.status_code == 200, response.text
+    organization_id = response.json()["organization_id"]
+    joined = datetime(2026, 5, 12, tzinfo=UTC)
+    latest = datetime(2026, 9, 30, 13, tzinfo=UTC)
+    async with sessionmaker() as db:
+        db.add_all(
+            [
+                OrganizationMembership(
+                    organization_id=organization_id,
+                    account_id=staff_id,
+                    role="staff",
+                    display_name="Directory Staff",
+                    created_at=joined,
+                ),
+                CorporateProvisionedIdentity(
+                    organization_id=organization_id,
+                    account_id=staff_id,
+                    normalized_email="staff@corp.example",
+                ),
+                Device(
+                    id=new_id("device"),
+                    account_id=staff_id,
+                    public_key="directory-device-key",
+                    last_seen_at=latest,
+                ),
+            ]
+        )
+        await db.commit()
+    result = await client.get(
+        f"/v1/corporate/organizations/{organization_id}/members",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert result.status_code == 200, result.text
+    rows = {item["account_id"]: item for item in result.json()["items"]}
+    assert rows[owner_id]["contact_email"] is None
+    assert rows[owner_id]["last_activity_at"] is None
+    assert "private-owner@example.com" not in result.text
+    assert rows[staff_id]["contact_email"] == "staff@corp.example"
+    assert rows[staff_id]["joined_at"] == format_timestamp(joined)
+    assert rows[staff_id]["last_activity_at"] == format_timestamp(latest)
 
 
 async def test_concurrent_bootstrap_creates_one_initial_owner(
@@ -475,11 +549,22 @@ async def test_corporate_core_lifecycle_and_tenant_boundary(
     member_bindings = (
         await client.get(f"/v1/corporate/organizations/{organization_id}/bindings", headers=auth)
     ).json()["items"]
-    assert not any(
+    # A direct binding is independent authority: membership synchronization
+    # converges only membership-owned rows and must not consume it (ADR-0220).
+    assert any(
         item["account_id"] == member_id
         and item["scope_kind"] == "team"
         and item["role"] == "superadmin"
         and item["state"] == "active"
+        and item["origin"] == "direct"
+        for item in member_bindings
+    )
+    assert any(
+        item["account_id"] == member_id
+        and item["scope_kind"] == "organization"
+        and item["role"] == "lead"
+        and item["state"] == "active"
+        and item["origin"] == "membership"
         for item in member_bindings
     )
     assert any(
@@ -487,6 +572,7 @@ async def test_corporate_core_lifecycle_and_tenant_boundary(
         and item["scope_kind"] == "team"
         and item["role"] == "lead"
         and item["state"] == "active"
+        and item["origin"] == "assignment"
         for item in member_bindings
     )
 
@@ -584,6 +670,25 @@ async def test_corporate_core_lifecycle_and_tenant_boundary(
         headers=auth,
     )
     assert replayed_removal.status_code == 200, replayed_removal.text
+    # Assignment sync only owns assignment rows: the direct superadmin binding
+    # stays active until revoked through the binding API itself (ADR-0220).
+    direct_revoke = await client.request(
+        "DELETE",
+        f"/v1/corporate/organizations/{organization_id}/bindings/"
+        f"{privileged_team_binding.json()['binding_id']}",
+        json={
+            "schema_version": 1,
+            "expected_revision": 1,
+            "authorization_revision": (
+                await client.get(
+                    f"/v1/corporate/organizations/{organization_id}/context", headers=auth
+                )
+            ).json()["organization"]["authorization_revision"],
+            "idempotency_key": "delete-direct-binding-0001",
+        },
+        headers=auth,
+    )
+    assert direct_revoke.status_code == 200, direct_revoke.text
     removed_context = await client.get(
         f"/v1/corporate/organizations/{organization_id}/context", headers=staff_auth
     )

@@ -4,20 +4,22 @@ const { request } = vi.hoisted(() => ({
 }));
 vi.mock("@/lib/api/http", () => ({ apiRequest: request }));
 import {
-  readCorporateResource,
-  readCorporateCatalogAssignments,
   readCorporateAudit,
   corporateAuditCursor,
   corporateAuditFilters,
   corporateAuditFilterValues,
+} from "@/lib/api/corporate-audit";
+import {
+  readCorporateResource,
+  readCorporateCatalogAssignments,
   readCorporateMemberAccess,
 } from "@/lib/api/corporate";
 beforeEach(() => vi.clearAllMocks());
 it.each([
   {
-    capabilities: ["member.update", "role.list", "project.list", "team.list", "audit.list"],
+    capabilities: ["member.read", "role.list", "project.list", "team.list", "audit.list"],
   },
-  { capabilities: ["member.read", "role.list"] },
+  { capabilities: ["member.update", "role.list"] },
 ])("loads member administration narrowly for $capabilities", async ({ capabilities }) => {
   request.mockImplementation((path) => {
     if (path === "/v1/organizations")
@@ -31,19 +33,23 @@ it.each([
       };
     if (path.endsWith("/members/account_alice"))
       return { account_id: "account_alice", display_name: "Alice" };
+    if (path.endsWith("/members/account_alice/access")) return Promise.resolve({ items: [] });
+    if (path.endsWith("/delegation")) return Promise.resolve({ grantable_roles: [] });
     if (path.endsWith("/roles")) return { items: [] };
     throw new Error(`Unexpected request ${path}`);
   });
   const result = await readCorporateMemberAccess("session", "account_alice");
-  const canManage = capabilities.includes("member.update");
-  expect(result !== null).toBe(canManage);
+  const canRead = capabilities.includes("member.read");
+  expect(result !== null).toBe(canRead);
   expect(request.mock.calls.map(([path]) => path)).toEqual([
     "/v1/organizations",
     "/v1/corporate/organizations/organization_fixture/context",
-    ...(canManage
+    ...(canRead
       ? [
           "/v1/corporate/organizations/organization_fixture/members/account_alice",
           "/v1/corporate/organizations/organization_fixture/roles",
+          "/v1/corporate/organizations/organization_fixture/members/account_alice/access",
+          "/v1/corporate/organizations/organization_fixture/delegation",
         ]
       : []),
   ]);

@@ -4,6 +4,7 @@ import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 
 import { Badge, badgeVariants } from "@/components/atoms/badge";
 import { cn } from "@/lib/cn";
+import { Link } from "@/lib/i18n/navigation";
 
 const VISIBLE_LIMIT = 3;
 
@@ -13,11 +14,13 @@ export function CompactChipList({
   label,
   variant = "outline",
   className,
+  hrefForValue,
 }: {
   values: readonly string[];
   label: string;
   variant?: "default" | "secondary" | "outline" | "success" | "warning" | "destructive";
   className?: string;
+  hrefForValue?: (value: string) => string | undefined;
 }) {
   const unique = [...new Set(values)].filter(Boolean);
   if (unique.length === 0) return null;
@@ -26,11 +29,21 @@ export function CompactChipList({
 
   return (
     <div className={cn("flex min-w-0 flex-wrap items-center gap-1", className)} aria-label={label}>
-      {visible.map((value) => (
-        <Badge key={value} variant={variant}>
-          {value}
-        </Badge>
-      ))}
+      {visible.map((value) => {
+        const href = hrefForValue?.(value);
+        const chip = <Badge variant={variant}>{value}</Badge>;
+        return href ? (
+          <Link
+            key={value}
+            href={href}
+            className="focus-visible:ring-ring rounded-sm hover:underline focus-visible:ring-2 focus-visible:outline-none"
+          >
+            {chip}
+          </Link>
+        ) : (
+          <span key={value}>{chip}</span>
+        );
+      })}
       {hidden.length ? (
         <span className="relative z-30 shrink-0">
           <DropdownMenu.Root modal={false}>
@@ -56,11 +69,19 @@ export function CompactChipList({
               >
                 <p className="text-muted-foreground mb-1 text-xs font-medium">{label}</p>
                 <div className="flex flex-wrap gap-1">
-                  {unique.map((value) => (
-                    <Badge key={value} variant={variant}>
-                      {value}
-                    </Badge>
-                  ))}
+                  {unique.map((value) => {
+                    const href = hrefForValue?.(value);
+                    const chip = <Badge variant={variant}>{value}</Badge>;
+                    return href ? (
+                      <DropdownMenu.Item key={value} asChild>
+                        <Link href={href} className="focus:bg-accent rounded-sm outline-none">
+                          {chip}
+                        </Link>
+                      </DropdownMenu.Item>
+                    ) : (
+                      <span key={value}>{chip}</span>
+                    );
+                  })}
                 </div>
               </DropdownMenu.Content>
             </DropdownMenu.Portal>

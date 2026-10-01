@@ -23,7 +23,7 @@ export function CorporateCatalogUsage({
   labels: {
     subjectSections: Record<CorporateCatalogUsageItem["subject_kind"], string>;
     relation: CorporateRelationSectionLabels;
-    truncated: string;
+    truncated: (shown: number, total: number) => string;
   };
 }) {
   const truncated = items.length < total;
@@ -50,11 +50,7 @@ export function CorporateCatalogUsage({
         );
       })}
       {truncated ? (
-        <p className="text-muted-foreground text-sm">
-          {labels.truncated
-            .replace("{shown}", String(items.length))
-            .replace("{total}", String(total))}
-        </p>
+        <p className="text-muted-foreground text-sm">{labels.truncated(items.length, total)}</p>
       ) : null}
     </>
   );

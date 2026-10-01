@@ -77,6 +77,9 @@ import type {
   CreateCorporateMemberData,
   CreateCorporateMemberErrors,
   CreateCorporateMemberResponses,
+  CreateCorporatePermissionGrantData,
+  CreateCorporatePermissionGrantErrors,
+  CreateCorporatePermissionGrantResponses,
   CreateCorporateProjectData,
   CreateCorporateProjectErrors,
   CreateCorporateProjectResponses,
@@ -251,6 +254,9 @@ import type {
   ListCorporateMembersData,
   ListCorporateMembersErrors,
   ListCorporateMembersResponses,
+  ListCorporatePermissionGrantsData,
+  ListCorporatePermissionGrantsErrors,
+  ListCorporatePermissionGrantsResponses,
   ListCorporateProjectMembersData,
   ListCorporateProjectMembersErrors,
   ListCorporateProjectMembersResponses,
@@ -434,6 +440,9 @@ import type {
   ReadCorporateContextData,
   ReadCorporateContextErrors,
   ReadCorporateContextResponses,
+  ReadCorporateDelegationData,
+  ReadCorporateDelegationErrors,
+  ReadCorporateDelegationResponses,
   ReadCorporateDirectoryData,
   ReadCorporateDirectoryErrors,
   ReadCorporateDirectoryResponses,
@@ -446,6 +455,9 @@ import type {
   ReadCorporateHeartbeatReportData,
   ReadCorporateHeartbeatReportErrors,
   ReadCorporateHeartbeatReportResponses,
+  ReadCorporateMemberAccessData,
+  ReadCorporateMemberAccessErrors,
+  ReadCorporateMemberAccessResponses,
   ReadCorporateMemberData,
   ReadCorporateMemberErrors,
   ReadCorporateMemberResponses,
@@ -653,6 +665,9 @@ import type {
   RevokeCorporateInvitationData,
   RevokeCorporateInvitationErrors,
   RevokeCorporateInvitationResponses,
+  RevokeCorporatePermissionGrantData,
+  RevokeCorporatePermissionGrantErrors,
+  RevokeCorporatePermissionGrantResponses,
   RevokeCorporateTelemetrySubjectData,
   RevokeCorporateTelemetrySubjectErrors,
   RevokeCorporateTelemetrySubjectResponses,
@@ -2200,6 +2215,22 @@ export const updateCorporateDashboardView = <ThrowOnError extends boolean = fals
   });
 
 /**
+ * Read what the caller may delegate, computed server-side.
+ */
+export const readCorporateDelegation = <ThrowOnError extends boolean = false>(
+  options: Options<ReadCorporateDelegationData, ThrowOnError>,
+): RequestResult<ReadCorporateDelegationResponses, ReadCorporateDelegationErrors, ThrowOnError> =>
+  (options.client ?? client).get<
+    ReadCorporateDelegationResponses,
+    ReadCorporateDelegationErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/delegation",
+    ...options,
+  });
+
+/**
  * Read authorized named cards and facets; filter before pagination.
  */
 export const readCorporateDirectory = <ThrowOnError extends boolean = false>(
@@ -2612,6 +2643,26 @@ export const updateCorporateMember = <ThrowOnError extends boolean = false>(
   });
 
 /**
+ * Explain one member's access with the exact contributing rows.
+ */
+export const readCorporateMemberAccess = <ThrowOnError extends boolean = false>(
+  options: Options<ReadCorporateMemberAccessData, ThrowOnError>,
+): RequestResult<
+  ReadCorporateMemberAccessResponses,
+  ReadCorporateMemberAccessErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).get<
+    ReadCorporateMemberAccessResponses,
+    ReadCorporateMemberAccessErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/members/{account_id}/access",
+    ...options,
+  });
+
+/**
  * Edit tenant employee display name without changing roles or account profile.
  */
 export const updateCorporateMemberProfile = <ThrowOnError extends boolean = false>(
@@ -2749,6 +2800,74 @@ export const readCorporateOverview = <ThrowOnError extends boolean = false>(
     security: [{ scheme: "bearer", type: "http" }],
     url: "/v1/corporate/organizations/{organization_id}/overview",
     ...options,
+  });
+
+/**
+ * List direct scoped permission grants.
+ */
+export const listCorporatePermissionGrants = <ThrowOnError extends boolean = false>(
+  options: Options<ListCorporatePermissionGrantsData, ThrowOnError>,
+): RequestResult<
+  ListCorporatePermissionGrantsResponses,
+  ListCorporatePermissionGrantsErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).get<
+    ListCorporatePermissionGrantsResponses,
+    ListCorporatePermissionGrantsErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/permission-grants",
+    ...options,
+  });
+
+/**
+ * Grant one scoped permission directly, within delegated authority.
+ */
+export const createCorporatePermissionGrant = <ThrowOnError extends boolean = false>(
+  options: Options<CreateCorporatePermissionGrantData, ThrowOnError>,
+): RequestResult<
+  CreateCorporatePermissionGrantResponses,
+  CreateCorporatePermissionGrantErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).post<
+    CreateCorporatePermissionGrantResponses,
+    CreateCorporatePermissionGrantErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/permission-grants",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Revoke a direct scoped permission grant.
+ */
+export const revokeCorporatePermissionGrant = <ThrowOnError extends boolean = false>(
+  options: Options<RevokeCorporatePermissionGrantData, ThrowOnError>,
+): RequestResult<
+  RevokeCorporatePermissionGrantResponses,
+  RevokeCorporatePermissionGrantErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).delete<
+    RevokeCorporatePermissionGrantResponses,
+    RevokeCorporatePermissionGrantErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/permission-grants/{grant_id}",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
   });
 
 /**

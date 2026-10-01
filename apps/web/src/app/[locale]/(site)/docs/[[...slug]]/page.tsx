@@ -45,5 +45,7 @@ export default async function DocsPage({ params }: Props) {
 }
 
 export function generateStaticParams() {
+  // Keep the shared dev prerender manifest free of concurrent route writes.
+  if (process.env.NODE_ENV === "development") return [];
   return docsSource.generateParams().map(({ slug }) => ({ locale: slug[0], slug: slug.slice(1) }));
 }

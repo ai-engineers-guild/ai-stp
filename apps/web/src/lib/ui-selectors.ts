@@ -9,6 +9,7 @@ export const UI = {
     root: "site-shell",
     header: "site-header",
     primaryNav: "primary-navigation",
+    sidebar: "context-sidebar",
     main: "main-content",
     footer: "site-footer",
     footerNav: "footer-navigation",
@@ -23,6 +24,7 @@ export const UI = {
     dashboard: "nav-dashboard",
     admins: "nav-admins",
     back: "nav-back",
+    collapse: "nav-collapse",
     tabs: "navigation-tabs",
     secondaryNav: "secondary-navigation",
     services: "nav-services",
@@ -39,6 +41,8 @@ export const UI = {
   },
   corporate: {
     organizationSwitcher: "corporate-organization-switcher",
+    contextNav: "corporate-context-nav",
+    contextNavList: "corporate-context-nav-list",
   },
   theme: {
     toggle: "color-theme-toggle",

@@ -6,7 +6,7 @@ import hashlib
 import json
 import re
 import unicodedata
-from collections.abc import Awaitable, Callable, Mapping
+from collections.abc import Awaitable, Callable, Collection, Mapping
 from datetime import UTC, datetime
 from typing import Literal, cast
 
@@ -30,8 +30,10 @@ from ai_stp_contracts.corporate import (
     CorporateBootstrapRequest,
     CorporateCatalogAssignment,
     CorporateContext,
+    CorporateDelegationView,
     CorporateDeleteRequest,
     CorporateDeleteResult,
+    CorporateGrantableRole,
     CorporateJobTitleCreateRequest,
     CorporateJobTitleList,
     CorporateJobTitleUpdateRequest,
@@ -43,6 +45,8 @@ from ai_stp_contracts.corporate import (
     CorporateMembershipAssignmentRequest,
     CorporateMemberUpdateRequest,
     CorporateOrganization,
+    CorporatePermissionGrantList,
+    CorporatePermissionGrantRequest,
     CorporateProjectCreateRequest,
     CorporateProjectLifecycleRequest,
     CorporateProjectList,
@@ -63,9 +67,19 @@ from ai_stp_contracts.corporate import (
     CorporateTeamList,
     CorporateTeamUpdateRequest,
     CorporateTeamView,
+    GrantScopeKind,
     ProjectLifecycle,
     ProjectState,
     ScopeKind,
+)
+from ai_stp_contracts.corporate import (
+    CorporatePermissionGrant as CorporatePermissionGrantView,
+)
+from ai_stp_contracts.corporate_governance import (
+    CorporateEffectivePermission,
+    CorporateMemberAccess,
+    CorporateMemberPrivateGrant,
+    CorporatePermissionSource,
 )
 from ai_stp_foundation.ids import new_id
 from ai_stp_foundation.timestamps import format_timestamp
@@ -73,12 +87,18 @@ from ai_stp_platform.catalog_ownership_models import (
     CorporateCatalogOwnership as CorporateCatalogOwnershipRow,
 )
 from ai_stp_platform.catalog_read import get_visible_metadata
-from ai_stp_platform.corporate_authorization import has_corporate_permission
-from ai_stp_platform.models import Account, AuditEvent
+from ai_stp_platform.corporate_authorization import (
+    corporate_effective_permissions,
+    explain_effective_permissions,
+    has_corporate_permission,
+    role_closure_permissions,
+)
+from ai_stp_platform.models import AccessGrant, Account, AuditEvent, CatalogIdentity, Device
 from ai_stp_platform.organization_models import (
     CorporateBootstrapReceipt,
     CorporateJobTitle,
     CorporateMutationReceipt,
+    CorporatePermissionGrant,
     CorporateProject,
     CorporateProjectMember,
     CorporateProvisionedIdentity,
@@ -271,6 +291,7 @@ def organization_view(row: Organization) -> CorporateOrganization:
 def member_view(
     row: OrganizationMembership, account: Account, job_title_name: str | None = None
 ) -> CorporateMember:
+    created_at = cast(datetime | None, row.created_at)
     return CorporateMember(
         account_id=row.account_id,
         display_name=row.display_name if row.display_name is not None else account.display_name,
@@ -279,6 +300,16 @@ def member_view(
         revision=row.revision,
         job_title_id=row.job_title_id,
         job_title_name=job_title_name,
+        contact_email=None,
+        joined_at=(
+            format_timestamp(
+                created_at.replace(tzinfo=UTC) if created_at.tzinfo is None else created_at
+            )
+            if created_at is not None
+            else None
+        ),
+        last_activity_at=None,
+        available_actions=[],
     )
 
 
@@ -307,6 +338,25 @@ def _binding_view(row: CorporateRoleBinding) -> CorporateBinding:
         role=row.role,
         scope_kind=cast(ScopeKind, row.scope_kind),
         scope_id=row.scope_id,
+        state=cast("Literal['active', 'revoked']", row.state),
+        origin=cast(
+            "Literal['membership', 'assignment', 'direct', 'service_principal']", row.origin
+        ),
+        coverage=cast("Literal['self', 'descendants']", row.coverage),
+        revision=row.revision,
+    )
+
+
+def _grant_view(row: CorporatePermissionGrant) -> CorporatePermissionGrantView:
+    return CorporatePermissionGrantView(
+        grant_id=row.id,
+        principal_type=cast("Literal['user', 'service_principal']", row.principal_type),
+        account_id=row.account_id,
+        service_principal_id=row.service_principal_id,
+        permission=row.permission,
+        scope_kind=cast(GrantScopeKind, row.scope_kind),
+        scope_id=row.scope_id,
+        issuer_account_id=row.issuer_account_id,
         state=cast("Literal['active', 'revoked']", row.state),
         revision=row.revision,
     )
@@ -779,6 +829,8 @@ async def bootstrap(
             scope_kind="organization",
             scope_id=organization.id,
             state="active",
+            origin="membership",
+            coverage="descendants",
         )
     )
     db.add(
@@ -1041,6 +1093,196 @@ async def _ensure_active_members(
         raise ApiError(ErrorCategory.VALIDATION, "employee relationship is unavailable")
 
 
+async def _caller_org_permissions(
+    db: AsyncSession, *, organization_id: str, account_id: str
+) -> frozenset[str]:
+    """The principal's effective permission set at organization scope."""
+    effective = await corporate_effective_permissions(
+        db,
+        organization_id=organization_id,
+        principal_type="user",
+        principal_id=account_id,
+        scope_kind="organization",
+        scope_id=organization_id,
+    )
+    return frozenset(effective or set())
+
+
+async def assert_delegable_permissions(
+    db: AsyncSession, *, organization_id: str, account_id: str, permissions: Collection[str]
+) -> None:
+    """Fail when a mutation would grant an action outside the issuer's own
+    effective organization permissions (ADR-0220 delegation bound)."""
+    caller = await _caller_org_permissions(
+        db, organization_id=organization_id, account_id=account_id
+    )
+    if not set(permissions) <= caller:
+        raise ApiError(ErrorCategory.PERMISSION, "grant exceeds delegated authority")
+
+
+async def assert_delegable_roles(
+    db: AsyncSession, *, organization_id: str, account_id: str, roles: Collection[str]
+) -> None:
+    """Every role's closed permission set (own grants plus ancestors) must fit
+    inside the issuer's effective organization permissions."""
+    closures = await role_closure_permissions(db, organization_id=organization_id, roles=roles)
+    granted: set[str] = set()
+    for permissions in closures.values():
+        granted |= set(permissions)
+    await assert_delegable_permissions(
+        db, organization_id=organization_id, account_id=account_id, permissions=granted
+    )
+
+
+async def assert_delegable_coverage(
+    db: AsyncSession, *, organization_id: str, account_id: str, coverage: str
+) -> None:
+    """Only a principal holding descendant coverage may mint it."""
+    if coverage != "descendants":
+        return
+    held = await db.scalar(
+        select(CorporateRoleBinding.id).where(
+            CorporateRoleBinding.organization_id == organization_id,
+            CorporateRoleBinding.principal_type == "user",
+            CorporateRoleBinding.account_id == account_id,
+            CorporateRoleBinding.scope_kind == "organization",
+            CorporateRoleBinding.coverage == "descendants",
+            CorporateRoleBinding.state == "active",
+        )
+    )
+    if held is None:
+        raise ApiError(ErrorCategory.PERMISSION, "descendant coverage exceeds delegated authority")
+
+
+async def _role_coverage(db: AsyncSession, *, organization_id: str, role: str) -> str:
+    """An organization-scope binding propagates only when the role carries the
+    full administrative closure — a persisted write-time choice, not
+    evaluation-time inference from the role name."""
+    closures = await role_closure_permissions(
+        db, organization_id=organization_id, roles={role, "superadmin"}
+    )
+    admin = closures.get("superadmin", frozenset())
+    return "descendants" if admin and admin <= closures.get(role, frozenset()) else "self"
+
+
+async def _org_admin_state(
+    db: AsyncSession, *, organization_id: str
+) -> tuple[set[str], frozenset[str]]:
+    """Active user accounts whose organization-scope effective permissions cover
+    the full superadmin closure, plus that closure. Bindings at other scope
+    kinds never count: organization administration is an organization-scope
+    decision."""
+    closures = await role_closure_permissions(
+        db, organization_id=organization_id, roles={"superadmin"}
+    )
+    admin_set = closures.get("superadmin", frozenset())
+    if not admin_set:
+        return set(), admin_set
+    rows = list(
+        (
+            await db.scalars(
+                select(CorporateRoleBinding)
+                .join(
+                    OrganizationMembership,
+                    (OrganizationMembership.organization_id == CorporateRoleBinding.organization_id)
+                    & (OrganizationMembership.account_id == CorporateRoleBinding.account_id)
+                    & (OrganizationMembership.state == "active"),
+                )
+                .where(
+                    CorporateRoleBinding.organization_id == organization_id,
+                    CorporateRoleBinding.principal_type == "user",
+                    CorporateRoleBinding.scope_kind == "organization",
+                    CorporateRoleBinding.state == "active",
+                )
+            )
+        ).all()
+    )
+    by_account: dict[str, set[str]] = {}
+    for binding in rows:
+        if binding.account_id is not None:
+            by_account.setdefault(binding.account_id, set()).add(binding.role)
+    role_grants = await role_closure_permissions(
+        db,
+        organization_id=organization_id,
+        roles={role for roles in by_account.values() for role in roles},
+    )
+    admins = {
+        account_id
+        for account_id, roles in by_account.items()
+        if admin_set <= set().union(*(role_grants.get(role, frozenset()) for role in roles))
+    }
+    return admins, admin_set
+
+
+async def _assert_superadmin_survives(
+    db: AsyncSession,
+    *,
+    organization_id: str,
+    account_id: str,
+    admins: set[str],
+    admin_set: frozenset[str],
+    org_roles_after: set[str],
+    membership_active_after: bool,
+) -> None:
+    """One transaction-level guard for the last effective active organization
+    superadmin across membership, binding, scope, and state changes."""
+    if account_id not in admins:
+        return
+    if membership_active_after and org_roles_after:
+        after = await role_closure_permissions(
+            db, organization_id=organization_id, roles=org_roles_after
+        )
+        remaining = set[str]().union(*after.values())
+        if admin_set <= remaining:
+            return
+    if len(admins) <= 1:
+        raise ApiError(ErrorCategory.CONFLICT, "last superadmin cannot be changed")
+
+
+async def _member_org_roles_after(
+    db: AsyncSession,
+    *,
+    organization_id: str,
+    account_id: str,
+    excluded_binding_id: str | None = None,
+    replacement: tuple[str, str] | None = None,
+) -> set[str]:
+    """The member's organization-scope role set after a pending mutation.
+
+    `replacement` is a (scope_kind, role) the mutation writes; it contributes
+    only when the result still sits at organization scope."""
+    rows = list(
+        (
+            await db.scalars(
+                select(CorporateRoleBinding).where(
+                    CorporateRoleBinding.organization_id == organization_id,
+                    CorporateRoleBinding.principal_type == "user",
+                    CorporateRoleBinding.account_id == account_id,
+                    CorporateRoleBinding.scope_kind == "organization",
+                    CorporateRoleBinding.state == "active",
+                    CorporateRoleBinding.id != (excluded_binding_id or ""),
+                )
+            )
+        ).all()
+    )
+    roles = {row.role for row in rows}
+    if replacement is not None and replacement[0] == "organization":
+        roles.add(replacement[1])
+    return roles
+
+
+async def _membership_is_active(db: AsyncSession, *, organization_id: str, account_id: str) -> bool:
+    return (
+        await db.scalar(
+            select(OrganizationMembership.id).where(
+                OrganizationMembership.organization_id == organization_id,
+                OrganizationMembership.account_id == account_id,
+                OrganizationMembership.state == "active",
+            )
+        )
+    ) is not None
+
+
 async def store_mutation_receipt(
     db: AsyncSession,
     *,
@@ -1183,6 +1425,23 @@ async def create_role(
         parent_role=payload.parent_role,
     )
     permissions = _role_permissions(payload.permissions)
+    await assert_delegable_permissions(
+        db,
+        organization_id=organization_id,
+        account_id=ctx.account_id,
+        permissions=set(permissions)
+        | (
+            set(
+                (
+                    await role_closure_permissions(
+                        db, organization_id=organization_id, roles={payload.parent_role}
+                    )
+                ).get(payload.parent_role, frozenset())
+            )
+            if payload.parent_role
+            else set()
+        ),
+    )
     if await db.get(CorporateRoleRow, (organization_id, payload.name)) is not None:
         raise ApiError(ErrorCategory.CONFLICT, "corporate role already exists")
     row = CorporateRoleRow(
@@ -1317,6 +1576,23 @@ async def update_role(
         parent_role=payload.parent_role,
     )
     permissions = _role_permissions(payload.permissions)
+    await assert_delegable_permissions(
+        db,
+        organization_id=organization_id,
+        account_id=ctx.account_id,
+        permissions=set(permissions)
+        | (
+            set(
+                (
+                    await role_closure_permissions(
+                        db, organization_id=organization_id, roles={payload.parent_role}
+                    )
+                ).get(payload.parent_role, frozenset())
+            )
+            if payload.parent_role
+            else set()
+        ),
+    )
     before = await _role_view(db, row)
     row.parent_role = payload.parent_role
     row.revision += 1
@@ -1638,6 +1914,8 @@ async def insert_membership_graph(
         scope_kind="organization",
         scope_id=organization_id,
         state="active",
+        origin="membership",
+        coverage=await _role_coverage(db, organization_id=organization_id, role=role),
     )
     db.add(membership)
     await db.flush()
@@ -1660,6 +1938,8 @@ async def insert_membership_graph(
                 scope_kind="team",
                 scope_id=team_id,
                 state="active",
+                origin="assignment",
+                coverage="self",
             )
         )
     for project_id in dict.fromkeys(project_ids):
@@ -1700,6 +1980,12 @@ async def create_member(
         db, organization_id=organization_id, project_ids=payload.project_ids
     )
     await ensure_role_exists(db, organization_id=organization_id, role=payload.role)
+    await assert_delegable_roles(
+        db,
+        organization_id=organization_id,
+        account_id=ctx.account_id,
+        roles={payload.role, *({"staff"} if payload.team_ids else set())},
+    )
     await ensure_current_job_title(
         db, organization_id=organization_id, job_title_id=payload.job_title_id
     )
@@ -1821,7 +2107,70 @@ async def list_members(
         target_id=organization_id,
         request_id=request_id,
     )
-    return CorporateMemberList(items=[member_view(member, account) for member, account in rows])
+    account_ids = [member.account_id for member, _ in rows]
+    contacts = dict(
+        (
+            await db.execute(
+                select(
+                    CorporateProvisionedIdentity.account_id,
+                    func.min(CorporateProvisionedIdentity.normalized_email),
+                )
+                .where(
+                    CorporateProvisionedIdentity.organization_id == organization_id,
+                    CorporateProvisionedIdentity.account_id.in_(account_ids),
+                )
+                .group_by(CorporateProvisionedIdentity.account_id)
+            )
+        )
+        .tuples()
+        .all()
+    )
+    activity = dict(
+        (
+            await db.execute(
+                select(Device.account_id, func.max(Device.last_seen_at))
+                .where(
+                    Device.account_id.in_(account_ids),
+                )
+                .group_by(Device.account_id)
+            )
+        )
+        .tuples()
+        .all()
+    )
+    titles = dict(
+        (
+            await db.execute(
+                select(CorporateJobTitle.id, CorporateJobTitle.name).where(
+                    CorporateJobTitle.organization_id == organization_id,
+                )
+            )
+        )
+        .tuples()
+        .all()
+    )
+    return CorporateMemberList(
+        items=[
+            member_view(
+                member, account, titles.get(member.job_title_id) if member.job_title_id else None
+            ).model_copy(
+                update={
+                    "contact_email": contacts.get(member.account_id),
+                    "joined_at": format_timestamp(
+                        member.created_at.replace(tzinfo=UTC)
+                        if member.created_at.tzinfo is None
+                        else member.created_at
+                    ),
+                    "last_activity_at": format_timestamp(
+                        value.replace(tzinfo=UTC) if value.tzinfo is None else value
+                    )
+                    if (value := activity.get(member.account_id))
+                    else None,
+                }
+            )
+            for member, account in rows
+        ]
+    )
 
 
 async def list_project_members(
@@ -1931,40 +2280,29 @@ async def update_member(
         scope_kind="organization",
         scope_id=organization_id,
     )
-    if not org_admin and (row.role == "superadmin" or payload.role != row.role):
+    admins, admin_set = await _org_admin_state(db, organization_id=organization_id)
+    if not org_admin and (account_id in admins or payload.role != row.role):
         # Scoped (team) member administration cannot change organization roles
-        # or touch a superadmin membership.
+        # or touch an effective organization administrator.
         raise ApiError(ErrorCategory.PERMISSION, "member role change is forbidden")
     await ensure_role_exists(db, organization_id=organization_id, role=payload.role)
     await ensure_current_job_title(
         db, organization_id=organization_id, job_title_id=payload.job_title_id
     )
+    if payload.role != row.role:
+        await assert_delegable_roles(
+            db,
+            organization_id=organization_id,
+            account_id=ctx.account_id,
+            roles={payload.role},
+        )
     before = {
         "role": row.role,
         "state": row.state,
         "job_title_id": row.job_title_id,
         "revision": row.revision,
     }
-    removes_superadmin = row.role == "superadmin" and (
-        payload.role != "superadmin" or payload.state != "active"
-    )
-    if removes_superadmin:
-        active_superadmins = await db.scalar(
-            select(func.count())
-            .select_from(OrganizationMembership)
-            .where(
-                OrganizationMembership.organization_id == organization_id,
-                OrganizationMembership.role == "superadmin",
-                OrganizationMembership.state == "active",
-            )
-        )
-        if active_superadmins == 1:
-            raise ApiError(ErrorCategory.CONFLICT, "last superadmin cannot be changed")
-    row.role = payload.role
-    row.state = payload.state
-    row.job_title_id = payload.job_title_id
-    row.revision += 1
-    bindings = list(
+    member_bindings = list(
         (
             await db.scalars(
                 select(CorporateRoleBinding).where(
@@ -1975,25 +2313,57 @@ async def update_member(
             )
         ).all()
     )
-    scopes = {(binding.scope_kind, binding.scope_id) for binding in bindings}
-    scopes.add(("organization", organization_id))
-    for binding in bindings:
-        binding.state = "revoked"
-        binding.revision += 1
-    if payload.state == "active":
-        db.add_all(
-            [
-                CorporateRoleBinding(
-                    id=new_id("operation"),
-                    organization_id=organization_id,
-                    account_id=account_id,
-                    role=payload.role,
-                    scope_kind=scope_kind,
-                    scope_id=scope_id,
-                    state="active",
-                )
-                for scope_kind, scope_id in scopes
-            ]
+    org_roles_after = {
+        binding.role
+        for binding in member_bindings
+        if binding.scope_kind == "organization" and binding.origin != "membership"
+    } | {payload.role}
+    await _assert_superadmin_survives(
+        db,
+        organization_id=organization_id,
+        account_id=account_id,
+        admins=admins,
+        admin_set=admin_set,
+        org_roles_after=org_roles_after,
+        membership_active_after=payload.state == "active",
+    )
+    row.role = payload.role
+    row.state = payload.state
+    row.job_title_id = payload.job_title_id
+    row.revision += 1
+    coverage = await _role_coverage(db, organization_id=organization_id, role=payload.role)
+    target = next(
+        (
+            binding
+            for binding in member_bindings
+            if binding.origin == "membership"
+            and binding.scope_kind == "organization"
+            and binding.scope_id == organization_id
+            and binding.role == payload.role
+        ),
+        None,
+    )
+    for binding in member_bindings:
+        if binding.origin == "membership" and binding is not target:
+            binding.state = "revoked"
+            binding.revision += 1
+    if target is not None:
+        if target.coverage != coverage:
+            target.coverage = coverage
+            target.revision += 1
+    else:
+        db.add(
+            CorporateRoleBinding(
+                id=new_id("operation"),
+                organization_id=organization_id,
+                account_id=account_id,
+                role=payload.role,
+                scope_kind="organization",
+                scope_id=organization_id,
+                state="active",
+                origin="membership",
+                coverage=coverage,
+            )
         )
     organization.policy_revision += 1
     response = member_view(row, account)
@@ -2067,25 +2437,22 @@ async def delete_member(
         scope_kind="organization",
         scope_id=organization_id,
     )
-    if not org_admin and row.role == "superadmin":
+    admins, _admin_set = await _org_admin_state(db, organization_id=organization_id)
+    if not org_admin and account_id in admins:
         raise ApiError(ErrorCategory.PERMISSION, "member delete is forbidden")
-    if row.role == "superadmin" and row.state == "active":
-        active_superadmins = await db.scalar(
-            select(func.count())
-            .select_from(OrganizationMembership)
-            .where(
-                OrganizationMembership.organization_id == organization_id,
-                OrganizationMembership.role == "superadmin",
-                OrganizationMembership.state == "active",
-            )
-        )
-        if active_superadmins == 1:
-            raise ApiError(ErrorCategory.CONFLICT, "last superadmin cannot be changed")
+    if account_id in admins and len(admins) <= 1:
+        raise ApiError(ErrorCategory.CONFLICT, "last superadmin cannot be changed")
     before = {"role": row.role, "state": row.state}
     await db.execute(
         delete(CorporateRoleBinding).where(
             CorporateRoleBinding.organization_id == organization_id,
             CorporateRoleBinding.account_id == account_id,
+        )
+    )
+    await db.execute(
+        delete(CorporatePermissionGrant).where(
+            CorporatePermissionGrant.organization_id == organization_id,
+            CorporatePermissionGrant.account_id == account_id,
         )
     )
     await db.execute(
@@ -2226,6 +2593,18 @@ async def create_binding(
         scope_id=payload.scope_id,
     ):
         raise ApiError(ErrorCategory.PERMISSION, "binding scope denied")
+    await assert_delegable_roles(
+        db,
+        organization_id=organization_id,
+        account_id=ctx.account_id,
+        roles={payload.role},
+    )
+    await assert_delegable_coverage(
+        db,
+        organization_id=organization_id,
+        account_id=ctx.account_id,
+        coverage=payload.coverage,
+    )
     if (
         await db.scalar(
             select(CorporateRoleBinding.id).where(
@@ -2249,6 +2628,8 @@ async def create_binding(
         scope_kind=payload.scope_kind,
         scope_id=payload.scope_id,
         state="active",
+        origin="direct",
+        coverage=payload.coverage,
     )
     db.add(row)
     organization.policy_revision += 1
@@ -2368,6 +2749,10 @@ async def update_binding(
         raise ApiError(ErrorCategory.PERMISSION, "binding access denied")
     if row.revision != payload.expected_revision:
         raise ApiError(ErrorCategory.CONFLICT, "binding revision changed")
+    if row.origin != "direct":
+        # Membership-, assignment-, and service-principal-owned rows are
+        # managed by their owning write paths, not the direct-binding API.
+        raise ApiError(ErrorCategory.CONFLICT, "binding is managed by its owner")
     if (
         await db.scalar(
             select(CorporateRoleRow.name).where(
@@ -2385,6 +2770,19 @@ async def update_binding(
         scope_id=payload.scope_id,
     ):
         raise ApiError(ErrorCategory.PERMISSION, "binding scope denied")
+    if payload.state == "active":
+        await assert_delegable_roles(
+            db,
+            organization_id=organization_id,
+            account_id=ctx.account_id,
+            roles={payload.role},
+        )
+        await assert_delegable_coverage(
+            db,
+            organization_id=organization_id,
+            account_id=ctx.account_id,
+            coverage=payload.coverage,
+        )
     principal_filter = (
         CorporateRoleBinding.account_id == row.account_id
         if row.principal_type == "user"
@@ -2406,28 +2804,34 @@ async def update_binding(
         is not None
     ):
         raise ApiError(ErrorCategory.CONFLICT, "binding already exists")
-    if (
-        row.state == "active"
-        and row.role == "superadmin"
-        and row.principal_type == "user"
-        and (payload.role != "superadmin" or payload.state != "active")
-    ):
-        count = await db.scalar(
-            select(func.count())
-            .select_from(CorporateRoleBinding)
-            .where(
-                CorporateRoleBinding.organization_id == organization_id,
-                CorporateRoleBinding.account_id == row.account_id,
-                CorporateRoleBinding.role == "superadmin",
-                CorporateRoleBinding.state == "active",
+    if row.principal_type == "user" and row.account_id is not None:
+        admins, admin_set = await _org_admin_state(db, organization_id=organization_id)
+        if row.account_id in admins:
+            org_roles_after = await _member_org_roles_after(
+                db,
+                organization_id=organization_id,
+                account_id=row.account_id,
+                excluded_binding_id=binding_id,
+                replacement=(
+                    (payload.scope_kind, payload.role) if payload.state == "active" else None
+                ),
             )
-        )
-        if count == 1:
-            raise ApiError(ErrorCategory.CONFLICT, "last superadmin cannot be changed")
+            await _assert_superadmin_survives(
+                db,
+                organization_id=organization_id,
+                account_id=row.account_id,
+                admins=admins,
+                admin_set=admin_set,
+                org_roles_after=org_roles_after,
+                membership_active_after=await _membership_is_active(
+                    db, organization_id=organization_id, account_id=row.account_id
+                ),
+            )
     before = _binding_view(row).model_dump(mode="json")
     row.role = payload.role
     row.scope_kind = payload.scope_kind
     row.scope_id = payload.scope_id
+    row.coverage = payload.coverage
     row.state = payload.state
     row.revision += 1
     organization.policy_revision += 1
@@ -2488,19 +2892,28 @@ async def delete_binding(
         raise ApiError(ErrorCategory.PERMISSION, "binding access denied")
     if row.revision != payload.expected_revision:
         raise ApiError(ErrorCategory.CONFLICT, "binding revision changed")
-    if row.state == "active" and row.role == "superadmin" and row.principal_type == "user":
-        count = await db.scalar(
-            select(func.count())
-            .select_from(CorporateRoleBinding)
-            .where(
-                CorporateRoleBinding.organization_id == organization_id,
-                CorporateRoleBinding.account_id == row.account_id,
-                CorporateRoleBinding.role == "superadmin",
-                CorporateRoleBinding.state == "active",
+    if row.origin != "direct":
+        raise ApiError(ErrorCategory.CONFLICT, "binding is managed by its owner")
+    if row.principal_type == "user" and row.account_id is not None:
+        admins, admin_set = await _org_admin_state(db, organization_id=organization_id)
+        if row.account_id in admins:
+            org_roles_after = await _member_org_roles_after(
+                db,
+                organization_id=organization_id,
+                account_id=row.account_id,
+                excluded_binding_id=binding_id,
             )
-        )
-        if count == 1:
-            raise ApiError(ErrorCategory.CONFLICT, "last superadmin cannot be changed")
+            await _assert_superadmin_survives(
+                db,
+                organization_id=organization_id,
+                account_id=row.account_id,
+                admins=admins,
+                admin_set=admin_set,
+                org_roles_after=org_roles_after,
+                membership_active_after=await _membership_is_active(
+                    db, organization_id=organization_id, account_id=row.account_id
+                ),
+            )
     before = _binding_view(row).model_dump(mode="json")
     await db.delete(row)
     organization.policy_revision += 1
@@ -3056,6 +3469,14 @@ async def create_team(
     )
     db.add(row)
     await db.flush()
+    await assert_delegable_roles(
+        db,
+        organization_id=organization_id,
+        account_id=ctx.account_id,
+        roles=({"staff", "lead"} if payload.lead_account_id is not None else {"staff"})
+        if employee_ids
+        else set(),
+    )
     for account_id in employee_ids:
         team_role = "lead" if account_id == payload.lead_account_id else "staff"
         db.add(
@@ -3075,6 +3496,8 @@ async def create_team(
                 scope_kind="team",
                 scope_id=row.id,
                 state="active",
+                origin="assignment",
+                coverage="self",
             )
         )
     for project_id in dict.fromkeys(payload.project_ids):
@@ -3338,6 +3761,12 @@ async def create_service_principal(
         scope_id=payload.scope_id,
     ):
         raise ApiError(ErrorCategory.PERMISSION, "binding scope denied")
+    await assert_delegable_roles(
+        db,
+        organization_id=organization_id,
+        account_id=ctx.account_id,
+        roles={payload.role},
+    )
     principal = CorporateServicePrincipal(
         id=new_id("service_principal"), organization_id=organization_id, name=payload.name
     )
@@ -3351,6 +3780,12 @@ async def create_service_principal(
         role=payload.role,
         scope_kind=payload.scope_kind,
         scope_id=payload.scope_id,
+        origin="service_principal",
+        coverage=(
+            await _role_coverage(db, organization_id=organization_id, role=payload.role)
+            if payload.scope_kind == "organization"
+            else "self"
+        ),
     )
     db.add(binding)
     organization.policy_revision += 1
@@ -3421,6 +3856,22 @@ async def update_service_principal(
         raise ApiError(ErrorCategory.PERMISSION, "service principal access denied")
     if principal.revision != payload.expected_revision:
         raise ApiError(ErrorCategory.CONFLICT, "service principal revision changed")
+    if payload.state == "active" and binding.state != "active":
+        # Reactivation revives the binding's role — the caller must hold
+        # everything that role grants, or it could revive access it could
+        # never have issued.
+        await assert_delegable_roles(
+            db,
+            organization_id=organization_id,
+            account_id=ctx.account_id,
+            roles={binding.role},
+        )
+        await assert_delegable_coverage(
+            db,
+            organization_id=organization_id,
+            account_id=ctx.account_id,
+            coverage=binding.coverage,
+        )
     before = {"state": principal.state, "binding_state": binding.state}
     principal.state = payload.state
     principal.revision += 1
@@ -3722,6 +4173,12 @@ async def assign_member(
             if team_member is not None:
                 await db.delete(team_member)
         else:
+            await assert_delegable_roles(
+                db,
+                organization_id=organization_id,
+                account_id=ctx.account_id,
+                roles={payload.team_role},
+            )
             if team_member is None:
                 db.add(
                     CorporateTeamMember(
@@ -3742,6 +4199,7 @@ async def assign_member(
                         CorporateRoleBinding.scope_kind == "team",
                         CorporateRoleBinding.scope_id == team.id,
                         CorporateRoleBinding.state == "active",
+                        CorporateRoleBinding.origin == "assignment",
                     )
                 )
             ).all()
@@ -3759,6 +4217,8 @@ async def assign_member(
                     scope_kind="team",
                     scope_id=team.id,
                     state="active",
+                    origin="assignment",
+                    coverage="self",
                 )
             )
     if payload.project_id is not None:
@@ -3778,14 +4238,21 @@ async def assign_member(
         if payload.operation == "remove":
             if project_member is not None:
                 await db.delete(project_member)
-        elif project_member is None:
-            db.add(
-                CorporateProjectMember(
-                    organization_id=organization_id,
-                    project_id=project.id,
-                    account_id=payload.account_id,
-                )
+        else:
+            await assert_delegable_roles(
+                db,
+                organization_id=organization_id,
+                account_id=ctx.account_id,
+                roles={member.role},
             )
+            if project_member is None:
+                db.add(
+                    CorporateProjectMember(
+                        organization_id=organization_id,
+                        project_id=project.id,
+                        account_id=payload.account_id,
+                    )
+                )
         active_project_bindings = list(
             (
                 await db.scalars(
@@ -3795,6 +4262,7 @@ async def assign_member(
                         CorporateRoleBinding.scope_kind == "project",
                         CorporateRoleBinding.scope_id == project.id,
                         CorporateRoleBinding.state == "active",
+                        CorporateRoleBinding.origin == "assignment",
                     )
                 )
             ).all()
@@ -3812,6 +4280,8 @@ async def assign_member(
                     scope_kind="project",
                     scope_id=project.id,
                     state="active",
+                    origin="assignment",
+                    coverage="self",
                 )
             )
     db.add_all(bindings)
@@ -4065,3 +4535,418 @@ async def export_audit(
         payload={"count": len(rows)},
     )
     return response
+
+
+_DELEGATION_PERMISSIONS = frozenset(
+    {"member.invite", "member.create", "member.manage", "binding.create", "binding.update"}
+)
+
+
+async def read_delegation(
+    db: AsyncSession, *, ctx: AuthContext, organization_id: str, request_id: str | None
+) -> CorporateDelegationView:
+    """The caller's delegation bound: which roles and coverage they may grant."""
+    organization, _membership = await authorize(
+        db, ctx=ctx, organization_id=organization_id, permission="organization.read"
+    )
+    caller = await _caller_org_permissions(
+        db, organization_id=organization_id, account_id=ctx.account_id
+    )
+    if not caller & _DELEGATION_PERMISSIONS:
+        raise ApiError(ErrorCategory.PERMISSION, "delegation access denied")
+    role_names = set(
+        await db.scalars(
+            select(CorporateRoleRow.name).where(CorporateRoleRow.organization_id == organization_id)
+        )
+    )
+    closures = await role_closure_permissions(db, organization_id=organization_id, roles=role_names)
+    grantable = [
+        CorporateGrantableRole(name=name, permissions=sorted(closures[name]))
+        for name in sorted(closures)
+        if closures[name] <= caller
+    ]
+    descendants = (
+        await db.scalar(
+            select(CorporateRoleBinding.id).where(
+                CorporateRoleBinding.organization_id == organization_id,
+                CorporateRoleBinding.principal_type == "user",
+                CorporateRoleBinding.account_id == ctx.account_id,
+                CorporateRoleBinding.scope_kind == "organization",
+                CorporateRoleBinding.coverage == "descendants",
+                CorporateRoleBinding.state == "active",
+            )
+        )
+    ) is not None
+    await emit_audit(
+        db,
+        actor_account_id=ctx.account_id,
+        organization_id=organization_id,
+        action="delegation.read",
+        target_table="corporate_role_binding",
+        target_id=organization_id,
+        request_id=request_id,
+    )
+    return CorporateDelegationView(
+        organization_id=organization_id,
+        grantable_roles=grantable,
+        descendants_coverage=descendants,
+        authorization_revision=organization.policy_revision,
+    )
+
+
+async def create_permission_grant(
+    db: AsyncSession,
+    *,
+    ctx: AuthContext,
+    organization_id: str,
+    payload: CorporatePermissionGrantRequest,
+    request_id: str | None,
+) -> CorporatePermissionGrantView:
+    fingerprint = mutation_fingerprint(payload.model_dump(mode="json", exclude={"idempotency_key"}))
+    organization, receipt = await authorize_idempotent(
+        db,
+        ctx=ctx,
+        organization_id=organization_id,
+        permission="binding.create",
+        authorization_revision=payload.authorization_revision,
+        idempotency_key=payload.idempotency_key,
+        operation="permission_grant.create",
+        fingerprint=fingerprint,
+        request_id=request_id,
+    )
+    if receipt is not None:
+        return CorporatePermissionGrantView.model_validate(receipt.response_body)
+    if payload.permission not in KNOWN_PERMISSIONS:
+        raise ApiError(ErrorCategory.VALIDATION, "permission is not enforceable")
+    if payload.account_id is not None:
+        if not await _membership_is_active(
+            db, organization_id=organization_id, account_id=payload.account_id
+        ):
+            raise ApiError(ErrorCategory.PERMISSION, "member access denied")
+    else:
+        principal = await db.get(CorporateServicePrincipal, payload.service_principal_id)
+        if principal is None or principal.organization_id != organization_id:
+            raise ApiError(ErrorCategory.PERMISSION, "service principal access denied")
+    scope_id = organization_id if payload.scope_kind == "organization" else payload.scope_id
+    if not await _scope_target_exists(
+        db,
+        organization_id=organization_id,
+        scope_kind=payload.scope_kind,
+        scope_id=payload.scope_id,
+    ):
+        raise ApiError(ErrorCategory.PERMISSION, "grant scope denied")
+    await assert_delegable_permissions(
+        db,
+        organization_id=organization_id,
+        account_id=ctx.account_id,
+        permissions={payload.permission},
+    )
+    duplicate = await db.scalar(
+        select(CorporatePermissionGrant.id).where(
+            CorporatePermissionGrant.organization_id == organization_id,
+            CorporatePermissionGrant.principal_type
+            == ("user" if payload.account_id is not None else "service_principal"),
+            CorporatePermissionGrant.account_id == payload.account_id,
+            CorporatePermissionGrant.service_principal_id == payload.service_principal_id,
+            CorporatePermissionGrant.permission == payload.permission,
+            CorporatePermissionGrant.scope_kind == payload.scope_kind,
+            CorporatePermissionGrant.scope_id == scope_id,
+            CorporatePermissionGrant.state == "active",
+        )
+    )
+    if duplicate is not None:
+        raise ApiError(ErrorCategory.CONFLICT, "permission grant already exists")
+    row = CorporatePermissionGrant(
+        id=new_id("operation"),
+        organization_id=organization_id,
+        principal_type="user" if payload.account_id is not None else "service_principal",
+        account_id=payload.account_id,
+        service_principal_id=payload.service_principal_id,
+        permission=payload.permission,
+        scope_kind=payload.scope_kind,
+        scope_id=scope_id,
+        issuer_account_id=ctx.account_id,
+        state="active",
+    )
+    db.add(row)
+    organization.policy_revision += 1
+    await db.flush()
+    response = _grant_view(row)
+    await store_mutation_receipt(
+        db,
+        organization_id=organization_id,
+        key=payload.idempotency_key,
+        operation="permission_grant.create",
+        fingerprint=fingerprint,
+        response=response,
+    )
+    await emit_audit(
+        db,
+        actor_account_id=ctx.account_id,
+        organization_id=organization_id,
+        action="permission_grant.create",
+        target_table="corporate_permission_grant",
+        target_id=row.id,
+        request_id=request_id,
+    )
+    return response
+
+
+async def list_permission_grants(
+    db: AsyncSession,
+    *,
+    ctx: AuthContext,
+    organization_id: str,
+    account_id: str | None,
+    request_id: str | None,
+) -> CorporatePermissionGrantList:
+    await authorize(db, ctx=ctx, organization_id=organization_id, permission="binding.list")
+    query = select(CorporatePermissionGrant).where(
+        CorporatePermissionGrant.organization_id == organization_id
+    )
+    if account_id is not None:
+        query = query.where(CorporatePermissionGrant.account_id == account_id)
+    rows = list((await db.scalars(query.order_by(CorporatePermissionGrant.id).limit(256))).all())
+    await emit_audit(
+        db,
+        actor_account_id=ctx.account_id,
+        organization_id=organization_id,
+        action="permission_grant.list",
+        target_table="corporate_permission_grant",
+        target_id=organization_id,
+        request_id=request_id,
+    )
+    return CorporatePermissionGrantList(items=[_grant_view(row) for row in rows])
+
+
+async def revoke_permission_grant(
+    db: AsyncSession,
+    *,
+    ctx: AuthContext,
+    organization_id: str,
+    grant_id: str,
+    payload: CorporateDeleteRequest,
+    request_id: str | None,
+) -> CorporatePermissionGrantView:
+    fingerprint = mutation_fingerprint(payload.model_dump(mode="json", exclude={"idempotency_key"}))
+    organization, receipt = await authorize_idempotent(
+        db,
+        ctx=ctx,
+        organization_id=organization_id,
+        permission="binding.delete",
+        authorization_revision=payload.authorization_revision,
+        idempotency_key=payload.idempotency_key,
+        operation="permission_grant.revoke",
+        fingerprint=fingerprint,
+        request_id=request_id,
+    )
+    if receipt is not None:
+        return CorporatePermissionGrantView.model_validate(receipt.response_body)
+    row = await db.scalar(
+        select(CorporatePermissionGrant)
+        .where(
+            CorporatePermissionGrant.organization_id == organization_id,
+            CorporatePermissionGrant.id == grant_id,
+        )
+        .with_for_update()
+    )
+    if row is None:
+        raise ApiError(ErrorCategory.PERMISSION, "permission grant access denied")
+    if row.revision != payload.expected_revision:
+        raise ApiError(ErrorCategory.CONFLICT, "permission grant revision changed")
+    if row.state == "active":
+        row.state = "revoked"
+        row.revision += 1
+        organization.policy_revision += 1
+    response = _grant_view(row)
+    await store_mutation_receipt(
+        db,
+        organization_id=organization_id,
+        key=payload.idempotency_key,
+        operation="permission_grant.revoke",
+        fingerprint=fingerprint,
+        response=response,
+    )
+    await emit_audit(
+        db,
+        actor_account_id=ctx.account_id,
+        organization_id=organization_id,
+        action="permission_grant.revoke",
+        target_table="corporate_permission_grant",
+        target_id=grant_id,
+        request_id=request_id,
+    )
+    return response
+
+
+_ACCESS_SCOPE_KINDS = frozenset(
+    {"organization", "team", "project", "technology", "catalog_object", "member"}
+)
+
+
+async def read_member_access(
+    db: AsyncSession,
+    *,
+    ctx: AuthContext,
+    organization_id: str,
+    account_id: str,
+    scope_kind: str,
+    scope_id: str | None,
+    request_id: str | None,
+) -> CorporateMemberAccess:
+    """One member's access explained: independent bindings, direct grants,
+    private major-line grants on this tenant's objects, and the evaluator's
+    effective set at the requested scope with the exact contributing rows."""
+    organization, _membership = await authorize(
+        db, ctx=ctx, organization_id=organization_id, permission="member.read"
+    )
+    if scope_kind not in _ACCESS_SCOPE_KINDS:
+        raise ApiError(ErrorCategory.VALIDATION, "unsupported access scope kind")
+    if scope_id is not None:
+        if scope_kind == "member":
+            exists = (
+                await db.scalar(
+                    select(OrganizationMembership.id).where(
+                        OrganizationMembership.organization_id == organization_id,
+                        OrganizationMembership.account_id == scope_id,
+                    )
+                )
+            ) is not None
+        elif scope_kind == "catalog_object":
+            exists = (
+                await db.scalar(
+                    select(CatalogIdentity.stable_id).where(
+                        CatalogIdentity.organization_id == organization_id,
+                        CatalogIdentity.stable_id == scope_id,
+                    )
+                )
+            ) is not None
+        else:
+            exists = await _scope_target_exists(
+                db,
+                organization_id=organization_id,
+                scope_kind=scope_kind,
+                scope_id=scope_id,
+            )
+        if not exists:
+            raise ApiError(ErrorCategory.PERMISSION, "access scope denied")
+    membership = await db.scalar(
+        select(OrganizationMembership.id).where(
+            OrganizationMembership.organization_id == organization_id,
+            OrganizationMembership.account_id == account_id,
+        )
+    )
+    if membership is None:
+        raise ApiError(ErrorCategory.NOT_FOUND, "member not found")
+    scope = scope_id or organization_id
+    explained = await explain_effective_permissions(
+        db,
+        organization_id=organization_id,
+        principal_type="user",
+        principal_id=account_id,
+        scope_kind=scope_kind,
+        scope_id=scope_id,
+    )
+    effective_set, records = explained if explained is not None else (frozenset[str](), ())
+    bindings = list(
+        (
+            await db.scalars(
+                select(CorporateRoleBinding)
+                .where(
+                    CorporateRoleBinding.organization_id == organization_id,
+                    CorporateRoleBinding.principal_type == "user",
+                    CorporateRoleBinding.account_id == account_id,
+                )
+                .order_by(CorporateRoleBinding.id)
+            )
+        ).all()
+    )
+    grants = list(
+        (
+            await db.scalars(
+                select(CorporatePermissionGrant)
+                .where(
+                    CorporatePermissionGrant.organization_id == organization_id,
+                    CorporatePermissionGrant.principal_type == "user",
+                    CorporatePermissionGrant.account_id == account_id,
+                )
+                .order_by(CorporatePermissionGrant.id)
+            )
+        ).all()
+    )
+    private_grants = list(
+        (
+            await db.scalars(
+                select(AccessGrant)
+                .join(CatalogIdentity, CatalogIdentity.stable_id == AccessGrant.stable_id)
+                .where(
+                    AccessGrant.grantee_account_id == account_id,
+                    CatalogIdentity.organization_id == organization_id,
+                )
+                .order_by(AccessGrant.id)
+            )
+        ).all()
+    )
+    effective_rows = [
+        CorporateEffectivePermission(
+            permission=permission,
+            scope_kind=cast(
+                "Literal['organization','team','project','technology','catalog_object','member']",
+                scope_kind,
+            ),
+            scope_id=scope,
+            sources=sorted(
+                {
+                    record.role or record.source_id
+                    for record in records
+                    if permission in record.permissions
+                }
+            ),
+            source_records=[
+                CorporatePermissionSource(
+                    kind=record.kind,
+                    source_id=record.source_id,
+                    role=record.role,
+                    origin=record.origin,
+                    scope_kind=record.scope_kind,
+                    scope_id=record.scope_id,
+                )
+                for record in records
+                if permission in record.permissions
+            ],
+        )
+        for permission in sorted(effective_set)
+    ]
+    await emit_audit(
+        db,
+        actor_account_id=ctx.account_id,
+        organization_id=organization_id,
+        action="member_access.read",
+        target_table="organization_membership",
+        target_id=account_id,
+        request_id=request_id,
+    )
+    return CorporateMemberAccess(
+        organization_id=organization_id,
+        account_id=account_id,
+        scope_kind=cast(
+            "Literal['organization','team','project','technology','catalog_object','member']",
+            scope_kind,
+        ),
+        scope_id=scope,
+        bindings=[_binding_view(row) for row in bindings],
+        grants=[_grant_view(row) for row in grants],
+        private_grants=[
+            CorporateMemberPrivateGrant(
+                grant_id=row.id,
+                object_kind=cast("Literal['setup','component']", row.object_kind),
+                stable_id=row.stable_id,
+                major=row.major,
+                state=cast("Literal['active','revoked']", row.state),
+                issuer_account_id=row.owner_account_id,
+            )
+            for row in private_grants
+        ],
+        effective=effective_rows,
+        authorization_revision=organization.policy_revision,
+    )

@@ -54,7 +54,7 @@ docs = [
     "colorama==0.4.6",
     "ghp-import==2.1.0",
     "gitdb==4.0.12",
-    "GitPython==3.1.60",
+    "GitPython==3.1.62",
     "idna==3.20",
     "Jinja2==3.1.6",
     "Markdown==3.10.3",
@@ -94,7 +94,8 @@ default-groups = ["dev"]
 [tool.uv.workspace]
 members = ["packages/*", "apps/*"]
 # apps/web is a Node/bun workspace (ADR-0043), not a Python package; keep it out of uv.
-exclude = ["apps/web"]
+# apps/desktop is a Tauri (Rust/Vite) app (ADR-0219), not a Python package either.
+exclude = ["apps/web", "apps/desktop"]
 
 [tool.uv.sources]
 ai-stp-foundation = { workspace = true }

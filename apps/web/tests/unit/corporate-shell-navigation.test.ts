@@ -84,20 +84,52 @@ it("does not load corporate data for an unauthenticated visitor", async () => {
   mocks.session.mockResolvedValue(null);
   const { GET } = await import("@/app/api/corporate/navigation/route");
   const response = await GET();
-  expect(await response.json()).toEqual({ administration: false });
+  expect(await response.json()).toEqual({ administration: false, pages: [] });
   expect(response.headers.get("Cache-Control")).toBe("no-store, private");
   expect(mocks.context).not.toHaveBeenCalled();
 });
 
+it("shows no Corporate navigation for a session without organization membership", async () => {
+  vi.stubEnv("AI_STP_COMPILED_FEATURE_PROFILE", "corporate_hub");
+  mocks.session.mockResolvedValue({ accountId: "account_test" });
+  mocks.token.mockResolvedValue("session-token");
+  mocks.context.mockResolvedValue(null);
+  const { GET } = await import("@/app/api/corporate/navigation/route");
+  const response = await GET();
+  expect(response.status).toBe(403);
+  expect(await response.json()).toEqual({ administration: false, pages: [] });
+});
+
 it.each([
-  ["audit.list", true],
-  ["team.list", false],
-])("resolves %s authority on the server", async (capability, administration) => {
+  [
+    "audit.list",
+    {
+      administration: true,
+      pages: [
+        "overview",
+        "organization",
+        "administration",
+        "accessMatrix",
+        "roles",
+        "auditJournal",
+        "employeeAccess",
+        "jobTitles",
+        "settings",
+        "security",
+        "dashboard",
+      ],
+    },
+  ],
+  [
+    "team.list",
+    { administration: false, pages: ["overview", "organization", "teams", "dashboard"] },
+  ],
+])("resolves %s authority on the server", async (capability, expected) => {
   vi.stubEnv("AI_STP_COMPILED_FEATURE_PROFILE", "corporate_hub");
   mocks.session.mockResolvedValue({ accountId: "account_test" });
   mocks.token.mockResolvedValue("session-token");
   mocks.context.mockResolvedValue({ capabilities: [capability] });
   const { GET } = await import("@/app/api/corporate/navigation/route");
-  expect(await (await GET()).json()).toEqual({ administration });
+  expect(await (await GET()).json()).toEqual(expected);
   expect(mocks.context).toHaveBeenCalledWith("session-token");
 });

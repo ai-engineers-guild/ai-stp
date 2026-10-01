@@ -26,8 +26,12 @@ async function assertNoDocumentOverflow(page: Page) {
   const size = await page.evaluate(() => ({
     scroll: document.documentElement.scrollWidth,
     client: document.documentElement.clientWidth,
+    overflow: [...document.querySelectorAll("main *")]
+      .filter((element) => element.getBoundingClientRect().right > window.innerWidth)
+      .slice(0, 6)
+      .map((element) => `${element.tagName}.${element.className}`),
   }));
-  expect(size.scroll).toBeLessThanOrEqual(size.client);
+  expect(size.scroll, size.overflow.join("\n")).toBeLessThanOrEqual(size.client);
 }
 
 async function assertDismissAndReturnFocus(page: Page, trigger: Locator, surface: Locator) {

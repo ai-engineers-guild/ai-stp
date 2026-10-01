@@ -4,13 +4,15 @@ import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 
 import { Button } from "@/components/atoms/button";
 import { Link } from "@/lib/i18n/navigation";
-import { Icon } from "@/theme";
+import { Icon, type IconName } from "@/theme";
 
 type Choice = {
   label: string;
-  href: string;
-  active: boolean;
-  icon?: "list" | "cards";
+  href?: string;
+  onSelect?: () => void;
+  active?: boolean;
+  disabled?: boolean;
+  icon?: IconName;
   separatorBefore?: boolean;
 };
 
@@ -19,18 +21,20 @@ export function CatalogChoiceMenu({
   icon,
   options,
   align = "center",
+  variant = "outline",
 }: {
   label: string;
-  icon: "list" | "cards" | "sort";
+  icon: IconName;
+  variant?: "outline" | "ghost";
   align?: "start" | "center" | "end";
   options: Choice[];
 }) {
   return (
-    <DropdownMenu.Root>
+    <DropdownMenu.Root modal={false}>
       <DropdownMenu.Trigger asChild>
         <Button
           type="button"
-          variant="outline"
+          variant={variant}
           size="icon"
           className="h-11 w-11"
           aria-label={label}
@@ -51,17 +55,29 @@ export function CatalogChoiceMenu({
               {option.separatorBefore ? (
                 <DropdownMenu.Separator className="bg-border my-1 h-px" />
               ) : null}
-              <DropdownMenu.Item asChild>
-                <Link
-                  href={option.href}
-                  prefetch={false}
-                  aria-current={option.active ? "true" : undefined}
-                  className="hover:bg-muted focus:bg-muted aria-[current=true]:text-primary flex min-h-10 items-center gap-2 rounded-md px-3 text-sm outline-none"
-                >
-                  {option.icon ? <Icon name={option.icon} size="sm" /> : null}
-                  <span className="flex-1">{option.label}</span>
-                  {option.active ? <Icon name="check" size="sm" /> : null}
-                </Link>
+              <DropdownMenu.Item asChild disabled={Boolean(option.disabled)}>
+                {option.href ? (
+                  <Link
+                    href={option.href}
+                    prefetch={false}
+                    aria-current={option.active ? "true" : undefined}
+                    className="hover:bg-muted focus:bg-muted aria-[current=true]:text-primary flex min-h-10 items-center gap-2 rounded-md px-3 text-sm outline-none"
+                  >
+                    {option.icon ? <Icon name={option.icon} size="sm" /> : null}
+                    <span className="flex-1">{option.label}</span>
+                    {option.active ? <Icon name="check" size="sm" /> : null}
+                  </Link>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={option.onSelect}
+                    className="hover:bg-muted focus:bg-muted flex min-h-10 w-full items-center gap-2 rounded-md px-3 text-left text-sm outline-none disabled:opacity-50"
+                    disabled={option.disabled}
+                  >
+                    {option.icon ? <Icon name={option.icon} size="sm" /> : null}
+                    {option.label}
+                  </button>
+                )}
               </DropdownMenu.Item>
             </div>
           ))}

@@ -161,47 +161,68 @@ async def catalog_object_capabilities(
     ):
         capabilities.add("delete")
 
+    if await resolves_catalog_ownership(
+        db,
+        organization_id=organization_id,
+        object_kind=object_kind,
+        stable_id=stable_id,
+        account_id=account_id,
+    ):
+        capabilities |= {"edit", "edit_presentation"}
+    return sorted(capabilities)
+
+
+async def resolves_catalog_ownership(
+    db: AsyncSession,
+    *,
+    organization_id: str,
+    object_kind: str,
+    stable_id: str,
+    account_id: str,
+) -> bool:
+    """Whether the account is the object's current operational owner.
+
+    The `CorporateCatalogOwnership` record resolves through the account itself
+    for employees, team lead for team owners, the project owner's team lead,
+    and the technology owner for technology owners — the same chain
+    `catalog_object_capabilities` applies."""
     row = await db.get(CorporateCatalogOwnership, (organization_id, object_kind, stable_id))
     owner_id = (row.owner_id or row.owner_account_id) if row is not None else None
-    if row is not None and owner_id is not None:
-        grant = False
-        if row.owner_kind == "employee":
-            grant = owner_id == account_id
-        elif row.owner_kind == "team":
-            grant = (
-                await db.scalar(
-                    select(CorporateTeamMember.team_id).where(
-                        CorporateTeamMember.organization_id == organization_id,
-                        CorporateTeamMember.team_id == owner_id,
-                        CorporateTeamMember.account_id == account_id,
-                        CorporateTeamMember.role == "lead",
-                    )
+    if row is None or owner_id is None:
+        return False
+    if row.owner_kind == "employee":
+        return owner_id == account_id
+    if row.owner_kind == "team":
+        return (
+            await db.scalar(
+                select(CorporateTeamMember.team_id).where(
+                    CorporateTeamMember.organization_id == organization_id,
+                    CorporateTeamMember.team_id == owner_id,
+                    CorporateTeamMember.account_id == account_id,
+                    CorporateTeamMember.role == "lead",
                 )
-                is not None
             )
-        elif row.owner_kind == "project":
-            grant = (
-                await db.scalar(
-                    select(ProjectTeamRelation.team_id).where(
-                        ProjectTeamRelation.organization_id == organization_id,
-                        ProjectTeamRelation.project_id == owner_id,
-                        ProjectTeamRelation.role == "owner",
-                        ProjectTeamRelation.state == "current",
-                        ProjectTeamRelation.team_id.in_(_led_teams(organization_id, account_id)),
-                    )
+        ) is not None
+    if row.owner_kind == "project":
+        return (
+            await db.scalar(
+                select(ProjectTeamRelation.team_id).where(
+                    ProjectTeamRelation.organization_id == organization_id,
+                    ProjectTeamRelation.project_id == owner_id,
+                    ProjectTeamRelation.role == "owner",
+                    ProjectTeamRelation.state == "current",
+                    ProjectTeamRelation.team_id.in_(_led_teams(organization_id, account_id)),
                 )
-                is not None
             )
-        elif row.owner_kind == "technology":
-            grant = await is_technology_owner(
-                db,
-                organization_id=organization_id,
-                technology_id=owner_id,
-                account_id=account_id,
-            )
-        if grant:
-            capabilities |= {"edit", "edit_presentation"}
-    return sorted(capabilities)
+        ) is not None
+    if row.owner_kind == "technology":
+        return await is_technology_owner(
+            db,
+            organization_id=organization_id,
+            technology_id=owner_id,
+            account_id=account_id,
+        )
+    return False
 
 
 async def _has_published_version(db: AsyncSession, *, organization_id: str, stable_id: str) -> bool:

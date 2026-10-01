@@ -1,0 +1,22 @@
+{
+  "$id": "urn:ai-stp:schema:v1:corporate-permission-grant-query",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "account_id": {
+      "anyOf": [
+        {
+          "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Account Id"
+    }
+  },
+  "title": "CorporatePermissionGrantQuery",
+  "type": "object"
+}
