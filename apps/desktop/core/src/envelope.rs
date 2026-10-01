@@ -38,6 +38,31 @@ pub struct Continuation {
     pub actor: Option<String>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ContinuationActor {
+    /// The app may run `argv` itself.
+    Cli,
+    /// A live executor owns progress — poll status, never re-run.
+    External,
+    /// A human decision/input is required (e.g. `task answer`).
+    Human,
+}
+
+impl Continuation {
+    /// The actor the contract expects to drive this continuation.
+    /// An unknown/absent actor is treated conservatively as `Human` —
+    /// we show it as a prompt rather than auto-running an argv we were
+    /// not explicitly handed.
+    pub fn actor_kind(&self) -> ContinuationActor {
+        match self.actor.as_deref() {
+            Some("cli") => ContinuationActor::Cli,
+            Some("external") => ContinuationActor::External,
+            _ => ContinuationActor::Human,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Envelope {
     pub schema_version: u64,

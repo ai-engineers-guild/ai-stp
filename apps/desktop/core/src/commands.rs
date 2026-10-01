@@ -4,10 +4,10 @@
 //! `parameters` of a `CommandDescriptor`, honoring `parameter_rules`.
 //! Undeclared options are refused up front.
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap};
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CommandParameter {
     pub name: String,
     pub kind: String, // "option" | "argument"
@@ -21,7 +21,7 @@ pub struct CommandParameter {
     pub choices: Vec<String>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ParameterRule {
     pub kind: String, // exactly_one | at_most_one | required_when | forbidden_when
     #[serde(default)]
@@ -34,7 +34,7 @@ pub struct ParameterRule {
     pub when_values: Vec<String>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CommandDescriptor {
     /// Command words, e.g. `["install", "plan"]`. The wire form is a list;
     /// callers address commands by the space-joined path.
@@ -59,7 +59,7 @@ impl CommandDescriptor {
     }
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MachineHelp {
     pub cli_version: String,
     pub registry_digest: String,
@@ -92,6 +92,7 @@ impl std::fmt::Display for BuildError {
 
 impl std::error::Error for BuildError {}
 
+#[derive(Clone)]
 pub struct CommandRegistry {
     by_path: HashMap<String, CommandDescriptor>,
     pub registry_digest: String,
@@ -111,6 +112,13 @@ impl CommandRegistry {
 
     pub fn descriptor(&self, path: &str) -> Option<&CommandDescriptor> {
         self.by_path.get(path)
+    }
+
+    /// All descriptors, sorted by path — deterministic UI ordering.
+    pub fn all_descriptors(&self) -> Vec<CommandDescriptor> {
+        let mut v: Vec<_> = self.by_path.values().cloned().collect();
+        v.sort_by(|a, b| a.path_key().cmp(&b.path_key()));
+        v
     }
 
     /// Build argv for `path` from a caller-supplied parameter map.
