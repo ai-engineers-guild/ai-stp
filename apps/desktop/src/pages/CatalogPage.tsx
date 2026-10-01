@@ -31,8 +31,8 @@ export default function CatalogPage() {
   return (
     <div className="space-y-5">
       <header>
-        <h1 className="text-xl font-bold">Catalog</h1>
-        <p className="text-sm opacity-60">
+        <h1 className="page-title">Catalog</h1>
+        <p className="text-sm text-muted-foreground">
           Browse the registry through the CLI — private items use your CLI credentials.
         </p>
       </header>
@@ -41,7 +41,7 @@ export default function CatalogPage() {
         <select
           value={kind}
           onChange={(e) => setKind(e.target.value)}
-          className="rounded-lg border border-current/20 bg-transparent px-2 py-1.5 text-sm"
+          className="rounded-lg border border-input bg-transparent px-2 py-1.5 text-sm"
         >
           {KINDS.map((k) => (
             <option key={k} value={k}>{k}</option>
@@ -52,9 +52,9 @@ export default function CatalogPage() {
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && void search()}
           placeholder="Search…"
-          className="w-64 rounded-lg border border-current/20 bg-transparent px-3 py-1.5 text-sm"
+          className="w-64 rounded-lg border border-input bg-transparent px-3 py-1.5 text-sm"
         />
-        <label className="flex items-center gap-1.5 text-xs opacity-70">
+        <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
           <input
             type="checkbox"
             checked={experimental}
@@ -64,7 +64,7 @@ export default function CatalogPage() {
         </label>
         <button
           onClick={() => void search()}
-          className="flex items-center gap-2 rounded-lg bg-brand px-4 py-1.5 text-sm font-semibold text-white"
+          className="btn-primary"
         >
           <Search size={14} /> Search
         </button>
@@ -74,25 +74,25 @@ export default function CatalogPage() {
       {res && !res.ok && <ResultMeta r={res} />}
 
       {Array.isArray(items) && items.length > 0 && (
-        <ul className="divide-y divide-current/10 rounded-xl border border-current/15">
+        <ul className="divide-y divide-border card">
           {items.map((it, i) => {
             const id = String(it.stable_id ?? it.id ?? "");
             return (
               <li key={i}>
                 <button
                   onClick={() => void show(id)}
-                  className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-black/5 dark:hover:bg-white/5"
+                  className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-accent dark:hover:bg-accent"
                 >
                   <div>
-                    <p className="text-sm font-semibold">{String(it.title ?? it.name ?? id)}</p>
-                    <p className="font-mono text-xs opacity-60">{id}</p>
+                    <p className="section-title">{String(it.title ?? it.name ?? id)}</p>
+                    <p className="font-mono text-xs text-muted-foreground">{id}</p>
                   </div>
                   <div className="flex gap-1 text-[10px]">
                     {Boolean(it.author_verified) && (
-                      <span className="rounded bg-emerald-500/15 px-1.5 py-0.5 text-emerald-600">author✓</span>
+                      <span className="rounded bg-success/15 px-1.5 py-0.5 text-success">author✓</span>
                     )}
                     {Boolean(it.component_verified) && (
-                      <span className="rounded bg-sky-500/15 px-1.5 py-0.5 text-sky-600">component✓</span>
+                      <span className="rounded bg-primary/15 px-1.5 py-0.5 text-primary">component✓</span>
                     )}
                     {it.lane != null && (
                       <span className="rounded bg-black/10 px-1.5 py-0.5 dark:bg-white/10">
@@ -116,7 +116,7 @@ export default function CatalogPage() {
 
       {detail && (
         <section className="space-y-2">
-          <h2 className="text-sm font-semibold">Detail</h2>
+          <h2 className="section-title">Detail</h2>
           <ResultMeta r={detail} />
           {detail.data && <Json v={detail.data} />}
         </section>

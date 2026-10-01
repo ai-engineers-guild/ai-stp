@@ -26,7 +26,26 @@ holds user credentials.
   Catalog (registry search/detail via CLI), Tasks (intents + status
   polling), Install (plan → digest review → apply), Targets
   (status/backups/diff/recover), Commands (live machine-help browser),
-  Settings (scope selector: All is read-only aggregation).
+  Debug (IPC trace, resolved engine, envelope inspector, diagnostic
+  bundle), Settings (scope selector: All is read-only aggregation).
+
+## Design system
+
+Tokens and rules are mirrored from `apps/web` (`docs/product/DESIGN.md`,
+`apps/web/src/theme/tokens.json`): IBM Plex Sans/Mono (vendored woff2,
+unicode-range split), semantic HSL channels under `:root`/`.dark`,
+component primitives (`.card`, `.btn-primary`, `.input`, `.chip`, …) in
+`src/index.css`. Raw hex in components is prohibited; accent orange is
+reserved for CTAs and active markers. Light/dark follows the OS with a
+manual toggle in the sidebar.
+
+## Debug mode
+
+Every IPC call is recorded (command, args, latency, ok/error_code, full
+envelope) in a bounded ring buffer — open the Debug page to inspect the
+trace, expand any call's raw envelope, run a read-gated probe command, or
+copy a redacted diagnostic bundle. `debug_info` reports which CLI binary
+was resolved and from where. The sidebar badge counts failed calls.
 
 ## Build and test
 

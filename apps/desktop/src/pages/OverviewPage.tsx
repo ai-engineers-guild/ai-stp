@@ -28,36 +28,36 @@ export default function OverviewPage() {
     <div className="space-y-5">
       <header className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold">Overview</h1>
-          <p className="text-sm opacity-60">CLI engine health and environment checks.</p>
+          <h1 className="page-title">Overview</h1>
+          <p className="text-sm text-muted-foreground">CLI engine health and environment checks.</p>
         </div>
         <button
           onClick={() => void refresh()}
-          className="flex items-center gap-2 rounded-lg border border-current/20 px-3 py-1.5 text-sm hover:bg-black/5 dark:hover:bg-white/5"
+          className="flex items-center gap-2 rounded-lg border border-input px-3 py-1.5 text-sm hover:bg-accent dark:hover:bg-accent"
         >
           <RefreshCw size={14} /> Refresh
         </button>
       </header>
 
       <section className="grid grid-cols-1 gap-3 md:grid-cols-3">
-        <div className="rounded-xl border border-current/15 p-4">
-          <p className="text-xs uppercase opacity-50">CLI engine</p>
+        <div className="card p-4">
+          <p className="text-xs uppercase text-muted-foreground">CLI engine</p>
           <p className="mt-1 text-lg font-semibold">
             {cliOk === null ? "…" : cliOk ? cliVersion || "connected" : "not found"}
           </p>
-          <p className="mt-1 text-xs opacity-60">
+          <p className="mt-1 text-xs text-muted-foreground">
             {cliOk ? "The app drives operations through ai-stp --json" : "Install ai-stp or bundle it as a sidecar"}
           </p>
         </div>
-        <div className="rounded-xl border border-current/15 p-4">
-          <p className="text-xs uppercase opacity-50">Command registry</p>
+        <div className="card p-4">
+          <p className="text-xs uppercase text-muted-foreground">Command registry</p>
           <p className="mt-1 truncate font-mono text-xs">{registryDigest ?? "—"}</p>
-          <p className="mt-1 text-xs opacity-60">Digest-keyed cache of machine descriptors</p>
+          <p className="mt-1 text-xs text-muted-foreground">Digest-keyed cache of machine descriptors</p>
         </div>
-        <div className="rounded-xl border border-current/15 p-4">
-          <p className="text-xs uppercase opacity-50">Doctor</p>
+        <div className="card p-4">
+          <p className="text-xs uppercase text-muted-foreground">Doctor</p>
           <p className="mt-1 text-lg font-semibold">{doctor ? (doctor.ok ? "healthy" : "issues") : "…"}</p>
-          <p className="mt-1 text-xs opacity-60">Environment and dependency checks</p>
+          <p className="mt-1 text-xs text-muted-foreground">Environment and dependency checks</p>
         </div>
       </section>
 
@@ -65,7 +65,7 @@ export default function OverviewPage() {
 
       {device?.data && (
         <section>
-          <h2 className="mb-2 flex items-center gap-2 text-sm font-semibold">
+          <h2 className="mb-2 flex items-center gap-2 section-title">
             <Activity size={14} /> Device identity
           </h2>
           <Json v={device.data} />
@@ -75,7 +75,7 @@ export default function OverviewPage() {
       {caps && !caps.ok && <ResultMeta r={caps} />}
       {doctor?.data && (
         <section>
-          <h2 className="mb-2 text-sm font-semibold">Checks</h2>
+          <h2 className="mb-2 section-title">Checks</h2>
           <Json v={doctor.data} />
         </section>
       )}

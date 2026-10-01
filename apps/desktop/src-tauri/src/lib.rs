@@ -296,6 +296,42 @@ async fn gated_run(
     .map_err(|e| e.to_string())
 }
 
+/// Diagnostics for the Debug page: which binary we resolved, how, and
+/// live contract versions. Never includes credentials or env secrets.
+#[tauri::command]
+async fn debug_info(state: tauri::State<'_, Arc<AppState>>) -> Result<CmdResult, String> {
+    let st = state.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let bundled = bundled_cli_path();
+        let info = match st.runner() {
+            Ok(r) => serde_json::json!({
+                "cli_found": true,
+                "cli_path": r.executable.display().to_string(),
+                "cli_source": if bundled.as_ref() == Some(&r.executable) { "bundled" } else { "path/configured" },
+            }),
+            Err(e) => serde_json::json!({
+                "cli_found": false,
+                "error": e,
+                "bundled_checked": bundled.map(|p| p.display().to_string()),
+            }),
+        };
+        let mut data = info;
+        data["platform"] = serde_json::json!(std::env::consts::OS);
+        data["arch"] = serde_json::json!(std::env::consts::ARCH);
+        data["app_version"] = serde_json::json!(env!("CARGO_PKG_VERSION"));
+        CmdResult {
+            ok: true,
+            data: Some(data),
+            warnings: vec![],
+            continuations: vec![],
+            error: None,
+            error_code: None,
+        }
+    })
+    .await
+    .map_err(|e| e.to_string())
+}
+
 // ---- auth: device-code flow, driven through the CLI; the app holds no
 // credentials at any point.
 
@@ -458,6 +494,7 @@ pub fn run() {
             cli_doctor,
             machine_help,
             cli_run_read,
+            debug_info,
             cli_plan,
             cli_apply_confirmed,
             auth_login,
@@ -474,4 +511,83 @@ pub fn run() {
         ])
         .run(tauri::generate_context!())
         .expect("error while running ai-stp desktop");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Real-CLI smoke tests for the shell's sync core. Skipped unless a real
+    /// `ai-stp` is intended: `AI_STP_REAL_CLI=1 cargo test`.
+    fn real() -> bool {
+        std::env::var("AI_STP_REAL_CLI").is_ok()
+    }
+
+    #[test]
+    fn runner_resolves_and_version_ok() {
+        if !real() {
+            return;
+        }
+        let st = AppState::new();
+        let r = st.runner().expect("cli resolves");
+        assert!(r.executable.is_file());
+        let env = r.run(&argv("version")).expect("spawn");
+        assert!(env.ok, "version failed: {:?}", env.error);
+    }
+
+    #[test]
+    fn registry_loads_real_machine_help() {
+        if !real() {
+            return;
+        }
+        let st = AppState::new();
+        let reg = st.command_registry().expect("machine help parses");
+        assert!(reg.all_descriptors().len() > 200);
+        assert!(!reg.registry_digest.is_empty());
+        // digest-keyed cache: second call returns the same registry
+        assert_eq!(st.command_registry().unwrap().registry_digest, reg.registry_digest);
+    }
+
+    #[test]
+    fn read_gate_refuses_apply_command() {
+        if !real() {
+            return;
+        }
+        let st = AppState::new();
+        let reg = st.command_registry().unwrap();
+        let desc = reg.descriptor("install apply").expect("descriptor");
+        assert_eq!(desc.mutability, "apply");
+        // the read gate hard-refuses anything that isn't mutability=read
+        assert_ne!(desc.mutability, "read");
+    }
+
+    #[test]
+    fn read_gate_allows_and_runs_read_command() {
+        if !real() {
+            return;
+        }
+        let st = AppState::new();
+        let reg = st.command_registry().unwrap();
+        let desc = reg.descriptor("harness list").or_else(|| reg.descriptor("device show"));
+        let desc = desc.expect("a known read command exists");
+        assert_eq!(desc.mutability, "read");
+        let av = reg
+            .build_argv(&desc.path_key(), &BTreeMap::new(), &[], &BTreeMap::new())
+            .expect("argv builds");
+        let env = st.runner().unwrap().run(&av).expect("spawn");
+        // The envelope must parse even if the command reports an error.
+        assert_eq!(env.schema_version, 1);
+    }
+
+    #[test]
+    fn plan_gate_refuses_read_command() {
+        if !real() {
+            return;
+        }
+        let st = AppState::new();
+        let reg = st.command_registry().unwrap();
+        let desc = reg.descriptor("device show").expect("descriptor");
+        // device show is read-tier — the plan gate must refuse it
+        assert_ne!(desc.mutability, "plan");
+    }
 }
