@@ -278,7 +278,11 @@ vendored provider-verifier environment
 (`apps/cli/src/ai_stp_cli/provider/verifier-requirements.txt`), and the
 scanner venv lock (`scripts/safety/requirements.lock`). All eight always
 report: the script exits nonzero at the end if any one of them trips rather
-than aborting at the first advisory.
+than aborting at the first advisory. An advisory with no reachable fix is
+excepted only in an `osv-scanner.toml` beside the one lockfile it concerns
+(`apps/web`, `docs_scripts`, `apps/desktop/src-tauri`), each entry carrying a
+reason and an `ignoreUntil` date, so an exception expires instead of outliving
+its cause.
 
 ## Frontend (`apps/web`)
 

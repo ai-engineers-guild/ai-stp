@@ -1,0 +1,12 @@
+# OSV-scanner exceptions for this app's bun.lock only.
+#
+# braces has no release after the affected 3.0.3, so nothing in the lock can
+# move. Here it is reached only through eslint-config-next (a devDependency):
+# eslint-config-next -> @next/eslint-plugin-next -> fast-glob -> micromatch ->
+# braces, which expands lint globs written in this repository, never request
+# input, and is not part of the served Next.js app. Re-check for a patched
+# braces on the ignoreUntil date.
+[[IgnoredVulns]]
+id = "GHSA-vfj7-8cjw-p6xm"
+ignoreUntil = 2026-11-03
+reason = "braces <=3.0.3 stack-exhaustion DoS on attacker-supplied nested patterns (CVE-2026-93687); no fixed release exists; reached only via the eslint-config-next devDependency expanding repository-authored globs, not the served app; re-check for a patched braces by the ignoreUntil date"
