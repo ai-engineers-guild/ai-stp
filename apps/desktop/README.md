@@ -88,16 +88,21 @@ release. Bundles are unsigned — signing/notarization is a separate track.
 
 ## Requirements
 
-The app needs the `ai-stp` CLI at runtime. Resolution order: a bundled
-`ai-stp`/`ai-stp.exe` next to the app binary, then a configured path, then
-PATH. A pinned path that is missing is an error, not a silent fallback.
-Install it with `uv tool install ai-stp-cli`.
+Release bundles carry the CLI inside: `scripts/build-cli-sidecar.sh`
+freezes `ai-stp` with PyInstaller into `src-tauri/sidecar/ai-stp-<triple>`,
+which Tauri `bundle.externalBin` installs next to the app executable —
+the resolver's bundled-path tier finds it first, so no separate install
+is required. For development, resolution falls back to a configured path
+and then PATH (`uv tool install ai-stp-cli`); a pinned path that is
+missing is an error, not a silent fallback.
 
 ## Not yet done
 
-- CLI distribution as a pinned sidecar inside the bundle (D1) — currently
-  the CLI must be installed separately; the resolver is ready for a
-  bundled binary.
+- Signed/notarized bundles — needs signing certificates and notarization
+  credentials; `SHA256SUMS` in each release covers integrity until then.
 - Native Rust HTTP catalog reads against `/v1` (the CLI proxies catalog
   traffic today, which also covers private acquisitions on its own
   credentials — deliberate, not a gap).
+- Per-target mutation parallelism — mutations serialize on one mutex
+  because the CLI journal is global state; targeted parallelism would
+  not make journal writes any safer.

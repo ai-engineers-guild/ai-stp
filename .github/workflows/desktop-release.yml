@@ -25,6 +25,7 @@ concurrency:
 
 env:
   BUN_VERSION: "1.4.2"
+  UV_VERSION: "0.12.18"
 
 jobs:
   guard:
@@ -99,6 +100,15 @@ jobs:
           cargo fmt --check
           cargo clippy --all-targets -- -D warnings
           cargo test
+      - name: Install pinned uv
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash .github/scripts/install-uv.sh "${UV_VERSION}" "${RUNNER_TEMP}/uv"
+          echo "${RUNNER_TEMP}/uv" >> "${GITHUB_PATH}"
+      - name: Build the bundled CLI sidecar
+        shell: bash
+        run: bash apps/desktop/scripts/build-cli-sidecar.sh
       - name: Tauri build
         working-directory: apps/desktop
         shell: bash
@@ -163,11 +173,10 @@ jobs:
         run: |
           set -euo pipefail
           cat > "${RUNNER_TEMP}/NOTES.md" <<'NOTES'
-          Desktop application over the ai-stp CLI (ADR-0222).
-
-          **Requires the `ai-stp` CLI** installed separately
-          (`uv tool install ai-stp-cli`); the app resolves it next to the
-          binary first, then on PATH.
+          Desktop application over the ai-stp CLI (ADR-0222). The CLI is
+          bundled inside the app (PyInstaller sidecar via
+          `bundle.externalBin`) — no separate install is needed; a
+          configured path or PATH `ai-stp` still works in development.
 
           Bundles are unsigned: macOS will ask to allow the app in
           Privacy & Security, Windows SmartScreen will warn, and Linux
