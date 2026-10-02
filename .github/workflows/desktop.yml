@@ -25,6 +25,7 @@ concurrency:
 env:
   NODE_VERSION: "24"
   BUN_VERSION: "1.4.2"
+  UV_VERSION: "0.12.18"
 
 jobs:
   desktop:
@@ -72,6 +73,15 @@ jobs:
           cargo fmt --check
           cargo clippy --all-targets -- -D warnings
           cargo test
+      - name: Install pinned uv
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash .github/scripts/install-uv.sh "${UV_VERSION}" "${RUNNER_TEMP}/uv"
+          echo "${RUNNER_TEMP}/uv" >> "${GITHUB_PATH}"
+      - name: Build the bundled CLI sidecar
+        shell: bash
+        run: bash apps/desktop/scripts/build-cli-sidecar.sh
       - name: Tauri build
         working-directory: apps/desktop
         shell: bash
