@@ -272,9 +272,11 @@ full `just check` remains the CI gate.
 over the web lockfile and `scripts/safety/scan_lockfile.sh`, which fetches the
 pinned `osv-scanner` (checksum-verified from its own release SHA256SUMS) and
 scans every committed lockfile — `uv.lock`, `apps/web/bun.lock`,
-`docs_scripts/bun.lock`, the vendored provider-verifier environment
+`docs_scripts/bun.lock`, `apps/desktop/bun.lock`, the desktop Rust crates
+(`apps/desktop/core/Cargo.lock`, `apps/desktop/src-tauri/Cargo.lock`), the
+vendored provider-verifier environment
 (`apps/cli/src/ai_stp_cli/provider/verifier-requirements.txt`), and the
-scanner venv lock (`scripts/safety/requirements.lock`). All five always
+scanner venv lock (`scripts/safety/requirements.lock`). All eight always
 report: the script exits nonzero at the end if any one of them trips rather
 than aborting at the first advisory.
 

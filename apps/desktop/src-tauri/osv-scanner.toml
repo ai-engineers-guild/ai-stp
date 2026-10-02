@@ -1,0 +1,16 @@
+# OSV-scanner exceptions for this crate's Cargo.lock only.
+#
+# Both findings sit in the GTK3 stack tauri 2 pins on Linux
+# (gtk/webkit2gtk-4.1 -> glib/glib-macros/gtk3-macros 0.18.x); none of them
+# is reachable inside the declared ranges, and ai-stp-desktop calls neither
+# affected API. Re-evaluate when tauri moves to GTK4, or on the ignoreUntil
+# date, whichever comes first.
+[[IgnoredVulns]]
+id = "GHSA-wrw7-89jp-8q8g"
+ignoreUntil = 2027-01-03
+reason = "glib 0.18.x VariantStrIter unsoundness (RUSTSEC-2024-0429); fixed only in glib 0.20, which tauri 2's GTK3/webkit2gtk-4.1 Linux stack does not accept; ai-stp-desktop has no direct glib or VariantStrIter use; re-evaluate when tauri moves to GTK4"
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2024-0370"
+ignoreUntil = 2027-01-03
+reason = "proc-macro-error 1.0.4 unmaintained; pulled only by glib-macros 0.18.5 and gtk3-macros 0.18.2 in the same tauri-pinned GTK3 stack, so it cannot move independently; re-evaluate when tauri moves to GTK4"
