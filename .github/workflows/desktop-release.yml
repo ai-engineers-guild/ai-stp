@@ -178,7 +178,10 @@ jobs:
           - Windows: `.msi` / `-setup.exe`
           NOTES
           sed -i 's/^          //' "${RUNNER_TEMP}/NOTES.md"
-          gh release create "desktop-v${VERSION}" --verify-tag \
+          # No checkout in this job: name the repository explicitly, gh
+          # cannot resolve it from a missing .git directory.
+          gh release create "desktop-v${VERSION}" \
+            --repo "${{ github.repository }}" --verify-tag \
             --title "ai-stp desktop ${VERSION}" \
             --notes-file "${RUNNER_TEMP}/NOTES.md" \
             -- *
