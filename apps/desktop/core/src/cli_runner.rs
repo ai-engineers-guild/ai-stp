@@ -449,7 +449,7 @@ mod tests {
         env.iter()
             .filter(|(k, _)| k.to_str() == Some(name))
             .map(|(_, v)| v.to_string_lossy().into_owned())
-            .last()
+            .next_back()
     }
 
     /// The Windows-bundle regression: TMP/TEMP/USERPROFILE/TMPDIR must be
