@@ -46,13 +46,15 @@ impl CmdResult {
 }
 
 /// Shared shell state: the CLI runner, the cached command registry keyed
-/// by `registry_digest`, and a mutation mutex serializing plan/apply work.
+/// by `registry_digest`, and a mutation mutex serializing every write —
+/// plan/apply, task-engine steps, and credential mutations.
 struct AppState {
     runner: Mutex<Option<CliRunner>>,
     registry: Mutex<Option<CommandRegistry>>,
     /// Two mutating runs in flight could interleave writes against the same
-    /// target or the CLI's own journal — plan/apply hold this for the whole
-    /// run so mutations are ordered, not concurrent.
+    /// target or the CLI's own journal — every mutating command holds this
+    /// for the whole run so mutations are ordered, not concurrent. Read
+    /// commands stay lock-free.
     mutation_lock: Mutex<()>,
 }
 
@@ -137,6 +139,17 @@ fn run_cli(state: &AppState, args: &[String]) -> CmdResult {
         },
         Err(e) => CmdResult::failed("AI_STP_NOT_FOUND", e),
     }
+}
+
+/// Mutating run: holds the mutation mutex for the whole run so concurrent
+/// task-engine steps and plan/apply cannot interleave writes against the
+/// same target or the CLI journal.
+fn run_cli_mutating(state: &AppState, args: &[String]) -> CmdResult {
+    let _mutation = match state.mutation_lock.lock() {
+        Ok(g) => g,
+        Err(_) => return CmdResult::failed("AI_STP_TRANSPORT", "mutation lock poisoned"),
+    };
+    run_cli(state, args)
 }
 
 fn argv(path: &str) -> Vec<String> {
@@ -306,15 +319,7 @@ async fn gated_run(
             );
         }
         match reg.build_argv(&path, &values, &flags, &BTreeMap::new()) {
-            Ok(av) => {
-                let _mutation = match st.mutation_lock.lock() {
-                    Ok(g) => g,
-                    Err(_) => {
-                        return CmdResult::failed("AI_STP_TRANSPORT", "mutation lock poisoned")
-                    }
-                };
-                run_cli(&st, &av)
-            }
+            Ok(av) => run_cli_mutating(&st, &av),
             Err(e) => CmdResult::failed("AI_STP_VALIDATION_ERROR", e),
         }
     })
@@ -368,7 +373,7 @@ async fn auth_login(
 ) -> Result<CmdResult, String> {
     let st = state.inner().clone();
     tauri::async_runtime::spawn_blocking(move || {
-        run_cli(
+        run_cli_mutating(
             &st,
             &["auth".into(), "login".into(), "--provider".into(), provider],
         )
@@ -388,7 +393,7 @@ async fn auth_complete(
         if wait {
             a.push("--wait".into());
         }
-        run_cli(&st, &a)
+        run_cli_mutating(&st, &a)
     })
     .await
     .map_err(|e| e.to_string())
@@ -405,7 +410,7 @@ async fn auth_status(state: tauri::State<'_, Arc<AppState>>) -> Result<CmdResult
 #[tauri::command]
 async fn auth_logout(state: tauri::State<'_, Arc<AppState>>) -> Result<CmdResult, String> {
     let st = state.inner().clone();
-    tauri::async_runtime::spawn_blocking(move || run_cli(&st, &argv("auth logout")))
+    tauri::async_runtime::spawn_blocking(move || run_cli_mutating(&st, &argv("auth logout")))
         .await
         .map_err(|e| e.to_string())
 }
@@ -491,7 +496,7 @@ async fn task_start(
     let st = state.inner().clone();
     tauri::async_runtime::spawn_blocking(move || {
         let key = idem_key(&format!("desktop-{intent}"));
-        run_cli(
+        run_cli_mutating(
             &st,
             &[
                 "task".into(),
@@ -535,7 +540,7 @@ async fn task_answer(
 ) -> Result<CmdResult, String> {
     let st = state.inner().clone();
     tauri::async_runtime::spawn_blocking(move || {
-        run_cli(
+        run_cli_mutating(
             &st,
             &[
                 "task".into(),
@@ -565,7 +570,7 @@ async fn task_continue(
 ) -> Result<CmdResult, String> {
     let st = state.inner().clone();
     tauri::async_runtime::spawn_blocking(move || {
-        run_cli(
+        run_cli_mutating(
             &st,
             &[
                 "task".into(),
@@ -589,7 +594,7 @@ async fn task_cancel(
 ) -> Result<CmdResult, String> {
     let st = state.inner().clone();
     tauri::async_runtime::spawn_blocking(move || {
-        run_cli(
+        run_cli_mutating(
             &st,
             &[
                 "task".into(),

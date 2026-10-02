@@ -93,3 +93,6 @@ apps/web/public/catalog-art/*.png
 
 # Local ai-stp project-link state (created by `task`/project link runs)
 .ai-stp/
+
+# Desktop: PyInstaller-built CLI sidecar, rebuilt by build-cli-sidecar.sh
+apps/desktop/src-tauri/sidecar/
