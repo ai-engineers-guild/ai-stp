@@ -15,6 +15,7 @@ version: 2
 updates:
   - package-ecosystem: github-actions
     directory: /
+    target-branch: dev
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
@@ -27,6 +28,7 @@ updates:
       default-days: 7
   - package-ecosystem: bun
     directory: /docs_scripts
+    target-branch: dev
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
@@ -40,6 +42,7 @@ updates:
       semver-major-days: 14
   - package-ecosystem: bun
     directory: /apps/web
+    target-branch: dev
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
@@ -50,6 +53,7 @@ updates:
       semver-major-days: 14
   - package-ecosystem: uv
     directory: /
+    target-branch: dev
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
@@ -60,6 +64,7 @@ updates:
       semver-major-days: 14
   - package-ecosystem: bun
     directory: /apps/desktop
+    target-branch: dev
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
@@ -73,6 +78,7 @@ updates:
   # per entry, so both are listed.
   - package-ecosystem: cargo
     directory: /apps/desktop/core
+    target-branch: dev
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
@@ -83,6 +89,7 @@ updates:
       semver-major-days: 14
   - package-ecosystem: cargo
     directory: /apps/desktop/src-tauri
+    target-branch: dev
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
