@@ -8,12 +8,13 @@ import { useDebug } from "../store";
  *  CLI binary, and a raw-envelope inspector. Nothing here writes — the
  *  inspector is gated to mutability=read on the shell side anyway. */
 export default function DebugPage() {
-  const { log, clear } = useDebug();
+  const { log, clear, debugMode } = useDebug();
   const [info, setInfo] = useState<CmdResult | null>(null);
   const [probe, setProbe] = useState("version");
   const [probeResult, setProbeResult] = useState<CmdResult | null>(null);
   const [expanded, setExpanded] = useState<number | null>(null);
   const [copied, setCopied] = useState(false);
+  const [copyError, setCopyError] = useState(false);
 
   useEffect(() => {
     void (async () => setInfo(await cmdDebugInfo()))();
@@ -29,9 +30,16 @@ export default function DebugPage() {
       environment: info?.data,
       ipc_log: log.slice(0, 50),
     };
-    await navigator.clipboard.writeText(JSON.stringify(bundle, null, 2));
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(bundle, null, 2));
+      setCopied(true);
+      setCopyError(false);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // No clipboard permission in the webview — offer nothing false.
+      setCopyError(true);
+      setTimeout(() => setCopyError(false), 2500);
+    }
   }
 
   const failures = log.filter((e) => e.ok === false || e.ok === null);
@@ -47,7 +55,8 @@ export default function DebugPage() {
         </div>
         <div className="flex gap-2">
           <button onClick={() => void copyBundle()} className="btn-outline">
-            <ClipboardCopy size={14} /> {copied ? "Copied" : "Diagnostic bundle"}
+            <ClipboardCopy size={14} />{" "}
+            {copied ? "Copied" : copyError ? "Clipboard unavailable" : "Diagnostic bundle"}
           </button>
           <button onClick={clear} className="btn-outline">
             <Trash2 size={14} /> Clear
@@ -88,7 +97,11 @@ export default function DebugPage() {
         </div>
         <ul className="max-h-96 divide-y divide-border overflow-auto font-mono text-xs">
           {log.length === 0 && (
-            <li className="px-4 py-3 text-muted-foreground">No calls yet.</li>
+            <li className="px-4 py-3 text-muted-foreground">
+              {debugMode
+                ? "No calls yet."
+                : "IPC trace is off — enable \"debug trace\" in the sidebar."}
+            </li>
           )}
           {log.map((e) => (
             <li key={e.id}>

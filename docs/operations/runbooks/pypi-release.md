@@ -65,7 +65,7 @@ Before adding or enabling a publish job, the repository owner separately confirm
 6. separate explicit permission for the actual publication has been obtained.
 
 Tag protections are not introduced by this release procedure. Branch integration
-follows ADR-0180: work PR into default `dev`, then promotion into protected `main`,
+follows ADR-0180: work PR into `dev`, then promotion into protected `main`,
 with administrator bypass and zero mandatory approvals. The exact-SHA gate remains
 mandatory; a branch-rule bypass is not evidence that the tree passed.
 

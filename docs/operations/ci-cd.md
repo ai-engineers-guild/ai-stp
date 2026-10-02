@@ -53,8 +53,8 @@ combines its jobs; no extra aggregation job is needed.
 
 CodeQL is a separate public workflow using `security-extended`. It is not a
 substitute for the repository security recipe or an omitted test. ADR-0180 defines
-default `dev`, protected `main`, dev promotion checks and administrator bypass;
-release work does not add mandatory human approvals.
+default/protected `main`, integration `dev`, dev promotion checks and
+administrator bypass; release work does not add mandatory human approvals.
 
 ## Promotion and production proof
 

@@ -109,8 +109,9 @@ the current version. The current program finishes verified
 provider delivery — GitHub attested releases by default, PyPI provenance as a
 second path (`ADR-0141`) — the consumer-owned recoverable multi-root install
 over unchanged provider v3 (`ADR-0145`), and one exact estate release record.
-`dev` is default; work PRs enter `dev` before promotion into protected `main`
-with administrator bypass and no mandatory approvals (`ADR-0180`). Rust and
+`main` is the default and protected release branch; work PRs enter `dev`
+before promotion into `main` with administrator bypass and no mandatory
+approvals (`ADR-0180`, amended). Rust and
 new component kinds are deferred; there is no calendar promise for a language
 rewrite.
 

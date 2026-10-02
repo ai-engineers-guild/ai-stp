@@ -1,9 +1,11 @@
-use ai_stp_desktop_core::{CliLocator, CliRunner, CommandRegistry, Envelope, MachineHelp};
+use ai_stp_desktop_core::{
+    CliLocator, CliRunner, CommandRegistry, Envelope, MachineHelp, RunError,
+};
 use serde::Serialize;
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 /// Every IPC reply is a typed result — the frontend renders `ok` or the
 /// structured error; it never receives raw stderr.
@@ -17,6 +19,16 @@ struct CmdResult {
     /// Stable machine code when the CLI produced one — the frontend keys
     /// on this, never on the message text.
     error_code: Option<String>,
+    /// Contract fields the UI can route on (ADR-0222): operation tracking
+    /// and retry/disposition hints ride along unmodified.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    request_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    operation_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    error_retryable: Option<bool>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    next_actions: Vec<serde_json::Value>,
 }
 
 impl CmdResult {
@@ -30,7 +42,11 @@ impl CmdResult {
                 .error
                 .as_ref()
                 .map(|e| format!("{}: {}", e.code, e.message)),
-            error_code: env.error.map(|e| e.code),
+            error_code: env.error.as_ref().map(|e| e.code.clone()),
+            request_id: env.request_id,
+            operation_id: env.operation_id,
+            error_retryable: env.error.map(|e| e.retryable),
+            next_actions: env.next_actions,
         }
     }
     fn failed(code: &str, msg: impl ToString) -> Self {
@@ -41,7 +57,21 @@ impl CmdResult {
             continuations: Vec::new(),
             error: Some(msg.to_string()),
             error_code: Some(code.into()),
+            request_id: None,
+            operation_id: None,
+            error_retryable: None,
+            next_actions: Vec::new(),
         }
+    }
+}
+
+/// The frontend routes on stable codes; keep the closed set aligned with
+/// the CLI's own (`AI_STP_NOT_FOUND`, `AI_STP_TIMEOUT_UNCONFIRMED`, …).
+fn error_code_for(e: &RunError) -> &'static str {
+    match e {
+        RunError::NotFound(_) => "AI_STP_NOT_FOUND",
+        RunError::TimeoutUnconfirmed => "AI_STP_TIMEOUT_UNCONFIRMED",
+        _ => "AI_STP_TRANSPORT",
     }
 }
 
@@ -50,13 +80,21 @@ impl CmdResult {
 /// plan/apply, task-engine steps, and credential mutations.
 struct AppState {
     runner: Mutex<Option<CliRunner>>,
-    registry: Mutex<Option<CommandRegistry>>,
+    /// Cached descriptors + when the digest was last verified live. The
+    /// lock guards the Option only — never held across a subprocess spawn.
+    registry: Mutex<Option<(CommandRegistry, Instant)>>,
     /// Two mutating runs in flight could interleave writes against the same
     /// target or the CLI's own journal — every mutating command holds this
     /// for the whole run so mutations are ordered, not concurrent. Read
     /// commands stay lock-free.
     mutation_lock: Mutex<()>,
 }
+
+/// Digest re-verification interval: `capabilities` is a subprocess spawn,
+/// so checking it on every gated call doubles spawn cost. The digest only
+/// changes when the CLI binary is replaced mid-session — a 30 s TTL bounds
+/// staleness well inside any realistic upgrade race.
+const REGISTRY_TTL: Duration = Duration::from_secs(30);
 
 impl AppState {
     fn new() -> Self {
@@ -67,96 +105,137 @@ impl AppState {
         }
     }
 
-    fn runner(&self) -> Result<CliRunner, String> {
-        let mut guard = self.runner.lock().map_err(|_| "state poisoned")?;
+    fn runner(&self) -> Result<CliRunner, RunError> {
+        let mut guard = self
+            .runner
+            .lock()
+            .map_err(|_| RunError::Internal("state poisoned".into()))?;
         if let Some(r) = &*guard {
             return Ok(r.clone());
         }
         let bundled = bundled_cli_path();
+        // `AI_STP_CLI` pins a configured override — dev installs where the
+        // bundled tier is absent and PATH is minimal (e.g. macOS launchd).
+        let configured = std::env::var_os("AI_STP_CLI")
+            .map(PathBuf::from)
+            .filter(|p| !p.as_os_str().is_empty());
         let r = CliRunner::system(&CliLocator {
             bundled,
-            configured: None,
-        })
-        .map_err(|e| e.to_string())?;
+            configured,
+        })?;
         *guard = Some(r.clone());
         Ok(r)
     }
 
     /// Command registry, refreshed whenever the CLI's `registry_digest`
     /// changes (CLI upgrades invalidate cached descriptors).
-    fn command_registry(&self) -> Result<CommandRegistry, String> {
+    fn command_registry(&self) -> Result<CommandRegistry, RunError> {
         let runner = self.runner()?;
-        {
-            if let Some(reg) = &*self.registry.lock().map_err(|_| "state poisoned")? {
-                // Cheap freshness: capabilities carries the live digest.
-                if let Ok(env) = runner.run(&["capabilities".into()]) {
-                    if env.ok
-                        && env
-                            .data
-                            .as_ref()
-                            .and_then(|d| d.get("registry_digest"))
-                            .and_then(|d| d.as_str())
-                            == Some(reg.registry_digest.as_str())
-                    {
-                        return Ok(reg.clone());
+        let cached = self
+            .registry
+            .lock()
+            .map_err(|_| RunError::Internal("state poisoned".into()))?
+            .clone();
+        if let Some((reg, checked_at)) = cached {
+            let live = if checked_at.elapsed() < REGISTRY_TTL {
+                true
+            } else {
+                // Cheap freshness probe outside the lock: `capabilities`
+                // carries the live digest.
+                match runner.run(&["capabilities".into()]) {
+                    Ok(env) => {
+                        env.ok
+                            && env
+                                .data
+                                .as_ref()
+                                .and_then(|d| d.get("registry_digest"))
+                                .and_then(|d| d.as_str())
+                                == Some(reg.registry_digest.as_str())
                     }
+                    Err(_) => false,
                 }
+            };
+            if live {
+                let mut guard = self
+                    .registry
+                    .lock()
+                    .map_err(|_| RunError::Internal("state poisoned".into()))?;
+                *guard = Some((reg.clone(), Instant::now()));
+                return Ok(reg);
             }
         }
-        let env = runner
-            .run(&["help".into(), "--agent".into()])
-            .map_err(|e| e.to_string())?;
+        let env = runner.run(&["help".into(), "--agent".into()])?;
         if !env.ok {
-            return Err(env
-                .error
-                .map(|e| e.message)
-                .unwrap_or_else(|| "help --agent failed".into()));
+            return Err(RunError::Internal(
+                env.error
+                    .map(|e| e.message)
+                    .unwrap_or_else(|| "help --agent failed".into()),
+            ));
         }
-        let help: MachineHelp = serde_json::from_value(env.data.ok_or("help --agent: empty data")?)
-            .map_err(|e| format!("machine-help parse: {e}"))?;
+        let help: MachineHelp = serde_json::from_value(
+            env.data
+                .ok_or_else(|| RunError::Internal("help --agent: empty data".into()))?,
+        )
+        .map_err(|e| RunError::Internal(format!("machine-help parse: {e}")))?;
         let reg = CommandRegistry::from_help(&help);
-        *self.registry.lock().map_err(|_| "state poisoned")? = Some(reg.clone());
+        *self
+            .registry
+            .lock()
+            .map_err(|_| RunError::Internal("state poisoned".into()))? =
+            Some((reg.clone(), Instant::now()));
         Ok(reg)
     }
 }
 
 fn bundled_cli_path() -> Option<PathBuf> {
     let exe = std::env::current_exe().ok()?;
+    // Named `ai-stp-desktop-cli` (not `ai-stp`) so a Linux package cannot
+    // collide with the standalone CLI package's /usr/bin/ai-stp.
     let name = if cfg!(windows) {
-        "ai-stp.exe"
+        "ai-stp-desktop-cli.exe"
     } else {
-        "ai-stp"
+        "ai-stp-desktop-cli"
     };
     let candidate = exe.parent()?.join(name);
     candidate.is_file().then_some(candidate)
 }
 
 fn run_cli(state: &AppState, args: &[String]) -> CmdResult {
+    run_cli_within(state, args, None)
+}
+
+fn run_cli_within(state: &AppState, args: &[String], timeout: Option<Duration>) -> CmdResult {
     match state.runner() {
-        Ok(r) => match r.run(args) {
-            Ok(env) => CmdResult::from_envelope(env),
-            Err(e) => CmdResult::failed("AI_STP_TRANSPORT", e),
-        },
-        Err(e) => CmdResult::failed("AI_STP_NOT_FOUND", e),
+        Ok(mut r) => {
+            if let Some(t) = timeout {
+                r.timeout = t;
+            }
+            match r.run(args) {
+                Ok(env) => CmdResult::from_envelope(env),
+                Err(e) => CmdResult::failed(error_code_for(&e), e),
+            }
+        }
+        Err(e) => CmdResult::failed(error_code_for(&e), e),
     }
 }
 
 /// Mutating run: holds the mutation mutex for the whole run so concurrent
 /// task-engine steps and plan/apply cannot interleave writes against the
-/// same target or the CLI journal.
+/// same target or the CLI journal. Mutating runs get the longer deadline —
+/// the CLI's own provider-verification budget is 300 s.
 fn run_cli_mutating(state: &AppState, args: &[String]) -> CmdResult {
     let _mutation = match state.mutation_lock.lock() {
         Ok(g) => g,
         Err(_) => return CmdResult::failed("AI_STP_TRANSPORT", "mutation lock poisoned"),
     };
-    run_cli(state, args)
+    run_cli_within(state, args, Some(ai_stp_desktop_core::MUTATING_TIMEOUT))
 }
 
 fn argv(path: &str) -> Vec<String> {
     path.split(' ').map(str::to_string).collect()
 }
 
-fn idem_key(prefix: &str) -> String {
+fn new_idem_key(prefix: &str) -> String {
     let nanos = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_nanos())
@@ -206,8 +285,12 @@ async fn machine_help(state: tauri::State<'_, Arc<AppState>>) -> Result<CmdResul
             continuations: vec![],
             error: None,
             error_code: None,
+            request_id: None,
+            operation_id: None,
+            error_retryable: None,
+            next_actions: vec![],
         },
-        Err(e) => CmdResult::failed("AI_STP_TRANSPORT", e),
+        Err(e) => CmdResult::failed(error_code_for(&e), e),
     })
     .await
     .map_err(|e| e.to_string())
@@ -221,12 +304,13 @@ async fn cli_run_read(
     path: String,
     values: BTreeMap<String, String>,
     flags: Vec<String>,
+    repeated: Option<BTreeMap<String, Vec<String>>>,
 ) -> Result<CmdResult, String> {
     let st = state.inner().clone();
     tauri::async_runtime::spawn_blocking(move || {
         let reg = match st.command_registry() {
             Ok(r) => r,
-            Err(e) => return CmdResult::failed("AI_STP_TRANSPORT", e),
+            Err(e) => return CmdResult::failed(error_code_for(&e), e),
         };
         let desc = match reg.descriptor(&path) {
             Some(d) => d,
@@ -246,7 +330,8 @@ async fn cli_run_read(
                 ),
             );
         }
-        match reg.build_argv(&path, &values, &flags, &BTreeMap::new()) {
+        let repeated = repeated.unwrap_or_default();
+        match reg.build_argv(&path, &values, &flags, &repeated) {
             Ok(av) => run_cli(&st, &av),
             Err(e) => CmdResult::failed("AI_STP_VALIDATION_ERROR", e),
         }
@@ -264,8 +349,9 @@ async fn cli_plan(
     path: String,
     values: BTreeMap<String, String>,
     flags: Vec<String>,
+    repeated: Option<BTreeMap<String, Vec<String>>>,
 ) -> Result<CmdResult, String> {
-    gated_run(state.inner().clone(), path, values, flags, "plan").await
+    gated_run(state.inner().clone(), path, values, flags, repeated, "plan").await
 }
 
 /// Apply-tier passthrough: requires the explicit `confirmed` flag — the
@@ -278,6 +364,7 @@ async fn cli_apply_confirmed(
     values: BTreeMap<String, String>,
     flags: Vec<String>,
     confirmed: bool,
+    repeated: Option<BTreeMap<String, Vec<String>>>,
 ) -> Result<CmdResult, String> {
     if !confirmed {
         return Ok(CmdResult::failed(
@@ -285,7 +372,15 @@ async fn cli_apply_confirmed(
             "apply requires an explicit confirmation from the UI",
         ));
     }
-    gated_run(state.inner().clone(), path, values, flags, "apply").await
+    gated_run(
+        state.inner().clone(),
+        path,
+        values,
+        flags,
+        repeated,
+        "apply",
+    )
+    .await
 }
 
 async fn gated_run(
@@ -293,12 +388,13 @@ async fn gated_run(
     path: String,
     values: BTreeMap<String, String>,
     flags: Vec<String>,
+    repeated: Option<BTreeMap<String, Vec<String>>>,
     want_mutability: &'static str,
 ) -> Result<CmdResult, String> {
     tauri::async_runtime::spawn_blocking(move || {
         let reg = match st.command_registry() {
             Ok(r) => r,
-            Err(e) => return CmdResult::failed("AI_STP_TRANSPORT", e),
+            Err(e) => return CmdResult::failed(error_code_for(&e), e),
         };
         let desc = match reg.descriptor(&path) {
             Some(d) => d,
@@ -318,7 +414,8 @@ async fn gated_run(
                 ),
             );
         }
-        match reg.build_argv(&path, &values, &flags, &BTreeMap::new()) {
+        let repeated = repeated.unwrap_or_default();
+        match reg.build_argv(&path, &values, &flags, &repeated) {
             Ok(av) => run_cli_mutating(&st, &av),
             Err(e) => CmdResult::failed("AI_STP_VALIDATION_ERROR", e),
         }
@@ -342,7 +439,7 @@ async fn debug_info(state: tauri::State<'_, Arc<AppState>>) -> Result<CmdResult,
             }),
             Err(e) => serde_json::json!({
                 "cli_found": false,
-                "error": e,
+                "error": e.to_string(),
                 "bundled_checked": bundled.map(|p| p.display().to_string()),
             }),
         };
@@ -357,6 +454,10 @@ async fn debug_info(state: tauri::State<'_, Arc<AppState>>) -> Result<CmdResult,
             continuations: vec![],
             error: None,
             error_code: None,
+            request_id: None,
+            operation_id: None,
+            error_retryable: None,
+            next_actions: vec![],
         }
     })
     .await
@@ -492,21 +593,32 @@ async fn task_intents(state: tauri::State<'_, Arc<AppState>>) -> Result<CmdResul
 async fn task_start(
     state: tauri::State<'_, Arc<AppState>>,
     intent: String,
+    idem_key: Option<String>,
+    input: Option<String>,
 ) -> Result<CmdResult, String> {
     let st = state.inner().clone();
     tauri::async_runtime::spawn_blocking(move || {
-        let key = idem_key(&format!("desktop-{intent}"));
-        run_cli_mutating(
-            &st,
-            &[
-                "task".into(),
-                "start".into(),
-                "--intent".into(),
-                intent,
-                "--idempotency-key".into(),
-                key,
-            ],
-        )
+        // The UI supplies one key per logical start attempt so a timeout-
+        // and-retry hits the CLI's idempotency dedup instead of forking a
+        // second task; absent a key we mint one per call.
+        let key = idem_key
+            .filter(|k| !k.is_empty())
+            .unwrap_or_else(|| new_idem_key("desktop"));
+        let mut a = vec![
+            "task".into(),
+            "start".into(),
+            "--intent".into(),
+            intent,
+            "--idempotency-key".into(),
+            key,
+        ];
+        // `--input` carries a JSON object of pre-answered fields; the engine
+        // validates it against the intent's schema, so a bad blob comes back
+        // as a normal envelope error rather than a wizard crash.
+        if let Some(raw) = input.filter(|s| !s.trim().is_empty()) {
+            a.extend(["--input".into(), raw]);
+        }
+        run_cli_mutating(&st, &a)
     })
     .await
     .map_err(|e| e.to_string())
@@ -622,11 +734,29 @@ async fn task_list(state: tauri::State<'_, Arc<AppState>>) -> Result<CmdResult, 
 pub fn run() {
     tauri::Builder::default()
         .manage(Arc::new(AppState::new()))
-        .plugin(tauri_plugin_single_instance::init(|_app, _args, _cwd| {}))
-        .plugin(tauri_plugin_window_state::Builder::default().build())
-        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            // A second launch raises the existing window instead of
+            // silently exiting — otherwise a minimized app looks dead.
+            use tauri::Manager;
+            if let Some(w) = app.get_webview_window("main") {
+                let _ = w.unminimize();
+                let _ = w.show();
+                let _ = w.set_focus();
+            }
+        }))
+        // Persist size/maximized but not POSITION: a stored position on a
+        // since-disconnected monitor reopens the window off-screen with no
+        // visible recovery path.
+        .plugin(
+            tauri_plugin_window_state::Builder::default()
+                .with_state_flags({
+                    let mut f = tauri_plugin_window_state::StateFlags::all();
+                    f.remove(tauri_plugin_window_state::StateFlags::POSITION);
+                    f
+                })
+                .build(),
+        )
         .plugin(tauri_plugin_opener::init())
-        .plugin(tauri_plugin_process::init())
         .invoke_handler(tauri::generate_handler![
             cli_version,
             cli_capabilities,

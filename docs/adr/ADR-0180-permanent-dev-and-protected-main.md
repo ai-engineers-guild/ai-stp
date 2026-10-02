@@ -5,7 +5,15 @@ last_verified: "2026-09-12"
 
 # ADR-0180: Permanent dev and protected main
 
-Status: accepted. Supersedes the branch-policy portion of ADR-0115.
+Status: accepted, amended 2026-10-02. Supersedes the branch-policy portion
+of ADR-0115.
+
+**Amendment:** the default branch moved from `dev` to `main`. `dev` remains
+the integration branch accepting work-branch PRs (and Dependabot targets);
+`main` is the protected release branch accepting promotion PRs from
+same-repository `dev`, and its successful checks auto-promote to
+`deploy/prod`. Rulesets, bypass actors, and the promotion contract are
+unchanged — only the default-branch marker flipped.
 
 ## Context
 

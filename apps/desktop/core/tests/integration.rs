@@ -92,9 +92,13 @@ fn argv_refuses_undeclared_and_missing() {
         .build_argv("install plan", &values, &[], &BTreeMap::new())
         .is_err());
 
+    // With no `action` at all the conditioned exactly_one{proposal,setup}
+    // does not apply (contract: it only holds while action takes
+    // install/update/remove) — bare `install plan` is legal argv; whether
+    // it is meaningful is the CLI's semantic check, not the shell's.
     assert!(reg
         .build_argv("install plan", &BTreeMap::new(), &[], &BTreeMap::new())
-        .is_err());
+        .is_ok());
 }
 
 #[test]
@@ -128,6 +132,34 @@ fn argv_enforces_declared_rules() {
         .build_argv("install plan", &values, &[], &BTreeMap::new())
         .is_err());
 
+    // Conditioned-off pair rule: on `backup`/`rollback` the
+    // exactly_one{proposal,setup} relaxes to at_most_one — supplying
+    // neither is legal (the CLI's own declaration, registry.py).
+    let mut values = BTreeMap::new();
+    values.insert("action".to_string(), "backup".to_string());
+    assert!(
+        reg.build_argv("install plan", &values, &[], &BTreeMap::new())
+            .is_ok(),
+        "conditioned-off exactly_one must not fire on action=backup"
+    );
+
+    // …but the conditioned at_most_one does fire: both is still refused.
+    let mut values = BTreeMap::new();
+    values.insert("action".to_string(), "backup".to_string());
+    values.insert("proposal".to_string(), "p".to_string());
+    values.insert("setup".to_string(), "s".to_string());
+    assert!(reg
+        .build_argv("install plan", &values, &[], &BTreeMap::new())
+        .is_err());
+
+    // `component` is forbidden_when action=backup — conditioned-on rule.
+    let mut values = BTreeMap::new();
+    values.insert("action".to_string(), "backup".to_string());
+    values.insert("component".to_string(), "c".to_string());
+    assert!(reg
+        .build_argv("install plan", &values, &[], &BTreeMap::new())
+        .is_err());
+
     // target status: both required options present.
     let mut values = BTreeMap::new();
     values.insert("project".to_string(), "a".to_string());
@@ -135,6 +167,56 @@ fn argv_enforces_declared_rules() {
     assert!(reg
         .build_argv("target status", &values, &[], &BTreeMap::new())
         .is_ok());
+}
+
+#[test]
+fn argv_repeated_and_positional_flags() {
+    let help: MachineHelp = serde_json::from_slice(&fixture("machine-help.json")).unwrap();
+    let reg = CommandRegistry::from_help(&help);
+
+    // Repeated option emits one --flag per value, in order.
+    let mut repeated = BTreeMap::new();
+    repeated.insert(
+        "allow-permission".to_string(),
+        vec!["fs:read".to_string(), "net:fetch".to_string()],
+    );
+    let mut values = BTreeMap::new();
+    values.insert("setup".to_string(), "setup_01ABC@1.0".to_string());
+    values.insert("project".to_string(), "/tmp/p".to_string());
+    values.insert("harness".to_string(), "claude-code".to_string());
+    let argv = reg
+        .build_argv("install plan", &values, &[], &repeated)
+        .unwrap();
+    let n = argv.iter().filter(|a| *a == "--allow-permission").count();
+    assert_eq!(n, 2);
+
+    // A positional-kind parameter passed as a flag is a violation, not a
+    // silent drop.
+    let fixture_has_argument = reg
+        .all_descriptors()
+        .iter()
+        .flat_map(|d| d.parameters.iter())
+        .any(|p| p.kind == "argument");
+    if fixture_has_argument {
+        let arg_path = reg
+            .all_descriptors()
+            .iter()
+            .find(|d| d.parameters.iter().any(|p| p.kind == "argument"))
+            .unwrap()
+            .path_key();
+        let arg_name = reg
+            .descriptor(&arg_path)
+            .unwrap()
+            .parameters
+            .iter()
+            .find(|p| p.kind == "argument")
+            .unwrap()
+            .name
+            .clone();
+        assert!(reg
+            .build_argv(&arg_path, &BTreeMap::new(), &[arg_name], &BTreeMap::new())
+            .is_err());
+    }
 }
 
 /// Regression: a child emitting more than a pipe buffer's worth of stdout

@@ -17,7 +17,18 @@ use std::time::Duration;
 
 use crate::envelope::{parse, Envelope, ParseFailure};
 
-const DEFAULT_TIMEOUT: Duration = Duration::from_secs(120);
+pub const DEFAULT_TIMEOUT: Duration = Duration::from_secs(120);
+/// Mutating runs (plan/apply, task steps) can sit inside the CLI's own
+/// 300 s provider-verification budget — the shell deadline must outlive
+/// it or a healthy apply is killed mid-flight.
+pub const MUTATING_TIMEOUT: Duration = Duration::from_secs(420);
+/// Output caps: stdout must hold one envelope (envelope.rs rejects past
+/// 4 MiB anyway); stderr is diagnostics only.
+const MAX_STDOUT_BYTES: usize = 4 * 1024 * 1024 + 64;
+const MAX_STDERR_BYTES: usize = 256 * 1024;
+/// Grace for drain threads after the child exits — a grandchild that
+/// inherited the pipes must not pin `run` forever.
+const DRAIN_GRACE: Duration = Duration::from_secs(5);
 
 /// Env vars inherited by the spawned CLI when present in the parent env.
 ///
@@ -134,6 +145,8 @@ pub enum RunError {
         stderr: String,
     },
     Parse(ParseFailure),
+    /// Internal state failure (poisoned lock, …) — not a child problem.
+    Internal(String),
 }
 
 impl std::fmt::Display for RunError {
@@ -148,9 +161,14 @@ impl std::fmt::Display for RunError {
                 )
             }
             Self::NoEnvelope { exit, stderr } => {
-                write!(f, "cli exited {exit:?} without an envelope: {stderr}")
+                let exit = match exit {
+                    Some(c) => format!("exit {c}"),
+                    None => "terminated by signal".to_string(),
+                };
+                write!(f, "cli {exit} without an envelope: {stderr}")
             }
             Self::Parse(e) => write!(f, "{e}"),
+            Self::Internal(m) => write!(f, "{m}"),
         }
     }
 }
@@ -246,6 +264,14 @@ impl CliRunner {
         for (k, v) in child_env(&self.env) {
             cmd.env(k, v);
         }
+        #[cfg(unix)]
+        {
+            use std::os::unix::process::CommandExt;
+            // Own process group so a timeout can kill the whole tree: the
+            // PyInstaller onefile bootloader forks the real CLI, and
+            // `Child::kill` alone would orphan the in-flight mutation.
+            cmd.process_group(0);
+        }
         #[cfg(windows)]
         {
             use std::os::windows::process::CommandExt;
@@ -260,25 +286,37 @@ impl CliRunner {
         let mut child = cmd.spawn().map_err(RunError::Spawn)?;
         // stdout/stderr must be drained while the child runs: a large
         // envelope (e.g. `help --agent`) would fill the pipe buffer and
-        // deadlock the child on write until the deadline hits.
-        let out_handle = child.stdout.take().map(|mut s| {
+        // deadlock the child on write until the deadline hits. Reads are
+        // byte-bounded so a runaway child cannot exhaust memory, and the
+        // results come back over a channel so a pipe inherited by a stray
+        // grandchild cannot pin `run` past the drain grace.
+        let (out_tx, out_rx) = std::sync::mpsc::channel();
+        let (err_tx, err_rx) = std::sync::mpsc::channel();
+        if let Some(s) = child.stdout.take() {
             thread::spawn(move || {
                 let mut buf = Vec::new();
-                let _ = s.read_to_end(&mut buf);
-                buf
-            })
-        });
-        let err_handle = child.stderr.take().map(|mut s| {
+                let _ = s.take(MAX_STDOUT_BYTES as u64).read_to_end(&mut buf);
+                let _ = out_tx.send(buf);
+            });
+        } else {
+            let _ = out_tx.send(Vec::new());
+        }
+        if let Some(s) = child.stderr.take() {
             thread::spawn(move || {
-                let mut buf = String::new();
-                let _ = s.read_to_string(&mut buf);
-                buf
-            })
-        });
+                let mut buf = Vec::new();
+                let _ = s.take(MAX_STDERR_BYTES as u64).read_to_end(&mut buf);
+                let _ = err_tx.send(buf);
+            });
+        } else {
+            let _ = err_tx.send(Vec::new());
+        }
+        let collect = |rx: &std::sync::mpsc::Receiver<Vec<u8>>| {
+            rx.recv_timeout(DRAIN_GRACE).unwrap_or_default()
+        };
         match wait_bounded(&mut child, self.timeout) {
             Ok(status) => {
-                let out = out_handle.and_then(|h| h.join().ok()).unwrap_or_default();
-                let err = err_handle.and_then(|h| h.join().ok()).unwrap_or_default();
+                let out = collect(&out_rx);
+                let err = String::from_utf8_lossy(&collect(&err_rx)).into_owned();
                 match parse(&out) {
                     Ok(env) => Ok(env),
                     Err(e) => Err(RunError::NoEnvelope {
@@ -292,13 +330,63 @@ impl CliRunner {
                 }
             }
             Err(WaitError::Timeout) => {
-                let _ = child.kill();
-                let _ = child.wait();
+                kill_tree(&mut child);
                 Err(RunError::TimeoutUnconfirmed)
             }
-            Err(WaitError::Io(e)) => Err(RunError::Spawn(e)),
+            Err(WaitError::Io(e)) => {
+                // try_wait failed — reap so the child is not abandoned.
+                kill_tree(&mut child);
+                Err(RunError::Spawn(e))
+            }
         }
     }
+}
+
+/// Kill the child's whole process tree. The onefile bootloader is a parent
+/// process: reaping only the direct child would leave the real CLI
+/// running a mutation we just declared unconfirmed.
+fn kill_tree(child: &mut Child) {
+    #[cfg(unix)]
+    {
+        // `kill` resolves through /bin — the child's filtered env does not
+        // apply to this spawn (it inherits ours).
+        let pgid = format!("-{}", child.id());
+        let _ = Command::new("kill")
+            .args(["-TERM", &pgid])
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status();
+        for _ in 0..20 {
+            if matches!(child.try_wait(), Ok(Some(_))) {
+                return;
+            }
+            thread::sleep(Duration::from_millis(50));
+        }
+        let _ = Command::new("kill")
+            .args(["-KILL", &pgid])
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status();
+        let _ = child.kill();
+    }
+    #[cfg(windows)]
+    {
+        // /T kills the tree (bootloader + extracted CLI), /F forces.
+        use std::os::windows::process::CommandExt;
+        let _ = Command::new("taskkill")
+            .args(["/PID", &child.id().to_string(), "/T", "/F"])
+            .creation_flags(0x0800_0000)
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status();
+        let _ = child.kill();
+    }
+    #[cfg(not(any(unix, windows)))]
+    let _ = child.kill();
+    let _ = child.wait();
 }
 
 enum WaitError {

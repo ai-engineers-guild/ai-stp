@@ -1,7 +1,5 @@
 import { create } from "zustand";
-import { cmdAuthStatus, cmdVersion, type CmdResult } from "./transport";
-
-export type Scope = { kind: "all" } | { kind: "global" } | { kind: "project"; path: string };
+import { cmdAuthStatus, cmdCapabilities, cmdVersion, type CmdResult } from "./transport";
 
 export interface IpcEntry {
   id: number;
@@ -41,8 +39,6 @@ export const useDebug = create<DebugState>((set) => ({
 }));
 
 interface AppState {
-  scope: Scope;
-  setScope: (s: Scope) => void;
   cliVersion: string | null;
   cliOk: boolean | null;
   registryDigest: string | null;
@@ -52,8 +48,6 @@ interface AppState {
 }
 
 export const useApp = create<AppState>((set) => ({
-  scope: { kind: "all" },
-  setScope: (scope) => set({ scope }),
   cliVersion: null,
   cliOk: null,
   registryDigest: null,
@@ -61,10 +55,15 @@ export const useApp = create<AppState>((set) => ({
   refreshCli: async () => {
     const res = await cmdVersion();
     const d = (res.data ?? {}) as Record<string, unknown>;
+    // `version` reports the CLI build; the live registry digest is only
+    // carried by `capabilities` (`data.registry_digest`).
+    const caps = res.ok ? await cmdCapabilities() : null;
+    const cd = (caps?.data ?? {}) as Record<string, unknown>;
     set({
       cliOk: res.ok,
       cliVersion: res.ok ? String(d.version ?? d.cli_version ?? "") : null,
-      registryDigest: res.ok ? String(d.registry_digest ?? "") || null : null,
+      registryDigest:
+        caps?.ok === true ? String(cd.registry_digest ?? "") || null : null,
     });
   },
   refreshAuth: async () => {

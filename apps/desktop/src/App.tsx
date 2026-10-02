@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { HashRouter, NavLink, Route, Routes } from "react-router";
+import { HashRouter, Navigate, NavLink, Route, Routes } from "react-router";
 import {
   Bug,
   Home,
@@ -37,13 +37,19 @@ const NAV = [
 ];
 
 export default function App() {
-  const { auth, cliOk, scope, refreshAuth, refreshCli } = useApp();
+  const { auth, cliOk, refreshAuth, refreshCli } = useApp();
   const { debugMode, setDebugMode, log } = useDebug();
 
   useEffect(() => {
-    // Color theme follows the OS until the user toggles explicitly.
+    // Color theme: an explicit saved choice wins; otherwise follow the OS.
     const mq = window.matchMedia("(prefers-color-scheme: dark)");
-    const apply = () => document.documentElement.classList.toggle("dark", mq.matches);
+    const apply = () => {
+      const saved = localStorage.getItem("ai-stp.theme");
+      document.documentElement.classList.toggle(
+        "dark",
+        saved ? saved === "dark" : mq.matches,
+      );
+    };
     apply();
     mq.addEventListener("change", apply);
     return () => mq.removeEventListener("change", apply);
@@ -58,7 +64,9 @@ export default function App() {
   const failures = log.filter((e) => e.ok === false || e.ok === null).length;
 
   function toggleTheme() {
-    document.documentElement.classList.toggle("dark");
+    const dark = !document.documentElement.classList.contains("dark");
+    document.documentElement.classList.toggle("dark", dark);
+    localStorage.setItem("ai-stp.theme", dark ? "dark" : "light");
   }
 
   return (
@@ -67,7 +75,7 @@ export default function App() {
         <aside className="flex w-52 shrink-0 flex-col border-r border-border">
           <div className="mb-2 flex items-center gap-2 px-4 pt-4">
             <span className="h-2.5 w-2.5 rounded-[2px] bg-primary" />
-            <span className="font-mono text-sm font-medium">ai_stp</span>
+            <span className="font-mono text-sm font-medium">ai-stp-desktop</span>
             <span
               className={`ml-auto h-2 w-2 rounded-full ${
                 cliOk === null ? "bg-warning" : cliOk ? "bg-success" : "bg-destructive"
@@ -100,7 +108,7 @@ export default function App() {
           <div className="mt-auto space-y-1 border-t border-border px-4 py-3">
             <div className="flex items-center justify-between">
               <p className="font-mono text-[11px] text-muted-foreground">
-                {scope.kind} · {signedIn ? "signed in" : "signed out"}
+                {signedIn ? "signed in" : "signed out"}
               </p>
               <button
                 onClick={toggleTheme}
@@ -133,6 +141,7 @@ export default function App() {
             <Route path="/registry" element={<RegistryPage />} />
             <Route path="/debug" element={<DebugPage />} />
             <Route path="/settings" element={<SettingsPage />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </main>
       </div>
