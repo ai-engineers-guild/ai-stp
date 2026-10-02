@@ -90,8 +90,10 @@ client-side authority) are rejected.
 - `apps/desktop` joins the workspace; its Rust code and Vite UI add `cargo`
   and `bun` toolchains to developer setup for that tree only.
 - The app depends on a resolvable `ai-stp` executable. Runtime distribution
-  (bundled binary vs. managed environment vs. system install) is decided by
-  a recorded spike and may refine this ADR, not change its boundary.
+  is resolved: release bundles embed the CLI as a PyInstaller-frozen sidecar
+  (`bundle.externalBin`, `scripts/build-cli-sidecar.sh`), so no separate
+  install is required; a configured path or PATH remains the development
+  fallback.
 - Envelope `schema_version` mismatches fail closed with an update prompt;
   `registry_digest` invalidates the app's cached command descriptors.
 - The provider co-owned roots (`~/.agents/skills`, `~/.claude/skills`) are
@@ -106,9 +108,9 @@ client-side authority) are rejected.
 
 ## Revisit conditions
 
-- The spike shows the bundled-CLI path is not viable (size, signing, AV,
-  or cold-start) — then distribution becomes "require installed CLI" and
-  the app gains a first-run bootstrapper flow.
+- The bundled-CLI sidecar proves not viable in the field (size, signing,
+  AV, or cold-start) — then distribution falls back to "require installed
+  CLI" and the app gains a first-run bootstrapper flow.
 - A second credential holder is ever required (e.g., the app acquiring
   without the CLI present) — then `device_type` gains `desktop` and the
   credential-storage decision in ADR-0058 is extended, not bypassed.
