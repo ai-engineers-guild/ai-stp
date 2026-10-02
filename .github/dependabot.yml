@@ -58,3 +58,36 @@ updates:
     cooldown:
       default-days: 7
       semver-major-days: 14
+  - package-ecosystem: bun
+    directory: /apps/desktop
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(desktop)"
+    cooldown:
+      default-days: 7
+      semver-major-days: 14
+  # The desktop Rust workspace keeps two manifests (`core` and `src-tauri`)
+  # with separate lockfiles; Dependabot's cargo ecosystem reads a directory
+  # per entry, so both are listed.
+  - package-ecosystem: cargo
+    directory: /apps/desktop/core
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(desktop)"
+    cooldown:
+      default-days: 7
+      semver-major-days: 14
+  - package-ecosystem: cargo
+    directory: /apps/desktop/src-tauri
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(desktop)"
+    cooldown:
+      default-days: 7
+      semver-major-days: 14

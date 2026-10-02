@@ -25,7 +25,7 @@ concurrency:
 env:
   NODE_VERSION: "24"
   BUN_VERSION: "1.4.2"
-  UV_VERSION: "0.12.18"
+  UV_VERSION: "0.12.19"
 
 jobs:
   desktop:
