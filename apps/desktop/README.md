@@ -63,6 +63,14 @@ bun install && bun run build
 cd src-tauri && cargo check && cargo build
 ```
 
+From the repository root, `just desktop-check` runs the same group CI
+runs: frontend tsc/vitest/build, fmt+clippy+tests for both crates, and a
+`desktop-regress` leg that freezes the real PyInstaller sidecar — that
+freeze takes several minutes — and spawns it under the app's filtered
+environment. `just desktop-gen` formats both crates. The `--stub` sidecar
+these recipes install is a dev-only placeholder that answers
+`version --json`; it is never written over a real build.
+
 Run the dev app (needs a display): `bunx tauri dev` from `apps/desktop`.
 
 ## Contract rules encoded here
