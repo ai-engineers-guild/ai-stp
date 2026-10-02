@@ -500,8 +500,14 @@ mod tests {
             );
         }
         // With no LOCALAPPDATA either, the supplied temp root anchors it.
-        let env = child_env(&[], Path::new("/tmp"), &[]);
-        assert_eq!(last(&env, "TMPDIR").as_deref(), Some("/tmp/ai-stp-desktop"));
+        // Compare via Path so the separator convention is the platform's.
+        let temp_root = Path::new(if cfg!(windows) { "C:\\tmp" } else { "/tmp" });
+        let env = child_env(&[], temp_root, &[]);
+        let expected = temp_root.join("ai-stp-desktop");
+        assert_eq!(
+            last(&env, "TMPDIR").as_deref(),
+            Some(expected.to_string_lossy().as_ref())
+        );
         let _ = std::fs::remove_dir_all(&anchor);
     }
 
