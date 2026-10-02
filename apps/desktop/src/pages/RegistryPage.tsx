@@ -4,10 +4,10 @@ import { Json, ResultMeta, Spinner } from "../components/Result";
 
 interface Param {
   name: string;
-  flag?: string;
-  positional?: boolean;
-  type?: string;
+  kind?: string; // "option" | "argument"
+  value_type?: string;
   required?: boolean;
+  repeatable?: boolean;
   choices?: string[];
 }
 
@@ -81,7 +81,7 @@ export default function RegistryPage() {
               </span>
               <span className="w-56 shrink-0 font-mono text-xs">{path}</span>
               <span className="flex-1 truncate text-xs text-muted-foreground">{c.summary}</span>
-              {c.confirmation === "exact_digest" && (
+              {c.confirmation === "plan_digest" && (
                 <span className="rounded bg-destructive/10 px-1.5 text-[10px] text-destructive">digest</span>
               )}
               {c.mutability === "read" ? (

@@ -12,6 +12,7 @@ last_verified: "2026-09-20"
 CI push branches: `dev`, `main`.
 
 Every Dependabot entry pins its pull requests at the integration branch (`target-branch`), so dependency updates keep landing on `dev` rather than the default branch.
+Dependabot *security* updates ignore `target-branch` and open against the default branch (`main`) — treat them as exceptional: cherry-pick or retarget them onto `dev` before promotion, since the branch-policy gate rejects non-`dev` promotion sources into `main`.
 
 Contributor branches use exactly one of these prefixes followed by a non-empty
 description: `feat/`, `chore/`, `docs/`, `test/`, `fix/`, or `refactor/`.

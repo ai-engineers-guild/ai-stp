@@ -93,7 +93,7 @@ jobs:
           # the same path the installed app takes. On Windows the frozen
           # CLI dies in its bootloader if TMP/TEMP/USERPROFILE are dropped.
           sidecar_dir="${GITHUB_WORKSPACE}/apps/desktop/src-tauri/sidecar"
-          export AI_STP_SIDECAR_EXE="${sidecar_dir}/ai-stp-${triple}${sfx}"
+          export AI_STP_SIDECAR_EXE="${sidecar_dir}/ai-stp-desktop-cli-${triple}${sfx}"
           cargo test --test integration bundled_sidecar -- --nocapture
       - name: Tauri build
         working-directory: apps/desktop
