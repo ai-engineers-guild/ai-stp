@@ -978,9 +978,29 @@ async def _scope_target_exists(
             )
             is not None
         )
-    # Catalog-object, telemetry, and system resources have no
-    # B2B-01 resource table yet; accepting arbitrary IDs would create a grant
-    # that cannot be tenant-checked. Their owning feature must add this check.
+    if scope_kind == "catalog_object":
+        return (
+            await db.scalar(
+                select(CatalogIdentity.stable_id)
+                .where(
+                    CatalogIdentity.organization_id == organization_id,
+                    CatalogIdentity.stable_id == scope_id,
+                )
+                .union(
+                    select(CorporateCatalogOwnershipRow.stable_id).where(
+                        CorporateCatalogOwnershipRow.organization_id == organization_id,
+                        CorporateCatalogOwnershipRow.stable_id == scope_id,
+                    ),
+                    select(CorporateCatalogAssignmentRow.stable_id).where(
+                        CorporateCatalogAssignmentRow.organization_id == organization_id,
+                        CorporateCatalogAssignmentRow.stable_id == scope_id,
+                        CorporateCatalogAssignmentRow.state == "current",
+                    ),
+                )
+                .limit(1)
+            )
+            is not None
+        )
     return False
 
 
@@ -2542,7 +2562,42 @@ async def read_member(
         subject_kind="employee",
         subject_id=account_id,
     )
-    return member_view(*row).model_copy(update={"available_actions": actions})
+    member, account = row
+    contact = await db.scalar(
+        select(func.min(CorporateProvisionedIdentity.normalized_email)).where(
+            CorporateProvisionedIdentity.organization_id == organization_id,
+            CorporateProvisionedIdentity.account_id == account_id,
+        )
+    )
+    activity = await db.scalar(
+        select(func.max(Device.last_seen_at)).where(Device.account_id == account_id)
+    )
+    title = (
+        await db.scalar(
+            select(CorporateJobTitle.name).where(
+                CorporateJobTitle.organization_id == organization_id,
+                CorporateJobTitle.id == member.job_title_id,
+            )
+        )
+        if member.job_title_id
+        else None
+    )
+    return member_view(member, account, title).model_copy(
+        update={
+            "available_actions": actions,
+            "contact_email": contact,
+            "joined_at": format_timestamp(
+                member.created_at.replace(tzinfo=UTC)
+                if member.created_at.tzinfo is None
+                else member.created_at
+            ),
+            "last_activity_at": format_timestamp(
+                activity.replace(tzinfo=UTC) if activity.tzinfo is None else activity
+            )
+            if activity
+            else None,
+        }
+    )
 
 
 async def create_binding(
@@ -4809,15 +4864,6 @@ async def read_member_access(
                     select(OrganizationMembership.id).where(
                         OrganizationMembership.organization_id == organization_id,
                         OrganizationMembership.account_id == scope_id,
-                    )
-                )
-            ) is not None
-        elif scope_kind == "catalog_object":
-            exists = (
-                await db.scalar(
-                    select(CatalogIdentity.stable_id).where(
-                        CatalogIdentity.organization_id == organization_id,
-                        CatalogIdentity.stable_id == scope_id,
                     )
                 )
             ) is not None

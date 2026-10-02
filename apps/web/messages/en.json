@@ -2338,7 +2338,7 @@
     "rolesUnavailable": "Could not verify which roles you can assign. Refresh the page and try again."
   },
   "accessUi": {
-    "accessBody": "Reference of application sections, entities and available actions.",
+    "accessBody": "Organization RBAC: application sections, users, invitations, entities and enforced actions. Account sign-in and public catalog rights are managed separately.",
     "rolesBody": "Manage roles and their permissions. Roles define which actions are allowed within each scope.",
     "employeeBody": "Manage individual access, roles and effective permissions.",
     "entitiesAndActions": "Entities & actions",
@@ -2432,8 +2432,8 @@
     },
     "entities": {
       "member": {
-        "name": "Employees",
-        "description": "People in the organization"
+        "name": "Users",
+        "description": "User memberships in this organization"
       },
       "team": {
         "name": "Teams",
@@ -2490,6 +2490,10 @@
       "landscape": {
         "name": "Technology landscape",
         "description": "Technology relationships and views"
+      },
+      "invitation": {
+        "name": "Invitations",
+        "description": "Create, list and revoke organization invitations (member.invite)"
       }
     },
     "actions": {
@@ -2580,6 +2584,7 @@
     "joined": "Joined",
     "viewAsList": "View as list",
     "viewAsMatrix": "View as matrix",
-    "searchPermissions": "Search permissions…"
+    "searchPermissions": "Search permissions…",
+    "duplicateRole": "Duplicate role"
   }
 }

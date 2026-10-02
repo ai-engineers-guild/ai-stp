@@ -570,7 +570,16 @@ function ScopeField({
       </optgroup>
       <optgroup label={a("entities.technology.name")}>
         {options
-          .filter((option) => !/^(organization|team|project):/.test(option.value))
+          .filter((option) => option.value.startsWith("technology:"))
+          .map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+      </optgroup>
+      <optgroup label={a("entities.catalog_object.name")}>
+        {options
+          .filter((option) => option.value.startsWith("catalog_object:"))
           .map((option) => (
             <option key={option.value} value={option.value}>
               {option.label}

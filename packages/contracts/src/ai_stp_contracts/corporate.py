@@ -618,7 +618,7 @@ class CorporateBindingUpdateRequest(BaseModel):
         return self
 
 
-GrantScopeKind = Literal["organization", "team", "project", "technology"]
+GrantScopeKind = Literal["organization", "team", "project", "technology", "catalog_object"]
 
 
 class CorporatePermissionGrantRequest(BaseModel):

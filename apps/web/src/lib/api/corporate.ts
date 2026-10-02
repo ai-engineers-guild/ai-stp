@@ -1,5 +1,7 @@
 import { cookies } from "next/headers";
 import { cache } from "react";
+import { searchComponents, searchSetups } from "@/lib/api/catalog";
+import { asCursorToken } from "@/lib/brands";
 
 import { apiRequest } from "@/lib/api/http";
 import { ApiError } from "@/lib/api/errors";
@@ -405,3 +407,37 @@ export {
   readCorporateAssignmentDistribution,
   readEffectiveCorporateAssignment,
 } from "./corporate-distribution";
+
+export async function readCorporateCatalogScopeOptions(
+  session: string,
+  organizationId: string,
+  capabilities: readonly string[],
+) {
+  const options: { value: string; label: string }[] = [];
+  if (capabilities.includes("catalog_object.read")) {
+    for (const search of [searchComponents, searchSetups]) {
+      let cursor: string | null = null;
+      do {
+        const page:
+          Awaited<ReturnType<typeof searchComponents>> | Awaited<ReturnType<typeof searchSetups>> =
+          await search({
+            sessionToken: session,
+            organization_id: organizationId,
+            page_size: 64,
+            ...(cursor ? { cursor: asCursorToken(cursor) } : {}),
+          });
+        options.push(
+          ...[...page.items, ...page.experimental].map((item) => ({
+            value: `catalog_object:${item.stable_id}`,
+            label: typeof item.display_name === "string" ? item.display_name : item.latest_name,
+          })),
+        );
+        const next: string | null = page.page.next_cursor;
+        if (next === cursor && next) throw new Error("Catalog scope pagination did not advance");
+        cursor = next;
+      } while (cursor);
+    }
+  }
+
+  return options;
+}

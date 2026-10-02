@@ -58,7 +58,7 @@ function RoleForm({
   roles: readonly CorporateRoleView[];
   definitions: readonly CorporatePermissionDefinition[];
   excludeName?: string;
-  role?: CorporateRoleView;
+  role?: CorporateRoleView | undefined;
   withName?: boolean;
   busy: boolean;
   submitLabel: string;
@@ -128,6 +128,7 @@ export function CorporateRolePanel({
   selected,
   labels,
   mode = "all",
+  template,
 }: {
   csrfToken: string;
   organizationId: string;
@@ -138,6 +139,7 @@ export function CorporateRolePanel({
   selected: CorporateRoleView | null;
   labels: Labels;
   mode?: "all" | "create" | "edit";
+  template?: CorporateRoleView | undefined;
 }) {
   const router = useRouter();
   const [busy, startTransition] = useTransition();
@@ -227,6 +229,7 @@ export function CorporateRolePanel({
             labels={labels}
             roles={roles}
             definitions={definitions}
+            role={template}
             withName
             busy={busy}
             submitLabel={labels.create}

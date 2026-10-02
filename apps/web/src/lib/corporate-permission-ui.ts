@@ -33,6 +33,7 @@ export function permissionDefinitions(names: readonly string[]): CorporatePermis
 
 const entities: Record<string, { icon: IconName; area: string }> = {
   member: { icon: "user", area: "organization" },
+  invitation: { icon: "mail", area: "organization" },
   team: { icon: "team", area: "organization" },
   project: { icon: "component", area: "organization" },
   technology: { icon: "technology", area: "product" },
@@ -62,7 +63,8 @@ export function entityMeta(resource: string) {
 export function entityDefinitions(definitions: readonly CorporatePermissionDefinition[]) {
   const grouped = new Map<string, CorporatePermissionDefinition[]>();
   for (const definition of definitions) {
-    const entity = permissionEntity(definition.resource);
+    const entity =
+      definition.name === "member.invite" ? "invitation" : permissionEntity(definition.resource);
     grouped.set(entity, [...(grouped.get(entity) ?? []), definition]);
   }
   return [...grouped.entries()].sort(([a], [b]) => {

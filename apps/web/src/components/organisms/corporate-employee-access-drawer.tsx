@@ -12,6 +12,7 @@ import type {
   CorporateTeamView,
   CorporateEffectivePermission,
   CorporatePermissionDefinition,
+  CorporateAuditEntry,
 } from "@/lib/api/generated/types.gen";
 import {
   entityDefinitions,
@@ -29,6 +30,7 @@ export function CorporateEmployeeAccessDrawer({
   scopeOptions,
   currentScope,
   canAudit,
+  activity = [],
   children,
 }: {
   member: CorporateMember;
@@ -38,6 +40,7 @@ export function CorporateEmployeeAccessDrawer({
   scopeOptions: readonly { value: string; label: string }[];
   currentScope: string;
   canAudit: boolean;
+  activity?: readonly CorporateAuditEntry[];
   children: ReactNode;
 }) {
   const a = useTranslations("accessUi");
@@ -172,9 +175,26 @@ export function CorporateEmployeeAccessDrawer({
         <div className="space-y-3 text-sm">
           <h3 className="font-medium">{p("lastActivity")}</h3>
           <p className="text-muted-foreground">{member.last_activity_at ?? "—"}</p>
+          <ul className="divide-border divide-y">
+            {activity.map((event) => (
+              <li key={event.audit_id} className="space-y-1 py-3">
+                <p className="font-medium">{event.action}</p>
+                <p className="text-muted-foreground text-xs">
+                  {event.created_at} · {event.outcome}
+                </p>
+                <p className="text-muted-foreground text-xs break-all">
+                  {event.target_table}: {event.target_id}
+                </p>
+              </li>
+            ))}
+          </ul>
           {canAudit ? (
             <Button asChild variant="outline">
-              <Link href="/corporate/organization/admins/audit">{h("auditJournal")}</Link>
+              <Link
+                href={`/corporate/organization/admins/audit?actor_account_id=${encodeURIComponent(member.account_id)}`}
+              >
+                {h("auditJournal")}
+              </Link>
             </Button>
           ) : null}
         </div>

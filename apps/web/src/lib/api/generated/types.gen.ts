@@ -4772,7 +4772,7 @@ export type CorporatePermissionGrant = {
   /**
    * Scope Kind
    */
-  scope_kind: "organization" | "team" | "project" | "technology";
+  scope_kind: "organization" | "team" | "project" | "technology" | "catalog_object";
   /**
    * Service Principal Id
    */
@@ -4839,7 +4839,7 @@ export type CorporatePermissionGrantRequest = {
   /**
    * Scope Kind
    */
-  scope_kind: "organization" | "team" | "project" | "technology";
+  scope_kind: "organization" | "team" | "project" | "technology" | "catalog_object";
   /**
    * Service Principal Id
    */

@@ -9651,7 +9651,8 @@
               "organization",
               "team",
               "project",
-              "technology"
+              "technology",
+              "catalog_object"
             ],
             "title": "Scope Kind",
             "type": "string"
@@ -9787,7 +9788,8 @@
               "organization",
               "team",
               "project",
-              "technology"
+              "technology",
+              "catalog_object"
             ],
             "title": "Scope Kind",
             "type": "string"

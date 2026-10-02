@@ -162,8 +162,8 @@ export function CorporateMembersDirectory(props: Props) {
       className={`min-w-0 space-y-4 ${props.accessView && activeMember ? "2xl:pr-[27rem]" : ""}`}
       data-ui={props.accessView ? "employee-access-directory" : "members-directory"}
     >
-      <div className="grid grid-cols-2 items-center gap-3 lg:flex lg:flex-wrap">
-        <div className="col-span-2 min-w-0 lg:flex-1">
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="min-w-0 basis-full xl:flex-1">
           <PeopleSearch
             label={props.accessView ? a("searchEmployees") : t("searchMembers")}
             value={filters.get("query")}

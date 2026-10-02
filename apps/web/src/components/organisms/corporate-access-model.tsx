@@ -460,53 +460,66 @@ export function CorporateAccessModel({
             <h3 className="text-sm font-medium">
               {t("availableActions", { count: entity[1].length })}
             </h3>
-            <ul className="space-y-2">
-              {entity[1].map((item) => (
-                <li
-                  key={item.name}
-                  className="border-border bg-muted/20 space-y-2 rounded-md border p-3 text-sm"
-                >
-                  <p className="font-medium">{permissionLabel(item, t)}</p>
-                  <p className="text-muted-foreground font-mono text-xs">{item.name}</p>
-                  <Badge variant="secondary">
-                    {t(
-                      effective.some((grant) => grant.permission === item.name)
-                        ? "availableToYou"
-                        : "unavailableToYou",
-                    )}
-                  </Badge>
-                  {effective
-                    .find((grant) => grant.permission === item.name)
-                    ?.source_records.map((source) => (
-                      <p key={source.source_id} className="text-muted-foreground text-xs break-all">
-                        {source.role ? roleTitle(source.role, t) : source.kind} ·{" "}
-                        {t(`scopes.${source.scope_kind}`)}: {source.scope_id}
-                      </p>
-                    ))}
-                  <div className="flex flex-wrap gap-1">
-                    {item.scopes.map((scope) => (
-                      <Badge key={scope} variant="outline" className="font-sans">
-                        {t(`scopes.${scope}`)}
-                      </Badge>
-                    ))}
-                  </div>
-                  <div className="flex flex-wrap gap-1">
-                    {roles
-                      .filter((role) => rolePermissions(role, roles).has(item.name))
-                      .map((role) => (
-                        <Link
-                          key={role.name}
-                          href={`/corporate/organization/admins/roles?role=${encodeURIComponent(role.name)}`}
+            {detailTab === "overview" ? (
+              <ul className="divide-border divide-y text-sm">
+                {entity[1].map((item) => (
+                  <li key={item.name} className="py-2">
+                    {permissionLabel(item, t)}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <ul className="space-y-2">
+                {entity[1].map((item) => (
+                  <li
+                    key={item.name}
+                    className="border-border bg-muted/20 space-y-2 rounded-md border p-3 text-sm"
+                  >
+                    <p className="font-medium">{permissionLabel(item, t)}</p>
+                    <p className="text-muted-foreground font-mono text-xs">{item.name}</p>
+                    <Badge variant="secondary">
+                      {t(
+                        effective.some((grant) => grant.permission === item.name)
+                          ? "availableToYou"
+                          : "unavailableToYou",
+                      )}
+                    </Badge>
+                    {effective
+                      .find((grant) => grant.permission === item.name)
+                      ?.source_records.map((source) => (
+                        <p
+                          key={source.source_id}
+                          className="text-muted-foreground text-xs break-all"
                         >
-                          <Badge variant="secondary" className="font-sans">
-                            {roleTitle(role.name, t)}
-                          </Badge>
-                        </Link>
+                          {source.role ? roleTitle(source.role, t) : source.kind} ·{" "}
+                          {t(`scopes.${source.scope_kind}`)}: {source.scope_id}
+                        </p>
                       ))}
-                  </div>
-                </li>
-              ))}
-            </ul>
+                    <div className="flex flex-wrap gap-1">
+                      {item.scopes.map((scope) => (
+                        <Badge key={scope} variant="outline" className="font-sans">
+                          {t(`scopes.${scope}`)}
+                        </Badge>
+                      ))}
+                    </div>
+                    <div className="flex flex-wrap gap-1">
+                      {roles
+                        .filter((role) => rolePermissions(role, roles).has(item.name))
+                        .map((role) => (
+                          <Link
+                            key={role.name}
+                            href={`/corporate/organization/admins/roles?role=${encodeURIComponent(role.name)}`}
+                          >
+                            <Badge variant="secondary" className="font-sans">
+                              {roleTitle(role.name, t)}
+                            </Badge>
+                          </Link>
+                        ))}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         ) : null}
       </CorporateDetailDrawer>

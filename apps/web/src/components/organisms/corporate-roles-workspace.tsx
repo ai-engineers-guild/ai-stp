@@ -131,7 +131,7 @@ export function CorporateRolesWorkspace({
   const [kind, setKind] = useState("");
   const [tab, setTab] = useState("permissions");
   const [drawer, setDrawer] = useState(false);
-  const [editor, setEditor] = useState<"create" | "edit" | null>(null);
+  const [editor, setEditor] = useState<"create" | "edit" | "duplicate" | null>(null);
   const visibleRoles = [...roles]
     .sort(
       (a, b) =>
@@ -255,6 +255,16 @@ export function CorporateRolesWorkspace({
                 <p className="text-muted-foreground mt-1 text-sm">{roleDescription(selected)}</p>
               </div>
               <div className="flex gap-2">
+                {context.capabilities.includes("role.create") ? (
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setEditor("duplicate");
+                    }}
+                  >
+                    {t("duplicateRole")}
+                  </Button>
+                ) : null}
                 {!selectedSystem && context.capabilities.includes("role.update") ? (
                   <Button
                     variant="outline"
@@ -406,8 +416,9 @@ export function CorporateRolesWorkspace({
             roles={roles}
             definitions={definitions}
             selected={editor === "edit" ? (selected ?? null) : null}
+            template={editor === "duplicate" ? selected : undefined}
             labels={labels}
-            mode={editor ?? "create"}
+            mode={editor === "edit" ? "edit" : "create"}
           />
         </DialogContent>
       </Dialog>

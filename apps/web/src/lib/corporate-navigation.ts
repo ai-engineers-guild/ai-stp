@@ -155,7 +155,7 @@ export const CORPORATE_NAV_PAGES: readonly CorporateNavPage[] = [
     href: "/corporate/reports",
     label: "reports",
     icon: "list",
-    root: false,
+    root: true,
     rail: true,
     section: "reports",
     exact: [],
@@ -301,7 +301,7 @@ export const CORPORATE_NAV_PAGES: readonly CorporateNavPage[] = [
     href: "/corporate/dashboard",
     label: "dashboard",
     icon: "controls",
-    root: true,
+    root: false,
     rail: false,
     exact: ["/corporate/dashboard"],
     prefixes: [],
@@ -473,7 +473,7 @@ export function resolveCorporateRail(
       .filter((entry) => entry.root)
       .map((entry) => {
         const children =
-          entry.context !== "root" && entry.context !== "administration"
+          entry.id === entry.context && entry.context !== "root"
             ? allowed
                 .filter(
                   (child) => child.context === entry.context && child.rail && child.id !== entry.id,

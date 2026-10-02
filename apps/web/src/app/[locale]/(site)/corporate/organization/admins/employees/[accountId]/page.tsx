@@ -9,7 +9,12 @@ import { StatePanel } from "@/components/molecules/state-panel";
 import { CorporateEmployeeAccessDrawer } from "@/components/organisms/corporate-employee-access-drawer";
 import { ApiError } from "@/lib/api/errors";
 import { apiRequest } from "@/lib/api/http";
-import { readCorporateDirectoryPages, readCorporateMemberAccess } from "@/lib/api/corporate";
+import { readCorporateAudit } from "@/lib/api/corporate-audit";
+import {
+  readCorporateCatalogScopeOptions,
+  readCorporateDirectoryPages,
+  readCorporateMemberAccess,
+} from "@/lib/api/corporate";
 import { requireSession, sessionCookieValue } from "@/lib/auth/require-session";
 import { readCsrfToken } from "@/lib/auth/session";
 import { Link } from "@/lib/i18n/navigation";
@@ -99,6 +104,13 @@ export default async function EmployeeAccessPage({
     t,
     technologies,
   );
+  scopeOptions.push(
+    ...(await readCorporateCatalogScopeOptions(
+      session,
+      organization.organization_id,
+      capabilities,
+    )),
+  );
 
   const embedded = filters.embedded === "1";
   const a = await getTranslations("accessUi");
@@ -125,9 +137,27 @@ export default async function EmployeeAccessPage({
       }}
     />
   );
+  const memberActions = (
+    <LocalizedResourceActions
+      resource="members"
+      resourceId={accountId}
+      name={member.display_name ?? t("member")}
+      role={member.role}
+      state={member.state}
+      revision={member.revision}
+      organizationId={organization.organization_id}
+      authorizationRevision={organization.authorization_revision}
+      csrfToken={csrfToken}
+      roles={roleItems}
+      permissions={capabilities}
+      availableActions={capabilities}
+    />
+  );
   if (embedded) {
+    const activity = await readCorporateAudit(session, { actor_account_id: accountId });
     return (
       <CorporateEmployeeAccessDrawer
+        activity={activity?.audit.items ?? []}
         member={member}
         teams={context.teams}
         effective={effective}
@@ -136,6 +166,7 @@ export default async function EmployeeAccessPage({
         currentScope={currentScope}
         canAudit={capabilities.includes("audit.list")}
       >
+        {memberActions}
         {accessPanel}
       </CorporateEmployeeAccessDrawer>
     );
@@ -146,20 +177,7 @@ export default async function EmployeeAccessPage({
       <HistoryBackButton label={h("backToAdmins")} fallback="/corporate/organization/admins" />
       <EmployeeHeader member={member} accountId={accountId} t={t} />
 
-      <LocalizedResourceActions
-        resource="members"
-        resourceId={accountId}
-        name={member.display_name ?? t("member")}
-        role={member.role}
-        state={member.state}
-        revision={member.revision}
-        organizationId={organization.organization_id}
-        authorizationRevision={organization.authorization_revision}
-        csrfToken={csrfToken}
-        roles={roleItems}
-        permissions={capabilities}
-        availableActions={capabilities}
-      />
+      {memberActions}
 
       <ScopeSelectForm
         options={scopeOptions}

@@ -84,7 +84,7 @@ not redesign administration or Technology Landscape. Dashboard is an empty route
   navigation. Corporate routes use `/corporate/`; Overview is
   `/corporate/overview`. The corporate account entry button is removed and an
   orange Corporate Hub badge immediately precedes the locale control. Header
-  destinations are Overview, Catalog, Organization, Landscape, Dashboard, and
+  destinations are Overview, Catalog, Organization, Landscape, Reports, and
   For Admins; the last destination requires server-authorized administration
   capabilities. A Corporate Hub footer group links the four workspace destinations.
 - `REQ-8310`: Overview shows the organization name and quick-navigation cards for
@@ -359,3 +359,14 @@ directory return context, permission denial, mutation conflicts, archive behavio
 and desktop/mobile rendering. Contract and tenant tests cover catalog assignments.
 Regenerate affected contracts and documentation, run affected repository checks,
 then verify the same browser flow against the Docker deployment.
+
+People & Access refinement: the organization permission inventory separates user
+memberships from invitations; invitation create/list/revoke share `member.invite`.
+Overview drawers show compact action names; Actions retains scope and permission
+source details. System roles can be copied into editable custom roles. Employee
+profiles include authorized contact, job title, join date and device activity; the
+Activity tab shows actor-filtered audit events. Individual extra permissions can
+be assigned to named teams, projects, technologies and tenant-associated catalog
+objects. Catalog-object grants use `catalog_object` in the request/response contract.
+Scope validation accepts tenant-owned, operationally owned or currently assigned
+objects and rejects unrelated objects from another tenant.
