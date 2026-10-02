@@ -8,6 +8,7 @@
 //!   unconfirmed" — the caller must inspect before retrying;
 //! - stderr is captured for diagnostics but never parsed for semantics.
 
+use std::ffi::OsString;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
@@ -17,6 +18,109 @@ use std::time::Duration;
 use crate::envelope::{parse, Envelope, ParseFailure};
 
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(120);
+
+/// Env vars inherited by the spawned CLI when present in the parent env.
+///
+/// The Windows entries are load-bearing for the PyInstaller onefile
+/// sidecar: its bootloader resolves the `_MEI` extraction dir through
+/// `GetTempPathW` (`TMP` → `TEMP` → `USERPROFILE` → the Windows
+/// directory). Stripping all three drops extraction into `C:\Windows`,
+/// which a non-elevated user cannot write — the binary then dies before
+/// the CLI runs with `[PYI-*:ERROR] Could not create temporary
+/// directory!`. The AppData/HOME entries keep Python's profile and
+/// `expanduser`/`Path.home()` resolution working inside the frozen CLI,
+/// and the proxy/CA entries keep registry/auth traffic working behind
+/// corporate proxies.
+#[doc(hidden)]
+pub const PASSTHROUGH_ENV: &[&str] = &[
+    "PATH",
+    "HOME",
+    "USER",
+    "LANG",
+    "LC_ALL",
+    "LC_CTYPE",
+    "TZ",
+    "TMPDIR",
+    "XDG_CONFIG_HOME",
+    "XDG_DATA_HOME",
+    "XDG_CACHE_HOME",
+    "XDG_RUNTIME_DIR",
+    "SSH_AUTH_SOCK",
+    "SSH_AGENT_PID",
+    "GPG_AGENT_INFO",
+    "HTTP_PROXY",
+    "HTTPS_PROXY",
+    "NO_PROXY",
+    "ALL_PROXY",
+    "http_proxy",
+    "https_proxy",
+    "no_proxy",
+    "all_proxy",
+    "SSL_CERT_FILE",
+    "SSL_CERT_DIR",
+    "REQUESTS_CA_BUNDLE",
+    "CURL_CA_BUNDLE",
+    "NODE_EXTRA_CA_CERTS",
+    "SystemRoot",
+    "WINDIR",
+    "SYSTEMDRIVE",
+    "COMSPEC",
+    "PATHEXT",
+    "OS",
+    "TEMP",
+    "TMP",
+    "USERPROFILE",
+    "HOMEDRIVE",
+    "HOMEPATH",
+    "USERNAME",
+    "APPDATA",
+    "LOCALAPPDATA",
+    "PROGRAMDATA",
+    "PUBLIC",
+    "PSModulePath",
+    "NUMBER_OF_PROCESSORS",
+    "PROCESSOR_ARCHITECTURE",
+    "PROCESSOR_IDENTIFIER",
+];
+
+/// Compute the environment the CLI child runs under: the inherited
+/// passthrough set, every `AI_STP_*` var (locale, credential-store pins,
+/// future config), synthesized temp vars when the parent supplies none,
+/// then the caller's managed-profile overrides last so they win.
+fn child_env(overrides: &[(String, String)]) -> Vec<(OsString, OsString)> {
+    let mut env: Vec<(OsString, OsString)> = PASSTHROUGH_ENV
+        .iter()
+        .filter_map(|k| std::env::var_os(k).map(|v| (OsString::from(k), v)))
+        .collect();
+    for (k, v) in std::env::vars_os() {
+        if k.to_str().is_some_and(|s| s.starts_with("AI_STP_"))
+            && !env.iter().any(|(ek, _)| ek == &k)
+        {
+            env.push((k, v));
+        }
+    }
+    // The child's temp chain must never be empty: on Windows `GetTempPathW`
+    // degrades to the unwritable Windows directory when TMP/TEMP/
+    // USERPROFILE are all absent, and the frozen CLI dies in its
+    // bootloader. Inherited-but-nonexistent temp paths are just as
+    // broken, so only a value naming a real directory counts.
+    let usable_temp = ["TMPDIR", "TMP", "TEMP"]
+        .iter()
+        .any(|k| std::env::var_os(k).is_some_and(|v| Path::new(&v).is_dir()));
+    if !usable_temp {
+        let base = std::env::var_os("LOCALAPPDATA")
+            .map(PathBuf::from)
+            .filter(|p| p.is_dir())
+            .unwrap_or_else(std::env::temp_dir)
+            .join("ai-stp-desktop");
+        let _ = std::fs::create_dir_all(&base);
+        for k in ["TMPDIR", "TMP", "TEMP"] {
+            env.push((OsString::from(k), base.as_os_str().to_os_string()));
+        }
+    }
+    env.extend(overrides.iter().map(|(k, v)| (k.into(), v.into())));
+    env
+}
 
 #[derive(Debug)]
 pub enum RunError {
@@ -139,22 +243,15 @@ impl CliRunner {
         let mut cmd = Command::new(&self.executable);
         cmd.args(args).arg("--json");
         cmd.env_clear();
-        // Minimal base env; the caller's managed profile adds XDG_*.
-        for key in [
-            "PATH",
-            "HOME",
-            "USER",
-            "LANG",
-            "SystemRoot",
-            "WINDIR",
-            "COMSPEC",
-        ] {
-            if let Ok(v) = std::env::var(key) {
-                cmd.env(key, v);
-            }
-        }
-        for (k, v) in &self.env {
+        for (k, v) in child_env(&self.env) {
             cmd.env(k, v);
+        }
+        #[cfg(windows)]
+        {
+            use std::os::windows::process::CommandExt;
+            // The sidecar is a console-subsystem binary; without this flag
+            // every spawn flashes a console window over the GUI.
+            cmd.creation_flags(0x0800_0000); // CREATE_NO_WINDOW
         }
         cmd.stdin(Stdio::null())
             .stdout(Stdio::piped())
