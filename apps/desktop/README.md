@@ -89,12 +89,16 @@ release. Bundles are unsigned — signing/notarization is a separate track.
 ## Requirements
 
 Release bundles carry the CLI inside: `scripts/build-cli-sidecar.sh`
-freezes `ai-stp` with PyInstaller into `src-tauri/sidecar/ai-stp-<triple>`,
-which Tauri `bundle.externalBin` installs next to the app executable —
-the resolver's bundled-path tier finds it first, so no separate install
-is required. For development, resolution falls back to a configured path
-and then PATH (`uv tool install ai-stp-cli`); a pinned path that is
-missing is an error, not a silent fallback.
+freezes `ai-stp` with PyInstaller into
+`src-tauri/sidecar/ai-stp-desktop-cli-<triple>`, and Tauri
+`bundle.externalBin` installs that binary next to the app executable —
+where the resolver's bundled-path tier finds it first, so no separate
+install is required. The `ai-stp-desktop-cli` name is deliberate: a bare
+`ai-stp` sidecar would land at `/usr/bin/ai-stp` in Linux packages and
+collide with a separately installed CLI. For development, resolution
+falls back to a configured path and then PATH
+(`uv tool install ai-stp-cli`); a pinned path that is missing is an
+error, not a silent fallback.
 
 ## Not yet done
 

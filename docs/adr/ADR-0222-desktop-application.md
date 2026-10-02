@@ -76,10 +76,13 @@ client-side authority) are rejected.
    trust/`v3_local_phase` are shown separately. Search results keep the
    contractual three-lane partition
    (`authoritative` / `local_owner_or_pinned` / `experimental`).
-7. Release artifacts ship per-OS under an `app-v*` tag namespace (`v*` is
-   the CLI's), with minisign-signed updater manifests, SHA256SUMS, and
-   build attestations; `allowDowngrades` stays off. Desktop bundles are
-   signed but not promised byte-reproducible.
+7. Release artifacts ship per-OS under the `desktop-v*` tag namespace (`v*`
+   is the CLI's), with SHA256SUMS; bundles are unsigned — code signing and
+   notarization are deferred until distribution requires them, so macOS
+   Gatekeeper and Windows SmartScreen warnings are documented behavior. The
+   embedded sidecar is named `ai-stp-desktop-cli` (never `ai-stp`), so
+   Linux packages cannot collide with a standalone `ai-stp-cli` install at
+   `/usr/bin/ai-stp`. Bundles are not promised byte-reproducible.
 8. v1 scope: sign-in, catalog browse, environment/provider diagnostics,
    setup select → plan → approve → apply, status/drift, backups/rollback,
    devices, settings. Out of v1: corporate surfaces, publishing, a

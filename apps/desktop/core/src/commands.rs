@@ -161,6 +161,12 @@ impl CommandRegistry {
             }
             match param.kind.as_str() {
                 "argument" => {
+                    if flags.contains(&param.name) {
+                        return Err(BuildError::RuleViolation(format!(
+                            "{} is a positional argument, not a flag",
+                            param.name
+                        )));
+                    }
                     if let Some(v) = values.get(&param.name) {
                         argv.push(v.clone());
                     }
@@ -240,13 +246,13 @@ impl CommandRegistry {
                 }
             };
             match (rule.kind.as_str(), conditioned) {
-                ("exactly_one", _) if count != 1 => {
+                ("exactly_one", true) if count != 1 => {
                     return Err(BuildError::RuleViolation(format!(
                         "exactly one of {} required",
                         rule.parameters.join(", ")
                     )))
                 }
-                ("at_most_one", _) if count > 1 => {
+                ("at_most_one", true) if count > 1 => {
                     return Err(BuildError::RuleViolation(format!(
                         "at most one of {}",
                         rule.parameters.join(", ")

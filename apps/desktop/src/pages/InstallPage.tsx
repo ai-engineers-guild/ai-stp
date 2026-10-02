@@ -37,12 +37,18 @@ interface TaskView {
   outcome?: unknown;
 }
 
+// The closed intent set the CLI's task engine accepts (task start
+// --intent). Keep in sync with apps/cli registry.
 const INTENTS = [
-  { id: "install", label: "Install" },
-  { id: "change", label: "Change" },
-  { id: "switch", label: "Switch harness" },
-  { id: "initialize", label: "Initialize" },
-  { id: "inspect", label: "Inspect" },
+  "install",
+  "change",
+  "switch",
+  "initialize",
+  "inspect",
+  "author",
+  "account",
+  "publish",
+  "technology",
 ];
 
 /** Task-engine wizard: the CLI asks questions, we render them, the engine
@@ -56,6 +62,9 @@ export default function InstallPage() {
   const [continuations, setContinuations] = useState<CliContinuation[]>([]);
   const [lastResult, setLastResult] = useState<CmdResult | null>(null);
   const [busy, setBusy] = useState(false);
+  // One idempotency key per logical Start click — a timeout-and-retry of
+  // the same start hits the CLI's dedup instead of forking a second task.
+  const [startKey, setStartKey] = useState<string | null>(null);
 
   useEffect(() => {
     const q = params.get("intent");
@@ -74,68 +83,83 @@ export default function InstallPage() {
 
   async function start() {
     setBusy(true);
-    setAnswers({});
-    const r = await cmdTaskStart(intent);
-    setLastResult(r);
-    setContinuations(r.continuations);
-    if (r.ok) setTask(view(r));
-    setBusy(false);
+    try {
+      setAnswers({});
+      const key = startKey ?? `desktop-${Date.now().toString(36)}`;
+      setStartKey(key);
+      const r = await cmdTaskStart(intent, key);
+      setLastResult(r);
+      setContinuations(r.continuations);
+      if (r.ok) setTask(view(r));
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function submitAnswers() {
     if (!task) return;
     setBusy(true);
-    let current = task;
-    for (const q of task.questions) {
-      const v = answers[q.question_id] ?? q.recommended ?? "";
-      if (v === "") {
-        setLastResult({
-          ok: false, data: null, warnings: [], continuations: [],
-          error: `missing answer: ${q.question_id}`, error_code: "UI_VALIDATION",
+    try {
+      let current = task;
+      // External-actor questions are informational — the engine answers
+      // them itself; only human questions are submitted from the UI.
+      for (const q of task.questions.filter((q) => q.actor !== "external")) {
+        const v = answers[q.question_id] ?? q.recommended ?? "";
+        if (v === "") {
+          setLastResult({
+            ok: false, data: null, warnings: [], continuations: [],
+            error: `missing answer: ${q.question_id}`, error_code: "UI_VALIDATION",
+          });
+          return;
+        }
+        const r = await cmdTaskAnswer(
+          current.task_id,
+          String(current.revision),
+          q.question_id,
+          v,
+        );
+        setLastResult(r);
+        setContinuations(r.continuations);
+        if (!r.ok) return;
+        if (r.data) current = r.data as unknown as TaskView;
+        setTask(current);
+        await refresh(current.task_id).then((rr) => {
+          if (rr.ok && rr.data) current = rr.data as unknown as TaskView;
         });
-        setBusy(false);
-        return;
+        setTask(current);
       }
-      const r = await cmdTaskAnswer(
-        current.task_id,
-        String(current.revision),
-        q.question_id,
-        v,
-      );
-      setLastResult(r);
-      setContinuations(r.continuations);
-      if (!r.ok) {
-        setBusy(false);
-        return;
-      }
-      if (r.data) current = r.data as unknown as TaskView;
-      setTask(current);
-      await refresh(current.task_id).then((rr) => {
-        if (rr.ok && rr.data) current = rr.data as unknown as TaskView;
-      });
-      setTask(current);
+      setAnswers({});
+    } finally {
+      setBusy(false);
     }
-    setAnswers({});
-    setBusy(false);
   }
 
   async function continueTask() {
     if (!task) return;
     setBusy(true);
-    const r = await cmdTaskContinue(task.task_id, String(task.revision));
-    setLastResult(r);
-    setContinuations(r.continuations);
-    if (r.ok) await refresh(task.task_id);
-    setBusy(false);
+    try {
+      const r = await cmdTaskContinue(task.task_id, String(task.revision));
+      setLastResult(r);
+      setContinuations(r.continuations);
+      if (r.ok) await refresh(task.task_id);
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function cancel() {
     if (!task) return;
     setBusy(true);
-    const r = await cmdTaskCancel(task.task_id, String(task.revision));
-    setLastResult(r);
-    if (r.ok) setTask(null);
-    setBusy(false);
+    try {
+      const r = await cmdTaskCancel(task.task_id, String(task.revision));
+      setLastResult(r);
+      if (r.ok) {
+        setTask(null);
+        setStartKey(null);
+      }
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function runContinuation(c: CliContinuation) {
@@ -149,32 +173,43 @@ export default function InstallPage() {
       return;
     }
     setBusy(true);
-    const help = await cmdMachineHelp();
-    const mut = (
-      ((help.data ?? {}) as Record<string, unknown>).commands as
-        | { path: string[]; mutability: string }[]
-        | undefined
-    )?.find((d) => d.path.join(" ") === callArgs.path)?.mutability;
-    let r: CmdResult;
-    if (mut === "read") r = await cmdRunRead(callArgs.path, callArgs.values);
-    else if (mut === "plan") r = await cliPlan(callArgs.path, callArgs.values, callArgs.flags);
-    else if (mut === "apply")
-      r = await cliApplyConfirmed(callArgs.path, callArgs.values, callArgs.flags, true);
-    else
-      r = {
-        ok: false, data: null, warnings: [], continuations: [],
-        error: `continuation to ${callArgs.path} (mutability=${mut ?? "unknown"}) is not runnable from the UI`,
-        error_code: "UI_UNSUPPORTED_CONTINUATION",
-      };
-    setLastResult(r);
-    setContinuations(r.continuations);
-    if (task) await refresh(task.task_id);
-    setBusy(false);
+    try {
+      const help = await cmdMachineHelp();
+      const mut = (
+        ((help.data ?? {}) as Record<string, unknown>).commands as
+          | { path: string[]; mutability: string }[]
+          | undefined
+      )?.find((d) => d.path.join(" ") === callArgs.path)?.mutability;
+      let r: CmdResult;
+      if (mut === "read")
+        r = await cmdRunRead(callArgs.path, callArgs.values, callArgs.flags, callArgs.repeated);
+      else if (mut === "plan")
+        r = await cliPlan(callArgs.path, callArgs.values, callArgs.flags, callArgs.repeated);
+      else if (mut === "apply")
+        r = await cliApplyConfirmed(callArgs.path, callArgs.values, callArgs.flags, true, callArgs.repeated);
+      else
+        r = {
+          ok: false, data: null, warnings: [], continuations: [],
+          error: `continuation to ${callArgs.path} (mutability=${mut ?? "unknown"}) is not runnable from the UI`,
+          error_code: "UI_UNSUPPORTED_CONTINUATION",
+        };
+      setLastResult(r);
+      setContinuations(r.continuations);
+      if (task) await refresh(task.task_id);
+    } finally {
+      setBusy(false);
+    }
   }
 
   const terminal = task && ["completed", "failed", "cancelled"].includes(task.state);
+  // Only `actor === "cli"` continuations are runnable. Everything else —
+  // external, human, agent, or an absent/unknown actor — is poll-only
+  // status per ADR-0222 (fail-closed, matching the core's actor_kind()).
   const pendingContinuations = continuations.filter(
     (c) => c.actor === "cli" && c.argv.length > 0 && c.path.join(" ") !== "task answer",
+  );
+  const externalContinuations = continuations.filter(
+    (c) => c.actor !== "cli" && c.path.join(" ") !== "task answer",
   );
 
   return (
@@ -193,15 +228,15 @@ export default function InstallPage() {
           <div className="flex flex-wrap gap-2">
             {INTENTS.map((it) => (
               <button
-                key={it.id}
-                onClick={() => setIntent(it.id)}
+                key={it}
+                onClick={() => setIntent(it)}
                 className={`rounded-sm border px-3 py-1.5 text-sm ${
-                  intent === it.id
+                  intent === it
                     ? "border-primary bg-primary/10 font-medium text-primary"
                     : "border-input text-muted-foreground"
                 }`}
               >
-                {it.label}
+                {it}
               </button>
             ))}
           </div>
@@ -226,7 +261,12 @@ export default function InstallPage() {
 
           {task.questions.length > 0 && (
             <div className="space-y-3">
-              {task.questions.map((q) => (
+              {task.questions.map((q) =>
+                q.actor === "external" ? (
+                  <p key={q.question_id} className="text-xs text-muted-foreground">
+                    ⓘ {q.prompt} — resolved by the engine, not you.
+                  </p>
+                ) : (
                 <label key={q.question_id} className="block text-xs">
                   <span className="font-medium">{q.prompt}</span>
                   {q.why && <span className="ml-1 text-muted-foreground">— {q.why}</span>}
@@ -251,10 +291,13 @@ export default function InstallPage() {
                     />
                   )}
                 </label>
-              ))}
-              <button onClick={() => void submitAnswers()} disabled={busy} className="btn-primary">
-                <StepForward size={14} /> Submit answers
-              </button>
+                ),
+              )}
+              {task.questions.some((q) => q.actor !== "external") && (
+                <button onClick={() => void submitAnswers()} disabled={busy} className="btn-primary">
+                  <StepForward size={14} /> Submit answers
+                </button>
+              )}
             </div>
           )}
 
@@ -269,15 +312,51 @@ export default function InstallPage() {
             <div className="space-y-2">
               <h3 className="section-title">Engine requests</h3>
               {pendingContinuations.map((c, i) => (
-                <button
-                  key={i}
-                  onClick={() => void runContinuation(c)}
-                  disabled={busy}
-                  className="btn-danger"
-                >
-                  Approve &amp; run: <code className="font-mono text-xs">{c.path.join(" ")}</code>
-                </button>
+                <div key={i} className="space-y-1">
+                  <button
+                    onClick={() => void runContinuation(c)}
+                    disabled={busy}
+                    className="btn-danger"
+                  >
+                    Approve &amp; run: <code className="font-mono text-xs">{c.path.join(" ")}</code>
+                  </button>
+                  {c.argv.length > 0 && (
+                    <p className="break-all font-mono text-[10px] text-muted-foreground">
+                      {c.argv.join(" ")}
+                    </p>
+                  )}
+                </div>
               ))}
+            </div>
+          )}
+
+          {externalContinuations.length > 0 && (
+            <div className="space-y-2">
+              <h3 className="section-title">Waiting on external work</h3>
+              <p className="text-xs text-muted-foreground">
+                The engine delegated these steps outside the UI — poll status
+                until they clear. They are informational, not runnable here.
+              </p>
+              <ul className="card divide-y divide-border text-xs">
+                {externalContinuations.map((c, i) => (
+                  <li key={i} className="flex items-center gap-2 px-3 py-1.5">
+                    <span className="chip bg-warning/15 text-warning">{c.actor}</span>
+                    <code className="font-mono">{c.path.join(" ")}</code>
+                    {c.missing.length > 0 && (
+                      <span className="text-muted-foreground">needs: {c.missing.join(", ")}</span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+              {task && (
+                <button
+                  onClick={() => void refresh(task.task_id)}
+                  disabled={busy}
+                  className="btn-outline"
+                >
+                  Refresh status
+                </button>
+              )}
             </div>
           )}
 
@@ -296,7 +375,7 @@ export default function InstallPage() {
       )}
 
       {busy && <Spinner label="Talking to the task engine" />}
-      {lastResult && !lastResult.ok && <ResultMeta r={lastResult} />}
+      {lastResult && <ResultMeta r={lastResult} />}
       {lastResult?.data && <details className="text-xs"><summary className="cursor-pointer text-muted-foreground">Last envelope</summary><Json v={lastResult.data} /></details>}
     </div>
   );

@@ -1,6 +1,6 @@
 [package]
 name = "ai-stp-desktop-core"
-version = "0.0.1"
+version = "0.0.2"
 edition = "2021"
 description = "Contract consumer core for the ai-stp desktop app: CLI envelope parsing, continuation rendering, per-target serialization."
 license = "AGPL-3.0-or-later"

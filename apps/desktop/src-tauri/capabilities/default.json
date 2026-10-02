@@ -7,10 +7,10 @@
     "core:default",
     "core:event:default",
     "core:window:default",
-    "dialog:default",
-    "opener:allow-open-url",
-    "process:allow-restart",
-    "process:allow-exit",
+    {
+      "identifier": "opener:allow-open-url",
+      "allow": [{ "url": "https://*" }, { "url": "http://*" }]
+    },
     "window-state:default"
   ]
 }
