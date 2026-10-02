@@ -23,12 +23,13 @@ truth for unmet mutating goals is owned by `SPEC-011` `REQ-1132` and
 shared owner, including single-root `install apply` and `install resume`.
 
 Closed intent names are `inspect`, `initialize`, `install`, `change`,
-`switch`, `author`, `publish`, and `account`. The `TaskIntent` schema enum
+`switch`, `author`, `account`, `publish`, and `technology`. The
+`TaskIntent` schema enum
 grows only when that intent is drained. `task intents` lists shipped intents
 only. Unshipped names are refused at `task start`.
 
 The drained intents are `inspect`, `initialize`, `install`, `change`,
-`author`, `switch`, `account`, and `publish`. `inspect` drains
+`author`, `switch`, `account`, `publish`, and `technology`. `inspect` drains
 `doctor` and slim orientation through `application.inspect`. `initialize` writes
 the active harness user-global instruction section through the provider optional
 operation `patch_instruction_region`; until a provider declares that
@@ -55,8 +56,16 @@ only and never uploads. `AI_STP_AUTHORIZATION_PENDING` re-blocks with
 `actor=external`; declined and expired fail the task. `publish` reuses the
 no-binding publication plan (`source_binding_id` absent, filesystem provenance,
 private default). Confirming a plan is not a readable catalog result unless
-plan `state` is `published`. B2B/enterprise surfaces, estate-release F10/R05,
-a CLI language rewrite, and a PyPI CLI cut are excluded.
+plan `state` is `published`. `technology` drains `application.technology`,
+which delegates every action to `application.project_technology`: `unmapped`
+scans a project root and lists the coordinates the effective mapping cannot
+resolve — locally, plus the organization's server-side queue when
+`organization_id` is named and a session exists; `publish-mapping` writes one
+immutable organization snapshot from an explicit entries document or the
+bundled seed table; `resolve` executes a decision list against the review
+queue through one derived snapshot. A missing `action` blocks on an external
+question recommending `unmapped`. B2B/enterprise surfaces, estate-release
+F10/R05, a CLI language rewrite, and a PyPI CLI cut are excluded.
 
 ## Terms
 
@@ -476,7 +485,8 @@ a CLI language rewrite, and a PyPI CLI cut are excluded.
   with a `cli` continuation whose argv is
   `task start --intent <intent> --idempotency-key <intent>-session-01 --json`.
   An unknown top-level word that is a shipped intent name (`initialize`,
-  `inspect`, `change`, `author`, `switch`, `account`, `publish`) is the same
+  `inspect`, `change`, `author`, `switch`, `account`, `publish`,
+  `technology`) is the same
   start continuation.
   An undeclared word under `task` (`task get`, `task info`, a missing leaf)
   and any other unknown command are the same error class with a `cli`
@@ -577,6 +587,23 @@ a CLI language rewrite, and a PyPI CLI cut are excluded.
   open tasks, so a second start is never the only way to learn a task id. A
   missing registry answers an empty list rather than a failure; any other
   failure to open it is reported, not mistaken for empty.
+- `REQ-8025`: Intent `technology` drains `application.technology`, which
+  delegates every action to `application.project_technology` so the task
+  cannot disagree with the CLI about a coordinate or a snapshot. A missing or
+  unknown `action` blocks on an external question recommending `unmapped`.
+  `unmapped` runs detection on the named `project_root` and lists the
+  coordinates the effective mapping cannot resolve — the local review queue,
+  plus the organization's server-side queue when `organization_id` is named
+  and a session exists; a session failure still leaves the local queue
+  truthful. `publish-mapping` requires `organization_id`, `mapping_version`
+  and `authorization_revision`, and asks `mapping-source` when neither `seed`
+  nor `mapping_file` is given; it writes one immutable organization snapshot
+  from the bundled seed table or the entries document. `resolve` requires
+  `organization_id`, `authorization_revision` and a nonempty `decisions`
+  list — each row maps one queued coordinate to an existing or to-be-created
+  technology as propose or apply — and executes them through one derived
+  snapshot; a `project_root` refreshes the local scan first so the outcome
+  reports the queue the caller just saw.
 
 ## States and errors
 
@@ -637,3 +664,4 @@ and a partial unique index on an open mutating binding.
 | `REQ-8022` | `test_cli_app` redirects `install --json`, `install --harness`, a stray path under `install`, `auth --json`, `sync --json`, `publication --json`, `setup preserve --json`, `setup restore --json`, `setup preserved --json`, `setup compose --json`, and unknown top-level shipped intent names (`initialize`, `inspect`, `change`, `author`, `switch`, `account`, `publish`) to `task start` for the matching intent with a `cli` continuation; `task get --json`, `task info --json`, `nope --json`, empty `--json`, and `--help --json` list `task intents` and do not send `help --agent`; Click usage dumps for incomplete groups (`component --json`, `registry --json`, `select --json`, `setup --json`, `config --json`) list `task intents` and do not name expert leaves; `task start --intent initialize --json` without the key emits `task start --intent initialize --idempotency-key initialize-session-01 --json`; `task start --json` without `--intent` and `task start --intent` with an unshipped name list `task intents` and do not echo Click's missing-option or choice dump; `task answer --json` and `task continue --json` without `--task` resume the unique blocked human question, list `task list` when many unsettled rows exist and `task intents` when zero; those verbs with `--task` and without `--revision` resume the named task even when other rows are open; `help --path` with no matching family lists `task intents` and does not send `help --agent`; an unscoped `help --agent --json` dump carries a `task intents` continuation; a scoped `help --path install --json` carries the install start continuation; scoped mixed families (`component`, `select`, `setup`, `registry`, `config`) list `task intents`; `help --path doctor` carries none; a `task_covered` leaf without required input (`install plan --json`, `auth login --json`, `publication plan --json`, `setup compose apply --json`) emits the draining `task start` line; everyday pending leaves (`setup compose plan --json`, `select propose --json`, `component adopt --json`, `component discover --bogus --json`, `setup import inspect --json`, `component publish --json`, `registry search --json`, `publication status --json`, `setup preserved show --json`) do the same; a successful `component discover --json` carries the author start continuation; a successful `config init --json` carries the initialize start continuation; `install plan --action backup --json` and `sync preview --json` do not; `test_cli_cloud` `AI_STP_AUTH_REQUIRED` / `AI_STP_AUTHORIZATION_EXPIRED` / `AI_STP_AUTHORIZATION_PENDING` carry the account start continuation and do not name `auth login` or `auth complete`; `test_cli_capability_map` `everyday_success_start_intent` covers `auth login` apply success and not `auth complete`; extra-flag everyday leaf failures (`install plan --setup`, `select confirm --proposal`) do not name those expert leaves; a successful `install status --json` and `setup preserved list --json` carry the draining start; `test_cli_capability_map` `everyday_success_start_intent` covers covered `plan` success (`install plan`, `publication plan`, `setup preserve plan`), `auth login` / `registry acquire` apply success, and not `install apply`; `test_cli_app` `_everyday_success_envelope` strips `install apply` from plan success then starts install, and terminal apply keeps `install recover` while dropping `install plan`; `test_user_docs_everyday_first_copy` forbids qualify-forbidden leaves in every user-facing bash fence and in table cells that wrap an `ai-stp` argv in backticks; `test_cli_process` `install --help` / `auth --help` / `select --help` omit forbidden `Commands:` leaves while `install plan --help` remains; `install transaction --help` omits plan/approve/apply; `setup --help` omits compose/scaffold/update/restore/import; `component --help` omits scaffold/publish; `publication visibility --help` omits plan/confirm; `select --help` omits bundle/graph; `registry --help` omits search/acquire; `ai-stp --help` omits `help`; `test_cli_agy_qualify` `choreographed` fails unscoped `help --json`. |
 | `REQ-8023` | `test_cli_schema_discovery` resolves `schema show --id` for a bare name, the full URN, and the generated file name to the same document as the model's JSON Schema; `schema list` names every exported id and `--find` filters names; an unknown id is `AI_STP_NOT_FOUND` with `details.candidates` and a `schema list` continuation; every `input_schema` the intents catalog emits resolves to its model; both paths classify `inspect`; `help --find` filters path and summary within `--path` scope and a miss is `AI_STP_NOT_FOUND` with the `task intents` continuation. |
 | `REQ-8024` | `test_cli_task` lists only unsettled tasks newest-first with binding context and open question ids, answers an empty list on a fresh registry, and propagates an open failure that is not `AI_STP_NOT_FOUND` rather than answering empty; `test_cli_app` proves two open rows steer bare `task answer`/`task continue` to the `task list` argv while a named task still resumes its own answer argv. |
+| `REQ-8025` | `test_cli_technology_task` asks the action first, scans a root and lists the unmapped coordinates, asks for publication facts and for resolution facts, and executes a decision list through `project_technology.resolve_decisions`; `test_cli_schema_discovery` pins `technology` inside `SHIPPED_INTENT_NAMES`/`INTENT_INPUT_MODELS` and proves its `cli-task-input-technology` descriptor resolves. |
