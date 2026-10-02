@@ -32,6 +32,7 @@ CONFIG = Path(".github/dependabot.yml")
 #: changes.
 LOCKFILES: dict[str, str] = {
     "bun": "bun.lock",
+    "cargo": "Cargo.lock",
     "npm": "package-lock.json",
     "uv": "uv.lock",
 }
