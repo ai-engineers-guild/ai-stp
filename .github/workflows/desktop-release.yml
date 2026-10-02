@@ -114,6 +114,20 @@ jobs:
           cargo fmt --check
           cargo clippy --all-targets -- -D warnings
           cargo test
+      - name: Stub sidecar for shell-crate checks
+        shell: bash
+        # tauri-build's build.rs verifies externalBin paths exist at compile
+        # time; the stub satisfies that before the real PyInstaller sidecar
+        # is built below.
+        run: bash apps/desktop/scripts/build-cli-sidecar.sh --stub
+      - name: Shell crate tests
+        working-directory: apps/desktop/src-tauri
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo fmt --check
+          cargo clippy --all-targets -- -D warnings
+          cargo test
       - name: Install pinned uv
         shell: bash
         run: |
@@ -124,18 +138,12 @@ jobs:
         shell: bash
         run: bash apps/desktop/scripts/build-cli-sidecar.sh
       - name: Sidecar spawns under the app's filtered env
-        working-directory: apps/desktop/core
         shell: bash
-        run: |
-          set -euo pipefail
-          triple="$(rustc -vV | sed -n 's/^host: //p')"
-          sfx=""; [ "${RUNNER_OS}" = "Windows" ] && sfx=".exe"
-          # CliRunner clears the child env and re-adds a passthrough set —
-          # the same path the installed app takes. On Windows the frozen
-          # CLI dies in its bootloader if TMP/TEMP/USERPROFILE are dropped.
-          sidecar_dir="${GITHUB_WORKSPACE}/apps/desktop/src-tauri/sidecar"
-          export AI_STP_SIDECAR_EXE="${sidecar_dir}/ai-stp-desktop-cli-${triple}${sfx}"
-          cargo test --test integration bundled_sidecar -- --nocapture
+        # CliRunner clears the child env and re-adds a passthrough set —
+        # the same path the installed app takes. On Windows the frozen
+        # CLI dies in its bootloader if TMP/TEMP/USERPROFILE are dropped.
+        # The script is shared with `just desktop-regress`.
+        run: bash apps/desktop/scripts/test-bundled-sidecar.sh
       - name: Tauri build
         working-directory: apps/desktop
         shell: bash
