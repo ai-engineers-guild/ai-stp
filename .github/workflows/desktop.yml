@@ -73,6 +73,20 @@ jobs:
           cargo fmt --check
           cargo clippy --all-targets -- -D warnings
           cargo test
+      - name: Stub sidecar for shell-crate checks
+        shell: bash
+        # tauri-build's build.rs verifies externalBin paths exist at compile
+        # time; the stub satisfies that before the real PyInstaller sidecar
+        # is built below.
+        run: bash apps/desktop/scripts/build-cli-sidecar.sh --stub
+      - name: Shell crate tests
+        working-directory: apps/desktop/src-tauri
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo fmt --check
+          cargo clippy --all-targets -- -D warnings
+          cargo test
       - name: Install pinned uv
         shell: bash
         run: |

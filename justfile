@@ -703,6 +703,28 @@ web-feature-profiles:
 [group('web')]
 web-check: web-build web-storybook web-static web-test web-regress web-feature-profiles
 
+# --- desktop ---------------------------------------------------------------
+
+# Mirrors the desktop CI workflow minus the OS-matrix bundling: frontend
+# types/tests/build, then fmt+clippy+tests for both Rust crates. The
+# PyInstaller sidecar stays out — the stub in `src-tauri/sidecar/` satisfies
+# the external-bin check, and `--stub` rebuilds it after a real build.
+[doc('The desktop aggregate')]
+[group('desktop')]
+desktop-check:
+    {{ bunreq }}
+    cd apps/desktop && bun install --frozen-lockfile
+    cd apps/desktop && bun x tsc --noEmit
+    cd apps/desktop && bun x vitest run
+    cd apps/desktop && bun x vite build
+    cd apps/desktop/core && cargo fmt --check
+    cd apps/desktop/core && cargo clippy --all-targets -- -D warnings
+    cd apps/desktop/core && cargo test
+    bash apps/desktop/scripts/build-cli-sidecar.sh --stub
+    cd apps/desktop/src-tauri && cargo fmt --check
+    cd apps/desktop/src-tauri && cargo clippy --all-targets -- -D warnings
+    cd apps/desktop/src-tauri && cargo test
+
 # Docker and Compose surface. Not a dependency of `check`: hadolint, shellcheck
 # and the Compose CLI are infra tools, not gate prerequisites — a maintainer
 # touches infra files knowingly and runs this group explicitly. The deploy
