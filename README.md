@@ -73,6 +73,17 @@ Do not dump it as a prelude.
 
 </details>
 
+## Desktop application
+
+`apps/desktop` is a Tauri 2 desktop shell over the same CLI machine
+contract — catalog, task-engine journeys, targets, and recovery in a
+native window for Linux, macOS, and Windows. Release bundles embed the
+CLI as a sidecar, so no separate install is required. Download the
+latest build from
+[GitHub Releases](https://github.com/ai-engineers-guild/ai-stp/releases/tag/desktop-v0.3.0)
+(bundles are unsigned; `SHA256SUMS` covers every artifact). Details and
+the boundary rules live in `apps/desktop/README.md` and ADR-0222.
+
 ## Supported harnesses
 
 `full` — native surface and a provider route. `partial` — one of those. `—` — no
