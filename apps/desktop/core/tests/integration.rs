@@ -1,8 +1,8 @@
-use aistp_desktop_core::cli_runner::{CliLocator, CliRunner, RunError};
-use aistp_desktop_core::commands::{CommandRegistry, MachineHelp};
+use ai_stp_desktop_core::cli_runner::{CliLocator, CliRunner, RunError};
+use ai_stp_desktop_core::commands::{CommandRegistry, MachineHelp};
 #[cfg(unix)]
-use aistp_desktop_core::envelope::Envelope;
-use aistp_desktop_core::envelope::{parse, ParseFailure};
+use ai_stp_desktop_core::envelope::Envelope;
+use ai_stp_desktop_core::envelope::{parse, ParseFailure};
 use std::collections::BTreeMap;
 
 fn fixture(name: &str) -> Vec<u8> {
@@ -191,7 +191,7 @@ fn locator_bundled_wins_over_path() {
 
 #[test]
 fn continuation_actor_classification_fail_closed() {
-    use aistp_desktop_core::envelope::{Continuation, ContinuationActor};
+    use ai_stp_desktop_core::envelope::{Continuation, ContinuationActor};
     let mk = |actor: Option<&str>| Continuation {
         kind: "advance".into(),
         path: vec![],
@@ -231,7 +231,7 @@ fn fake_cli(body: &str) -> (std::path::PathBuf, std::path::PathBuf) {
     use std::sync::atomic::{AtomicUsize, Ordering};
     static SEQ: AtomicUsize = AtomicUsize::new(0);
     let dir = std::env::temp_dir().join(format!(
-        "aistp-test-{}-{}",
+        "ai-stp-test-{}-{}",
         std::process::id(),
         SEQ.fetch_add(1, Ordering::Relaxed)
     ));
@@ -353,7 +353,7 @@ fn argv_unknown_command_is_refused() {
     let reg = CommandRegistry::from_help(&help);
     assert!(matches!(
         reg.build_argv("does not exist", &BTreeMap::new(), &[], &BTreeMap::new()),
-        Err(aistp_desktop_core::commands::BuildError::UnknownCommand(_))
+        Err(ai_stp_desktop_core::commands::BuildError::UnknownCommand(_))
     ));
 }
 

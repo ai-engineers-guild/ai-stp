@@ -7,7 +7,7 @@ last_verified: "2026-09-20"
 
 ## Branches
 
-`dev` is the repository's default integration branch. `main` is the protected release branch. Both are permanent locally and on GitHub. CI push branches: `dev`, `main`.
+`main` is the repository's default branch and the protected release branch. `dev` is the permanent integration branch: work lands on `dev` first and is promoted into `main` by exact-SHA PR. Both are permanent locally and on GitHub. CI push branches: `dev`, `main`. Dependabot entries pin `target-branch: dev` so dependency PRs keep landing on the integration branch, not the default.
 
 Contributor branches use exactly one of these prefixes followed by a non-empty
 description: `feat/`, `chore/`, `docs/`, `test/`, `fix/`, or `refactor/`.

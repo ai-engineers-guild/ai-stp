@@ -1,4 +1,4 @@
-use aistp_desktop_core::{CliLocator, CliRunner, CommandRegistry, Envelope, MachineHelp};
+use ai_stp_desktop_core::{CliLocator, CliRunner, CommandRegistry, Envelope, MachineHelp};
 use serde::Serialize;
 use std::collections::BTreeMap;
 use std::path::PathBuf;
@@ -12,7 +12,7 @@ struct CmdResult {
     ok: bool,
     data: Option<serde_json::Value>,
     warnings: Vec<String>,
-    continuations: Vec<aistp_desktop_core::Continuation>,
+    continuations: Vec<ai_stp_desktop_core::Continuation>,
     error: Option<String>,
     /// Stable machine code when the CLI produced one — the frontend keys
     /// on this, never on the message text.

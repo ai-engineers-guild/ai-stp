@@ -1,19 +1,19 @@
 [package]
-name = "aistp-desktop"
-version = "0.3.0"
+name = "ai-stp-desktop"
+version = "0.0.1"
 edition = "2021"
 description = "ai-stp desktop application"
 license = "AGPL-3.0-or-later"
 
 [lib]
-name = "aistp_desktop_lib"
+name = "ai_stp_desktop_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-aistp-desktop-core = { path = "../core" }
+ai-stp-desktop-core = { path = "../core" }
 tauri = { version = "2", features = [] }
 tauri-plugin-single-instance = "2"
 tauri-plugin-window-state = "2"

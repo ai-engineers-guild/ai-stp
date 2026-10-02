@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "ai-stp",
-  "version": "0.3.0",
-  "identifier": "space.aiguild.ai-stp",
+  "productName": "ai-stp-desktop",
+  "version": "0.0.1",
+  "identifier": "space.aiguild.ai-stp-desktop",
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://localhost:1420",
@@ -27,12 +27,22 @@
   "bundle": {
     "active": true,
     "targets": "all",
-    "icon": ["icons/icon.png", "icons/icon.ico", "icons/icon.icns"],
+    "icon": [
+      "icons/icon.png",
+      "icons/icon.ico",
+      "icons/icon.icns"
+    ],
     "linux": {
       "deb": {
-        "depends": ["libwebkit2gtk-4.1-0", "libgtk-3-0", "libayatana-appindicator3-1"]
+        "depends": [
+          "libwebkit2gtk-4.1-0",
+          "libgtk-3-0",
+          "libayatana-appindicator3-1"
+        ]
       }
     },
-    "externalBin": ["sidecar/ai-stp"]
+    "externalBin": [
+      "sidecar/ai-stp"
+    ]
   }
 }
