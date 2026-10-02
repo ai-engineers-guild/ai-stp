@@ -52,8 +52,8 @@ Open beta ships all seven harnesses. Completeness of the product requirements an
 
 ## Desktop application
 
-A desktop application for macOS, Linux, and Windows is in development as a
-contract consumer of the CLI and the `/v1` API (ADR-0219). It renders
+A desktop application for macOS, Linux, and Windows ships as a
+contract consumer of the CLI and the `/v1` API (ADR-0222). It renders
 catalog, plan, apply, status, and recovery surfaces; the CLI remains the
 only engine. It is not a persistent daemon and does not run a local server.
 Its v1 excludes corporate surfaces, publishing, and any feature that calls
