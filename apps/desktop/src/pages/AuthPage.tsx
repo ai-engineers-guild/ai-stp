@@ -10,9 +10,12 @@ import {
 import { Json, ResultMeta, Spinner } from "../components/Result";
 import { useApp } from "../store";
 
+// Matches the CLI's closed provider set (`auth login --provider` choices).
 const PROVIDERS = [
   { id: "google", label: "Google" },
   { id: "github", label: "GitHub" },
+  { id: "authentik", label: "Authentik" },
+  { id: "keycloak", label: "Keycloak" },
 ];
 
 /** Device-code sign-in driven entirely by the CLI. The app displays the
@@ -24,12 +27,16 @@ export default function AuthPage() {
   const [flow, setFlow] = useState<CmdResult | null>(null);
   const [status, setStatus] = useState<CmdResult | null>(null);
   const [waiting, setWaiting] = useState(false);
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [starting, setStarting] = useState(false);
+  // Generation counter: unmounting or pressing Cancel bumps it, which
+  // breaks the poll loop — a zombie poller would keep hitting
+  // `auth complete` and could interfere with a newer login attempt.
+  const pollGen = useRef(0);
 
   useEffect(() => {
     void refreshAuth();
     return () => {
-      if (pollRef.current) clearInterval(pollRef.current);
+      pollGen.current++;
     };
   }, [refreshAuth]);
 
@@ -41,7 +48,17 @@ export default function AuthPage() {
   const expiresIn = Number(loginData.expires_in ?? 0);
 
   async function startLogin() {
-    setFlow(await cmdAuthLogin(provider));
+    setStarting(true);
+    try {
+      setFlow(await cmdAuthLogin(provider));
+    } finally {
+      setStarting(false);
+    }
+  }
+
+  function cancelWait() {
+    pollGen.current++;
+    setWaiting(false);
   }
 
   async function openAndWait() {
@@ -52,19 +69,24 @@ export default function AuthPage() {
         /* headless — user copies the link */
       }
     }
+    const gen = ++pollGen.current;
     setWaiting(true);
     // Poll without --wait: the CLI's blocking wait can outlive the runner's
     // bounded deadline, which would surface as a false "unconfirmed" kill.
     const deadline = Date.now() + (expiresIn > 0 ? expiresIn * 1000 : 5 * 60_000);
     let res: CmdResult | null = null;
-    while (Date.now() < deadline) {
-      res = await cmdAuthComplete(false);
-      // Closed code set: AUTHORIZATION_PENDING keeps polling; DECLINED /
-      // EXPIRED / anything else terminates immediately.
-      if (res.ok || res.error_code !== "AI_STP_AUTHORIZATION_PENDING") break;
-      await new Promise((r) => setTimeout(r, 4000));
+    try {
+      while (Date.now() < deadline && pollGen.current === gen) {
+        res = await cmdAuthComplete(false);
+        // Closed code set: AUTHORIZATION_PENDING keeps polling; DECLINED /
+        // EXPIRED / anything else terminates immediately.
+        if (res.ok || res.error_code !== "AI_STP_AUTHORIZATION_PENDING") break;
+        await new Promise((r) => setTimeout(r, 4000));
+      }
+    } finally {
+      if (pollGen.current === gen) setWaiting(false);
     }
-    setWaiting(false);
+    if (pollGen.current !== gen) return; // cancelled or unmounted
     setStatus(res);
     await refreshAuth();
   }
@@ -116,9 +138,10 @@ export default function AuthPage() {
           </div>
           <button
             onClick={() => void startLogin()}
+            disabled={starting || waiting}
             className="btn-primary"
           >
-            Start sign-in
+            {starting ? "Starting…" : "Start sign-in"}
           </button>
         </section>
       )}
@@ -132,15 +155,26 @@ export default function AuthPage() {
               <p className="select-all text-center font-mono text-2xl font-bold tracking-[0.3em]">
                 {userCode}
               </p>
-              {verificationUrl && (
-                <button
-                  onClick={() => void openAndWait()}
-                  disabled={waiting}
-                  className="btn-primary"
-                >
-                  <ExternalLink size={14} />
-                  {waiting ? "Waiting for confirmation…" : "Open browser & confirm"}
-                </button>
+              {verificationUrl ? (
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => void openAndWait()}
+                    disabled={waiting}
+                    className="btn-primary"
+                  >
+                    <ExternalLink size={14} />
+                    {waiting ? "Waiting for confirmation…" : "Open browser & confirm"}
+                  </button>
+                  {waiting && (
+                    <button onClick={cancelWait} className="btn-outline">
+                      Stop waiting
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <p className="text-xs text-destructive">
+                  The CLI returned no verification URL — check the flow result above.
+                </p>
               )}
               {expiresIn > 0 && (
                 <p className="text-xs text-muted-foreground">Code valid for {Math.round(expiresIn / 60)} min.</p>

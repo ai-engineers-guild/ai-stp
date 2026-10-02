@@ -4,7 +4,7 @@
 
 import { invoke } from "@tauri-apps/api/core";
 import { redact } from "./redact";
-import { useDebug } from "./store";
+import { useDebug, type IpcEntry } from "./store";
 
 export interface CliContinuation {
   kind: string;
@@ -12,7 +12,7 @@ export interface CliContinuation {
   arguments: unknown;
   missing: string[];
   argv: string[];
-  actor: "cli" | "human" | "external" | null;
+  actor: "cli" | "human" | "external" | "agent" | null;
 }
 
 export interface CmdResult {
@@ -22,17 +22,29 @@ export interface CmdResult {
   continuations: CliContinuation[];
   error: string | null;
   error_code: string | null;
+  request_id?: string | null;
+  operation_id?: string | null;
+  error_retryable?: boolean | null;
+  next_actions?: unknown[];
 }
 
 /** Every call goes through here: the Debug page logs cmd, args, latency,
  *  ok and error_code for diagnostics. Results are kept on the entry so a
- *  failure can be inspected without re-running the command. */
+ *  failure can be inspected without re-running the command.
+ *
+ *  Never rejects: an IPC-level failure (handler panic, killed sidecar)
+ *  becomes a `CmdResult` with error_code "IPC_THROW" so callers always
+ *  get a renderable result — a thrown invoke would otherwise strand
+ *  busy/spinner state forever on the calling page. */
 function call(command: string, args?: Record<string, unknown>): Promise<CmdResult> {
   const t0 = performance.now();
   const argsRec = args ?? {};
+  const trace = (e: Omit<IpcEntry, "id" | "ts">) => {
+    if (useDebug.getState().debugMode) useDebug.getState().push(e);
+  };
   return invoke<CmdResult>(command, argsRec).then(
     (r) => {
-      useDebug.getState().push({
+      trace({
         cmd: command, args: argsRec, ms: Math.round(performance.now() - t0),
         ok: r.ok, error_code: r.error_code, error: r.error,
         result: redact(r) as CmdResult,
@@ -40,11 +52,14 @@ function call(command: string, args?: Record<string, unknown>): Promise<CmdResul
       return r;
     },
     (e) => {
-      useDebug.getState().push({
+      trace({
         cmd: command, args: argsRec, ms: Math.round(performance.now() - t0),
         ok: null, error_code: "IPC_THROW", error: String(e),
       });
-      throw e;
+      return {
+        ok: false, data: null, warnings: [], continuations: [],
+        error: `IPC call failed: ${String(e)}`, error_code: "IPC_THROW",
+      };
     },
   );
 }
@@ -73,8 +88,9 @@ export function cmdRunRead(
   path: string,
   values: Record<string, string> = {},
   flags: string[] = [],
+  repeated: Record<string, string[]> = {},
 ): Promise<CmdResult> {
-  return call("cli_run_read", { path, values, flags });
+  return call("cli_run_read", { path, values, flags, repeated });
 }
 
 // -- auth: device-code flow through the CLI; the app holds no credentials.
@@ -125,8 +141,9 @@ export function cliPlan(
   path: string,
   values: Record<string, string>,
   flags: string[] = [],
+  repeated: Record<string, string[]> = {},
 ): Promise<CmdResult> {
-  return call("cli_plan", { path, values, flags });
+  return call("cli_plan", { path, values, flags, repeated });
 }
 
 export function cliApplyConfirmed(
@@ -134,8 +151,9 @@ export function cliApplyConfirmed(
   values: Record<string, string>,
   flags: string[] = [],
   confirmed = false,
+  repeated: Record<string, string[]> = {},
 ): Promise<CmdResult> {
-  return call("cli_apply_confirmed", { path, values, flags, confirmed });
+  return call("cli_apply_confirmed", { path, values, flags, confirmed, repeated });
 }
 
 // -- tasks (durable journeys)
@@ -144,8 +162,19 @@ export function cmdTaskIntents(): Promise<CmdResult> {
   return call("task_intents");
 }
 
-export function cmdTaskStart(intent: string): Promise<CmdResult> {
-  return call("task_start", { intent });
+export function cmdTaskStart(
+  intent: string,
+  idemKey?: string,
+  input?: string,
+): Promise<CmdResult> {
+  // One key per logical start: a timeout-and-retry hits the CLI's
+  // idempotency dedup instead of forking a duplicate task. `input` is the
+  // CLI's optional JSON pre-answer blob (`task start --input`).
+  return call("task_start", {
+    intent,
+    idemKey: idemKey ?? null,
+    input: input ?? null,
+  });
 }
 
 export function cmdTaskStatus(taskId: string): Promise<CmdResult> {

@@ -13,16 +13,40 @@ export default function OverviewPage() {
 
   async function refresh() {
     setBusy(true);
-    await refreshCli();
-    setCaps(await cmdCapabilities());
-    setDoctor(await cmdDoctor());
-    setDevice(await cmdDeviceShow());
-    setBusy(false);
+    try {
+      await refreshCli();
+      setCaps(await cmdCapabilities());
+      setDoctor(await cmdDoctor());
+      setDevice(await cmdDeviceShow());
+    } finally {
+      setBusy(false);
+    }
   }
 
   useEffect(() => {
     void refresh();
   }, []);
+
+  // `ok` only says the envelope arrived; health lives in data.state — the
+  // worst of the individual check states.
+  const doctorState = String(
+    ((doctor?.data ?? {}) as Record<string, unknown>).state ??
+      (doctor ? (doctor.ok ? "ready" : "broken") : ""),
+  );
+  const doctorLabel =
+    doctorState === "ready"
+      ? "healthy"
+      : doctorState === "needs_user_action"
+        ? "needs attention"
+        : doctorState
+          ? "issues"
+          : "…";
+  const checkColor = (s: string) =>
+    s === "ready"
+      ? "bg-success"
+      : s === "needs_user_action"
+        ? "bg-warning"
+        : "bg-destructive";
 
   return (
     <div className="space-y-5">
@@ -56,7 +80,7 @@ export default function OverviewPage() {
         </div>
         <div className="card p-4">
           <p className="text-xs uppercase text-muted-foreground">Doctor</p>
-          <p className="mt-1 text-lg font-semibold">{doctor ? (doctor.ok ? "healthy" : "issues") : "…"}</p>
+          <p className="mt-1 text-lg font-semibold">{doctorLabel}</p>
           <p className="mt-1 text-xs text-muted-foreground">Environment and dependency checks</p>
         </div>
       </section>
@@ -71,6 +95,7 @@ export default function OverviewPage() {
           <Json v={device.data} />
         </section>
       )}
+      {device && !device.ok && <ResultMeta r={device} />}
       {doctor && !doctor.ok && <ResultMeta r={doctor} />}
       {caps && !caps.ok && <ResultMeta r={caps} />}
       {doctor?.data && (
@@ -81,9 +106,7 @@ export default function OverviewPage() {
               (c, i) => (
                 <li key={i} className="flex items-center gap-3 px-4 py-2">
                   <span
-                    className={`h-1.5 w-1.5 shrink-0 rounded-full ${
-                      c.state === "ready" ? "bg-success" : "bg-destructive"
-                    }`}
+                    className={`h-1.5 w-1.5 shrink-0 rounded-full ${checkColor(String(c.state))}`}
                   />
                   <span className="w-44 shrink-0 font-mono text-xs">{String(c.name)}</span>
                   <span className="flex-1 text-xs text-muted-foreground">{String(c.detail ?? "")}</span>

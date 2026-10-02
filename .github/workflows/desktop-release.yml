@@ -44,17 +44,31 @@ jobs:
             exit 1
           fi
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-      - name: tauri.conf.json version must equal the tag
+        with:
+          persist-credentials: false
+      - name: every desktop manifest must equal the tag
         env:
           EXPECTED_VERSION: ${{ inputs.version }}
         run: |
           set -euo pipefail
-          actual=$(sed -n 's/.*"version": *"\([^"]*\)".*/\1/p' \
-            apps/desktop/src-tauri/tauri.conf.json | head -1)
-          [[ "${actual}" == "${EXPECTED_VERSION}" ]] || {
-            echo "tauri.conf.json has ${actual}, tag wants ${EXPECTED_VERSION}" >&2
-            exit 1
-          }
+          for m in \
+            apps/desktop/package.json \
+            apps/desktop/src-tauri/tauri.conf.json; do
+            actual=$(sed -n 's/.*"version": *"\([^"]*\)".*/\1/p' "$m" | head -1)
+            [[ "${actual}" == "${EXPECTED_VERSION}" ]] || {
+              echo "${m} has ${actual}, tag wants ${EXPECTED_VERSION}" >&2
+              exit 1
+            }
+          done
+          for m in \
+            apps/desktop/src-tauri/Cargo.toml \
+            apps/desktop/core/Cargo.toml; do
+            actual=$(sed -n 's/^version = "\([^"]*\)"/\1/p' "$m" | head -1)
+            [[ "${actual}" == "${EXPECTED_VERSION}" ]] || {
+              echo "${m} has ${actual}, tag wants ${EXPECTED_VERSION}" >&2
+              exit 1
+            }
+          done
 
   bundle:
     name: bundle-${{ matrix.os }}
@@ -120,7 +134,7 @@ jobs:
           # the same path the installed app takes. On Windows the frozen
           # CLI dies in its bootloader if TMP/TEMP/USERPROFILE are dropped.
           sidecar_dir="${GITHUB_WORKSPACE}/apps/desktop/src-tauri/sidecar"
-          export AI_STP_SIDECAR_EXE="${sidecar_dir}/ai-stp-${triple}${sfx}"
+          export AI_STP_SIDECAR_EXE="${sidecar_dir}/ai-stp-desktop-cli-${triple}${sfx}"
           cargo test --test integration bundled_sidecar -- --nocapture
       - name: Tauri build
         working-directory: apps/desktop
@@ -187,9 +201,14 @@ jobs:
           set -euo pipefail
           cat > "${RUNNER_TEMP}/NOTES.md" <<'NOTES'
           Desktop application over the ai-stp CLI (ADR-0222). The CLI is
-          bundled inside the app (PyInstaller sidecar via
-          `bundle.externalBin`) — no separate install is needed; a
-          configured path or PATH `ai-stp` still works in development.
+          bundled inside the app as `ai-stp-desktop-cli` (PyInstaller
+          sidecar via `bundle.externalBin`) — no separate install is
+          needed; a configured path or PATH `ai-stp` still works in
+          development.
+
+          Upgrading from `ai-stp` 0.3.0? Uninstall it first — the product
+          was renamed to `ai-stp-desktop`, so old installs do not
+          auto-upgrade and both would coexist.
 
           Bundles are unsigned: macOS will ask to allow the app in
           Privacy & Security, Windows SmartScreen will warn, and Linux

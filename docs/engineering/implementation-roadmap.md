@@ -717,7 +717,7 @@ closed or forbade. Those findings are not re-opened here:
 
 | Finding | Disposition |
 |---|---|
-| Protect `ai-stp/main` (GOV-001) | ADR-0180 restores protected `main`, default `dev`, promotion checks, and administrator bypass with zero mandatory approvals. |
+| Protect `ai-stp/main` (GOV-001) | ADR-0180 restores protected `main`, promotion checks, and administrator bypass with zero mandatory approvals (default later moved to `main`; see the ADR amendment). |
 | Six-package publication (REL-002) | Superseded by `ADR-0146`: one public `ai-stp-cli` wheel. Historical six-package artifacts stay immutable. |
 | Provider-owned multi-root commit (LAY-002) | Superseded by `ADR-0145` / SPEC-058: the consumer owns a recoverable transaction over unchanged provider v3 (one target). |
 | PyPI as the default provider channel (PYP-002) | Not claimed. GitHub attested releases remain the default until six-leg evidence exists for the index path. |

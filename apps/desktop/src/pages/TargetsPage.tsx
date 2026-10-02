@@ -12,7 +12,7 @@ const QUERIES: { label: string; path: string; needs: ("project" | "harness")[] }
   { label: "Rollback preview", path: "target rollback", needs: ["project", "harness"] },
   { label: "Select session", path: "select session", needs: ["harness"] },
   { label: "Select eligibility", path: "select eligibility", needs: ["harness"] },
-  { label: "Stopped transactions", path: "install status", needs: [] },
+  { label: "Stopped operations", path: "install status", needs: [] },
   { label: "Update status", path: "update status", needs: [] },
 ];
 
@@ -24,31 +24,57 @@ export default function TargetsPage() {
   const [results, setResults] = useState<Record<string, CmdResult>>({});
   const [busy, setBusy] = useState<string | null>(null);
   const [txId, setTxId] = useState("");
+  const [txTxn, setTxTxn] = useState("");
   const [txResult, setTxResult] = useState<CmdResult | null>(null);
-  const [txConfirm, setTxConfirm] = useState(false);
+  const [txConfirm, setTxConfirm] = useState<"resume" | "tx" | false>(false);
 
   async function run(q: (typeof QUERIES)[number]) {
     setBusy(q.path);
-    const values: Record<string, string> = {};
-    for (const n of q.needs) values[n] = n === "project" ? project : harness;
-    const r = await cmdRunRead(q.path, values);
-    setResults((prev) => ({ ...prev, [q.path]: r }));
-    setBusy(null);
+    try {
+      const values: Record<string, string> = {};
+      for (const n of q.needs) values[n] = n === "project" ? project : harness;
+      const r = await cmdRunRead(q.path, values);
+      setResults((prev) => ({ ...prev, [q.path]: r }));
+    } finally {
+      setBusy(null);
+    }
   }
 
-  /** Stopped transactions from `install status` — ids may arrive as plain
-   *  strings or objects carrying a transaction_id/id field. */
+  /** `install status` reports stopped operations as RecoveryView objects
+   *  keyed by `operation_id` (cli-installation-status schema). Inspection
+   *  runs `install recover --operation` (read-tier); finishing the result
+   *  check runs `install resume --operation` (apply-tier). */
   const stopped: string[] = (() => {
     const s = (results["install status"]?.data?.stopped ?? []) as unknown[];
     return s
       .map((e) =>
         typeof e === "string"
           ? e
-          : ((e as Record<string, unknown>)?.transaction_id ??
+          : ((e as Record<string, unknown>)?.operation_id ??
               (e as Record<string, unknown>)?.id) as string | undefined,
       )
       .filter((x): x is string => typeof x === "string" && x.length > 0);
   })();
+
+  async function opInspect(id: string) {
+    setBusy("tx");
+    setTxResult(await cmdRunRead("install recover", { operation: id }));
+    setBusy(null);
+  }
+
+  async function opResume(id: string) {
+    setBusy("tx");
+    setTxResult(
+      await cliApplyConfirmed("install resume", { operation: id }, [], true),
+    );
+    setTxConfirm(false);
+    setBusy(null);
+    // Recovery changes the stopped list — refresh it if it was loaded.
+    if (results["install status"]) {
+      const r = await cmdRunRead("install status");
+      setResults((prev) => ({ ...prev, "install status": r }));
+    }
+  }
 
   async function txInspect(id: string) {
     setBusy("tx");
@@ -63,7 +89,6 @@ export default function TargetsPage() {
     );
     setTxConfirm(false);
     setBusy(null);
-    // Recovery changes the stopped list — refresh it if it was loaded.
     if (results["install status"]) {
       const r = await cmdRunRead("install status");
       setResults((prev) => ({ ...prev, "install status": r }));
@@ -82,9 +107,9 @@ export default function TargetsPage() {
 
       <div className="flex max-w-2xl gap-3">
         <label className="flex-1 text-xs">
-          Project path
+          Project
           <input value={project} onChange={(e) => setProject(e.target.value)}
-            placeholder="/absolute/path/to/project"
+            placeholder="project passport id or /absolute/path"
             className="mt-1 w-full rounded-lg border border-input bg-transparent px-3 py-1.5 font-mono text-sm" />
         </label>
         <label className="w-44 text-xs">
@@ -110,15 +135,15 @@ export default function TargetsPage() {
 
       {stopped.length > 0 && (
         <section className="card space-y-2 p-4">
-          <h2 className="section-title">Stopped transactions</h2>
+          <h2 className="section-title">Stopped operations</h2>
           <ul className="space-y-1.5">
             {stopped.map((id) => (
               <li key={id} className="flex items-center gap-2 font-mono text-xs">
                 <span className="flex-1 truncate">{id}</span>
-                <button onClick={() => { setTxId(id); void txInspect(id); }}
+                <button onClick={() => { setTxId(id); void opInspect(id); }}
                   className="btn-outline !py-0.5 !text-[11px]">inspect</button>
-                <button onClick={() => { setTxId(id); setTxConfirm(true); }}
-                  className="btn-danger !py-0.5 !text-[11px]">recover</button>
+                <button onClick={() => { setTxId(id); setTxConfirm("resume"); }}
+                  className="btn-danger !py-0.5 !text-[11px]">resume</button>
               </li>
             ))}
           </ul>
@@ -126,25 +151,43 @@ export default function TargetsPage() {
       )}
 
       <section className="card space-y-2 p-4">
-        <h2 className="section-title">Transaction recovery</h2>
+        <h2 className="section-title">Operation recovery</h2>
         <p className="text-xs text-muted-foreground">
-          A stopped install transaction can be inspected and rolled back to a
-          verified state. Recover is an apply-tier mutation — confirm explicitly.
+          A stopped operation can be inspected (`install recover`) and its
+          result check finished (`install resume`, apply-tier — confirm
+          explicitly). For a multi-root transaction id use the second row.
         </p>
         <div className="flex gap-2">
-          <input value={txId} onChange={(e) => setTxId(e.target.value)}
-            placeholder="tx id, e.g. from Stopped transactions above"
+          <input value={txId} onChange={(e) => { setTxId(e.target.value); setTxConfirm(false); }}
+            placeholder="operation id, e.g. from Stopped operations above"
             className="input w-80 font-mono" />
-          <button onClick={() => void txInspect(txId)} disabled={!txId || busy !== null}
+          <button onClick={() => void opInspect(txId)} disabled={!txId || busy !== null}
             className="btn-outline">Inspect</button>
-          {txConfirm ? (
-            <button onClick={() => void txRecover(txId)} className="btn-danger">
+          {txConfirm === "resume" ? (
+            <button onClick={() => void opResume(txId)} className="btn-danger">
+              Confirm resume
+            </button>
+          ) : (
+            <button onClick={() => setTxConfirm("resume")} disabled={!txId || busy !== null}
+              className="btn-outline text-destructive">
+              <Wrench size={13} /> Resume
+            </button>
+          )}
+        </div>
+        <div className="flex gap-2">
+          <input value={txTxn} onChange={(e) => { setTxTxn(e.target.value); setTxConfirm(false); }}
+            placeholder="transaction id (from a transaction plan/apply result)"
+            className="input w-80 font-mono" />
+          <button onClick={() => void txInspect(txTxn)} disabled={!txTxn || busy !== null}
+            className="btn-outline">Inspect</button>
+          {txConfirm === "tx" ? (
+            <button onClick={() => void txRecover(txTxn)} className="btn-danger">
               Confirm recover
             </button>
           ) : (
-            <button onClick={() => setTxConfirm(true)} disabled={!txId || busy !== null}
+            <button onClick={() => setTxConfirm("tx")} disabled={!txTxn || busy !== null}
               className="btn-outline text-destructive">
-              <Wrench size={13} /> Recover
+              <Wrench size={13} /> Recover tx
             </button>
           )}
         </div>
