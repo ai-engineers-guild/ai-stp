@@ -453,12 +453,10 @@ fn runs_real_cli_version() {
     assert!(env.ok);
 }
 
-/// Serialize tests that mutate the process env: spawned children observe
-/// the mutation, so these tests must not interleave.
-#[cfg(unix)]
-static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
-
 /// Fake CLI that reports the env it was spawned under inside `data`.
+/// Never mutate `std::env` in these tests: `child_env` is pure and covered
+/// by unit tests in `cli_runner.rs`, so an env-mutating test here would
+/// race parallel tests calling `std::env::temp_dir()`.
 #[cfg(unix)]
 fn env_probe_cli() -> (std::path::PathBuf, std::path::PathBuf) {
     fake_cli(concat!(
@@ -466,88 +464,33 @@ fn env_probe_cli() -> (std::path::PathBuf, std::path::PathBuf) {
         "printf '%s' '{\"schema_version\":1,\"ok\":true,\"request_id\":null,\"operation_id\":null,",
         "\"data\":{",
         "\"TMPDIR\":\"'\"${TMPDIR-}\"'\",",
-        "\"TEMP\":\"'\"${TEMP-}\"'\",",
-        "\"TMP\":\"'\"${TMP-}\"'\",",
-        "\"USERPROFILE\":\"'\"${USERPROFILE-}\"'\"",
+        "\"AI_STP_PROBE\":\"'\"${AI_STP_PROBE-}\"'\"",
         "},\"warnings\":[],\"continuations\":[],\"error\":null}'"
     ))
 }
 
-/// Regression for the installed-Windows-bundle bug: `CliRunner` clears
-/// the child env and must re-add TMP/TEMP/USERPROFILE — without them the
-/// PyInstaller bootloader's `GetTempPathW` falls back to the unwritable
-/// `C:\Windows` and the sidecar exits -1 with "[PYI-*:ERROR] Could not
-/// create temporary directory!". The unix mirror of that chain is TMPDIR.
+/// End-to-end env wiring without mutating the process env: managed
+/// overrides (runner.env) must reach the spawned child through
+/// env_clear, and an `AI_STP_*` key exercises both the override path and
+/// the prefix passthrough.
 #[cfg(unix)]
 #[test]
-fn child_receives_temp_env_from_parent() {
-    let _g = ENV_LOCK.lock().unwrap();
+fn spawned_child_receives_runner_env_overrides() {
     let (dir, exe) = env_probe_cli();
-    let sentinel = dir.join("t");
-    std::fs::create_dir_all(&sentinel).unwrap();
-    for k in ["TMPDIR", "TEMP", "TMP"] {
-        std::env::set_var(k, &sentinel);
-    }
-    let env = run_fake(&exe, 30_000).expect("spawn");
-    let data = env.data.unwrap();
-    for k in ["TMPDIR", "TEMP", "TMP"] {
-        assert_eq!(
-            data[k].as_str().unwrap(),
-            sentinel.to_string_lossy(),
-            "child env missing {k}"
-        );
-    }
-    let _ = std::fs::remove_dir_all(&dir);
-}
-
-/// A parent env with no usable temp dir at all must still yield a child
-/// with a real one — the runner synthesizes an app-private dir rather
-/// than trusting the spawn context to provide one.
-#[cfg(unix)]
-#[test]
-fn child_gets_synthesized_temp_when_parent_has_none() {
-    let _g = ENV_LOCK.lock().unwrap();
-    let (dir, exe) = env_probe_cli();
-    let saved: Vec<_> = ["TMPDIR", "TEMP", "TMP", "USERPROFILE"]
-        .iter()
-        .map(|k| (*k, std::env::var_os(k)))
-        .collect();
-    for (k, _) in &saved {
-        std::env::remove_var(k);
-    }
-    let env = run_fake(&exe, 30_000).expect("spawn");
-    for (k, v) in saved {
-        match v {
-            Some(v) => std::env::set_var(k, v),
-            None => std::env::remove_var(k),
-        }
-    }
-    let data = env.data.unwrap();
-    for k in ["TMPDIR", "TEMP", "TMP"] {
-        let v = data[k].as_str().unwrap_or_default();
-        assert!(!v.is_empty(), "child missing synthesized {k}");
-        assert!(std::path::Path::new(v).is_dir(), "{k} not a dir: {v}");
-    }
-    let _ = std::fs::remove_dir_all(&dir);
-}
-
-/// Managed-profile overrides (`runner.env`) are applied after
-/// inheritance — an explicit TEMP must beat the inherited one.
-#[cfg(unix)]
-#[test]
-fn runner_env_extra_overrides_inherited() {
-    let _g = ENV_LOCK.lock().unwrap();
-    let (dir, exe) = env_probe_cli();
-    std::env::set_var("TMPDIR", "/inherited");
     let mut runner = CliRunner::system(&CliLocator {
         bundled: Some(exe.clone()),
         configured: None,
     })
     .unwrap();
     runner.timeout = std::time::Duration::from_secs(30);
-    runner.env.push(("TMPDIR".into(), "/override".into()));
+    runner
+        .env
+        .push(("TMPDIR".into(), "/ai-stp-override".into()));
+    runner.env.push(("AI_STP_PROBE".into(), "sentinel".into()));
     let env = runner.run(&[]).expect("spawn");
-    assert_eq!(env.data.unwrap()["TMPDIR"].as_str().unwrap(), "/override");
+    let data = env.data.unwrap();
+    assert_eq!(data["TMPDIR"].as_str().unwrap(), "/ai-stp-override");
+    assert_eq!(data["AI_STP_PROBE"].as_str().unwrap(), "sentinel");
     let _ = std::fs::remove_dir_all(&dir);
 }
 
