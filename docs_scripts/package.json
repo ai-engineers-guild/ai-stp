@@ -1,8 +1,8 @@
 {
   "private": true,
   "devDependencies": {
-    "@mermaid-js/mermaid-cli": "11.16.0",
-    "markdownlint-cli2": "0.23.2"
+    "@mermaid-js/mermaid-cli": "12.0.0",
+    "markdownlint-cli2": "0.23.3"
   },
   "trustedDependencies": [
     "puppeteer"

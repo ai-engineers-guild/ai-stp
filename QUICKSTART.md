@@ -30,7 +30,7 @@ Local data—the registry, passports, device identity, and cache—remain in `${
 ## Requirements
 
 - Python 3.12 or 3.14;
-- `uv` 0.12.17 or later (the gate pins `.uv-version`);
+- `uv` 0.12.19 or later (the gate pins `.uv-version`);
 - `just` — the recipe runner every command below goes through;
 - `bun` matching `.bun-version` (1.4.2) — recipes check it exactly because
   `bun install` from another release line rewrites the lockfile into a format

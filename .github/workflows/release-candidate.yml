@@ -63,7 +63,7 @@ jobs:
       - name: Install the pinned uv
         run: |
           set -euo pipefail
-          bash .github/scripts/install-uv.sh "0.12.18" "${RUNNER_TEMP}/uv"
+          bash .github/scripts/install-uv.sh "0.12.19" "${RUNNER_TEMP}/uv"
           echo "${RUNNER_TEMP}/uv" >> "${GITHUB_PATH}"
       - name: Build and compare the candidate twice
         env:
