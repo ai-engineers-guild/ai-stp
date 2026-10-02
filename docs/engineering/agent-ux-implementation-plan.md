@@ -18,14 +18,14 @@ prompt, GPT OSS 120B through `agy` operates ai-stp. The agent picks an intent,
 relays answers, and reports verification. The CLI owns acquisition,
 composition, backup, plan, approve, apply, verify, retries, and recovery.
 
-## Checkpoint (2026-09-29)
+## Checkpoint (2026-10-03)
 
 Nine drained intents are on GitHub `main` (the eighth-intent wave landed via PR
 [#297](https://github.com/ai-engineers-guild/ai-stp/pull/297) merged
 2026-09-19; the ninth, `technology`, landed in `cc1cdf60`). Source and tag are
-`0.0.35` (`v0.0.35` @ `dd476cef`, promotion PR #535); the latest PyPI release is
-`0.0.35` — published 2026-09-29 through run `36548752992` (attested candidate
-`36540669341`, owner-approved `pypi-cli` environment). `0.0.34` was tagged and
+`0.0.36` (`v0.0.36` @ `a9cfc767`, promotion PR #577); the latest PyPI release is
+`0.0.36` — published 2026-10-01 through run `36931501581` (attested candidate
+`36930958686`, owner-approved `pypi-cli` environment). `0.0.34` was tagged and
 attested but never published; it is superseded. Epic #261–#275 are CLOSED. Do not touch
 `feat/milestone-6-b2b-03` or colleague corporate work.
 
@@ -33,8 +33,8 @@ attested but never published; it is superseded. Epic #261–#275 are CLOSED. Do 
 | --- | --- |
 | Line | GitHub `main` / `dev`. Work branch `feat/agent-task-lifecycle` is gone |
 | PR | [#297](https://github.com/ai-engineers-guild/ai-stp/pull/297) merged into `dev`, then promoted |
-| Tagged CLI | `0.0.35` at `v0.0.35` (`dd476cef`); release-candidate run `36540669341` built and attested the artifact |
-| Released CLI | `0.0.35` on PyPI (release-candidate run `36540669341`, publish run `36548752992`); it ships provider-kit `0.2.15` — the `authorization` status member accepted — behind the unified v2/v3 invocation boundary |
+| Tagged CLI | `0.0.36` at `v0.0.36` (`a9cfc767`); release-candidate run `36930958686` built and attested the artifact |
+| Released CLI | `0.0.36` on PyPI (release-candidate run `36930958686`, publish run `36931501581`); it ships provider-kit `0.2.15` — the `authorization` status member accepted — behind the unified v2/v3 invocation boundary |
 | Provider kit | `0.2.15` in `tests/golden/provider-kit/identity-ledger.json` |
 | Issues | #261–#275 CLOSED. setup-systems #316 OPEN. Issues #254/#256 are CLOSED |
 | Public provider | `0.0.87` on all seven `*-setup-system` trees (2026-09-30, pin refresh over the third audit wave), vendoring kit `0.2.15` |
@@ -131,7 +131,7 @@ External practice used (not copied as a second normative system):
 | Work branch | `feat/agent-task-lifecycle` @ `6f19972f` (gone; kernel is on `main` via #297) |
 | `origin/dev` then | `de37d6f3` after #277 (typed continuations exist; **no** PyPI cut at that date) |
 | Open PRs then | [#279](https://github.com/ai-engineers-guild/ai-stp/pull/279) envelope truth; [#280](https://github.com/ai-engineers-guild/ai-stp/pull/280) inspect engine (contains #279) |
-| Released CLI then | `0.0.22` (PyPI `0.0.33` as of the 2026-09-29 checkpoint above) |
+| Released CLI then | `0.0.22` (PyPI `0.0.36` as of the 2026-10-03 checkpoint above) |
 | Issues | #261–#275 OPEN then; all CLOSED since 2026-09-26. setup-systems #316 OPEN. #256/#254 now CLOSED |
 
 Kernel that already exists and must be **evolved**, not replaced:
