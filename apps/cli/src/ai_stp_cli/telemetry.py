@@ -19,7 +19,6 @@ about the operator.
 
 from __future__ import annotations
 
-import contextlib
 import json
 import os
 import uuid
@@ -29,7 +28,8 @@ from pathlib import Path
 from typing import Final, cast
 from urllib.parse import urlsplit
 
-from ai_stp_cli.paths import data_dir
+from ai_stp_cli.cloud.client import is_loopback
+from ai_stp_cli.paths import data_dir, write_private
 
 #: Never asked. No request, and the next `doctor` or Skill start may ask once.
 STATE_NOT_ASKED: Final[str] = "not_asked"
@@ -140,16 +140,12 @@ def forget() -> None:
 
 
 def _write(answer: Consent) -> None:
-    path = record_path()
-    path.parent.mkdir(parents=True, exist_ok=True)
     document: dict[str, str] = {"state": answer.state}
     if answer.anon:
         document["anon"] = answer.anon
-    path.write_text(json.dumps(document, indent=2) + "\n", encoding="utf-8")
-    # Windows decides by ACL and the mode call means nothing there. The file
-    # holds no secret in any case: a random identifier is not one.
-    with contextlib.suppress(OSError):
-        path.chmod(0o600)
+    # `write_private` creates owner-only and installs atomically — a crash
+    # mid-write never leaves a partial consent record or a temp sibling.
+    write_private(record_path(), json.dumps(document, indent=2) + "\n")
 
 
 def suppressed() -> bool:
@@ -166,10 +162,9 @@ def address_allowed(url: str) -> bool:
     parsed = urlsplit(url)
     if parsed.scheme == "https":
         return bool(parsed.hostname)
-    if parsed.scheme != "http" or not parsed.hostname:
+    if parsed.scheme != "http":
         return False
-    host = parsed.hostname.lower()
-    return host == "localhost" or host in {"127.0.0.1", "::1"}
+    return is_loopback(parsed.hostname)
 
 
 def ping(

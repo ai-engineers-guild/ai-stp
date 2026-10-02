@@ -259,6 +259,26 @@ def test_accepting_records_the_answer_and_turns_the_feature_on() -> None:
     assert answer.payload.enabled is True
 
 
+def test_a_second_write_replaces_the_record_and_leaves_no_sibling() -> None:
+    """The record is installed atomically: replace, never a half-written file.
+
+    A consent answer interrupted mid-write must not surface as a partial
+    document — `write_private` stages the bytes under a dot-prefixed temp name
+    and renames them onto the record, so a second write swaps one whole
+    document for another and leaves nothing extra behind.
+    """
+    path = telemetry.record_path()
+    telemetry.accept()
+
+    telemetry.decline()
+
+    stored = json.loads(path.read_text(encoding="utf-8"))
+    assert stored["state"] == telemetry.STATE_DECLINED
+    assert "anon" not in stored
+    assert telemetry.consent().state == telemetry.STATE_DECLINED
+    assert list(path.parent.glob(f".{path.name}.*")) == []
+
+
 # --------------------------------------------------------------------------
 # REQ-1317 — a closed field list, and nothing that names the machine
 # --------------------------------------------------------------------------
@@ -444,12 +464,27 @@ def test_nothing_sent_names_the_machine_it_was_sent_from(
 
 
 def test_a_cleartext_collector_is_refused_unless_the_packets_stay_here() -> None:
-    """The catalogue address rule, for the same reason."""
+    """The catalogue address rule, for the same reason.
+
+    `address_allowed` follows `is_loopback`, so every loopback spelling the
+    catalogue accepts is accepted here — and every near-miss it refuses is
+    refused here. `localhost.evil.test` is not localhost, and a numeric
+    spelling a resolver might land on loopback (`2130706433` is 127.0.0.1)
+    still fails closed because we cannot read it.
+    """
     assert telemetry.address_allowed("https://collector.example")
+    assert telemetry.address_allowed("https://example.com")
     assert telemetry.address_allowed("http://localhost:9000")
+    assert telemetry.address_allowed("http://localhost:1")
     assert telemetry.address_allowed("http://127.0.0.1:9000")
+    assert telemetry.address_allowed("http://127.0.0.2:9000")
+    assert telemetry.address_allowed("http://[::1]:8080")
     assert not telemetry.address_allowed("http://collector.example")
+    assert not telemetry.address_allowed("http://example.com")
+    assert not telemetry.address_allowed("http://localhost.evil.test")
+    assert not telemetry.address_allowed("http://2130706433")
     assert not telemetry.address_allowed("ftp://collector.example")
+    assert not telemetry.address_allowed("ftp://localhost")
     assert not telemetry.address_allowed("https://")
     assert not telemetry.address_allowed("")
 
