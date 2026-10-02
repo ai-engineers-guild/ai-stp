@@ -6,7 +6,7 @@ import { useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
 import { permissionEntity, permissionLabel, roleTitle } from "@/lib/corporate-permission-ui";
 
-import { corporateMutationAction } from "@/actions/corporate";
+import { corporateMutation } from "@/lib/api/corporate-mutation";
 import { Badge } from "@/components/atoms/badge";
 import { Button } from "@/components/atoms/button";
 import { Label } from "@/components/atoms/label";
@@ -37,6 +37,13 @@ type Labels = {
   operation: string;
   assign: string;
   remove: string;
+  teamRole: string;
+  projectRole: string;
+  projectRoleHint: string;
+  projectRoleOwner: string;
+  projectRoleContributor: string;
+  roleLead: string;
+  roleStaff: string;
   create: string;
   creating: string;
   revoke: string;
@@ -129,7 +136,7 @@ export function CorporateMemberAccessPanel({
   function submit(method: Method, path: string, body: unknown) {
     setMessage(null);
     startTransition(async () => {
-      const result = await corporateMutationAction({
+      const result = await corporateMutation({
         csrfToken,
         organizationId,
         path,
@@ -472,6 +479,7 @@ export function CorporateMemberAccessPanel({
                   team_id: teamId || null,
                   project_id: projectId || null,
                   team_role: field(formData, "teamRole") || "staff",
+                  project_role: field(formData, "projectRole") || "staff",
                   operation: field(formData, "operation") || "assign",
                   authorization_revision: authorizationRevision,
                   idempotency_key: crypto.randomUUID(),
@@ -508,6 +516,33 @@ export function CorporateMemberAccessPanel({
                   </option>
                 ))}
               </select>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="assign-team-role">{labels.teamRole}</Label>
+              <select
+                id="assign-team-role"
+                name="teamRole"
+                defaultValue="staff"
+                className="border-input bg-background focus-visible:ring-ring flex h-10 w-full rounded-md border px-3 text-sm focus-visible:ring-2 focus-visible:outline-none"
+              >
+                <option value="staff">{labels.roleStaff}</option>
+                <option value="lead">{labels.roleLead}</option>
+              </select>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="assign-project-role">{labels.projectRole}</Label>
+              <select
+                id="assign-project-role"
+                name="projectRole"
+                defaultValue="staff"
+                className="border-input bg-background focus-visible:ring-ring flex h-10 w-full rounded-md border px-3 text-sm focus-visible:ring-2 focus-visible:outline-none"
+              >
+                <option value="staff">{labels.roleStaff}</option>
+                <option value="contributor">{labels.projectRoleContributor}</option>
+                <option value="lead">{labels.roleLead}</option>
+                <option value="owner">{labels.projectRoleOwner}</option>
+              </select>
+              <p className="text-muted-foreground text-xs">{labels.projectRoleHint}</p>
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="assign-operation">{labels.operation}</Label>
@@ -571,6 +606,15 @@ function ScopeField({
       <optgroup label={a("entities.technology.name")}>
         {options
           .filter((option) => option.value.startsWith("technology:"))
+          .map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+      </optgroup>
+      <optgroup label={a("entities.category.name")}>
+        {options
+          .filter((option) => option.value.startsWith("category:"))
           .map((option) => (
             <option key={option.value} value={option.value}>
               {option.label}

@@ -79,6 +79,7 @@
             "team",
             "project",
             "technology",
+            "category",
             "catalog_object",
             "telemetry"
           ],
@@ -140,6 +141,7 @@
             "team",
             "project",
             "technology",
+            "category",
             "catalog_object",
             "member"
           ],
@@ -286,6 +288,7 @@
             "team",
             "project",
             "technology",
+            "category",
             "catalog_object"
           ],
           "title": "Scope Kind",
@@ -453,6 +456,7 @@
         "team",
         "project",
         "technology",
+        "category",
         "catalog_object",
         "member"
       ],

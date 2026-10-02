@@ -1,10 +1,6 @@
 import { getRequestConfig } from "next-intl/server";
 
-import { type AppLocale, defaultLocale, locales, routing } from "./routing";
-
-function isAppLocale(value: string): value is AppLocale {
-  return (locales as readonly string[]).includes(value);
-}
+import { type AppLocale, defaultLocale, isAppLocale, routing } from "./routing";
 
 export default getRequestConfig(async ({ requestLocale }) => {
   const requested = await requestLocale;
@@ -16,6 +12,7 @@ export default getRequestConfig(async ({ requestLocale }) => {
   return {
     locale,
     messages: catalog.default,
+    timeZone: "UTC",
   };
 });
 

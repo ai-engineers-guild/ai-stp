@@ -9,7 +9,7 @@ import fixture from "@/mocks/corporate-overview-fixture";
 import type { CorporateContext, CorporateRoleList } from "@/lib/api/generated/types.gen";
 
 const actions = vi.hoisted(() => ({ mutate: vi.fn(), refresh: vi.fn() }));
-vi.mock("@/actions/corporate", () => ({ corporateMutationAction: actions.mutate }));
+vi.mock("@/lib/api/corporate-mutation", () => ({ corporateMutation: actions.mutate }));
 vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(),
   useRouter: () => ({ refresh: actions.refresh }),

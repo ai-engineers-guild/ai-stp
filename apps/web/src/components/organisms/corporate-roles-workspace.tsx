@@ -23,52 +23,23 @@ import type {
 } from "@/lib/api/generated/types.gen";
 import { BUILT_IN_ROLES } from "@/lib/corporate-roles";
 import { rolePermissions, roleTitle } from "@/lib/corporate-permission-ui";
+import {
+  collectRoleAssignmentRows,
+  type BindingOrigin,
+  type RoleAssignmentRow,
+} from "@/lib/role-assignments";
 import { Link } from "@/lib/i18n/navigation";
 import { Icon } from "@/theme";
 
-function RoleAssignments({
-  bindings,
-  members,
-  roleName,
-  context,
-}: {
-  roleName: string;
-  context: CorporateContext;
-  bindings: readonly CorporateBinding[];
-  members: readonly CorporateMember[];
-}) {
+function RoleAssignments({ rows }: { rows: readonly RoleAssignmentRow[] }) {
   const t = useTranslations("accessUi");
   const c = useTranslations("corporate");
-  const rows = [
-    ...members
-      .filter((member) => member.role === roleName && member.state === "active")
-      .map((member) => ({
-        key: member.account_id,
-        account: member.account_id,
-        name: member.display_name ?? member.account_id,
-        kind: "organization",
-        scope: context.organization.display_name,
-        origin: c("originMembership"),
-      })),
-    ...bindings
-      .filter((binding) => binding.origin !== "membership")
-      .map((binding) => ({
-        key: binding.binding_id,
-        account: binding.account_id,
-        name:
-          members.find((member) => member.account_id === binding.account_id)?.display_name ??
-          binding.service_principal_id ??
-          binding.account_id,
-        kind: binding.scope_kind,
-        scope:
-          context.teams.find((team) => team.team_id === binding.scope_id)?.name ??
-          context.projects.find((project) => project.project_id === binding.scope_id)?.name ??
-          (binding.scope_kind === "organization"
-            ? context.organization.display_name
-            : binding.scope_id),
-        origin: binding.origin,
-      })),
-  ];
+  const originLabel: Record<BindingOrigin, string> = {
+    membership: c("originMembership"),
+    assignment: c("originAssignment"),
+    direct: c("originDirect"),
+    service_principal: c("originServicePrincipal"),
+  };
   return rows.length ? (
     <div className="overflow-x-auto">
       <table className="w-full min-w-96 text-sm">
@@ -83,9 +54,9 @@ function RoleAssignments({
           {rows.map((row) => (
             <tr key={row.key} className="border-border border-b">
               <td className="p-3">
-                {row.account ? (
+                {row.accountId ? (
                   <Link
-                    href={`/corporate/organization/admins/employees?employee=${encodeURIComponent(row.account)}`}
+                    href={`/corporate/organization/admins/employees?employee=${encodeURIComponent(row.accountId)}`}
                     className="hover:underline"
                   >
                     {row.name}
@@ -95,10 +66,14 @@ function RoleAssignments({
                 )}
               </td>
               <td className="p-3">
-                <p>{t(`scopes.${row.kind}`)}</p>
-                <p className="text-muted-foreground text-xs">{row.scope}</p>
+                <p>
+                  {t.has(`scopes.${row.scopeKind}`) ? t(`scopes.${row.scopeKind}`) : row.scopeKind}
+                </p>
+                <p className="text-muted-foreground text-xs">{row.scopeLabel}</p>
               </td>
-              <td className="p-3">{row.origin}</td>
+              <td className="p-3">
+                {row.origins.map((origin) => originLabel[origin]).join(" · ")}
+              </td>
             </tr>
           ))}
         </tbody>
@@ -144,12 +119,20 @@ export function CorporateRolesWorkspace({
         roleTitle(role.name, t).toLowerCase().includes(query.toLowerCase()),
     );
   const selected = roles.find((role) => role.name === filters.get("role")) ?? visibleRoles[0];
-  const assignments = bindings.filter(
-    (binding) => binding.role === selected?.name && binding.state === "active",
-  );
-  const assignmentCount =
-    assignments.filter((binding) => binding.origin !== "membership").length +
-    members.filter((member) => member.role === selected?.name && member.state === "active").length;
+  const scopeName = (kind: string, id: string) =>
+    context.teams.find((team) => team.team_id === id)?.name ??
+    context.projects.find((project) => project.project_id === id)?.name ??
+    (kind === "organization" ? context.organization.display_name : id);
+  const assignmentRows = selected
+    ? collectRoleAssignmentRows({
+        bindings,
+        members,
+        roleName: selected.name,
+        organizationId: context.organization.organization_id,
+        scopeName,
+      })
+    : [];
+  const assignmentCount = assignmentRows.length;
   const labels = {
     createRole: c("createRole"),
     editRoleBody: c("editRoleBody"),
@@ -319,12 +302,7 @@ export function CorporateRolesWorkspace({
                   ) : null}
                 </>
               ) : tab === "assignments" ? (
-                <RoleAssignments
-                  bindings={assignments}
-                  members={members}
-                  roleName={selected.name}
-                  context={context}
-                />
+                <RoleAssignments rows={assignmentRows} />
               ) : (
                 <dl className="space-y-4 p-2 text-sm">
                   <div>
@@ -385,12 +363,7 @@ export function CorporateRolesWorkspace({
               <h3 className="font-medium">
                 {t("assignments")} ({assignmentCount})
               </h3>
-              <RoleAssignments
-                bindings={assignments}
-                members={members}
-                roleName={selected.name}
-                context={context}
-              />
+              <RoleAssignments rows={assignmentRows} />
             </div>
           </div>
         ) : null}

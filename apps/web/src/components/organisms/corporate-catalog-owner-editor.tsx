@@ -3,7 +3,7 @@
 import { useRef, useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
 import { z } from "zod";
-import { corporateMutationAction } from "@/actions/corporate";
+import { corporateMutation } from "@/lib/api/corporate-mutation";
 import { Button } from "@/components/atoms/button";
 import {
   Dialog,
@@ -125,7 +125,7 @@ function OwnerEditForm({
     const idempotencyKey = receipt.current.key;
     startTransition(async () => {
       setError(null);
-      const result = await corporateMutationAction({
+      const result = await corporateMutation({
         organizationId,
         csrfToken,
         method: "PUT",

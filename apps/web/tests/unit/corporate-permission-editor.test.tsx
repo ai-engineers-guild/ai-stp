@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import messages from "../../messages/en.json";
 import { expect, it, vi } from "vitest";
 
-import { corporateMutationAction } from "@/actions/corporate";
+import { corporateMutation } from "@/lib/api/corporate-mutation";
 import { CorporateRolePanel } from "@/components/organisms/corporate-role-panel";
 import { CorporateMemberAccessPanel } from "@/components/organisms/corporate-member-access-panel";
 import type {
@@ -26,8 +26,8 @@ const render = (ui: ReactNode) =>
 
 const refresh = vi.fn();
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh }) }));
-vi.mock("@/actions/corporate", () => ({
-  corporateMutationAction: vi.fn().mockResolvedValue({ ok: true, data: {} }),
+vi.mock("@/lib/api/corporate-mutation", () => ({
+  corporateMutation: vi.fn().mockResolvedValue({ ok: true, data: {} }),
 }));
 
 const definitions = ["team.list", "team.create"].map((name) => ({
@@ -74,9 +74,9 @@ it("submits only selected catalog actions when creating a role", async () => {
   fireEvent.click(screen.getByLabelText(/team.list/));
   fireEvent.click(screen.getByRole("button", { name: "Create" }));
   await waitFor(() => {
-    expect(corporateMutationAction).toHaveBeenCalled();
+    expect(corporateMutation).toHaveBeenCalled();
   });
-  expect(vi.mocked(corporateMutationAction).mock.calls[0]?.[0].body).toMatchObject({
+  expect(vi.mocked(corporateMutation).mock.calls[0]?.[0].body).toMatchObject({
     permissions: ["team.list"],
   });
 });
@@ -109,6 +109,13 @@ it("limits direct grant choices to caller actions valid for the chosen scope", (
         operation: "Operation",
         assign: "Assign",
         remove: "Remove",
+        teamRole: "Team role",
+        projectRole: "Project role",
+        projectRoleHint: "Project hint",
+        projectRoleOwner: "Owner",
+        projectRoleContributor: "Contributor",
+        roleLead: "Lead",
+        roleStaff: "Staff",
         create: "Create",
         creating: "Creating",
         revoke: "Revoke",

@@ -3,10 +3,11 @@
 import { useRef, useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
 
-import { corporateMutationAction, corporateTechnologyMergePlanAction } from "@/actions/corporate";
+import { corporateTechnologyMergePlanAction } from "@/actions/corporate";
 import { Button } from "@/components/atoms/button";
 import { Input } from "@/components/atoms/input";
 import { Label } from "@/components/atoms/label";
+import { corporateMutation } from "@/lib/api/corporate-mutation";
 import { useRouter } from "@/lib/i18n/navigation";
 import type {
   TechnologyMergePlanView,
@@ -74,7 +75,7 @@ export function TechnologyMergeControls({
     };
     setMessage(null);
     startTransition(async () => {
-      const result = await corporateMutationAction({
+      const result = await corporateMutation({
         organizationId,
         csrfToken,
         body,

@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { CorporateJobTitleView, CorporateRoleView } from "@/lib/api/generated/types.gen";
 
-import { corporateMutationAction } from "@/actions/corporate";
+import { corporateMutation } from "@/lib/api/corporate-mutation";
 import { Button } from "@/components/atoms/button";
 import { Input } from "@/components/atoms/input";
 import { Label } from "@/components/atoms/label";
@@ -78,7 +78,7 @@ export function CorporateAdminPanel({
   function submit(path: string, body: unknown) {
     setMessage(null);
     startTransition(async () => {
-      const result = await corporateMutationAction({
+      const result = await corporateMutation({
         csrfToken,
         organizationId,
         path,
@@ -340,7 +340,7 @@ export function CorporateAdminPanel({
                         event.preventDefault();
                         setMessage(null);
                         startTransition(async () => {
-                          const result = await corporateMutationAction({
+                          const result = await corporateMutation({
                             csrfToken,
                             organizationId,
                             method: "PATCH",

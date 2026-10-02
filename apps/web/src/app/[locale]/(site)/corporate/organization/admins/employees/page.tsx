@@ -6,7 +6,7 @@ import { ApiError } from "@/lib/api/errors";
 import { canViewCorporateAdministration } from "@/lib/corporate-hub";
 import { requireSession, sessionCookieValue } from "@/lib/auth/require-session";
 import { readCsrfToken } from "@/lib/auth/session";
-import EmployeeAccessDetail from "./[accountId]/page";
+import { EmployeeAccessView } from "./employee-access-view";
 
 export default async function EmployeeAccessPage({
   params,
@@ -61,10 +61,7 @@ export default async function EmployeeAccessPage({
         now={new Date().toISOString()}
         accessPanel={
           employee ? (
-            <EmployeeAccessDetail
-              params={Promise.resolve({ locale, accountId: employee.account_id })}
-              searchParams={Promise.resolve({ ...filters, embedded: "1" })}
-            />
+            <EmployeeAccessView accountId={employee.account_id} filters={filters} embedded />
           ) : null
         }
       />

@@ -48,6 +48,7 @@ from ai_stp_contracts.corporate import (
     CorporateMember,
     CorporateMembershipPolicy,
     CorporateMembershipPolicyRequest,
+    PeopleVisibility,
 )
 from ai_stp_foundation.ids import new_id
 from ai_stp_foundation.timestamps import format_timestamp
@@ -812,6 +813,7 @@ async def read_membership_policy(
     return CorporateMembershipPolicy(
         organization_id=organization.id,
         allowed_email_domains=list(organization.allowed_email_domains or []),
+        people_visibility=cast(PeopleVisibility, organization.people_visibility),
         authorization_revision=organization.policy_revision,
     )
 
@@ -841,11 +843,17 @@ async def write_membership_policy(
     )
     if receipt is not None:
         return CorporateMembershipPolicy.model_validate(receipt.response_body)
+    previous = {
+        "allowed_email_domains": list(organization.allowed_email_domains or []),
+        "people_visibility": organization.people_visibility,
+    }
     organization.allowed_email_domains = _normalize_domains(payload.allowed_email_domains)
+    organization.people_visibility = payload.people_visibility
     organization.policy_revision += 1
     response = CorporateMembershipPolicy(
         organization_id=organization.id,
         allowed_email_domains=list(organization.allowed_email_domains),
+        people_visibility=cast(PeopleVisibility, organization.people_visibility),
         authorization_revision=organization.policy_revision,
     )
     await emit_audit(
@@ -856,7 +864,13 @@ async def write_membership_policy(
         target_table="organization",
         target_id=organization.id,
         request_id=_request_id(request),
-        payload={"allowed_email_domains": response.allowed_email_domains},
+        payload={
+            "before": previous,
+            "after": {
+                "allowed_email_domains": response.allowed_email_domains,
+                "people_visibility": response.people_visibility,
+            },
+        },
     )
     await store_mutation_receipt(
         db,

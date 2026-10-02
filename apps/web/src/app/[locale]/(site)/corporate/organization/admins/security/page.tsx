@@ -47,6 +47,7 @@ export default async function CorporateSecurityPage({
         <CorporateMembershipPolicyControls
           {...authority}
           allowedDomains={policy.allowed_email_domains}
+          peopleVisibility={policy.people_visibility}
         />
       ) : null}
       {workspace?.servicePrincipals ? (

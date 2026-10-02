@@ -13,6 +13,7 @@ from sqlalchemy.orm import InstrumentedAttribute
 from ai_stp_platform.organization_models import (
     CorporatePermissionGrant,
     CorporateProject,
+    CorporateProjectMember,
     CorporateRole,
     CorporateRoleBinding,
     CorporateRolePermission,
@@ -27,6 +28,7 @@ from ai_stp_platform.technology_models import (
     ProjectTeamRelation,
     ProjectTechnologyRelation,
     Technology,
+    TechnologyClassification,
     TechnologyTeamResponsibility,
     TechnologyUsageFact,
 )
@@ -233,6 +235,13 @@ def _scope_clause(
         clause |= ((kind == "project") & scope_id_col.in_(current_projects)) | (
             (kind == "team") & scope_id_col.in_(technology_teams)
         )
+        # A category-scope binding or grant covers every technology classified
+        # in that category (ADR-0223).
+        technology_categories = select(TechnologyClassification.category_id).where(
+            TechnologyClassification.organization_id == organization_id,
+            TechnologyClassification.technology_id == scope,
+        )
+        clause |= (kind == "category") & scope_id_col.in_(technology_categories)
     elif scope_kind == "member":
         member_teams = (
             select(CorporateTeamMember.team_id)
@@ -248,6 +257,20 @@ def _scope_clause(
             )
         )
         clause |= (kind == "team") & scope_id_col.in_(member_teams)
+        member_projects = (
+            select(CorporateProjectMember.project_id)
+            .join(
+                CorporateProject,
+                (CorporateProject.organization_id == CorporateProjectMember.organization_id)
+                & (CorporateProject.id == CorporateProjectMember.project_id),
+            )
+            .where(
+                CorporateProjectMember.organization_id == organization_id,
+                CorporateProjectMember.account_id == scope,
+                CorporateProject.state == "active",
+            )
+        )
+        clause |= (kind == "project") & scope_id_col.in_(member_projects)
     return clause
 
 
@@ -564,9 +587,24 @@ async def bulk_effective_permissions(
     # Each mirrors the subquery the single-scope clause embeds.
     projects_map: dict[str, set[str]] = {tech_id: set() for tech_id in ids}
     responsible_map: dict[str, set[str]] = {tech_id: set() for tech_id in ids}
+    categories_map: dict[str, set[str]] = {tech_id: set() for tech_id in ids}
     project_teams_map: dict[str, set[str]] = {}
     member_teams_map: dict[str, set[str]] = {member_id: set() for member_id in ids}
+    member_projects_map: dict[str, set[str]] = {member_id: set() for member_id in ids}
     if ids and scope_kind == "technology":
+        category_rows = (
+            await session.execute(
+                select(
+                    TechnologyClassification.technology_id,
+                    TechnologyClassification.category_id,
+                ).where(
+                    TechnologyClassification.organization_id == organization_id,
+                    TechnologyClassification.technology_id.in_(ids),
+                )
+            )
+        ).all()
+        for technology_id, category_id in category_rows:
+            categories_map.setdefault(technology_id, set()).add(category_id)
         rows = (
             await session.execute(
                 select(
@@ -692,6 +730,23 @@ async def bulk_effective_permissions(
         ).all()
         for account_id, team_id in rows:
             member_teams_map.setdefault(account_id, set()).add(team_id)
+        project_rows = (
+            await session.execute(
+                select(CorporateProjectMember.account_id, CorporateProjectMember.project_id)
+                .join(
+                    CorporateProject,
+                    (CorporateProject.organization_id == CorporateProjectMember.organization_id)
+                    & (CorporateProject.id == CorporateProjectMember.project_id),
+                )
+                .where(
+                    CorporateProjectMember.organization_id == organization_id,
+                    CorporateProjectMember.account_id.in_(ids),
+                    CorporateProject.state == "active",
+                )
+            )
+        ).all()
+        for account_id, project_id in project_rows:
+            member_projects_map.setdefault(account_id, set()).add(project_id)
     if scope_kind == "technology":
         all_projects = {project for projects in projects_map.values() for project in projects}
         if all_projects:
@@ -741,7 +796,17 @@ async def bulk_effective_permissions(
                 via_team = scope_id_col in teams
             elif scope_kind == "member":
                 via_team = scope_id_col in member_teams_map[scope_id]
-        return direct or via_project or via_team
+        via_project_member = (
+            scope_kind == "member"
+            and scope_kind_col == "project"
+            and scope_id_col in member_projects_map[scope_id]
+        )
+        via_category = (
+            scope_kind == "technology"
+            and scope_kind_col == "category"
+            and scope_id_col in categories_map[scope_id]
+        )
+        return direct or via_project or via_team or via_project_member or via_category
 
     for binding in bindings:
         for scope_id in ids:

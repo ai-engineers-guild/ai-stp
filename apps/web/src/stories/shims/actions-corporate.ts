@@ -31,10 +31,6 @@ export async function corporateAssignContextAction(): Promise<CorporateAssignCon
   return { ok: false };
 }
 
-export async function corporateMutationAction(_input: unknown): Promise<never> {
-  throw new Error("corporate write unavailable in Storybook");
-}
-
 export async function corporateCatalogSearchAction(_input: unknown): Promise<never> {
   throw new Error("catalog search unavailable in Storybook");
 }
@@ -45,10 +41,6 @@ export async function corporateCatalogVersionsAction(_input: unknown): Promise<n
 
 export async function corporateSubjectSearchAction(_input: unknown): Promise<never> {
   throw new Error("subject search unavailable in Storybook");
-}
-
-export async function corporateTeamAssignmentsAction(_input: unknown): Promise<never> {
-  throw new Error("team assignments unavailable in Storybook");
 }
 
 export async function corporateAuditExportAction(_input: unknown): Promise<never> {

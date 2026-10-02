@@ -92,6 +92,7 @@ from ai_stp_contracts.corporate import (
     CorporateServicePrincipalView,
     CorporateTeamCreateRequest,
     CorporateTeamList,
+    CorporateTeammates,
     CorporateTeamUpdateRequest,
     CorporateTeamView,
     OrganizationId,
@@ -454,6 +455,18 @@ async def list_members(
     return await service.list_members(
         db, ctx=ctx, organization_id=organization_id, request_id=_request_id(request)
     )
+
+
+@router.get(
+    "/corporate/organizations/{organization_id}/teammates",
+    response_model=CorporateTeammates,
+)
+async def list_teammates(
+    organization_id: str,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    ctx: Annotated[AuthContext, Depends(require_auth)],
+) -> CorporateTeammates:
+    return await service.list_teammates(db, ctx=ctx, organization_id=organization_id)
 
 
 @router.patch(

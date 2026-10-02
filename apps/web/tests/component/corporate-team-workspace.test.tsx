@@ -4,7 +4,7 @@ import { NextIntlClientProvider } from "next-intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import messages from "../../messages/en.json";
-import { corporateMutationAction, corporateTeamAssignmentsAction } from "@/actions/corporate";
+import { corporateMutation, corporateTeamAssignments } from "@/lib/api/corporate-mutation";
 import { CorporateResourceActions } from "@/components/organisms/corporate-resource-actions";
 import { ProjectionDockView } from "@/components/molecules/projection-dock-view";
 import { CorporateTeamEditor } from "@/components/organisms/corporate-team-editor";
@@ -25,9 +25,9 @@ vi.mock("@/lib/i18n/navigation", () => ({
     </a>
   ),
 }));
-vi.mock("@/actions/corporate", () => ({
-  corporateMutationAction: vi.fn(),
-  corporateTeamAssignmentsAction: vi.fn(),
+vi.mock("@/lib/api/corporate-mutation", () => ({
+  corporateMutation: vi.fn(),
+  corporateTeamAssignments: vi.fn(),
 }));
 
 const employee: CorporateMember = {
@@ -84,8 +84,8 @@ function wrap(children: ReactNode) {
 describe("corporate team workspace", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(corporateMutationAction).mockResolvedValue({ ok: true, data: team });
-    vi.mocked(corporateTeamAssignmentsAction).mockImplementation((input) =>
+    vi.mocked(corporateMutation).mockResolvedValue({ ok: true, data: team });
+    vi.mocked(corporateTeamAssignments).mockImplementation((input) =>
       Promise.resolve({ completed: input.assignments.map((item) => item.idempotencyKey) }),
     );
   });
@@ -99,12 +99,12 @@ describe("corporate team workspace", () => {
     await user.clear(screen.getByLabelText("Name"));
     await user.type(screen.getByLabelText("Name"), "Unsaved name");
     await user.click(screen.getByRole("button", { name: "Cancel" }));
-    expect(corporateMutationAction).not.toHaveBeenCalled();
+    expect(corporateMutation).not.toHaveBeenCalled();
     await user.click(screen.getByRole("button", { name: "Actions" }));
     await user.click(screen.getByRole("menuitem", { name: "Archive team" }));
     await waitFor(() => {
-      expect(corporateMutationAction).toHaveBeenCalled();
-      expect(vi.mocked(corporateMutationAction).mock.calls[0]?.[0].body).toMatchObject({
+      expect(corporateMutation).toHaveBeenCalled();
+      expect(vi.mocked(corporateMutation).mock.calls[0]?.[0].body).toMatchObject({
         name: "Support",
         description: "Helping customers",
         state: "archived",
@@ -131,17 +131,15 @@ describe("corporate team workspace", () => {
     await user.selectOptions(screen.getByLabelText("Role in this team"), "lead");
     await user.click(screen.getByRole("button", { name: "Add selected (1)" }));
     await waitFor(() => {
-      expect(corporateTeamAssignmentsAction).toHaveBeenCalled();
-      expect(
-        vi.mocked(corporateTeamAssignmentsAction).mock.calls[0]?.[0].assignments,
-      ).toMatchObject([
+      expect(corporateTeamAssignments).toHaveBeenCalled();
+      expect(vi.mocked(corporateTeamAssignments).mock.calls[0]?.[0].assignments).toMatchObject([
         { accountId: bob.account_id, teamId: team.team_id, role: "lead", operation: "assign" },
       ]);
     });
   });
   it("assigns multiple teams from employee details and retains unfinished selection", async () => {
     const user = userEvent.setup();
-    vi.mocked(corporateTeamAssignmentsAction).mockImplementation((input) =>
+    vi.mocked(corporateTeamAssignments).mockImplementation((input) =>
       Promise.resolve({
         completed: input.assignments.slice(0, 1).map((item) => item.idempotencyKey),
         message: "Conflict",
@@ -225,7 +223,7 @@ describe("corporate team workspace", () => {
   });
   it("reuses a failed resource effect key but changes it for an edited draft", async () => {
     const user = userEvent.setup();
-    vi.mocked(corporateMutationAction).mockResolvedValue({ ok: false, message: "Conflict" });
+    vi.mocked(corporateMutation).mockResolvedValue({ ok: false, message: "Conflict" });
     render(
       wrap(
         <CorporateResourceActions
@@ -250,26 +248,26 @@ describe("corporate team workspace", () => {
     await screen.findByText("Conflict");
     await user.click(screen.getByRole("button", { name: messages.corporate.update }));
     await waitFor(() => {
-      expect(corporateMutationAction).toHaveBeenCalledTimes(2);
+      expect(corporateMutation).toHaveBeenCalledTimes(2);
     });
-    expect(vi.mocked(corporateMutationAction).mock.calls[1]?.[0].body).toEqual(
-      vi.mocked(corporateMutationAction).mock.calls[0]?.[0].body,
+    expect(vi.mocked(corporateMutation).mock.calls[1]?.[0].body).toEqual(
+      vi.mocked(corporateMutation).mock.calls[0]?.[0].body,
     );
     await user.clear(screen.getByLabelText(messages.corporate.parentRole));
     await user.type(screen.getByLabelText(messages.corporate.parentRole), "lead");
     await user.click(screen.getByRole("button", { name: messages.corporate.update }));
     await waitFor(() => {
-      expect(corporateMutationAction).toHaveBeenCalledTimes(3);
+      expect(corporateMutation).toHaveBeenCalledTimes(3);
     });
-    expect(vi.mocked(corporateMutationAction).mock.calls[2]?.[0].body).not.toMatchObject({
+    expect(vi.mocked(corporateMutation).mock.calls[2]?.[0].body).not.toMatchObject({
       idempotency_key: (
-        vi.mocked(corporateMutationAction).mock.calls[0]?.[0].body as { idempotency_key: string }
+        vi.mocked(corporateMutation).mock.calls[0]?.[0].body as { idempotency_key: string }
       ).idempotency_key,
     });
   });
   it("retains the resource draft and operation key after a transport failure", async () => {
     const user = userEvent.setup();
-    vi.mocked(corporateMutationAction)
+    vi.mocked(corporateMutation)
       .mockRejectedValueOnce(new Error("Connection lost"))
       .mockResolvedValueOnce({ ok: false, message: "Conflict" });
     render(
@@ -300,8 +298,8 @@ describe("corporate team workspace", () => {
     expect(screen.getByRole("button", { name: messages.corporate.update })).toBeEnabled();
     await user.click(screen.getByRole("button", { name: messages.corporate.update }));
     await screen.findByText("Conflict");
-    expect(vi.mocked(corporateMutationAction).mock.calls[1]?.[0].body).toEqual(
-      vi.mocked(corporateMutationAction).mock.calls[0]?.[0].body,
+    expect(vi.mocked(corporateMutation).mock.calls[1]?.[0].body).toEqual(
+      vi.mocked(corporateMutation).mock.calls[0]?.[0].body,
     );
   });
   it("hides management controls for read-only users", () => {

@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 
-import { corporateMutationAction } from "@/actions/corporate";
+import { corporateMutation } from "@/lib/api/corporate-mutation";
 import { Button } from "@/components/atoms/button";
 import { Input } from "@/components/atoms/input";
 import { Label } from "@/components/atoms/label";
@@ -50,7 +50,7 @@ export function useGovernanceMutation(authority: GovernanceAuthority) {
     setBusy(true);
     void (async () => {
       try {
-        const result = await corporateMutationAction({ ...authority, path, method, body });
+        const result = await corporateMutation({ ...authority, path, method, body });
         if (!result.ok) {
           setMessage(result.message);
           return;

@@ -58,6 +58,7 @@
         "team",
         "project",
         "technology",
+        "category",
         "catalog_object"
       ],
       "title": "Scope Kind",

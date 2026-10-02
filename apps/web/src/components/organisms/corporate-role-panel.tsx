@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
-import { corporateMutationAction } from "@/actions/corporate";
+import { corporateMutation } from "@/lib/api/corporate-mutation";
 import { Button } from "@/components/atoms/button";
 import { Input } from "@/components/atoms/input";
 import { Label } from "@/components/atoms/label";
@@ -143,9 +143,13 @@ export function CorporateRolePanel({
 }) {
   const router = useRouter();
   const [busy, startTransition] = useTransition();
-  const [message, setMessage] = useState<{ text: string; error?: boolean } | null>(null);
-  const report = (text: string, error = false) => {
-    setMessage({ text, error });
+  const [message, setMessage] = useState<{
+    text: string;
+    error?: boolean;
+    fields?: string[];
+  } | null>(null);
+  const report = (text: string, error = false, fields?: string[]) => {
+    setMessage(fields?.length ? { text, error, fields } : { text, error });
   };
   const can = (permission: string) => capabilities.includes(permission);
   const customSelected = selected && !BUILT_IN_ROLES.has(selected.name);
@@ -153,14 +157,20 @@ export function CorporateRolePanel({
   function submit(method: "POST" | "PATCH" | "DELETE", path: string, body: unknown) {
     setMessage(null);
     startTransition(async () => {
-      const result = await corporateMutationAction({
+      const result = await corporateMutation({
         csrfToken,
         organizationId,
         path,
         method,
         body,
       });
-      report(result.ok ? labels.saved : result.message, !result.ok);
+      report(
+        result.ok ? labels.saved : result.message,
+        !result.ok,
+        result.ok
+          ? undefined
+          : Object.entries(result.fieldErrors ?? {}).map(([path, text]) => `${path}: ${text}`),
+      );
       if (result.ok) router.refresh();
     });
   }
@@ -257,6 +267,13 @@ export function CorporateRolePanel({
         >
           {message.text}
         </p>
+      ) : null}
+      {message?.fields?.length ? (
+        <ul className="text-destructive list-disc space-y-1 pl-5 text-sm">
+          {message.fields.map((item) => (
+            <li key={item}>{item}</li>
+          ))}
+        </ul>
       ) : null}
     </div>
   );

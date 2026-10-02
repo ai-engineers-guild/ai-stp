@@ -3,16 +3,13 @@
 import { useId, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 
-import {
-  corporateCatalogSearchAction,
-  corporateCatalogVersionsAction,
-  corporateMutationAction,
-} from "@/actions/corporate";
+import { corporateCatalogSearchAction, corporateCatalogVersionsAction } from "@/actions/corporate";
 import { Button } from "@/components/atoms/button";
 import { Input } from "@/components/atoms/input";
 import { Label } from "@/components/atoms/label";
 import { Textarea } from "@/components/atoms/textarea";
 import { SearchableMultiSelect } from "@/components/molecules/searchable-multi-select";
+import { corporateMutation } from "@/lib/api/corporate-mutation";
 import { useRouter } from "@/lib/i18n/navigation";
 
 type Option = { value: string; label: string };
@@ -357,7 +354,7 @@ export function CorporateCreateForm({
     if (retry.current?.effect !== effect) retry.current = { effect, key: crypto.randomUUID() };
     setBusy(true);
     setMessage(null);
-    const result = await corporateMutationAction({
+    const result = await corporateMutation({
       organizationId,
       csrfToken,
       method: "POST",

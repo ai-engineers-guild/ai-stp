@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 
-import { corporateTeamAssignmentsAction } from "@/actions/corporate";
+import { corporateTeamAssignments } from "@/lib/api/corporate-mutation";
 import { Badge } from "@/components/atoms/badge";
 import { Button } from "@/components/atoms/button";
 import { Input } from "@/components/atoms/input";
@@ -83,7 +83,7 @@ export function CorporateTeamMemberships({
     setMessage(null);
     startTransition(async () => {
       try {
-        const result = await corporateTeamAssignmentsAction({
+        const result = await corporateTeamAssignments({
           organizationId,
           csrfToken,
           assignments,

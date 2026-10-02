@@ -1,6 +1,9 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import { useState } from "react";
+
+import { Input } from "@/components/atoms/input";
 import type { CorporatePermissionDefinition } from "@/lib/api/generated/types.gen";
 import {
   entityDefinitions,
@@ -22,13 +25,28 @@ export function CorporatePermissionTable({
   editable?: boolean;
 }) {
   const t = useTranslations("accessUi");
+  const [query, setQuery] = useState("");
+  const needle = query.trim().toLowerCase();
+  const rows = entityDefinitions(definitions)
+    .map(([resource, items]) => {
+      if (!needle) return [resource, items] as const;
+      const entityName = t(`entities.${resource}.name`).toLowerCase();
+      const filtered = items.filter(
+        (definition) =>
+          definition.name.toLowerCase().includes(needle) ||
+          permissionLabel(definition, t).toLowerCase().includes(needle) ||
+          entityName.includes(needle),
+      );
+      return [resource, filtered] as const;
+    })
+    .filter(([, items]) => items.length > 0);
   function mark(definition: CorporatePermissionDefinition, label = false) {
     const granted = permissions.includes(definition.name);
     return (
       <label
         key={definition.name}
         className="flex min-h-9 items-center gap-2 text-xs"
-        title={definition.name}
+        title={`${definition.name} — ${definition.scopes.join(", ")}`}
       >
         {editable ? (
           <input
@@ -53,10 +71,21 @@ export function CorporatePermissionTable({
     );
   }
   return (
-    <div
-      className="border-border min-w-0 overflow-x-auto rounded-lg border"
-      data-ui="permission-matrix"
-    >
+    <div className="space-y-3">
+      <Input
+        type="search"
+        value={query}
+        onChange={(event) => {
+          setQuery(event.target.value);
+        }}
+        placeholder={t("searchPermissions")}
+        aria-label={t("searchPermissions")}
+        className="max-w-xs"
+      />
+      <div
+        className="border-border min-w-0 overflow-x-auto rounded-lg border"
+        data-ui="permission-matrix"
+      >
       <table className="w-full min-w-[44rem] border-collapse text-sm" aria-label={t("permissions")}>
         <thead>
           <tr className="bg-muted/30 text-muted-foreground text-xs uppercase">
@@ -70,7 +99,7 @@ export function CorporatePermissionTable({
           </tr>
         </thead>
         <tbody>
-          {entityDefinitions(definitions).map(([resource, items]) => (
+          {rows.map(([resource, items]) => (
             <tr key={resource} className="border-border border-t">
               <th scope="row" className="min-w-52 px-3 py-3 text-left">
                 <span className="flex items-center gap-3">
@@ -104,6 +133,7 @@ export function CorporatePermissionTable({
           ))}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }

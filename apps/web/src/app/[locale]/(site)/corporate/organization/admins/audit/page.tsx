@@ -3,6 +3,7 @@ import { HistoryBackButton } from "@/components/molecules/history-back-button";
 import { StatePanel } from "@/components/molecules/state-panel";
 import { CorporateAuditPanel } from "@/components/organisms/corporate-audit-panel";
 import { readCorporateAudit, corporateAuditFilterValues } from "@/lib/api/corporate-audit";
+import { AUDIT_ACTIONS } from "@/lib/audit-labels";
 import { Button } from "@/components/atoms/button";
 import { Input } from "@/components/atoms/input";
 import { Label } from "@/components/atoms/label";
@@ -38,7 +39,9 @@ export default async function CorporateAuditPage({
     return (
       <StatePanel kind="error" title={t("auditJournal")} description={technology("forbidden")} />
     );
-  const actions = Array.from(new Set(result.audit.items.map((item) => item.action))).sort();
+  const actions = Array.from(
+    new Set([...AUDIT_ACTIONS, ...result.audit.items.map((item) => item.action)]),
+  ).sort();
   return (
     <div className="space-y-6">
       <HistoryBackButton label={t("backToWorkspace")} fallback="/corporate/organization/admins" />

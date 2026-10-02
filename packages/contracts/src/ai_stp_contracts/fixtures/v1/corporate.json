@@ -359,7 +359,8 @@
           "team_role": "staff",
           "operation": "assign",
           "authorization_revision": 1,
-          "idempotency_key": "corporate-assignment-0001"
+          "idempotency_key": "corporate-assignment-0001",
+          "project_role": "staff"
         }
       },
       "status": 200,
@@ -370,7 +371,8 @@
         "project_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
         "team_role": "staff",
         "operation": "assign",
-        "bindings": []
+        "bindings": [],
+        "project_role": "staff"
       }
     },
     {
@@ -1817,7 +1819,8 @@
         "allowed_email_domains": [
           "example.com"
         ],
-        "authorization_revision": 2
+        "authorization_revision": 2,
+        "people_visibility": "teammates"
       }
     },
     {
@@ -1835,7 +1838,8 @@
             "example.com"
           ],
           "authorization_revision": 1,
-          "idempotency_key": "policy-write-0001"
+          "idempotency_key": "policy-write-0001",
+          "people_visibility": "teammates"
         }
       },
       "status": 200,
@@ -1845,7 +1849,8 @@
         "allowed_email_domains": [
           "example.com"
         ],
-        "authorization_revision": 2
+        "authorization_revision": 2,
+        "people_visibility": "teammates"
       }
     },
     {
@@ -1997,6 +2002,38 @@
         "issuer_account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
         "state": "revoked",
         "revision": 2
+      }
+    },
+    {
+      "case_id": "readCorporateTeammates.corporate",
+      "operation_id": "readCorporateTeammates",
+      "kind": "positive",
+      "why": "A member sees the bounded teammate projection under the organization policy.",
+      "request": {
+        "path_params": {
+          "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "people_visibility": "teammates",
+        "items": [
+          {
+            "account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+            "display_name": "Ada Lovelace",
+            "contexts": [
+              {
+                "kind": "team",
+                "id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                "name": "Platform",
+                "role": "lead"
+              }
+            ],
+            "schema_version": 1
+          }
+        ]
       }
     }
   ]

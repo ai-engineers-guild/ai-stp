@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { corporateMutationAction } from "@/actions/corporate";
+import { corporateMutation } from "@/lib/api/corporate-mutation";
 import { Button } from "@/components/atoms/button";
 import {
   CorporateInviteDialog,
@@ -321,7 +321,7 @@ function useInvitationActions(csrfToken: string, context: CorporateContext) {
           ttl_seconds: options.ttlSeconds,
           authorization_revision: context.organization.authorization_revision,
         };
-        const result = await corporateMutationAction({
+        const result = await corporateMutation({
           csrfToken,
           organizationId: context.organization.organization_id,
           method: "POST",
@@ -366,7 +366,7 @@ function useInvitationActions(csrfToken: string, context: CorporateContext) {
         authorization_revision: context.organization.authorization_revision,
         invitation_id: revoke.invitation_id,
       };
-      const result = await corporateMutationAction({
+      const result = await corporateMutation({
         csrfToken,
         organizationId: context.organization.organization_id,
         method: "POST",

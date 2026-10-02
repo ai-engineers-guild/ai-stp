@@ -7,6 +7,7 @@ import { corporateAuditExportAction } from "@/actions/corporate";
 import { Button } from "@/components/atoms/button";
 import { Link } from "@/lib/i18n/navigation";
 import type { CorporateAuditFilterValues } from "@/lib/api/corporate-audit";
+import { auditActionLabel } from "@/lib/audit-labels";
 
 import type { CorporateAuditExport, CorporateAuditList } from "@/lib/api/generated/types.gen";
 
@@ -45,8 +46,6 @@ export function CorporateAuditPanel({
   members = [],
   filters = {},
 }: Props) {
-  const t = useTranslations("corporate.auditUi");
-  const formatDate = useFormatter();
   const actors = new Map(
     members
       .filter((member) => member.display_name)
@@ -141,40 +140,7 @@ export function CorporateAuditPanel({
       {audit.items.length ? (
         <ol className="divide-border divide-y text-sm">
           {audit.items.map((item) => (
-            <li key={item.audit_id} className="grid gap-1 py-3 sm:grid-cols-[1fr_auto]">
-              <span>
-                <strong className="font-medium">{auditActionLabel(item.action, t)}</strong>
-                <span className="text-muted-foreground">
-                  {" "}
-                  ·{" "}
-                  {item.outcome === "succeeded"
-                    ? t("outcomes.succeeded")
-                    : item.outcome === "denied"
-                      ? t("outcomes.denied")
-                      : t("outcomes.failed")}
-                </span>
-              </span>
-              <time className="text-muted-foreground" dateTime={item.created_at}>
-                {formatDate.dateTime(new Date(item.created_at), {
-                  dateStyle: "medium",
-                  timeStyle: "short",
-                })}
-              </time>
-              <span className="text-muted-foreground sm:col-span-2">
-                {item.actor_type === "user" &&
-                item.actor_account_id &&
-                actors.has(item.actor_account_id) ? (
-                  <Link
-                    href={`/corporate/employees/${item.actor_account_id}`}
-                    className="underline underline-offset-4"
-                  >
-                    {actors.get(item.actor_account_id)}
-                  </Link>
-                ) : (
-                  t(`actors.${item.actor_type}`)
-                )}
-              </span>
-            </li>
+            <AuditItem key={item.audit_id} item={item} actors={actors} />
           ))}
         </ol>
       ) : (
@@ -243,43 +209,95 @@ function csvCell(value: unknown): string {
   return `"${text.replaceAll('"', '""')}"`;
 }
 
-function auditActionLabel(action: string, t: ReturnType<typeof useTranslations>) {
-  const parts = action.split(".");
-  const entity = parts[0] ?? "";
-  const operation = parts.at(-1) ?? "";
-  if (action === "member.profile.update") return t("profileUpdated");
-  if (
-    ![
-      "member",
-      "team",
-      "project",
-      "role",
-      "binding",
-      "service_principal",
-      "catalog_assignment",
-      "audit",
-      "organization",
-      "corporate",
-    ].includes(entity)
-  )
-    return t("otherEvent");
-  if (
-    ![
-      "create",
-      "update",
-      "delete",
-      "read",
-      "list",
-      "write",
-      "export",
-      "lifecycle",
-      "bootstrap",
-      "replay",
-    ].includes(operation)
-  )
-    return t("otherEvent");
-  return t("event", {
-    entity: t(`entities.${entity}`),
-    operation: t(`operations.${operation}`),
-  });
+type AuditEntry = CorporateAuditList["items"][number];
+
+function AuditItem({ item, actors }: { item: AuditEntry; actors: Map<string, string | null> }) {
+  const t = useTranslations("corporate.auditUi");
+  const formatDate = useFormatter();
+  const diff = payloadDiff(item.payload);
+  return (
+    <li className="grid gap-1 py-3 sm:grid-cols-[1fr_auto]">
+      <span>
+        <strong className="font-medium">{auditActionLabel(item.action, t)}</strong>
+        <span className="text-muted-foreground">
+          {" "}
+          ·{" "}
+          {item.outcome === "succeeded"
+            ? t("outcomes.succeeded")
+            : item.outcome === "denied"
+              ? t("outcomes.denied")
+              : t("outcomes.failed")}
+        </span>
+      </span>
+      <time className="text-muted-foreground" dateTime={item.created_at}>
+        {formatDate.dateTime(new Date(item.created_at), {
+          dateStyle: "medium",
+          timeStyle: "short",
+        })}
+      </time>
+      <span className="text-muted-foreground sm:col-span-2">
+        {item.actor_type === "user" &&
+        item.actor_account_id &&
+        actors.has(item.actor_account_id) ? (
+          <Link
+            href={`/corporate/employees/${item.actor_account_id}`}
+            className="underline underline-offset-4"
+          >
+            {actors.get(item.actor_account_id)}
+          </Link>
+        ) : (
+          t(`actors.${item.actor_type}`)
+        )}
+        {" · "}
+        {t.has(`targets.${item.target_table}`)
+          ? t(`targets.${item.target_table}`)
+          : item.target_table}
+        {": "}
+        <span className="font-mono text-xs">{item.target_id}</span>
+      </span>
+      {item.reason ? (
+        <span className="text-muted-foreground sm:col-span-2">
+          {t("reason")}: {item.reason}
+        </span>
+      ) : null}
+      {diff.length ? (
+        <ul className="text-muted-foreground mt-1 space-y-0.5 text-xs sm:col-span-2">
+          {diff.map(([field, before, after]) => (
+            <li key={field} className="font-mono">
+              {field}: {before} → {after}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </li>
+  );
+}
+
+type DiffRow = [field: string, before: string, after: string];
+
+const DIFF_LIMIT = 8;
+
+function payloadDiff(payload: Record<string, unknown>): DiffRow[] {
+  const before = isDiffRecord(payload.before) ? payload.before : null;
+  const after = isDiffRecord(payload.after) ? payload.after : null;
+  if (!before && !after) return [];
+  const rows: DiffRow[] = [];
+  const keys = new Set([...Object.keys(before ?? {}), ...Object.keys(after ?? {})]);
+  for (const field of keys) {
+    const oldValue = formatDiffValue(before?.[field]);
+    const newValue = formatDiffValue(after?.[field]);
+    if (oldValue !== newValue) rows.push([field, oldValue, newValue]);
+    if (rows.length >= DIFF_LIMIT) break;
+  }
+  return rows;
+}
+
+function isDiffRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function formatDiffValue(value: unknown): string {
+  if (value === null || value === undefined) return "—";
+  const text = typeof value === "string" ? value : JSON.stringify(value);
+  return text.length > 80 ? `${text.slice(0, 80)}…` : text;
 }

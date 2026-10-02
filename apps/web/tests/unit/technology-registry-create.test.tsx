@@ -1,24 +1,24 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type {
-  corporateMutationAction,
   corporateTechnologyMergePlanAction,
   corporateProjectUsageAction,
 } from "@/actions/corporate";
+import type { corporateMutation } from "@/lib/api/corporate-mutation";
 import type { TechnologyView } from "@/lib/api/generated/types.gen";
 
 const { mutation, refresh, previewMerge, push, loadUsage } = vi.hoisted(() => ({
-  mutation: vi.fn<typeof corporateMutationAction>(),
+  mutation: vi.fn<typeof corporateMutation>(),
   refresh: vi.fn(),
   push: vi.fn(),
   previewMerge: vi.fn<typeof corporateTechnologyMergePlanAction>(),
   loadUsage: vi.fn<typeof corporateProjectUsageAction>(),
 }));
 vi.mock("@/actions/corporate", () => ({
-  corporateMutationAction: mutation,
   corporateTechnologyMergePlanAction: previewMerge,
   corporateProjectUsageAction: loadUsage,
 }));
+vi.mock("@/lib/api/corporate-mutation", () => ({ corporateMutation: mutation }));
 vi.mock("@/lib/i18n/navigation", () => ({ useRouter: () => ({ refresh, push }) }));
 vi.mock("next-intl", () => ({ useTranslations: () => (key: string) => key }));
 

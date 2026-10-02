@@ -111,7 +111,7 @@ export default async function LocaleLayout({ children, params }: LocaleLayoutPro
         <link rel="alternate" href={alternateHref} />
       </head>
       <body>
-        <NextIntlClientProvider locale={locale} messages={messages}>
+        <NextIntlClientProvider locale={locale} messages={messages} timeZone="UTC">
           <AppProviders>{children}</AppProviders>
         </NextIntlClientProvider>
       </body>
