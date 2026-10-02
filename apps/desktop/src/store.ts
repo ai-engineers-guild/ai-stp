@@ -30,11 +30,11 @@ interface DebugState {
 
 export const useDebug = create<DebugState>((set) => ({
   log: [],
-  debugMode: typeof localStorage !== "undefined" && localStorage.getItem("aistp.debug") === "1",
+  debugMode: typeof localStorage !== "undefined" && localStorage.getItem("ai-stp.debug") === "1",
   push: (e) =>
     set((s) => ({ log: [{ ...e, id: ++ipcSeq, ts: Date.now() }, ...s.log].slice(0, IPC_LOG_CAP) })),
   setDebugMode: (v) => {
-    localStorage.setItem("aistp.debug", v ? "1" : "0");
+    localStorage.setItem("ai-stp.debug", v ? "1" : "0");
     set({ debugMode: v });
   },
   clear: () => set({ log: [] }),

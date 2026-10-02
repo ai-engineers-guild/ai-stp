@@ -76,8 +76,9 @@ A plan, exact digest, precondition revalidation, and idempotency are always mand
 
 ## Changing the repository
 
-Keep permanent local and remote `main` and `dev`. `dev` is the default integration
-branch; `main` is the protected release branch. Create a conventional work branch
+Keep permanent local and remote `main` and `dev`. `main` is the repository's default
+branch and the protected release branch; `dev` is the permanent integration branch.
+Create a conventional work branch
 from current `dev`, PR it into GitHub `dev`, then promote same-repository `dev` into
 `main` by PR after exact-SHA checks. No mandatory human approval count is required;
 repository administrators retain explicit bypass for exceptions. Preserve permanent

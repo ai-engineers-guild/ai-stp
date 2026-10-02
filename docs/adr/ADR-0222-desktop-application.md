@@ -93,7 +93,13 @@ client-side authority) are rejected.
   is resolved: release bundles embed the CLI as a PyInstaller-frozen sidecar
   (`bundle.externalBin`, `scripts/build-cli-sidecar.sh`), so no separate
   install is required; a configured path or PATH remains the development
-  fallback.
+  fallback. Every spawn runs under a filtered environment: `CliRunner`
+  clears the inherited env and re-adds an explicit passthrough set
+  (session, temp, profile, proxy, CA-bundle, and `AI_STP_*` variables),
+  synthesizing a per-app temp dir when the parent supplies none. On
+  Windows the temp/profile entries are load-bearing — the frozen
+  bootloader resolves its `_MEI` extraction dir from them and dies with
+  "Could not create temporary directory!" when they are stripped.
 - Envelope `schema_version` mismatches fail closed with an update prompt;
   `registry_digest` invalidates the app's cached command descriptors.
 - The provider co-owned roots (`~/.agents/skills`, `~/.claude/skills`) are

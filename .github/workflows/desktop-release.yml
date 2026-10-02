@@ -109,6 +109,19 @@ jobs:
       - name: Build the bundled CLI sidecar
         shell: bash
         run: bash apps/desktop/scripts/build-cli-sidecar.sh
+      - name: Sidecar spawns under the app's filtered env
+        working-directory: apps/desktop/core
+        shell: bash
+        run: |
+          set -euo pipefail
+          triple="$(rustc -vV | sed -n 's/^host: //p')"
+          sfx=""; [ "${RUNNER_OS}" = "Windows" ] && sfx=".exe"
+          # CliRunner clears the child env and re-adds a passthrough set —
+          # the same path the installed app takes. On Windows the frozen
+          # CLI dies in its bootloader if TMP/TEMP/USERPROFILE are dropped.
+          sidecar_dir="${GITHUB_WORKSPACE}/apps/desktop/src-tauri/sidecar"
+          export AI_STP_SIDECAR_EXE="${sidecar_dir}/ai-stp-${triple}${sfx}"
+          cargo test --test integration bundled_sidecar -- --nocapture
       - name: Tauri build
         working-directory: apps/desktop
         shell: bash
@@ -191,6 +204,6 @@ jobs:
           # cannot resolve it from a missing .git directory.
           gh release create "desktop-v${VERSION}" \
             --repo "${{ github.repository }}" --verify-tag \
-            --title "ai-stp desktop ${VERSION}" \
+            --title "ai-stp-desktop ${VERSION}" \
             --notes-file "${RUNNER_TEMP}/NOTES.md" \
             -- *

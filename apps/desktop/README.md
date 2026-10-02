@@ -1,4 +1,4 @@
-# ai-stp desktop
+# ai-stp-desktop
 
 Tauri 2 shell + React/Vite UI over the `ai-stp` CLI machine contract
 (ADR-0222). The CLI is the only engine: this app spawns `ai-stp … --json`,

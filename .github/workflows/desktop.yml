@@ -82,6 +82,19 @@ jobs:
       - name: Build the bundled CLI sidecar
         shell: bash
         run: bash apps/desktop/scripts/build-cli-sidecar.sh
+      - name: Sidecar spawns under the app's filtered env
+        working-directory: apps/desktop/core
+        shell: bash
+        run: |
+          set -euo pipefail
+          triple="$(rustc -vV | sed -n 's/^host: //p')"
+          sfx=""; [ "${RUNNER_OS}" = "Windows" ] && sfx=".exe"
+          # CliRunner clears the child env and re-adds a passthrough set —
+          # the same path the installed app takes. On Windows the frozen
+          # CLI dies in its bootloader if TMP/TEMP/USERPROFILE are dropped.
+          sidecar_dir="${GITHUB_WORKSPACE}/apps/desktop/src-tauri/sidecar"
+          export AI_STP_SIDECAR_EXE="${sidecar_dir}/ai-stp-${triple}${sfx}"
+          cargo test --test integration bundled_sidecar -- --nocapture
       - name: Tauri build
         working-directory: apps/desktop
         shell: bash
@@ -89,7 +102,7 @@ jobs:
       - name: Upload bundles
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: aistp-desktop-${{ matrix.os }}
+          name: ai-stp-desktop-${{ matrix.os }}
           path: |
             apps/desktop/src-tauri/target/release/bundle/
           if-no-files-found: warn

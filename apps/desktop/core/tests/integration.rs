@@ -1,8 +1,8 @@
-use aistp_desktop_core::cli_runner::{CliLocator, CliRunner, RunError};
-use aistp_desktop_core::commands::{CommandRegistry, MachineHelp};
+use ai_stp_desktop_core::cli_runner::{CliLocator, CliRunner, RunError};
+use ai_stp_desktop_core::commands::{CommandRegistry, MachineHelp};
 #[cfg(unix)]
-use aistp_desktop_core::envelope::Envelope;
-use aistp_desktop_core::envelope::{parse, ParseFailure};
+use ai_stp_desktop_core::envelope::Envelope;
+use ai_stp_desktop_core::envelope::{parse, ParseFailure};
 use std::collections::BTreeMap;
 
 fn fixture(name: &str) -> Vec<u8> {
@@ -191,7 +191,7 @@ fn locator_bundled_wins_over_path() {
 
 #[test]
 fn continuation_actor_classification_fail_closed() {
-    use aistp_desktop_core::envelope::{Continuation, ContinuationActor};
+    use ai_stp_desktop_core::envelope::{Continuation, ContinuationActor};
     let mk = |actor: Option<&str>| Continuation {
         kind: "advance".into(),
         path: vec![],
@@ -231,7 +231,7 @@ fn fake_cli(body: &str) -> (std::path::PathBuf, std::path::PathBuf) {
     use std::sync::atomic::{AtomicUsize, Ordering};
     static SEQ: AtomicUsize = AtomicUsize::new(0);
     let dir = std::env::temp_dir().join(format!(
-        "aistp-test-{}-{}",
+        "ai-stp-test-{}-{}",
         std::process::id(),
         SEQ.fetch_add(1, Ordering::Relaxed)
     ));
@@ -353,7 +353,7 @@ fn argv_unknown_command_is_refused() {
     let reg = CommandRegistry::from_help(&help);
     assert!(matches!(
         reg.build_argv("does not exist", &BTreeMap::new(), &[], &BTreeMap::new()),
-        Err(aistp_desktop_core::commands::BuildError::UnknownCommand(_))
+        Err(ai_stp_desktop_core::commands::BuildError::UnknownCommand(_))
     ));
 }
 
@@ -369,4 +369,167 @@ fn runs_real_cli_version() {
         .run(&["version".to_string()])
         .expect("ai-stp version --json");
     assert!(env.ok);
+}
+
+/// Serialize tests that mutate the process env: spawned children observe
+/// the mutation, so these tests must not interleave.
+#[cfg(unix)]
+static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+/// Fake CLI that reports the env it was spawned under inside `data`.
+#[cfg(unix)]
+fn env_probe_cli() -> (std::path::PathBuf, std::path::PathBuf) {
+    fake_cli(concat!(
+        "#!/bin/sh\n",
+        "printf '%s' '{\"schema_version\":1,\"ok\":true,\"request_id\":null,\"operation_id\":null,",
+        "\"data\":{",
+        "\"TMPDIR\":\"'\"${TMPDIR-}\"'\",",
+        "\"TEMP\":\"'\"${TEMP-}\"'\",",
+        "\"TMP\":\"'\"${TMP-}\"'\",",
+        "\"USERPROFILE\":\"'\"${USERPROFILE-}\"'\"",
+        "},\"warnings\":[],\"continuations\":[],\"error\":null}'"
+    ))
+}
+
+/// Regression for the installed-Windows-bundle bug: `CliRunner` clears
+/// the child env and must re-add TMP/TEMP/USERPROFILE — without them the
+/// PyInstaller bootloader's `GetTempPathW` falls back to the unwritable
+/// `C:\Windows` and the sidecar exits -1 with "[PYI-*:ERROR] Could not
+/// create temporary directory!". The unix mirror of that chain is TMPDIR.
+#[cfg(unix)]
+#[test]
+fn child_receives_temp_env_from_parent() {
+    let _g = ENV_LOCK.lock().unwrap();
+    let (dir, exe) = env_probe_cli();
+    let sentinel = dir.join("t");
+    std::fs::create_dir_all(&sentinel).unwrap();
+    for k in ["TMPDIR", "TEMP", "TMP"] {
+        std::env::set_var(k, &sentinel);
+    }
+    let env = run_fake(&exe, 30_000).expect("spawn");
+    let data = env.data.unwrap();
+    for k in ["TMPDIR", "TEMP", "TMP"] {
+        assert_eq!(
+            data[k].as_str().unwrap(),
+            sentinel.to_string_lossy(),
+            "child env missing {k}"
+        );
+    }
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// A parent env with no usable temp dir at all must still yield a child
+/// with a real one — the runner synthesizes an app-private dir rather
+/// than trusting the spawn context to provide one.
+#[cfg(unix)]
+#[test]
+fn child_gets_synthesized_temp_when_parent_has_none() {
+    let _g = ENV_LOCK.lock().unwrap();
+    let (dir, exe) = env_probe_cli();
+    let saved: Vec<_> = ["TMPDIR", "TEMP", "TMP", "USERPROFILE"]
+        .iter()
+        .map(|k| (*k, std::env::var_os(k)))
+        .collect();
+    for (k, _) in &saved {
+        std::env::remove_var(k);
+    }
+    let env = run_fake(&exe, 30_000).expect("spawn");
+    for (k, v) in saved {
+        match v {
+            Some(v) => std::env::set_var(k, v),
+            None => std::env::remove_var(k),
+        }
+    }
+    let data = env.data.unwrap();
+    for k in ["TMPDIR", "TEMP", "TMP"] {
+        let v = data[k].as_str().unwrap_or_default();
+        assert!(!v.is_empty(), "child missing synthesized {k}");
+        assert!(std::path::Path::new(v).is_dir(), "{k} not a dir: {v}");
+    }
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// Managed-profile overrides (`runner.env`) are applied after
+/// inheritance — an explicit TEMP must beat the inherited one.
+#[cfg(unix)]
+#[test]
+fn runner_env_extra_overrides_inherited() {
+    let _g = ENV_LOCK.lock().unwrap();
+    let (dir, exe) = env_probe_cli();
+    std::env::set_var("TMPDIR", "/inherited");
+    let mut runner = CliRunner::system(&CliLocator {
+        bundled: Some(exe.clone()),
+        configured: None,
+    })
+    .unwrap();
+    runner.timeout = std::time::Duration::from_secs(30);
+    runner.env.push(("TMPDIR".into(), "/override".into()));
+    let env = runner.run(&[]).expect("spawn");
+    assert_eq!(env.data.unwrap()["TMPDIR"].as_str().unwrap(), "/override");
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// The inherited-env list itself must name the Windows temp/profile keys
+/// and unix TMPDIR so a future trim fails fast here, not in an installed
+/// bundle.
+#[test]
+fn passthrough_env_lists_temp_and_profile_keys() {
+    for k in [
+        "TMP",
+        "TEMP",
+        "USERPROFILE",
+        "TMPDIR",
+        "APPDATA",
+        "LOCALAPPDATA",
+        "SystemRoot",
+        "WINDIR",
+        "PATHEXT",
+        "PATH",
+        "HOME",
+    ] {
+        assert!(
+            ai_stp_desktop_core::cli_runner::PASSTHROUGH_ENV.contains(&k),
+            "missing {k}"
+        );
+    }
+}
+
+/// The field signature of the real bug: the PyInstaller bootloader prints
+/// its PYI error on stderr and exits -1/255 without an envelope — the
+/// runner must surface it as NoEnvelope carrying the stderr text.
+#[cfg(unix)]
+#[test]
+fn pyi_temp_failure_surfaces_as_no_envelope_with_stderr() {
+    let (dir, exe) = fake_cli(
+        "#!/bin/sh\necho '[PYI-12345:ERROR] Could not create temporary directory!' >&2\nexit 255",
+    );
+    match run_fake(&exe, 30_000) {
+        Err(RunError::NoEnvelope { exit, stderr }) => {
+            assert_eq!(exit, Some(255));
+            assert!(stderr.contains("Could not create temporary directory"));
+        }
+        other => panic!("expected NoEnvelope, got {other:?}"),
+    }
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// Spawn the real PyInstaller sidecar through the full `CliRunner::run`
+/// path — including `env_clear` + the passthrough whitelist. CI sets
+/// `AI_STP_SIDECAR_EXE` right after building the sidecar, so this is a
+/// faithful repro of the installed-app spawn on every OS. Inert without
+/// the env var.
+#[test]
+fn bundled_sidecar_spawns_under_runner_env() {
+    let Some(exe) = std::env::var_os("AI_STP_SIDECAR_EXE").map(std::path::PathBuf::from) else {
+        return;
+    };
+    let runner = CliRunner::system(&CliLocator {
+        bundled: Some(exe),
+        configured: None,
+    })
+    .unwrap();
+    let env = runner
+        .run(&["version".to_string()])
+        .expect("sidecar spawn under runner env");
+    assert!(env.ok, "sidecar failed: {:?}", env.error);
 }

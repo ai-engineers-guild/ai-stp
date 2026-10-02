@@ -3,8 +3,8 @@
 version = 4
 
 [[package]]
-name = "aistp-desktop-core"
-version = "0.3.0"
+name = "ai-stp-desktop-core"
+version = "0.0.1"
 dependencies = [
  "serde",
  "serde_json",
