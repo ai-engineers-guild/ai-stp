@@ -4,13 +4,20 @@
 # repository and also the reason this file exists: a pinned commit does not
 # drift, so nothing tells you it has gone stale unless something looks.
 #
-# `bun`, not `npm`, for both JavaScript directories. They carry `bun.lock` and
+# `bun`, not `npm`, for the JavaScript directories. They carry `bun.lock` and
 # no `package-lock.json`, and Dependabot's npm ecosystem edits `package.json`
 # without regenerating a bun lockfile — so every pull request it opened here
 # failed `bun install --frozen-lockfile` with
 # `lockfile had changes, but lockfile is frozen`, five of them at once and none
-# of them mergeable as generated. Bun is a supported ecosystem from bun 1.1.39;
-# this repository pins 1.4.2.
+# of them mergeable as generated.
+#
+# The three bun entries stay listed but currently cannot open pull requests:
+# bun 1.4 writes `bun.lock` with `lockfileVersion` 2, while the updater
+# Dependabot runs bundles bun 1.3.x and fails with
+# `Unsupported bun.lock 'lockfileVersion' 2` (dependabot/dependabot-core#16026;
+# fix PR #16071 still open as of 2026-10-03). They resume on their own once
+# upstream ships. Until then JS/Rust advisories are caught by
+# `scripts/safety/scan_lockfile.sh` (OSV) in CI and JS freshness is manual.
 version: 2
 updates:
   - package-ecosystem: github-actions
