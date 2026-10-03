@@ -79,12 +79,17 @@ EOF
 
 uv sync --locked --all-packages --directory "${repo_root}"
 
+# nacl._sodium is a cffi out-of-line extension: it imports _cffi_backend
+# internally at load time, which modulegraph cannot see. Past bundles only
+# received it through an accidental edge — a dependency that pulled in cffi
+# itself — so it is declared here or the frozen CLI dies on nacl import.
 uv run --directory "${repo_root}" --with "pyinstaller==${PYINSTALLER_VERSION}" \
   pyinstaller --onefile --clean \
   --name "ai-stp-desktop-cli-${triple}" \
   --distpath "${work_dir}/dist" \
   --workpath "${work_dir}/build" \
   --specpath "${work_dir}" \
+  --hidden-import _cffi_backend \
   --collect-all ai_stp_cli \
   --collect-all ai_stp_foundation \
   --collect-all ai_stp_contracts \
