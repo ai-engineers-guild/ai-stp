@@ -1,6 +1,6 @@
 ---
 description: "Build, verify, publish, yank, and recover a Python release."
-last_verified: "2026-09-20"
+last_verified: "2026-10-02"
 ---
 
 # Python package release
@@ -121,6 +121,15 @@ manual steps.
 No upload token exists here, on the host, or in repository or organization secrets—
 Trusted Publishing issues an OIDC identity for the run. There is no credential to
 look for.
+
+Live index on 2026-10-03: `ai-stp-cli==0.0.36` from attested candidate
+`36930958686` and publish run `36931501581`, tag `v0.0.36`, commit
+`a9cfc767`, GitHub Release
+`https://github.com/ai-engineers-guild/ai-stp/releases/tag/v0.0.36`. The wheel
+`ai_stp_cli-0.0.36-py3-none-any.whl` uploaded 2026-10-01T21:53:32Z; its
+digest `sha256:d9e1d2a4815aa5e54560ff214a30f560cd95c57fa0164bdbf3b87097745f45c0`
+is byte-identical between the PyPI index record and the GitHub release asset
+(the sdist is `sha256:7b9be9f6ac11c20cb38173cdc5fdd5badd653b826cb802240d610e9428d611f7`, 21:53:33Z).
 
 Live index on 2026-09-06: `ai-stp-cli==0.0.18` from candidate `34060185329`,
 tag `v0.0.18`, commit `4aa64c36`, GitHub Release

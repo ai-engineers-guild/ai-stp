@@ -1,6 +1,6 @@
 ---
-description: "Target monorepository structure and code ownership rules."
-last_verified: "2026-09-20"
+description: "Monorepository structure and code ownership rules."
+last_verified: "2026-10-02"
 ---
 
 # Repository structure
@@ -12,6 +12,9 @@ apps/
   worker/
   web/
   platform/
+  desktop/
+    core/
+    src-tauri/
 packages/
   foundation/
   passports/
@@ -24,6 +27,10 @@ skills/
   canonical/
   projections/
 deploy/
+migrations/
+release_scripts/
+scripts/
+docs_scripts/
 standards/
 tests/
   unit/
@@ -34,9 +41,14 @@ tests/
   contract/
   fixtures/
   golden/
+  support/
 docs/
+docs-user-facing/
 specs/
+assets/
 ```
+
+`apps/desktop` is `ai-stp-desktop`, the Tauri 2 desktop shell over the CLI machine contract (`ADR-0222`): a React/Vite UI talking to the `core` crate, which spawns the CLI as a bundled sidecar — the CLI stays the only engine.
 
 ## Boundaries
 

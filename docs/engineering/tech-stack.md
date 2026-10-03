@@ -1,6 +1,6 @@
 ---
-description: "Target MVP stack and rules for choosing dependencies."
-last_verified: "2026-08-05"
+description: "Application stack and rules for choosing dependencies."
+last_verified: "2026-10-02"
 ---
 
 # Stack
@@ -9,7 +9,7 @@ last_verified: "2026-08-05"
 
 | Area | Choice |
 |---|---|
-| Language | Python 3.12 and 3.14 — both are checked in CI |
+| Language | Python 3.12 and 3.14 — `check.yml` pins 3.14; the platform-evidence matrix exercises both |
 | Dependency management | uv and one root `uv.lock` after bootstrap code |
 | CLI | Click on `ADR-0057`; machine JSON is mandatory |
 | Device key and secrets | Ed25519 via `cryptography`; `keyring` with a closed list of trusted backends via `ADR-0058` |
@@ -24,6 +24,7 @@ last_verified: "2026-08-05"
 | Object storage | RustFS/S3 |
 | HTTP | httpx |
 | Frontend | Next.js App Router (React, RSC + Server Actions) on `ADR-0043`; TypeScript 7 as typecheck + side TS6 for `typescript-eslint`; Tailwind 4 with tokenized theme (light/dark); bilingualism `next-intl`; standard `shadcn/ui` + Radix by atomic design (atoms/molecules/organisms/layouts); typed client from `schemas/v1/openapi.json` via `@hey-api/openapi-ts`; client store `zustand`; forms `react-hook-form` + `zod`; ESLint flat config lint (type-aware, full prohibition `any`); tests Vitest + Testing Library + Playwright + MSW; package manager `bun` with `bun.lock` in separate Node-workspace `apps/web` |
+| Desktop | `apps/desktop` `ai-stp-desktop` (`ADR-0222`): Tauri 2 shell (`tauri`/`tauri-build` 2 in `src-tauri`, `@tauri-apps/cli` 2) over the CLI machine contract; Rust `core` and `src-tauri` crates; React 19 + Vite 8 + TypeScript 7 UI tested by Vitest; package manager `bun` with its own `bun.lock`; the bundled CLI is a PyInstaller onefile sidecar built by `apps/desktop/scripts/build-cli-sidecar.sh` and embedded through `bundle.externalBin` |
 | Email | Resend |
 | Format/lint | Ruff |
 | Types | Pyright strict |

@@ -1,6 +1,6 @@
 ---
 description: "Required release evidence for the CLI, platform, and providers."
-last_verified: "2026-09-24"
+last_verified: "2026-10-02"
 ---
 
 # Release evidence
@@ -99,6 +99,22 @@ acquire and remember the attested release while every later lifecycle command
 omits `--provider` and `--provider-manifest`; the report verifies that the
 managed release retained the requested exact tag. `config-evidence` also takes
 `from_import` to drive the import capture path.
+
+## Desktop
+
+A desktop release proves that the shell over the CLI contract builds and runs
+on all three OSes: each `desktop-release` bundle leg rebuilds the frontend and
+both Rust crates, freezes the CLI into the PyInstaller sidecar through
+`apps/desktop/scripts/build-cli-sidecar.sh` — which smoke-checks the frozen
+binary's `version --json` before it is embedded — and runs
+`apps/desktop/scripts/test-bundled-sidecar.sh`, the spawn test under the app's
+filtered environment, so a bundled CLI that cannot start on a real OS does not
+ship. `SHA256SUMS` covers every published artifact.
+
+It does not prove code integrity by signature — the bundles are unsigned
+(`SHA256SUMS` is the integrity record), the CI never launches the installed
+application window, and there is no updater: upgrading is a fresh install.
+Those remain human checks on the released bundles.
 
 ## Full-beta catalog and qualification
 
