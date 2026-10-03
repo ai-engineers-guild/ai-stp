@@ -1,6 +1,6 @@
 ---
 description: "Target implementation plan for the agent-first CLI: GPT OSS 120B qualification, shared task engine, and the website-to-native journeys in epic #261."
-last_verified: "2026-09-26"
+last_verified: "2026-10-03"
 ---
 
 # Agent UX implementation plan
@@ -37,7 +37,7 @@ attested but never published; it is superseded. Epic #261–#275 are CLOSED. Do 
 | Released CLI | `0.0.36` on PyPI (release-candidate run `36930958686`, publish run `36931501581`); it ships provider-kit `0.2.15` — the `authorization` status member accepted — behind the unified v2/v3 invocation boundary |
 | Provider kit | `0.2.15` in `tests/golden/provider-kit/identity-ledger.json` |
 | Issues | #261–#275 CLOSED. setup-systems #316 OPEN. Issues #254/#256 are CLOSED |
-| Public provider | `0.0.87` on all seven `*-setup-system` trees (2026-09-30, pin refresh over the third audit wave), vendoring kit `0.2.15` |
+| Public provider | `0.0.88` on all seven `*-setup-system` trees (2026-10-03, pin refresh: claude `2.1.288`, codex `0.160.0`, grok `1.0.49`, pi `1.0.0`, opencode `1.18.34`, cursor `2026.10.01-e373342`, antigravity `1.2.15`), vendoring kit `0.2.15` |
 | Agent 20×5 | GPT OSS 120B through `agy` is the sole current model target; no current-candidate trial is counted yet. Historical Haiku 99/100 is archived evidence only |
 | Branch-policy SC2015 | closed in [#304](https://github.com/ai-engineers-guild/ai-stp/pull/304) |
 
@@ -99,7 +99,7 @@ rest of the corpus against a known exhausted quota.
 3. **Epic acceptance** requires qualification of current bytes. The maintenance
    `0.0.31` cut repairs qualification infrastructure and does not close this
    threshold or establish autonomous model acceptance. `0.0.29` is on PyPI from tag `v0.0.29`; the native Antigravity user journey verified its official upgrade from `0.0.28`, public wheel bytes, and a fresh baseline consumer. That run used `gpt-oss-120b-medium` with corrective prompts, so it does not qualify autonomous GPT OSS 120B behavior on this candidate. The qualification record in #368 remains historical evidence.
-4. **setup-systems #316** stays OPEN. The Antigravity user journey consumed its public provider `0.0.74` baseline in a fresh native session; the current public release is `0.0.87` vendoring kit `0.2.15` (kit bytes unchanged since `0.0.79`; the publish readback ran released-consumer protocol-v3 conformance `exact=7 refused=0 unmeasured=0` on `0.0.82` through `0.0.87`; an interactive-session measurement was last taken on `0.0.79`). Other provider and platform cells remain unverified by that run. Do not close #316 from this plan.
+4. **setup-systems #316** stays OPEN. The Antigravity user journey consumed its public provider `0.0.74` baseline in a fresh native session; the current public release is `0.0.88` vendoring kit `0.2.15` (kit bytes unchanged since `0.0.79`; the publish readback ran released-consumer protocol-v3 conformance `exact=7 refused=0 unmeasured=0` on `0.0.82` through `0.0.88`; an interactive-session measurement was last taken on `0.0.79`). Other provider and platform cells remain unverified by that run. Do not close #316 from this plan.
 5. Issue comments with SHA; close only for measured scope. Issues #254/#256 are CLOSED — the earlier do-not-touch injunctions are history, not live guidance.
 6. `component publish` stays `task_pending`. Do not compact `help --agent`. Do not shrink capabilities `command_paths` (REQ-8006).
 
