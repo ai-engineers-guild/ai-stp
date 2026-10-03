@@ -24,13 +24,13 @@ import json
 import os
 import signal
 import subprocess
-import sys
 import threading
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import IO, Final, Protocol, Self, cast
 
+from ai_stp_cli import interpreter
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.paths import is_executable_file
 from ai_stp_cli.provider import bundle_corpus, bundle_protocol, protocol
@@ -176,7 +176,12 @@ def _executable_argv(executable: str) -> list[str]:
     except OSError:
         return [executable]
     if first_line.startswith(b"#!") and b"python" in first_line:
-        return [sys.executable, executable]
+        # A frozen build's `sys.executable` is the CLI binary — a click
+        # application, not an interpreter. Fall back to a PATH interpreter;
+        # absent one, execute the script bare and let the OS refusal name
+        # the real problem.
+        probe_python = interpreter.python()
+        return [probe_python, executable] if probe_python is not None else [executable]
     return [executable]
 
 

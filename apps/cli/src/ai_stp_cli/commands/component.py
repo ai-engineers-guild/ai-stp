@@ -306,6 +306,15 @@ def discover(parameters: Mapping[str, object]) -> Answer[NativeComponents]:
             next_actions=["component discover --root <path> --json"],
         )
     report = components.discover_report(project=project, continuation=continuation)
+    # Registration is answered by the same binding key adoption records — the
+    # only join that cannot lie, since a display path and a layout-relative
+    # tail name different things by construction. A missing registry simply
+    # means nothing here is registered yet.
+    registered: dict[str, str] = {}
+    registry_path = configured_path()
+    if registry_path.is_file():
+        with closing(open_readonly(registry_path)) as connection:
+            registered = components.registered_stable_ids(connection, report.components)
     return Answer(
         NativeComponents(
             project=None if project is None else str(project),
@@ -320,6 +329,7 @@ def discover(parameters: Mapping[str, object]) -> Answer[NativeComponents]:
                     candidate_id=item.candidate_id,
                     layout_source=item.layout_source,
                     source_path=item.source_path,
+                    registered_stable_id=registered.get(components.source_binding_key(item)),
                     provenance=NativeComponentProvenance(
                         kind=item.provenance.kind,  # pyright: ignore[reportArgumentType]
                         state=item.provenance.state,  # pyright: ignore[reportArgumentType]

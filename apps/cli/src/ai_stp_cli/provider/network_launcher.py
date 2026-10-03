@@ -16,11 +16,11 @@ import shutil
 import socket
 import stat
 import subprocess
-import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Final, Protocol, cast
 
+from ai_stp_cli import interpreter
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.provider.protocol_v2 import NetworkCapability, NetworkEnforcement
 from ai_stp_foundation.canonical import JsonValue
@@ -414,12 +414,15 @@ def _probe_bubblewrap(executable: Path) -> tuple[bool, tuple[str, ...]]:
     try:
         positive_control(ipv4, ipv6, dns_udp)
         ports = {"ipv4": port(ipv4), "ipv6": port(ipv6), "dns_udp": port(dns_udp)}
+        probe_python = interpreter.python()
+        if probe_python is None:
+            return False, ("frozen build found no python3/python on PATH for the sandbox probe",)
         result = subprocess.run(
             (
                 str(executable),
                 *_BWRAP_ARGUMENTS,
                 "--",
-                sys.executable,
+                probe_python,
                 "-c",
                 CHILD_PROBE,
                 json.dumps(ports, sort_keys=True),

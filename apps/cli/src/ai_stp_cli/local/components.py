@@ -25,6 +25,7 @@ import sqlite3
 import stat
 import subprocess
 import zipfile
+from collections.abc import Iterable
 from dataclasses import KW_ONLY, dataclass, replace
 from itertools import islice
 from pathlib import Path
@@ -962,6 +963,51 @@ def _merge_interop(
     return merged
 
 
+def source_binding_key(item: Found) -> str:
+    """The binding key `adopt` records for this path's claim.
+
+    The digest covers the *resolved* absolute path plus the harness and kind
+    claim — the same triple `adopt` inserts into `component_source_binding`.
+    Asking the table anything else (the display path, a layout-relative tail)
+    cannot answer "is this discovery already registered", because neither is
+    the key that was stored.
+    """
+    return digest_canonical(
+        "ai-stp:component-source-binding:v1",
+        {
+            "harness_id": item.harness_id,
+            "component_type": item.component_type,
+            "absolute_path": str(item.absolute.resolve()),
+        },
+    )
+
+
+def registered_stable_ids(connection: sqlite3.Connection, items: Iterable[Found]) -> dict[str, str]:
+    """Map each found component's binding key to its registered `stable_id`.
+
+    Read-only over `component_source_binding`: the answer says *this path is
+    already registered as that object*, not that the registered bytes still
+    match the file — matching is a diff's question. A registry that predates
+    the binding table has no bindings to report and answers empty rather than
+    `no such table`.
+    """
+    keys = {source_binding_key(item) for item in items}
+    if not keys:
+        return {}
+    present = connection.execute(
+        "SELECT 1 FROM sqlite_schema WHERE type = 'table' AND name = 'component_source_binding'"
+    ).fetchone()
+    if present is None:
+        return {}
+    keys_csv = ",".join("?" for _ in keys)
+    rows = connection.execute(
+        "SELECT source_key, stable_id FROM component_source_binding "
+        f"WHERE source_key IN ({keys_csv})",
+        tuple(keys),
+    ).fetchall()
+    return {str(row["source_key"]): str(row["stable_id"]) for row in rows}
+
+
 def adopt(
     connection: sqlite3.Connection,
     item: Found,
@@ -1016,14 +1062,7 @@ def adopt(
         )
     at = moment()
     stored_bytes = content.put(connection, adopted.payload, at=at)
-    source_key = digest_canonical(
-        "ai-stp:component-source-binding:v1",
-        {
-            "harness_id": item.harness_id,
-            "component_type": item.component_type,
-            "absolute_path": str(item.absolute.resolve()),
-        },
-    )
+    source_key = source_binding_key(item)
     bound = connection.execute(
         "SELECT stable_id FROM component_source_binding WHERE source_key = ?",
         (source_key,),

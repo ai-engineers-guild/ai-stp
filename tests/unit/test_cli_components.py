@@ -702,6 +702,70 @@ def test_a_copy_at_a_new_path_does_not_steal_the_original_id(
     assert Path(original["absolute_path"]) == found.absolute
 
 
+def test_discovery_reports_which_sources_are_already_registered(
+    registry: sqlite3.Connection, harness_home: Path
+) -> None:
+    """The registration join is the binding key, never the path's spelling.
+
+    `source_path` is a display string — home-redacted on the wire — while
+    adoption binds the resolved absolute path under the harness/kind claim.
+    A reader that joins spellings reports an adopted component as native and
+    a registered one as missing, which is exactly the desktop defect this
+    field exists to remove.
+    """
+    from ai_stp_cli.commands import component as command
+
+    before = command.discover({}).payload
+    assert before.components
+    assert all(item.registered_stable_id is None for item in before.components)
+
+    found = next(
+        item
+        for item in components.discover()
+        if item.component_type == "skill" and item.harness_id == "claude-code"
+    )
+    stored = components.adopt(registry, found, device_id="device_test")
+
+    after = command.discover({}).payload
+    claimed = {item.candidate_id: item.registered_stable_id for item in after.components}
+    assert claimed[found.candidate_id] == stored.stable_id
+    assert sum(item.registered_stable_id is not None for item in after.components) == 1
+
+
+def test_discovery_without_a_registry_reports_everything_unregistered(
+    harness_home: Path,
+) -> None:
+    """No registry file is not an error: it means nothing is registered yet."""
+    from ai_stp_cli.commands import component as command
+
+    assert not configured_path().exists()
+    answer = command.discover({}).payload
+    assert answer.components
+    assert all(item.registered_stable_id is None for item in answer.components)
+
+
+def test_a_registry_predating_the_binding_table_reports_nothing_registered(
+    harness_home: Path,
+) -> None:
+    """A read command cannot migrate, and must not fail on an older schema.
+
+    `component_source_binding` arrived in a later migration than the registry
+    itself. A read-opened database from before it has no bindings to report;
+    `no such table` would be the wrong answer to a question the table cannot
+    hear.
+    """
+    from ai_stp_cli.commands import component as command
+
+    path = configured_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with closing(sqlite3.connect(path)) as connection:
+        connection.execute("CREATE TABLE entity (stable_id TEXT PRIMARY KEY)")
+
+    answer = command.discover({}).payload
+    assert answer.components
+    assert all(item.registered_stable_id is None for item in answer.components)
+
+
 def test_an_adopted_passport_carries_only_the_allowlist(
     registry: sqlite3.Connection, harness_home: Path
 ) -> None:

@@ -51,13 +51,13 @@ if [[ "${1:-}" == "--stub" ]]; then
   cat > "${out_dir}/${bin}" <<'STUB'
 #!/bin/sh
 # Dev stub for `cargo check`/`tauri dev` without a PyInstaller freeze.
-# Answers `version` minimally; everything else fails with AI_STP_STUB.
+# Answers `version` minimally; everything else fails with DESKTOP_STUB.
 case "$1" in
   version)
     printf '{"schema_version":1,"ok":true,"data":{"version":"0.0.0-stub","cli_version":"0.0.0-stub"},"warnings":["stub sidecar — build the real one for CLI calls"],"continuations":[],"error":null,"request_id":null,"operation_id":null,"next_actions":[]}\n'
     ;;
   *)
-    printf '{"schema_version":1,"ok":false,"data":null,"warnings":[],"continuations":[],"error":{"code":"AI_STP_STUB","message":"dev stub — build the real sidecar for CLI calls"},"request_id":null,"operation_id":null,"next_actions":[]}\n'
+    printf '{"schema_version":1,"ok":false,"data":null,"warnings":[],"continuations":[],"error":{"code":"DESKTOP_STUB","message":"dev stub — build the real sidecar for CLI calls"},"request_id":null,"operation_id":null,"next_actions":[]}\n'
     ;;
 esac
 STUB
@@ -69,7 +69,12 @@ fi
 work_dir="$(mktemp -d)"
 trap 'rm -rf "${work_dir}"' EXIT
 
+# The toolset that decides what lands in the bundle is pinned as a set —
+# pinning PyInstaller alone left `pyinstaller-hooks-contrib` floating, and
+# a hook release silently changed which modules reached the frozen CLI
+# (the `_cffi_backend` loss below surfaced exactly that way).
 PYINSTALLER_VERSION="${PYINSTALLER_VERSION:-6.22.3}"
+PYINSTALLER_HOOKS_VERSION="${PYINSTALLER_HOOKS_VERSION:-2026.7}"
 
 cat > "${work_dir}/entry.py" <<'EOF'
 from ai_stp_cli.app import run
@@ -83,7 +88,9 @@ uv sync --locked --all-packages --directory "${repo_root}"
 # internally at load time, which modulegraph cannot see. Past bundles only
 # received it through an accidental edge — a dependency that pulled in cffi
 # itself — so it is declared here or the frozen CLI dies on nacl import.
-uv run --directory "${repo_root}" --with "pyinstaller==${PYINSTALLER_VERSION}" \
+uv run --directory "${repo_root}" \
+  --with "pyinstaller==${PYINSTALLER_VERSION}" \
+  --with "pyinstaller-hooks-contrib==${PYINSTALLER_HOOKS_VERSION}" \
   pyinstaller --onefile --clean \
   --name "ai-stp-desktop-cli-${triple}" \
   --distpath "${work_dir}/dist" \
@@ -104,9 +111,16 @@ chmod +x "${out_dir}/${bin}" || true
 
 # Prove the frozen binary actually works on this OS before it ships inside
 # a bundle — a missing hidden import would otherwise surface only at runtime.
+# `version` proves the bootloader ran; `doctor` walks the interpreter/env
+# surface a provider-capable CLI actually needs.
 probe="$("${out_dir}/${bin}" version --json)"
 case "${probe}" in
   *'"ok": true'*|*'"ok":true'*) ;;
-  *) echo "sidecar smoke check failed: ${probe}" >&2; exit 1 ;;
+  *) echo "sidecar smoke check failed (version): ${probe}" >&2; exit 1 ;;
+esac
+probe="$("${out_dir}/${bin}" doctor --json)"
+case "${probe}" in
+  *'"ok": true'*|*'"ok":true'*) ;;
+  *) echo "sidecar smoke check failed (doctor): ${probe}" >&2; exit 1 ;;
 esac
 echo "sidecar built: ${out_dir}/${bin}"

@@ -26,6 +26,9 @@ interface NativeComponent {
   scope: string;
   source_path: string;
   holds_secret: boolean;
+  // The CLI-computed registration join (`component_source_binding` key).
+  // `undefined` on a CLI that predates the field — unknown, not unregistered.
+  registered_stable_id?: string | null;
   provenance?: { kind: string; state: string } | null;
 }
 
@@ -37,6 +40,11 @@ interface RegistryEntry {
     harness_id?: string;
     scope?: string;
     source_path?: string;
+    source_name?: string;
+    name?: string;
+    source_root?: string;
+    source_repository?: string;
+    candidate_id?: string;
   };
 }
 
@@ -48,10 +56,6 @@ interface Row {
   path: string;
   stp: string;
   secret: boolean;
-}
-
-function normPath(p: string): string {
-  return p.replace(/\\/g, "/").replace(/\/+$/, "").toLowerCase();
 }
 
 function basename(p: string): string {
@@ -76,7 +80,7 @@ export default function DiscoveryPage() {
       const [h, n, r] = await Promise.all([
         cmdRunRead("toolchain harnesses"),
         cmdRunRead("component discover"),
-        cmdRunRead("component find"),
+        cmdRunRead("component find", {}, ["include-unverified"]),
       ]);
       setHarnessRes(h);
       setNativeRes(n);
@@ -103,43 +107,51 @@ export default function DiscoveryPage() {
   const registered = useMemo(() => {
     const data = registryRes?.data ?? {};
     const lanes = ["authoritative", "experimental", "local_owner_or_pinned"];
-    const byPath = new Map<string, RegistryEntry>();
+    const byStableId = new Map<string, RegistryEntry>();
     for (const lane of lanes) {
       const items = (data[lane] as RegistryEntry[] | undefined) ?? [];
-      for (const item of items) {
-        const p = item.fields?.source_path;
-        if (p) byPath.set(normPath(p), item);
-      }
+      for (const item of items) byStableId.set(item.stable_id, item);
     }
-    return byPath;
+    return byStableId;
   }, [registryRes]);
 
   const rows = useMemo(() => {
     const seen = new Set<string>();
     const out: Row[] = natives.map((c) => {
-      const key = normPath(c.source_path);
-      seen.add(key);
-      const hit = registered.get(key);
+      // The registration answer is the CLI's own binding join — never a path
+      // comparison: `source_path` is a display string (home-redacted) while
+      // passports record a layout-relative tail, so spellings cannot match.
+      if (c.registered_stable_id) seen.add(c.registered_stable_id);
+      const hit = c.registered_stable_id
+        ? registered.get(c.registered_stable_id)
+        : undefined;
       return {
         kind: c.component_type,
         name: basename(c.source_path),
         scope: c.scope,
         harness: c.harness_id ?? "—",
         path: c.source_path,
-        stp: hit ? hit.lane : "native",
+        stp:
+          c.registered_stable_id === undefined
+            ? "unknown" // CLI predates the field — say so rather than guess
+            : c.registered_stable_id === null
+              ? "native"
+              : (hit?.lane ?? "registered"),
         secret: c.holds_secret,
       };
     });
-    for (const [key, item] of registered) {
-      if (seen.has(key)) continue;
-      const p = item.fields?.source_path ?? "";
+    for (const [stableId, item] of registered) {
+      if (seen.has(stableId)) continue;
+      const f = item.fields ?? {};
+      const label = f.source_name ?? f.name ?? basename(f.source_path ?? "");
+      const imported = !!(f.candidate_id || f.source_repository);
       out.push({
-        kind: item.fields?.component_type ?? "?",
-        name: basename(p),
-        scope: item.fields?.scope ?? "—",
-        harness: item.fields?.harness_id ?? "—",
-        path: p,
-        stp: `${item.lane} (not on disk)`,
+        kind: f.component_type ?? "?",
+        name: label || stableId,
+        scope: f.scope ?? "—",
+        harness: f.harness_id ?? "—",
+        path: f.source_root ?? f.source_path ?? "",
+        stp: imported ? `${item.lane} (imported)` : `${item.lane} (not seen)`,
         secret: false,
       });
     }
@@ -320,6 +332,13 @@ export default function DiscoveryPage() {
         <p className="text-xs text-muted-foreground">
           <MonitorSmartphone size={11} className="mr-1 inline" />
           Component scan is partial — the CLI returned a continuation cursor.
+        </p>
+      )}
+      {registryRes?.data?.truncated === true && (
+        <p className="text-xs text-muted-foreground">
+          <MonitorSmartphone size={11} className="mr-1 inline" />
+          Registry listing was cut at the engine's bound — some registered
+          objects are not shown.
         </p>
       )}
     </div>

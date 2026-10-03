@@ -10,6 +10,7 @@ import {
   cmdTaskAnswer,
   cmdTaskCancel,
   cmdTaskContinue,
+  cmdTaskIntents,
   cmdTaskStart,
   cmdTaskStatus,
   type CliContinuation,
@@ -37,9 +38,10 @@ interface TaskView {
   outcome?: unknown;
 }
 
-// The closed intent set the CLI's task engine accepts (task start
-// --intent). Keep in sync with apps/cli registry.
-const INTENTS = [
+// Fallback only: the live list comes from `task intents`, which publishes
+// the same closed set `task start --intent` enforces. A CLI that cannot
+// answer gets this — which is why it stays a constant.
+const FALLBACK_INTENTS = [
   "install",
   "change",
   "switch",
@@ -57,6 +59,7 @@ const INTENTS = [
 export default function InstallPage() {
   const [params] = useSearchParams();
   const [intent, setIntent] = useState(params.get("intent") ?? "install");
+  const [intents, setIntents] = useState<string[]>(FALLBACK_INTENTS);
   const [task, setTask] = useState<TaskView | null>(null);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [continuations, setContinuations] = useState<CliContinuation[]>([]);
@@ -70,6 +73,26 @@ export default function InstallPage() {
     const q = params.get("intent");
     if (q) setIntent(q);
   }, [params]);
+
+  useEffect(() => {
+    void cmdTaskIntents().then((r) => {
+      const names = (
+        (r.data?.intents as { name?: string }[] | undefined) ?? []
+      )
+        .map((i) => i.name)
+        .filter((n): n is string => typeof n === "string" && n.length > 0);
+      if (r.ok && names.length > 0) setIntents(names);
+    });
+  }, []);
+
+  // Closing a journey ends the logical start it belonged to; the next Start
+  // must mint a fresh key or the CLI reads it as the same start retried
+  // with different input — a conflict, correctly refused.
+  function closeTask() {
+    setTask(null);
+    setStartKey(null);
+    setContinuations([]);
+  }
 
   function view(r: CmdResult): TaskView | null {
     return (r.data as unknown as TaskView) ?? null;
@@ -153,10 +176,7 @@ export default function InstallPage() {
     try {
       const r = await cmdTaskCancel(task.task_id, String(task.revision));
       setLastResult(r);
-      if (r.ok) {
-        setTask(null);
-        setStartKey(null);
-      }
+      if (r.ok) closeTask();
     } finally {
       setBusy(false);
     }
@@ -226,10 +246,13 @@ export default function InstallPage() {
         <section className="card max-w-xl space-y-3 p-4">
           <h2 className="section-title">Start a flow</h2>
           <div className="flex flex-wrap gap-2">
-            {INTENTS.map((it) => (
+            {intents.map((it) => (
               <button
                 key={it}
-                onClick={() => setIntent(it)}
+                onClick={() => {
+                  setIntent(it);
+                  setStartKey(null);
+                }}
                 className={`rounded-sm border px-3 py-1.5 text-sm ${
                   intent === it
                     ? "border-primary bg-primary/10 font-medium text-primary"
@@ -367,7 +390,7 @@ export default function InstallPage() {
             <button onClick={() => void cancel()} disabled={busy || !!terminal} className="btn-outline">
               <Ban size={14} /> Cancel task
             </button>
-            <button onClick={() => setTask(null)} disabled={busy} className="btn-outline">
+            <button onClick={closeTask} disabled={busy} className="btn-outline">
               Close
             </button>
           </div>
