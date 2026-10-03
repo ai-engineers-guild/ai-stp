@@ -1,5 +1,5 @@
 use ai_stp_desktop_core::cli_runner::{CliLocator, CliRunner, RunError};
-use ai_stp_desktop_core::commands::{CommandRegistry, MachineHelp};
+use ai_stp_desktop_core::commands::{BuildError, CommandRegistry, MachineHelp};
 #[cfg(unix)]
 use ai_stp_desktop_core::envelope::Envelope;
 use ai_stp_desktop_core::envelope::{parse, ParseFailure};
@@ -219,6 +219,98 @@ fn argv_repeated_and_positional_flags() {
     }
 }
 
+/// Synthetic registry exercising rules the shipped fixture does not have:
+/// repeatable-with-choices, `when_parameter` fed through `repeated`, and a
+/// multi-name `required_when`.
+fn synthetic_help() -> MachineHelp {
+    serde_json::from_value(serde_json::json!({
+        "schema_version": 1,
+        "cli_version": "0.0.0-test",
+        "registry_digest": "digest_test",
+        "global_options": {"json": "emit the machine envelope"},
+        "error_codes": [{"code": "AI_STP_TEST", "handling": "fail"}],
+        "commands": [{
+            "path": ["probe", "run"],
+            "summary": "synthetic",
+            "mutability": "read",
+            "confirmation": "none",
+            "next_actions": ["probe status"],
+            "parameters": [
+                {"name": "tag", "kind": "option", "value_type": "string",
+                 "repeatable": true, "choices": ["a", "b"]},
+                {"name": "mode", "kind": "option", "value_type": "string",
+                 "repeatable": true},
+                {"name": "first", "kind": "option", "value_type": "string"},
+                {"name": "second", "kind": "option", "value_type": "string"}
+            ],
+            "parameter_rules": [
+                {"kind": "required_when", "parameters": ["first", "second"],
+                 "when_parameter": "mode", "when_values": ["deep"]}
+            ]
+        }]
+    }))
+    .unwrap()
+}
+
+#[test]
+fn argv_choices_enforced_on_repeated_values() {
+    let reg = CommandRegistry::from_help(&synthetic_help());
+    let mut repeated = BTreeMap::new();
+    repeated.insert("tag".to_string(), vec!["a".to_string(), "b".to_string()]);
+    assert!(reg
+        .build_argv("probe run", &BTreeMap::new(), &[], &repeated)
+        .is_ok());
+
+    repeated.insert("tag".to_string(), vec!["a".to_string(), "z".to_string()]);
+    assert!(matches!(
+        reg.build_argv("probe run", &BTreeMap::new(), &[], &repeated),
+        Err(BuildError::ChoiceViolation { .. })
+    ));
+}
+
+#[test]
+fn argv_when_parameter_reads_repeated_values() {
+    let reg = CommandRegistry::from_help(&synthetic_help());
+    // `mode` is repeatable — `mode=deep` arrives through `repeated` and must
+    // condition the required_when rule exactly as a scalar value would.
+    let mut repeated = BTreeMap::new();
+    repeated.insert("mode".to_string(), vec!["shallow".to_string()]);
+    assert!(reg
+        .build_argv("probe run", &BTreeMap::new(), &[], &repeated)
+        .is_ok());
+
+    repeated.insert("mode".to_string(), vec!["deep".to_string()]);
+    assert!(reg
+        .build_argv("probe run", &BTreeMap::new(), &[], &repeated)
+        .is_err());
+}
+
+#[test]
+fn argv_required_when_needs_every_named_parameter() {
+    let reg = CommandRegistry::from_help(&synthetic_help());
+    let mut repeated = BTreeMap::new();
+    repeated.insert("mode".to_string(), vec!["deep".to_string()]);
+    // One of two named parameters is not enough.
+    let mut values = BTreeMap::new();
+    values.insert("first".to_string(), "1".to_string());
+    assert!(reg
+        .build_argv("probe run", &values, &[], &repeated)
+        .is_err());
+    values.insert("second".to_string(), "2".to_string());
+    assert!(reg.build_argv("probe run", &values, &[], &repeated).is_ok());
+}
+
+#[test]
+fn machine_help_preserves_full_wire() {
+    let reg = CommandRegistry::from_help(&synthetic_help());
+    assert_eq!(reg.cli_version, "0.0.0-test");
+    assert_eq!(reg.registry_digest, "digest_test");
+    assert!(reg.error_codes.is_array() && !reg.error_codes.as_array().unwrap().is_empty());
+    assert!(reg.global_options.is_object());
+    let desc = reg.descriptor("probe run").unwrap();
+    assert_eq!(desc.next_actions, vec!["probe status".to_string()]);
+}
+
 /// Regression: a child emitting more than a pipe buffer's worth of stdout
 /// (typical for `help --agent`) must not deadlock the runner. The previous
 /// implementation read stdout only after exit; the child blocked on write
@@ -287,9 +379,10 @@ fn continuation_actor_classification_fail_closed() {
         mk(Some("external")).actor_kind(),
         ContinuationActor::External
     );
-    // absent / unknown / empty actors never auto-run.
+    // `agent` is its own actor in the contract — modeled, still never
+    // auto-run; absent / unknown / empty actors never auto-run either.
     assert_eq!(mk(None).actor_kind(), ContinuationActor::Human);
-    assert_eq!(mk(Some("agent")).actor_kind(), ContinuationActor::Human);
+    assert_eq!(mk(Some("agent")).actor_kind(), ContinuationActor::Agent);
     assert_eq!(mk(Some("")).actor_kind(), ContinuationActor::Human);
 }
 

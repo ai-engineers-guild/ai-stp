@@ -9,7 +9,12 @@
     "core:window:default",
     {
       "identifier": "opener:allow-open-url",
-      "allow": [{ "url": "https://*" }, { "url": "http://*" }]
+      "allow": [
+        { "url": "https://*" },
+        { "url": "http://localhost*" },
+        { "url": "http://127.0.0.1*" },
+        { "url": "http://[::1]*" }
+      ]
     },
     "window-state:default"
   ]

@@ -1,9 +1,23 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { HardDrive, RefreshCw, Wrench } from "lucide-react";
-import { cliApplyConfirmed, cmdRunRead, type CmdResult } from "../transport";
+import {
+  cliApplyConfirmed,
+  cmdCapabilities,
+  cmdRunRead,
+  type CmdResult,
+} from "../transport";
 import { Json, ResultMeta, Spinner } from "../components/Result";
 
-const HARNESSES = ["antigravity", "claude-code", "codex", "cursor", "grok-build", "opencode", "pi"];
+// Fallback only; the live set arrives from `capabilities.supported_harnesses`.
+const FALLBACK_HARNESSES = [
+  "antigravity",
+  "claude-code",
+  "codex",
+  "cursor",
+  "grok-build",
+  "opencode",
+  "pi",
+];
 
 const QUERIES: { label: string; path: string; needs: ("project" | "harness")[] }[] = [
   { label: "Target status", path: "target status", needs: ["project", "harness"] },
@@ -20,6 +34,7 @@ const QUERIES: { label: string; path: string; needs: ("project" | "harness")[] }
  *  All reads through the gated `cli_run_read` path — writes stay in flows. */
 export default function TargetsPage() {
   const [project, setProject] = useState("");
+  const [harnesses, setHarnesses] = useState<string[]>(FALLBACK_HARNESSES);
   const [harness, setHarness] = useState("claude-code");
   const [results, setResults] = useState<Record<string, CmdResult>>({});
   const [busy, setBusy] = useState<string | null>(null);
@@ -27,6 +42,13 @@ export default function TargetsPage() {
   const [txTxn, setTxTxn] = useState("");
   const [txResult, setTxResult] = useState<CmdResult | null>(null);
   const [txConfirm, setTxConfirm] = useState<"resume" | "tx" | false>(false);
+
+  useEffect(() => {
+    void cmdCapabilities().then((r) => {
+      const list = r.data?.supported_harnesses;
+      if (Array.isArray(list) && list.length > 0) setHarnesses(list.map(String));
+    });
+  }, []);
 
   async function run(q: (typeof QUERIES)[number]) {
     setBusy(q.path);
@@ -116,7 +138,7 @@ export default function TargetsPage() {
           Harness
           <select value={harness} onChange={(e) => setHarness(e.target.value)}
             className="mt-1 w-full rounded-lg border border-input bg-transparent px-2 py-1.5 text-sm">
-            {HARNESSES.map((h) => <option key={h}>{h}</option>)}
+            {harnesses.map((h) => <option key={h}>{h}</option>)}
           </select>
         </label>
       </div>

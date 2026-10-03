@@ -9,8 +9,11 @@ export function Json({ v }: { v: unknown }) {
 }
 
 /** Renders the parts of a CmdResult the caller didn't consume: warnings,
- *  continuations and the structured error. */
+ *  continuations, engine-named next actions, and the structured error. */
 export function ResultMeta({ r }: { r: CmdResult }) {
+  const options = Array.isArray(r.error_details?.options)
+    ? (r.error_details?.options as unknown[]).filter((o) => typeof o === "string")
+    : [];
   return (
     <div className="space-y-2">
       {r.warnings.length > 0 && (
@@ -32,12 +35,35 @@ export function ResultMeta({ r }: { r: CmdResult }) {
           ))}
         </div>
       )}
+      {r.next_actions && r.next_actions.length > 0 && (
+        <div className="card border-primary/40 bg-primary/5 p-3 text-xs">
+          <p className="mb-1 font-semibold">The engine suggests</p>
+          {r.next_actions.map((a, i) => (
+            <p key={i} className="font-mono">
+              {typeof a === "string" ? a : JSON.stringify(a)}
+            </p>
+          ))}
+        </div>
+      )}
       {r.error && (
         <div className="card border-destructive/50 bg-destructive/10 p-3 text-xs">
           {r.error_code && !r.error.startsWith(`${r.error_code}:`) && (
             <span className="mr-2 font-mono font-semibold">{r.error_code}</span>
           )}
           {r.error}
+          {options.length > 0 && (
+            <p className="mt-1 text-muted-foreground">
+              options: {(options as string[]).join(" · ")}
+            </p>
+          )}
+          {r.error_details != null && (
+            <details className="mt-1">
+              <summary className="cursor-pointer text-muted-foreground">
+                error details
+              </summary>
+              <Json v={r.error_details} />
+            </details>
+          )}
         </div>
       )}
     </div>

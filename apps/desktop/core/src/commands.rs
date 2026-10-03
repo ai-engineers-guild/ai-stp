@@ -12,6 +12,8 @@ pub struct CommandParameter {
     pub name: String,
     pub kind: String, // "option" | "argument"
     #[serde(default)]
+    pub summary: String,
+    #[serde(default)]
     pub value_type: String, // "string" | "boolean" | "integer"
     #[serde(default)]
     pub required: bool,
@@ -51,6 +53,10 @@ pub struct CommandDescriptor {
     pub parameter_rules: Vec<ParameterRule>,
     #[serde(default)]
     pub result_schema: Option<String>,
+    /// Commands sensible to run next, as space-joined paths — the wire
+    /// publishes them and dropping them would hide the engine's own advice.
+    #[serde(default)]
+    pub next_actions: Vec<String>,
 }
 
 impl CommandDescriptor {
@@ -61,8 +67,17 @@ impl CommandDescriptor {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MachineHelp {
+    #[serde(default)]
+    pub schema_version: Option<u64>,
     pub cli_version: String,
     pub registry_digest: String,
+    /// Passed through raw — the digest covers them and the IPC surface
+    /// answers for them (`error_codes[].handling` is the published routing
+    /// table the frontend may consult).
+    #[serde(default)]
+    pub global_options: serde_json::Value,
+    #[serde(default)]
+    pub error_codes: serde_json::Value,
     #[serde(default)]
     pub commands: Vec<CommandDescriptor>,
 }
@@ -96,6 +111,9 @@ impl std::error::Error for BuildError {}
 pub struct CommandRegistry {
     by_path: HashMap<String, CommandDescriptor>,
     pub registry_digest: String,
+    pub cli_version: String,
+    pub global_options: serde_json::Value,
+    pub error_codes: serde_json::Value,
 }
 
 impl CommandRegistry {
@@ -107,6 +125,9 @@ impl CommandRegistry {
                 .map(|c| (c.path_key(), c.clone()))
                 .collect(),
             registry_digest: help.registry_digest.clone(),
+            cli_version: help.cli_version.clone(),
+            global_options: help.global_options.clone(),
+            error_codes: help.error_codes.clone(),
         }
     }
 
@@ -203,6 +224,12 @@ impl CommandRegistry {
                                 param.name
                             )));
                         }
+                        if !param.choices.is_empty() && !param.choices.contains(v) {
+                            return Err(BuildError::ChoiceViolation {
+                                name: param.name.clone(),
+                                value: v.clone(),
+                            });
+                        }
                         argv.push(flag.clone());
                         argv.push(v.clone());
                     }
@@ -214,7 +241,7 @@ impl CommandRegistry {
             return Err(BuildError::MissingRequired(missing));
         }
 
-        self.check_rules(desc, &seen, values, flags)?;
+        self.check_rules(desc, &seen, values, flags, repeated)?;
         Ok(argv)
     }
 
@@ -224,6 +251,7 @@ impl CommandRegistry {
         seen: &HashMap<&str, usize>,
         values: &BTreeMap<String, String>,
         flags: &[String],
+        repeated: &BTreeMap<String, Vec<String>>,
     ) -> Result<(), BuildError> {
         let is_set = |n: &str| {
             seen.contains_key(n) || values.contains_key(n) || flags.iter().any(|f| f == n)
@@ -232,15 +260,17 @@ impl CommandRegistry {
             let count = rule.parameters.iter().filter(|p| is_set(p)).count();
             // `when_values` may carry the sentinel "present" (the parameter is
             // set to any value) or a closed value list; `when_parameter` may be
-            // "" when the rule is unconditional.
+            // "" when the rule is unconditional. A repeatable `when_parameter`
+            // holds its values under `repeated`, not `values`.
             let conditioned = match rule.when_parameter.as_str() {
                 "" => true,
                 wp if rule.when_values == ["present"] => is_set(wp),
                 wp => {
-                    values
-                        .get(wp)
-                        .map(|v| rule.when_values.iter().any(|w| w == v))
-                        .unwrap_or(false)
+                    let single = values.get(wp);
+                    let multi = repeated.get(wp);
+                    let hit = |v: &String| rule.when_values.iter().any(|w| w == v);
+                    single.is_some_and(hit)
+                        || multi.is_some_and(|vs| vs.iter().any(hit))
                         || (flags.iter().any(|f| f == wp)
                             && rule.when_values.iter().any(|w| w == "true"))
                 }
@@ -258,9 +288,13 @@ impl CommandRegistry {
                         rule.parameters.join(", ")
                     )))
                 }
-                ("required_when", true) if count == 0 => {
+                // The contract says the named parameters *become* required —
+                // all of them, not one-of. Every shipped rule names exactly
+                // one parameter today, so the forms agree; the plural is what
+                // the rule would mean if a future one did not.
+                ("required_when", true) if count != rule.parameters.len() => {
                     return Err(BuildError::RuleViolation(format!(
-                        "one of {} required when {} is set",
+                        "{} required when {} is set",
                         rule.parameters.join(", "),
                         rule.when_parameter
                     )))

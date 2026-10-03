@@ -27,6 +27,11 @@ struct CmdResult {
     operation_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     error_retryable: Option<bool>,
+    /// `error.details` verbatim — `details.options` is the contract's
+    /// one-retry repair channel (cli-json.md) and losing it here would make
+    /// the shell thinner than the contract allows.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    error_details: Option<serde_json::Value>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     next_actions: Vec<serde_json::Value>,
 }
@@ -45,7 +50,10 @@ impl CmdResult {
             error_code: env.error.as_ref().map(|e| e.code.clone()),
             request_id: env.request_id,
             operation_id: env.operation_id,
-            error_retryable: env.error.map(|e| e.retryable),
+            error_retryable: env.error.as_ref().map(|e| e.retryable),
+            error_details: env
+                .error
+                .and_then(|e| (!e.details.is_null()).then_some(e.details)),
             next_actions: env.next_actions,
         }
     }
@@ -60,6 +68,7 @@ impl CmdResult {
             request_id: None,
             operation_id: None,
             error_retryable: None,
+            error_details: None,
             next_actions: Vec::new(),
         }
     }
@@ -67,11 +76,14 @@ impl CmdResult {
 
 /// The frontend routes on stable codes; keep the closed set aligned with
 /// the CLI's own (`AI_STP_NOT_FOUND`, `AI_STP_TIMEOUT_UNCONFIRMED`, …).
+/// Codes this shell mints itself carry `DESKTOP_` — the `AI_STP_` namespace
+/// is the CLI's published set and inventing members confuses any reader
+/// checking a code against `help --agent`.
 fn error_code_for(e: &RunError) -> &'static str {
     match e {
         RunError::NotFound(_) => "AI_STP_NOT_FOUND",
         RunError::TimeoutUnconfirmed => "AI_STP_TIMEOUT_UNCONFIRMED",
-        _ => "AI_STP_TRANSPORT",
+        _ => "DESKTOP_TRANSPORT",
     }
 }
 
@@ -226,7 +238,7 @@ fn run_cli_within(state: &AppState, args: &[String], timeout: Option<Duration>) 
 fn run_cli_mutating(state: &AppState, args: &[String]) -> CmdResult {
     let _mutation = match state.mutation_lock.lock() {
         Ok(g) => g,
-        Err(_) => return CmdResult::failed("AI_STP_TRANSPORT", "mutation lock poisoned"),
+        Err(_) => return CmdResult::failed("DESKTOP_TRANSPORT", "mutation lock poisoned"),
     };
     run_cli_within(state, args, Some(ai_stp_desktop_core::MUTATING_TIMEOUT))
 }
@@ -279,6 +291,9 @@ async fn machine_help(state: tauri::State<'_, Arc<AppState>>) -> Result<CmdResul
             ok: true,
             data: Some(serde_json::json!({
                 "registry_digest": reg.registry_digest,
+                "cli_version": reg.cli_version,
+                "global_options": reg.global_options,
+                "error_codes": reg.error_codes,
                 "commands": reg.all_descriptors(),
             })),
             warnings: vec![],
@@ -288,6 +303,7 @@ async fn machine_help(state: tauri::State<'_, Arc<AppState>>) -> Result<CmdResul
             request_id: None,
             operation_id: None,
             error_retryable: None,
+            error_details: None,
             next_actions: vec![],
         },
         Err(e) => CmdResult::failed(error_code_for(&e), e),
@@ -457,6 +473,7 @@ async fn debug_info(state: tauri::State<'_, Arc<AppState>>) -> Result<CmdResult,
             request_id: None,
             operation_id: None,
             error_retryable: None,
+            error_details: None,
             next_actions: vec![],
         }
     })
@@ -594,7 +611,6 @@ async fn task_start(
     state: tauri::State<'_, Arc<AppState>>,
     intent: String,
     idem_key: Option<String>,
-    input: Option<String>,
 ) -> Result<CmdResult, String> {
     let st = state.inner().clone();
     tauri::async_runtime::spawn_blocking(move || {
@@ -604,7 +620,12 @@ async fn task_start(
         let key = idem_key
             .filter(|k| !k.is_empty())
             .unwrap_or_else(|| new_idem_key("desktop"));
-        let mut a = vec![
+        // `--input` is deliberately not exposed here: the CLI reads it as a
+        // JSON/YAML file path or `-` for stdin, and this runner's stdin is
+        // sealed — an inline blob would arrive as a path that cannot exist.
+        // Wizard answers go through `task answer`, the channel the engine
+        // actually reads.
+        let a = vec![
             "task".into(),
             "start".into(),
             "--intent".into(),
@@ -612,12 +633,6 @@ async fn task_start(
             "--idempotency-key".into(),
             key,
         ];
-        // `--input` carries a JSON object of pre-answered fields; the engine
-        // validates it against the intent's schema, so a bad blob comes back
-        // as a normal envelope error rather than a wizard crash.
-        if let Some(raw) = input.filter(|s| !s.trim().is_empty()) {
-            a.extend(["--input".into(), raw]);
-        }
         run_cli_mutating(&st, &a)
     })
     .await

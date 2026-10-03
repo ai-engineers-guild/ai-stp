@@ -1,10 +1,17 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Search } from "lucide-react";
-import { cmdCatalogSearch, cmdCatalogShow, type CmdResult } from "../transport";
+import {
+  cmdCatalogSearch,
+  cmdCatalogShow,
+  cmdMachineHelp,
+  descriptorChoices,
+  type CmdResult,
+} from "../transport";
 import { Json, ResultMeta, Spinner } from "../components/Result";
 
-// Closed set from `registry search --kind` machine help.
-const KINDS = ["component", "setup"];
+// Fallback only; the live set arrives from the `registry search --kind`
+// descriptor choices in machine help.
+const FALLBACK_KINDS = ["component", "setup"];
 
 type Item = Record<string, unknown>;
 
@@ -56,6 +63,7 @@ function ItemList({ items, onShow }: { items: Item[]; onShow: (id: string) => vo
 }
 
 export default function CatalogPage() {
+  const [kinds, setKinds] = useState<string[]>(FALLBACK_KINDS);
   const [kind, setKind] = useState("setup");
   const [query, setQuery] = useState("");
   const [experimental, setExperimental] = useState(false);
@@ -66,6 +74,13 @@ export default function CatalogPage() {
   const [cursor, setCursor] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [detailBusy, setDetailBusy] = useState(false);
+
+  useEffect(() => {
+    void cmdMachineHelp().then((r) => {
+      const choices = descriptorChoices(r, "registry search", "kind");
+      if (choices) setKinds(choices);
+    });
+  }, []);
 
   async function search(more = false) {
     setBusy(true);
@@ -113,7 +128,7 @@ export default function CatalogPage() {
           onChange={(e) => setKind(e.target.value)}
           className="rounded-lg border border-input bg-transparent px-2 py-1.5 text-sm"
         >
-          {KINDS.map((k) => (
+          {kinds.map((k) => (
             <option key={k} value={k}>{k}</option>
           ))}
         </select>

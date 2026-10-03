@@ -45,6 +45,10 @@ pub enum ContinuationActor {
     Cli,
     /// A live executor owns progress — poll status, never re-run.
     External,
+    /// An agent executor drives this continuation — the app prompts rather
+    /// than auto-running, like `Human`, but the distinction is the
+    /// contract's to make, not ours to flatten.
+    Agent,
     /// A human decision/input is required (e.g. `task answer`).
     Human,
 }
@@ -58,6 +62,7 @@ impl Continuation {
         match self.actor.as_deref() {
             Some("cli") => ContinuationActor::Cli,
             Some("external") => ContinuationActor::External,
+            Some("agent") => ContinuationActor::Agent,
             _ => ContinuationActor::Human,
         }
     }
