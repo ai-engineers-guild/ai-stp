@@ -29,7 +29,7 @@ export type CorporateNavPage = {
   /** Rendered in the root rail as a context entry. */
   root: boolean;
   /** Routes owned exactly; deeper paths do not match. */
-  exact: readonly string[];
+  exact?: readonly string[];
   /** Route prefixes owned by this page (segment boundary, deeper paths included). */
   prefixes: readonly string[];
   /** Rail item activated for this page; undefined = own id; null = none. */
@@ -59,7 +59,6 @@ export const CORPORATE_NAV_PAGES: readonly CorporateNavPage[] = [
     root: true,
     rail: false,
     section: "components",
-    exact: [],
     prefixes: ["/corporate/catalog", "/corporate/components"],
   },
   {
@@ -70,7 +69,6 @@ export const CORPORATE_NAV_PAGES: readonly CorporateNavPage[] = [
     icon: "team",
     root: true,
     rail: true,
-    exact: [],
     prefixes: ["/corporate/organization"],
   },
   {
@@ -82,7 +80,6 @@ export const CORPORATE_NAV_PAGES: readonly CorporateNavPage[] = [
     root: true,
     rail: true,
     section: "technologies",
-    exact: [],
     prefixes: ["/corporate/technology-landscape"],
   },
   {
@@ -96,7 +93,6 @@ export const CORPORATE_NAV_PAGES: readonly CorporateNavPage[] = [
     root: true,
     rail: true,
     administration: true,
-    exact: [],
     prefixes: ["/corporate/organization/admins"],
   },
 
@@ -110,7 +106,6 @@ export const CORPORATE_NAV_PAGES: readonly CorporateNavPage[] = [
     root: false,
     rail: true,
     section: "employees",
-    exact: [],
     prefixes: ["/corporate/employees", "/corporate/members", "/corporate/publishers"],
   },
   {
@@ -122,7 +117,6 @@ export const CORPORATE_NAV_PAGES: readonly CorporateNavPage[] = [
     root: false,
     rail: true,
     section: "projects",
-    exact: [],
     prefixes: ["/corporate/projects"],
   },
   {
@@ -134,7 +128,6 @@ export const CORPORATE_NAV_PAGES: readonly CorporateNavPage[] = [
     root: false,
     rail: true,
     section: "teams",
-    exact: [],
     prefixes: ["/corporate/teams"],
   },
   {
@@ -146,7 +139,6 @@ export const CORPORATE_NAV_PAGES: readonly CorporateNavPage[] = [
     root: false,
     rail: true,
     section: "technologies",
-    exact: [],
     prefixes: ["/corporate/technologies"],
   },
   {
@@ -158,7 +150,6 @@ export const CORPORATE_NAV_PAGES: readonly CorporateNavPage[] = [
     root: false,
     rail: true,
     section: "reports",
-    exact: [],
     prefixes: ["/corporate/reports", "/corporate/installations", "/corporate/usage"],
   },
 
@@ -172,7 +163,6 @@ export const CORPORATE_NAV_PAGES: readonly CorporateNavPage[] = [
     root: false,
     rail: true,
     section: "categories",
-    exact: [],
     prefixes: ["/corporate/categories"],
   },
   {
@@ -184,7 +174,6 @@ export const CORPORATE_NAV_PAGES: readonly CorporateNavPage[] = [
     root: false,
     rail: true,
     section: "mappings",
-    exact: [],
     prefixes: ["/corporate/technology-mappings"],
   },
 
@@ -199,7 +188,6 @@ export const CORPORATE_NAV_PAGES: readonly CorporateNavPage[] = [
     root: false,
     rail: true,
     administration: true,
-    exact: [],
     prefixes: ["/corporate/organization/admins/access"],
   },
   {
@@ -212,7 +200,6 @@ export const CORPORATE_NAV_PAGES: readonly CorporateNavPage[] = [
     root: false,
     rail: true,
     administration: true,
-    exact: [],
     prefixes: ["/corporate/organization/admins/roles"],
   },
   {
@@ -225,7 +212,6 @@ export const CORPORATE_NAV_PAGES: readonly CorporateNavPage[] = [
     root: false,
     rail: true,
     administration: true,
-    exact: [],
     prefixes: ["/corporate/organization/admins/audit"],
   },
   {
@@ -238,7 +224,6 @@ export const CORPORATE_NAV_PAGES: readonly CorporateNavPage[] = [
     root: false,
     rail: true,
     administration: true,
-    exact: [],
     prefixes: ["/corporate/organization/admins/employees"],
   },
   {
@@ -251,8 +236,20 @@ export const CORPORATE_NAV_PAGES: readonly CorporateNavPage[] = [
     root: false,
     rail: true,
     administration: true,
-    exact: [],
     prefixes: ["/corporate/organization/admins/job-titles"],
+  },
+  {
+    id: "technologyCategories",
+    group: "referenceData",
+    context: "administration",
+    href: "/corporate/organization/admins/tech-categories",
+    label: "categories",
+    icon: "filter",
+    root: false,
+    rail: true,
+    administration: true,
+    section: "categories",
+    prefixes: ["/corporate/organization/admins/tech-categories"],
   },
   {
     id: "settings",
@@ -264,7 +261,6 @@ export const CORPORATE_NAV_PAGES: readonly CorporateNavPage[] = [
     root: false,
     rail: true,
     administration: true,
-    exact: [],
     prefixes: ["/corporate/organization/admins/settings"],
   },
   {
@@ -277,7 +273,6 @@ export const CORPORATE_NAV_PAGES: readonly CorporateNavPage[] = [
     root: false,
     rail: true,
     administration: true,
-    exact: [],
     prefixes: ["/corporate/organization/admins/security"],
   },
   {
@@ -289,7 +284,6 @@ export const CORPORATE_NAV_PAGES: readonly CorporateNavPage[] = [
     root: false,
     rail: false,
     administration: true,
-    exact: [],
     prefixes: ["/corporate/roles"],
     activeAs: "roles",
   },
@@ -347,7 +341,7 @@ export function normalizeCorporatePath(pathname: string): string {
 
 function matches(page: CorporateNavPage, path: string): number | null {
   let best: number | null = null;
-  for (const exact of page.exact) {
+  for (const exact of page.exact ?? []) {
     if (path === exact) best = Math.max(best ?? 0, exact.length);
   }
   for (const prefix of page.prefixes) {
@@ -374,7 +368,7 @@ export function corporateNavPage(pathname: string): CorporateNavPage | null {
 }
 
 function visible(page: CorporateNavPage, capabilities: readonly string[]): boolean {
-  if (page.administration) return canViewCorporateAdministration(capabilities);
+  if (page.administration && !canViewCorporateAdministration(capabilities)) return false;
   if (page.section) return canViewCorporateSection(page.section, capabilities);
   return true;
 }
@@ -455,11 +449,9 @@ export function resolveCorporateRail(
     ] as const;
     entries = groups.flatMap(([id, icon]) => {
       const children = allowed.filter((entry) => entry.group === id && entry.rail).map(item);
-      // Existing reference directories also have an administrative entry.
+      // The technology landscape directory is also reachable from Reference data.
       if (id === "referenceData") {
-        children.push(
-          ...allowed.filter((entry) => ["categories", "landscape"].includes(entry.id)).map(item),
-        );
+        children.push(...allowed.filter((entry) => entry.id === "landscape").map(item));
       }
       return children.length
         ? [{ id: `group-${id}`, label: id, icon, href: "", active: false, children }]

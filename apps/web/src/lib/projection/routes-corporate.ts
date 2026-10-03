@@ -86,6 +86,7 @@ export const CORPORATE_ROUTES: MachineRoute[] = [
       ["corporate/organization/admins/access", "/corporate/organization/admins"],
       ["corporate/organization/admins/audit", "/corporate/organization/admins"],
       ["corporate/organization/admins/job-titles", "/corporate/organization/admins"],
+      ["corporate/organization/admins/tech-categories", "/corporate/organization/admins"],
       ["corporate/organization/admins/settings", "/corporate/organization/admins"],
       ["corporate/organization/admins/security", "/corporate/organization/admins"],
       ["corporate/organization/admins/employees", "/corporate/organization/admins"],

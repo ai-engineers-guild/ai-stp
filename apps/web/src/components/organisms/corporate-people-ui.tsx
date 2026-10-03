@@ -131,7 +131,7 @@ export function PersonIdentity({
   you = false,
 }: {
   name: string;
-  email?: string;
+  email?: string | undefined;
   you?: boolean;
 }) {
   const t = useTranslations("people");
