@@ -1,6 +1,6 @@
 ---
 description: "Public compatibility snapshot for seven provider systems and ai_stp."
-last_verified: "2026-09-29"
+last_verified: "2026-10-02"
 ---
 
 # Provider integration state
@@ -12,9 +12,16 @@ release, capability, and evidence facts.
 ## Active release
 
 The active public tag for the seven `NDDev-OpenNetwork/*-setup-system`
-repositories is `0.0.87` (published 2026-09-30 UTC; a same-day pin
+repositories is `0.0.88` (published 2026-10-03 UTC; a seven-vendor pin
+refresh — claude 2.1.288, codex 0.160.0, grok 1.0.49, pi 1.0.0, opencode
+1.18.34, cursor 2026.10.01-e373342, antigravity 1.2.15 — where pi's 1.0.0
+`~/.pi/agent/mcp-auth.json` OAuth store joined `never_touch` and the backup
+exclusion, and the baseline comparator learned to read 64-bit Mach-O code
+signatures so a signature-only difference reports `signature-only` rather
+than a false divergence). `0.0.87` (published 2026-09-30 UTC; a same-day pin
 refresh — codex 0.159.2, antigravity 1.2.14 — on top of `0.0.86`, which
-moved the rendered workflows to `setup-rust-toolchain` 2.0.0). `0.0.85`
+moved the rendered workflows to `setup-rust-toolchain` 2.0.0) remains a
+prior public tag. `0.0.85`
 (also 2026-09-30) was the third audit wave —
 opencode `tui.jsonc` declared a shadow of the owned `tui.json`, pi's
 environment record re-measured on 0.99.1 including `PI_STARTUP_BENCHMARK`,
@@ -66,6 +73,14 @@ Software artifact pins and the provider wire boundary did not change.
   declare that operation leaves `initialize` blocked.
 
 ## Evidence
+
+On 2026-10-03 (UTC), the `0.0.88` publish readback ran the released
+`ai-stp-cli` in an isolated container under enforced network isolation:
+`exact=7 refused=0 unmeasured=0` — every provider auto-acquired as
+`verified_publisher` and returned `conforms` on protocol-v3 conformance
+(Antigravity 46, Claude Code 44, Codex 60, Cursor 62, Grok Build 44,
+OpenCode 44, Pi 43 cases), and all eight repositories agreed (8 agree,
+0 drifted, 0 untracked, 0 unreadable).
 
 On 2026-09-30 (UTC), the `0.0.85`, `0.0.86` and `0.0.87` publish
 readbacks each ran the released
