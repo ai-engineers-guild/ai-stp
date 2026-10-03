@@ -7,14 +7,16 @@
 # the same operations narrowed to one group.
 #
 # A group is a check's owner, and the prefix is mandatory:
-#   docs-*  — the documentation basis (specs, ADRs, docs/, MkDocs);
-#   back-*  — Python: packages/, apps/api, apps/platform, apps/cli, tests/;
-#   web-*   — apps/web;
-#   infra-* — Docker images, Compose stacks and the host-side deploy chain.
+#   docs-*    — the documentation basis (specs, ADRs, docs/, MkDocs);
+#   back-*    — Python: packages/, apps/api, apps/platform, apps/cli, tests/;
+#   web-*     — apps/web;
+#   desktop-* — apps/desktop (UI + core + src-tauri crates);
+#   infra-*   — Docker images, Compose stacks and the host-side deploy chain.
 #
-# `infra-*` is deliberately not in `check`: it needs the Docker toolchain,
-# which is not universal — fleet devices exist with no Docker at all, and
-# `check` is the gate every host can run.
+# `desktop-*` and `infra-*` are deliberately not in `check`: they need the
+# Rust/WebKitGTK and Docker toolchains, which are not universal — fleet
+# devices exist with no Docker at all, and `check` is the gate every host
+# can run.
 #
 # Every group carries the same verb set, so a command is derived, not
 # remembered:
@@ -702,6 +704,68 @@ web-feature-profiles:
 [doc('The web aggregate')]
 [group('web')]
 web-check: web-build web-storybook web-static web-test web-regress web-feature-profiles
+
+# --- desktop ---------------------------------------------------------------
+
+# Mirrors .github/workflows/desktop.yml minus the OS matrix and the
+# `tauri build` bundling leg: same frontend checks, same crate checks, same
+# real-sidecar spawn test. `desktop-build` writes `dist/` and a stub
+# sidecar because tauri-build and `generate_context!` read both at compile
+# time; the stub is written only when no sidecar exists, so a real
+# PyInstaller build is never replaced. `desktop-*` is deliberately outside
+# `gen`/`check` — it needs Rust plus WebKitGTK system packages and is
+# covered in CI by desktop.yml, not check.yml — the same exclusion
+# `infra-*` has.
+
+# Formats both Rust crates (writes only).
+[doc('Format the two Rust crates')]
+[group('desktop')]
+desktop-gen:
+    cd apps/desktop/core && cargo fmt
+    cd apps/desktop/src-tauri && cargo fmt
+
+# The frozen lockfile is the contract; `vite build` emits `dist/` and the
+# stub sidecar satisfies the externalBin existence check before the crates
+# compile. `run_bash.py` picks Git-for-Windows bash over WSL on Windows —
+# the recipe line stays identical everywhere.
+[doc('Frontend build plus a stub sidecar for compile-time checks')]
+[group('desktop')]
+desktop-build:
+    {{ bunreq }}
+    cd apps/desktop && bun install --frozen-lockfile
+    cd apps/desktop && bun x vite build
+    {{ run }} python release_scripts/run_bash.py apps/desktop/scripts/build-cli-sidecar.sh --stub
+
+[doc('tsc, fmt and clippy for the UI and both crates')]
+[group('desktop')]
+desktop-static: desktop-build
+    cd apps/desktop && bun x tsc --noEmit
+    cd apps/desktop/core && cargo fmt --check
+    cd apps/desktop/core && cargo clippy --all-targets -- -D warnings
+    cd apps/desktop/src-tauri && cargo fmt --check
+    cd apps/desktop/src-tauri && cargo clippy --all-targets -- -D warnings
+
+[doc('vitest and cargo test for both crates')]
+[group('desktop')]
+desktop-test: desktop-build
+    cd apps/desktop && bun x vitest run
+    cd apps/desktop/core && cargo test
+    cd apps/desktop/src-tauri && cargo test
+
+# Freezes the real PyInstaller sidecar — several minutes, and it overwrites
+# the stub by design — then runs the same filtered-env spawn test
+# desktop.yml runs. `uvreq` because the freeze is `uv sync` plus a pinned
+# PyInstaller: the same version contract as every other `uv run` leg.
+[doc('Build the real sidecar and spawn it under the filtered env')]
+[group('desktop')]
+desktop-regress: desktop-build
+    {{ uvreq }}
+    {{ run }} python release_scripts/run_bash.py apps/desktop/scripts/build-cli-sidecar.sh
+    {{ run }} python release_scripts/run_bash.py apps/desktop/scripts/test-bundled-sidecar.sh
+
+[doc('The desktop aggregate')]
+[group('desktop')]
+desktop-check: desktop-build desktop-static desktop-test desktop-regress
 
 # Docker and Compose surface. Not a dependency of `check`: hadolint, shellcheck
 # and the Compose CLI are infra tools, not gate prerequisites — a maintainer

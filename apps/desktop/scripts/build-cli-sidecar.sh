@@ -11,9 +11,12 @@
 # the workspace's locked graph plus a pinned PyInstaller — fetched through uv
 # so the repository's package-manager contract still holds (uv and bun only).
 #
-# `--stub` writes a minimal POSIX stub instead (Unix hosts only): it answers
-# `version --json` and satisfies tauri-build's externalBin existence check,
-# so `cargo check`/`cargo test`/`tauri dev` work without a 5-minute freeze.
+# `--stub` writes a stand-in instead: on POSIX hosts a minimal shell stub
+# that answers `version --json`, on Windows a marked non-runnable
+# placeholder — the shell crate's checks need the externalBin path to
+# exist at compile time but never execute it. An existing sidecar is never
+# overwritten either way, so `cargo check`/`cargo test`/`tauri dev` work
+# without a 5-minute freeze and a real build is left in place.
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "$0")/../../.." && pwd)"
@@ -27,9 +30,22 @@ esac
 bin="ai-stp-desktop-cli-${triple}${suffix}"
 
 if [[ "${1:-}" == "--stub" ]]; then
+  # Never overwrite an existing sidecar — a real PyInstaller build must not
+  # be silently replaced by a stub during a local `desktop-check`.
+  if [[ -f "${out_dir}/${bin}" ]]; then
+    echo "sidecar already exists: ${out_dir}/${bin} (stub not written)"
+    exit 0
+  fi
   if [[ -n "${suffix}" ]]; then
-    echo "--stub cannot produce a runnable .exe; build the real sidecar" >&2
-    exit 1
+    # Windows: shell-crate checks need the file to exist (tauri-build
+    # verifies externalBin paths at compile time) but never execute it —
+    # the real CLI tests are gated behind AI_STP_REAL_CLI. A marked
+    # non-runnable placeholder is honest; running it fails loudly.
+    mkdir -p "${out_dir}"
+    printf '# stub sidecar — not a runnable binary; build the real one\n' \
+      > "${out_dir}/${bin}"
+    echo "stub sidecar placeholder written: ${out_dir}/${bin} (exists for compile-time checks only)"
+    exit 0
   fi
   mkdir -p "${out_dir}"
   cat > "${out_dir}/${bin}" <<'STUB'

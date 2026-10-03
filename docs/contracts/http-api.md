@@ -75,16 +75,16 @@ The stable-code-to-status-code mapping is closed and derived from the completion
 
 | Status code | Stable codes |
 |---|---|
-| `400` | `AI_STP_VALIDATION_ERROR`, `AI_STP_UNSUPPORTED_APPLY`, `AI_STP_SCHEMA_UNSUPPORTED`, `AI_STP_AUTHORIZATION_PENDING`, `AI_STP_AUTHORIZATION_EXPIRED`, `AI_STP_AUTHORIZATION_DECLINED`, `AI_STP_SEO_FACTS_INVALID`, `AI_STP_SEO_OUTPUT_INVALID` |
+| `400` | `AI_STP_VALIDATION_ERROR`, `AI_STP_UNSUPPORTED_APPLY`, `AI_STP_SCHEMA_UNSUPPORTED`, `AI_STP_AUTHORIZATION_PENDING`, `AI_STP_AUTHORIZATION_EXPIRED`, `AI_STP_AUTHORIZATION_DECLINED`, `AI_STP_SEO_FACTS_INVALID`, `AI_STP_SEO_OUTPUT_INVALID`, `AI_STP_CONTENT_INVALID` |
 | `401` | `AI_STP_AUTH_REQUIRED` |
-| `403` | `AI_STP_PERMISSION_DENIED`, `AI_STP_DEVICE_REVOKED` |
+| `403` | `AI_STP_PERMISSION_DENIED`, `AI_STP_DEVICE_REVOKED`, `AI_STP_CONTENT_IMPORT_FORBIDDEN`, `AI_STP_FOREIGN_LINE_OWNERSHIP` |
 | `404` | `AI_STP_NOT_FOUND` |
-| `409` | `AI_STP_CONFLICT`, `AI_STP_PLAN_STALE`, `AI_STP_USER_DECISION_REQUIRED`, `AI_STP_SEO_SOURCE_STALE`, `AI_STP_COMPENSATED` |
-| `412` | `AI_STP_PRECONDITION_FAILED` |
+| `409` | `AI_STP_CONFLICT`, `AI_STP_PLAN_STALE`, `AI_STP_USER_DECISION_REQUIRED`, `AI_STP_SEO_SOURCE_STALE`, `AI_STP_COMPENSATED`, `AI_STP_ACCOUNT_DISPLAY_NAME_CONFLICT`, `AI_STP_CANONICAL_NAME_CONFLICT`, `AI_STP_CONTENT_SOURCE_CONFLICT`, `AI_STP_CONTENT_STALE`, `AI_STP_HANDLE_CONFLICT`, `AI_STP_LOCALIZED_NAME_CONFLICT`, `AI_STP_MANIFEST_MISMATCH`, `AI_STP_MIGRATION_CONFLICT` |
+| `412` | `AI_STP_PRECONDITION_FAILED`, `AI_STP_STALE_OWNERSHIP_REVISION` |
 | `429` | `AI_STP_RATE_LIMITED` |
 | `500` | `AI_STP_PARTIAL_OPERATION`, `AI_STP_CATALOG_INTEGRITY`, `AI_STP_INTERNAL`, `AI_STP_SEO_RENDER_FAILED` |
 | `502` | `AI_STP_PROTOCOL_VIOLATION` |
-| `503` | `AI_STP_DEPENDENCY_UNAVAILABLE`, `AI_STP_SEO_ENRICHMENT_UNAVAILABLE` |
+| `503` | `AI_STP_DEPENDENCY_UNAVAILABLE`, `AI_STP_SEO_ENRICHMENT_UNAVAILABLE`, `AI_STP_SYNC_DELIVERY` |
 | `504` | `AI_STP_TIMEOUT_UNCONFIRMED` |
 
 The three device-flow states share `400` under RFC 8628, but each retains its own stable code: a shared status code does not collapse distinct outcomes; `code` remains the machine identifier.
@@ -94,6 +94,10 @@ The three device-flow states share `400` under RFC 8628, but each retains its ow
 A refusal carries the machine-readable bindings a caller acts on — which precondition failed, which fields were rejected, which revision was expected — through a published allowlist of detail keys. Anything outside that list does not travel: details are the server's own text, and `SPEC-011` REQ-1108 keeps paths, tokens and foreign identifiers out of local output.
 
 `AI_STP_CATALOG_INTEGRITY` applies to a reachable published record that fails its own integrity validation under `SPEC-021` `REQ-2108`. It is not `AI_STP_NOT_FOUND`: the object exists and is public, and claiming it is absent would send the client elsewhere to find something already present. It is not `AI_STP_INTERNAL` either: the condition is diagnosable, has a recovery path, and requires separate operator alerting. Retrying does not change the outcome—the stored bytes will not become valid between attempts—so the client does not retry this code despite `500`.
+
+The platform leaves `next_actions` empty on every error envelope: `error_response` accepts the parameter but no route passes it. Recovery commands are a client-side derivation — the CLI rebuilds them locally from `code` and a qualified `details.reason` (`_WAY_BACK` and `_WAY_BACK_REASON` in `apps/cli/src/ai_stp_cli/cloud/client.py`), so naming the way back never costs another round-trip.
+
+`AI_STP_AUTHORIZATION_PENDING` is reported `retryable: true` on the wire — the server answered correctly and asking again is how a grant completes — but the CLI transport never auto-retries it (`NEVER_RETRIED`): the device-flow poll owns the pacing, one exchange per server interval bounded by the grant's expiry (`poll` in `apps/cli/src/ai_stp_cli/cloud/login.py`), and the account intent re-blocks with `actor=external` instead of holding the transport open.
 
 The `passport` field in an exact-version response is the stored published document from which `passport_digest` was computed. Reserializing it through the current model, which inserts later-added fields with default values, changes the bytes and breaks validation. This does not violate the “all declared response fields” rule: the response envelope is complete, while the passport is an immutable snapshot.
 

@@ -19,7 +19,7 @@ from collections.abc import Mapping
 from contextlib import closing
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Final, cast
+from typing import Any, Final, Literal, cast
 from urllib.parse import urlparse
 
 from ai_stp_cli.answer import Answer
@@ -39,6 +39,12 @@ from ai_stp_contracts.machine_help import (
 from ai_stp_foundation.canonical import JsonValue
 from ai_stp_foundation.digests import digest_canonical
 from ai_stp_foundation.harnesses import HARNESS_IDS
+
+#: The closed operation and outcome spellings both replacement contracts use;
+#: typed once here so the validated parameter and `_install`'s return need no
+#: coercion at the model boundary.
+ReplacementOperation = Literal["update", "reinstall"]
+ReplacementOutcome = Literal["replaced", "unchanged"]
 
 #: Statuses that are outcomes rather than answers, and why each is not a
 #: failure: a machine with no provider for a harness it does not use is
@@ -360,7 +366,7 @@ def forget(parameters: Mapping[str, object]) -> Answer[ProviderInstallationRepor
 
 
 def _replace(
-    parameters: Mapping[str, object], *, operation: str, confirmed: bool
+    parameters: Mapping[str, object], *, operation: ReplacementOperation, confirmed: bool
 ) -> Answer[ProviderReplacementPlan] | Answer[ProviderReplacementResult]:
     harness_id = str(parameters.get("harness") or "")
     if harness_id not in HARNESS_IDS:
@@ -457,7 +463,7 @@ def _planned_or_applied(
     connection: sqlite3.Connection,
     *,
     bound: attested_bind.BoundRelease,
-    operation: str,
+    operation: ReplacementOperation,
     harness_id: str,
     target: Path,
     current: Identity,
@@ -468,7 +474,7 @@ def _planned_or_applied(
     """Describe the replacement, and carry it out when it was confirmed exactly."""
     plan = ProviderReplacementPlan(
         harness_id=harness_id,
-        operation=operation,  # pyright: ignore[reportArgumentType]
+        operation=operation,
         path=str(target),
         current_version=current.version,
         current_digest=current.digest,
@@ -536,8 +542,8 @@ def _planned_or_applied(
     return Answer(
         ProviderReplacementResult(
             harness_id=harness_id,
-            operation=operation,  # pyright: ignore[reportArgumentType]
-            outcome=outcome,  # pyright: ignore[reportArgumentType]
+            operation=operation,
+            outcome=outcome,
             path=str(target),
             previous_version=current.version,
             provider_version=bound.provider_version,
@@ -669,7 +675,7 @@ def _backup_path(executable: Path, digest: str) -> Path:
     return executable.with_name(f"{executable.name}.{digest.split(':')[-1][:16]}.backup")
 
 
-def _install(source: Path, target: Path, current: Identity) -> str:
+def _install(source: Path, target: Path, current: Identity) -> ReplacementOutcome:
     """Put the fetched bytes at the target path, atomically, keeping a backup.
 
     Idempotent by digest: if the bytes already there are the bytes wanted, this

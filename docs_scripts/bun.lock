@@ -12,6 +12,9 @@
   "trustedDependencies": [
     "puppeteer",
   ],
+  "patchedDependencies": {
+    "braces@3.0.3": "patches/braces@3.0.3.patch",
+  },
   "overrides": {
     "js-yaml": "5.4.1",
     "lodash-es": "4.18.1",

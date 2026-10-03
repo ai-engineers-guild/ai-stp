@@ -202,6 +202,7 @@ def test_a_root_version_flag_corrects_to_the_version_command(
         (["switch", "--json"], "switch"),
         (["account", "--json"], "account"),
         (["publish", "--json"], "publish"),
+        (["technology", "--json"], "technology"),
     ],
 )
 def test_an_intent_group_without_a_leaf_starts_the_task_engine(

@@ -109,12 +109,13 @@ The agent does not change `user.name` or `user.email`.
 
 ## Validation
 
-These four are what you run individually while working, invoked through `just`:
+These are what you run individually while working, invoked through `just`:
 
 - `just docs-check` — documentation, specifications, contract lint, and links;
 - `just back-static` — formatting, Ruff, Pyright, and generated-source drift;
 - `just back-test` — tests; coverage is printed, not a fail-under (`ADR-0147`);
-- `just web-check` — build, types, unit, E2E, and function profiles.
+- `just web-check` — build, types, unit, E2E, and function profiles;
+- `just desktop-check` for `apps/desktop` changes — build, static, test, and the sidecar regression; deliberately outside `just check` because it needs a Rust toolchain and WebKitGTK, like `infra-*` (covered in CI by `desktop.yml`).
 
 They are not the gate's composition. `just check` is wider — `back-check` alone expands into five recipes, and `security` appears in none of the lines above. Ask the owner rather than this page: `just --show check` prints its dependencies and the `justfile` prints theirs. A second copy of that list here would go stale the first time one moved.
 

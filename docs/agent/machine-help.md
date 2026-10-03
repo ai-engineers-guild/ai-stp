@@ -82,7 +82,7 @@ first, so a caller that lost its reference resumes instead of starting a
 second task on a bound target. Compact discovery is
 `cli-task-intents`. `help --agent` remains the full registry. Shipped intents
 are `inspect`, `initialize`, `install`, `change`, `author`, `switch`,
-`account`, and `publish`. Inspect stores doctor plus slim
+`account`, `publish`, and `technology`. Inspect stores doctor plus slim
 orientation (no `command_paths`). Unshipped intent names are refused. There is no
 stored current-task pointer. `task answer --json` or `task continue --json`
 without `--task` emits that unique blocked human question's answer argv when

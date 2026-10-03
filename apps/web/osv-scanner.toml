@@ -1,0 +1,13 @@
+# braces <= 3.0.3 carries GHSA-vfj7-8cjw-p6xm (stack-exhaustion DoS, no patched
+# release as of 2026-10-03, micromatch/braces#70). The scanner sees the registry
+# version string; the installed bytes are patched in place by bun
+# `patchedDependencies` (`patches/braces@3.0.3.patch`), which adds the
+# upstream-recommended nesting-depth guard in `lib/parse.js`. Reachability is
+# also dev-only: braces is reached through `micromatch`/`fast-glob` inside
+# `eslint-config-next`, expanding repository-authored lint globs. Re-check for
+# an upstream fixed release before this date and drop both the patch and this
+# exception.
+[[IgnoredVulns]]
+id = "GHSA-vfj7-8cjw-p6xm"
+reason = "Installed bytes carry the parse-time depth guard via patchedDependencies (patches/braces@3.0.3.patch); dev-only lint tooling, repository-authored globs. Remove when upstream ships a fix."
+ignoreUntil = 2026-11-03
