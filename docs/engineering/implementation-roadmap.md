@@ -1,9 +1,38 @@
 ---
 description: "Current ai_stp status and the ordered plan for remaining work."
-last_verified: "2026-09-30"
+last_verified: "2026-10-02"
 ---
 
 # Current status and plan
+
+## Desktop CI, dependency security, and contract drift — 2026-10-03
+
+Four pull requests landed on `dev` since the 2026-09-29 checkpoint. `#611`
+gave the desktop shell its own CI: `desktop.yml` runs the `src-tauri` crate's
+fmt/clippy/tests on all three OSes behind a compile-time stub sidecar, then the
+real PyInstaller sidecar and a filtered-env spawn test; the `desktop-*` just
+group mirrors it locally outside `just check`. `#612` moved Next.js to 15.5.27
+for the September 30 security advisories, extended `scan_lockfile.sh` to the
+three desktop lockfiles (the unfixable `glib`/`proc-macro-error` findings sit
+behind dated `osv-scanner.toml` ignores at the one lockfile that carries them),
+repaired the Dependabot `uv` job by normalizing the six mixed-case docs pins
+to PEP 503 names, and raised the `httpx` floors to 0.28. `#613` made SPEC-080
+name the shipped `technology` intent, completed the HTTP status table with the
+thirteen registered codes it was missing and a contract test that parses it
+against `http_status_for`, recorded two verified wire facts in `http-api.md`,
+applied the catalogue loopback rule to telemetry endpoints, and made the
+consent record an owner-only atomic write. `#615` patches the unfixable
+`braces` advisory (GHSA-vfj7-8cjw-p6xm) in place — `patchedDependencies` adds
+the upstream-recommended nesting-depth guard to the dev-tool installs — with
+the scanner exception scoped to the version string it still reports.
+
+In the authoring estate, setup-systems `#382` refreshed all seven vendor pins
+(claude 2.1.288, codex 0.160.0, grok 1.0.49, pi 1.0.0, opencode 1.18.34,
+cursor 2026.10.01-e373342, antigravity 1.2.15), taught the baseline comparator
+to read Mach-O code signatures so a re-signed-but-identical binary reads
+`signature-only`, and added pi 1.0.0's `mcp-auth.json` token store to
+`never_touch`. `#383` prepares the 0.0.88 release; publication is the next
+step.
 
 ## Corporate navigation and People & Access design — 2026-09-29
 

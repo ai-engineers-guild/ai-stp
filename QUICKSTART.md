@@ -71,7 +71,7 @@ just check
 
 The entire `justfile` uses two verbs: `gen` writes and `check` reads. `just gen` regenerates all machine artifacts—documentation tables of contents, `schemas/v1`, Skill projections, the typed web client, and source formatting; always review the resulting diff afterward. `just check` writes nothing and consists of three grouped aggregates—`docs-check`, `back-check`, and `web-check`—plus the shared `just security`.
 
-The verbs are identical within each group, so there is no command list to memorize: `<group>-static` reads source, `<group>-test` runs tests, `<group>-build` builds an artifact, and `<group>-regress` runs the built artifact in the real engine. The complete table is in `docs/engineering/quality-gates.md`.
+The verbs are identical within each group, so there is no command list to memorize: `<group>-static` reads source, `<group>-test` runs tests, `<group>-build` builds an artifact, and `<group>-regress` runs the built artifact in the real engine. A fourth group, `desktop-*`, covers `apps/desktop` and sits deliberately outside `just check` — it needs a Rust toolchain and WebKitGTK, and `desktop.yml` covers it in CI. The complete table is in `docs/engineering/quality-gates.md`.
 
 `pre-commit` maintains the fast path (`docs-static` + `docs-test` + `back-static` + `just-fmt`); the remaining documentation, backend regression, package/install, web, E2E, profile, and security suites run in CI on pull requests and on pushes to `dev` and `main`. There are no separate `ci` / `pre-push` recipes because they would only be aliases for the CI gate.
 

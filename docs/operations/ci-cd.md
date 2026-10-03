@@ -1,6 +1,6 @@
 ---
 description: "Public repository checks, pull deployment, and exact-artifact release order."
-last_verified: "2026-09-20"
+last_verified: "2026-10-02"
 ---
 
 # CI and releases
@@ -106,6 +106,39 @@ The inventory and meaning of release evidence belong to
 are `config-evidence.yml`, `software-evidence.yml`, and `platform-evidence.yml`.
 A local or CI test of one operating system does not prove the other native
 OS/architecture legs. Missing launch evidence remains `not_verified`.
+
+## Desktop
+
+`.github/workflows/desktop.yml` covers `apps/desktop` on all three target OSes.
+It triggers on pushes to `dev`/`main` and on pull requests that touch
+`apps/desktop/**` or the workflow itself, plus `workflow_dispatch`. The matrix
+is `ubuntu-latest`, `macos-latest`, `windows-latest` with `fail-fast: false`.
+Each leg installs the pinned bun (WebKitGTK development packages on Linux), then
+runs `bun install --frozen-lockfile`, `tsc --noEmit`, `vitest run` and
+`vite build`. `apps/desktop/core` then runs `cargo fmt --check`,
+`cargo clippy --all-targets -- -D warnings` and `cargo test`. A stub sidecar
+(`apps/desktop/scripts/build-cli-sidecar.sh --stub`) satisfies tauri-build's
+compile-time `externalBin` check so `apps/desktop/src-tauri` runs the same
+fmt/clippy/test chain, after which the real PyInstaller sidecar is built and
+`apps/desktop/scripts/test-bundled-sidecar.sh` runs the spawn test under the
+app's filtered environment — the same path the installed app takes. The leg
+ends in `tauri build` and uploads the per-OS bundle tree as an artifact.
+
+`.github/workflows/desktop-release.yml` is dispatch-only. Its `version` input
+is the desktop version, and the run must sit on the `desktop-v<version>` tag —
+the `desktop-v*` namespace exists so desktop releases do not collide with `v*`
+CLI releases. A `guard` job first verifies `GITHUB_REF` is exactly that tag,
+then that `apps/desktop/package.json`, `src-tauri/tauri.conf.json`,
+`src-tauri/Cargo.toml` and `core/Cargo.toml` all equal the input. The `bundle`
+matrix repeats the full chain above — frontend checks, both crates, the real
+PyInstaller sidecar and the filtered-env spawn test — ends in `tauri build`,
+and uploads only the release bundle formats. The `release` job runs under the
+`desktop-release` environment with `contents: write`: it flattens the bundle
+artifacts (a duplicate basename fails rather than silently overwriting), writes
+`SHA256SUMS` over every file, and creates the GitHub release
+`ai-stp-desktop <version>` on the tag. Bundles are unsigned — signing needs a
+notarizing certificate that does not exist yet — and the generated release
+notes say so plainly.
 
 ## Cross-repository order
 
