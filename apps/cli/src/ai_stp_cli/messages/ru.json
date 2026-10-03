@@ -665,6 +665,7 @@
   "the local registry does not exist": "локального реестра не существует",
   "the local registry does not exist yet": "локального реестра ещё не существует",
   "the local registry file cannot be read as a database": "файл локального реестра не читается как база данных",
+  "the local registry schema does not match the migration history this build knows": "схема локального реестра не соответствует истории миграций, известной этой сборке",
   "the local registry was written by a newer build": "локальный реестр записан более новой сборкой",
   "the local revision graph has a missing parent": "в локальном графе ревизий отсутствует родитель",
   "the managed profile pins no such tool": "управляемый профиль не закрепляет такой инструмент",

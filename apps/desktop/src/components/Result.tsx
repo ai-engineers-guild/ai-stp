@@ -34,7 +34,9 @@ export function ResultMeta({ r }: { r: CmdResult }) {
       )}
       {r.error && (
         <div className="card border-destructive/50 bg-destructive/10 p-3 text-xs">
-          {r.error_code && <span className="mr-2 font-mono font-semibold">{r.error_code}</span>}
+          {r.error_code && !r.error.startsWith(`${r.error_code}:`) && (
+            <span className="mr-2 font-mono font-semibold">{r.error_code}</span>
+          )}
           {r.error}
         </div>
       )}
