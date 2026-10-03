@@ -54,6 +54,7 @@ from ai_stp_contracts.corporate import (
     CorporateProjectUpdateRequest,
     CorporateProjectView,
     CorporateRoleCreateRequest,
+    CorporateRoleDeleteRequest,
     CorporateRoleList,
     CorporateRoleUpdateRequest,
     CorporateRoleView,
@@ -1660,7 +1661,7 @@ async def delete_role(
     ctx: AuthContext,
     organization_id: str,
     role_name: str,
-    payload: CorporateDeleteRequest,
+    payload: CorporateRoleDeleteRequest,
     request_id: str | None,
 ) -> CorporateDeleteResult:
     fingerprint = mutation_fingerprint(payload.model_dump(mode="json", exclude={"idempotency_key"}))
@@ -1691,21 +1692,94 @@ async def delete_role(
         raise ApiError(ErrorCategory.CONFLICT, "built-in corporate role is immutable")
     if row.revision != payload.expected_revision:
         raise ApiError(ErrorCategory.CONFLICT, "corporate role revision changed")
-    in_use = await db.scalar(
-        select(CorporateRoleBinding.id).where(
-            CorporateRoleBinding.organization_id == organization_id,
-            CorporateRoleBinding.role == role_name,
-            CorporateRoleBinding.state == "active",
-        )
-    )
     child = await db.scalar(
         select(CorporateRoleRow.name).where(
             CorporateRoleRow.organization_id == organization_id,
             CorporateRoleRow.parent_role == role_name,
         )
     )
-    if in_use is not None or child is not None:
+    if child is not None:
         raise ApiError(ErrorCategory.CONFLICT, "corporate role is still referenced")
+    bindings = list(
+        (
+            await db.scalars(
+                select(CorporateRoleBinding).where(
+                    CorporateRoleBinding.organization_id == organization_id,
+                    CorporateRoleBinding.role == role_name,
+                )
+            )
+        ).all()
+    )
+    memberships = list(
+        (
+            await db.scalars(
+                select(OrganizationMembership).where(
+                    OrganizationMembership.organization_id == organization_id,
+                    OrganizationMembership.role == role_name,
+                )
+            )
+        ).all()
+    )
+    replacement = payload.replacement_role
+    if replacement is not None:
+        if replacement == role_name:
+            raise ApiError(
+                ErrorCategory.VALIDATION, "replacement role must differ from deleted role"
+            )
+        replacement_row = await db.scalar(
+            select(CorporateRoleRow.name).where(
+                CorporateRoleRow.organization_id == organization_id,
+                CorporateRoleRow.name == replacement,
+            )
+        )
+        if replacement_row is None:
+            raise ApiError(ErrorCategory.CONFLICT, "replacement corporate role not found")
+        await assert_delegable_roles(
+            db,
+            organization_id=organization_id,
+            account_id=ctx.account_id,
+            roles={replacement},
+        )
+    elif bindings or memberships:
+        raise ApiError(ErrorCategory.CONFLICT, "corporate role is still referenced")
+    if bindings or memberships:
+        admins, admin_set = await _org_admin_state(db, organization_id=organization_id)
+        affected = {
+            binding.account_id
+            for binding in bindings
+            if binding.principal_type == "user"
+            and binding.account_id is not None
+            and binding.state == "active"
+            and binding.scope_kind == "organization"
+        } | {membership.account_id for membership in memberships}
+        for account_id in affected & admins:
+            org_roles_after = await _member_org_roles_after(
+                db,
+                organization_id=organization_id,
+                account_id=account_id,
+                replacement=("organization", replacement) if replacement is not None else None,
+            )
+            org_roles_after.discard(role_name)
+            await _assert_superadmin_survives(
+                db,
+                organization_id=organization_id,
+                account_id=account_id,
+                admins=admins,
+                admin_set=admin_set,
+                org_roles_after=org_roles_after,
+                membership_active_after=await _membership_is_active(
+                    db, organization_id=organization_id, account_id=account_id
+                ),
+            )
+    for binding in bindings:
+        if replacement is not None and binding.state == "active":
+            binding.role = replacement
+            binding.revision += 1
+        else:
+            await db.delete(binding)
+    for membership in memberships:
+        membership.role = replacement or "staff"
+        membership.revision += 1
     await db.delete(row)
     organization.policy_revision += 1
     response = CorporateDeleteResult(resource_id=role_name)

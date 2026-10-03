@@ -12,27 +12,16 @@ import type {
   CorporatePermissionDefinition,
   CorporateRoleView,
 } from "@/lib/api/generated/types.gen";
-import { BUILT_IN_ROLES } from "@/lib/corporate-roles";
-
-const selectClass =
-  "border-input bg-background ring-offset-background focus-visible:ring-ring flex h-10 w-full rounded-md border px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none";
 
 type Labels = {
-  createRole: string;
-  editRoleBody: string;
   name: string;
-  parentRole: string;
   permissions: string;
   create: string;
   creating: string;
   update: string;
   saving: string;
-  delete: string;
-  deleting: string;
-  deleteConfirm: string;
   saved: string;
   failed: string;
-  none: string;
 };
 
 const field = (formData: FormData, name: string) => {
@@ -40,106 +29,33 @@ const field = (formData: FormData, name: string) => {
   return typeof value === "string" ? value.trim() : "";
 };
 
-function RoleForm({
-  idPrefix,
-  labels,
-  roles,
-  definitions,
-  excludeName,
-  role,
-  withName = false,
-  busy,
-  submitLabel,
-  busyLabel,
-  onSubmit,
-}: {
-  idPrefix: string;
-  labels: Labels;
-  roles: readonly CorporateRoleView[];
-  definitions: readonly CorporatePermissionDefinition[];
-  excludeName?: string;
-  role?: CorporateRoleView | undefined;
-  withName?: boolean;
-  busy: boolean;
-  submitLabel: string;
-  busyLabel: string;
-  onSubmit: (formData: FormData) => void;
-}) {
-  const options = roles.filter((item) => item.name !== excludeName);
-  return (
-    <form
-      className="mt-4 grid items-end gap-3 sm:grid-cols-3"
-      onSubmit={(event) => {
-        event.preventDefault();
-        onSubmit(new FormData(event.currentTarget));
-      }}
-    >
-      {withName ? (
-        <div className="space-y-1.5">
-          <Label htmlFor={`${idPrefix}-name`}>{labels.name}</Label>
-          <Input id={`${idPrefix}-name`} name="name" required pattern="[a-z][a-z0-9_-]*" />
-        </div>
-      ) : null}
-      <div className="space-y-1.5">
-        <Label htmlFor={`${idPrefix}-parent`}>{labels.parentRole}</Label>
-        <select
-          id={`${idPrefix}-parent`}
-          name="parentRole"
-          defaultValue={role?.parent_role ?? ""}
-          className={selectClass}
-        >
-          <option value="">{labels.none}</option>
-          {options.map((item) => (
-            <option key={item.name} value={item.name}>
-              {item.name}
-            </option>
-          ))}
-        </select>
-      </div>
-      <div className="space-y-1.5 sm:col-span-3">
-        <span className="text-sm font-medium">{labels.permissions}</span>
-        <div id={`${idPrefix}-permissions`} className="max-h-[50dvh] overflow-y-auto">
-          <CorporatePermissionTable
-            definitions={definitions}
-            permissions={role?.permissions ?? []}
-            editable
-          />
-        </div>
-      </div>
-      <Button type="submit" disabled={busy}>
-        {busy ? busyLabel : submitLabel}
-      </Button>
-    </form>
-  );
-}
-
 /**
- * Role create/edit/delete forms for the Roles workspace. The server enforces
- * delegation bounds and built-in immutability; the panel only offers actions
- * the caller's capabilities advertise.
+ * Flat role editor used inside the admin detail drawer: a name field on
+ * create, the editable permission matrix, and one submit action. Deletion,
+ * reassignment, and member assignment live in their own drawer flows in the
+ * roles workspace. The server enforces delegation bounds and built-in
+ * immutability.
  */
 export function CorporateRolePanel({
   csrfToken,
   organizationId,
   authorizationRevision,
-  capabilities,
-  roles,
   definitions,
   selected,
   labels,
-  mode = "all",
+  mode = "create",
   template,
+  onSaved,
 }: {
   csrfToken: string;
   organizationId: string;
   authorizationRevision: number;
-  capabilities: readonly string[];
-  roles: readonly CorporateRoleView[];
   definitions: readonly CorporatePermissionDefinition[];
   selected: CorporateRoleView | null;
   labels: Labels;
-  mode?: "all" | "create" | "edit";
+  mode?: "create" | "edit";
   template?: CorporateRoleView | undefined;
+  onSaved?: () => void;
 }) {
   const router = useRouter();
   const [busy, startTransition] = useTransition();
@@ -148,115 +64,79 @@ export function CorporateRolePanel({
     error?: boolean;
     fields?: string[];
   } | null>(null);
-  const report = (text: string, error = false, fields?: string[]) => {
-    setMessage(fields?.length ? { text, error, fields } : { text, error });
-  };
-  const can = (permission: string) => capabilities.includes(permission);
-  const customSelected = selected && !BUILT_IN_ROLES.has(selected.name);
-
-  function submit(method: "POST" | "PATCH" | "DELETE", path: string, body: unknown) {
-    setMessage(null);
-    startTransition(async () => {
-      const result = await corporateMutation({
-        csrfToken,
-        organizationId,
-        path,
-        method,
-        body,
-      });
-      report(
-        result.ok ? labels.saved : result.message,
-        !result.ok,
-        result.ok
-          ? undefined
-          : Object.entries(result.fieldErrors ?? {}).map(([path, text]) => `${path}: ${text}`),
-      );
-      if (result.ok) router.refresh();
-    });
-  }
-
-  const rolePath = (name: string) =>
-    `/v1/corporate/organizations/${organizationId}/roles/${encodeURIComponent(name)}`;
+  const role = mode === "edit" ? selected : template;
 
   return (
     <div className="space-y-4">
-      {mode !== "create" && customSelected && can("role.update") ? (
-        <details
-          open={mode === "edit" ? true : undefined}
-          className="border-border rounded-lg border p-4"
-        >
-          <summary className="cursor-pointer font-medium">{labels.update}</summary>
-          <p className="text-muted-foreground mt-1 text-sm">{labels.editRoleBody}</p>
-          <RoleForm
-            idPrefix="role-edit"
-            labels={labels}
-            roles={roles}
-            definitions={definitions}
-            excludeName={selected.name}
-            role={selected}
-            busy={busy}
-            submitLabel={labels.update}
-            busyLabel={labels.saving}
-            onSubmit={(formData) => {
-              submit("PATCH", rolePath(selected.name), {
+      <form
+        className="space-y-4"
+        onSubmit={(event) => {
+          event.preventDefault();
+          const formData = new FormData(event.currentTarget);
+          setMessage(null);
+          startTransition(async () => {
+            const result = await corporateMutation({
+              csrfToken,
+              organizationId,
+              path:
+                mode === "edit" && selected
+                  ? `/v1/corporate/organizations/${organizationId}/roles/${encodeURIComponent(selected.name)}`
+                  : `/v1/corporate/organizations/${organizationId}/roles`,
+              method: mode === "edit" ? "PATCH" : "POST",
+              body: {
                 schema_version: 1,
-                parent_role: field(formData, "parentRole") || null,
+                ...(mode === "create" ? { name: field(formData, "name") } : {}),
+                parent_role: null,
                 permissions: formData.getAll("permissions").map(String),
-                expected_revision: selected.revision,
+                ...(mode === "edit" && selected ? { expected_revision: selected.revision } : {}),
                 authorization_revision: authorizationRevision,
                 idempotency_key: crypto.randomUUID(),
-              });
-            }}
-          />
-        </details>
-      ) : null}
-      {mode !== "create" && customSelected && can("role.delete") ? (
-        <Button
-          type="button"
-          variant="destructive"
-          disabled={busy}
-          onClick={() => {
-            if (!window.confirm(labels.deleteConfirm)) return;
-            submit("DELETE", rolePath(selected.name), {
-              schema_version: 1,
-              expected_revision: selected.revision,
-              authorization_revision: authorizationRevision,
-              idempotency_key: crypto.randomUUID(),
+              },
             });
-          }}
-        >
-          {busy ? labels.deleting : labels.delete}
+            setMessage(
+              result.ok
+                ? { text: labels.saved }
+                : {
+                    text: result.message || labels.failed,
+                    error: true,
+                    fields: Object.entries(result.fieldErrors ?? {}).map(
+                      ([path, text]) => `${path}: ${text}`,
+                    ),
+                  },
+            );
+            if (result.ok) {
+              router.refresh();
+              onSaved?.();
+            }
+          });
+        }}
+      >
+        {mode === "create" ? (
+          <div className="space-y-1.5">
+            <Label htmlFor="role-create-name">{labels.name}</Label>
+            <Input id="role-create-name" name="name" required pattern="[a-z][a-z0-9_-]*" />
+          </div>
+        ) : null}
+        <div className="space-y-1.5">
+          <span className="text-sm font-medium">{labels.permissions}</span>
+          <div className="max-h-[60dvh] overflow-y-auto">
+            <CorporatePermissionTable
+              definitions={definitions}
+              permissions={role?.permissions ?? []}
+              editable
+            />
+          </div>
+        </div>
+        <Button type="submit" disabled={busy} className="w-full">
+          {busy
+            ? mode === "edit"
+              ? labels.saving
+              : labels.creating
+            : mode === "edit"
+              ? labels.update
+              : labels.create}
         </Button>
-      ) : null}
-      {mode !== "edit" && can("role.create") ? (
-        <details
-          open={mode === "create" ? true : undefined}
-          className="border-border rounded-lg border p-4"
-        >
-          <summary className="cursor-pointer font-medium">{labels.createRole}</summary>
-          <RoleForm
-            idPrefix="role-create"
-            labels={labels}
-            roles={roles}
-            definitions={definitions}
-            role={template}
-            withName
-            busy={busy}
-            submitLabel={labels.create}
-            busyLabel={labels.creating}
-            onSubmit={(formData) => {
-              submit("POST", `/v1/corporate/organizations/${organizationId}/roles`, {
-                schema_version: 1,
-                name: field(formData, "name"),
-                parent_role: field(formData, "parentRole") || null,
-                permissions: formData.getAll("permissions").map(String),
-                authorization_revision: authorizationRevision,
-                idempotency_key: crypto.randomUUID(),
-              });
-            }}
-          />
-        </details>
-      ) : null}
+      </form>
       {message ? (
         <p
           className={

@@ -24,12 +24,14 @@ export function CorporateDetailDrawer({
   onOpenChange,
   title,
   description,
+  wide,
   children,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   title: string;
-  description?: string;
+  description?: string | undefined;
+  wide?: boolean;
   children: ReactNode;
 }) {
   const t = useTranslations("people");
@@ -37,7 +39,7 @@ export function CorporateDetailDrawer({
   return (
     <Sheet open={open} onOpenChange={onOpenChange} modal={false}>
       <SheetContent
-        className="top-20 w-[min(calc(100vw-1rem),26rem)] overflow-y-auto p-5"
+        className={`top-20 overflow-y-auto p-5 ${wide ? "w-[min(calc(100vw-1rem),48rem)]" : "w-[min(calc(100vw-1rem),26rem)]"}`}
         onOpenAutoFocus={() => {
           returnFocus.current =
             document.activeElement instanceof HTMLElement ? document.activeElement : null;

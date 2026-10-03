@@ -83,6 +83,7 @@ from ai_stp_contracts.corporate import (
     CorporateProjectUpdateRequest,
     CorporateProjectView,
     CorporateRoleCreateRequest,
+    CorporateRoleDeleteRequest,
     CorporateRoleList,
     CorporateRoleUpdateRequest,
     CorporateRoleView,
@@ -832,7 +833,7 @@ async def update_role(
 async def delete_role(
     organization_id: str,
     role_name: str,
-    payload: CorporateDeleteRequest,
+    payload: CorporateRoleDeleteRequest,
     request: Request,
     db: Annotated[AsyncSession, Depends(get_db)],
     ctx: Annotated[AuthContext, Depends(require_auth)],

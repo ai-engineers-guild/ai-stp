@@ -5182,6 +5182,29 @@ export type CorporateRoleCreateRequest = {
 };
 
 /**
+ * CorporateRoleDeleteRequest
+ */
+export type CorporateRoleDeleteRequest = {
+  /**
+   * Authorization Revision
+   */
+  authorization_revision: number;
+  /**
+   * Expected Revision
+   */
+  expected_revision: number;
+  idempotency_key: IdempotencyKey;
+  /**
+   * Replacement Role
+   */
+  replacement_role?: string | null;
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
+};
+
+/**
  * CorporateRoleList
  */
 export type CorporateRoleList = {
@@ -24198,7 +24221,7 @@ export type CreateCorporateRoleResponse =
   CreateCorporateRoleResponses[keyof CreateCorporateRoleResponses];
 
 export type DeleteCorporateRoleData = {
-  body: CorporateDeleteRequest;
+  body: CorporateRoleDeleteRequest;
   headers: {
     /**
      * Wire major the client speaks. An unknown one fails typed.
@@ -24258,7 +24281,7 @@ export type DeleteCorporateRoleError = DeleteCorporateRoleErrors[keyof DeleteCor
 
 export type DeleteCorporateRoleResponses = {
   /**
-   * Remove an unused tenant-local role.
+   * Remove a tenant-local role, reassigning its holders to a replacement role.
    */
   200: CorporateDeleteResult;
 };

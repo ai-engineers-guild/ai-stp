@@ -46,30 +46,20 @@ it("submits only selected catalog actions when creating a role", async () => {
       csrfToken="csrf"
       organizationId="organization_fixture"
       authorizationRevision={3}
-      capabilities={["role.create"]}
-      roles={[]}
       definitions={definitions}
       selected={null}
       labels={{
-        createRole: "Create role",
-        editRoleBody: "Edit",
         name: "Name",
-        parentRole: "Parent role",
         permissions: "Permissions",
         create: "Create",
         creating: "Creating",
         update: "Update",
         saving: "Saving",
-        delete: "Delete",
-        deleting: "Deleting",
-        deleteConfirm: "Delete?",
         saved: "Saved",
         failed: "Failed",
-        none: "None",
       }}
     />,
   );
-  fireEvent.click(screen.getByText("Create role"));
   fireEvent.change(screen.getByLabelText("Name"), { target: { value: "reviewer" } });
   fireEvent.click(screen.getByLabelText(/team.list/));
   fireEvent.click(screen.getByRole("button", { name: "Create" }));

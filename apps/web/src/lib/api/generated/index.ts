@@ -572,6 +572,7 @@ export {
   type CorporateProjectUpdateRequest,
   type CorporateProjectView,
   type CorporateRoleCreateRequest,
+  type CorporateRoleDeleteRequest,
   type CorporateRoleList,
   type CorporateRoleUpdateRequest,
   type CorporateRoleView,

@@ -726,6 +726,11 @@ class CorporateRoleUpdateRequest(BaseModel):
     idempotency_key: IdempotencyKey
 
 
+class CorporateRoleDeleteRequest(CorporateDeleteRequest):
+    model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
+    replacement_role: CorporateRole | None = None
+
+
 class CorporateRoleView(BaseModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     schema_version: Literal[1] = 1

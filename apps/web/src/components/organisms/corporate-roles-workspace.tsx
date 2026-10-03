@@ -1,19 +1,23 @@
-/* eslint-disable max-lines-per-function, complexity */
+/* eslint-disable max-lines-per-function, complexity, max-lines */
 "use client";
 
-import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
 import { Badge } from "@/components/atoms/badge";
 import { Button } from "@/components/atoms/button";
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/atoms/dialog";
+import { CatalogChoiceMenu } from "@/components/molecules/catalog-choice-menu";
+import { SearchableMultiSelect } from "@/components/molecules/searchable-multi-select";
 import {
   CorporateDetailDrawer,
   PeopleSearch,
   PeopleSelect,
+  peopleSelectClass,
   usePeopleFilters,
 } from "@/components/organisms/corporate-people-ui";
 import { CorporatePermissionTable } from "@/components/organisms/corporate-permission-table";
 import { CorporateRolePanel } from "@/components/organisms/corporate-role-panel";
+import { corporateMutation } from "@/lib/api/corporate-mutation";
 import type {
   CorporateBinding,
   CorporateContext,
@@ -30,6 +34,7 @@ import {
 } from "@/lib/role-assignments";
 import { Link } from "@/lib/i18n/navigation";
 import { Icon } from "@/theme";
+import type { IconName } from "@/theme";
 
 function RoleAssignments({ rows }: { rows: readonly RoleAssignmentRow[] }) {
   const t = useTranslations("accessUi");
@@ -102,11 +107,21 @@ export function CorporateRolesWorkspace({
   const t = useTranslations("accessUi");
   const c = useTranslations("corporate");
   const filters = usePeopleFilters();
+  const router = useRouter();
   const [query, setQuery] = useState("");
   const [kind, setKind] = useState("");
   const [tab, setTab] = useState("permissions");
   const [drawer, setDrawer] = useState(false);
   const [editor, setEditor] = useState<"create" | "edit" | "duplicate" | null>(null);
+  const [assignTarget, setAssignTarget] = useState<CorporateRoleView | null>(null);
+  const [assignSelection, setAssignSelection] = useState<string[]>([]);
+  const [deleteTarget, setDeleteTarget] = useState<CorporateRoleView | null>(null);
+  const [replacement, setReplacement] = useState("");
+  const [busy, startTransition] = useTransition();
+  const [message, setMessage] = useState<{ text: string; error?: boolean } | null>(null);
+  const organizationId = context.organization.organization_id;
+  const authorizationRevision = context.organization.authorization_revision;
+  const can = (permission: string) => context.capabilities.includes(permission);
   const visibleRoles = [...roles]
     .sort(
       (a, b) =>
@@ -128,28 +143,11 @@ export function CorporateRolesWorkspace({
         bindings,
         members,
         roleName: selected.name,
-        organizationId: context.organization.organization_id,
+        organizationId,
         scopeName,
       })
     : [];
   const assignmentCount = assignmentRows.length;
-  const labels = {
-    createRole: c("createRole"),
-    editRoleBody: c("editRoleBody"),
-    name: c("name"),
-    parentRole: c("parentRole"),
-    permissions: c("permissions"),
-    create: c("create"),
-    creating: c("creating"),
-    update: c("update"),
-    saving: c("saving"),
-    delete: c("delete"),
-    deleting: c("deleting"),
-    deleteConfirm: c("deleteRoleConfirm"),
-    saved: c("saved"),
-    failed: c("failed"),
-    none: "—",
-  };
   const selectedSystem = selected ? BUILT_IN_ROLES.has(selected.name) : false;
   const roleDescription = (role: CorporateRoleView) =>
     t(`roleDescriptions.${BUILT_IN_ROLES.has(role.name) ? role.name : "custom"}`);
@@ -162,6 +160,96 @@ export function CorporateRolesWorkspace({
         ),
       ]
     : [];
+  const selectRole = (role: CorporateRoleView) => {
+    filters.update("role", role.name);
+  };
+  const openAssign = (role: CorporateRoleView) => {
+    selectRole(role);
+    setAssignTarget(role);
+    setAssignSelection(
+      bindings
+        .filter(
+          (binding) =>
+            binding.role === role.name &&
+            binding.origin === "direct" &&
+            binding.state === "active" &&
+            binding.scope_kind === "organization" &&
+            binding.account_id !== null,
+        )
+        .map((binding) => binding.account_id as string),
+    );
+    setMessage(null);
+  };
+  const openDelete = (role: CorporateRoleView) => {
+    selectRole(role);
+    setDeleteTarget(role);
+    setReplacement(
+      roles.some((item) => item.name !== role.name && item.name === "staff")
+        ? "staff"
+        : (roles.find((item) => item.name !== role.name)?.name ?? ""),
+    );
+    setMessage(null);
+  };
+  const roleChoices = (role: CorporateRoleView) => {
+    const system = BUILT_IN_ROLES.has(role.name);
+    return [
+      {
+        label: t("details"),
+        icon: "access" as IconName,
+        onSelect: () => {
+          selectRole(role);
+          setDrawer(true);
+        },
+      },
+      ...(can("binding.create")
+        ? [
+            {
+              label: c("assignEmployees"),
+              icon: "team" as IconName,
+              onSelect: () => {
+                openAssign(role);
+              },
+            },
+          ]
+        : []),
+      ...(!system && can("role.update")
+        ? [
+            {
+              label: t("editRole"),
+              icon: "edit" as IconName,
+              onSelect: () => {
+                selectRole(role);
+                setEditor("edit");
+              },
+            },
+          ]
+        : []),
+      ...(can("role.create")
+        ? [
+            {
+              label: t("duplicateRole"),
+              icon: "copy" as IconName,
+              onSelect: () => {
+                selectRole(role);
+                setEditor("duplicate");
+              },
+            },
+          ]
+        : []),
+      ...(!system && can("role.delete")
+        ? [
+            {
+              label: c("delete"),
+              icon: "alert" as IconName,
+              separatorBefore: true,
+              onSelect: () => {
+                openDelete(role);
+              },
+            },
+          ]
+        : []),
+    ];
+  };
   return (
     <div
       className={`min-w-0 space-y-4 ${drawer ? "2xl:pr-[27rem]" : ""}`}
@@ -178,7 +266,7 @@ export function CorporateRolesWorkspace({
             { value: "custom", label: t("customRoles") },
           ]}
         />
-        {context.capabilities.includes("role.create") ? (
+        {can("role.create") ? (
           <Button
             onClick={() => {
               setEditor("create");
@@ -204,7 +292,7 @@ export function CorporateRolesWorkspace({
                 aria-current={role.name === selected?.name ? "true" : undefined}
                 className="focus-visible:ring-ring min-w-0 flex-1 rounded-sm p-4 text-left focus-visible:ring-2"
                 onClick={() => {
-                  filters.update("role", role.name);
+                  selectRole(role);
                 }}
               >
                 <span className="block text-sm font-medium">{roleTitle(role.name, t)}</span>
@@ -212,18 +300,15 @@ export function CorporateRolesWorkspace({
                   {roleDescription(role)}
                 </span>
               </button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="mt-2 mr-1 shrink-0"
-                aria-label={t("openDetails", { name: roleTitle(role.name, t) })}
-                onClick={() => {
-                  filters.update("role", role.name);
-                  setDrawer(true);
-                }}
-              >
-                <Icon name="more" size="sm" />
-              </Button>
+              <div className="mt-2 mr-1 shrink-0">
+                <CatalogChoiceMenu
+                  label={t("openDetails", { name: roleTitle(role.name, t) })}
+                  icon="more"
+                  variant="ghost"
+                  align="end"
+                  options={roleChoices(role)}
+                />
+              </div>
             </div>
           ))}
         </nav>
@@ -238,17 +323,29 @@ export function CorporateRolesWorkspace({
                 <p className="text-muted-foreground mt-1 text-sm">{roleDescription(selected)}</p>
               </div>
               <div className="flex gap-2">
-                {context.capabilities.includes("role.create") ? (
+                {can("binding.create") ? (
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      openAssign(selected);
+                    }}
+                  >
+                    <Icon name="team" size="sm" />
+                    {c("assignEmployees")}
+                  </Button>
+                ) : null}
+                {can("role.create") ? (
                   <Button
                     variant="outline"
                     onClick={() => {
                       setEditor("duplicate");
                     }}
                   >
+                    <Icon name="copy" size="sm" />
                     {t("duplicateRole")}
                   </Button>
                 ) : null}
-                {!selectedSystem && context.capabilities.includes("role.update") ? (
+                {!selectedSystem && can("role.update") ? (
                   <Button
                     variant="outline"
                     onClick={() => {
@@ -259,14 +356,17 @@ export function CorporateRolesWorkspace({
                     {t("editRole")}
                   </Button>
                 ) : null}
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setDrawer(true);
-                  }}
-                >
-                  {t("details")}
-                </Button>
+                {!selectedSystem && can("role.delete") ? (
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      openDelete(selected);
+                    }}
+                  >
+                    <Icon name="alert" size="sm" />
+                    {c("delete")}
+                  </Button>
+                ) : null}
               </div>
             </header>
             <div className="border-border flex overflow-x-auto border-b px-4">
@@ -292,11 +392,6 @@ export function CorporateRolesWorkspace({
                     definitions={definitions}
                     permissions={[...rolePermissions(selected, roles)]}
                   />
-                  {selected.parent_role ? (
-                    <p className="text-muted-foreground mt-3 text-xs">
-                      {t("inherited", { role: roleTitle(selected.parent_role, t) })}
-                    </p>
-                  ) : null}
                   {selectedSystem ? (
                     <p className="text-muted-foreground mt-3 text-xs">{t("immutableRole")}</p>
                   ) : null}
@@ -308,10 +403,6 @@ export function CorporateRolesWorkspace({
                   <div>
                     <dt className="text-muted-foreground">{c("name")}</dt>
                     <dd>{selected.name}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-muted-foreground">{c("parentRole")}</dt>
-                    <dd>{selected.parent_role ?? "—"}</dd>
                   </div>
                   <div>
                     <dt className="text-muted-foreground">{c("revision")}</dt>
@@ -368,33 +459,233 @@ export function CorporateRolesWorkspace({
           </div>
         ) : null}
       </CorporateDetailDrawer>
-      <Dialog
+      <CorporateDetailDrawer
         open={editor !== null}
         onOpenChange={(open) => {
           if (!open) setEditor(null);
         }}
+        title={t(
+          editor === "edit" ? "editRole" : editor === "duplicate" ? "duplicateRole" : "createRole",
+        )}
+        description={c("editRoleBody")}
+        wide
       >
-        <DialogContent
-          className="max-h-[90dvh] w-[calc(100%-2rem)] max-w-5xl overflow-y-auto"
-          closeLabel={c("cancel")}
-        >
-          <DialogTitle>{t(editor === "edit" ? "editRole" : "createRole")}</DialogTitle>
-          <DialogDescription>{c("editRoleBody")}</DialogDescription>
+        {editor ? (
           <CorporateRolePanel
             key={`${editor}:${selected?.name ?? ""}`}
             csrfToken={csrfToken}
-            organizationId={context.organization.organization_id}
-            authorizationRevision={context.organization.authorization_revision}
-            capabilities={context.capabilities}
-            roles={roles}
+            organizationId={organizationId}
+            authorizationRevision={authorizationRevision}
             definitions={definitions}
             selected={editor === "edit" ? (selected ?? null) : null}
             template={editor === "duplicate" ? selected : undefined}
-            labels={labels}
+            labels={{
+              name: c("name"),
+              permissions: c("permissions"),
+              create: c("create"),
+              creating: c("creating"),
+              update: c("update"),
+              saving: c("saving"),
+              saved: c("saved"),
+              failed: c("failed"),
+            }}
             mode={editor === "edit" ? "edit" : "create"}
+            onSaved={() => {
+              setEditor(null);
+            }}
           />
-        </DialogContent>
-      </Dialog>
+        ) : null}
+      </CorporateDetailDrawer>
+      <CorporateDetailDrawer
+        open={assignTarget !== null}
+        onOpenChange={(open) => {
+          if (!open) setAssignTarget(null);
+        }}
+        title={c("assignEmployees")}
+        description={c("assignRoleBody", {
+          name: assignTarget ? roleTitle(assignTarget.name, t) : "",
+        })}
+      >
+        {assignTarget ? (
+          <form
+            className="space-y-4"
+            onSubmit={(event) => {
+              event.preventDefault();
+              const after = new Set(assignSelection);
+              const direct = bindings.filter(
+                (binding) =>
+                  binding.role === assignTarget.name &&
+                  binding.origin === "direct" &&
+                  binding.state === "active" &&
+                  binding.scope_kind === "organization" &&
+                  binding.account_id !== null,
+              );
+              setMessage(null);
+              startTransition(async () => {
+                let failed = 0;
+                for (const accountId of after) {
+                  if (direct.some((binding) => binding.account_id === accountId)) continue;
+                  const result = await corporateMutation({
+                    csrfToken,
+                    organizationId,
+                    path: `/v1/corporate/organizations/${organizationId}/bindings`,
+                    method: "POST",
+                    body: {
+                      schema_version: 1,
+                      account_id: accountId,
+                      role: assignTarget.name,
+                      scope_kind: "organization",
+                      scope_id: organizationId,
+                      coverage: "self",
+                      authorization_revision: authorizationRevision,
+                      idempotency_key: crypto.randomUUID(),
+                    },
+                  });
+                  if (!result.ok) failed += 1;
+                }
+                for (const binding of direct) {
+                  if (binding.account_id && after.has(binding.account_id)) continue;
+                  const result = await corporateMutation({
+                    csrfToken,
+                    organizationId,
+                    path: `/v1/corporate/organizations/${organizationId}/bindings/${binding.binding_id}`,
+                    method: "DELETE",
+                    body: {
+                      schema_version: 1,
+                      expected_revision: binding.revision,
+                      authorization_revision: authorizationRevision,
+                      idempotency_key: crypto.randomUUID(),
+                    },
+                  });
+                  if (!result.ok) failed += 1;
+                }
+                setMessage({
+                  text: failed ? c("assignPartial", { count: failed }) : c("saved"),
+                  error: Boolean(failed),
+                });
+                if (!failed) setAssignTarget(null);
+                router.refresh();
+              });
+            }}
+          >
+            <SearchableMultiSelect
+              name="members"
+              label={c("assignedEmployees")}
+              searchLabel={c("searchEmployees")}
+              options={members.map((member) => ({
+                value: member.account_id,
+                label: member.contact_email
+                  ? `${member.display_name ?? member.account_id} · ${member.contact_email}`
+                  : (member.display_name ?? member.account_id),
+              }))}
+              selected={assignSelection}
+              onChange={setAssignSelection}
+              modal
+              inline
+              closeLabel={c("close")}
+              selectionSuffix={c("selectedSuffix")}
+              emptyHint={c("searchEmployees")}
+            />
+            {message ? (
+              <p
+                className={
+                  message.error
+                    ? "text-destructive text-sm font-medium"
+                    : "text-muted-foreground text-sm"
+                }
+                role="status"
+                aria-live="polite"
+              >
+                {message.text}
+              </p>
+            ) : null}
+            <Button type="submit" disabled={busy} className="w-full">
+              {busy ? c("saving") : c("save")}
+            </Button>
+          </form>
+        ) : null}
+      </CorporateDetailDrawer>
+      <CorporateDetailDrawer
+        open={deleteTarget !== null}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTarget(null);
+        }}
+        title={c("delete")}
+        description={
+          deleteTarget ? c("deleteRoleBody", { name: roleTitle(deleteTarget.name, t) }) : undefined
+        }
+      >
+        {deleteTarget ? (
+          <form
+            className="space-y-4"
+            onSubmit={(event) => {
+              event.preventDefault();
+              const role = deleteTarget;
+              setMessage(null);
+              startTransition(async () => {
+                const result = await corporateMutation({
+                  csrfToken,
+                  organizationId,
+                  path: `/v1/corporate/organizations/${organizationId}/roles/${encodeURIComponent(role.name)}`,
+                  method: "DELETE",
+                  body: {
+                    schema_version: 1,
+                    expected_revision: role.revision,
+                    replacement_role: replacement || null,
+                    authorization_revision: authorizationRevision,
+                    idempotency_key: crypto.randomUUID(),
+                  },
+                });
+                setMessage({
+                  text: result.ok ? c("saved") : result.message || c("failed"),
+                  error: !result.ok,
+                });
+                if (result.ok) {
+                  setDeleteTarget(null);
+                  router.refresh();
+                }
+              });
+            }}
+          >
+            <div className="space-y-1.5">
+              <label htmlFor="role-replacement" className="text-sm font-medium">
+                {c("replacementRole")}
+              </label>
+              <select
+                id="role-replacement"
+                value={replacement}
+                onChange={(event) => { setReplacement(event.target.value); }}
+                className={peopleSelectClass}
+              >
+                {roles
+                  .filter((item) => item.name !== deleteTarget.name)
+                  .map((item) => (
+                    <option key={item.name} value={item.name}>
+                      {roleTitle(item.name, t)}
+                    </option>
+                  ))}
+              </select>
+              <p className="text-muted-foreground text-xs">{c("replacementRoleBody")}</p>
+            </div>
+            {message ? (
+              <p
+                className={
+                  message.error
+                    ? "text-destructive text-sm font-medium"
+                    : "text-muted-foreground text-sm"
+                }
+                role="status"
+                aria-live="polite"
+              >
+                {message.text}
+              </p>
+            ) : null}
+            <Button type="submit" variant="destructive" disabled={busy} className="w-full">
+              {busy ? c("deleting") : c("delete")}
+            </Button>
+          </form>
+        ) : null}
+      </CorporateDetailDrawer>
     </div>
   );
 }

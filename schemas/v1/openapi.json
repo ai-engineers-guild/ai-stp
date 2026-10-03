@@ -10457,6 +10457,53 @@
         "title": "CorporateRoleCreateRequest",
         "type": "object"
       },
+      "CorporateRoleDeleteRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "authorization_revision": {
+            "minimum": 1,
+            "title": "Authorization Revision",
+            "type": "integer"
+          },
+          "expected_revision": {
+            "minimum": 1,
+            "title": "Expected Revision",
+            "type": "integer"
+          },
+          "idempotency_key": {
+            "$ref": "#/components/schemas/IdempotencyKey"
+          },
+          "replacement_role": {
+            "anyOf": [
+              {
+                "description": "Tenant-local role name.",
+                "maxLength": 64,
+                "minLength": 1,
+                "pattern": "^[a-z][a-z0-9_-]*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Replacement Role"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "expected_revision",
+          "authorization_revision",
+          "idempotency_key"
+        ],
+        "title": "CorporateRoleDeleteRequest",
+        "type": "object"
+      },
       "CorporateRoleList": {
         "additionalProperties": true,
         "properties": {
@@ -61704,7 +61751,7 @@
                 }
               },
               "schema": {
-                "$ref": "#/components/schemas/CorporateDeleteRequest"
+                "$ref": "#/components/schemas/CorporateRoleDeleteRequest"
               }
             }
           },
@@ -61728,7 +61775,7 @@
                 }
               }
             },
-            "description": "Remove an unused tenant-local role.",
+            "description": "Remove a tenant-local role, reassigning its holders to a replacement role.",
             "headers": {
               "ETag": {
                 "description": "Current version, for a later If-Match.",
@@ -61873,7 +61920,7 @@
             "bearerAuth": []
           }
         ],
-        "summary": "Remove an unused tenant-local role."
+        "summary": "Remove a tenant-local role, reassigning its holders to a replacement role."
       },
       "get": {
         "operationId": "readCorporateRole",

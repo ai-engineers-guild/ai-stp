@@ -3251,7 +3251,7 @@ export const createCorporateRole = <ThrowOnError extends boolean = false>(
   });
 
 /**
- * Remove an unused tenant-local role.
+ * Remove a tenant-local role, reassigning its holders to a replacement role.
  */
 export const deleteCorporateRole = <ThrowOnError extends boolean = false>(
   options: Options<DeleteCorporateRoleData, ThrowOnError>,
