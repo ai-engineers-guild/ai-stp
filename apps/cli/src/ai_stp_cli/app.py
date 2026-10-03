@@ -680,6 +680,23 @@ def _registry_failure(error: sqlite3.DatabaseError) -> CliFailure | None:
             "the local registry file cannot be read as a database",
             details={**details, "reason": type(error).__name__},
         )
+    if (
+        "already exists" in text
+        or "no such table" in text
+        or "no such column" in text
+        or "duplicate column name" in text
+    ):
+        # The stamped `user_version` and the physical schema disagree: the file
+        # was produced by a different migration history — a fixture, a restored
+        # copy, a forked build — so the pending migration chain cannot run.
+        # Without this shape the failure surfaced as an opaque AI_STP_INTERNAL
+        # that named neither the file nor the offending statement.
+        return CliFailure(
+            "AI_STP_SCHEMA_UNSUPPORTED",
+            "the local registry schema does not match the migration history this build knows",
+            details={**details, "reason": str(error)},
+            next_actions=["doctor --json"],
+        )
     return None
 
 
