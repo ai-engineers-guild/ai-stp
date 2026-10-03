@@ -17,12 +17,12 @@ import shutil
 import socket
 import stat
 import subprocess
-import sys
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Final, cast
 
+from ai_stp_cli import interpreter
 from ai_stp_cli.provider import network_launcher
 from ai_stp_cli.provider.protocol_v2 import NetworkCapability, NetworkEnforcement
 from ai_stp_foundation.canonical import JsonValue
@@ -205,12 +205,15 @@ def _probe(executable: Path) -> tuple[bool, tuple[str, ...]]:
             "ipv6": network_launcher.port(ipv6),
             "dns_udp": network_launcher.port(dns_udp),
         }
+        probe_python = interpreter.python()
+        if probe_python is None:
+            return False, ("frozen build found no python3/python on PATH for the sandbox probe",)
         result = subprocess.run(
             (
                 executable.as_posix(),
                 "-p",
                 PROFILE,
-                sys.executable,
+                probe_python,
                 "-c",
                 network_launcher.CHILD_PROBE,
                 json.dumps(ports, sort_keys=True),
@@ -287,7 +290,10 @@ def _write_probe(executable: Path) -> tuple[bool, tuple[str, ...]]:
     try:
         inside.mkdir()
         outside.mkdir()
-        child = (sys.executable, "-c", WRITE_PROBE, root.resolve().as_posix())
+        probe_python = interpreter.python()
+        if probe_python is None:
+            return False, ("frozen build found no python3/python on PATH for the write probe",)
+        child = (probe_python, "-c", WRITE_PROBE, root.resolve().as_posix())
         control = _answer(child)
         if control != {"inside": "written", "outside": "written"}:
             return False, (f"write positive control failed: {control}",)
