@@ -665,6 +665,7 @@
   "the local registry does not exist": "the local registry does not exist",
   "the local registry does not exist yet": "the local registry does not exist yet",
   "the local registry file cannot be read as a database": "the local registry file cannot be read as a database",
+  "the local registry schema does not match the migration history this build knows": "the local registry schema does not match the migration history this build knows",
   "the local registry was written by a newer build": "the local registry was written by a newer build",
   "the local revision graph has a missing parent": "the local revision graph has a missing parent",
   "the managed profile pins no such tool": "the managed profile pins no such tool",

@@ -8,8 +8,12 @@ vi.mock("@/lib/i18n/navigation", () => ({
   Link: ({ children, ...props }: React.ComponentProps<"a">) => <a {...props}>{children}</a>,
 }));
 vi.mock("next-intl", () => ({
-  useTranslations: () => (key: string, values?: Record<string, string>) =>
-    values ? `${values.entity}: ${values.operation}` : key,
+  useTranslations: () => {
+    const t = (key: string, values?: Record<string, string>) =>
+      values ? `${values.entity}: ${values.operation}` : key;
+    t.has = () => false;
+    return t;
+  },
   useFormatter: () => ({ dateTime: () => "Localized date" }),
 }));
 import { auditExportCsv, CorporateAuditPanel } from "@/components/organisms/corporate-audit-panel";
@@ -17,7 +21,7 @@ afterEach(() => {
   cleanup();
   vi.clearAllMocks();
 });
-it("links named actors and hides technical fields even for unknown events", () => {
+it("links named actors and keeps request/payload internals hidden for unknown events", () => {
   render(
     <CorporateAuditPanel
       organizationId="organization_fixture"
@@ -67,16 +71,64 @@ it("links named actors and hides technical fields even for unknown events", () =
     "href",
     "/corporate/employees/account_alice",
   );
-  expect(screen.getByText("otherEvent")).toBeInTheDocument();
+  expect(screen.getByText("unknown.internal.operation")).toBeInTheDocument();
   expect(screen.getByText("Localized date")).toHaveAttribute("dateTime", "2026-09-13T10:00:00Z");
-  for (const value of [
-    "unknown.internal.operation",
-    "internal_table",
-    "internal_target",
-    "secret_request",
-    "hidden_payload",
-  ])
+  expect(screen.getByText(/internal_table/)).toBeInTheDocument();
+  for (const value of ["secret_request", "hidden_payload"])
     expect(screen.queryByText(new RegExp(value))).not.toBeInTheDocument();
+});
+
+it("renders before/after payload differences", () => {
+  render(
+    <CorporateAuditPanel
+      organizationId="organization_fixture"
+      audit={{
+        schema_version: 1,
+        next_before_created_at: null,
+        next_before_id: null,
+        items: [
+          {
+            schema_version: 1,
+            audit_id: 7,
+            action: "role.update",
+            actor_type: "system",
+            actor_account_id: null,
+            actor_id: null,
+            created_at: "2026-09-13T10:00:00Z",
+            outcome: "succeeded",
+            target_table: "corporate_role",
+            target_id: "role_auditor",
+            request_id: null,
+            reason: "rotate scope",
+            payload: {
+              before: { name: "Auditor", scope: "org" },
+              after: { name: "Auditor v2", scope: "org" },
+            },
+            effective_role_bindings: [],
+          },
+        ],
+      }}
+      labels={{
+        title: "Journal",
+        export: "Export",
+        exporting: "Exporting",
+        exportFormat: "Format",
+        exportRange: "Time range",
+        currentFilters: "Current filters",
+        today: "Today",
+        last7Days: "Last 7 days",
+        last30Days: "Last 30 days",
+        allEvents: "All events",
+        json: "JSON",
+        csv: "CSV",
+        noAudit: "No events",
+        failed: "Export failed",
+      }}
+    />,
+  );
+  expect(screen.getByText("name: Auditor → Auditor v2")).toBeInTheDocument();
+  expect(screen.getByText(/rotate scope/)).toBeInTheDocument();
+  expect(screen.queryByText(/scope:/)).not.toBeInTheDocument();
 });
 it("shows export transport errors and permits retry without losing the journal", async () => {
   exportAudit.mockRejectedValueOnce(new Error("Connection lost"));

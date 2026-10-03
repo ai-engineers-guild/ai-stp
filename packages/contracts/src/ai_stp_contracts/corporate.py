@@ -36,8 +36,20 @@ JobTitleState = Literal["current", "retired"]
 ProjectState = Literal["active", "archived"]
 ProjectLifecycle = Literal["active", "deprecated", "archived", "deleted"]
 ScopeKind = Literal[
-    "system", "organization", "team", "project", "technology", "catalog_object", "telemetry"
+    "system",
+    "organization",
+    "team",
+    "project",
+    "technology",
+    "category",
+    "catalog_object",
+    "telemetry",
 ]
+# Participation role on a project — separate from the organization role and
+# from the access binding it materializes to (ADR-0223).
+ProjectParticipationRole = Literal["owner", "lead", "contributor", "staff"]
+# How broadly members see each other (ADR-0223).
+PeopleVisibility = Literal["members", "teammates", "admins"]
 
 
 class CorporateCatalogAssignmentRequest(BaseModel):
@@ -618,7 +630,9 @@ class CorporateBindingUpdateRequest(BaseModel):
         return self
 
 
-GrantScopeKind = Literal["organization", "team", "project", "technology"]
+GrantScopeKind = Literal[
+    "organization", "team", "project", "technology", "category", "catalog_object"
+]
 
 
 class CorporatePermissionGrantRequest(BaseModel):
@@ -918,6 +932,7 @@ class CorporateMembershipAssignmentRequest(BaseModel):
     team_id: Annotated[str | None, Field(max_length=64)] = None
     project_id: Annotated[str | None, Field(max_length=64)] = None
     team_role: Literal["lead", "staff"] = "staff"
+    project_role: ProjectParticipationRole = "staff"
     operation: Literal["assign", "remove"] = "assign"
     authorization_revision: Annotated[int, Field(ge=1)]
     idempotency_key: IdempotencyKey
@@ -930,6 +945,7 @@ class CorporateMembershipAssignment(BaseModel):
     team_id: str | None
     project_id: str | None
     team_role: Literal["lead", "staff"]
+    project_role: ProjectParticipationRole = "staff"
     operation: Literal["assign", "remove"] = "assign"
     bindings: Annotated[list[CorporateBinding], Field(max_length=2)]
 
@@ -1128,12 +1144,14 @@ class CorporateInvitationAcceptRequest(BaseModel):
 
 
 class CorporateMembershipPolicy(BaseModel):
-    """Email-domain allowlist for joining the organization."""
+    """Email-domain allowlist for joining the organization, plus the people
+    visibility policy (ADR-0223)."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     schema_version: Literal[1] = 1
     organization_id: OrganizationId
     allowed_email_domains: Annotated[list[str], Field(max_length=64)] = []
+    people_visibility: PeopleVisibility = "teammates"
     authorization_revision: Annotated[int, Field(ge=1)]
 
 
@@ -1143,5 +1161,34 @@ class CorporateMembershipPolicyRequest(BaseModel):
     allowed_email_domains: Annotated[
         list[Annotated[str, Field(min_length=1, max_length=253)]], Field(max_length=64)
     ] = Field(default_factory=list)
+    people_visibility: PeopleVisibility = "teammates"
     authorization_revision: Annotated[int, Field(ge=1)]
     idempotency_key: IdempotencyKey
+
+
+class CorporateTeammateContext(BaseModel):
+    """One participation context a teammate shares with the caller."""
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+    kind: Literal["team", "project"]
+    id: Annotated[str, Field(max_length=64)]
+    name: str
+    role: Annotated[str, Field(max_length=16)]
+
+
+class CorporateTeammate(BaseModel):
+    """Reduced people projection — no email, job title, or organization role."""
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+    schema_version: Literal[1] = 1
+    account_id: AccountId
+    display_name: str | None
+    contexts: Annotated[list[CorporateTeammateContext], Field(max_length=256)]
+
+
+class CorporateTeammates(BaseModel):
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+    schema_version: Literal[1] = 1
+    organization_id: OrganizationId
+    people_visibility: PeopleVisibility
+    items: Annotated[list[CorporateTeammate], Field(max_length=512)]

@@ -7,7 +7,7 @@ import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { Icon } from "@/theme";
 import type { CorporateRoleView } from "@/lib/api/generated/types.gen";
 
-import { corporateMutationAction } from "@/actions/corporate";
+import { corporateMutation } from "@/lib/api/corporate-mutation";
 import { Button } from "@/components/atoms/button";
 import { Input } from "@/components/atoms/input";
 import { Label } from "@/components/atoms/label";
@@ -79,7 +79,7 @@ export function CorporateResourceDeleteMenuItem({
         event.preventDefault();
         if (!window.confirm(confirmLabel)) return;
         startTransition(async () => {
-          const result = await corporateMutationAction({
+          const result = await corporateMutation({
             csrfToken,
             organizationId,
             path: `/v1/corporate/organizations/${organizationId}/${resource}/${resourceId}`,
@@ -152,7 +152,7 @@ export function CorporateResourceActions({
     setMessage(null);
     startTransition(async () => {
       try {
-        const result = await corporateMutationAction({
+        const result = await corporateMutation({
           csrfToken,
           organizationId,
           path: endpoint,

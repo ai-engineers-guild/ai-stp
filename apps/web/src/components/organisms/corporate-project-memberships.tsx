@@ -1,7 +1,7 @@
 "use client";
 import { useRef, useState } from "react";
 import { useTranslations } from "next-intl";
-import { corporateMutationAction } from "@/actions/corporate";
+import { corporateMutation } from "@/lib/api/corporate-mutation";
 import { Button } from "@/components/atoms/button";
 import { SearchableMultiSelect } from "@/components/molecules/searchable-multi-select";
 import { Link, useRouter } from "@/lib/i18n/navigation";
@@ -29,6 +29,7 @@ export function CorporateProjectMemberships({
   const router = useRouter();
   const [adding, setAdding] = useState(false);
   const [selected, setSelected] = useState<string[]>([]);
+  const [projectRole, setProjectRole] = useState("staff");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const retry = useRef<{ effect: string; key: string } | null>(null);
@@ -42,13 +43,14 @@ export function CorporateProjectMemberships({
     setBusy(true);
     setMessage(null);
     try {
-      const result = await corporateMutationAction({
+      const result = await corporateMutation({
         organizationId,
         csrfToken,
         path: `/v1/corporate/organizations/${organizationId}/membership-assignments`,
         method: "POST",
         body: {
           ...effect,
+          project_role: projectRole,
           schema_version: 1,
           authorization_revision: authorizationRevision,
           idempotency_key: retry.current.key,
@@ -125,6 +127,22 @@ export function CorporateProjectMemberships({
               onChange={setSelected}
               closeLabel={h("cancel")}
             />
+            <label htmlFor="project-role" className="text-sm">
+              {h("projectRole")}
+              <select
+                id="project-role"
+                className="border-border bg-background mt-1.5 h-9 w-full rounded-sm border px-3 text-sm"
+                value={projectRole}
+                onChange={(event) => {
+                  setProjectRole(event.target.value);
+                }}
+              >
+                <option value="owner">{h("projectRoleOwner")}</option>
+                <option value="lead">{h("projectRoleLead")}</option>
+                <option value="contributor">{h("projectRoleContributor")}</option>
+                <option value="staff">{h("projectRoleStaff")}</option>
+              </select>
+            </label>
             <Button type="submit" disabled={!selected.length}>
               {h("save")}
             </Button>

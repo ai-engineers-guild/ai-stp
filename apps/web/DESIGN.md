@@ -44,3 +44,16 @@ CompactChipList remain shared kit components. Files are parsed locally; the prev
 never sends mutations. `read-excel-file` is dynamically loaded by
 `src/lib/member-import-file.ts` solely for XLSX. That adapter owns the dependency;
 remove it when XLSX support is removed. Other formats use the existing text parser.
+
+## People & Access workspace reuse
+
+The existing directory kit supplies search, filters, identities, chips and pagination.
+The kit had no entity/action permission table or role workspace. `CorporatePermissionTable`
+adds one semantic table shared by role viewing, role editing and effective employee access.
+`CorporateAccessModel` and `CorporateRolesWorkspace` compose those controls around the
+server permission catalog and existing navigation manifest. `CorporateEmployeeAccessDrawer`
+adds access/profile/activity tabs around the existing member access mutations.
+`CorporateDetailDrawer` extends the shared Sheet atom for all three workspaces.
+All controls retain the existing Button, Input, Badge, Dialog, Sheet, tokens and icon registry.
+No additional dependency is required. Tables scroll within their container on narrow screens;
+desktop detail panels reserve content space when the viewport can accommodate both.

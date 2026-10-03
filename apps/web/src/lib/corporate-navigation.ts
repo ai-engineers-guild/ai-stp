@@ -147,7 +147,7 @@ export const CORPORATE_NAV_PAGES: readonly CorporateNavPage[] = [
     href: "/corporate/reports",
     label: "reports",
     icon: "list",
-    root: false,
+    root: true,
     rail: true,
     section: "reports",
     prefixes: ["/corporate/reports", "/corporate/installations", "/corporate/usage"],
@@ -295,7 +295,7 @@ export const CORPORATE_NAV_PAGES: readonly CorporateNavPage[] = [
     href: "/corporate/dashboard",
     label: "dashboard",
     icon: "controls",
-    root: true,
+    root: false,
     rail: false,
     exact: ["/corporate/dashboard"],
     prefixes: [],
@@ -367,8 +367,11 @@ export function corporateNavPage(pathname: string): CorporateNavPage | null {
   return winner;
 }
 
-function visible(page: CorporateNavPage, capabilities: readonly string[]): boolean {
-  if (page.administration && !canViewCorporateAdministration(capabilities)) return false;
+export function corporateNavPageVisible(
+  page: CorporateNavPage,
+  capabilities: readonly string[],
+): boolean {
+  if (page.administration) return canViewCorporateAdministration(capabilities);
   if (page.section) return canViewCorporateSection(page.section, capabilities);
   return true;
 }
@@ -386,7 +389,7 @@ export function resolveCorporateNav(
     context === "root" ? item.root : item.context === context && item.rail,
   );
   const items = source
-    .filter((item) => visible(item, capabilities))
+    .filter((item) => corporateNavPageVisible(item, capabilities))
     .map((item) => ({
       id: item.id,
       href: item.href,
@@ -410,7 +413,7 @@ export function resolveCorporateNav(
 /** Ids of every rail item the capabilities allow, for the navigation endpoint. */
 export function corporateNavPageIds(capabilities: readonly string[]): string[] {
   return CORPORATE_NAV_PAGES.filter(
-    (page) => (page.rail || page.root) && visible(page, capabilities),
+    (page) => (page.rail || page.root) && corporateNavPageVisible(page, capabilities),
   ).map((page) => page.id);
 }
 
@@ -462,7 +465,7 @@ export function resolveCorporateRail(
       .filter((entry) => entry.root)
       .map((entry) => {
         const children =
-          entry.context !== "root" && entry.context !== "administration"
+          entry.id === entry.context && entry.context !== "root"
             ? allowed
                 .filter(
                   (child) => child.context === entry.context && child.rail && child.id !== entry.id,

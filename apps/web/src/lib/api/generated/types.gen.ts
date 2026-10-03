@@ -2239,7 +2239,14 @@ export type CorporateBinding = {
    * Scope Kind
    */
   scope_kind:
-    "system" | "organization" | "team" | "project" | "technology" | "catalog_object" | "telemetry";
+    | "system"
+    | "organization"
+    | "team"
+    | "project"
+    | "technology"
+    | "category"
+    | "catalog_object"
+    | "telemetry";
   /**
    * Service Principal Id
    */
@@ -2301,7 +2308,14 @@ export type CorporateBindingRequest = {
    * Scope Kind
    */
   scope_kind:
-    "system" | "organization" | "team" | "project" | "technology" | "catalog_object" | "telemetry";
+    | "system"
+    | "organization"
+    | "team"
+    | "project"
+    | "technology"
+    | "category"
+    | "catalog_object"
+    | "telemetry";
 };
 
 /**
@@ -2339,7 +2353,14 @@ export type CorporateBindingUpdateRequest = {
    * Scope Kind
    */
   scope_kind:
-    "system" | "organization" | "team" | "project" | "technology" | "catalog_object" | "telemetry";
+    | "system"
+    | "organization"
+    | "team"
+    | "project"
+    | "technology"
+    | "category"
+    | "catalog_object"
+    | "telemetry";
   /**
    * State
    */
@@ -3861,7 +3882,8 @@ export type CorporateEffectivePermission = {
   /**
    * Scope Kind
    */
-  scope_kind: "organization" | "team" | "project" | "technology" | "catalog_object" | "member";
+  scope_kind:
+    "organization" | "team" | "project" | "technology" | "category" | "catalog_object" | "member";
   /**
    * Source Records
    */
@@ -4287,7 +4309,8 @@ export type CorporateMemberAccess = {
   /**
    * Scope Kind
    */
-  scope_kind: "organization" | "team" | "project" | "technology" | "catalog_object" | "member";
+  scope_kind:
+    "organization" | "team" | "project" | "technology" | "category" | "catalog_object" | "member";
   [key: string]: unknown;
 };
 
@@ -4502,6 +4525,10 @@ export type CorporateMembershipAssignment = {
    */
   project_id: string | null;
   /**
+   * Project Role
+   */
+  project_role: "owner" | "lead" | "contributor" | "staff";
+  /**
    * Schema Version
    */
   schema_version: 1;
@@ -4538,6 +4565,10 @@ export type CorporateMembershipAssignmentRequest = {
    */
   project_id?: string | null;
   /**
+   * Project Role
+   */
+  project_role?: "owner" | "lead" | "contributor" | "staff";
+  /**
    * Schema Version
    */
   schema_version?: 1;
@@ -4554,7 +4585,8 @@ export type CorporateMembershipAssignmentRequest = {
 /**
  * CorporateMembershipPolicy
  *
- * Email-domain allowlist for joining the organization.
+ * Email-domain allowlist for joining the organization, plus the people
+ * visibility policy (ADR-0223).
  */
 export type CorporateMembershipPolicy = {
   /**
@@ -4569,6 +4601,10 @@ export type CorporateMembershipPolicy = {
    * Organization Id
    */
   organization_id: string;
+  /**
+   * People Visibility
+   */
+  people_visibility: "members" | "teammates" | "admins";
   /**
    * Schema Version
    */
@@ -4589,6 +4625,10 @@ export type CorporateMembershipPolicyRequest = {
    */
   authorization_revision: number;
   idempotency_key: IdempotencyKey;
+  /**
+   * People Visibility
+   */
+  people_visibility?: "members" | "teammates" | "admins";
   /**
    * Schema Version
    */
@@ -4729,7 +4769,9 @@ export type CorporatePermissionDefinition = {
   /**
    * Scopes
    */
-  scopes: Array<"organization" | "team" | "project" | "technology" | "catalog_object" | "member">;
+  scopes: Array<
+    "organization" | "team" | "project" | "technology" | "category" | "catalog_object" | "member"
+  >;
   [key: string]: unknown;
 };
 
@@ -4772,7 +4814,7 @@ export type CorporatePermissionGrant = {
   /**
    * Scope Kind
    */
-  scope_kind: "organization" | "team" | "project" | "technology";
+  scope_kind: "organization" | "team" | "project" | "technology" | "category" | "catalog_object";
   /**
    * Service Principal Id
    */
@@ -4839,7 +4881,7 @@ export type CorporatePermissionGrantRequest = {
   /**
    * Scope Kind
    */
-  scope_kind: "organization" | "team" | "project" | "technology";
+  scope_kind: "organization" | "team" | "project" | "technology" | "category" | "catalog_object";
   /**
    * Service Principal Id
    */
@@ -5237,7 +5279,14 @@ export type CorporateServicePrincipalCreateRequest = {
    * Scope Kind
    */
   scope_kind?:
-    "system" | "organization" | "team" | "project" | "technology" | "catalog_object" | "telemetry";
+    | "system"
+    | "organization"
+    | "team"
+    | "project"
+    | "technology"
+    | "category"
+    | "catalog_object"
+    | "telemetry";
 };
 
 /**
@@ -5512,6 +5561,79 @@ export type CorporateTeamView = {
    * Technology Ids
    */
   technology_ids: Array<string>;
+  [key: string]: unknown;
+};
+
+/**
+ * CorporateTeammate
+ *
+ * Reduced people projection — no email, job title, or organization role.
+ */
+export type CorporateTeammate = {
+  /**
+   * Account Id
+   */
+  account_id: string;
+  /**
+   * Contexts
+   */
+  contexts: Array<CorporateTeammateContext>;
+  /**
+   * Display Name
+   */
+  display_name: string | null;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  [key: string]: unknown;
+};
+
+/**
+ * CorporateTeammateContext
+ *
+ * One participation context a teammate shares with the caller.
+ */
+export type CorporateTeammateContext = {
+  /**
+   * Id
+   */
+  id: string;
+  /**
+   * Kind
+   */
+  kind: "team" | "project";
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Role
+   */
+  role: string;
+  [key: string]: unknown;
+};
+
+/**
+ * CorporateTeammates
+ */
+export type CorporateTeammates = {
+  /**
+   * Items
+   */
+  items: Array<CorporateTeammate>;
+  /**
+   * Organization Id
+   */
+  organization_id: string;
+  /**
+   * People Visibility
+   */
+  people_visibility: "members" | "teammates" | "admins";
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
   [key: string]: unknown;
 };
 
@@ -24587,6 +24709,64 @@ export type UpdateCorporateServicePrincipalResponses = {
 
 export type UpdateCorporateServicePrincipalResponse =
   UpdateCorporateServicePrincipalResponses[keyof UpdateCorporateServicePrincipalResponses];
+
+export type ReadCorporateTeammatesData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/teammates";
+};
+
+export type ReadCorporateTeammatesErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ReadCorporateTeammatesError =
+  ReadCorporateTeammatesErrors[keyof ReadCorporateTeammatesErrors];
+
+export type ReadCorporateTeammatesResponses = {
+  /**
+   * Scoped people projection: co-members of the caller's teams and projects.
+   */
+  200: CorporateTeammates;
+};
+
+export type ReadCorporateTeammatesResponse =
+  ReadCorporateTeammatesResponses[keyof ReadCorporateTeammatesResponses];
 
 export type ListCorporateTeamsData = {
   body?: never;

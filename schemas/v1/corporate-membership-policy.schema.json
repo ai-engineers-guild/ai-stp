@@ -2,7 +2,7 @@
   "$id": "urn:ai-stp:schema:v1:corporate-membership-policy",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": true,
-  "description": "Email-domain allowlist for joining the organization.",
+  "description": "Email-domain allowlist for joining the organization, plus the people\nvisibility policy (ADR-0223).",
   "properties": {
     "allowed_email_domains": {
       "default": [],
@@ -23,6 +23,16 @@
       "title": "Organization Id",
       "type": "string"
     },
+    "people_visibility": {
+      "default": "teammates",
+      "enum": [
+        "members",
+        "teammates",
+        "admins"
+      ],
+      "title": "People Visibility",
+      "type": "string"
+    },
     "schema_version": {
       "const": 1,
       "default": 1,
@@ -34,6 +44,7 @@
     "allowed_email_domains",
     "authorization_revision",
     "organization_id",
+    "people_visibility",
     "schema_version"
   ],
   "title": "CorporateMembershipPolicy",

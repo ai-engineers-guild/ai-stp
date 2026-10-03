@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { corporateMutationAction } from "@/actions/corporate";
+import { corporateMutation } from "@/lib/api/corporate-mutation";
 import { Button } from "@/components/atoms/button";
 import { Link, useRouter } from "@/lib/i18n/navigation";
 import type { EmployeeTechnologyList, TechnologyView } from "@/lib/api/generated/types.gen";
@@ -37,7 +37,7 @@ export function CorporateEmployeeTechnologies({
   if (!canManage) return null;
   function submit(state: "current" | "retired", technologyId: string, revision: number) {
     startTransition(async () => {
-      const result = await corporateMutationAction({
+      const result = await corporateMutation({
         csrfToken,
         organizationId,
         path: "/v1/corporate/organizations/" + organizationId + "/employee-technologies",

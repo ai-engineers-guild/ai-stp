@@ -1,12 +1,12 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import type { ReactNode } from "react";
-import type { corporateMutationAction } from "@/actions/corporate";
+import type { corporateMutation } from "@/lib/api/corporate-mutation";
 const { mutation, refresh } = vi.hoisted(() => ({
-  mutation: vi.fn<typeof corporateMutationAction>(),
+  mutation: vi.fn<typeof corporateMutation>(),
   refresh: vi.fn(),
 }));
-vi.mock("@/actions/corporate", () => ({ corporateMutationAction: mutation }));
+vi.mock("@/lib/api/corporate-mutation", () => ({ corporateMutation: mutation }));
 vi.mock("@/lib/i18n/navigation", () => ({
   useRouter: () => ({ refresh }),
   Link: ({ href, children }: { href: string; children: ReactNode }) => (

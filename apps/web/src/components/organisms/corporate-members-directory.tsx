@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/atoms/button";
 import {
@@ -18,16 +18,20 @@ import {
   PeopleSearch,
   PeopleSelect,
   usePeopleFilters,
+  CorporateDetailDrawer,
 } from "@/components/organisms/corporate-people-ui";
 import type {
   CorporateContext,
   CorporateJobTitleView,
   CorporateMember,
   CorporateRoleView,
+  CorporateBinding,
 } from "@/lib/api/generated/types.gen";
 import { downloadPeopleCsv } from "@/lib/member-export";
 import { CorporateMembersTable } from "@/components/organisms/corporate-members-table";
 import { Icon } from "@/theme";
+import { useRouter, usePathname } from "@/lib/i18n/navigation";
+import { roleTitle } from "@/lib/corporate-permission-ui";
 
 type Props = {
   members: readonly CorporateMember[];
@@ -36,12 +40,16 @@ type Props = {
   jobTitles: readonly CorporateJobTitleView[];
   csrfToken: string;
   now: string;
+  accessView?: boolean;
+  accessPanel?: ReactNode;
+  bindings?: readonly CorporateBinding[];
 };
 
 export function selectPeopleMembers(
   members: readonly CorporateMember[],
   context: CorporateContext,
   filters: { query: string; team: string; role: string; status: string; sort: string },
+  bindings: readonly CorporateBinding[] = [],
 ) {
   const query = filters.query.trim().toLowerCase();
   const result = members.filter(
@@ -50,7 +58,14 @@ export function selectPeopleMembers(
         [member.display_name, member.contact_email, member.job_title_name, member.role].some(
           (value) => value?.toLowerCase().includes(query),
         )) &&
-      (!filters.role || member.role === filters.role) &&
+      (!filters.role ||
+        member.role === filters.role ||
+        bindings.some(
+          (binding) =>
+            binding.account_id === member.account_id &&
+            binding.role === filters.role &&
+            binding.state === "active",
+        )) &&
       (!filters.status || member.state === filters.status) &&
       (!filters.team ||
         context.teams.some(
@@ -113,46 +128,44 @@ function AddMemberDialog({ context, roles, jobTitles, csrfToken }: Omit<Props, "
 export function CorporateMembersDirectory(props: Props) {
   const { members, context, now } = props;
   const t = useTranslations("people");
+  const a = useTranslations("accessUi");
+  const inspect = useEmployeeSelection();
   const filters = usePeopleFilters();
+  const activeMember = members.find((member) => member.account_id === filters.get("employee"));
   const [selected, setSelected] = useState<string[]>([]);
   const sort = filters.get("sort") || "joined_desc";
-  const filtered = selectPeopleMembers(members, context, {
-    query: filters.get("query"),
-    team: filters.get("team"),
-    role: filters.get("role"),
-    status: filters.get("status"),
-    sort,
-  });
+  const filtered = selectPeopleMembers(
+    members,
+    context,
+    {
+      query: filters.get("query"),
+      team: filters.get("team"),
+      role: filters.get("role"),
+      status: filters.get("status"),
+      sort,
+    },
+    props.accessView ? props.bindings : [],
+  );
   const page = Math.min(
     Math.max(1, Number(filters.get("page")) || 1),
     Math.max(1, Math.ceil(filtered.length / PEOPLE_PAGE_SIZE)),
   );
   const rows = filtered.slice((page - 1) * PEOPLE_PAGE_SIZE, page * PEOPLE_PAGE_SIZE);
   const chosen = filtered.filter((member) => selected.includes(member.account_id));
-  function exportRows() {
-    downloadPeopleCsv("members.csv", [
-      ["name", "email", "job_title", "teams", "role", "status", "joined", "last_activity"],
-      ...(chosen.length ? chosen : filtered).map((member) => [
-        member.display_name ?? member.account_id,
-        member.contact_email ?? "",
-        member.job_title_name ?? "",
-        context.teams
-          .filter((team) => team.members.some((entry) => entry.account_id === member.account_id))
-          .map((team) => team.name)
-          .join("; "),
-        member.role,
-        member.state,
-        member.joined_at ?? "",
-        member.last_activity_at ?? "",
-      ]),
-    ]);
-  }
+  const exportRows = () => {
+    exportMembers(chosen.length ? chosen : filtered, context);
+  };
+
   return (
-    <section aria-label={t("members")} className="min-w-0 space-y-4" data-ui="members-directory">
-      <div className="grid grid-cols-2 items-center gap-3 lg:flex lg:flex-wrap">
-        <div className="col-span-2 min-w-0 lg:flex-1">
+    <section
+      aria-label={props.accessView ? a("employeeAccess") : t("members")}
+      className={`min-w-0 space-y-4 ${props.accessView && activeMember ? "2xl:pr-[27rem]" : ""}`}
+      data-ui={props.accessView ? "employee-access-directory" : "members-directory"}
+    >
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="min-w-0 basis-full xl:flex-1">
           <PeopleSearch
-            label={t("searchMembers")}
+            label={props.accessView ? a("searchEmployees") : t("searchMembers")}
             value={filters.get("query")}
             onChange={(value) => {
               filters.update("query", value);
@@ -173,9 +186,18 @@ export function CorporateMembersDirectory(props: Props) {
           onChange={(value) => {
             filters.update("role", value);
           }}
-          options={[...new Set(members.map((member) => member.role))].map((role) => ({
+          options={[
+            ...new Set([
+              ...members.map((member) => member.role),
+              ...(props.accessView
+                ? (props.bindings
+                    ?.filter((binding) => binding.state === "active")
+                    .map((binding) => binding.role) ?? [])
+                : []),
+            ]),
+          ].map((role) => ({
             value: role,
-            label: role,
+            label: props.accessView ? roleTitle(role, a) : role,
           }))}
         />
         <PeopleSelect
@@ -198,7 +220,13 @@ export function CorporateMembersDirectory(props: Props) {
           }))}
         />
         <div className="col-span-2 flex items-center justify-between gap-2 lg:ml-auto">
-          <AddMemberDialog {...props} />
+          {props.accessView ? (
+            context.capabilities.includes("binding.create") ? (
+              <GrantAccessButton members={members} inspect={inspect} />
+            ) : null
+          ) : (
+            <AddMemberDialog {...props} />
+          )}
           <CatalogChoiceMenu
             icon="moreVertical"
             label={t("directoryActions")}
@@ -215,22 +243,12 @@ export function CorporateMembersDirectory(props: Props) {
         </div>
       </div>
       {chosen.length ? (
-        <div
-          aria-live="polite"
-          className="bg-muted flex items-center justify-between rounded-sm px-3 py-2 text-sm"
-        >
-          <span>{t("selected", { count: chosen.length })}</span>
-          <Button
-            variant="ghost"
-            size="sm"
-            type="button"
-            onClick={() => {
-              setSelected([]);
-            }}
-          >
-            {t("clearSelection")}
-          </Button>
-        </div>
+        <MemberSelection
+          count={chosen.length}
+          clear={() => {
+            setSelected([]);
+          }}
+        />
       ) : null}
       <CorporateMembersTable
         rows={rows}
@@ -241,7 +259,22 @@ export function CorporateMembersDirectory(props: Props) {
         sort={sort}
         update={filters.update}
         empty={members.length === 0}
+        accessView={props.accessView ?? false}
+        bindings={props.bindings ?? []}
+        inspect={inspect}
       />
+      {props.accessView ? (
+        <CorporateDetailDrawer
+          open={Boolean(activeMember)}
+          onOpenChange={(open) => {
+            if (!open) inspect("");
+          }}
+          title={activeMember?.display_name ?? a("employee")}
+          description={activeMember?.contact_email ?? ""}
+        >
+          {props.accessPanel}
+        </CorporateDetailDrawer>
+      ) : null}
       <PeoplePager
         total={filtered.length}
         page={page}
@@ -252,4 +285,110 @@ export function CorporateMembersDirectory(props: Props) {
       />
     </section>
   );
+}
+
+function GrantAccessButton({
+  members,
+  inspect,
+}: {
+  members: readonly CorporateMember[];
+  inspect: (accountId: string) => void;
+}) {
+  const a = useTranslations("accessUi");
+  const t = useTranslations("people");
+  const [grantDialog, setGrantDialog] = useState(false);
+  return (
+    <>
+      <Button
+        onClick={() => {
+          setGrantDialog(true);
+        }}
+        className="h-11"
+      >
+        <Icon name="plus" size="sm" />
+        {a("grantAccess")}
+      </Button>
+      <Dialog open={grantDialog} onOpenChange={setGrantDialog}>
+        <DialogContent closeLabel={t("close")}>
+          <DialogTitle>{a("grantAccess")}</DialogTitle>
+          <DialogDescription>{a("chooseEmployee")}</DialogDescription>
+          <form
+            className="mt-4 space-y-4"
+            onSubmit={(event) => {
+              event.preventDefault();
+              const employee = new FormData(event.currentTarget).get("employee");
+              if (typeof employee === "string" && employee) {
+                setGrantDialog(false);
+                inspect(employee);
+              }
+            }}
+          >
+            <select
+              name="employee"
+              aria-label={a("employee")}
+              required
+              className="border-input bg-background h-11 w-full rounded-sm border px-3 text-sm"
+            >
+              <option value="">{a("chooseEmployee")}</option>
+              {members.map((member) => (
+                <option key={member.account_id} value={member.account_id}>
+                  {member.display_name ?? member.account_id}
+                </option>
+              ))}
+            </select>
+            <Button type="submit">{a("grantAccess")}</Button>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
+function exportMembers(members: readonly CorporateMember[], context: CorporateContext) {
+  downloadPeopleCsv("members.csv", [
+    ["name", "email", "job_title", "teams", "role", "status", "joined", "last_activity"],
+    ...members.map((member) => [
+      member.display_name ?? member.account_id,
+      member.contact_email ?? "",
+      member.job_title_name ?? "",
+      context.teams
+        .filter((team) => team.members.some((entry) => entry.account_id === member.account_id))
+        .map((team) => team.name)
+        .join("; "),
+      member.role,
+      member.state,
+      member.joined_at ?? "",
+      member.last_activity_at ?? "",
+    ]),
+  ]);
+}
+
+function MemberSelection({ count, clear }: { count: number; clear: () => void }) {
+  const t = useTranslations("people");
+  return (
+    <div
+      aria-live="polite"
+      className="bg-muted flex items-center justify-between rounded-sm px-3 py-2 text-sm"
+    >
+      <span>{t("selected", { count })}</span>
+      <Button variant="ghost" size="sm" type="button" onClick={clear}>
+        {t("clearSelection")}
+      </Button>
+    </div>
+  );
+}
+
+function useEmployeeSelection() {
+  const router = useRouter();
+  const pathname = usePathname();
+  function inspect(accountId: string) {
+    const params = new URLSearchParams(window.location.search);
+    if (accountId) params.set("employee", accountId);
+    else params.delete("employee");
+    params.delete("detail");
+    params.delete("scope");
+    router.push(`${pathname}?${params.toString()}`, { scroll: false });
+  }
+
+  return inspect;
 }

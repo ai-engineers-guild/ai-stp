@@ -184,6 +184,7 @@ from ai_stp_contracts.corporate import (
     CorporateServicePrincipalView,
     CorporateTeamCreateRequest,
     CorporateTeamList,
+    CorporateTeammates,
     CorporateTeamUpdateRequest,
     CorporateTeamView,
 )
@@ -1457,6 +1458,16 @@ OPERATIONS: Final[tuple[Operation, ...]] = (
         authenticated=True,
         idempotent_mutation=True,
         errors=("AI_STP_VALIDATION_ERROR", "AI_STP_PERMISSION_DENIED"),
+    ),
+    Operation(
+        method="get",
+        path="/corporate/organizations/{organization_id}/teammates",
+        operation_id="readCorporateTeammates",
+        summary="Scoped people projection: co-members of the caller's teams and projects.",
+        response=CorporateTeammates,
+        path_params=(_ORGANIZATION_ID,),
+        authenticated=True,
+        errors=("AI_STP_PERMISSION_DENIED",),
     ),
     Operation(
         method="post",

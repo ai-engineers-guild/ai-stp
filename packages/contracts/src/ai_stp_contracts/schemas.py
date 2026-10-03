@@ -176,6 +176,7 @@ from ai_stp_contracts.corporate import (
     CorporateServicePrincipalView,
     CorporateTeamCreateRequest,
     CorporateTeamList,
+    CorporateTeammates,
     CorporateTeamUpdateRequest,
     CorporateTeamView,
 )
@@ -747,6 +748,7 @@ HTTP_MODELS: Final[dict[str, ExportedSchema]] = {
     "corporate-invitation-revoke-request": CorporateInvitationRevokeRequest,
     "corporate-membership-policy": CorporateMembershipPolicy,
     "corporate-membership-policy-request": CorporateMembershipPolicyRequest,
+    "corporate-teammates": CorporateTeammates,
     "corporate-job-title-create-request": CorporateJobTitleCreateRequest,
     "corporate-job-title-list": CorporateJobTitleList,
     "corporate-job-title-update-request": CorporateJobTitleUpdateRequest,

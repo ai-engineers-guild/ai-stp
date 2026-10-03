@@ -1,15 +1,33 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render as renderComponent, screen, waitFor } from "@testing-library/react";
+import { NextIntlClientProvider } from "next-intl";
+import type { ReactNode } from "react";
+import messages from "../../messages/en.json";
 import { expect, it, vi } from "vitest";
 
-import { corporateMutationAction } from "@/actions/corporate";
+import { corporateMutation } from "@/lib/api/corporate-mutation";
 import { CorporateRolePanel } from "@/components/organisms/corporate-role-panel";
 import { CorporateMemberAccessPanel } from "@/components/organisms/corporate-member-access-panel";
-import type { CorporatePermissionDefinition } from "@/lib/api/generated/types.gen";
+import type {
+  CorporatePermissionDefinition,
+  CorporateRoleView,
+} from "@/lib/api/generated/types.gen";
+import {
+  entityDefinitions,
+  permissionColumn,
+  rolePermissions,
+} from "@/lib/corporate-permission-ui";
+
+const render = (ui: ReactNode) =>
+  renderComponent(
+    <NextIntlClientProvider locale="en" messages={messages}>
+      {ui}
+    </NextIntlClientProvider>,
+  );
 
 const refresh = vi.fn();
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh }) }));
-vi.mock("@/actions/corporate", () => ({
-  corporateMutationAction: vi.fn().mockResolvedValue({ ok: true, data: {} }),
+vi.mock("@/lib/api/corporate-mutation", () => ({
+  corporateMutation: vi.fn().mockResolvedValue({ ok: true, data: {} }),
 }));
 
 const definitions = ["team.list", "team.create"].map((name) => ({
@@ -56,9 +74,9 @@ it("submits only selected catalog actions when creating a role", async () => {
   fireEvent.click(screen.getByLabelText(/team.list/));
   fireEvent.click(screen.getByRole("button", { name: "Create" }));
   await waitFor(() => {
-    expect(corporateMutationAction).toHaveBeenCalled();
+    expect(corporateMutation).toHaveBeenCalled();
   });
-  expect(vi.mocked(corporateMutationAction).mock.calls[0]?.[0].body).toMatchObject({
+  expect(vi.mocked(corporateMutation).mock.calls[0]?.[0].body).toMatchObject({
     permissions: ["team.list"],
   });
 });
@@ -91,6 +109,13 @@ it("limits direct grant choices to caller actions valid for the chosen scope", (
         operation: "Operation",
         assign: "Assign",
         remove: "Remove",
+        teamRole: "Team role",
+        projectRole: "Project role",
+        projectRoleHint: "Project hint",
+        projectRoleOwner: "Owner",
+        projectRoleContributor: "Contributor",
+        roleLead: "Lead",
+        roleStaff: "Staff",
         create: "Create",
         creating: "Creating",
         revoke: "Revoke",
@@ -123,9 +148,39 @@ it("limits direct grant choices to caller actions valid for the chosen scope", (
   if (!grantSummary) throw new Error("Grant action disclosure is missing");
   fireEvent.click(grantSummary);
   const permission = screen.getByLabelText("Permission");
-  expect(permission).toHaveTextContent("team.list");
-  expect(permission).not.toHaveTextContent("team.create");
+  expect(permission.querySelector('option[value="team.list"]')).not.toBeNull();
+  expect(permission.querySelector('option[value="team.create"]')).toBeNull();
   fireEvent.change(screen.getByLabelText("Scope"), { target: { value: "team:team_fixture" } });
-  expect(permission).toHaveTextContent("team.create");
-  expect(permission).not.toHaveTextContent("team.list");
+  expect(permission.querySelector('option[value="team.create"]')).not.toBeNull();
+  expect(permission.querySelector('option[value="team.list"]')).toBeNull();
+});
+
+it("keeps relationship actions in their entity and resolves inherited permissions without cycles", () => {
+  const relation = {
+    ...definitions[0],
+    name: "project_team.link",
+    resource: "project_team",
+    action: "link",
+  } as CorporatePermissionDefinition;
+  expect(
+    entityDefinitions([...definitions, relation]).find(([entity]) => entity === "project")?.[1],
+  ).toEqual([relation]);
+  expect(permissionColumn(relation)).toBe("other");
+  const roles: [CorporateRoleView, CorporateRoleView] = [
+    {
+      schema_version: 1,
+      name: "child",
+      parent_role: "parent",
+      permissions: ["team.create"],
+      revision: 1,
+    },
+    {
+      schema_version: 1,
+      name: "parent",
+      parent_role: "child",
+      permissions: ["team.list"],
+      revision: 1,
+    },
+  ];
+  expect([...rolePermissions(roles[0], roles)].sort()).toEqual(["team.create", "team.list"]);
 });

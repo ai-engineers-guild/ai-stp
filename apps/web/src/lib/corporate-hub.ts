@@ -14,14 +14,16 @@ export function canViewCorporateSection(key: string, capabilities: readonly stri
   if (key === "components") {
     return capabilities.includes("project.list") || capabilities.includes("member.list");
   }
-  const permission = {
-    employees: "member.list",
-    projects: "project.list",
-    teams: "team.list",
-    technologies: "technology.list",
-    categories: "category.list",
-    mappings: "technology.list",
-    reports: "telemetry.read",
-  }[key];
+  const permission = CORPORATE_SECTION_PERMISSIONS[key];
   return permission !== undefined && capabilities.includes(permission);
 }
+
+export const CORPORATE_SECTION_PERMISSIONS: Readonly<Record<string, string>> = {
+  employees: "member.list",
+  projects: "project.list",
+  teams: "team.list",
+  technologies: "technology.list",
+  categories: "category.list",
+  mappings: "technology.list",
+  reports: "telemetry.read",
+};

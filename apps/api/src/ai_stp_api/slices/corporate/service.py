@@ -65,6 +65,9 @@ from ai_stp_contracts.corporate import (
     CorporateTeamCatalogObject,
     CorporateTeamCreateRequest,
     CorporateTeamList,
+    CorporateTeammate,
+    CorporateTeammateContext,
+    CorporateTeammates,
     CorporateTeamUpdateRequest,
     CorporateTeamView,
     GrantScopeKind,
@@ -88,6 +91,7 @@ from ai_stp_platform.catalog_ownership_models import (
 )
 from ai_stp_platform.catalog_read import get_visible_metadata
 from ai_stp_platform.corporate_authorization import (
+    bulk_effective_permissions,
     corporate_effective_permissions,
     explain_effective_permissions,
     has_corporate_permission,
@@ -125,6 +129,7 @@ from ai_stp_platform.technology_models import (
     ProjectTeamRelation,
     ProjectTechnologyRelation,
     Technology,
+    TechnologyCategory,
     TechnologyTeamResponsibility,
 )
 from ai_stp_platform.tenant_scope import set_tenant_scope
@@ -214,6 +219,7 @@ ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
             "member.read",
             "member.update",
             "member.delete",
+            "member.manage",
             "project.read",
             "project.update",
             "project.list",
@@ -978,9 +984,40 @@ async def _scope_target_exists(
             )
             is not None
         )
-    # Catalog-object, telemetry, and system resources have no
-    # B2B-01 resource table yet; accepting arbitrary IDs would create a grant
-    # that cannot be tenant-checked. Their owning feature must add this check.
+    if scope_kind == "catalog_object":
+        return (
+            await db.scalar(
+                select(CatalogIdentity.stable_id)
+                .where(
+                    CatalogIdentity.organization_id == organization_id,
+                    CatalogIdentity.stable_id == scope_id,
+                )
+                .union(
+                    select(CorporateCatalogOwnershipRow.stable_id).where(
+                        CorporateCatalogOwnershipRow.organization_id == organization_id,
+                        CorporateCatalogOwnershipRow.stable_id == scope_id,
+                    ),
+                    select(CorporateCatalogAssignmentRow.stable_id).where(
+                        CorporateCatalogAssignmentRow.organization_id == organization_id,
+                        CorporateCatalogAssignmentRow.stable_id == scope_id,
+                        CorporateCatalogAssignmentRow.state == "current",
+                    ),
+                )
+                .limit(1)
+            )
+            is not None
+        )
+    if scope_kind == "category":
+        return (
+            await db.scalar(
+                select(TechnologyCategory.id).where(
+                    TechnologyCategory.organization_id == organization_id,
+                    TechnologyCategory.id == scope_id,
+                    TechnologyCategory.state == "active",
+                )
+            )
+            is not None
+        )
     return False
 
 
@@ -1495,15 +1532,6 @@ async def list_roles(
         ).all()
     )
     response = CorporateRoleList(items=[await _role_view(db, row) for row in rows])
-    await emit_audit(
-        db,
-        actor_account_id=ctx.account_id,
-        organization_id=organization_id,
-        action="role.list",
-        target_table="corporate_role",
-        target_id=organization_id,
-        request_id=request_id,
-    )
     return response
 
 
@@ -1520,15 +1548,6 @@ async def read_role(
     if row is None:
         raise ApiError(ErrorCategory.NOT_FOUND, "corporate role not found")
     response = await _role_view(db, row)
-    await emit_audit(
-        db,
-        actor_account_id=ctx.account_id,
-        organization_id=organization_id,
-        action="role.read",
-        target_table="corporate_role",
-        target_id=role_name,
-        request_id=request_id,
-    )
     return response
 
 
@@ -1785,15 +1804,6 @@ async def list_job_titles(
             .limit(256)
         )
     ).all()
-    await emit_audit(
-        db,
-        actor_account_id=ctx.account_id,
-        organization_id=organization_id,
-        action="job_title.list",
-        target_table="corporate_job_title",
-        target_id=organization_id,
-        request_id=request_id,
-    )
     return CorporateJobTitleList(items=[job_title_view(row) for row in rows])
 
 
@@ -1948,6 +1958,20 @@ async def insert_membership_graph(
                 organization_id=organization_id,
                 project_id=project_id,
                 account_id=account_id,
+                role="staff",
+            )
+        )
+        db.add(
+            CorporateRoleBinding(
+                id=new_id("operation"),
+                organization_id=organization_id,
+                account_id=account_id,
+                role="staff",
+                scope_kind="project",
+                scope_id=project_id,
+                state="active",
+                origin="assignment",
+                coverage="self",
             )
         )
     return membership
@@ -2098,15 +2122,6 @@ async def list_members(
             .limit(256)
         )
     ).all()
-    await emit_audit(
-        db,
-        actor_account_id=ctx.account_id,
-        organization_id=organization_id,
-        action="member.list",
-        target_table="organization_membership",
-        target_id=organization_id,
-        request_id=request_id,
-    )
     account_ids = [member.account_id for member, _ in rows]
     contacts = dict(
         (
@@ -2524,15 +2539,6 @@ async def read_member(
     row = result.one_or_none()
     if row is None:
         raise ApiError(ErrorCategory.PERMISSION, "member access denied")
-    await emit_audit(
-        db,
-        actor_account_id=ctx.account_id,
-        organization_id=organization_id,
-        action="member.read",
-        target_table="organization_membership",
-        target_id=account_id,
-        request_id=request_id,
-    )
     from ai_stp_api.slices.corporate.subject_access import subject_available_actions
 
     actions = await subject_available_actions(
@@ -2542,7 +2548,42 @@ async def read_member(
         subject_kind="employee",
         subject_id=account_id,
     )
-    return member_view(*row).model_copy(update={"available_actions": actions})
+    member, account = row
+    contact = await db.scalar(
+        select(func.min(CorporateProvisionedIdentity.normalized_email)).where(
+            CorporateProvisionedIdentity.organization_id == organization_id,
+            CorporateProvisionedIdentity.account_id == account_id,
+        )
+    )
+    activity = await db.scalar(
+        select(func.max(Device.last_seen_at)).where(Device.account_id == account_id)
+    )
+    title = (
+        await db.scalar(
+            select(CorporateJobTitle.name).where(
+                CorporateJobTitle.organization_id == organization_id,
+                CorporateJobTitle.id == member.job_title_id,
+            )
+        )
+        if member.job_title_id
+        else None
+    )
+    return member_view(member, account, title).model_copy(
+        update={
+            "available_actions": actions,
+            "contact_email": contact,
+            "joined_at": format_timestamp(
+                member.created_at.replace(tzinfo=UTC)
+                if member.created_at.tzinfo is None
+                else member.created_at
+            ),
+            "last_activity_at": format_timestamp(
+                activity.replace(tzinfo=UTC) if activity.tzinfo is None else activity
+            )
+            if activity
+            else None,
+        }
+    )
 
 
 async def create_binding(
@@ -2673,15 +2714,6 @@ async def list_bindings(
             )
         ).all()
     )
-    await emit_audit(
-        db,
-        actor_account_id=ctx.account_id,
-        organization_id=organization_id,
-        action="binding.list",
-        target_table="corporate_role_binding",
-        target_id=organization_id,
-        request_id=request_id,
-    )
     return CorporateBindingList(items=[_binding_view(row) for row in rows])
 
 
@@ -2702,15 +2734,6 @@ async def read_binding(
     )
     if row is None:
         raise ApiError(ErrorCategory.PERMISSION, "binding access denied")
-    await emit_audit(
-        db,
-        actor_account_id=ctx.account_id,
-        organization_id=organization_id,
-        action="binding.read",
-        target_table="corporate_role_binding",
-        target_id=binding_id,
-        request_id=request_id,
-    )
     return _binding_view(row)
 
 
@@ -3051,15 +3074,6 @@ async def list_projects(
             await db.scalars(query.order_by(CorporateProject.name, CorporateProject.id).limit(256))
         ).all()
     )
-    await emit_audit(
-        db,
-        actor_account_id=ctx.account_id,
-        organization_id=organization_id,
-        action="project.list",
-        target_table="corporate_project",
-        target_id=organization_id,
-        request_id=request_id,
-    )
     return CorporateProjectList(items=[_project_view(row) for row in rows])
 
 
@@ -3087,15 +3101,6 @@ async def read_project(
     )
     if row is None:
         raise ApiError(ErrorCategory.PERMISSION, "project access denied")
-    await emit_audit(
-        db,
-        actor_account_id=ctx.account_id,
-        organization_id=organization_id,
-        action="project.read",
-        target_table="corporate_project",
-        target_id=project_id,
-        request_id=request_id,
-    )
     from ai_stp_api.slices.corporate.subject_access import subject_available_actions
 
     actions = await subject_available_actions(
@@ -3566,15 +3571,6 @@ async def read_team(
     )
     if row is None:
         raise ApiError(ErrorCategory.PERMISSION, "team access denied")
-    await emit_audit(
-        db,
-        actor_account_id=ctx.account_id,
-        organization_id=organization_id,
-        action="team.read",
-        target_table="corporate_team",
-        target_id=team_id,
-        request_id=request_id,
-    )
     return await team_view(db, row, ctx=ctx, profile=True)
 
 
@@ -3931,15 +3927,6 @@ async def read_service_principal(
     )
     if row is None or binding is None:
         raise ApiError(ErrorCategory.PERMISSION, "service principal access denied")
-    await emit_audit(
-        db,
-        actor_account_id=ctx.account_id,
-        organization_id=organization_id,
-        action="service_principal.read",
-        target_table="corporate_service_principal",
-        target_id=service_principal_id,
-        request_id=request_id,
-    )
     return _service_principal_view(row, binding)
 
 
@@ -3973,15 +3960,6 @@ async def list_service_principals(
                 .limit(256)
             )
         ).all()
-    )
-    await emit_audit(
-        db,
-        actor_account_id=ctx.account_id,
-        organization_id=organization_id,
-        action="service_principal.list",
-        target_table="corporate_service_principal",
-        target_id=organization_id,
-        request_id=request_id,
     )
     return CorporateServicePrincipalList(
         items=[_service_principal_view(principal, binding) for principal, binding in rows]
@@ -4103,15 +4081,6 @@ async def list_teams(
             if len(visible) == 256:
                 break
     await rows.close()
-    await emit_audit(
-        db,
-        actor_account_id=ctx.account_id,
-        organization_id=organization_id,
-        action="team.list",
-        target_table="corporate_team",
-        target_id=organization_id,
-        request_id=request_id,
-    )
     return CorporateTeamList(items=visible)
 
 
@@ -4235,6 +4204,10 @@ async def assign_member(
             CorporateProjectMember, (organization_id, project.id, payload.account_id)
         )
         before["project_assigned"] = project_member is not None
+        before["project_role"] = project_member.role if project_member is not None else None
+        # Participation role maps to one access binding role (ADR-0223); the
+        # member's organization role is never copied into project scope.
+        project_binding_role = "lead" if payload.project_role in {"owner", "lead"} else "staff"
         if payload.operation == "remove":
             if project_member is not None:
                 await db.delete(project_member)
@@ -4243,7 +4216,7 @@ async def assign_member(
                 db,
                 organization_id=organization_id,
                 account_id=ctx.account_id,
-                roles={member.role},
+                roles={project_binding_role},
             )
             if project_member is None:
                 db.add(
@@ -4251,8 +4224,11 @@ async def assign_member(
                         organization_id=organization_id,
                         project_id=project.id,
                         account_id=payload.account_id,
+                        role=payload.project_role,
                     )
                 )
+            else:
+                project_member.role = payload.project_role
         active_project_bindings = list(
             (
                 await db.scalars(
@@ -4276,7 +4252,7 @@ async def assign_member(
                     id=new_id("operation"),
                     organization_id=organization_id,
                     account_id=payload.account_id,
-                    role=member.role,
+                    role=project_binding_role,
                     scope_kind="project",
                     scope_id=project.id,
                     state="active",
@@ -4292,6 +4268,7 @@ async def assign_member(
         team_id=payload.team_id,
         project_id=payload.project_id,
         team_role=payload.team_role,
+        project_role=payload.project_role,
         operation=payload.operation,
         bindings=[_binding_view(row) for row in bindings],
     )
@@ -4317,6 +4294,9 @@ async def assign_member(
                 "team_role": payload.team_role if payload.operation == "assign" else None,
                 "project_assigned": payload.operation == "assign"
                 if payload.project_id is not None
+                else None,
+                "project_role": payload.project_role
+                if payload.project_id is not None and payload.operation == "assign"
                 else None,
             },
         },
@@ -4382,15 +4362,6 @@ async def read_context(
             await list_teams(db, ctx=ctx, organization_id=organization_id, request_id=request_id)
         ).items,
         capabilities=permissions,
-    )
-    await emit_audit(
-        db,
-        actor_account_id=ctx.account_id,
-        organization_id=organization_id,
-        action="organization.context.read",
-        target_table="organization",
-        target_id=organization_id,
-        request_id=request_id,
     )
     return response
 
@@ -4577,15 +4548,6 @@ async def read_delegation(
             )
         )
     ) is not None
-    await emit_audit(
-        db,
-        actor_account_id=ctx.account_id,
-        organization_id=organization_id,
-        action="delegation.read",
-        target_table="corporate_role_binding",
-        target_id=organization_id,
-        request_id=request_id,
-    )
     return CorporateDelegationView(
         organization_id=organization_id,
         grantable_roles=grantable,
@@ -4707,15 +4669,6 @@ async def list_permission_grants(
     if account_id is not None:
         query = query.where(CorporatePermissionGrant.account_id == account_id)
     rows = list((await db.scalars(query.order_by(CorporatePermissionGrant.id).limit(256))).all())
-    await emit_audit(
-        db,
-        actor_account_id=ctx.account_id,
-        organization_id=organization_id,
-        action="permission_grant.list",
-        target_table="corporate_permission_grant",
-        target_id=organization_id,
-        request_id=request_id,
-    )
     return CorporatePermissionGrantList(items=[_grant_view(row) for row in rows])
 
 
@@ -4809,15 +4762,6 @@ async def read_member_access(
                     select(OrganizationMembership.id).where(
                         OrganizationMembership.organization_id == organization_id,
                         OrganizationMembership.account_id == scope_id,
-                    )
-                )
-            ) is not None
-        elif scope_kind == "catalog_object":
-            exists = (
-                await db.scalar(
-                    select(CatalogIdentity.stable_id).where(
-                        CatalogIdentity.organization_id == organization_id,
-                        CatalogIdentity.stable_id == scope_id,
                     )
                 )
             ) is not None
@@ -4917,15 +4861,6 @@ async def read_member_access(
         )
         for permission in sorted(effective_set)
     ]
-    await emit_audit(
-        db,
-        actor_account_id=ctx.account_id,
-        organization_id=organization_id,
-        action="member_access.read",
-        target_table="organization_membership",
-        target_id=account_id,
-        request_id=request_id,
-    )
     return CorporateMemberAccess(
         organization_id=organization_id,
         account_id=account_id,
@@ -4949,4 +4884,165 @@ async def read_member_access(
         ],
         effective=effective_rows,
         authorization_revision=organization.policy_revision,
+    )
+
+
+async def list_teammates(
+    db: AsyncSession,
+    *,
+    ctx: AuthContext,
+    organization_id: str,
+) -> CorporateTeammates:
+    """Scoped people projection (ADR-0223).
+
+    The gate is active membership, not `member.list`: the latter keeps the
+    administrative roster. What the caller sees beyond that is the
+    organization's `people_visibility` policy plus any scoped `member.list`
+    grants they hold at the exact team/project scope. The projection carries
+    only identity and participation role — never email, job title, or the
+    organization role."""
+    organization, _membership = await _organization_and_membership(
+        db, ctx=ctx, organization_id=organization_id
+    )
+    visibility = cast("Literal['members','teammates','admins']", organization.people_visibility)
+    teams = {
+        row.id: row.name
+        for row in (
+            await db.scalars(
+                select(CorporateTeam).where(
+                    CorporateTeam.organization_id == organization_id,
+                    CorporateTeam.state == "active",
+                )
+            )
+        ).all()
+    }
+    projects = {
+        row.id: row.name
+        for row in (
+            await db.scalars(
+                select(CorporateProject).where(
+                    CorporateProject.organization_id == organization_id,
+                    CorporateProject.state == "active",
+                )
+            )
+        ).all()
+    }
+    team_members = list(
+        (
+            await db.scalars(
+                select(CorporateTeamMember).where(
+                    CorporateTeamMember.organization_id == organization_id,
+                    CorporateTeamMember.team_id.in_(teams or {""}),
+                )
+            )
+        ).all()
+    )
+    project_members = list(
+        (
+            await db.scalars(
+                select(CorporateProjectMember).where(
+                    CorporateProjectMember.organization_id == organization_id,
+                    CorporateProjectMember.project_id.in_(projects or {""}),
+                )
+            )
+        ).all()
+    )
+    caller_teams = {row.team_id for row in team_members if row.account_id == ctx.account_id}
+    caller_projects = {
+        row.project_id for row in project_members if row.account_id == ctx.account_id
+    }
+
+    org_wide = await has_corporate_permission(
+        db,
+        organization_id=organization_id,
+        principal_type="user",
+        principal_id=ctx.account_id,
+        permission="member.list",
+        scope_kind="organization",
+        scope_id=organization_id,
+    )
+    if visibility == "members" or org_wide:
+        visible_teams = set(teams)
+        visible_projects = set(projects)
+    else:
+        team_perms = await bulk_effective_permissions(
+            db,
+            organization_id=organization_id,
+            principal_type="user",
+            principal_id=ctx.account_id,
+            scope_kind="team",
+            scope_ids=list(teams),
+        )
+        project_perms = await bulk_effective_permissions(
+            db,
+            organization_id=organization_id,
+            principal_type="user",
+            principal_id=ctx.account_id,
+            scope_kind="project",
+            scope_ids=list(projects),
+        )
+        elevated_teams = {
+            scope_id for scope_id, perms in (team_perms or {}).items() if "member.list" in perms
+        }
+        elevated_projects = {
+            scope_id for scope_id, perms in (project_perms or {}).items() if "member.list" in perms
+        }
+        if visibility == "teammates":
+            visible_teams = caller_teams | elevated_teams
+            visible_projects = caller_projects | elevated_projects
+        else:
+            visible_teams = elevated_teams
+            visible_projects = elevated_projects
+
+    subjects: dict[str, list[CorporateTeammateContext]] = {}
+    for row in team_members:
+        if row.team_id in visible_teams:
+            subjects.setdefault(row.account_id, []).append(
+                CorporateTeammateContext(
+                    kind="team", id=row.team_id, name=teams[row.team_id], role=row.role
+                )
+            )
+    for row in project_members:
+        if row.project_id in visible_projects:
+            subjects.setdefault(row.account_id, []).append(
+                CorporateTeammateContext(
+                    kind="project",
+                    id=row.project_id,
+                    name=projects[row.project_id],
+                    role=row.role,
+                )
+            )
+    subjects.setdefault(ctx.account_id, [])
+
+    name_rows = (
+        await db.execute(
+            select(
+                OrganizationMembership.account_id,
+                func.coalesce(OrganizationMembership.display_name, Account.display_name),
+            )
+            .join(Account, Account.id == OrganizationMembership.account_id)
+            .where(
+                OrganizationMembership.organization_id == organization_id,
+                OrganizationMembership.state == "active",
+                OrganizationMembership.account_id.in_(subjects or {""}),
+            )
+        )
+    ).all()
+    names: dict[str, str | None] = {
+        account_id: cast("str | None", display_name) for account_id, display_name in name_rows
+    }
+    items = [
+        CorporateTeammate(
+            account_id=account_id,
+            display_name=names.get(account_id),
+            contexts=sorted(contexts, key=lambda context: (context.kind, context.name)),
+        )
+        for account_id, contexts in subjects.items()
+        if account_id in names or account_id == ctx.account_id
+    ]
+    items.sort(key=lambda item: (item.display_name or item.account_id, item.account_id))
+    return CorporateTeammates(
+        organization_id=organization_id,
+        people_visibility=visibility,
+        items=items[:512],
     )

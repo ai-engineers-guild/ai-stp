@@ -4732,6 +4732,7 @@
               "team",
               "project",
               "technology",
+              "category",
               "catalog_object",
               "telemetry"
             ],
@@ -4854,6 +4855,7 @@
               "team",
               "project",
               "technology",
+              "category",
               "catalog_object",
               "telemetry"
             ],
@@ -4924,6 +4926,7 @@
               "team",
               "project",
               "technology",
+              "category",
               "catalog_object",
               "telemetry"
             ],
@@ -7974,6 +7977,7 @@
               "team",
               "project",
               "technology",
+              "category",
               "catalog_object",
               "member"
             ],
@@ -8758,6 +8762,7 @@
               "team",
               "project",
               "technology",
+              "category",
               "catalog_object",
               "member"
             ],
@@ -9167,6 +9172,17 @@
             ],
             "title": "Project Id"
           },
+          "project_role": {
+            "default": "staff",
+            "enum": [
+              "owner",
+              "lead",
+              "contributor",
+              "staff"
+            ],
+            "title": "Project Role",
+            "type": "string"
+          },
           "schema_version": {
             "const": 1,
             "default": 1,
@@ -9198,6 +9214,7 @@
           "bindings",
           "operation",
           "project_id",
+          "project_role",
           "schema_version",
           "team_id",
           "team_role"
@@ -9243,6 +9260,17 @@
             "default": null,
             "title": "Project Id"
           },
+          "project_role": {
+            "default": "staff",
+            "enum": [
+              "owner",
+              "lead",
+              "contributor",
+              "staff"
+            ],
+            "title": "Project Role",
+            "type": "string"
+          },
           "schema_version": {
             "const": 1,
             "default": 1,
@@ -9282,7 +9310,7 @@
       },
       "CorporateMembershipPolicy": {
         "additionalProperties": true,
-        "description": "Email-domain allowlist for joining the organization.",
+        "description": "Email-domain allowlist for joining the organization, plus the people\nvisibility policy (ADR-0223).",
         "properties": {
           "allowed_email_domains": {
             "default": [],
@@ -9303,6 +9331,16 @@
             "title": "Organization Id",
             "type": "string"
           },
+          "people_visibility": {
+            "default": "teammates",
+            "enum": [
+              "members",
+              "teammates",
+              "admins"
+            ],
+            "title": "People Visibility",
+            "type": "string"
+          },
           "schema_version": {
             "const": 1,
             "default": 1,
@@ -9314,6 +9352,7 @@
           "allowed_email_domains",
           "authorization_revision",
           "organization_id",
+          "people_visibility",
           "schema_version"
         ],
         "title": "CorporateMembershipPolicy",
@@ -9339,6 +9378,16 @@
           },
           "idempotency_key": {
             "$ref": "#/components/schemas/IdempotencyKey"
+          },
+          "people_visibility": {
+            "default": "teammates",
+            "enum": [
+              "members",
+              "teammates",
+              "admins"
+            ],
+            "title": "People Visibility",
+            "type": "string"
           },
           "schema_version": {
             "const": 1,
@@ -9573,6 +9622,7 @@
                 "team",
                 "project",
                 "technology",
+                "category",
                 "catalog_object",
                 "member"
               ],
@@ -9651,7 +9701,9 @@
               "organization",
               "team",
               "project",
-              "technology"
+              "technology",
+              "category",
+              "catalog_object"
             ],
             "title": "Scope Kind",
             "type": "string"
@@ -9787,7 +9839,9 @@
               "organization",
               "team",
               "project",
-              "technology"
+              "technology",
+              "category",
+              "catalog_object"
             ],
             "title": "Scope Kind",
             "type": "string"
@@ -10572,6 +10626,7 @@
               "team",
               "project",
               "technology",
+              "category",
               "catalog_object",
               "telemetry"
             ],
@@ -11093,6 +11148,127 @@
           "technology_ids"
         ],
         "title": "CorporateTeamView",
+        "type": "object"
+      },
+      "CorporateTeammate": {
+        "additionalProperties": true,
+        "description": "Reduced people projection — no email, job title, or organization role.",
+        "properties": {
+          "account_id": {
+            "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "title": "Account Id",
+            "type": "string"
+          },
+          "contexts": {
+            "items": {
+              "$ref": "#/components/schemas/CorporateTeammateContext"
+            },
+            "maxItems": 256,
+            "title": "Contexts",
+            "type": "array"
+          },
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "account_id",
+          "contexts",
+          "display_name",
+          "schema_version"
+        ],
+        "title": "CorporateTeammate",
+        "type": "object"
+      },
+      "CorporateTeammateContext": {
+        "additionalProperties": true,
+        "description": "One participation context a teammate shares with the caller.",
+        "properties": {
+          "id": {
+            "maxLength": 64,
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "team",
+              "project"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "role": {
+            "maxLength": 16,
+            "title": "Role",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "name",
+          "role"
+        ],
+        "title": "CorporateTeammateContext",
+        "type": "object"
+      },
+      "CorporateTeammates": {
+        "additionalProperties": true,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/CorporateTeammate"
+            },
+            "maxItems": 512,
+            "title": "Items",
+            "type": "array"
+          },
+          "organization_id": {
+            "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "title": "Organization Id",
+            "type": "string"
+          },
+          "people_visibility": {
+            "enum": [
+              "members",
+              "teammates",
+              "admins"
+            ],
+            "title": "People Visibility",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "organization_id",
+          "people_visibility",
+          "schema_version"
+        ],
+        "title": "CorporateTeammates",
         "type": "object"
       },
       "CorporateTelemetryAggregate": {
@@ -55250,6 +55426,7 @@
                     "idempotency_key": "corporate-assignment-0001",
                     "operation": "assign",
                     "project_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                    "project_role": "staff",
                     "schema_version": 1,
                     "team_id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                     "team_role": "staff"
@@ -55275,6 +55452,7 @@
                       "bindings": [],
                       "operation": "assign",
                       "project_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "project_role": "staff",
                       "schema_version": 1,
                       "team_id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "team_role": "staff"
@@ -55465,6 +55643,7 @@
                       ],
                       "authorization_revision": 2,
                       "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "people_visibility": "teammates",
                       "schema_version": 1
                     }
                   }
@@ -55652,6 +55831,7 @@
                     ],
                     "authorization_revision": 1,
                     "idempotency_key": "policy-write-0001",
+                    "people_visibility": "teammates",
                     "schema_version": 1
                   }
                 }
@@ -55676,6 +55856,7 @@
                       ],
                       "authorization_revision": 2,
                       "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "people_visibility": "teammates",
                       "schema_version": 1
                     }
                   }
@@ -63215,6 +63396,199 @@
           }
         ],
         "summary": "Activate or suspend a corporate service principal."
+      }
+    },
+    "/v1/corporate/organizations/{organization_id}/teammates": {
+      "get": {
+        "operationId": "readCorporateTeammates",
+        "parameters": [
+          {
+            "description": "Explicit remote organization selected for this request.",
+            "in": "path",
+            "name": "organization_id",
+            "required": true,
+            "schema": {
+              "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "readCorporateTeammates.corporate": {
+                    "summary": "A member sees the bounded teammate projection under the organization policy.",
+                    "value": {
+                      "items": [
+                        {
+                          "account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                          "contexts": [
+                            {
+                              "id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                              "kind": "team",
+                              "name": "Platform",
+                              "role": "lead"
+                            }
+                          ],
+                          "display_name": "Ada Lovelace",
+                          "schema_version": 1
+                        }
+                      ],
+                      "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "people_visibility": "teammates",
+                      "schema_version": 1
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/CorporateTeammates"
+                }
+              }
+            },
+            "description": "Scoped people projection: co-members of the caller's teams and projects.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Scoped people projection: co-members of the caller's teams and projects."
       }
     },
     "/v1/corporate/organizations/{organization_id}/teams": {

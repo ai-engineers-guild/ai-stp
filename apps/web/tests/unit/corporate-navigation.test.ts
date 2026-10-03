@@ -75,7 +75,6 @@ describe("resolveCorporateNav", () => {
       "organization",
       "landscape",
       "administration",
-      "dashboard",
     ]);
     expect(nav.items.find((item) => item.active)?.id).toBe("overview");
   });
@@ -127,11 +126,11 @@ describe("resolveCorporateNav", () => {
     expect(nav.items).toHaveLength(0);
   });
 
-  it("keeps dashboard reachable with its own active rail item", () => {
+  it("keeps the legacy dashboard route without a primary rail entry", () => {
     const nav = resolveCorporateNav("/corporate/dashboard", ADMIN);
     expect(nav.context).toBe("root");
     expect(nav.page?.id).toBe("dashboard");
-    expect(nav.items.filter((item) => item.active).map((item) => item.id)).toEqual(["dashboard"]);
+    expect(nav.items.filter((item) => item.active).map((item) => item.id)).toEqual([]);
   });
 
   it("filters organization children by capability sections", () => {
@@ -147,7 +146,7 @@ describe("resolveCorporateNav", () => {
 
 describe("corporateNavPageIds", () => {
   it("lists only pages the capabilities allow", () => {
-    expect(corporateNavPageIds([])).toEqual(["overview", "organization", "dashboard"]);
+    expect(corporateNavPageIds([])).toEqual(["overview", "organization"]);
     expect(corporateNavPageIds(ADMIN)).toContain("administration");
     expect(corporateNavPageIds(ADMIN)).toContain("auditJournal");
     expect(corporateNavPageIds(ADMIN)).toContain("employeeAccess");
@@ -160,7 +159,7 @@ it.each([
   "/corporate/organization/admins/employees/account_1",
   "/corporate/roles/role_1",
 ])("keeps authorized root navigation on a denied administration route: %s", (pathname) => {
-  const allowed = ["overview", "catalog", "organization", "dashboard"];
+  const allowed = ["overview", "catalog", "organization", "reports"];
   const rail = resolveCorporateRail(pathname, allowed);
   expect(rail.context).toBe("root");
   expect(rail.entries.map((entry) => entry.id)).toEqual(allowed);

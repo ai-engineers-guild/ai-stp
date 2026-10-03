@@ -17,6 +17,7 @@
             "team",
             "project",
             "technology",
+            "category",
             "catalog_object",
             "member"
           ],
@@ -93,6 +94,7 @@
               "team",
               "project",
               "technology",
+              "category",
               "catalog_object",
               "member"
             ],

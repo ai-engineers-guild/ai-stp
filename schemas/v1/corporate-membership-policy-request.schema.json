@@ -27,6 +27,16 @@
     "idempotency_key": {
       "$ref": "#/$defs/IdempotencyKey"
     },
+    "people_visibility": {
+      "default": "teammates",
+      "enum": [
+        "members",
+        "teammates",
+        "admins"
+      ],
+      "title": "People Visibility",
+      "type": "string"
+    },
     "schema_version": {
       "const": 1,
       "default": 1,

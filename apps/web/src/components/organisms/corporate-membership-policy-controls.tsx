@@ -2,7 +2,7 @@
 import { useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
-import { corporateMutationAction } from "@/actions/corporate";
+import { corporateMutation } from "@/lib/api/corporate-mutation";
 import { Button } from "@/components/atoms/button";
 import { Input } from "@/components/atoms/input";
 import { Label } from "@/components/atoms/label";
@@ -17,11 +17,13 @@ export function CorporateMembershipPolicyControls({
   organizationId,
   authorizationRevision,
   allowedDomains,
+  peopleVisibility,
 }: {
   csrfToken: string;
   organizationId: string;
   authorizationRevision: number;
   allowedDomains: string[];
+  peopleVisibility: "members" | "teammates" | "admins";
 }) {
   const t = useTranslations("corporate");
   const router = useRouter();
@@ -41,7 +43,7 @@ export function CorporateMembershipPolicyControls({
       : [];
     setMessage(null);
     startTransition(async () => {
-      const result = await corporateMutationAction({
+      const result = await corporateMutation({
         csrfToken,
         organizationId,
         method: "PUT",
@@ -50,6 +52,7 @@ export function CorporateMembershipPolicyControls({
           schema_version: 1,
           authorization_revision: authorizationRevision,
           allowed_email_domains: domains,
+          people_visibility: field(formData, "peopleVisibility") || peopleVisibility,
           idempotency_key: crypto.randomUUID(),
         },
       });
@@ -98,6 +101,20 @@ export function CorporateMembershipPolicyControls({
             defaultValue={allowedDomains.join(", ")}
           />
           <p className="text-muted-foreground text-xs">{t("domainsHint")}</p>
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="people-visibility">{t("peopleVisibility")}</Label>
+          <select
+            id="people-visibility"
+            name="peopleVisibility"
+            defaultValue={peopleVisibility}
+            className="border-border bg-background h-9 w-full rounded-sm border px-3 text-sm"
+          >
+            <option value="members">{t("peopleVisibilityMembers")}</option>
+            <option value="teammates">{t("peopleVisibilityTeammates")}</option>
+            <option value="admins">{t("peopleVisibilityAdmins")}</option>
+          </select>
+          <p className="text-muted-foreground text-xs">{t("peopleVisibilityHint")}</p>
         </div>
         <Button type="submit" disabled={busy}>
           {busy ? t("saving") : t("save")}

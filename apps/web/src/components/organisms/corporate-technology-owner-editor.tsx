@@ -2,7 +2,7 @@
 
 import { useRef, useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
-import { corporateMutationAction } from "@/actions/corporate";
+import { corporateMutation } from "@/lib/api/corporate-mutation";
 import { Button } from "@/components/atoms/button";
 import { Label } from "@/components/atoms/label";
 import { entityProfileViewSchema } from "@/lib/corporate-detail";
@@ -38,7 +38,7 @@ export function CorporateTechnologyOwnerEditor({
     startTransition(async () => {
       setError(null);
       try {
-        const result = await corporateMutationAction({
+        const result = await corporateMutation({
           organizationId,
           csrfToken,
           method: "PUT",

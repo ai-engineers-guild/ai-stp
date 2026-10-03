@@ -5,7 +5,7 @@ import { useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "@/lib/i18n/navigation";
 
-import { corporateMutationAction } from "@/actions/corporate";
+import { corporateMutation } from "@/lib/api/corporate-mutation";
 import { Button } from "@/components/atoms/button";
 import { Input } from "@/components/atoms/input";
 import { EntityEditorField, EntityEditorLayout } from "@/components/molecules/entity-editor-layout";
@@ -45,7 +45,7 @@ export function CorporateTeamEditor({
   ) {
     setMessage(null);
     startTransition(async () => {
-      const result = await corporateMutationAction({
+      const result = await corporateMutation({
         csrfToken,
         organizationId,
         path: `/v1/corporate/organizations/${organizationId}/teams${team ? `/${team.team_id}` : ""}`,

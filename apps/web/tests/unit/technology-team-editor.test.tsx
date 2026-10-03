@@ -1,8 +1,8 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
-import type { corporateMutationAction } from "@/actions/corporate";
-const { mutation } = vi.hoisted(() => ({ mutation: vi.fn<typeof corporateMutationAction>() }));
-vi.mock("@/actions/corporate", () => ({ corporateMutationAction: mutation }));
+import type { corporateMutation } from "@/lib/api/corporate-mutation";
+const { mutation } = vi.hoisted(() => ({ mutation: vi.fn<typeof corporateMutation>() }));
+vi.mock("@/lib/api/corporate-mutation", () => ({ corporateMutation: mutation }));
 vi.mock("@/lib/i18n/navigation", () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
 vi.mock("next-intl", () => ({ useTranslations: () => (key: string) => key }));
 import { TechnologyTeamEditor } from "@/components/organisms/technology-governance-editors";

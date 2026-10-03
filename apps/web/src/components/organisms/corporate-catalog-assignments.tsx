@@ -1,17 +1,14 @@
 "use client";
 import { useRef, useState } from "react";
 import { useTranslations } from "next-intl";
-import {
-  corporateCatalogSearchAction,
-  corporateCatalogVersionsAction,
-  corporateMutationAction,
-} from "@/actions/corporate";
+import { corporateCatalogSearchAction, corporateCatalogVersionsAction } from "@/actions/corporate";
 import { Button } from "@/components/atoms/button";
 import { Input } from "@/components/atoms/input";
 import { Label } from "@/components/atoms/label";
 import { DetailAccordion } from "@/components/molecules/detail-accordion";
 import { SearchableMultiSelect } from "@/components/molecules/searchable-multi-select";
 import { RefineSurface } from "@/components/molecules/filter-surface";
+import { corporateMutation } from "@/lib/api/corporate-mutation";
 import { Link, useRouter } from "@/lib/i18n/navigation";
 import type {
   CorporateCatalogAssignment,
@@ -125,7 +122,7 @@ export function CorporateCatalogAssignments({
     setBusy(true);
     setMessage(null);
     try {
-      const result = await corporateMutationAction({
+      const result = await corporateMutation({
         organizationId,
         csrfToken,
         path: `/v1/corporate/organizations/${organizationId}/catalog-assignments`,

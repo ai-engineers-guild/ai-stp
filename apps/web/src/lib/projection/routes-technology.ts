@@ -19,6 +19,7 @@ import {
   readTechnologyLandscapePolicy,
 } from "@/lib/api/technology";
 import { sessionCookieValue } from "@/lib/auth/require-session";
+import { auditActionLabel } from "@/lib/audit-labels";
 import { presentPage } from "@/lib/projection/presenters";
 import { TECHNOLOGY_MAPPING_ROUTES } from "@/lib/projection/routes-technology-mappings";
 import type { MachineRoute } from "@/lib/projection/route-table";
@@ -90,6 +91,10 @@ export const TECHNOLOGY_ROUTES: MachineRoute[] = [
     pattern: "corporate/organization/admins/audit",
     resolve: async ({ searchParams }) => {
       const t = await getTranslations("corporate");
+      const auditT = Object.assign(
+        (key: string, values?: Record<string, string>) => t(`auditUi.${key}`, values),
+        { has: (key: string) => t.has(`auditUi.${key}`) },
+      );
       const result = await readCorporateAudit((await sessionCookieValue()) ?? "", searchParams);
       return presentPage({
         title: t("auditJournal"),
@@ -99,10 +104,7 @@ export const TECHNOLOGY_ROUTES: MachineRoute[] = [
             heading: t("auditJournal"),
             entries:
               result?.audit.items.map((item) => ({
-                title:
-                  item.action === "member.profile.update"
-                    ? t("auditUi.profileUpdated")
-                    : t("auditUi.otherEvent"),
+                title: auditActionLabel(item.action, auditT),
                 fields: [
                   [t("state"), t(`auditUi.outcomes.${item.outcome}`)],
                   [
