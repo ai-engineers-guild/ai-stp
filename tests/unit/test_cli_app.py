@@ -1658,6 +1658,27 @@ def test_registry_translation_survives_an_unreadable_configuration(
     assert failure.retryable is True
 
 
+@pytest.mark.parametrize(
+    "message",
+    [
+        "table operation_corporate_binding already exists",
+        "duplicate column name: original_request_json",
+        "no such column: original_request_json",
+        "no such table: agent_task",
+    ],
+)
+def test_registry_translation_names_a_foreign_schema_history(message: str) -> None:
+    """A file stamped at one `user_version` but physically holding another
+    migration history fails the pending chain with these sqlite shapes. They
+    are operator state — a fixture, a restored copy, a forked build — and must
+    reach the caller as SCHEMA_UNSUPPORTED naming the file, not as an opaque
+    internal fault."""
+    failure = app._registry_failure(sqlite3.OperationalError(message))
+    assert failure is not None
+    assert failure.code == "AI_STP_SCHEMA_UNSUPPORTED"
+    assert failure.details["reason"] == message
+
+
 def test_an_unconfigurable_stream_does_not_break_dispatch(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:

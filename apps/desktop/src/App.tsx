@@ -7,6 +7,7 @@ import {
   MonitorSmartphone,
   Moon,
   Package,
+  Radar,
   Settings,
   ShieldCheck,
   SquareTerminal,
@@ -20,6 +21,7 @@ import CatalogPage from "./pages/CatalogPage";
 import TasksPage from "./pages/TasksPage";
 import InstallPage from "./pages/InstallPage";
 import TargetsPage from "./pages/TargetsPage";
+import DiscoveryPage from "./pages/DiscoveryPage";
 import RegistryPage from "./pages/RegistryPage";
 import DebugPage from "./pages/DebugPage";
 import SettingsPage from "./pages/SettingsPage";
@@ -31,6 +33,7 @@ const NAV = [
   { to: "/tasks", icon: ListChecks, label: "Tasks" },
   { to: "/install", icon: Wrench, label: "Install" },
   { to: "/targets", icon: MonitorSmartphone, label: "Targets" },
+  { to: "/discover", icon: Radar, label: "Discovery" },
   { to: "/registry", icon: SquareTerminal, label: "Commands" },
   { to: "/debug", icon: Bug, label: "Debug" },
   { to: "/settings", icon: Settings, label: "Settings" },
@@ -138,6 +141,7 @@ export default function App() {
             <Route path="/tasks" element={<TasksPage />} />
             <Route path="/install" element={<InstallPage />} />
             <Route path="/targets" element={<TargetsPage />} />
+            <Route path="/discover" element={<DiscoveryPage />} />
             <Route path="/registry" element={<RegistryPage />} />
             <Route path="/debug" element={<DebugPage />} />
             <Route path="/settings" element={<SettingsPage />} />
