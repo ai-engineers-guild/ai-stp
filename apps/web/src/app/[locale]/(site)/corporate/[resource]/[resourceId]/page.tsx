@@ -1,6 +1,7 @@
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { notFound, permanentRedirect } from "next/navigation";
 
+import { Badge } from "@/components/atoms/badge";
 import { StatePanel } from "@/components/molecules/state-panel";
 import { HistoryBackButton } from "@/components/molecules/history-back-button";
 import { LocalizedResourceDeleteMenuItem } from "@/components/organisms/localized-corporate-resource-actions";
@@ -325,6 +326,9 @@ export default async function CorporateResourcePage({ params, searchParams }: Pa
               revision={detail.revision}
             />
           ) : null
+        }
+        meta={
+          member?.job_title_name ? <Badge variant="secondary">{member.job_title_name}</Badge> : null
         }
         {...(detail.role || detail.state !== "active"
           ? { state: detail.role ?? detail.state }

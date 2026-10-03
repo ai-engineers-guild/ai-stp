@@ -5,7 +5,7 @@ import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 
-import { corporateMutationAction } from "@/actions/corporate";
+import { corporateMutation } from "@/lib/api/corporate-mutation";
 import { Badge } from "@/components/atoms/badge";
 import { Button } from "@/components/atoms/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/atoms/dialog";
@@ -23,10 +23,7 @@ import {
   peopleHeadClass,
   usePeopleFilters,
 } from "@/components/organisms/corporate-people-ui";
-import type {
-  CorporateJobTitleView,
-  CorporateMember,
-} from "@/lib/api/generated/types.gen";
+import type { CorporateJobTitleView, CorporateMember } from "@/lib/api/generated/types.gen";
 import { Link } from "@/lib/i18n/navigation";
 import { Icon } from "@/theme";
 
@@ -95,17 +92,14 @@ export function CorporateJobTitles({
     (title) =>
       (!stateFilter || title.state === stateFilter) &&
       (!query ||
-        [title.name, title.description].some((value) =>
-          value.toLowerCase().includes(query),
-        )),
+        [title.name, title.description].some((value) => value.toLowerCase().includes(query))),
   );
   const page = Math.min(
     Math.max(1, Number(filters.get("page")) || 1),
     Math.max(1, Math.ceil(filtered.length / 10)),
   );
   const rows = filtered.slice((page - 1) * 10, page * 10);
-  const selected =
-    jobTitles.find((title) => title.job_title_id === selectedId) ?? rows[0] ?? null;
+  const selected = jobTitles.find((title) => title.job_title_id === selectedId) ?? rows[0] ?? null;
   const assigned = selected ? (linked.get(selected.job_title_id) ?? []) : [];
   const visibleAssigned = assigned.filter((member) =>
     [employeeName(member), member.contact_email ?? "", member.role].some((value) =>
@@ -113,10 +107,15 @@ export function CorporateJobTitles({
     ),
   );
 
-  function mutate(path: string, method: "POST" | "PATCH", body: unknown, done?: () => void) {
+  function mutate(
+    path: string,
+    method: "POST" | "PATCH",
+    body: unknown,
+    done?: (data: unknown) => void,
+  ) {
     setMessage(null);
     startTransition(async () => {
-      const result = await corporateMutationAction({
+      const result = await corporateMutation({
         csrfToken,
         organizationId,
         path,
@@ -129,7 +128,7 @@ export function CorporateJobTitles({
       }
       setMessage(t("saved"));
       setDialog(null);
-      done?.();
+      done?.(result.data);
       router.refresh();
     });
   }
@@ -146,6 +145,14 @@ export function CorporateJobTitles({
         ...(isNew ? {} : { state: title.state, expected_revision: title.revision }),
         authorization_revision: authorizationRevision,
         idempotency_key: crypto.randomUUID(),
+      },
+      // Select the created title so the panel shows it instead of falling
+      // back to the first row — otherwise a create looks like a no-op.
+      (data) => {
+        if (isNew) {
+          const id = (data as { job_title_id?: string } | undefined)?.job_title_id;
+          if (id) setSelectedId(id);
+        }
       },
     );
   }
@@ -268,7 +275,12 @@ export function CorporateJobTitles({
                   <td className={`${peopleCellClass} tabular-nums`}>
                     {members === null ? "—" : (linked.get(title.job_title_id)?.length ?? 0)}
                   </td>
-                  <td className="text-right">
+                  <td
+                    className="text-right"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                    }}
+                  >
                     <CatalogChoiceMenu
                       icon="moreVertical"
                       variant="ghost"
@@ -523,7 +535,9 @@ export function CorporateJobTitles({
         <DialogContent closeLabel={t("close")}>
           <DialogTitle>{t("deleteJobTitle")}</DialogTitle>
           <DialogDescription>
-            {t("deleteJobTitleConfirm", { name: dialog?.kind === "delete" ? dialog.title.name : "" })}
+            {t("deleteJobTitleConfirm", {
+              name: dialog?.kind === "delete" ? dialog.title.name : "",
+            })}
           </DialogDescription>
           <div className="flex justify-end gap-2">
             <Button
@@ -572,14 +586,13 @@ export function CorporateJobTitles({
               );
               const after = new Set(assignSelection);
               const changed = members.filter(
-                (member) =>
-                  before.has(member.account_id) !== after.has(member.account_id),
+                (member) => before.has(member.account_id) !== after.has(member.account_id),
               );
               setMessage(null);
               startTransition(async () => {
                 let failed = 0;
                 for (const member of changed) {
-                  const result = await corporateMutationAction({
+                  const result = await corporateMutation({
                     csrfToken,
                     organizationId,
                     path: `/v1/corporate/organizations/${organizationId}/members/${member.account_id}`,
@@ -588,9 +601,7 @@ export function CorporateJobTitles({
                       schema_version: 1,
                       role: member.role,
                       state: member.state,
-                      job_title_id: after.has(member.account_id)
-                        ? dialog.title.job_title_id
-                        : null,
+                      job_title_id: after.has(member.account_id) ? dialog.title.job_title_id : null,
                       expected_revision: member.revision,
                       authorization_revision: authorizationRevision,
                       idempotency_key: crypto.randomUUID(),
@@ -598,9 +609,7 @@ export function CorporateJobTitles({
                   });
                   if (!result.ok) failed += 1;
                 }
-                setMessage(
-                  failed ? t("assignPartial", { count: failed }) : t("saved"),
-                );
+                setMessage(failed ? t("assignPartial", { count: failed }) : t("saved"));
                 if (!failed) setDialog(null);
                 router.refresh();
               });

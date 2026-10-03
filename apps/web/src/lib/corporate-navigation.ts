@@ -82,6 +82,19 @@ export const CORPORATE_NAV_PAGES: readonly CorporateNavPage[] = [
     section: "technologies",
     prefixes: ["/corporate/technology-landscape"],
   },
+  // Reports renders as a root-rail entry before the pinned Administration
+  // item; manifest order is rail order, so it must precede it.
+  {
+    id: "reports",
+    context: "organization",
+    href: "/corporate/reports",
+    label: "reports",
+    icon: "list",
+    root: true,
+    rail: true,
+    section: "reports",
+    prefixes: ["/corporate/reports", "/corporate/installations", "/corporate/usage"],
+  },
   {
     id: "administration",
     group: "peopleAndAccess",
@@ -141,18 +154,6 @@ export const CORPORATE_NAV_PAGES: readonly CorporateNavPage[] = [
     section: "technologies",
     prefixes: ["/corporate/technologies"],
   },
-  {
-    id: "reports",
-    context: "organization",
-    href: "/corporate/reports",
-    label: "reports",
-    icon: "list",
-    root: true,
-    rail: true,
-    section: "reports",
-    prefixes: ["/corporate/reports", "/corporate/installations", "/corporate/usage"],
-  },
-
   // Landscape context.
   {
     id: "categories",
@@ -465,7 +466,9 @@ export function resolveCorporateRail(
       .filter((entry) => entry.root)
       .map((entry) => {
         const children =
-          entry.id === entry.context && entry.context !== "root"
+          entry.id === entry.context &&
+          entry.context !== "root" &&
+          entry.context !== "administration"
             ? allowed
                 .filter(
                   (child) => child.context === entry.context && child.rail && child.id !== entry.id,

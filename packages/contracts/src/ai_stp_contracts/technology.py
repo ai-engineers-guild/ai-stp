@@ -6,6 +6,7 @@ repository execution, or second project identity.
 
 from __future__ import annotations
 
+import re
 import unicodedata
 from pathlib import PurePosixPath
 from typing import Annotated, Literal
@@ -98,10 +99,25 @@ def safe_reference_url(value: str) -> str:
     return value
 
 
+_CATEGORY_ICON_PATTERN = r"^(lucide:[a-z0-9][a-z0-9-]{0,63}|/v1/media/avatars/avatar_[a-f0-9]{24})$"
+
+
 class TechnologyCategoryMetadata(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
     name: Annotated[str, Field(min_length=1, max_length=200)]
     description: Annotated[str, Field(max_length=2000)] = ""
+    icon: Annotated[str | None, Field(max_length=2048)] = None
+
+    @field_validator("icon")
+    @classmethod
+    def safe_icon(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        if value.startswith("https://"):
+            return safe_reference_url(value)
+        if not re.match(_CATEGORY_ICON_PATTERN, value):
+            raise ValueError("category icon must be a registry icon, an avatar asset, or HTTPS")
+        return value
 
     @field_validator("name")
     @classmethod

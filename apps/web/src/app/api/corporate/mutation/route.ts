@@ -5,6 +5,7 @@ import { getTranslations } from "next-intl/server";
 import { ApiError } from "@/lib/api/errors";
 import { fieldErrorsFromDetails } from "@/lib/api/field-errors";
 import { privateApiRequest, type PrivateRequestOptions } from "@/lib/api/http";
+import type { CorporateContext } from "@/lib/api/generated/types.gen";
 import { sessionCookieValue } from "@/lib/auth/require-session";
 import { assertCsrf, readCsrfToken, readSession } from "@/lib/auth/session";
 import { defaultLocale, isAppLocale, type AppLocale } from "@/lib/i18n/routing";
@@ -69,9 +70,29 @@ export async function POST(request: Request) {
   const sessionToken = await sessionCookieValue();
   if (!sessionToken) return fail(common("notSignedIn"), 401);
 
+  // Every corporate write bumps the organization policy revision, so a page's
+  // snapshot goes stale after the first leg of any multi-call flow. When the
+  // body carries authorization_revision, substitute the live one — same
+  // refetch-before-write pattern as /api/corporate/team-assignments.
+  let body = input.body;
+  if (typeof body === "object" && body !== null && "authorization_revision" in body) {
+    try {
+      const context = await privateApiRequest<CorporateContext>(
+        `/v1/corporate/organizations/${organizationId}/context`,
+        { sessionToken },
+      );
+      body = {
+        ...(body as Record<string, unknown>),
+        authorization_revision: context.organization.authorization_revision,
+      };
+    } catch {
+      return fail(common("requestFailed"), 503);
+    }
+  }
+
   const options: PrivateRequestOptions = {
     method,
-    body: input.body,
+    body,
     sessionToken,
   };
   try {

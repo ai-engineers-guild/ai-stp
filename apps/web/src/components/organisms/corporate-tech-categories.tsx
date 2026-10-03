@@ -1,11 +1,11 @@
 /* eslint-disable max-lines -- Category table, editor panel, icon picker, and linking dialog stay in one render owner. */
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 
-import { corporateMutationAction } from "@/actions/corporate";
+import { corporateMutation } from "@/lib/api/corporate-mutation";
 import { Badge } from "@/components/atoms/badge";
 import { Button } from "@/components/atoms/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/atoms/dialog";
@@ -13,6 +13,11 @@ import { Input } from "@/components/atoms/input";
 import { Label } from "@/components/atoms/label";
 import { Textarea } from "@/components/atoms/textarea";
 import { CatalogChoiceMenu } from "@/components/molecules/catalog-choice-menu";
+import {
+  CATEGORY_LUCIDE_PREFIX,
+  CategoryIconBadge,
+  categoryLucideName,
+} from "@/components/molecules/category-icon-badge";
 import { SearchableMultiSelect } from "@/components/molecules/searchable-multi-select";
 import {
   PeopleCheckbox,
@@ -25,13 +30,10 @@ import {
 } from "@/components/organisms/corporate-people-ui";
 import type { CategoryView, TechnologyView } from "@/lib/api/generated/types.gen";
 import { downloadPeopleCsv } from "@/lib/member-export";
-import { useHydrated } from "@/lib/use-hydrated";
 import {
   CATEGORY_ICON_NAMES,
   CategoryIcon,
   defaultCategoryIcon,
-  readCategoryIcon,
-  writeCategoryIcon,
   type CategoryIconName,
 } from "@/theme/category-icons";
 import { Icon } from "@/theme";
@@ -46,14 +48,18 @@ type Props = {
   technologies: readonly TechnologyView[] | null;
 };
 
-type CategoryDraft = { name: string; description: string; icon: CategoryIconName };
+/**
+ * Persisted icon value (TechnologyCategoryMetadata.icon): "lucide:<name>" for
+ * a registry glyph, or a media path/URL for an uploaded image.
+ */
+type CategoryDraft = { name: string; description: string; icon: string | null };
 
 function IconPicker({
   value,
   onChange,
   label,
 }: {
-  value: CategoryIconName;
+  value: CategoryIconName | null;
   onChange: (icon: CategoryIconName) => void;
   label: string;
 }) {
@@ -121,7 +127,8 @@ export function CorporateTechCategories({
   const [managing, setManaging] = useState(false);
   const [linkSelection, setLinkSelection] = useState<string[]>([]);
   const [checked, setChecked] = useState<string[]>([]);
-  const hydrated = useHydrated();
+  const [uploading, setUploading] = useState(false);
+  const iconInput = useRef<HTMLInputElement | null>(null);
 
   const can = (permission: string) => capabilities.includes(permission);
   const canUpdate = can("category.update");
@@ -143,9 +150,7 @@ export function CorporateTechCategories({
     (category) =>
       (!stateFilter || (category.state ?? "active") === stateFilter) &&
       (!query ||
-        [category.name, category.description].some((value) =>
-          value.toLowerCase().includes(query),
-        )),
+        [category.name, category.description].some((value) => value.toLowerCase().includes(query))),
   );
   const page = Math.min(
     Math.max(1, Number(filters.get("page")) || 1),
@@ -155,11 +160,8 @@ export function CorporateTechCategories({
   const selected = categories.find((item) => item.category_id === selectedId) ?? null;
   const editing = creating || selected !== null;
   const selectedLinked = selected ? (linked.get(selected.category_id) ?? []) : [];
-  // SSR/first paint shows the deterministic icon; the stored pick hydrates after mount.
   const iconFor = (category: CategoryView) =>
-    hydrated
-      ? readCategoryIcon(organizationId, category.category_id)
-      : defaultCategoryIcon(category.category_id);
+    category.icon ?? `${CATEGORY_LUCIDE_PREFIX}${defaultCategoryIcon(category.category_id)}`;
 
   function openEditor(category: CategoryView | null) {
     setCreating(category === null);
@@ -171,8 +173,39 @@ export function CorporateTechCategories({
             description: category.description,
             icon: iconFor(category),
           }
-        : { name: "", description: "", icon: defaultCategoryIcon(`new-${Date.now()}`) },
+        : {
+            name: "",
+            description: "",
+            icon: `${CATEGORY_LUCIDE_PREFIX}${defaultCategoryIcon(`new-${Date.now()}`)}`,
+          },
     );
+  }
+
+  async function uploadIcon(file: File) {
+    setMessage(null);
+    setUploading(true);
+    try {
+      const response = await fetch("/api/corporate/category-icon", {
+        method: "POST",
+        headers: {
+          "content-type": file.type,
+          "x-csrf-token": csrfToken,
+          "x-locale": document.documentElement.lang,
+        },
+        body: file,
+      });
+      const result = (await response.json()) as { ok?: boolean; icon?: string; message?: string };
+      if (!response.ok || !result.ok || !result.icon) {
+        setMessage(result.message ?? t("iconUploadFailed"));
+        return;
+      }
+      setDraft((current) => (current ? { ...current, icon: result.icon ?? null } : current));
+    } catch {
+      setMessage(t("iconUploadFailed"));
+    } finally {
+      setUploading(false);
+      if (iconInput.current) iconInput.current.value = "";
+    }
   }
 
   function mutate(
@@ -183,7 +216,7 @@ export function CorporateTechCategories({
   ) {
     setMessage(null);
     startTransition(async () => {
-      const result = await corporateMutationAction({
+      const result = await corporateMutation({
         csrfToken,
         organizationId,
         path,
@@ -219,24 +252,23 @@ export function CorporateTechCategories({
 
   function save() {
     if (!draft) return;
-    const draftIcon = draft.icon;
     const path = `/v1/corporate/organizations/${organizationId}/technology-categories${creating ? "" : `/${selected?.category_id}`}`;
     mutate(
       path,
       creating ? "POST" : "PUT",
       {
         schema_version: 1,
-        metadata: { name: draft.name, description: draft.description },
+        metadata: {
+          name: draft.name,
+          description: draft.description,
+          icon: draft.icon,
+        },
         expected_revision: creating ? 0 : (selected?.revision ?? 0),
         ...(creating ? { state: "active" } : {}),
         authorization_revision: authorizationRevision,
         idempotency_key: crypto.randomUUID(),
       },
-      (data) => {
-        const id = creating
-          ? (data as { category_id?: string } | undefined)?.category_id
-          : selected?.category_id;
-        if (id) writeCategoryIcon(organizationId, id, draftIcon);
+      () => {
         setCreating(false);
       },
     );
@@ -248,8 +280,7 @@ export function CorporateTechCategories({
     const wanted = new Set(linkSelection);
     const changed = technologies.filter(
       (technology) =>
-        technology.category_ids.includes(categoryId) !==
-        wanted.has(technology.technology_id),
+        technology.category_ids.includes(categoryId) !== wanted.has(technology.technology_id),
     );
     setMessage(null);
     startTransition(async () => {
@@ -263,7 +294,7 @@ export function CorporateTechCategories({
           failed += 1;
           continue;
         }
-        const result = await corporateMutationAction({
+        const result = await corporateMutation({
           csrfToken,
           organizationId,
           path: `/v1/corporate/organizations/${organizationId}/technologies/${technology.technology_id}`,
@@ -377,7 +408,7 @@ export function CorporateTechCategories({
                           (item) => item.category_id === id && item.state !== "archived",
                         );
                         if (!category) continue;
-                        const result = await corporateMutationAction({
+                        const result = await corporateMutation({
                           csrfToken,
                           organizationId,
                           path: `/v1/corporate/organizations/${organizationId}/technology-categories/${id}/lifecycle`,
@@ -445,9 +476,7 @@ export function CorporateTechCategories({
                                 ...rows.map((category) => category.category_id),
                               ]),
                             ]
-                          : current.filter(
-                              (id) => !rows.some((item) => item.category_id === id),
-                            ),
+                          : current.filter((id) => !rows.some((item) => item.category_id === id)),
                       );
                     }}
                   />
@@ -473,15 +502,17 @@ export function CorporateTechCategories({
               {rows.map((category) => (
                 <tr
                   key={category.category_id}
-                  data-selected={
-                    selected?.category_id === category.category_id || undefined
-                  }
+                  data-selected={selected?.category_id === category.category_id || undefined}
                   className="border-border hover:bg-muted/30 data-[selected]:bg-primary/5 cursor-pointer border-b transition-colors last:border-0"
                   onClick={() => {
                     openEditor(category);
                   }}
                 >
-                  <td>
+                  <td
+                    onClick={(event) => {
+                      event.stopPropagation();
+                    }}
+                  >
                     <PeopleCheckbox
                       label={category.name}
                       checked={checked.includes(category.category_id)}
@@ -496,16 +527,16 @@ export function CorporateTechCategories({
                   </td>
                   <td className={`${peopleCellClass} font-medium`}>
                     <span className="inline-flex items-center gap-3">
-                      <span className="bg-muted text-foreground grid size-8 shrink-0 place-items-center rounded-md">
-                        <CategoryIcon name={iconFor(category)} className="size-4" />
-                      </span>
+                      <CategoryIconBadge
+                        icon={iconFor(category)}
+                        seed={category.category_id}
+                        size={8}
+                      />
                       <span className="whitespace-nowrap">{category.name}</span>
                     </span>
                   </td>
                   <td className={`${peopleCellClass} tabular-nums`}>
-                    {technologies === null
-                      ? "—"
-                      : (linked.get(category.category_id)?.length ?? 0)}
+                    {technologies === null ? "—" : (linked.get(category.category_id)?.length ?? 0)}
                   </td>
                   <td className={`${peopleCellClass} text-muted-foreground max-w-72`}>
                     <span className="line-clamp-2">{category.description}</span>
@@ -523,7 +554,12 @@ export function CorporateTechCategories({
                       {t(`state_${category.state ?? "active"}`)}
                     </Badge>
                   </td>
-                  <td className="text-right">
+                  <td
+                    className="text-right"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                    }}
+                  >
                     <CatalogChoiceMenu
                       icon="moreVertical"
                       variant="ghost"
@@ -621,20 +657,47 @@ export function CorporateTechCategories({
               {t("categoryIcon")}
             </h3>
             <div className="flex items-center gap-3">
-              <span className="bg-muted text-foreground grid size-16 shrink-0 place-items-center rounded-lg">
-                <CategoryIcon name={draft.icon} className="size-8" />
-              </span>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setIconPicker(true);
-                }}
-              >
-                <Icon name="edit" size="sm" />
-                {t("changeIcon")}
-              </Button>
+              <CategoryIconBadge
+                icon={draft.icon ?? ""}
+                seed={selected?.category_id ?? "new"}
+                size={16}
+              />
+              <div className="flex flex-col gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setIconPicker(true);
+                  }}
+                >
+                  <Icon name="edit" size="sm" />
+                  {t("changeIcon")}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={uploading}
+                  onClick={() => {
+                    iconInput.current?.click();
+                  }}
+                >
+                  <Icon name="upload" size="sm" />
+                  {uploading ? t("uploading") : t("uploadIcon")}
+                </Button>
+                <input
+                  ref={iconInput}
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  className="hidden"
+                  aria-label={t("uploadIcon")}
+                  onChange={(event) => {
+                    const file = event.target.files?.[0];
+                    if (file) void uploadIcon(file);
+                  }}
+                />
+              </div>
             </div>
           </div>
           <div className="space-y-2">
@@ -740,7 +803,9 @@ export function CorporateTechCategories({
               </Button>
               <Button
                 type="button"
-                disabled={busy || !draft.name.trim() || (creating ? !can("category.create") : !canUpdate)}
+                disabled={
+                  busy || !draft.name.trim() || (creating ? !can("category.create") : !canUpdate)
+                }
                 onClick={save}
               >
                 {busy ? t("saving") : t("saveChanges")}
@@ -756,10 +821,10 @@ export function CorporateTechCategories({
           <DialogDescription>{t("chooseIconHint")}</DialogDescription>
           {draft ? (
             <IconPicker
-              value={draft.icon}
+              value={categoryLucideName(draft.icon)}
               label={t("chooseIcon")}
               onChange={(icon) => {
-                setDraft({ ...draft, icon });
+                setDraft({ ...draft, icon: `${CATEGORY_LUCIDE_PREFIX}${icon}` });
                 setIconPicker(false);
               }}
             />

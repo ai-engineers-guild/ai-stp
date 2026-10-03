@@ -4,6 +4,7 @@ import { Input } from "@/components/atoms/input";
 import { Label } from "@/components/atoms/label";
 import { Button } from "@/components/atoms/button";
 import { StatePanel } from "@/components/molecules/state-panel";
+import { CategoryIconBadge } from "@/components/molecules/category-icon-badge";
 import { TechnologyRegistryCreate } from "@/components/organisms/technology-registry-create";
 import { readCorporateContext } from "@/lib/api/corporate";
 import { ApiError } from "@/lib/api/errors";
@@ -82,7 +83,8 @@ export default async function CategoryDirectoryPage({
         <ul className="divide-border divide-y">
           {items.map((item) => (
             <li key={item.category_id} className="space-y-1 py-4">
-              <span className="flex flex-wrap items-center gap-2">
+              <span className="flex flex-wrap items-center gap-3">
+                <CategoryIconBadge icon={item.icon} seed={item.category_id} size={8} />
                 <Link
                   href={`/corporate/categories/${item.category_id}`}
                   className="inline-flex min-h-11 items-center font-medium underline underline-offset-4"

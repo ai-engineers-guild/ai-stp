@@ -294,9 +294,7 @@ export const CATEGORY_ICON_REGISTRY = {
   zap: Zap,
 } satisfies Record<string, LucideIcon>;
 
-export const CATEGORY_ICON_NAMES = Object.keys(
-  CATEGORY_ICON_REGISTRY,
-) as CategoryIconName[];
+export const CATEGORY_ICON_NAMES = Object.keys(CATEGORY_ICON_REGISTRY) as CategoryIconName[];
 
 /** Stable default so every viewer sees the same icon before one is chosen. */
 export function defaultCategoryIcon(seed: string): CategoryIconName {
@@ -307,34 +305,7 @@ export function defaultCategoryIcon(seed: string): CategoryIconName {
   return CATEGORY_ICON_NAMES[hash % CATEGORY_ICON_NAMES.length] ?? "database";
 }
 
-const STORAGE_PREFIX = "ai-stp.category-icon";
-
-export function readCategoryIcon(organizationId: string, categoryId: string): CategoryIconName {
-  if (typeof window === "undefined") return defaultCategoryIcon(categoryId);
-  const stored = window.localStorage.getItem(`${STORAGE_PREFIX}.${organizationId}.${categoryId}`);
-  return stored && stored in CATEGORY_ICON_REGISTRY
-    ? (stored as CategoryIconName)
-    : defaultCategoryIcon(categoryId);
-}
-
-// ponytail: icon choice is per-browser localStorage; the category contract has
-// no icon field. Upgrade path: add `icon` to TechnologyCategoryMetadata and
-// persist via the category write request.
-export function writeCategoryIcon(
-  organizationId: string,
-  categoryId: string,
-  icon: CategoryIconName,
-): void {
-  window.localStorage.setItem(`${STORAGE_PREFIX}.${organizationId}.${categoryId}`, icon);
-}
-
-export function CategoryIcon({
-  name,
-  className,
-}: {
-  name: CategoryIconName;
-  className?: string;
-}) {
+export function CategoryIcon({ name, className }: { name: CategoryIconName; className?: string }) {
   const Comp = CATEGORY_ICON_REGISTRY[name];
   return <Comp className={className} aria-hidden />;
 }

@@ -2,14 +2,14 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, expect, it, vi } from "vitest";
 import type { ReactNode } from "react";
-import type { corporateMutationAction } from "@/actions/corporate";
+import type { corporateMutation } from "@/lib/api/corporate-mutation";
 import type { CategoryView, TechnologyView } from "@/lib/api/generated/types.gen";
 
 const { mutation, refresh } = vi.hoisted(() => ({
-  mutation: vi.fn<typeof corporateMutationAction>(),
+  mutation: vi.fn<typeof corporateMutation>(),
   refresh: vi.fn(),
 }));
-vi.mock("@/actions/corporate", () => ({ corporateMutationAction: mutation }));
+vi.mock("@/lib/api/corporate-mutation", () => ({ corporateMutation: mutation }));
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string, values?: Record<string, unknown>) =>
     values ? `${key}:${Object.values(values).join(",")}` : key,
@@ -43,6 +43,7 @@ function category(id: string, name: string, revision = 1): CategoryView {
     category_id: id,
     name,
     description: `${name} description`,
+    icon: null,
     provenance: "manual",
     revision,
     state: "active",
@@ -89,7 +90,6 @@ function renderPanel() {
   );
 }
 
-
 function rowMenu(name: string) {
   const button = screen.getAllByRole("button", { name })[0];
   if (!button) throw new Error(`menu not found: ${name}`);
@@ -119,6 +119,8 @@ it("creates a category through POST", async () => {
     metadata: { name: "Observability" },
     authorization_revision: 7,
   });
+  const metadata = (call?.body as { metadata?: { icon?: string } }).metadata;
+  expect(metadata?.icon).toMatch(/^lucide:/);
 });
 
 it("updates a category with optimistic concurrency", async () => {

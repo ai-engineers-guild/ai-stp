@@ -19,10 +19,7 @@ export default async function TechCategoriesPage({
 }) {
   const { locale } = await params;
   setRequestLocale(locale);
-  await requireSession(
-    locale,
-    `/${locale}/corporate/organization/admins/tech-categories`,
-  );
+  await requireSession(locale, `/${locale}/corporate/organization/admins/tech-categories`);
   const t = await getTranslations("technologyCategories");
   const people = await getTranslations("people");
   const common = await getTranslations("common");

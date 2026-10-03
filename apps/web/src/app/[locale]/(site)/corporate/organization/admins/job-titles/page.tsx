@@ -49,9 +49,7 @@ export default async function JobTitlesPage({ params }: { params: Promise<{ loca
         </nav>
         <div className="space-y-1">
           <h1 className="text-3xl leading-tight font-medium tracking-tight">{t("jobTitles")}</h1>
-          <p className="text-muted-foreground text-sm sm:text-base">
-            {t("jobTitlesDescription")}
-          </p>
+          <p className="text-muted-foreground text-sm sm:text-base">{t("jobTitlesDescription")}</p>
         </div>
       </header>
       <CorporateJobTitles

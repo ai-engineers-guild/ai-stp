@@ -1449,6 +1449,7 @@ async def list_categories(
                 category_id=row.id,
                 name=row.name,
                 description=row.description,
+                icon=row.icon,
                 revision=row.revision,
                 provenance=row.provenance,
                 state=cast(Literal["draft", "active", "archived"], row.state),
@@ -1483,6 +1484,7 @@ async def read_category(
         category_id=row.id,
         name=row.name,
         description=row.description,
+        icon=row.icon,
         revision=row.revision,
         provenance=row.provenance,
         state=cast(Literal["draft", "active", "archived"], row.state),
@@ -1713,7 +1715,12 @@ async def write_category(
     if collision is not None:
         raise ApiError(ErrorCategory.CONFLICT, "category name already exists")
     before = (
-        {"name": row.name, "description": row.description, "revision": row.revision}
+        {
+            "name": row.name,
+            "description": row.description,
+            "icon": row.icon,
+            "revision": row.revision,
+        }
         if row
         else None
     )
@@ -1723,6 +1730,7 @@ async def write_category(
             id=category_id,
             name=payload.metadata.name,
             normalized_name=normalized,
+            icon=payload.metadata.icon,
             provenance="manual",
             revision=1,
             state=payload.state or "active",
@@ -1736,12 +1744,14 @@ async def write_category(
         row.revision += 1
     row.name, row.normalized_name = payload.metadata.name, normalized
     row.description = payload.metadata.description
+    row.icon = payload.metadata.icon
     organization.policy_revision += 1
     await db.flush()
     response = CategoryView(
         category_id=row.id,
         name=row.name,
         description=row.description,
+        icon=row.icon,
         revision=row.revision,
         provenance=row.provenance,
         state=cast(Literal["draft", "active", "archived"], row.state),
@@ -1796,6 +1806,7 @@ async def change_category_lifecycle(
         category_id=row.id,
         name=row.name,
         description=row.description,
+        icon=row.icon,
         revision=row.revision,
         provenance=row.provenance,
         state=cast(Literal["draft", "active", "archived"], row.state),
@@ -1808,6 +1819,7 @@ async def change_category_lifecycle(
         category_id=row.id,
         name=row.name,
         description=row.description,
+        icon=row.icon,
         revision=row.revision,
         provenance=row.provenance,
         state=payload.target,

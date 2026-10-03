@@ -854,6 +854,10 @@ export type CategoryView = {
    */
   description: string;
   /**
+   * Icon
+   */
+  icon: string | null;
+  /**
    * Name
    */
   name: string;
@@ -14367,6 +14371,10 @@ export type TechnologyCategoryMetadata = {
    * Description
    */
   description?: string;
+  /**
+   * Icon
+   */
+  icon?: string | null;
   /**
    * Name
    */

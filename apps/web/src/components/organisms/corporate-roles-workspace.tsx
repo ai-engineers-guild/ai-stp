@@ -1,4 +1,4 @@
-/* eslint-disable max-lines-per-function */
+/* eslint-disable max-lines-per-function, complexity */
 "use client";
 
 import { useState } from "react";

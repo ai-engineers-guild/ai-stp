@@ -4,11 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/atoms/button";
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/atoms/dialog";
-import {
-  RailItems,
-  railItemClass,
-  type RailItem,
-} from "@/components/layouts/context-rail-items";
+import { RailItems, railItemClass, type RailItem } from "@/components/layouts/context-rail-items";
 import { resolveCorporateRail } from "@/lib/corporate-navigation";
 import { COMPILED_FEATURE_PROFILE } from "@/lib/features/compiled";
 import { corporateHref } from "@/lib/features/corporate-path";
@@ -225,7 +221,11 @@ export function ContextSidebar({
           <Button
             type="button"
             variant="ghost"
-            className={cn(railItemClass, "w-full justify-start", isCollapsed && "justify-center px-0")}
+            className={cn(
+              railItemClass,
+              "w-full justify-start",
+              isCollapsed && "justify-center px-0",
+            )}
             aria-label={nav("backToNavigation")}
             title={nav("backToNavigation")}
             onClick={onShowMainNavigation}

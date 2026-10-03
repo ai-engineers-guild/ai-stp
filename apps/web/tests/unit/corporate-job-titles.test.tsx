@@ -2,14 +2,14 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, expect, it, vi } from "vitest";
 import type { ReactNode } from "react";
-import type { corporateMutationAction } from "@/actions/corporate";
+import type { corporateMutation } from "@/lib/api/corporate-mutation";
 import type { CorporateJobTitleView, CorporateMember } from "@/lib/api/generated/types.gen";
 
 const { mutation, refresh } = vi.hoisted(() => ({
-  mutation: vi.fn<typeof corporateMutationAction>(),
+  mutation: vi.fn<typeof corporateMutation>(),
   refresh: vi.fn(),
 }));
-vi.mock("@/actions/corporate", () => ({ corporateMutationAction: mutation }));
+vi.mock("@/lib/api/corporate-mutation", () => ({ corporateMutation: mutation }));
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string, values?: Record<string, unknown>) =>
     values ? `${key}:${Object.values(values).join(",")}` : key,
@@ -86,7 +86,6 @@ function renderPanel() {
     />,
   );
 }
-
 
 function rowMenu(name: string) {
   const button = screen.getAllByRole("button", { name })[0];

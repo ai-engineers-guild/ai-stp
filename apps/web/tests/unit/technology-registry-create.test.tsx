@@ -52,6 +52,7 @@ describe("manual registry creation", () => {
       category_id: "category_known",
       name: "Runtime",
       description: "",
+      icon: null,
       provenance: "manual",
       state: "active" as const,
       revision: 3,
@@ -81,6 +82,7 @@ describe("manual registry creation", () => {
       category_id: "category_00000000000000000000000001",
       name: "Runtime",
       description: "Governed family",
+      icon: null,
       revision: 3,
       provenance: "manual",
     };

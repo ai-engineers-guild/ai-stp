@@ -13,6 +13,19 @@
           "title": "Description",
           "type": "string"
         },
+        "icon": {
+          "anyOf": [
+            {
+              "maxLength": 2048,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Icon"
+        },
         "name": {
           "maxLength": 200,
           "minLength": 1,

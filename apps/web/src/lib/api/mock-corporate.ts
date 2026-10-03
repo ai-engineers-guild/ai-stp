@@ -370,6 +370,7 @@ const categoryViews: CategoryView[] = [
       {
         category_id: `category_01JQZK7B8N4M6P2R9T5V0X3Y${String(index + 1).padStart(2, "0")}`,
         description: `${name} technologies`,
+        icon: null,
         name,
         provenance: "offline-fixture",
         revision: 1,

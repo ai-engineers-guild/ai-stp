@@ -112,6 +112,8 @@ export function TechnologyRegistryCreate({
     const metadata = {
       name: text("name"),
       description: text("description"),
+      // The form has no icon control; a PUT without it would wipe the stored icon.
+      ...(kind === "category" ? { icon: initialCategory?.icon ?? null } : {}),
       ...(kind === "technology"
         ? {
             category_ids:
