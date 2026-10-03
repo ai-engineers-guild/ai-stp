@@ -68,6 +68,18 @@ prune_release_archives() {
   done
 }
 
+prune_docker_residues() {
+  # Every build attempt leaves layers and cache records no image references;
+  # three days of failing web builds grew that residue past thirty gigabytes
+  # on 2026-10-03, filled the disk, and `git` could not even write
+  # `config.lock` — the loop then failed before the build it was protecting.
+  # Prune after every attempt, success or failure, so residue lives for one
+  # deploy cycle at most. `system prune` touches nothing a running container
+  # or a tagged image still uses, and its own failure must not fail the
+  # deploy — hygiene reports through the next tick's logs, not a red unit.
+  docker system prune -f >/dev/null 2>&1 || true
+}
+
 previous_commit=
 if [[ -f ${root}/.deploy-state/previous ]]; then
   previous_commit=$(sed -n 's/^git_commit=//p' "${root}/.deploy-state/previous" | head -n 1)
@@ -130,6 +142,7 @@ chmod u+x \
   "${root}/deploy/load-apparmor.sh" \
   "${root}/deploy/mark-transfer.sh"
 
+deploy_status=0
 (
   cd "${root}"
   # The identity travels with the bytes. Nothing under `${root}` can derive it:
@@ -138,6 +151,14 @@ chmod u+x \
   export AI_STP_API_GIT_COMMIT="${candidate}"
   bash -lc './deploy/run.sh'
   bash -lc './deploy/verify.sh'
-)
+) || deploy_status=$?
+# A failed attempt leaves exactly the residue it wrote; a successful one leaves
+# its predecessors'. Clean both while the attempt's result is still in hand —
+# before this ran only on the success path below, which is the path that never
+# executes when the residue is worst.
+prune_docker_residues
+if [[ ${deploy_status} -ne 0 ]]; then
+  exit "${deploy_status}"
+fi
 prune_release_archives "${candidate}" "${current}"
 printf 'pull_deploy_complete commit=%s\n' "${candidate}"

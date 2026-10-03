@@ -13,7 +13,7 @@ provider:
   name: ai-stp
 classification:
   portfolios:
-  - portfolio:guild-projects
+  - portfolio:ai-engineers-guild
   visibility_contract: public
   data_classification: public
 product:
