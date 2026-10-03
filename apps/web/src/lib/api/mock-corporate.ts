@@ -133,7 +133,6 @@ const initialRoleViews: CorporateRoleView[] = [
   {
     schema_version: 1,
     name: "staff",
-    parent_role: null,
     permissions: [
       "member.list",
       "member.read",
@@ -148,15 +147,38 @@ const initialRoleViews: CorporateRoleView[] = [
   {
     schema_version: 1,
     name: "lead",
-    parent_role: "staff",
-    permissions: ["member.update", "member.invite", "project.update", "team.read", "team.update"],
+    permissions: [
+      "member.list",
+      "member.read",
+      "project.list",
+      "project.read",
+      "team.list",
+      "technology.list",
+      "technology.read",
+      "member.update",
+      "member.invite",
+      "project.update",
+      "team.read",
+      "team.update",
+    ],
     revision: 1,
   },
   {
     schema_version: 1,
     name: "superadmin",
-    parent_role: "lead",
     permissions: [
+      "member.list",
+      "member.read",
+      "project.list",
+      "project.read",
+      "team.list",
+      "technology.list",
+      "technology.read",
+      "member.update",
+      "member.invite",
+      "project.update",
+      "team.read",
+      "team.update",
       "binding.create",
       "binding.delete",
       "binding.list",
@@ -177,8 +199,17 @@ const initialRoleViews: CorporateRoleView[] = [
   {
     schema_version: 1,
     name: "platform_auditor",
-    parent_role: "staff",
-    permissions: ["audit.export", "audit.list"],
+    permissions: [
+      "member.list",
+      "member.read",
+      "project.list",
+      "project.read",
+      "team.list",
+      "technology.list",
+      "technology.read",
+      "audit.export",
+      "audit.list",
+    ],
     revision: 1,
   },
 ];
@@ -1476,16 +1507,12 @@ export function corporateHandlers(
   };
   if (suffix === "roles" && method === "POST") {
     const name = textField("name");
-    const parent = textField("parent_role") || null;
     if (!name || builtInRoles.has(name) || mockRoles.some((item) => item.name === name))
       return error(409, "AI_STP_CONFLICT");
-    if (parent && !mockRoles.some((item) => item.name === parent))
-      return error(422, "AI_STP_VALIDATION_ERROR");
     const permissions = ((body ?? {}) as Record<string, unknown>).permissions;
     const role: CorporateRoleView = {
       schema_version: 1,
       name,
-      parent_role: parent,
       permissions: Array.isArray(permissions)
         ? permissions.filter((item): item is string => typeof item === "string")
         : [],
@@ -1505,8 +1532,6 @@ export function corporateHandlers(
       return ok({ schema_version: 1, resource_id: name });
     }
     if (method === "PATCH") {
-      const parent = textField("parent_role");
-      role.parent_role = parent || null;
       const permissions = ((body ?? {}) as Record<string, unknown>).permissions;
       if (Array.isArray(permissions))
         role.permissions = permissions.filter((item): item is string => typeof item === "string");

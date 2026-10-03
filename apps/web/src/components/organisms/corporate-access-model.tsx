@@ -334,7 +334,7 @@ export function CorporateAccessModel({
                       </th>
                       {roles.map((role) => (
                         <td key={role.name} className={`${cell} text-center`}>
-                          {rolePermissions(role, roles).has(item.name) ? (
+                          {rolePermissions(role).has(item.name) ? (
                             <Icon
                               name="verified"
                               size="sm"
@@ -406,9 +406,7 @@ export function CorporateAccessModel({
             <div className="border-border space-y-3 border-t pt-4">
               <h3 className="font-medium">{t("availableRoles")}</h3>
               {roles
-                .filter((role) =>
-                  corporateNavPageVisible(section, [...rolePermissions(role, roles)]),
-                )
+                .filter((role) => corporateNavPageVisible(section, [...rolePermissions(role)]))
                 .map((role) => (
                   <Badge key={role.name} variant="secondary" className="mr-1 font-sans">
                     {roleTitle(role.name, t)}
@@ -504,7 +502,7 @@ export function CorporateAccessModel({
                     </div>
                     <div className="flex flex-wrap gap-1">
                       {roles
-                        .filter((role) => rolePermissions(role, roles).has(item.name))
+                        .filter((role) => rolePermissions(role).has(item.name))
                         .map((role) => (
                           <Link
                             key={role.name}

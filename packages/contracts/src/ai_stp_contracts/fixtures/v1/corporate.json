@@ -825,7 +825,7 @@
       "case_id": "createCorporateRole.corporate",
       "operation_id": "createCorporateRole",
       "kind": "positive",
-      "why": "A tenant-local custom role carries explicit inherited permissions.",
+      "why": "A tenant-local custom role carries an explicit permission list.",
       "request": {
         "path_params": {
           "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
@@ -833,7 +833,6 @@
         "body": {
           "schema_version": 1,
           "name": "reviewer",
-          "parent_role": "staff",
           "permissions": [
             "project.read"
           ],
@@ -845,7 +844,6 @@
       "body": {
         "schema_version": 1,
         "name": "reviewer",
-        "parent_role": "staff",
         "permissions": [
           "project.read"
         ],
@@ -869,7 +867,6 @@
           {
             "schema_version": 1,
             "name": "reviewer",
-            "parent_role": "staff",
             "permissions": [
               "project.read"
             ],
@@ -893,7 +890,6 @@
       "body": {
         "schema_version": 1,
         "name": "reviewer",
-        "parent_role": "staff",
         "permissions": [
           "project.read"
         ],
@@ -912,7 +908,6 @@
         },
         "body": {
           "schema_version": 1,
-          "parent_role": null,
           "permissions": [
             "project.read",
             "project.update"
@@ -926,7 +921,6 @@
       "body": {
         "schema_version": 1,
         "name": "reviewer",
-        "parent_role": null,
         "permissions": [
           "project.read",
           "project.update"

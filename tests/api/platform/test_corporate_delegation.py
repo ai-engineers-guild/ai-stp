@@ -35,11 +35,7 @@ async def test_legacy_role_matrix_requires_missing_permission_repair(
     org = await _bootstrap_org(client, owner_id=owner)
     async with sessionmaker() as db:
         await set_tenant_scope(db, org)
-        lead = await db.get(CorporateRole, (org, "lead"))
-        staff = await db.get(CorporateRole, (org, "staff"))
-        assert lead and staff
-        lead.parent_role = "superadmin"
-        staff.parent_role = "lead"
+        db.add(CorporateRolePermission(organization_id=org, role="staff", permission="team.delete"))
         await db.execute(
             delete(CorporateRolePermission).where(
                 CorporateRolePermission.organization_id == org,
@@ -219,7 +215,7 @@ async def _setup_operator_org(
 async def test_delegation_bound_limits_role_assignment(
     db_api_client: tuple[AsyncClient, async_sessionmaker[AsyncSession], Settings],
 ) -> None:
-    """A delegate may only grant roles whose closed permissions fit its own."""
+    """A delegate may only grant roles whose permissions fit its own."""
     client, sessionmaker, _settings = db_api_client
     org, _owner_auth, _operator, operator_auth, member = await _setup_operator_org(
         client, sessionmaker
@@ -230,7 +226,7 @@ async def test_delegation_bound_limits_role_assignment(
     )
     assert delegation.status_code == 200, delegation.text
     grantable = {item["name"] for item in delegation.json()["grantable_roles"]}
-    # The operator's bound covers its own staff membership closure plus the
+    # The operator's bound covers its own staff membership role plus the
     # narrow custom roles — anything above that stays out of reach.
     assert {"viewer", "staff", "operator"} <= grantable
     assert grantable.isdisjoint({"superadmin", "lead"})
@@ -443,7 +439,7 @@ async def test_permission_grant_lifecycle(
     )
 
     # The operator may grant only permissions it holds at organization scope:
-    # member.list is inside its closure, member.update is not.
+    # member.list is inside its permissions, member.update is not.
     await _mutate(
         client,
         org,
@@ -575,7 +571,7 @@ async def test_invitation_role_is_bounded_by_issuer(
     )
     revision = await _revision(client, org, operator_auth)
 
-    # The operator holds the staff closure itself, so staff is inside its
+    # The operator holds the staff role itself, so staff is inside its
     # bound; lead and superadmin are not.
     for role, expected in (("superadmin", 403), ("lead", 403), ("viewer", 200), ("staff", 200)):
         response = await client.post(

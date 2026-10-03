@@ -219,18 +219,20 @@ async def _seed_authorization_fixture(db: AsyncSession) -> dict[str, Any]:
     db.add_all(
         [
             CorporateRole(organization_id=org.id, name="viewer"),
-            CorporateRole(organization_id=org.id, name="lead", parent_role="viewer"),
-            CorporateRole(organization_id=org.id, name="principal", parent_role="lead"),
+            CorporateRole(organization_id=org.id, name="lead"),
+            CorporateRole(organization_id=org.id, name="principal"),
         ]
     )
     await db.flush()
+    viewer_permissions = ("project.read", "team.read", "technology.read", "member.read")
+    lead_permissions = ("project.update", "technology_decision.read")
     db.add_all(
         [
             CorporateRolePermission(organization_id=org.id, role=role, permission=permission)
             for role, permissions in (
-                ("viewer", ("project.read", "team.read", "technology.read", "member.read")),
-                ("lead", ("project.update", "technology_decision.read")),
-                ("principal", ("organization.read",)),
+                ("viewer", viewer_permissions),
+                ("lead", (*viewer_permissions, *lead_permissions)),
+                ("principal", (*viewer_permissions, *lead_permissions, "organization.read")),
             )
             for permission in permissions
         ]

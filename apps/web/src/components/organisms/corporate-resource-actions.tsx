@@ -20,7 +20,6 @@ type Props = {
   resourceId: string;
   name: string;
   role?: string;
-  parentRole?: string | null;
   rolePermissions?: readonly string[];
   state: string;
   revision: number;
@@ -31,7 +30,6 @@ type Props = {
     title: string;
     name: string;
     role: string;
-    parentRole: string;
     permissions: string;
     state: string;
     update: string;
@@ -111,7 +109,6 @@ export function CorporateResourceActions({
   resourceId,
   name,
   role,
-  parentRole,
   rolePermissions,
   state,
   revision,
@@ -127,7 +124,6 @@ export function CorporateResourceActions({
   const [busy, startTransition] = useTransition();
   const [nextName, setNextName] = useState(name);
   const [nextRole, setNextRole] = useState(role ?? "staff");
-  const [nextParentRole, setNextParentRole] = useState(parentRole ?? "");
   const [nextPermissions, setNextPermissions] = useState((rolePermissions ?? []).join(", "));
   const [nextState, setNextState] = useState(state);
   const [message, setMessage] = useState<string | null>(null);
@@ -191,7 +187,6 @@ export function CorporateResourceActions({
                 <DropdownMenu.Item
                   className="focus:bg-muted cursor-default rounded-sm px-3 py-2 outline-none"
                   onSelect={() => {
-                    setNextParentRole(parentRole ?? "");
                     setNextPermissions((rolePermissions ?? []).join(", "));
                     setNextName(name);
                     setNextRole(role ?? "staff");
@@ -232,7 +227,6 @@ export function CorporateResourceActions({
                 ? { role: nextRole, state: nextState }
                 : resource === "roles"
                   ? {
-                      parent_role: nextParentRole || null,
                       permissions: nextPermissions
                         .split(",")
                         .map((permission) => permission.trim())
@@ -265,14 +259,6 @@ export function CorporateResourceActions({
             </>
           ) : resource === "roles" ? (
             <>
-              <Label htmlFor="corporate-resource-parent-role">{labels.parentRole}</Label>
-              <Input
-                id="corporate-resource-parent-role"
-                value={nextParentRole}
-                onChange={(event) => {
-                  setNextParentRole(event.target.value);
-                }}
-              />
               <Label htmlFor="corporate-resource-permissions">{labels.permissions}</Label>
               <Input
                 id="corporate-resource-permissions"

@@ -79,9 +79,7 @@ async def test_multiple_inherited_bindings_and_projection_fail_closed(
             [
                 CorporateRole(organization_id=organization_id, name="viewer"),
                 CorporateRole(organization_id=organization_id, name="editor"),
-                CorporateRole(
-                    organization_id=organization_id, name="inherited", parent_role="editor"
-                ),
+                CorporateRole(organization_id=organization_id, name="inherited"),
             ]
         )
         await db.flush()
@@ -93,8 +91,9 @@ async def test_multiple_inherited_bindings_and_projection_fail_closed(
         db.add_all(
             [
                 CorporateRolePermission(
-                    organization_id=organization_id, role="editor", permission=permission
+                    organization_id=organization_id, role=role, permission=permission
                 )
+                for role in ("editor", "inherited")
                 for permission in ("organization.manage", "project.update")
             ]
         )

@@ -96,7 +96,7 @@ from ai_stp_platform.corporate_authorization import (
     corporate_effective_permissions,
     explain_effective_permissions,
     has_corporate_permission,
-    role_closure_permissions,
+    role_permissions,
 )
 from ai_stp_platform.models import AccessGrant, Account, AuditEvent, CatalogIdentity, Device
 from ai_stp_platform.organization_models import (
@@ -701,7 +701,6 @@ async def _role_view(db: AsyncSession, row: CorporateRoleRow) -> CorporateRoleVi
     )
     return CorporateRoleView(
         name=row.name,
-        parent_role=row.parent_role,
         permissions=permissions,
         revision=row.revision,
     )
@@ -714,39 +713,9 @@ def _role_permissions(payload: list[str]) -> list[str]:
     return permissions
 
 
-async def _validate_role_parent(
-    db: AsyncSession, *, organization_id: str, role_name: str, parent_role: str | None
-) -> None:
-    if not _ROLE_NAME_RE.fullmatch(role_name) or (
-        parent_role is not None and not _ROLE_NAME_RE.fullmatch(parent_role)
-    ):
+def _validate_role_name(role_name: str) -> None:
+    if not _ROLE_NAME_RE.fullmatch(role_name):
         raise ApiError(ErrorCategory.VALIDATION, "corporate role name is invalid")
-    if parent_role is None:
-        return
-    if parent_role == role_name:
-        raise ApiError(ErrorCategory.VALIDATION, "corporate role hierarchy contains a cycle")
-    if (
-        await db.scalar(
-            select(CorporateRoleRow.name).where(
-                CorporateRoleRow.organization_id == organization_id,
-                CorporateRoleRow.name == parent_role,
-            )
-        )
-        is None
-    ):
-        raise ApiError(ErrorCategory.VALIDATION, "corporate parent role is unavailable")
-    current: str | None = parent_role
-    seen: set[str] = set()
-    while current is not None and current not in seen and len(seen) < 32:
-        seen.add(current)
-        current = await db.scalar(
-            select(CorporateRoleRow.parent_role).where(
-                CorporateRoleRow.organization_id == organization_id,
-                CorporateRoleRow.name == current,
-            )
-        )
-    if current == role_name or len(seen) >= 32:
-        raise ApiError(ErrorCategory.VALIDATION, "corporate role hierarchy contains a cycle")
 
 
 def _service_principal_view(
@@ -815,9 +784,9 @@ async def bootstrap(
     await db.flush()
     db.add_all(
         (
-            CorporateRoleRow(organization_id=organization.id, name="superadmin", parent_role=None),
-            CorporateRoleRow(organization_id=organization.id, name="lead", parent_role=None),
-            CorporateRoleRow(organization_id=organization.id, name="staff", parent_role=None),
+            CorporateRoleRow(organization_id=organization.id, name="superadmin"),
+            CorporateRoleRow(organization_id=organization.id, name="lead"),
+            CorporateRoleRow(organization_id=organization.id, name="staff"),
         )
     )
     for role, permissions in ROLE_PERMISSIONS.items():
@@ -1161,11 +1130,11 @@ async def assert_delegable_permissions(
 async def assert_delegable_roles(
     db: AsyncSession, *, organization_id: str, account_id: str, roles: Collection[str]
 ) -> None:
-    """Every role's closed permission set (own grants plus ancestors) must fit
-    inside the issuer's effective organization permissions."""
-    closures = await role_closure_permissions(db, organization_id=organization_id, roles=roles)
+    """Every role's permission set must fit inside the issuer's effective
+    organization permissions."""
+    grants = await role_permissions(db, organization_id=organization_id, roles=roles)
     granted: set[str] = set()
-    for permissions in closures.values():
+    for permissions in grants.values():
         granted |= set(permissions)
     await assert_delegable_permissions(
         db, organization_id=organization_id, account_id=account_id, permissions=granted
@@ -1194,26 +1163,22 @@ async def assert_delegable_coverage(
 
 async def _role_coverage(db: AsyncSession, *, organization_id: str, role: str) -> str:
     """An organization-scope binding propagates only when the role carries the
-    full administrative closure — a persisted write-time choice, not
+    full administrative permission set — a persisted write-time choice, not
     evaluation-time inference from the role name."""
-    closures = await role_closure_permissions(
-        db, organization_id=organization_id, roles={role, "superadmin"}
-    )
-    admin = closures.get("superadmin", frozenset())
-    return "descendants" if admin and admin <= closures.get(role, frozenset()) else "self"
+    grants = await role_permissions(db, organization_id=organization_id, roles={role, "superadmin"})
+    admin = grants.get("superadmin", frozenset())
+    return "descendants" if admin and admin <= grants.get(role, frozenset()) else "self"
 
 
 async def _org_admin_state(
     db: AsyncSession, *, organization_id: str
 ) -> tuple[set[str], frozenset[str]]:
     """Active user accounts whose organization-scope effective permissions cover
-    the full superadmin closure, plus that closure. Bindings at other scope
+    the full superadmin permission set, plus that set. Bindings at other scope
     kinds never count: organization administration is an organization-scope
     decision."""
-    closures = await role_closure_permissions(
-        db, organization_id=organization_id, roles={"superadmin"}
-    )
-    admin_set = closures.get("superadmin", frozenset())
+    grants = await role_permissions(db, organization_id=organization_id, roles={"superadmin"})
+    admin_set = grants.get("superadmin", frozenset())
     if not admin_set:
         return set(), admin_set
     rows = list(
@@ -1239,7 +1204,7 @@ async def _org_admin_state(
     for binding in rows:
         if binding.account_id is not None:
             by_account.setdefault(binding.account_id, set()).add(binding.role)
-    role_grants = await role_closure_permissions(
+    role_grants = await role_permissions(
         db,
         organization_id=organization_id,
         roles={role for roles in by_account.values() for role in roles},
@@ -1267,9 +1232,7 @@ async def _assert_superadmin_survives(
     if account_id not in admins:
         return
     if membership_active_after and org_roles_after:
-        after = await role_closure_permissions(
-            db, organization_id=organization_id, roles=org_roles_after
-        )
+        after = await role_permissions(db, organization_id=organization_id, roles=org_roles_after)
         remaining = set[str]().union(*after.values())
         if admin_set <= remaining:
             return
@@ -1456,36 +1419,19 @@ async def create_role(
     )
     if receipt is not None:
         return CorporateRoleView.model_validate(receipt.response_body)
-    await _validate_role_parent(
-        db,
-        organization_id=organization_id,
-        role_name=payload.name,
-        parent_role=payload.parent_role,
-    )
+    _validate_role_name(payload.name)
     permissions = _role_permissions(payload.permissions)
     await assert_delegable_permissions(
         db,
         organization_id=organization_id,
         account_id=ctx.account_id,
-        permissions=set(permissions)
-        | (
-            set(
-                (
-                    await role_closure_permissions(
-                        db, organization_id=organization_id, roles={payload.parent_role}
-                    )
-                ).get(payload.parent_role, frozenset())
-            )
-            if payload.parent_role
-            else set()
-        ),
+        permissions=set(permissions),
     )
     if await db.get(CorporateRoleRow, (organization_id, payload.name)) is not None:
         raise ApiError(ErrorCategory.CONFLICT, "corporate role already exists")
     row = CorporateRoleRow(
         organization_id=organization_id,
         name=payload.name,
-        parent_role=payload.parent_role,
     )
     db.add(row)
     db.add_all(
@@ -1589,32 +1535,14 @@ async def update_role(
         raise ApiError(ErrorCategory.CONFLICT, "built-in corporate role is immutable")
     if row.revision != payload.expected_revision:
         raise ApiError(ErrorCategory.CONFLICT, "corporate role revision changed")
-    await _validate_role_parent(
-        db,
-        organization_id=organization_id,
-        role_name=role_name,
-        parent_role=payload.parent_role,
-    )
     permissions = _role_permissions(payload.permissions)
     await assert_delegable_permissions(
         db,
         organization_id=organization_id,
         account_id=ctx.account_id,
-        permissions=set(permissions)
-        | (
-            set(
-                (
-                    await role_closure_permissions(
-                        db, organization_id=organization_id, roles={payload.parent_role}
-                    )
-                ).get(payload.parent_role, frozenset())
-            )
-            if payload.parent_role
-            else set()
-        ),
+        permissions=set(permissions),
     )
     before = await _role_view(db, row)
-    row.parent_role = payload.parent_role
     row.revision += 1
     await db.execute(
         delete(CorporateRolePermission).where(
@@ -1692,14 +1620,6 @@ async def delete_role(
         raise ApiError(ErrorCategory.CONFLICT, "built-in corporate role is immutable")
     if row.revision != payload.expected_revision:
         raise ApiError(ErrorCategory.CONFLICT, "corporate role revision changed")
-    child = await db.scalar(
-        select(CorporateRoleRow.name).where(
-            CorporateRoleRow.organization_id == organization_id,
-            CorporateRoleRow.parent_role == role_name,
-        )
-    )
-    if child is not None:
-        raise ApiError(ErrorCategory.CONFLICT, "corporate role is still referenced")
     bindings = list(
         (
             await db.scalars(
@@ -4604,11 +4524,11 @@ async def read_delegation(
             select(CorporateRoleRow.name).where(CorporateRoleRow.organization_id == organization_id)
         )
     )
-    closures = await role_closure_permissions(db, organization_id=organization_id, roles=role_names)
+    grants = await role_permissions(db, organization_id=organization_id, roles=role_names)
     grantable = [
-        CorporateGrantableRole(name=name, permissions=sorted(closures[name]))
-        for name in sorted(closures)
-        if closures[name] <= caller
+        CorporateGrantableRole(name=name, permissions=sorted(grants[name]))
+        for name in sorted(grants)
+        if grants[name] <= caller
     ]
     descendants = (
         await db.scalar(

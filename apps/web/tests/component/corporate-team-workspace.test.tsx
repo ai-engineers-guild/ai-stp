@@ -202,7 +202,6 @@ describe("corporate team workspace", () => {
           resource="roles"
           resourceId="auditor"
           name="auditor"
-          parentRole="staff"
           rolePermissions={["team.read"]}
           state="base"
           revision={1}
@@ -213,12 +212,11 @@ describe("corporate team workspace", () => {
     );
     await user.click(screen.getByRole("button", { name: "Actions" }));
     await user.click(screen.getByRole("menuitem", { name: "Edit" }));
-    await user.clear(screen.getByLabelText(messages.corporate.parentRole));
-    await user.type(screen.getByLabelText(messages.corporate.parentRole), "superadmin");
+    await user.clear(screen.getByLabelText(messages.corporate.permissions));
+    await user.type(screen.getByLabelText(messages.corporate.permissions), "team.update");
     await user.click(screen.getByRole("button", { name: "Cancel" }));
     await user.click(screen.getByRole("button", { name: "Actions" }));
     await user.click(screen.getByRole("menuitem", { name: "Edit" }));
-    expect(screen.getByLabelText(messages.corporate.parentRole)).toHaveValue("staff");
     expect(screen.getByLabelText(messages.corporate.permissions)).toHaveValue("team.read");
   });
   it("reuses a failed resource effect key but changes it for an edited draft", async () => {
@@ -233,7 +231,6 @@ describe("corporate team workspace", () => {
           resource="roles"
           resourceId="auditor"
           name="auditor"
-          parentRole="staff"
           rolePermissions={["team.read"]}
           state="base"
           revision={1}
@@ -253,8 +250,8 @@ describe("corporate team workspace", () => {
     expect(vi.mocked(corporateMutation).mock.calls[1]?.[0].body).toEqual(
       vi.mocked(corporateMutation).mock.calls[0]?.[0].body,
     );
-    await user.clear(screen.getByLabelText(messages.corporate.parentRole));
-    await user.type(screen.getByLabelText(messages.corporate.parentRole), "lead");
+    await user.clear(screen.getByLabelText(messages.corporate.permissions));
+    await user.type(screen.getByLabelText(messages.corporate.permissions), "team.update");
     await user.click(screen.getByRole("button", { name: messages.corporate.update }));
     await waitFor(() => {
       expect(corporateMutation).toHaveBeenCalledTimes(3);
@@ -279,7 +276,6 @@ describe("corporate team workspace", () => {
           resource="roles"
           resourceId="auditor"
           name="auditor"
-          parentRole="staff"
           rolePermissions={["team.read"]}
           state="base"
           revision={1}
@@ -290,11 +286,11 @@ describe("corporate team workspace", () => {
     );
     await user.click(screen.getByRole("button", { name: "Actions" }));
     await user.click(screen.getByRole("menuitem", { name: "Edit" }));
-    await user.clear(screen.getByLabelText(messages.corporate.parentRole));
-    await user.type(screen.getByLabelText(messages.corporate.parentRole), "lead");
+    await user.clear(screen.getByLabelText(messages.corporate.permissions));
+    await user.type(screen.getByLabelText(messages.corporate.permissions), "team.update");
     await user.click(screen.getByRole("button", { name: messages.corporate.update }));
     await screen.findByText(messages.common.apiUnavailable);
-    expect(screen.getByLabelText(messages.corporate.parentRole)).toHaveValue("lead");
+    expect(screen.getByLabelText(messages.corporate.permissions)).toHaveValue("team.update");
     expect(screen.getByRole("button", { name: messages.corporate.update })).toBeEnabled();
     await user.click(screen.getByRole("button", { name: messages.corporate.update }));
     await screen.findByText("Conflict");

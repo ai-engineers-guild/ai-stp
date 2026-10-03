@@ -155,7 +155,7 @@ export function CorporateRolesWorkspace({
     ? [
         ...new Set(
           definitions
-            .filter((item) => rolePermissions(selected, roles).has(item.name))
+            .filter((item) => rolePermissions(selected).has(item.name))
             .flatMap((item) => item.scopes),
         ),
       ]
@@ -390,7 +390,7 @@ export function CorporateRolesWorkspace({
                 <>
                   <CorporatePermissionTable
                     definitions={definitions}
-                    permissions={[...rolePermissions(selected, roles)]}
+                    permissions={[...rolePermissions(selected)]}
                   />
                   {selectedSystem ? (
                     <p className="text-muted-foreground mt-3 text-xs">{t("immutableRole")}</p>
@@ -654,7 +654,9 @@ export function CorporateRolesWorkspace({
               <select
                 id="role-replacement"
                 value={replacement}
-                onChange={(event) => { setReplacement(event.target.value); }}
+                onChange={(event) => {
+                  setReplacement(event.target.value);
+                }}
                 className={peopleSelectClass}
               >
                 {roles

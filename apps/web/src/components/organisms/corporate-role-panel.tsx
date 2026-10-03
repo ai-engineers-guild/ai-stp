@@ -86,7 +86,6 @@ export function CorporateRolePanel({
               body: {
                 schema_version: 1,
                 ...(mode === "create" ? { name: field(formData, "name") } : {}),
-                parent_role: null,
                 permissions: formData.getAll("permissions").map(String),
                 ...(mode === "edit" && selected ? { expected_revision: selected.revision } : {}),
                 authorization_revision: authorizationRevision,

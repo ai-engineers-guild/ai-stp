@@ -204,7 +204,7 @@ class CorporateRolePermission(Base):
 
 
 class CorporateRole(Base):
-    """One named corporate role and its persisted hierarchy edge."""
+    """One named corporate role."""
 
     __tablename__ = "corporate_role"
     __table_args__ = (PrimaryKeyConstraint("organization_id", "name"),)
@@ -213,7 +213,6 @@ class CorporateRole(Base):
         String(64), ForeignKey("organization.id", ondelete="CASCADE"), nullable=False
     )
     name: Mapped[str] = mapped_column(String(64), nullable=False)
-    parent_role: Mapped[str | None] = mapped_column(String(64), nullable=True)
     revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
 
 

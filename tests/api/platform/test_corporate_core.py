@@ -507,6 +507,7 @@ async def test_corporate_core_lifecycle_and_tenant_boundary(
             "schema_version": 1,
             "account_id": lead_id,
             "project_id": project_id,
+            "project_role": "lead",
             "authorization_revision": revision,
             "idempotency_key": "assign-lead-0001",
         },
@@ -802,10 +803,12 @@ async def test_corporate_core_lifecycle_and_tenant_boundary(
         ]
         assert membership_audit.payload["before"] == {
             "team_role": "staff",
+            "project_role": "staff",
             "project_assigned": True,
         }
         assert membership_audit.payload["after"] == {
             "team_role": None,
+            "project_role": None,
             "project_assigned": False,
         }
 
@@ -914,28 +917,26 @@ async def test_corporate_core_lifecycle_and_tenant_boundary(
         json={
             "schema_version": 1,
             "name": "project_reviewer",
-            "parent_role": "lead",
-            "permissions": [],
+            "permissions": ["project.read", "project.update"],
             "authorization_revision": role_revision,
             "idempotency_key": "create-role-0001",
         },
         headers=auth,
     )
     assert created_role.status_code == 200, created_role.text
-    assert created_role.json()["parent_role"] == "lead"
-    missing_parent_role = await client.post(
+    assert created_role.json()["permissions"] == ["project.read", "project.update"]
+    invalid_role_name = await client.post(
         f"/v1/corporate/organizations/{organization_id}/roles",
         json={
             "schema_version": 1,
-            "name": "orphan_role",
-            "parent_role": "missing_role",
+            "name": "BadName",
             "permissions": [],
             "authorization_revision": role_revision + 1,
-            "idempotency_key": "create-orphan-role-0001",
+            "idempotency_key": "create-invalid-role-0001",
         },
         headers=auth,
     )
-    assert missing_parent_role.status_code == 400
+    assert invalid_role_name.status_code == 400
     roles = await client.get(f"/v1/corporate/organizations/{organization_id}/roles", headers=auth)
     assert roles.status_code == 200, roles.text
     assert "project_reviewer" in {item["name"] for item in roles.json()["items"]}

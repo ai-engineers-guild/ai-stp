@@ -156,21 +156,11 @@ it("keeps relationship actions in their entity and resolves inherited permission
     entityDefinitions([...definitions, relation]).find(([entity]) => entity === "project")?.[1],
   ).toEqual([relation]);
   expect(permissionColumn(relation)).toBe("other");
-  const roles: [CorporateRoleView, CorporateRoleView] = [
-    {
-      schema_version: 1,
-      name: "child",
-      parent_role: "parent",
-      permissions: ["team.create"],
-      revision: 1,
-    },
-    {
-      schema_version: 1,
-      name: "parent",
-      parent_role: "child",
-      permissions: ["team.list"],
-      revision: 1,
-    },
-  ];
-  expect([...rolePermissions(roles[0], roles)].sort()).toEqual(["team.create", "team.list"]);
+  const role: CorporateRoleView = {
+    schema_version: 1,
+    name: "custom",
+    permissions: ["team.create", "team.list"],
+    revision: 1,
+  };
+  expect([...rolePermissions(role)].sort()).toEqual(["team.create", "team.list"]);
 });

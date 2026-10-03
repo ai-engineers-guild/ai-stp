@@ -200,7 +200,6 @@ async def test_directory_and_overview_hide_unreadable_names_and_preserve_team_le
         "roles",
         {
             "name": "directory_reader",
-            "parent_role": "lead",
             "permissions": [
                 "project_team.list",
                 "project_team.read",

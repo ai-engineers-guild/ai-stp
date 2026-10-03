@@ -158,10 +158,9 @@ export default async function CorporateResourcePage({ params, searchParams }: Pa
           : role && {
               id: role.name,
               name: role.name,
-              state: role.parent_role ?? "base",
+              state: "active",
               revision: role.revision,
               role: role.name,
-              parentRole: role.parent_role,
               rolePermissions: role.permissions,
               title: t("roleDetails"),
               description: t("roleDetailsBody"),

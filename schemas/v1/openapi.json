@@ -10418,22 +10418,6 @@
             "title": "Name",
             "type": "string"
           },
-          "parent_role": {
-            "anyOf": [
-              {
-                "description": "Tenant-local role name.",
-                "maxLength": 64,
-                "minLength": 1,
-                "pattern": "^[a-z][a-z0-9_-]*$",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Parent Role"
-          },
           "permissions": {
             "items": {
               "type": "string"
@@ -10545,22 +10529,6 @@
           "idempotency_key": {
             "$ref": "#/components/schemas/IdempotencyKey"
           },
-          "parent_role": {
-            "anyOf": [
-              {
-                "description": "Tenant-local role name.",
-                "maxLength": 64,
-                "minLength": 1,
-                "pattern": "^[a-z][a-z0-9_-]*$",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Parent Role"
-          },
           "permissions": {
             "items": {
               "type": "string"
@@ -10596,21 +10564,6 @@
             "title": "Name",
             "type": "string"
           },
-          "parent_role": {
-            "anyOf": [
-              {
-                "description": "Tenant-local role name.",
-                "maxLength": 64,
-                "minLength": 1,
-                "pattern": "^[a-z][a-z0-9_-]*$",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Parent Role"
-          },
           "permissions": {
             "items": {
               "type": "string"
@@ -10633,7 +10586,6 @@
         },
         "required": [
           "name",
-          "parent_role",
           "permissions",
           "revision",
           "schema_version"
@@ -61311,7 +61263,6 @@
                       "items": [
                         {
                           "name": "reviewer",
-                          "parent_role": "staff",
                           "permissions": [
                             "project.read"
                           ],
@@ -61499,12 +61450,11 @@
             "application/json": {
               "examples": {
                 "createCorporateRole.corporate": {
-                  "summary": "A tenant-local custom role carries explicit inherited permissions.",
+                  "summary": "A tenant-local custom role carries an explicit permission list.",
                   "value": {
                     "authorization_revision": 1,
                     "idempotency_key": "corporate-role-create-0001",
                     "name": "reviewer",
-                    "parent_role": "staff",
                     "permissions": [
                       "project.read"
                     ],
@@ -61525,10 +61475,9 @@
               "application/json": {
                 "examples": {
                   "createCorporateRole.corporate": {
-                    "summary": "A tenant-local custom role carries explicit inherited permissions.",
+                    "summary": "A tenant-local custom role carries an explicit permission list.",
                     "value": {
                       "name": "reviewer",
-                      "parent_role": "staff",
                       "permissions": [
                         "project.read"
                       ],
@@ -61965,7 +61914,6 @@
                     "summary": "One custom role can be read inside its tenant.",
                     "value": {
                       "name": "reviewer",
-                      "parent_role": "staff",
                       "permissions": [
                         "project.read"
                       ],
@@ -62174,7 +62122,6 @@
                     "authorization_revision": 1,
                     "expected_revision": 1,
                     "idempotency_key": "corporate-role-update-0001",
-                    "parent_role": null,
                     "permissions": [
                       "project.read",
                       "project.update"
@@ -62199,7 +62146,6 @@
                     "summary": "Role permission changes use an explicit revision.",
                     "value": {
                       "name": "reviewer",
-                      "parent_role": null,
                       "permissions": [
                         "project.read",
                         "project.update"

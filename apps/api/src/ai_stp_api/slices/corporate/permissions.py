@@ -18,7 +18,7 @@ from ai_stp_contracts.corporate_governance import (
 )
 from ai_stp_platform.corporate_authorization import (
     corporate_effective_permissions,
-    role_closure_permissions,
+    role_permissions,
 )
 from ai_stp_platform.organization_models import (
     CorporatePermissionGrant,
@@ -106,7 +106,7 @@ async def read_permission_matrix(
             )
         ).all()
     )
-    role_permissions = await role_closure_permissions(
+    role_grants = await role_permissions(
         db, organization_id=organization_id, roles={binding.role for binding in bindings}
     )
     scope_grants: dict[tuple[str, str], set[str]] = {}
@@ -136,7 +136,7 @@ async def read_permission_matrix(
         scope_kind = binding.scope_kind if binding.scope_kind in _SCOPES else "organization"
         scope_id = binding.scope_id
         effective = await _effective_at(scope_kind, scope_id)
-        for permission in sorted(effective & role_permissions.get(binding.role, frozenset())):
+        for permission in sorted(effective & role_grants.get(binding.role, frozenset())):
             _record(
                 scope_kind,
                 scope_id,

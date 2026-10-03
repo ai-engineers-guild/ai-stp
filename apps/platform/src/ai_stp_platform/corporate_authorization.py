@@ -14,7 +14,6 @@ from ai_stp_platform.organization_models import (
     CorporatePermissionGrant,
     CorporateProject,
     CorporateProjectMember,
-    CorporateRole,
     CorporateRoleBinding,
     CorporateRolePermission,
     CorporateServicePrincipal,
@@ -37,36 +36,10 @@ from ai_stp_platform.tenant_scope import set_tenant_scope
 PrincipalType = Literal["user", "service_principal"]
 
 
-async def _role_graph(session: AsyncSession, organization_id: str) -> dict[str, str | None]:
-    """The tenant's whole role->parent map in one query."""
-    rows = (
-        await session.execute(
-            select(CorporateRole.name, CorporateRole.parent_role).where(
-                CorporateRole.organization_id == organization_id
-            )
-        )
-    ).all()
-    return {row.name: row.parent_role for row in rows}
-
-
-def _close_roles(graph: dict[str, str | None], roles: set[str]) -> set[str]:
-    """Ancestors of every bound role, with the same per-chain bound the old
-    per-hop walk used (32 steps)."""
-    closed: set[str] = set()
-    for role in roles:
-        current: str | None = role
-        seen: set[str] = set()
-        while current is not None and current not in seen and len(seen) < 32:
-            seen.add(current)
-            closed.add(current)
-            current = graph.get(current)
-    return closed
-
-
 async def _grants_for_roles(
     session: AsyncSession, organization_id: str, roles: set[str]
 ) -> set[str]:
-    """Every permission granted to any of the closed roles, in one query."""
+    """Every permission granted to any of the roles, in one query."""
     if not roles:
         return set()
     return set(
@@ -81,33 +54,25 @@ async def _grants_for_roles(
     )
 
 
-async def role_closure_permissions(
+async def role_permissions(
     session: AsyncSession, *, organization_id: str, roles: Collection[str]
 ) -> dict[str, frozenset[str]]:
-    """Each named role's effective permission set including inherited ancestors."""
+    """Each named role's own permission set."""
     wanted = set(roles)
     if not wanted:
         return {}
-    graph = await _role_graph(session, organization_id)
     rows = (
         await session.execute(
             select(CorporateRolePermission.role, CorporateRolePermission.permission).where(
                 CorporateRolePermission.organization_id == organization_id,
-                CorporateRolePermission.role.in_(_close_roles(graph, wanted) or {""}),
+                CorporateRolePermission.role.in_(wanted),
             )
         )
     ).all()
-    grants: dict[str, set[str]] = {}
+    grants: dict[str, set[str]] = {role: set() for role in wanted}
     for role, permission in rows:
-        grants.setdefault(role, set()).add(permission)
-    return {
-        role: frozenset(
-            permission
-            for ancestor in _close_roles(graph, {role})
-            for permission in grants.get(ancestor, ())
-        )
-        for role in wanted
-    }
+        grants[role].add(permission)
+    return {role: frozenset(grants[role]) for role in wanted}
 
 
 async def _principal_gate(
@@ -322,8 +287,7 @@ async def corporate_effective_permissions(
     `None` means the gate itself denied (inactive organization, principal or
     stale policy revision); an empty set means the principal is active but
     holds nothing at this scope. Bounded queries total — bindings, direct
-    grants, role graph, role grants — where `has_corporate_permission` used to
-    walk the role chain one hop per query per bound role."""
+    grants, role grants."""
     if not await _principal_gate(
         session,
         organization_id=organization_id,
@@ -362,8 +326,7 @@ async def corporate_effective_permissions(
         ),
     )
     roles = {binding.role for binding in bindings}
-    graph = await _role_graph(session, organization_id)
-    return await _grants_for_roles(session, organization_id, _close_roles(graph, roles)) | {
+    return await _grants_for_roles(session, organization_id, roles) | {
         grant.permission for grant in grants
     }
 
@@ -433,7 +396,7 @@ async def explain_effective_permissions(
             org_descendants=false(),
         ),
     )
-    closures = await role_closure_permissions(
+    grants_by_role = await role_permissions(
         session,
         organization_id=organization_id,
         roles={binding.role for binding in bindings},
@@ -441,7 +404,7 @@ async def explain_effective_permissions(
     records: list[PermissionSourceRecord] = []
     effective: set[str] = set()
     for binding in bindings:
-        contributed = closures.get(binding.role, frozenset())
+        contributed = grants_by_role.get(binding.role, frozenset())
         effective |= contributed
         records.append(
             PermissionSourceRecord(
@@ -558,8 +521,8 @@ async def bulk_effective_permissions(
     """Permission sets for many same-kind scopes in bounded queries.
 
     One gate check, one binding read, one grouped map per relation kind the
-    scope arm joins, the role graph, and one grants read for the union of
-    every matching role — the count does not grow with `scope_ids`. `None`
+    scope arm joins, and one grants read for the union of every matching
+    role — the count does not grow with `scope_ids`. `None`
     mirrors the single evaluator's gate denial: callers should treat it as
     "denied for every id", not "no data"."""
     if not await _principal_gate(
@@ -822,13 +785,11 @@ async def bulk_effective_permissions(
         for scope_id in ids:
             if _matches(grant.scope_kind, grant.scope_id, scope_id, descendants=False):
                 grants_per_scope[scope_id].add(grant.permission)
-    graph = await _role_graph(session, organization_id)
-    closed = _close_roles(graph, all_roles)
     grants_rows = (
         await session.execute(
             select(CorporateRolePermission.role, CorporateRolePermission.permission).where(
                 CorporateRolePermission.organization_id == organization_id,
-                CorporateRolePermission.role.in_(closed or {""}),
+                CorporateRolePermission.role.in_(all_roles or {""}),
             )
         )
     ).all()
@@ -837,9 +798,8 @@ async def bulk_effective_permissions(
         grants.setdefault(role, set()).add(permission)
     result: dict[str, frozenset[str]] = {}
     for scope_id in ids:
-        scope_closed = _close_roles(graph, roles_per_scope[scope_id])
         permissions: set[str] = set()
-        for role in scope_closed:
+        for role in roles_per_scope[scope_id]:
             permissions |= grants.get(role, set())
         result[scope_id] = frozenset(permissions | grants_per_scope[scope_id])
     return result
@@ -876,5 +836,5 @@ __all__ = [
     "corporate_effective_permissions",
     "explain_effective_permissions",
     "has_corporate_permission",
-    "role_closure_permissions",
+    "role_permissions",
 ]

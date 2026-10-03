@@ -96,16 +96,8 @@ export function permissionColumn(definition: CorporatePermissionDefinition) {
     : "other";
 }
 
-export function rolePermissions(role: CorporateRoleView, roles: readonly CorporateRoleView[]) {
-  const permissions = new Set<string>();
-  const seen = new Set<string>();
-  let current: CorporateRoleView | undefined = role;
-  while (current && !seen.has(current.name)) {
-    seen.add(current.name);
-    current.permissions.forEach((permission) => permissions.add(permission));
-    current = roles.find((item) => item.name === current?.parent_role);
-  }
-  return permissions;
+export function rolePermissions(role: CorporateRoleView) {
+  return new Set<string>(role.permissions);
 }
 
 const actionLabels = [

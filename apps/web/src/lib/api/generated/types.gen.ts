@@ -5168,10 +5168,6 @@ export type CorporateRoleCreateRequest = {
    */
   name: string;
   /**
-   * Parent Role
-   */
-  parent_role?: string | null;
-  /**
    * Permissions
    */
   permissions?: Array<string>;
@@ -5233,10 +5229,6 @@ export type CorporateRoleUpdateRequest = {
   expected_revision: number;
   idempotency_key: IdempotencyKey;
   /**
-   * Parent Role
-   */
-  parent_role?: string | null;
-  /**
    * Permissions
    */
   permissions: Array<string>;
@@ -5256,10 +5248,6 @@ export type CorporateRoleView = {
    * Tenant-local role name.
    */
   name: string;
-  /**
-   * Parent Role
-   */
-  parent_role: string | null;
   /**
    * Permissions
    */

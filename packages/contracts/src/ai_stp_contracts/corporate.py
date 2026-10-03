@@ -710,7 +710,6 @@ class CorporateRoleCreateRequest(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
     schema_version: Literal[1] = 1
     name: CorporateRole
-    parent_role: CorporateRole | None = None
     permissions: Annotated[list[str], Field(max_length=128)] = Field(default_factory=list)
     authorization_revision: Annotated[int, Field(ge=1)]
     idempotency_key: IdempotencyKey
@@ -719,7 +718,6 @@ class CorporateRoleCreateRequest(BaseModel):
 class CorporateRoleUpdateRequest(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
     schema_version: Literal[1] = 1
-    parent_role: CorporateRole | None = None
     permissions: Annotated[list[str], Field(max_length=128)]
     expected_revision: Annotated[int, Field(ge=1)]
     authorization_revision: Annotated[int, Field(ge=1)]
@@ -735,7 +733,6 @@ class CorporateRoleView(BaseModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     schema_version: Literal[1] = 1
     name: CorporateRole
-    parent_role: CorporateRole | None
     permissions: Annotated[list[str], Field(max_length=128)]
     revision: Annotated[int, Field(ge=1)]
 

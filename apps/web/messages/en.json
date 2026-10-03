@@ -2429,7 +2429,6 @@
     "operation": "Operation",
     "organization": "Organization",
     "organizationRole": "Organization role",
-    "parentRole": "Parent role",
     "peopleVisibility": "People visibility",
     "peopleVisibilityAdmins": "Administrators only",
     "peopleVisibilityHint": "Which members appear in the directory: everyone, teammates on shared teams and projects, or administrators only.",
