@@ -156,6 +156,28 @@ def test_target_side_deployer_preserves_the_host_state_and_monotonicity() -> Non
         "./deploy/verify.sh"
     )
 
+    # Docker build residue needs the same bound. Three days of failing web
+    # builds grew it past thirty gigabytes on 2026-10-03 until the disk filled
+    # and git could not write `config.lock` — every tick then failed before
+    # the build it was protecting. The prune must run after the attempt
+    # whether it succeeded or not: placed on the success path only, it never
+    # executes when the residue is worst.
+    attempt = script.find("./deploy/run.sh")
+    complete = script.find("pull_deploy_complete")
+    call = script.find("\nprune_docker_residues\n", attempt)
+    assert 0 < attempt < call < complete
+    assert ") || deploy_status=$?" in script
+    assert 'exit "${deploy_status}"' in script
+    assert call < script.find('exit "${deploy_status}"')
+    # Hygiene must not fail the deploy it cleans up after.
+    prune_body = script[
+        script.find("prune_docker_residues()") : script.find(
+            "}", script.find("prune_docker_residues()")
+        )
+    ]
+    assert "docker system prune -f" in prune_body
+    assert "|| true" in prune_body
+
     # The source is this repository, fetched anonymously (`ADR-0109`). A private
     # default here would be invisible until a host rebuilt its mirror and then
     # quietly deployed from somewhere nobody can read.
