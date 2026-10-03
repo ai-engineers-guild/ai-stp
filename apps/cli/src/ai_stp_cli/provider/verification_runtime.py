@@ -5,11 +5,11 @@ from __future__ import annotations
 import json
 import os
 import subprocess
-import sys
 from collections.abc import Mapping
 from pathlib import Path
 from typing import cast
 
+from ai_stp_cli import interpreter
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.paths import data_dir, ensure_directory, write_private
 from ai_stp_cli.provider.release import IndexPublisherRule
@@ -41,10 +41,14 @@ def verify(
         ),
     )
     resources = Path(__file__).parent
+    uv_prefix = interpreter.uv()
+    if uv_prefix is None:
+        raise CliFailure(
+            "AI_STP_DEPENDENCY_UNAVAILABLE",
+            "frozen build found no uv executable for provenance verification",
+        )
     command = [
-        sys.executable,
-        "-m",
-        "uv",
+        *uv_prefix,
         "--no-config",
         "run",
         "--no-project",

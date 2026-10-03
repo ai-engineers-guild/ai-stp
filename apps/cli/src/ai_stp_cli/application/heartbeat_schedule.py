@@ -31,6 +31,15 @@ def _wsl() -> bool:
 
 
 def _target(organization_id: str) -> tuple[str, list[str]]:
+    if getattr(sys, "frozen", False):
+        # `-m ai_stp_cli…` needs an interpreter with this package installed.
+        # A frozen binary has neither — `sys.executable` is the CLI itself —
+        # so scheduling a wakeup is refused rather than recording a task that
+        # launches a click usage error on every tick.
+        raise CliFailure(
+            "AI_STP_DEPENDENCY_UNAVAILABLE",
+            "scheduled wakeups need an installed interpreter; a frozen build has none",
+        )
     args = [
         "-m",
         "ai_stp_cli.application.heartbeat_wakeup",

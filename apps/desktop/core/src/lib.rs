@@ -7,9 +7,7 @@
 pub mod cli_runner;
 pub mod commands;
 pub mod envelope;
-pub mod scope;
 
 pub use cli_runner::{CliLocator, CliRunner, RunError, DEFAULT_TIMEOUT, MUTATING_TIMEOUT};
 pub use commands::{BuildError, CommandDescriptor, CommandRegistry, MachineHelp};
 pub use envelope::{parse, Continuation, ContinuationActor, Envelope, ParseFailure};
-pub use scope::Scope;

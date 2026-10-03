@@ -2169,6 +2169,13 @@ class NativeComponent(BaseModel):
     holds_secret: bool = False
     reason: Annotated[str, Field(min_length=1)]
 
+    #: The stable_id this path is already registered as, when the local
+    #: registry's `component_source_binding` answers the same key adoption
+    #: would record. `None` means unregistered — including when no registry
+    #: exists yet. The only join a reader should make; `source_path` is a
+    #: display string, not a key.
+    registered_stable_id: Annotated[str, Field(min_length=1)] | None = None
+
 
 class NativeComponents(BaseModel):
     """Everything discovery found, and nothing it changed (`REQ-518`)."""

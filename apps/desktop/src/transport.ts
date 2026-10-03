@@ -22,6 +22,9 @@ export interface CmdResult {
   continuations: CliContinuation[];
   error: string | null;
   error_code: string | null;
+  // `error.details` verbatim — `details.options` is the contract's
+  // one-retry repair channel for parse/selector failures (cli-json.md).
+  error_details?: Record<string, unknown> | null;
   request_id?: string | null;
   operation_id?: string | null;
   error_retryable?: boolean | null;
@@ -39,13 +42,21 @@ export interface CmdResult {
 function call(command: string, args?: Record<string, unknown>): Promise<CmdResult> {
   const t0 = performance.now();
   const argsRec = args ?? {};
+  // args go through redact like results — plus `task answer`'s `value`,
+  // which is free user text the debug bundle would otherwise carry
+  // verbatim; key-name redaction cannot see it, so it is named here.
+  const tracedArgs =
+    command === "task_answer" && "value" in argsRec
+      ? { ...argsRec, value: "[user answer]" }
+      : (redact(argsRec) as Record<string, unknown>);
   const trace = (e: Omit<IpcEntry, "id" | "ts">) => {
     if (useDebug.getState().debugMode) useDebug.getState().push(e);
   };
   return invoke<CmdResult>(command, argsRec).then(
     (r) => {
       trace({
-        cmd: command, args: argsRec, ms: Math.round(performance.now() - t0),
+        cmd: command, args: tracedArgs,
+        ms: Math.round(performance.now() - t0),
         ok: r.ok, error_code: r.error_code, error: r.error,
         result: redact(r) as CmdResult,
       });
@@ -53,7 +64,8 @@ function call(command: string, args?: Record<string, unknown>): Promise<CmdResul
     },
     (e) => {
       trace({
-        cmd: command, args: argsRec, ms: Math.round(performance.now() - t0),
+        cmd: command, args: tracedArgs,
+        ms: Math.round(performance.now() - t0),
         ok: null, error_code: "IPC_THROW", error: String(e),
       });
       return {
@@ -82,6 +94,30 @@ export function cmdDoctor(): Promise<CmdResult> {
 
 export function cmdMachineHelp(): Promise<CmdResult> {
   return call("machine_help");
+}
+
+interface WireParameter {
+  name?: string;
+  choices?: string[];
+}
+
+interface WireDescriptor {
+  path?: string[];
+  parameters?: WireParameter[];
+}
+
+/** The `choices` the CLI publishes for `path`'s `param`, or `null` when the
+ *  machine help cannot answer — the caller's fallback is its business. */
+export function descriptorChoices(
+  help: CmdResult | null,
+  path: string,
+  param: string,
+): string[] | null {
+  const commands = (help?.data?.commands as WireDescriptor[] | undefined) ?? [];
+  const choices = commands
+    .find((d) => (d.path ?? []).join(" ") === path)
+    ?.parameters?.find((p) => p.name === param)?.choices;
+  return choices && choices.length > 0 ? choices : null;
 }
 
 export function cmdRunRead(
@@ -165,15 +201,14 @@ export function cmdTaskIntents(): Promise<CmdResult> {
 export function cmdTaskStart(
   intent: string,
   idemKey?: string,
-  input?: string,
 ): Promise<CmdResult> {
   // One key per logical start: a timeout-and-retry hits the CLI's
-  // idempotency dedup instead of forking a duplicate task. `input` is the
-  // CLI's optional JSON pre-answer blob (`task start --input`).
+  // idempotency dedup instead of forking a duplicate task. `task start
+  // --input` is a file path on the CLI, not an inline blob — it is not
+  // exposed here (answers go through `task answer`).
   return call("task_start", {
     intent,
     idemKey: idemKey ?? null,
-    input: input ?? null,
   });
 }
 

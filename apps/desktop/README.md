@@ -15,8 +15,10 @@ holds user credentials.
   (executable resolution bundled → configured → PATH, env pinning, bounded
   wait, timeout = effect unconfirmed).
 - `src-tauri/` — thin Tauri shell: `#[tauri::command]` wrappers run core
-  calls on `spawn_blocking`; capabilities are restricted to invoke/dialog/
-  opener/process/window-state; strict CSP. IPC tiers: `cli_run_read`
+  calls on `spawn_blocking`; capabilities are restricted to core invoke/
+  window, `opener` URLs (HTTPS plus loopback HTTP for local providers),
+  and `window-state`; plugins are single-instance, window-state, and
+  opener; strict CSP. IPC tiers: `cli_run_read`
   (mutability=`read` only), `cli_plan` (`plan` only),
   `cli_apply_confirmed` (`apply` + explicit UI confirmation), plus typed
   commands for auth, catalog, tasks.
@@ -79,7 +81,9 @@ Run the dev app (needs a display): `bunx tauri dev` from `apps/desktop`.
   parameters are refused before spawn;
 - exactly one JSON object on stdout; unknown `schema_version` majors fail
   closed with an update prompt;
-- errors are routed by `error.code` + `handling`, never message text;
+- errors are routed by `error.code` (+ `retryable` and structured
+  `details`/`next_actions` passthrough), never message text; shell-local
+  failures use `DESKTOP_*` codes, never the CLI's `AI_STP_*` namespace;
 - `actor="external"` continuations mean poll, not re-run;
 - unknown `actor` values degrade to `human` — the app never auto-runs an
   argv it was not explicitly handed.

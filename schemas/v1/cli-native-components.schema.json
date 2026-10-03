@@ -100,6 +100,19 @@
           "title": "Reason",
           "type": "string"
         },
+        "registered_stable_id": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Registered Stable Id"
+        },
         "schema_version": {
           "const": 1,
           "default": 1,
@@ -143,6 +156,7 @@
         "native_role",
         "provenance",
         "reason",
+        "registered_stable_id",
         "schema_version",
         "scope",
         "source_path",

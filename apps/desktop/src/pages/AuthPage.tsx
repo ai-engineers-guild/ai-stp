@@ -5,18 +5,23 @@ import {
   cmdAuthComplete,
   cmdAuthLogin,
   cmdAuthLogout,
+  cmdMachineHelp,
+  descriptorChoices,
   type CmdResult,
 } from "../transport";
 import { Json, ResultMeta, Spinner } from "../components/Result";
 import { useApp } from "../store";
 
-// Matches the CLI's closed provider set (`auth login --provider` choices).
-const PROVIDERS = [
-  { id: "google", label: "Google" },
-  { id: "github", label: "GitHub" },
-  { id: "authentik", label: "Authentik" },
-  { id: "keycloak", label: "Keycloak" },
-];
+// Display labels for known providers; the *set* comes live from the
+// `auth login --provider` descriptor choices — an unknown id renders
+// under its own name rather than hiding.
+const PROVIDER_LABELS: Record<string, string> = {
+  google: "Google",
+  github: "GitHub",
+  authentik: "Authentik",
+  keycloak: "Keycloak",
+};
+const FALLBACK_PROVIDERS = Object.keys(PROVIDER_LABELS);
 
 /** Device-code sign-in driven entirely by the CLI. The app displays the
  *  user code and opens the verification URL; tokens are stored by the CLI
@@ -24,6 +29,7 @@ const PROVIDERS = [
 export default function AuthPage() {
   const { auth, refreshAuth } = useApp();
   const [provider, setProvider] = useState("google");
+  const [providers, setProviders] = useState<string[]>(FALLBACK_PROVIDERS);
   const [flow, setFlow] = useState<CmdResult | null>(null);
   const [status, setStatus] = useState<CmdResult | null>(null);
   const [waiting, setWaiting] = useState(false);
@@ -35,6 +41,10 @@ export default function AuthPage() {
 
   useEffect(() => {
     void refreshAuth();
+    void cmdMachineHelp().then((r) => {
+      const choices = descriptorChoices(r, "auth login", "provider");
+      if (choices) setProviders(choices);
+    });
     return () => {
       pollGen.current++;
     };
@@ -73,15 +83,27 @@ export default function AuthPage() {
     setWaiting(true);
     // Poll without --wait: the CLI's blocking wait can outlive the runner's
     // bounded deadline, which would surface as a false "unconfirmed" kill.
-    const deadline = Date.now() + (expiresIn > 0 ? expiresIn * 1000 : 5 * 60_000);
+    // The loop mirrors `cloud/login.py::poll` exactly — the same bounds
+    // (interval clamped to [1, 30] s, deadline min(expires_in, 900 s),
+    // five consecutive transient failures) — while every classification
+    // still comes from the CLI's own exchange call.
+    const interval = Math.min(Math.max(Number(loginData.interval) || 4, 1), 30);
+    const deadline =
+      Date.now() + Math.min(expiresIn > 0 ? expiresIn : 900, 900) * 1000;
+    let transientFailures = 0;
     let res: CmdResult | null = null;
     try {
       while (Date.now() < deadline && pollGen.current === gen) {
         res = await cmdAuthComplete(false);
-        // Closed code set: AUTHORIZATION_PENDING keeps polling; DECLINED /
-        // EXPIRED / anything else terminates immediately.
-        if (res.ok || res.error_code !== "AI_STP_AUTHORIZATION_PENDING") break;
-        await new Promise((r) => setTimeout(r, 4000));
+        if (res.ok) break;
+        // PENDING keeps polling; a rate limit or another retryable failure
+        // is a wait, not a refusal — anything else is a decision.
+        if (res.error_code === "AI_STP_AUTHORIZATION_PENDING") {
+          transientFailures = 0;
+        } else if (res.error_code === "AI_STP_RATE_LIMITED" || res.error_retryable === true) {
+          if (++transientFailures >= 5) break;
+        } else break;
+        await new Promise((r) => setTimeout(r, interval * 1000));
       }
     } finally {
       if (pollGen.current === gen) setWaiting(false);
@@ -122,17 +144,17 @@ export default function AuthPage() {
         <section className="space-y-3 card p-4">
           <p className="section-title">Choose a provider</p>
           <div className="flex gap-2">
-            {PROVIDERS.map((p) => (
+            {providers.map((p) => (
               <button
-                key={p.id}
-                onClick={() => setProvider(p.id)}
+                key={p}
+                onClick={() => setProvider(p)}
                 className={`rounded-lg border px-3 py-1.5 text-sm ${
-                  provider === p.id
+                  provider === p
                     ? "border-primary bg-primary/10 font-medium text-primary"
                     : "border-current/20 text-muted-foreground"
                 }`}
               >
-                {p.label}
+                {PROVIDER_LABELS[p] ?? p}
               </button>
             ))}
           </div>
