@@ -7,6 +7,7 @@
 FROM oven/bun:1.4.2-alpine@sha256:d888c0ae6c86d7866ff10c5aafdd9077b36aee6455b33dd270fb93c0dd5cef6f AS deps
 WORKDIR /app
 COPY apps/web/package.json apps/web/bun.lock ./
+COPY apps/web/patches ./patches
 RUN bun install --frozen-lockfile
 
 # Development target: Bun installs deps; real Node runs Next.js (Bun's node
@@ -18,8 +19,8 @@ FROM deps AS dev
 # Real Node for the Next.js server process (not Bun's node fallback symlink).
 # Alpine keeps no version history, so an `=` pin breaks the build the day the
 # index rolls; this dev-only image takes the index's nodejs over a dead pin.
-# hadolint ignore=DL3018
 # Server Intl must support the same locales as the browser to hydrate dates.
+# hadolint ignore=DL3018
 RUN apk add --no-cache nodejs icu-data-full \
     && /usr/bin/node -e "require('node:assert/strict').deepEqual(Intl.RelativeTimeFormat.supportedLocalesOf(['en', 'ru']), ['en', 'ru'])"
 

@@ -476,6 +476,89 @@ def test_the_images_resolve_the_lockfile_with_the_uv_every_gate_installs() -> No
     assert seen >= 2, f"expected every image to pin uv, found {seen} references"
 
 
+def test_bun_install_in_an_image_sees_the_patches_it_applies() -> None:
+    """`patchedDependencies` the build context cannot see break the deploy.
+
+    `bun install` resolves entries under `patchedDependencies` relative to
+    the manifest, so a deps stage copying only `package.json` and `bun.lock`
+    fails with "Couldn't find patch file" — the failure the 2026-10-03
+    production deploy hit on the braces depth-guard patch: the host pulled
+    the promoted ref, the web image refused to build, and every later tick
+    failed the same way until the Dockerfile learned to copy `patches/`.
+
+    For every manifest declaring patches, any Dockerfile that copies that
+    manifest into the image copies `patches/` — or a directory containing
+    it — before the `bun install` that applies them.
+    """
+    tracked = subprocess.run(
+        ["git", "ls-files"],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.splitlines()
+    patched = [
+        Path(name).parent
+        for name in tracked
+        if name.endswith("package.json")
+        and json.loads(Path(name).read_text(encoding="utf-8")).get("patchedDependencies")
+    ]
+    # An empty set would make the loop below green while asserting nothing —
+    # the exact "absent is not clean" case this suite refuses elsewhere.
+    assert patched, "no manifest declares patchedDependencies"
+
+    dockerfiles = [
+        path
+        for path in sorted(Path("deploy/docker").glob("Dockerfile*"))
+        if not path.name.endswith(".dockerignore")
+    ]
+    assert dockerfiles, "no Dockerfile found"
+    for dockerfile in dockerfiles:
+        executable = [
+            line
+            for line in dockerfile.read_text(encoding="utf-8").splitlines()
+            if not line.lstrip().startswith("#")
+        ]
+        for directory in patched:
+            manifest = f"{directory.as_posix()}/package.json"
+            copied = next(
+                (
+                    index
+                    for index, line in enumerate(executable)
+                    if line.startswith("COPY ") and manifest in line
+                ),
+                None,
+            )
+            if copied is None:
+                continue
+            installs = next(
+                (
+                    index
+                    for index, line in enumerate(executable[copied:], copied)
+                    if "bun install" in line
+                ),
+                None,
+            )
+            assert installs is not None, f"{dockerfile} copies {manifest} but never installs it"
+            ancestors = {
+                parent.as_posix()
+                for parent in (directory, *directory.parents)
+                if parent.as_posix() not in ("", ".")
+            }
+            covered = any(
+                f"{directory.as_posix()}/patches" in line
+                or any(
+                    source.rstrip("/") in ancestors or source == "."
+                    for source in line.split()[1:-1]
+                )
+                for line in executable[copied:installs]
+                if line.startswith("COPY ")
+            )
+            assert covered, (
+                f"{dockerfile} runs bun install on {manifest} without copying "
+                f"{directory.as_posix()}/patches first"
+            )
+
+
 def test_platform_evidence_stays_manual_and_can_neither_publish_nor_deploy() -> None:
     """An optional oracle, not a gate, and holding no authority either way."""
     path = WORKFLOWS / "platform-evidence.yml"
