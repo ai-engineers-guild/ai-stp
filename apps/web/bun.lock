@@ -74,6 +74,9 @@
       },
     },
   },
+  "patchedDependencies": {
+    "braces@3.0.3": "patches/braces@3.0.3.patch",
+  },
   "overrides": {
     "js-yaml": "4.3.2",
     "nanoid": "3.3.18",
