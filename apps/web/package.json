@@ -103,5 +103,8 @@
     "postcss": "8.5.28",
     "sharp": "0.35.4",
     "js-yaml": "4.3.2"
+  },
+  "patchedDependencies": {
+    "braces@3.0.3": "patches/braces@3.0.3.patch"
   }
 }

@@ -1,11 +1,13 @@
-# OSV-scanner exceptions for the documentation tooling's bun.lock only.
-#
-# braces has no release after the affected 3.0.3, so nothing in the lock can
-# move. Here it is reached only through markdownlint-cli2 (micromatch, and
-# globby -> fast-glob -> micromatch), which expands the lint globs written in
-# this repository during `docs-static`; nothing here takes outside input.
-# Re-check for a patched braces on the ignoreUntil date.
+# braces <= 3.0.3 carries GHSA-vfj7-8cjw-p6xm (stack-exhaustion DoS, no patched
+# release as of 2026-10-03, micromatch/braces#70). The scanner sees the registry
+# version string; the installed bytes are patched in place by bun
+# `patchedDependencies` (`patches/braces@3.0.3.patch`), which adds the
+# upstream-recommended nesting-depth guard in `lib/parse.js`. Reachability is
+# also dev-only: braces is reached through `micromatch`/`globby` inside
+# `markdownlint-cli2`, expanding repository-authored doc globs. Re-check for an
+# upstream fixed release before this date and drop both the patch and this
+# exception.
 [[IgnoredVulns]]
 id = "GHSA-vfj7-8cjw-p6xm"
+reason = "Installed bytes carry the parse-time depth guard via patchedDependencies (patches/braces@3.0.3.patch); dev-only docs lint tooling, repository-authored globs. Remove when upstream ships a fix."
 ignoreUntil = 2026-11-03
-reason = "braces <=3.0.3 stack-exhaustion DoS on attacker-supplied nested patterns (CVE-2026-93687); no fixed release exists; reached only via markdownlint-cli2 expanding repository-authored lint globs in the docs tooling; re-check for a patched braces by the ignoreUntil date"
