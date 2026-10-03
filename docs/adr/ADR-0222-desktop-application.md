@@ -1,6 +1,6 @@
 ---
-description: "The desktop application is a Tauri shell that consumes the CLI machine contract and the /v1 catalog API; the CLI remains the sole authority for selection, installation, and recovery."
-last_verified: "2026-10-01"
+description: "The desktop application is a Tauri shell that consumes the CLI machine contract; the CLI remains the sole authority for catalog, selection, installation, and recovery."
+last_verified: "2026-10-03"
 ---
 
 # ADR-0222: Desktop application is a contract consumer, not a second engine
@@ -61,11 +61,17 @@ client-side authority) are rejected.
    pending device code stay inside the CLI's ADR-0058 credential store.
    The OAuth `session_token` JSON callback path is a dead end (no refresh,
    no device binding) and is not used.
-4. **HTTP reads use a native stack.** The API sets no CORS headers, so
-   catalog and account reads run over Rust HTTP (not WebView `fetch`) with
-   `Authorization: Bearer` obtained via CLI state, `X-AI-STP-Schema-Version: 1`,
-   no redirect-following with credentials, and `Retry-After` honored.
-   Only operations present in `schemas/v1/openapi.json` are called.
+4. **All reads — catalog included — go through the CLI.** The app performs
+   no direct HTTP at all: catalog search/detail run as `registry search` /
+   `registry show` calls through the same `--json` envelope as every other
+   read. Private acquisitions authenticate on the CLI's own credential
+   store, so a second, app-side HTTP path would duplicate auth surface for
+   no capability gain. The earlier sketch of a Rust-native `/v1` reader is
+   deferred, not abandoned; if it ever lands it must use a native stack
+   (the API sets no CORS headers), `Authorization: Bearer` obtained via CLI
+   state, `X-AI-STP-Schema-Version: 1`, no redirect-following with
+   credentials, `Retry-After` honored, and only operations present in
+   `schemas/v1/openapi.json`.
 5. **Mutation UX mirrors the operation contract**: plan → effects review →
    approve bound to the exact `plan_digest` → apply → poll status →
    `verified`. `partial` is a recovery surface; `stale` triggers re-plan;
