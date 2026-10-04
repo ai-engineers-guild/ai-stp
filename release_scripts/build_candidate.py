@@ -391,9 +391,17 @@ def build_candidate(
     if dirty and not allow_dirty:
         raise CandidateError("release candidates require a clean worktree")
     if require_tag:
-        tag = _git("describe", "--tags", "--exact-match", "HEAD")
-        if tag != f"v{version}":
-            raise CandidateError(f"release tag is {tag!r}, expected 'v{version}'")
+        # `describe --exact-match` answers one tag; several may sit on HEAD —
+        # a `desktop-v*` tag on the same commit made it name the wrong one and
+        # refuse a real `v*` release. Asking git for the tag we actually need
+        # is not ambiguous.
+        if not _git("tag", "--list", f"v{version}"):
+            raise CandidateError(f"release tag 'v{version}' is absent")
+        tag_commit = _git("rev-list", "-n", "1", f"v{version}")
+        if tag_commit != git_sha:
+            raise CandidateError(
+                f"release tag 'v{version}' is on {tag_commit[:8]}, expected HEAD {git_sha[:8]}"
+            )
     source_date_epoch = int(_git("show", "-s", "--format=%ct", "HEAD"))
 
     if output.is_symlink():
