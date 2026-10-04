@@ -1,6 +1,6 @@
 ---
 description: "Rules of Python, Node, external tools, and provider dependencies."
-last_verified: "2026-08-15"
+last_verified: "2026-10-04"
 ---
 
 # Dependency Policy
@@ -27,6 +27,20 @@ fails the installation. Retry behavior follows the
 supported qualification and removal path belong to
 [ADR-0171](../adr/ADR-0171-installed-cli-owns-index-verification-runtime.md).
 The verifier requirements are generated from `uv.lock` by `just back-gen`.
+
+## Deferred migrations
+
+A migration that is known and deliberately not made yet is recorded here with
+the reason and the condition that ends the deferral, so the decision survives
+the session that made it. Advisory exceptions are not listed: they live beside
+the lockfile in `osv-scanner.toml`, where `ignoreUntil` makes the gate fail
+again on its own.
+
+| Migration | Why it waits | Ends when |
+|---|---|---|
+| `httpx` 0.28.1 → `httpx2` (Pydantic-maintained successor; `httpx` is frozen, Starlette's `TestClient` and authlib warn) | The API is a rename, but TLS changes: `httpx2` verifies against the operating-system store through `truststore` instead of certifi's bundle. The published CLI and the frozen desktop sidecar would then trust whatever the host provides — on Linux, the CA paths compiled into the sidecar's bundled OpenSSL, which other distributions do not have. | A trust decision for the CLI and sidecar is made (an explicit context with a bundled fallback, or the OS store with evidence across Linux distributions, macOS and Windows) and the server and CLI move together. Recorded 2026-10-04. |
+| Server images Python 3.12 → 3.14 (the interpreter `check.yml` gates) | `worker-safety` installs NVIDIA SkillSpector, whose `yara-python` publishes no cp314 wheel ([VirusTotal/yara-python#281](https://github.com/VirusTotal/yara-python/issues/281)); compiling it needs OpenSSL headers the pinned Debian snapshot cannot pair with the base. `pyright` holds the tree to the 3.12 API meanwhile. | `yara-python` ships cp314 wheels; then both Dockerfiles move to `python:3.14-slim`. Recorded 2026-10-04. |
+| Dependabot `bun` updates for `apps/web`, `apps/desktop`, `docs_scripts` | The updater bundles bun 1.3 and cannot read `bun.lock` `lockfileVersion` 2 ([dependabot-core#16071](https://github.com/dependabot/dependabot-core/pull/16071)). OSV still scans every lockfile in the gate. | Upstream merges and ships the fix; the entries in `.github/dependabot.yml` resume by themselves. |
 
 ## Approved dependencies `apps/api` (issue #80, ADR-0041)
 
