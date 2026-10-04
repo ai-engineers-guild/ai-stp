@@ -47,10 +47,13 @@ def test_host_and_docker_require_seed_before_the_model(
     def drive(*_args: object, **_kwargs: object) -> int:
         pytest.fail("a missing prerequisite must not spend model capacity")
 
+    def no_mount_refusal(_root: Path, _image: str) -> None:
+        return None
+
     monkeypatch.setattr(qualify, "prepare_workspace", prepare)
     monkeypatch.setattr(qualify, "seed_for_scenario", seed)
     monkeypatch.setattr(qualify, "run_agy", drive)
-    monkeypatch.setattr(qualify, "daemon_mount_refusal", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(qualify, "daemon_mount_refusal", no_mount_refusal)
     measured = tmp_path / "measured.json"
     assert (
         qualify.qualify_one(
