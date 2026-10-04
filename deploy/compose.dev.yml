@@ -97,6 +97,7 @@ services:
     # Same digest as production. A development stack that resolves a
     # different build is a development stack that cannot reproduce the
     # failure production had (`#394`).
+    # yamllint disable-line rule:line-length
     image: rustfs/rustfs:1.0.1@sha256:1803faef57627e2d9c2e7d89d655d712ddded5389040054987163043fecb6a3c
     environment:
       # Must match AI_STP_STORAGE_* in x-app-env. If these are missing at first

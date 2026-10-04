@@ -55,6 +55,7 @@ services:
     # critical) affect. The upgrade was rehearsed on a beta.8 volume seeded
     # through `ImmutableObjectStore`: every object read back digest-verified,
     # new writes and the private-bucket test passed, anonymous reads got 403.
+    # yamllint disable-line rule:line-length
     image: rustfs/rustfs:1.0.1@sha256:1803faef57627e2d9c2e7d89d655d712ddded5389040054987163043fecb6a3c
     # The store receives exactly its own credential pair — which must equal the
     # AI_STP_STORAGE_* pair the API uses, and the deploy preflight compares
