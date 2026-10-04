@@ -18,6 +18,10 @@ on:
       - "packages/**"
       - "uv.lock"
       - ".github/workflows/desktop.yml"
+      # The legs install bun/uv through these — an installer change can
+      # break the build without touching any filtered path above.
+      - ".github/scripts/install-bun.sh"
+      - ".github/scripts/install-uv.sh"
   pull_request:
     paths:
       - "apps/desktop/**"
@@ -25,6 +29,10 @@ on:
       - "packages/**"
       - "uv.lock"
       - ".github/workflows/desktop.yml"
+      # The legs install bun/uv through these — an installer change can
+      # break the build without touching any filtered path above.
+      - ".github/scripts/install-bun.sh"
+      - ".github/scripts/install-uv.sh"
   workflow_dispatch:
 
 permissions:

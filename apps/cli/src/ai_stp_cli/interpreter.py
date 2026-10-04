@@ -19,6 +19,15 @@ from __future__ import annotations
 import shutil
 import sys
 from functools import lru_cache
+from pathlib import Path
+
+
+def _abspath(found: str) -> str:
+    # `shutil.which` reports a relative spelling when PATH carries a relative
+    # entry; callers that spawn with a different `cwd` need it absolute.
+    # `absolute`, not `resolve` — the PATH spelling (/usr/bin/python3) must
+    # survive, not chase symlinks to /usr/bin/python3.12.
+    return str(Path(found).absolute())
 
 
 @lru_cache(maxsize=1)
@@ -34,13 +43,13 @@ def python() -> str | None:
     for name in ("python3", "python"):
         found = shutil.which(name)
         if found is not None:
-            return found
+            return _abspath(found)
     return None
 
 
 @lru_cache(maxsize=1)
-def uv() -> list[str] | None:
-    """The argv prefix for `uv …` — `[python, -m, uv]` or a `uv` binary.
+def uv() -> tuple[str, ...] | None:
+    """The argv prefix for `uv …` — `(python, -m, uv)` or a `uv` binary.
 
     `-m uv` needs the interpreter *and* the installed package. A normal
     install has both (the `uv` distribution is a declared dependency); a
@@ -48,6 +57,6 @@ def uv() -> list[str] | None:
     for a `uv` executable on `PATH` instead. `None` means neither works.
     """
     if not getattr(sys, "frozen", False):
-        return [sys.executable, "-m", "uv"]
+        return (sys.executable, "-m", "uv")
     found = shutil.which("uv")
-    return [found] if found is not None else None
+    return (_abspath(found),) if found is not None else None

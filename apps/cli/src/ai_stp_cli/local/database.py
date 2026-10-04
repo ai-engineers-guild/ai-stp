@@ -20,7 +20,8 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from itertools import count
 from pathlib import Path
-from typing import Final
+from types import TracebackType
+from typing import Final, Literal
 
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.paths import FILE_MODE, POSIX, ensure_directory, redact_home
@@ -1666,6 +1667,29 @@ def _apply_permissions(path: Path) -> None:
             candidate.chmod(FILE_MODE)
 
 
+class Connection(sqlite3.Connection):
+    """A connection whose ``with`` block closes the handle.
+
+    ``sqlite3.Connection.__exit__`` commits or rolls the transaction back and
+    leaves the connection open — so ``with connect()`` reads as a lifetime
+    bound while leaking the handle until GC (measured as ResourceWarning
+    noise across the suite, and as real leaks at call sites that trusted the
+    idiom). This subclass keeps the transaction semantics and then closes;
+    ``with closing(...)`` callers are unaffected either way.
+    """
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> Literal[False]:
+        try:
+            return super().__exit__(exc_type, exc_value, traceback)
+        finally:
+            self.close()
+
+
 def open_registry(path: Path, *, create: bool = True) -> sqlite3.Connection:
     """Open the registry, applying any pending migrations.
 
@@ -1680,7 +1704,7 @@ def open_registry(path: Path, *, create: bool = True) -> sqlite3.Connection:
             next_actions=["passport developer init --json"],
         )
     ensure_directory(path.parent)
-    connection = sqlite3.connect(path, isolation_level=None)
+    connection = sqlite3.connect(path, isolation_level=None, factory=Connection)
     connection.row_factory = sqlite3.Row
     try:
         # First, because it governs every statement after it — including the
@@ -1740,7 +1764,7 @@ def open_readonly(path: Path) -> sqlite3.Connection:
             details={"path": redact_home(path)},
             next_actions=["passport developer init --json"],
         )
-    connection = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+    connection = sqlite3.connect(f"file:{path}?mode=ro", uri=True, factory=Connection)
     connection.row_factory = sqlite3.Row
     try:
         connection.execute(f"PRAGMA busy_timeout={BUSY_TIMEOUT_MILLISECONDS}")
@@ -1765,7 +1789,9 @@ def open_readonly(path: Path) -> sqlite3.Connection:
         # directory. Measured across the read surface before this branch:
         # five read commands answered `AI_STP_INTERNAL` against a data
         # directory without write permission.
-        connection = sqlite3.connect(f"file:{path}?mode=ro&immutable=1", uri=True)
+        connection = sqlite3.connect(
+            f"file:{path}?mode=ro&immutable=1", uri=True, factory=Connection
+        )
         connection.row_factory = sqlite3.Row
     except BaseException:
         connection.close()

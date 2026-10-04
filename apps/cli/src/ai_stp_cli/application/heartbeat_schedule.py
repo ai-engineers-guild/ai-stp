@@ -5,14 +5,13 @@ import getpass
 import hashlib
 import os
 import plistlib
-import sqlite3
 import subprocess
 import sys
 import time
 from pathlib import Path
 
 from ai_stp_cli.errors import CliFailure
-from ai_stp_cli.local.database import configured_path
+from ai_stp_cli.local.database import configured_path, open_registry
 from ai_stp_cli.paths import config_home, data_home
 from ai_stp_foundation.ids import is_valid_id
 
@@ -219,7 +218,7 @@ def _mac_reload(organization_id: str, interval_seconds: int) -> None:
     if _mac_loaded(name):
         _run(["launchctl", "bootout", _mac_domain(), str(path)])
     _run(["launchctl", "bootstrap", _mac_domain(), str(path)])
-    with sqlite3.connect(configured_path()) as connection:
+    with open_registry(configured_path()) as connection:
         connection.execute(
             "UPDATE heartbeat_subscription SET scheduler_interval_seconds = ? "
             "WHERE organization_id = ?",
@@ -282,6 +281,14 @@ def _linux_remove(name: str) -> None:
 def install(organization_id: str, interval_seconds: int, *, defer_mac_reload: bool = False) -> bool:
     if not 60 <= interval_seconds <= 2_592_000:
         raise CliFailure("AI_STP_VALIDATION_ERROR", "invalid heartbeat interval")
+    if getattr(sys, "frozen", False):
+        # The refusal has to land before any platform mutates — `_mac_install`
+        # would otherwise bootout a working agent and then fail inside
+        # `_target`, leaving the schedule unloaded.
+        raise CliFailure(
+            "AI_STP_DEPENDENCY_UNAVAILABLE",
+            "scheduled wakeups need an installed interpreter; a frozen build has none",
+        )
     name = _name(organization_id)
     if sys.platform == "win32" or _wsl():
         _windows_install(name, organization_id, interval_seconds)

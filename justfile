@@ -741,16 +741,16 @@ desktop-build:
 desktop-static: desktop-build
     cd apps/desktop && bun x tsc --noEmit
     cd apps/desktop/core && cargo fmt --check
-    cd apps/desktop/core && cargo clippy --all-targets -- -D warnings
+    cd apps/desktop/core && cargo clippy --locked --all-targets -- -D warnings
     cd apps/desktop/src-tauri && cargo fmt --check
-    cd apps/desktop/src-tauri && cargo clippy --all-targets -- -D warnings
+    cd apps/desktop/src-tauri && cargo clippy --locked --all-targets -- -D warnings
 
 [doc('vitest and cargo test for both crates')]
 [group('desktop')]
 desktop-test: desktop-build
     cd apps/desktop && bun x vitest run
-    cd apps/desktop/core && cargo test
-    cd apps/desktop/src-tauri && cargo test
+    cd apps/desktop/core && cargo test --locked
+    cd apps/desktop/src-tauri && cargo test --locked
 
 # Freezes the real PyInstaller sidecar — several minutes, and it overwrites
 # the stub by design — then runs the same filtered-env spawn test

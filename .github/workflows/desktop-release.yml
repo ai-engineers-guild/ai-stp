@@ -112,8 +112,8 @@ jobs:
         run: |
           set -euo pipefail
           cargo fmt --check
-          cargo clippy --all-targets -- -D warnings
-          cargo test
+          cargo clippy --locked --all-targets -- -D warnings
+          cargo test --locked
       - name: Stub sidecar for shell-crate checks
         shell: bash
         # tauri-build's build.rs verifies externalBin paths exist at compile
@@ -126,8 +126,8 @@ jobs:
         run: |
           set -euo pipefail
           cargo fmt --check
-          cargo clippy --all-targets -- -D warnings
-          cargo test
+          cargo clippy --locked --all-targets -- -D warnings
+          cargo test --locked
       - name: Install pinned uv
         shell: bash
         run: |

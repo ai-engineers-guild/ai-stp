@@ -20,8 +20,8 @@ from ai_stp_cli.cloud import session as cloud_session
 from ai_stp_cli.cloud.client import Endpoint, call, open_client
 from ai_stp_cli.cloud.session import Session
 from ai_stp_cli.errors import CliFailure
+from ai_stp_cli.local import database, provider_installations
 from ai_stp_cli.local import harnesses as harness_detection
-from ai_stp_cli.local import provider_installations
 from ai_stp_cli.local.database import configured_path, open_readonly, open_registry
 from ai_stp_cli.runtime import cli_version
 from ai_stp_cli.secrets import open_store
@@ -333,7 +333,9 @@ def _schedule_connection() -> sqlite3.Connection | None:
     registry = configured_path()
     if not registry.is_file():
         return None
-    connection = sqlite3.connect(registry, timeout=0.05, isolation_level=None)
+    connection = sqlite3.connect(
+        registry, timeout=0.05, isolation_level=None, factory=database.Connection
+    )
     connection.row_factory = sqlite3.Row
     connection.execute("PRAGMA busy_timeout=50")
     return connection

@@ -43,7 +43,7 @@ last_verified: "2026-08-03"
 | [gitlab-discovery.md](gitlab-discovery.md) | GitLab discovery routes and their provider identity boundary. | 2026-09-22 |
 | [harness-bundle.md](harness-bundle.md) | Bounded deterministic package for a public harness provider. | 2026-09-24 |
 | [http-api.md](http-api.md) | HTTP API versioning, authorization, idempotency, and concurrency. | 2026-09-15 |
-| [native-component-discovery.md](native-component-discovery.md) | Machine contract for read-only discovery of native components in supported harnesses. | 2026-09-05 |
+| [native-component-discovery.md](native-component-discovery.md) | Machine contract for read-only discovery of native components in supported harnesses. | 2026-10-04 |
 | [offline-capability.md](offline-capability.md) | What works without the network after initial setup and what requires connectivity. | 2026-08-13 |
 | [operation.md](operation.md) | States, plan, journal, and recovery of a mutating operation. | 2026-08-09 |
 | [passport-envelope.md](passport-envelope.md) | Canonical passport envelope and fact provenance. | 2026-08-04 |

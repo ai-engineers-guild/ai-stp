@@ -27,6 +27,7 @@ from collections.abc import Callable, Mapping
 from pathlib import Path
 from typing import Final, Literal
 
+from ai_stp_cli.local import database
 from ai_stp_cli.paths import data_dir
 from ai_stp_contracts.runtime_usage import RuntimeUsageIngestResult
 
@@ -70,7 +71,7 @@ def scoped_path(account_id: str, organization_id: str) -> Path:
 def connect(path: Path | None = None) -> sqlite3.Connection:
     location = path if path is not None else default_path()
     location.parent.mkdir(parents=True, exist_ok=True)
-    connection = sqlite3.connect(str(location))
+    connection = sqlite3.connect(str(location), factory=database.Connection)
     connection.execute("PRAGMA journal_mode=WAL")
     connection.executescript(_SCHEMA)
     return connection
@@ -104,7 +105,7 @@ def enqueue(
     """Buffer one invocation, promoting a matching fallback to native evidence."""
     moment = time.time() if now is None else now
     encoded = json.dumps(dict(payload), sort_keys=True)
-    with connection:
+    with database.transaction(connection):
         inserted = connection.execute(
             "INSERT INTO usage_outbox (event_id, payload, enqueued_at) "
             "SELECT ?, ?, ? WHERE (SELECT count(*) FROM usage_outbox) < ? "

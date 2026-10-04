@@ -51,9 +51,12 @@ impl CmdResult {
             request_id: env.request_id,
             operation_id: env.operation_id,
             error_retryable: env.error.as_ref().map(|e| e.retryable),
-            error_details: env
-                .error
-                .and_then(|e| (!e.details.is_null()).then_some(e.details)),
+            error_details: env.error.and_then(|e| {
+                let d = e.details;
+                // `details` is a required wire field that defaults to `{}` —
+                // an empty object is no detail at all, so render nothing.
+                (!d.is_null() && !d.as_object().is_some_and(|o| o.is_empty())).then_some(d)
+            }),
             next_actions: env.next_actions,
         }
     }
@@ -332,14 +335,14 @@ async fn cli_run_read(
             Some(d) => d,
             None => {
                 return CmdResult::failed(
-                    "AI_STP_VALIDATION_ERROR",
+                    "DESKTOP_UNKNOWN_COMMAND",
                     format!("unknown command: {path}"),
                 )
             }
         };
         if desc.mutability != "read" {
             return CmdResult::failed(
-                "AI_STP_PERMISSION_DENIED",
+                "DESKTOP_PERMISSION_DENIED",
                 format!(
                     "{path} is mutability={} — read-only passthrough refused",
                     desc.mutability
@@ -349,7 +352,7 @@ async fn cli_run_read(
         let repeated = repeated.unwrap_or_default();
         match reg.build_argv(&path, &values, &flags, &repeated) {
             Ok(av) => run_cli(&st, &av),
-            Err(e) => CmdResult::failed("AI_STP_VALIDATION_ERROR", e),
+            Err(e) => CmdResult::failed("DESKTOP_USAGE", e),
         }
     })
     .await
@@ -384,7 +387,7 @@ async fn cli_apply_confirmed(
 ) -> Result<CmdResult, String> {
     if !confirmed {
         return Ok(CmdResult::failed(
-            "AI_STP_VALIDATION_ERROR",
+            "DESKTOP_CONFIRMATION_REQUIRED",
             "apply requires an explicit confirmation from the UI",
         ));
     }
@@ -416,14 +419,14 @@ async fn gated_run(
             Some(d) => d,
             None => {
                 return CmdResult::failed(
-                    "AI_STP_VALIDATION_ERROR",
+                    "DESKTOP_UNKNOWN_COMMAND",
                     format!("unknown command: {path}"),
                 )
             }
         };
         if desc.mutability != want_mutability {
             return CmdResult::failed(
-                "AI_STP_PERMISSION_DENIED",
+                "DESKTOP_PERMISSION_DENIED",
                 format!(
                     "{path} is mutability={} — refused by {} gate",
                     desc.mutability, want_mutability
@@ -433,7 +436,7 @@ async fn gated_run(
         let repeated = repeated.unwrap_or_default();
         match reg.build_argv(&path, &values, &flags, &repeated) {
             Ok(av) => run_cli_mutating(&st, &av),
-            Err(e) => CmdResult::failed("AI_STP_VALIDATION_ERROR", e),
+            Err(e) => CmdResult::failed("DESKTOP_USAGE", e),
         }
     })
     .await
