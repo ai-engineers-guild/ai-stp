@@ -1,0 +1,2140 @@
+{
+  "schema_version": 1,
+  "standard_family": "ai-stp-standard/1",
+  "contract_digest": "sha256:f85728b44d6edef3e7aab76759a6dad6acc78f3a1e38e1864774968f91af7f18",
+  "axes": [
+    {
+      "name": "standard_family",
+      "current_identity": "ai-stp-standard/1",
+      "description": "Coordinated standard family; not envelope schema_version."
+    },
+    {
+      "name": "http_api",
+      "current_identity": "/v1",
+      "description": "HTTP path major; already named v1 on the wire."
+    },
+    {
+      "name": "envelope",
+      "current_identity": "schema_version:1",
+      "description": "Document discriminator already used by old and current envelopes."
+    },
+    {
+      "name": "provider_protocol",
+      "current_identity": "3",
+      "description": "Capability-negotiated provider protocol (crate still provider-v3)."
+    },
+    {
+      "name": "kit_protocol",
+      "current_identity": "3",
+      "description": "Public provider kit protocol_version."
+    },
+    {
+      "name": "component_generator",
+      "current_identity": "component-scaffold/6",
+      "description": "Component scaffold template generation, independent of the standard family."
+    },
+    {
+      "name": "setup_generator",
+      "current_identity": "setup-scaffold/5",
+      "description": "Setup scaffold template generation, independent of the standard family."
+    }
+  ],
+  "members": [
+    {
+      "axis": "component_generator",
+      "identity": "component-scaffold/6"
+    },
+    {
+      "axis": "envelope",
+      "identity": "schema_version:1"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:ai-stp-estate-release"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:author-attestation"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:catalog-author-option"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:catalog-external-coordinate"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:catalog-metadata-observation"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:catalog-metadata-observation-set"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-auth-status"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-blast-radius-report"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-capabilities"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-catalog-artifact"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-catalog-object"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-catalog-search"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-catalog-setup-acquisition"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-catalog-version"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-component-eval-plan"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-component-eval-result"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-component-materialize-plan"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-component-materialize-result"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-component-passport-patch"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-component-passport-suggestions"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-component-passport-validation"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-component-program"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-component-promotion-plan"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-component-quality-report"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-component-scaffold"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-component-scaffold-plan"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-component-scaffold-result"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-component-template"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-composition-reports"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-config-report"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-confirmation"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-conformance-report"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-consent-record"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-consent-summary"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-deep-link"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-device-approval"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-device-identity"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-doctor-report"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-eligibility-matrix"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-eligibility-report"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-envelope-error"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-envelope-success"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-environment-inspection"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-error"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-external-source-identity"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-first-party-catalog-identity"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-github-archive-evidence"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-github-archive-history"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-grant-access"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-grant-invitation"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-grant-list"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-grant-revoke"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-harness-bundle"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-harness-capability-table"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-harness-program"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-harness-program-status"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-harness-survey"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-import-inspection"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-imported-setup"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-installation"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-installation-status"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-local-search"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-machine-help"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-managed-verification"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-multi-root-transaction"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-native-components"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-owner-object-detail"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-owner-object-list"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-owner-version-detail"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-passport-view"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-path-inventory"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-preserved-setup"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-preserved-setups"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-project-candidates"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-project-index"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-project-symbols"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-proposal-session"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-provider-bound-release"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-provider-installations"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-provider-network-capability"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-provider-replacement-plan"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-provider-replacement-result"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-provider-trust"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-publication-plan"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-publication-set"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-recovery-report"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-report-case"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-report-list"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-report-preview"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-rollback-target"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-schema-document"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-schema-index"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-selection-impact-report"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-self-update-check"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-self-update-plan"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-self-update-result"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-self-update-status"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-setup-compose-plan"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-setup-compose-result"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-setup-eval-plan"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-setup-eval-profile"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-setup-eval-result"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-setup-export-result"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-setup-graph"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-setup-import-plan"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-setup-recast-plan"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-setup-recast-result"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-setup-scaffold-plan"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-setup-scaffold-result"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-setup-update-plan"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-setup-update-result"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-signed-attestation"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-skill-delivery"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-skill-package"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-source-search"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-standard-inventory"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-store-port-discovery"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-store-port-import-plan"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-store-port-import-result"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-store-port-inspection"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-sync-preview"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-sync-pull"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-sync-push"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-target-backups"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-target-diff"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-target-survey"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-task"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-task-input-account"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-task-input-author"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-task-input-change"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-task-input-initialize"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-task-input-inspect"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-task-input-install"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-task-input-publish"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-task-input-switch"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-task-input-technology"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-task-intents"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-task-list"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-task-outcome-technology"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-technology-findings"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-technology-mappings"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-technology-review"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-technology-scan"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-technology-unmapped"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-telemetry-status"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-toolchain-installation"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-toolchain-profile"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-version-line"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:cli-version-report"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:component-adaptation"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:component-ref"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:component-version-passport"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:error-code"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:fact"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:federated-source-descriptor"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:federated-source-set"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:installation-heartbeat-subscription"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:official-manifest"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:official-manifest-entry"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:passport-envelope"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:runtime-usage-flush-result"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:runtime-usage-outbox-status"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:runtime-usage-record-result"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:setup-ref"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:setup-version-passport"
+    },
+    {
+      "axis": "http_api",
+      "identity": "/v1"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:account-selection-impact-query"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:account-selection-impact-report"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:active-context"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:auth-device-approve-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:auth-device-approve-response"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:auth-device-authorization-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:auth-device-authorization-response"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:auth-device-challenge-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:auth-device-challenge-response"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:auth-device-refresh-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:auth-device-token-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:auth-device-token-response"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:auth-logout-response"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:auth-me-response"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:auth-oauth-callback-result"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:capability-projection"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:capability-scope-query"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:catalog-author-list"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:catalog-component-context-budget"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:catalog-component-detail"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:catalog-component-list"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:catalog-component-search"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:catalog-component-version"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:catalog-github-metadata"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:catalog-private-version"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:catalog-reaction-list"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:catalog-reaction-state"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:catalog-setup-context-budget"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:catalog-setup-context-budget-query"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:catalog-setup-detail"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:catalog-setup-family"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:catalog-setup-list"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:catalog-setup-search"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:catalog-setup-version"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:catalog-usage-metrics"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:complaint-create-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:complaint-create-response"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:content-detail"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:content-list"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:content-locale-query"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:content-repository-import-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:content-repository-import-response"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:content-repository-state"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:content-snapshot-entry"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:content-summary"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-assignment-plan"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-assignment-plan-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-audit-entry"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-audit-export"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-audit-list"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-audit-query"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-binding"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-binding-list"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-binding-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-binding-update-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-bootstrap-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-catalog-assignment"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-catalog-assignment-list"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-catalog-assignment-query"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-catalog-assignment-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-catalog-governance"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-catalog-governance-query"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-catalog-lifecycle"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-catalog-lifecycle-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-catalog-maintainer"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-catalog-maintainer-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-catalog-ownership"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-catalog-ownership-query"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-catalog-ownership-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-catalog-usage"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-catalog-usage-list"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-catalog-usage-query"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-catalog-verification"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-catalog-verification-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-ci-check-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-ci-check-view"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-context"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-delegation"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-delete-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-delete-result"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-directory"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-distribution-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-distribution-result"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-distribution-state-list"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-distribution-state-query"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-effective-assignment"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-effective-assignment-query"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-entity-profile"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-entity-profile-upload-response"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-entity-profile-write-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-invitation"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-invitation-accept-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-invitation-create-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-invitation-list"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-invitation-revoke-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-job-title"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-job-title-create-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-job-title-list"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-job-title-update-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-member"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-member-access"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-member-access-query"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-member-create-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-member-list"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-member-profile-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-member-update-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-membership-assignment"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-membership-assignment-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-membership-policy"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-membership-policy-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-organization"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-overview"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-permission-grant"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-permission-grant-list"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-permission-grant-query"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-permission-grant-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-permission-matrix"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-project-create-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-project-lifecycle-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-project-list"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-project-update-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-project-view"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-role-create-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-role-list"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-role-update-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-role-view"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-service-principal-create-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-service-principal-list"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-service-principal-update-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-service-principal-view"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-team-create-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-team-list"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-team-update-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-team-view"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-telemetry-aggregate"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-telemetry-aggregate-list"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-telemetry-aggregate-query"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-telemetry-audit-list"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-telemetry-audit-query"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-telemetry-audit-view"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-telemetry-delete-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-telemetry-delete-result"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-telemetry-event-batch-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-telemetry-event-batch-result"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-telemetry-event-list"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-telemetry-event-query"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-telemetry-event-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-telemetry-event-view"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-telemetry-export"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-telemetry-export-query"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-telemetry-heartbeat-event"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-telemetry-invocation-event"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-telemetry-policy-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-telemetry-policy-view"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-telemetry-revoke-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-telemetry-right-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-telemetry-right-view"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:dashboard-query-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:dashboard-result"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:dashboard-view"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:dashboard-view-list"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:dashboard-view-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:employee-technology-list"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:employee-technology-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:employee-technology-view"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:github-action-confirm-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:github-action-plan-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:github-action-plan-response"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:github-callback-query"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:github-connect-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:github-connect-response"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:github-connector-status"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:github-disconnect-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:github-source-prepare-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:github-source-prepared"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:gitlab-enrich-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:gitlab-mutation-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:gitlab-repository-list"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:gitlab-repository-view"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:grant-accept-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:grant-access-response"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:grant-direct-create-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:grant-invitation-create-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:grant-invitation-response"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:grant-list-response"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:grant-revoke-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:grant-revoke-response"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:health-liveness"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:health-readiness"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:heartbeat-report"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:heartbeat-report-bucket"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:heartbeat-report-employee"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:heartbeat-report-query"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:heartbeat-report-row"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:heartbeat-report-team"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:identity-account-profile"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:identity-account-update"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:identity-device-list"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:identity-device-register-response"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:identity-device-revoke-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:identity-device-revoke-response"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:identity-device-summary"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:installation-heartbeat"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:installation-heartbeat-list"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:installation-heartbeat-policy"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:installation-heartbeat-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:installation-heartbeat-status"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:installation-inventory-batch"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:installation-inventory-receipt"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:installation-operation-batch"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:installation-operation-receipt"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:legal-onboarding-complete-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:legal-onboarding-status"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:organization-list"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:organization-summary"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:owner-lifecycle-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:owner-lifecycle-response"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:owner-media-upload-response"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:owner-object-capabilities"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:owner-object-detail"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:owner-object-list-query"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:owner-object-list-response"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:owner-object-summary"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:owner-presentation-response"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:owner-presentation-update-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:owner-setup-family"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:owner-setup-family-create"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:owner-setup-family-patch"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:owner-start-publication-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:owner-version-detail"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:owner-version-summary"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:ownership-claim-create-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:ownership-claim-preview"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:ownership-claim-response"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:ownership-revision-list-response"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:ownership-revision-view"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:page-info"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:private-version-response"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:project-activity-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:project-activity-view"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:project-conflict-resolution-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:project-link-plan-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:project-link-plan-response"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:project-link-proposal-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:project-link-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:project-link-response"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:project-revision-pull-response"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:project-revision-push-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:project-revision-push-response"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:project-revision-receipt"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:project-revision-view"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:project-sync-apply-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:project-sync-plan-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:project-sync-plan-response"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:project-team-list"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:project-team-view"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:project-team-write-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:project-technology-list"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:project-technology-view"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:project-technology-write-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:project-unlink-plan-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:project-unlink-plan-response"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:project-unlink-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:provider-project-observation-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:publication-author-attestation"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:publication-confirm-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:publication-evidence-binding"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:publication-plan-create-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:publication-plan-response"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:relationship-list-query"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:report-case-create-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:report-case-list-response"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:report-case-response"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:runtime-usage-event"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:runtime-usage-event-batch"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:runtime-usage-event-list"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:runtime-usage-event-query"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:runtime-usage-export-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:runtime-usage-export-view"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:runtime-usage-ingest-result"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:runtime-usage-report"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:runtime-usage-report-query"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:seo-catalog-page"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:seo-catalog-query"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:seo-index-response"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:seo-public-profile"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:seo-rollback-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:seo-rollback-response"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:seo-sitemap-shard"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:seo-subject-query"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:staff-action-response"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:staff-author-verification-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:staff-content-publish-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:staff-content-publish-response"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:staff-content-translation"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:staff-content-translations"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:staff-content-unpublish-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:staff-content-unpublish-response"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:staff-lifecycle-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:staff-report-detail"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:staff-report-list-query"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:staff-report-list-response"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:staff-report-summary"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:staff-target-assessment-ingest-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:staff-target-assessment-ingest-response"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:staff-triage-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:sync-conflict-info"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:sync-event"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:sync-event-receipt"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:sync-pull-query"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:sync-pull-response"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:sync-push-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:sync-push-response"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:sync-stream-event"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:system-version-response"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:technology-category-lifecycle-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:technology-category-list"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:technology-category-view"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:technology-category-write-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:technology-decision-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:technology-decision-view"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:technology-landscape-policy-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:technology-landscape-policy-view"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:technology-landscape-query"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:technology-landscape-view"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:technology-lifecycle-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:technology-list"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:technology-list-query"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:technology-mapping-list"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:technology-mapping-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:technology-mapping-view"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:technology-merge-plan-query"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:technology-merge-plan-view"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:technology-merge-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:technology-merge-result"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:technology-mutation"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:technology-owner-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:technology-scan-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:technology-scan-result"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:technology-scan-view"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:technology-seed-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:technology-seed-result"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:technology-team-list"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:technology-team-view"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:technology-team-write-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:technology-unmapped-entry"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:technology-unmapped-review-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:technology-unmapped-view"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:technology-view"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:technology-write-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:visibility-plan-create-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:visibility-plan-response"
+    },
+    {
+      "axis": "kit_protocol",
+      "identity": "3"
+    },
+    {
+      "axis": "provider_protocol",
+      "identity": "3"
+    },
+    {
+      "axis": "setup_generator",
+      "identity": "setup-scaffold/5"
+    },
+    {
+      "axis": "standard_family",
+      "identity": "ai-stp-standard/1"
+    }
+  ]
+}
