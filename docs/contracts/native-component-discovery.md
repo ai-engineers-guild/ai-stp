@@ -1,6 +1,6 @@
 ---
 description: "Machine contract for read-only discovery of native components in supported harnesses."
-last_verified: "2026-09-05"
+last_verified: "2026-10-04"
 ---
 
 # Native component discovery
@@ -148,7 +148,13 @@ CODEX.md is not a documented instruction layout and is returned as a safe
 - `entry_points`, `transport_capabilities`, `evidence_refs` — only allowlisted
   structural facts from a manifest-led adapter; transport may be empty if it cannot be
   proven as `stdio` or `http`;
-- `reason` — safe basis for classification or immeasurability.
+- `reason` — safe basis for classification or immeasurability;
+- `registered_stable_id` — the `stable_id` this exact source is already
+  registered as in the local registry, keyed by the same
+  `component_source_binding` digest that `component adopt` records;
+  `null` means unregistered (including an absent registry). This is the
+  only join a reader should make against the registry: `source_path` is a
+  display string, not a binding key.
 
 Candidate identity is computed from the type, harness, scope, redacted path,
 `layout_source`, and allowlisted provenance. Repeating discovery on an unchanged

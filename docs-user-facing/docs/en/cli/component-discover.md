@@ -55,8 +55,8 @@ ai-stp component inventory --root . --json
 
 Success fields include `components`, `diagnostics`, `project`, and
 `schema_version`. Each component carries `candidate_id`, `component_type`,
-`layout_source`, `native_role`, `path`, `harness_id`, `holds_secret`,
-`byte_length`, `entry_points`, and `evidence_refs`.
+`layout_source`, `native_role`, `source_path`, `harness_id`, `holds_secret`,
+`byte_length`, `entry_points`, `evidence_refs`, and `registered_stable_id`.
 
 An empty `components` list is typed emptiness, not a failure. It does not
 silently run `device init` or adopt anything.
