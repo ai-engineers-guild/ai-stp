@@ -443,7 +443,10 @@ F10/R05, a CLI language rewrite, and a PyPI CLI cut are excluded.
   `fail`. Opt-in   `--docker-image` (or `AI_STP_QUALIFY_DOCKER_IMAGE`)
   execs the isolated CLI inside privileged Docker so the provider local phase
   can be ENFORCED; the host product path stays unavailable when the host probe
-  is denied. Explicit `--invalidate` drops scored agent overlay cells so fill
+  is denied. The daemon resolves `-v` paths in its own mount namespace — a
+  daemon with a private `/tmp` mounts an empty shadow over a host workspace —
+  so a Docker cell first probes bind-mount visibility and records `not_run`
+  when the daemon cannot see the workspace root. Explicit `--invalidate` drops scored agent overlay cells so fill
   can re-run them; `--invalidate-stale-verified` drops `install-exact-pin`,
   `install-without-pin`, `change-add-component`, and `switch-preserved-setup`.
   The
