@@ -110,7 +110,9 @@ if grep -q 'apparmor=ai-stp-worker' "${AI_STP_ROOT}/${AI_STP_COMPOSE_FILE}"; the
 fi
 
 # Ordered bring-up: dependencies, migrate, seed, then serving processes.
-compose up -d postgres rustfs
+# --wait holds until healthchecks pass: storage.migrate talks to rustfs right
+# after `up` returns, and inside start_period it can hit a not-yet-ready S3.
+compose up -d --wait postgres rustfs
 record_deploy_stage "${COMMIT}" "dependencies_started"
 # Wait for postgres health via compose depends_on on one-shot jobs.
 compose run --rm migrate

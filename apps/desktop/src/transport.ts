@@ -47,7 +47,7 @@ function call(command: string, args?: Record<string, unknown>): Promise<CmdResul
   // verbatim; key-name redaction cannot see it, so it is named here.
   const tracedArgs =
     command === "task_answer" && "value" in argsRec
-      ? { ...argsRec, value: "[user answer]" }
+      ? { ...(redact(argsRec) as Record<string, unknown>), value: "[user answer]" }
       : (redact(argsRec) as Record<string, unknown>);
   const trace = (e: Omit<IpcEntry, "id" | "ts">) => {
     if (useDebug.getState().debugMode) useDebug.getState().push(e);

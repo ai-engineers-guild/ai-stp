@@ -1,6 +1,6 @@
 ---
 description: "Required MVP capabilities, harness statuses, and explicit exclusions."
-last_verified: "2026-09-05"
+last_verified: "2026-10-04"
 ---
 
 # MVP scope
@@ -53,7 +53,8 @@ Open beta ships all seven harnesses. Completeness of the product requirements an
 ## Desktop application
 
 A desktop application for macOS, Linux, and Windows ships as a
-contract consumer of the CLI and the `/v1` API (ADR-0222). It renders
+contract consumer of the CLI (ADR-0222; a Rust-native `/v1` reader is
+deferred there, not implemented — all reads go through the CLI). It renders
 catalog, plan, apply, status, and recovery surfaces; the CLI remains the
 only engine. It is not a persistent daemon and does not run a local server.
 Its v1 excludes corporate surfaces, publishing, and any feature that calls

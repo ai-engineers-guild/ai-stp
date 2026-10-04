@@ -103,7 +103,9 @@ compose build
 # the current schema, readiness will fail and we abort.
 compose up -d postgres rustfs
 compose run --rm migrate
-compose run --rm seed || true
+# Same semantics as deploy.sh: a failed integrity reconcile stops the rollback
+# rather than silently skipping it — the forward path treats it as fatal.
+compose run --rm seed
 compose rm -fs content-import >/dev/null 2>&1 || true
 compose up -d api worker content-import web docs
 

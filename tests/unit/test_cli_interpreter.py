@@ -29,7 +29,7 @@ def _uncached() -> None:
 
 def test_a_normal_build_children_its_own_interpreter() -> None:
     assert interpreter.python() == sys.executable
-    assert interpreter.uv() == [sys.executable, "-m", "uv"]
+    assert interpreter.uv() == (sys.executable, "-m", "uv")
 
 
 def _on_path(name: str) -> str:
@@ -57,10 +57,12 @@ def test_a_frozen_build_asks_path_for_python(
 ) -> None:
     monkeypatch.setattr(sys, "frozen", True, raising=False)
     monkeypatch.setattr(shutil, "which", _on_path)
-    assert interpreter.python() == "/usr/bin/python3"
+    # The PATH spelling is absolutized; on Windows that means a
+    # drive-qualified path, so compare through the same operation.
+    assert interpreter.python() == str(Path("/usr/bin/python3").absolute())
     interpreter.python.cache_clear()
     monkeypatch.setattr(shutil, "which", _only_python)
-    assert interpreter.python() == "/usr/bin/python"
+    assert interpreter.python() == str(Path("/usr/bin/python").absolute())
 
 
 def test_a_frozen_build_without_python_refuses(
@@ -79,7 +81,7 @@ def test_a_frozen_build_uses_a_uv_binary_not_dash_m(
     # interpreter at all, so it looks for the standalone executable instead.
     monkeypatch.setattr(sys, "frozen", True, raising=False)
     monkeypatch.setattr(shutil, "which", _only_uv)
-    assert interpreter.uv() == ["/usr/local/bin/uv"]
+    assert interpreter.uv() == (str(Path("/usr/local/bin/uv").absolute()),)
 
 
 def test_the_probe_prefers_a_path_python_over_the_frozen_binary(

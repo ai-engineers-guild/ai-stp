@@ -27,8 +27,9 @@ holds user credentials.
   Overview (CLI health/doctor/device), Account (device-code sign-in),
   Catalog (registry search/detail via CLI), Tasks (intents + status
   polling), Install (task-engine journeys: questions → continuations →
-  gated apply), Targets (status/backups/diff/rollback preview + stopped
-  transaction recovery), Commands (live machine-help browser),
+  gated apply), Discovery (native component/harness discovery joined to
+  the registry by stable_id), Targets (status/backups/diff/rollback
+  preview + stopped transaction recovery), Commands (live machine-help browser),
   Debug (IPC trace, resolved engine, envelope inspector, diagnostic
   bundle), Settings (scope selector: All is read-only aggregation).
 

@@ -86,8 +86,10 @@ else
   # while every publication scan fell back to env_only.
   worker_health="$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "${worker_id}" 2>/dev/null || echo unknown)"
   printf '  %-20s %s\n' "worker health" "${worker_health}"
-  if [[ "${worker_health}" == "unhealthy" ]]; then
-    echo "verify: the worker is running but its healthcheck failed" >&2
+  if [[ "${worker_health}" != "healthy" ]]; then
+    # `starting` is not benign at verify time — readiness checks already
+    # burned the healthcheck's start_period several times over.
+    echo "verify: the worker is running but its healthcheck is not healthy" >&2
     failed=1
   fi
 
