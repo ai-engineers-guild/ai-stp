@@ -13,6 +13,9 @@
 # credential is a secret somebody has to keep safe forever, and Trusted
 # Publishing replaces it with an identity PyPI verifies for each run.
 #
+# After the upload, `github-release` attaches the same candidate files to the
+# GitHub Release for the tag, so the two public copies cannot differ.
+#
 # The candidate carries one `ai-stp-cli` distribution plus an SBOM, a release
 # manifest and `SHA256SUMS`. Only the distributions are uploaded, and only after
 # their digests are checked against those sums — uploading whatever the
@@ -111,3 +114,78 @@ jobs:
         with:
           packages-dir: dist
           print-hash: true
+
+  github-release:
+    name: github-release-ai-stp-${{ inputs.package }}
+    # The GitHub Release carries the bytes PyPI just accepted, from the same
+    # attested run. It used to be a manual step after publication, and it was
+    # missed: v0.0.23, v0.0.29, v0.0.30, v0.0.32-v0.0.35 and v0.0.37-v0.0.38
+    # reached PyPI with no GitHub Release until a later audit backfilled them.
+    # `desktop-release.yml` already creates its own; this is the same step for
+    # the CLI.
+    #
+    # Runs only after the upload succeeded, needs no environment and no OIDC,
+    # and never checks out repository code: the assets are the candidate's own
+    # files, verified against its SHA256SUMS a second time.
+    needs: publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write # `gh release create` on the existing tag; nothing else
+    steps:
+      - name: Download the exact bytes attested by release-candidate
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          run-id: ${{ inputs.run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          pattern: ai-stp-python-${{ inputs.version }}-*
+          merge-multiple: true
+          path: candidate
+
+      - name: Verify the candidate against its SHA256SUMS
+        working-directory: candidate
+        run: |
+          set -euo pipefail
+          sha256sum --check --strict SHA256SUMS
+
+      - name: Create the GitHub release from the same candidate
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ inputs.version }}
+          RUN_ID: ${{ inputs.run_id }}
+          PUBLISH_RUN: ${{ github.run_id }}
+          REPOSITORY: ${{ github.repository }}
+        working-directory: candidate
+        run: |
+          set -euo pipefail
+          tag="v${VERSION}"
+          # A rerun after a partial failure must not fail on its own earlier
+          # success, and must not replace assets someone already verified.
+          if gh release view "${tag}" --repo "${REPOSITORY}" >/dev/null 2>&1; then
+            echo "release ${tag} already exists; left unchanged"
+            exit 0
+          fi
+          # The previous CLI tag, for a compare link. Desktop tags
+          # (`desktop-v*`) share the repository and are a different line.
+          previous="$(
+            gh api "repos/${REPOSITORY}/tags" --paginate --jq '.[].name' \
+              | { grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' || true; echo "${tag}"; } \
+              | sort -V -u | grep -B1 -x -F "${tag}" | head -n1
+          )"
+          # The backticks are Markdown for the release body, not a substitution.
+          # shellcheck disable=SC2016
+          {
+            printf 'PyPI: `ai-stp-cli==%s` (publish run %s). ' "${VERSION}" "${PUBLISH_RUN}"
+            printf 'Attested bytes from release-candidate run %s.\n' "${RUN_ID}"
+            if [[ -n "${previous}" && "${previous}" != "${tag}" ]]; then
+              printf '\nChanges: https://github.com/%s/compare/%s...%s\n' \
+                "${REPOSITORY}" "${previous}" "${tag}"
+            fi
+          } > "${RUNNER_TEMP}/NOTES.md"
+          # `--latest=false`: the repository's Latest is the desktop download;
+          # the CLI's install channel is PyPI.
+          gh release create "${tag}" \
+            --repo "${REPOSITORY}" --verify-tag --latest=false \
+            --title "ai-stp-cli ${VERSION}" \
+            --notes-file "${RUNNER_TEMP}/NOTES.md" \
+            -- *
