@@ -228,8 +228,10 @@ export default function InstallPage() {
   const pendingContinuations = continuations.filter(
     (c) => c.actor === "cli" && c.argv.length > 0 && c.path.join(" ") !== "task answer",
   );
+  // A `cli` continuation with no argv (older CLI, additive field absent) is
+  // not runnable either — show it as informational rather than dropping it.
   const externalContinuations = continuations.filter(
-    (c) => c.actor !== "cli" && c.path.join(" ") !== "task answer",
+    (c) => (c.actor !== "cli" || c.argv.length === 0) && c.path.join(" ") !== "task answer",
   );
 
   return (
