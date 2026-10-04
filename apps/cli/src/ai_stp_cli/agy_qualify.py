@@ -325,6 +325,48 @@ def optional_host_dir(env_name: str, fallback: Path) -> Path | None:
     return held if held.is_dir() else None
 
 
+def daemon_mount_refusal(root: Path, image: str) -> str | None:
+    """Why the daemon cannot see `root`, or None when the bind mount works.
+
+    `docker -v` paths resolve in the daemon's mount namespace, not the caller's:
+    a daemon with a private /tmp mounts an empty shadow over a host workspace
+    and every later step then fails on paths that exist on the host. Probing
+    once turns that misleading cell failure into an honest not_run.
+    """
+    probe = root.resolve() / ".daemon-mount-probe"
+    try:
+        probe.write_text("probe\n", encoding="utf-8")
+        held = subprocess.run(
+            [
+                "docker",
+                "run",
+                "--rm",
+                "-v",
+                f"{probe}:/probe:ro",
+                image,
+                "test",
+                "-f",
+                "/probe",
+            ],
+            capture_output=True,
+            check=False,
+            timeout=60,
+        )
+    except OSError as error:
+        return f"docker could not run the mount probe under {root}: {error}"
+    except subprocess.TimeoutExpired:
+        return f"docker mount probe under {root} timed out"
+    finally:
+        probe.unlink(missing_ok=True)
+    if held.returncode != 0:
+        return (
+            f"the docker daemon cannot see {root}: bind mounts resolve in the "
+            "daemon's mount namespace (a private /tmp is the usual cause); give "
+            "the workspace a path the daemon shares"
+        )
+    return None
+
+
 def docker_cli_command(
     image: str,
     *,
@@ -2961,6 +3003,21 @@ def qualify_one(
     identity = execution_identity(repo_root(), docker_image=docker_image)
     if measured is not None:
         _model_overlay(measured, model, identity)
+    if docker_image is not None:
+        root.mkdir(parents=True, exist_ok=True)
+        refusal = daemon_mount_refusal(root, docker_image)
+        if refusal is not None:
+            print(
+                json.dumps(
+                    {
+                        "scenario": scenario,
+                        "run": run,
+                        "status": "not_run",
+                        "reason": refusal,
+                    }
+                )
+            )
+            return 1
     if probe and not capacity_probe(agy, model=model):
         print(
             json.dumps(
