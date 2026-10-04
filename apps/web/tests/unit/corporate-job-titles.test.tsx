@@ -170,8 +170,11 @@ it("clears an assignment from the detail panel", async () => {
   mutation.mockResolvedValue({ ok: true, data: {} });
   const user = userEvent.setup();
   renderPanel();
-  // The first row is selected by default; Cid Carrier holds jt_pm.
-  await user.click(screen.getByRole("button", { name: "personActions:Cid Carrier" }));
+  // Cid Carrier holds jt_pm; open its detail drawer via the row.
+  await user.click(screen.getByRole("cell", { name: "Project manager" }));
+  await user.click(
+    await screen.findByRole("button", { name: "personActions:Cid Carrier" }),
+  );
   await user.click(await screen.findByRole("menuitem", { name: "removeAssignment" }));
   await waitFor(() => {
     expect(mutation).toHaveBeenCalled();

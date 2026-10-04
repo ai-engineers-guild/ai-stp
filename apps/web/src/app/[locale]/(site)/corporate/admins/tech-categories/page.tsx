@@ -10,7 +10,7 @@ import { ApiError } from "@/lib/api/errors";
 import { canViewCorporateAdministration } from "@/lib/corporate-hub";
 import { requireSession, sessionCookieValue } from "@/lib/auth/require-session";
 import { readCsrfToken } from "@/lib/auth/session";
-import { Link } from "@/lib/i18n/navigation";
+import { PeopleHeader } from "@/app/[locale]/(site)/corporate/admins/people-shared";
 
 export default async function TechCategoriesPage({
   params,
@@ -19,7 +19,7 @@ export default async function TechCategoriesPage({
 }) {
   const { locale } = await params;
   setRequestLocale(locale);
-  await requireSession(locale, `/${locale}/corporate/organization/admins/tech-categories`);
+  await requireSession(locale, `/${locale}/corporate/admins/tech-categories`);
   const t = await getTranslations("technologyCategories");
   const people = await getTranslations("people");
   const common = await getTranslations("common");
@@ -65,28 +65,11 @@ export default async function TechCategoriesPage({
   }
   return (
     <div className="min-w-0 space-y-5">
-      <header className="space-y-3">
-        <nav
-          aria-label={people("breadcrumbs")}
-          className="text-muted-foreground flex flex-wrap items-center gap-2 text-xs sm:text-sm"
-        >
-          <Link href="/corporate/overview" className="hover:text-foreground">
-            {people("corporate")}
-          </Link>
-          <span aria-hidden>/</span>
-          <span>{people("administration")}</span>
-          <span aria-hidden>/</span>
-          <span>{people("referenceData")}</span>
-          <span aria-hidden>/</span>
-          <span aria-current="page" className="text-foreground">
-            {t("title")}
-          </span>
-        </nav>
-        <div className="space-y-1">
-          <h1 className="text-3xl leading-tight font-medium tracking-tight">{t("title")}</h1>
-          <p className="text-muted-foreground text-sm sm:text-base">{t("body")}</p>
-        </div>
-      </header>
+      <PeopleHeader
+        section={people("referenceData")}
+        current={t("title")}
+        description={t("body")}
+      />
       <CorporateTechCategories
         csrfToken={(await readCsrfToken()) ?? ""}
         organizationId={organizationId}

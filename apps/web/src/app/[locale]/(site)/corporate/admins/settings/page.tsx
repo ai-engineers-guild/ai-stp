@@ -1,7 +1,6 @@
 import { getTranslations, setRequestLocale } from "next-intl/server";
 
 import { Badge } from "@/components/atoms/badge";
-import { HistoryBackButton } from "@/components/molecules/history-back-button";
 import { StatePanel } from "@/components/molecules/state-panel";
 import { TechnologyActivityPolicy } from "@/components/organisms/corporate-governance-controls";
 import { CorporateTelemetryPolicyControls } from "@/components/organisms/corporate-telemetry-policy-controls";
@@ -12,6 +11,7 @@ import { readTechnologyCapabilities, readTechnologyLandscapePolicy } from "@/lib
 import type { CorporateTelemetryPolicyView } from "@/lib/api/generated/types.gen";
 import { requireSession, sessionCookieValue } from "@/lib/auth/require-session";
 import { readCsrfToken } from "@/lib/auth/session";
+import { PeopleHeader } from "@/app/[locale]/(site)/corporate/admins/people-shared";
 
 export default async function CorporateSettingsPage({
   params,
@@ -20,10 +20,10 @@ export default async function CorporateSettingsPage({
 }) {
   const { locale } = await params;
   setRequestLocale(locale);
-  await requireSession(locale, `/${locale}/corporate/organization/admins/settings`);
+  await requireSession(locale, `/${locale}/corporate/admins/settings`);
   const session = (await sessionCookieValue()) ?? "";
   const t = await getTranslations("technology");
-  const corporate = await getTranslations("corporate");
+  const hub = await getTranslations("hub");
   const context = await readCorporateContext(session);
   if (!context)
     return <StatePanel kind="empty" title={t("organizationSettings")} description={t("empty")} />;
@@ -69,18 +69,9 @@ export default async function CorporateSettingsPage({
   };
   return (
     <div className="min-w-0 space-y-6">
-      <header className="space-y-2">
-        <div className="flex flex-wrap items-center gap-3">
-          <h1 className="text-3xl font-medium tracking-tight sm:text-4xl">
-            {t("organizationSettings")}
-          </h1>
-          <Badge variant="secondary">{context.member.role}</Badge>
-        </div>
-      </header>
-      <HistoryBackButton
-        label={corporate("backToWorkspace")}
-        fallback="/corporate/organization/admins"
-      />
+      <PeopleHeader section={hub("organization")} current={t("organizationSettings")}>
+        <Badge variant="secondary">{context.member.role}</Badge>
+      </PeopleHeader>
 
       {canManageTelemetry &&
         (telemetryUnavailable ? (

@@ -20,7 +20,7 @@ vi.mock("@/lib/i18n/navigation", () => ({
       {children}
     </a>
   ),
-  usePathname: () => "/corporate/organization/admins",
+  usePathname: () => "/corporate/admins/members",
   useRouter: () => ({ replace: vi.fn() }),
 }));
 const fixtureCase = (

@@ -3,6 +3,7 @@
 import { useEffect, useRef, type ReactNode } from "react";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
+import type { CorporateProjectView, CorporateTeamView } from "@/lib/api/generated/types.gen";
 import { Badge } from "@/components/atoms/badge";
 import { CompactChipList } from "@/components/molecules/compact-chip-list";
 import { Link } from "@/lib/i18n/navigation";
@@ -18,13 +19,14 @@ import {
   SheetTitle,
 } from "@/components/atoms/sheet";
 
-/** Shared detail drawer for the three People & Access workspaces. */
+/** Shared detail drawer for the People & Access workspaces. */
 export function CorporateDetailDrawer({
   open,
   onOpenChange,
   title,
   description,
   wide,
+  actions,
   children,
 }: {
   open: boolean;
@@ -32,6 +34,8 @@ export function CorporateDetailDrawer({
   title: string;
   description?: string | undefined;
   wide?: boolean;
+  /** Row-level actions rendered in the sticky header, left of the close button. */
+  actions?: ReactNode;
   children: ReactNode;
 }) {
   const t = useTranslations("people");
@@ -39,7 +43,7 @@ export function CorporateDetailDrawer({
   return (
     <Sheet open={open} onOpenChange={onOpenChange} modal={false}>
       <SheetContent
-        className={`top-20 overflow-y-auto p-5 ${wide ? "w-[min(calc(100vw-1rem),48rem)]" : "w-[min(calc(100vw-1rem),26rem)]"}`}
+        className={`top-20 scroll-pt-20 overflow-y-auto p-5 ${wide ? "w-[min(calc(100vw-1rem),48rem)]" : "w-[min(calc(100vw-1rem),26rem)]"}`}
         onOpenAutoFocus={() => {
           returnFocus.current =
             document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -49,20 +53,23 @@ export function CorporateDetailDrawer({
           returnFocus.current?.focus();
         }}
       >
-        <div className="mb-5 flex shrink-0 items-start justify-between gap-3">
-          <div>
-            <SheetTitle className="text-lg font-medium">{title}</SheetTitle>
+        <div className="border-border bg-background sticky -top-5 z-10 -mx-5 -mt-5 mb-5 flex items-start justify-between gap-3 border-b px-5 py-4">
+          <div className="min-w-0">
+            <SheetTitle className="truncate text-lg font-medium">{title}</SheetTitle>
             <SheetDescription
-              className={description ? "text-muted-foreground mt-1 text-sm" : "sr-only"}
+              className={description ? "text-muted-foreground mt-1 truncate text-sm" : "sr-only"}
             >
               {description ?? title}
             </SheetDescription>
           </div>
-          <SheetClose asChild>
-            <Button variant="ghost" size="icon" aria-label={t("close")}>
-              <Icon name="close" size="sm" />
-            </Button>
-          </SheetClose>
+          <div className="flex shrink-0 items-center gap-1">
+            {actions}
+            <SheetClose asChild>
+              <Button variant="ghost" size="icon" aria-label={t("close")}>
+                <Icon name="close" size="sm" />
+              </Button>
+            </SheetClose>
+          </div>
         </div>
         {children}
       </SheetContent>
@@ -76,6 +83,40 @@ export const peopleSelectClass =
 export const peopleHeadClass =
   "text-muted-foreground h-12 px-3 text-left text-xs font-medium whitespace-nowrap";
 export const peopleCellClass = "px-3 py-2 text-sm";
+
+/**
+ * Shared table shell for the People & Access workspaces: labelled scroll
+ * region with keyboard access, `framed` for the bordered-card variant.
+ * Callers own their thead/tbody; column classes come from the kit constants.
+ */
+export function PeopleTable({
+  label,
+  minWidth,
+  framed = false,
+  children,
+}: {
+  label: string;
+  minWidth?: string;
+  framed?: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <div
+      role="region"
+      aria-label={label}
+      // Keyboard access is required for scrolling the table on narrow viewports.
+      // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
+      tabIndex={0}
+      className={`focus-visible:ring-ring min-w-0 overflow-x-auto focus-visible:ring-2 focus-visible:outline-none ${
+        framed ? "border-border rounded-lg border" : ""
+      }`}
+    >
+      <table aria-label={label} className={`w-full border-collapse ${minWidth ?? ""}`}>
+        {children}
+      </table>
+    </div>
+  );
+}
 
 /** Native history keeps filtering instant, addressable, and restorable on Back. */
 export function usePeopleFilters() {
@@ -302,7 +343,7 @@ export function PeoplePager({
 export function PeopleRole({ role }: { role: string }) {
   return (
     <Link
-      href={`/corporate/organization/admins/roles?role=${encodeURIComponent(role)}`}
+      href={`/corporate/admins/roles?role=${encodeURIComponent(role)}`}
       className="focus-visible:ring-ring inline-block rounded-sm hover:underline focus-visible:ring-2 focus-visible:outline-none"
     >
       <Badge variant="secondary" className="font-sans font-normal tracking-normal">
@@ -324,5 +365,81 @@ export function PeopleTeams({ teams }: { teams: readonly { team_id: string; name
         return team ? `/corporate/teams/${encodeURIComponent(team.team_id)}` : undefined;
       }}
     />
+  );
+}
+
+/**
+ * One select carrying both scope kind and id as `kind:id`, so the chosen scope
+ * can never mix a team kind with a project id.
+ */
+export function ScopeField({
+  id,
+  teams,
+  projects,
+  organizationId,
+  organizationLabel,
+  onKindChange,
+  options,
+}: {
+  id: string;
+  teams: readonly CorporateTeamView[];
+  projects: readonly CorporateProjectView[];
+  organizationId: string;
+  organizationLabel: string;
+  onKindChange?: (kind: string) => void;
+  options: readonly { value: string; label: string }[];
+}) {
+  const a = useTranslations("accessUi");
+  return (
+    <select
+      id={id}
+      name="scope"
+      defaultValue={`organization:${organizationId}`}
+      onChange={(event) => onKindChange?.(event.target.value.split(":", 1)[0] ?? "organization")}
+      className="border-input bg-background focus-visible:ring-ring flex h-10 w-full rounded-md border px-3 text-sm focus-visible:ring-2 focus-visible:outline-none"
+    >
+      <option value={`organization:${organizationId}`}>{organizationLabel}</option>
+      <optgroup label={a("entities.team.name")}>
+        {teams.map((team) => (
+          <option key={team.team_id} value={`team:${team.team_id}`}>
+            {team.name}
+          </option>
+        ))}
+      </optgroup>
+      <optgroup label={a("entities.technology.name")}>
+        {options
+          .filter((option) => option.value.startsWith("technology:"))
+          .map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+      </optgroup>
+      <optgroup label={a("entities.category.name")}>
+        {options
+          .filter((option) => option.value.startsWith("category:"))
+          .map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+      </optgroup>
+      <optgroup label={a("entities.catalog_object.name")}>
+        {options
+          .filter((option) => option.value.startsWith("catalog_object:"))
+          .map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+      </optgroup>
+      <optgroup label={a("entities.project.name")}>
+        {projects.map((project) => (
+          <option key={project.project_id} value={`project:${project.project_id}`}>
+            {project.name}
+          </option>
+        ))}
+      </optgroup>
+    </select>
   );
 }

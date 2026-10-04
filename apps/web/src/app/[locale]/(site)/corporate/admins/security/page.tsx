@@ -6,6 +6,7 @@ import { readCorporateMembershipPolicy } from "@/lib/api/corporate-invitations";
 import { readCorporateContext, readCorporateWorkspace } from "@/lib/api/corporate";
 import { requireSession, sessionCookieValue } from "@/lib/auth/require-session";
 import { readCsrfToken } from "@/lib/auth/session";
+import { PeopleHeader } from "@/app/[locale]/(site)/corporate/admins/people-shared";
 
 export default async function CorporateSecurityPage({
   params,
@@ -14,7 +15,7 @@ export default async function CorporateSecurityPage({
 }) {
   const { locale } = await params;
   setRequestLocale(locale);
-  await requireSession(locale, `/${locale}/corporate/organization/admins/security`);
+  await requireSession(locale, `/${locale}/corporate/admins/security`);
   const session = (await sessionCookieValue()) ?? "";
   const hub = await getTranslations("hub");
   const technology = await getTranslations("technology");
@@ -42,7 +43,7 @@ export default async function CorporateSecurityPage({
   };
   return (
     <div className="min-w-0 space-y-6">
-      <h1 className="text-3xl font-medium tracking-tight">{hub("security")}</h1>
+      <PeopleHeader section={hub("security")} current={hub("security")} />
       {policy ? (
         <CorporateMembershipPolicyControls
           {...authority}

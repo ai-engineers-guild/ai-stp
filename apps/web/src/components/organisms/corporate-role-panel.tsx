@@ -15,6 +15,7 @@ import type {
 
 type Labels = {
   name: string;
+  renameHint: string;
   permissions: string;
   create: string;
   creating: string;
@@ -30,10 +31,61 @@ const field = (formData: FormData, name: string) => {
 };
 
 /**
- * Flat role editor used inside the admin detail drawer: a name field on
- * create, the editable permission matrix, and one submit action. Deletion,
- * reassignment, and member assignment live in their own drawer flows in the
- * roles workspace. The server enforces delegation bounds and built-in
+ * The role contract has no rename: create the role under the new name, then
+ * delete the old one with `replacement_role` pointing at the new role so its
+ * holders are reassigned. Returns the last mutation's result.
+ */
+async function renameRole({
+  csrfToken,
+  organizationId,
+  authorizationRevision,
+  selected,
+  nextName,
+  permissions,
+}: {
+  csrfToken: string;
+  organizationId: string;
+  authorizationRevision: number;
+  selected: CorporateRoleView;
+  nextName: string;
+  permissions: string[];
+}) {
+  const created = await corporateMutation({
+    csrfToken,
+    organizationId,
+    path: `/v1/corporate/organizations/${organizationId}/roles`,
+    method: "POST",
+    body: {
+      schema_version: 1,
+      name: nextName,
+      permissions,
+      authorization_revision: authorizationRevision,
+      idempotency_key: crypto.randomUUID(),
+    },
+  });
+  if (!created.ok) return created;
+  return corporateMutation({
+    csrfToken,
+    organizationId,
+    path: `/v1/corporate/organizations/${organizationId}/roles/${encodeURIComponent(selected.name)}`,
+    method: "DELETE",
+    body: {
+      schema_version: 1,
+      expected_revision: selected.revision,
+      replacement_role: nextName,
+      authorization_revision: authorizationRevision,
+      idempotency_key: crypto.randomUUID(),
+    },
+  });
+}
+
+/**
+ * Flat role editor used inside the roles workspace dialog: a name field on
+ * create and edit, the editable permission matrix, and one submit action.
+ * Renaming is emulated — the contract has no rename — by creating the role
+ * under the new name and deleting the old one with `replacement_role` pointing
+ * at it, which reassigns holders. Deletion and member assignment live in
+ * their own dialog flows. The server enforces delegation bounds and built-in
  * immutability.
  */
 export function CorporateRolePanel({
@@ -55,7 +107,8 @@ export function CorporateRolePanel({
   labels: Labels;
   mode?: "create" | "edit";
   template?: CorporateRoleView | undefined;
-  onSaved?: () => void;
+  /** Receives the role's final name — it differs from `selected.name` after a rename. */
+  onSaved?: (name?: string) => void;
 }) {
   const router = useRouter();
   const [busy, startTransition] = useTransition();
@@ -75,6 +128,33 @@ export function CorporateRolePanel({
           const formData = new FormData(event.currentTarget);
           setMessage(null);
           startTransition(async () => {
+            const permissions = formData.getAll("permissions").map(String);
+            const nextName = field(formData, "name");
+            const failure = (
+              result: Extract<Awaited<ReturnType<typeof corporateMutation>>, { ok: false }>,
+            ) => ({
+              text: result.message || labels.failed,
+              error: true,
+              fields: Object.entries(result.fieldErrors ?? {}).map(
+                ([path, text]) => `${path}: ${text}`,
+              ),
+            });
+            if (mode === "edit" && selected && nextName !== "" && nextName !== selected.name) {
+              const removed = await renameRole({
+                csrfToken,
+                organizationId,
+                authorizationRevision,
+                selected,
+                nextName,
+                permissions,
+              });
+              setMessage(removed.ok ? { text: labels.saved } : failure(removed));
+              if (removed.ok) {
+                router.refresh();
+                onSaved?.(nextName);
+              }
+              return;
+            }
             const result = await corporateMutation({
               csrfToken,
               organizationId,
@@ -85,35 +165,34 @@ export function CorporateRolePanel({
               method: mode === "edit" ? "PATCH" : "POST",
               body: {
                 schema_version: 1,
-                ...(mode === "create" ? { name: field(formData, "name") } : {}),
-                permissions: formData.getAll("permissions").map(String),
+                ...(mode === "create" ? { name: nextName } : {}),
+                permissions,
                 ...(mode === "edit" && selected ? { expected_revision: selected.revision } : {}),
                 authorization_revision: authorizationRevision,
                 idempotency_key: crypto.randomUUID(),
               },
             });
-            setMessage(
-              result.ok
-                ? { text: labels.saved }
-                : {
-                    text: result.message || labels.failed,
-                    error: true,
-                    fields: Object.entries(result.fieldErrors ?? {}).map(
-                      ([path, text]) => `${path}: ${text}`,
-                    ),
-                  },
-            );
+            setMessage(result.ok ? { text: labels.saved } : failure(result));
             if (result.ok) {
               router.refresh();
-              onSaved?.();
+              onSaved?.(mode === "create" ? nextName : selected?.name);
             }
           });
         }}
       >
-        {mode === "create" ? (
+        {mode === "create" || selected ? (
           <div className="space-y-1.5">
-            <Label htmlFor="role-create-name">{labels.name}</Label>
-            <Input id="role-create-name" name="name" required pattern="[a-z][a-z0-9_-]*" />
+            <Label htmlFor="role-panel-name">{labels.name}</Label>
+            <Input
+              id="role-panel-name"
+              name="name"
+              required
+              pattern="[a-z][a-z0-9_-]*"
+              defaultValue={mode === "edit" ? selected?.name : undefined}
+            />
+            {mode === "edit" ? (
+              <p className="text-muted-foreground text-xs">{labels.renameHint}</p>
+            ) : null}
           </div>
         ) : null}
         <div className="space-y-1.5">

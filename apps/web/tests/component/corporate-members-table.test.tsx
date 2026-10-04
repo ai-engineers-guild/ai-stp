@@ -9,11 +9,19 @@ import fixture from "@/mocks/corporate-overview-fixture";
 import type { CorporateContext, CorporateMemberList } from "@/lib/api/generated/types.gen";
 
 vi.mock("@/lib/i18n/navigation", () => ({
-  Link: ({ href, children, ...props }: React.ComponentProps<"a">) => (
-    <a href={href} {...props}>
-      {children}
-    </a>
-  ),
+  Link: ({
+    href,
+    children,
+    prefetch,
+    ...props
+  }: React.ComponentProps<"a"> & { prefetch?: boolean }) => {
+    void prefetch;
+    return (
+      <a href={href} {...props}>
+        {children}
+      </a>
+    );
+  },
 }));
 const fixtureCase = (
   fixture as { cases: { body: { organization: { organization_id: string } } }[] }
@@ -48,7 +56,7 @@ it("reuses the table independently, linking roles and teams and keeping row menu
   );
   expect(screen.getByRole("link", { name: member.role })).toHaveAttribute(
     "href",
-    `/corporate/organization/admins/roles?role=${member.role}`,
+    `/corporate/admins/roles?role=${member.role}`,
   );
   expect(screen.getByRole("link", { name: team.name })).toHaveAttribute(
     "href",
@@ -56,9 +64,24 @@ it("reuses the table independently, linking roles and teams and keeping row menu
   );
   await user.click(screen.getByRole("button", { name: /Actions for/ }));
   expect(screen.getByRole("menuitem", { name: "View profile" })).toBeVisible();
+  expect(screen.queryByRole("menuitem", { name: "Edit member" })).not.toBeInTheDocument();
   expect(document.body).not.toHaveAttribute("data-scroll-locked");
   await user.keyboard("{Escape}");
   expect(screen.getByRole("button", { name: /Actions for/ })).toHaveFocus();
+});
+it("exposes the edit action in the row menu when onEdit is provided", async () => {
+  const user = userEvent.setup();
+  const onEdit = vi.fn();
+  const member = members[0];
+  if (!member) throw new Error("Missing member fixture");
+  render(
+    <NextIntlClientProvider locale="en" messages={en}>
+      <CorporateMembersTable {...props} rows={[member]} onEdit={onEdit} />
+    </NextIntlClientProvider>,
+  );
+  await user.click(screen.getByRole("button", { name: /Actions for/ }));
+  await user.click(screen.getByRole("menuitem", { name: "Edit member" }));
+  expect(onEdit).toHaveBeenCalledWith(member);
 });
 it("exposes empty state, native mixed selection and sortable joined column", async () => {
   const { rerender } = render(

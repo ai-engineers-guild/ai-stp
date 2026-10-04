@@ -6,12 +6,12 @@ import { readCorporateWorkspace } from "@/lib/api/corporate";
 import { ApiError } from "@/lib/api/errors";
 import { requireSession, sessionCookieValue } from "@/lib/auth/require-session";
 import { readCsrfToken } from "@/lib/auth/session";
-import { Link } from "@/lib/i18n/navigation";
+import { PeopleHeader } from "@/app/[locale]/(site)/corporate/admins/people-shared";
 
 export default async function JobTitlesPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
   setRequestLocale(locale);
-  await requireSession(locale, `/${locale}/corporate/organization/admins/job-titles`);
+  await requireSession(locale, `/${locale}/corporate/admins/job-titles`);
   const t = await getTranslations("corporate");
   const people = await getTranslations("people");
   const common = await getTranslations("common");
@@ -30,28 +30,11 @@ export default async function JobTitlesPage({ params }: { params: Promise<{ loca
     return <StatePanel kind="empty" title={t("jobTitles")} description={common("accessDenied")} />;
   return (
     <div className="min-w-0 space-y-5">
-      <header className="space-y-3">
-        <nav
-          aria-label={people("breadcrumbs")}
-          className="text-muted-foreground flex flex-wrap items-center gap-2 text-xs sm:text-sm"
-        >
-          <Link href="/corporate/overview" className="hover:text-foreground">
-            {people("corporate")}
-          </Link>
-          <span aria-hidden>/</span>
-          <span>{people("administration")}</span>
-          <span aria-hidden>/</span>
-          <span>{people("referenceData")}</span>
-          <span aria-hidden>/</span>
-          <span aria-current="page" className="text-foreground">
-            {t("jobTitles")}
-          </span>
-        </nav>
-        <div className="space-y-1">
-          <h1 className="text-3xl leading-tight font-medium tracking-tight">{t("jobTitles")}</h1>
-          <p className="text-muted-foreground text-sm sm:text-base">{t("jobTitlesDescription")}</p>
-        </div>
-      </header>
+      <PeopleHeader
+        section={people("referenceData")}
+        current={t("jobTitles")}
+        description={t("jobTitlesDescription")}
+      />
       <CorporateJobTitles
         csrfToken={(await readCsrfToken()) ?? ""}
         organizationId={workspace.context.organization.organization_id}

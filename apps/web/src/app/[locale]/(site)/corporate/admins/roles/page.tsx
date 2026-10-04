@@ -9,6 +9,7 @@ import type { CorporatePermissionMatrix } from "@/lib/api/generated/types.gen";
 import { canViewCorporateAdministration } from "@/lib/corporate-hub";
 import { requireSession, sessionCookieValue } from "@/lib/auth/require-session";
 import { readCsrfToken } from "@/lib/auth/session";
+import { PeopleHeader } from "@/app/[locale]/(site)/corporate/admins/people-shared";
 
 export default async function CorporateRolesPage({
   params,
@@ -17,7 +18,7 @@ export default async function CorporateRolesPage({
 }) {
   const { locale } = await params;
   setRequestLocale(locale);
-  await requireSession(locale, `/${locale}/corporate/organization/admins/roles`);
+  await requireSession(locale, `/${locale}/corporate/admins/roles`);
   const h = await getTranslations("hub");
   const t = await getTranslations("accessUi");
   const common = await getTranslations("common");
@@ -56,13 +57,11 @@ export default async function CorporateRolesPage({
 
   return (
     <div className="min-w-0 space-y-5">
-      <header className="space-y-2">
-        <p className="text-muted-foreground text-xs">
-          {h("administration")} / {h("peopleAndAccess")} / {h("roles")}
-        </p>
-        <h1 className="text-3xl font-medium tracking-tight">{h("roles")}</h1>
-        <p className="text-muted-foreground text-sm">{t("rolesBody")}</p>
-      </header>
+      <PeopleHeader
+        section={h("peopleAndAccess")}
+        current={h("roles")}
+        description={t("rolesBody")}
+      />
       <CorporateRolesWorkspace
         roles={workspace.roles?.items ?? []}
         bindings={workspace.bindings?.items ?? []}

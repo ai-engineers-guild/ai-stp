@@ -74,9 +74,9 @@ it("highlights the corporate destination that owns the current route", async () 
   );
   expect(landscape && isPrimaryNavigationActive(landscape, "/corporate/categories")).toBe(true);
   expect(
-    organization && isPrimaryNavigationActive(organization, "/corporate/organization/admins"),
+    organization && isPrimaryNavigationActive(organization, "/corporate/admins/members"),
   ).toBe(false);
-  expect(admins && isPrimaryNavigationActive(admins, "/corporate/organization/admins")).toBe(true);
+  expect(admins && isPrimaryNavigationActive(admins, "/corporate/admins/members")).toBe(true);
 });
 
 it("does not load corporate data for an unauthenticated visitor", async () => {
@@ -109,21 +109,19 @@ it.each([
         "overview",
         "organization",
         "administration",
+        "invitations",
         "accessMatrix",
         "roles",
         "auditJournal",
         "employeeAccess",
         "jobTitles",
+        "technologyCategories",
         "settings",
         "security",
-        "dashboard",
       ],
     },
   ],
-  [
-    "team.list",
-    { administration: false, pages: ["overview", "organization", "teams", "dashboard"] },
-  ],
+  ["team.list", { administration: false, pages: ["overview", "organization", "teams"] }],
 ])("resolves %s authority on the server", async (capability, expected) => {
   vi.stubEnv("AI_STP_COMPILED_FEATURE_PROFILE", "corporate_hub");
   mocks.session.mockResolvedValue({ accountId: "account_test" });

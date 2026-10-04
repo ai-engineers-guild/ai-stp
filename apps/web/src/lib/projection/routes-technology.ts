@@ -36,13 +36,13 @@ export const TECHNOLOGY_ROUTES: MachineRoute[] = [
     },
   },
   {
-    pattern: "corporate/organization/admins/job-titles",
+    pattern: "corporate/admins/job-titles",
     resolve: async () => {
       const t = await getTranslations("corporate");
       return presentPage({
         title: t("jobTitles"),
         summary: t("jobTitlesDescription"),
-        links: [[t("backToWorkspace"), "/corporate/organization/admins"]],
+        links: [[t("backToWorkspace"), "/corporate/admins/members"]],
       });
     },
   },
@@ -59,7 +59,7 @@ export const TECHNOLOGY_ROUTES: MachineRoute[] = [
           { key: "employees", href: "/corporate/employees" },
           { key: "projects", href: "/corporate/projects" },
           { key: "teams", href: "/corporate/teams" },
-          { key: "admins", href: "/corporate/organization/admins" },
+          { key: "admins", href: "/corporate/admins/members" },
         ]
           .filter((item) => canViewCorporateSection(item.key, context.capabilities))
           .map((item): [string, string] => [t(item.key), item.href]),
@@ -67,7 +67,7 @@ export const TECHNOLOGY_ROUTES: MachineRoute[] = [
     },
   },
   {
-    pattern: "corporate/organization/admins/employees/:accountId",
+    pattern: "corporate/admins/employee-access/:accountId",
     resolve: async ({ segments }) => {
       const accountId = segments.at(-1);
       if (!accountId) return null;
@@ -88,7 +88,7 @@ export const TECHNOLOGY_ROUTES: MachineRoute[] = [
     },
   },
   {
-    pattern: "corporate/organization/admins/audit",
+    pattern: "corporate/admins/audit",
     resolve: async ({ searchParams }) => {
       const t = await getTranslations("corporate");
       const auditT = Object.assign(
@@ -98,7 +98,7 @@ export const TECHNOLOGY_ROUTES: MachineRoute[] = [
       const result = await readCorporateAudit((await sessionCookieValue()) ?? "", searchParams);
       return presentPage({
         title: t("auditJournal"),
-        links: [[t("backToWorkspace"), "/corporate/organization/admins"]],
+        links: [[t("backToWorkspace"), "/corporate/admins/members"]],
         sections: [
           {
             heading: t("auditJournal"),
@@ -122,7 +122,7 @@ export const TECHNOLOGY_ROUTES: MachineRoute[] = [
     },
   },
   {
-    pattern: "corporate/organization/admins/access",
+    pattern: "corporate/admins/access-model",
     resolve: async () => {
       const t = await getTranslations("corporate");
       const workspace = await readCorporateWorkspace((await sessionCookieValue()) ?? "").catch(
@@ -134,12 +134,12 @@ export const TECHNOLOGY_ROUTES: MachineRoute[] = [
         summary: t("accessMatrixBody"),
         fields: roles.map((role) => [role.name, role.permissions.join(", ")] as const),
         emptyMessage: t("noRoles"),
-        links: [[t("backToWorkspace"), "/corporate/organization/admins"]],
+        links: [[t("backToWorkspace"), "/corporate/admins/members"]],
       });
     },
   },
   {
-    pattern: "corporate/organization/admins/roles",
+    pattern: "corporate/admins/roles",
     resolve: async () => {
       const t = await getTranslations("corporate");
       const workspace = await readCorporateWorkspace((await sessionCookieValue()) ?? "").catch(
@@ -152,12 +152,12 @@ export const TECHNOLOGY_ROUTES: MachineRoute[] = [
         summary: t("rolesBody"),
         fields: roles.map((role) => [role.name, role.permissions.join(", ")] as const),
         emptyMessage: t("noRoles"),
-        links: [[t("backToWorkspace"), "/corporate/organization/admins"]],
+        links: [[t("backToWorkspace"), "/corporate/admins/members"]],
       });
     },
   },
   {
-    pattern: "corporate/organization/admins/settings",
+    pattern: "corporate/admins/settings",
     resolve: async () => {
       const t = await getTranslations("technology");
       const session = (await sessionCookieValue()) ?? "";

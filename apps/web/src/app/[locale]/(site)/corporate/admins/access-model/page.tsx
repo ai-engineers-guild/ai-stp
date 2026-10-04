@@ -7,6 +7,7 @@ import type { CorporatePermissionMatrix } from "@/lib/api/generated/types.gen";
 import { readCorporateWorkspace } from "@/lib/api/corporate";
 import { canViewCorporateAdministration } from "@/lib/corporate-hub";
 import { requireSession, sessionCookieValue } from "@/lib/auth/require-session";
+import { PeopleHeader } from "@/app/[locale]/(site)/corporate/admins/people-shared";
 
 export default async function CorporateAccessModelPage({
   params,
@@ -18,7 +19,7 @@ export default async function CorporateAccessModelPage({
   const { locale } = await params;
   const filters = await searchParams;
   setRequestLocale(locale);
-  await requireSession(locale, `/${locale}/corporate/organization/admins/access`);
+  await requireSession(locale, `/${locale}/corporate/admins/access-model`);
   const h = await getTranslations("hub");
   const t = await getTranslations("accessUi");
   const common = await getTranslations("common");
@@ -52,25 +53,17 @@ export default async function CorporateAccessModelPage({
 
   return (
     <div className="min-w-0 space-y-5">
-      <header className="space-y-2">
-        <p className="text-muted-foreground text-xs">
-          {h("administration")} / {h("peopleAndAccess")} / {h("accessModel")}
-        </p>
-        <h1 className="text-3xl font-medium tracking-tight">{h("accessModel")}</h1>
-        <p className="text-muted-foreground text-sm">{t("accessBody")}</p>
-      </header>
+      <PeopleHeader
+        section={h("peopleAndAccess")}
+        current={h("accessModel")}
+        description={t("accessBody")}
+      />
       <CorporateAccessModel
         definitions={matrix.definitions}
         effective={matrix.effective}
         roles={workspace.roles?.items ?? []}
         capabilities={workspace.context.capabilities}
-        view={
-          filters.view === "roles"
-            ? "roles"
-            : filters.view === "matrix" || filters.view === "sections"
-              ? "sections"
-              : "entities"
-        }
+        view={filters.view === "matrix" || filters.view === "sections" ? "sections" : "entities"}
       />
     </div>
   );

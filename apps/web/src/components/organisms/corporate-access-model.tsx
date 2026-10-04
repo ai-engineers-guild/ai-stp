@@ -60,7 +60,7 @@ export function CorporateAccessModel({
   effective: readonly CorporateEffectivePermission[];
   roles: readonly CorporateRoleView[];
   capabilities: readonly string[];
-  view: "entities" | "sections" | "roles";
+  view: "entities" | "sections";
 }) {
   const t = useTranslations("accessUi");
   const h = useTranslations("hub");
@@ -111,20 +111,14 @@ export function CorporateAccessModel({
           {
             key: "entities",
             label: t("entitiesAndActions"),
-            href: "/corporate/organization/admins/access",
+            href: "/corporate/admins/access-model",
             active: view === "entities",
           },
           {
             key: "sections",
             label: t("sectionsTab"),
-            href: "/corporate/organization/admins/access?view=matrix",
+            href: "/corporate/admins/access-model?view=matrix",
             active: view === "sections",
-          },
-          {
-            key: "roles",
-            label: t("roleMatrix"),
-            href: "/corporate/organization/admins/access?view=roles",
-            active: view === "roles",
           },
         ]}
       />
@@ -151,7 +145,7 @@ export function CorporateAccessModel({
         <StatePanel kind="empty" title={t("noResults")} />
       ) : (
         <div className="border-border overflow-x-auto rounded-lg border">
-          {view === "entities" ? (
+          {view !== "sections" ? (
             <table
               className="w-full min-w-[58rem] border-collapse"
               aria-label={t("entitiesAndActions")}
@@ -164,7 +158,7 @@ export function CorporateAccessModel({
                       {t(`groups.${group}`)}
                     </th>
                   ))}
-                  <th className={head}>
+                  <th className={`${head} relative`}>
                     <span className="sr-only">{t("details")}</span>
                   </th>
                 </tr>
@@ -231,7 +225,7 @@ export function CorporateAccessModel({
                 ))}
               </tbody>
             </table>
-          ) : view === "sections" ? (
+          ) : (
             <table className="w-full min-w-[52rem] border-collapse" aria-label={t("sectionsTab")}>
               <thead>
                 <tr>
@@ -242,7 +236,7 @@ export function CorporateAccessModel({
                       </th>
                     ),
                   )}
-                  <th className={head}>
+                  <th className={`${head} relative`}>
                     <span className="sr-only">{t("details")}</span>
                   </th>
                 </tr>
@@ -304,53 +298,6 @@ export function CorporateAccessModel({
                     </td>
                   </tr>
                 ))}
-              </tbody>
-            </table>
-          ) : (
-            <table className="w-full min-w-[40rem] border-collapse" aria-label={t("roleMatrix")}>
-              <thead>
-                <tr>
-                  <th className={head}>{t("entityAction")}</th>
-                  {roles.map((role) => (
-                    <th key={role.name} className={`${head} text-center`}>
-                      <Link
-                        href={`/corporate/organization/admins/roles?role=${encodeURIComponent(role.name)}`}
-                      >
-                        {roleTitle(role.name, t)}
-                      </Link>
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {entities.flatMap(([resource, items]) =>
-                  items.map((item) => (
-                    <tr key={item.name} className="border-border border-t">
-                      <th scope="row" className={`${cell} text-left font-normal`}>
-                        <span className="text-muted-foreground mr-3">
-                          {t(`entities.${resource}.name`)}
-                        </span>
-                        {permissionLabel(item, t)}
-                      </th>
-                      {roles.map((role) => (
-                        <td key={role.name} className={`${cell} text-center`}>
-                          {rolePermissions(role).has(item.name) ? (
-                            <Icon
-                              name="verified"
-                              size="sm"
-                              className="text-primary mx-auto"
-                              aria-label={t("granted")}
-                            />
-                          ) : (
-                            <span aria-label={t("notGranted")} className="text-muted-foreground">
-                              —
-                            </span>
-                          )}
-                        </td>
-                      ))}
-                    </tr>
-                  )),
-                )}
               </tbody>
             </table>
           )}
@@ -506,7 +453,7 @@ export function CorporateAccessModel({
                         .map((role) => (
                           <Link
                             key={role.name}
-                            href={`/corporate/organization/admins/roles?role=${encodeURIComponent(role.name)}`}
+                            href={`/corporate/admins/roles?role=${encodeURIComponent(role.name)}`}
                           >
                             <Badge variant="secondary" className="font-sans">
                               {roleTitle(role.name, t)}

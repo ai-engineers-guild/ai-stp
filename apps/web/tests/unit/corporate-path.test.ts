@@ -37,7 +37,7 @@ it("prefixes shared corporate links once and preserves query strings", async () 
   expect(corporateSharedPath("/en/corporate/catalog/components/component_01")).toBe(
     "/en/catalog/components/component_01",
   );
-  expect(corporateSharedPath("/en/corporate/organization/admins")).toBeNull();
+  expect(corporateSharedPath("/en/corporate/admins/members")).toBeNull();
   expect(corporateSharedPath("/en/corporate/technology-landscape")).toBeNull();
   expect(corporateSharedPath("/en/corporate/reports")).toBeNull();
   expect(corporateSharedPath("/en/corporate/reports/heartbeat")).toBeNull();
@@ -86,7 +86,31 @@ it("rewrites corporate shared pages and retains private session gates", async ()
   );
   expect(legacyEmployee.status).toBe(308);
   expect(legacyEmployee.headers.get("location")).toBe(
-    "http://localhost/en/corporate/organization/admins/employees/account_01?tab=access",
+    "http://localhost/en/corporate/admins/employee-access?tab=access&employee=account_01",
+  );
+  const legacyInvitations = middleware(
+    request("/en/corporate/organization/admins?tab=invitations&role=admin"),
+  );
+  expect(legacyInvitations.status).toBe(308);
+  expect(legacyInvitations.headers.get("location")).toBe(
+    "http://localhost/en/corporate/admins/invitations?role=admin",
+  );
+  const legacyOrgRoles = middleware(request("/en/corporate/organization/roles?role=lead"));
+  expect(legacyOrgRoles.status).toBe(308);
+  expect(legacyOrgRoles.headers.get("location")).toBe(
+    "http://localhost/en/corporate/admins/roles?role=lead",
+  );
+  const legacyOrgEmployee = middleware(
+    request("/en/corporate/organization/employee-access/account_02"),
+  );
+  expect(legacyOrgEmployee.status).toBe(308);
+  expect(legacyOrgEmployee.headers.get("location")).toBe(
+    "http://localhost/en/corporate/admins/employee-access?employee=account_02",
+  );
+  const adminsIndex = middleware(request("/en/corporate/admins"));
+  expect(adminsIndex.status).toBe(308);
+  expect(adminsIndex.headers.get("location")).toBe(
+    "http://localhost/en/corporate/admins/members",
   );
   const legacyPublisher = middleware(request("/en/corporate/publishers/account_01?tab=objects"));
   expect(legacyPublisher.status).toBe(308);

@@ -83,14 +83,15 @@ export const CORPORATE_ROUTES: MachineRoute[] = [
       ["corporate/technology-landscape", "/corporate"],
       ["corporate/categories", "/corporate/technology-landscape"],
       ["corporate/technology-mappings", "/corporate/technology-landscape"],
-      ["corporate/organization/admins/access", "/corporate/organization/admins"],
-      ["corporate/organization/admins/audit", "/corporate/organization/admins"],
-      ["corporate/organization/admins/job-titles", "/corporate/organization/admins"],
-      ["corporate/organization/admins/tech-categories", "/corporate/organization/admins"],
-      ["corporate/organization/admins/settings", "/corporate/organization/admins"],
-      ["corporate/organization/admins/security", "/corporate/organization/admins"],
-      ["corporate/organization/admins/employees", "/corporate/organization/admins"],
-      ["corporate/organization/admins/employees/:accountId", "/corporate/organization/admins"],
+      ["corporate/admins/invitations", "/corporate/admins/members"],
+      ["corporate/admins/access-model", "/corporate/admins/members"],
+      ["corporate/admins/audit", "/corporate/admins/members"],
+      ["corporate/admins/job-titles", "/corporate/admins/members"],
+      ["corporate/admins/tech-categories", "/corporate/admins/members"],
+      ["corporate/admins/settings", "/corporate/admins/members"],
+      ["corporate/admins/security", "/corporate/admins/members"],
+      ["corporate/admins/employee-access", "/corporate/admins/members"],
+      ["corporate/admins/employee-access/:accountId", "/corporate/admins/members"],
     ] as const
   ).map(([pattern, back]): MachineRoute => {
     const page = corporateNavPage(`/${pattern.replace(/\/:.*$/, "")}`);

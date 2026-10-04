@@ -1,5 +1,4 @@
 import { getTranslations, setRequestLocale } from "next-intl/server";
-import { HistoryBackButton } from "@/components/molecules/history-back-button";
 import { StatePanel } from "@/components/molecules/state-panel";
 import { CorporateAuditPanel } from "@/components/organisms/corporate-audit-panel";
 import { readCorporateAudit, corporateAuditFilterValues } from "@/lib/api/corporate-audit";
@@ -10,6 +9,7 @@ import { Label } from "@/components/atoms/label";
 import { SearchableMultiSelect } from "@/components/molecules/searchable-multi-select";
 import { requireSession, sessionCookieValue } from "@/lib/auth/require-session";
 import { Link } from "@/lib/i18n/navigation";
+import { PeopleHeader } from "@/app/[locale]/(site)/corporate/admins/people-shared";
 
 export default async function CorporateAuditPage({
   params,
@@ -20,8 +20,9 @@ export default async function CorporateAuditPage({
 }) {
   const { locale } = await params;
   setRequestLocale(locale);
-  await requireSession(locale, `/${locale}/corporate/organization/admins/audit`);
+  await requireSession(locale, `/${locale}/corporate/admins/audit`);
   const t = await getTranslations("corporate");
+  const hub = await getTranslations("hub");
   const auditLabels = await getTranslations("corporate.auditUi");
   const common = await getTranslations("common");
   const technology = await getTranslations("technology");
@@ -44,8 +45,7 @@ export default async function CorporateAuditPage({
   ).sort();
   return (
     <div className="space-y-6">
-      <HistoryBackButton label={t("backToWorkspace")} fallback="/corporate/organization/admins" />
-      <h1 className="text-3xl font-medium tracking-tight">{t("auditJournal")}</h1>
+      <PeopleHeader section={hub("audit")} current={t("auditJournal")} />
       <form
         id="audit-filters"
         className="border-border bg-card grid gap-4 rounded-lg border p-4 shadow-sm sm:grid-cols-2 lg:grid-cols-5"
@@ -141,14 +141,14 @@ export default async function CorporateAuditPage({
       />
       <nav aria-label={t("auditJournal")} className="flex flex-wrap gap-4">
         <Link
-          href={`/corporate/organization/admins/audit?${new URLSearchParams(filters)}`}
+          href={`/corporate/admins/audit?${new URLSearchParams(filters)}`}
           className="inline-flex min-h-11 items-center underline underline-offset-4"
         >
           {auditLabels("latestEvents")}
         </Link>
         {result.audit.next_before_id && result.audit.next_before_created_at && (
           <Link
-            href={`/corporate/organization/admins/audit?${new URLSearchParams({ ...filters, before_id: String(result.audit.next_before_id), before_created_at: result.audit.next_before_created_at })}`}
+            href={`/corporate/admins/audit?${new URLSearchParams({ ...filters, before_id: String(result.audit.next_before_id), before_created_at: result.audit.next_before_created_at })}`}
             className="inline-flex min-h-11 items-center underline underline-offset-4"
           >
             {auditLabels("olderEvents")}

@@ -6,7 +6,7 @@ import { expect, it, vi } from "vitest";
 
 import { corporateMutation } from "@/lib/api/corporate-mutation";
 import { CorporateRolePanel } from "@/components/organisms/corporate-role-panel";
-import { CorporateMemberAccessPanel } from "@/components/organisms/corporate-member-access-panel";
+import { CorporateGrantAccessDialog } from "@/components/organisms/corporate-grant-access-dialog";
 import type {
   CorporatePermissionDefinition,
   CorporateRoleView,
@@ -26,6 +26,13 @@ const render = (ui: ReactNode) =>
 
 const refresh = vi.fn();
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh }) }));
+vi.mock("@/lib/i18n/navigation", () => ({
+  Link: ({ href, children, ...rest }: { href: string; children: ReactNode }) => (
+    <a href={href} {...rest}>
+      {children}
+    </a>
+  ),
+}));
 vi.mock("@/lib/api/corporate-mutation", () => ({
   corporateMutation: vi.fn().mockResolvedValue({ ok: true, data: {} }),
 }));
@@ -50,6 +57,7 @@ it("submits only selected catalog actions when creating a role", async () => {
       selected={null}
       labels={{
         name: "Name",
+        renameHint: "Renaming reassigns members",
         permissions: "Permissions",
         create: "Create",
         creating: "Creating",
@@ -73,70 +81,26 @@ it("submits only selected catalog actions when creating a role", async () => {
 
 it("limits direct grant choices to caller actions valid for the chosen scope", () => {
   render(
-    <CorporateMemberAccessPanel
+    <CorporateGrantAccessDialog
+      open
+      onOpenChange={() => {}}
       csrfToken="csrf"
       organizationId="organization_fixture"
       authorizationRevision={3}
-      accountId="account_fixture"
-      teams={[{ team_id: "team_fixture", name: "Platform" } as never]}
-      projects={[]}
+      members={[{ account_id: "account_fixture", display_name: "Ada" } as never]}
       roles={[]}
       grantableRoleNames={[]}
-      bindings={[]}
-      grants={[]}
+      teams={[{ team_id: "team_fixture", name: "Platform" } as never]}
+      projects={[]}
+      scopeOptions={[]}
       capabilities={["binding.create", "team.list", "team.create"]}
       definitions={definitions.map((definition) => ({
         ...definition,
         scopes: [definition.action === "list" ? "organization" : "team"],
       }))}
-      labels={{
-        bindings: "Bindings",
-        team: "Team",
-        project: "Project",
-        role: "Role",
-        scope: "Scope",
-        organization: "Organization",
-        operation: "Operation",
-        assign: "Assign",
-        remove: "Remove",
-        teamRole: "Team role",
-        projectRole: "Project role",
-        projectRoleHint: "Project hint",
-        projectRoleOwner: "Owner",
-        projectRoleContributor: "Contributor",
-        roleLead: "Lead",
-        roleStaff: "Staff",
-        create: "Create",
-        creating: "Creating",
-        revoke: "Revoke",
-        revoking: "Revoking",
-        coverage: "Coverage",
-        coverageSelf: "Self",
-        coverageDescendants: "Descendants",
-        originMembership: "Membership",
-        originAssignment: "Assignment",
-        originDirect: "Direct",
-        originServicePrincipal: "Service",
-        noBindings: "No bindings",
-        directGrants: "Direct grants",
-        directGrantsBody: "Body",
-        grantAction: "Grant action",
-        permission: "Permission",
-        issuer: "Issuer",
-        noGrants: "No grants",
-        saved: "Saved",
-        targetRequired: "Target required",
-        assignments: "Assignments",
-        update: "Update",
-        confirmRevoke: "Revoke?",
-      }}
     />,
   );
-  const grantSummary = screen
-    .getAllByText("Grant action")
-    .find((element) => element.tagName === "SUMMARY");
-  if (!grantSummary) throw new Error("Grant action disclosure is missing");
-  fireEvent.click(grantSummary);
+  fireEvent.click(screen.getByRole("button", { name: "Permission" }));
   const permission = screen.getByLabelText("Permission");
   expect(permission.querySelector('option[value="team.list"]')).not.toBeNull();
   expect(permission.querySelector('option[value="team.create"]')).toBeNull();

@@ -57,3 +57,25 @@ adds access/profile/activity tabs around the existing member access mutations.
 All controls retain the existing Button, Input, Badge, Dialog, Sheet, tokens and icon registry.
 No additional dependency is required. Tables scroll within their container on narrow screens;
 desktop detail panels reserve content space when the viewport can accommodate both.
+
+## Administration modal/drawer primitives
+
+Administration pages (`/corporate/organization/*`) own exactly two overlay
+primitives; domain code supplies fields and submit logic, never its own chrome:
+
+- `FormDialog` (molecule) — centered create/edit/confirm modal: title,
+  optional description, caller fields, Cancel + submit with busy and
+  `submitVariant="destructive"` for irreversible confirms. Used by member and
+  bulk edit, job-title create/edit/assign/delete, category edit and link
+  management, grant-access, and invitation revocation. The invitation
+  composer keeps raw `Dialog` chrome: its send/import/help footer has three
+  custom actions that do not fit the two-button footer.
+- `CorporateDetailDrawer` — right-side sheet for view/detail (member access,
+  job-title detail, role panel, category detail) with sticky header and an
+  `actions` slot. `PeopleTable` is the shared framed, labelled table shell.
+- `SearchableMultiSelect` is the single team/employee/technology picker
+  (inline or modal, single or multi, avatar options, native form values).
+
+Page headers use the shared `PeopleHeader` (breadcrumb + title) in
+`corporate/organization/people-shared.tsx`; each page passes its rail-group
+label as `section`.

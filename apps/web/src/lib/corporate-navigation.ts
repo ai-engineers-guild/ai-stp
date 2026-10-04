@@ -99,14 +99,26 @@ export const CORPORATE_NAV_PAGES: readonly CorporateNavPage[] = [
     id: "administration",
     group: "peopleAndAccess",
     context: "administration",
-    href: "/corporate/organization/admins",
-    label: "membersAndInvitations",
+    href: "/corporate/admins/members",
+    label: "members",
     rootLabel: "administration",
     icon: "access",
     root: true,
     rail: true,
     administration: true,
-    prefixes: ["/corporate/organization/admins"],
+    prefixes: ["/corporate/admins/members"],
+  },
+  {
+    id: "invitations",
+    group: "peopleAndAccess",
+    context: "administration",
+    href: "/corporate/admins/invitations",
+    label: "invitations",
+    icon: "mail",
+    root: false,
+    rail: true,
+    administration: true,
+    prefixes: ["/corporate/admins/invitations"],
   },
 
   // Organization context.
@@ -183,103 +195,103 @@ export const CORPORATE_NAV_PAGES: readonly CorporateNavPage[] = [
     id: "accessMatrix",
     group: "peopleAndAccess",
     context: "administration",
-    href: "/corporate/organization/admins/access",
+    href: "/corporate/admins/access-model",
     label: "accessModel",
     icon: "lock",
     root: false,
     rail: true,
     administration: true,
-    prefixes: ["/corporate/organization/admins/access"],
+    prefixes: ["/corporate/admins/access-model"],
   },
   {
     id: "roles",
     group: "peopleAndAccess",
     context: "administration",
-    href: "/corporate/organization/admins/roles",
+    href: "/corporate/admins/roles",
     label: "roles",
     icon: "access",
     root: false,
     rail: true,
     administration: true,
-    prefixes: ["/corporate/organization/admins/roles"],
+    prefixes: ["/corporate/admins/roles"],
   },
   {
     id: "auditJournal",
     group: "audit",
     context: "administration",
-    href: "/corporate/organization/admins/audit",
+    href: "/corporate/admins/audit",
     label: "auditJournal",
     icon: "list",
     root: false,
     rail: true,
     administration: true,
-    prefixes: ["/corporate/organization/admins/audit"],
+    prefixes: ["/corporate/admins/audit"],
   },
   {
     id: "employeeAccess",
     group: "peopleAndAccess",
     context: "administration",
-    href: "/corporate/organization/admins/employees",
+    href: "/corporate/admins/employee-access",
     label: "employeeAccess",
     icon: "user",
     root: false,
     rail: true,
     administration: true,
-    prefixes: ["/corporate/organization/admins/employees"],
+    prefixes: ["/corporate/admins/employee-access"],
   },
   {
     id: "jobTitles",
     group: "referenceData",
     context: "administration",
-    href: "/corporate/organization/admins/job-titles",
+    href: "/corporate/admins/job-titles",
     label: "job_titles",
     icon: "flag",
     root: false,
     rail: true,
     administration: true,
-    prefixes: ["/corporate/organization/admins/job-titles"],
+    prefixes: ["/corporate/admins/job-titles"],
   },
   {
     id: "technologyCategories",
     group: "referenceData",
     context: "administration",
-    href: "/corporate/organization/admins/tech-categories",
+    href: "/corporate/admins/tech-categories",
     label: "categories",
     icon: "filter",
     root: false,
     rail: true,
     administration: true,
     section: "categories",
-    prefixes: ["/corporate/organization/admins/tech-categories"],
+    prefixes: ["/corporate/admins/tech-categories"],
   },
   {
     id: "settings",
     group: "organization",
     context: "administration",
-    href: "/corporate/organization/admins/settings",
+    href: "/corporate/admins/settings",
     label: "settings",
     icon: "setup",
     root: false,
     rail: true,
     administration: true,
-    prefixes: ["/corporate/organization/admins/settings"],
+    prefixes: ["/corporate/admins/settings"],
   },
   {
     id: "security",
     group: "security",
     context: "administration",
-    href: "/corporate/organization/admins/security",
+    href: "/corporate/admins/security",
     label: "security",
     icon: "lock",
     root: false,
     rail: true,
     administration: true,
-    prefixes: ["/corporate/organization/admins/security"],
+    prefixes: ["/corporate/admins/security"],
   },
   {
     id: "roleDetail",
     context: "administration",
-    href: "/corporate/organization/admins",
+    href: "/corporate/admins/members",
     label: "admins",
     icon: "access",
     root: false,
@@ -416,81 +428,4 @@ export function corporateNavPageIds(capabilities: readonly string[]): string[] {
   return CORPORATE_NAV_PAGES.filter(
     (page) => (page.rail || page.root) && corporateNavPageVisible(page, capabilities),
   ).map((page) => page.id);
-}
-
-export type CorporateRailEntry = CorporateNavItem & {
-  children?: CorporateNavItem[];
-};
-
-/** Presentation of the server's allowed IDs. It never infers authority from a URL. */
-export function resolveCorporateRail(
-  pathname: string,
-  allowedPages: readonly string[],
-  mainNavigation = false,
-) {
-  const page = corporateNavPage(pathname);
-  const context =
-    mainNavigation || (page?.context === "administration" && !allowedPages.includes(page.id))
-      ? "root"
-      : (page?.context ?? "root");
-  const activeId = page?.activeAs === undefined ? page?.id : page.activeAs;
-  const allowed = CORPORATE_NAV_PAGES.filter((item) => allowedPages.includes(item.id));
-  const item = (entry: CorporateNavPage): CorporateNavItem => ({
-    id: entry.id,
-    href: entry.href,
-    label: entry.label,
-    icon: entry.icon,
-    active: entry.id === activeId,
-  });
-  let entries: CorporateRailEntry[];
-  if (context === "administration") {
-    const groups = [
-      ["peopleAndAccess", "team"],
-      ["referenceData", "technology"],
-      ["security", "lock"],
-      ["organization", "setup"],
-      ["audit", "list"],
-    ] as const;
-    entries = groups.flatMap(([id, icon]) => {
-      const children = allowed.filter((entry) => entry.group === id && entry.rail).map(item);
-      // The technology landscape directory is also reachable from Reference data.
-      if (id === "referenceData") {
-        children.push(...allowed.filter((entry) => entry.id === "landscape").map(item));
-      }
-      return children.length
-        ? [{ id: `group-${id}`, label: id, icon, href: "", active: false, children }]
-        : [];
-    });
-  } else {
-    entries = allowed
-      .filter((entry) => entry.root)
-      .map((entry) => {
-        const children =
-          entry.id === entry.context &&
-          entry.context !== "root" &&
-          entry.context !== "administration"
-            ? allowed
-                .filter(
-                  (child) => child.context === entry.context && child.rail && child.id !== entry.id,
-                )
-                .map(item)
-            : [];
-        return {
-          ...item(entry),
-          active: entry.id === activeId || (entry.administration && page?.administration) === true,
-          label: entry.rootLabel ?? entry.label,
-          ...(children.length ? { children } : {}),
-        };
-      });
-  }
-  const detail =
-    !mainNavigation &&
-    page?.rail &&
-    page.context !== "administration" &&
-    normalizeCorporatePath(pathname).startsWith(`${page.href}/`);
-  return {
-    context,
-    entries,
-    back: detail ? { href: page.href, label: page.label } : null,
-  };
 }

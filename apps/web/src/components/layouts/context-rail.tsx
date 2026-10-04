@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import { Button } from "@/components/atoms/button";
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/atoms/dialog";
 import { RailItems, railItemClass, type RailItem } from "@/components/layouts/context-rail-items";
-import { resolveCorporateRail } from "@/lib/corporate-navigation";
+import { resolveCorporateRail } from "@/lib/corporate-rail";
 import { COMPILED_FEATURE_PROFILE } from "@/lib/features/compiled";
 import { corporateHref } from "@/lib/features/corporate-path";
 import { Link, usePathname } from "@/lib/i18n/navigation";

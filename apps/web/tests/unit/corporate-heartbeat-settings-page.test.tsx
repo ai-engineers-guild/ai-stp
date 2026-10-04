@@ -39,9 +39,11 @@ vi.mock("@/components/organisms/corporate-telemetry-policy-controls", () => ({
     authorizationRevision: number;
   }) => <div data-testid="heartbeat-policy" data-revision={authorizationRevision} />,
 }));
-vi.mock("@/components/molecules/history-back-button", () => ({ HistoryBackButton: () => null }));
+vi.mock("@/app/[locale]/(site)/corporate/admins/people-shared", () => ({
+  PeopleHeader: () => null,
+}));
 
-import CorporateSettingsPage from "@/app/[locale]/(site)/corporate/organization/admins/settings/page";
+import CorporateSettingsPage from "@/app/[locale]/(site)/corporate/admins/settings/page";
 
 it("shows heartbeat settings from corporate telemetry rights and passes the numeric policy revision", async () => {
   const page = await CorporateSettingsPage({ params: Promise.resolve({ locale: "en" }) });

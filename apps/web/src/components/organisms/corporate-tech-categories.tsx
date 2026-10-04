@@ -13,6 +13,7 @@ import { Input } from "@/components/atoms/input";
 import { Label } from "@/components/atoms/label";
 import { Textarea } from "@/components/atoms/textarea";
 import { CatalogChoiceMenu } from "@/components/molecules/catalog-choice-menu";
+import { FormDialog } from "@/components/molecules/form-dialog";
 import {
   CATEGORY_LUCIDE_PREFIX,
   CategoryIconBadge,
@@ -20,10 +21,12 @@ import {
 } from "@/components/molecules/category-icon-badge";
 import { SearchableMultiSelect } from "@/components/molecules/searchable-multi-select";
 import {
+  CorporateDetailDrawer,
   PeopleCheckbox,
   PeoplePager,
   PeopleSearch,
   PeopleSelect,
+  PeopleTable,
   peopleCellClass,
   peopleHeadClass,
   usePeopleFilters,
@@ -122,9 +125,10 @@ export function CorporateTechCategories({
   const [message, setMessage] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  const [editing, setEditing] = useState<CategoryView | null>(null);
   const [draft, setDraft] = useState<CategoryDraft | null>(null);
   const [iconPicker, setIconPicker] = useState(false);
-  const [managing, setManaging] = useState(false);
+  const [manageTarget, setManageTarget] = useState<CategoryView | null>(null);
   const [linkSelection, setLinkSelection] = useState<string[]>([]);
   const [checked, setChecked] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -158,14 +162,13 @@ export function CorporateTechCategories({
   );
   const rows = filtered.slice((page - 1) * 10, page * 10);
   const selected = categories.find((item) => item.category_id === selectedId) ?? null;
-  const editing = creating || selected !== null;
   const selectedLinked = selected ? (linked.get(selected.category_id) ?? []) : [];
   const iconFor = (category: CategoryView) =>
     category.icon ?? `${CATEGORY_LUCIDE_PREFIX}${defaultCategoryIcon(category.category_id)}`;
 
   function openEditor(category: CategoryView | null) {
     setCreating(category === null);
-    setSelectedId(category?.category_id ?? null);
+    setEditing(category);
     setDraft(
       category
         ? {
@@ -252,7 +255,7 @@ export function CorporateTechCategories({
 
   function save() {
     if (!draft) return;
-    const path = `/v1/corporate/organizations/${organizationId}/technology-categories${creating ? "" : `/${selected?.category_id}`}`;
+    const path = `/v1/corporate/organizations/${organizationId}/technology-categories${creating ? "" : `/${editing?.category_id}`}`;
     mutate(
       path,
       creating ? "POST" : "PUT",
@@ -263,20 +266,22 @@ export function CorporateTechCategories({
           description: draft.description,
           icon: draft.icon,
         },
-        expected_revision: creating ? 0 : (selected?.revision ?? 0),
+        expected_revision: creating ? 0 : (editing?.revision ?? 0),
         ...(creating ? { state: "active" } : {}),
         authorization_revision: authorizationRevision,
         idempotency_key: crypto.randomUUID(),
       },
       () => {
         setCreating(false);
+        setEditing(null);
+        setDraft(null);
       },
     );
   }
 
   function saveLinks() {
-    if (!selected || !technologies) return;
-    const categoryId = selected.category_id;
+    if (!manageTarget || !technologies) return;
+    const categoryId = manageTarget.category_id;
     const wanted = new Set(linkSelection);
     const changed = technologies.filter(
       (technology) =>
@@ -317,19 +322,13 @@ export function CorporateTechCategories({
         if (!result.ok) failed += 1;
       }
       setMessage(failed ? t("linkPartial", { count: failed }) : t("saved"));
-      if (!failed) setManaging(false);
+      if (!failed) setManageTarget(null);
       router.refresh();
     });
   }
 
-  const panelOpen = editing && draft !== null;
-
   return (
-    <div
-      className={
-        panelOpen ? "grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1fr)_24rem]" : "min-w-0 space-y-6"
-      }
-    >
+    <div className="min-w-0 space-y-6">
       <section className="min-w-0 space-y-4">
         <div className="flex flex-wrap items-center gap-3">
           <PeopleSearch
@@ -445,287 +444,228 @@ export function CorporateTechCategories({
             </div>
           </div>
         ) : null}
-        <div
-          role="region"
-          aria-label={t("title")}
-          // Keyboard access is required for scrolling the table on narrow viewports.
-          // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
-          tabIndex={0}
-          className="border-border focus-visible:ring-ring overflow-x-auto rounded-lg border focus-visible:ring-2 focus-visible:outline-none"
-        >
-          <table className="w-full min-w-[720px] border-collapse">
-            <thead>
-              <tr className="border-border border-b">
-                <th className="w-11">
+        <PeopleTable label={t("title")} minWidth="min-w-[720px]" framed>
+          <thead>
+            <tr className="border-border border-b">
+              <th className="w-11">
+                <PeopleCheckbox
+                  label={tp("selectPage")}
+                  checked={
+                    Boolean(rows.length) &&
+                    rows.every((category) => checked.includes(category.category_id))
+                  }
+                  mixed={
+                    rows.some((category) => checked.includes(category.category_id)) &&
+                    !rows.every((category) => checked.includes(category.category_id))
+                  }
+                  onChange={(value) => {
+                    setChecked((current) =>
+                      value
+                        ? [
+                            ...new Set([
+                              ...current,
+                              ...rows.map((category) => category.category_id),
+                            ]),
+                          ]
+                        : current.filter((id) => !rows.some((item) => item.category_id === id)),
+                    );
+                  }}
+                />
+              </th>
+              <th scope="col" className={peopleHeadClass}>
+                {t("nameColumn")}
+              </th>
+              <th scope="col" className={peopleHeadClass}>
+                {t("technologiesColumn")}
+              </th>
+              <th scope="col" className={peopleHeadClass}>
+                {t("description")}
+              </th>
+              <th scope="col" className={peopleHeadClass}>
+                {t("state")}
+              </th>
+              <th scope="col" className={`${peopleHeadClass} w-11`}>
+                <span className="sr-only">{t("actions")}</span>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((category) => (
+              <tr
+                key={category.category_id}
+                data-selected={selected?.category_id === category.category_id || undefined}
+                className="border-border hover:bg-muted/30 data-[selected]:bg-primary/5 cursor-pointer border-b transition-colors last:border-0"
+                onClick={() => {
+                  setSelectedId(category.category_id);
+                }}
+              >
+                <td
+                  onClick={(event) => {
+                    event.stopPropagation();
+                  }}
+                >
                   <PeopleCheckbox
-                    label={tp("selectPage")}
-                    checked={
-                      Boolean(rows.length) &&
-                      rows.every((category) => checked.includes(category.category_id))
-                    }
-                    mixed={
-                      rows.some((category) => checked.includes(category.category_id)) &&
-                      !rows.every((category) => checked.includes(category.category_id))
-                    }
+                    label={category.name}
+                    checked={checked.includes(category.category_id)}
                     onChange={(value) => {
                       setChecked((current) =>
                         value
-                          ? [
-                              ...new Set([
-                                ...current,
-                                ...rows.map((category) => category.category_id),
-                              ]),
-                            ]
-                          : current.filter((id) => !rows.some((item) => item.category_id === id)),
+                          ? [...current, category.category_id]
+                          : current.filter((id) => id !== category.category_id),
                       );
                     }}
                   />
-                </th>
-                <th scope="col" className={peopleHeadClass}>
-                  {t("nameColumn")}
-                </th>
-                <th scope="col" className={peopleHeadClass}>
-                  {t("technologiesColumn")}
-                </th>
-                <th scope="col" className={peopleHeadClass}>
-                  {t("description")}
-                </th>
-                <th scope="col" className={peopleHeadClass}>
-                  {t("state")}
-                </th>
-                <th scope="col" className={`${peopleHeadClass} w-11`}>
-                  <span className="sr-only">{t("actions")}</span>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((category) => (
-                <tr
-                  key={category.category_id}
-                  data-selected={selected?.category_id === category.category_id || undefined}
-                  className="border-border hover:bg-muted/30 data-[selected]:bg-primary/5 cursor-pointer border-b transition-colors last:border-0"
-                  onClick={() => {
-                    openEditor(category);
+                </td>
+                <td className={`${peopleCellClass} font-medium`}>
+                  <span className="inline-flex items-center gap-3">
+                    <CategoryIconBadge
+                      icon={iconFor(category)}
+                      seed={category.category_id}
+                      size={8}
+                    />
+                    <span className="whitespace-nowrap">{category.name}</span>
+                  </span>
+                </td>
+                <td className={`${peopleCellClass} tabular-nums`}>
+                  {technologies === null ? "—" : (linked.get(category.category_id)?.length ?? 0)}
+                </td>
+                <td className={`${peopleCellClass} text-muted-foreground max-w-72`}>
+                  <span className="line-clamp-2">{category.description}</span>
+                </td>
+                <td className={peopleCellClass}>
+                  <Badge
+                    variant={
+                      category.state === "archived"
+                        ? "secondary"
+                        : category.state === "draft"
+                          ? "warning"
+                          : "outline"
+                    }
+                  >
+                    {t(`state_${category.state ?? "active"}`)}
+                  </Badge>
+                </td>
+                <td
+                  className="text-right"
+                  onClick={(event) => {
+                    event.stopPropagation();
                   }}
                 >
-                  <td
-                    onClick={(event) => {
-                      event.stopPropagation();
-                    }}
-                  >
-                    <PeopleCheckbox
-                      label={category.name}
-                      checked={checked.includes(category.category_id)}
-                      onChange={(value) => {
-                        setChecked((current) =>
-                          value
-                            ? [...current, category.category_id]
-                            : current.filter((id) => id !== category.category_id),
-                        );
-                      }}
-                    />
-                  </td>
-                  <td className={`${peopleCellClass} font-medium`}>
-                    <span className="inline-flex items-center gap-3">
-                      <CategoryIconBadge
-                        icon={iconFor(category)}
-                        seed={category.category_id}
-                        size={8}
-                      />
-                      <span className="whitespace-nowrap">{category.name}</span>
-                    </span>
-                  </td>
-                  <td className={`${peopleCellClass} tabular-nums`}>
-                    {technologies === null ? "—" : (linked.get(category.category_id)?.length ?? 0)}
-                  </td>
-                  <td className={`${peopleCellClass} text-muted-foreground max-w-72`}>
-                    <span className="line-clamp-2">{category.description}</span>
-                  </td>
-                  <td className={peopleCellClass}>
-                    <Badge
-                      variant={
-                        category.state === "archived"
-                          ? "secondary"
-                          : category.state === "draft"
-                            ? "warning"
-                            : "outline"
-                      }
-                    >
-                      {t(`state_${category.state ?? "active"}`)}
-                    </Badge>
-                  </td>
-                  <td
-                    className="text-right"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                    }}
-                  >
-                    <CatalogChoiceMenu
-                      icon="moreVertical"
-                      variant="ghost"
-                      align="end"
-                      label={t("categoryActions", { name: category.name })}
-                      options={[
-                        {
-                          label: t("edit"),
-                          icon: "edit",
-                          onSelect: () => {
-                            openEditor(category);
-                          },
-                          disabled: !canUpdate,
+                  <CatalogChoiceMenu
+                    icon="moreVertical"
+                    variant="ghost"
+                    align="end"
+                    label={t("categoryActions", { name: category.name })}
+                    options={[
+                      {
+                        label: t("edit"),
+                        icon: "edit",
+                        onSelect: () => {
+                          openEditor(category);
                         },
-                        {
-                          label: t("manageTechnologies"),
-                          icon: "link",
-                          onSelect: () => {
-                            setSelectedId(category.category_id);
-                            setLinkSelection(
-                              (linked.get(category.category_id) ?? []).map(
-                                (technology) => technology.technology_id,
-                              ),
-                            );
-                            setManaging(true);
-                          },
-                          disabled: !canLink,
+                        disabled: !canUpdate,
+                      },
+                      {
+                        label: t("manageTechnologies"),
+                        icon: "link",
+                        onSelect: () => {
+                          setManageTarget(category);
+                          setLinkSelection(
+                            (linked.get(category.category_id) ?? []).map(
+                              (technology) => technology.technology_id,
+                            ),
+                          );
                         },
-                        category.state === "archived"
-                          ? {
-                              label: t("restore"),
-                              icon: "check",
-                              separatorBefore: true,
-                              onSelect: () => {
-                                lifecycle(category, "active");
-                              },
-                              disabled: !canUpdate,
-                            }
-                          : {
-                              label: t("deleteCategory"),
-                              icon: "close",
-                              separatorBefore: true,
-                              onSelect: () => {
-                                lifecycle(category, "archived");
-                              },
-                              disabled: !canDelete,
+                        disabled: !canLink,
+                      },
+                      category.state === "archived"
+                        ? {
+                            label: t("restore"),
+                            icon: "check",
+                            separatorBefore: true,
+                            onSelect: () => {
+                              lifecycle(category, "active");
                             },
-                      ]}
-                    />
-                  </td>
-                </tr>
-              ))}
-              {!rows.length ? (
-                <tr>
-                  <td colSpan={6} className="text-muted-foreground py-14 text-center text-sm">
-                    {t(categories.length ? "noMatches" : "empty")}
-                  </td>
-                </tr>
-              ) : null}
-            </tbody>
-          </table>
-          <PeoplePager
-            total={filtered.length}
-            page={page}
-            kind="members"
-            onPage={(value) => {
-              filters.update("page", String(value));
-            }}
-          />
-        </div>
+                            disabled: !canUpdate,
+                          }
+                        : {
+                            label: t("deleteCategory"),
+                            icon: "close",
+                            separatorBefore: true,
+                            onSelect: () => {
+                              lifecycle(category, "archived");
+                            },
+                            disabled: !canDelete,
+                          },
+                    ]}
+                  />
+                </td>
+              </tr>
+            ))}
+            {!rows.length ? (
+              <tr>
+                <td colSpan={6} className="text-muted-foreground py-14 text-center text-sm">
+                  {t(categories.length ? "noMatches" : "empty")}
+                </td>
+              </tr>
+            ) : null}
+          </tbody>
+        </PeopleTable>
+        <PeoplePager
+          total={filtered.length}
+          page={page}
+          kind="members"
+          onPage={(value) => {
+            filters.update("page", String(value));
+          }}
+        />
       </section>
 
-      {panelOpen ? (
-        <aside className="border-border bg-card h-fit min-w-0 space-y-5 rounded-lg border p-5">
-          <div className="flex items-start justify-between gap-3">
-            <h2 className="min-w-0 text-xl leading-tight font-medium break-words">
-              {creating ? t("addCategory") : (selected?.name ?? "")}
-            </h2>
+      <CorporateDetailDrawer
+        open={selected !== null}
+        onOpenChange={(open) => {
+          if (!open) setSelectedId(null);
+        }}
+        title={selected?.name ?? ""}
+        description={selected ? t(`state_${selected.state ?? "active"}`) : undefined}
+        actions={
+          selected && canUpdate ? (
             <Button
               type="button"
               variant="ghost"
               size="icon"
-              aria-label={t("close")}
+              aria-label={t("edit")}
               onClick={() => {
-                setSelectedId(null);
-                setCreating(false);
-                setDraft(null);
+                openEditor(selected);
               }}
             >
-              <Icon name="close" size="sm" />
+              <Icon name="edit" size="sm" />
             </Button>
-          </div>
-          <div className="space-y-2">
-            <h3 className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
-              {t("categoryIcon")}
-            </h3>
+          ) : undefined
+        }
+      >
+        {selected ? (
+          <div className="space-y-5">
             <div className="flex items-center gap-3">
-              <CategoryIconBadge
-                icon={draft.icon ?? ""}
-                seed={selected?.category_id ?? "new"}
-                size={16}
-              />
-              <div className="flex flex-col gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setIconPicker(true);
-                  }}
-                >
-                  <Icon name="edit" size="sm" />
-                  {t("changeIcon")}
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  disabled={uploading}
-                  onClick={() => {
-                    iconInput.current?.click();
-                  }}
-                >
-                  <Icon name="upload" size="sm" />
-                  {uploading ? t("uploading") : t("uploadIcon")}
-                </Button>
-                <input
-                  ref={iconInput}
-                  type="file"
-                  accept="image/png,image/jpeg,image/webp"
-                  className="hidden"
-                  aria-label={t("uploadIcon")}
-                  onChange={(event) => {
-                    const file = event.target.files?.[0];
-                    if (file) void uploadIcon(file);
-                  }}
-                />
-              </div>
+              <CategoryIconBadge icon={iconFor(selected)} seed={selected.category_id} size={16} />
+              <Badge
+                variant={
+                  selected.state === "archived"
+                    ? "secondary"
+                    : selected.state === "draft"
+                      ? "warning"
+                      : "outline"
+                }
+              >
+                {t(`state_${selected.state ?? "active"}`)}
+              </Badge>
             </div>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="category-name">{t("nameRequired")}</Label>
-            <Input
-              id="category-name"
-              required
-              value={draft.name}
-              onChange={(event) => {
-                setDraft({ ...draft, name: event.target.value });
-              }}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="category-description">{t("description")}</Label>
-            <Textarea
-              id="category-description"
-              maxLength={2000}
-              value={draft.description}
-              onChange={(event) => {
-                setDraft({ ...draft, description: event.target.value });
-              }}
-            />
-            <p className="text-muted-foreground text-right text-xs tabular-nums">
-              {draft.description.length}/2000
-            </p>
-          </div>
-          {!creating && selected ? (
+            <div className="space-y-1">
+              <h3 className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
+                {t("description")}
+              </h3>
+              <p className="text-sm break-words">{selected.description || "—"}</p>
+            </div>
             <div className="space-y-3">
               <div className="flex items-center justify-between gap-2">
                 <h3 className="font-medium">{t("linkedTechnologies")}</h3>
@@ -735,10 +675,10 @@ export function CorporateTechCategories({
                     variant="outline"
                     size="sm"
                     onClick={() => {
+                      setManageTarget(selected);
                       setLinkSelection(
                         selectedLinked.map((technology) => technology.technology_id),
                       );
-                      setManaging(true);
                     }}
                   >
                     <Icon name="link" size="sm" />
@@ -772,9 +712,7 @@ export function CorporateTechCategories({
                 </div>
               </dl>
             </div>
-          ) : null}
-          <div className="border-border flex flex-wrap items-center justify-between gap-2 border-t pt-4">
-            {!creating && selected && canDelete && selected.state !== "archived" ? (
+            {canDelete && selected.state !== "archived" ? (
               <Button
                 type="button"
                 variant="destructive"
@@ -786,34 +724,107 @@ export function CorporateTechCategories({
               >
                 {t("deleteCategory")}
               </Button>
-            ) : (
-              <span />
-            )}
-            <div className="flex gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  setSelectedId(null);
-                  setCreating(false);
-                  setDraft(null);
-                }}
-              >
-                {t("cancel")}
-              </Button>
-              <Button
-                type="button"
-                disabled={
-                  busy || !draft.name.trim() || (creating ? !can("category.create") : !canUpdate)
-                }
-                onClick={save}
-              >
-                {busy ? t("saving") : t("saveChanges")}
-              </Button>
-            </div>
+            ) : null}
           </div>
-        </aside>
-      ) : null}
+        ) : null}
+      </CorporateDetailDrawer>
+
+      <FormDialog
+        open={draft !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setCreating(false);
+            setEditing(null);
+            setDraft(null);
+          }
+        }}
+        title={creating ? t("addCategory") : t("editCategory")}
+        closeLabel={t("close")}
+        cancelLabel={t("cancel")}
+        submitLabel={t("saveChanges")}
+        busyLabel={t("saving")}
+        busy={busy}
+        submitDisabled={!draft?.name.trim() || (creating ? !can("category.create") : !canUpdate)}
+        onSubmit={save}
+      >
+        {draft ? (
+          <>
+            <div className="space-y-2">
+              <h3 className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
+                {t("categoryIcon")}
+              </h3>
+              <div className="flex items-center gap-3">
+                <CategoryIconBadge
+                  icon={draft.icon ?? ""}
+                  seed={editing?.category_id ?? "new"}
+                  size={16}
+                />
+                <div className="flex flex-col gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setIconPicker(true);
+                    }}
+                  >
+                    <Icon name="edit" size="sm" />
+                    {t("changeIcon")}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={uploading}
+                    onClick={() => {
+                      iconInput.current?.click();
+                    }}
+                  >
+                    <Icon name="upload" size="sm" />
+                    {uploading ? t("uploading") : t("uploadIcon")}
+                  </Button>
+                  <input
+                    ref={iconInput}
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    className="hidden"
+                    aria-label={t("uploadIcon")}
+                    onChange={(event) => {
+                      const file = event.target.files?.[0];
+                      if (file) void uploadIcon(file);
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="category-name">{t("nameRequired")}</Label>
+              <Input
+                id="category-name"
+                required
+                value={draft.name}
+                onChange={(event) => {
+                  setDraft({ ...draft, name: event.target.value });
+                }}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="category-description">{t("description")}</Label>
+              <Textarea
+                id="category-description"
+                maxLength={2000}
+                value={draft.description}
+                onChange={(event) => {
+                  setDraft({ ...draft, description: event.target.value });
+                }}
+              />
+              <p className="text-muted-foreground text-right text-xs tabular-nums">
+                {draft.description.length}/2000
+              </p>
+            </div>
+          </>
+        ) : null}
+      </FormDialog>
 
       <Dialog open={iconPicker} onOpenChange={setIconPicker}>
         <DialogContent closeLabel={t("close")} className="max-w-2xl">
@@ -832,44 +843,37 @@ export function CorporateTechCategories({
         </DialogContent>
       </Dialog>
 
-      <Dialog
-        open={managing}
+      <FormDialog
+        open={manageTarget !== null}
         onOpenChange={(open) => {
-          if (!open) setManaging(false);
+          if (!open) setManageTarget(null);
         }}
+        title={t("manageTechnologies")}
+        description={manageTarget?.name ?? ""}
+        closeLabel={t("close")}
+        cancelLabel={t("cancel")}
+        submitLabel={t("save")}
+        busyLabel={t("saving")}
+        busy={busy}
+        onSubmit={saveLinks}
       >
-        <DialogContent closeLabel={t("close")} className="max-w-xl">
-          <DialogTitle>{t("manageTechnologies")}</DialogTitle>
-          <DialogDescription>{selected?.name ?? ""}</DialogDescription>
-          <form
-            className="space-y-4"
-            onSubmit={(event) => {
-              event.preventDefault();
-              saveLinks();
-            }}
-          >
-            <SearchableMultiSelect
-              name="technologies"
-              label={t("linkedTechnologies")}
-              searchLabel={t("searchTechnologies")}
-              options={(technologies ?? []).map((technology) => ({
-                value: technology.technology_id,
-                label: technology.name,
-              }))}
-              selected={linkSelection}
-              onChange={setLinkSelection}
-              modal
-              inline
-              closeLabel={t("close")}
-              selectionSuffix={t("selectedSuffix")}
-              emptyHint={t("searchTechnologies")}
-            />
-            <Button type="submit" disabled={busy} className="w-full">
-              {busy ? t("saving") : t("save")}
-            </Button>
-          </form>
-        </DialogContent>
-      </Dialog>
+        <SearchableMultiSelect
+          name="technologies"
+          label={t("linkedTechnologies")}
+          searchLabel={t("searchTechnologies")}
+          options={(technologies ?? []).map((technology) => ({
+            value: technology.technology_id,
+            label: technology.name,
+          }))}
+          selected={linkSelection}
+          onChange={setLinkSelection}
+          modal
+          inline
+          closeLabel={t("close")}
+          selectionSuffix={t("selectedSuffix")}
+          emptyHint={t("searchTechnologies")}
+        />
+      </FormDialog>
 
       {message ? (
         <p className="text-muted-foreground text-sm" role="status" aria-live="polite">
