@@ -1,0 +1,13 @@
+[Unit]
+Description=Daily ai_stp backup
+
+[Timer]
+# 21:30 UTC is 02:30 in Almaty, the quietest hour for the users this host
+# serves; the writers pause for the length of the copy.
+OnCalendar=*-*-* 21:30:00 UTC
+RandomizedDelaySec=15min
+Persistent=true
+Unit=ai-stp-backup.service
+
+[Install]
+WantedBy=timers.target

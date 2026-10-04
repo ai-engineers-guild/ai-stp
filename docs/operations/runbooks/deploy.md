@@ -1,6 +1,6 @@
 ---
 description: "Runbook: reproducible deployment with a web tier, backups, and rollback."
-last_verified: "2026-09-26"
+last_verified: "2026-10-04"
 ---
 
 # Production deployment
@@ -343,11 +343,44 @@ restorable, but still pass the archive-content checks.
 - PostgreSQL: logical `pg_dump` (custom format)
 - RustFS: copy of the volume data
 - Retention: `AI_STP_BACKUP_RETENTION` (the 7 newest directories by default)
-- `AI_STP_BACKUP_DIR` must be a separately mounted off-host destination. The
-  script refuses the deployment filesystem. Development-only local rehearsal
-  may set `AI_STP_ALLOW_LOCAL_BACKUP=1` explicitly.
-- Schedule: example `deploy/schedule-backup.example.cron`
+- `AI_STP_BACKUP_DIR` must be a separately mounted off-host destination
+  (`REQ-2409`). The script refuses the deployment filesystem unless
+  `AI_STP_ALLOW_LOCAL_BACKUP=1` is set explicitly — a rehearsal, or an interim
+  while a host has no off-host destination.
 - The backup log does not print secrets or object bytes
+
+### Schedule
+
+`deploy/ai-stp-backup.service` and `deploy/ai-stp-backup.timer` run
+`backup.sh --label daily` every day at 21:30 UTC (02:30 in Almaty) as `ubuntu`,
+with the same hardening as the pull deployer. The destination is a host fact
+in `.deploy-env`, read through `EnvironmentFile`:
+
+```sh
+# .deploy-env (untracked)
+AI_STP_BACKUP_DIR=/home/ubuntu/ai_stp/.backups/daily
+AI_STP_ALLOW_LOCAL_BACKUP=1   # only while no off-host destination exists
+```
+
+Scheduled backups keep their own directory because retention keeps the
+`AI_STP_BACKUP_RETENTION` newest siblings: a hand-made pre-change backup in
+`.backups/` must not be pruned by a daily one. A destination outside
+`/home/ubuntu/ai_stp/.backups` also needs a drop-in
+(`sudo systemctl edit ai-stp-backup.service`) adding its path to
+`ReadWritePaths=`.
+
+```sh
+mkdir -p /home/ubuntu/ai_stp/.backups/daily
+sudo install -m 0644 deploy/ai-stp-backup.service /etc/systemd/system/
+sudo install -m 0644 deploy/ai-stp-backup.timer /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now ai-stp-backup.timer
+systemctl list-timers ai-stp-backup.timer
+```
+
+A same-disk backup survives a bad migration, a mistaken delete or an
+application defect; it does not survive the loss of the disk or the host.
+`REQ-2409` is met only when `AI_STP_BACKUP_DIR` points off the host.
 
 ## Restoration
 

@@ -221,6 +221,38 @@ def test_target_side_deployer_preserves_the_host_state_and_monotonicity() -> Non
         assert directive in service, directive
 
 
+def test_backups_run_on_a_versioned_schedule() -> None:
+    """REQ-2409 needs backups that happen, not a script that could be run.
+
+    The schedule was an example cron line nobody installed; production went a
+    month with its last backup taken by hand. The unit and timer live here so
+    the host state is reproducible from the tree, and the destination stays a
+    host fact in `.deploy-env` — never a default that silently lands on the
+    deployment disk.
+    """
+    service = Path("deploy/ai-stp-backup.service").read_text(encoding="utf-8")
+    timer = Path("deploy/ai-stp-backup.timer").read_text(encoding="utf-8")
+    executable = "\n".join(
+        line for line in service.splitlines() if not line.lstrip().startswith("#")
+    )
+    assert "User=ubuntu" in executable
+    assert "ExecStart=/home/ubuntu/ai_stp/deploy/backup.sh --label daily" in executable
+    assert "EnvironmentFile=-/home/ubuntu/ai_stp/.deploy-env" in executable
+    # The opt-in for a same-disk destination is a host decision, never the unit's.
+    assert "AI_STP_ALLOW_LOCAL_BACKUP" not in executable
+    for directive in (
+        "NoNewPrivileges=true",
+        "PrivateTmp=true",
+        "ProtectSystem=strict",
+        "ProtectHome=read-only",
+    ):
+        assert directive in executable, directive
+    assert "OnCalendar=*-*-* 21:30:00 UTC" in timer
+    assert "Persistent=true" in timer
+    assert "Unit=ai-stp-backup.service" in timer
+    assert not Path("deploy/schedule-backup.example.cron").exists()
+
+
 def test_required_secrets_are_checked_before_any_deploy_effect() -> None:
     """A missing or placeholder secret must leave the healthy release serving.
 

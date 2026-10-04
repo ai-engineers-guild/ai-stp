@@ -1,0 +1,29 @@
+[Unit]
+Description=Back up ai_stp PostgreSQL and RustFS (SPEC-024 REQ-2409)
+After=docker.service
+Wants=docker.service
+
+[Service]
+Type=oneshot
+User=ubuntu
+Group=ubuntu
+Environment=AI_STP_ROOT=/home/ubuntu/ai_stp
+# Where the backup goes is a fact about this host, not about the repository,
+# so it lives in the untracked `.deploy-env` beside the compose and env file
+# names `deploy/run.sh` already reads from there: `AI_STP_BACKUP_DIR`, and
+# `AI_STP_ALLOW_LOCAL_BACKUP=1` only while no off-host destination exists.
+# Keep scheduled backups in their own directory: retention prunes the newest
+# `AI_STP_BACKUP_RETENTION` siblings, and a hand-made pre-change backup must
+# not be one of them.
+EnvironmentFile=-/home/ubuntu/ai_stp/.deploy-env
+ExecStart=/home/ubuntu/ai_stp/deploy/backup.sh --label daily
+TimeoutStartSec=1800
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+# `.backups` is the default destination tree and `.deploy-state` the state
+# directory `backup.sh` ensures; `~/.docker` is written by the docker CLI.
+# An off-host destination mounted elsewhere is added with a drop-in
+# (`systemctl edit ai-stp-backup.service`, another `ReadWritePaths=`).
+ReadWritePaths=/home/ubuntu/ai_stp/.backups /home/ubuntu/ai_stp/.deploy-state /home/ubuntu/.docker
