@@ -97,12 +97,14 @@ services:
     # Same digest as production. A development stack that resolves a
     # different build is a development stack that cannot reproduce the
     # failure production had (`#394`).
-    image: rustfs/rustfs@sha256:fa19210ac4697c79d7ccca1ec9b0eb91aebacc6691991ffb14014bb3c67e6cc3
+    image: rustfs/rustfs:1.0.1@sha256:1803faef57627e2d9c2e7d89d655d712ddded5389040054987163043fecb6a3c
     environment:
       # Must match AI_STP_STORAGE_* in x-app-env. If these are missing at first
       # start, rustfs falls back to built-in defaults and API gets HeadBucket 403.
       RUSTFS_ACCESS_KEY: ai_stp
       RUSTFS_SECRET_KEY: ai_stp_dev
+      # Off as in production, so development cannot depend on it.
+      RUSTFS_CONSOLE_ENABLE: "false"
     env_file:
       - path: ../.env.dev
         required: false
@@ -110,12 +112,10 @@ services:
       - rustfs:/data
     networks: [internal]
     healthcheck:
-      # Alpine/busybox image: curl is present; any HTTP response means the port is up.
-      # `/health`, not `/minio/health/live`. The same image answers 403 on the
-      # MinIO-compatible path and 200 on this one, which took production down
-      # for several minutes on 2026-08-20 (`#394`). Development pinned the
-      # same broken path, so it could not have reproduced that.
-      test: ["CMD", "curl", "-sf", "http://127.0.0.1:9000/health"]
+      # The production check, so development reproduces what production
+      # waits on: readiness (`/health/ready`, storage quorum since 1.0.0), never
+      # the MinIO-compatible path that answered 403 on 2026-08-20 (`#394`).
+      test: ["CMD", "curl", "-sf", "http://127.0.0.1:9000/health/ready"]
       interval: 5s
       timeout: 3s
       retries: 12

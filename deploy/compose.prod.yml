@@ -44,18 +44,18 @@ services:
     logging: *default-logging
 
   rustfs:
-    # Pinned by digest, like every other dependency here. `:latest` moved under
-    # us on 2026-08-20: the image pulled that morning answered 403 on the
-    # MinIO-compatible health path the check had always used, `api` waits on a
-    # healthy `rustfs` through `depends_on` and never left `Created`, and the
-    # site served 502 until the path was corrected (`#394`).
+    # Pinned by digest and named by tag, like every other dependency here:
+    # the digest is what runs, the tag is what Dependabot and a reviewer read.
+    # `:latest` moved under us on 2026-08-20 — the image pulled that morning
+    # answered 403 on the MinIO-compatible health path the check had used,
+    # `api` waits on a healthy `rustfs` and never left `Created`, and the site
+    # served 502 until the path was corrected (`#394`).
     #
-    # A tag cannot record that its endpoints changed, so the next such change
-    # would look like a broken deployment again rather than like the dependency
-    # change it is. This digest is the image observed running and healthy on the
-    # production host; it self-reports `1.0.0-beta.8`. Moving it is a deliberate
-    # edit that shows up in a diff, which is the whole point.
-    image: rustfs/rustfs@sha256:fa19210ac4697c79d7ccca1ec9b0eb91aebacc6691991ffb14014bb3c67e6cc3
+    # 1.0.1 replaced 1.0.0-beta.8, which sixteen published advisories (two
+    # critical) affect. The upgrade was rehearsed on a beta.8 volume seeded
+    # through `ImmutableObjectStore`: every object read back digest-verified,
+    # new writes and the private-bucket test passed, anonymous reads got 403.
+    image: rustfs/rustfs:1.0.1@sha256:1803faef57627e2d9c2e7d89d655d712ddded5389040054987163043fecb6a3c
     # The store receives exactly its own credential pair — which must equal the
     # AI_STP_STORAGE_* pair the API uses, and the deploy preflight compares
     # them before any effect. As with postgres, `env_file` would leak every
@@ -63,19 +63,19 @@ services:
     environment:
       RUSTFS_ACCESS_KEY: ${RUSTFS_ACCESS_KEY}
       RUSTFS_SECRET_KEY: ${RUSTFS_SECRET_KEY}
+      # Nothing here uses the web console, and its preview modal carried both
+      # critical advisories of the beta line. A listener that serves no one is
+      # attack surface only.
+      RUSTFS_CONSOLE_ENABLE: "false"
     volumes:
       - rustfs:/data
     networks: [internal]
     healthcheck:
-      # `/health`, not `/minio/health/live`. The MinIO-compatible path answers
-      # 403 on this image and `/health` answers 200 — probed inside the running
-      # container on 2026-08-20, when the check failed 34 times in a row, `api`
-      # never left `Created` because it waits for a healthy `rustfs`, and the
-      # site served 502.
-      #
-      # The image is `:latest`, so the endpoint moved under a tag that cannot
-      # record that it moved. Pinning it is `#394`.
-      test: ["CMD", "curl", "-sf", "http://127.0.0.1:9000/health"]
+      # Readiness, not liveness: `api` and the storage migration wait on this
+      # through `service_healthy`, and since 1.0.0 `/health/ready` reports
+      # storage quorum while `/health` only says the process answers. Never
+      # `/minio/health/live`, which answered 403 on 2026-08-20 (`#394`).
+      test: ["CMD", "curl", "-sf", "http://127.0.0.1:9000/health/ready"]
       interval: 5s
       timeout: 3s
       retries: 12
