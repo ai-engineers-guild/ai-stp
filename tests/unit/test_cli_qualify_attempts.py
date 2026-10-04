@@ -50,6 +50,7 @@ def test_host_and_docker_require_seed_before_the_model(
     monkeypatch.setattr(qualify, "prepare_workspace", prepare)
     monkeypatch.setattr(qualify, "seed_for_scenario", seed)
     monkeypatch.setattr(qualify, "run_agy", drive)
+    monkeypatch.setattr(qualify, "daemon_mount_refusal", lambda *_args, **_kwargs: None)
     measured = tmp_path / "measured.json"
     assert (
         qualify.qualify_one(

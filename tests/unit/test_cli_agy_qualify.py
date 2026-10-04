@@ -50,6 +50,7 @@ from ai_stp_cli.agy_qualify import (
     clear_cell,
     cursor_pin,
     custom_home_section_landed,
+    daemon_mount_refusal,
     debug_provider,
     drive_native_install,
     escaped_workspace,
@@ -2318,6 +2319,9 @@ def test_docker_custom_home_score_is_the_codex_write(tmp_path: Path) -> None:
     )
     if held.returncode != 0:
         pytest.skip("privileged image ai-stp-iso:local is not on this machine")
+    refusal = daemon_mount_refusal(tmp_path, image)
+    if refusal is not None:
+        pytest.skip(refusal)
     workspace = prepare_workspace(
         tmp_path / "custom-docker", scenario=CUSTOM_HOME, docker_image=image
     )
