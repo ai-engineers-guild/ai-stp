@@ -133,6 +133,10 @@ chmod +x "${out_dir}/${bin}" || true
 # hermetic home so the check measures the binary, not this host's config —
 # a malformed host config.toml or corrupt registry would otherwise fail a
 # good build (and doctor would probe the real OS keyring).
+# Each probe is bounded: a hung probe (observed once on macOS — the frozen
+# binary never returned from first exec, likely an ad-hoc-signing/
+# Gatekeeper stall) must surface as a named failure, not burn the whole
+# CI job budget.
 probe_env=(
   env
   "HOME=${work_dir}/home"
@@ -142,13 +146,45 @@ probe_env=(
   "APPDATA=${work_dir}/home/AppData/Roaming"
   "LOCALAPPDATA=${work_dir}/home/AppData/Local"
 )
+probe_seconds=180
+if [[ "$(uname -s)" == "Darwin" ]]; then
+  # macOS's first-exec path for an unsigned binary can be slower than the
+  # Linux/Windows spawn — keep the bound generous, still bounded.
+  probe_seconds=300
+fi
+# `timeout` is GNU coreutils: Git Bash ships it, GH macOS runners ship it as
+# `gtimeout`; absent either, the probe runs unbounded — as before — with a
+# warning rather than silently pretending it is bounded.
+TIMEOUT_CMD=""
+for _cand in timeout gtimeout; do
+  if command -v "${_cand}" >/dev/null 2>&1; then
+    TIMEOUT_CMD="${_cand}"
+    break
+  fi
+done
+if [[ -z "${TIMEOUT_CMD}" ]]; then
+  echo "warning: no timeout/gtimeout found — smoke probes run unbounded" >&2
+fi
 mkdir -p "${work_dir}/home"
-probe="$("${probe_env[@]}" "${out_dir}/${bin}" version --json)"
+run_probe() {
+  if [[ -n "${TIMEOUT_CMD}" ]]; then
+    "${TIMEOUT_CMD}" "${probe_seconds}" "${probe_env[@]}" "${out_dir}/${bin}" "$@" 2>&1
+  else
+    "${probe_env[@]}" "${out_dir}/${bin}" "$@" 2>&1
+  fi
+}
+probe="$(run_probe version --json)" || {
+  echo "sidecar smoke check failed (version, exit $?, timeout ${probe_seconds}s): ${probe}" >&2
+  exit 1
+}
 case "${probe}" in
   *'"ok": true'*|*'"ok":true'*) ;;
   *) echo "sidecar smoke check failed (version): ${probe}" >&2; exit 1 ;;
 esac
-probe="$("${probe_env[@]}" "${out_dir}/${bin}" doctor --json)"
+probe="$(run_probe doctor --json)" || {
+  echo "sidecar smoke check failed (doctor, exit $?, timeout ${probe_seconds}s): ${probe}" >&2
+  exit 1
+}
 case "${probe}" in
   *'"ok": true'*|*'"ok":true'*) ;;
   *) echo "sidecar smoke check failed (doctor): ${probe}" >&2; exit 1 ;;
