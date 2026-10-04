@@ -38,6 +38,15 @@ LOCKFILES: dict[str, str] = {
 }
 
 
+#: Ecosystems without a lockfile, and the file each one reads instead. An
+#: entry pointing at a directory that holds none of them updates nothing and
+#: fails nowhere — the same silence as a lockfile mismatch.
+MANIFESTS: dict[str, str] = {
+    "docker": "Dockerfile*",
+    "docker-compose": "compose*.yml",
+}
+
+
 #: The private working copy carries no `.github` at all — no workflows, no
 #: Dependabot, by decision (`ADR-0109`/`ADR-0110`): CI runs in the public tree.
 #: This file travels there with everything else and read the config
@@ -59,6 +68,12 @@ def test_every_declared_ecosystem_matches_the_lockfile_in_its_directory() -> Non
     wrong: list[str] = []
     for update in _updates():
         ecosystem = str(update["package-ecosystem"])
+        manifest = MANIFESTS.get(ecosystem)
+        if manifest is not None:
+            directory = Path(str(update["directory"]).lstrip("/"))
+            if not any(directory.glob(manifest)):
+                wrong.append(f"{directory} declared {ecosystem}, but holds no {manifest}")
+            continue
         expected = LOCKFILES.get(ecosystem)
         if expected is None:
             # `github-actions` has no lockfile and no directory contents to
@@ -83,6 +98,6 @@ def test_the_ecosystems_this_repository_declares_are_ones_the_table_knows() -> N
     the check would `continue` past it exactly as it does for `github-actions`,
     which is the one case where skipping is right.
     """
-    known = set(LOCKFILES) | {"github-actions"}
+    known = set(LOCKFILES) | set(MANIFESTS) | {"github-actions"}
     declared = {str(update["package-ecosystem"]) for update in _updates()}
     assert declared <= known, sorted(declared - known)
