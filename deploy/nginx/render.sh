@@ -21,24 +21,36 @@ readonly ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 readonly ENV_FILE="${AI_STP_ENV_FILE:-${ROOT}/.env.prod}"
 readonly TARGET="${AI_STP_NGINX_CONF_DIR:-/etc/nginx/conf.d}"
 
-if [[ -f "${ENV_FILE}" ]]; then
-  # shellcheck disable=SC1090
-  set -a && source "${ENV_FILE}" && set +a
-fi
+# The environment file is data, not code: this script is designed to run under
+# sudo, and `.env.prod` sits in a path the unprivileged pull-deploy unit may
+# write, so `source` would be an ubuntu→root command-execution edge. Read the
+# handful of needed keys instead — first definition wins, as for a source.
+env_value() {
+  local name="$1"
+  [[ -f "${ENV_FILE}" ]] || return 0
+  LC_ALL=C grep -E "^${name}=" "${ENV_FILE}" | head -n1 | cut -d= -f2- || true
+}
 
 # Host names carry no scheme here: they name a server, not an origin.
 # Both are optional: a host may serve only the site, only the documentation, or
 # neither during a local rehearsal, and `set -u` must not turn that into a crash.
-readonly MAIN_HOST="${AI_STP_PUBLIC_HOST-}"
-readonly DOCS_HOST="${AI_STP_DOCS_HOST-}"
+readonly MAIN_HOST="${AI_STP_PUBLIC_HOST:-$(env_value AI_STP_PUBLIC_HOST)}"
+readonly DOCS_HOST="${AI_STP_DOCS_HOST:-$(env_value AI_STP_DOCS_HOST)}"
 # The first name identifies the site: it names the file and, unless overridden,
 # the certificate lineage. The rest are aliases nginx answers to.
 primary() { local first="${1%%[ ]*}"; printf '%s' "${first#*://}"; }
 readonly MAIN_PRIMARY="$(primary "${MAIN_HOST}")"
 readonly DOCS_PRIMARY="$(primary "${DOCS_HOST}")"
-readonly API_BIND="${AI_STP_API_BIND:-127.0.0.1:58082}"
-readonly WEB_BIND="${AI_STP_WEB_BIND:-127.0.0.1:58081}"
-readonly DOCS_BIND="${AI_STP_DOCS_BIND:-127.0.0.1:58083}"
+readonly API_BIND="${AI_STP_API_BIND:-$(env_value AI_STP_API_BIND)}"
+readonly API_BIND="${API_BIND:-127.0.0.1:58082}"
+readonly WEB_BIND="${AI_STP_WEB_BIND:-$(env_value AI_STP_WEB_BIND)}"
+readonly WEB_BIND="${WEB_BIND:-127.0.0.1:58081}"
+readonly DOCS_BIND="${AI_STP_DOCS_BIND:-$(env_value AI_STP_DOCS_BIND)}"
+readonly DOCS_BIND="${DOCS_BIND:-127.0.0.1:58083}"
+readonly TLS_LINEAGE="${AI_STP_TLS_LINEAGE:-$(env_value AI_STP_TLS_LINEAGE)}"
+readonly TLS_LINEAGE="${TLS_LINEAGE:-${MAIN_PRIMARY}}"
+readonly DOCS_TLS_LINEAGE="${AI_STP_DOCS_TLS_LINEAGE:-$(env_value AI_STP_DOCS_TLS_LINEAGE)}"
+readonly DOCS_TLS_LINEAGE="${DOCS_TLS_LINEAGE:-${DOCS_PRIMARY}}"
 
 render() {
   local template="$1" raw="$2" lineage="$3" out="$4"
@@ -72,9 +84,9 @@ render() {
 # until the reload, and the reload only happens if the whole config still tests.
 missing=0
 render ai-stp.conf.template "${MAIN_HOST}" \
-  "${AI_STP_TLS_LINEAGE:-${MAIN_PRIMARY}}" "zz-ai-stp-${MAIN_PRIMARY}.conf" || missing=1
+  "${TLS_LINEAGE}" "zz-ai-stp-${MAIN_PRIMARY}.conf" || missing=1
 render ai-stp-docs.conf.template "${DOCS_HOST}" \
-  "${AI_STP_DOCS_TLS_LINEAGE:-${DOCS_PRIMARY}}" "zz-ai-stp-docs-${DOCS_PRIMARY}.conf" || missing=1
+  "${DOCS_TLS_LINEAGE}" "zz-ai-stp-docs-${DOCS_PRIMARY}.conf" || missing=1
 
 nginx -t
 nginx -s reload
