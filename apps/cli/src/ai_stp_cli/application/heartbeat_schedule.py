@@ -282,6 +282,14 @@ def _linux_remove(name: str) -> None:
 def install(organization_id: str, interval_seconds: int, *, defer_mac_reload: bool = False) -> bool:
     if not 60 <= interval_seconds <= 2_592_000:
         raise CliFailure("AI_STP_VALIDATION_ERROR", "invalid heartbeat interval")
+    if getattr(sys, "frozen", False):
+        # The refusal has to land before any platform mutates — `_mac_install`
+        # would otherwise bootout a working agent and then fail inside
+        # `_target`, leaving the schedule unloaded.
+        raise CliFailure(
+            "AI_STP_DEPENDENCY_UNAVAILABLE",
+            "scheduled wakeups need an installed interpreter; a frozen build has none",
+        )
     name = _name(organization_id)
     if sys.platform == "win32" or _wsl():
         _windows_install(name, organization_id, interval_seconds)

@@ -29,7 +29,7 @@ def _uncached() -> None:
 
 def test_a_normal_build_children_its_own_interpreter() -> None:
     assert interpreter.python() == sys.executable
-    assert interpreter.uv() == [sys.executable, "-m", "uv"]
+    assert interpreter.uv() == (sys.executable, "-m", "uv")
 
 
 def _on_path(name: str) -> str:
@@ -79,7 +79,7 @@ def test_a_frozen_build_uses_a_uv_binary_not_dash_m(
     # interpreter at all, so it looks for the standalone executable instead.
     monkeypatch.setattr(sys, "frozen", True, raising=False)
     monkeypatch.setattr(shutil, "which", _only_uv)
-    assert interpreter.uv() == ["/usr/local/bin/uv"]
+    assert interpreter.uv() == ("/usr/local/bin/uv",)
 
 
 def test_the_probe_prefers_a_path_python_over_the_frozen_binary(
