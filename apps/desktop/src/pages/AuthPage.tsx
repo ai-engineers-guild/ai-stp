@@ -43,7 +43,10 @@ export default function AuthPage() {
     void refreshAuth();
     void cmdMachineHelp().then((r) => {
       const choices = descriptorChoices(r, "auth login", "provider");
-      if (choices) setProviders(choices);
+      if (choices) {
+        setProviders(choices);
+        setProvider((p) => (choices.includes(p) ? p : choices[0]));
+      }
     });
     return () => {
       pollGen.current++;

@@ -56,8 +56,8 @@ ai-stp component inventory --root . --json
 
 Поля успеха: `components`, `diagnostics`, `project`, `schema_version`. У
 каждого компонента есть `candidate_id`, `component_type`, `layout_source`,
-`native_role`, `path`, `harness_id`, `holds_secret`, `byte_length`,
-`entry_points` и `evidence_refs`.
+`native_role`, `source_path`, `harness_id`, `holds_secret`, `byte_length`,
+`entry_points`, `evidence_refs` и `registered_stable_id`.
 
 Пустой список `components` — типизированная пустота, не отказ. Он не
 запускает молча `device init` и ничего не adopt.

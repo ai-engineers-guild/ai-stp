@@ -999,13 +999,19 @@ def registered_stable_ids(connection: sqlite3.Connection, items: Iterable[Found]
     ).fetchone()
     if present is None:
         return {}
-    keys_csv = ",".join("?" for _ in keys)
-    rows = connection.execute(
-        "SELECT source_key, stable_id FROM component_source_binding "
-        f"WHERE source_key IN ({keys_csv})",
-        tuple(keys),
-    ).fetchall()
-    return {str(row["source_key"]): str(row["stable_id"]) for row in rows}
+    # Stay under SQLite's bound-variable ceiling (999 on old builds) — a
+    # harness scan can find thousands of components.
+    bound: dict[str, str] = {}
+    keys_list = sorted(keys)
+    for start in range(0, len(keys_list), 500):
+        chunk = keys_list[start : start + 500]
+        rows = connection.execute(
+            "SELECT source_key, stable_id FROM component_source_binding "
+            f"WHERE source_key IN ({','.join('?' for _ in chunk)})",
+            tuple(chunk),
+        ).fetchall()
+        bound.update({str(row["source_key"]): str(row["stable_id"]) for row in rows})
+    return bound
 
 
 def adopt(

@@ -44,7 +44,7 @@ services:
     command: ["--config", "/app/config.yaml", "--port", "4000"]
     environment:
       LITELLM_MASTER_KEY:
-        ${AI_STP_SEO_ENRICHMENT_CREDENTIAL:-dev-only-seo-enrichment-credential-32chars}
+        ${AI_STP_SEO_ENRICHMENT_CREDENTIAL:?set AI_STP_SEO_ENRICHMENT_CREDENTIAL for the seo_enrichment profile} # yamllint disable-line rule:line-length
       CLIPROXY_API_BASE: ${AI_STP_CLIPROXY_URL:-http://cliproxy:8317/v1}
       CLIPROXY_API_KEY: ${AI_STP_CLIPROXY_API_KEY:-sk-none}
       CLIPROXY_MODEL: ${AI_STP_CLIPROXY_MODEL:-openai/seo-writer}
@@ -72,6 +72,6 @@ services:
       AI_STP_SEO_ENRICHMENT_URL:
         ${AI_STP_SEO_ENRICHMENT_URL:-http://litellm:4000/v1/chat/completions}
       AI_STP_SEO_ENRICHMENT_CREDENTIAL:
-        ${AI_STP_SEO_ENRICHMENT_CREDENTIAL:-dev-only-seo-enrichment-credential-32chars}
+        ${AI_STP_SEO_ENRICHMENT_CREDENTIAL:?set AI_STP_SEO_ENRICHMENT_CREDENTIAL for the seo_enrichment profile} # yamllint disable-line rule:line-length
       AI_STP_SEO_ENRICHMENT_MODEL_ALIAS: seo-writer
       AI_STP_SEO_PUBLIC_ORIGIN: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}

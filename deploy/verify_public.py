@@ -223,7 +223,7 @@ def verify(
             "or a commit containing it"
         )
 
-    status, _body = fetch(origin + "/", MAX_WEB_BYTES)
+    status, _body = _fetched(fetch, origin + "/", MAX_WEB_BYTES)
     if status != 200:
         raise VerificationError(f"web root returned HTTP {status}")
 

@@ -178,10 +178,15 @@ def _executable_argv(executable: str) -> list[str]:
     if first_line.startswith(b"#!") and b"python" in first_line:
         # A frozen build's `sys.executable` is the CLI binary — a click
         # application, not an interpreter. Fall back to a PATH interpreter;
-        # absent one, execute the script bare and let the OS refusal name
-        # the real problem.
+        # absent one, refuse by name rather than letting a bare-script spawn
+        # surface as AI_STP_INTERNAL in the one field a caller reads.
         probe_python = interpreter.python()
-        return [probe_python, executable] if probe_python is not None else [executable]
+        if probe_python is None:
+            raise CliFailure(
+                "AI_STP_DEPENDENCY_UNAVAILABLE",
+                "a script provider needs a Python interpreter on PATH and none was found",
+            )
+        return [probe_python, executable]
     return [executable]
 
 

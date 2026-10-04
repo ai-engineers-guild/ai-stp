@@ -72,9 +72,22 @@ trap 'rm -rf "${work_dir}"' EXIT
 # The toolset that decides what lands in the bundle is pinned as a set —
 # pinning PyInstaller alone left `pyinstaller-hooks-contrib` floating, and
 # a hook release silently changed which modules reached the frozen CLI
-# (the `_cffi_backend` loss below surfaced exactly that way).
+# (the `_cffi_backend` loss below surfaced exactly that way). The same is
+# true one level down: altgraph/macholib/pefile/pywin32-ctypes/setuptools
+# are open lower bounds of `pyinstaller`, so they are pinned too — the
+# versions below are the closure `uv pip compile` resolved for this pair.
 PYINSTALLER_VERSION="${PYINSTALLER_VERSION:-6.22.3}"
 PYINSTALLER_HOOKS_VERSION="${PYINSTALLER_HOOKS_VERSION:-2026.7}"
+PYINSTALLER_TOOLSET=(
+  "pyinstaller==${PYINSTALLER_VERSION}"
+  "pyinstaller-hooks-contrib==${PYINSTALLER_HOOKS_VERSION}"
+  "altgraph==0.17.5"
+  "packaging==26.3"
+  "setuptools==84.0.0"
+  "macholib==1.16.4; sys_platform == 'darwin'"
+  "pefile==2024.8.26; sys_platform == 'win32'"
+  "pywin32-ctypes==0.2.3; sys_platform == 'win32'"
+)
 
 cat > "${work_dir}/entry.py" <<'EOF'
 from ai_stp_cli.app import run
@@ -88,9 +101,13 @@ uv sync --locked --all-packages --directory "${repo_root}"
 # internally at load time, which modulegraph cannot see. Past bundles only
 # received it through an accidental edge — a dependency that pulled in cffi
 # itself — so it is declared here or the frozen CLI dies on nacl import.
+TOOLSET_WITH=()
+for spec in "${PYINSTALLER_TOOLSET[@]}"; do
+  TOOLSET_WITH+=("--with" "${spec}")
+done
+
 uv run --directory "${repo_root}" \
-  --with "pyinstaller==${PYINSTALLER_VERSION}" \
-  --with "pyinstaller-hooks-contrib==${PYINSTALLER_HOOKS_VERSION}" \
+  "${TOOLSET_WITH[@]}" \
   pyinstaller --onefile --clean \
   --name "ai-stp-desktop-cli-${triple}" \
   --distpath "${work_dir}/dist" \
@@ -112,13 +129,26 @@ chmod +x "${out_dir}/${bin}" || true
 # Prove the frozen binary actually works on this OS before it ships inside
 # a bundle — a missing hidden import would otherwise surface only at runtime.
 # `version` proves the bootloader ran; `doctor` walks the interpreter/env
-# surface a provider-capable CLI actually needs.
-probe="$("${out_dir}/${bin}" version --json)"
+# surface a provider-capable CLI actually needs. Both probes run against a
+# hermetic home so the check measures the binary, not this host's config —
+# a malformed host config.toml or corrupt registry would otherwise fail a
+# good build (and doctor would probe the real OS keyring).
+probe_env=(
+  env
+  "HOME=${work_dir}/home"
+  "XDG_CONFIG_HOME=${work_dir}/home/.config"
+  "XDG_DATA_HOME=${work_dir}/home/.local/share"
+  "USERPROFILE=${work_dir}/home"
+  "APPDATA=${work_dir}/home/AppData/Roaming"
+  "LOCALAPPDATA=${work_dir}/home/AppData/Local"
+)
+mkdir -p "${work_dir}/home"
+probe="$("${probe_env[@]}" "${out_dir}/${bin}" version --json)"
 case "${probe}" in
   *'"ok": true'*|*'"ok":true'*) ;;
   *) echo "sidecar smoke check failed (version): ${probe}" >&2; exit 1 ;;
 esac
-probe="$("${out_dir}/${bin}" doctor --json)"
+probe="$("${probe_env[@]}" "${out_dir}/${bin}" doctor --json)"
 case "${probe}" in
   *'"ok": true'*|*'"ok":true'*) ;;
   *) echo "sidecar smoke check failed (doctor): ${probe}" >&2; exit 1 ;;

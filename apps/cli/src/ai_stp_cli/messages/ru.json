@@ -129,6 +129,7 @@
   "a review decision is confirm, reject, override or retire": "решение ревью — confirm, reject, override или retire",
   "a scan publishes only for an explicitly linked project": "скан публикуется только для явно связанного проекта",
   "a scan scope is required and must be at most 128 characters of letters, digits, dot, underscore, dash or slash": "требуется область сканирования не длиннее 128 символов из букв, цифр, точки, подчёркивания, дефиса или слэша",
+  "a script provider needs a Python interpreter on PATH and none was found": "скрипт-провайдеру нужен интерпретатор Python в PATH, но он не найден",
   "a second adaptation requires one concrete harness": "вторая адаптация требует один конкретный харнесс",
   "a secret exists in both the credential store and a file, and they do not agree": "секрет есть и в хранилище учётных данных, и в файле, и они не совпадают",
   "a secret remains in a file after the credential store took it over": "секрет остался в файле после того, как его приняло хранилище учётных данных",

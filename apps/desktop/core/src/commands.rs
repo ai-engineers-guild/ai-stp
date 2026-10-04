@@ -159,13 +159,25 @@ impl CommandRegistry {
             .ok_or_else(|| BuildError::UnknownCommand(path.into()))?;
 
         let mut seen: HashMap<&str, usize> = HashMap::new();
-        for name in values.keys().chain(flags.iter()).chain(repeated.keys()) {
+        for name in values.keys().chain(flags.iter()).chain(
+            repeated
+                .iter()
+                .filter(|(_, list)| !list.is_empty())
+                .map(|(k, _)| k),
+        ) {
             let param = desc
                 .parameters
                 .iter()
                 .find(|p| &p.name == name)
                 .ok_or_else(|| BuildError::UnknownParameter(name.clone()))?;
             *seen.entry(param.name.as_str()).or_default() += 1;
+        }
+        // An empty `repeated` vec still names a parameter — it has to be a
+        // known one, it just supplies nothing.
+        for name in repeated.keys() {
+            if !desc.parameters.iter().any(|p| &p.name == name) {
+                return Err(BuildError::UnknownParameter(name.clone()));
+            }
         }
 
         let mut argv: Vec<String> = path.split(' ').map(str::to_string).collect();
@@ -199,6 +211,16 @@ impl CommandRegistry {
                     let flag = format!("--{}", param.name.replace('_', "-"));
                     if flags.contains(&param.name) {
                         if param.value_type == "boolean" {
+                            if values.contains_key(&param.name)
+                                || repeated
+                                    .get(&param.name)
+                                    .is_some_and(|list| !list.is_empty())
+                            {
+                                return Err(BuildError::RuleViolation(format!(
+                                    "{} was supplied as both flag and value",
+                                    param.name
+                                )));
+                            }
                             argv.push(flag.clone());
                         } else {
                             return Err(BuildError::RuleViolation(format!(
@@ -208,6 +230,12 @@ impl CommandRegistry {
                         }
                     }
                     if let Some(v) = values.get(&param.name) {
+                        if param.value_type == "boolean" {
+                            return Err(BuildError::RuleViolation(format!(
+                                "{} is a flag, not a value option",
+                                param.name
+                            )));
+                        }
                         if !param.choices.is_empty() && !param.choices.contains(v) {
                             return Err(BuildError::ChoiceViolation {
                                 name: param.name.clone(),
@@ -218,6 +246,12 @@ impl CommandRegistry {
                         argv.push(v.clone());
                     }
                     for v in repeated.get(&param.name).into_iter().flatten() {
+                        if param.value_type == "boolean" {
+                            return Err(BuildError::RuleViolation(format!(
+                                "{} is a flag, not a value option",
+                                param.name
+                            )));
+                        }
                         if !param.repeatable {
                             return Err(BuildError::RuleViolation(format!(
                                 "{} is not repeatable",

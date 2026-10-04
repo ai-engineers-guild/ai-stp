@@ -650,4 +650,12 @@ fn bundled_sidecar_spawns_under_runner_env() {
         .run(&["version".to_string()])
         .expect("sidecar spawn under runner env");
     assert!(env.ok, "sidecar failed: {:?}", env.error);
+    // `version` only proves the bootloader ran; `doctor` walks the lazily
+    // loaded surface (nacl→_cffi_backend, secrets store, registry open)
+    // whose missing hidden imports have killed past frozen builds. HOME is
+    // in PASSTHROUGH_ENV, so the probe reaches a real per-user state dir.
+    let env = runner
+        .run(&["doctor".to_string()])
+        .expect("sidecar doctor under runner env");
+    assert!(env.ok, "sidecar doctor failed: {:?}", env.error);
 }
