@@ -372,7 +372,8 @@ F10/R05, a CLI language rewrite, and a PyPI CLI cut are excluded.
   direction: guided cells measure protocol development, unassisted cells
   measure product UX. The one-model rule, invalidation, capacity handling,
   and durable-row oracles apply to both layers alike.
-  Isolated `ai_stp_cli.agy_qualify` may run agent cells through `agy` with
+  Isolated `ai_stp_qualify.agy` (source checkout only, outside the wheel,
+  sdist and desktop sidecar) may run agent cells through `agy` with
   `gpt-oss-120b-medium` in a throwaway HOME; live results enter only through
   that overlay. Only this model is the current acceptance target; other model
   identities are diagnostics, never substitutes for its threshold. Isolated

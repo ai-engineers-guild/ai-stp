@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """agy-argv -> `claude` adapter for the isolated qualify runner.
 
-`ai_stp_cli.agy_qualify` drives an agent binary through agy-style argv.
+`ai_stp_qualify.agy` drives an agent binary through agy-style argv.
 Point `--agy` at this executable to qualify with Claude Code instead:
 
-    python -m ai_stp_cli.agy_qualify --root <dir> --scenario <name> --run <n> \
+    python -m ai_stp_qualify.agy --root <dir> --scenario <name> --run <n> \
         --agy apps/cli/tools/claude_qualify_driver.py \
         --model claude-haiku-4-5 --measured <overlay.json>
 

@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from ai_stp_cli import agy_qualify as qualify
+from ai_stp_qualify import agy as qualify
 
 
 @pytest.mark.skipif(os.name == "nt", reason="the fixture wrapper uses a POSIX shell")

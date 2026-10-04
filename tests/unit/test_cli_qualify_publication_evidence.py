@@ -10,8 +10,8 @@ from urllib.parse import urlsplit
 
 import pytest
 
-from ai_stp_cli import agy_qualify as qualify
 from ai_stp_cli.application.qualify import CellStatus
+from ai_stp_qualify import agy as qualify
 
 
 @pytest.mark.parametrize("kind", ["component", "setup"])
