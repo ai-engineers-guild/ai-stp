@@ -129,14 +129,59 @@ chmod +x "${out_dir}/${bin}" || true
 # Prove the frozen binary actually works on this OS before it ships inside
 # a bundle — a missing hidden import would otherwise surface only at runtime.
 # `version` proves the bootloader ran; `doctor` walks the interpreter/env
-# surface a provider-capable CLI actually needs. Both probes run against a
-# hermetic home so the check measures the binary, not this host's config —
-# a malformed host config.toml or corrupt registry would otherwise fail a
-# good build (and doctor would probe the real OS keyring).
-# Each probe is bounded: a hung probe (observed once on macOS — the frozen
-# binary never returned from first exec, likely an ad-hoc-signing/
-# Gatekeeper stall) must surface as a named failure, not burn the whole
-# CI job budget.
+# surface a provider-capable CLI actually needs. Each probe is bounded by a
+# Python one-shot (uv already guarantees an interpreter here — `timeout` is
+# GNU coreutils and GH macOS runners ship neither it nor `gtimeout`): a hung
+# probe must surface as a named failure, not burn the whole CI job budget.
+probe_python="$(uv python find)"
+probe_seconds=180
+if [[ "$(uname -s)" == "Darwin" ]]; then
+  # macOS's first-exec path for an unsigned binary can be slower than the
+  # Linux/Windows spawn — keep the bound generous, still bounded.
+  probe_seconds=300
+fi
+cat > "${work_dir}/run_bounded.py" <<'EOF'
+"""Run a probe with a wall-clock bound; exit 124 on timeout.
+
+The probe is started in its own process group where the platform supports
+it so a PyInstaller onefile parent+child pair is killed together.
+"""
+import os
+import signal
+import subprocess
+import sys
+
+seconds = float(sys.argv[1])
+command = sys.argv[2:]
+popen_kwargs: dict = {"stdout": subprocess.PIPE, "stderr": subprocess.STDOUT}
+if os.name == "posix":
+    popen_kwargs["start_new_session"] = True
+proc = subprocess.Popen(command, **popen_kwargs)
+try:
+    out = proc.communicate(timeout=seconds)[0]
+except subprocess.TimeoutExpired:
+    if os.name == "posix":
+        os.killpg(proc.pid, signal.SIGKILL)
+    else:
+        proc.kill()
+    proc.communicate()
+    sys.exit(124)
+sys.stdout.write(out.decode("utf-8", "replace"))
+sys.exit(proc.returncode)
+EOF
+
+run_probe() {
+  "${probe_python}" "${work_dir}/run_bounded.py" "${probe_seconds}" "$@" 2>&1
+}
+# Probes run against a hermetic home so the check measures the binary, not
+# this host's config — a malformed host config.toml or corrupt registry
+# would otherwise fail a good build. The exception is doctor's credential
+# store probe on macOS: the OS keychain is only reachable through the real
+# user session and a redirected HOME produces a state the shipped app never
+# runs in — observed on CI as the `security` probe stalling until the job
+# died. Linux reaches the file tier and Windows the session vault without
+# HOME, so they stay hermetic.
+mkdir -p "${work_dir}/home"
 probe_env=(
   env
   "HOME=${work_dir}/home"
@@ -146,45 +191,29 @@ probe_env=(
   "APPDATA=${work_dir}/home/AppData/Roaming"
   "LOCALAPPDATA=${work_dir}/home/AppData/Local"
 )
-probe_seconds=180
+doctor_env=("${probe_env[@]}")
 if [[ "$(uname -s)" == "Darwin" ]]; then
-  # macOS's first-exec path for an unsigned binary can be slower than the
-  # Linux/Windows spawn — keep the bound generous, still bounded.
-  probe_seconds=300
+  doctor_env=(env)
 fi
-# `timeout` is GNU coreutils: Git Bash ships it, GH macOS runners ship it as
-# `gtimeout`; absent either, the probe runs unbounded — as before — with a
-# warning rather than silently pretending it is bounded.
-TIMEOUT_CMD=""
-for _cand in timeout gtimeout; do
-  if command -v "${_cand}" >/dev/null 2>&1; then
-    TIMEOUT_CMD="${_cand}"
-    break
-  fi
-done
-if [[ -z "${TIMEOUT_CMD}" ]]; then
-  echo "warning: no timeout/gtimeout found — smoke probes run unbounded" >&2
-fi
-mkdir -p "${work_dir}/home"
-run_probe() {
-  if [[ -n "${TIMEOUT_CMD}" ]]; then
-    "${TIMEOUT_CMD}" "${probe_seconds}" "${probe_env[@]}" "${out_dir}/${bin}" "$@" 2>&1
-  else
-    "${probe_env[@]}" "${out_dir}/${bin}" "$@" 2>&1
-  fi
-}
-probe="$(run_probe version --json)" || {
-  echo "sidecar smoke check failed (version, exit $?, timeout ${probe_seconds}s): ${probe}" >&2
+
+probe_status=0
+echo "probe: version --json (bounded ${probe_seconds}s)"
+probe="$(run_probe "${probe_env[@]}" "${out_dir}/${bin}" version --json)" || probe_status=$?
+if [[ ${probe_status} -ne 0 ]]; then
+  echo "sidecar smoke check failed (version, exit ${probe_status}, bound ${probe_seconds}s): ${probe}" >&2
   exit 1
-}
+fi
 case "${probe}" in
   *'"ok": true'*|*'"ok":true'*) ;;
   *) echo "sidecar smoke check failed (version): ${probe}" >&2; exit 1 ;;
 esac
-probe="$(run_probe doctor --json)" || {
-  echo "sidecar smoke check failed (doctor, exit $?, timeout ${probe_seconds}s): ${probe}" >&2
+probe_status=0
+echo "probe: doctor --json (bounded ${probe_seconds}s)"
+probe="$(run_probe "${doctor_env[@]}" "${out_dir}/${bin}" doctor --json)" || probe_status=$?
+if [[ ${probe_status} -ne 0 ]]; then
+  echo "sidecar smoke check failed (doctor, exit ${probe_status}, bound ${probe_seconds}s): ${probe}" >&2
   exit 1
-}
+fi
 case "${probe}" in
   *'"ok": true'*|*'"ok":true'*) ;;
   *) echo "sidecar smoke check failed (doctor): ${probe}" >&2; exit 1 ;;
