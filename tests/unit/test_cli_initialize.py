@@ -704,7 +704,15 @@ def test_docker_initialize_writes_the_catalogued_surface(
 
     import shlex
 
-    from ai_stp_cli.agy_qualify import docker_cli_command, repo_root
+    from ai_stp_cli.agy_qualify import (
+        daemon_mount_refusal,
+        docker_cli_command,
+        repo_root,
+    )
+
+    refusal = daemon_mount_refusal(tmp_path, image)
+    if refusal is not None:
+        pytest.skip(refusal)
     from ai_stp_cli.config import set_values
 
     root = tmp_path / "ws"
