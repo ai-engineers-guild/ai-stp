@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import base64
 import io
+import json
 import os
 import tarfile
 from collections.abc import AsyncIterator
@@ -50,6 +51,8 @@ class GitLab:
     token: str = field(default_factory=lambda: uuid4().hex)
     refresh: str = field(default_factory=lambda: uuid4().hex)
     member: bool = True
+    visibility: str = "private"
+    members: dict[int, int] = field(default_factory=dict[int, int])
     exchanges: int = 0
 
     def handle(self, request: httpx.Request) -> httpx.Response:
@@ -66,15 +69,19 @@ class GitLab:
                     "token_type": "Bearer",
                 },
             )
-        assert request.method == "GET", f"GitLab connector wrote: {request.method} {path}"
         assert request.headers["Authorization"] == f"Bearer {self.token}"
+        if request.method != "GET":
+            return self._mutate(request)
         if path == "/api/v4/user":
             return httpx.Response(200, json={"id": 7, "username": "synthetic"})
+        if path == "/api/v4/users":
+            return httpx.Response(200, json=[{"id": 9, "username": "colleague"}])
         if path == "/api/v4/projects":
             assert request.url.params["membership"] == "true"
             return httpx.Response(200, json=[PROJECT] if self.member else [])
         if path == "/api/v4/projects/42":
-            return httpx.Response(200, json=PROJECT) if self.member else httpx.Response(404)
+            body = {**PROJECT, "visibility": self.visibility}
+            return httpx.Response(200, json=body) if self.member else httpx.Response(404)
         if path == f"/api/v4/projects/42/repository/commits/{COMMIT}":
             return httpx.Response(200, json={"id": COMMIT})
         if path == "/api/v4/projects/42/repository/archive.tar.gz":
@@ -86,6 +93,34 @@ class GitLab:
                 archive.addfile(member, io.BytesIO(payload))
             return httpx.Response(200, content=output.getvalue())
         raise AssertionError(f"unexpected synthetic route: {request.method} {path}")
+
+    def _mutate(self, request: httpx.Request) -> httpx.Response:
+        path = request.url.path
+        if request.method == "PUT" and path == "/api/v4/projects/42":
+            body = json.loads(request.content)
+            assert set(body) == {"visibility"}
+            self.visibility = cast(str, body["visibility"])
+            return httpx.Response(200, json={**PROJECT, "visibility": self.visibility})
+        if request.method == "POST" and path == "/api/v4/projects/42/members":
+            body = json.loads(request.content)
+            user_id = int(cast(int, body["user_id"]))
+            self.members[user_id] = int(cast(int, body["access_level"]))
+            return httpx.Response(201, json={"id": user_id})
+        if request.method == "DELETE" and path.startswith("/api/v4/projects/42/members/"):
+            self.members.pop(int(path.rpartition("/")[2]), None)
+            return httpx.Response(204)
+        if request.method == "POST" and path == "/api/v4/projects":
+            body = json.loads(request.content)
+            created = {
+                "id": 43,
+                "namespace": {"id": 7},
+                "path_with_namespace": f"group/{body['path']}",
+                "web_url": f"{BASE_URL}/group/{body['path']}",
+                "default_branch": "main",
+                "visibility": body["visibility"],
+            }
+            return httpx.Response(201, json=created)
+        raise AssertionError(f"unexpected synthetic mutation: {request.method} {path}")
 
 
 @dataclass
@@ -107,11 +142,11 @@ class Harness:
     def root(self) -> str:
         return f"/v1/corporate/organizations/{self.organization_id}/gitlab"
 
-    async def connect(self) -> httpx.Response:
+    async def connect(self, purpose: str = "source") -> httpx.Response:
         response = await self.client.post(
             self.root + "/connect",
             headers=self.headers,
-            json={"purpose": "source", "locale": "en", "confirmed": True},
+            json={"purpose": purpose, "locale": "en", "confirmed": True},
         )
         assert response.status_code == 200, response.text
         authorization_url = cast(str, response.json()["authorization_url"])
@@ -285,3 +320,80 @@ async def test_foreign_organization_membership_is_denied(harness: Harness) -> No
     )
     assert response.status_code == 403
     assert h.gitlab.exchanges == 0
+
+
+async def test_administration_grant_drives_visibility_access_and_creation(
+    harness: Harness,
+) -> None:
+    h = harness
+    assert (await h.connect("administration")).status_code == 303
+
+    async def plan(body: dict[str, object]) -> dict[str, Any]:
+        response = await h.client.post(
+            h.root + "/actions",
+            headers=h.headers,
+            json={
+                "device_id": h.device,
+                "idempotency_key": uuid4().hex,
+                **body,
+            },
+        )
+        assert response.status_code == 200, response.text
+        return cast(dict[str, Any], response.json())
+
+    async def confirm(plan_id: str, plan_hash: str, typed: str | None = None) -> dict[str, Any]:
+        response = await h.client.post(
+            f"{h.root}/actions/{plan_id}/confirm",
+            headers=h.headers,
+            json={
+                "plan_hash": plan_hash,
+                "confirmed": True,
+                "typed_project_path": typed,
+                "idempotency_key": uuid4().hex,
+            },
+        )
+        assert response.status_code == 200, response.text
+        return cast(dict[str, Any], response.json())
+
+    # Visibility: exact path must be retyped before the plan applies.
+    planned = await plan({"action": "make_public", "project_id": 42})
+    assert planned["state"] == "planned" and planned["warning"] == "repository_and_history_public"
+    applied = await confirm(planned["plan_id"], planned["plan_hash"], "group/subgroup/service")
+    assert applied["state"] == "applied" and applied["result"] == "public"
+    assert h.gitlab.visibility == "public"
+    # A second confirmation of the applied plan replays, it does not re-mutate.
+    replay = await confirm(planned["plan_id"], planned["plan_hash"], "group/subgroup/service")
+    assert replay["state"] == "applied"
+
+    # Access: the exact collaborator is resolved to a numeric id at plan time.
+    granted = await plan(
+        {
+            "action": "grant_access",
+            "project_id": 42,
+            "recipient": "colleague",
+            "access_level": "developer",
+        }
+    )
+    done = await confirm(granted["plan_id"], granted["plan_hash"])
+    assert done["state"] == "applied" and h.gitlab.members == {9: 30}
+    revoked = await plan({"action": "revoke_access", "project_id": 42, "recipient": "colleague"})
+    done = await confirm(revoked["plan_id"], revoked["plan_hash"])
+    assert done["state"] == "applied" and h.gitlab.members == {}
+
+    # Creation needs no existing project, only a fresh name/path/visibility.
+    created = await plan(
+        {
+            "action": "create_repository",
+            "name": "Service B",
+            "path": "service-b",
+            "target_visibility": "internal",
+        }
+    )
+    done = await confirm(created["plan_id"], created["plan_hash"])
+    assert done["state"] == "applied" and done["result"] == "created"
+    assert done["path_with_namespace"] == "group/service-b"
+
+    # Source grants never see administration endpoints as connected.
+    status = await h.client.get(h.root + "/connection", headers=h.headers)
+    states = {item["purpose"]: item["state"] for item in status.json()["connections"]}
+    assert states == {"source": "disconnected", "administration": "connected"}

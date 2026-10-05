@@ -41,6 +41,8 @@ import type {
   ClearTechnologyDecisionResponses,
   CompleteGithubConnectionData,
   CompleteGithubConnectionErrors,
+  CompleteGitLabConnectionData,
+  CompleteGitLabConnectionErrors,
   CompleteLegalOnboardingData,
   CompleteLegalOnboardingErrors,
   CompleteLegalOnboardingResponses,
@@ -50,6 +52,9 @@ import type {
   ConfirmGithubActionData,
   ConfirmGithubActionErrors,
   ConfirmGithubActionResponses,
+  ConfirmGitLabActionData,
+  ConfirmGitLabActionErrors,
+  ConfirmGitLabActionResponses,
   ConfirmPublicationPlanData,
   ConfirmPublicationPlanErrors,
   ConfirmPublicationPlanResponses,
@@ -59,6 +64,9 @@ import type {
   ConnectGithubData,
   ConnectGithubErrors,
   ConnectGithubResponses,
+  ConnectGitLabData,
+  ConnectGitLabErrors,
+  ConnectGitLabResponses,
   CreateComplaintData,
   CreateComplaintErrors,
   CreateComplaintResponses,
@@ -170,9 +178,12 @@ import type {
   DisconnectGithubData,
   DisconnectGithubErrors,
   DisconnectGithubResponses,
+  DisconnectGitLabData,
+  DisconnectGitLabErrors,
   DisconnectGitLabRepositoryData,
   DisconnectGitLabRepositoryErrors,
   DisconnectGitLabRepositoryResponses,
+  DisconnectGitLabResponses,
   DistributeCorporateCatalogAssignmentData,
   DistributeCorporateCatalogAssignmentErrors,
   DistributeCorporateCatalogAssignmentResponses,
@@ -362,9 +373,15 @@ import type {
   PlanGithubActionData,
   PlanGithubActionErrors,
   PlanGithubActionResponses,
+  PlanGitLabActionData,
+  PlanGitLabActionErrors,
+  PlanGitLabActionResponses,
   PrepareGithubSourceData,
   PrepareGithubSourceErrors,
   PrepareGithubSourceResponses,
+  PrepareGitLabSourceData,
+  PrepareGitLabSourceErrors,
+  PrepareGitLabSourceResponses,
   PublishTechnologyMappingData,
   PublishTechnologyMappingErrors,
   PublishTechnologyMappingResponses,
@@ -494,6 +511,12 @@ import type {
   ReadGithubConnectorData,
   ReadGithubConnectorErrors,
   ReadGithubConnectorResponses,
+  ReadGitLabActionData,
+  ReadGitLabActionErrors,
+  ReadGitLabActionResponses,
+  ReadGitLabConnectorData,
+  ReadGitLabConnectorErrors,
+  ReadGitLabConnectorResponses,
   ReadInstallationHeartbeatData,
   ReadInstallationHeartbeatErrors,
   ReadInstallationHeartbeatPolicyData,
@@ -653,6 +676,9 @@ import type {
   RemoveTechnologyCategoryData,
   RemoveTechnologyCategoryErrors,
   RemoveTechnologyCategoryResponses,
+  ResearchGitLabProjectData,
+  ResearchGitLabProjectErrors,
+  ResearchGitLabProjectResponses,
   ResolveProjectConflictData,
   ResolveProjectConflictErrors,
   ResolveProjectConflictResponses,
@@ -1543,6 +1569,18 @@ export const prepareGithubSource = <ThrowOnError extends boolean = false>(
   });
 
 /**
+ * Consume session-bound GitLab authorization state and redirect.
+ */
+export const completeGitLabConnection = <ThrowOnError extends boolean = false>(
+  options: Options<CompleteGitLabConnectionData, ThrowOnError>,
+): RequestResult<unknown, CompleteGitLabConnectionErrors, ThrowOnError> =>
+  (options.client ?? client).get<unknown, CompleteGitLabConnectionErrors, ThrowOnError>({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/connectors/gitlab/callback",
+    ...options,
+  });
+
+/**
  * List published repository and staff articles for one locale.
  */
 export const listContent = <ThrowOnError extends boolean = false>(
@@ -2331,6 +2369,102 @@ export const enrichGitHubLanguages = <ThrowOnError extends boolean = false>(
   });
 
 /**
+ * Plan an explicit GitLab membership, visibility, or creation effect.
+ */
+export const planGitLabAction = <ThrowOnError extends boolean = false>(
+  options: Options<PlanGitLabActionData, ThrowOnError>,
+): RequestResult<PlanGitLabActionResponses, PlanGitLabActionErrors, ThrowOnError> =>
+  (options.client ?? client).post<PlanGitLabActionResponses, PlanGitLabActionErrors, ThrowOnError>({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/gitlab/actions",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Read a reviewed GitLab action plan.
+ */
+export const readGitLabAction = <ThrowOnError extends boolean = false>(
+  options: Options<ReadGitLabActionData, ThrowOnError>,
+): RequestResult<ReadGitLabActionResponses, ReadGitLabActionErrors, ThrowOnError> =>
+  (options.client ?? client).get<ReadGitLabActionResponses, ReadGitLabActionErrors, ThrowOnError>({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/gitlab/actions/{plan_id}",
+    ...options,
+  });
+
+/**
+ * Recheck exact GitLab authority and confirm the reviewed effect.
+ */
+export const confirmGitLabAction = <ThrowOnError extends boolean = false>(
+  options: Options<ConfirmGitLabActionData, ThrowOnError>,
+): RequestResult<ConfirmGitLabActionResponses, ConfirmGitLabActionErrors, ThrowOnError> =>
+  (options.client ?? client).post<
+    ConfirmGitLabActionResponses,
+    ConfirmGitLabActionErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/gitlab/actions/{plan_id}/confirm",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Begin an organization-scoped GitLab OAuth grant for the connector.
+ */
+export const connectGitLab = <ThrowOnError extends boolean = false>(
+  options: Options<ConnectGitLabData, ThrowOnError>,
+): RequestResult<ConnectGitLabResponses, ConnectGitLabErrors, ThrowOnError> =>
+  (options.client ?? client).post<ConnectGitLabResponses, ConnectGitLabErrors, ThrowOnError>({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/gitlab/connect",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Read GitLab connector grants for both purposes.
+ */
+export const readGitLabConnector = <ThrowOnError extends boolean = false>(
+  options: Options<ReadGitLabConnectorData, ThrowOnError>,
+): RequestResult<ReadGitLabConnectorResponses, ReadGitLabConnectorErrors, ThrowOnError> =>
+  (options.client ?? client).get<
+    ReadGitLabConnectorResponses,
+    ReadGitLabConnectorErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/gitlab/connection",
+    ...options,
+  });
+
+/**
+ * Remove local GitLab source or administration authority.
+ */
+export const disconnectGitLab = <ThrowOnError extends boolean = false>(
+  options: Options<DisconnectGitLabData, ThrowOnError>,
+): RequestResult<DisconnectGitLabResponses, DisconnectGitLabErrors, ThrowOnError> =>
+  (options.client ?? client).post<DisconnectGitLabResponses, DisconnectGitLabErrors, ThrowOnError>({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/gitlab/connection/disconnect",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
  * Disconnect a GitLab observation while retaining identity and project links.
  */
 export const disconnectGitLabRepository = <ThrowOnError extends boolean = false>(
@@ -2367,6 +2501,26 @@ export const enrichGitLabLanguages = <ThrowOnError extends boolean = false>(
   >({
     security: [{ scheme: "bearer", type: "http" }],
     url: "/v1/corporate/organizations/{organization_id}/gitlab/observations/{provider_project_id}/projects/{project_id}/enrich",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Queue an asynchronous technology scan for a linked GitLab project.
+ */
+export const researchGitLabProject = <ThrowOnError extends boolean = false>(
+  options: Options<ResearchGitLabProjectData, ThrowOnError>,
+): RequestResult<ResearchGitLabProjectResponses, ResearchGitLabProjectErrors, ThrowOnError> =>
+  (options.client ?? client).post<
+    ResearchGitLabProjectResponses,
+    ResearchGitLabProjectErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/gitlab/observations/{provider_project_id}/projects/{project_id}/research",
     ...options,
     headers: {
       "Content-Type": "application/json",
@@ -2423,6 +2577,26 @@ export const registerGitLabRepository = <ThrowOnError extends boolean = false>(
   >({
     security: [{ scheme: "bearer", type: "http" }],
     url: "/v1/corporate/organizations/{organization_id}/gitlab/repositories/{repository_id}",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Prepare canonical component bytes from an exact GitLab snapshot.
+ */
+export const prepareGitLabSource = <ThrowOnError extends boolean = false>(
+  options: Options<PrepareGitLabSourceData, ThrowOnError>,
+): RequestResult<PrepareGitLabSourceResponses, PrepareGitLabSourceErrors, ThrowOnError> =>
+  (options.client ?? client).post<
+    PrepareGitLabSourceResponses,
+    PrepareGitLabSourceErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/gitlab/sources",
     ...options,
     headers: {
       "Content-Type": "application/json",

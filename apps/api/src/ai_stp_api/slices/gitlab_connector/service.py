@@ -53,7 +53,13 @@ from ai_stp_sources.coordinates import canonical_subpath
 from ai_stp_sources.definition import pack_component_tree
 from ai_stp_sources.errors import SourceError
 
-PURPOSE = "source"
+type ConnectorPurpose = Literal["source", "administration"]
+
+# The OAuth scope each grant asks for: source grants stay read-only, the
+# administration grant carries ``api`` because visibility/member/create are
+# writes. A read-only token can never satisfy a mutation endpoint.
+_SCOPE: dict[str, str] = {"source": "read_api", "administration": "api"}
+PURPOSES: tuple[ConnectorPurpose, ...] = ("source", "administration")
 
 
 def api_error(error: GitLabError) -> ApiError:
@@ -95,14 +101,16 @@ async def _linked_subjects(db: AsyncSession, account_id: str) -> list[str]:
     )
 
 
-def _authorization_url(*, base_url: str, client_id: str, callback: str, state: str) -> str:
+def _authorization_url(
+    *, base_url: str, client_id: str, callback: str, state: str, purpose: ConnectorPurpose
+) -> str:
     return f"{base_url}/oauth/authorize?" + urlencode(
         {
             "response_type": "code",
             "client_id": client_id,
             "redirect_uri": callback,
             "state": state,
-            "scope": "read_api",
+            "scope": _SCOPE[purpose],
         }
     )
 
@@ -112,6 +120,7 @@ async def start_connect(
     *,
     ctx: AuthContext,
     organization_id: str,
+    purpose: ConnectorPurpose,
     body_locale: str,
     settings: Settings,
     client: GitLabClient,
@@ -133,14 +142,18 @@ async def start_connect(
             account_id=ctx.account_id,
             session_id=ctx.session_id,
             connection_organization_id=organization_id,
-            purpose=PURPOSE,
+            purpose=purpose,
             locale=body_locale,
             callback_uri=callback,
             expires_at=expiry,
         )
     )
     url = _authorization_url(
-        base_url=client.base_url, client_id=credentials[0], callback=callback, state=state
+        base_url=client.base_url,
+        client_id=credentials[0],
+        callback=callback,
+        state=state,
+        purpose=purpose,
     )
     await emit_audit(
         db,
@@ -148,7 +161,7 @@ async def start_connect(
         organization_id=organization_id,
         action="gitlab.connector_started",
         target_table="gitlab_connector",
-        target_id=PURPOSE,
+        target_id=purpose,
     )
     return GitLabConnectResponse(authorization_url=url, expires_at=format_timestamp(expiry))
 
@@ -188,6 +201,7 @@ async def finish_connect(
     ):
         raise GitLabError("invalid_connection_state", status=403)
     organization_id = flow.connection_organization_id
+    purpose: ConnectorPurpose = "administration" if flow.purpose == "administration" else "source"
     connection = settings.gitlab.connections.get(organization_id)
     locale, callback_uri = flow.locale, flow.callback_uri
     flow.consumed_at = datetime.now(UTC)
@@ -202,7 +216,7 @@ async def finish_connect(
         .where(
             GitLabConnector.account_id == ctx.account_id,
             GitLabConnector.gitlab_base_url == client.base_url,
-            GitLabConnector.purpose == PURPOSE,
+            GitLabConnector.purpose == purpose,
         )
         .with_for_update()
     )
@@ -212,7 +226,7 @@ async def finish_connect(
             account_id=ctx.account_id,
             gitlab_base_url=client.base_url,
             connection_organization_id=organization_id,
-            purpose=PURPOSE,
+            purpose=purpose,
             gitlab_subject="",
             authorization_revision=str(uuid4()),
             state="disconnected",
@@ -242,6 +256,8 @@ async def finish_connect(
         if subject not in await _linked_subjects(db, ctx.account_id):
             raise GitLabError("gitlab_identity_mismatch", status=403)
         projects = await member_projects(client, token=token)
+        # An administration grant still binds to the same qualified subject; a
+        # token issued to another GitLab account can never attach here.
         row.gitlab_subject = subject
         await store_grant(row, exchanged, settings=settings.gitlab)
         row.projects = _project_scope(projects)
@@ -320,24 +336,25 @@ async def _attach_platform_objects(
     ]
 
 
-async def read_status(
+async def _connection_status(
     db: AsyncSession,
     *,
     ctx: AuthContext,
     organization_id: str,
+    purpose: ConnectorPurpose,
+    configured: bool,
     settings: Settings,
     client: GitLabClient,
-) -> GitLabConnectorStatus:
-    configured = settings.gitlab.connector_enabled(organization_id)
+) -> GitLabConnectionStatus:
     row = await db.scalar(
         select(GitLabConnector).where(
             GitLabConnector.account_id == ctx.account_id,
             GitLabConnector.gitlab_base_url == client.base_url,
-            GitLabConnector.purpose == PURPOSE,
+            GitLabConnector.purpose == purpose,
         )
     )
     status = GitLabConnectionStatus(
-        purpose="source",
+        purpose=purpose,
         configured=configured,
         gitlab_base_url=client.base_url,
         state="disconnected"
@@ -355,6 +372,7 @@ async def read_status(
                 gitlab_base_url=client.base_url,
                 client=client,
                 settings=settings.gitlab,
+                purpose=purpose,
                 lock=True,
             )
             if connector.gitlab_subject not in await _linked_subjects(db, ctx.account_id):
@@ -394,18 +412,48 @@ async def read_status(
                 "expires_at": None,
             }
         )
-    return GitLabConnectorStatus(connections=[status])
+    return status
+
+
+async def read_status(
+    db: AsyncSession,
+    *,
+    ctx: AuthContext,
+    organization_id: str,
+    settings: Settings,
+    client: GitLabClient,
+) -> GitLabConnectorStatus:
+    configured = settings.gitlab.connector_enabled(organization_id)
+    return GitLabConnectorStatus(
+        connections=[
+            await _connection_status(
+                db,
+                ctx=ctx,
+                organization_id=organization_id,
+                purpose=purpose,
+                configured=configured,
+                settings=settings,
+                client=client,
+            )
+            for purpose in PURPOSES
+        ]
+    )
 
 
 async def disconnect(
-    db: AsyncSession, *, ctx: AuthContext, organization_id: str, gitlab_base_url: str
+    db: AsyncSession,
+    *,
+    ctx: AuthContext,
+    organization_id: str,
+    gitlab_base_url: str,
+    purpose: ConnectorPurpose,
 ) -> None:
     row = await db.scalar(
         select(GitLabConnector)
         .where(
             GitLabConnector.account_id == ctx.account_id,
             GitLabConnector.gitlab_base_url == gitlab_base_url,
-            GitLabConnector.purpose == PURPOSE,
+            GitLabConnector.purpose == purpose,
         )
         .with_for_update()
     )
@@ -457,8 +505,14 @@ async def prepare_source(
         gitlab_base_url=client.base_url,
         client=client,
         settings=settings.gitlab,
+        purpose="source",
         lock=True,
     )
+    if (
+        connector.connection_organization_id != organization_id
+        or not settings.gitlab.connector_enabled(organization_id)
+    ):
+        raise GitLabError("connector_not_configured")
     if connector.gitlab_subject not in await _linked_subjects(db, ctx.account_id):
         raise GitLabError("gitlab_identity_mismatch", status=403)
     repository = await require_project(client, token=token, project_id=body.project_id)

@@ -1,0 +1,267 @@
+{
+  "schema_version": 1,
+  "cases": [
+    {
+      "case_id": "connectGitLab.answer",
+      "operation_id": "connectGitLab",
+      "kind": "positive",
+      "why": "The browser handoff returns the configured instance's authorization URL and a bounded expiry.",
+      "request": {
+        "path_params": {
+          "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        },
+        "body": {
+          "purpose": "source",
+          "locale": "en",
+          "confirmed": true
+        }
+      },
+      "status": 200,
+      "body": {
+        "authorization_url": "https://gitlab.example.com/oauth/authorize?state=state_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "expires_at": "2026-08-05T00:10:00.000Z"
+      }
+    },
+    {
+      "case_id": "readGitLabConnector.answer",
+      "operation_id": "readGitLabConnector",
+      "kind": "positive",
+      "why": "A disconnected account reports both purposes as disconnected without secrets.",
+      "request": {
+        "path_params": {
+          "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        }
+      },
+      "status": 200,
+      "body": {
+        "connections": [
+          {
+            "purpose": "source",
+            "configured": true,
+            "gitlab_base_url": "https://gitlab.example.com",
+            "state": "disconnected",
+            "expires_at": null,
+            "repositories": [],
+            "reason": null
+          },
+          {
+            "purpose": "administration",
+            "configured": true,
+            "gitlab_base_url": "https://gitlab.example.com",
+            "state": "disconnected",
+            "expires_at": null,
+            "repositories": [],
+            "reason": null
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "disconnectGitLab.answer",
+      "operation_id": "disconnectGitLab",
+      "kind": "positive",
+      "why": "Disconnecting one purpose returns the remaining connection view.",
+      "request": {
+        "path_params": {
+          "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        },
+        "body": {
+          "purpose": "administration",
+          "confirmed": true
+        }
+      },
+      "status": 200,
+      "body": {
+        "connections": [
+          {
+            "purpose": "source",
+            "configured": true,
+            "gitlab_base_url": "https://gitlab.example.com",
+            "state": "connected",
+            "expires_at": "2026-08-05T02:00:00.000Z",
+            "repositories": [],
+            "reason": null
+          },
+          {
+            "purpose": "administration",
+            "configured": true,
+            "gitlab_base_url": "https://gitlab.example.com",
+            "state": "disconnected",
+            "expires_at": null,
+            "repositories": [],
+            "reason": null
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "prepareGitLabSource.answer",
+      "operation_id": "prepareGitLabSource",
+      "kind": "positive",
+      "why": "A source plan returns only the immutable artifact coordinates and inventory.",
+      "request": {
+        "path_params": {
+          "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        },
+        "body": {
+          "project_id": 42,
+          "commit": "0123456789abcdef0123456789abcdef01234567",
+          "subpath": "skills/example",
+          "idempotency_key": "idem_gitlab_source_01"
+        }
+      },
+      "status": 200,
+      "body": {
+        "source_binding_id": "gitlab_source_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "content_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        "size_bytes": 12,
+        "artifact_inventory": ["skills/example/SKILL.md"],
+        "source_visibility": "private"
+      }
+    },
+    {
+      "case_id": "planGitLabAction.answer",
+      "operation_id": "planGitLabAction",
+      "kind": "positive",
+      "why": "An action plan records the exact project and warning before confirmation.",
+      "request": {
+        "path_params": {
+          "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        },
+        "body": {
+          "action": "grant_access",
+          "project_id": 42,
+          "recipient": "alice",
+          "access_level": "developer",
+          "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "idempotency_key": "idem_gitlab_action_01"
+        }
+      },
+      "status": 200,
+      "body": {
+        "plan_id": "gitlab_plan_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "plan_hash": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "action": "grant_access",
+        "actor_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "gitlab_base_url": "https://gitlab.example.com",
+        "project_id": 42,
+        "path_with_namespace": "group/subgroup/service",
+        "previous_visibility": "private",
+        "recipient": "alice",
+        "access_level": "developer",
+        "name": null,
+        "path": null,
+        "target_visibility": null,
+        "state": "planned",
+        "result": null,
+        "error_reason": null,
+        "expires_at": "2026-08-05T00:10:00.000Z",
+        "warning": "repository_access"
+      }
+    },
+    {
+      "case_id": "readGitLabAction.answer",
+      "operation_id": "readGitLabAction",
+      "kind": "positive",
+      "why": "Reading an action returns the same reviewed coordinates without applying them.",
+      "request": {
+        "path_params": {
+          "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "plan_id": "gitlab_plan_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        }
+      },
+      "status": 200,
+      "body": {
+        "plan_id": "gitlab_plan_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "plan_hash": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "action": "make_public",
+        "actor_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "gitlab_base_url": "https://gitlab.example.com",
+        "project_id": 42,
+        "path_with_namespace": "group/subgroup/service",
+        "previous_visibility": "private",
+        "recipient": null,
+        "access_level": null,
+        "name": null,
+        "path": null,
+        "target_visibility": null,
+        "state": "planned",
+        "result": null,
+        "error_reason": null,
+        "expires_at": "2026-08-05T00:10:00.000Z",
+        "warning": "repository_and_history_public"
+      }
+    },
+    {
+      "case_id": "confirmGitLabAction.answer",
+      "operation_id": "confirmGitLabAction",
+      "kind": "positive",
+      "why": "Confirmation echoes the exact hash and records the applied visibility.",
+      "request": {
+        "path_params": {
+          "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "plan_id": "gitlab_plan_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        },
+        "body": {
+          "plan_hash": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+          "confirmed": true,
+          "typed_project_path": "group/subgroup/service",
+          "idempotency_key": "idem_gitlab_confirm_01"
+        }
+      },
+      "status": 200,
+      "body": {
+        "plan_id": "gitlab_plan_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "plan_hash": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "action": "make_public",
+        "actor_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "gitlab_base_url": "https://gitlab.example.com",
+        "project_id": 42,
+        "path_with_namespace": "group/subgroup/service",
+        "previous_visibility": "private",
+        "recipient": null,
+        "access_level": null,
+        "name": null,
+        "path": null,
+        "target_visibility": null,
+        "state": "applied",
+        "result": "public",
+        "error_reason": null,
+        "expires_at": "2026-08-05T00:10:00.000Z",
+        "warning": "repository_and_history_public"
+      }
+    },
+    {
+      "case_id": "researchGitLabProject.answer",
+      "operation_id": "researchGitLabProject",
+      "kind": "positive",
+      "why": "A queued technology scan returns the job coordinate, not the scan itself.",
+      "request": {
+        "path_params": {
+          "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "provider_project_id": "provider_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "project_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        },
+        "body": {
+          "schema_version": 1,
+          "authorization_revision": "corporate:organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z:1:1",
+          "expected_revision": 1,
+          "idempotency_key": "gitlab-research-0001",
+          "scan_id": "scan_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "mapping_version": "v1"
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "job_id": "job_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "scan_id": "scan_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "state": "queued"
+      }
+    }
+  ]
+}

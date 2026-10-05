@@ -217,6 +217,34 @@ def test_corporate_oidc_providers_enable_on_issuer_and_client_pair() -> None:
     assert gitlab.oidc_issuer("gitlab") == "https://gitlab.corp.example"
 
 
+def test_disabled_providers_close_configured_providers() -> None:
+    from pydantic import ValidationError
+
+    from ai_stp_api.settings import AuthSettings
+
+    auth = AuthSettings(
+        secret_key="s" * 32,
+        github_client_id="gh-id",
+        github_client_secret="gh-secret",
+        gitlab_issuer_url="https://gitlab.corp.example",
+        gitlab_client_id="ai-stp",
+        gitlab_client_secret="gl-secret",
+        disabled_providers="github, gitlab",
+    )
+    assert auth.provider_enabled("github") is False
+    assert auth.provider_enabled("gitlab") is False
+
+    enabled = AuthSettings(
+        secret_key="s" * 32,
+        github_client_id="gh-id",
+        github_client_secret="gh-secret",
+    )
+    assert enabled.provider_enabled("github") is True
+
+    with pytest.raises(ValidationError):
+        AuthSettings(secret_key="s" * 32, disabled_providers="bitbucket")
+
+
 def test_corporate_oidc_issuer_must_be_an_http_url() -> None:
     from pydantic import ValidationError
 

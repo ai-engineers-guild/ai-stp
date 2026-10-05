@@ -55,6 +55,7 @@
           "SKILL.md"
         ],
         "visibility": "public",
+        "gitlab_source_binding_id": null,
         "source_binding_id": null,
         "policy_version": "1",
         "actor_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
@@ -92,6 +93,7 @@
           "SKILL.md"
         ],
         "visibility": "public",
+        "gitlab_source_binding_id": null,
         "source_binding_id": null,
         "policy_version": "1",
         "actor_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
@@ -129,6 +131,7 @@
           "SKILL.md"
         ],
         "visibility": "private",
+        "gitlab_source_binding_id": null,
         "source_binding_id": null,
         "policy_version": "1",
         "actor_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
@@ -167,6 +170,7 @@
           "SKILL.md"
         ],
         "visibility": "public",
+        "gitlab_source_binding_id": null,
         "source_binding_id": null,
         "policy_version": "1",
         "actor_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
@@ -210,6 +214,7 @@
           "SKILL.md"
         ],
         "visibility": "public",
+        "gitlab_source_binding_id": null,
         "source_binding_id": null,
         "policy_version": "1",
         "actor_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
@@ -694,6 +699,7 @@
           "SKILL.md"
         ],
         "visibility": "public",
+        "gitlab_source_binding_id": null,
         "source_binding_id": null,
         "policy_version": "1",
         "actor_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",

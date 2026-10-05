@@ -7902,6 +7902,244 @@ export type GitHubSourcePrepared = {
 export type GitHubUsername = string;
 
 /**
+ * GitLabActionConfirmRequest
+ */
+export type GitLabActionConfirmRequest = {
+  /**
+   * Confirmed
+   */
+  confirmed: true;
+  idempotency_key: IdempotencyKey;
+  plan_hash: ContentDigest;
+  /**
+   * Typed Project Path
+   */
+  typed_project_path?: string | null;
+};
+
+/**
+ * GitLabActionPlanRequest
+ */
+export type GitLabActionPlanRequest = {
+  /**
+   * Access Level
+   */
+  access_level?: "guest" | "reporter" | "developer" | "maintainer" | null;
+  /**
+   * Action
+   */
+  action: "grant_access" | "revoke_access" | "make_public" | "make_private" | "create_repository";
+  device_id: DeviceId;
+  idempotency_key: IdempotencyKey;
+  /**
+   * Name
+   */
+  name?: string | null;
+  /**
+   * Path
+   */
+  path?: string | null;
+  project_id?: GitLabProjectId | null;
+  recipient?: GitLabUsername | null;
+  /**
+   * Target Visibility
+   */
+  target_visibility?: "private" | "internal" | "public" | null;
+};
+
+/**
+ * GitLabActionPlanResponse
+ */
+export type GitLabActionPlanResponse = {
+  /**
+   * Access Level
+   */
+  access_level: "guest" | "reporter" | "developer" | "maintainer" | null;
+  /**
+   * Action
+   */
+  action: "grant_access" | "revoke_access" | "make_public" | "make_private" | "create_repository";
+  actor_id: AccountId;
+  device_id: DeviceId;
+  /**
+   * Error Reason
+   */
+  error_reason: string | null;
+  expires_at: Timestamp;
+  /**
+   * Gitlab Base Url
+   */
+  gitlab_base_url: string;
+  /**
+   * Name
+   */
+  name: string | null;
+  /**
+   * Path
+   */
+  path: string | null;
+  /**
+   * Path With Namespace
+   */
+  path_with_namespace: string | null;
+  plan_hash: ContentDigest;
+  plan_id: PlanId;
+  /**
+   * Previous Visibility
+   */
+  previous_visibility: "private" | "internal" | "public" | null;
+  project_id: GitLabProjectId | null;
+  recipient: GitLabUsername | null;
+  /**
+   * Result
+   */
+  result: "pending" | "granted" | "revoked" | "public" | "internal" | "private" | "created" | null;
+  /**
+   * State
+   */
+  state: "planned" | "applied" | "failed" | "unknown";
+  /**
+   * Target Visibility
+   */
+  target_visibility: "private" | "internal" | "public" | null;
+  /**
+   * Warning
+   */
+  warning:
+    | "repository_and_history_public"
+    | "repository_private"
+    | "repository_internal"
+    | "repository_access"
+    | "repository_access_revoked"
+    | "repository_created";
+  [key: string]: unknown;
+};
+
+/**
+ * GitLabCallbackQuery
+ */
+export type GitLabCallbackQuery = {
+  /**
+   * Code
+   */
+  code: string | null;
+  /**
+   * State
+   */
+  state: string;
+  [key: string]: unknown;
+};
+
+/**
+ * GitLabConnectRequest
+ */
+export type GitLabConnectRequest = {
+  /**
+   * Confirmed
+   */
+  confirmed: true;
+  /**
+   * Locale
+   */
+  locale?: "en" | "ru";
+  purpose?: ConnectorPurpose;
+};
+
+/**
+ * GitLabConnectResponse
+ */
+export type GitLabConnectResponse = {
+  /**
+   * Authorization Url
+   */
+  authorization_url: string;
+  expires_at: Timestamp;
+  [key: string]: unknown;
+};
+
+/**
+ * GitLabConnectionStatus
+ */
+export type GitLabConnectionStatus = {
+  /**
+   * Configured
+   */
+  configured: boolean;
+  expires_at: Timestamp | null;
+  /**
+   * Gitlab Base Url
+   */
+  gitlab_base_url: string | null;
+  purpose: ConnectorPurpose;
+  /**
+   * Reason
+   */
+  reason: string | null;
+  /**
+   * Repositories
+   */
+  repositories: Array<GitLabConnectorRepository>;
+  /**
+   * State
+   */
+  state: "disconnected" | "connected" | "reauthorization_required";
+  [key: string]: unknown;
+};
+
+/**
+ * GitLabConnectorRepository
+ *
+ * Selected project metadata visible only to the connected account.
+ */
+export type GitLabConnectorRepository = {
+  /**
+   * Default Branch
+   */
+  default_branch: string | null;
+  namespace_id: GitLabProjectId;
+  /**
+   * Path With Namespace
+   */
+  path_with_namespace: string;
+  /**
+   * Platform Objects
+   */
+  platform_objects: Array<GitLabPlatformObject>;
+  project_id: GitLabProjectId;
+  /**
+   * Repository Url
+   */
+  repository_url: string;
+  /**
+   * Visibility
+   */
+  visibility: "private" | "internal" | "public" | null;
+  [key: string]: unknown;
+};
+
+/**
+ * GitLabConnectorStatus
+ */
+export type GitLabConnectorStatus = {
+  /**
+   * Connections
+   */
+  connections: Array<GitLabConnectionStatus>;
+  [key: string]: unknown;
+};
+
+/**
+ * GitLabDisconnectRequest
+ */
+export type GitLabDisconnectRequest = {
+  /**
+   * Confirmed
+   */
+  confirmed: true;
+  purpose?: ConnectorPurpose;
+};
+
+/**
  * GitLabEnrichRequest
  */
 export type GitLabEnrichRequest = {
@@ -7946,6 +8184,37 @@ export type GitLabMutationRequest = {
    */
   schema_version?: 1;
 };
+
+/**
+ * GitLabPlatformObject
+ *
+ * An ai-stp object published from the connected project.
+ */
+export type GitLabPlatformObject = {
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Object Kind
+   */
+  object_kind: "component" | "setup";
+  /**
+   * Stable Id
+   */
+  stable_id: string;
+  /**
+   * Version
+   */
+  version: string;
+  /**
+   * Visibility
+   */
+  visibility: "private" | "public";
+  [key: string]: unknown;
+};
+
+export type GitLabProjectId = number;
 
 /**
  * GitLabRepositoryList
@@ -8022,6 +8291,74 @@ export type GitLabRepositoryView = {
   schema_version: 1;
   [key: string]: unknown;
 };
+
+/**
+ * GitLabResearchAccepted
+ */
+export type GitLabResearchAccepted = {
+  /**
+   * Job Id
+   */
+  job_id: string;
+  /**
+   * Organization Id
+   */
+  organization_id: string;
+  /**
+   * Scan Id
+   */
+  scan_id: string;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  /**
+   * State
+   */
+  state: string;
+  [key: string]: unknown;
+};
+
+/**
+ * GitLabSourcePrepareRequest
+ */
+export type GitLabSourcePrepareRequest = {
+  /**
+   * Commit
+   */
+  commit: string;
+  idempotency_key: IdempotencyKey;
+  project_id: GitLabProjectId;
+  /**
+   * Subpath
+   */
+  subpath: string;
+};
+
+/**
+ * GitLabSourcePrepared
+ *
+ * Opaque provenance and inventory; no private repository coordinate.
+ */
+export type GitLabSourcePrepared = {
+  /**
+   * Artifact Inventory
+   */
+  artifact_inventory: Array<string>;
+  content_digest: ContentDigest;
+  /**
+   * Size Bytes
+   */
+  size_bytes: number;
+  source_binding_id: PlanId;
+  /**
+   * Source Visibility
+   */
+  source_visibility: "private" | "public";
+  [key: string]: unknown;
+};
+
+export type GitLabUsername = string;
 
 /**
  * GitSource
@@ -18390,6 +18727,58 @@ export type PrepareGithubSourceResponses = {
 export type PrepareGithubSourceResponse =
   PrepareGithubSourceResponses[keyof PrepareGithubSourceResponses];
 
+export type CompleteGitLabConnectionData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path?: never;
+  query: {
+    /**
+     * Code
+     */
+    code: string | null;
+    /**
+     * State
+     */
+    state: string;
+  };
+  url: "/v1/connectors/gitlab/callback";
+};
+
+export type CompleteGitLabConnectionErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type CompleteGitLabConnectionError =
+  CompleteGitLabConnectionErrors[keyof CompleteGitLabConnectionErrors];
+
 export type ListContentData = {
   body?: never;
   headers?: {
@@ -21015,6 +21404,360 @@ export type EnrichGitHubLanguagesResponses = {
 export type EnrichGitHubLanguagesResponse =
   EnrichGitHubLanguagesResponses[keyof EnrichGitHubLanguagesResponses];
 
+export type PlanGitLabActionData = {
+  body: GitLabActionPlanRequest;
+  headers: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+    /**
+     * Client-chosen key; a retry must not become a second effect.
+     */
+    "Idempotency-Key": string;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/gitlab/actions";
+};
+
+export type PlanGitLabActionErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type PlanGitLabActionError = PlanGitLabActionErrors[keyof PlanGitLabActionErrors];
+
+export type PlanGitLabActionResponses = {
+  /**
+   * Plan an explicit GitLab membership, visibility, or creation effect.
+   */
+  200: GitLabActionPlanResponse;
+};
+
+export type PlanGitLabActionResponse = PlanGitLabActionResponses[keyof PlanGitLabActionResponses];
+
+export type ReadGitLabActionData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+    /**
+     * Exact repository action plan.
+     */
+    plan_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/gitlab/actions/{plan_id}";
+};
+
+export type ReadGitLabActionErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ReadGitLabActionError = ReadGitLabActionErrors[keyof ReadGitLabActionErrors];
+
+export type ReadGitLabActionResponses = {
+  /**
+   * Read a reviewed GitLab action plan.
+   */
+  200: GitLabActionPlanResponse;
+};
+
+export type ReadGitLabActionResponse = ReadGitLabActionResponses[keyof ReadGitLabActionResponses];
+
+export type ConfirmGitLabActionData = {
+  body: GitLabActionConfirmRequest;
+  headers: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+    /**
+     * Client-chosen key; a retry must not become a second effect.
+     */
+    "Idempotency-Key": string;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+    /**
+     * Exact repository action plan.
+     */
+    plan_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/gitlab/actions/{plan_id}/confirm";
+};
+
+export type ConfirmGitLabActionErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ConfirmGitLabActionError = ConfirmGitLabActionErrors[keyof ConfirmGitLabActionErrors];
+
+export type ConfirmGitLabActionResponses = {
+  /**
+   * Recheck exact GitLab authority and confirm the reviewed effect.
+   */
+  200: GitLabActionPlanResponse;
+};
+
+export type ConfirmGitLabActionResponse =
+  ConfirmGitLabActionResponses[keyof ConfirmGitLabActionResponses];
+
+export type ConnectGitLabData = {
+  body: GitLabConnectRequest;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/gitlab/connect";
+};
+
+export type ConnectGitLabErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ConnectGitLabError = ConnectGitLabErrors[keyof ConnectGitLabErrors];
+
+export type ConnectGitLabResponses = {
+  /**
+   * Begin an organization-scoped GitLab OAuth grant for the connector.
+   */
+  200: GitLabConnectResponse;
+};
+
+export type ConnectGitLabResponse = ConnectGitLabResponses[keyof ConnectGitLabResponses];
+
+export type ReadGitLabConnectorData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/gitlab/connection";
+};
+
+export type ReadGitLabConnectorErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ReadGitLabConnectorError = ReadGitLabConnectorErrors[keyof ReadGitLabConnectorErrors];
+
+export type ReadGitLabConnectorResponses = {
+  /**
+   * Read GitLab connector grants for both purposes.
+   */
+  200: GitLabConnectorStatus;
+};
+
+export type ReadGitLabConnectorResponse =
+  ReadGitLabConnectorResponses[keyof ReadGitLabConnectorResponses];
+
+export type DisconnectGitLabData = {
+  body: GitLabDisconnectRequest;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/gitlab/connection/disconnect";
+};
+
+export type DisconnectGitLabErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type DisconnectGitLabError = DisconnectGitLabErrors[keyof DisconnectGitLabErrors];
+
+export type DisconnectGitLabResponses = {
+  /**
+   * Remove local GitLab source or administration authority.
+   */
+  200: GitLabConnectorStatus;
+};
+
+export type DisconnectGitLabResponse = DisconnectGitLabResponses[keyof DisconnectGitLabResponses];
+
 export type DisconnectGitLabRepositoryData = {
   body: GitLabMutationRequest;
   headers: {
@@ -21150,6 +21893,76 @@ export type EnrichGitLabLanguagesResponses = {
 
 export type EnrichGitLabLanguagesResponse =
   EnrichGitLabLanguagesResponses[keyof EnrichGitLabLanguagesResponses];
+
+export type ResearchGitLabProjectData = {
+  body: GitLabEnrichRequest;
+  headers: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+    /**
+     * Client-chosen key; a retry must not become a second effect.
+     */
+    "Idempotency-Key": string;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+    /**
+     * Retained provider repository identity.
+     */
+    provider_project_id: string;
+    /**
+     * Typed corporate project identifier.
+     */
+    project_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/gitlab/observations/{provider_project_id}/projects/{project_id}/research";
+};
+
+export type ResearchGitLabProjectErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ResearchGitLabProjectError =
+  ResearchGitLabProjectErrors[keyof ResearchGitLabProjectErrors];
+
+export type ResearchGitLabProjectResponses = {
+  /**
+   * Queue an asynchronous technology scan for a linked GitLab project.
+   */
+  200: GitLabResearchAccepted;
+};
+
+export type ResearchGitLabProjectResponse =
+  ResearchGitLabProjectResponses[keyof ResearchGitLabProjectResponses];
 
 export type RefreshGitLabRepositoryData = {
   body: GitLabMutationRequest;
@@ -21340,6 +22153,71 @@ export type RegisterGitLabRepositoryResponses = {
 
 export type RegisterGitLabRepositoryResponse =
   RegisterGitLabRepositoryResponses[keyof RegisterGitLabRepositoryResponses];
+
+export type PrepareGitLabSourceData = {
+  body: GitLabSourcePrepareRequest;
+  headers: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+    /**
+     * Client-chosen key; a retry must not become a second effect.
+     */
+    "Idempotency-Key": string;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/gitlab/sources";
+};
+
+export type PrepareGitLabSourceErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_CONFLICT.
+   */
+  409: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type PrepareGitLabSourceError = PrepareGitLabSourceErrors[keyof PrepareGitLabSourceErrors];
+
+export type PrepareGitLabSourceResponses = {
+  /**
+   * Prepare canonical component bytes from an exact GitLab snapshot.
+   */
+  200: GitLabSourcePrepared;
+};
+
+export type PrepareGitLabSourceResponse =
+  PrepareGitLabSourceResponses[keyof PrepareGitLabSourceResponses];
 
 export type ListCorporateInvitationsData = {
   body?: never;

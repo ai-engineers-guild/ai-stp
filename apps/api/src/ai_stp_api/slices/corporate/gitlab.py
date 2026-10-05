@@ -24,6 +24,7 @@ from ai_stp_contracts.gitlab import (
     GitLabMutationRequest,
     GitLabRepositoryList,
     GitLabRepositoryView,
+    GitLabResearchAccepted,
 )
 from ai_stp_contracts.technology import (
     TechnologyScanHandoff,
@@ -39,6 +40,8 @@ from ai_stp_platform.organization_models import (
     ProjectIdentity,
     ProjectLink,
 )
+from ai_stp_platform.queue.engine import enqueue
+from ai_stp_platform.queue.states import JobType
 from ai_stp_platform.technology_models import TechnologyScan
 
 router = APIRouter(tags=["corporate"])
@@ -587,3 +590,92 @@ async def enrich_languages(
     )
     await db.commit()
     return result
+
+
+@router.post(
+    "/corporate/organizations/{organization_id}/gitlab/observations/"
+    "{provider_project_id}/projects/{project_id}/research",
+    response_model=GitLabResearchAccepted,
+)
+async def research_project(
+    organization_id: OrganizationId,
+    provider_project_id: ProviderProjectId,
+    project_id: RemoteProjectId,
+    payload: GitLabEnrichRequest,
+    ctx: Annotated[AuthContext, Depends(require_auth)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> GitLabResearchAccepted:
+    """Queue an asynchronous technology scan through the worker.
+
+    The synchronous enrich invariants apply twice: here (fail fast on a
+    missing link or stale capability revision) and inside the worker, where
+    the tenant envelope revalidates the same permission before the handler
+    touches GitLab.
+    """
+    organization, _ = await service.authorize(
+        db,
+        ctx=ctx,
+        organization_id=organization_id,
+        permission="technology.scan.publish",
+        scope_kind="project",
+        scope_id=project_id,
+        authorization_revision=int(payload.authorization_revision)
+        if payload.authorization_revision.isdigit()
+        else None,
+    )
+    client, _ = _connection(settings, organization_id)
+    identity = await _identity(db, organization_id, provider_project_id, client.base_url)
+    link = await db.scalar(
+        select(ProjectLink).where(
+            ProjectLink.organization_id == organization_id,
+            ProjectLink.provider_project_id == provider_project_id,
+            ProjectLink.remote_project_id == project_id,
+            ProjectLink.state == "linked",
+        )
+    )
+    if link is None or identity.provider_installation_id != client.base_url:
+        raise ApiError(ErrorCategory.PERMISSION, "linked GitLab project is unavailable")
+    retained_scan = await db.get(TechnologyScan, (organization_id, payload.scan_id))
+    if retained_scan is not None:
+        retained_handoff = TechnologyScanHandoff.model_validate(retained_scan.handoff["handoff"])
+        if (
+            retained_scan.project_id != project_id
+            or retained_handoff.scope != f"gitlab/{provider_project_id}"
+            or retained_handoff.mapping_version != payload.mapping_version
+        ):
+            raise ApiError(ErrorCategory.CONFLICT, "scan ID was reused")
+    job = await enqueue(
+        db,
+        job_type=JobType.GITLAB_TECHNOLOGY_SCAN,
+        payload={
+            "provider_project_id": provider_project_id,
+            "project_id": project_id,
+            "scan_id": payload.scan_id,
+            "mapping_version": payload.mapping_version,
+        },
+        idempotency_key=f"gitlab_technology_scan:{organization_id}:{payload.scan_id}",
+        organization_id=organization_id,
+        authorization_revision=organization.policy_revision,
+        principal_type="user",
+        principal_id=ctx.account_id,
+        required_permission="technology.scan.publish",
+        scope_kind="project",
+        scope_id=project_id,
+    )
+    await emit_audit(
+        db,
+        actor_account_id=ctx.account_id,
+        organization_id=organization_id,
+        action="gitlab.project.research_queued",
+        target_table="job",
+        target_id=str(job.id),
+        payload={"provider_project_id": provider_project_id, "scan_id": payload.scan_id},
+    )
+    await db.commit()
+    return GitLabResearchAccepted(
+        organization_id=organization_id,
+        job_id=str(job.id),
+        scan_id=payload.scan_id,
+        state=str(job.state),
+    )

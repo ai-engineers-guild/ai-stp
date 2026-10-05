@@ -10,9 +10,12 @@ from ai_stp_api.deps import get_db, get_settings, require_auth
 from ai_stp_api.session import AuthContext
 from ai_stp_api.settings import Settings
 from ai_stp_api.slices.corporate import service as corporate_service
-from ai_stp_api.slices.gitlab_connector import service
+from ai_stp_api.slices.gitlab_connector import actions, service
 from ai_stp_contracts.corporate import OrganizationId
 from ai_stp_contracts.gitlab_connector import (
+    GitLabActionConfirmRequest,
+    GitLabActionPlanRequest,
+    GitLabActionPlanResponse,
     GitLabConnectorStatus,
     GitLabConnectRequest,
     GitLabConnectResponse,
@@ -20,6 +23,7 @@ from ai_stp_contracts.gitlab_connector import (
     GitLabSourcePrepared,
     GitLabSourcePrepareRequest,
 )
+from ai_stp_contracts.publication import PlanId
 from ai_stp_platform.gitlab_client import GitLabClient, GitLabError
 from ai_stp_platform.gitlab_settings import GitLabConnection
 from ai_stp_platform.storage.object_store import ImmutableObjectStore
@@ -56,14 +60,18 @@ async def connect(
     ctx: Auth,
     settings: Config,
 ) -> GitLabConnectResponse:
-    await corporate_service.organization_and_membership(
-        db, ctx=ctx, organization_id=organization_id
+    await corporate_service.authorize(
+        db,
+        ctx=ctx,
+        organization_id=organization_id,
+        permission="connector.gitlab.use",
     )
     client = _client(request, _connection(settings, organization_id))
     return await service.start_connect(
         db,
         ctx=ctx,
         organization_id=organization_id,
+        purpose=body.purpose,
         body_locale=body.locale,
         settings=settings,
         client=client,
@@ -102,8 +110,11 @@ async def connection_status(
     ctx: Auth,
     settings: Config,
 ) -> GitLabConnectorStatus:
-    await corporate_service.organization_and_membership(
-        db, ctx=ctx, organization_id=organization_id
+    await corporate_service.authorize(
+        db,
+        ctx=ctx,
+        organization_id=organization_id,
+        permission="connector.gitlab.use",
     )
     client = _client(request, _connection(settings, organization_id))
     return await service.read_status(
@@ -120,12 +131,19 @@ async def disconnect(
     ctx: Auth,
     settings: Config,
 ) -> GitLabConnectorStatus:
-    await corporate_service.organization_and_membership(
-        db, ctx=ctx, organization_id=organization_id
+    await corporate_service.authorize(
+        db,
+        ctx=ctx,
+        organization_id=organization_id,
+        permission="connector.gitlab.use",
     )
     client = _client(request, _connection(settings, organization_id))
     await service.disconnect(
-        db, ctx=ctx, organization_id=organization_id, gitlab_base_url=client.base_url
+        db,
+        ctx=ctx,
+        organization_id=organization_id,
+        gitlab_base_url=client.base_url,
+        purpose=body.purpose,
     )
     return await service.read_status(
         db, ctx=ctx, organization_id=organization_id, settings=settings, client=client
@@ -141,8 +159,11 @@ async def prepare_source(
     ctx: Auth,
     settings: Config,
 ) -> GitLabSourcePrepared:
-    await corporate_service.organization_and_membership(
-        db, ctx=ctx, organization_id=organization_id
+    await corporate_service.authorize(
+        db,
+        ctx=ctx,
+        organization_id=organization_id,
+        permission="connector.gitlab.read",
     )
     client = _client(request, _connection(settings, organization_id))
     store = ImmutableObjectStore(settings=settings.storage, client=request.app.state.object_client)
@@ -154,4 +175,84 @@ async def prepare_source(
         settings=settings,
         client=client,
         store=store,
+    )
+
+
+@router.post("/corporate/organizations/{organization_id}/gitlab/actions")
+async def create_action_plan(
+    organization_id: OrganizationId,
+    body: GitLabActionPlanRequest,
+    request: Request,
+    db: Db,
+    ctx: Auth,
+    settings: Config,
+) -> GitLabActionPlanResponse:
+    await corporate_service.authorize(
+        db,
+        ctx=ctx,
+        organization_id=organization_id,
+        permission="connector.gitlab.use",
+    )
+    client = _client(request, _connection(settings, organization_id))
+    return await actions.create_plan(
+        db,
+        ctx=ctx,
+        organization_id=organization_id,
+        body=body,
+        settings=settings,
+        client=client,
+    )
+
+
+@router.get("/corporate/organizations/{organization_id}/gitlab/actions/{plan_id}")
+async def read_action_plan(
+    organization_id: OrganizationId,
+    plan_id: PlanId,
+    request: Request,
+    db: Db,
+    ctx: Auth,
+    settings: Config,
+) -> GitLabActionPlanResponse:
+    await corporate_service.authorize(
+        db,
+        ctx=ctx,
+        organization_id=organization_id,
+        permission="connector.gitlab.use",
+    )
+    client = _client(request, _connection(settings, organization_id))
+    return await actions.read_plan(
+        db,
+        ctx=ctx,
+        organization_id=organization_id,
+        plan_id=plan_id,
+        settings=settings,
+        client=client,
+    )
+
+
+@router.post("/corporate/organizations/{organization_id}/gitlab/actions/{plan_id}/confirm")
+async def confirm_action_plan(
+    organization_id: OrganizationId,
+    plan_id: PlanId,
+    body: GitLabActionConfirmRequest,
+    request: Request,
+    db: Db,
+    ctx: Auth,
+    settings: Config,
+) -> GitLabActionPlanResponse:
+    await corporate_service.authorize(
+        db,
+        ctx=ctx,
+        organization_id=organization_id,
+        permission="connector.gitlab.use",
+    )
+    client = _client(request, _connection(settings, organization_id))
+    return await actions.confirm(
+        db,
+        ctx=ctx,
+        organization_id=organization_id,
+        plan_id=plan_id,
+        body=body,
+        settings=settings,
+        client=client,
     )

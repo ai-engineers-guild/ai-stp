@@ -254,8 +254,12 @@ from ai_stp_contracts.gitlab import (
     GitLabMutationRequest,
     GitLabRepositoryList,
     GitLabRepositoryView,
+    GitLabResearchAccepted,
 )
 from ai_stp_contracts.gitlab_connector import (
+    GitLabActionConfirmRequest,
+    GitLabActionPlanRequest,
+    GitLabActionPlanResponse,
     GitLabConnectorStatus,
     GitLabConnectRequest,
     GitLabConnectResponse,
@@ -928,6 +932,10 @@ HTTP_MODELS: Final[dict[str, ExportedSchema]] = {
     "gitlab-disconnect-request": GitLabDisconnectRequest,
     "gitlab-source-prepare-request": GitLabSourcePrepareRequest,
     "gitlab-source-prepared": GitLabSourcePrepared,
+    "gitlab-action-plan-request": GitLabActionPlanRequest,
+    "gitlab-action-plan": GitLabActionPlanResponse,
+    "gitlab-action-confirm-request": GitLabActionConfirmRequest,
+    "gitlab-research-accepted": GitLabResearchAccepted,
     "runtime-usage-event": RuntimeUsageEvent,
     "runtime-usage-event-batch": RuntimeUsageEventBatch,
     "runtime-usage-ingest-result": RuntimeUsageIngestResult,

@@ -1,5 +1,12 @@
 {
   "$defs": {
+    "ConnectorPurpose": {
+      "enum": [
+        "source",
+        "administration"
+      ],
+      "type": "string"
+    },
     "GitLabConnectionStatus": {
       "additionalProperties": true,
       "properties": {
@@ -32,9 +39,7 @@
           "title": "Gitlab Base Url"
         },
         "purpose": {
-          "const": "source",
-          "title": "Purpose",
-          "type": "string"
+          "$ref": "#/$defs/ConnectorPurpose"
         },
         "reason": {
           "anyOf": [

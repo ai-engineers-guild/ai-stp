@@ -161,6 +161,11 @@ class AuthSettings(BaseSettings):
     gitlab_issuer_url: str = Field(default="")
     gitlab_client_id: str = Field(default="")
     gitlab_client_secret: str = Field(default="")
+    # Comma-separated provider names that are unreachable even when their
+    # credentials are configured — authorize, callback, link, device and CLI
+    # login all answer "unsupported oauth provider". Corporate deployments
+    # disable `github` here; `gitlab` is never configured on SaaS anyway.
+    disabled_providers: str = Field(default="")
     # Comma-separated account ids that may perform audited admin reads.
     admin_account_ids: str = Field(default="")
 
@@ -197,6 +202,16 @@ class AuthSettings(BaseSettings):
         ordered = [default]
         ordered.extend(item for item in extra if item != default)
         return tuple(ordered)
+
+    @field_validator("disabled_providers")
+    @classmethod
+    def _disabled_providers_known(cls, value: str) -> str:
+        names = {part.strip() for part in value.split(",") if part.strip()}
+        known = {"google", "github", "authentik", "keycloak", "gitlab"}
+        unknown = names - known
+        if unknown:
+            raise ValueError(f"disabled_providers names unknown providers: {sorted(unknown)}")
+        return value
 
     @field_validator("cookie_samesite")
     @classmethod
@@ -239,6 +254,9 @@ class AuthSettings(BaseSettings):
 
     def provider_enabled(self, provider: str) -> bool:
         """Report whether both client id and secret are configured for provider."""
+        disabled = {part.strip() for part in self.disabled_providers.split(",") if part.strip()}
+        if provider in disabled:
+            return False
         if provider == "google":
             return bool(self.google_client_id and self.google_client_secret)
         if provider == "github":

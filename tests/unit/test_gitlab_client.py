@@ -193,7 +193,68 @@ async def test_archive_download_is_bounded_and_sha_validated() -> None:
 
 
 @pytest.mark.asyncio
-async def test_oauth_token_is_the_only_post_and_stays_bounded() -> None:
+async def test_mutations_stay_on_the_administration_allowlist() -> None:
+    seen: list[tuple[str, str]] = []
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        seen.append((request.method, request.url.path))
+        assert request.headers["Authorization"] == "Bearer grant"
+        if request.url.path == "/api/v4/projects/42":
+            return httpx.Response(200, json={**REPOSITORY, "visibility": "public"})
+        if request.url.path == "/api/v4/projects/42/members":
+            return httpx.Response(201, json={"id": 9})
+        if request.url.path == "/api/v4/projects/42/members/9":
+            return httpx.Response(204)
+        if request.url.path == "/api/v4/projects" and request.method == "POST":
+            return httpx.Response(
+                201,
+                json={
+                    **REPOSITORY,
+                    "id": 43,
+                    "path_with_namespace": "group/service",
+                    "web_url": "https://gitlab.com/group/service",
+                    "visibility": "private",
+                },
+            )
+        raise AssertionError(request.url)
+
+    client = GitLabClient(
+        "https://gitlab.com", transport=httpx.MockTransport(respond), auth="bearer"
+    )
+    updated = await client.set_visibility(42, "public", token="grant")
+    assert updated.visibility == "public"
+    await client.add_member(42, 9, 30, token="grant")
+    await client.remove_member(42, 9, token="grant")
+    created = await client.create_project("Service", "service", "private", token="grant")
+    assert created.repository_id == 43
+    assert seen == [
+        ("PUT", "/api/v4/projects/42"),
+        ("POST", "/api/v4/projects/42/members"),
+        ("DELETE", "/api/v4/projects/42/members/9"),
+        ("POST", "/api/v4/projects"),
+    ]
+    for call in (
+        lambda: client._mutate("POST", "user", token="grant"),  # pyright: ignore[reportPrivateUsage]
+        lambda: client._mutate("DELETE", "projects/42/repository", token="grant"),  # pyright: ignore[reportPrivateUsage]
+        lambda: client._mutate("POST", "projects/42/members/extra/1", token="grant"),  # pyright: ignore[reportPrivateUsage]
+    ):
+        with pytest.raises(GitLabError, match="gitlab_path_invalid"):
+            await call()  # type: ignore[misc]
+
+
+@pytest.mark.asyncio
+async def test_exact_username_resolution_refuses_loose_matches() -> None:
+    def respond(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == "/api/v4/users"
+        assert request.url.params["username"] == "colleague"
+        return httpx.Response(200, json=[{"id": 9, "username": "colleague2"}])
+
+    client = GitLabClient("https://gitlab.com", transport=httpx.MockTransport(respond))
+    assert await client.find_user("colleague", token="x") is None
+
+
+@pytest.mark.asyncio
+async def test_oauth_token_stays_bounded() -> None:
     requests: list[httpx.Request] = []
 
     def respond(request: httpx.Request) -> httpx.Response:

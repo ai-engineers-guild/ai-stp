@@ -13,7 +13,8 @@ from ai_stp_platform.organization_scope import OrganizationScopedMixin
 
 class GitLabConnector(OrganizationScopedMixin, Base):
     """An account's expiring user grant on one GitLab instance; never a login
-    token, and scoped to reads — the connector issues no mutation calls."""
+    token. ``source`` grants read only; ``administration`` grants carry the
+    ``api`` scope and may run allowlisted, plan-confirmed mutations."""
 
     __tablename__ = "gitlab_connector"
     __table_args__ = (
@@ -81,4 +82,41 @@ class GitLabSourceBinding(OrganizationScopedMixin, Base):
     request_hash: Mapped[str] = mapped_column(String(71))
     idempotency_key: Mapped[str] = mapped_column(String(128))
     passport_digest: Mapped[str | None] = mapped_column(String(71), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class GitLabActionPlan(OrganizationScopedMixin, Base):
+    """Durable exact intent and reconciliation state for one external effect."""
+
+    __tablename__ = "gitlab_action_plan"
+    __table_args__ = (
+        UniqueConstraint("account_id", "idempotency_key", name="uq_gitlab_action_request"),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    account_id: Mapped[str] = mapped_column(ForeignKey("account.id", ondelete="RESTRICT"))
+    device_id: Mapped[str] = mapped_column(ForeignKey("device.id", ondelete="RESTRICT"))
+    connector_id: Mapped[str] = mapped_column(
+        ForeignKey("gitlab_connector.id", ondelete="RESTRICT")
+    )
+    gitlab_base_url: Mapped[str] = mapped_column(String(512))
+    authorization_revision: Mapped[str] = mapped_column(String(64))
+    action: Mapped[str] = mapped_column(String(32))
+    project_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    namespace_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    path_with_namespace: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    previous_visibility: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    recipient_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    recipient: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    access_level: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    path: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    target_visibility: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    plan_hash: Mapped[str] = mapped_column(String(71))
+    request_hash: Mapped[str] = mapped_column(String(71))
+    idempotency_key: Mapped[str] = mapped_column(String(128))
+    state: Mapped[str] = mapped_column(String(16), default="planned")
+    result: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    error_reason: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

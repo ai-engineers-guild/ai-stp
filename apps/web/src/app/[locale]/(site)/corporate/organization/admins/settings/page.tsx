@@ -1,3 +1,4 @@
+import { useTranslations } from "next-intl";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 
 import { Badge } from "@/components/atoms/badge";
@@ -12,6 +13,7 @@ import { readTechnologyCapabilities, readTechnologyLandscapePolicy } from "@/lib
 import type { CorporateTelemetryPolicyView } from "@/lib/api/generated/types.gen";
 import { requireSession, sessionCookieValue } from "@/lib/auth/require-session";
 import { readCsrfToken } from "@/lib/auth/session";
+import { Link } from "@/lib/i18n/navigation";
 
 export default async function CorporateSettingsPage({
   params,
@@ -35,7 +37,10 @@ export default async function CorporateSettingsPage({
   const canManageTelemetry =
     context.capabilities.includes("telemetry.read") &&
     context.capabilities.includes("telemetry.manage");
-  if (!canManageLandscape && !canManageTelemetry)
+  const canManageGit = context.capabilities.some((permission) =>
+    permission.startsWith("connector."),
+  );
+  if (!canManageLandscape && !canManageTelemetry && !canManageGit)
     return (
       <StatePanel kind="error" title={t("organizationSettings")} description={t("forbidden")} />
     );
@@ -102,6 +107,55 @@ export default async function CorporateSettingsPage({
         ) : (
           <TechnologyActivityPolicy policy={landscapePolicy} {...authority} />
         ))}
+      {canManageGit ? <GitManagementSection capabilities={context.capabilities} /> : null}
     </div>
+  );
+}
+
+function GitManagementSection({ capabilities }: { capabilities: readonly string[] }) {
+  const t = useTranslations("corporate");
+  const providers = (
+    [
+      { key: "github", name: t("gitProviderGithub"), href: "/account/github" },
+      { key: "gitlab", name: t("gitProviderGitlab"), href: "/corporate/gitlab" },
+    ] as const
+  ).map((provider) => ({
+    ...provider,
+    grants: ["use", "read", "write", "create", "visibility", "access"].filter((action) =>
+      capabilities.includes(`connector.${provider.key}.${action}`),
+    ),
+  }));
+  return (
+    <section className="border-border bg-card min-w-0 space-y-4 rounded-lg border p-5 shadow-sm sm:p-6">
+      <div className="space-y-1">
+        <h2 className="text-xl font-medium">{t("gitManagement")}</h2>
+        <p className="text-muted-foreground max-w-2xl text-sm">{t("gitManagementBody")}</p>
+      </div>
+      <ul className="divide-border divide-y">
+        {providers.map((provider) => (
+          <li
+            key={provider.key}
+            className="flex flex-wrap items-center justify-between gap-3 py-3 first:pt-0 last:pb-0"
+          >
+            <div className="min-w-0">
+              <p className="font-medium">{provider.name}</p>
+              <p className="text-muted-foreground text-xs">
+                {provider.grants.map((grant) => `connector.${provider.key}.${grant}`).join(" · ") ||
+                  t("gitNoGrants")}
+              </p>
+            </div>
+            <Link href={provider.href} className="text-sm underline underline-offset-4">
+              {t("gitManageProvider")}
+            </Link>
+          </li>
+        ))}
+      </ul>
+      <p className="text-muted-foreground text-xs">
+        {t("gitGrantsHint")}{" "}
+        <Link href="/corporate/organization/admins/roles" className="underline underline-offset-4">
+          {t("gitGrantsLink")}
+        </Link>
+      </p>
+    </section>
   );
 }
