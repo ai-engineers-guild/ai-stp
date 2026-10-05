@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import asyncio
+from datetime import UTC, datetime
 from types import SimpleNamespace
 from typing import cast
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from ai_stp_platform.queue.states import RetryAfterJobFailure
 from ai_stp_worker import runner
 
 pytestmark = pytest.mark.platform
@@ -148,7 +150,9 @@ async def test_worker_processes_success_missing_unknown_and_failed_jobs(
         1: SimpleNamespace(id=1, job_type="success", payload={"id": 1}, state="running"),
         2: SimpleNamespace(id=2, job_type="unknown", payload={}, state="running"),
         3: SimpleNamespace(id=3, job_type="failure", payload={}, state="running"),
+        4: SimpleNamespace(id=4, job_type="limited", payload={}, state="running"),
     }
+    reset = datetime(2026, 10, 5, 1, 0, tzinfo=UTC)
     claimed: list[object] = [jobs[1]]
     events: list[tuple[str, object]] = []
 
@@ -165,6 +169,10 @@ async def test_worker_processes_success_missing_unknown_and_failed_jobs(
         del session, payload
         raise ValueError("expected")
 
+    async def limited(session: object, payload: object) -> None:
+        del session, payload
+        raise RetryAfterJobFailure("GitHub rate limit exceeded", not_before=reset)
+
     async def fail(
         session: object,
         job: object,
@@ -172,9 +180,12 @@ async def test_worker_processes_success_missing_unknown_and_failed_jobs(
         error: str,
         permanent: bool = False,
         locked_by: str | None = None,
+        not_before: datetime | None = None,
     ) -> bool:
         del session, permanent, locked_by
         events.append((error, job))
+        if not_before is not None:
+            events.append(("not_before", not_before))
         return True
 
     async def succeeded(session: object, job: object, *, locked_by: str | None = None) -> bool:
@@ -192,7 +203,8 @@ async def test_worker_processes_success_missing_unknown_and_failed_jobs(
     monkeypatch.setattr(runner, "requeue_stale", reclaim)
 
     def resolve(kind: str) -> object:
-        return success if kind == "success" else failure if kind == "failure" else None
+        handlers = {"success": success, "failure": failure, "limited": limited}
+        return handlers.get(kind)
 
     monkeypatch.setattr(runner, "resolve", resolve)
     monkeypatch.setattr(runner, "fail", fail)
@@ -202,12 +214,14 @@ async def test_worker_processes_success_missing_unknown_and_failed_jobs(
     assert await worker.run_once() == 1
     await worker._process(2)  # pyright: ignore[reportPrivateUsage]
     await worker._process(3)  # pyright: ignore[reportPrivateUsage]
+    await worker._process(4)  # pyright: ignore[reportPrivateUsage]
     await worker._process(999)  # pyright: ignore[reportPrivateUsage]
 
     assert ("handled", {"id": 1}) in events
     assert any(event[0] == "succeeded" for event in events)
     assert any(event[0] == "unregistered job type" for event in events)
     assert any(event[0] == "ValueError: expected" for event in events)
+    assert ("not_before", reset) in events
 
 
 @pytest.mark.asyncio

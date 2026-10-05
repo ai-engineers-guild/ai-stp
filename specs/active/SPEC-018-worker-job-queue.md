@@ -1,6 +1,6 @@
 ---
 description: "SPEC-018: Background worker and PostgreSQL job queue."
-last_verified: "2026-09-20"
+last_verified: "2026-10-05"
 ---
 
 # SPEC-018: Background worker and PostgreSQL job queue
@@ -27,7 +27,7 @@ Includes the job model, a closed job-type registry, states and transitions, clai
 - `REQ-1803`: Job states `queued`, `running`, `retry_scheduled`, `dead_letter`, `succeeded`, and `cancelled` change only through permitted events, a terminal state is durably recorded before the response, and this state machine is separate from the mutation-operation state machine in `docs/contracts/operation.md`.
 - `REQ-1804`: A worker claims a bounded batch of jobs through `FOR UPDATE SKIP LOCKED` when their state is `queued` or `retry_scheduled` and their run time has arrived; concurrent workers do not claim the same row.
 - `REQ-1805`: A job is enqueued in the same transaction as the domain record, without a separate relay, and a retry with the same idempotency key does not create a second job.
-- `REQ-1806`: Failure increments the attempt count and moves the job to `retry_scheduled` with bounded exponential backoff; reaching the attempt limit moves it to `dead_letter` without automatic retry.
+- `REQ-1806`: Failure increments the attempt count and moves the job to `retry_scheduled` with bounded exponential backoff; a transient failure that names a later moment, such as a rate-limit reset, is retried no earlier than that moment. Reaching the attempt limit moves it to `dead_letter` without automatic retry.
 - `REQ-1807`: A `dead_letter` job is available for investigation, is not retried automatically, and stores the last error without secrets.
 - `REQ-1808`: Cancellation is cooperative: a cancelled job transitions to `cancelled` and is not claimed again.
 - `REQ-1809`: On a shutdown signal, a worker stops claiming new jobs, completes or requeues running jobs within the timeout, and then exits without losing or duplicating jobs.
@@ -56,7 +56,7 @@ The queue schema evolves through the expand, migrate, switch, and contract seque
 | `REQ-1803` | A transition test permits only allowed events and separates queue states from operation states. |
 | `REQ-1804` | An integration test with concurrent workers confirms that exactly one worker claims a row. |
 | `REQ-1805` | A shared-transaction enqueue test confirms atomicity and the absence of a second job for the same key. |
-| `REQ-1806` | A retry test confirms bounded backoff and transition to `dead_letter` at the attempt limit. |
+| `REQ-1806` | A retry test confirms bounded backoff, a retry moved to a named later moment but never earlier than the backoff, and transition to `dead_letter` at the attempt limit. |
 | `REQ-1807` | A dead-letter test confirms no automatic retry and records the error without secrets. |
 | `REQ-1808` | A cancellation test moves the job to `cancelled`, and it is not claimed. |
 | `REQ-1809` | A shutdown test confirms draining of running jobs without loss or duplication. |

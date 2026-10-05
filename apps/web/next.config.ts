@@ -1,5 +1,3 @@
-import path from "node:path";
-
 import type { NextConfig } from "next";
 import createNextIntlPlugin from "next-intl/plugin";
 
@@ -14,13 +12,8 @@ import { assertContentLocaleParity } from "./src/lib/content/source";
 
 const withNextIntl = createNextIntlPlugin("./src/lib/i18n/request.ts");
 const featureProfile = resolveFeatureProfile(process.cwd(), process.env);
-const disabledPublicSurface = path.resolve(
-  process.cwd(),
-  "src/lib/features/disabled-public-surface.ts",
-);
+const disabledPublicSurface = "./src/lib/features/disabled-public-surface.ts";
 if (featureProfile.features.content_hub) assertContentLocaleParity();
-
-type WebpackConfig = { resolve?: { alias?: Record<string, string | false> } };
 
 const isDevelopment = process.env.NODE_ENV === "development";
 const contentSecurityPolicy = [
@@ -41,20 +34,18 @@ const contentSecurityPolicy = [
 
 const nextConfig: NextConfig = {
   pageExtensions: webPageExtensions(featureProfile),
-  skipMiddlewareUrlNormalize: featureProfile.profile === "corporate_hub",
+  skipProxyUrlNormalize: featureProfile.profile === "corporate_hub",
   outputFileTracingExcludes: {
     "*": [
       ...(!featureProfile.features.content_hub ? ["**/docs-user-facing/content/**/*"] : []),
       ...(!featureProfile.features.saas_public_pages ? ["**/docs-user-facing/legal/**/*"] : []),
     ],
   },
-  webpack(config: WebpackConfig) {
-    const aliases = disabledWebModuleAliases(featureProfile, disabledPublicSurface);
-    if (Object.keys(aliases).length > 0) {
-      config.resolve ??= {};
-      config.resolve.alias = { ...config.resolve.alias, ...aliases };
-    }
-    return config;
+  // Feature profiles compile disabled surfaces out: their modules resolve to
+  // one stub. Turbopack matches these specifiers exactly, as webpack's `$`
+  // suffix did.
+  turbopack: {
+    resolveAlias: disabledWebModuleAliases(featureProfile, disabledPublicSurface),
   },
   env: {
     AI_STP_COMPILED_FEATURE_PROFILE: featureProfile.profile,
@@ -148,10 +139,8 @@ const nextConfig: NextConfig = {
     });
   },
   // typedRoutes off for mock-first MVP: returnTo paths are dynamic query strings.
-  eslint: {
-    // Lint is enforced by `bun run lint` / check-web; avoid double gate during build.
-    ignoreDuringBuilds: true,
-  },
+  // Lint is `bun run lint`; since Next 16 `next build` never lints, so the old
+  // `eslint.ignoreDuringBuilds` option is gone with it.
   typescript: {
     // Typecheck is enforced by TS7 `type-check` script (ADR-0043).
     ignoreBuildErrors: false,

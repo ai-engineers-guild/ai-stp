@@ -14,7 +14,7 @@ import {
 } from "@/lib/projection/missing-route";
 import { parseProjectionRoute, projectionRequestHeaders } from "@/lib/projection/route";
 
-const intlMiddleware = createMiddleware(routing);
+const intlProxy = createMiddleware(routing);
 
 function isLoopbackHostname(hostname: string): boolean {
   return ["localhost", "127.0.0.1", "[::1]", "::1"].includes(hostname.toLowerCase());
@@ -76,7 +76,7 @@ function isBlockedPath(pathname: string, sharedPath: string | null): boolean {
  * shared route. Cryptographic session validation runs in Node server components
  * (ADR-0041).
  */
-export default function middleware(request: NextRequest) {
+export default function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const legacyAdminMember = pathname.match(
     /^(\/(?:en|ru)(?:\/ai)?)\/corporate\/organization\/admins\/members\/([^/]+)$/,
@@ -177,7 +177,7 @@ export default function middleware(request: NextRequest) {
     return NextResponse.rewrite(url, { request: { headers: requestHeaders } });
   }
 
-  return intlMiddleware(
+  return intlProxy(
     new NextRequest(request.url, { headers: requestHeaders, method: request.method }),
   );
 }

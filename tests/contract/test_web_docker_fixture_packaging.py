@@ -1,40 +1,38 @@
-"""The production web context carries only the canonical mock fixture it imports."""
+"""The web image is built from apps/web and user docs alone.
+
+The corporate overview mock used to import its fixture JSON from
+packages/contracts, so the image, its build context and the dev mount each
+carried that one file. The fixture now reaches the app as a generated
+projection under apps/web (`ai_stp_contracts.web_projections`), and nothing
+outside apps/web and docs-user-facing enters the web context.
+"""
 
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-FIXTURE = "packages/contracts/src/ai_stp_contracts/fixtures/v1/corporate-overview.json"
 
 
-def test_web_production_context_allows_and_copies_the_canonical_fixture() -> None:
-    source = (ROOT / "apps/web/src/lib/api/mock-corporate.ts").read_text(encoding="utf-8")
-    fixture_source = (ROOT / "apps/web/src/mocks/corporate-overview-fixture.ts").read_text(
+def test_web_context_carries_no_contract_package_files() -> None:
+    mock = (ROOT / "apps/web/src/lib/api/mock-corporate.ts").read_text(encoding="utf-8")
+    fixture = (ROOT / "apps/web/src/mocks/corporate-overview-fixture.ts").read_text(
         encoding="utf-8"
     )
     dockerfile = (ROOT / "deploy/docker/Dockerfile.web").read_text(encoding="utf-8")
     dockerignore = (ROOT / "deploy/docker/Dockerfile.web.dockerignore").read_text(encoding="utf-8")
     compose = (ROOT / "deploy/compose.dev.yml").read_text(encoding="utf-8")
 
-    assert "@/mocks/corporate-overview-fixture" in source
-    assert f"../../../../{FIXTURE}" in fixture_source
-    assert f"COPY {FIXTURE} /{FIXTURE}" in dockerfile
+    assert "@/mocks/corporate-overview-fixture" in mock
+    assert '"@/lib/generated/corporate-overview-fixture"' in fixture
+    assert (ROOT / "apps/web/src/lib/generated/corporate-overview-fixture.ts").is_file()
+
     rules = [line.strip() for line in dockerignore.splitlines() if line.strip()]
-    assert [line for line in rules if line.startswith(("!apps/", "apps/**"))] == [
+    assert rules[0] == "*"
+    assert [line for line in rules if line.startswith("!") and "/" in line] == [
         "!apps/",
         "!apps/web/",
-        "apps/**",
         "!apps/web/**",
+        "!docs-user-facing/",
+        "!docs-user-facing/**",
     ]
-    assert [line for line in rules if line.startswith(("!packages/", "packages/**"))] == [
-        "!packages/",
-        "!packages/contracts/",
-        "!packages/contracts/src/",
-        "!packages/contracts/src/ai_stp_contracts/",
-        "!packages/contracts/src/ai_stp_contracts/fixtures/",
-        "!packages/contracts/src/ai_stp_contracts/fixtures/v1/",
-        "packages/**",
-        f"!{FIXTURE}",
-    ]
-    dev_mount = f"- ../{FIXTURE}:/{FIXTURE}:ro"
-    assert compose.count(dev_mount) == 1
-    assert "- ../packages:/packages" not in compose
+    assert "packages/" not in dockerfile
+    assert "../packages" not in compose

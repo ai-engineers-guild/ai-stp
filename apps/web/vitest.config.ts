@@ -44,7 +44,7 @@ export default defineConfig({
       exclude: [
         "src/app/**",
         "src/actions/**",
-        "src/middleware.ts",
+        "src/proxy.ts",
         "src/components/**",
         "src/lib/api/**",
         "src/mocks/**",

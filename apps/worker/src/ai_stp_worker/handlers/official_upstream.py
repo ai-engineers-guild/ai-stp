@@ -7,9 +7,10 @@ from datetime import datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ai_stp_platform.official_upstream.errors import OfficialUpstreamError
 from ai_stp_platform.official_upstream.github import FetchFn
 from ai_stp_platform.official_upstream.sync import run_sync
-from ai_stp_platform.queue.states import PermanentJobFailure
+from ai_stp_platform.queue.states import PermanentJobFailure, RetryAfterJobFailure
 from ai_stp_platform.storage.object_store import ImmutableObjectStore
 
 
@@ -27,4 +28,12 @@ async def handle_official_upstream_sync(
     moment = now if isinstance(now, datetime) else None
     raw_attempt = payload.get("attempt_id")
     attempt_id = raw_attempt if isinstance(raw_attempt, int) else None
-    await run_sync(session, source_id, fetch=fetch, store=store, now=moment, attempt_id=attempt_id)
+    try:
+        await run_sync(
+            session, source_id, fetch=fetch, store=store, now=moment, attempt_id=attempt_id
+        )
+    except OfficialUpstreamError as error:
+        if error.retry_at is None:
+            raise
+        # A rate limit lifts at its reset, not on the minutes-long backoff.
+        raise RetryAfterJobFailure(error.message, not_before=error.retry_at) from error

@@ -7,6 +7,7 @@ from ai_stp_contracts.web_projections import (
     check,
     render_all,
     render_cli_copy,
+    render_corporate_overview_fixture,
     render_deep_link_corpus,
 )
 
@@ -25,6 +26,12 @@ def test_deep_link_projection_embeds_the_packaged_corpus() -> None:
     assert "component-object-default-locale" in rendered
     assert "deep-link URL must carry no credentials" not in rendered
     assert "DEEP_LINK_CORPUS" in rendered
+
+
+def test_corporate_overview_projection_embeds_the_contract_fixture() -> None:
+    rendered = render_corporate_overview_fixture()
+    assert "readCorporateOverview.shared-team" in rendered
+    assert rendered.endswith("export default fixture;\n")
 
 
 def test_check_rejects_an_unlisted_file_in_the_target(tmp_path: Path) -> None:

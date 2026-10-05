@@ -1,6 +1,6 @@
 ---
 description: "Building, verifying, and rolling back web deployment profiles."
-last_verified: "2026-09-14"
+last_verified: "2026-10-05"
 ---
 
 # Web deployment profiles
@@ -34,9 +34,9 @@ and feed use matching gated extensions. `next.config.ts` enables these extension
 only for the corresponding compiled features; regional pages are omitted only
 from corporate builds, retaining their existing packaged surface. Disabled page modules are omitted
 from route discovery and compilation, not merely rendered as 404. The generic
-machine route still denies their paths through the feature gate and middleware.
-Corporate builds enable Next's native `skipMiddlewareUrlNormalize` setting to
-keep middleware from reconstructing excluded machine targets; other profiles
+machine route still denies their paths through the feature gate and the request
+proxy (`src/proxy.ts`). Corporate builds enable Next's native
+`skipProxyUrlNormalize` setting to keep the proxy from reconstructing excluded machine targets; other profiles
 leave it disabled.
 Corporate builds reject overrides that reenable editorial or SaaS-public pages.
 The standalone packager reads baked features from `required-server-files.json`
@@ -51,11 +51,12 @@ profile: it has no website deployment. Do not introduce a local website build.
 `AI_STP_WEB_PROFILE=local` is rejected as an unknown profile; local mode is
 CLI-only and produces no web artifact. This deployment boundary does not remove
 the public anonymous browsing session's local capability projection.
-The development Compose web service mounts the single canonical corporate
-overview fixture read-only at `/packages/contracts/src/ai_stp_contracts/fixtures/v1/corporate-overview.json`;
-the app source is flattened at `/app`, so do not mount or copy the full packages tree.
+The corporate overview fixture reaches the app as the generated projection
+`apps/web/src/lib/generated/corporate-overview-fixture.ts`
+(`ai_stp_contracts.web_projections`); no web image, build context or Compose
+mount carries anything from `packages/`.
 Corporate shell and account-drawer links use `/corporate/` for shared catalog
-and account pages. Middleware redirects legacy shared URLs and rewrites the
+and account pages. The request proxy redirects legacy shared URLs and rewrites the
 prefixed URLs to the incumbent pages, preserving queries and session gates.
 Organization, Admins, and Landscape routes retain their existing handlers.
 Consent controls remain available without linking to disabled legal pages.

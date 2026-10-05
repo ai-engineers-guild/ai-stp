@@ -205,6 +205,11 @@ suggestion never replaces, promotes, or merges identities.
 GitHub allows 60 requests per hour per IP. Each git source uses two API
 calls before the archive download, so a catalog of this size exhausts that
 budget in one scheduler pass and jobs fail as `GitHub rate limit exceeded`.
+Such a job retries at the moment GitHub names (`retry-after`, else
+`x-ratelimit-reset`, at most an hour away) instead of on the minutes-long
+backoff. Without a token, a catalog larger than one hour's budget therefore
+completes over successive windows instead of spending its five attempts while
+the window is still closed.
 A fine-grained token with public repository metadata read is enough; write
 access and private repositories are not required. Redirects are followed
 only to `api.github.com`, `github.com`, and `codeload.github.com`. The token
