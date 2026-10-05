@@ -7,7 +7,7 @@ import type { Metadata } from "next";
 import "../globals.css";
 
 import { AppProviders } from "@/components/providers/app-providers";
-import { locales, type AppLocale } from "@/lib/i18n/routing";
+import { isAppLocale, locales } from "@/lib/i18n/routing";
 import {
   pairedPath,
   pathWithoutLocale,
@@ -87,13 +87,9 @@ export async function generateMetadata({
   };
 }
 
-function isLocale(value: string): value is AppLocale {
-  return (locales as readonly string[]).includes(value);
-}
-
 export default async function LocaleLayout({ children, params }: LocaleLayoutProps) {
   const { locale } = await params;
-  if (!isLocale(locale)) {
+  if (!isAppLocale(locale)) {
     notFound();
   }
   setRequestLocale(locale);
