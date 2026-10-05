@@ -101,13 +101,12 @@ compose config >/dev/null
 compose build
 # Forward-only migrate: no downgrade. If the previous app is incompatible with
 # the current schema, readiness will fail and we abort.
-compose up -d postgres rustfs
-compose run --rm migrate
+compose up -d --wait postgres rustfs
+compose run --rm --no-deps migrate
 # Same semantics as deploy.sh: a failed integrity reconcile stops the rollback
 # rather than silently skipping it — the forward path treats it as fatal.
-compose run --rm seed
-compose rm -fs content-import >/dev/null 2>&1 || true
-compose up -d api worker content-import web docs
+compose run --rm --no-deps seed
+start_serving_services
 
 wait_for_liveness
 wait_for_readiness
