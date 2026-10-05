@@ -3,7 +3,14 @@
 Gathers the closed local fact set, builds the request contract, and drives
 the authenticated transport. Nothing here touches the anonymous telemetry
 collector, and nothing emits a runtime invocation event.
+
+Every ordinary command ends by asking `maybe_send_due` whether a heartbeat is
+due, which almost always answers from the local schedule alone. The HTTP stack
+is therefore imported by the functions that reach the network, not by this
+module: at import it was about a twentieth of a second of every invocation.
 """
+
+from __future__ import annotations
 
 import base64
 import sqlite3
@@ -12,13 +19,9 @@ from collections.abc import Callable, Iterable, Mapping
 from contextlib import closing, suppress
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Final
+from typing import TYPE_CHECKING, Final
 
 from ai_stp_cli import config, heartbeat, identity
-from ai_stp_cli.cloud import login as cloud_login
-from ai_stp_cli.cloud import session as cloud_session
-from ai_stp_cli.cloud.client import Endpoint, call, open_client
-from ai_stp_cli.cloud.session import Session
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import database, provider_installations
 from ai_stp_cli.local import harnesses as harness_detection
@@ -38,11 +41,18 @@ from ai_stp_contracts.heartbeat import (
 )
 from ai_stp_foundation.timestamps import format_timestamp, parse_timestamp
 
+if TYPE_CHECKING:
+    from ai_stp_cli.cloud.client import Endpoint
+    from ai_stp_cli.cloud.session import Session
+
 AUTO_TIMEOUT_SECONDS: Final = 2.0
 
 
 def _scheduled_session(target: Endpoint) -> Session:
     """Renew an enrolled device's session before a background credential expires."""
+    from ai_stp_cli.cloud import login as cloud_login
+    from ai_stp_cli.cloud import session as cloud_session
+
     store, _warning = open_store()
     held = cloud_session.load(store)
     if held is None or held.revoked:
@@ -226,6 +236,8 @@ def send(
         .decode("ascii")
     )
     signed = request.model_copy(update={"signature": signature})
+    from ai_stp_cli.cloud.client import call, open_client
+
     with open_client(endpoint, access_token=session.access_token, timeout=timeout) as client:
         return call(
             client,
@@ -246,6 +258,8 @@ def policy(
     timeout: float | None = None,
 ) -> InstallationHeartbeatPolicy:
     """Read the organization-owned heartbeat cadence and enablement."""
+    from ai_stp_cli.cloud.client import call, open_client
+
     with open_client(endpoint, access_token=session.access_token, timeout=timeout) as client:
         return call(
             client,
@@ -647,6 +661,8 @@ def status(
     endpoint: Endpoint, session: Session, organization_id: str
 ) -> InstallationHeartbeatStatus:
     """Read this installation's evaluated health state."""
+    from ai_stp_cli.cloud.client import call, open_client
+
     with open_client(endpoint, access_token=session.access_token) as client:
         return call(
             client,
@@ -666,6 +682,8 @@ def installations(
 ) -> InstallationHeartbeatList:
     """List installation health visible to the caller's role."""
     query = {"health_state": health_state} if health_state else None
+    from ai_stp_cli.cloud.client import call, open_client
+
     with open_client(endpoint, access_token=session.access_token) as client:
         return call(
             client,
