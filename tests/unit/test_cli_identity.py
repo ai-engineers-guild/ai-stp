@@ -119,14 +119,37 @@ def test_reset_keeps_local_data(isolated_environment: Path) -> None:
     assert config.read_text(encoding="utf-8") == "catalog:\n  enabled: false\n"
 
 
-def test_a_public_record_without_its_key_is_refused_rather_than_re_minted() -> None:
+def test_a_public_record_without_its_key_is_refused_rather_than_re_minted(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     # Re-minting would change an identity a server may already know, silently.
     current, _ = identity.load_or_create()
     secrets.FileStore().drop(identity.key_entry(current.device_id))
+    # The store this session uses is the trusted one: the key is really gone.
+    monkeypatch.setattr(identity, "open_store", lambda: (secrets.FileStore(), None))
     with pytest.raises(CliFailure, match="record but no key") as raised:
         identity.load_or_create()
     assert raised.value.code == "AI_STP_PRECONDITION_FAILED"
     assert raised.value.details["device_id"] == current.device_id
+    assert raised.value.next_actions == ["device reset --confirm --json"]
+
+
+def test_a_key_the_session_cannot_reach_is_not_answered_with_a_reset() -> None:
+    """An agent or SSH shell without the session bus falls back to the file store.
+
+    On 2026-10-05 `doctor` in such a shell reported the workstation's healthy
+    identity as a record without a key and named `device reset` as the next
+    step; the key was in SecretService the whole time. An agent following that
+    action would have replaced an identifier the account trusts.
+    """
+    current, warning = identity.load_or_create()
+    assert warning is not None  # the fixture's file tier is a fallback
+    secrets.FileStore().drop(identity.key_entry(current.device_id))
+    with pytest.raises(CliFailure, match="session that can reach that store") as raised:
+        identity.load_or_create()
+    assert raised.value.code == "AI_STP_PRECONDITION_FAILED"
+    assert raised.value.details["device_id"] == current.device_id
+    assert raised.value.next_actions == ["doctor --json"]
 
 
 def test_a_key_left_behind_by_a_deleted_data_directory_is_not_touched() -> None:
