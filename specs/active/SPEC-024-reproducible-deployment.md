@@ -1,6 +1,6 @@
 ---
 description: "SPEC-024: Reproducible deployment with web tier, health, logs, backups and rollback."
-last_verified: "2026-09-07"
+last_verified: "2026-10-05"
 ---
 
 # SPEC-024: Reproducible deployment
@@ -125,6 +125,12 @@ providers; secrets in GitHub or issue text; contents of domain handlers
 - `REQ-2418`: Downgrading a schema revision is performed as a separate explicit operation with
   the specified target revision; it fails if the backup copy is not taken in that
   same run, and records the source and target revisions, the name of the copy and the commit.
+- `REQ-2419`: A PostgreSQL major upgrade is a deploy stage, not a manual
+  step: with the writers stopped, the database is copied by dump and restore
+  into the new major's own volume, every table's row count is compared, and
+  only a verified copy is served. The previous major's volume is neither written
+  nor removed and remains the rollback copy; a failed copy restarts the previous
+  release and blocks further attempts until an operator clears the failure.
 - `REQ-2411`: Identity of version, commit and schema is visible in safe diagnostics without
   secrets (`SPEC-017`); diagnostics do not reveal environment and token values.
 - `REQ-2412`: Clean authorized host unwraps slice from exact commit
@@ -196,6 +202,7 @@ are committed and updated with a separate verifiable change.
 | `REQ-2409` | A rehearsal destroys an isolated copy, restores PostgreSQL and both buckets from a `backup.sh` copy, verifies the complete committed-object inventory and authorization matrix, and confirms that logs and manifests contain no secrets or object bytes. |
 | `REQ-2410` | The test confirms deployment serialization, retry idempotency, abort criterion, and rollback to a previous artifact leaving the schema revision unchanged. |
 | `REQ-2418` | The test confirms that the downgrade requires an explicit target revision and fails without a backup of that run. |
+| `REQ-2419` | A rehearsal copies a 16 cluster into the 18 volume with equal row counts, skips a verified copy, recopies after the 16 container ran again, and on a failed restore restarts the writers and refuses the next attempt; the contract test pins the stage before the dependency bring-up and forbids touching the old volume. |
 | `REQ-2411` | Safe diagnostics shows version, commit and schema without secrets and environment values. |
 | `REQ-2412` | Deploying from the exact commit using documented commands to a clean host is reproducible; the evidence recorded is complete. |
 | `REQ-2413` | PR job leaves marker/process; deployment runner does not see it, has a different name and is inventory on a different host/user; CI does not read secret and does not reach SSH endpoint. |
