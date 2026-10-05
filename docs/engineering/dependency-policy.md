@@ -1,6 +1,6 @@
 ---
 description: "Rules of Python, Node, external tools, and provider dependencies."
-last_verified: "2026-10-04"
+last_verified: "2026-10-05"
 ---
 
 # Dependency Policy
@@ -40,6 +40,7 @@ again on its own.
 |---|---|---|
 | `httpx` 0.28.1 → `httpx2` (Pydantic-maintained successor; `httpx` is frozen, Starlette's `TestClient` and authlib warn) | The API is a rename, but TLS changes: `httpx2` verifies against the operating-system store through `truststore` instead of certifi's bundle. The published CLI and the frozen desktop sidecar would then trust whatever the host provides — on Linux, the CA paths compiled into the sidecar's bundled OpenSSL, which other distributions do not have. | A trust decision for the CLI and sidecar is made (an explicit context with a bundled fallback, or the OS store with evidence across Linux distributions, macOS and Windows) and the server and CLI move together. Recorded 2026-10-04. |
 | Server images Python 3.12 → 3.14 (the interpreter `check.yml` gates) | `worker-safety` installs NVIDIA SkillSpector, whose `yara-python` publishes no cp314 wheel ([VirusTotal/yara-python#281](https://github.com/VirusTotal/yara-python/issues/281)); compiling it needs OpenSSL headers the pinned Debian snapshot cannot pair with the base. `pyright` holds the tree to the 3.12 API meanwhile. | `yara-python` ships cp314 wheels; then both Dockerfiles move to `python:3.14-slim`. Recorded 2026-10-04. |
+| ESLint 9 → 10 for `apps/web` | `eslint-plugin-react` 7.37.5, `eslint-plugin-jsx-a11y` 6.10.2 and `eslint-plugin-import` 2.32.0 — the latest releases, which `eslint-config-next` 16 also depends on — declare `eslint` peers up to 9 only. | Those plugins publish ESLint 10 peer support; then `eslint` and the flat config move together. Recorded 2026-10-05. |
 | Dependabot `bun` updates for `apps/web`, `apps/desktop`, `docs_scripts` | The updater bundles bun 1.3 and cannot read `bun.lock` `lockfileVersion` 2 ([dependabot-core#16071](https://github.com/dependabot/dependabot-core/pull/16071)). OSV still scans every lockfile in the gate. | Upstream merges and ships the fix; the entries in `.github/dependabot.yml` resume by themselves. |
 
 ## Approved dependencies `apps/api` (issue #80, ADR-0041)
