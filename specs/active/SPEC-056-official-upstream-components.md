@@ -1,6 +1,6 @@
 ---
 description: "SPEC-056: Curated GitHub component snapshots published by AI STP Official."
-last_verified: "2026-09-04"
+last_verified: "2026-10-05"
 ---
 
 # SPEC-056: Official upstream components
@@ -81,7 +81,9 @@ resolver, embedded components, and explicit transfer request.
   request from a verified maintainer. The upstream notice is immutable with the
   version.
 - `REQ-5606`: Sync and validation failures are retryable or dead-lettered under
-  SPEC-018 without changing the last published version. Disabling or deleting
+  SPEC-018 without changing the last published version. A GitHub rate limit
+  retries at the moment GitHub names (`retry-after`, else `x-ratelimit-reset`),
+  bounded to one hour. Disabling or deleting
   the source stops future enqueue but never deletes published versions, audit,
   or sync history.
 - `REQ-5607`: `author_verified` and `component_verified` retain their meanings
@@ -149,7 +151,7 @@ immutable catalog versions and operational history are not rewritten.
 | `REQ-5603` | A mocked GitHub archive resolves a ref to a commit and records exact digests; redirect, traversal, link, secret, binary, oversize, and missing-root fixtures fail closed; `.env.example` is accepted while `.env` and `.env.local` are rejected; a skill tree keeps every committed path under the component root, including scripts, assets, docs, tests, and CI. |
 | `REQ-5604` | An unchanged snapshot is a no-op; a changed snapshot produces the declared canonical projection and explicit adaptation, enters the existing publication flow, publishes once after accepted validation, and a redelivery has no second effect or skipped barrier. |
 | `REQ-5605` | The published passport fixture contains the required leading attribution and trailing ownership notice and preserves them on exact-version read. |
-| `REQ-5606` | Fetch and validation failures leave the prior version readable; disabling or deleting the source prevents a later enqueue without deleting published versions, audit, or sync history. |
+| `REQ-5606` | Fetch and validation failures leave the prior version readable; a rate-limited sync retries at GitHub's reset; disabling or deleting the source prevents a later enqueue without deleting published versions, audit, or sync history. |
 | `REQ-5607` | Catalog API/web tests present publisher and upstream attribution separately and do not label AI STP as upstream author. |
 | `REQ-5608` | Two configured sources resolve through the shared Git adapter, enqueue and sync independently, and preserve isolated history on one failure. |
 | `REQ-5609` | Failure injection at each stage leaves one accurate ledger state with safe error and retry/DLQ linkage while the last published version remains readable. |

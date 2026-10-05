@@ -6,6 +6,7 @@ operation machine in docs/contracts/operation.md.
 
 from __future__ import annotations
 
+from datetime import datetime
 from enum import StrEnum
 
 
@@ -56,6 +57,19 @@ class PermanentJobFailure(ValueError):
     A retry cannot repair these, so burning attempts only delays the
     durable verdict.
     """
+
+
+class RetryAfterJobFailure(Exception):
+    """A transient failure that cannot clear before a known moment.
+
+    The upstream named when to retry, such as a rate-limit reset: the retry is
+    scheduled then instead of on the shorter backoff, and still consumes an
+    attempt, so a limit that never lifts still ends in dead-letter.
+    """
+
+    def __init__(self, message: str, *, not_before: datetime) -> None:
+        super().__init__(message)
+        self.not_before = not_before
 
 
 CLAIMABLE_STATES: tuple[JobState, ...] = (JobState.QUEUED, JobState.RETRY_SCHEDULED)
