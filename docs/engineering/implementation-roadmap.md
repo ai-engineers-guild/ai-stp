@@ -1,9 +1,87 @@
 ---
 description: "Current ai_stp status and the ordered plan for remaining work."
-last_verified: "2026-10-02"
+last_verified: "2026-10-05"
 ---
 
 # Current status and plan
+
+## Production repairs, current majors, and PostgreSQL 18 — 2026-10-05
+
+Between the 2026-10-03 checkpoint and this one, `#617`–`#646` shipped
+`ai-stp-cli` 0.0.37 and 0.0.38 with desktop 0.0.3 and 0.0.4. They also
+carried a five-agent desktop contract audit, a system-wide audit wave
+(frozen-guard ordering, shell codes, deploy hardening), a bound on docker
+residue after every pull-deploy attempt, and the release-tag membership
+check. This checkpoint covers `#649`–`#675`.
+
+**Production repairs, found by reading production rather than CI.**
+
+- **Migration chain (`#664`).** The 2026-09-27 reports/heartbeat merge had
+  re-chained an applied revision, so production reached `0111` without
+  `0096_heartbeat_reports` … `0106_technology_review_queue`. Five tables,
+  six columns and their policies were missing, and `telemetry_retention`
+  dead-lettered daily from 2026-09-30. `0112_replay_skipped_feature_chain`
+  replays the skipped revisions. Production now reports
+  `alembic check: No new upgrade operations detected`, and the retention
+  sweep completes. `migrations/history.lock` with
+  `tests/contract/test_migration_history.py` makes a changed parent a CI
+  failure (SPEC-020 `REQ-2002`).
+- **Idle worker (`#665`).** Each idle poll rewrote the 200 oldest
+  dead-lettered Official sync attempts: 8.9 million updates and half a core.
+  Worker CPU fell from 49.5 % to about 1 %, ledger updates from 120 per second
+  to 0, and empty claims are no longer logged.
+- **Upstream rate limit (`#666`).** Without a GitHub token, 37–42 of the 52
+  daily Official syncs on most days spent all five attempts within fifteen minutes of a
+  closed rate-limit window. Retries now wait for `retry-after` or
+  `x-ratelimit-reset`, bounded to an hour (SPEC-018 `REQ-1806`, SPEC-056
+  `REQ-5606`). A worker token remains an optional owner decision.
+- **Readiness (`#673`).** `/v1/health/ready` no longer parses all 119
+  revision files per call.
+
+**Dependencies at their current releases**, with every deferral recorded in
+`dependency-policy.md` and its exit condition:
+
+- uv 0.12.23 and the Python set with SQLAlchemy 2.1 (`#663`);
+- RustFS 1.0.1 (`#651`), container bases and worker-safety scanners
+  (`#655`, `#659`, `#660`), Dependabot over container images (`#650`);
+- Next.js 16 with Turbopack, plus the web toolchain and lucide-react 1.x
+  (`#669`, `#674`);
+- desktop on Rust edition 2024 (`#667`);
+- PostgreSQL 18.6 (`#670`), moved in by a verified dump-and-restore deploy
+  stage (SPEC-024 `REQ-2419`).
+
+Deferred: `httpx2` (TLS trust store), Python 3.14 server images
+(`yara-python` wheels), Dependabot `bun` (lockfile v2), ESLint 10 (plugin
+peers) and `js-yaml` 5 (tree-wide override).
+
+**Correctness of the web gate.** Next 16 removed `app-build-manifest.json`,
+and the page entry it held had left out the layout chunks. The REQ-2213 gate
+now measures every module script that the served `/en` page loads: 207 KiB on
+Next 15, 229 KiB on Next 16, mostly framework runtime. The budget is 240 KiB.
+
+**Desktop safety.** `#661` delimits process-group signals with `--`.
+Desktop 0.0.4's timeout path could make procps-ng broadcast SIGTERM. Process
+tests on the development workstation run only inside an isolated PID
+namespace.
+
+**Owner decisions.** Production runs no scheduled backup (`#658`, SPEC-024
+`REQ-2409`).
+
+**Releases.** `ai-stp-cli` 0.0.39 is on PyPI (wheel and sdist from attested
+candidate run 37266590041), with its GitHub Release carrying the SBOM, release
+manifest and `SHA256SUMS`. `ai-stp-desktop` 0.0.5 is the repository's latest
+release: deb, rpm and AppImage for Linux, an aarch64 dmg, and an exe and msi for
+Windows, unsigned as before. Production serves Next.js 16.3.8; its landing page
+loads 229.0 KiB of gzipped module JS, the figure the gate measured before
+deployment.
+
+**PostgreSQL 18 in production.** The `d02a3af6` deploy ran the upgrade stage
+at 06:08 UTC on 2026-10-05. It stopped the writers, restored the 16.15
+database into `ai_stp_pgdata18`, verified the row count of all 132 tables, and
+brought the stack up on 18.6 within one minute. After the deploy, `alembic
+check` reports no drift, the worker completes jobs, and readiness answers in
+about 25 ms on loopback (it was about 190 ms). `ai_stp_pgdata` keeps the 16
+cluster as the rollback copy; removing it is a separate decision.
 
 ## Desktop CI, dependency security, and contract drift — 2026-10-03
 

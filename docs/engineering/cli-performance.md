@@ -1,6 +1,6 @@
 ---
 description: "Measured CLI command costs, resolved bottlenecks, and budgets."
-last_verified: "2026-10-04"
+last_verified: "2026-10-05"
 ---
 
 # CLI Performance
@@ -53,6 +53,30 @@ Second measurement, 2026-10-04: Linux, Python 3.14.7, the workspace entry point
 | `contract inventory --json` | ≈4.2 | **0.41** |
 | `capabilities --json` | — | 0.39 |
 | `help --agent` | — | 0.40 |
+
+Third measurement, 2026-10-05: the published wheels `ai-stp-cli` 0.0.38 and
+0.0.39, each installed by `uv pip install` into its own fresh environment, run
+as whole processes on a Linux workstation with eight cores under load of about
+three. User CPU in seconds, median of five runs:
+
+| command | 0.0.38 | 0.0.39 |
+|---|---|---|
+| `version --json` | 4.51 | **1.55** |
+| `contract inventory --json` | 4.30 | **1.58** |
+| `capabilities --json` | 1.67 | 1.60 |
+| `help --agent` | 1.64 | 1.46 |
+
+The recorded digest removes about three seconds, as the second measurement
+found, but the 0.39–0.41 it reported did not reproduce: every command now rests
+on a floor of about 1.5s, almost all of it imports. `python -X importtime`
+attributes 1.28s to importing `ai_stp_cli.__main__`, of which about 0.9s is
+`ai_stp_contracts.machine_help` and the eagerly importing `ai_stp_contracts`
+package — pulled in by `ai_stp_cli.config` and `ai_stp_cli.errors` before any
+command runs. Moving one annotation-only import behind `TYPE_CHECKING` does not
+help while `config` imports the module directly. Lowering the floor means
+loading the contract models a command actually uses, not the whole package;
+until then the whole-process cost of a local read-only command is above the
+0.8s budget below on this workstation.
 
 ## Identified causes
 
