@@ -694,6 +694,40 @@ def test_the_worker_apparmor_profile_allows_userns_and_is_loaded_before_compose(
     assert listed.startswith("100755 "), listed
 
 
+def test_a_postgres_major_upgrade_copies_into_its_own_volume_before_bring_up() -> None:
+    """SPEC-024 REQ-2419: the old major's volume is the rollback copy.
+
+    A new image on the old data directory refuses to start, and a new image on
+    an empty volume starts an empty database that migrate would happily fill.
+    The data has to be copied, verified, and only then served, and the copy's
+    source must survive the upgrade untouched.
+    """
+    deploy = Path("deploy/deploy.sh").read_text(encoding="utf-8")
+    script = Path("deploy/postgres-major-upgrade.sh").read_text(encoding="utf-8")
+    compose = Path("deploy/compose.prod.yml").read_text(encoding="utf-8")
+    runnable = "\n".join(line for line in script.splitlines() if not line.lstrip().startswith("#"))
+
+    assert "postgres-major-upgrade.sh" in deploy
+    assert deploy.find("postgres-major-upgrade.sh") < deploy.find("compose up -d --wait postgres")
+
+    assert "      - pgdata18:/var/lib/postgresql\n" in compose
+    assert "\n  pgdata:\n" in compose, "the 16 volume stays declared as the rollback copy"
+
+    assert 'compose stop "${WRITERS[@]}"' in runnable
+    assert "--exit-on-error --single-transaction" in runnable
+    assert "row_counts" in runnable and "postgres_upgrade_row_counts_differ" in runnable
+    # Only the target is ever removed; the legacy volume name is read, never passed on.
+    assert re.findall(r"docker volume rm \S+", runnable) == ['docker volume rm "${target_volume}"']
+    for line in runnable.splitlines():
+        if "legacy_volume}" in line:
+            assert not re.search(r"\brm\b|docker volume|\s-v\s", line), line
+    listed = subprocess.check_output(
+        ["git", "ls-files", "-s", "--", "deploy/postgres-major-upgrade.sh"],
+        text=True,
+    )
+    assert listed.startswith("100755 "), listed
+
+
 def test_a_deploy_overtaken_by_a_newer_one_is_not_a_failure() -> None:
     """Being superseded is the deployment succeeding, and it was reported red.
 
