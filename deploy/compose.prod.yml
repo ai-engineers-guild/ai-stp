@@ -210,6 +210,10 @@ services:
       - sh
       - -c
       - "while /opt/ai_stp/scripts/safety/refresh_osv_db.sh; do sleep 21600; done; exit 1"
+    # The shell loop would be PID 1, and PID 1 ignores a SIGTERM it has no
+    # handler for: every deploy waited out the ten-second stop timeout and
+    # killed it. Docker's init forwards the signal and the loop ends at once.
+    init: true
     environment:
       AI_STP_OSV_OFFLINE_DIR: /var/lib/ai_stp/osv
       OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY: /var/lib/ai_stp/osv
@@ -243,6 +247,10 @@ services:
       - sh
       - -c
       - "while freshclam --datadir=/var/lib/clamav; do sleep 21600; done; exit 1"
+    # The shell loop would be PID 1, and PID 1 ignores a SIGTERM it has no
+    # handler for: every deploy waited out the ten-second stop timeout and
+    # killed it. Docker's init forwards the signal and the loop ends at once.
+    init: true
     volumes:
       - clamav_db:/var/lib/clamav
     networks: [edge]
