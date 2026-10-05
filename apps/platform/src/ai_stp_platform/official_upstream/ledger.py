@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Final
 
-from sqlalchemy import select
+from sqlalchemy import and_, exists, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ai_stp_contracts.first_party import OWNER_ID as OFFICIAL_ACCOUNT_ID
@@ -37,6 +37,10 @@ SYNC_STATES: Final[frozenset[str]] = frozenset(
     }
 )
 _ACTIVE_INVENTORY: Final[frozenset[str]] = frozenset({"enabled"})
+#: Attempt states a queue outcome never overwrites.
+_SETTLED_ATTEMPT: Final[frozenset[str]] = frozenset(
+    {"unchanged", "published", "cancelled_transferred", "failed_permanent"}
+)
 _COMPAT_RESULT: Final[dict[str, str]] = {
     "unchanged": "unchanged",
     "publishing": "publication_started",
@@ -201,14 +205,12 @@ async def record_queue_outcome(session: AsyncSession, job: Job) -> None:
                 )
                 .order_by(OfficialUpstreamSync.id.desc())
             )
-    if attempt is None or attempt.state in {
-        "unchanged",
-        "published",
-        "cancelled_transferred",
-        "failed_permanent",
-    }:
+    if attempt is None or attempt.state in _SETTLED_ATTEMPT:
         return
     if job.state == JobState.DEAD_LETTER:
+        if attempt.state == "dead_lettered":
+            # Already recorded: `completed_at` keeps the first observation.
+            return
         attempt.state = "dead_lettered"
         attempt.result = "failed"
         attempt.error_class = "exhausted_retry"
@@ -221,6 +223,36 @@ async def record_queue_outcome(session: AsyncSession, job: Job) -> None:
         attempt.attempt_count = max(attempt.attempt_count, job.attempts)
         attempt.error_class = "retryable"
     await session.flush()
+
+
+async def unrecorded_queue_outcomes(session: AsyncSession, *, limit: int = 200) -> list[Job]:
+    """Failed sync jobs whose attempt does not reflect the queue state yet.
+
+    `fail` records its own outcome; a lease that `requeue_stale` dead-letters
+    is not, and the worker maps those rows on its next poll. Recorded rows are
+    filtered here rather than rewritten: the dead-letter backlog stays until
+    the terminal-job GC, and the poll runs every second.
+    """
+    attempt = OfficialUpstreamSync
+    unrecorded = or_(
+        and_(Job.state == JobState.DEAD_LETTER, attempt.state != "dead_lettered"),
+        and_(Job.state == JobState.RETRY_SCHEDULED, attempt.state != "retry_wait"),
+    )
+    rows = await session.scalars(
+        select(Job)
+        .where(
+            Job.job_type == JobType.OFFICIAL_UPSTREAM_SYNC,
+            Job.state.in_((JobState.DEAD_LETTER, JobState.RETRY_SCHEDULED)),
+            exists().where(
+                attempt.job_id == Job.id,
+                attempt.state.not_in(_SETTLED_ATTEMPT),
+                unrecorded,
+            ),
+        )
+        .order_by(Job.updated_at)
+        .limit(limit)
+    )
+    return list(rows.all())
 
 
 async def fence_attempt(
