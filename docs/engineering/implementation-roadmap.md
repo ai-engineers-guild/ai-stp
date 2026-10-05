@@ -72,12 +72,15 @@ runners were not being assigned: `tests-integration` got none in three attempts
 and ran on the exact SHA locally (172 passed, 2 skipped), and `deploy/prod` was
 fast-forwarded to the verified commit by hand (`deploy.md`, "When GitHub cannot
 run the gate"). Production served `980438b4` from 20:53 UTC, with no 502 during
-the roll and `evidence-live` green. `ai-stp-cli` 0.0.42 reached PyPI from
-candidate 37370223688 at 21:17 UTC, its digests matching the GitHub Release,
-and this workstation's `uv tool` installation updated itself from 0.0.41 with
-the journal `verified` and `doctor` all `ready`. The 0.0.42 CLI frozen into the
-Linux sidecar answers `version --json` in 1.56 s against 2.15 s for desktop
-0.0.6's, wall clock under load 7–9.
+the roll and `evidence-live` green; when `check` on `main` passed at 21:33,
+`promote` wrote the same SHA and `verify-public` succeeded. `ai-stp-cli` 0.0.42
+reached PyPI from candidate 37370223688 at 21:17 UTC, its digests matching the
+GitHub Release, and this workstation's `uv tool` installation updated itself
+from 0.0.41 with the journal `verified` and `doctor` all `ready`.
+`ai-stp-desktop` 0.0.7 is the repository's latest release: deb, rpm and
+AppImage for Linux, an aarch64 dmg, and an exe and msi for Windows, unsigned.
+Its shipped sidecar reports CLI 0.0.42 and answered `version --json` in 1.51 s
+against 2.03 s for 0.0.6's (wall clock, median of seven).
 
 ## Deploy, content and upstream repairs; faster CLI and sidecar — 2026-10-05 (evening)
 
