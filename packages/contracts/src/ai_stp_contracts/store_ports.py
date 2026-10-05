@@ -2,8 +2,9 @@
 
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import ConfigDict, Field
 
+from ai_stp_contracts.model import ContractModel
 from ai_stp_foundation.digests import DIGEST_PATTERN
 from ai_stp_passports.versions import ComponentType
 
@@ -20,7 +21,7 @@ APM_CONTRACT_URL = (
 )
 
 
-class StorePortDescriptor(BaseModel):
+class StorePortDescriptor(ContractModel):
     """One compatible local store found under an explicitly named root."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
@@ -35,7 +36,7 @@ class StorePortDescriptor(BaseModel):
     cli_status: Literal["available", "absent", "not_required"]
 
 
-class StorePortDiscovery(BaseModel):
+class StorePortDiscovery(ContractModel):
     """All supported stores visible at one root, without importing them."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
@@ -46,7 +47,7 @@ class StorePortDiscovery(BaseModel):
     diagnostics: list[str]
 
 
-class StorePortMapping(BaseModel):
+class StorePortMapping(ContractModel):
     """One external record and its explicit canonical conversion decision."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
@@ -64,7 +65,7 @@ class StorePortMapping(BaseModel):
     preserved_metadata: dict[str, str]
 
 
-class StorePortInspection(BaseModel):
+class StorePortInspection(ContractModel):
     """Bounded conversion report for one immutable local snapshot."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
@@ -76,7 +77,7 @@ class StorePortInspection(BaseModel):
     diagnostics: list[str]
 
 
-class StorePortImportPlan(BaseModel):
+class StorePortImportPlan(ContractModel):
     """Exact no-side-effect import plan bound to its source snapshot."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
@@ -98,7 +99,7 @@ class StorePortImportPlan(BaseModel):
     ]
 
 
-class StorePortImportedObject(BaseModel):
+class StorePortImportedObject(ContractModel):
     """One local object created by or reused for an exact external record."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
@@ -109,7 +110,7 @@ class StorePortImportedObject(BaseModel):
     state: Literal["imported", "already_imported"]
 
 
-class StorePortImportResult(BaseModel):
+class StorePortImportResult(ContractModel):
     """Result of applying one still-current exact import plan."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)

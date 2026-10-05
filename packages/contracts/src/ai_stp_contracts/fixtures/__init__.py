@@ -34,14 +34,16 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Annotated, Final, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import ConfigDict, Field
+
+from ai_stp_contracts.model import ContractModel
 
 CORPUS_DIR: Final[Path] = Path(__file__).parent / "v1"
 
 type CaseKind = Literal["positive", "example", "rejected_request", "invalid_response"]
 
 
-class FixtureRequest(BaseModel):
+class FixtureRequest(ContractModel):
     """What the caller sends."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)
@@ -52,7 +54,7 @@ class FixtureRequest(BaseModel):
     headers: Mapping[str, str] = Field(default_factory=dict[str, str])
 
 
-class FixtureCase(BaseModel):
+class FixtureCase(ContractModel):
     """One replayable exchange.
 
     `error_code` is required exactly for `rejected_request` and forbidden
@@ -72,7 +74,7 @@ class FixtureCase(BaseModel):
     error_code: str | None = None
 
 
-class Corpus(BaseModel):
+class Corpus(ContractModel):
     """One corpus file."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)

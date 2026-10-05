@@ -10,7 +10,7 @@ only - outcomes, never arguments, prompts, model output, paths, or secrets.
 from datetime import date
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import ConfigDict, Field
 
 from ai_stp_contracts.corporate import (
     AccountId,
@@ -26,6 +26,7 @@ from ai_stp_contracts.http import (
     open_wire_object,
     strict_request_object,
 )
+from ai_stp_contracts.model import ContractModel
 from ai_stp_foundation.harnesses import HarnessId
 from ai_stp_foundation.versioning import VERSION_PATTERN
 
@@ -72,7 +73,7 @@ REPORT_ROW_LIMIT = 512
 EXPORT_ROW_LIMIT = 5000
 
 
-class RuntimeUsageSetupCoordinate(BaseModel):
+class RuntimeUsageSetupCoordinate(ContractModel):
     """The exact setup the invoked component belongs to."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
@@ -81,7 +82,7 @@ class RuntimeUsageSetupCoordinate(BaseModel):
     passport_digest: DigestValue
 
 
-class RuntimeUsageComponentCoordinate(BaseModel):
+class RuntimeUsageComponentCoordinate(ContractModel):
     """The exact component that was invoked, kind-qualified."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
@@ -91,7 +92,7 @@ class RuntimeUsageComponentCoordinate(BaseModel):
     passport_digest: DigestValue
 
 
-class RuntimeUsageEvent(BaseModel):
+class RuntimeUsageEvent(ContractModel):
     """One component invocation. The closed field set is the contract."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
@@ -110,7 +111,7 @@ class RuntimeUsageEvent(BaseModel):
     activity_kind: RuntimeUsageActivityKind = "invocation"
 
 
-class RuntimeUsageEventBatch(BaseModel):
+class RuntimeUsageEventBatch(ContractModel):
     """A bounded outbox drain: the only ingestion envelope."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
@@ -118,7 +119,7 @@ class RuntimeUsageEventBatch(BaseModel):
     events: Annotated[list[RuntimeUsageEvent], Field(min_length=1, max_length=INGEST_BATCH_LIMIT)]
 
 
-class RuntimeUsageIngestResult(BaseModel):
+class RuntimeUsageIngestResult(ContractModel):
     """Per-batch bookkeeping; the server never returns event content."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -131,7 +132,7 @@ class RuntimeUsageIngestResult(BaseModel):
     rejected_ids: list[UsageEventId] = Field(default_factory=list)
 
 
-class RuntimeUsageReportQuery(BaseModel):
+class RuntimeUsageReportQuery(ContractModel):
     """Aggregate report filters. Every field narrows; none widens."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
@@ -154,7 +155,7 @@ class RuntimeUsageReportQuery(BaseModel):
     limit: Annotated[int, Field(ge=1, le=REPORT_ROW_LIMIT)] = 128
 
 
-class RuntimeUsageReportRow(BaseModel):
+class RuntimeUsageReportRow(ContractModel):
     """One deterministic aggregate bucket over a defined window."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -175,7 +176,7 @@ class RuntimeUsageReportRow(BaseModel):
     last_invoked_at: Timestamp
 
 
-class RuntimeUsageAssignedRow(BaseModel):
+class RuntimeUsageAssignedRow(ContractModel):
     """One currently assigned object and its observed use in the selected period."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -187,20 +188,20 @@ class RuntimeUsageAssignedRow(BaseModel):
     last_invoked_at: Timestamp | None = None
 
 
-class RuntimeUsageDayBucket(BaseModel):
+class RuntimeUsageDayBucket(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
     day: str
     uses: Annotated[int, Field(ge=0)]
 
 
-class RuntimeUsageHourBucket(BaseModel):
+class RuntimeUsageHourBucket(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
     weekday: Annotated[int, Field(ge=0, le=6)]
     hour: Annotated[int, Field(ge=0, le=23)]
     uses: Annotated[int, Field(ge=0)]
 
 
-class RuntimeUsageInventoryEmployeeRow(BaseModel):
+class RuntimeUsageInventoryEmployeeRow(ContractModel):
     """Current managed observations; no inferred removal from partial scans."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
@@ -212,7 +213,7 @@ class RuntimeUsageInventoryEmployeeRow(BaseModel):
     last_complete_at: Timestamp | None = None
 
 
-class RuntimeUsageEmployeeRow(BaseModel):
+class RuntimeUsageEmployeeRow(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
     employee_id: AccountId
     name: str | None = None
@@ -225,7 +226,7 @@ class RuntimeUsageEmployeeRow(BaseModel):
     last_used_at: Timestamp | None = None
 
 
-class RuntimeUsageObjectRow(BaseModel):
+class RuntimeUsageObjectRow(ContractModel):
     """A setup or component, with a component's actual setup relation."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
@@ -245,7 +246,7 @@ class RuntimeUsageObjectRow(BaseModel):
     last_used_at: Timestamp | None = None
 
 
-class RuntimeUsageReport(BaseModel):
+class RuntimeUsageReport(ContractModel):
     """The aggregate answer plus current assignments and observed use."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -268,7 +269,7 @@ class RuntimeUsageReport(BaseModel):
     assigned: list[RuntimeUsageAssignedRow]
 
 
-class RuntimeUsageEventQuery(BaseModel):
+class RuntimeUsageEventQuery(ContractModel):
     """Drill-down filters over redacted event rows; separately permissioned."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
@@ -296,7 +297,7 @@ class RuntimeUsageEventQuery(BaseModel):
     limit: Annotated[int, Field(ge=1, le=EVENT_PAGE_LIMIT)] = 128
 
 
-class RuntimeUsageEventView(BaseModel):
+class RuntimeUsageEventView(ContractModel):
     """The redacted drill-down row: identities and coordinates, nothing else."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -316,7 +317,7 @@ class RuntimeUsageEventView(BaseModel):
     activity_kind: RuntimeUsageActivityKind
 
 
-class RuntimeUsageEventList(BaseModel):
+class RuntimeUsageEventList(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     schema_version: Literal[1] = 1
     organization_id: OrganizationId
@@ -325,7 +326,7 @@ class RuntimeUsageEventList(BaseModel):
     events: list[RuntimeUsageEventView]
 
 
-class RuntimeUsageExportRequest(BaseModel):
+class RuntimeUsageExportRequest(ContractModel):
     """A bounded, auditable export of the aggregate report surface."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
@@ -335,7 +336,7 @@ class RuntimeUsageExportRequest(BaseModel):
     idempotency_key: IdempotencyKey
 
 
-class RuntimeUsageExportView(BaseModel):
+class RuntimeUsageExportView(ContractModel):
     """The export receipt: what was produced, bounded and digested."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -348,7 +349,7 @@ class RuntimeUsageExportView(BaseModel):
     state: Literal["completed"]
 
 
-class RuntimeUsageRecordResult(BaseModel):
+class RuntimeUsageRecordResult(ContractModel):
     """The outcome of recording one accepted invocation into the outbox.
 
     `queued` and `duplicate` are durable states; `full` and `dropped` mean
@@ -361,7 +362,7 @@ class RuntimeUsageRecordResult(BaseModel):
     state: Literal["queued", "duplicate", "full", "dropped", "disabled"]
 
 
-class RuntimeUsageOutboxStatus(BaseModel):
+class RuntimeUsageOutboxStatus(ContractModel):
     """Local CLI outbox inspection; never leaves the machine."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -372,7 +373,7 @@ class RuntimeUsageOutboxStatus(BaseModel):
     oldest_pending_at: Timestamp | None = None
 
 
-class RuntimeUsageFlushResult(BaseModel):
+class RuntimeUsageFlushResult(ContractModel):
     """One drain attempt over the local outbox."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)

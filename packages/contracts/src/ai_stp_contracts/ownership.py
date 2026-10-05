@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import ConfigDict, Field
 
 from ai_stp_contracts.http import (
     IdempotencyKey,
@@ -12,12 +12,13 @@ from ai_stp_contracts.http import (
     open_wire_object,
     strict_request_object,
 )
+from ai_stp_contracts.model import ContractModel
 
 type ClaimState = Literal["requested", "approved", "denied"]
 type Version = Annotated[str, Field(pattern=r"^\d+\.\d+$")]
 
 
-class OwnershipClaimCreateRequest(BaseModel):
+class OwnershipClaimCreateRequest(ContractModel):
     """POST /v1/ownership-claims body."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
@@ -29,7 +30,7 @@ class OwnershipClaimCreateRequest(BaseModel):
     idempotency_key: IdempotencyKey
 
 
-class OwnershipClaimPreview(BaseModel):
+class OwnershipClaimPreview(ContractModel):
     """Exact object and major lines that a claim would transfer."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -43,7 +44,7 @@ class OwnershipClaimPreview(BaseModel):
     major_lines: list[int]
 
 
-class OwnershipClaimResponse(BaseModel):
+class OwnershipClaimResponse(ContractModel):
     """One ownership claim, including the staff preview."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -64,7 +65,7 @@ class OwnershipClaimResponse(BaseModel):
     decision_reason: str | None = None
 
 
-class OwnershipRevisionView(BaseModel):
+class OwnershipRevisionView(ContractModel):
     """One immutable ownership revision. Published version passports are unchanged."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -81,7 +82,7 @@ class OwnershipRevisionView(BaseModel):
     created_at: Timestamp
 
 
-class OwnershipRevisionListResponse(BaseModel):
+class OwnershipRevisionListResponse(ContractModel):
     """History of ownership revisions for one catalog component."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)

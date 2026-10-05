@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Annotated, Final, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import ConfigDict, Field, field_validator, model_validator
 
 from ai_stp_contracts.assurance import OwnerTargetGap
 from ai_stp_contracts.catalog import ComponentSummary, SetupSummary
@@ -17,6 +17,7 @@ from ai_stp_contracts.http import (
     open_wire_object,
     strict_request_object,
 )
+from ai_stp_contracts.model import ContractModel
 from ai_stp_contracts.text_safety import validate_public_text
 from ai_stp_foundation.digests import DIGEST_PATTERN
 from ai_stp_foundation.ids import stable_id_pattern
@@ -28,7 +29,7 @@ type CountryCode = Annotated[str, Field(pattern=r"^[A-Z]{2}$")]
 type SetupId = Annotated[str, Field(pattern=stable_id_pattern("setup"))]
 
 
-class OwnerExternalProductCreateRequest(BaseModel):
+class OwnerExternalProductCreateRequest(ContractModel):
     """Create one globally deduplicated service from the owner Web UI."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
@@ -45,7 +46,7 @@ class OwnerExternalProductCreateRequest(BaseModel):
         return None if value is None else validate_public_text(value)
 
 
-class OwnerExternalProductAttachRequest(BaseModel):
+class OwnerExternalProductAttachRequest(ContractModel):
     """Replace mutable service relations for every version of an owned object."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
@@ -72,7 +73,7 @@ type ContentDigest = Annotated[str, Field(pattern=DIGEST_PATTERN)]
 type Version = Annotated[str, Field(pattern=VERSION_PATTERN)]
 
 
-class OwnerObjectSummary(BaseModel):
+class OwnerObjectSummary(ContractModel):
     """One owned object in the owner workspace list."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -93,7 +94,7 @@ class OwnerObjectSummary(BaseModel):
     catalog_item: ComponentSummary | SetupSummary | None = None
 
 
-class OwnerObjectListResponse(BaseModel):
+class OwnerObjectListResponse(ContractModel):
     """Paginated owner objects."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -103,7 +104,7 @@ class OwnerObjectListResponse(BaseModel):
     page: PageInfo
 
 
-class OwnerObjectListQuery(BaseModel):
+class OwnerObjectListQuery(ContractModel):
     """GET /v1/owner/objects query."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
@@ -114,7 +115,7 @@ class OwnerObjectListQuery(BaseModel):
     object_kind: ObjectKind | None = None
 
 
-class OwnerVersionSummary(BaseModel):
+class OwnerVersionSummary(ContractModel):
     """One owned exact version in object detail."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -132,7 +133,7 @@ class OwnerVersionSummary(BaseModel):
     can_start_publication: bool = False
 
 
-class OwnerObjectDetail(BaseModel):
+class OwnerObjectDetail(ContractModel):
     """Owner object detail with versions."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -144,7 +145,7 @@ class OwnerObjectDetail(BaseModel):
     versions: Annotated[list[OwnerVersionSummary], Field(default_factory=list)]
 
 
-class OwnerObjectCapabilities(BaseModel):
+class OwnerObjectCapabilities(ContractModel):
     """Management capabilities the caller holds on one catalog object."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -210,7 +211,7 @@ def is_component_media_public_url(url: str) -> bool:
     return bool(media_id) and "/" not in media_id and len(media_id) <= 64
 
 
-class OwnerPresentationMedia(BaseModel):
+class OwnerPresentationMedia(ContractModel):
     """One safe mutable media item shown on a component catalog page."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
@@ -235,7 +236,7 @@ class OwnerPresentationMedia(BaseModel):
         )
 
 
-class OwnerMediaUploadResponse(BaseModel):
+class OwnerMediaUploadResponse(ContractModel):
     """Ready upload reference; the owning object's access policy still applies."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -249,7 +250,7 @@ class OwnerMediaUploadResponse(BaseModel):
     state: Literal["ready"]
 
 
-class OwnerPresentationUpdateRequest(BaseModel):
+class OwnerPresentationUpdateRequest(ContractModel):
     """Mutable component/setup presentation; never changes passport identity."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
@@ -264,7 +265,7 @@ class OwnerPresentationUpdateRequest(BaseModel):
         return validate_public_text(value, allow_empty=True)
 
 
-class OwnerPresentationResponse(BaseModel):
+class OwnerPresentationResponse(ContractModel):
     """Current mutable object presentation for its owner."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -275,7 +276,7 @@ class OwnerPresentationResponse(BaseModel):
     media: Annotated[list[OwnerPresentationMedia], Field(default_factory=list, max_length=5)]
 
 
-class OwnerEvidenceRow(BaseModel):
+class OwnerEvidenceRow(ContractModel):
     """One evidence binding for owner version view."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -287,7 +288,7 @@ class OwnerEvidenceRow(BaseModel):
     expires_at: Timestamp | None = None
 
 
-class OwnerVersionDetail(BaseModel):
+class OwnerVersionDetail(ContractModel):
     """Exact owned version for publication entry and evidence display."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -317,7 +318,7 @@ class OwnerVersionDetail(BaseModel):
     family: SetupFamilyOwner | None = None
 
 
-class StaffReportSummary(BaseModel):
+class StaffReportSummary(ContractModel):
     """One staff worklist case."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -343,7 +344,7 @@ class StaffReportSummary(BaseModel):
     content_digest: ContentDigest | None = None
 
 
-class StaffReportListResponse(BaseModel):
+class StaffReportListResponse(ContractModel):
     """Staff worklist (allowlist only)."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -353,7 +354,7 @@ class StaffReportListResponse(BaseModel):
     page: PageInfo
 
 
-class StaffReportListQuery(BaseModel):
+class StaffReportListQuery(ContractModel):
     """GET /v1/staff/reports query."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
@@ -363,7 +364,7 @@ class StaffReportListQuery(BaseModel):
     page_size: PageSize = 20
 
 
-class StaffReportDetail(BaseModel):
+class StaffReportDetail(ContractModel):
     """Staff case detail without reporter identity."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -401,7 +402,7 @@ class StaffReportDetail(BaseModel):
 type OwnerLifecycleAction = Literal["deprecate", "undeprecate"]
 
 
-class OwnerLifecycleRequest(BaseModel):
+class OwnerLifecycleRequest(ContractModel):
     """POST a lifecycle transition on an exact owned version (`SPEC-007`).
 
     `deprecated` was declared in the state vocabulary, listed in three models
@@ -424,7 +425,7 @@ class OwnerLifecycleRequest(BaseModel):
     idempotency_key: Annotated[str, Field(min_length=16, max_length=128)]
 
 
-class OwnerLifecycleResponse(BaseModel):
+class OwnerLifecycleResponse(ContractModel):
     """The state the version is in after the transition."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -436,7 +437,7 @@ class OwnerLifecycleResponse(BaseModel):
     applied: bool
 
 
-class OwnerStartPublicationRequest(BaseModel):
+class OwnerStartPublicationRequest(ContractModel):
     """POST start publication plan from an exact owned version (no browser passport)."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)

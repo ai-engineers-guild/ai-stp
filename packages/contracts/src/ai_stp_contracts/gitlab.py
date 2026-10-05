@@ -2,16 +2,17 @@
 
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import ConfigDict, Field
 
 from ai_stp_contracts.context import ProviderProjectId
 from ai_stp_contracts.corporate import OrganizationId
 from ai_stp_contracts.http import IdempotencyKey, Timestamp, open_wire_object, strict_request_object
+from ai_stp_contracts.model import ContractModel
 from ai_stp_contracts.technology import MappingVersion
 from ai_stp_foundation.ids import stable_id_pattern
 
 
-class GitLabMutationRequest(BaseModel):
+class GitLabMutationRequest(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
 
     schema_version: Literal[1] = 1
@@ -25,7 +26,7 @@ class GitLabEnrichRequest(GitLabMutationRequest):
     mapping_version: MappingVersion
 
 
-class GitLabRepositoryView(BaseModel):
+class GitLabRepositoryView(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 
     schema_version: Literal[1] = 1
@@ -43,7 +44,7 @@ class GitLabRepositoryView(BaseModel):
     identity_revision: Annotated[int | None, Field(ge=1)] = None
 
 
-class GitLabRepositoryList(BaseModel):
+class GitLabRepositoryList(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 
     schema_version: Literal[1] = 1
