@@ -4,6 +4,14 @@
 # the scanner stage used to re-declare it as `app-base` in a second
 # Dockerfile because Docker cannot `FROM` a stage in another file.
 
+# Python 3.12, not the 3.14 `check.yml` gates: the worker-safety stage
+# installs NVIDIA SkillSpector, which needs `yara-python`, and no release of it
+# ships cp314 wheels (VirusTotal/yara-python#281, open 2026-10-04). Building
+# it here would need a compiler and OpenSSL headers the pinned Debian snapshot
+# cannot pair with this base. `pyright` checks the tree at pythonVersion 3.12,
+# so no newer standard-library API can slip into the server; move the base to
+# 3.14 once that issue ships wheels.
+#
 # Pinned by digest and named by tag, for the same reason the `uv` line below
 # gives and against the same hazard: `python:3.12-slim` is republished whenever
 # its Debian base takes a security update, and a republished tag leaves no
@@ -13,7 +21,7 @@
 #
 # The argument was already written two lines further down and applied only to
 # `uv`. The base underneath it was the thing not pinned.
-FROM python:3.12-slim@sha256:09f7da3bc104798d0afb40bc08d23ab2da20a76130cec1f2ef170848f5d85217 AS base
+FROM python:3.12-slim@sha256:02108f5d322dd89f1c9e552442c25acb0543dfdbc455693a5599624f20d9155d AS base
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     UV_COMPILE_BYTECODE=1 \
