@@ -222,7 +222,13 @@ then run reconciliation. The status output includes attempt state/result,
 retry count, queue and outbox IDs/states, error class/code, manifest digest,
 provenance, plan ID, and timestamps. A failed attempt is retried only through
 the bounded queue policy or an explicit `retry --id`; exhausted work remains
-in the queue DLQ and the domain ledger as `dead_lettered`. The worker records
+in the queue DLQ and the domain ledger as `dead_lettered`. A deterministic
+refusal — an unsafe archive (binary, link or special file, secret-like path,
+oversize), an invalid source, a changed repository identity — is not retried:
+the attempt is recorded once as `failed_permanent` with error class
+`permanent` and its code, the job completes, and the next daily attempt
+resolves the source again. Such a source keeps failing until its manifest
+entry or the upstream changes; `status` lists it with its code. The worker records
 each queue outcome on the ledger once — a lease that expired into dead-letter
 on its next poll — and does not rewrite recorded rows, so a dead-letter backlog
 costs the poll nothing until the terminal-job GC removes it.

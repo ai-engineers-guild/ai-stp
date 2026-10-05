@@ -32,6 +32,7 @@ from ai_stp_platform.official_upstream.enqueue import enqueue_daily
 from ai_stp_platform.official_upstream.errors import (
     CHANGED_REPOSITORY_IDENTITY,
     INVALID_SOURCE,
+    UNSAFE_ARCHIVE,
     OfficialUpstreamError,
 )
 from ai_stp_platform.official_upstream.github import GithubHttpResponse
@@ -366,6 +367,39 @@ async def test_rate_limited_sync_retries_at_the_github_reset(
 
 
 @pytest.mark.asyncio
+async def test_an_unsafe_archive_is_refused_once_instead_of_retried(
+    db_sessionmaker: async_sessionmaker[AsyncSession],
+) -> None:
+    """A deterministic refusal is a domain verdict, not a job failure (REQ-5609).
+
+    On 2026-10-03 nineteen Official sources were refused for binary, link,
+    secret-like or oversized archives. Each was downloaded five times before it
+    dead-lettered, from the 60-request unauthenticated GitHub budget.
+    """
+    now = datetime(2026, 9, 1, 12, 0, tzinfo=UTC)
+    async with db_sessionmaker() as session, session.begin():
+        await _owner(session)
+        await upsert_source(session, _command())
+        (job,) = await enqueue_daily(session, now=now)
+        # Returns instead of raising, so the queue completes the job.
+        await handle_official_upstream_sync(
+            session, dict(job.payload), fetch=_fetch(_tar("# Demo\x00\n")), now=now
+        )
+        attempt = (
+            await session.scalars(
+                select(OfficialUpstreamSync).where(OfficialUpstreamSync.source_id == SOURCE_ID)
+            )
+        ).one()
+        assert (attempt.state, attempt.result, attempt.error_code, attempt.error_class) == (
+            "failed_permanent",
+            "failed",
+            UNSAFE_ARCHIVE,
+            "permanent",
+        )
+        assert attempt.completed_at is not None
+
+
+@pytest.mark.asyncio
 async def test_failed_plan_retry_reuses_in_flight_and_fits_idempotency_key(
     db_sessionmaker: async_sessionmaker[AsyncSession],
 ) -> None:
@@ -543,15 +577,14 @@ async def test_failure_and_disable_preserve_history(
         plan = (await session.scalars(select(PublicationPlan))).one()
         await execute_validate(session, plan_id=plan.id, object_store=store, skip_safety=True)
         published = await _published(session, plan_id=plan.id, store=store, now=now)
-        with pytest.raises(OfficialUpstreamError) as raised:
-            await run_sync(
-                session,
-                SOURCE_ID,
-                fetch=_fetch(_tar("# Demo\n"), repo_id=99),
-                store=store,
-                now=now + timedelta(days=1),
-            )
-        assert raised.value.code == CHANGED_REPOSITORY_IDENTITY
+        refused = await run_sync(
+            session,
+            SOURCE_ID,
+            fetch=_fetch(_tar("# Demo\n"), repo_id=99),
+            store=store,
+            now=now + timedelta(days=1),
+        )
+        assert refused == "refused"
         still = await session.get(CatalogMetadata, published.id)
         assert still is not None
         assert still.version == "1.0"
@@ -561,6 +594,11 @@ async def test_failure_and_disable_preserve_history(
             )
         ).first()
         assert failed is not None
+        assert (failed.state, failed.error_code, failed.error_class) == (
+            "failed_permanent",
+            CHANGED_REPOSITORY_IDENTITY,
+            "permanent",
+        )
         await disable_source(session)
         skipped = await enqueue_daily(session, now=now + timedelta(days=2))
         assert skipped == []
@@ -690,17 +728,16 @@ async def test_two_git_sources_enqueue_sync_fail_and_history_independently(
         assert await run_sync(session, "other", fetch=fetch, store=store, now=now) == (
             "publication_started"
         )
-        with pytest.raises(OfficialUpstreamError) as raised:
-            await run_sync(
-                session,
-                SOURCE_ID,
-                fetch=_join_fetch(
-                    _git_fetch(tool, repo_id=99), _git_fetch(other, name="other", repo_id=7)
-                ),
-                store=store,
-                now=now + timedelta(days=1),
-            )
-        assert raised.value.code == CHANGED_REPOSITORY_IDENTITY
+        refused = await run_sync(
+            session,
+            SOURCE_ID,
+            fetch=_join_fetch(
+                _git_fetch(tool, repo_id=99), _git_fetch(other, name="other", repo_id=7)
+            ),
+            store=store,
+            now=now + timedelta(days=1),
+        )
+        assert refused == "refused"
         other_retry = await run_sync(
             session,
             "other",
