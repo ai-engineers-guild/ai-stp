@@ -4,9 +4,10 @@ from __future__ import annotations
 
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import ConfigDict, Field
 
 from ai_stp_contracts.http import open_wire_object
+from ai_stp_contracts.model import ContractModel
 
 type CheckResult = Literal[
     "passed", "warning", "failed", "degraded", "not_run", "not_applicable", "skipped", "running"
@@ -16,7 +17,7 @@ type ChecksStatus = Literal["pending", "available", "empty", "incomplete"]
 type FindingSeverity = Literal["info", "low", "medium", "high", "critical"]
 
 
-class SafetyFindingSummary(BaseModel):
+class SafetyFindingSummary(ContractModel):
     """Bounded public identifiers for findings; never scanned content."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -33,7 +34,7 @@ class SafetyFindingSummary(BaseModel):
     truncated: bool = False
 
 
-class SafetyCheckEntry(BaseModel):
+class SafetyCheckEntry(ContractModel):
     """One check line on an audit list."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -48,7 +49,7 @@ class SafetyCheckEntry(BaseModel):
     finding_summary: SafetyFindingSummary | None = None
 
 
-class SetupComponentChecks(BaseModel):
+class SetupComponentChecks(ContractModel):
     """Checks for one exact component snapshot inside a setup."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -63,7 +64,7 @@ class SetupComponentChecks(BaseModel):
     checks: list[SafetyCheckEntry] = Field(default_factory=list[SafetyCheckEntry])
 
 
-class SafetyChecksSummary(BaseModel):
+class SafetyChecksSummary(ContractModel):
     """Card/detail projection for checks percent and status."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)

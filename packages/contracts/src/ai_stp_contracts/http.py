@@ -13,9 +13,10 @@ body is the resource itself and never a redundant ``ok``/``data`` wrapper.
 
 from typing import Annotated, Final, Literal
 
-from pydantic import AfterValidator, BaseModel, ConfigDict, Field
+from pydantic import AfterValidator, ConfigDict, Field
 from pydantic.json_schema import JsonSchemaValue
 
+from ai_stp_contracts.model import ContractModel
 from ai_stp_foundation.errors import (
     ERROR_CODES,
     EXIT_AUTH,
@@ -192,7 +193,7 @@ def strict_request_object(schema: JsonSchemaValue) -> None:
     schema["additionalProperties"] = False
 
 
-class PageInfo(BaseModel):
+class PageInfo(ContractModel):
     """Cursor pagination state (docs/contracts/http-api.md).
 
     No total is exposed. Reporting one would let a caller detect objects it is

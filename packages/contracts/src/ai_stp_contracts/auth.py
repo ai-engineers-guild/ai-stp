@@ -23,7 +23,7 @@ the most common accident — an object interpolated into a log line.
 
 from typing import Annotated, Final, Literal, get_args
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import ConfigDict, Field
 
 from ai_stp_contracts.http import (
     IdempotencyKey,
@@ -31,6 +31,7 @@ from ai_stp_contracts.http import (
     open_wire_object,
     strict_request_object,
 )
+from ai_stp_contracts.model import ContractModel
 from ai_stp_foundation.ids import stable_id_pattern
 
 #: The identity providers of the deployment (SPEC-002 REQ-1002). Google and
@@ -67,7 +68,7 @@ type DeviceId = Annotated[str, Field(pattern=stable_id_pattern("device"))]
 type DisplayName = Annotated[str, Field(min_length=1, max_length=100)]
 
 
-class DeviceAuthorizationRequest(BaseModel):
+class DeviceAuthorizationRequest(ContractModel):
     """Start a sign-in. Carries the provider and the key that makes it repeatable.
 
     Deliberately not the device identity: at this point no human has approved
@@ -88,7 +89,7 @@ class DeviceAuthorizationRequest(BaseModel):
     idempotency_key: IdempotencyKey
 
 
-class DeviceAuthorizationResponse(BaseModel):
+class DeviceAuthorizationResponse(ContractModel):
     """What the CLI shows the user and then polls with."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -120,7 +121,7 @@ class DeviceAuthorizationResponse(BaseModel):
     interval: Annotated[int, Field(ge=1, le=60)]
 
 
-class DeviceTokenRequest(BaseModel):
+class DeviceTokenRequest(ContractModel):
     """Poll for the result and, on success, bind this device.
 
     The key travels here rather than at start, so a device identity only ever
@@ -136,7 +137,7 @@ class DeviceTokenRequest(BaseModel):
     display_name: DisplayName
 
 
-class DeviceTokenResponse(BaseModel):
+class DeviceTokenResponse(ContractModel):
     """Credentials for one approved device.
 
     A pending, expired or declined poll is **not** this payload: it is a typed
@@ -155,7 +156,7 @@ class DeviceTokenResponse(BaseModel):
     device_id: DeviceId
 
 
-class DeviceRefreshRequest(BaseModel):
+class DeviceRefreshRequest(ContractModel):
     """A device-key proof accompanying a stored refresh credential."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
@@ -166,7 +167,7 @@ class DeviceRefreshRequest(BaseModel):
     signature: Annotated[str, Field(pattern=r"^[A-Za-z0-9_-]{86}$")]
 
 
-class DeviceApproveRequest(BaseModel):
+class DeviceApproveRequest(ContractModel):
     """The browser half of device sign-in: bind a pending `user_code` to the
     signed-in account. Carries no device identity — the key arrives at token
     exchange, after a human has approved."""
@@ -177,7 +178,7 @@ class DeviceApproveRequest(BaseModel):
     user_code: UserCode
 
 
-class DeviceApproveResponse(BaseModel):
+class DeviceApproveResponse(ContractModel):
     """The grant as the approval page reports it."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -197,7 +198,7 @@ def device_refresh_message(request: DeviceRefreshRequest) -> bytes:
     )
 
 
-class OAuthCallbackResult(BaseModel):
+class OAuthCallbackResult(ContractModel):
     """The outcome of the browser half, as the web surface reads it.
 
     `conflict` is a first-class outcome rather than an error: SPEC-002 REQ-202
@@ -217,7 +218,7 @@ class OAuthCallbackResult(BaseModel):
     completed_at: Timestamp
 
 
-class AuthMeResponse(BaseModel):
+class AuthMeResponse(ContractModel):
     """GET /v1/auth/me resource body."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -228,7 +229,7 @@ class AuthMeResponse(BaseModel):
     account_status: Literal["onboarding_pending", "active"]
 
 
-class LegalOnboardingStatus(BaseModel):
+class LegalOnboardingStatus(ContractModel):
     """Exact current revisions an authenticated pending account must accept."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -240,7 +241,7 @@ class LegalOnboardingStatus(BaseModel):
     personal_data_consent_revision_id: Annotated[str, Field(min_length=1, max_length=64)]
 
 
-class LegalOnboardingCompleteRequest(BaseModel):
+class LegalOnboardingCompleteRequest(ContractModel):
     """Accept the exact two legal revisions required to activate an account."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
@@ -250,7 +251,7 @@ class LegalOnboardingCompleteRequest(BaseModel):
     personal_data_consent_revision_id: Annotated[str, Field(min_length=1, max_length=64)]
 
 
-class AuthLogoutResponse(BaseModel):
+class AuthLogoutResponse(ContractModel):
     """POST /v1/auth/logout resource body."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -259,7 +260,7 @@ class AuthLogoutResponse(BaseModel):
     revoked: bool
 
 
-class SystemVersionResponse(BaseModel):
+class SystemVersionResponse(ContractModel):
     """GET /v1/system/version resource body (safe diagnostics only)."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -271,7 +272,7 @@ class SystemVersionResponse(BaseModel):
     schema_revision: str | None = None
 
 
-class DeviceChallengeRequest(BaseModel):
+class DeviceChallengeRequest(ContractModel):
     """POST /v1/devices/challenge body."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
@@ -280,7 +281,7 @@ class DeviceChallengeRequest(BaseModel):
     public_key: PublicKey
 
 
-class DeviceChallengeResponse(BaseModel):
+class DeviceChallengeResponse(ContractModel):
     """POST /v1/devices/challenge resource body."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)

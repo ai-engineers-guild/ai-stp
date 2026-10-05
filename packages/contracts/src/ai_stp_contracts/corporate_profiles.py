@@ -3,10 +3,11 @@
 import re
 from typing import Annotated, Literal, Self
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import ConfigDict, Field, field_validator, model_validator
 
 from ai_stp_contracts.corporate import AccountId, OrganizationId
 from ai_stp_contracts.http import open_wire_object, strict_request_object
+from ai_stp_contracts.model import ContractModel
 from ai_stp_contracts.owner import OwnerPresentationMedia
 from ai_stp_contracts.public_profile import ProfileLink
 from ai_stp_contracts.technology import TechnologyMutation
@@ -16,7 +17,7 @@ from ai_stp_foundation.ids import stable_id_pattern
 EntityProfileKind = Literal["team", "project", "employee", "technology"]
 
 
-class EntityProfileSubject(BaseModel):
+class EntityProfileSubject(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
     subject_kind: EntityProfileKind
     subject_id: Annotated[str, Field(min_length=1, max_length=64)]
@@ -45,7 +46,7 @@ class EntityProfileMedia(OwnerPresentationMedia):
         return self
 
 
-class EntityProfileUploadResponse(BaseModel):
+class EntityProfileUploadResponse(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     schema_version: Literal[1] = 1
     avatar_asset_id: str
@@ -56,14 +57,14 @@ class EntityProfileUploadResponse(BaseModel):
     size_bytes: Annotated[int, Field(gt=0)]
 
 
-class EntityProfileUploadQuery(BaseModel):
+class EntityProfileUploadQuery(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
     purpose: Literal["avatar", "media"]
     expected_revision: Annotated[int, Field(ge=0)]
     authorization_revision: Annotated[int, Field(ge=1)]
 
 
-class EntityProfileFields(BaseModel):
+class EntityProfileFields(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
     description: Annotated[str, Field(max_length=20000)] = ""
     avatar_asset_id: Annotated[str, Field(pattern=r"^avatar_[a-f0-9]{24}$")] | None = None

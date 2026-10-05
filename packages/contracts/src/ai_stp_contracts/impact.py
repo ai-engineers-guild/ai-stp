@@ -2,12 +2,13 @@
 
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import ConfigDict, Field, model_validator
 
 from ai_stp_contracts.http import Timestamp, strict_request_object
+from ai_stp_contracts.model import ContractModel
 
 
-class _Closed(BaseModel):
+class _Closed(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
 
 
@@ -135,7 +136,7 @@ type AccountImpactStatus = Literal["ready", "partial", "stale", "invalid_graph"]
 type EstimatorProfile = Literal["ai-stp:utf8-bytes/1", "ai-stp:unicode-chars-div4/1"]
 
 
-class AccountSelectionImpactQuery(BaseModel):
+class AccountSelectionImpactQuery(ContractModel):
     """Authenticated query for one account-scoped selection impact report."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
@@ -155,7 +156,7 @@ class AccountSelectionImpactQuery(BaseModel):
         return self
 
 
-class AccountBlastRadiusQuery(BaseModel):
+class AccountBlastRadiusQuery(ContractModel):
     """Authenticated query for one account-scoped blast-radius report."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)

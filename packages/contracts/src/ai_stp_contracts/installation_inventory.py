@@ -2,10 +2,11 @@
 
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import ConfigDict, Field, model_validator
 
 from ai_stp_contracts.corporate import AccountId, DigestValue, OrganizationId, ProjectId
 from ai_stp_contracts.http import Timestamp, open_wire_object, strict_request_object
+from ai_stp_contracts.model import ContractModel
 from ai_stp_contracts.runtime_usage import (
     RuntimeUsageComponentKind,
     UsageDeviceId,
@@ -16,7 +17,7 @@ from ai_stp_foundation.harnesses import HarnessId
 from ai_stp_foundation.versioning import VERSION_PATTERN
 
 
-class InventoryObservedComponent(BaseModel):
+class InventoryObservedComponent(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
 
     location_digest: DigestValue
@@ -38,7 +39,7 @@ class InventoryObservedComponent(BaseModel):
         return self
 
 
-class InstallationInventorySnapshot(BaseModel):
+class InstallationInventorySnapshot(ContractModel):
     """One global or registered-project scope, including failed/partial checks."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
@@ -61,14 +62,14 @@ class InstallationInventorySnapshot(BaseModel):
         return self
 
 
-class InstallationInventoryBatch(BaseModel):
+class InstallationInventoryBatch(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
 
     schema_version: Literal[1] = 1
     snapshots: Annotated[list[InstallationInventorySnapshot], Field(min_length=1, max_length=64)]
 
 
-class InstallationInventoryReceipt(BaseModel):
+class InstallationInventoryReceipt(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 
     schema_version: Literal[1] = 1

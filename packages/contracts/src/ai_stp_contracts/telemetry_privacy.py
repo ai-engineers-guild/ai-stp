@@ -3,7 +3,7 @@
 from typing import Annotated, Literal, Self
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import ConfigDict, Field, model_validator
 
 from ai_stp_contracts.corporate import AccountId, OrganizationId
 from ai_stp_contracts.http import (
@@ -12,6 +12,7 @@ from ai_stp_contracts.http import (
     open_wire_object,
     strict_request_object,
 )
+from ai_stp_contracts.model import ContractModel
 from ai_stp_foundation.versioning import VERSION_PATTERN
 
 TelemetryEventKind = Literal["heartbeat", "invocation"]
@@ -28,7 +29,7 @@ _SAFE_TEXT = Annotated[str, Field(min_length=1, max_length=200)]
 _SAFE_VALUE = Annotated[str, Field(min_length=1, max_length=128, pattern=r"^[^\x00-\x1f]+$")]
 
 
-class CorporateTelemetryHeartbeatEvent(BaseModel):
+class CorporateTelemetryHeartbeatEvent(ContractModel):
     """One corporate heartbeat; the field list is closed and enumerable."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
@@ -48,7 +49,7 @@ class CorporateTelemetryHeartbeatEvent(BaseModel):
     occurred_at: Timestamp
 
 
-class CorporateTelemetryInvocationEvent(BaseModel):
+class CorporateTelemetryInvocationEvent(ContractModel):
     """One corporate component invocation; prompts and content have no fields."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
@@ -73,7 +74,7 @@ CorporateTelemetryEventPayload = Annotated[
 ]
 
 
-class CorporateTelemetryEventRequest(BaseModel):
+class CorporateTelemetryEventRequest(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
     schema_version: Literal[1] = 1
     event: CorporateTelemetryEventPayload
@@ -81,7 +82,7 @@ class CorporateTelemetryEventRequest(BaseModel):
     idempotency_key: IdempotencyKey
 
 
-class CorporateTelemetryEventView(BaseModel):
+class CorporateTelemetryEventView(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     schema_version: Literal[1] = 1
     organization_id: OrganizationId
@@ -107,7 +108,7 @@ class CorporateTelemetryEventView(BaseModel):
     received_at: Timestamp
 
 
-class CorporateTelemetryEventQuery(BaseModel):
+class CorporateTelemetryEventQuery(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
     event_kind: TelemetryEventKind | None = None
     account_id: AccountId | None = None
@@ -116,7 +117,7 @@ class CorporateTelemetryEventQuery(BaseModel):
     limit: Annotated[int, Field(ge=1, le=100)] = 50
 
 
-class CorporateTelemetryEventList(BaseModel):
+class CorporateTelemetryEventList(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     schema_version: Literal[1] = 1
     organization_id: OrganizationId
@@ -127,7 +128,7 @@ class CorporateTelemetryEventList(BaseModel):
     next_before_id: str | None = None
 
 
-class CorporateTelemetryAggregate(BaseModel):
+class CorporateTelemetryAggregate(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     day: Annotated[str, Field(pattern=r"^\d{4}-\d{2}-\d{2}$")]
     event_kind: TelemetryEventKind
@@ -135,13 +136,13 @@ class CorporateTelemetryAggregate(BaseModel):
     event_count: Annotated[int, Field(ge=0)]
 
 
-class CorporateTelemetryAggregateQuery(BaseModel):
+class CorporateTelemetryAggregateQuery(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
     occurred_from: Timestamp | None = None
     occurred_to: Timestamp | None = None
 
 
-class CorporateTelemetryAggregateList(BaseModel):
+class CorporateTelemetryAggregateList(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     schema_version: Literal[1] = 1
     organization_id: OrganizationId
@@ -150,14 +151,14 @@ class CorporateTelemetryAggregateList(BaseModel):
     )
 
 
-class CorporateTelemetryExportQuery(BaseModel):
+class CorporateTelemetryExportQuery(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
     occurred_from: Timestamp | None = None
     occurred_to: Timestamp | None = None
     limit: Annotated[int, Field(ge=1, le=1000)] = 1000
 
 
-class CorporateTelemetryExport(BaseModel):
+class CorporateTelemetryExport(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     schema_version: Literal[1] = 1
     organization_id: OrganizationId
@@ -167,7 +168,7 @@ class CorporateTelemetryExport(BaseModel):
     )
 
 
-class CorporateTelemetryPolicyView(BaseModel):
+class CorporateTelemetryPolicyView(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     schema_version: Literal[1] = 1
     organization_id: OrganizationId
@@ -189,7 +190,7 @@ class CorporateTelemetryPolicyView(BaseModel):
     updated_at: Timestamp
 
 
-class CorporateTelemetryPolicyRequest(BaseModel):
+class CorporateTelemetryPolicyRequest(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
     schema_version: Literal[1] = 1
     raw_retention_days: Annotated[int, Field(ge=1, le=3650)]
@@ -229,7 +230,7 @@ class CorporateTelemetryPolicyRequest(BaseModel):
         return self
 
 
-class CorporateTelemetryRightView(BaseModel):
+class CorporateTelemetryRightView(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     schema_version: Literal[1] = 1
     organization_id: OrganizationId
@@ -246,7 +247,7 @@ class CorporateTelemetryRightView(BaseModel):
     updated_at: Timestamp
 
 
-class CorporateTelemetryRightRequest(BaseModel):
+class CorporateTelemetryRightRequest(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
     schema_version: Literal[1] = 1
     subject_kind: TelemetrySubjectKind = "account"
@@ -257,7 +258,7 @@ class CorporateTelemetryRightRequest(BaseModel):
     idempotency_key: IdempotencyKey
 
 
-class CorporateTelemetryRevokeRequest(BaseModel):
+class CorporateTelemetryRevokeRequest(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
     schema_version: Literal[1] = 1
     anonymize: bool = True
@@ -266,7 +267,7 @@ class CorporateTelemetryRevokeRequest(BaseModel):
     idempotency_key: IdempotencyKey
 
 
-class CorporateTelemetryDeleteRequest(BaseModel):
+class CorporateTelemetryDeleteRequest(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
     schema_version: Literal[1] = 1
     subject_kind: TelemetrySubjectKind = "account"
@@ -277,7 +278,7 @@ class CorporateTelemetryDeleteRequest(BaseModel):
     idempotency_key: IdempotencyKey
 
 
-class CorporateTelemetryDeleteResult(BaseModel):
+class CorporateTelemetryDeleteResult(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     schema_version: Literal[1] = 1
     organization_id: OrganizationId
@@ -289,7 +290,7 @@ class CorporateTelemetryDeleteResult(BaseModel):
     processed_at: Timestamp
 
 
-class CorporateTelemetryEventBatchRequest(BaseModel):
+class CorporateTelemetryEventBatchRequest(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
     schema_version: Literal[1] = 1
     events: Annotated[list[CorporateTelemetryEventPayload], Field(max_length=100)]
@@ -304,7 +305,7 @@ class CorporateTelemetryEventBatchRequest(BaseModel):
         return self
 
 
-class CorporateTelemetryEventBatchResult(BaseModel):
+class CorporateTelemetryEventBatchResult(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     schema_version: Literal[1] = 1
     organization_id: OrganizationId
@@ -315,7 +316,7 @@ class CorporateTelemetryEventBatchResult(BaseModel):
     )
 
 
-class CorporateTelemetryAuditView(BaseModel):
+class CorporateTelemetryAuditView(ContractModel):
     """One governance audit row; `detail` carries counts and ids, no payloads."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -331,13 +332,13 @@ class CorporateTelemetryAuditView(BaseModel):
     created_at: Timestamp
 
 
-class CorporateTelemetryAuditQuery(BaseModel):
+class CorporateTelemetryAuditQuery(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
     before_id: Annotated[int, Field(ge=1)] | None = None
     limit: Annotated[int, Field(ge=1, le=100)] = 50
 
 
-class CorporateTelemetryAuditList(BaseModel):
+class CorporateTelemetryAuditList(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     schema_version: Literal[1] = 1
     organization_id: OrganizationId

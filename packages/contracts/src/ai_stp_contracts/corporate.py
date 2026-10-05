@@ -3,10 +3,11 @@
 import re
 from typing import Annotated, Literal, Self
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import ConfigDict, Field, model_validator
 from pydantic.json_schema import JsonSchemaValue
 
 from ai_stp_contracts.http import IdempotencyKey, Timestamp, open_wire_object, strict_request_object
+from ai_stp_contracts.model import ContractModel
 from ai_stp_foundation.harnesses import HarnessId
 from ai_stp_foundation.ids import stable_id_pattern
 from ai_stp_foundation.versioning import VERSION_PATTERN
@@ -40,7 +41,7 @@ ScopeKind = Literal[
 ]
 
 
-class CorporateCatalogAssignmentRequest(BaseModel):
+class CorporateCatalogAssignmentRequest(ContractModel):
     """Assign a stable catalog line without granting access or installing it."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
@@ -84,7 +85,7 @@ class CorporateCatalogAssignmentRequest(BaseModel):
         return self
 
 
-class CorporateCatalogAssignment(BaseModel):
+class CorporateCatalogAssignment(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     schema_version: Literal[1] = 1
     assignment_id: Annotated[str, Field(min_length=1, max_length=64)]
@@ -103,7 +104,7 @@ class CorporateCatalogAssignment(BaseModel):
     display_name: str | None = None
 
 
-class CorporateTeamCatalogObject(BaseModel):
+class CorporateTeamCatalogObject(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     schema_version: Literal[1] = 1
     organization_id: OrganizationId
@@ -115,7 +116,7 @@ class CorporateTeamCatalogObject(BaseModel):
     revision: Annotated[int, Field(ge=1)]
 
 
-class CorporateCatalogAssignmentQuery(BaseModel):
+class CorporateCatalogAssignmentQuery(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
     subject_kind: AssignmentSubjectKind
     subject_id: Annotated[str, Field(min_length=1, max_length=64)]
@@ -124,14 +125,14 @@ class CorporateCatalogAssignmentQuery(BaseModel):
     limit: Annotated[int, Field(ge=1, le=256)] = 128
 
 
-class CorporateCatalogAssignmentList(BaseModel):
+class CorporateCatalogAssignmentList(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     schema_version: Literal[1] = 1
     items: list[CorporateCatalogAssignment]
     total: Annotated[int, Field(ge=0)]
 
 
-class CorporateCatalogUsageQuery(BaseModel):
+class CorporateCatalogUsageQuery(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
     object_kind: Literal["setup", "component"]
     stable_id: Annotated[str, Field(min_length=1, max_length=64)]
@@ -146,7 +147,7 @@ class CorporateCatalogUsageQuery(BaseModel):
         return self
 
 
-class CorporateCatalogUsage(BaseModel):
+class CorporateCatalogUsage(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     schema_version: Literal[1] = 1
     organization_id: OrganizationId
@@ -162,14 +163,14 @@ class CorporateCatalogUsage(BaseModel):
     source_team_id: Annotated[str, Field(pattern=stable_id_pattern("operation"))] | None = None
 
 
-class CorporateCatalogUsageList(BaseModel):
+class CorporateCatalogUsageList(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     schema_version: Literal[1] = 1
     items: list[CorporateCatalogUsage]
     total: Annotated[int, Field(ge=0)]
 
 
-class CorporateEffectiveAssignmentQuery(BaseModel):
+class CorporateEffectiveAssignmentQuery(ContractModel):
     """Authorized effective-assignment evaluation for one employee and catalog line."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
@@ -187,7 +188,7 @@ class CorporateEffectiveAssignmentQuery(BaseModel):
         return self
 
 
-class CorporateEffectiveAssignmentCandidate(BaseModel):
+class CorporateEffectiveAssignmentCandidate(ContractModel):
     """One assignment row considered by the deterministic effective evaluation."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -205,7 +206,7 @@ class CorporateEffectiveAssignmentCandidate(BaseModel):
     resolved_digest: DigestValue | None = None
 
 
-class CorporateEffectiveAssignment(BaseModel):
+class CorporateEffectiveAssignment(ContractModel):
     """The winning assignment, its source, and the exact resolved coordinate."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -231,7 +232,7 @@ DistributionTargetResult = Literal["applied", "skipped", "conflicted", "denied",
 DistributionLifecycle = Literal["pending", "installed", "outdated", "failed", "revoked"]
 
 
-class CorporateDistributionRequest(BaseModel):
+class CorporateDistributionRequest(ContractModel):
     """Preview or apply one bulk assign/revoke over a source assignment's targets."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
@@ -244,7 +245,7 @@ class CorporateDistributionRequest(BaseModel):
     idempotency_key: IdempotencyKey
 
 
-class CorporateDistributionTargetResult(BaseModel):
+class CorporateDistributionTargetResult(ContractModel):
     """One resolved target's durable result and derived distribution state."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -256,7 +257,7 @@ class CorporateDistributionTargetResult(BaseModel):
     overriding_assignment_id: Annotated[str, Field(min_length=1, max_length=64)] | None = None
 
 
-class CorporateDistributionExclusion(BaseModel):
+class CorporateDistributionExclusion(ContractModel):
     """A member or project considered during expansion and excluded with a reason."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -265,7 +266,7 @@ class CorporateDistributionExclusion(BaseModel):
     reason: str
 
 
-class CorporateDistributionCounts(BaseModel):
+class CorporateDistributionCounts(ContractModel):
     """Per-result totals across the resolved target set."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -276,7 +277,7 @@ class CorporateDistributionCounts(BaseModel):
     failed: Annotated[int, Field(ge=0)] = 0
 
 
-class CorporateDistributionResult(BaseModel):
+class CorporateDistributionResult(ContractModel):
     """Preview or durable outcome of one bulk distribution request."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -292,7 +293,7 @@ class CorporateDistributionResult(BaseModel):
     counts: CorporateDistributionCounts = CorporateDistributionCounts()
 
 
-class CorporateDistributionStateQuery(BaseModel):
+class CorporateDistributionStateQuery(ContractModel):
     """Bounded read of one source assignment's per-target distribution state."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
@@ -301,7 +302,7 @@ class CorporateDistributionStateQuery(BaseModel):
     limit: Annotated[int, Field(ge=1, le=256)] = 128
 
 
-class CorporateDistributionState(BaseModel):
+class CorporateDistributionState(ContractModel):
     """Current derived distribution state for one member or project target."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -313,7 +314,7 @@ class CorporateDistributionState(BaseModel):
     diagnostic: str | None = None
 
 
-class CorporateDistributionStateList(BaseModel):
+class CorporateDistributionStateList(ContractModel):
     """Per-target distribution state for one source assignment."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -332,7 +333,7 @@ PlanOutcome = Literal[
 ]
 
 
-class CorporatePlanMaterializedItem(BaseModel):
+class CorporatePlanMaterializedItem(ContractModel):
     """One exact coordinate the caller reports as currently materialized."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
@@ -348,7 +349,7 @@ class CorporatePlanMaterializedItem(BaseModel):
         return self
 
 
-class CorporateAssignmentPlanRequest(BaseModel):
+class CorporateAssignmentPlanRequest(ContractModel):
     """Evaluate the deterministic install/update plan for one context (ADR-0197).
 
     The request names the authenticated employee context, the optional project
@@ -373,7 +374,7 @@ class CorporateAssignmentPlanRequest(BaseModel):
         return self
 
 
-class CorporateAssignmentPlanItem(BaseModel):
+class CorporateAssignmentPlanItem(ContractModel):
     """One catalog line's effective assignment and the planned action."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -395,7 +396,7 @@ class CorporateAssignmentPlanItem(BaseModel):
     candidates: Annotated[list[CorporateEffectiveAssignmentCandidate], Field(max_length=256)] = []
 
 
-class CorporateAssignmentPlan(BaseModel):
+class CorporateAssignmentPlan(ContractModel):
     """The deterministic install/update plan for one context (ADR-0197).
 
     Items are sorted by object kind and stable identity; the response carries
@@ -414,7 +415,7 @@ class CorporateAssignmentPlan(BaseModel):
     total: Annotated[int, Field(ge=0)] = 0
 
 
-class CorporateBootstrapRequest(BaseModel):
+class CorporateBootstrapRequest(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
     schema_version: Literal[1] = 1
     organization_name: Annotated[str, Field(min_length=1, max_length=200)]
@@ -422,7 +423,7 @@ class CorporateBootstrapRequest(BaseModel):
     idempotency_key: IdempotencyKey
 
 
-class CorporateOrganization(BaseModel):
+class CorporateOrganization(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     schema_version: Literal[1] = 1
     organization_id: OrganizationId
@@ -431,14 +432,14 @@ class CorporateOrganization(BaseModel):
     authorization_revision: Annotated[int, Field(ge=1)]
 
 
-class CorporateMemberCatalogAssignment(BaseModel):
+class CorporateMemberCatalogAssignment(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
     object_kind: Literal["component"]
     stable_id: Annotated[str, Field(min_length=1, max_length=64)]
     version: Annotated[str, Field(pattern=VERSION_PATTERN)]
 
 
-class CorporateMemberCreateRequest(BaseModel):
+class CorporateMemberCreateRequest(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
     schema_version: Literal[1] = 1
     account_id: AccountId | None = None
@@ -461,7 +462,7 @@ class CorporateMemberCreateRequest(BaseModel):
         return self
 
 
-class CorporateMemberProfileRequest(BaseModel):
+class CorporateMemberProfileRequest(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
     schema_version: Literal[1] = 1
     display_name: Annotated[str, Field(min_length=1, max_length=80)]
@@ -476,7 +477,7 @@ class CorporateMemberProfileRequest(BaseModel):
         return self
 
 
-class CorporateMemberUpdateRequest(BaseModel):
+class CorporateMemberUpdateRequest(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
     schema_version: Literal[1] = 1
     role: CorporateRole
@@ -487,7 +488,7 @@ class CorporateMemberUpdateRequest(BaseModel):
     idempotency_key: IdempotencyKey
 
 
-class CorporateDeleteRequest(BaseModel):
+class CorporateDeleteRequest(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
     schema_version: Literal[1] = 1
     expected_revision: Annotated[int, Field(ge=1)]
@@ -495,13 +496,13 @@ class CorporateDeleteRequest(BaseModel):
     idempotency_key: IdempotencyKey
 
 
-class CorporateDeleteResult(BaseModel):
+class CorporateDeleteResult(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     schema_version: Literal[1] = 1
     resource_id: str
 
 
-class CorporateMember(BaseModel):
+class CorporateMember(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     schema_version: Literal[1] = 1
     account_id: AccountId
@@ -517,13 +518,13 @@ class CorporateMember(BaseModel):
     available_actions: Annotated[list[str], Field(max_length=128)]
 
 
-class CorporateMemberList(BaseModel):
+class CorporateMemberList(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     schema_version: Literal[1] = 1
     items: Annotated[list[CorporateMember], Field(max_length=256)]
 
 
-class CorporateJobTitleCreateRequest(BaseModel):
+class CorporateJobTitleCreateRequest(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
     schema_version: Literal[1] = 1
     name: Annotated[str, Field(min_length=1, max_length=120)]
@@ -532,7 +533,7 @@ class CorporateJobTitleCreateRequest(BaseModel):
     idempotency_key: IdempotencyKey
 
 
-class CorporateJobTitleUpdateRequest(BaseModel):
+class CorporateJobTitleUpdateRequest(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
     schema_version: Literal[1] = 1
     name: Annotated[str, Field(min_length=1, max_length=120)]
@@ -543,7 +544,7 @@ class CorporateJobTitleUpdateRequest(BaseModel):
     idempotency_key: IdempotencyKey
 
 
-class CorporateJobTitleView(BaseModel):
+class CorporateJobTitleView(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     schema_version: Literal[1] = 1
     job_title_id: JobTitleId
@@ -555,7 +556,7 @@ class CorporateJobTitleView(BaseModel):
     revision: Annotated[int, Field(ge=1)]
 
 
-class CorporateJobTitleList(BaseModel):
+class CorporateJobTitleList(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     schema_version: Literal[1] = 1
     items: Annotated[list[CorporateJobTitleView], Field(max_length=256)]
@@ -565,7 +566,7 @@ BindingCoverage = Literal["self", "descendants"]
 BindingOrigin = Literal["membership", "assignment", "direct", "service_principal"]
 
 
-class CorporateBindingRequest(BaseModel):
+class CorporateBindingRequest(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
     schema_version: Literal[1] = 1
     account_id: AccountId
@@ -583,7 +584,7 @@ class CorporateBindingRequest(BaseModel):
         return self
 
 
-class CorporateBinding(BaseModel):
+class CorporateBinding(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     schema_version: Literal[1] = 1
     binding_id: str
@@ -599,7 +600,7 @@ class CorporateBinding(BaseModel):
     revision: Annotated[int, Field(ge=1)]
 
 
-class CorporateBindingUpdateRequest(BaseModel):
+class CorporateBindingUpdateRequest(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
     schema_version: Literal[1] = 1
     role: CorporateRole
@@ -621,7 +622,7 @@ class CorporateBindingUpdateRequest(BaseModel):
 GrantScopeKind = Literal["organization", "team", "project", "technology"]
 
 
-class CorporatePermissionGrantRequest(BaseModel):
+class CorporatePermissionGrantRequest(ContractModel):
     """One direct action allow — no role — checked against the issuer's delegation bound."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
@@ -641,7 +642,7 @@ class CorporatePermissionGrantRequest(BaseModel):
         return self
 
 
-class CorporatePermissionGrant(BaseModel):
+class CorporatePermissionGrant(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     schema_version: Literal[1] = 1
     grant_id: str
@@ -656,13 +657,13 @@ class CorporatePermissionGrant(BaseModel):
     revision: Annotated[int, Field(ge=1)]
 
 
-class CorporatePermissionGrantList(BaseModel):
+class CorporatePermissionGrantList(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     schema_version: Literal[1] = 1
     items: Annotated[list[CorporatePermissionGrant], Field(max_length=256)]
 
 
-class CorporateGrantableRole(BaseModel):
+class CorporateGrantableRole(ContractModel):
     """A role whose closed permission set the caller may delegate."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -670,7 +671,7 @@ class CorporateGrantableRole(BaseModel):
     permissions: Annotated[list[str], Field(max_length=128)]
 
 
-class CorporateDelegationView(BaseModel):
+class CorporateDelegationView(ContractModel):
     """What the current principal may delegate, computed server-side."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -681,18 +682,18 @@ class CorporateDelegationView(BaseModel):
     authorization_revision: Annotated[int, Field(ge=1)]
 
 
-class CorporatePermissionGrantQuery(BaseModel):
+class CorporatePermissionGrantQuery(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
     account_id: AccountId | None = None
 
 
-class CorporateBindingList(BaseModel):
+class CorporateBindingList(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     schema_version: Literal[1] = 1
     items: Annotated[list[CorporateBinding], Field(max_length=256)]
 
 
-class CorporateRoleCreateRequest(BaseModel):
+class CorporateRoleCreateRequest(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
     schema_version: Literal[1] = 1
     name: CorporateRole
@@ -702,7 +703,7 @@ class CorporateRoleCreateRequest(BaseModel):
     idempotency_key: IdempotencyKey
 
 
-class CorporateRoleUpdateRequest(BaseModel):
+class CorporateRoleUpdateRequest(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
     schema_version: Literal[1] = 1
     parent_role: CorporateRole | None = None
@@ -712,7 +713,7 @@ class CorporateRoleUpdateRequest(BaseModel):
     idempotency_key: IdempotencyKey
 
 
-class CorporateRoleView(BaseModel):
+class CorporateRoleView(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     schema_version: Literal[1] = 1
     name: CorporateRole
@@ -721,13 +722,13 @@ class CorporateRoleView(BaseModel):
     revision: Annotated[int, Field(ge=1)]
 
 
-class CorporateRoleList(BaseModel):
+class CorporateRoleList(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     schema_version: Literal[1] = 1
     items: Annotated[list[CorporateRoleView], Field(max_length=256)]
 
 
-class CorporateProjectCreateRequest(BaseModel):
+class CorporateProjectCreateRequest(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
     schema_version: Literal[1] = 1
     name: Annotated[str, Field(min_length=1, max_length=200)]
@@ -740,7 +741,7 @@ class CorporateProjectCreateRequest(BaseModel):
     idempotency_key: IdempotencyKey
 
 
-class CorporateProjectUpdateRequest(BaseModel):
+class CorporateProjectUpdateRequest(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
     schema_version: Literal[1] = 1
     name: Annotated[str, Field(min_length=1, max_length=200)]
@@ -767,7 +768,7 @@ def _project_wire_object(schema: JsonSchemaValue) -> None:
     ]
 
 
-class CorporateProjectRepository(BaseModel):
+class CorporateProjectRepository(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     provider_project_id: str
     namespace: str
@@ -777,7 +778,7 @@ class CorporateProjectRepository(BaseModel):
     observed_at: Timestamp | None = None
 
 
-class CorporateProjectView(BaseModel):
+class CorporateProjectView(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=_project_wire_object)
     schema_version: Literal[1] = 1
     project_id: str
@@ -793,7 +794,7 @@ class CorporateProjectView(BaseModel):
     available_actions: Annotated[list[str], Field(max_length=128)] = []
 
 
-class CorporateProjectLifecycleRequest(BaseModel):
+class CorporateProjectLifecycleRequest(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
     schema_version: Literal[1] = 1
     target: Literal["active", "deprecated", "archived", "restore"]
@@ -812,13 +813,13 @@ class CorporateProjectLifecycleRequest(BaseModel):
     idempotency_key: IdempotencyKey
 
 
-class CorporateProjectList(BaseModel):
+class CorporateProjectList(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     schema_version: Literal[1] = 1
     items: Annotated[list[CorporateProjectView], Field(max_length=256)]
 
 
-class CorporateTeamCreateRequest(BaseModel):
+class CorporateTeamCreateRequest(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
     schema_version: Literal[1] = 1
     name: Annotated[str, Field(min_length=1, max_length=200)]
@@ -833,7 +834,7 @@ class CorporateTeamCreateRequest(BaseModel):
     idempotency_key: IdempotencyKey
 
 
-class CorporateTeamView(BaseModel):
+class CorporateTeamView(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     schema_version: Literal[1] = 1
     team_id: str
@@ -857,7 +858,7 @@ class CorporateTeamView(BaseModel):
     ] = []
 
 
-class CorporateTeamUpdateRequest(BaseModel):
+class CorporateTeamUpdateRequest(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
     schema_version: Literal[1] = 1
     name: Annotated[str, Field(min_length=1, max_length=200)]
@@ -868,13 +869,13 @@ class CorporateTeamUpdateRequest(BaseModel):
     idempotency_key: IdempotencyKey
 
 
-class CorporateTeamList(BaseModel):
+class CorporateTeamList(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     schema_version: Literal[1] = 1
     items: Annotated[list[CorporateTeamView], Field(max_length=256)]
 
 
-class CorporateServicePrincipalCreateRequest(BaseModel):
+class CorporateServicePrincipalCreateRequest(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
     schema_version: Literal[1] = 1
     name: Annotated[str, Field(min_length=1, max_length=200)]
@@ -885,7 +886,7 @@ class CorporateServicePrincipalCreateRequest(BaseModel):
     idempotency_key: IdempotencyKey
 
 
-class CorporateServicePrincipalUpdateRequest(BaseModel):
+class CorporateServicePrincipalUpdateRequest(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
     schema_version: Literal[1] = 1
     state: CorporateState
@@ -894,7 +895,7 @@ class CorporateServicePrincipalUpdateRequest(BaseModel):
     idempotency_key: IdempotencyKey
 
 
-class CorporateServicePrincipalView(BaseModel):
+class CorporateServicePrincipalView(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     schema_version: Literal[1] = 1
     service_principal_id: str
@@ -905,13 +906,13 @@ class CorporateServicePrincipalView(BaseModel):
     binding: CorporateBinding
 
 
-class CorporateServicePrincipalList(BaseModel):
+class CorporateServicePrincipalList(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     schema_version: Literal[1] = 1
     items: Annotated[list[CorporateServicePrincipalView], Field(max_length=256)]
 
 
-class CorporateMembershipAssignmentRequest(BaseModel):
+class CorporateMembershipAssignmentRequest(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
     schema_version: Literal[1] = 1
     account_id: AccountId
@@ -923,7 +924,7 @@ class CorporateMembershipAssignmentRequest(BaseModel):
     idempotency_key: IdempotencyKey
 
 
-class CorporateMembershipAssignment(BaseModel):
+class CorporateMembershipAssignment(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     schema_version: Literal[1] = 1
     account_id: AccountId
@@ -934,7 +935,7 @@ class CorporateMembershipAssignment(BaseModel):
     bindings: Annotated[list[CorporateBinding], Field(max_length=2)]
 
 
-class CorporateContext(BaseModel):
+class CorporateContext(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     schema_version: Literal[1] = 1
     organization: CorporateOrganization
@@ -945,7 +946,7 @@ class CorporateContext(BaseModel):
     capabilities: Annotated[list[str], Field(max_length=256)]
 
 
-class CorporateAuditEntry(BaseModel):
+class CorporateAuditEntry(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     schema_version: Literal[1] = 1
     audit_id: int
@@ -963,7 +964,7 @@ class CorporateAuditEntry(BaseModel):
     created_at: Timestamp
 
 
-class CorporateAuditList(BaseModel):
+class CorporateAuditList(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     schema_version: Literal[1] = 1
     items: Annotated[list[CorporateAuditEntry], Field(max_length=256)]
@@ -971,7 +972,7 @@ class CorporateAuditList(BaseModel):
     next_before_id: int | None = None
 
 
-class CorporateAuditExport(BaseModel):
+class CorporateAuditExport(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     schema_version: Literal[1] = 1
     organization_id: OrganizationId
@@ -979,7 +980,7 @@ class CorporateAuditExport(BaseModel):
     items: Annotated[list[CorporateAuditEntry], Field(max_length=10000)]
 
 
-class CorporateAuditQuery(BaseModel):
+class CorporateAuditQuery(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
     before_id: Annotated[int | None, Field(ge=1)] = None
     before_created_at: Timestamp | None = None
@@ -990,7 +991,7 @@ class CorporateAuditQuery(BaseModel):
     created_to: Timestamp | None = None
 
 
-class CorporateOverviewNode(BaseModel):
+class CorporateOverviewNode(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     kind: Literal["project", "team", "employee"]
     id: Annotated[str, Field(min_length=1, max_length=64)]
@@ -1011,7 +1012,7 @@ class CorporateOverviewNode(BaseModel):
         return self
 
 
-class CorporateOverviewEdge(BaseModel):
+class CorporateOverviewEdge(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     parent_id: str
     child_id: str
@@ -1019,7 +1020,7 @@ class CorporateOverviewEdge(BaseModel):
     role: Literal["owner", "responsible", "contributor", "lead", "staff"]
 
 
-class CorporateOverview(BaseModel):
+class CorporateOverview(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     schema_version: Literal[1] = 1
     organization: CorporateOrganization
@@ -1064,7 +1065,7 @@ type CorporateInvitationState = Literal[
 type CorporateMailDeliveryState = Literal["queued", "sent", "failed"]
 
 
-class CorporateInvitationCreateRequest(BaseModel):
+class CorporateInvitationCreateRequest(ContractModel):
     """POST /v1/corporate/organizations/{organization_id}/invitations body."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
@@ -1080,7 +1081,7 @@ class CorporateInvitationCreateRequest(BaseModel):
     idempotency_key: IdempotencyKey
 
 
-class CorporateInvitation(BaseModel):
+class CorporateInvitation(ContractModel):
     """One organization invitation. The raw token is returned only on create."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -1104,13 +1105,13 @@ class CorporateInvitation(BaseModel):
     delivery_error: str | None
 
 
-class CorporateInvitationList(BaseModel):
+class CorporateInvitationList(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     schema_version: Literal[1] = 1
     items: Annotated[list[CorporateInvitation], Field(max_length=256)]
 
 
-class CorporateInvitationRevokeRequest(BaseModel):
+class CorporateInvitationRevokeRequest(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
     schema_version: Literal[1] = 1
     reason: Annotated[str, Field(default="", max_length=500)] = ""
@@ -1118,7 +1119,7 @@ class CorporateInvitationRevokeRequest(BaseModel):
     idempotency_key: IdempotencyKey
 
 
-class CorporateInvitationAcceptRequest(BaseModel):
+class CorporateInvitationAcceptRequest(ContractModel):
     """POST /v1/corporate/invitations/{invitation_id}/accept body."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
@@ -1127,7 +1128,7 @@ class CorporateInvitationAcceptRequest(BaseModel):
     idempotency_key: IdempotencyKey
 
 
-class CorporateMembershipPolicy(BaseModel):
+class CorporateMembershipPolicy(ContractModel):
     """Email-domain allowlist for joining the organization."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -1137,7 +1138,7 @@ class CorporateMembershipPolicy(BaseModel):
     authorization_revision: Annotated[int, Field(ge=1)]
 
 
-class CorporateMembershipPolicyRequest(BaseModel):
+class CorporateMembershipPolicyRequest(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
     schema_version: Literal[1] = 1
     allowed_email_domains: Annotated[

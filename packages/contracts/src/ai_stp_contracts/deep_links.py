@@ -9,8 +9,9 @@ objects.
 from typing import Annotated, Final, Literal, Self, cast
 from urllib.parse import SplitResult, urlsplit, urlunsplit
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import ConfigDict, Field, model_validator
 
+from ai_stp_contracts.model import ContractModel
 from ai_stp_foundation.ids import is_valid_id, stable_id_pattern
 from ai_stp_foundation.versioning import VERSION_PATTERN, VersionError, parse_version
 
@@ -35,7 +36,7 @@ _TARGET_ID_PATTERN: Final[str] = (
 )
 
 
-class DeepLinkTarget(BaseModel):
+class DeepLinkTarget(ContractModel):
     """One normalized identity and navigation intent."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)
@@ -70,7 +71,7 @@ class DeepLinkTarget(BaseModel):
         return self
 
 
-class DeepLinkView(BaseModel):
+class DeepLinkView(ContractModel):
     """A target projected into the web and agent-facing CLI forms."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)

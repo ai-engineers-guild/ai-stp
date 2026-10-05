@@ -3,10 +3,11 @@
 import re
 from typing import Annotated, Literal, Self
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import ConfigDict, Field, model_validator
 
 from ai_stp_contracts.corporate import AccountId, CorporateOrganization
 from ai_stp_contracts.http import open_wire_object, strict_request_object
+from ai_stp_contracts.model import ContractModel
 from ai_stp_foundation.ids import stable_id_pattern
 
 TeamId = Annotated[str, Field(pattern=stable_id_pattern("operation"))]
@@ -15,7 +16,7 @@ CategoryId = Annotated[str, Field(pattern=stable_id_pattern("category"))]
 ProjectId = Annotated[str, Field(pattern=stable_id_pattern("remote_project"))]
 
 
-class CorporateDirectoryReference(BaseModel):
+class CorporateDirectoryReference(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     kind: Literal["project", "team", "employee", "technology", "category", "job_title"]
     id: Annotated[str, Field(min_length=1, max_length=64)]
@@ -83,7 +84,7 @@ class CorporateDirectoryItem(CorporateDirectoryReference):
         return self
 
 
-class CorporateDirectoryQuery(BaseModel):
+class CorporateDirectoryQuery(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
     resource: Literal["projects", "teams", "members", "employees", "technologies"]
     query: Annotated[str | None, Field(min_length=1, max_length=200, pattern=r".*\S.*")] = None
@@ -101,7 +102,7 @@ class CorporateDirectoryQuery(BaseModel):
     limit: Annotated[int, Field(ge=1, le=256)] = 128
 
 
-class CorporateDirectoryFacets(BaseModel):
+class CorporateDirectoryFacets(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     leads: list[CorporateDirectoryReference]
     teams: list[CorporateDirectoryReference]
@@ -111,7 +112,7 @@ class CorporateDirectoryFacets(BaseModel):
     job_titles: list[CorporateDirectoryReference] = []
 
 
-class CorporateDirectoryView(BaseModel):
+class CorporateDirectoryView(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     schema_version: Literal[1] = 1
     organization: CorporateOrganization
