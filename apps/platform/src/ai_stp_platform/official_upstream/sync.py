@@ -34,6 +34,7 @@ from ai_stp_platform.models import (
 from ai_stp_platform.official_upstream.attribution import build_description
 from ai_stp_platform.official_upstream.errors import (
     CHANGED_REPOSITORY_IDENTITY,
+    DETERMINISTIC_FAILURES,
     FAILED_VALIDATION,
     STALE_OWNERSHIP,
     OfficialUpstreamError,
@@ -72,7 +73,14 @@ async def run_sync(
     now: datetime | None = None,
     attempt_id: int | None = None,
 ) -> str:
-    """Return unchanged, publication_started, or raise a typed failure."""
+    """Return unchanged, publication_started or refused, or raise a typed failure.
+
+    A deterministic failure is a domain verdict, not a job failure: retrying
+    the same attempt re-downloads the same archive and fails the same way,
+    spending the unauthenticated GitHub budget the other sources need. It is
+    recorded as `failed_permanent` and the job completes, as a validation
+    refusal does (SPEC-056 REQ-5609).
+    """
     moment = now or datetime.now(UTC)
     source = await session.get(OfficialUpstreamSource, source_id)
     if source is None or not source.enabled:
@@ -97,6 +105,7 @@ async def run_sync(
         cancelled = await fence_attempt(session, source, attempt)
         if cancelled is not None:
             return "skipped"
+        permanent = error.code in DETERMINISTIC_FAILURES
         await _record_sync(
             session,
             source,
@@ -104,8 +113,10 @@ async def run_sync(
             "failed",
             error_code=error.code,
             attempt=attempt,
-            state="retry_wait",
+            state="failed_permanent" if permanent else "retry_wait",
         )
+        if permanent:
+            return "refused"
         raise
     cancelled = await fence_attempt(session, source, attempt)
     if cancelled is not None:
@@ -116,20 +127,17 @@ async def run_sync(
         and snapshot.github_repo_id is not None
         and source.last_github_repo_id != snapshot.github_repo_id
     ):
-        error = OfficialUpstreamError(
-            CHANGED_REPOSITORY_IDENTITY, "GitHub repository identity changed"
-        )
         await _record_sync(
             session,
             source,
             moment.date(),
             "failed",
             snapshot=snapshot,
-            error_code=error.code,
+            error_code=CHANGED_REPOSITORY_IDENTITY,
             attempt=attempt,
-            state="retry_wait",
+            state="failed_permanent",
         )
-        raise error
+        return "refused"
     artifact, adaptation = _projection(source, snapshot)
     component_digest = digest_bytes(ARTIFACT_DIGEST_DOMAIN, artifact)
     if await _already_published(session, source.stable_id, component_digest):
@@ -671,6 +679,8 @@ async def _record_sync(
             row.completed_at = datetime.now(UTC)
         if state == "retry_wait":
             row.error_class = row.error_class or "retryable"
+        if state == "failed_permanent":
+            row.error_class = "permanent"
     if snapshot is not None:
         row.commit = snapshot.exact_identity
         row.archive_digest = snapshot.archive_digest
