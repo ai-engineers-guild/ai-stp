@@ -14,11 +14,8 @@ from typing import Final
 
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import content, revisions, versions
-from ai_stp_contracts.machine_help import (
-    CatalogSearchResult,
-    SourceSearchCandidate,
-    SourceSearchResult,
-)
+from ai_stp_contracts.cli.catalog import CatalogSearchResult
+from ai_stp_contracts.cli.components import SourceSearchCandidate, SourceSearchResult
 from ai_stp_foundation.canonical import JsonValue
 from ai_stp_sources.definition import try_parse_setup_definition
 

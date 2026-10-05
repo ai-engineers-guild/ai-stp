@@ -12,14 +12,9 @@ from ai_stp_cli.cloud import session
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.secrets import open_store
 from ai_stp_contracts.auth import OAUTH_PROVIDERS
-from ai_stp_contracts.machine_help import (
-    AuthStatus,
-    DeviceApproval,
-    SyncPullView,
-    SyncPushView,
-    TaskAccountOutcome,
-    TaskQuestion,
-)
+from ai_stp_contracts.cli.identity import AuthStatus, DeviceApproval
+from ai_stp_contracts.cli.sync import SyncPullView, SyncPushView
+from ai_stp_contracts.cli.tasks import TaskAccountOutcome, TaskQuestion
 from ai_stp_foundation.canonical import JsonValue
 from ai_stp_foundation.ids import is_valid_id
 

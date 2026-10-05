@@ -23,9 +23,9 @@ from ai_stp_cli.local import (
     sync_versions,
 )
 from ai_stp_cli.local.database import configured_path, open_readonly, open_registry
+from ai_stp_contracts.cli.sync import SyncPreview, SyncPullView, SyncPushView
 from ai_stp_contracts.http import PAGE_SIZE_DEFAULT, PAGE_SIZE_MAX
 from ai_stp_contracts.identity import DetectedHarness, DeviceSummary
-from ai_stp_contracts.machine_help import SyncPreview, SyncPullView, SyncPushView
 from ai_stp_contracts.sync import (
     ConsentTombstonePayload,
     ConsentUpsertPayload,

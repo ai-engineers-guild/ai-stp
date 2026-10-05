@@ -8,7 +8,8 @@ from pathlib import Path
 
 from ai_stp_cli.application import account as account_service
 from ai_stp_cli.errors import CliFailure
-from ai_stp_contracts.machine_help import PublicationPlanView, TaskPublishOutcome, TaskQuestion
+from ai_stp_contracts.cli.publication import PublicationPlanView
+from ai_stp_contracts.cli.tasks import TaskPublishOutcome, TaskQuestion
 from ai_stp_contracts.publication import (
     PLAN_STATE_PUBLISHED,
     PLAN_STATES_IN_PROGRESS,

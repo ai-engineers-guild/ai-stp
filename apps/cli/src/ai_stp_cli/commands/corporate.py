@@ -21,6 +21,7 @@ from ai_stp_cli.commands.auth import endpoint
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import targets, versions
 from ai_stp_cli.local.database import configured_path, open_readonly
+from ai_stp_contracts.cli.install import ManagedVerification
 from ai_stp_contracts.corporate import (
     CorporateAssignmentPlan,
     CorporateAssignmentPlanRequest,
@@ -33,7 +34,6 @@ from ai_stp_contracts.corporate import (
     CorporatePlanMaterializedItem,
 )
 from ai_stp_contracts.dashboard import CiReason, CorporateCiCheckRequest
-from ai_stp_contracts.machine_help import ManagedVerification
 from ai_stp_foundation.ids import is_valid_id
 
 

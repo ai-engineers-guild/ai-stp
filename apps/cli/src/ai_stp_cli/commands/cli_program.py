@@ -8,7 +8,7 @@ from ai_stp_cli.answer import Answer
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import cli_program
 from ai_stp_cli.local.database import configured_path, open_readonly, open_registry
-from ai_stp_contracts.machine_help import CliProgram
+from ai_stp_contracts.cli.toolchain import CliProgram
 
 
 def install(parameters: Mapping[str, object]) -> Answer[CliProgram]:

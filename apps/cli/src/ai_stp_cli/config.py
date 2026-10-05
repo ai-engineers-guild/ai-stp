@@ -24,7 +24,7 @@ import yaml
 
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.paths import config_home, data_home, redact_home, write_private
-from ai_stp_contracts.machine_help import ConfigReport, ConfigValue
+from ai_stp_contracts.cli.runtime import ConfigReport, ConfigValue
 from ai_stp_foundation.harnesses import HARNESS_IDS
 
 type ConfigScalar = str | int | bool | list[str] | None

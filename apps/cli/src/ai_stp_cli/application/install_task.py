@@ -24,7 +24,8 @@ from ai_stp_cli.local import (
     versions,
 )
 from ai_stp_cli.local.database import configured_path, open_readonly, open_registry
-from ai_stp_contracts.machine_help import InstallationView, TaskInstallOutcome, TaskQuestion
+from ai_stp_contracts.cli.install import InstallationView
+from ai_stp_contracts.cli.tasks import TaskInstallOutcome, TaskQuestion
 from ai_stp_foundation.canonical import JsonValue
 from ai_stp_foundation.harnesses import HARNESS_IDS
 from ai_stp_foundation.ids import is_valid_id

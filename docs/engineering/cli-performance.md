@@ -103,11 +103,44 @@ The remaining floor is mostly field collection for the models themselves —
 the 0.8s budget below. Lowering it further means splitting the machine-help
 module so a command imports only the models it returns.
 
+Fifth measurement, 2026-10-05, after the contract package stopped importing
+what a command does not use. Same method as the fourth, both trees interleaved,
+load average 4–7:
+
+| command | before | after |
+|---|---|---|
+| `version --json` | 1.10 | **0.70** |
+| `contract inventory --json` | 1.13 | **0.71** |
+| `capabilities --json` | 1.10 | **0.74** |
+| `help --agent` | 1.11 | **0.74** |
+| `config show --json` | 1.01 | **0.64** |
+| `doctor --json` | 1.22 | **1.06** |
+
+- `ai_stp_contracts.machine_help` is split into `ai_stp_contracts.cli`, sixteen
+  modules by command family, and the CLI imports the family it uses.
+  `machine_help` re-exports all 215 names for the schema generator, the
+  platform and the tests; the generated schemas did not change by a byte.
+- The package root loads its 139 re-exported names on first use through a
+  module `__getattr__`. Before, any `ai_stp_contracts.<module>` import first
+  imported auth, catalog, context, corporate, health, http and identity.
+- The command router read the shipped intent names from `application.inspect`,
+  which imports the doctor checks and the task-intent models; the names now
+  live in `application.inventory`, and `capabilities` is built in its own module
+  for the same reason.
+
+Every local read-only command is now within the 0.8s budget; `doctor` asks the
+harness programs for their versions and belongs to the 1.5s class. What every
+invocation still imports beyond pydantic, click and the foundation: the
+passports package root, which loads markdown-it for the three constants the
+registry needs (about 0.05s), and the heartbeat contract that the end-of-command
+check imports with the corporate contract behind it (about 0.06s).
+
 The frozen desktop sidecar adds its own cost on top: PyInstaller `--onefile`
 unpacks the archive on every call. On the same workstation a `--onedir` freeze
 of the same CLI answered `version --json` in 2.6s against 3.1s for `--onefile`
 (median of five, wall clock); the change of bundle layout that would take is
-recorded in the roadmap rather than made here.
+recorded in the roadmap rather than made here. The sidecar runs the same
+imports, so the fifth measurement lowers its per-call cost as well.
 
 ## Identified causes
 
@@ -192,15 +225,18 @@ The network and provider are outside these budgets and are measured separately.
 
 ## Regression checks
 
-`tests/unit/test_cli_performance_regressions.py` contains six checks, and only
+`tests/unit/test_cli_performance_regressions.py` contains nine checks, and only
 one concerns timing, because "runs concurrently" is a timing assertion. The
 margin cannot overlap on any plausible machine: seven 0.1s detections take 0.7s
 sequentially, while the boundary is 0.35s.
 
-The other five check a property rather than duration: an index without digests
+The other eight check a property rather than duration: an index without digests
 states that in a separate field, `select eligibility` never calls `sha256`,
 `version` / `contract inventory` never import the schema generator, every
-contract model defers its build, and a local command never imports httpx.
+contract model defers its build, a local command never imports httpx, an
+agent's first probes (`version`, `capabilities`, `help --agent`, `config show`)
+load only the `ai_stp_contracts.cli` families they use, the package root's
+three export lists agree, and `machine_help` re-exports every family name.
 A budget in seconds fails on a busy runner and passes on a fast runner that has
 regressed; such a check loses credibility by the third occurrence, and a check
 that nobody runs protects nothing.

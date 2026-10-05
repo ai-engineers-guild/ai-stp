@@ -25,7 +25,7 @@ from pydantic import BaseModel
 from ai_stp_cli.answer import Answer
 from ai_stp_cli.output import JSON_FLAG
 from ai_stp_contracts.auth import OAUTH_PROVIDERS
-from ai_stp_contracts.machine_help import (
+from ai_stp_contracts.cli.registry import (
     CommandDescriptor,
     CommandParameter,
     CommandParameterRule,

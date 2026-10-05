@@ -12,7 +12,7 @@ from typing import Literal, cast
 from ai_stp_cli import config, telemetry
 from ai_stp_cli.answer import Answer
 from ai_stp_cli.errors import CliFailure, leaf_help_continuation
-from ai_stp_contracts.machine_help import TelemetryStatus
+from ai_stp_contracts.cli.runtime import TelemetryStatus
 
 
 def show(parameters: Mapping[str, object]) -> Answer[TelemetryStatus]:

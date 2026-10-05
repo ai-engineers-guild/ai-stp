@@ -6,7 +6,8 @@ from pathlib import Path
 
 import pytest
 
-from ai_stp_cli.application.inspect import INTENT_INPUT_MODELS, SHIPPED_INTENT_NAMES
+from ai_stp_cli.application.inspect import INTENT_INPUT_MODELS
+from ai_stp_cli.application.inventory import SHIPPED_INTENT_NAMES
 from ai_stp_cli.application.task import _input_document  # pyright: ignore[reportPrivateUsage]
 from ai_stp_cli.commands import machine_help
 from ai_stp_cli.commands import task as task_command

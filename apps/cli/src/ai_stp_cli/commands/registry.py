@@ -5,7 +5,7 @@ from collections.abc import Mapping
 from ai_stp_cli.answer import Answer
 from ai_stp_cli.application import catalog as _service
 from ai_stp_cli.application.catalog import AcquiredCatalogVersion
-from ai_stp_contracts.machine_help import (
+from ai_stp_contracts.cli.catalog import (
     CatalogArtifactView,
     CatalogKind,
     CatalogObjectView,

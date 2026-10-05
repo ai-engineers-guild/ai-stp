@@ -18,7 +18,7 @@ from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.github_token import github_api_token
 from ai_stp_cli.local import passports, setup_compose
 from ai_stp_cli.local.database import configured_path, open_registry
-from ai_stp_contracts.machine_help import SetupComposePlan, SetupComposeResult, SetupExportResult
+from ai_stp_contracts.cli.setups import SetupComposePlan, SetupComposeResult, SetupExportResult
 from ai_stp_foundation.harnesses import HarnessId
 from ai_stp_foundation.ids import new_id
 from ai_stp_foundation.refs import ComponentRef

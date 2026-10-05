@@ -17,7 +17,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Final, cast
 
-from ai_stp_contracts.machine_help import PublicationSetMemberView
+from ai_stp_contracts.cli.publication import PublicationSetMemberView
 from ai_stp_foundation.canonical import JsonValue
 from ai_stp_foundation.digests import digest_canonical
 

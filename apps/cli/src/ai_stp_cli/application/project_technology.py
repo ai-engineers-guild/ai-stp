@@ -28,15 +28,14 @@ from ai_stp_cli.local.database import configured_path, open_registry, transactio
 from ai_stp_cli.local.passports import moment
 from ai_stp_cli.paths import redact_home
 from ai_stp_cli.yaml_documents import DuplicateKeyError, UniqueSafeLoader
-from ai_stp_contracts.machine_help import (
+from ai_stp_contracts.cli.tasks import TaskTechnologyDecision, TaskTechnologyOutcome
+from ai_stp_contracts.cli.technology import (
     CliTechnologyClaim,
     CliTechnologyEvidence,
     CliTechnologyFinding,
     CliTechnologyScan,
     CliTechnologyUnmapped,
     CliTechnologyUnmappedItem,
-    TaskTechnologyDecision,
-    TaskTechnologyOutcome,
 )
 from ai_stp_contracts.technology import (
     CategoryView,

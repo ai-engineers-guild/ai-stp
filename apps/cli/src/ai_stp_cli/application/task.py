@@ -23,12 +23,12 @@ from ai_stp_cli.application.change import drain as drain_change
 from ai_stp_cli.application.initialize import drain as drain_initialize
 from ai_stp_cli.application.inspect import (
     INTENT_INPUT_MODELS,
-    SHIPPED_INTENT_NAMES,
     doctor,
     intent_catalog,
     orientation,
 )
 from ai_stp_cli.application.install_task import drain as drain_install
+from ai_stp_cli.application.inventory import SHIPPED_INTENT_NAMES
 from ai_stp_cli.application.publish import drain as drain_publish
 from ai_stp_cli.application.switch import drain as drain_switch
 from ai_stp_cli.application.technology import drain as drain_technology
@@ -38,8 +38,7 @@ from ai_stp_cli.local.agent_tasks import StoredTask
 from ai_stp_cli.local.database import configured_path, open_registry, transaction
 from ai_stp_cli.local.passports import moment
 from ai_stp_cli.yaml_documents import DuplicateKeyError, UniqueSafeLoader
-from ai_stp_contracts.http import IDEMPOTENCY_KEY_PATTERN
-from ai_stp_contracts.machine_help import (
+from ai_stp_contracts.cli.tasks import (
     TaskAccountOutcome,
     TaskInspectOutcome,
     TaskIntentsCatalog,
@@ -49,6 +48,7 @@ from ai_stp_contracts.machine_help import (
     TaskPublishOutcome,
     TaskView,
 )
+from ai_stp_contracts.http import IDEMPOTENCY_KEY_PATTERN
 from ai_stp_foundation.canonical import JsonValue
 from ai_stp_foundation.envelope import Continuation, continuation_command
 from ai_stp_foundation.ids import is_valid_id, new_id

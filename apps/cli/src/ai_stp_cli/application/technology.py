@@ -24,11 +24,7 @@ from pydantic import ValidationError
 
 from ai_stp_cli.application import project_technology
 from ai_stp_cli.errors import CliFailure, field_issues
-from ai_stp_contracts.machine_help import (
-    TaskQuestion,
-    TaskTechnologyDecision,
-    TaskTechnologyOutcome,
-)
+from ai_stp_contracts.cli.tasks import TaskQuestion, TaskTechnologyDecision, TaskTechnologyOutcome
 from ai_stp_foundation.canonical import JsonValue
 
 

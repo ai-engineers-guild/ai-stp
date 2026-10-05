@@ -10,7 +10,7 @@ from pydantic import ValidationError
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import cache, lifecycle, revisions, setup_recast, versions
 from ai_stp_cli.local.database import transaction
-from ai_stp_contracts.machine_help import (
+from ai_stp_contracts.cli.setups import (
     ComponentMaterializePlan,
     ComponentMaterializeResult,
     ComponentMaterializeTarget,

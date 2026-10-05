@@ -18,7 +18,7 @@ from typing import Final, cast
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import harness_catalog, harnesses
 from ai_stp_cli.provider import protocol_v3
-from ai_stp_contracts.machine_help import TaskInitializeOutcome, TaskQuestion
+from ai_stp_contracts.cli.tasks import TaskInitializeOutcome, TaskQuestion
 from ai_stp_foundation.canonical import JsonValue
 from ai_stp_foundation.harnesses import HARNESS_IDS
 

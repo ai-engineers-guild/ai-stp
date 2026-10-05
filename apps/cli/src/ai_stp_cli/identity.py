@@ -35,7 +35,7 @@ from ai_stp_cli.secrets import (
     promote,
     store_json,
 )
-from ai_stp_contracts.machine_help import DeviceIdentity, LocalDeviceState
+from ai_stp_contracts.cli.identity import DeviceIdentity, LocalDeviceState
 from ai_stp_foundation.ids import is_valid_id, new_id
 from ai_stp_foundation.timestamps import format_timestamp
 

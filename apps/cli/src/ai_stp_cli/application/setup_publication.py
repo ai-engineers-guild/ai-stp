@@ -33,7 +33,7 @@ from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import content, publication_sets, revisions, versions
 from ai_stp_cli.local.database import configured_path, open_readonly, open_registry
 from ai_stp_cli.local.passports import moment
-from ai_stp_contracts.machine_help import PublicationSetMemberView, PublicationSetView
+from ai_stp_contracts.cli.publication import PublicationSetMemberView, PublicationSetView
 from ai_stp_contracts.publication import (
     PLAN_STATE_PUBLISHED,
     PLAN_STATES_REFUSED,

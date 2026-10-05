@@ -16,7 +16,7 @@ from ai_stp_cli.local.database import configured_path, open_readonly, open_regis
 from ai_stp_cli.local.multi_root_orchestrator import Coordinator
 from ai_stp_cli.local.passports import moment
 from ai_stp_cli.provider import operation_v3, protocol_v3
-from ai_stp_contracts.machine_help import MultiRootChildView, MultiRootTransactionView
+from ai_stp_contracts.cli.install import MultiRootChildView, MultiRootTransactionView
 from ai_stp_foundation.digests import digest_canonical
 from ai_stp_foundation.envelope import Continuation
 from ai_stp_foundation.ids import new_id

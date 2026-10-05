@@ -26,16 +26,16 @@ from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import cache, installation, managed_diff, targets, versions
 from ai_stp_cli.local.database import configured_path, open_readonly
 from ai_stp_cli.provider import status as provider_status
+from ai_stp_contracts.cli.install import (
+    ManagedVerification,
+    ManagedVerificationItem,
+    ShadowedSurface,
+)
 from ai_stp_contracts.corporate import (
     CorporateAssignmentPlan,
     CorporateAssignmentPlanRequest,
     CorporatePlanMaterializedItem,
     PlanOutcome,
-)
-from ai_stp_contracts.machine_help import (
-    ManagedVerification,
-    ManagedVerificationItem,
-    ShadowedSurface,
 )
 from ai_stp_foundation.envelope import Continuation
 from ai_stp_foundation.timestamps import format_timestamp

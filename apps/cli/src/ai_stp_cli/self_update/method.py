@@ -13,7 +13,7 @@ from typing import Final, cast
 
 from ai_stp_cli.paths import redact_home
 from ai_stp_cli.runtime import DISTRIBUTION, cli_version
-from ai_stp_contracts.machine_help import CliInstallMethod
+from ai_stp_contracts.cli.self_update import CliInstallMethod
 
 _RECEIPT_NAME: Final[str] = "uv-receipt.toml"
 

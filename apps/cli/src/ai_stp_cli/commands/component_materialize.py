@@ -9,7 +9,7 @@ from ai_stp_cli.answer import Answer
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import component_materialize, passports
 from ai_stp_cli.local.database import configured_path, open_registry
-from ai_stp_contracts.machine_help import ComponentMaterializePlan, ComponentMaterializeResult
+from ai_stp_contracts.cli.setups import ComponentMaterializePlan, ComponentMaterializeResult
 from ai_stp_foundation.ids import new_id
 
 

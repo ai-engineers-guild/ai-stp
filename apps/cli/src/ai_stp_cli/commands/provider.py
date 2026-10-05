@@ -30,7 +30,7 @@ from ai_stp_cli.local.database import configured_path, open_readonly, open_regis
 from ai_stp_cli.local.passports import moment
 from ai_stp_cli.paths import redact_home, write_private
 from ai_stp_cli.provider import attested_bind, release
-from ai_stp_contracts.machine_help import (
+from ai_stp_contracts.cli.provider import (
     ProviderInstallationCheck,
     ProviderInstallationReport,
     ProviderReplacementPlan,

@@ -26,8 +26,8 @@ from typing import Any, Final
 import click
 from pydantic import ValidationError
 
-from ai_stp_cli.application.inspect import SHIPPED_INTENT_NAMES
 from ai_stp_cli.application.inventory import (
+    SHIPPED_INTENT_NAMES,
     everyday_intent,
     everyday_success_start_intent,
     intent_for_command_prefix,
@@ -53,7 +53,7 @@ from ai_stp_cli.output import (
     wants_machine_mode,
 )
 from ai_stp_cli.registry import COMMANDS, Command
-from ai_stp_contracts.machine_help import CommandParameter
+from ai_stp_contracts.cli.registry import CommandParameter
 from ai_stp_foundation.envelope import Continuation, continuation_argv
 
 PROGRAM_NAME: Final[str] = "ai-stp"
