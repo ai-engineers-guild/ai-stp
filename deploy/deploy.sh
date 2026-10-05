@@ -20,7 +20,7 @@ Deploy steps (order):
   1. Acquire deploy lock (flock)
   2. Record previous artifact for rollback
   3. Build images (unless --skip-build)
-  4. migrate -> seed -> api/worker + content-import -> web up
+  4. migrate -> seed -> api -> content-import -> web/docs -> worker
   5. Wait for readiness; abort on timeout
   6. Record current artifact
 
@@ -119,8 +119,9 @@ record_deploy_stage "${COMMIT}" "postgres_layout_checked"
 # after `up` returns, and inside start_period it can hit a not-yet-ready S3.
 compose up -d --wait postgres rustfs
 record_deploy_stage "${COMMIT}" "dependencies_started"
-# Wait for postgres health via compose depends_on on one-shot jobs.
-compose run --rm migrate
+# One-shots run with --no-deps: the dependencies above are healthy, and
+# compose would otherwise start an exited migrate container again for seed.
+compose run --rm --no-deps migrate
 log info "migrate_ok"
 record_deploy_stage "${COMMIT}" "migrated"
 # Copies old unscoped objects into the two owner-scoped buckets. It is
@@ -128,13 +129,10 @@ record_deploy_stage "${COMMIT}" "migrated"
 compose run --rm --no-deps api python -m ai_stp_platform.storage.migrate
 log info "storage_migrate_ok"
 record_deploy_stage "${COMMIT}" "storage_migrated"
-compose run --rm seed
+compose run --rm --no-deps seed
 log info "seed_ok"
 record_deploy_stage "${COMMIT}" "seeded"
-# One-shot importer: an exited container from the previous release is not
-# current. Remove it so `up` POSTs this image's snapshot (same digest is no-op).
-compose rm -fs content-import >/dev/null 2>&1 || true
-compose up -d api worker content-import web docs
+start_serving_services
 log info "services_started"
 record_deploy_stage "${COMMIT}" "services_started"
 

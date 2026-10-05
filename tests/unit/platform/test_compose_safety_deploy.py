@@ -89,12 +89,36 @@ def test_content_import_image_builds_snapshot_at_runtime() -> None:
 
 def test_deploy_scripts_always_rerun_content_import() -> None:
     for name in ("deploy/deploy.sh", "deploy/rollback.sh", "deploy/restore.sh"):
-        text = _read(name)
-        assert "compose rm -fs content-import" in text
-        assert "compose up -d api worker content-import web docs" in text
-        assert text.find("compose rm -fs content-import") < text.find(
-            "compose up -d api worker content-import web docs"
-        )
+        text = _executable(name)
+        assert "start_serving_services" in text
+        # Seed precedes the bring-up; it no longer runs as a dependency of api.
+        assert text.find("compose run --rm --no-deps seed") < text.find("start_serving_services")
+    library = _executable("deploy/lib.sh")
+    bring_up = library.split("start_serving_services() {", 1)[1].split("\n}\n", 1)[0]
+    assert bring_up.find("compose rm -fs content-import") < bring_up.find(
+        "compose run --rm --no-deps content-import"
+    )
+
+
+def test_no_deploy_script_lets_compose_follow_dependencies() -> None:
+    """A followed dependency restarts exited one-shots behind a stopped api/web.
+
+    Only the stateful dependencies are brought up with their own `--wait`;
+    every other `compose up` or `compose run` names exactly what it starts.
+    """
+    for name in (
+        "deploy/lib.sh",
+        "deploy/deploy.sh",
+        "deploy/rollback.sh",
+        "deploy/restore.sh",
+    ):
+        for line in _executable(name).splitlines():
+            if not re.search(r"\bcompose (?:up|run)\b", line):
+                continue
+            if "postgres rustfs" in line:
+                assert "--wait" in line, (name, line)
+                continue
+            assert "--no-deps" in line, (name, line)
 
 
 def test_storage_backup_and_restore_resolve_the_compose_service_volume() -> None:
