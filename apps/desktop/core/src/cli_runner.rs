@@ -15,7 +15,7 @@ use std::process::{Child, Command, Stdio};
 use std::thread;
 use std::time::Duration;
 
-use crate::envelope::{parse, Envelope, ParseFailure};
+use crate::envelope::{Envelope, ParseFailure, parse};
 
 pub const DEFAULT_TIMEOUT: Duration = Duration::from_secs(120);
 /// Mutating runs (plan/apply, task steps) can sit inside the CLI's own

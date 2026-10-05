@@ -337,7 +337,7 @@ async fn cli_run_read(
                 return CmdResult::failed(
                     "DESKTOP_UNKNOWN_COMMAND",
                     format!("unknown command: {path}"),
-                )
+                );
             }
         };
         if desc.mutability != "read" {
@@ -421,7 +421,7 @@ async fn gated_run(
                 return CmdResult::failed(
                     "DESKTOP_UNKNOWN_COMMAND",
                     format!("unknown command: {path}"),
-                )
+                );
             }
         };
         if desc.mutability != want_mutability {
