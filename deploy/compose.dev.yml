@@ -127,7 +127,7 @@ services:
     # Local catch-all SMTP + web UI (http://localhost:8025): the default mail
     # path in dev — invitation mail really sends and is readable in the UI.
     # It accepts and stores every message; nothing is relayed outside.
-    image: axllent/mailpit:v1.31.3
+    image: axllent/mailpit:v1.31.4
     ports:
       # Web UI holds invitation links — loopback only, like the SMTP listener.
       - "127.0.0.1:8025:8025"

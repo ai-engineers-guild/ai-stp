@@ -102,7 +102,7 @@ CMD ["python", "-m", "ai_stp_platform.content.importer"]
 # -----------------------------------------------------------------------------
 
 # go-tools: build govulncheck only (no Go toolchain in the final image)
-FROM golang:1.27-bookworm@sha256:69a7b9788769bec032d238959b61854e9ae87f57be9029ec04e9885fabf99195 AS go-tools
+FROM golang:1.27-trixie@sha256:3b77fc618ec235a1ab412de7737f120dd507c57e8d87de4cbb7994fb94275ed5 AS go-tools
 ARG GOVULNCHECK_VERSION=v1.1.4
 RUN GOBIN=/out CGO_ENABLED=0 go install \
       "golang.org/x/vuln/cmd/govulncheck@${GOVULNCHECK_VERSION}" \
