@@ -9,7 +9,6 @@ from typing import Any, Literal, cast
 
 import structlog
 from sqlalchemy import (
-    Select,
     and_,
     any_,
     case,
@@ -720,7 +719,7 @@ async def search_catalog(
     rank = _relevance_expr(projection, q=q)
     now = datetime.now(UTC)
 
-    stmt: Select[Any] = (
+    stmt = (
         select(projection, CatalogMetadata, rank.label("search_rank"))
         .join(CatalogMetadata, CatalogMetadata.id == projection.catalog_metadata_id)
         .outerjoin(
@@ -1054,14 +1053,14 @@ async def search_catalog(
             await session.scalar(select(func.count()).select_from(exact_stmt.subquery())) or 0
         )
 
-    metas = [cast(CatalogMetadata, row[1]) for row in page_rows]
+    metas = [row[1] for row in page_rows]
     ranks = [int(row[2] or 0) for row in page_rows]
     public_rows = await current_author_verification(
         session, [public_version_row(meta) for meta in metas]
     )
     family_fields: dict[str, tuple[str | None, int | None, str | None]] = {}
     for page_row in page_rows:
-        proj = cast(CatalogSearchProjection, page_row[0])
+        proj = page_row[0]
         if proj.family_id:
             family_fields[proj.stable_id] = (
                 proj.family_id,
@@ -1071,7 +1070,7 @@ async def search_catalog(
     next_key: CursorKey | None = None
     if extra and public_rows:
         last_meta = metas[-1]
-        last_proj = cast(CatalogSearchProjection, page_rows[-1][0])
+        last_proj = page_rows[-1][0]
         next_key = CursorKey(
             published_at=bucketed(
                 last_proj.updated_at or last_meta.published_at or datetime.now(UTC)
