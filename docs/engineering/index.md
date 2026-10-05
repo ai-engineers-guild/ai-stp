@@ -16,7 +16,7 @@ last_verified: "2026-08-03"
 | [corporate-navigation-access-plan.md](corporate-navigation-access-plan.md) | Evidence, design comparison, dependency order, and task reconciliation for corporate navigation and People and Access. | 2026-09-30 |
 | [corporate-workspace-change-requests.md](corporate-workspace-change-requests.md) | Executable change-request ledger for the Corporate Hub consolidation. | 2026-09-18 |
 | [corporate-workspace-consolidation-plan.md](corporate-workspace-consolidation-plan.md) | Delivery order, gates, migration, and rollback for SPEC-086. | 2026-09-18 |
-| [dependency-policy.md](dependency-policy.md) | Rules of Python, Node, external tools, and provider dependencies. | 2026-10-04 |
+| [dependency-policy.md](dependency-policy.md) | Rules of Python, Node, external tools, and provider dependencies. | 2026-10-05 |
 | [failure-catalog.md](failure-catalog.md) | Historical failure lessons extracted from retired experiments, with current regression owners. | 2026-09-04 |
 | [federated-source-threat-model.md](federated-source-threat-model.md) | Threat model for federated local ports and metadata adapters. | 2026-08-16 |
 | [first-party-corpus.md](first-party-corpus.md) | Rebuilding and publishing the first-party corpus from exact attested setup-system releases. | 2026-09-24 |
