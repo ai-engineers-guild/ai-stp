@@ -15,9 +15,10 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from typing import Annotated, Final, Literal, cast
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import ConfigDict, Field
 
 from ai_stp_contracts.http import open_wire_object
+from ai_stp_contracts.model import ContractModel
 from ai_stp_foundation.canonical import JsonValue
 from ai_stp_foundation.digests import DIGEST_PATTERN, digest_canonical
 
@@ -75,7 +76,7 @@ _PROTOCOL_AXES: Final[tuple[tuple[ContractAxis, str, str], ...]] = (
 )
 
 
-class InventoryAxis(BaseModel):
+class InventoryAxis(ContractModel):
     """One version axis the estate currently speaks."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -85,7 +86,7 @@ class InventoryAxis(BaseModel):
     description: Annotated[str, Field(min_length=1, max_length=256)]
 
 
-class InventoryMember(BaseModel):
+class InventoryMember(ContractModel):
     """One owner-controlled schema or protocol identity."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -94,7 +95,7 @@ class InventoryMember(BaseModel):
     identity: Annotated[str, Field(min_length=1, max_length=256)]
 
 
-class StandardInventory(BaseModel):
+class StandardInventory(ContractModel):
     """Machine inventory of the coordinated standard family and every other axis."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -106,7 +107,7 @@ class StandardInventory(BaseModel):
     members: Annotated[list[InventoryMember], Field(min_length=1)]
 
 
-class Classification(BaseModel):
+class Classification(ContractModel):
     """Which axis a document belongs to, and whether it is the current identity."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)

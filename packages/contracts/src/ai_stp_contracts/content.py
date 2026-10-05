@@ -9,9 +9,10 @@ from __future__ import annotations
 
 from typing import Annotated, Final, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import ConfigDict, Field, model_validator
 
 from ai_stp_contracts.http import open_wire_object, strict_request_object
+from ai_stp_contracts.model import ContractModel
 from ai_stp_foundation.digests import DIGEST_PATTERN
 from ai_stp_foundation.revisions import REVISION_ID_PATTERN
 
@@ -47,14 +48,14 @@ type ContentBody = Annotated[str, Field(min_length=1, max_length=CONTENT_BODY_MA
 type ContentCommit = Annotated[str, Field(pattern=CONTENT_COMMIT_PATTERN)]
 
 
-class ContentLocaleQuery(BaseModel):
+class ContentLocaleQuery(ContractModel):
     """Locale selector for public content reads. No automatic fallback."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
     locale: ContentLocale
 
 
-class ContentSummary(BaseModel):
+class ContentSummary(ContractModel):
     """Public list item for one published localized article."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -81,7 +82,7 @@ class ContentDetail(ContentSummary):
     source_path: Annotated[str, Field(min_length=1, max_length=512)] | None
 
 
-class ContentListResponse(BaseModel):
+class ContentListResponse(ContractModel):
     """Published repository and staff articles for one locale."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -90,7 +91,7 @@ class ContentListResponse(BaseModel):
     items: list[ContentSummary]
 
 
-class ContentRepositoryState(BaseModel):
+class ContentRepositoryState(ContractModel):
     """Current repository import generation without entries."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -100,7 +101,7 @@ class ContentRepositoryState(BaseModel):
     commit: ContentCommit | None
 
 
-class ContentSnapshotEntry(BaseModel):
+class ContentSnapshotEntry(ContractModel):
     """One published localized repository article in a snapshot."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
@@ -126,7 +127,7 @@ class ContentSnapshotEntry(BaseModel):
         return self
 
 
-class ContentRepositoryImportRequest(BaseModel):
+class ContentRepositoryImportRequest(ContractModel):
     """Full replacement of the repository-owned active article set."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
@@ -138,7 +139,7 @@ class ContentRepositoryImportRequest(BaseModel):
     entries: Annotated[list[ContentSnapshotEntry], Field(max_length=CONTENT_SNAPSHOT_MAX_ENTRIES)]
 
 
-class ContentRepositoryImportResponse(BaseModel):
+class ContentRepositoryImportResponse(ContractModel):
     """Outcome of one repository snapshot import."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -151,7 +152,7 @@ class ContentRepositoryImportResponse(BaseModel):
     unchanged: Annotated[int, Field(ge=0)]
 
 
-class StaffContentTranslation(BaseModel):
+class StaffContentTranslation(ContractModel):
     """One locale of a staff publication payload."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
@@ -170,7 +171,7 @@ class StaffContentTranslation(BaseModel):
         return self
 
 
-class StaffContentTranslations(BaseModel):
+class StaffContentTranslations(ContractModel):
     """Exact RU/EN pair. Any other locale set is unrepresentable."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
@@ -178,7 +179,7 @@ class StaffContentTranslations(BaseModel):
     en: StaffContentTranslation
 
 
-class StaffContentPublishRequest(BaseModel):
+class StaffContentPublishRequest(ContractModel):
     """Atomic staff publication of one article identity."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
@@ -187,7 +188,7 @@ class StaffContentPublishRequest(BaseModel):
     translations: StaffContentTranslations
 
 
-class StaffContentPublishResponse(BaseModel):
+class StaffContentPublishResponse(ContractModel):
     """Staff publication result with the public article pair."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -198,7 +199,7 @@ class StaffContentPublishResponse(BaseModel):
     articles: dict[ContentLocale, ContentDetail]
 
 
-class StaffContentUnpublishRequest(BaseModel):
+class StaffContentUnpublishRequest(ContractModel):
     """Optimistic staff unpublish of both locales."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
@@ -206,7 +207,7 @@ class StaffContentUnpublishRequest(BaseModel):
     expected_active_digest: DigestValue | None
 
 
-class StaffContentUnpublishResponse(BaseModel):
+class StaffContentUnpublishResponse(ContractModel):
     """Terminal unpublished staff article. Repeatable."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)

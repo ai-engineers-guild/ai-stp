@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import Annotated, Final, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import ConfigDict, Field, model_validator
 
 from ai_stp_contracts.http import (
     Cursor,
@@ -19,6 +19,7 @@ from ai_stp_contracts.http import (
     open_wire_object,
     strict_request_object,
 )
+from ai_stp_contracts.model import ContractModel
 from ai_stp_foundation.digests import DIGEST_PATTERN
 from ai_stp_foundation.revisions import REVISION_ID_PATTERN
 
@@ -127,7 +128,7 @@ FORBIDDEN_FACT_KEYS: Final[frozenset[str]] = frozenset(
 )
 
 
-class SeoSubjectRef(BaseModel):
+class SeoSubjectRef(ContractModel):
     """Identity of one SEO subject revision."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -137,7 +138,7 @@ class SeoSubjectRef(BaseModel):
     source_digest: DigestValue
 
 
-class SeoIndexDecision(BaseModel):
+class SeoIndexDecision(ContractModel):
     """Deterministic index eligibility. Model output never supplies this."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -154,7 +155,7 @@ class SeoIndexDecision(BaseModel):
         return self
 
 
-class SeoLink(BaseModel):
+class SeoLink(ContractModel):
     """One crawlable visible link."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -165,7 +166,7 @@ class SeoLink(BaseModel):
     subject_id: Annotated[str, Field(min_length=1, max_length=253)] | None = None
 
 
-class SeoSection(BaseModel):
+class SeoSection(ContractModel):
     """One visible kind-specific page section."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -175,7 +176,7 @@ class SeoSection(BaseModel):
     provenance: Literal["template", "model"] = "template"
 
 
-class SeoSocial(BaseModel):
+class SeoSocial(ContractModel):
     """Open Graph / Twitter preview facts."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -186,7 +187,7 @@ class SeoSocial(BaseModel):
     locale: SeoLocale
 
 
-class SeoGenerator(BaseModel):
+class SeoGenerator(ContractModel):
     """Provenance of one SEO revision. Model alias is operator-facing only."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -196,7 +197,7 @@ class SeoGenerator(BaseModel):
     model_alias: Annotated[str, Field(min_length=1, max_length=64)] | None = None
 
 
-class SeoProfileDocument(BaseModel):
+class SeoProfileDocument(ContractModel):
     """Closed profile document v1 stored on a revision."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -223,7 +224,7 @@ class SeoProfileDocument(BaseModel):
     generator: SeoGenerator
 
 
-class SeoPublicProfile(BaseModel):
+class SeoPublicProfile(ContractModel):
     """Anonymous read of the active SEO revision."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -235,7 +236,7 @@ class SeoPublicProfile(BaseModel):
     profile: SeoProfileDocument
 
 
-class SeoSubjectQuery(BaseModel):
+class SeoSubjectQuery(ContractModel):
     """Locale selector for one subject read."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
@@ -243,7 +244,7 @@ class SeoSubjectQuery(BaseModel):
     locale: SeoLocale = "en"
 
 
-class SeoSitemapUrl(BaseModel):
+class SeoSitemapUrl(ContractModel):
     """One eligible canonical URL in a sitemap shard."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -252,7 +253,7 @@ class SeoSitemapUrl(BaseModel):
     alternates: dict[str, AbsoluteUrl]
 
 
-class SeoSitemapShard(BaseModel):
+class SeoSitemapShard(ContractModel):
     """One kind/locale shard of at most 50_000 URLs."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -264,12 +265,12 @@ class SeoSitemapShard(BaseModel):
     urls: Annotated[list[SeoSitemapUrl], Field(max_length=SEO_SITEMAP_SHARD_LIMIT)]
 
 
-class SeoIndexShardRef(BaseModel):
+class SeoIndexShardRef(ContractModel):
     loc: AbsoluteUrl
     lastmod: Timestamp
 
 
-class SeoIndexResponse(BaseModel):
+class SeoIndexResponse(ContractModel):
     """Sitemap index for the current SEO generation."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -279,7 +280,7 @@ class SeoIndexResponse(BaseModel):
     shards: list[SeoIndexShardRef]
 
 
-class SeoCatalogQuery(BaseModel):
+class SeoCatalogQuery(ContractModel):
     """Paginated LLM catalog manifest query."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
@@ -290,7 +291,7 @@ class SeoCatalogQuery(BaseModel):
     page_size: PageSize = 20
 
 
-class SeoCatalogEntry(BaseModel):
+class SeoCatalogEntry(ContractModel):
     """One LLM catalog manifest row."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -305,7 +306,7 @@ class SeoCatalogEntry(BaseModel):
     modified_at: Timestamp
 
 
-class SeoCatalogPage(BaseModel):
+class SeoCatalogPage(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     schema_version: Literal[1] = 1
     generation: Annotated[int, Field(ge=0)]
@@ -313,13 +314,13 @@ class SeoCatalogPage(BaseModel):
     page: PageInfo
 
 
-class SeoRollbackRequest(BaseModel):
+class SeoRollbackRequest(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
     schema_version: Literal[1] = 1
     locale: SeoLocale = "en"
 
 
-class SeoRollbackResponse(BaseModel):
+class SeoRollbackResponse(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     schema_version: Literal[1] = 1
     subject_kind: SeoSubjectKind
@@ -329,7 +330,7 @@ class SeoRollbackResponse(BaseModel):
     generator_kind: SeoGeneratorKind
 
 
-class SeoEnrichmentOutput(BaseModel):
+class SeoEnrichmentOutput(ContractModel):
     """Closed model output. Unknown fields fail the whole candidate."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)

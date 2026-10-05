@@ -2,7 +2,7 @@
 
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import ConfigDict, Field
 
 from ai_stp_contracts.auth import AccountId, DeviceId
 from ai_stp_contracts.catalog import (
@@ -12,6 +12,7 @@ from ai_stp_contracts.catalog import (
     Version,
 )
 from ai_stp_contracts.http import IdempotencyKey, Timestamp, open_wire_object, strict_request_object
+from ai_stp_contracts.model import ContractModel
 from ai_stp_contracts.publication import ObjectKind, PlanId
 
 __all__ = [
@@ -26,7 +27,7 @@ __all__ = [
 CliPrivateVersionResponse = PrivateVersionResponse
 
 
-class VisibilityPlanCreateRequest(BaseModel):
+class VisibilityPlanCreateRequest(ContractModel):
     """Plan one owner's access change without rewriting immutable content."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
@@ -40,7 +41,7 @@ class VisibilityPlanCreateRequest(BaseModel):
     idempotency_key: IdempotencyKey
 
 
-class VisibilityPlanResponse(BaseModel):
+class VisibilityPlanResponse(ContractModel):
     """A reviewed exposure effect with immutable identity and current access bindings."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)

@@ -12,6 +12,8 @@ is 0.35s.
 """
 
 import hashlib
+import importlib
+import pkgutil
 import sqlite3
 import subprocess
 import sys
@@ -22,10 +24,13 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from pydantic import BaseModel
 
+import ai_stp_contracts
 from ai_stp_cli.application import select
 from ai_stp_cli.local import harnesses, project_index
 from ai_stp_cli.local.database import configured_path, open_registry
+from ai_stp_contracts.model import ContractModel
 
 #: How long each stubbed detection pretends its subprocess takes.
 DELAY = 0.1
@@ -156,3 +161,46 @@ def test_version_reads_the_recorded_inventory_instead_of_rendering_schemas() -> 
         [sys.executable, "-c", probe], capture_output=True, text=True, check=True
     )
     assert finished.stdout.strip() == "False", finished.stderr
+
+
+def test_every_contract_model_defers_its_build() -> None:
+    """Every contract model builds on first use, normally through `ContractModel`.
+
+    The CLI imports about five hundred contract models before it runs any
+    command, and building them all was about half a second of each invocation
+    (1.65s against 0.93s of user CPU for `version --json`). After the import,
+    only the few models the command registry instantiates are built. A model
+    declared on `BaseModel` directly would build eagerly again; it is named here.
+    """
+    eager = sorted(
+        f"{value.__module__}.{value.__qualname__}"
+        for info in pkgutil.walk_packages(ai_stp_contracts.__path__, "ai_stp_contracts.")
+        for value in vars(importlib.import_module(info.name)).values()
+        if isinstance(value, type)
+        and issubclass(value, BaseModel)
+        and value.__module__ == info.name
+        and value is not ContractModel
+        and not value.model_config.get("defer_build")
+    )
+    assert eager == []
+
+
+def test_a_local_command_does_not_import_the_http_stack() -> None:
+    """The post-command heartbeat and update checks read local state only.
+
+    Both ran after every command and imported httpx at module level, about a
+    twentieth of a second each time; the network code now imports it when a
+    heartbeat is due or the update cache has expired.
+    """
+    probe = (
+        "import sys\n"
+        "from ai_stp_cli.app import main\n"
+        "sys.argv = ['ai-stp', 'version', '--json']\n"
+        "try:\n"
+        "    main()\n"
+        "except SystemExit:\n"
+        "    pass\n"
+        "print('httpx' in sys.modules, file=sys.stderr)\n"
+    )
+    finished = subprocess.run([sys.executable, "-c", probe], capture_output=True, text=True)
+    assert finished.stderr.strip().splitlines()[-1] == "False", finished.stderr

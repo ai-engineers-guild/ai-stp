@@ -9,16 +9,17 @@ dependency address: an unauthenticated probe must not become reconnaissance.
 
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, model_validator
+from pydantic import ConfigDict, model_validator
 
 from ai_stp_contracts.http import Timestamp, open_wire_object
+from ai_stp_contracts.model import ContractModel
 
 #: A check either demonstrably passes or it does not. There is no third
 #: "unknown" value: an unproven dependency is not ready.
 type CheckStatus = Literal["pass", "fail"]
 
 
-class LivenessResponse(BaseModel):
+class LivenessResponse(ContractModel):
     """The process is running and able to answer."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -27,7 +28,7 @@ class LivenessResponse(BaseModel):
     status: Literal["alive"] = "alive"
 
 
-class ReadinessChecks(BaseModel):
+class ReadinessChecks(ContractModel):
     """The closed set of dependencies readiness depends on.
 
     Closed on purpose: a new dependency arrives as an additional optional
@@ -41,7 +42,7 @@ class ReadinessChecks(BaseModel):
     object_storage: CheckStatus
 
 
-class ReadinessResponse(BaseModel):
+class ReadinessResponse(ContractModel):
     """Whether the deployment may take traffic."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)

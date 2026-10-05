@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import ConfigDict, Field, model_validator
 
 from ai_stp_contracts.assurance import AssessmentState, RecommendationState
 from ai_stp_contracts.http import (
@@ -12,6 +12,7 @@ from ai_stp_contracts.http import (
     open_wire_object,
     strict_request_object,
 )
+from ai_stp_contracts.model import ContractModel
 from ai_stp_foundation.digests import DIGEST_PATTERN
 from ai_stp_foundation.harnesses import HarnessId
 from ai_stp_foundation.ids import stable_id_pattern
@@ -29,7 +30,7 @@ type FamilyCreatedFrom = Literal["recast", "owner", "staff_migration", "migratio
 type FamilyMatchKind = Literal["family", "member_harness", "alignment"]
 
 
-class SetupFamilyMember(BaseModel):
+class SetupFamilyMember(ContractModel):
     """One accessible family member. Public reads omit inaccessible identity."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -45,7 +46,7 @@ class SetupFamilyMember(BaseModel):
     ported_from: SetupRef | None = None
 
 
-class SetupFamilyPublic(BaseModel):
+class SetupFamilyPublic(ContractModel):
     """Public navigational family projection. Never installable content."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -69,7 +70,7 @@ class SetupFamilyOwner(SetupFamilyPublic):
     allowed_actions: Annotated[list[str], Field(max_length=16)] = Field(default_factory=list)
 
 
-class SetupFamilyCreateRequest(BaseModel):
+class SetupFamilyCreateRequest(ContractModel):
     """Idempotent authorized family creation with an exact baseline and members."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
@@ -91,7 +92,7 @@ class SetupFamilyCreateRequest(BaseModel):
         return self
 
 
-class SetupFamilyPatchRequest(BaseModel):
+class SetupFamilyPatchRequest(ContractModel):
     """Expected-revision mutation of name, baseline, or membership."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
@@ -124,7 +125,7 @@ class SetupFamilyPatchRequest(BaseModel):
         return self
 
 
-class SelectedAdaptation(BaseModel):
+class SelectedAdaptation(ContractModel):
     """The one adaptation selected for the viewed setup harness."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -141,7 +142,7 @@ class SelectedAdaptation(BaseModel):
     limitations: list[str] = Field(default_factory=list)
 
 
-class SetupCompositionMember(BaseModel):
+class SetupCompositionMember(ContractModel):
     """Exact component pin plus the selected adaptation for this setup harness."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)

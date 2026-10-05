@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import PurePosixPath
 from typing import Annotated, Final, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import ConfigDict, Field, field_validator
 
 from ai_stp_assurance.attestation import SIGNATURE_PATTERN
 from ai_stp_contracts.auth import AccountId, DeviceId
@@ -15,6 +15,7 @@ from ai_stp_contracts.http import (
     open_wire_object,
     strict_request_object,
 )
+from ai_stp_contracts.model import ContractModel
 from ai_stp_contracts.safety_checks import (
     CheckResult as SafetyCheckResult,
 )
@@ -97,7 +98,7 @@ def _artifact_inventory(value: list[str]) -> list[str]:
     return value
 
 
-class AuthorAttestation(BaseModel):
+class AuthorAttestation(ContractModel):
     """Full closed author attestation on the /v1 wire (ADR-0092)."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
@@ -126,7 +127,7 @@ class AuthorAttestation(BaseModel):
     arch: Annotated[str, Field(min_length=1, max_length=64)] | None = None
 
 
-class PublicationPlanCreateRequest(BaseModel):
+class PublicationPlanCreateRequest(ContractModel):
     """POST /v1/publications/plans body."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
@@ -148,7 +149,7 @@ class PublicationPlanCreateRequest(BaseModel):
     _validate_artifact_inventory = field_validator("artifact_inventory")(_artifact_inventory)
 
 
-class EvidenceBindingView(BaseModel):
+class EvidenceBindingView(ContractModel):
     """One accepted evidence binding on a snapshot."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -174,7 +175,7 @@ class EvidenceBindingView(BaseModel):
     finding_summary: SafetyFindingSummary | None = None
 
 
-class PublicationPlanResponse(BaseModel):
+class PublicationPlanResponse(ContractModel):
     """Plan create/status/confirm response."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -201,7 +202,7 @@ class PublicationPlanResponse(BaseModel):
     _validate_artifact_inventory = field_validator("artifact_inventory")(_artifact_inventory)
 
 
-class PublicationConfirmRequest(BaseModel):
+class PublicationConfirmRequest(ContractModel):
     """POST /v1/publications/plans/{plan_id}/confirm body."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
