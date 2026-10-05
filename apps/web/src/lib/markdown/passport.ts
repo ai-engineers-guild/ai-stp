@@ -5,7 +5,7 @@
  */
 
 import MarkdownIt from "markdown-it";
-import type Token from "markdown-it/lib/token.mjs";
+import type { MarkdownIt as Markdown, Token } from "markdown-it";
 
 const DESCRIPTION_FORMAT = "commonmark_v1";
 const RENDERER_VERSION = "safe_markdown_v1";
@@ -91,7 +91,7 @@ const BLOCK_BOUNDARIES = new Set([
   "code_block",
 ]);
 
-function parser(): MarkdownIt {
+function parser(): Markdown {
   // maxNesting exists at runtime but is absent from @types/markdown-it;
   // a named variable avoids the object-literal excess-property check.
   const options = {
@@ -194,7 +194,7 @@ function validateTokens(tokens: Token[]): void {
   }
 }
 
-function parse(source: string): { md: MarkdownIt; tokens: Token[] } {
+function parse(source: string): { md: Markdown; tokens: Token[] } {
   if (source === "" || source.trim() === "") {
     throw new MarkdownPolicyError("empty");
   }
