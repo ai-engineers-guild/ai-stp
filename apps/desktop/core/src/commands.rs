@@ -314,13 +314,13 @@ impl CommandRegistry {
                     return Err(BuildError::RuleViolation(format!(
                         "exactly one of {} required",
                         rule.parameters.join(", ")
-                    )))
+                    )));
                 }
                 ("at_most_one", true) if count > 1 => {
                     return Err(BuildError::RuleViolation(format!(
                         "at most one of {}",
                         rule.parameters.join(", ")
-                    )))
+                    )));
                 }
                 // The contract says the named parameters *become* required —
                 // all of them, not one-of. Every shipped rule names exactly
@@ -331,14 +331,14 @@ impl CommandRegistry {
                         "{} required when {} is set",
                         rule.parameters.join(", "),
                         rule.when_parameter
-                    )))
+                    )));
                 }
                 ("forbidden_when", true) if count > 0 => {
                     return Err(BuildError::RuleViolation(format!(
                         "{} forbidden when {} is set",
                         rule.parameters.join(", "),
                         rule.when_parameter
-                    )))
+                    )));
                 }
                 _ => {}
             }

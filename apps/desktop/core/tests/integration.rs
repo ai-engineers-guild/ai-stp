@@ -2,7 +2,7 @@ use ai_stp_desktop_core::cli_runner::{CliLocator, CliRunner, RunError};
 use ai_stp_desktop_core::commands::{BuildError, CommandRegistry, MachineHelp};
 #[cfg(unix)]
 use ai_stp_desktop_core::envelope::Envelope;
-use ai_stp_desktop_core::envelope::{parse, ParseFailure};
+use ai_stp_desktop_core::envelope::{ParseFailure, parse};
 use std::collections::BTreeMap;
 
 fn fixture(name: &str) -> Vec<u8> {
@@ -18,10 +18,12 @@ fn parses_success_envelope() {
     let env = parse(&fixture("version-ok.json")).unwrap();
     assert!(env.ok);
     assert_eq!(env.schema_version, 1);
-    assert!(!env.data.unwrap()["cli_version"]
-        .as_str()
-        .unwrap()
-        .is_empty());
+    assert!(
+        !env.data.unwrap()["cli_version"]
+            .as_str()
+            .unwrap()
+            .is_empty()
+    );
 }
 
 #[test]
@@ -31,10 +33,11 @@ fn parses_error_envelope_with_continuation() {
     let err = env.error.unwrap();
     assert_eq!(err.code, "AI_STP_VALIDATION_ERROR");
     assert!(!err.retryable);
-    assert!(env
-        .continuations
-        .iter()
-        .any(|c| c.actor.as_deref() == Some("cli") && !c.argv.is_empty()));
+    assert!(
+        env.continuations
+            .iter()
+            .any(|c| c.actor.as_deref() == Some("cli") && !c.argv.is_empty())
+    );
 }
 
 #[test]
@@ -88,17 +91,19 @@ fn argv_refuses_undeclared_and_missing() {
 
     let mut values = BTreeMap::new();
     values.insert("undeclared".to_string(), "x".to_string());
-    assert!(reg
-        .build_argv("install plan", &values, &[], &BTreeMap::new())
-        .is_err());
+    assert!(
+        reg.build_argv("install plan", &values, &[], &BTreeMap::new())
+            .is_err()
+    );
 
     // With no `action` at all the conditioned exactly_one{proposal,setup}
     // does not apply (contract: it only holds while action takes
     // install/update/remove) — bare `install plan` is legal argv; whether
     // it is meaningful is the CLI's semantic check, not the shell's.
-    assert!(reg
-        .build_argv("install plan", &BTreeMap::new(), &[], &BTreeMap::new())
-        .is_ok());
+    assert!(
+        reg.build_argv("install plan", &BTreeMap::new(), &[], &BTreeMap::new())
+            .is_ok()
+    );
 }
 
 #[test]
@@ -110,27 +115,30 @@ fn argv_enforces_declared_rules() {
     let mut values = BTreeMap::new();
     values.insert("setup".to_string(), "setup_01ABC@1.0".to_string());
     values.insert("harness".to_string(), "claude-code".to_string());
-    assert!(reg
-        .build_argv("install plan", &values, &[], &BTreeMap::new())
-        .is_err());
+    assert!(
+        reg.build_argv("install plan", &values, &[], &BTreeMap::new())
+            .is_err()
+    );
 
     // exactly_one {proposal, setup} applies once action=install is conditioned.
     let mut values = BTreeMap::new();
     values.insert("project".to_string(), "/tmp/p".to_string());
     values.insert("harness".to_string(), "claude-code".to_string());
     values.insert("action".to_string(), "install".to_string());
-    assert!(reg
-        .build_argv("install plan", &values, &[], &BTreeMap::new())
-        .is_err());
+    assert!(
+        reg.build_argv("install plan", &values, &[], &BTreeMap::new())
+            .is_err()
+    );
 
     // choice violation is refused up front.
     let mut values = BTreeMap::new();
     values.insert("setup".to_string(), "setup_01ABC@1.0".to_string());
     values.insert("project".to_string(), "/tmp/p".to_string());
     values.insert("harness".to_string(), "not-a-harness".to_string());
-    assert!(reg
-        .build_argv("install plan", &values, &[], &BTreeMap::new())
-        .is_err());
+    assert!(
+        reg.build_argv("install plan", &values, &[], &BTreeMap::new())
+            .is_err()
+    );
 
     // Conditioned-off pair rule: on `backup`/`rollback` the
     // exactly_one{proposal,setup} relaxes to at_most_one — supplying
@@ -148,25 +156,28 @@ fn argv_enforces_declared_rules() {
     values.insert("action".to_string(), "backup".to_string());
     values.insert("proposal".to_string(), "p".to_string());
     values.insert("setup".to_string(), "s".to_string());
-    assert!(reg
-        .build_argv("install plan", &values, &[], &BTreeMap::new())
-        .is_err());
+    assert!(
+        reg.build_argv("install plan", &values, &[], &BTreeMap::new())
+            .is_err()
+    );
 
     // `component` is forbidden_when action=backup — conditioned-on rule.
     let mut values = BTreeMap::new();
     values.insert("action".to_string(), "backup".to_string());
     values.insert("component".to_string(), "c".to_string());
-    assert!(reg
-        .build_argv("install plan", &values, &[], &BTreeMap::new())
-        .is_err());
+    assert!(
+        reg.build_argv("install plan", &values, &[], &BTreeMap::new())
+            .is_err()
+    );
 
     // target status: both required options present.
     let mut values = BTreeMap::new();
     values.insert("project".to_string(), "a".to_string());
     values.insert("harness".to_string(), "codex".to_string());
-    assert!(reg
-        .build_argv("target status", &values, &[], &BTreeMap::new())
-        .is_ok());
+    assert!(
+        reg.build_argv("target status", &values, &[], &BTreeMap::new())
+            .is_ok()
+    );
 }
 
 #[test]
@@ -213,9 +224,10 @@ fn argv_repeated_and_positional_flags() {
             .unwrap()
             .name
             .clone();
-        assert!(reg
-            .build_argv(&arg_path, &BTreeMap::new(), &[arg_name], &BTreeMap::new())
-            .is_err());
+        assert!(
+            reg.build_argv(&arg_path, &BTreeMap::new(), &[arg_name], &BTreeMap::new())
+                .is_err()
+        );
     }
 }
 
@@ -257,9 +269,10 @@ fn argv_choices_enforced_on_repeated_values() {
     let reg = CommandRegistry::from_help(&synthetic_help());
     let mut repeated = BTreeMap::new();
     repeated.insert("tag".to_string(), vec!["a".to_string(), "b".to_string()]);
-    assert!(reg
-        .build_argv("probe run", &BTreeMap::new(), &[], &repeated)
-        .is_ok());
+    assert!(
+        reg.build_argv("probe run", &BTreeMap::new(), &[], &repeated)
+            .is_ok()
+    );
 
     repeated.insert("tag".to_string(), vec!["a".to_string(), "z".to_string()]);
     assert!(matches!(
@@ -275,14 +288,16 @@ fn argv_when_parameter_reads_repeated_values() {
     // condition the required_when rule exactly as a scalar value would.
     let mut repeated = BTreeMap::new();
     repeated.insert("mode".to_string(), vec!["shallow".to_string()]);
-    assert!(reg
-        .build_argv("probe run", &BTreeMap::new(), &[], &repeated)
-        .is_ok());
+    assert!(
+        reg.build_argv("probe run", &BTreeMap::new(), &[], &repeated)
+            .is_ok()
+    );
 
     repeated.insert("mode".to_string(), vec!["deep".to_string()]);
-    assert!(reg
-        .build_argv("probe run", &BTreeMap::new(), &[], &repeated)
-        .is_err());
+    assert!(
+        reg.build_argv("probe run", &BTreeMap::new(), &[], &repeated)
+            .is_err()
+    );
 }
 
 #[test]
@@ -293,9 +308,10 @@ fn argv_required_when_needs_every_named_parameter() {
     // One of two named parameters is not enough.
     let mut values = BTreeMap::new();
     values.insert("first".to_string(), "1".to_string());
-    assert!(reg
-        .build_argv("probe run", &values, &[], &repeated)
-        .is_err());
+    assert!(
+        reg.build_argv("probe run", &values, &[], &repeated)
+            .is_err()
+    );
     values.insert("second".to_string(), "2".to_string());
     assert!(reg.build_argv("probe run", &values, &[], &repeated).is_ok());
 }
@@ -528,14 +544,15 @@ fn argv_boolean_flags_and_repeatables() {
     assert_eq!(comp, vec!["a@1", "b@2"]);
 
     // a non-boolean parameter is not a flag.
-    assert!(reg
-        .build_argv(
+    assert!(
+        reg.build_argv(
             "install plan",
             &values,
             &["setup".to_string()],
             &BTreeMap::new()
         )
-        .is_err());
+        .is_err()
+    );
 }
 
 #[test]
