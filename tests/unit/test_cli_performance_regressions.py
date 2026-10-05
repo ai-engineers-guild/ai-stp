@@ -183,3 +183,24 @@ def test_every_contract_model_defers_its_build() -> None:
         and not value.model_config.get("defer_build")
     )
     assert eager == []
+
+
+def test_a_local_command_does_not_import_the_http_stack() -> None:
+    """The post-command heartbeat and update checks read local state only.
+
+    Both ran after every command and imported httpx at module level, about a
+    twentieth of a second each time; the network code now imports it when a
+    heartbeat is due or the update cache has expired.
+    """
+    probe = (
+        "import sys\n"
+        "from ai_stp_cli.app import main\n"
+        "sys.argv = ['ai-stp', 'version', '--json']\n"
+        "try:\n"
+        "    main()\n"
+        "except SystemExit:\n"
+        "    pass\n"
+        "print('httpx' in sys.modules, file=sys.stderr)\n"
+    )
+    finished = subprocess.run([sys.executable, "-c", probe], capture_output=True, text=True)
+    assert finished.stderr.strip().splitlines()[-1] == "False", finished.stderr
