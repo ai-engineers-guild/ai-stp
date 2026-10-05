@@ -15,7 +15,7 @@ use std::process::{Child, Command, Stdio};
 use std::thread;
 use std::time::Duration;
 
-use crate::envelope::{parse, Envelope, ParseFailure};
+use crate::envelope::{Envelope, ParseFailure, parse};
 
 pub const DEFAULT_TIMEOUT: Duration = Duration::from_secs(120);
 /// Mutating runs (plan/apply, task steps) can sit inside the CLI's own
@@ -371,7 +371,7 @@ fn kill_tree(child: &mut Child) {
         // apply to this spawn (it inherits ours).
         let pgid = format!("-{}", child.id());
         let _ = Command::new("kill")
-            .args(["-TERM", &pgid])
+            .args(["-TERM", "--", &pgid])
             .stdin(Stdio::null())
             .stdout(Stdio::null())
             .stderr(Stdio::null())
@@ -383,7 +383,7 @@ fn kill_tree(child: &mut Child) {
             thread::sleep(Duration::from_millis(50));
         }
         let _ = Command::new("kill")
-            .args(["-KILL", &pgid])
+            .args(["-KILL", "--", &pgid])
             .stdin(Stdio::null())
             .stdout(Stdio::null())
             .stderr(Stdio::null())
