@@ -41,8 +41,6 @@ FROM oven/bun:1.4.2-alpine@sha256:d888c0ae6c86d7866ff10c5aafdd9077b36aee6455b33d
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY apps/web .
-# mock-corporate.ts imports this canonical fixture after apps/web is flattened to /app.
-COPY packages/contracts/src/ai_stp_contracts/fixtures/v1/corporate-overview.json /packages/contracts/src/ai_stp_contracts/fixtures/v1/corporate-overview.json
 COPY docs-user-facing /docs-user-facing
 
 # Public URL is baked into the client bundle at build time.
@@ -89,7 +87,6 @@ RUN groupadd --system --gid 10001 appuser \
 # The build packaging step already mirrors only profile-enabled public assets.
 COPY --from=builder --chown=appuser:appuser /app/.next/standalone ./
 COPY --from=builder --chown=appuser:appuser /app/.next/static ./.next/static
-COPY --from=builder --chown=appuser:appuser /packages/contracts/src/ai_stp_contracts/fixtures/v1/corporate-overview.json /packages/contracts/src/ai_stp_contracts/fixtures/v1/corporate-overview.json
 
 USER appuser
 

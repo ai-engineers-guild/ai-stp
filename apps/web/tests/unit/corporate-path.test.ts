@@ -54,41 +54,37 @@ it("rewrites corporate shared pages and retains private session gates", async ()
   vi.stubEnv("AI_STP_COMPILED_FEATURE_PROFILE", "corporate_hub");
   const { NextRequest } = await import("next/server");
   const { SESSION_COOKIE } = await import("@/lib/auth/cookies");
-  const { default: middleware } = await import("@/middleware");
+  const { default: proxy } = await import("@/proxy");
   const request = (page: string) => new NextRequest(`http://localhost${page}`);
-  const legacy = middleware(request("/en/catalog?q=skill"));
+  const legacy = proxy(request("/en/catalog?q=skill"));
   expect(legacy.headers.get("location")).toBe("http://localhost/en/corporate/catalog?q=skill");
-  const catalog = middleware(request("/en/corporate/catalog?q=skill"));
+  const catalog = proxy(request("/en/corporate/catalog?q=skill"));
   expect(catalog.headers.get("x-middleware-rewrite")).toBeNull();
   expect(catalog.headers.get("x-middleware-request-x-pathname")).toBeNull();
   const catalogDetailRequest = request(
     "/en/corporate/catalog/components/component_060DCF6842CF14470513928E39",
   );
   catalogDetailRequest.cookies.set(SESSION_COOKIE, "presence-only");
-  const catalogDetail = middleware(catalogDetailRequest);
+  const catalogDetail = proxy(catalogDetailRequest);
   expect(catalogDetail.headers.get("x-middleware-rewrite")).toBe(
     "http://localhost/en/catalog/components/component_060DCF6842CF14470513928E39",
   );
-  const privatePage = middleware(request("/ru/ai/corporate/account/profile?tab=links"));
+  const privatePage = proxy(request("/ru/ai/corporate/account/profile?tab=links"));
   const login = new URL(privatePage.headers.get("location") ?? "");
   expect(login.pathname).toBe("/ru/ai/corporate/login");
   expect(login.searchParams.get("returnTo")).toBe("/ru/ai/corporate/account/profile?tab=links");
   const signedIn = request("/en/corporate/account");
   signedIn.cookies.set(SESSION_COOKIE, "presence-only");
-  expect(middleware(signedIn).headers.get("x-middleware-rewrite")).toBe(
-    "http://localhost/en/account",
-  );
-  expect(middleware(request("/en/corporate/catalog/components/component_missing")).status).toBe(
-    404,
-  );
-  const legacyEmployee = middleware(
+  expect(proxy(signedIn).headers.get("x-middleware-rewrite")).toBe("http://localhost/en/account");
+  expect(proxy(request("/en/corporate/catalog/components/component_missing")).status).toBe(404);
+  const legacyEmployee = proxy(
     request("/en/corporate/organization/admins/members/account_01?tab=access"),
   );
   expect(legacyEmployee.status).toBe(308);
   expect(legacyEmployee.headers.get("location")).toBe(
     "http://localhost/en/corporate/organization/admins/employees/account_01?tab=access",
   );
-  const legacyPublisher = middleware(request("/en/corporate/publishers/account_01?tab=objects"));
+  const legacyPublisher = proxy(request("/en/corporate/publishers/account_01?tab=objects"));
   expect(legacyPublisher.status).toBe(308);
   expect(legacyPublisher.headers.get("location")).toBe(
     "http://localhost/en/corporate/employees/account_01?tab=objects",
@@ -97,21 +93,21 @@ it("rewrites corporate shared pages and retains private session gates", async ()
   const loopbackRequest = new NextRequest("http://localhost:6767/en/corporate/login", {
     headers: { host: "127.0.0.1:6767" },
   });
-  const rewrite = middleware(loopbackRequest);
+  const rewrite = proxy(loopbackRequest);
   expect(rewrite.headers.get("x-middleware-rewrite")).toBe("http://127.0.0.1:6767/en/login");
   expect(rewrite.headers.get("location")).toBeNull();
 
   const mismatchedPort = new NextRequest("http://localhost:6767/en/corporate/login", {
     headers: { host: "127.0.0.1:6768" },
   });
-  expect(middleware(mismatchedPort).headers.get("x-middleware-rewrite")).toBe(
+  expect(proxy(mismatchedPort).headers.get("x-middleware-rewrite")).toBe(
     "http://localhost:6767/en/login",
   );
 
   const userinfoHost = new NextRequest("http://localhost:6767/en/corporate/login", {
     headers: { host: "user@127.0.0.1:6767" },
   });
-  expect(middleware(userinfoHost).headers.get("x-middleware-rewrite")).toBe(
+  expect(proxy(userinfoHost).headers.get("x-middleware-rewrite")).toBe(
     "http://localhost:6767/en/login",
   );
 });
@@ -119,8 +115,8 @@ it("rewrites corporate shared pages and retains private session gates", async ()
 it("keeps SaaS page URLs physical without corporate aliases", async () => {
   vi.stubEnv("AI_STP_COMPILED_FEATURE_PROFILE", "public_saas");
   const { NextRequest } = await import("next/server");
-  const { default: middleware } = await import("@/middleware");
-  const response = middleware(new NextRequest("http://localhost/en/catalog?q=skill"));
+  const { default: proxy } = await import("@/proxy");
+  const response = proxy(new NextRequest("http://localhost/en/catalog?q=skill"));
   expect(response.headers.get("location")).toBeNull();
   expect(response.headers.get("x-middleware-rewrite")).toBeNull();
 });

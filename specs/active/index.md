@@ -30,7 +30,7 @@ last_verified: "2026-08-03"
 | [SPEC-019-runtime-deployment-operability.md](SPEC-019-runtime-deployment-operability.md) | SPEC-019: Runtime deployment and operation. | 2026-09-20 |
 | [SPEC-020-persistence-migrations-object-store.md](SPEC-020-persistence-migrations-object-store.md) | SPEC-020: Server-side storage, PostgreSQL migrations, artifact storage, and asset storage. | 2026-10-05 |
 | [SPEC-021-anonymous-catalog-read-and-seed.md](SPEC-021-anonymous-catalog-read-and-seed.md) | SPEC-021: Anonymous reading of the public catalog and initial seeding of objects. | 2026-09-05 |
-| [SPEC-022-web-shell-landing-catalog.md](SPEC-022-web-shell-landing-catalog.md) | SPEC-022: Web shell, bilingual landing page and anonymous public catalog. | 2026-09-20 |
+| [SPEC-022-web-shell-landing-catalog.md](SPEC-022-web-shell-landing-catalog.md) | SPEC-022: Web shell, bilingual landing page and anonymous public catalog. | 2026-10-05 |
 | [SPEC-023-web-login-account-devices.md](SPEC-023-web-login-account-devices.md) | SPEC-023: Web login, account profile and device management. | 2026-09-20 |
 | [SPEC-024-reproducible-deployment.md](SPEC-024-reproducible-deployment.md) | SPEC-024: Reproducible deployment with web tier, health, logs, backups and rollback. | 2026-09-07 |
 | [SPEC-025-private-registry-revision-sync.md](SPEC-025-private-registry-revision-sync.md) | SPEC-025: Private registry and server-side revision synchronization. | 2026-09-08 |
@@ -91,7 +91,7 @@ last_verified: "2026-08-03"
 | [SPEC-080-cli-agent-task-contract.md](SPEC-080-cli-agent-task-contract.md) | SPEC-080: Headless CLI application services, capability inventory, and the agent task contract. | 2026-09-24 |
 | [SPEC-081-technology-registry-and-landscape.md](SPEC-081-technology-registry-and-landscape.md) | SPEC-081: Governed technology metadata, usage facts, detection handoff, and authorized landscape projections. | 2026-09-26 |
 | [SPEC-082-canonical-corporate-relations.md](SPEC-082-canonical-corporate-relations.md) | SPEC-082: Single canonical team/project/technology relationships, responsibility, and current assignment scopes. | 2026-09-12 |
-| [SPEC-083-corporate-hub-workspace.md](SPEC-083-corporate-hub-workspace.md) | SPEC-083: Corporate Hub directories, relationship editing, and catalog assignments. | 2026-09-18 |
+| [SPEC-083-corporate-hub-workspace.md](SPEC-083-corporate-hub-workspace.md) | SPEC-083: Corporate Hub directories, relationship editing, and catalog assignments. | 2026-10-05 |
 | [SPEC-084-corporate-entity-profiles.md](SPEC-084-corporate-entity-profiles.md) | SPEC-084: Persistent tenant presentation and independent technology ownership. | 2026-09-18 |
 | [SPEC-085-milestone-5-corporate-governance-and-catalog.md](SPEC-085-milestone-5-corporate-governance-and-catalog.md) | SPEC-085: Corporate governance lifecycle, team profile, and catalog context. | 2026-09-19 |
 | [SPEC-086-corporate-workspace-consolidation.md](SPEC-086-corporate-workspace-consolidation.md) | SPEC-086: Corporate workspace identity, directory, catalog, and detail consolidation. | 2026-09-18 |

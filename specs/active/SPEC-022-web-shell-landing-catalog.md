@@ -1,6 +1,6 @@
 ---
 description: "SPEC-022: Web shell, bilingual landing page and anonymous public catalog."
-last_verified: "2026-09-20"
+last_verified: "2026-10-05"
 ---
 
 # SPEC-022: Web shell, landing page and anonymous catalog
@@ -181,6 +181,7 @@ an unacknowledged object is not included in the markup without consent, rather t
 
 Coverage remains incomplete consciously: `catalog-filters`, `device-list`,
 `identity-list`, `profile-form` and `install-block` component tests are not yet available
-have. The weight of client JS is measured from the `REQ-2213` budgets; `lcpMs`, `cls` and
+have. The weight of client JS — the gzip size of the module scripts the served `/en`
+page loads — is measured against the `REQ-2213` budgets; `lcpMs`, `cls` and
 `tbtMs` are recorded in `apps/web/src/lib/budgets.ts` as unmeasured and passed
 are not considered.

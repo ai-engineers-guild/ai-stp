@@ -30,26 +30,26 @@ describe("native build route isolation (REQ-8309)", () => {
   });
 
   it.each(["public_saas", "self_hosted", "corporate_hub"])(
-    "only disables middleware URL normalization in %s",
+    "only disables proxy URL normalization in %s",
     async (profile) => {
       vi.resetModules();
       vi.stubEnv("AI_STP_WEB_PROFILE", profile);
       const { default: config } = await import("../../next.config");
-      expect(config.skipMiddlewareUrlNormalize).toBe(profile === "corporate_hub");
+      expect(config.skipProxyUrlNormalize).toBe(profile === "corporate_hub");
       vi.unstubAllEnvs();
     },
   );
 
   it.each([
     ["public_saas", []],
-    ["self_hosted", ["@/lib/api/content$", "@/lib/content/presenter$", "@/lib/api/public-legal$"]],
+    ["self_hosted", ["@/lib/api/content", "@/lib/content/presenter", "@/lib/api/public-legal"]],
     [
       "corporate_hub",
       [
-        "@/lib/api/content$",
-        "@/lib/content/presenter$",
-        "@/lib/api/public-legal$",
-        "@/lib/projection/regional-presenters$",
+        "@/lib/api/content",
+        "@/lib/content/presenter",
+        "@/lib/api/public-legal",
+        "@/lib/projection/regional-presenters",
       ],
     ],
   ])("aliases only disabled server modules in %s", (profile, expected) => {

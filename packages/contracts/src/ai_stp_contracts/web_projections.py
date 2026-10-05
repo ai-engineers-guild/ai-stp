@@ -20,6 +20,7 @@ from ai_stp_contracts.auth import OAUTH_PROVIDERS
 WEB_LIB = Path("apps") / "web" / "src" / "lib" / "generated"
 CLI_COPY_NAME: Final[str] = "cli-copy.ts"
 DEEP_LINK_CORPUS_NAME: Final[str] = "deep-link-corpus.ts"
+CORPORATE_OVERVIEW_FIXTURE_NAME: Final[str] = "corporate-overview-fixture.ts"
 
 
 def _repo_root() -> Path:
@@ -139,10 +140,30 @@ def render_deep_link_corpus() -> str:
     )
 
 
+def render_corporate_overview_fixture() -> str:
+    """Render the corporate overview fixture the web mocks serve.
+
+    The mock transport used to import the JSON from `packages/contracts`
+    directly. Turbopack resolves nothing outside the web project root, so the
+    fixture reaches the app as a projection, like the deep-link corpus.
+    """
+    source = files("ai_stp_contracts").joinpath("fixtures/v1/corporate-overview.json")
+    payload = json.loads(source.read_text(encoding="utf-8"))
+    body = json.dumps(payload, ensure_ascii=False, indent=2)
+    return (
+        "/* Generated from ai_stp_contracts fixtures/v1/corporate-overview.json. Do not edit. */\n"
+        "\n"
+        f"const fixture: unknown = {body};\n"
+        "\n"
+        "export default fixture;\n"
+    )
+
+
 def render_all() -> dict[str, str]:
     return {
         CLI_COPY_NAME: render_cli_copy(),
         DEEP_LINK_CORPUS_NAME: render_deep_link_corpus(),
+        CORPORATE_OVERVIEW_FIXTURE_NAME: render_corporate_overview_fixture(),
     }
 
 
