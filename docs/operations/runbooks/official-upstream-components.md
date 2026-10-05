@@ -1,6 +1,6 @@
 ---
 description: "Runbook: operator-managed official GitHub and package upstream component snapshots."
-last_verified: "2026-09-04"
+last_verified: "2026-10-05"
 ---
 
 # Official upstream components
@@ -217,7 +217,10 @@ then run reconciliation. The status output includes attempt state/result,
 retry count, queue and outbox IDs/states, error class/code, manifest digest,
 provenance, plan ID, and timestamps. A failed attempt is retried only through
 the bounded queue policy or an explicit `retry --id`; exhausted work remains
-in the queue DLQ and the domain ledger as `dead_lettered`.
+in the queue DLQ and the domain ledger as `dead_lettered`. The worker records
+each queue outcome on the ledger once — a lease that expired into dead-letter
+on its next poll — and does not rewrite recorded rows, so a dead-letter backlog
+costs the poll nothing until the terminal-job GC removes it.
 
 ```sh
 python -m ai_stp_platform.official_upstream reconcile-delivery
