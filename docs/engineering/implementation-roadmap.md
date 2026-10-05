@@ -76,6 +76,9 @@ workstation's `uv tool` installation reached it from 0.0.38 through
 aarch64 dmg, and an exe and msi for Windows, unsigned. Its shipped sidecar
 reports CLI 0.0.40 and answered `version --json` in 1.96 s against 2.87 s for
 0.0.5's.
+`ai-stp-cli` 0.0.41 followed (candidate 37326276638) with `#693`: right after
+an update, `doctor` no longer asks to update to the version just installed. The
+same workstation updated 0.0.40 → 0.0.41 with `doctor` all `ready`.
 
 Every deploy also stopped four containers by force after ten seconds (`#692`).
 The scanner sidecars' `sh -c` loop is PID 1 and ignores SIGTERM. The API and
@@ -243,7 +246,7 @@ own exit gates; sidebar completion does not close those work packages.
 | Platform | `/v1`, PostgreSQL, object storage, queue, authentication/devices, sync, publication, grants/reports, public catalog, article, and SEO projections |
 | Web | Landing, catalog/detail, account/device/owner surfaces, content hub, machine projections, and a three-OS test matrix |
 | Providers | Seven public setup systems at `0.0.88`, read through the vendored provider kit `0.2.15` and protocol v3: native configuration, backup/recovery and software lifecycle. Launch completeness per provider is measured evidence, not a property of the release. |
-| Release | `ai-stp-cli==0.0.40` on PyPI with its GitHub Release (SBOM, manifest, `SHA256SUMS`). GitHub attested acquisition remains the default provider path; PyPI provenance is a second, explicit path (`ADR-0141`). Self-update of the CLI wheel is `SPEC-072` / `ADR-0170`. Source integration, package publication and installed PATH identity are separate observations. |
+| Release | `ai-stp-cli==0.0.41` on PyPI with its GitHub Release (SBOM, manifest, `SHA256SUMS`). GitHub attested acquisition remains the default provider path; PyPI provenance is a second, explicit path (`ADR-0141`). Self-update of the CLI wheel is `SPEC-072` / `ADR-0170`. Source integration, package publication and installed PATH identity are separate observations. |
 | Desktop | `ai-stp-desktop` 0.0.6: a Tauri 2 shell over the CLI machine contract with a frozen CLI sidecar (`ADR-0222`); deb, rpm and AppImage for Linux, an aarch64 dmg, and an exe and msi for Windows, unsigned. |
 | Catalog | The canonical first-party corpus models seven harness families and four postures. Identity projection, exact target assurance, and normal-path publication/readback evidence are implemented in the current platform closeout for `#146`/`#155`. |
 | OBT support tiers | All seven harnesses are `beta` (`SUPPORT_TIERS`, `SPEC-033` REQ-3315). `primary` remains a valid later GA label with no current members |
