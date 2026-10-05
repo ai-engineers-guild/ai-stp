@@ -1,6 +1,6 @@
 ---
 description: "Required checks and release evidence."
-last_verified: "2026-09-29"
+last_verified: "2026-10-05"
 ---
 
 # Quality gates
@@ -136,7 +136,7 @@ whole Python workspace.
 
 Platform tests with PostgreSQL (`tests/api/platform`, `tests/integration/platform`)
 read `AI_STP_TEST_DB_URL`. Without it they skip. The local DSN and container are in
-`QUICKSTART.md`; CI starts `postgres:16` and sets the same URL.
+`QUICKSTART.md`; CI starts `postgres:18` and sets the same URL.
 
 Test isolation is defined by the repository, not by a test author's memory.
 `tests/conftest.py` redirects XDG directories into a temporary tree and replaces
