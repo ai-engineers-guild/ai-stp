@@ -49,7 +49,7 @@ from ai_stp_platform.official_upstream.source import (
 from ai_stp_platform.official_upstream.sync import run_sync
 from ai_stp_platform.publication_logic import execute_publish, execute_validate
 from ai_stp_platform.queue.models import Job
-from ai_stp_platform.queue.states import JobState, JobType
+from ai_stp_platform.queue.states import JobState, JobType, RetryAfterJobFailure
 from ai_stp_platform.seed_cli import ensure_official_publisher
 from ai_stp_platform.settings import StorageSettings
 from ai_stp_platform.storage import ImmutableObjectStore, MemoryObjectClient
@@ -336,6 +336,33 @@ async def test_recorded_dead_letter_is_neither_polled_nor_rewritten(
         await record_queue_outcome(session, daily)
         assert attempt.completed_at == recorded_at
         assert not session.dirty
+
+
+@pytest.mark.asyncio
+async def test_rate_limited_sync_retries_at_the_github_reset(
+    db_sessionmaker: async_sessionmaker[AsyncSession],
+) -> None:
+    now = datetime(2026, 9, 1, 12, 0, tzinfo=UTC)
+    reset = int(datetime.now(UTC).timestamp()) + 1800
+
+    async def limited(url: str, *, headers: dict[str, str]) -> GithubHttpResponse:
+        del headers
+        return GithubHttpResponse(
+            403,
+            b'{"message":"API rate limit exceeded"}',
+            {"x-ratelimit-remaining": "0", "x-ratelimit-reset": str(reset)},
+            url,
+        )
+
+    async with db_sessionmaker() as session, session.begin():
+        await _owner(session)
+        await upsert_source(session, _command())
+        with pytest.raises(RetryAfterJobFailure) as raised:
+            await handle_official_upstream_sync(
+                session, {"source_id": SOURCE_ID}, fetch=limited, now=now
+            )
+        assert raised.value.not_before == datetime.fromtimestamp(reset, UTC)
+        assert str(raised.value) == "GitHub rate limit exceeded"
 
 
 @pytest.mark.asyncio
