@@ -1,6 +1,6 @@
 ---
 description: "Build, verify, publish, yank, and recover a Python release."
-last_verified: "2026-10-02"
+last_verified: "2026-10-04"
 ---
 
 # Python package release
@@ -83,6 +83,19 @@ password, and API tokens are forbidden.
 
 Environment: `pypi-cli`. There is no internal publication order: one project is
 uploaded.
+
+After the upload succeeds, the `github-release` job of the same run creates the
+GitHub Release `ai-stp-cli <version>` on tag `v<version>` from the same
+candidate: it downloads the artifact of `run_id`, re-checks `SHA256SUMS`, and
+attaches the wheel, sdist, SBOM, release manifest and sums. It holds only
+`contents: write`, checks nothing out, refuses a missing tag (`--verify-tag`),
+leaves an existing release unchanged on a rerun, and does not take the
+repository's *Latest* marker, which belongs to the desktop download. The body
+names the publish and candidate runs and links the comparison with the previous
+CLI tag; a human-written summary can be added with `gh release edit`. Before
+this job existed the release was a manual step and was missed for v0.0.23,
+v0.0.29, v0.0.30, v0.0.32–v0.0.35 and v0.0.37–v0.0.38; all are backfilled from
+their attested candidates.
 
 ### Run the script, not the steps by hand
 
