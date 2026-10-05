@@ -9,6 +9,7 @@ from pathlib import Path
 
 import pytest
 
+from ai_stp_platform.safety import metrics
 from ai_stp_platform.safety.metrics import (
     DURATION_BUCKETS_MS,
     record_cli_result,
@@ -172,6 +173,22 @@ def test_metrics_record_scan_and_cli() -> None:
     assert snap["safety_queue_job_total"] == 1
     assert snap["safety_queue_job_result_total"]["succeeded"] == 1
     assert snap["safety_queue_requeued_total"] == 1
+
+
+def test_empty_queue_claim_is_counted_not_logged(monkeypatch: pytest.MonkeyPatch) -> None:
+    logged: list[str] = []
+
+    class _Log:
+        def info(self, event: str, **fields: object) -> None:
+            del fields
+            logged.append(event)
+
+    monkeypatch.setattr(metrics, "_log", _Log())
+    reset_metrics()
+    record_queue_claim(batch_size=1, claimed_count=0)
+    record_queue_claim(batch_size=1, claimed_count=1)
+    assert snapshot()["safety_queue_empty_poll_total"] == 1
+    assert logged == ["safety_queue_claim"]
 
 
 def test_osv_missing_dir_optional(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
