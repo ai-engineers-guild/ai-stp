@@ -60,7 +60,7 @@ def source_intent(source: OfficialUpstreamSource) -> GitIntent | PackageIntent:
 
 def map_source_error(error: SourceError) -> OfficialUpstreamError:
     code = _SOURCE_ERROR_MAP.get(error.code, FAILED_VALIDATION)
-    return OfficialUpstreamError(code, error.message)
+    return OfficialUpstreamError(code, error.message, retry_at=error.retry_at)
 
 
 async def resolve_official_snapshot(

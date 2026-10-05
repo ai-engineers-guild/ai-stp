@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import datetime
+
 INVALID_SOURCE = "invalid_source"
 UNAVAILABLE_UPSTREAM = "unavailable_upstream"
 CHANGED_REPOSITORY_IDENTITY = "changed_repository_identity"
@@ -15,7 +17,9 @@ MANIFEST_MISMATCH = "manifest_mismatch"
 class OfficialUpstreamError(Exception):
     """A closed sync or source-configuration failure."""
 
-    def __init__(self, code: str, message: str) -> None:
+    def __init__(self, code: str, message: str, *, retry_at: datetime | None = None) -> None:
         self.code = code
         self.message = message
+        #: The moment the upstream named for a retry, such as a rate-limit reset.
+        self.retry_at = retry_at
         super().__init__(message)
