@@ -64,7 +64,7 @@ last_verified: "2026-08-03"
 | [setup-import.md](setup-import.md) | Machine boundary for discovering and registering an existing native setup. | 2026-09-06 |
 | [setup-store-ports.md](setup-store-ports.md) | Contract for local discovery, preview, and component import from SX and APM. | 2026-08-13 |
 | [skill-authoring.md](skill-authoring.md) | Skill package structure, required and optional fields, and rejection codes. | 2026-08-29 |
-| [standard-family.md](standard-family.md) | Coordinated standard-family identity, contract digest, and classification axes. | 2026-09-05 |
+| [standard-family.md](standard-family.md) | Coordinated standard-family identity, contract digest, and classification axes. | 2026-10-04 |
 | [structured-logging.md](structured-logging.md) | Closed event fields and redaction at the API and worker log sinks. | 2026-09-14 |
 | [sync-event.md](sync-event.md) | Synchronization event fields, responses, retries, and conflicts. | 2026-09-08 |
 | [tag-vocabulary.md](tag-vocabulary.md) | Tag vocabulary format, validation, limit, and search behavior. | 2026-09-04 |

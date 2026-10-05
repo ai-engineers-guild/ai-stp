@@ -163,3 +163,30 @@ def test_http_and_exported_schema_axes_do_not_overlap() -> None:
     exported_ids = {m.identity for m in inventory.members if m.axis == "exported_schema"}
     assert http_ids.isdisjoint(exported_ids)
     assert schema_id("cli-standard-inventory") in exported_ids
+
+
+def test_the_recorded_inventory_is_the_computed_one() -> None:
+    """The record `version` reads is the inventory the models produce now.
+
+    `back-static` runs the same comparison through `--check`; this keeps the
+    property inside the suite so a model change without `back-gen` fails here
+    too, with the digest that moved.
+    """
+    from ai_stp_contracts.inventory_record import recorded
+
+    assert recorded() == current_inventory()
+
+
+def test_the_inventory_record_check_names_drift_and_absence(tmp_path: Path) -> None:
+    from ai_stp_contracts import inventory_record
+
+    record = tmp_path / "standard_inventory.json"
+    assert inventory_record.check(record) == [f"missing generated inventory record: {record}"]
+    assert inventory_record.main([str(record)]) == 0
+    assert inventory_record.check(record) == []
+    assert inventory_record.main(["--check", str(record)]) == 0
+    record.write_text(record.read_text(encoding="utf-8") + "\n", encoding="utf-8")
+    assert inventory_record.check(record) == [
+        f"inventory record drifted from the exported models: {record}"
+    ]
+    assert inventory_record.main(["--check", str(record)]) == 1

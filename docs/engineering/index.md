@@ -11,7 +11,7 @@ last_verified: "2026-08-03"
 | -------- | ----- | ------- |
 | [agent-ux-implementation-plan.md](agent-ux-implementation-plan.md) | Target implementation plan for the agent-first CLI: GPT OSS 120B qualification, shared task engine, and the website-to-native journeys in epic #261. | 2026-10-03 |
 | [catalog-search-benchmark.md](catalog-search-benchmark.md) | How to measure catalog search latency on PostgreSQL 16 without a new harness. | 2026-09-04 |
-| [cli-performance.md](cli-performance.md) | Measured CLI command costs, resolved bottlenecks, and budgets. | 2026-08-29 |
+| [cli-performance.md](cli-performance.md) | Measured CLI command costs, resolved bottlenecks, and budgets. | 2026-10-04 |
 | [coding-rules.md](coding-rules.md) | Rules for errors, I/O, security, and predictable behavior. | 2026-08-03 |
 | [corporate-navigation-access-plan.md](corporate-navigation-access-plan.md) | Evidence, design comparison, dependency order, and task reconciliation for corporate navigation and People and Access. | 2026-09-30 |
 | [corporate-workspace-change-requests.md](corporate-workspace-change-requests.md) | Executable change-request ledger for the Corporate Hub consolidation. | 2026-09-18 |

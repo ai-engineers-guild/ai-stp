@@ -498,13 +498,14 @@ docs-check: docs-static docs-test docs-build docs-regress
 
 # --- back ---------------------------------------------------------------
 
-# Source format and both generated artifacts: schemas/v1 and Skill
-# projections.
+# Source format and the generated artifacts: schemas/v1, the standard
+# inventory record `version` reads, and Skill projections.
 [doc('Rewrite source format and generated artifacts')]
 [group('back')]
 back-gen:
     {{ run }} ruff format .
     {{ run }} python -m ai_stp_contracts.schemas schemas/v1
+    {{ run }} python -m ai_stp_contracts.inventory_record
     {{ run }} python -m ai_stp_contracts.web_projections
     {{ run }} python release_scripts/provider_kit.py provider-kit/v3
     {{ run }} python release_scripts/verifier_requirements.py
@@ -518,6 +519,7 @@ back-static:
     {{ run }} ruff check .
     {{ run }} python -m pyright
     {{ run }} python -m ai_stp_contracts.schemas --check schemas/v1
+    {{ run }} python -m ai_stp_contracts.inventory_record --check
     {{ run }} python -m ai_stp_contracts.web_projections --check
     {{ run }} python release_scripts/provider_kit.py --check provider-kit/v3
     {{ run }} python release_scripts/verifier_requirements.py --check
