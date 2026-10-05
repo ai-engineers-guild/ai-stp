@@ -35,6 +35,45 @@ agent, and scheduled production backups (SPEC-024 `REQ-2409`). Outside this
 plan's owner: the Corporate Hub and `[Enterprise]` backlog (#224, #541–#544
 and the issues it links) and setup-systems #316.
 
+## Deploy, content and upstream repairs; faster CLI and sidecar — 2026-10-05 (evening)
+
+A ten-day session audit (Codex, Claude Code and Devin; Cursor and Grok had no
+ai-stp activity in the window) was checked against production data rather
+than CI. Production showed four defects, each repaired with a regression test
+and verified on the `79e0dc09` deploy:
+
+- **Deploy outage (`#678`).** The final `compose up` followed `depends_on`: it
+  stopped the api and web containers it was recreating, then restarted the
+  exited migrate and seed one-shots before starting the new ones. Migrate ran
+  three times and seed twice per deploy, and api, web and docs answered 502 for
+  about 65 s. `deploy/lib.sh` `start_serving_services` now replaces each
+  service once, with `--no-deps`, in order: api, the content import, web and
+  docs, the scanner sidecars, the worker. On `79e0dc09` migrate and seed ran
+  once, web restarted in 3 s, and the whole deploy produced six 502 responses.
+- **Article churn (`#679`).** Every deploy created 46 article revisions, 46 SEO
+  builds and a deploy-time `dateModified`, because the revision digest binds
+  the snapshot commit. An entry whose content only changed commit keeps its
+  revision (SPEC-054 `REQ-5406`). The `79e0dc09` import left the 6,408
+  revisions, 5,244 seo_build jobs and generation 203 unchanged.
+- **Official upstream refusals (`#680`).** An unsafe archive, invalid source or
+  changed repository identity is recorded once as `failed_permanent` instead of
+  five downloads from the unauthenticated GitHub budget (SPEC-056 `REQ-5606`).
+- **Unserved locale (`#681`).** A crawl of `/ai/content/...` no longer reaches
+  the content API and logs an SSR error.
+
+The CLI and the desktop sidecar got faster: contract models build on first use
+and local commands no longer import httpx (`#687`; `version --json` 1.75 →
+1.13 s of user CPU), and the sidecar freezes without setuptools (`#688`). A
+release-equivalent sidecar answered in 2.03 s against 2.93 s for desktop
+0.0.5. `#689` stops a session that cannot reach the operating system key store
+from offering `device reset` for a key that is only out of reach.
+
+One cost remains in the deploy: the API and the worker finish their own
+shutdown within two seconds of SIGTERM — `shutdown` and `worker_stop` are
+logged — yet dockerd stops them by force ten seconds later. Neither the
+production image in isolation nor a local PID-1 run reproduces it; it adds
+about ten seconds to the API restart and loses no work.
+
 ## Production repairs, current majors, and PostgreSQL 18 — 2026-10-05
 
 Between the 2026-10-03 checkpoint and this one, `#617`–`#646` shipped
