@@ -136,7 +136,7 @@ RUSTFS_VOLUME="$(compose_service_volume rustfs /data)"
 if ! docker run --rm \
   -v "${RUSTFS_VOLUME}:/source:ro" \
   -v "${DEST}/rustfs:/dest" \
-  alpine:3.20@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc \
+  alpine:3.24@sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6 \
   sh -c 'cp -a /source/. /dest/ && find /dest -type f | wc -l' \
   >"${DEST}/rustfs.file_count.txt"; then
   die "rustfs_copy_failed"
