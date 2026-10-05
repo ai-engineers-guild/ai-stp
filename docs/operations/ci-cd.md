@@ -114,7 +114,10 @@ OS/architecture legs. Missing launch evidence remains `not_verified`.
 `.github/workflows/desktop.yml` covers `apps/desktop` on all three target OSes.
 It triggers on pushes to `dev`/`main` and on pull requests that touch
 `apps/desktop/**` or the workflow itself, plus `workflow_dispatch`. The matrix
-is `ubuntu-latest`, `macos-latest`, `windows-latest` with `fail-fast: false`.
+is `ubuntu-24.04`, `macos-latest`, `windows-latest` with `fail-fast: false`;
+the Linux leg, here and in `desktop-release.yml`, is pinned because a bundle
+needs the glibc of the image that built it, and `ubuntu-latest` moves to Ubuntu
+26.04 from 2026-10-19.
 Each leg installs the pinned bun (WebKitGTK development packages on Linux), then
 runs `bun install --frozen-lockfile`, `tsc --noEmit`, `vitest run` and
 `vite build`. `apps/desktop/core` then runs `cargo fmt --check`,

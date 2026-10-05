@@ -55,7 +55,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        # Linux bundles need the glibc of the image that built them, so the leg
+        # pins the image the shipped bundles were built and tested on rather
+        # than `ubuntu-latest`, which moves to Ubuntu 26.04 from 2026-10-19.
+        os: [ubuntu-24.04, macos-latest, windows-latest]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
