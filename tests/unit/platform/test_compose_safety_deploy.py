@@ -262,7 +262,7 @@ def test_no_compose_file_resolves_an_image_by_a_moving_tag() -> None:
             if "${" in reference or "@sha256:" in reference:
                 continue
             # A major tag is a pin in this repository's sense for dev only:
-            # `postgres:16` moves within a major and keeps its interface,
+            # `postgres:18` moves within a major and keeps its interface,
             # the one named exemption `standards/docker.md` records. Prod and
             # `check.yml` carry the same service digest-pinned instead.
             # `:latest` is the one that crosses majors and changed endpoints
