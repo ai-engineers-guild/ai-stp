@@ -1,4 +1,4 @@
-import { routing } from "@/lib/i18n/routing";
+import { isAppLocale, routing } from "@/lib/i18n/routing";
 
 export const PROTECTED_SEGMENTS = new Set([
   "onboarding",
@@ -27,10 +27,6 @@ export type ParsedProjectionRoute = {
   canonicalPage: string | undefined;
   projection: "human" | "machine";
 };
-
-export function isAppLocale(value: string | undefined): value is (typeof routing.locales)[number] {
-  return value !== undefined && (routing.locales as readonly string[]).includes(value);
-}
 
 /** Parse a request pathname into projection routing decisions (REQ-3602). */
 export function parseProjectionRoute(pathname: string): ParsedProjectionRoute {

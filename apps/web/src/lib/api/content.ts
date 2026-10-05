@@ -1,3 +1,5 @@
+import { isAppLocale } from "@/lib/i18n/routing";
+
 import { ApiError } from "./errors";
 import { publicApiGet } from "./public-http";
 
@@ -34,7 +36,11 @@ export type ContentListResponse = {
   items: ContentSummary[];
 };
 
+// A `[locale]` segment the site does not serve renders the layout's 404, but
+// Next runs page metadata alongside it: the API's 400 for such a locale then
+// surfaced as a server error on every crawl of a path like `/ai/content/...`.
 export async function listPublishedContent(locale: string): Promise<ContentSummary[]> {
+  if (!isAppLocale(locale)) return [];
   const result = await publicApiGet<ContentListResponse>("/v1/content", { query: { locale } });
   return result.items;
 }
@@ -44,6 +50,7 @@ export async function readPublishedContent(
   type: string,
   slug: string,
 ): Promise<ContentDetail | null> {
+  if (!isAppLocale(locale)) return null;
   try {
     return await publicApiGet<ContentDetail>(`/v1/content/${type}/${slug}`, {
       query: { locale },
