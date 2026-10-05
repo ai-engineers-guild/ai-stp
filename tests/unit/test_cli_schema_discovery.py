@@ -95,6 +95,7 @@ def test_task_intents_describe_input_fields() -> None:
     assert account["provider"].choices == [
         "authentik",
         "github",
+        "gitlab",
         "google",
         "keycloak",
     ]

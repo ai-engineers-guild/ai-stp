@@ -35,7 +35,7 @@ export async function updatePublicProfileAction(input: {
 }
 
 const unlinkSchema = z.object({
-  provider: z.enum(["google", "github", "authentik", "keycloak"]),
+  provider: z.enum(["google", "github", "authentik", "keycloak", "gitlab"]),
   csrfToken: z.string().min(1),
 });
 

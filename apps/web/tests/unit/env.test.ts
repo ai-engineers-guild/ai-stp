@@ -34,10 +34,10 @@ describe("getEnv", () => {
     vi.stubEnv("NEXT_PUBLIC_APP_URL", "http://localhost:3000");
     vi.stubEnv("AI_STP_API_BASE_URL", "http://localhost:8000");
     vi.stubEnv("AI_STP_SESSION_SECRET", "dev-only-change-me-to-a-long-random-string");
-    vi.stubEnv("AI_STP_AUTH_SSO_PROVIDERS", " authentik, keycloak ");
+    vi.stubEnv("AI_STP_AUTH_SSO_PROVIDERS", " authentik, keycloak, gitlab ");
     const mod = await import("@/lib/env");
     mod.resetEnvCache();
-    expect(mod.getEnv().AI_STP_AUTH_SSO_PROVIDERS).toEqual(["authentik", "keycloak"]);
+    expect(mod.getEnv().AI_STP_AUTH_SSO_PROVIDERS).toEqual(["authentik", "keycloak", "gitlab"]);
   });
 
   it("rejects an unknown SSO provider name", async () => {

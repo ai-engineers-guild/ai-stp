@@ -154,6 +154,11 @@ class AuthSettings(BaseSettings):
     keycloak_issuer_url: str = Field(default="")
     keycloak_client_id: str = Field(default="")
     keycloak_client_secret: str = Field(default="")
+    # Self-managed GitLab sign-in (ADR-0223): the issuer is the instance base
+    # URL; discovery runs against ``{issuer}/.well-known/openid-configuration``.
+    gitlab_issuer_url: str = Field(default="")
+    gitlab_client_id: str = Field(default="")
+    gitlab_client_secret: str = Field(default="")
     # Comma-separated account ids that may perform audited admin reads.
     admin_account_ids: str = Field(default="")
 
@@ -211,7 +216,7 @@ class AuthSettings(BaseSettings):
             raise ValueError(msg)
         return value
 
-    @field_validator("authentik_issuer_url", "keycloak_issuer_url")
+    @field_validator("authentik_issuer_url", "keycloak_issuer_url", "gitlab_issuer_url")
     @classmethod
     def _issuer_url_is_http(cls, value: str) -> str:
         trimmed = value.strip()
@@ -236,7 +241,7 @@ class AuthSettings(BaseSettings):
             return bool(self.google_client_id and self.google_client_secret)
         if provider == "github":
             return bool(self.github_client_id and self.github_client_secret)
-        if provider in {"authentik", "keycloak"}:
+        if provider in {"authentik", "keycloak", "gitlab"}:
             issuer = self.oidc_issuer(provider)
             return bool(
                 issuer

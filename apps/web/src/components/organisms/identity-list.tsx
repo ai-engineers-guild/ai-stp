@@ -33,6 +33,9 @@ function providerLabel(provider: string, t: (key: string) => string): string {
   if (provider === "keycloak") {
     return t("providerKeycloak");
   }
+  if (provider === "gitlab") {
+    return t("providerGitlab");
+  }
   return provider;
 }
 
@@ -42,9 +45,10 @@ function linkHref(provider: OAuthProvider, returnTo: string): string {
   return `/v1/auth/link/${provider}?${params.toString()}`;
 }
 
-function providerIcon(provider: string): "google" | "github" | "user" {
+function providerIcon(provider: string): "google" | "github" | "gitlab" | "user" {
   if (provider === "google") return "google";
   if (provider === "github") return "github";
+  if (provider === "gitlab") return "gitlab";
   return "user";
 }
 

@@ -17920,7 +17920,8 @@
           "google",
           "github",
           "authentik",
-          "keycloak"
+          "keycloak",
+          "gitlab"
         ],
         "type": "string"
       },

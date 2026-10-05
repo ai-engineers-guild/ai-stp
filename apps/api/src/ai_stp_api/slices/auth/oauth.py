@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Mapping
 from typing import Any, Protocol, cast
+from urllib.parse import urlsplit
 
 # authlib ships no complete type stubs for the Starlette integration.
 from authlib.integrations.starlette_client import OAuth  # type: ignore[import-untyped]
@@ -86,9 +87,10 @@ def build_oauth(auth: AuthSettings) -> OAuth:
                 "code_challenge_method": "S256",
             },
         )
-    # Corporate OIDC providers (ADR-0218): same registration as Google, the
-    # issuer is deployment-configured instead of a constant.
-    for name in ("authentik", "keycloak"):
+    # Corporate OIDC providers (ADR-0218, ADR-0223): same registration as
+    # Google, the issuer is deployment-configured instead of a constant. For
+    # ``gitlab`` the issuer is the self-managed instance base URL.
+    for name in ("authentik", "keycloak", "gitlab"):
         if auth.provider_enabled(name):
             register(
                 name=name,
@@ -115,10 +117,12 @@ async def profile_from_token(
     oauth: OAuth,
     provider: str,
     token: Mapping[str, Any],
+    *,
+    issuer: str = "",
 ) -> ProviderProfile:
     """Extract a ProviderProfile from a provider token response."""
-    if provider in {"google", "authentik", "keycloak"}:
-        return _oidc_profile(provider, token)
+    if provider in {"google", "authentik", "keycloak", "gitlab"}:
+        return _oidc_profile(provider, token, issuer=issuer)
     if provider == "github":
         return await _github_profile(oauth, token)
     raise ApiError(ErrorCategory.VALIDATION, "unsupported oauth provider")
@@ -136,7 +140,7 @@ def _as_object_mapping(value: object) -> Mapping[str, object] | None:
     return cast(Mapping[str, object], value)
 
 
-def _oidc_profile(provider: str, token: Mapping[str, Any]) -> ProviderProfile:
+def _oidc_profile(provider: str, token: Mapping[str, Any], *, issuer: str = "") -> ProviderProfile:
     raw_userinfo: object = token.get("userinfo") or token.get("id_token") or {}
     userinfo = _as_object_mapping(raw_userinfo)
     if userinfo is None:
@@ -146,6 +150,14 @@ def _oidc_profile(provider: str, token: Mapping[str, Any]) -> ProviderProfile:
     verified = bool(userinfo.get("email_verified"))
     if not subject or not email:
         raise ApiError(ErrorCategory.AUTH_REQUIRED, "authentication failed")
+    if provider == "gitlab":
+        # GitLab ``sub`` is a per-instance small integer, so it is qualified by
+        # the configured issuer host: re-pointing a deployment at another
+        # instance must never collide old and new subjects.
+        host = urlsplit(issuer).hostname
+        if not host:
+            raise ApiError(ErrorCategory.AUTH_REQUIRED, "authentication failed")
+        subject = f"{host}:{subject}"
     return ProviderProfile(
         provider=provider,
         subject=normalize_subject(subject),
@@ -153,6 +165,10 @@ def _oidc_profile(provider: str, token: Mapping[str, Any]) -> ProviderProfile:
         email_verified=verified,
         avatar_url=normalize_https_url(_mapping_str(userinfo.get("picture"))),
         display_name=normalize_display_name(_mapping_str(userinfo.get("name"))),
+        username=normalize_display_name(
+            _mapping_str(userinfo.get("preferred_username"))
+            or _mapping_str(userinfo.get("nickname"))
+        ),
     )
 
 
