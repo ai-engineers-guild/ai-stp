@@ -7,6 +7,7 @@ import re
 from pathlib import Path
 
 import pytest
+import yaml
 
 pytestmark = pytest.mark.platform
 
@@ -321,3 +322,17 @@ def test_third_party_prod_services_receive_only_their_own_credentials() -> None:
 
     # migrate, seed, api, content-import, worker, web — and no seventh service.
     assert executable.count("env_file:") == 6
+
+
+def test_a_shell_loop_service_runs_under_an_init() -> None:
+    """A `sh -c` loop as PID 1 ignores SIGTERM and is killed on every deploy.
+
+    The scanner sidecars waited out the ten-second stop timeout on each deploy
+    (dockerd: "failed to exit within 10s of signal 15 - using the force").
+    Docker's init forwards the signal to the shell, which then exits at once.
+    """
+    compose = yaml.safe_load(_read("deploy/compose.prod.yml"))
+    for name, service in compose["services"].items():
+        command = service.get("command")
+        if isinstance(command, list) and command[:2] == ["sh", "-c"]:
+            assert service.get("init") is True, name
