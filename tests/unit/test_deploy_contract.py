@@ -376,6 +376,42 @@ def test_the_serving_bring_up_replaces_each_service_once_in_order(tmp_path: Path
     ]
 
 
+@pytest.mark.skipif(os.name == "nt", reason="the deploy scripts are bash on a Linux host")
+@pytest.mark.parametrize(
+    ("marker", "expected"),
+    [
+        ("transfer_started", "level=info msg=transfer_handoff commit=" + "a" * 40),
+        ("migrated", "level=warning msg=recovering_interrupted_deploy"),
+        (None, None),
+    ],
+)
+def test_the_handoff_marker_is_not_reported_as_an_interruption(
+    tmp_path: Path, marker: str | None, expected: str | None
+) -> None:
+    """Every deploy of 2026-10-05 warned `recovering_interrupted_deploy`.
+
+    The pull deployer marks each transfer before rsync, and deploy.sh read that
+    marker for the very commit it was deploying as an interrupted run.
+    """
+    state = tmp_path / "state"
+    state.mkdir()
+    if marker is not None:
+        (state / "in-progress").write_text(
+            f"git_commit={'a' * 40}\nstage={marker}\n", encoding="utf-8"
+        )
+    finished = subprocess.run(
+        ["bash", "-c", f"source deploy/lib.sh && report_in_progress_marker {'a' * 40}"],
+        check=True,
+        capture_output=True,
+        text=True,
+        env={"PATH": "/usr/bin:/bin", "AI_STP_STATE_DIR": str(state)},
+    )
+    if expected is None:
+        assert finished.stderr == ""
+    else:
+        assert expected in finished.stderr, finished.stderr
+
+
 def test_deployment_verification_observes_the_service_that_gates_publication() -> None:
     """A green deploy has to mean the worker is current, not only reachable.
 

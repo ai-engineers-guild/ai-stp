@@ -135,18 +135,18 @@ No upload token exists here, on the host, or in repository or organization secre
 Trusted Publishing issues an OIDC identity for the run. There is no credential to
 look for.
 
-Live index on 2026-10-05: `ai-stp-cli==0.0.40` from attested candidate
-`37316668777` and publish run `37317798988`, tag `v0.0.40`, commit
-`a250d660`, GitHub Release
-`https://github.com/ai-engineers-guild/ai-stp/releases/tag/v0.0.40`. The wheel
-`ai_stp_cli-0.0.40-py3-none-any.whl` has digest
-`sha256:1c29e178d0032c63298316b4f5663e0045b33b4f2c0212be6e2ea0d54833b73d` and the
-sdist `sha256:893c51c59a9d75db1fc98c3b63d7a2a7b6bbe14e4383add50b2497204af57923`,
+Live index on 2026-10-05: `ai-stp-cli==0.0.41` from attested candidate
+`37326276638` and publish run `37326610131`, tag `v0.0.41`, commit
+`ffcdcd6e`, GitHub Release
+`https://github.com/ai-engineers-guild/ai-stp/releases/tag/v0.0.41`. The wheel
+`ai_stp_cli-0.0.41-py3-none-any.whl` has digest
+`sha256:67da21b83d0ffe5ad316186746a9026d8076d22b886d8541aacdb00aacbdc8ff` and the
+sdist `sha256:65e215fbae20ca7825b29ead2327d341af306cdded3d38688ed66b04a13bd4fe`,
 byte-identical between the PyPI index record and the release's `SHA256SUMS`.
-A `uv tool` installation on 0.0.38 reached it through `update plan` and
-`update apply`; the journal ended `verified` with 0.0.38 retained for
-`update rollback`. Earlier releases are listed on GitHub Releases with their
-own candidate and publish runs.
+A `uv tool` installation on this workstation reached it from 0.0.40 through
+`update plan` and `update apply`; the journal ended `verified` and `doctor`
+reported every check `ready`. Earlier releases are listed on GitHub Releases
+with their own candidate and publish runs.
 
 **Former internal projects are no longer part of the install.** Keep internal
 Python namespaces inside the single `ai-stp-cli` wheel. Before retiring an old
