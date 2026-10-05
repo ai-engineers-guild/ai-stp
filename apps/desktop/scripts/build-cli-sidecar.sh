@@ -78,7 +78,7 @@ trap 'rm -rf "${work_dir}"' EXIT
 # are open lower bounds of `pyinstaller`, so they are pinned too — the
 # versions below are the closure `uv pip compile` resolved for this pair.
 PYINSTALLER_VERSION="${PYINSTALLER_VERSION:-6.22.3}"
-PYINSTALLER_HOOKS_VERSION="${PYINSTALLER_HOOKS_VERSION:-2026.7}"
+PYINSTALLER_HOOKS_VERSION="${PYINSTALLER_HOOKS_VERSION:-2026.8}"
 PYINSTALLER_TOOLSET=(
   "pyinstaller==${PYINSTALLER_VERSION}"
   "pyinstaller-hooks-contrib==${PYINSTALLER_HOOKS_VERSION}"
