@@ -467,8 +467,10 @@ the exact SHA and the `transfer_started` stage. `deploy/deploy.sh` updates the m
 the build stage, dependency preparation, migration, seeding, startup,
 and the liveness and readiness checks. After successful
 readiness, it moves the previous `current` to `previous`, atomically writes the new
-`current`, and removes the marker. After an interruption, the next run reports the previous SHA
-and stage and repeats the idempotent forward path. `.deploy-state`, `.backups`, and host-only
+`current`, and removes the marker. A `transfer_started` marker for the commit being deployed is
+the normal handoff and is logged as `transfer_handoff`; any other marker means an
+interrupted run: the next run warns `recovering_interrupted_deploy` with the previous
+SHA and stage and repeats the idempotent forward path. `.deploy-state`, `.backups`, and host-only
 environment files are excluded from `rsync --delete`.
 
 ### Unresolvable baseline in `current`
