@@ -28,7 +28,7 @@ describe("web feature profiles", () => {
   it("keeps the registry intentionally bounded to real consumers", () => {
     expect(FEATURE_KEYS).toEqual(["content_hub", "saas_public_pages", "catalog_usage_metrics"]);
     const consumers = [
-      "src/middleware.ts",
+      "src/proxy.ts",
       "src/lib/projection/navigation.ts",
       "src/lib/projection/registry.ts",
       "src/app/sitemap.ts",

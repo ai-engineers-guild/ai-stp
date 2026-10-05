@@ -1,6 +1,6 @@
 ---
 description: "ADR-0188: Corporate build isolation and tenant-scoped presentation ownership."
-last_verified: "2026-09-18"
+last_verified: "2026-10-05"
 ---
 
 # ADR-0188: Corporate workspace presentation boundary
@@ -23,8 +23,8 @@ place to store private organization media.
 Corporate builds exclude personal editorial, regional-service, Company, and Legal
 routes and navigation. Personal SaaS retains its current surface; local context
 does not deploy a website. Corporate workspace destinations live under `/corporate/`.
-The corporate Next build enables the native `skipMiddlewareUrlNormalize` setting
-to preserve this route boundary; public SaaS and self-hosted builds leave it off.
+The corporate Next build enables the native `skipProxyUrlNormalize` setting
+(`skipMiddlewareUrlNormalize` before Next 16) to preserve this route boundary; public SaaS and self-hosted builds leave it off.
 
 Introduce explicit tenant-scoped presentation and ownership data. Preserve all
 existing stable IDs and retained relations. Ownership does not rewrite authorship,

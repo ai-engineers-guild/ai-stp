@@ -1,6 +1,6 @@
 ---
 description: "SPEC-083: Corporate Hub directories, relationship editing, and catalog assignments."
-last_verified: "2026-09-18"
+last_verified: "2026-10-05"
 ---
 
 # SPEC-083: Corporate Hub workspace
@@ -202,10 +202,10 @@ and `content.ts` for editorial pages/layout/feed, `saas.tsx` for contact/legal,
 and `regional.tsx` for services/countries. Feature extensions require their
 compiled feature; regional extensions are excluded in corporate builds while
 preserving the existing noncorporate packaged surface. Disabled
-routes therefore have no compiled page modules; middleware remains defense in
+routes therefore have no compiled page modules; the request proxy remains defense in
 depth for the generic machine-document route. Personal SaaS URLs are unchanged.
 Corporate profile overrides cannot reenable editorial or SaaS-public surfaces.
-Corporate builds also set Next's native `skipMiddlewareUrlNormalize` flag so
+Corporate builds also set Next's native `skipProxyUrlNormalize` flag so
 excluded machine targets are not reconstructed by URL normalization; other
 profiles retain the default value.
 Standalone packaging reads baked feature values from required-server-files,
