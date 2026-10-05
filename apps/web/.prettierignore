@@ -6,6 +6,7 @@
 # them to the Python renderer; Prettier would fight that gate.
 src/lib/generated/cli-copy.ts
 src/lib/generated/deep-link-corpus.ts
+src/lib/generated/corporate-overview-fixture.ts
 
 # Build output.
 .next/
