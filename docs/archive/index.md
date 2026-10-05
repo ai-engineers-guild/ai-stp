@@ -14,6 +14,7 @@ last_verified: "2026-09-20"
 | [audit-remediation-status.md](audit-remediation-status.md) | Historical audit dispositions reconciled with current mechanism owners. | 2026-09-07 |
 | [corporate-core-implementation-plan.md](corporate-core-implementation-plan.md) | Implementation and verification sequence for B2B-01 Corporate core. | 2026-09-18 |
 | [github-connector-implementation-plan.md](github-connector-implementation-plan.md) | Implementation and verification sequence for GitHub Connector issues 181 through 186. | 2026-09-08 |
+| [implementation-roadmap-history.md](implementation-roadmap-history.md) | Roadmap checkpoints, audits and closing records from August to September 2026, retained without semantic edits. | 2026-10-05 |
 | [macos-evidence.md](macos-evidence.md) | Collecting CLI/package evidence on a standard GitHub-hosted macOS runner. | 2026-08-18 |
 | [official-registry-identity-and-requests-implementation-plan.md](official-registry-identity-and-requests-implementation-plan.md) | Implementation sequence for unique public identities, the Git-owned Official registry, recoverable updates, and unified ownership and verification requests. | 2026-09-04 |
 | [runner-separation-readiness.md](runner-separation-readiness.md) | Dated images of inventory of separate CI/deploy trust domains and the solutions that replaced the planned barrier. | 2026-08-16 |
