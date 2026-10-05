@@ -354,37 +354,33 @@ async def list_external_products(session: AsyncSession) -> ExternalProductListRe
 async def list_catalog_authors(session: AsyncSession) -> CatalogAuthorListResponse:
     """List public profiles for authors with active public components or setups."""
     rows = (
-        (
-            await session.execute(
-                select(
-                    CatalogSearchProjection.owner_account_id,
-                    ProfileRevision.display_name,
-                    AvatarAsset.public_url,
-                )
-                .outerjoin(
-                    PublicProfile,
-                    PublicProfile.account_id == CatalogSearchProjection.owner_account_id,
-                )
-                .outerjoin(
-                    ProfileRevision,
-                    (ProfileRevision.id == PublicProfile.published_revision_id)
-                    & (ProfileRevision.lifecycle == "published"),
-                )
-                .outerjoin(
-                    AvatarAsset,
-                    (AvatarAsset.id == ProfileRevision.avatar_asset_id)
-                    & (AvatarAsset.state == "ready"),
-                )
-                .where(
-                    CatalogSearchProjection.object_kind.in_(("component", "setup")),
-                    CatalogSearchProjection.lifecycle_state == "active",
-                )
-                .distinct()
+        await session.execute(
+            select(
+                CatalogSearchProjection.owner_account_id,
+                ProfileRevision.display_name,
+                AvatarAsset.public_url,
             )
+            .outerjoin(
+                PublicProfile,
+                PublicProfile.account_id == CatalogSearchProjection.owner_account_id,
+            )
+            .outerjoin(
+                ProfileRevision,
+                (ProfileRevision.id == PublicProfile.published_revision_id)
+                & (ProfileRevision.lifecycle == "published"),
+            )
+            .outerjoin(
+                AvatarAsset,
+                (AvatarAsset.id == ProfileRevision.avatar_asset_id)
+                & (AvatarAsset.state == "ready"),
+            )
+            .where(
+                CatalogSearchProjection.object_kind.in_(("component", "setup")),
+                CatalogSearchProjection.lifecycle_state == "active",
+            )
+            .distinct()
         )
-        .tuples()
-        .all()
-    )
+    ).all()
     if not rows:
         return CatalogAuthorListResponse()
 
