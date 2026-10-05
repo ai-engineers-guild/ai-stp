@@ -19,7 +19,7 @@ dependencies = [
 
 [[package]]
 name = "ai-stp-desktop"
-version = "0.0.4"
+version = "0.0.5"
 dependencies = [
  "ai-stp-desktop-core",
  "serde",
@@ -33,7 +33,7 @@ dependencies = [
 
 [[package]]
 name = "ai-stp-desktop-core"
-version = "0.0.4"
+version = "0.0.5"
 dependencies = [
  "serde",
  "serde_json",
