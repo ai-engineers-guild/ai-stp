@@ -196,14 +196,27 @@ Manual equivalent (the order is mandatory: migrate → seed → API ready → co
 
 ```bash
 export AI_STP_API_GIT_COMMIT="$(git rev-parse HEAD)"
-docker compose -f deploy/compose.prod.yml --env-file .env.prod config
-docker compose -f deploy/compose.prod.yml --env-file .env.prod build
-docker compose -f deploy/compose.prod.yml --env-file .env.prod up -d postgres rustfs
-docker compose -f deploy/compose.prod.yml --env-file .env.prod run --rm migrate
-docker compose -f deploy/compose.prod.yml --env-file .env.prod run --rm seed
-docker compose -f deploy/compose.prod.yml --env-file .env.prod rm -fs content-import
-docker compose -f deploy/compose.prod.yml --env-file .env.prod up -d api worker content-import web docs
+dc() { docker compose -f deploy/compose.prod.yml --env-file .env.prod "$@"; }
+dc config
+dc build
+dc up -d --wait postgres rustfs
+dc run --rm --no-deps migrate
+dc run --rm --no-deps seed
+dc up -d --no-deps --wait api
+dc rm -fs content-import
+dc run --rm --no-deps content-import
+dc up -d --no-deps --wait web docs
+dc up -d --no-deps --wait osv-refresh clamav-refresh
+dc up -d --no-deps --wait worker
 ```
+
+Every step after the stateful dependencies passes `--no-deps`; the scripts share
+this sequence as `start_serving_services` in `deploy/lib.sh`. Compose recreates a
+service by stopping the old container first, and a `compose up` that followed
+`depends_on` restarted the exited `migrate` and `seed` containers before starting
+the new `api` and `web`: until 2026-10-05 every deploy answered 502 for about a
+minute while migrations ran a second and third time. Now `api` and `web` are each
+down only for their own restart, and `web` is replaced after the import succeeds.
 
 Before `up`, the production worker Compose configuration requires the
 `ai-stp-worker` profile (`userns`) to be loaded into the kernel. `deploy/deploy.sh` invokes
@@ -246,12 +259,15 @@ sets `AI_STP_USE_MOCKS=true` in `.env.dev`. The prod smoke always uses `false`.
    integrity checks and an atomic search-projection rebuild. Development seed
    loads the canonical corpus with artifact storage; normal production uses
    the ordinary publication pipeline (`REQ-2110` / `REQ-2405`).
-4. `api` / `worker` start after a successful seed.
-5. `content-import`—a one-shot after a healthy `api`: GET
+4. `api` is replaced after a successful seed and waited on until healthy.
+5. `content-import`—a one-shot run after a healthy `api`: GET
    `/v1/content/repository/state`, then POST the embedded snapshot. An empty
    token, an empty hub, and a zero commit cause rejection. The scripts remove the previous
-   container (`compose rm -fs content-import`); otherwise, an exited-0 container skips the POST.
-6. `web` starts only after `content-import` exits 0. The stack starts no proxy in
+   container (`compose rm -fs content-import`); otherwise, an exited-0 container would
+   satisfy `web`'s dependency for a plain `compose up` without a POST.
+6. `web` and `docs` are replaced only after `content-import` exits 0; a failed import
+   leaves the previous `web` serving. The scanner sidecars and then `worker` follow.
+   The stack starts no proxy in
    either environment (`ADR-0135`); in **prod** the host's nginx is already running
    and reaches `api`, `web` and `docs` on their loopback ports, so a deploy that
    only changes application code needs no proxy action at all. A change to the
@@ -358,8 +374,8 @@ restorable, but still pass the archive-content checks.
 ./deploy/restore.sh --from .backups/<name> --yes
 ```
 
-The script stops writers, restores the dump and objects, removes the
-previous `content-import`, and starts the stack. The one-shot resubmits the snapshot
+The script stops writers, restores the dump and objects, runs `migrate` and
+`seed`, and starts the stack through the same `start_serving_services` as a deploy. The one-shot resubmits the snapshot
 from the current image: repository articles match the image, while staff content comes from the backup.
 Rehearse on a restored copy before making a production change.
 

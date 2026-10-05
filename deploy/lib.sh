@@ -204,6 +204,29 @@ compose_service_volume() {
   printf '%s\n' "${volume}"
 }
 
+start_serving_services() {
+  # Replace the serving containers of a release whose one-shot stages --
+  # migrate, storage migration, seed -- the caller has already run in order.
+  #
+  # Every `up` passes --no-deps. The compose file still declares that order for
+  # a plain `docker compose up`, but following it here restarted the exited
+  # migrate and seed containers, and compose did that after it had stopped the
+  # api and web containers it was recreating: production answered 502 for about
+  # a minute of every deploy while migrations ran a second and third time.
+  compose up -d --no-deps --wait api
+  # The importer posts this release's snapshot to the API that is now healthy,
+  # and web is replaced only after it exits 0 (SPEC-054 REQ-5404); a failure
+  # stops here with the previous web still serving. An exited importer
+  # container from an earlier release would satisfy web's dependency for a
+  # plain `compose up` without importing anything, so it is removed.
+  compose rm -fs content-import >/dev/null 2>&1 || true
+  compose run --rm --no-deps content-import
+  compose up -d --no-deps --wait web docs
+  # The worker waits for both scanner sidecars to report healthy.
+  compose up -d --no-deps --wait osv-refresh clamav-refresh
+  compose up -d --no-deps --wait worker
+}
+
 oauth_identity_fingerprint() {
   compose exec -T postgres sh -c \
     'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -AtF "|" -c "SELECT provider, provider_subject, account_id, state FROM oauth_identity ORDER BY provider, provider_subject"' \

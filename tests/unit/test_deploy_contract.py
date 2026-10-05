@@ -8,6 +8,7 @@ of which must be provable from the tree that actually deploys.
 from __future__ import annotations
 
 import json
+import os
 import re
 import subprocess
 from collections.abc import Callable
@@ -320,8 +321,8 @@ def test_storage_cutover_and_backups_fail_closed() -> None:
 
     cutover = "python -m ai_stp_platform.storage.migrate"
     assert cutover in deploy
-    assert deploy.index("compose run --rm migrate") < deploy.index(cutover)
-    assert deploy.index(cutover) < deploy.index("compose run --rm seed")
+    assert deploy.index("compose run --rm --no-deps migrate") < deploy.index(cutover)
+    assert deploy.index(cutover) < deploy.index("compose run --rm --no-deps seed")
 
     verifier = "python -m ai_stp_platform.storage.verify"
     assert verifier in backup
@@ -329,13 +330,50 @@ def test_storage_cutover_and_backups_fail_closed() -> None:
     assert verifier in restore
     assert cutover in restore
     assert restore.index(cutover) < restore.index(verifier)
-    assert restore.index(verifier) < restore.index("compose up -d api worker")
+    assert restore.index(verifier) < restore.index("start_serving_services")
 
     assert "require_cmd findmnt" in backup
     assert 'ROOT_MOUNT="$(findmnt -n -o TARGET -T "${AI_STP_ROOT}")"' in backup
     assert 'BACKUP_MOUNT="$(findmnt -n -o TARGET -T "${AI_STP_BACKUP_DIR}")"' in backup
     assert "off_host_backup_mount_required" in backup
     assert "AI_STP_ALLOW_LOCAL_BACKUP" in backup
+
+
+@pytest.mark.skipif(os.name == "nt", reason="the deploy scripts are bash on a Linux host")
+def test_the_serving_bring_up_replaces_each_service_once_in_order(tmp_path: Path) -> None:
+    """Observed on 2026-10-05: the old bring-up held api and web stopped for ~65 s.
+
+    `compose up` followed `depends_on` and restarted the exited migrate and seed
+    containers after stopping the containers it was recreating. The bring-up now
+    runs against a `docker` that only records its arguments: the importer runs
+    to completion between api and web, and no one-shot appears at all.
+    """
+    calls = tmp_path / "calls"
+    shim = tmp_path / "bin" / "docker"
+    shim.parent.mkdir()
+    shim.write_text('#!/bin/sh\nprintf \'%s\\n\' "$*" >>"$DOCKER_CALLS"\n', encoding="utf-8")
+    shim.chmod(0o755)
+    compose_file = tmp_path / "deploy" / "compose.prod.yml"
+    subprocess.run(
+        ["bash", "-c", "source deploy/lib.sh && start_serving_services"],
+        check=True,
+        env={
+            "PATH": f"{shim.parent}:/usr/bin:/bin",
+            "DOCKER_CALLS": str(calls),
+            "AI_STP_ROOT": str(tmp_path),
+        },
+    )
+    prefix = f"compose -f {compose_file} "
+    recorded = calls.read_text(encoding="utf-8").splitlines()
+    assert all(line.startswith(prefix) for line in recorded), recorded
+    assert [line.removeprefix(prefix) for line in recorded] == [
+        "up -d --no-deps --wait api",
+        "rm -fs content-import",
+        "run --rm --no-deps content-import",
+        "up -d --no-deps --wait web docs",
+        "up -d --no-deps --wait osv-refresh clamav-refresh",
+        "up -d --no-deps --wait worker",
+    ]
 
 
 def test_deployment_verification_observes_the_service_that_gates_publication() -> None:
@@ -681,12 +719,7 @@ def test_the_worker_apparmor_profile_allows_userns_and_is_loaded_before_compose(
     assert "/etc/apparmor.d/ai-stp-worker" in loader
 
     assert "load-apparmor.sh" in deploy
-    assert deploy.find("load-apparmor.sh") < deploy.find("compose up -d api worker")
-    assert "compose rm -fs content-import" in deploy
-    assert "compose up -d api worker content-import web docs" in deploy
-    assert deploy.find("compose rm -fs content-import") < deploy.find(
-        "compose up -d api worker content-import web docs"
-    )
+    assert deploy.find("load-apparmor.sh") < deploy.find("start_serving_services")
     listed = subprocess.check_output(
         ["git", "ls-files", "-s", "--", "deploy/load-apparmor.sh"],
         text=True,
