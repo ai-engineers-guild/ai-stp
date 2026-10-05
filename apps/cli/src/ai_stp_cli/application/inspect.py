@@ -513,6 +513,7 @@ def _cli_update_check() -> DoctorCheck:
     """Journal and check cache only. A down index is not a failed installation."""
     from ai_stp_cli.self_update import store
     from ai_stp_cli.self_update.method import current_installation
+    from ai_stp_cli.self_update.service import cached_check
 
     try:
         journal = store.read_json(store.journal_path()) or {}
@@ -533,13 +534,12 @@ def _cli_update_check() -> DoctorCheck:
                 state="ready",
                 detail="source-managed installation; wheel replacement is refused",
             )
-        cache = store.read_json(store.cache_path())
-        if isinstance(cache, dict) and cache.get("state") == "available":
-            version = str(cache.get("candidate_version") or "")
+        cached = cached_check(held)
+        if cached is not None and cached.state == "available":
             return DoctorCheck(
                 name="cli_update",
                 state="needs_user_action",
-                detail=f"a newer CLI {version} is cached; run update plan --json",
+                detail=f"a newer CLI {cached.candidate_version} is cached; run update plan --json",
             )
         return DoctorCheck(name="cli_update", state="ready", detail="no interrupted CLI update")
     except Exception as failure:

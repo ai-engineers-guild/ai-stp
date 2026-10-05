@@ -826,6 +826,17 @@ def _write_cache(report: CliSelfUpdateCheck, *, backoff: bool = False) -> None:
     store.write_json(store.cache_path(), payload)
 
 
+def cached_check(held: Installation) -> CliSelfUpdateCheck | None:
+    """The cached check for this installation on the configured channel, if any.
+
+    A report cached by another version, root, executable or installer is not
+    an answer about this one: after a successful update the cache still holds
+    the previous version's "available" report for the version now installed.
+    """
+    _enabled, channel, _ttl_hours, _notifications = _settings()
+    return _read_cache(held, channel)
+
+
 def _read_cache(held: Installation, channel: str) -> CliSelfUpdateCheck | None:
     payload = store.read_json(store.cache_path())
     if payload is None:
