@@ -120,14 +120,16 @@ log info "rustfs_restore_ok"
 # Re-import of the current image snapshot is intended: repository articles match
 # the image, staff articles come from the backup. Force a new one-shot so an
 # already-exited importer container cannot skip the POST.
-compose up -d postgres rustfs >/dev/null
-compose run --rm migrate >/dev/null
+compose up -d --wait postgres rustfs >/dev/null
+compose run --rm --no-deps migrate >/dev/null
 compose run --rm --no-deps api python -m ai_stp_platform.storage.migrate >/dev/null
 if ! compose run --rm --no-deps api python -m ai_stp_platform.storage.verify >/dev/null; then
   die "restored_object_verification_failed"
 fi
-compose rm -fs content-import >/dev/null 2>&1 || true
-compose up -d api worker content-import web docs >/dev/null
+# Seed ran here as a dependency of api before the bring-up stopped following
+# dependencies; it reconciles first-party data against the restored database.
+compose run --rm --no-deps seed >/dev/null
+start_serving_services >/dev/null
 wait_for_readiness
 
 log info "restore_complete"

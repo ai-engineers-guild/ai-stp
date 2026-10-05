@@ -167,6 +167,9 @@ services:
       timeout: 5s
       retries: 5
       start_period: 15s
+      # Probe every 2s while starting so `up --wait` in the deploy returns
+      # as soon as the new container serves, not after a full interval.
+      start_interval: 2s
     restart: always
     logging: *default-logging
 
@@ -356,6 +359,9 @@ services:
       timeout: 5s
       retries: 8
       start_period: 30s
+      # Probe every 2s while starting so `up --wait` in the deploy returns
+      # as soon as the new container serves, not after a full interval.
+      start_interval: 2s
     restart: always
     logging: *default-logging
 

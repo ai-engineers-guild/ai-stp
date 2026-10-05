@@ -13,6 +13,13 @@ IDEMPOTENCY_CONFLICT = "idempotency_conflict"
 STALE_OWNERSHIP = "stale_ownership_fence"
 MANIFEST_MISMATCH = "manifest_mismatch"
 
+#: Failures a retry of the same attempt cannot change: the archive of the
+#: resolved commit, the reviewed source fields and the repository identity
+#: are fixed for that attempt. The next daily attempt resolves them again.
+DETERMINISTIC_FAILURES = frozenset(
+    {INVALID_SOURCE, UNSAFE_ARCHIVE, CHANGED_REPOSITORY_IDENTITY, MANIFEST_MISMATCH}
+)
+
 
 class OfficialUpstreamError(Exception):
     """A closed sync or source-configuration failure."""
