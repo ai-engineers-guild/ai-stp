@@ -55,15 +55,15 @@ dead letters were `GitHub rate limit exceeded`, five attempts within fifteen
 minutes; the reset-aware retry from `#666` merged after that run. The 19
 sources whose archive was refused when last reached (2026-10-03) are row 2.
 
-**CLI import floor.** Every invocation imported the whole machine contract:
-`ai_stp_contracts.machine_help`, 215 definitions with the catalog, corporate,
-publication and technology contracts behind them, and a package root that
-imported seven modules eagerly. The models now live in `ai_stp_contracts.cli`,
-sixteen modules by command family, with `machine_help` re-exporting every name
-and the generated schemas unchanged by a byte; the root loads its names on
-first use. `version --json` fell from 1.10 to 0.70 s of user CPU, and every
-local read-only command is within the 0.8 s budget (`cli-performance.md`, fifth
-measurement).
+**CLI import floor (`#700`).** Every invocation imported the whole machine
+contract: `ai_stp_contracts.machine_help`, 215 definitions with the catalog,
+corporate, publication and technology contracts behind them, and a package root
+that imported seven modules eagerly. The models now live in
+`ai_stp_contracts.cli`, sixteen modules by command family, with `machine_help`
+re-exporting every name and the generated schemas unchanged by a byte; the root
+loads its names on first use. `version --json` fell from 1.10 to 0.70 s of user
+CPU, and every local read-only command is within the 0.8 s budget
+(`cli-performance.md`, fifth measurement).
 
 ## Deploy, content and upstream repairs; faster CLI and sidecar — 2026-10-05 (evening)
 
