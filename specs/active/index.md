@@ -62,7 +62,7 @@ last_verified: "2026-08-03"
 | [SPEC-051-public-catalog-usage-counters.md](SPEC-051-public-catalog-usage-counters.md) | SPEC-051: Private events and public catalog view and download counters. | 2026-09-20 |
 | [SPEC-052-complaint-intake.md](SPEC-052-complaint-intake.md) | SPEC-052: Public intake of complaints about an author, catalog object, or arbitrary target. | 2026-09-20 |
 | [SPEC-053-server-seo-publication-projections.md](SPEC-053-server-seo-publication-projections.md) | SPEC-053: Server-side SEO revisions for components, setups, articles, services, and countries. | 2026-09-20 |
-| [SPEC-054-hybrid-article-publication.md](SPEC-054-hybrid-article-publication.md) | SPEC-054: Unified server-side publication of repository- and staff-authored articles. | 2026-09-20 |
+| [SPEC-054-hybrid-article-publication.md](SPEC-054-hybrid-article-publication.md) | SPEC-054: Unified server-side publication of repository- and staff-authored articles. | 2026-10-05 |
 | [SPEC-055-legal-account-onboarding.md](SPEC-055-legal-account-onboarding.md) | SPEC-055: Versioned legal policies and required account onboarding. | 2026-09-20 |
 | [SPEC-056-official-upstream-components.md](SPEC-056-official-upstream-components.md) | SPEC-056: Curated GitHub component snapshots published by AI STP Official. | 2026-10-05 |
 | [SPEC-057-embedded-component-sources.md](SPEC-057-embedded-component-sources.md) | SPEC-057: Exact external and local components embedded in setup definitions. | 2026-09-04 |
