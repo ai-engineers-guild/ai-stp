@@ -5,8 +5,9 @@ from __future__ import annotations
 from typing import Annotated, Final, Literal
 from urllib.parse import urlsplit
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import ConfigDict, Field, field_validator, model_validator
 
+from ai_stp_contracts.model import ContractModel
 from ai_stp_contracts.text_safety import validate_public_text
 from ai_stp_foundation.harnesses import HarnessId
 from ai_stp_foundation.refs import ComponentRef
@@ -32,7 +33,7 @@ _TRAVERSAL: Final[tuple[str, ...]] = ("../", "/..", "\\..", "..\\")
 type BoundedComponentText = Annotated[str, Field(min_length=1, max_length=512)]
 
 
-class ComponentPassportPatch(BaseModel):
+class ComponentPassportPatch(ContractModel):
     """Partial declared facts; omitted differs from explicit null."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)

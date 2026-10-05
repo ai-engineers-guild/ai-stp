@@ -5,8 +5,9 @@ from __future__ import annotations
 from pathlib import PurePosixPath
 from typing import Annotated, Final, Literal, Self
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import ConfigDict, Field, field_validator, model_validator
 
+from ai_stp_contracts.model import ContractModel
 from ai_stp_foundation.digests import DIGEST_PATTERN
 from ai_stp_foundation.harnesses import HARNESS_ID_ORDER, HarnessId
 from ai_stp_passports.versions import ComponentType
@@ -73,7 +74,7 @@ type GitInitReason = Literal["existing_worktree", "missing_identity", "git_unava
 AUTHORING_DRAFT_MARKER: Final[str] = "TODO(ai-stp-scaffold):"
 
 
-class PortableHookHandler(BaseModel):
+class PortableHookHandler(ContractModel):
     """One command handler in the portable hook source model."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
@@ -81,7 +82,7 @@ class PortableHookHandler(BaseModel):
     command: Annotated[str, Field(min_length=1, max_length=512)]
 
 
-class PortableHookSource(BaseModel):
+class PortableHookSource(ContractModel):
     """Lossless hook intent projected into one harness-native manifest."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
@@ -93,7 +94,7 @@ class PortableHookSource(BaseModel):
     handler: PortableHookHandler
 
 
-class ComponentTemplateDescriptor(BaseModel):
+class ComponentTemplateDescriptor(ContractModel):
     """Exact generator choice recorded inside every scaffold."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
@@ -122,7 +123,7 @@ class ComponentTemplateDescriptor(BaseModel):
         return self
 
 
-class ComponentScaffoldFile(BaseModel):
+class ComponentScaffoldFile(ContractModel):
     """One exact regular file produced by a scaffold plan."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
@@ -146,7 +147,7 @@ class ComponentScaffoldFile(BaseModel):
         return path.as_posix()
 
 
-class ComponentScaffoldPlan(BaseModel):
+class ComponentScaffoldPlan(ContractModel):
     """Content-addressed preview of a complete authoring directory."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
@@ -168,7 +169,7 @@ class ComponentScaffoldPlan(BaseModel):
         return self
 
 
-class ComponentScaffoldResult(BaseModel):
+class ComponentScaffoldResult(ContractModel):
     """Applied scaffold, bound to the exact preview digest."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
@@ -185,7 +186,7 @@ class ComponentScaffoldResult(BaseModel):
     git_reason: GitInitReason | None = None
 
 
-class SetupMemberDescriptor(BaseModel):
+class SetupMemberDescriptor(ContractModel):
     """One nested component named by setup scaffold."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
@@ -195,7 +196,7 @@ class SetupMemberDescriptor(BaseModel):
     language: AuthoringLanguage
 
 
-class SetupTemplateDescriptor(BaseModel):
+class SetupTemplateDescriptor(ContractModel):
     """Exact generator choice recorded inside every setup scaffold."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
@@ -209,7 +210,7 @@ class SetupTemplateDescriptor(BaseModel):
     standard_family: Literal["ai-stp-standard/1"] | None = None
 
 
-class SetupScaffoldPlan(BaseModel):
+class SetupScaffoldPlan(ContractModel):
     """Content-addressed preview of a complete setup authoring directory."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
@@ -231,7 +232,7 @@ class SetupScaffoldPlan(BaseModel):
         return self
 
 
-class SetupScaffoldResult(BaseModel):
+class SetupScaffoldResult(ContractModel):
     """Applied setup scaffold, bound to the exact preview digest."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)

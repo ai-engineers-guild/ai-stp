@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import ConfigDict, Field, field_validator, model_validator
 
 from ai_stp_contracts.http import (
     PAGE_SIZE_MAX,
@@ -16,6 +16,7 @@ from ai_stp_contracts.http import (
     open_wire_object,
     strict_request_object,
 )
+from ai_stp_contracts.model import ContractModel
 from ai_stp_contracts.text_safety import validate_public_text
 from ai_stp_foundation.digests import DIGEST_PATTERN
 from ai_stp_foundation.ids import stable_id_pattern
@@ -57,7 +58,7 @@ type Version = Annotated[str, Field(pattern=VERSION_PATTERN)]
 type CountryCode = Annotated[str, Field(pattern=r"^[A-Z]{2}$")]
 
 
-class ServiceRequest(BaseModel):
+class ServiceRequest(ContractModel):
     """Data needed for an operator to add a service manually."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)
@@ -74,7 +75,7 @@ class ServiceRequest(BaseModel):
         return validate_public_text(value)
 
 
-class CountryRequest(BaseModel):
+class CountryRequest(ContractModel):
     """Localized ISO country data requested for manual addition."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)
@@ -88,7 +89,7 @@ class CountryRequest(BaseModel):
         return validate_public_text(value)
 
 
-class ReportCaseCreateRequest(BaseModel):
+class ReportCaseCreateRequest(ContractModel):
     """POST /v1/requests body; object reports remain accepted at /v1/reports."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
@@ -192,7 +193,7 @@ class ReportCaseCreateRequest(BaseModel):
         return self
 
 
-class ReportCaseResponse(BaseModel):
+class ReportCaseResponse(ContractModel):
     """One closed report case (reporter view — no secrets)."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -209,7 +210,7 @@ class ReportCaseResponse(BaseModel):
     created_at: Timestamp
 
 
-class ReportCaseListQuery(BaseModel):
+class ReportCaseListQuery(ContractModel):
     """GET /v1/reports and /v1/requests query."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
@@ -219,7 +220,7 @@ class ReportCaseListQuery(BaseModel):
     page_size: PageSize = PAGE_SIZE_MAX
 
 
-class ReportCaseListResponse(BaseModel):
+class ReportCaseListResponse(ContractModel):
     """Reporter's own cases."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -229,7 +230,7 @@ class ReportCaseListResponse(BaseModel):
     page: PageInfo
 
 
-class StaffTriageRequest(BaseModel):
+class StaffTriageRequest(ContractModel):
     """POST /v1/staff/reports/{case_id}/triage body."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
@@ -240,7 +241,7 @@ class StaffTriageRequest(BaseModel):
     idempotency_key: IdempotencyKey
 
 
-class StaffLifecycleRequest(BaseModel):
+class StaffLifecycleRequest(ContractModel):
     """POST /v1/staff/versions/lifecycle body."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
@@ -254,7 +255,7 @@ class StaffLifecycleRequest(BaseModel):
     idempotency_key: IdempotencyKey
 
 
-class StaffAuthorVerificationRequest(BaseModel):
+class StaffAuthorVerificationRequest(ContractModel):
     """POST /v1/staff/author-verified body."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
@@ -266,7 +267,7 @@ class StaffAuthorVerificationRequest(BaseModel):
     idempotency_key: IdempotencyKey
 
 
-class StaffActionResponse(BaseModel):
+class StaffActionResponse(ContractModel):
     """Generic staff mutation outcome."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -276,7 +277,7 @@ class StaffActionResponse(BaseModel):
     action: Annotated[str, Field(min_length=1, max_length=64)]
 
 
-class CliReportPreview(BaseModel):
+class CliReportPreview(ContractModel):
     """Durable exact report payload shown before its external submission."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)

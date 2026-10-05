@@ -4,9 +4,10 @@ from __future__ import annotations
 
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import ConfigDict, Field, model_validator
 
 from ai_stp_contracts.http import Timestamp, open_wire_object, strict_request_object
+from ai_stp_contracts.model import ContractModel
 from ai_stp_contracts.safety_checks import SafetyCheckEntry
 from ai_stp_foundation.digests import DIGEST_PATTERN
 from ai_stp_foundation.harnesses import HarnessId
@@ -30,7 +31,7 @@ type ComponentId = Annotated[str, Field(pattern=stable_id_pattern("component"))]
 type AdaptationId = Annotated[str, Field(pattern=r"^adaptation_[0-9a-f]{64}$")]
 
 
-class ArtifactObservationIdentity(BaseModel):
+class ArtifactObservationIdentity(ContractModel):
     """Complete reuse key for one byte-oriented safety observation."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
@@ -44,7 +45,7 @@ class ArtifactObservationIdentity(BaseModel):
     architecture: SupportedArch | None = None
 
 
-class ArtifactObservation(BaseModel):
+class ArtifactObservation(ContractModel):
     """Reusable exact-byte observation. Compatibility results stay independent."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
@@ -56,7 +57,7 @@ class ArtifactObservation(BaseModel):
     expires_at: Timestamp | None = None
 
 
-class TargetAssessmentIdentity(BaseModel):
+class TargetAssessmentIdentity(ContractModel):
     """Full target key. Any field mismatch is a different assessment."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
@@ -79,7 +80,7 @@ class TargetAssessmentIdentity(BaseModel):
     policy_version: Annotated[str, Field(min_length=1, max_length=64)]
 
 
-class TargetAssessmentIngestRequest(BaseModel):
+class TargetAssessmentIngestRequest(ContractModel):
     """Authenticated platform evidence writer payload. Authors cannot issue verification."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
@@ -100,7 +101,7 @@ class TargetAssessmentIngestRequest(BaseModel):
     idempotency_key: Annotated[str, Field(min_length=16, max_length=128)]
 
 
-class TargetAssessmentIngestResponse(BaseModel):
+class TargetAssessmentIngestResponse(ContractModel):
     """Latest-effective projection after an accepted or idempotent ingest."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -112,7 +113,7 @@ class TargetAssessmentIngestResponse(BaseModel):
     created: bool
 
 
-class PublicEvidenceRef(BaseModel):
+class PublicEvidenceRef(ContractModel):
     """Allowlisted public evidence pointer. No storage keys or raw reports."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -123,7 +124,7 @@ class PublicEvidenceRef(BaseModel):
     expires_at: Timestamp | None = None
 
 
-class AssuranceCounts(BaseModel):
+class AssuranceCounts(ContractModel):
     """Bounded card summary over exact published target rows."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -138,7 +139,7 @@ class AssuranceCounts(BaseModel):
         return self
 
 
-class ExactTargetRow(BaseModel):
+class ExactTargetRow(ContractModel):
     """One exact adaptation/scope row in the public harness matrix."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -163,7 +164,7 @@ class ExactTargetRow(BaseModel):
     safety_checks: list[SafetyCheckEntry] = Field(default_factory=list[SafetyCheckEntry])
 
 
-class TargetMatrix(BaseModel):
+class TargetMatrix(ContractModel):
     """Detail/version projection of exact published adaptations."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -172,7 +173,7 @@ class TargetMatrix(BaseModel):
     exact: list[ExactTargetRow] = Field(default_factory=list[ExactTargetRow])
 
 
-class OwnerTargetGap(BaseModel):
+class OwnerTargetGap(ContractModel):
     """Owner-safe coverage diagnostic. No foreign evidence or storage keys."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)

@@ -78,6 +78,37 @@ loading the contract models a command actually uses, not the whole package;
 until then the whole-process cost of a local read-only command is above the
 0.8s budget below on this workstation.
 
+Fourth measurement, 2026-10-05, after two changes to what every invocation
+imports. Both trees are workspace environments on the same Linux workstation
+(load average 5–8), interleaved, user CPU in seconds, median of seven runs:
+
+| command | before | after |
+|---|---|---|
+| `version --json` | 1.75 | **1.13** |
+| `contract inventory --json` | 1.80 | **1.17** |
+| `capabilities --json` | 1.82 | **1.16** |
+| `help --agent` | 1.80 | **1.29** |
+
+- Every contract model inherits `ContractModel`, which sets Pydantic's
+  `defer_build`: a model builds its validator and serializer the first time it
+  validates or serializes. Of the 483 contract models the CLI imports, only the
+  four the command registry instantiates are built by the import. Importing
+  `ai_stp_cli.app` fell from about 1.26s to 0.72s.
+- The heartbeat and update-notice checks that end every command imported httpx
+  at module level, about 0.05s each time; the network code now imports it when
+  a heartbeat is due or the update cache has expired.
+
+The remaining floor is mostly field collection for the models themselves —
+`ai_stp_contracts.machine_help` alone defines 194 classes — and is still above
+the 0.8s budget below. Lowering it further means splitting the machine-help
+module so a command imports only the models it returns.
+
+The frozen desktop sidecar adds its own cost on top: PyInstaller `--onefile`
+unpacks the archive on every call. On the same workstation a `--onedir` freeze
+of the same CLI answered `version --json` in 2.6s against 3.1s for `--onefile`
+(median of five, wall clock); the change of bundle layout that would take is
+recorded in the roadmap rather than made here.
+
 ## Identified causes
 
 ### Importing the entire command registry
@@ -161,14 +192,15 @@ The network and provider are outside these budgets and are measured separately.
 
 ## Regression checks
 
-`tests/unit/test_cli_performance_regressions.py` contains four checks, and only
+`tests/unit/test_cli_performance_regressions.py` contains six checks, and only
 one concerns timing, because "runs concurrently" is a timing assertion. The
 margin cannot overlap on any plausible machine: seven 0.1s detections take 0.7s
 sequentially, while the boundary is 0.35s.
 
-The other three check a property rather than duration: an index without digests
-states that in a separate field, `select eligibility` never calls `sha256`, and
-`version` / `contract inventory` never import the schema generator.
+The other five check a property rather than duration: an index without digests
+states that in a separate field, `select eligibility` never calls `sha256`,
+`version` / `contract inventory` never import the schema generator, every
+contract model defers its build, and a local command never imports httpx.
 A budget in seconds fails on a busy runner and passes on a fast runner that has
 regressed; such a check loses credibility by the third occurrence, and a check
 that nobody runs protects nothing.

@@ -3,7 +3,7 @@
 import re
 from typing import Annotated, Literal, Self
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import ConfigDict, Field, model_validator
 
 from ai_stp_contracts.corporate import (
     AccountId,
@@ -14,6 +14,7 @@ from ai_stp_contracts.corporate import (
 )
 from ai_stp_contracts.corporate_catalog_ownership import CorporateCatalogOwnership
 from ai_stp_contracts.http import IdempotencyKey, open_wire_object, strict_request_object
+from ai_stp_contracts.model import ContractModel
 from ai_stp_foundation.ids import stable_id_pattern
 from ai_stp_foundation.versioning import VERSION_PATTERN
 
@@ -21,7 +22,7 @@ GovernanceObjectKind = Literal["setup", "component"]
 MaintainerSubjectKind = Literal["employee", "team"]
 
 
-class CorporateGovernanceTarget(BaseModel):
+class CorporateGovernanceTarget(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
     object_kind: GovernanceObjectKind
     stable_id: Annotated[str, Field(min_length=1, max_length=64)]
@@ -54,7 +55,7 @@ class CorporateCatalogMaintainerRequest(CorporateGovernanceTarget):
         return self
 
 
-class CorporateCatalogMaintainer(BaseModel):
+class CorporateCatalogMaintainer(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     schema_version: Literal[1] = 1
     organization_id: OrganizationId
@@ -77,7 +78,7 @@ class CorporateCatalogVerificationRequest(CorporateGovernanceTarget):
     idempotency_key: IdempotencyKey
 
 
-class CorporateCatalogVerification(BaseModel):
+class CorporateCatalogVerification(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     schema_version: Literal[1] = 1
     organization_id: OrganizationId
@@ -99,7 +100,7 @@ class CorporateCatalogLifecycleRequest(CorporateGovernanceTarget):
     idempotency_key: IdempotencyKey
 
 
-class CorporateCatalogLifecycle(BaseModel):
+class CorporateCatalogLifecycle(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     schema_version: Literal[1] = 1
     organization_id: OrganizationId
@@ -111,13 +112,13 @@ class CorporateCatalogLifecycle(BaseModel):
     reason: str | None = None
 
 
-class CorporateCatalogGovernanceQuery(BaseModel):
+class CorporateCatalogGovernanceQuery(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
     include_retired: bool = False
     include_history: bool = False
 
 
-class CorporateCatalogGovernanceView(BaseModel):
+class CorporateCatalogGovernanceView(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     schema_version: Literal[1] = 1
     organization_id: OrganizationId
@@ -134,7 +135,7 @@ class CorporateCatalogGovernanceView(BaseModel):
     available_actions: list[str] = Field(default_factory=list[str])
 
 
-class CorporatePermissionDefinition(BaseModel):
+class CorporatePermissionDefinition(ContractModel):
     """One action the server actually checks, with the scopes it honors."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -149,7 +150,7 @@ class CorporatePermissionDefinition(BaseModel):
     implementation: Literal["enforced"] = "enforced"
 
 
-class CorporatePermissionSource(BaseModel):
+class CorporatePermissionSource(ContractModel):
     """One record that actually contributes a permission at this scope."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -161,7 +162,7 @@ class CorporatePermissionSource(BaseModel):
     scope_id: str
 
 
-class CorporateEffectivePermission(BaseModel):
+class CorporateEffectivePermission(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     permission: str
     scope_kind: Literal["organization", "team", "project", "technology", "catalog_object", "member"]
@@ -172,7 +173,7 @@ class CorporateEffectivePermission(BaseModel):
     )
 
 
-class CorporatePermissionMatrix(BaseModel):
+class CorporatePermissionMatrix(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     schema_version: Literal[1] = 1
     organization_id: OrganizationId
@@ -185,7 +186,7 @@ class CorporatePermissionMatrix(BaseModel):
     )
 
 
-class CorporateMemberPrivateGrant(BaseModel):
+class CorporateMemberPrivateGrant(ContractModel):
     """Read-only projection of a private major-line AccessGrant (SPEC-002) for
     the employee-access view — never a source of corporate permissions."""
 
@@ -199,7 +200,7 @@ class CorporateMemberPrivateGrant(BaseModel):
     issuer_account_id: AccountId
 
 
-class CorporateMemberAccessQuery(BaseModel):
+class CorporateMemberAccessQuery(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
     scope_kind: Literal[
         "organization", "team", "project", "technology", "catalog_object", "member"
@@ -207,7 +208,7 @@ class CorporateMemberAccessQuery(BaseModel):
     scope_id: Annotated[str | None, Field(min_length=1, max_length=64)] = None
 
 
-class CorporateMemberAccess(BaseModel):
+class CorporateMemberAccess(ContractModel):
     """Everything that grants one member access, split by independent source:
     role bindings, direct scoped allows, private major-line grants, and the
     evaluator's effective set at the requested scope with per-source records."""

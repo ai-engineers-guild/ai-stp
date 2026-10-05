@@ -4,8 +4,9 @@ from __future__ import annotations
 
 from typing import Annotated, Literal, Self
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import ConfigDict, Field, model_validator
 
+from ai_stp_contracts.model import ContractModel
 from ai_stp_foundation.digests import DIGEST_PATTERN
 from ai_stp_passports.versions import ComponentType, Permissions
 
@@ -14,7 +15,7 @@ EvaluationStatus = Literal["passed", "failed", "not_run", "degraded"]
 EvaluationScope = Literal["component", "subset", "setup"]
 
 
-class EvaluationBudget(BaseModel):
+class EvaluationBudget(ContractModel):
     """Closed resource ceiling for one evaluation check."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
@@ -24,7 +25,7 @@ class EvaluationBudget(BaseModel):
     max_network_requests: Annotated[int, Field(ge=0, le=1024)] = 0
 
 
-class EvaluationCheck(BaseModel):
+class EvaluationCheck(ContractModel):
     """One declared assertion and the runner class allowed to evaluate it."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
@@ -50,7 +51,7 @@ class EvaluationCheck(BaseModel):
         return self
 
 
-class SetupEvalProfile(BaseModel):
+class SetupEvalProfile(ContractModel):
     """Reusable evaluation intent, independent from one setup version."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
@@ -79,7 +80,7 @@ class SetupEvalProfile(BaseModel):
         return self
 
 
-class EvalComponentCoordinate(BaseModel):
+class EvalComponentCoordinate(ContractModel):
     """Exact component identity inside the evaluated setup graph."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
@@ -94,7 +95,7 @@ class EvalComponentCoordinate(BaseModel):
     projection_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)] | None = None
 
 
-class SetupEvalPlan(BaseModel):
+class SetupEvalPlan(ContractModel):
     """Content-addressed evaluation plan bound to exact setup coordinates."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
@@ -115,7 +116,7 @@ class SetupEvalPlan(BaseModel):
     planned_at: Annotated[str, Field(min_length=1)]
 
 
-class EvaluationCheckResult(BaseModel):
+class EvaluationCheckResult(ContractModel):
     """Observed result of one check without promotion of unavailable runners."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
@@ -129,7 +130,7 @@ class EvaluationCheckResult(BaseModel):
     adaptation_ids: list[str] = []
 
 
-class ComponentEvalPlan(BaseModel):
+class ComponentEvalPlan(ContractModel):
     """Content-addressed evaluation plan bound to every adaptation of one version."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
@@ -158,7 +159,7 @@ class ComponentEvalPlan(BaseModel):
         return self
 
 
-class SetupEvalResult(BaseModel):
+class SetupEvalResult(ContractModel):
     """Immutable local evaluation evidence for one exact setup plan."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
@@ -188,7 +189,7 @@ class SetupEvalResult(BaseModel):
         return self
 
 
-class ComponentEvalResult(BaseModel):
+class ComponentEvalResult(ContractModel):
     """Immutable local evaluation evidence for every advertised adaptation."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)

@@ -12,9 +12,10 @@ from dataclasses import dataclass
 from difflib import get_close_matches
 from typing import Final, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import ConfigDict, Field
 
 from ai_stp_contracts.http import open_wire_object
+from ai_stp_contracts.model import ContractModel
 from ai_stp_passports.versions import MAX_TAG_LENGTH, MAX_TAGS, TAG_PATTERN, TagId
 
 VOCABULARY_VERSION: Final[str] = "1.0"
@@ -105,7 +106,7 @@ for _entry in TAG_VOCABULARY:
         _ALIAS_TO_ID[_alias.casefold()] = _entry.id
 
 
-class TagVocabularyItem(BaseModel):
+class TagVocabularyItem(ContractModel):
     """One vocabulary entry on the wire."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -117,7 +118,7 @@ class TagVocabularyItem(BaseModel):
     status: TagStatus = "active"
 
 
-class TagVocabularyResponse(BaseModel):
+class TagVocabularyResponse(ContractModel):
     """Versioned closed tag vocabulary (ADR-0024)."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)

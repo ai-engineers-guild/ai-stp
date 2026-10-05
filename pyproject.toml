@@ -130,6 +130,10 @@ select = ["E", "F", "W", "I", "UP", "B", "C4", "SIM", "PTH", "RUF"]
 # Russian is the documented prose language of the validators; the ambiguous
 # cyrillic-vs-latin lookalike rules only fight legitimate text there.
 "docs_scripts/**" = ["RUF001", "RUF002", "RUF003"]
+# Every model here inherits `ContractModel`, a pydantic `BaseModel` that copies
+# mutable defaults per instance. RUF012 recognizes pydantic models only through
+# a `BaseModel` base it can see in the same module.
+"packages/contracts/src/ai_stp_contracts/**" = ["RUF012"]
 
 [tool.pyright]
 include = ["packages", "apps", "tests", "docs_scripts", "release_scripts"]

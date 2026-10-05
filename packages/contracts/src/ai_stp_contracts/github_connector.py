@@ -2,10 +2,11 @@
 
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import ConfigDict, Field, model_validator
 
 from ai_stp_contracts.auth import AccountId, DeviceId
 from ai_stp_contracts.http import IdempotencyKey, Timestamp, open_wire_object, strict_request_object
+from ai_stp_contracts.model import ContractModel
 from ai_stp_contracts.publication import ContentDigest, PlanId
 
 type ConnectorPurpose = Literal["source", "administration"]
@@ -15,7 +16,7 @@ type GitHubUsername = Annotated[
 ]
 
 
-class GitHubConnectRequest(BaseModel):
+class GitHubConnectRequest(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
 
     purpose: ConnectorPurpose = "source"
@@ -24,14 +25,14 @@ class GitHubConnectRequest(BaseModel):
     confirmed: Literal[True]
 
 
-class GitHubConnectResponse(BaseModel):
+class GitHubConnectResponse(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 
     authorization_url: Annotated[str, Field(pattern=r"^https://github\.com/")]
     expires_at: Timestamp
 
 
-class GitHubCallbackQuery(BaseModel):
+class GitHubCallbackQuery(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 
     state: Annotated[str, Field(min_length=1, max_length=128)]
@@ -39,14 +40,14 @@ class GitHubCallbackQuery(BaseModel):
     setup_action: Annotated[str | None, Field(max_length=32)] = None
 
 
-class GitHubDisconnectRequest(BaseModel):
+class GitHubDisconnectRequest(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
 
     purpose: ConnectorPurpose = "source"
     confirmed: Literal[True]
 
 
-class GitHubPlatformObject(BaseModel):
+class GitHubPlatformObject(ContractModel):
     """An ai-stp object published from the connected repository."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -58,7 +59,7 @@ class GitHubPlatformObject(BaseModel):
     visibility: Literal["private", "public"]
 
 
-class GitHubRepository(BaseModel):
+class GitHubRepository(ContractModel):
     """Selected repository metadata visible only to the connected account."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -75,7 +76,7 @@ class GitHubRepository(BaseModel):
     platform_objects: list[GitHubPlatformObject] = Field(default_factory=list[GitHubPlatformObject])
 
 
-class GitHubInstallation(BaseModel):
+class GitHubInstallation(ContractModel):
     """One connected personal or organization GitHub App installation."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -89,7 +90,7 @@ class GitHubInstallation(BaseModel):
     repositories: list[GitHubRepository] = Field(default_factory=list[GitHubRepository])
 
 
-class GitHubConnectionStatus(BaseModel):
+class GitHubConnectionStatus(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 
     purpose: ConnectorPurpose
@@ -101,13 +102,13 @@ class GitHubConnectionStatus(BaseModel):
     reason: str | None = None
 
 
-class GitHubConnectorStatus(BaseModel):
+class GitHubConnectorStatus(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 
     connections: list[GitHubConnectionStatus]
 
 
-class GitHubSourcePrepareRequest(BaseModel):
+class GitHubSourcePrepareRequest(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
 
     installation_id: RepositoryId
@@ -117,7 +118,7 @@ class GitHubSourcePrepareRequest(BaseModel):
     idempotency_key: IdempotencyKey
 
 
-class GitHubSourcePrepared(BaseModel):
+class GitHubSourcePrepared(ContractModel):
     """Opaque provenance and inventory; no private repository coordinate."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -129,7 +130,7 @@ class GitHubSourcePrepared(BaseModel):
     source_visibility: Literal["private", "public"]
 
 
-class GitHubActionPlanRequest(BaseModel):
+class GitHubActionPlanRequest(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
 
     action: Literal["invite_collaborator", "make_public", "make_private"]
@@ -150,7 +151,7 @@ class GitHubActionPlanRequest(BaseModel):
         return self
 
 
-class GitHubActionPlanResponse(BaseModel):
+class GitHubActionPlanResponse(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 
     plan_id: PlanId
@@ -173,7 +174,7 @@ class GitHubActionPlanResponse(BaseModel):
     ]
 
 
-class GitHubActionConfirmRequest(BaseModel):
+class GitHubActionConfirmRequest(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
 
     plan_hash: ContentDigest

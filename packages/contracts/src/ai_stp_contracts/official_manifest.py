@@ -6,9 +6,10 @@ import json
 from importlib.resources import files
 from typing import Annotated, Final, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import ConfigDict, Field, field_validator, model_validator
 
 from ai_stp_contracts.first_party import OWNER_ID as OFFICIAL_ACCOUNT_ID
+from ai_stp_contracts.model import ContractModel
 from ai_stp_foundation.canonical import JsonValue, canonize
 from ai_stp_foundation.digests import digest_bytes
 from ai_stp_foundation.harnesses import HARNESS_IDS
@@ -46,7 +47,7 @@ BASELINE_CANONICAL_NAMES: Final[frozenset[str]] = frozenset(
 MANIFEST_DIGEST_DOMAIN: Final[str] = "ai-stp:official-manifest:v1"
 
 
-class OfficialManifestEntry(BaseModel):
+class OfficialManifestEntry(ContractModel):
     """One reviewed Official component and its exact public source."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)
@@ -148,7 +149,7 @@ class OfficialManifestEntry(BaseModel):
         return self
 
 
-class OfficialManifest(BaseModel):
+class OfficialManifest(ContractModel):
     """Complete reviewed Official inventory for one repository revision."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)

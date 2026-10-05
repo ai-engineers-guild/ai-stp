@@ -4,9 +4,10 @@ from __future__ import annotations
 
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import ConfigDict, Field, model_validator
 
 from ai_stp_contracts.http import Timestamp
+from ai_stp_contracts.model import ContractModel
 from ai_stp_foundation.digests import DIGEST_PATTERN
 
 SCHEMA_ID = "ai-stp-estate-release/2"
@@ -43,7 +44,7 @@ REQUIRED_PROVIDERS: tuple[str, ...] = (
 )
 
 
-class EstateConsumer(BaseModel):
+class EstateConsumer(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     repository: Annotated[str, Field(min_length=1)]
@@ -52,7 +53,7 @@ class EstateConsumer(BaseModel):
     release_url: str = ""
 
 
-class EstateDistribution(BaseModel):
+class EstateDistribution(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     name: Annotated[str, Field(min_length=1)]
@@ -61,14 +62,14 @@ class EstateDistribution(BaseModel):
     digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
 
 
-class EstateNativeArtifact(BaseModel):
+class EstateNativeArtifact(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     filename: Annotated[str, Field(min_length=1)]
     digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
 
 
-class EstateProvider(BaseModel):
+class EstateProvider(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     repository: Annotated[str, Field(min_length=1)]
@@ -78,7 +79,7 @@ class EstateProvider(BaseModel):
     wheels: list[EstateDistribution] = []
 
 
-class EstateEvidenceRow(BaseModel):
+class EstateEvidenceRow(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     slice: Annotated[str, Field(min_length=1)]
@@ -91,21 +92,21 @@ class EstateEvidenceRow(BaseModel):
     provider: str = ""
 
 
-class EstateWeb(BaseModel):
+class EstateWeb(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     commit: Annotated[str, Field(pattern=r"^[0-9a-f]{40}$")]
     image_digest: str = ""
 
 
-class EstateProviderKit(BaseModel):
+class EstateProviderKit(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     version: Annotated[str, Field(min_length=1)]
     digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
 
 
-class EstateRelease(BaseModel):
+class EstateRelease(ContractModel):
     """One cut of the consumer bound to exact provider evidence."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)

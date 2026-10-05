@@ -2,12 +2,13 @@
 
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import ConfigDict, Field, model_validator
 
 from ai_stp_contracts.http import Timestamp
+from ai_stp_contracts.model import ContractModel
 
 
-class _Closed(BaseModel):
+class _Closed(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
 
 

@@ -17,7 +17,7 @@ on a route that exists to answer "who am I".
 
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import ConfigDict, Field, field_validator
 
 from ai_stp_contracts.auth import AccountId, DeviceId, DisplayName, OAuthProvider
 from ai_stp_contracts.http import (
@@ -30,6 +30,7 @@ from ai_stp_contracts.http import (
     open_wire_object,
     strict_request_object,
 )
+from ai_stp_contracts.model import ContractModel
 from ai_stp_foundation.harnesses import HarnessId
 from ai_stp_foundation.identity import HANDLE_PATTERN, normalize_handle, submitted_display_name
 
@@ -39,7 +40,7 @@ from ai_stp_foundation.identity import HANDLE_PATTERN, normalize_handle, submitt
 type DeviceState = Literal["active", "revoked"]
 
 
-class DetectedHarness(BaseModel):
+class DetectedHarness(ContractModel):
     """One harness observed on the device, with the version that was observed.
 
     Only the supported harnesses are itemised. An unknown harness stays a
@@ -54,7 +55,7 @@ class DetectedHarness(BaseModel):
     version: Annotated[str, Field(min_length=1, max_length=64)]
 
 
-class DeviceSummary(BaseModel):
+class DeviceSummary(ContractModel):
     """The closed five-fact summary a device is allowed to publish.
 
     Closed by `device-passport.md`: display name, operating system and
@@ -78,7 +79,7 @@ class DeviceSummary(BaseModel):
     summary_updated_at: Timestamp
 
 
-class DeviceRecord(BaseModel):
+class DeviceRecord(ContractModel):
     """One device as the account owner sees it, in the web or through the CLI."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -107,7 +108,7 @@ class DeviceRecord(BaseModel):
     etag: Annotated[str, Field(min_length=1, max_length=128)]
 
 
-class DeviceListQuery(BaseModel):
+class DeviceListQuery(ContractModel):
     """GET /v1/devices query."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
@@ -119,7 +120,7 @@ class DeviceListQuery(BaseModel):
     page_size: PageSize = PAGE_SIZE_MAX
 
 
-class DeviceListResponse(BaseModel):
+class DeviceListResponse(ContractModel):
     """Every device of the current account, newest activity first."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -129,7 +130,7 @@ class DeviceListResponse(BaseModel):
     page: PageInfo
 
 
-class DeviceRevokeRequest(BaseModel):
+class DeviceRevokeRequest(ContractModel):
     """Revoke one device.
 
     Idempotent by key, so a retried revoke after a timeout does not become a
@@ -144,7 +145,7 @@ class DeviceRevokeRequest(BaseModel):
     idempotency_key: IdempotencyKey
 
 
-class DeviceRevokeResponse(BaseModel):
+class DeviceRevokeResponse(ContractModel):
     """The device after revocation.
 
     Revocation is forward-acting and reported as such: the record survives, the
@@ -159,7 +160,7 @@ class DeviceRevokeResponse(BaseModel):
     revoked_at: Timestamp
 
 
-class LinkedIdentity(BaseModel):
+class LinkedIdentity(ContractModel):
     """One provider linked to the account.
 
     No address: an identity is named by its provider and when it was linked. The
@@ -178,7 +179,7 @@ class LinkedIdentity(BaseModel):
     display_name: Annotated[str | None, Field(max_length=120)]
 
 
-class AccountProfile(BaseModel):
+class AccountProfile(ContractModel):
     """The current account, as the caller who holds it sees it.
 
     Separate from `PublicProfile` (ADR-0023, ADR-0010), which is an authored
@@ -197,7 +198,7 @@ class AccountProfile(BaseModel):
     display_name: Annotated[str, Field(default="", max_length=80)] = ""
 
 
-class AccountIdentityUpdate(BaseModel):
+class AccountIdentityUpdate(ContractModel):
     """Replace the current account public handle and display name."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
@@ -218,7 +219,7 @@ class AccountIdentityUpdate(BaseModel):
         return submitted_display_name(value)
 
 
-class AccountPrivacyUpdate(BaseModel):
+class AccountPrivacyUpdate(ContractModel):
     """Replace the current account privacy preferences."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
@@ -228,7 +229,7 @@ class AccountPrivacyUpdate(BaseModel):
     allow_publisher_listing: bool
 
 
-class DeviceRegisterResponse(BaseModel):
+class DeviceRegisterResponse(ContractModel):
     """POST /v1/devices registration resource body."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)

@@ -10,9 +10,10 @@ import re
 from collections.abc import Mapping
 from typing import Annotated, Literal, cast
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import ConfigDict, Field, field_validator, model_validator
 
 from ai_stp_contracts.http import IdempotencyKey, Timestamp, open_wire_object, strict_request_object
+from ai_stp_contracts.model import ContractModel
 from ai_stp_foundation.ids import is_valid_id, stable_id_pattern
 
 ProductMode = Literal["local", "personal", "corporate"]
@@ -195,7 +196,7 @@ def _contains_forbidden_capability_data(value: object) -> bool:
     return False
 
 
-class OrganizationSummary(BaseModel):
+class OrganizationSummary(ContractModel):
     """A remote organization available to the authenticated account."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -207,7 +208,7 @@ class OrganizationSummary(BaseModel):
     membership_revision: Annotated[int, Field(ge=1)]
 
 
-class OrganizationListResponse(BaseModel):
+class OrganizationListResponse(ContractModel):
     """Organizations the current account may explicitly select."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -216,7 +217,7 @@ class OrganizationListResponse(BaseModel):
     items: Annotated[list[OrganizationSummary], Field(max_length=256)]
 
 
-class CapabilityScopeQuery(BaseModel):
+class CapabilityScopeQuery(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
     scope_kind: Literal["organization", "project", "team", "technology"] = "organization"
     scope_id: Annotated[str, Field(min_length=20, max_length=128)] | None = None
@@ -237,7 +238,7 @@ class CapabilityScopeQuery(BaseModel):
         return self
 
 
-class CapabilityProjection(BaseModel):
+class CapabilityProjection(ContractModel):
     """Bounded server projection used by one shared UI.
 
     ``capabilities`` is an allowlist, not an authorization token. Every mutation
@@ -292,7 +293,7 @@ class CapabilityProjection(BaseModel):
         return self.capabilities
 
 
-class ActiveContext(BaseModel):
+class ActiveContext(ContractModel):
     """The context that owns the current request or UI state."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -312,7 +313,7 @@ class ActiveContext(BaseModel):
         return self
 
 
-class ProjectLinkPlanRequest(BaseModel):
+class ProjectLinkPlanRequest(ContractModel):
     """Request a server-authored exact link plan without changing state."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
@@ -328,7 +329,7 @@ class ProjectLinkPlanRequest(BaseModel):
     idempotency_key: IdempotencyKey
 
 
-class ProviderProjectObservationRequest(BaseModel):
+class ProviderProjectObservationRequest(ContractModel):
     """Provider identity evidence; it never creates a project link."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
@@ -344,7 +345,7 @@ class ProviderProjectObservationRequest(BaseModel):
     authorization_revision: Annotated[str, Field(min_length=1, max_length=128)]
 
 
-class ProjectLinkProposalRequest(BaseModel):
+class ProjectLinkProposalRequest(ContractModel):
     """Non-authoritative link evidence awaiting an explicit link plan."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
@@ -357,7 +358,7 @@ class ProjectLinkProposalRequest(BaseModel):
     authorization_revision: Annotated[str, Field(min_length=1, max_length=128)]
 
 
-class ProjectLinkPlanResponse(BaseModel):
+class ProjectLinkPlanResponse(ContractModel):
     """The exact server-authored link decision awaiting confirmation."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -376,7 +377,7 @@ class ProjectLinkPlanResponse(BaseModel):
     expires_at: Timestamp
 
 
-class ProjectLinkRequest(BaseModel):
+class ProjectLinkRequest(ContractModel):
     """Confirm one exact server-authored link plan."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
@@ -388,7 +389,7 @@ class ProjectLinkRequest(BaseModel):
     idempotency_key: IdempotencyKey
 
 
-class ProjectLinkResponse(BaseModel):
+class ProjectLinkResponse(ContractModel):
     """The durable link and its last observed endpoint revisions."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -412,7 +413,7 @@ class ProjectLinkResponse(BaseModel):
     updated_at: Timestamp
 
 
-class ProjectUnlinkRequest(BaseModel):
+class ProjectUnlinkRequest(ContractModel):
     """Confirm one exact server-authored unlink plan."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
@@ -424,7 +425,7 @@ class ProjectUnlinkRequest(BaseModel):
     idempotency_key: IdempotencyKey
 
 
-class ProjectUnlinkPlanRequest(BaseModel):
+class ProjectUnlinkPlanRequest(ContractModel):
     """Request a no-side-effect plan for unlinking one exact link revision."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
@@ -436,7 +437,7 @@ class ProjectUnlinkPlanRequest(BaseModel):
     idempotency_key: IdempotencyKey
 
 
-class ProjectUnlinkPlanResponse(BaseModel):
+class ProjectUnlinkPlanResponse(ContractModel):
     """The exact server-authored unlink decision awaiting confirmation."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -457,7 +458,7 @@ class ProjectUnlinkPlanResponse(BaseModel):
     expires_at: Timestamp
 
 
-class ProjectSyncPlanRequest(BaseModel):
+class ProjectSyncPlanRequest(ContractModel):
     """Request a deterministic sync plan for an existing explicit link."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
@@ -472,7 +473,7 @@ class ProjectSyncPlanRequest(BaseModel):
     idempotency_key: IdempotencyKey
 
 
-class ProjectSyncPlanResponse(BaseModel):
+class ProjectSyncPlanResponse(ContractModel):
     """A no-side-effect sync decision, or a conflict requiring user choice."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -504,7 +505,7 @@ class ProjectSyncPlanResponse(BaseModel):
     expires_at: Timestamp
 
 
-class ProjectSyncApplyRequest(BaseModel):
+class ProjectSyncApplyRequest(ContractModel):
     """Apply one exact, previously-created non-conflicting sync plan."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
@@ -516,7 +517,7 @@ class ProjectSyncApplyRequest(BaseModel):
     idempotency_key: IdempotencyKey
 
 
-class ProjectRevisionPushRequest(BaseModel):
+class ProjectRevisionPushRequest(ContractModel):
     """One explicit content-addressed project revision push."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
@@ -574,7 +575,7 @@ class ProjectRevisionPushRequest(BaseModel):
         return self
 
 
-class ProjectRevisionReceipt(BaseModel):
+class ProjectRevisionReceipt(ContractModel):
     """Durable result of one project revision push."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -589,7 +590,7 @@ class ProjectRevisionReceipt(BaseModel):
     error_code: str | None
 
 
-class ProjectRevisionPushResponse(BaseModel):
+class ProjectRevisionPushResponse(ContractModel):
     """Result of a project revision push."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -598,7 +599,7 @@ class ProjectRevisionPushResponse(BaseModel):
     receipt: ProjectRevisionReceipt
 
 
-class ProjectRevisionView(BaseModel):
+class ProjectRevisionView(ContractModel):
     """Redacted project revision returned by pull."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -614,7 +615,7 @@ class ProjectRevisionView(BaseModel):
     created_at: Timestamp
 
 
-class ProjectRevisionPullResponse(BaseModel):
+class ProjectRevisionPullResponse(ContractModel):
     """Bounded pull of the tenant-scoped project ledger."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)

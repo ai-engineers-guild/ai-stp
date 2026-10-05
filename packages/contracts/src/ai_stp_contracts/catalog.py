@@ -38,7 +38,7 @@ from collections.abc import Sequence
 from datetime import date
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import ConfigDict, Field, field_validator, model_validator
 
 from ai_stp_contracts.assurance import (
     AssuranceCounts,
@@ -67,6 +67,7 @@ from ai_stp_contracts.impact import (
     ExactCoordinate,
     TokenEstimator,
 )
+from ai_stp_contracts.model import ContractModel
 from ai_stp_contracts.safety_checks import SafetyChecksSummary, SetupComponentChecks
 from ai_stp_foundation.canonical import JsonValue
 from ai_stp_foundation.digests import DIGEST_PATTERN
@@ -162,7 +163,7 @@ def merged_or_values(singular: str | None, values: Sequence[str] | None) -> list
     return unique_sorted(items)
 
 
-class ExternalProductObject(BaseModel):
+class ExternalProductObject(ContractModel):
     """Public catalog object attached to a service."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -171,7 +172,7 @@ class ExternalProductObject(BaseModel):
     name: Annotated[str, Field(min_length=1, max_length=200)]
 
 
-class ExternalProductSummary(BaseModel):
+class ExternalProductSummary(ContractModel):
     """Curated external service, keyed by its registrable domain."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -188,13 +189,13 @@ class ExternalProductDetail(ExternalProductSummary):
     objects: list[ExternalProductObject] = Field(default_factory=list[ExternalProductObject])
 
 
-class ExternalProductListResponse(BaseModel):
+class ExternalProductListResponse(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     schema_version: Literal[1] = 1
     items: list[ExternalProductSummary] = Field(default_factory=list[ExternalProductSummary])
 
 
-class CatalogAuthorOption(BaseModel):
+class CatalogAuthorOption(ContractModel):
     """One author with an active public component or setup available in the catalog filter."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -206,7 +207,7 @@ class CatalogAuthorOption(BaseModel):
     avatar_url: Annotated[str, Field(max_length=2048)] | None = None
 
 
-class CatalogAuthorListResponse(BaseModel):
+class CatalogAuthorListResponse(ContractModel):
     """All authors with at least one active public component or setup."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -215,7 +216,7 @@ class CatalogAuthorListResponse(BaseModel):
     items: list[CatalogAuthorOption] = Field(default_factory=list[CatalogAuthorOption])
 
 
-class CountrySummary(BaseModel):
+class CountrySummary(ContractModel):
     """Stable country roof; localized display name belongs to Web."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -230,13 +231,13 @@ class CountryDetail(CountrySummary):
     objects: list[ExternalProductObject] = Field(default_factory=list[ExternalProductObject])
 
 
-class CountryListResponse(BaseModel):
+class CountryListResponse(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     schema_version: Literal[1] = 1
     items: list[CountrySummary] = Field(default_factory=list[CountrySummary])
 
 
-class ComponentMediaItem(BaseModel):
+class ComponentMediaItem(ContractModel):
     """Safe public component media projection (SPEC-035)."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -262,7 +263,7 @@ class ComponentMediaItem(BaseModel):
         return self
 
 
-class CatalogPageInfo(BaseModel):
+class CatalogPageInfo(ContractModel):
     """Exact public web page metadata; never used for private enumeration."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -278,7 +279,7 @@ class CatalogPageInfo(BaseModel):
     next_page: PageNumber | None
 
 
-class CatalogSupportEvidence(BaseModel):
+class CatalogSupportEvidence(ContractModel):
     """Safe public summary of one provider support check (SPEC-033, ADR-0072)."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -298,7 +299,7 @@ class CatalogSupportEvidence(BaseModel):
     expires_at: Timestamp | None = None
 
 
-class CatalogSupport(BaseModel):
+class CatalogSupport(ContractModel):
     """Provider support status, separate from object trust and verification."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -320,7 +321,7 @@ class CatalogSupport(BaseModel):
         return self
 
 
-class GitHubMetadata(BaseModel):
+class GitHubMetadata(ContractModel):
     """Best-effort on-demand stars and archive state (SPEC-049)."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -330,7 +331,7 @@ class GitHubMetadata(BaseModel):
     archived: bool | None = None
 
 
-class CatalogUsageMetrics(BaseModel):
+class CatalogUsageMetrics(ContractModel):
     """Server aggregate of public detail views and completed artifact bytes.
 
     Absence of this object means the feature is off or the value is unavailable,
@@ -354,7 +355,7 @@ USAGE_METRICS_RETENTION_MAX_SECONDS = 7 * 24 * 60 * 60
 USAGE_METRICS_ENABLED_BY_DEFAULT: Literal[False] = False
 
 
-class CatalogTrust(BaseModel):
+class CatalogTrust(ContractModel):
     """Why a published version may appear in results, and on whose evidence.
 
     The two verification flags are independent axes (ADR-0016) and neither may
@@ -380,7 +381,7 @@ class CatalogTrust(BaseModel):
         return self
 
 
-class PrivateVersionTrust(BaseModel):
+class PrivateVersionTrust(ContractModel):
     """Exact local acquisition authority, independent of public trust."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -390,7 +391,7 @@ class PrivateVersionTrust(BaseModel):
     component_verified: bool
 
 
-class PrivateVersionResponse(BaseModel):
+class PrivateVersionResponse(ContractModel):
     """Exact private version metadata after owner/grant authorization."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -404,7 +405,7 @@ class PrivateVersionResponse(BaseModel):
     visibility: Literal["private"] = "private"
 
 
-class VersionListEntry(BaseModel):
+class VersionListEntry(ContractModel):
     """One offered version of an object, as listed on its card.
 
     "Offered", not "every": a hidden version is absent, which is why the list
@@ -423,7 +424,7 @@ class VersionListEntry(BaseModel):
     checks: SafetyChecksSummary | None = None
 
 
-class ComponentSummary(BaseModel):
+class ComponentSummary(ContractModel):
     """Search-result card for a component.
 
     Naming is mechanical rather than a judgement call: a field without a prefix
@@ -473,7 +474,7 @@ class ComponentSummary(BaseModel):
     usage_metrics: CatalogUsageMetrics | None = None
 
 
-class SetupSummary(BaseModel):
+class SetupSummary(ContractModel):
     """Search-result card for a setup. A setup has no variant axis (ADR-0014).
 
     `latest_harness_id` keeps the prefix even though a setup belongs to one
@@ -521,7 +522,7 @@ class SetupSummary(BaseModel):
     family_match_kind: FamilyMatchKind | None = None
 
 
-class CatalogReactionState(BaseModel):
+class CatalogReactionState(ContractModel):
     """Private state of the current account's reaction."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
@@ -531,7 +532,7 @@ class CatalogReactionState(BaseModel):
     likes_count: Annotated[int, Field(ge=0)]
 
 
-class LikedCatalogItem(BaseModel):
+class LikedCatalogItem(ContractModel):
     """One public catalog projection selected by the current account."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
@@ -540,7 +541,7 @@ class LikedCatalogItem(BaseModel):
     summary: ComponentSummary | SetupSummary
 
 
-class CatalogReactionList(BaseModel):
+class CatalogReactionList(ContractModel):
     """Private list of objects liked by the current account."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
@@ -549,7 +550,7 @@ class CatalogReactionList(BaseModel):
     items: list[LikedCatalogItem] = Field(default_factory=list[LikedCatalogItem])
 
 
-class ComponentSearchRequest(BaseModel):
+class ComponentSearchRequest(ContractModel):
     """Query for `/v1/catalog/components`.
 
     Strict on purpose (`strict_request_object`): an unknown parameter is a
@@ -654,7 +655,7 @@ class ComponentSearchRequest(BaseModel):
         return self
 
 
-class SetupSearchRequest(BaseModel):
+class SetupSearchRequest(ContractModel):
     """Query for `/v1/catalog/setups`."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
@@ -748,7 +749,7 @@ class SetupSearchRequest(BaseModel):
         return self
 
 
-class ComponentListResponse(BaseModel):
+class ComponentListResponse(ContractModel):
     """One page of component search results, partitioned by trust lane."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -775,7 +776,7 @@ class ComponentListResponse(BaseModel):
         return self
 
 
-class SetupListResponse(BaseModel):
+class SetupListResponse(ContractModel):
     """One page of setup search results, partitioned by trust lane."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -804,7 +805,7 @@ def _reject_oversized_page(authoritative: int, experimental: int) -> None:
         raise ValueError(f"page carries {total} objects across both lanes, over {PAGE_SIZE_MAX}")
 
 
-class ComponentDetail(BaseModel):
+class ComponentDetail(ContractModel):
     """Exact read of one public component and the versions it offers."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -826,7 +827,7 @@ class ComponentDetail(BaseModel):
     target_matrix: TargetMatrix = Field(default_factory=TargetMatrix)
 
 
-class SetupDetail(BaseModel):
+class SetupDetail(ContractModel):
     """Exact read of one public setup and the versions it offers."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -874,7 +875,7 @@ def _require_published(visibility: str, distribution_visibility: str | None = No
         raise ValueError(f"the public catalog cannot represent a {visibility!r} passport")
 
 
-class ComponentVersionResponse(BaseModel):
+class ComponentVersionResponse(ContractModel):
     """Exact read of one immutable component version.
 
     The passport is the description of the version (ADR-0012): there is no
@@ -903,7 +904,7 @@ class ComponentVersionResponse(BaseModel):
         return self
 
 
-class SetupVersionResponse(BaseModel):
+class SetupVersionResponse(ContractModel):
     """Exact read of one immutable setup version."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -934,7 +935,7 @@ class SetupVersionResponse(BaseModel):
         return self
 
 
-class SetupContextBudgetQuery(BaseModel):
+class SetupContextBudgetQuery(ContractModel):
     """Optional estimator choice for one exact setup context budget."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
@@ -945,7 +946,7 @@ class SetupContextBudgetQuery(BaseModel):
     )
 
 
-class SetupContextBudget(BaseModel):
+class SetupContextBudget(ContractModel):
     """Absolute context estimate of one visible exact setup (SPEC-049)."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -962,7 +963,7 @@ class SetupContextBudget(BaseModel):
     reason: str | None = None
 
 
-class ComponentContextBudget(BaseModel):
+class ComponentContextBudget(ContractModel):
     """Context estimate of one visible exact component (SPEC-049)."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
