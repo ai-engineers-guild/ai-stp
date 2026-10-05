@@ -22,7 +22,7 @@ about which commands exist.
 
 from typing import Annotated, Literal, Self
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import ConfigDict, Field, model_validator
 
 from ai_stp_assurance import AuthorAttestation as AssuranceAuthorAttestation
 from ai_stp_contracts.auth import AccountId, DeviceId, OAuthProvider, PublicKey
@@ -35,6 +35,7 @@ from ai_stp_contracts.catalog import (
 )
 from ai_stp_contracts.corporate import PlanOutcome
 from ai_stp_contracts.http import Timestamp, open_wire_object
+from ai_stp_contracts.model import ContractModel
 from ai_stp_contracts.private_access import PrivateVersionTrust
 from ai_stp_contracts.publication import EvidenceBindingView, PublicationPlanResponse
 from ai_stp_contracts.publication import ObjectKind as PublicationObjectKind
@@ -72,7 +73,7 @@ type ParameterType = Literal["string", "boolean", "integer"]
 type CommandPath = Annotated[list[str], Field(min_length=1, max_length=4)]
 
 
-class CommandParameter(BaseModel):
+class CommandParameter(ContractModel):
     """One parameter of one command, as the agent must supply it."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -96,7 +97,7 @@ class CommandParameter(BaseModel):
     choices: list[str] = []
 
 
-class CommandParameterRule(BaseModel):
+class CommandParameterRule(ContractModel):
     """A cross-parameter invocation rule that consumers must not parse from prose.
 
     `exactly_one` of the named parameters must be present; `at_most_one`
@@ -117,7 +118,7 @@ class CommandParameterRule(BaseModel):
     when_values: list[str] = []
 
 
-class CommandDescriptor(BaseModel):
+class CommandDescriptor(ContractModel):
     """Everything the agent needs to invoke one command correctly.
 
     A command that does not work is absent rather than described: the Skill is
@@ -162,7 +163,7 @@ class CommandDescriptor(BaseModel):
         return self
 
 
-class MachineErrorDescriptor(BaseModel):
+class MachineErrorDescriptor(ContractModel):
     """One stable failure and the first disposition an agent should take."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -173,7 +174,7 @@ class MachineErrorDescriptor(BaseModel):
     description: Annotated[str, Field(min_length=1)]
 
 
-class MachineHelp(BaseModel):
+class MachineHelp(ContractModel):
     """The whole command registry, rendered for an agent."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -197,7 +198,7 @@ class MachineHelp(BaseModel):
     error_codes: Annotated[list[MachineErrorDescriptor], Field(min_length=1)]
 
 
-class Capabilities(BaseModel):
+class Capabilities(ContractModel):
     """What this installation can do right now.
 
     Deliberately not a copy of the registry: it carries the few facts that
@@ -234,7 +235,7 @@ class Capabilities(BaseModel):
     command_paths: Annotated[list[str], Field(min_length=1)]
 
 
-class CliSchemaEntry(BaseModel):
+class CliSchemaEntry(ContractModel):
     """One exported schema id this build resolves."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -243,7 +244,7 @@ class CliSchemaEntry(BaseModel):
     urn: Annotated[str, Field(min_length=1)]
 
 
-class CliSchemaIndex(BaseModel):
+class CliSchemaIndex(ContractModel):
     """Every exported schema id this build resolves.
 
     `input_schema` and `result_schema` URNs inside machine payloads name
@@ -258,7 +259,7 @@ class CliSchemaIndex(BaseModel):
     schemas: list[CliSchemaEntry]
 
 
-class CliSchemaDocument(BaseModel):
+class CliSchemaDocument(ContractModel):
     """One exported schema resolved to its JSON Schema document."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -270,7 +271,7 @@ class CliSchemaDocument(BaseModel):
     document: dict[str, JsonValue]
 
 
-class SyncPreview(BaseModel):
+class SyncPreview(ContractModel):
     """A read-only decision over the local heads of one syncable entity."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -296,7 +297,7 @@ class SyncPreview(BaseModel):
     affected_fields: list[str] = Field(default_factory=list)
 
 
-class SyncPushView(BaseModel):
+class SyncPushView(ContractModel):
     """Durable outcome of pushing one exact local revision."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)
@@ -316,7 +317,7 @@ class SyncPushView(BaseModel):
     conflicting_entity_id: str | None
 
 
-class SyncPendingVersion(BaseModel):
+class SyncPendingVersion(ContractModel):
     """An exact legacy version reference whose snapshot is not available yet."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)
@@ -327,7 +328,7 @@ class SyncPendingVersion(BaseModel):
     event_id: str
 
 
-class SyncPullView(BaseModel):
+class SyncPullView(ContractModel):
     """One atomically applied page from the private account stream."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)
@@ -355,7 +356,7 @@ class SyncPullView(BaseModel):
 type SetupState = Literal["ready", "needs_user_action", "partial", "failed"]
 
 
-class DoctorCheck(BaseModel):
+class DoctorCheck(ContractModel):
     """One thing `doctor` looked at."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -365,7 +366,7 @@ class DoctorCheck(BaseModel):
     detail: str
 
 
-class DoctorReport(BaseModel):
+class DoctorReport(ContractModel):
     """What `doctor` found.
 
     A report, not a verdict. `state` is the worst state among the checks, so a
@@ -395,7 +396,7 @@ type TaskId = Annotated[str, Field(pattern=stable_id_pattern("task"))]
 type TaskActor = Literal["human", "external"]
 
 
-class TaskQuestion(BaseModel):
+class TaskQuestion(ContractModel):
     """One typed question the task engine still needs before it can continue."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -409,7 +410,7 @@ class TaskQuestion(BaseModel):
     actor: TaskActor = "human"
 
 
-class TaskOrientation(BaseModel):
+class TaskOrientation(ContractModel):
     """Slim inspect facts. No command registry dump."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -426,7 +427,7 @@ class TaskOrientation(BaseModel):
     intents: list[str]
 
 
-class TaskInspectInput(BaseModel):
+class TaskInspectInput(ContractModel):
     """Inspect takes no caller facts."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)
@@ -434,7 +435,7 @@ class TaskInspectInput(BaseModel):
     schema_version: Literal[1] = 1
 
 
-class TaskInitializeInput(BaseModel):
+class TaskInitializeInput(ContractModel):
     """Optional harness pin. Omitted means the engine asks once."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)
@@ -443,7 +444,7 @@ class TaskInitializeInput(BaseModel):
     harness_id: HarnessId | None = None
 
 
-class TaskInstallInput(BaseModel):
+class TaskInstallInput(ContractModel):
     """Pins and scope. Omitted pins mean one justified pick, not a catalog quiz."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)
@@ -459,7 +460,7 @@ class TaskInstallInput(BaseModel):
     allowed_permissions: list[str] | None = None
 
 
-class TaskChangeInput(BaseModel):
+class TaskChangeInput(ContractModel):
     """Source setup plus one member delta. Omitted source means the harness baseline."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)
@@ -474,7 +475,7 @@ class TaskChangeInput(BaseModel):
     action: Literal["add", "remove"] | None = None
 
 
-class TaskAuthorInput(BaseModel):
+class TaskAuthorInput(ContractModel):
     """Directory plus typed authoring fields. One component and one setup identity."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)
@@ -487,7 +488,7 @@ class TaskAuthorInput(BaseModel):
     license_spdx: str | None = None
 
 
-class TaskSwitchInput(BaseModel):
+class TaskSwitchInput(ContractModel):
     """Restore last user working config. Omitted snapshot means the latest preserved setup."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)
@@ -499,7 +500,7 @@ class TaskSwitchInput(BaseModel):
     reload_session: str | None = None
 
 
-class TaskAccountInput(BaseModel):
+class TaskAccountInput(ContractModel):
     """Sign in, sign out, or explicitly sync. Login never uploads."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)
@@ -515,7 +516,7 @@ class TaskAccountInput(BaseModel):
     scope: Literal["push", "pull"] | None = None
 
 
-class TaskPublishInput(BaseModel):
+class TaskPublishInput(ContractModel):
     """Publish a local object through the existing no-binding publication plan."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)
@@ -528,7 +529,7 @@ class TaskPublishInput(BaseModel):
     provider: OAuthProvider | None = None
 
 
-class TaskTechnologyDecision(BaseModel):
+class TaskTechnologyDecision(ContractModel):
     """One review decision over an unmapped coordinate.
 
     `technology_id` names an existing registry record; `technology_name`
@@ -561,7 +562,7 @@ class TaskTechnologyDecision(BaseModel):
         return self
 
 
-class TaskTechnologyInput(BaseModel):
+class TaskTechnologyInput(ContractModel):
     """Grow the technology registry from detection evidence.
 
     `unmapped` scans a project and lists what its effective mapping cannot
@@ -592,7 +593,7 @@ class TaskTechnologyInput(BaseModel):
     idempotency_key: str | None = None
 
 
-class TaskInputField(BaseModel):
+class TaskInputField(ContractModel):
     """One field of one intent's `--input` document, flattened for callers.
 
     `input_schema` names the authoritative JSON Schema, resolvable through
@@ -610,7 +611,7 @@ class TaskInputField(BaseModel):
     choices: list[str] = []
 
 
-class TaskIntentDescriptor(BaseModel):
+class TaskIntentDescriptor(ContractModel):
     """One shipped intent the Skill may start."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -621,7 +622,7 @@ class TaskIntentDescriptor(BaseModel):
     input_fields: list[TaskInputField]
 
 
-class TaskIntentsCatalog(BaseModel):
+class TaskIntentsCatalog(ContractModel):
     """Compact catalog of shipped intents. Not the 203-command registry."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -632,7 +633,7 @@ class TaskIntentsCatalog(BaseModel):
     intents: list[TaskIntentDescriptor]
 
 
-class TaskInspectOutcome(BaseModel):
+class TaskInspectOutcome(ContractModel):
     """Inspection drained in-process by the inspect intent."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -642,7 +643,7 @@ class TaskInspectOutcome(BaseModel):
     orientation: TaskOrientation
 
 
-class TaskInitializeOutcome(BaseModel):
+class TaskInitializeOutcome(ContractModel):
     """Initialize drained in-process. The provider writes harness files."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -655,7 +656,7 @@ class TaskInitializeOutcome(BaseModel):
     surface: str = ""
 
 
-class TaskInstallOutcome(BaseModel):
+class TaskInstallOutcome(ContractModel):
     """Install drained in-process. Plan, approve, and apply never return to the model."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -669,7 +670,7 @@ class TaskInstallOutcome(BaseModel):
     verified: bool
 
 
-class TaskChangeOutcome(BaseModel):
+class TaskChangeOutcome(ContractModel):
     """Change drained in-process. A new setup identity; the source id is untouched."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -686,7 +687,7 @@ class TaskChangeOutcome(BaseModel):
     verified: bool
 
 
-class TaskAuthorOutcome(BaseModel):
+class TaskAuthorOutcome(ContractModel):
     """Author drained in-process. A local component and one new setup identity."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -703,7 +704,7 @@ class TaskAuthorOutcome(BaseModel):
     minted: bool
 
 
-class TaskSwitchOutcome(BaseModel):
+class TaskSwitchOutcome(ContractModel):
     """Switch drained in-process. Restores last user working config; never kills the caller."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -720,7 +721,7 @@ class TaskSwitchOutcome(BaseModel):
     session_loaded: Literal[False] = False
 
 
-class TaskAccountOutcome(BaseModel):
+class TaskAccountOutcome(ContractModel):
     """Account drained in-process. Login never uploads; sync is a separate explicit step."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -736,7 +737,7 @@ class TaskAccountOutcome(BaseModel):
     sync_result: SyncPushView | SyncPullView | None = None
 
 
-class TaskPublishOutcome(BaseModel):
+class TaskPublishOutcome(ContractModel):
     """Publish drained in-process. Worker receipt is not a readable catalog result."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -754,7 +755,7 @@ class TaskPublishOutcome(BaseModel):
     publication_set: "PublicationSetView | None" = None
 
 
-class TaskTechnologyOutcome(BaseModel):
+class TaskTechnologyOutcome(ContractModel):
     """Technology intent drained in-process: the queue, or the published snapshot."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -791,7 +792,7 @@ type TaskOutcome = Annotated[
 ]
 
 
-class TaskView(BaseModel):
+class TaskView(ContractModel):
     """One durable agent task. Envelope `ok` is independent of `state`."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -807,7 +808,7 @@ class TaskView(BaseModel):
     child_operation_ids: list[str]
 
 
-class TaskListEntry(BaseModel):
+class TaskListEntry(ContractModel):
     """One unsettled durable task — enough to choose it and resume.
 
     A caller that lost its task reference (process restart, compaction) lists
@@ -833,7 +834,7 @@ class TaskListEntry(BaseModel):
     updated_at: Timestamp
 
 
-class TaskListView(BaseModel):
+class TaskListView(ContractModel):
     """The unsettled durable tasks, most recently touched first."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -842,7 +843,7 @@ class TaskListView(BaseModel):
     tasks: list[TaskListEntry]
 
 
-class VersionReport(BaseModel):
+class VersionReport(ContractModel):
     """Which build is running, and which contracts it speaks."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -857,7 +858,7 @@ class VersionReport(BaseModel):
     provider_protocol_version: Literal[3] = 3
 
 
-class ConfigValue(BaseModel):
+class ConfigValue(ContractModel):
     """One effective configuration value and where it came from.
 
     `SPEC-011` REQ-1116 requires the effective value **and** its source, because
@@ -878,7 +879,7 @@ class ConfigValue(BaseModel):
     source: Literal["default", "config_file", "command_argument"]
 
 
-class ConfigReport(BaseModel):
+class ConfigReport(ContractModel):
     """The effective configuration, field by field."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -903,7 +904,7 @@ type CredentialStore = Literal["os_keyring", "file"]
 type LocalDeviceState = Literal["active", "revoked"]
 
 
-class DeviceIdentity(BaseModel):
+class DeviceIdentity(ContractModel):
     """This installation's device identity, as the CLI can see it offline.
 
     Created on first run without an account: the key proves which device a
@@ -949,7 +950,7 @@ class PublicationPlanView(PublicationPlanResponse):
     """The wire publication plan returned unchanged through the CLI boundary."""
 
 
-class PublicationSetMemberView(BaseModel):
+class PublicationSetMemberView(ContractModel):
     """One object inside a setup's publication, and why it is there.
 
     `role` is what separates the setup from the components it pins, and it is
@@ -982,7 +983,7 @@ class PublicationSetMemberView(BaseModel):
     already_published: bool = False
 
 
-class PublicationSetView(BaseModel):
+class PublicationSetView(ContractModel):
     """Every plan one setup's publication needs, as a single decision.
 
     A setup cannot be published before the components it pins are, so a person
@@ -1025,7 +1026,7 @@ class PublicationSetView(BaseModel):
     expires_at: Timestamp | None = None
 
 
-class AuthStatus(BaseModel):
+class AuthStatus(ContractModel):
     """Whether this installation currently holds cloud credentials.
 
     Distinct from `DeviceIdentity`: a device identity always exists, a session
@@ -1053,7 +1054,7 @@ class AuthStatus(BaseModel):
     credential_store: CredentialStore | None
 
 
-class PassportView(BaseModel):
+class PassportView(ContractModel):
     """One local passport at its current head.
 
     A view, not the passport itself: the envelope and its facts are owned by
@@ -1087,7 +1088,7 @@ class PassportView(BaseModel):
     facts: dict[str, JsonValue]
 
 
-class ComponentPassportValidation(BaseModel):
+class ComponentPassportValidation(ContractModel):
     """Whether one local component head is complete enough to publish.
 
     This is a local structural verdict, not permission to write to the cloud.
@@ -1106,7 +1107,7 @@ class ComponentPassportValidation(BaseModel):
     invalid_fields: list[str]
 
 
-class ComponentQualityCheck(BaseModel):
+class ComponentQualityCheck(ContractModel):
     """One deterministic authoring hint, never a verification result."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
@@ -1118,7 +1119,7 @@ class ComponentQualityCheck(BaseModel):
     message: Annotated[str, Field(min_length=1, max_length=240)]
 
 
-class ComponentQualityDimension(BaseModel):
+class ComponentQualityDimension(ContractModel):
     """Mechanical checks grouped under one author-facing quality dimension."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
@@ -1138,7 +1139,7 @@ class ComponentQualityDimension(BaseModel):
         return self
 
 
-class ComponentQualityReport(BaseModel):
+class ComponentQualityReport(ContractModel):
     """Optional mechanical guidance separated from trust and publication readiness."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -1162,7 +1163,7 @@ class ComponentQualityReport(BaseModel):
         return self
 
 
-class ComponentPassportSuggestion(BaseModel):
+class ComponentPassportSuggestion(ContractModel):
     """One exact fact copied from named immutable evidence, awaiting confirmation."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -1174,7 +1175,7 @@ class ComponentPassportSuggestion(BaseModel):
     requires_confirmation: Literal[True] = True
 
 
-class ComponentPassportSuggestions(BaseModel):
+class ComponentPassportSuggestions(ContractModel):
     """Read-only enrichment candidates for one exact component revision."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -1186,7 +1187,7 @@ class ComponentPassportSuggestions(BaseModel):
     unresolved_fields: list[str]
 
 
-class DeviceApproval(BaseModel):
+class DeviceApproval(ContractModel):
     """What a person must approve before a sign-in can complete (issue #75).
 
     Returned rather than waited on. `#72` fixed that the CLI never blocks for a
@@ -1236,7 +1237,7 @@ type CatalogKind = Literal["component", "setup"]
 type AnswerSource = Literal["online", "cache"]
 
 
-class CatalogSearchResult(BaseModel):
+class CatalogSearchResult(ContractModel):
     """One page of public catalogue results, and where it came from."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -1261,7 +1262,7 @@ class CatalogSearchResult(BaseModel):
     next_cursor: str | None
 
 
-class CatalogObjectView(BaseModel):
+class CatalogObjectView(ContractModel):
     """One catalogue object with its published versions."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -1277,7 +1278,7 @@ class CatalogObjectView(BaseModel):
     versions: list[VersionListEntry]
 
 
-class CatalogVersionView(BaseModel):
+class CatalogVersionView(ContractModel):
     """One exact published version and the passport it promises (issue #76).
 
     The digest travels with the passport because a client verifies one against
@@ -1304,7 +1305,7 @@ class CatalogVersionView(BaseModel):
     passport: dict[str, JsonValue]
 
 
-class ProjectCandidate(BaseModel):
+class ProjectCandidate(ContractModel):
     """One directory that could be registered as a project (`SPEC-004`)."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -1330,7 +1331,7 @@ class ProjectCandidate(BaseModel):
     reason: Annotated[str, Field(min_length=1)]
 
 
-class DiscoveryDiagnostic(BaseModel):
+class DiscoveryDiagnostic(ContractModel):
     """One path skipped while examining an explicit project discovery root."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -1341,7 +1342,7 @@ class DiscoveryDiagnostic(BaseModel):
     reason: Annotated[str, Field(min_length=1)]
 
 
-class ProjectCandidates(BaseModel):
+class ProjectCandidates(ContractModel):
     """Everything found inside one directory the user named."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -1353,7 +1354,7 @@ class ProjectCandidates(BaseModel):
     diagnostics: list[DiscoveryDiagnostic]
 
 
-class IndexedFile(BaseModel):
+class IndexedFile(ContractModel):
     """One file the index knows about, described without keeping its content."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -1372,7 +1373,7 @@ class IndexedFile(BaseModel):
     lines: int | None = None
 
 
-class ExcludedPath(BaseModel):
+class ExcludedPath(ContractModel):
     """One path left out of the index, and why."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -1382,7 +1383,7 @@ class ExcludedPath(BaseModel):
     reason: Annotated[str, Field(min_length=1)]
 
 
-class ProjectIndex(BaseModel):
+class ProjectIndex(ContractModel):
     """The bounded second-level index of one project root (`SPEC-004`).
 
     `state` is `partial` when a size, depth, entry or time bound was reached.
@@ -1400,7 +1401,7 @@ class ProjectIndex(BaseModel):
     excluded: list[ExcludedPath]
 
 
-class CliTechnologyEvidence(BaseModel):
+class CliTechnologyEvidence(ContractModel):
     """One evidence trace of a local technology finding (issue #222)."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -1412,7 +1413,7 @@ class CliTechnologyEvidence(BaseModel):
     confidence: Annotated[float, Field(ge=0, le=1)]
 
 
-class CliTechnologyClaim(BaseModel):
+class CliTechnologyClaim(ContractModel):
     """One version claim inside a finding, with its evidence."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -1423,7 +1424,7 @@ class CliTechnologyClaim(BaseModel):
     evidence: list[CliTechnologyEvidence]
 
 
-class CliTechnologyFinding(BaseModel):
+class CliTechnologyFinding(ContractModel):
     """One stored technology finding and its review state (issue #222).
 
     `technology_id` is the resolved canonical identity when the mapping in
@@ -1453,7 +1454,7 @@ class CliTechnologyFinding(BaseModel):
     reviewed_at: str | None = None
 
 
-class CliTechnologyScan(BaseModel):
+class CliTechnologyScan(ContractModel):
     """The result of `project detect`: one stored scan over one root.
 
     `handoff` resolves findings the way publication does — against the
@@ -1480,7 +1481,7 @@ class CliTechnologyScan(BaseModel):
     handoff: TechnologyScanHandoff
 
 
-class CliTechnologyFindings(BaseModel):
+class CliTechnologyFindings(ContractModel):
     """Every stored finding for one local project (`project technologies`)."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -1490,7 +1491,7 @@ class CliTechnologyFindings(BaseModel):
     findings: list[CliTechnologyFinding]
 
 
-class CliTechnologyReview(BaseModel):
+class CliTechnologyReview(ContractModel):
     """The finding after one confirm, reject, override or retire decision."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -1499,7 +1500,7 @@ class CliTechnologyReview(BaseModel):
     finding: CliTechnologyFinding
 
 
-class CliTechnologyMapping(BaseModel):
+class CliTechnologyMapping(ContractModel):
     """One cached organization mapping snapshot, summarized."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -1511,7 +1512,7 @@ class CliTechnologyMapping(BaseModel):
     entries: Annotated[int, Field(ge=0)]
 
 
-class CliTechnologyMappings(BaseModel):
+class CliTechnologyMappings(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 
     schema_version: Literal[1] = 1
@@ -1519,7 +1520,7 @@ class CliTechnologyMappings(BaseModel):
     items: list[CliTechnologyMapping]
 
 
-class CliTechnologyUnmappedItem(BaseModel):
+class CliTechnologyUnmappedItem(ContractModel):
     """One coordinate the effective mapping cannot resolve, with its contexts."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -1534,7 +1535,7 @@ class CliTechnologyUnmappedItem(BaseModel):
     project_ids: list[Annotated[str, Field(min_length=1)]] = []
 
 
-class CliTechnologyUnmapped(BaseModel):
+class CliTechnologyUnmapped(ContractModel):
     """The unmapped-coordinate queue for one project, or for one organization.
 
     Locally this is what `project detect` observed but could not resolve;
@@ -1552,7 +1553,7 @@ class CliTechnologyUnmapped(BaseModel):
     coordinates: list[CliTechnologyUnmappedItem]
 
 
-class HarnessProgramArtifact(BaseModel):
+class HarnessProgramArtifact(ContractModel):
     """One archive a program plan named, as the plan named it.
 
     Repeated here rather than summarised because the consumer fetched exactly
@@ -1571,7 +1572,7 @@ class HarnessProgramArtifact(BaseModel):
     entry_point: Annotated[str, Field(min_length=1)]
 
 
-class HarnessProgram(BaseModel):
+class HarnessProgram(ContractModel):
     """The outcome of one program lifecycle operation (`ADR-0122`).
 
     The subject is the harness program under `--prefix`, not the configuration
@@ -1632,7 +1633,7 @@ class HarnessProgram(BaseModel):
     recovered: list[str] = []
 
 
-class HarnessProgramOperation(BaseModel):
+class HarnessProgramOperation(ContractModel):
     """One program operation this installation recorded against a prefix."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -1644,7 +1645,7 @@ class HarnessProgramOperation(BaseModel):
     at: Annotated[str, Field(min_length=1)]
 
 
-class HarnessProgramStatus(BaseModel):
+class HarnessProgramStatus(ContractModel):
     """What stands under one prefix, read from the disk and from the journal.
 
     The standing report the program lifecycle owes, and the only one
@@ -1709,7 +1710,7 @@ class HarnessProgramStatus(BaseModel):
     stopped: list[HarnessProgramOperation] = []
 
 
-class ToolInstallation(BaseModel):
+class ToolInstallation(ContractModel):
     """The outcome of one managed install (`SPEC-014` REQ-1405, REQ-1410, REQ-1411).
 
     `action` is what happened, not what was attempted. `needs_user_action` means
@@ -1742,7 +1743,7 @@ class ToolInstallation(BaseModel):
     kept: list[str] = []
 
 
-class NativeComponentProvenance(BaseModel):
+class NativeComponentProvenance(ContractModel):
     """Allowlisted origin evidence for one native discovery candidate."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -1800,7 +1801,7 @@ class NativeComponentProvenance(BaseModel):
         return self
 
 
-class NativeDiscoveryDiagnostic(BaseModel):
+class NativeDiscoveryDiagnostic(ContractModel):
     """A safe reason an optional provenance adapter could not classify input."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -1819,7 +1820,7 @@ class NativeDiscoveryDiagnostic(BaseModel):
     reason: Annotated[str, Field(min_length=1)]
 
 
-class ExternalSourceIdentity(BaseModel):
+class ExternalSourceIdentity(ContractModel):
     """A parsed external source intent or separately proven exact identity."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
@@ -1838,7 +1839,7 @@ class ExternalSourceIdentity(BaseModel):
     provenance_proven: bool = False
 
 
-class SourceSearchCandidate(BaseModel):
+class SourceSearchCandidate(ContractModel):
     """One name-query hit. Source, catalog status, and trust stay separate."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -1854,7 +1855,7 @@ class SourceSearchCandidate(BaseModel):
     stable_id: str | None = None
 
 
-class SourceSearchResult(BaseModel):
+class SourceSearchResult(ContractModel):
     """Name-only discovery. The resolver never selects a candidate."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -1867,7 +1868,7 @@ class SourceSearchResult(BaseModel):
     candidates: list[SourceSearchCandidate]
 
 
-class ComponentPromotionPlan(BaseModel):
+class ComponentPromotionPlan(ContractModel):
     """Ordinary publication plan produced from one embedded component (REQ-5714)."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -1885,7 +1886,7 @@ class ComponentPromotionPlan(BaseModel):
     state: str = ""
 
 
-class SetupUpdatePlan(BaseModel):
+class SetupUpdatePlan(ContractModel):
     """Preview of one explicit embedded-component update. Selection is unchanged."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -1905,7 +1906,7 @@ class SetupUpdatePlan(BaseModel):
     suggested_catalog_dismissible: bool = False
 
 
-class SetupUpdateResult(BaseModel):
+class SetupUpdateResult(ContractModel):
     """Outcome of a confirmed exact update. A new immutable setup version."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -1920,7 +1921,7 @@ class SetupUpdateResult(BaseModel):
     plan_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
 
 
-class SetupComposeMember(BaseModel):
+class SetupComposeMember(ContractModel):
     """One exact member frozen by a setup composition plan."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)
@@ -1931,7 +1932,7 @@ class SetupComposeMember(BaseModel):
     embedded: bool
 
 
-class SetupComposePlan(BaseModel):
+class SetupComposePlan(ContractModel):
     """Exact preview for a new mixed catalog/Git/package/path setup."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)
@@ -1946,7 +1947,7 @@ class SetupComposePlan(BaseModel):
     members: list[SetupComposeMember]
 
 
-class SetupComposeResult(BaseModel):
+class SetupComposeResult(ContractModel):
     """A newly recorded immutable mixed setup version."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)
@@ -1961,7 +1962,7 @@ class SetupComposeResult(BaseModel):
     created: bool
 
 
-class SetupRecastMember(BaseModel):
+class SetupRecastMember(ContractModel):
     """One source component and what recast will do with it."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)
@@ -1974,7 +1975,7 @@ class SetupRecastMember(BaseModel):
     reason: Annotated[str, Field(min_length=1, max_length=512)]
 
 
-class SetupRecastPlan(BaseModel):
+class SetupRecastPlan(ContractModel):
     """Exact preview for a new setup recast onto another harness."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)
@@ -1992,7 +1993,7 @@ class SetupRecastPlan(BaseModel):
     members: list[SetupRecastMember]
 
 
-class SetupRecastResult(BaseModel):
+class SetupRecastResult(ContractModel):
     """A newly recorded setup recast from an exact source version."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)
@@ -2008,7 +2009,7 @@ class SetupRecastResult(BaseModel):
     created: bool
 
 
-class ComponentMaterializeTarget(BaseModel):
+class ComponentMaterializeTarget(ContractModel):
     """One requested target harness inside a materialize plan."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)
@@ -2023,7 +2024,7 @@ class ComponentMaterializeTarget(BaseModel):
     process_permissions: list[Annotated[str, Field(min_length=1, max_length=1024)]] = []
 
 
-class ComponentMaterializePlan(BaseModel):
+class ComponentMaterializePlan(ContractModel):
     """Exact preview for one or more target-harness adaptations of a pinned component."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)
@@ -2053,7 +2054,7 @@ class ComponentMaterializePlan(BaseModel):
     plan_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
 
 
-class ComponentMaterializeResult(BaseModel):
+class ComponentMaterializeResult(ContractModel):
     """A recorded target adaptation, either on the source line or a local overlay."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)
@@ -2072,7 +2073,7 @@ class ComponentMaterializeResult(BaseModel):
     created: bool
 
 
-class CliProgram(BaseModel):
+class CliProgram(ContractModel):
     """Shared executable lifecycle for one catalog `cli` component."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)
@@ -2088,7 +2089,7 @@ class CliProgram(BaseModel):
     output: str = ""
 
 
-class SetupExportResult(BaseModel):
+class SetupExportResult(ContractModel):
     """A review tree of one already-recorded local setup. Not a harness tree."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)
@@ -2107,7 +2108,7 @@ class SetupExportResult(BaseModel):
     physical_target_tree_created: Literal[False] = False
 
 
-class ComponentScaffoldView(BaseModel):
+class ComponentScaffoldView(ContractModel):
     """One safely created component authoring template."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
@@ -2119,7 +2120,7 @@ class ComponentScaffoldView(BaseModel):
     byte_length: Annotated[int, Field(gt=0)]
 
 
-class ComponentTemplateView(BaseModel):
+class ComponentTemplateView(ContractModel):
     """A deterministic concrete projection of one authoring template."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
@@ -2134,7 +2135,7 @@ class ComponentTemplateView(BaseModel):
     content: Annotated[str, Field(max_length=65536)]
 
 
-class NativeComponent(BaseModel):
+class NativeComponent(ContractModel):
     """One native component found on this machine (`SPEC-005` REQ-517).
 
     Reported without its content being read. `holds_secret` is decided from the
@@ -2177,7 +2178,7 @@ class NativeComponent(BaseModel):
     registered_stable_id: Annotated[str, Field(min_length=1)] | None = None
 
 
-class NativeComponents(BaseModel):
+class NativeComponents(ContractModel):
     """Everything discovery found, and nothing it changed (`REQ-518`)."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -2194,7 +2195,7 @@ class NativeComponents(BaseModel):
     )
 
 
-class PathInventoryObject(BaseModel):
+class PathInventoryObject(ContractModel):
     """One logical object in an explicit-root inventory (`SPEC-005` REQ-534)."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -2213,7 +2214,7 @@ class PathInventoryObject(BaseModel):
     stable_id: Annotated[str, Field(min_length=1, max_length=128)] | None = None
 
 
-class PathInventory(BaseModel):
+class PathInventory(ContractModel):
     """Passport-first inventory of one explicit root. Observation only (`REQ-518`)."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -2228,7 +2229,7 @@ class PathInventory(BaseModel):
     )
 
 
-class ConsentRecord(BaseModel):
+class ConsentRecord(ContractModel):
     """One durable consent to unverified objects (`unverified-consent.md`).
 
     `fingerprint` is what the candidate required when the user agreed, and it is
@@ -2262,7 +2263,7 @@ class ConsentRecord(BaseModel):
     observed: list[str] = []
 
 
-class ConsentSummary(BaseModel):
+class ConsentSummary(ContractModel):
     """Every consent still in force."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -2271,7 +2272,7 @@ class ConsentSummary(BaseModel):
     records: list[ConsentRecord]
 
 
-class RecordedVersion(BaseModel):
+class RecordedVersion(ContractModel):
     """One immutable `X.Y` version (`SPEC-005` REQ-503, REQ-504).
 
     The number and the digest travel together because that pairing is the whole
@@ -2288,7 +2289,7 @@ class RecordedVersion(BaseModel):
     created_at: Annotated[str, Field(min_length=1)]
 
 
-class VersionLine(BaseModel):
+class VersionLine(ContractModel):
     """Every recorded version of one object, and what comes next.
 
     `next_minor` is computed from what is stored rather than remembered, so two
@@ -2315,7 +2316,7 @@ class VersionLine(BaseModel):
     publish_reason: str | None = None
 
 
-class SearchHit(BaseModel):
+class SearchHit(ContractModel):
     """One local object a search matched, and the lane it is in (`ADR-0016`)."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -2333,7 +2334,7 @@ class SearchHit(BaseModel):
     fields: dict[str, JsonValue] = {}
 
 
-class LocalSearchResults(BaseModel):
+class LocalSearchResults(ContractModel):
     """What a local search found, one section per trust lane.
 
     Separate lists rather than one labelled list: `SPEC-006` REQ-603 requires
@@ -2357,7 +2358,7 @@ class LocalSearchResults(BaseModel):
     truncated: bool = False
 
 
-class EligibilityRefusal(BaseModel):
+class EligibilityRefusal(ContractModel):
     """One mechanical constraint a candidate failed (`docs/contracts/eligibility-constraints.md`).
 
     `code` is the machine identity and `summary` is for a person: the text may
@@ -2380,7 +2381,7 @@ class EligibilityRefusal(BaseModel):
     details: dict[str, str] = {}
 
 
-class EligibilityNote(BaseModel):
+class EligibilityNote(ContractModel):
     """One state worth saying that blocks nothing.
 
     A separate model rather than a refusal with a flag. A missing mandatory
@@ -2397,7 +2398,7 @@ class EligibilityNote(BaseModel):
     details: dict[str, str] = {}
 
 
-class CandidateEligibility(BaseModel):
+class CandidateEligibility(ContractModel):
     """What the mechanical stage decided about one candidate, and why.
 
     Two booleans because there are two questions. `admissible` is "may this be
@@ -2421,7 +2422,7 @@ class CandidateEligibility(BaseModel):
     notes: list[EligibilityNote] = []
 
 
-class EligibilityReport(BaseModel):
+class EligibilityReport(ContractModel):
     """Every candidate assessed against one target (`SPEC-006` REQ-601, REQ-621).
 
     The target is echoed back because a verdict without the facts it was reached
@@ -2451,7 +2452,7 @@ class EligibilityReport(BaseModel):
     auto_selectable_count: Annotated[int, Field(ge=0)]
 
 
-class EligibilityMatrix(BaseModel):
+class EligibilityMatrix(ContractModel):
     """One eligibility report per supported harness, whether or not it is here.
 
     `EligibilityReport` answers for the harness that was named, which is the
@@ -2480,7 +2481,7 @@ class EligibilityMatrix(BaseModel):
     requested: list[HarnessId] = []
 
 
-class ProposalMember(BaseModel):
+class ProposalMember(ContractModel):
     """One exact reference inside a proposal, and why it was allowed in.
 
     The lane travels with the member rather than being recomputed when the
@@ -2506,7 +2507,7 @@ class ProposalMember(BaseModel):
     overlay_revision_id: str = ""
 
 
-class ProposalView(BaseModel):
+class ProposalView(ContractModel):
     """One short-lived composition proposal (`ADR-0027`).
 
     Showing this creates nothing. `state` distinguishes the four situations a
@@ -2536,7 +2537,7 @@ class ProposalView(BaseModel):
     confirmed_version: str | None = None
 
 
-class ProposalSession(BaseModel):
+class ProposalSession(ContractModel):
     """What one project-and-harness pair currently has open and selected."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -2562,7 +2563,7 @@ class ProposalSession(BaseModel):
     selected_state: Literal["pending_install", "installed"] | None = None
 
 
-class ConfirmationView(BaseModel):
+class ConfirmationView(ContractModel):
     """The single object a confirmation froze (`REQ-623`).
 
     `created` separates "this call made it" from "this call found it already
@@ -2584,7 +2585,7 @@ class ConfirmationView(BaseModel):
     trace: dict[str, JsonValue] = {}
 
 
-class GraphReference(BaseModel):
+class GraphReference(ContractModel):
     """One exact edge inside a closure (`docs/contracts/setup-graph.md`).
 
     All three fields are required together. A digest without a version cannot be
@@ -2604,7 +2605,7 @@ class GraphReference(BaseModel):
     required_by: str = ""
 
 
-class GraphNode(BaseModel):
+class GraphNode(ContractModel):
     """One exact version the closure holds."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -2621,7 +2622,7 @@ class GraphNode(BaseModel):
     requires: list[GraphReference] = []
 
 
-class GraphRefusal(BaseModel):
+class GraphRefusal(ContractModel):
     """One reason a closure could not be resolved."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -2632,7 +2633,7 @@ class GraphRefusal(BaseModel):
     details: dict[str, str] = {}
 
 
-class SetupGraph(BaseModel):
+class SetupGraph(ContractModel):
     """The exact dependency closure of a composition (`SPEC-006` REQ-605).
 
     `nodes` is empty whenever `resolved` is false, and that is deliberate:
@@ -2658,7 +2659,7 @@ class SetupGraph(BaseModel):
     max_nodes: Annotated[int, Field(ge=1)]
 
 
-class CompositionConflict(BaseModel):
+class CompositionConflict(ContractModel):
     """One reason a composition cannot be built (`SPEC-006` REQ-606).
 
     Nothing resolves it automatically. `REQ-626` forbids semantic merging,
@@ -2674,7 +2675,7 @@ class CompositionConflict(BaseModel):
     details: dict[str, str] = {}
 
 
-class CompositionChoice(BaseModel):
+class CompositionChoice(ContractModel):
     """One component in the composition, with the lane it came in on."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -2686,7 +2687,7 @@ class CompositionChoice(BaseModel):
     reason: Annotated[str, Field(min_length=1)]
 
 
-class CompositionRejection(BaseModel):
+class CompositionRejection(ContractModel):
     """One candidate considered and not chosen, with a stable reason."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -2697,7 +2698,7 @@ class CompositionRejection(BaseModel):
     reason: Annotated[str, Field(min_length=1)]
 
 
-class ConversionEntry(BaseModel):
+class ConversionEntry(ContractModel):
     """What one component becomes on the target harness, and what is lost.
 
     `losses` names each one. A report that says something was lost without
@@ -2722,7 +2723,7 @@ class ConversionEntry(BaseModel):
     losses: list[str] = []
 
 
-class CompositionReports(BaseModel):
+class CompositionReports(ContractModel):
     """The composition and conversion reports a bundle must carry (`REQ-609`).
 
     Both, always, and together: the first explains what is in the composition
@@ -2750,7 +2751,7 @@ class CompositionReports(BaseModel):
     conversion_complete: bool = True
 
 
-class BundleFile(BaseModel):
+class BundleFile(ContractModel):
     """One record in the bundle's file manifest."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -2766,7 +2767,7 @@ class BundleFile(BaseModel):
     owner: str = ""
 
 
-class BundleRefusal(BaseModel):
+class BundleRefusal(ContractModel):
     """One reason a bundle could not be compiled."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -2777,7 +2778,7 @@ class BundleRefusal(BaseModel):
     details: dict[str, str] = {}
 
 
-class HarnessBundle(BaseModel):
+class HarnessBundle(ContractModel):
     """A compiled bundle, or every reason it could not be compiled.
 
     `digest` and `files` are empty exactly when `compiled` is false. A manifest
@@ -2816,7 +2817,7 @@ class HarnessBundle(BaseModel):
     max_bundle_bytes: Annotated[int, Field(ge=1)]
 
 
-class ConformanceCase(BaseModel):
+class ConformanceCase(ContractModel):
     """One conformance check and what it decided.
 
     `detail` names what was wanted and what was got. The audience for a failure
@@ -2846,7 +2847,7 @@ class ConformanceCase(BaseModel):
     exercised: bool = True
 
 
-class ConformanceReport(BaseModel):
+class ConformanceReport(ContractModel):
     """Whether one provider conforms to the frozen protocol (`SPEC-008` REQ-802).
 
     `reported_version` is kept beside `protocol_version` rather than compared
@@ -2865,7 +2866,7 @@ class ConformanceReport(BaseModel):
     cases: list[ConformanceCase] = []
 
 
-class ProviderNetworkCapability(BaseModel):
+class ProviderNetworkCapability(ContractModel):
     """The observed network boundary on this exact machine, for both protocols.
 
     The report never turns absence into support. Evidence names the launcher
@@ -2915,7 +2916,7 @@ class ProviderNetworkCapability(BaseModel):
     v3_local_phase_reasons: list[str] = []
 
 
-class ReleaseRefusal(BaseModel):
+class ReleaseRefusal(ContractModel):
     """One reason a provider release is not acceptable."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -2926,7 +2927,7 @@ class ReleaseRefusal(BaseModel):
     details: dict[str, str] = {}
 
 
-class PinnedRelease(BaseModel):
+class PinnedRelease(ContractModel):
     """One exact provider artifact this machine approved, and who may deliver it.
 
     Reported as all three fields because that is what the policy decides on. A
@@ -2942,7 +2943,7 @@ class PinnedRelease(BaseModel):
     artifact_digest: Annotated[str, Field(min_length=1)]
 
 
-class TrustedBuildAttestation(BaseModel):
+class TrustedBuildAttestation(ContractModel):
     """One repository whose attested builds this machine will bind (`ADR-0121`).
 
     Reported with the signer workflow, not just the repository: the rule is
@@ -2958,7 +2959,7 @@ class TrustedBuildAttestation(BaseModel):
     verified_publisher: bool = False
 
 
-class TrustedIndexPublisher(BaseModel):
+class TrustedIndexPublisher(ContractModel):
     """One PyPI project whose PEP 740 publisher this machine will bind (`ADR-0141`)."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -2971,7 +2972,7 @@ class TrustedIndexPublisher(BaseModel):
     verified_publisher: bool = False
 
 
-class ProviderTrust(BaseModel):
+class ProviderTrust(ContractModel):
     """What this machine will accept from a provider, and why (`SPEC-008` REQ-811).
 
     The policy is reported as it is pinned, not as a manifest describes itself.
@@ -3018,7 +3019,7 @@ class ProviderTrust(BaseModel):
     refusals: list[ReleaseRefusal] = []
 
 
-class SkillPackageFinding(BaseModel):
+class SkillPackageFinding(ContractModel):
     """One deviation from the Agent Skills Specification (`#455`)."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -3034,7 +3035,7 @@ class SkillPackageFinding(BaseModel):
     at: Annotated[str, Field(min_length=1)]
 
 
-class SkillPackageReport(BaseModel):
+class SkillPackageReport(ContractModel):
     """Whether a directory is a conforming skill package (`#455`).
 
     Checked against <https://agentskills.io/specification>, which exists
@@ -3065,7 +3066,7 @@ class SkillPackageReport(BaseModel):
     other_entries: list[str] = []
 
 
-class ProviderInstallationCheck(BaseModel):
+class ProviderInstallationCheck(ContractModel):
     """One harness's provider installation against its pinned release source (`#452`).
 
     `status` is one word and every one of them is an outcome, including the ones
@@ -3115,7 +3116,7 @@ class ProviderInstallationCheck(BaseModel):
     checked_at: str = ""
 
 
-class ProviderInstallationReport(BaseModel):
+class ProviderInstallationReport(ContractModel):
     """Every harness asked about, in a fixed order (`#452`)."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -3129,7 +3130,7 @@ class ProviderInstallationReport(BaseModel):
     source_consulted: bool = False
 
 
-class ProviderReplacementPlan(BaseModel):
+class ProviderReplacementPlan(ContractModel):
     """What replacing one provider executable would do, exactly (`#452`).
 
     A plan, not an installation. Every field a user needs to decide is here —
@@ -3180,7 +3181,7 @@ class ProviderReplacementPlan(BaseModel):
     idempotency_key: Annotated[str, Field(min_length=1)]
 
 
-class ProviderReplacementResult(BaseModel):
+class ProviderReplacementResult(ContractModel):
     """What replacing a provider actually did (`#452`)."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -3202,7 +3203,7 @@ class ProviderReplacementResult(BaseModel):
     plan_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
 
 
-class ProviderBoundRelease(BaseModel):
+class ProviderBoundRelease(ContractModel):
     """Closed release manifest bound from attested OpenNetwork bytes (`SPEC-008` REQ-847).
 
     The JSON is a local binding record, not a second trust anchor. Trust remains
@@ -3227,7 +3228,7 @@ class ProviderBoundRelease(BaseModel):
     trust_level: Literal["verified_publisher", "build_attested"]
 
 
-class InstallationStep(BaseModel):
+class InstallationStep(ContractModel):
     """One recorded step of an installation. Append-only and safe to show."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -3240,7 +3241,7 @@ class InstallationStep(BaseModel):
     result: Annotated[str, Field(min_length=1)]
 
 
-class InstallationView(BaseModel):
+class InstallationView(ContractModel):
     """One installation operation: its plan, its state and how it got there.
 
     `plan_digest` is what a confirmation is given against. `operation.md` binds
@@ -3312,7 +3313,7 @@ class InstallationView(BaseModel):
     steps: list[InstallationStep] = []
 
 
-class RecoveryView(BaseModel):
+class RecoveryView(ContractModel):
     """What a stopped operation left behind, and what may be done next.
 
     All four things `operation.md` asks a recovery report for. Three of them
@@ -3332,7 +3333,7 @@ class RecoveryView(BaseModel):
     next_actions: list[str] = []
 
 
-class InstallationStatus(BaseModel):
+class InstallationStatus(ContractModel):
     """Every operation that stopped without a settled outcome.
 
     `partial` appears here even though it is terminal: it is an outcome that
@@ -3346,7 +3347,7 @@ class InstallationStatus(BaseModel):
     stopped: list[RecoveryView] = []
 
 
-class MultiRootChildView(BaseModel):
+class MultiRootChildView(ContractModel):
     """One scope-specific operation owned by a multi-root transaction."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -3363,7 +3364,7 @@ class MultiRootChildView(BaseModel):
     setup_version: str | None = None
 
 
-class MultiRootTransactionView(BaseModel):
+class MultiRootTransactionView(ContractModel):
     """One recoverable decision spanning several provider-owned roots."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -3389,7 +3390,7 @@ class MultiRootTransactionView(BaseModel):
     next_actions: list[str] = []
 
 
-class ImportedFile(BaseModel):
+class ImportedFile(ContractModel):
     """One configuration file an inspection read."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -3415,7 +3416,7 @@ class ImportedFile(BaseModel):
     oversized: bool = False
 
 
-class ImportInspection(BaseModel):
+class ImportInspection(ContractModel):
     """What one native configuration holds, read and nothing more (`REQ-813`).
 
     `detection_rule` says how secrets were looked for. A report that will not
@@ -3440,7 +3441,7 @@ class ImportInspection(BaseModel):
     oversized: list[str] = []
 
 
-class SetupImportComponent(BaseModel):
+class SetupImportComponent(ContractModel):
     """One native component proposed by a read-only setup import plan."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -3454,7 +3455,7 @@ class SetupImportComponent(BaseModel):
     byte_length: Annotated[int, Field(ge=0)]
 
 
-class SetupImportPlan(BaseModel):
+class SetupImportPlan(ContractModel):
     """Deterministic read-only decomposition of one native setup candidate."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -3470,7 +3471,7 @@ class SetupImportPlan(BaseModel):
     effects: list[str] = []
 
 
-class ImportedSetup(BaseModel):
+class ImportedSetup(ContractModel):
     """A registered import and the backup it was taken alongside.
 
     Two identifiers because they are two objects (`REQ-814`). A backup says
@@ -3489,7 +3490,7 @@ class ImportedSetup(BaseModel):
     component_ids: Annotated[list[str], Field(min_length=1)]
 
 
-class ShadowedSurface(BaseModel):
+class ShadowedSurface(ContractModel):
     """A name the product reads that the provider does not own."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
@@ -3503,7 +3504,7 @@ class ShadowedSurface(BaseModel):
     effect: Annotated[str, Field(min_length=1)]
 
 
-class TargetSurvey(BaseModel):
+class TargetSurvey(ContractModel):
     """The daily state of one project-and-harness pair (`#177`).
 
     `states` is a list because a pair can be waiting to install *and* missing a
@@ -3563,7 +3564,7 @@ class TargetSurvey(BaseModel):
     shadowed_by: list[ShadowedSurface] = []
 
 
-class ManagedPathChange(BaseModel):
+class ManagedPathChange(ContractModel):
     """One stable managed-path drift class without an absolute local path."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
@@ -3587,7 +3588,7 @@ class ManagedPathChange(BaseModel):
         return self
 
 
-class TargetDiff(BaseModel):
+class TargetDiff(ContractModel):
     """What moved between two readings of one pair, named field by field.
 
     Named rather than counted: "three things changed" is not something anybody
@@ -3604,7 +3605,7 @@ class TargetDiff(BaseModel):
     managed_changes: list[ManagedPathChange] = []
 
 
-class ManagedVerificationItem(BaseModel):
+class ManagedVerificationItem(ContractModel):
     """One managed line or drifted path, classified against authorized records.
 
     Setup and component items carry the expected coordinates; path items carry
@@ -3639,7 +3640,7 @@ class ManagedVerificationItem(BaseModel):
     diagnostic: str = ""
 
 
-class ManagedVerification(BaseModel):
+class ManagedVerification(ContractModel):
     """Whether a managed target still matches its authorized installed record.
 
     `status` is the one verdict a CI gate reads; `items` is the evidence behind
@@ -3686,7 +3687,7 @@ class ManagedVerification(BaseModel):
     diagnostics: list[str] = []
 
 
-class RollbackTarget(BaseModel):
+class RollbackTarget(ContractModel):
     """The exact previous verified version this pair can go back to.
 
     "Previous" is the one before the current in verification order, not the
@@ -3708,7 +3709,7 @@ class RollbackTarget(BaseModel):
     operation_id: Annotated[str, Field(min_length=1)]
 
 
-class TelemetryStatus(BaseModel):
+class TelemetryStatus(ContractModel):
     """Whether the anonymous install ping is on, and everything it would send.
 
     One model for the consent screen and for the status read, because they
@@ -3740,7 +3741,7 @@ class TelemetryStatus(BaseModel):
     collected: list[str] = Field(default_factory=list[str])
 
 
-class TargetBackup(BaseModel):
+class TargetBackup(ContractModel):
     """One provider-owned copy of a target, and what the target held when it was taken.
 
     A reference and never bytes. The provider owns the copy; recording it here
@@ -3788,7 +3789,7 @@ class TargetBackup(BaseModel):
     present: bool | None = None
 
 
-class PreservedSetupView(BaseModel):
+class PreservedSetupView(ContractModel):
     """A complete local setup and the provider snapshot retaining its native state."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)
@@ -3824,7 +3825,7 @@ class PreservedSetupView(BaseModel):
     modified: bool | None = None
 
 
-class EnvironmentRequirement(BaseModel):
+class EnvironmentRequirement(ContractModel):
     """One exact prerequisite, measured without executing its preparation."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)
@@ -3845,7 +3846,7 @@ class EnvironmentRequirement(BaseModel):
     actions: list[list[str]] = Field(default_factory=list[list[str]])
 
 
-class EnvironmentInspection(BaseModel):
+class EnvironmentInspection(ContractModel):
     """Preparation evidence stays distinct from verified native configuration."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)
@@ -3858,7 +3859,7 @@ class EnvironmentInspection(BaseModel):
     detected_harnesses: "HarnessSurvey"
 
 
-class PreservedSetupsView(BaseModel):
+class PreservedSetupsView(ContractModel):
     """Saved local setups remain addressable after restarting the CLI."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)
@@ -3867,7 +3868,7 @@ class PreservedSetupsView(BaseModel):
     setups: list[PreservedSetupView] = []
 
 
-class TargetBackups(BaseModel):
+class TargetBackups(ContractModel):
     """Every provider-owned copy this pair can restore from, oldest first.
 
     The read half that `SPEC-012` assumed and no command answered: a `BackupRef`
@@ -3905,7 +3906,7 @@ class TargetBackups(BaseModel):
     unjournalled_refs: list[str] = Field(default_factory=list[str])
 
 
-class LanguageOutline(BaseModel):
+class LanguageOutline(ContractModel):
     """What one language contributes to a project (`SPEC-004` REQ-404).
 
     `method` carries the strength of the answer, and it is not decoration.
@@ -3932,7 +3933,7 @@ class LanguageOutline(BaseModel):
     entry_points: list[str] = []
 
 
-class ProjectSymbols(BaseModel):
+class ProjectSymbols(ContractModel):
     """The table of contents of one project, and nothing deeper (`REQ-411`).
 
     No call graph, no vector representations, no symbol bodies. `state` is
@@ -3949,7 +3950,7 @@ class ProjectSymbols(BaseModel):
     languages: list[LanguageOutline]
 
 
-class PinnedTool(BaseModel):
+class PinnedTool(ContractModel):
     """One tool the managed profile pins (`SPEC-014` REQ-1403)."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -3974,7 +3975,7 @@ class PinnedTool(BaseModel):
     digest_source: Literal["vendor_published", "pinned_on_download"]
 
 
-class EcosystemCoverage(BaseModel):
+class EcosystemCoverage(ContractModel):
     """What the profile offers for one ecosystem, including nothing."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -3991,7 +3992,7 @@ class EcosystemCoverage(BaseModel):
     tools: list[PinnedTool]
 
 
-class HarnessInstallation(BaseModel):
+class HarnessInstallation(ContractModel):
     """One place a harness was found (`SPEC-014` REQ-1417)."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -4012,7 +4013,7 @@ class HarnessInstallation(BaseModel):
     diagnostic: Annotated[str, Field(min_length=1)] = "version_reported"
 
 
-class HarnessPresence(BaseModel):
+class HarnessPresence(ContractModel):
     """What is known about one harness on this machine (`REQ-1415`)."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -4032,7 +4033,7 @@ class HarnessPresence(BaseModel):
     reason: Annotated[str, Field(min_length=1)]
 
 
-class HarnessSurvey(BaseModel):
+class HarnessSurvey(ContractModel):
     """Every declared harness, whether or not it is here.
 
     Total by construction. A harness absent from the answer would be
@@ -4064,7 +4065,7 @@ type CapabilityState = Literal[
 ]
 
 
-class HarnessComponentCapability(BaseModel):
+class HarnessComponentCapability(ContractModel):
     """One `(harness, kind)` cell, with native support and projection kept apart.
 
     Reading a single list of kinds as "what can be installed" is the mistake
@@ -4108,7 +4109,7 @@ class HarnessComponentCapability(BaseModel):
     reason: str | None = None
 
 
-class HarnessCapabilityRow(BaseModel):
+class HarnessCapabilityRow(ContractModel):
     """One executable row from the closed harness capability catalog."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
@@ -4139,7 +4140,7 @@ class HarnessCapabilityRow(BaseModel):
     gaps: list[str]
 
 
-class HarnessCapabilityTable(BaseModel):
+class HarnessCapabilityTable(ContractModel):
     """The complete supported harness table, including shared conventions."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
@@ -4148,7 +4149,7 @@ class HarnessCapabilityTable(BaseModel):
     harnesses: list[HarnessCapabilityRow]
 
 
-class ToolchainProfile(BaseModel):
+class ToolchainProfile(ContractModel):
     """The managed toolchain as it resolves on this machine (`SPEC-014`).
 
     Policy, not project: `REQ-1402` makes an empty project and a documentation
@@ -4164,7 +4165,7 @@ class ToolchainProfile(BaseModel):
     ecosystems: list[EcosystemCoverage]
 
 
-class SkillDelivery(BaseModel):
+class SkillDelivery(ContractModel):
     """Where the canonical Agent Skill is, and whether this build put it there.
 
     The Skill is what an agent reads to learn how to drive this CLI, so an
@@ -4200,7 +4201,7 @@ class SkillDelivery(BaseModel):
     available_harnesses: list[str]
 
 
-class CatalogArtifactView(BaseModel):
+class CatalogArtifactView(ContractModel):
     """Where the verified bytes of one exact version now are (issue #76).
 
     Answered after the bytes have been checked against the passport, so a caller
@@ -4225,7 +4226,7 @@ class CatalogArtifactView(BaseModel):
     path: Annotated[str, Field(min_length=1)]
 
 
-class AcquiredComponentVersion(BaseModel):
+class AcquiredComponentVersion(ContractModel):
     """One exact component made available to the local setup compiler."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -4236,7 +4237,7 @@ class AcquiredComponentVersion(BaseModel):
     artifact_digest: Annotated[str, Field(min_length=1)]
 
 
-class CatalogSetupAcquisition(BaseModel):
+class CatalogSetupAcquisition(ContractModel):
     """An exact published setup graph materialized in the local registry."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -4254,6 +4255,9 @@ class CatalogSetupAcquisition(BaseModel):
 
 class CliSignedAttestation(AssuranceAuthorAttestation):
     """Locally signed full attestation plus its owner-only output location."""
+
+    # Extends the assurance model rather than `ContractModel`; defers the same way.
+    model_config = ConfigDict(defer_build=True)
 
     output_path: Annotated[str, Field(min_length=1)]
     attestation_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
@@ -4296,7 +4300,7 @@ type CliUpdateApplyOutcome = Literal[
 ]
 
 
-class CliSelfUpdateCheck(BaseModel):
+class CliSelfUpdateCheck(ContractModel):
     """What `update check` observed, including why nothing is offered."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -4319,7 +4323,7 @@ class CliSelfUpdateCheck(BaseModel):
     reason: Annotated[str, Field(min_length=1)]
 
 
-class CliSelfUpdatePlan(BaseModel):
+class CliSelfUpdatePlan(ContractModel):
     """Exact replacement of this CLI distribution (`SPEC-072`)."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -4350,7 +4354,7 @@ class CliSelfUpdatePlan(BaseModel):
     plan_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
 
 
-class CliSelfUpdateResult(BaseModel):
+class CliSelfUpdateResult(ContractModel):
     """Outcome of apply, recover or rollback."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -4366,7 +4370,7 @@ class CliSelfUpdateResult(BaseModel):
     reason: Annotated[str, Field(min_length=1)]
 
 
-class CliSelfUpdateStatus(BaseModel):
+class CliSelfUpdateStatus(ContractModel):
     """Journal plus the distribution a new process actually imported."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)

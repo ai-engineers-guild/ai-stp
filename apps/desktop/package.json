@@ -1,7 +1,7 @@
 {
   "name": "ai-stp-desktop",
   "private": true,
-  "version": "0.0.5",
+  "version": "0.0.6",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -23,7 +23,7 @@
     "@tauri-apps/cli": "^2.12.1",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
-    "@vitejs/plugin-react": "^6.1.1",
+    "@vitejs/plugin-react": "^6.1.2",
     "tailwindcss": "^4.3.3",
     "typescript": "^7.0.2",
     "vite": "8.3.2",

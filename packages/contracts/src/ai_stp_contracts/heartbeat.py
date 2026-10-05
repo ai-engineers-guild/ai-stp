@@ -12,10 +12,11 @@ import json
 from datetime import date
 from typing import Annotated, Final, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import ConfigDict, Field, model_validator
 
 from ai_stp_contracts.corporate import AccountId, OrganizationId
 from ai_stp_contracts.http import Timestamp, open_wire_object, strict_request_object
+from ai_stp_contracts.model import ContractModel
 from ai_stp_foundation.ids import stable_id_pattern
 
 DeviceId = Annotated[str, Field(pattern=stable_id_pattern("device"))]
@@ -37,7 +38,7 @@ DEFAULT_HEARTBEAT_STALE_AFTER_SECONDS: Final = 86_400
 CapabilityToken = Annotated[str, Field(max_length=128, pattern=CAPABILITY_TOKEN_PATTERN)]
 
 
-class InstallationHeartbeatRequest(BaseModel):
+class InstallationHeartbeatRequest(ContractModel):
     """One CLI heartbeat write. Replayed or delayed writes coalesce."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
@@ -68,7 +69,7 @@ def heartbeat_signature_message(
     )
 
 
-class InstallationHeartbeat(BaseModel):
+class InstallationHeartbeat(ContractModel):
     """Stored heartbeat plus the health state evaluated at read time."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -88,7 +89,7 @@ class InstallationHeartbeat(BaseModel):
     stale_after_seconds: Annotated[int, Field(ge=1)]
 
 
-class InstallationHeartbeatStatus(BaseModel):
+class InstallationHeartbeatStatus(ContractModel):
     """The caller's own installation health; `unknown` before the first beat."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -102,7 +103,7 @@ class InstallationHeartbeatStatus(BaseModel):
     heartbeat: InstallationHeartbeat | None = None
 
 
-class InstallationHeartbeatPolicy(BaseModel):
+class InstallationHeartbeatPolicy(ContractModel):
     """The organization-owned cadence and enablement visible to members."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -133,7 +134,7 @@ class InstallationHeartbeatPolicy(BaseModel):
         return self
 
 
-class InstallationHeartbeatSubscription(BaseModel):
+class InstallationHeartbeatSubscription(ContractModel):
     """Local opt-in state for periodic reporting by this CLI installation."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -147,7 +148,7 @@ class InstallationHeartbeatSubscription(BaseModel):
     scheduler_registered: bool | None = None
 
 
-class InstallationHeartbeatList(BaseModel):
+class InstallationHeartbeatList(ContractModel):
     """Installation health rows visible to the caller's role."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -160,14 +161,14 @@ class InstallationHeartbeatList(BaseModel):
     items: Annotated[list[InstallationHeartbeat], Field(max_length=256)]
 
 
-class HeartbeatReportTeam(BaseModel):
+class HeartbeatReportTeam(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     id: str
     name: str
 
 
-class HeartbeatReportEmployee(BaseModel):
+class HeartbeatReportEmployee(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     id: AccountId
@@ -175,7 +176,7 @@ class HeartbeatReportEmployee(BaseModel):
     team_ids: list[str]
 
 
-class HeartbeatReportBucket(BaseModel):
+class HeartbeatReportBucket(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     start: Timestamp
@@ -185,7 +186,7 @@ class HeartbeatReportBucket(BaseModel):
     state: Literal["healthy", "partial", "missing", "not_expected"]
 
 
-class HeartbeatReportRow(BaseModel):
+class HeartbeatReportRow(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     account_id: AccountId
@@ -199,7 +200,7 @@ class HeartbeatReportRow(BaseModel):
     coverage_percent: int | None = None
 
 
-class HeartbeatReport(BaseModel):
+class HeartbeatReport(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     schema_version: Literal[1] = 1
@@ -215,7 +216,7 @@ class HeartbeatReport(BaseModel):
     items: list[HeartbeatReportRow]
 
 
-class HeartbeatReportQuery(BaseModel):
+class HeartbeatReportQuery(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     view: Literal["current", "history"] = "current"

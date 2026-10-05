@@ -8,8 +8,9 @@ import re
 from typing import Annotated, Any, Final, Literal
 from urllib.parse import urlparse
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import ConfigDict, Field, field_validator
 
+from ai_stp_contracts.model import ContractModel
 from ai_stp_contracts.text_safety import validate_public_text
 
 DISPLAY_NAME_MAX: Final = 80
@@ -22,7 +23,7 @@ AVATAR_ALLOWED_MIME: Final = frozenset({"image/jpeg", "image/png", "image/webp"}
 _HTTPS = re.compile(r"^https://", re.IGNORECASE)
 
 
-class ProfileLink(BaseModel):
+class ProfileLink(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     label: Annotated[str, Field(min_length=1, max_length=LINK_LABEL_MAX)]
@@ -46,7 +47,7 @@ class ProfileLink(BaseModel):
         return normalized.rstrip("/") if parsed.path == "" else normalized
 
 
-class ProfileFields(BaseModel):
+class ProfileFields(ContractModel):
     """Author-editable fields of a profile revision."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)

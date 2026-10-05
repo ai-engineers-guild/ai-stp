@@ -11,7 +11,7 @@ from pathlib import PurePosixPath
 from typing import Annotated, Literal
 from urllib.parse import urlsplit
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import ConfigDict, Field, field_validator, model_validator
 from pydantic.json_schema import JsonSchemaValue
 
 from ai_stp_contracts.context import OrganizationId, RemoteProjectId
@@ -22,6 +22,7 @@ from ai_stp_contracts.http import (
     open_wire_object,
     strict_request_object,
 )
+from ai_stp_contracts.model import ContractModel
 from ai_stp_foundation.ids import stable_id_pattern
 
 TechnologyId = Annotated[str, Field(pattern=stable_id_pattern("technology"))]
@@ -98,7 +99,7 @@ def safe_reference_url(value: str) -> str:
     return value
 
 
-class TechnologyCategoryMetadata(BaseModel):
+class TechnologyCategoryMetadata(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
     name: Annotated[str, Field(min_length=1, max_length=200)]
     description: Annotated[str, Field(max_length=2000)] = ""
@@ -112,7 +113,7 @@ class TechnologyCategoryMetadata(BaseModel):
         return value
 
 
-class TechnologyMetadata(BaseModel):
+class TechnologyMetadata(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
     name: Annotated[str, Field(min_length=1, max_length=200)]
     category_ids: Annotated[list[CategoryId], Field(min_length=1, max_length=32)]
@@ -158,7 +159,7 @@ class TechnologyMetadata(BaseModel):
         return [safe_reference_url(value) for value in values]
 
 
-class TechnologyEvidence(BaseModel):
+class TechnologyEvidence(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
     source: Literal["manual", "declared", "configured", "observed", "forge_language"]
     path: Annotated[str | None, Field(max_length=1024)] = None
@@ -194,7 +195,7 @@ class TechnologyEvidence(BaseModel):
         return value
 
 
-class TechnologyUsageFact(BaseModel):
+class TechnologyUsageFact(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
     context: UsageContext
     version: Annotated[str | None, Field(max_length=128)] = None
@@ -210,13 +211,13 @@ class TechnologyUsageFact(BaseModel):
         return self
 
 
-class TechnologyObservation(BaseModel):
+class TechnologyObservation(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
     technology_id: TechnologyId
     fact: TechnologyUsageFact
 
 
-class TechnologyUnmappedCoordinate(BaseModel):
+class TechnologyUnmappedCoordinate(ContractModel):
     """A coordinate the applied mapping did not resolve — the registry's review queue.
 
     Unmapped coordinates are observations, not identities: the platform retains
@@ -238,7 +239,7 @@ class TechnologyUnmappedCoordinate(BaseModel):
         return value
 
 
-class TechnologyScanHandoff(BaseModel):
+class TechnologyScanHandoff(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
     schema_version: Literal[1] = 1
     local_project_id: Annotated[str | None, Field(pattern=stable_id_pattern("project"))] = None
@@ -275,7 +276,7 @@ class TechnologyView(TechnologyMetadata):
     available_actions: Annotated[list[str], Field(max_length=128)] = []
 
 
-class TechnologyMutation(BaseModel):
+class TechnologyMutation(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
     schema_version: Literal[1] = 1
     authorization_revision: (
@@ -297,7 +298,7 @@ class TechnologyWriteRequest(TechnologyMutation):
     metadata: TechnologyMetadata
 
 
-class TechnologyMappingEntry(BaseModel):
+class TechnologyMappingEntry(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
     kind: Literal["package", "image", "executable", "configuration", "alias"]
     coordinate: Annotated[
@@ -328,7 +329,7 @@ class TechnologyMappingRequest(TechnologyMutation):
         return values
 
 
-class TechnologyMappingView(BaseModel):
+class TechnologyMappingView(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     organization_id: OrganizationId
     version: MappingVersion
@@ -336,14 +337,14 @@ class TechnologyMappingView(BaseModel):
     digest: Annotated[str, Field(pattern=r"^sha256:[0-9a-f]{64}$")]
 
 
-class TechnologyMappingSummary(BaseModel):
+class TechnologyMappingSummary(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     version: MappingVersion
     entries: Annotated[int, Field(ge=1)]
     digest: Annotated[str, Field(pattern=r"^sha256:[0-9a-f]{64}$")]
 
 
-class TechnologyMappingList(BaseModel):
+class TechnologyMappingList(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     organization_id: OrganizationId
     items: list[TechnologyMappingSummary]
@@ -367,7 +368,7 @@ class TechnologyUnmappedReviewRequest(TechnologyMutation):
         return value
 
 
-class TechnologyUnmappedEntry(BaseModel):
+class TechnologyUnmappedEntry(ContractModel):
     """One unmapped coordinate, the projects that reported it and its review state."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -381,7 +382,7 @@ class TechnologyUnmappedEntry(BaseModel):
     state: Literal["open", "resolved"] = "open"
 
 
-class TechnologyUnmappedView(BaseModel):
+class TechnologyUnmappedView(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     organization_id: OrganizationId
     coordinates: list[TechnologyUnmappedEntry]
@@ -411,12 +412,12 @@ class TechnologyMergeRequest(TechnologyMutation):
     plan_digest: Annotated[str, Field(pattern=r"^sha256:[0-9a-f]{64}$")]
 
 
-class TechnologyMergePlanQuery(BaseModel):
+class TechnologyMergePlanQuery(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
     target_id: TechnologyId
 
 
-class TechnologyMergePlanView(BaseModel):
+class TechnologyMergePlanView(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     organization_id: OrganizationId
     source: TechnologyView
@@ -426,7 +427,7 @@ class TechnologyMergePlanView(BaseModel):
     digest: Annotated[str, Field(pattern=r"^sha256:[0-9a-f]{64}$")]
 
 
-class TechnologyMergeProjectEffect(BaseModel):
+class TechnologyMergeProjectEffect(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     project_id: RemoteProjectId
     source_relation_id: RelationId
@@ -434,7 +435,7 @@ class TechnologyMergeProjectEffect(BaseModel):
     target_action: Literal["create", "update"]
 
 
-class TechnologyMergeTeamEffect(BaseModel):
+class TechnologyMergeTeamEffect(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     team_id: TeamId
     source_relation_id: RelationId
@@ -442,7 +443,7 @@ class TechnologyMergeTeamEffect(BaseModel):
     target_action: Literal["create", "update"]
 
 
-class TechnologyMergeResult(BaseModel):
+class TechnologyMergeResult(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     source: TechnologyView
     target: TechnologyView
@@ -450,7 +451,7 @@ class TechnologyMergeResult(BaseModel):
     team_effects: list[TechnologyMergeTeamEffect]
 
 
-class TechnologyLandscapePolicyView(BaseModel):
+class TechnologyLandscapePolicyView(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     organization_id: OrganizationId
     inactivity_months: Annotated[int, Field(ge=1, le=120)]
@@ -468,7 +469,7 @@ def _source_availability_wire_object(schema: JsonSchemaValue) -> None:
     schema["required"] = [name for name in schema["required"] if name != "source_availability"]
 
 
-class ProjectActivityView(BaseModel):
+class ProjectActivityView(ContractModel):
     model_config = ConfigDict(
         extra="allow", frozen=True, json_schema_extra=_source_availability_wire_object
     )
@@ -480,7 +481,7 @@ class ProjectActivityView(BaseModel):
     revision: Annotated[int, Field(ge=1)]
 
 
-class TechnologySeedResult(BaseModel):
+class TechnologySeedResult(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     schema_version: Literal[1] = 1
     seed_version: Literal[1] = 1
@@ -550,18 +551,18 @@ class CategoryView(TechnologyCategoryMetadata):
     state: Literal["draft", "active", "archived"] | None = None
 
 
-class CategoryList(BaseModel):
+class CategoryList(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     items: list[CategoryView]
 
 
-class TechnologyList(BaseModel):
+class TechnologyList(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     items: list[TechnologyView]
     total: Annotated[int, Field(ge=0)]
 
 
-class TechnologyListQuery(BaseModel):
+class TechnologyListQuery(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
     include_archived: bool = False
     query: TechnologySearch | None = None
@@ -575,7 +576,7 @@ class UsageFactView(TechnologyUsageFact):
     freshness: EvidenceFreshness
 
 
-class ProjectTechnologyView(BaseModel):
+class ProjectTechnologyView(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     organization_id: OrganizationId
     relation_id: RelationId
@@ -586,13 +587,13 @@ class ProjectTechnologyView(BaseModel):
     facts: list[UsageFactView]
 
 
-class ProjectTechnologyList(BaseModel):
+class ProjectTechnologyList(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     items: list[ProjectTechnologyView]
     total: Annotated[int, Field(ge=0)] = 0
 
 
-class TechnologyScanResult(BaseModel):
+class TechnologyScanResult(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     organization_id: OrganizationId
     project_id: RemoteProjectId
@@ -604,13 +605,13 @@ class TechnologyScanResult(BaseModel):
     created_relation_ids: list[RelationId]
 
 
-class TechnologyScanView(BaseModel):
+class TechnologyScanView(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     handoff: TechnologyScanHandoff
     result: TechnologyScanResult
 
 
-class ProjectTeamView(BaseModel):
+class ProjectTeamView(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     organization_id: OrganizationId
     relation_id: RelationId
@@ -621,13 +622,13 @@ class ProjectTeamView(BaseModel):
     revision: Annotated[int, Field(ge=1)]
 
 
-class ProjectTeamList(BaseModel):
+class ProjectTeamList(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     items: list[ProjectTeamView]
     total: Annotated[int, Field(ge=0)] = 0
 
 
-class TechnologyTeamView(BaseModel):
+class TechnologyTeamView(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     organization_id: OrganizationId
     relation_id: RelationId
@@ -637,13 +638,13 @@ class TechnologyTeamView(BaseModel):
     revision: Annotated[int, Field(ge=1)]
 
 
-class TechnologyTeamList(BaseModel):
+class TechnologyTeamList(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     items: list[TechnologyTeamView]
     total: Annotated[int, Field(ge=0)] = 0
 
 
-class EmployeeTechnologyRequest(BaseModel):
+class EmployeeTechnologyRequest(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
     schema_version: Literal[1] = 1
     account_id: AccountId
@@ -654,7 +655,7 @@ class EmployeeTechnologyRequest(BaseModel):
     idempotency_key: IdempotencyKey
 
 
-class EmployeeTechnologyView(BaseModel):
+class EmployeeTechnologyView(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     schema_version: Literal[1] = 1
     organization_id: OrganizationId
@@ -665,21 +666,21 @@ class EmployeeTechnologyView(BaseModel):
     revision: Annotated[int, Field(ge=1)]
 
 
-class EmployeeTechnologyList(BaseModel):
+class EmployeeTechnologyList(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     schema_version: Literal[1] = 1
     items: Annotated[list[EmployeeTechnologyView], Field(max_length=256)]
     total: Annotated[int, Field(ge=0)] = 0
 
 
-class RelationshipListQuery(BaseModel):
+class RelationshipListQuery(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
     include_history: bool = False
     offset: Annotated[int, Field(ge=0)] = 0
     limit: Annotated[int, Field(ge=1, le=256)] = 128
 
 
-class TechnologyDecisionView(BaseModel):
+class TechnologyDecisionView(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     technology_id: TechnologyId
     revision: Annotated[int, Field(ge=1)]
@@ -688,7 +689,7 @@ class TechnologyDecisionView(BaseModel):
     adoption: Literal["none", "assess", "trial", "adopt", "hold"]
 
 
-class TechnologyLandscapeQuery(BaseModel):
+class TechnologyLandscapeQuery(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
     view: Literal["table", "grouped", "radar", "relationships"] = "table"
     category_id: CategoryId | None = None
@@ -712,7 +713,7 @@ class TechnologyLandscapeQuery(BaseModel):
     project_limit: Annotated[int, Field(ge=1, le=256)] = 128
 
 
-class LandscapeProjectView(BaseModel):
+class LandscapeProjectView(ContractModel):
     model_config = ConfigDict(
         extra="allow", frozen=True, json_schema_extra=_source_availability_wire_object
     )
@@ -723,7 +724,7 @@ class LandscapeProjectView(BaseModel):
     usage: ProjectTechnologyView
 
 
-class TechnologyLandscapeRow(BaseModel):
+class TechnologyLandscapeRow(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     technology: TechnologyView
     project_count: Annotated[int, Field(ge=0)]
@@ -732,7 +733,7 @@ class TechnologyLandscapeRow(BaseModel):
     decision: TechnologyDecisionView | None = None
 
 
-class TechnologyLandscapeView(BaseModel):
+class TechnologyLandscapeView(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     organization_id: OrganizationId
     evaluated_at: Timestamp

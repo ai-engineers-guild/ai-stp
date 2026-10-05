@@ -3,10 +3,11 @@
 from typing import Annotated, Literal
 from urllib.parse import urlsplit
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import ConfigDict, Field, model_validator
 
 from ai_stp_contracts.github_evidence import GitHubArchiveEvidence
 from ai_stp_contracts.http import Timestamp
+from ai_stp_contracts.model import ContractModel
 from ai_stp_contracts.store_ports import (
     APM_CONTRACT_URL,
     SX_CONTRACT_URL,
@@ -36,7 +37,7 @@ _LOCAL_PROVIDERS = frozenset({"sx", "apm"})
 _HTTPS_URL = r"^https://[^\s]+$"
 
 
-class _Closed(BaseModel):
+class _Closed(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
 
 

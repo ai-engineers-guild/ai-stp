@@ -276,11 +276,26 @@ def current() -> tuple[Identity | None, str | None]:
     record = _read_public_record()
     if record is None:
         return None, warning
-    return _identity_from(store, record), warning
+    return _identity_from(store, record, fallback=warning is not None), warning
 
 
-def _identity_from(store: SecretStore, record: Record) -> Identity:
+def _identity_from(store: SecretStore, record: Record, *, fallback: bool) -> Identity:
     private_key = _load_private_key(store, key_entry(record.device_id))
+    if private_key is None and fallback:
+        # This session fell back to the file store: the operating system store
+        # is absent here or did not answer. A key minted where it was reachable
+        # lives there, so "no key" may only mean "not reachable from here" — an
+        # SSH or agent shell without the desktop session bus. Offering
+        # `device reset` as the next step would replace an identity the account
+        # still trusts; it stays named in the message, not as the action.
+        raise CliFailure(
+            "AI_STP_PRECONDITION_FAILED",
+            "the device key is not in the owner-only file store this session uses; "
+            "if the operating system credential store holds it, run from a session "
+            "that can reach that store, and use `device reset` only if the key is lost",
+            details={"device_id": record.device_id, "credential_store": store.detail},
+            next_actions=["doctor --json"],
+        )
     if private_key is None:
         raise CliFailure(
             "AI_STP_PRECONDITION_FAILED",
@@ -330,7 +345,7 @@ def load_or_create() -> tuple[Identity, str | None]:
             if record is None:
                 return _mint(store), warning
 
-    return _identity_from(store, record), warning
+    return _identity_from(store, record, fallback=warning is not None), warning
 
 
 def _salvage_public_record() -> tuple[tuple[Retired, ...], str | None]:

@@ -8,8 +8,9 @@ from importlib.resources import files
 from pathlib import PurePosixPath
 from typing import Final, Literal, cast
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import ConfigDict
 
+from ai_stp_contracts.model import ContractModel
 from ai_stp_foundation.canonical import JsonValue, canonize, from_json_bytes
 from ai_stp_foundation.digests import digest_bytes, digest_canonical
 from ai_stp_foundation.provider_surfaces import provider_surface
@@ -50,7 +51,7 @@ ARTIFACT_DIGEST_DOMAIN: Final[str] = "ai-stp:artifact:v1"
 # repository this corpus no longer draws on. `versions()` is the surface.
 
 
-class FirstPartyVersion(BaseModel):
+class FirstPartyVersion(ContractModel):
     """One immutable passport together with the exact bytes it identifies."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
@@ -63,7 +64,7 @@ class FirstPartyVersion(BaseModel):
     source_tree: str
 
 
-class FirstPartyCatalogMember(BaseModel):
+class FirstPartyCatalogMember(ContractModel):
     """One component identity a catalog projection may vendor without minting ids."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
@@ -74,7 +75,7 @@ class FirstPartyCatalogMember(BaseModel):
     adaptation_id: str
 
 
-class FirstPartyCatalogIdentity(BaseModel):
+class FirstPartyCatalogIdentity(ContractModel):
     """Compact first-party catalog identity derived from corpus passports (A14).
 
     A provider local catalog historically recorded an id and a description.
@@ -93,7 +94,7 @@ class FirstPartyCatalogIdentity(BaseModel):
     component_refs: tuple[FirstPartyCatalogMember, ...]
 
 
-class _ComponentSource(BaseModel):
+class _ComponentSource(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
 
     stable_id: str
@@ -121,7 +122,7 @@ class _ComponentSource(BaseModel):
     version: str = "1.0"
 
 
-class _HarnessSource(BaseModel):
+class _HarnessSource(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
 
     harness_id: str
@@ -152,14 +153,14 @@ class _HarnessSource(BaseModel):
     components: tuple[_ComponentSource, ...]
 
 
-class _SourceManifest(BaseModel):
+class _SourceManifest(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
 
     schema_version: Literal[1]
     harnesses: tuple[_HarnessSource, ...]
 
 
-class _ScopePolicy(BaseModel):
+class _ScopePolicy(ContractModel):
     """Explicit scope assignment for every harness in this corpus generation."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)

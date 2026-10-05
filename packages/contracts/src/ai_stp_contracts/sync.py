@@ -9,7 +9,7 @@ and payload policy enforced by the server application layer.
 
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import ConfigDict, Field, model_validator
 
 from ai_stp_contracts.auth import AccountId, DeviceId
 from ai_stp_contracts.http import (
@@ -23,6 +23,7 @@ from ai_stp_contracts.http import (
     open_wire_object,
     strict_request_object,
 )
+from ai_stp_contracts.model import ContractModel
 from ai_stp_foundation.canonical import JsonValue
 from ai_stp_foundation.digests import DIGEST_PATTERN
 from ai_stp_foundation.revisions import REVISION_ID_PATTERN
@@ -58,7 +59,7 @@ type EventId = Annotated[str, Field(pattern=r"^[A-Za-z0-9._~-]{8,128}$")]
 type EntityId = Annotated[str, Field(min_length=1, max_length=128)]
 
 
-class SyncEvent(BaseModel):
+class SyncEvent(ContractModel):
     """One push event: a candidate revision and its idempotency key.
 
     ``device_id`` must match the session-bound active device; the server never
@@ -85,7 +86,7 @@ class SyncEvent(BaseModel):
     payload: dict[str, object]
 
 
-class SyncPushRequest(BaseModel):
+class SyncPushRequest(ContractModel):
     """POST /v1/sync/push body. Events are applied in the listed order."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
@@ -94,7 +95,7 @@ class SyncPushRequest(BaseModel):
     events: Annotated[list[SyncEvent], Field(min_length=1, max_length=PAGE_SIZE_MAX)]
 
 
-class SyncConflictInfo(BaseModel):
+class SyncConflictInfo(ContractModel):
     """Enough graph material for the client to locate a common ancestor."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -106,7 +107,7 @@ class SyncConflictInfo(BaseModel):
     affected_fields: Annotated[list[str], Field(max_length=64)]
 
 
-class SyncEventReceipt(BaseModel):
+class SyncEventReceipt(ContractModel):
     """Durable outcome of one event (SPEC-009 receipt states)."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -129,7 +130,7 @@ class SyncEventReceipt(BaseModel):
     conflicting_entity_id: str | None
 
 
-class SyncPushResponse(BaseModel):
+class SyncPushResponse(ContractModel):
     """Per-event receipts for one push request, in request order."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -138,7 +139,7 @@ class SyncPushResponse(BaseModel):
     receipts: Annotated[list[SyncEventReceipt], Field(min_length=1, max_length=PAGE_SIZE_MAX)]
 
 
-class SyncPullQuery(BaseModel):
+class SyncPullQuery(ContractModel):
     """GET /v1/sync/pull query parameters."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
@@ -148,7 +149,7 @@ class SyncPullQuery(BaseModel):
     page_size: PageSize = PAGE_SIZE_DEFAULT
 
 
-class SyncStreamEvent(BaseModel):
+class SyncStreamEvent(ContractModel):
     """One accepted event as delivered on pull from the server outbox."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -168,7 +169,7 @@ class SyncStreamEvent(BaseModel):
     sequence: Annotated[int, Field(ge=1)]
 
 
-class SyncPullResponse(BaseModel):
+class SyncPullResponse(ContractModel):
     """Bounded ordered packet from the account outbox."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -187,7 +188,7 @@ type ConsentScope = Literal["publisher", "object_major", "task"]
 CONSENT_TASK_TARGET: str = "full-auto"
 
 
-class ConsentUpsertPayload(BaseModel):
+class ConsentUpsertPayload(ContractModel):
     """The `unverified_consent` payload for an `upsert` event.
 
     One shape for the writer and every reader: the server refuses a malformed
@@ -213,7 +214,7 @@ class ConsentUpsertPayload(BaseModel):
         return self
 
 
-class ConsentTombstonePayload(BaseModel):
+class ConsentTombstonePayload(ContractModel):
     """The `unverified_consent` payload for a `tombstone` event."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)

@@ -2,12 +2,13 @@
 
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import ConfigDict, Field
 
 from ai_stp_contracts.context import RemoteProjectId
 from ai_stp_contracts.corporate import AccountId, OrganizationId
 from ai_stp_contracts.heartbeat import DeviceId
 from ai_stp_contracts.http import IdempotencyKey, Timestamp, open_wire_object, strict_request_object
+from ai_stp_contracts.model import ContractModel
 from ai_stp_foundation.ids import stable_id_pattern
 
 DashboardDataset = Literal["ci", "heartbeat", "provider"]
@@ -42,7 +43,7 @@ CiReason = Literal[
 _FilterValue = Annotated[str, Field(pattern=r"^[A-Za-z0-9_.:-]{1,128}$")]
 
 
-class CorporateCiCheckRequest(BaseModel):
+class CorporateCiCheckRequest(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
 
     schema_version: Literal[1] = 1
@@ -64,14 +65,14 @@ class CorporateCiCheckView(CorporateCiCheckRequest):
     revision: Annotated[int, Field(ge=1)]
 
 
-class DashboardFilter(BaseModel):
+class DashboardFilter(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
 
     dimension: DashboardDimension
     values: Annotated[list[_FilterValue], Field(min_length=1, max_length=16)]
 
 
-class DashboardQuery(BaseModel):
+class DashboardQuery(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
 
     dataset: DashboardDataset
@@ -99,21 +100,21 @@ class DashboardQuery(BaseModel):
     limit: Annotated[int, Field(ge=1, le=200)] = 100
 
 
-class DashboardQueryRequest(BaseModel):
+class DashboardQueryRequest(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
 
     schema_version: Literal[1] = 1
     query: DashboardQuery
 
 
-class DashboardCell(BaseModel):
+class DashboardCell(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 
     dimensions: dict[str, str]
     measures: dict[str, int]
 
 
-class DashboardResult(BaseModel):
+class DashboardResult(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 
     schema_version: Literal[1] = 1
@@ -125,7 +126,7 @@ class DashboardResult(BaseModel):
     items: Annotated[list[DashboardCell], Field(max_length=200)]
 
 
-class DashboardViewRequest(BaseModel):
+class DashboardViewRequest(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
 
     schema_version: Literal[1] = 1
@@ -138,7 +139,7 @@ class DashboardViewRequest(BaseModel):
     idempotency_key: IdempotencyKey
 
 
-class DashboardView(BaseModel):
+class DashboardView(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 
     schema_version: Literal[1] = 1
@@ -152,7 +153,7 @@ class DashboardView(BaseModel):
     revision: Annotated[int, Field(ge=1)]
 
 
-class DashboardViewList(BaseModel):
+class DashboardViewList(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 
     schema_version: Literal[1] = 1

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import ConfigDict, Field
 
 from ai_stp_contracts.auth import AccountId
 from ai_stp_contracts.http import (
@@ -13,6 +13,7 @@ from ai_stp_contracts.http import (
     open_wire_object,
     strict_request_object,
 )
+from ai_stp_contracts.model import ContractModel
 
 type InvitationState = Literal["pending", "accepted", "expired", "revoked"]
 type GrantState = Literal["active", "revoked"]
@@ -20,7 +21,7 @@ type ObjectKind = Literal["component", "setup"]
 type DirectRecipientKind = Literal["github_username", "user_id"]
 
 
-class DirectGrantCreateRequest(BaseModel):
+class DirectGrantCreateRequest(ContractModel):
     """POST /v1/grants/direct body with an explicit recipient identifier kind."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
@@ -34,7 +35,7 @@ class DirectGrantCreateRequest(BaseModel):
     idempotency_key: IdempotencyKey
 
 
-class GrantInvitationCreateRequest(BaseModel):
+class GrantInvitationCreateRequest(ContractModel):
     """POST /v1/grants/invitations body."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
@@ -48,7 +49,7 @@ class GrantInvitationCreateRequest(BaseModel):
     ttl_seconds: Annotated[int, Field(default=604_800, ge=60, le=2_592_000)] = 604_800
 
 
-class GrantInvitationResponse(BaseModel):
+class GrantInvitationResponse(ContractModel):
     """Invitation create/list item. Never includes the raw token."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -63,7 +64,7 @@ class GrantInvitationResponse(BaseModel):
     created_at: Timestamp
 
 
-class AccessGrantResponse(BaseModel):
+class AccessGrantResponse(ContractModel):
     """One major-line access grant."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -82,7 +83,7 @@ class AccessGrantResponse(BaseModel):
     recipient: str | None
 
 
-class GrantListResponse(BaseModel):
+class GrantListResponse(ContractModel):
     """Owned invitations and grants for the caller."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -92,7 +93,7 @@ class GrantListResponse(BaseModel):
     grants: Annotated[list[AccessGrantResponse], Field(default_factory=list)]
 
 
-class GrantAcceptRequest(BaseModel):
+class GrantAcceptRequest(ContractModel):
     """POST /v1/grants/invitations/{invitation_id}/accept body."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
@@ -102,7 +103,7 @@ class GrantAcceptRequest(BaseModel):
     idempotency_key: IdempotencyKey
 
 
-class GrantRevokeRequest(BaseModel):
+class GrantRevokeRequest(ContractModel):
     """Revoke invitation or grant with an optional reason."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
@@ -112,7 +113,7 @@ class GrantRevokeRequest(BaseModel):
     idempotency_key: IdempotencyKey
 
 
-class GrantRevokeResponse(BaseModel):
+class GrantRevokeResponse(ContractModel):
     """Outcome of a revoke action."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)

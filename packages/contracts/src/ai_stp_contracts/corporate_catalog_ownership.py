@@ -3,15 +3,16 @@
 import re
 from typing import Annotated, Literal, Self
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import ConfigDict, Field, model_validator
 
 from ai_stp_contracts.corporate import AccountId, OrganizationId
 from ai_stp_contracts.http import IdempotencyKey, open_wire_object, strict_request_object
+from ai_stp_contracts.model import ContractModel
 from ai_stp_foundation.ids import stable_id_pattern
 from ai_stp_foundation.versioning import VERSION_PATTERN
 
 
-class CorporateCatalogOwnershipQuery(BaseModel):
+class CorporateCatalogOwnershipQuery(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
     object_kind: Literal["setup", "component"]
     stable_id: Annotated[str, Field(min_length=1, max_length=64)]
@@ -59,7 +60,7 @@ class CorporateCatalogOwnershipRequest(CorporateCatalogOwnershipQuery):
         return self
 
 
-class CorporateCatalogOwnership(BaseModel):
+class CorporateCatalogOwnership(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     schema_version: Literal[1] = 1
     organization_id: OrganizationId

@@ -10,16 +10,18 @@ import time
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Final, Protocol, cast
+from typing import TYPE_CHECKING, Final, Protocol, cast
 from urllib.parse import urlparse
 
-import httpx
 from packaging.specifiers import InvalidSpecifier, SpecifierSet
 from packaging.version import InvalidVersion, Version
 
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.paths import ensure_directory, redact_home
 from ai_stp_cli.runtime import DISTRIBUTION
+
+if TYPE_CHECKING:
+    import httpx
 
 PROJECT: Final[str] = DISTRIBUTION
 INDEX_ORIGIN: Final[str] = "https://pypi.org"
@@ -97,6 +99,8 @@ class PypiIndex:
         return tuple(found)
 
     def download(self, url: str, destination: Path, *, expected_size: int) -> None:
+        import httpx
+
         _require_https(url)
         if expected_size <= 0 or expected_size > WHEEL_LIMIT:
             raise CliFailure(
@@ -428,6 +432,9 @@ def _empty_reason(
 
 
 def _get_json(url: str, *, timeout: float, accept: str, limit: int) -> dict[str, object]:
+    # Imported here: the update notice after every command reads only its cache.
+    import httpx
+
     _require_https(url)
     deadline = time.monotonic() + timeout
     try:

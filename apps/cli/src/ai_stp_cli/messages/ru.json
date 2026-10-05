@@ -572,6 +572,7 @@
   "the developer passport has no head": "у паспорта разработчика нет головы",
   "the device environment cannot be summarised for sync": "окружение устройства нельзя свести к сводке для синхронизации",
   "the device identity has a record but no key and cannot sign": "у идентичности устройства есть запись, но нет ключа, и она не может подписывать",
+  "the device key is not in the owner-only file store this session uses; if the operating system credential store holds it, run from a session that can reach that store, and use `device reset` only if the key is lost": "ключа устройства нет в файловом хранилище, которое использует этот сеанс; если он хранится в хранилище учётных данных операционной системы, запустите команду из сеанса, которому это хранилище доступно, и используйте `device reset`, только если ключ утерян",
   "the device passport has no head": "у паспорта устройства нет головы",
   "the diagnostics file cannot be opened": "файл diagnostics нельзя открыть",
   "the diagnostics file changed": "файл diagnostics изменился",
