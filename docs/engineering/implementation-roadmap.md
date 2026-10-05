@@ -77,11 +77,15 @@ aarch64 dmg, and an exe and msi for Windows, unsigned. Its shipped sidecar
 reports CLI 0.0.40 and answered `version --json` in 1.96 s against 2.87 s for
 0.0.5's.
 
-One cost remains in the deploy: the API and the worker finish their own
-shutdown within two seconds of SIGTERM — `shutdown` and `worker_stop` are
-logged — yet dockerd stops them by force ten seconds later. Neither the
-production image in isolation nor a local PID-1 run reproduces it; it adds
-about ten seconds to the API restart and loses no work.
+Every deploy also stopped four containers by force after ten seconds (`#692`).
+The scanner sidecars' `sh -c` loop is PID 1 and ignores SIGTERM. The API and
+the worker finished their own shutdown within two seconds, but a read-only
+watcher on the host caught both PID 1s in uninterruptible sleep
+(`folio_wait_bit_common`): the 4 GB host had swapped them out during the image
+build, and Python's interpreter teardown waited on those pages. All four now
+run under Docker's init, and the worker, like uvicorn, ends with the signal
+that stopped it; with docker-init as PID 1 the worker exited 0.14 s and the API
+0.24 s after SIGTERM.
 
 ## Production repairs, current majors, and PostgreSQL 18 — 2026-10-05
 
