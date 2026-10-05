@@ -868,7 +868,7 @@ not declare it.
 ## 11. Next execution
 
 The current ordered work belongs to
-[the session-audit checkpoint](implementation-roadmap.md#session-audit-and-execution-plan-2026-09-24).
+[the session-audit checkpoint](../archive/implementation-roadmap-history.md#session-audit-and-execution-plan-2026-09-24).
 Revalidate exact source, candidate, model and provider identities before new
 qualification. Slice 0 and the `0.0.23` release are historical completed steps.
 Native Windows/macOS, fresh-session loading, live authenticated journeys and

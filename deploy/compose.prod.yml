@@ -170,6 +170,11 @@ services:
       # Probe every 2s while starting so `up --wait` in the deploy returns
       # as soon as the new container serves, not after a full interval.
       start_interval: 2s
+    # After its own graceful shutdown the process ends with the signal that
+    # stopped it, which only takes effect when it is not PID 1. As PID 1 it
+    # fell through to interpreter teardown and waited on swapped-out pages
+    # until dockerd killed it ten seconds later (2026-10-05).
+    init: true
     restart: always
     logging: *default-logging
 
@@ -210,6 +215,10 @@ services:
       - sh
       - -c
       - "while /opt/ai_stp/scripts/safety/refresh_osv_db.sh; do sleep 21600; done; exit 1"
+    # The shell loop would be PID 1, and PID 1 ignores a SIGTERM it has no
+    # handler for: every deploy waited out the ten-second stop timeout and
+    # killed it. Docker's init forwards the signal and the loop ends at once.
+    init: true
     environment:
       AI_STP_OSV_OFFLINE_DIR: /var/lib/ai_stp/osv
       OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY: /var/lib/ai_stp/osv
@@ -243,6 +252,10 @@ services:
       - sh
       - -c
       - "while freshclam --datadir=/var/lib/clamav; do sleep 21600; done; exit 1"
+    # The shell loop would be PID 1, and PID 1 ignores a SIGTERM it has no
+    # handler for: every deploy waited out the ten-second stop timeout and
+    # killed it. Docker's init forwards the signal and the loop ends at once.
+    init: true
     volumes:
       - clamav_db:/var/lib/clamav
     networks: [edge]
@@ -316,6 +329,11 @@ services:
       timeout: 10s
       retries: 3
       start_period: 30s
+    # After its own graceful shutdown the process ends with the signal that
+    # stopped it, which only takes effect when it is not PID 1. As PID 1 it
+    # fell through to interpreter teardown and waited on swapped-out pages
+    # until dockerd killed it ten seconds later (2026-10-05).
+    init: true
     restart: always
     logging: *default-logging
 
