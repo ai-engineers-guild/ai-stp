@@ -34,14 +34,14 @@ export function disabledWebModuleAliases(
 ): Record<string, string> {
   const aliases: Record<string, string> = {};
   if (!features.content_hub) {
-    aliases["@/lib/api/content$"] = disabledModule;
-    aliases["@/lib/content/presenter$"] = disabledModule;
+    aliases["@/lib/api/content"] = disabledModule;
+    aliases["@/lib/content/presenter"] = disabledModule;
   }
   if (!features.saas_public_pages) {
-    aliases["@/lib/api/public-legal$"] = disabledModule;
+    aliases["@/lib/api/public-legal"] = disabledModule;
   }
   if (profile === "corporate_hub") {
-    aliases["@/lib/projection/regional-presenters$"] = disabledModule;
+    aliases["@/lib/projection/regional-presenters"] = disabledModule;
   }
   return aliases;
 }
