@@ -36,6 +36,7 @@ def localized_entry(
     description: str | None = None,
     published_at: str = "2026-08-12",
     tags: list[str] | None = None,
+    commit: str = COMMIT,
 ) -> ContentSnapshotEntry:
     ordered = sorted(tags or ["setup"])
     source_path = f"docs-user-facing/content/{locale}/article-{slug}.md"
@@ -49,7 +50,7 @@ def localized_entry(
         tags=ordered,
         body=body,
         source_kind="repository",
-        source_ref=COMMIT,
+        source_ref=commit,
         source_path=source_path,
     )
     return ContentSnapshotEntry(
@@ -63,7 +64,7 @@ def localized_entry(
         body=body,
         content_digest=digest,
         source_kind="repository",
-        source_ref=COMMIT,
+        source_ref=commit,
         source_path=source_path,
     )
 
@@ -76,20 +77,21 @@ def pair_snapshot(
     body_ru: str = "Tochnye versii.",
     title_en: str = "Build a setup",
     title_ru: str = "Sobrati setup",
+    commit: str = COMMIT,
 ) -> ContentRepositoryImportRequest:
     entries = [
-        localized_entry(locale="en", title=title_en, body=body_en, slug=slug),
-        localized_entry(locale="ru", title=title_ru, body=body_ru, slug=slug),
+        localized_entry(locale="en", title=title_en, body=body_en, slug=slug, commit=commit),
+        localized_entry(locale="ru", title=title_ru, body=body_ru, slug=slug, commit=commit),
     ]
     digest = snapshot_digest(
         repository=CONTENT_REPOSITORY,
-        commit=COMMIT,
+        commit=commit,
         entries=[item.model_dump(mode="json") for item in entries],
     )
     return ContentRepositoryImportRequest(
         schema_version=1,
         repository=CONTENT_REPOSITORY,
-        commit=COMMIT,
+        commit=commit,
         snapshot_digest=digest,
         expected_generation=expected_generation,
         entries=entries,
