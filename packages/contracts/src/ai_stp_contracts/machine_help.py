@@ -4,8 +4,8 @@
 instead of copying flags by hand, and `SPEC-011` REQ-1106 forbids the Skill from
 restating parameters. That makes the shape of machine help a machine boundary of
 the same kind as `/v1` — five harness projections depend on it — so it is
-declared here, published into `schemas/v1` and held by the same gate, rather
-than living inside the application that happens to render it.
+declared in this package, published into `schemas/v1` and held by the same
+gate, rather than living inside the application that happens to render it.
 
 The split between the two introspection commands is deliberate:
 
@@ -18,4370 +18,476 @@ The split between the two introspection commands is deliberate:
 
 Both are rendered from one registry inside the CLI, so they cannot disagree
 about which commands exist.
+
+The models live in `ai_stp_contracts.cli`, one module per command family,
+so a command imports only the family it returns: importing all of them cost
+every invocation about half a second (docs/engineering/cli-performance.md).
+This module keeps the whole surface under one name for the schema generator,
+the platform and anyone reading the contract as a single document.
 """
 
-from typing import Annotated, Literal, Self
-
-from pydantic import ConfigDict, Field, model_validator
-
-from ai_stp_assurance import AuthorAttestation as AssuranceAuthorAttestation
-from ai_stp_contracts.auth import AccountId, DeviceId, OAuthProvider, PublicKey
-from ai_stp_contracts.catalog import (
-    CatalogTrust,
-    ComponentSummary,
-    PublicLifecycle,
-    SetupSummary,
-    VersionListEntry,
+from ai_stp_contracts.cli.catalog import (
+    AcquiredComponentVersion,
+    AnswerSource,
+    CatalogArtifactView,
+    CatalogKind,
+    CatalogObjectView,
+    CatalogSearchResult,
+    CatalogSetupAcquisition,
+    CatalogVersionView,
 )
-from ai_stp_contracts.corporate import PlanOutcome
-from ai_stp_contracts.http import Timestamp, open_wire_object
-from ai_stp_contracts.model import ContractModel
-from ai_stp_contracts.private_access import PrivateVersionTrust
-from ai_stp_contracts.publication import EvidenceBindingView, PublicationPlanResponse
-from ai_stp_contracts.publication import ObjectKind as PublicationObjectKind
-from ai_stp_contracts.standard import STANDARD_FAMILY
-from ai_stp_contracts.technology import TechnologyScanHandoff, TechnologyUnmappedEntry
-from ai_stp_foundation.canonical import JsonValue
-from ai_stp_foundation.digests import DIGEST_PATTERN
-from ai_stp_foundation.errors import ErrorHandling, ExitClass
-from ai_stp_foundation.harnesses import HarnessId
-from ai_stp_foundation.ids import stable_id_pattern
-from ai_stp_foundation.versioning import VERSION_PATTERN
-from ai_stp_passports.versions import ComponentType
-
-#: State effects are independent of task authority and the confirmation binding
-#: (`SPEC-011`, `docs/agent/interaction-policy.md`).
-#:
-#: - `read` observes; explicitly documented caches may be refreshed;
-#: - `plan` computes and stores an exact plan without applying its target effect;
-#: - `apply` performs the requested effect within the user's task authority;
-#: - `destructive` removes state; irreversible removal follows the decision policy.
-type MutabilityClass = Literal["read", "plan", "apply", "destructive"]
-
-#: How a caller binds an already-authorized effect. This is not another approval
-#: question within the user's task. The CLI never asks in the
-#: terminal — a decision arrives as an explicit flag or as the exact digest of a
-#: stored plan, and its absence is answered with `needs_user_action` rather than
-#: a prompt. That keeps one execution path for a human and for an agent, and
-#: leaves nothing to hang in CI or in a container.
-type ConfirmationKind = Literal["none", "explicit_flag", "plan_digest"]
-
-type ParameterKind = Literal["option", "argument"]
-type ParameterType = Literal["string", "boolean", "integer"]
-
-#: Command paths are the machine identity of a command: `["config", "show"]`.
-type CommandPath = Annotated[list[str], Field(min_length=1, max_length=4)]
-
-
-class CommandParameter(ContractModel):
-    """One parameter of one command, as the agent must supply it."""
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    name: Annotated[str, Field(pattern=r"^[a-z][a-z0-9-]*$")]
-    kind: ParameterKind
-    value_type: ParameterType
-    required: bool
-
-    #: Whether the option may be given more than once, and therefore whether the
-    #: agent should pass a list. Declared rather than defaulted: every property
-    #: of an open wire object is required, so a default here would let the model
-    #: accept a document the published schema rejects.
-    repeatable: bool
-
-    summary: str
-
-    #: Closed value set when the parameter is an enum. Empty means the value
-    #: is free-form. This stays a list in the wire contract so an agent never
-    #: has to extract valid values from prose.
-    choices: list[str] = []
-
-
-class CommandParameterRule(ContractModel):
-    """A cross-parameter invocation rule that consumers must not parse from prose.
-
-    `exactly_one` of the named parameters must be present; `at_most_one`
-    allows none but refuses two; `required_when` makes the named parameters
-    required; `forbidden_when` refuses the named parameters while its
-    condition holds. A rule carrying `when_parameter` and `when_values`
-    applies only while that parameter takes one of those values —
-    `install plan`'s source rule holds for `install`, `update` and `remove`,
-    and on `backup` and `rollback` the same pair relaxes to `at_most_one`,
-    because those actions bind to a target, not to a graph (`REQ-1207`).
-    """
-
-    model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
-
-    kind: Literal["exactly_one", "at_most_one", "required_when", "forbidden_when"]
-    parameters: Annotated[list[str], Field(min_length=1)]
-    when_parameter: str = ""
-    when_values: list[str] = []
-
-
-class CommandDescriptor(ContractModel):
-    """Everything the agent needs to invoke one command correctly.
-
-    A command that does not work is absent rather than described: the Skill is
-    told not to guess flags, so a declared-but-unimplemented command would let
-    it plan a step around something that cannot run.
-    """
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    path: CommandPath
-    summary: str
-    mutability: MutabilityClass
-    confirmation: ConfirmationKind
-    parameters: list[CommandParameter]
-    parameter_rules: list[CommandParameterRule] = []
-
-    #: `urn:ai-stp:schema:v1:<name>` of the payload this command puts in the
-    #: envelope's `data`, when one is published.
-    result_schema: str | None
-
-    #: Commands that are sensible to run next, as their paths joined by a space.
-    #: Advice, never a permission: each still enforces its own confirmation.
-    next_actions: list[str]
-
-    @model_validator(mode="after")
-    def validate_parameter_rules(self) -> Self:
-        names = {item.name for item in self.parameters}
-        for rule in self.parameter_rules:
-            if not set(rule.parameters) <= names:
-                raise ValueError("parameter rule names an undeclared parameter")
-            conditional = bool(rule.when_parameter or rule.when_values)
-            if rule.kind in {"exactly_one", "at_most_one"} and len(rule.parameters) < 2:
-                raise ValueError(f"{rule.kind} requires two or more parameter names")
-            if rule.kind in {"required_when", "forbidden_when"} and not conditional:
-                raise ValueError(f"{rule.kind} has an invalid condition")
-            if conditional and (
-                rule.when_parameter not in names
-                or not rule.when_values
-                or rule.when_parameter in rule.parameters
-            ):
-                raise ValueError("parameter rule has an invalid condition")
-        return self
-
-
-class MachineErrorDescriptor(ContractModel):
-    """One stable failure and the first disposition an agent should take."""
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    code: Annotated[str, Field(pattern=r"^AI_STP_[A-Z0-9]+(?:_[A-Z0-9]+)*$")]
-    exit_class: ExitClass
-    handling: ErrorHandling
-    description: Annotated[str, Field(min_length=1)]
-
-
-class MachineHelp(ContractModel):
-    """The whole command registry, rendered for an agent."""
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    cli_version: Annotated[str, Field(min_length=1)]
-
-    #: The exact machine surface this answer describes. A distribution version
-    #: does not identify it: a source build and a released wheel report the same
-    #: string while their registries differ by a command, a flag or an error
-    #: code, and a caller that cached help "for this version" then constructs
-    #: calls the running build does not accept. Compare this instead.
-    registry_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
-
-    #: Options every command accepts. Declared once rather than repeated on each
-    #: descriptor: `--json` is not a property of any one command, and repeating
-    #: it would make the registry look like it varies when it does not.
-    global_options: Annotated[list[CommandParameter], Field(min_length=1)]
-
-    commands: Annotated[list[CommandDescriptor], Field(min_length=1)]
-    error_codes: Annotated[list[MachineErrorDescriptor], Field(min_length=1)]
-
-
-class Capabilities(ContractModel):
-    """What this installation can do right now.
-
-    Deliberately not a copy of the registry: it carries the few facts that
-    decide whether a later call is even worth making. `command_paths` is the
-    index into `help --agent`, not a substitute for it.
-    """
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    cli_version: Annotated[str, Field(min_length=1)]
-
-    #: The `/v1` wire major this build speaks. An agent comparing it against a
-    #: server can tell a version mismatch from a missing feature.
-    wire_schema_version: Literal[1] = 1
-
-    #: The same fingerprint `help --agent` reports, so a caller can tell whether
-    #: the help it kept still describes the build in front of it without
-    #: fetching the whole registry again.
-    registry_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
-
-    #: The local registry schema this build reads and writes. Data written by a
-    #: newer build is refused rather than downgraded, and saying so here lets a
-    #: caller see the mismatch before a command hits it.
-    local_schema_version: Annotated[int, Field(ge=1)]
-
-    #: Whether this process loaded the published distribution or this checkout.
-    #: A source tree and a released wheel can report one version string.
-    installation: Literal["distribution", "source"]
-
-    supported_harnesses: Annotated[list[HarnessId], Field(min_length=1)]
-    catalog_enabled: bool
-    sync_enabled: bool
-    command_paths: Annotated[list[str], Field(min_length=1)]
-
-
-class CliSchemaEntry(ContractModel):
-    """One exported schema id this build resolves."""
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    name: Annotated[str, Field(min_length=1)]
-    urn: Annotated[str, Field(min_length=1)]
-
-
-class CliSchemaIndex(ContractModel):
-    """Every exported schema id this build resolves.
-
-    `input_schema` and `result_schema` URNs inside machine payloads name
-    entries in this index; `schema show` resolves one id to its document, so
-    every URN the CLI emits is answerable through the CLI itself.
-    """
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    cli_version: Annotated[str, Field(min_length=1)]
-    schemas: list[CliSchemaEntry]
-
-
-class CliSchemaDocument(ContractModel):
-    """One exported schema resolved to its JSON Schema document."""
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    cli_version: Annotated[str, Field(min_length=1)]
-    name: Annotated[str, Field(min_length=1)]
-    urn: Annotated[str, Field(min_length=1)]
-    document: dict[str, JsonValue]
-
-
-class SyncPreview(ContractModel):
-    """A read-only decision over the local heads of one syncable entity."""
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    stable_id: Annotated[str, Field(min_length=1)]
-    state: Literal[
-        "up_to_date",
-        "fast_forward",
-        "merge_ready",
-        "conflict",
-        "manual_resolution",
-    ]
-    head_revision_ids: Annotated[list[str], Field(min_length=1)]
-    common_ancestor_revision_id: str | None
-    candidate_revision_id: str | None
-    #: The head the server last named in a refusal this device stored, when the
-    #: device does not hold it. Null whenever local heads are the whole story.
-    server_head_revision_id: str | None
-
-    #: JSON Pointer paths only. Values remain in the owner-only registry and
-    #: never enter a generic command envelope or log by accident.
-    affected_fields: list[str] = Field(default_factory=list)
-
-
-class SyncPushView(ContractModel):
-    """Durable outcome of pushing one exact local revision."""
-
-    model_config = ConfigDict(extra="forbid", frozen=True)
-
-    schema_version: Literal[1] = 1
-    stable_id: Annotated[str, Field(min_length=1)]
-    processed_events: Annotated[int, Field(ge=1)]
-    local_revision_id: Annotated[str, Field(min_length=1)]
-    event_id: Annotated[str, Field(min_length=8)]
-    remote_revision_id: Annotated[str, Field(min_length=1)]
-    state: Literal["accepted", "rejected", "conflict", "superseded"]
-    server_head_revision_id: str | None
-    conflict_fields: list[str] = Field(default_factory=list)
-    #: The identity the account already holds, when this push was refused for
-    #: carrying a second one of a kind that admits exactly one. Without it the
-    #: refusal is correct and the next move is unnameable.
-    conflicting_entity_id: str | None
-
-
-class SyncPendingVersion(ContractModel):
-    """An exact legacy version reference whose snapshot is not available yet."""
-
-    model_config = ConfigDict(extra="forbid", frozen=True)
-    stable_id: str
-    version: str
-    passport_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
-    revision_id: str
-    event_id: str
-
-
-class SyncPullView(ContractModel):
-    """One atomically applied page from the private account stream."""
-
-    model_config = ConfigDict(extra="forbid", frozen=True)
-
-    schema_version: Literal[1] = 1
-    received: Annotated[int, Field(ge=0)]
-    applied: Annotated[int, Field(ge=0)]
-    replayed: Annotated[int, Field(ge=0)]
-    #: Events the caller named and this pull walked past without applying. An
-    #: abandoned revision is not a quiet outcome, so it is counted separately
-    #: from `applied` and the ids are answered back.
-    skipped: Annotated[list[str], Field(max_length=64)] = Field(default_factory=list)
-    state: Literal["pulling", "up_to_date", "partial"] = "pulling"
-    pending_version_count: Annotated[int, Field(ge=0)] = 0
-    pending_versions: Annotated[list[SyncPendingVersion], Field(max_length=128)] = Field(
-        default_factory=list[SyncPendingVersion]
-    )
-    next_cursor: str | None
-
-
-#: Primary setup state (`SPEC-011`, states section). `doctor` reports it in the
-#: body and still exits `0`: an installation that is merely not configured yet
-#: is a normal outcome, not a failure, and answering non-zero would make the
-#: first run after installation look broken and break `set -e`.
-type SetupState = Literal["ready", "needs_user_action", "partial", "failed"]
-
-
-class DoctorCheck(ContractModel):
-    """One thing `doctor` looked at."""
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    name: Annotated[str, Field(pattern=r"^[a-z][a-z0-9_]*$")]
-    state: SetupState
-    detail: str
-
-
-class DoctorReport(ContractModel):
-    """What `doctor` found.
-
-    A report, not a verdict. `state` is the worst state among the checks, so a
-    caller that reads one field still gets the truth.
-    """
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    state: SetupState
-    checks: Annotated[list[DoctorCheck], Field(min_length=1)]
-
-
-type TaskState = Literal["planned", "blocked", "running", "completed", "failed", "cancelled"]
-type TaskIntent = Literal[
-    "inspect",
-    "initialize",
-    "install",
-    "change",
-    "author",
-    "switch",
-    "account",
-    "publish",
-    "technology",
+from ai_stp_contracts.cli.components import (
+    ComponentPassportSuggestion,
+    ComponentPassportSuggestions,
+    ComponentPassportValidation,
+    ComponentQualityCheck,
+    ComponentQualityDimension,
+    ComponentQualityReport,
+    ComponentScaffoldView,
+    ComponentTemplateView,
+    ConsentRecord,
+    ConsentSummary,
+    ExternalSourceIdentity,
+    LocalSearchResults,
+    NativeComponent,
+    NativeComponentProvenance,
+    NativeComponents,
+    NativeDiscoveryDiagnostic,
+    PassportView,
+    PathInventory,
+    PathInventoryObject,
+    RecordedVersion,
+    SearchHit,
+    SkillPackageFinding,
+    SkillPackageReport,
+    SourceSearchCandidate,
+    SourceSearchResult,
+    VersionLine,
+)
+from ai_stp_contracts.cli.identity import (
+    AuthStatus,
+    CredentialStore,
+    DeviceApproval,
+    DeviceIdentity,
+    LocalDeviceState,
+    SessionState,
+)
+from ai_stp_contracts.cli.install import (
+    EnvironmentInspection,
+    EnvironmentRequirement,
+    InstallationStatus,
+    InstallationStep,
+    InstallationView,
+    ManagedPathChange,
+    ManagedVerification,
+    ManagedVerificationItem,
+    MultiRootChildView,
+    MultiRootTransactionView,
+    PreservedSetupsView,
+    PreservedSetupView,
+    RecoveryView,
+    RollbackTarget,
+    ShadowedSurface,
+    TargetBackup,
+    TargetBackups,
+    TargetDiff,
+    TargetSurvey,
+)
+from ai_stp_contracts.cli.project import (
+    DiscoveryDiagnostic,
+    ExcludedPath,
+    ImportedFile,
+    ImportedSetup,
+    ImportInspection,
+    IndexedFile,
+    LanguageOutline,
+    ProjectCandidate,
+    ProjectCandidates,
+    ProjectIndex,
+    ProjectSymbols,
+    SetupImportComponent,
+    SetupImportPlan,
+)
+from ai_stp_contracts.cli.provider import (
+    ProviderInstallationCheck,
+    ProviderInstallationReport,
+    ProviderReplacementPlan,
+    ProviderReplacementResult,
+)
+from ai_stp_contracts.cli.publication import (
+    CliSignedAttestation,
+    ComponentPromotionPlan,
+    PublicationPlanView,
+    PublicationSetMemberView,
+    PublicationSetView,
+)
+from ai_stp_contracts.cli.registry import (
+    Capabilities,
+    CliSchemaDocument,
+    CliSchemaEntry,
+    CliSchemaIndex,
+    CommandDescriptor,
+    CommandParameter,
+    CommandParameterRule,
+    CommandPath,
+    ConfirmationKind,
+    MachineErrorDescriptor,
+    MachineHelp,
+    MutabilityClass,
+    ParameterKind,
+    ParameterType,
+)
+from ai_stp_contracts.cli.runtime import (
+    ConfigReport,
+    ConfigValue,
+    DoctorCheck,
+    DoctorReport,
+    SetupState,
+    SkillDelivery,
+    TelemetryStatus,
+    VersionReport,
+)
+from ai_stp_contracts.cli.selection import (
+    BundleFile,
+    BundleRefusal,
+    CandidateEligibility,
+    CompositionChoice,
+    CompositionConflict,
+    CompositionRejection,
+    CompositionReports,
+    ConfirmationView,
+    ConformanceCase,
+    ConformanceReport,
+    ConversionEntry,
+    EligibilityMatrix,
+    EligibilityNote,
+    EligibilityRefusal,
+    EligibilityReport,
+    GraphNode,
+    GraphReference,
+    GraphRefusal,
+    HarnessBundle,
+    PinnedRelease,
+    ProposalMember,
+    ProposalSession,
+    ProposalView,
+    ProviderBoundRelease,
+    ProviderNetworkCapability,
+    ProviderTrust,
+    ReleaseRefusal,
+    SetupGraph,
+    TrustedBuildAttestation,
+    TrustedIndexPublisher,
+)
+from ai_stp_contracts.cli.self_update import (
+    CliInstallMethod,
+    CliSelfUpdateCheck,
+    CliSelfUpdatePlan,
+    CliSelfUpdateResult,
+    CliSelfUpdateStatus,
+    CliUpdateApplyOutcome,
+    CliUpdateCheckState,
+    CliUpdateJournalState,
+)
+from ai_stp_contracts.cli.setups import (
+    ComponentMaterializePlan,
+    ComponentMaterializeResult,
+    ComponentMaterializeTarget,
+    SetupComposeMember,
+    SetupComposePlan,
+    SetupComposeResult,
+    SetupExportResult,
+    SetupRecastMember,
+    SetupRecastPlan,
+    SetupRecastResult,
+    SetupUpdatePlan,
+    SetupUpdateResult,
+)
+from ai_stp_contracts.cli.sync import (
+    SyncPendingVersion,
+    SyncPreview,
+    SyncPullView,
+    SyncPushView,
+)
+from ai_stp_contracts.cli.tasks import (
+    TaskAccountInput,
+    TaskAccountOutcome,
+    TaskActor,
+    TaskAuthorInput,
+    TaskAuthorOutcome,
+    TaskChangeInput,
+    TaskChangeOutcome,
+    TaskId,
+    TaskInitializeInput,
+    TaskInitializeOutcome,
+    TaskInputField,
+    TaskInspectInput,
+    TaskInspectOutcome,
+    TaskInstallInput,
+    TaskInstallOutcome,
+    TaskIntent,
+    TaskIntentDescriptor,
+    TaskIntentsCatalog,
+    TaskListEntry,
+    TaskListView,
+    TaskOrientation,
+    TaskOutcome,
+    TaskPublishInput,
+    TaskPublishOutcome,
+    TaskQuestion,
+    TaskState,
+    TaskSwitchInput,
+    TaskSwitchOutcome,
+    TaskTechnologyDecision,
+    TaskTechnologyInput,
+    TaskTechnologyOutcome,
+    TaskView,
+)
+from ai_stp_contracts.cli.technology import (
+    CliTechnologyClaim,
+    CliTechnologyEvidence,
+    CliTechnologyFinding,
+    CliTechnologyFindings,
+    CliTechnologyMapping,
+    CliTechnologyMappings,
+    CliTechnologyReview,
+    CliTechnologyScan,
+    CliTechnologyUnmapped,
+    CliTechnologyUnmappedItem,
+)
+from ai_stp_contracts.cli.toolchain import (
+    CapabilityState,
+    CliProgram,
+    EcosystemCoverage,
+    HarnessCapabilityRow,
+    HarnessCapabilityTable,
+    HarnessComponentCapability,
+    HarnessInstallation,
+    HarnessPresence,
+    HarnessProgram,
+    HarnessProgramArtifact,
+    HarnessProgramOperation,
+    HarnessProgramStatus,
+    HarnessSurvey,
+    PinnedTool,
+    ToolchainProfile,
+    ToolInstallation,
+)
+
+__all__ = [
+    "AcquiredComponentVersion",
+    "AnswerSource",
+    "AuthStatus",
+    "BundleFile",
+    "BundleRefusal",
+    "CandidateEligibility",
+    "Capabilities",
+    "CapabilityState",
+    "CatalogArtifactView",
+    "CatalogKind",
+    "CatalogObjectView",
+    "CatalogSearchResult",
+    "CatalogSetupAcquisition",
+    "CatalogVersionView",
+    "CliInstallMethod",
+    "CliProgram",
+    "CliSchemaDocument",
+    "CliSchemaEntry",
+    "CliSchemaIndex",
+    "CliSelfUpdateCheck",
+    "CliSelfUpdatePlan",
+    "CliSelfUpdateResult",
+    "CliSelfUpdateStatus",
+    "CliSignedAttestation",
+    "CliTechnologyClaim",
+    "CliTechnologyEvidence",
+    "CliTechnologyFinding",
+    "CliTechnologyFindings",
+    "CliTechnologyMapping",
+    "CliTechnologyMappings",
+    "CliTechnologyReview",
+    "CliTechnologyScan",
+    "CliTechnologyUnmapped",
+    "CliTechnologyUnmappedItem",
+    "CliUpdateApplyOutcome",
+    "CliUpdateCheckState",
+    "CliUpdateJournalState",
+    "CommandDescriptor",
+    "CommandParameter",
+    "CommandParameterRule",
+    "CommandPath",
+    "ComponentMaterializePlan",
+    "ComponentMaterializeResult",
+    "ComponentMaterializeTarget",
+    "ComponentPassportSuggestion",
+    "ComponentPassportSuggestions",
+    "ComponentPassportValidation",
+    "ComponentPromotionPlan",
+    "ComponentQualityCheck",
+    "ComponentQualityDimension",
+    "ComponentQualityReport",
+    "ComponentScaffoldView",
+    "ComponentTemplateView",
+    "CompositionChoice",
+    "CompositionConflict",
+    "CompositionRejection",
+    "CompositionReports",
+    "ConfigReport",
+    "ConfigValue",
+    "ConfirmationKind",
+    "ConfirmationView",
+    "ConformanceCase",
+    "ConformanceReport",
+    "ConsentRecord",
+    "ConsentSummary",
+    "ConversionEntry",
+    "CredentialStore",
+    "DeviceApproval",
+    "DeviceIdentity",
+    "DiscoveryDiagnostic",
+    "DoctorCheck",
+    "DoctorReport",
+    "EcosystemCoverage",
+    "EligibilityMatrix",
+    "EligibilityNote",
+    "EligibilityRefusal",
+    "EligibilityReport",
+    "EnvironmentInspection",
+    "EnvironmentRequirement",
+    "ExcludedPath",
+    "ExternalSourceIdentity",
+    "GraphNode",
+    "GraphReference",
+    "GraphRefusal",
+    "HarnessBundle",
+    "HarnessCapabilityRow",
+    "HarnessCapabilityTable",
+    "HarnessComponentCapability",
+    "HarnessInstallation",
+    "HarnessPresence",
+    "HarnessProgram",
+    "HarnessProgramArtifact",
+    "HarnessProgramOperation",
+    "HarnessProgramStatus",
+    "HarnessSurvey",
+    "ImportInspection",
+    "ImportedFile",
+    "ImportedSetup",
+    "IndexedFile",
+    "InstallationStatus",
+    "InstallationStep",
+    "InstallationView",
+    "LanguageOutline",
+    "LocalDeviceState",
+    "LocalSearchResults",
+    "MachineErrorDescriptor",
+    "MachineHelp",
+    "ManagedPathChange",
+    "ManagedVerification",
+    "ManagedVerificationItem",
+    "MultiRootChildView",
+    "MultiRootTransactionView",
+    "MutabilityClass",
+    "NativeComponent",
+    "NativeComponentProvenance",
+    "NativeComponents",
+    "NativeDiscoveryDiagnostic",
+    "ParameterKind",
+    "ParameterType",
+    "PassportView",
+    "PathInventory",
+    "PathInventoryObject",
+    "PinnedRelease",
+    "PinnedTool",
+    "PreservedSetupView",
+    "PreservedSetupsView",
+    "ProjectCandidate",
+    "ProjectCandidates",
+    "ProjectIndex",
+    "ProjectSymbols",
+    "ProposalMember",
+    "ProposalSession",
+    "ProposalView",
+    "ProviderBoundRelease",
+    "ProviderInstallationCheck",
+    "ProviderInstallationReport",
+    "ProviderNetworkCapability",
+    "ProviderReplacementPlan",
+    "ProviderReplacementResult",
+    "ProviderTrust",
+    "PublicationPlanView",
+    "PublicationSetMemberView",
+    "PublicationSetView",
+    "RecordedVersion",
+    "RecoveryView",
+    "ReleaseRefusal",
+    "RollbackTarget",
+    "SearchHit",
+    "SessionState",
+    "SetupComposeMember",
+    "SetupComposePlan",
+    "SetupComposeResult",
+    "SetupExportResult",
+    "SetupGraph",
+    "SetupImportComponent",
+    "SetupImportPlan",
+    "SetupRecastMember",
+    "SetupRecastPlan",
+    "SetupRecastResult",
+    "SetupState",
+    "SetupUpdatePlan",
+    "SetupUpdateResult",
+    "ShadowedSurface",
+    "SkillDelivery",
+    "SkillPackageFinding",
+    "SkillPackageReport",
+    "SourceSearchCandidate",
+    "SourceSearchResult",
+    "SyncPendingVersion",
+    "SyncPreview",
+    "SyncPullView",
+    "SyncPushView",
+    "TargetBackup",
+    "TargetBackups",
+    "TargetDiff",
+    "TargetSurvey",
+    "TaskAccountInput",
+    "TaskAccountOutcome",
+    "TaskActor",
+    "TaskAuthorInput",
+    "TaskAuthorOutcome",
+    "TaskChangeInput",
+    "TaskChangeOutcome",
+    "TaskId",
+    "TaskInitializeInput",
+    "TaskInitializeOutcome",
+    "TaskInputField",
+    "TaskInspectInput",
+    "TaskInspectOutcome",
+    "TaskInstallInput",
+    "TaskInstallOutcome",
+    "TaskIntent",
+    "TaskIntentDescriptor",
+    "TaskIntentsCatalog",
+    "TaskListEntry",
+    "TaskListView",
+    "TaskOrientation",
+    "TaskOutcome",
+    "TaskPublishInput",
+    "TaskPublishOutcome",
+    "TaskQuestion",
+    "TaskState",
+    "TaskSwitchInput",
+    "TaskSwitchOutcome",
+    "TaskTechnologyDecision",
+    "TaskTechnologyInput",
+    "TaskTechnologyOutcome",
+    "TaskView",
+    "TelemetryStatus",
+    "ToolInstallation",
+    "ToolchainProfile",
+    "TrustedBuildAttestation",
+    "TrustedIndexPublisher",
+    "VersionLine",
+    "VersionReport",
 ]
-type TaskId = Annotated[str, Field(pattern=stable_id_pattern("task"))]
-type TaskActor = Literal["human", "external"]
-
-
-class TaskQuestion(ContractModel):
-    """One typed question the task engine still needs before it can continue."""
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    question_id: Annotated[str, Field(pattern=r"^[a-z][a-z0-9-]*$")]
-    prompt: Annotated[str, Field(min_length=1)]
-    value_type: ParameterType
-    choices: list[str]
-    recommended: str = ""
-    why: str = ""
-    actor: TaskActor = "human"
-
-
-class TaskOrientation(ContractModel):
-    """Slim inspect facts. No command registry dump."""
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    cli_version: Annotated[str, Field(min_length=1)]
-    wire_schema_version: Literal[1] = 1
-    registry_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
-    local_schema_version: Annotated[int, Field(ge=1)]
-    installation: Literal["distribution", "source"]
-    supported_harnesses: Annotated[list[HarnessId], Field(min_length=1)]
-    catalog_enabled: bool
-    sync_enabled: bool
-    intents: list[str]
-
-
-class TaskInspectInput(ContractModel):
-    """Inspect takes no caller facts."""
-
-    model_config = ConfigDict(extra="forbid", frozen=True)
-
-    schema_version: Literal[1] = 1
-
-
-class TaskInitializeInput(ContractModel):
-    """Optional harness pin. Omitted means the engine asks once."""
-
-    model_config = ConfigDict(extra="forbid", frozen=True)
-
-    schema_version: Literal[1] = 1
-    harness_id: HarnessId | None = None
-
-
-class TaskInstallInput(ContractModel):
-    """Pins and scope. Omitted pins mean one justified pick, not a catalog quiz."""
-
-    model_config = ConfigDict(extra="forbid", frozen=True)
-
-    schema_version: Literal[1] = 1
-    harness_id: HarnessId | None = None
-    project_root: str | None = None
-    setup_id: Annotated[str, Field(pattern=stable_id_pattern("setup"))] | None = None
-    setup_version: Annotated[str, Field(pattern=VERSION_PATTERN)] | None = None
-    #: Explicit `family:value` grants the caller gives the install target, in
-    #: the spelling component passports use. Without a grant the target permits
-    #: nothing and the plan refuses an escalating composition.
-    allowed_permissions: list[str] | None = None
-
-
-class TaskChangeInput(ContractModel):
-    """Source setup plus one member delta. Omitted source means the harness baseline."""
-
-    model_config = ConfigDict(extra="forbid", frozen=True)
-
-    schema_version: Literal[1] = 1
-    harness_id: HarnessId | None = None
-    project_root: str | None = None
-    setup_id: Annotated[str, Field(pattern=stable_id_pattern("setup"))] | None = None
-    setup_version: Annotated[str, Field(pattern=VERSION_PATTERN)] | None = None
-    component_id: Annotated[str, Field(pattern=stable_id_pattern("component"))] | None = None
-    component_version: Annotated[str, Field(pattern=VERSION_PATTERN)] | None = None
-    action: Literal["add", "remove"] | None = None
-
-
-class TaskAuthorInput(ContractModel):
-    """Directory plus typed authoring fields. One component and one setup identity."""
-
-    model_config = ConfigDict(extra="forbid", frozen=True)
-
-    schema_version: Literal[1] = 1
-    directory: str | None = None
-    harness_id: HarnessId | None = None
-    component_type: ComponentType | None = None
-    name: str | None = None
-    license_spdx: str | None = None
-
-
-class TaskSwitchInput(ContractModel):
-    """Restore last user working config. Omitted snapshot means the latest preserved setup."""
-
-    model_config = ConfigDict(extra="forbid", frozen=True)
-
-    schema_version: Literal[1] = 1
-    harness_id: HarnessId | None = None
-    project_root: str | None = None
-    preserved_setup_id: Annotated[str, Field(pattern=stable_id_pattern("setup"))] | None = None
-    reload_session: str | None = None
-
-
-class TaskAccountInput(ContractModel):
-    """Sign in, sign out, or explicitly sync. Login never uploads."""
-
-    model_config = ConfigDict(extra="forbid", frozen=True)
-
-    schema_version: Literal[1] = 1
-    action: Literal["login", "logout", "sync"] | None = None
-    provider: OAuthProvider | None = None
-    stable_id: str | None = Field(default=None, description="Exact local account-sync entity id.")
-    project_root: str | None = Field(
-        default=None,
-        description="Legacy input retained for replay; project passports do not sync to accounts.",
-    )
-    scope: Literal["push", "pull"] | None = None
-
-
-class TaskPublishInput(ContractModel):
-    """Publish a local object through the existing no-binding publication plan."""
-
-    model_config = ConfigDict(extra="forbid", frozen=True)
-
-    schema_version: Literal[1] = 1
-    object_id: str | None = None
-    object_version: Annotated[str, Field(pattern=VERSION_PATTERN)] | None = None
-    visibility: Literal["public", "private"] | None = None
-    directory: str | None = None
-    provider: OAuthProvider | None = None
-
-
-class TaskTechnologyDecision(ContractModel):
-    """One review decision over an unmapped coordinate.
-
-    `technology_id` names an existing registry record; `technology_name`
-    creates one first (with `category_ids`/`category_name` for its governing
-    categories). `mode` is `propose` — the queue entry gains a candidate and
-    stays open for review — or `apply`, which publishes a derived mapping
-    snapshot so the coordinate resolves from now on.
-    """
-
-    model_config = ConfigDict(extra="forbid", frozen=True)
-
-    kind: Literal["package", "image", "executable", "configuration", "alias"]
-    coordinate: Annotated[str, Field(min_length=1, max_length=512)]
-    technology_id: Annotated[str, Field(pattern=r"^technology_[0-9A-HJKMNP-TV-Z]{26}$")] | None = (
-        None
-    )
-    technology_name: Annotated[str, Field(min_length=1, max_length=200)] | None = None
-    category_ids: list[Annotated[str, Field(pattern=r"^category_[0-9A-HJKMNP-TV-Z]{26}$")]] = []
-    category_name: Annotated[str, Field(min_length=1, max_length=200)] | None = None
-    description: Annotated[str, Field(max_length=4000)] = ""
-    active: bool = False
-    mode: Literal["propose", "apply"] = "propose"
-
-    @model_validator(mode="after")
-    def one_technology_source(self) -> Self:
-        if (self.technology_id is None) == (self.technology_name is None):
-            raise ValueError("name either technology_id or technology_name")
-        if self.technology_name is None and (self.category_ids or self.category_name is not None):
-            raise ValueError("categories only apply when creating a technology")
-        return self
-
-
-class TaskTechnologyInput(ContractModel):
-    """Grow the technology registry from detection evidence.
-
-    `unmapped` scans a project and lists what its effective mapping cannot
-    resolve — locally and, when an organization is named and a session exists,
-    the organization's review queue. `publish-mapping` writes one immutable
-    organization snapshot: an explicit entries document, or the bundled seed
-    table when `seed` is set. `resolve` applies a decision list: propose
-    candidates, create records, publish a derived snapshot.
-    """
-
-    model_config = ConfigDict(extra="forbid", frozen=True)
-
-    schema_version: Literal[1] = 1
-    action: Literal["unmapped", "publish-mapping", "resolve"] | None = None
-    project_root: str | None = None
-    scope: str | None = None
-    organization_id: str | None = None
-    #: Exact immutable snapshot version `publish-mapping` writes.
-    mapping_version: str | None = None
-    #: Snapshot `resolve` extends; defaults to the cached latest snapshot.
-    base_version: str | None = None
-    #: JSON/YAML document of mapping entries; `seed` publishes the bundled table.
-    mapping_file: str | None = None
-    seed: bool | None = None
-    #: Review decisions `resolve` executes against the organization's queue.
-    decisions: list[TaskTechnologyDecision] | None = None
-    authorization_revision: Annotated[int, Field(ge=1)] | None = None
-    idempotency_key: str | None = None
-
-
-class TaskInputField(ContractModel):
-    """One field of one intent's `--input` document, flattened for callers.
-
-    `input_schema` names the authoritative JSON Schema, resolvable through
-    `schema show`; this flat list exists so choosing an intent takes one call,
-    not two. It is derived from the same model, so the two cannot disagree.
-    """
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    name: Annotated[str, Field(pattern=r"^[a-z][a-z0-9_]*$")]
-    required: bool
-    value_type: ParameterType
-    #: Closed value set when the field is an enum, e.g. `action` on account.
-    #: Empty means the value is free-form.
-    choices: list[str] = []
-
-
-class TaskIntentDescriptor(ContractModel):
-    """One shipped intent the Skill may start."""
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    name: Annotated[str, Field(pattern=r"^[a-z][a-z0-9_]*$")]
-    when: Annotated[str, Field(min_length=1)]
-    input_schema: Annotated[str, Field(min_length=1)]
-    input_fields: list[TaskInputField]
-
-
-class TaskIntentsCatalog(ContractModel):
-    """Compact catalog of shipped intents. Not the 203-command registry."""
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    cli_version: Annotated[str, Field(min_length=1)]
-    registry_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
-    intents: list[TaskIntentDescriptor]
-
-
-class TaskInspectOutcome(ContractModel):
-    """Inspection drained in-process by the inspect intent."""
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    kind: Literal["inspect"] = "inspect"
-    doctor: DoctorReport
-    orientation: TaskOrientation
-
-
-class TaskInitializeOutcome(ContractModel):
-    """Initialize drained in-process. The provider writes harness files."""
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    kind: Literal["initialize"] = "initialize"
-    harness_id: HarnessId
-    wrote: bool
-    limitation: str = ""
-    section_digest: Annotated[str, Field(pattern=rf"^(?:{DIGEST_PATTERN[1:-1]})?$")] = ""
-    surface: str = ""
-
-
-class TaskInstallOutcome(ContractModel):
-    """Install drained in-process. Plan, approve, and apply never return to the model."""
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    kind: Literal["install"] = "install"
-    harness_id: HarnessId
-    setup_id: str
-    setup_version: str
-    operation_id: str
-    state: str
-    verified: bool
-
-
-class TaskChangeOutcome(ContractModel):
-    """Change drained in-process. A new setup identity; the source id is untouched."""
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    kind: Literal["change"] = "change"
-    harness_id: HarnessId
-    source_setup_id: str
-    source_setup_version: str
-    setup_id: str
-    setup_version: str
-    minted: bool
-    operation_id: str
-    state: str
-    verified: bool
-
-
-class TaskAuthorOutcome(ContractModel):
-    """Author drained in-process. A local component and one new setup identity."""
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    kind: Literal["author"] = "author"
-    harness_id: HarnessId
-    directory: str
-    component_type: ComponentType
-    name: str
-    component_id: str
-    component_version: str
-    setup_id: str
-    setup_version: str
-    minted: bool
-
-
-class TaskSwitchOutcome(ContractModel):
-    """Switch drained in-process. Restores last user working config; never kills the caller."""
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    kind: Literal["switch"] = "switch"
-    harness_id: HarnessId
-    project_root: str
-    preserved_setup_id: str
-    drift_preserved_setup_id: str = ""
-    operation_id: str
-    state: str
-    verified: bool
-    process_killed: Literal[False] = False
-    session_loaded: Literal[False] = False
-
-
-class TaskAccountOutcome(ContractModel):
-    """Account drained in-process. Login never uploads; sync is a separate explicit step."""
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    kind: Literal["account"] = "account"
-    action: Literal["login", "logout", "sync"]
-    authenticated: bool
-    login_uploaded: Literal[False] = False
-    provider: str = ""
-    session_state: str = ""
-    synced: bool = False
-    scope: str = ""
-    sync_result: SyncPushView | SyncPullView | None = None
-
-
-class TaskPublishOutcome(ContractModel):
-    """Publish drained in-process. Worker receipt is not a readable catalog result."""
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    kind: Literal["publish"] = "publish"
-    object_id: str
-    object_version: str
-    visibility: Literal["private", "public"]
-    source_binding_id: str = ""
-    plan_id: str
-    plan_hash: str
-    state: str
-    readable: bool
-    provenance: Literal["filesystem"] = "filesystem"
-    publication_set: "PublicationSetView | None" = None
-
-
-class TaskTechnologyOutcome(ContractModel):
-    """Technology intent drained in-process: the queue, or the published snapshot."""
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    kind: Literal["technology"] = "technology"
-    action: Literal["unmapped", "publish-mapping", "resolve"]
-    project_id: str = ""
-    scan_id: str = ""
-    scan_state: Literal["complete", "partial"] | None = None
-    organization_id: str = ""
-    coordinates: list["CliTechnologyUnmappedItem"] = []
-    server_coordinates: list[TechnologyUnmappedEntry] = []
-    mapping_version: str = ""
-    mapping_digest: str = ""
-    #: Coordinates given a review candidate (`resolve`, mode=propose).
-    proposed: list[str] = []
-    #: Coordinates mapped by the published snapshot (`resolve`, mode=apply).
-    applied: list[str] = []
-    created_technology_ids: list[str] = []
-    created_category_ids: list[str] = []
-
-
-type TaskOutcome = Annotated[
-    TaskInspectOutcome
-    | TaskInitializeOutcome
-    | TaskInstallOutcome
-    | TaskChangeOutcome
-    | TaskAuthorOutcome
-    | TaskSwitchOutcome
-    | TaskAccountOutcome
-    | TaskPublishOutcome
-    | TaskTechnologyOutcome,
-    Field(discriminator="kind"),
-]
-
-
-class TaskView(ContractModel):
-    """One durable agent task. Envelope `ok` is independent of `state`."""
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    task_id: TaskId
-    revision: Annotated[int, Field(ge=1)]
-    intent: TaskIntent
-    state: TaskState
-    goal_satisfied: bool
-    questions: list[TaskQuestion]
-    outcome: TaskOutcome | None
-    child_operation_ids: list[str]
-
-
-class TaskListEntry(ContractModel):
-    """One unsettled durable task — enough to choose it and resume.
-
-    A caller that lost its task reference (process restart, compaction) lists
-    these instead of starting a second task on a target another open task
-    already owns. `task list` never returns settled rows; history is a status
-    read, not a resume choice.
-    """
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    task_id: TaskId
-    revision: Annotated[int, Field(ge=1)]
-    intent: TaskIntent
-    state: Literal["planned", "blocked", "running"]
-    #: The binding context the task claims — two open mutating tasks cannot
-    #: share all three, so these fields are how a caller tells them apart.
-    harness_id: str = ""
-    project_root: str = ""
-    scope: str = ""
-    #: Ids of questions still open; empty means the task waits on CLI or
-    #: external progress, not on an answer.
-    open_question_ids: list[str]
-    updated_at: Timestamp
-
-
-class TaskListView(ContractModel):
-    """The unsettled durable tasks, most recently touched first."""
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    tasks: list[TaskListEntry]
-
-
-class VersionReport(ContractModel):
-    """Which build is running, and which contracts it speaks."""
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    cli_version: Annotated[str, Field(min_length=1)]
-    wire_schema_version: Literal[1] = 1
-    python_version: Annotated[str, Field(pattern=r"^\d+\.\d+\.\d+")]
-    standard_family: Literal["ai-stp-standard/1"] = STANDARD_FAMILY
-    contract_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
-    http_api_version: Literal["v1"] = "v1"
-    provider_protocol_version: Literal[3] = 3
-
-
-class ConfigValue(ContractModel):
-    """One effective configuration value and where it came from.
-
-    `SPEC-011` REQ-1116 requires the effective value **and** its source, because
-    "it is 20 because that is the default" and "it is 20 because you wrote 20"
-    lead to different next actions. No secret is representable: the config
-    carries none by contract (`docs/contracts/cli-config.md`).
-    """
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    # A hyphen is admitted because a harness identifier carries one, and
-    # `provider.paths.<harness_id>` (`#452`) has to spell it the way every
-    # other surface does. A config key of `claude_code` beside a `--harness
-    # claude-code` would be a second spelling of one identifier, which is the
-    # kind of divergence that is cheap now and expensive at every later use.
-    path: Annotated[str, Field(pattern=r"^[a-z][a-z0-9_.-]*$")]
-    value: str | int | bool | list[str] | None
-    source: Literal["default", "config_file", "command_argument"]
-
-
-class ConfigReport(ContractModel):
-    """The effective configuration, field by field."""
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    values: Annotated[list[ConfigValue], Field(min_length=1)]
-
-    #: Absent until a file exists. Its absence is not an error: defaults are a
-    #: complete configuration (`docs/contracts/cli-config.md`).
-    config_path: str | None
-
-
-#: Where a secret actually lives on this installation (`ADR-0058`). Reported
-#: rather than assumed: a caller that believes a refresh token is encrypted at
-#: rest when it is a file has been told something false, and the difference
-#: changes what it is safe to do on a shared machine.
-type CredentialStore = Literal["os_keyring", "file"]
-
-#: Local view of one device identity. `revoked` is set locally by an explicit
-#: reset and by a server answer once #75 can ask; it stops future cloud work and
-#: leaves local reads alone (`SPEC-002` REQ-205).
-type LocalDeviceState = Literal["active", "revoked"]
-
-
-class DeviceIdentity(ContractModel):
-    """This installation's device identity, as the CLI can see it offline.
-
-    Created on first run without an account: the key proves which device a
-    later sync event or attestation came from, and it exists before any cloud
-    login. Only public material is representable — the private key has no field
-    here and cannot be printed by construction.
-    """
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    device_id: DeviceId
-    public_key: PublicKey
-
-    #: A short, human-comparable form of the public key, so a person can check
-    #: the device list in the web against this machine without reading 43
-    #: base64 characters.
-    key_fingerprint: Annotated[str, Field(pattern=r"^[0-9a-f]{2}(:[0-9a-f]{2}){15}$")]
-
-    created_at: Timestamp
-    state: LocalDeviceState
-
-    #: Where the private key is kept, and why that tier was chosen. Never
-    #: silent: `ADR-0058` makes the tier part of the answer.
-    credential_store: CredentialStore
-    credential_store_detail: Annotated[str, Field(min_length=1)]
-
-    #: Identities this installation has retired, oldest first. Kept and reported
-    #: so a retired identifier cannot come back and so the account owner can
-    #: match a device row they no longer recognise against this machine.
-    retired_device_ids: list[DeviceId]
-
-
-#: What this installation's relationship with the platform actually is
-#: (`SPEC-011`, issue #75). Four values rather than a boolean, because the
-#: repairs differ: `expired` is fixed by signing in again, `revoked` needs a new
-#: device key as well (`SPEC-002` REQ-207), and `local_only` is not a problem at
-#: all — the whole local contour works without an account.
-type SessionState = Literal["local_only", "authenticated", "expired", "revoked"]
-
-
-class PublicationPlanView(PublicationPlanResponse):
-    """The wire publication plan returned unchanged through the CLI boundary."""
-
-
-class PublicationSetMemberView(ContractModel):
-    """One object inside a setup's publication, and why it is there.
-
-    `role` is what separates the setup from the components it pins, and it is
-    stated rather than inferred from `object_kind`: a set holds exactly one
-    setup, and a reader deciding what becomes public should not have to work
-    that out by counting.
-    """
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-
-    role: Literal["setup", "pinned_component"]
-    object_kind: PublicationObjectKind
-    visibility: Literal["public", "private"] = "public"
-    stable_id: str
-    version: Annotated[str, Field(min_length=3, max_length=32)]
-
-    #: Absent when this member needs no plan because it is public already.
-    #: Distinguished from a plan that exists and has not been confirmed: one is
-    #: nothing left to do, the other is the whole of what confirm will do.
-    plan_id: str = ""
-    plan_hash: str = ""
-    state: str = ""
-    evidence: list[EvidenceBindingView] = Field(default_factory=list[EvidenceBindingView])
-    error_code: str | None = None
-
-    #: Public before this set existed. Confirm skips it rather than replanning
-    #: it, and it is listed anyway so the set describes the whole graph.
-    already_published: bool = False
-
-
-class PublicationSetView(ContractModel):
-    """Every plan one setup's publication needs, as a single decision.
-
-    A setup cannot be published before the components it pins are, so a person
-    publishing one had to publish each component first and confirm each hash
-    separately. Locally the two are already one act — `setup import register`
-    commits the component passports and the setup graph together or not at all —
-    and this carries that same rule across the publication boundary
-    (`ADR-0114`).
-
-    The guarantee that survives is the one that matters: publication still takes
-    an explicit confirmation of an exact hash. `set_digest` covers every plan in
-    order, so confirming it is confirming all of them and nothing else.
-    """
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-
-    #: Over the ordered `(role, object_kind, stable_id, version, plan_hash)` of
-    #: every member. Any difference — a member added, a plan replaced, an order
-    #: changed — is a different digest and therefore a different decision.
-    set_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
-
-    setup_stable_id: str
-    setup_version: Annotated[str, Field(min_length=3, max_length=32)]
-
-    #: Components first, the setup last. The order is the confirmation order,
-    #: because a setup confirmed before its pins would be refused by the
-    #: platform's own pin aggregate.
-    members: Annotated[list[PublicationSetMemberView], Field(min_length=1)]
-
-    #: `planned` until confirmed; `published` when every member is; `partial`
-    #: when confirmation stopped part-way, which is a resumable state and not a
-    #: failure — the members already published stay published.
-    state: Literal["planned", "published", "partial"] = "planned"
-
-    #: The earliest expiry among the plans. A set is only as fresh as its
-    #: shortest-lived member, and reporting the latest would promise time the
-    #: first member no longer has.
-    expires_at: Timestamp | None = None
-
-
-class AuthStatus(ContractModel):
-    """Whether this installation currently holds cloud credentials.
-
-    Distinct from `DeviceIdentity`: a device identity always exists, a session
-    may not. Reporting them as one fact would make "no account yet" and "no
-    device identity" indistinguishable, and their next actions differ.
-    """
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-
-    #: One field, not a boolean beside it: `signed_in` and a state can disagree,
-    #: and then a caller has to decide which to believe.
-    state: SessionState
-
-    #: Present only while signed in. Absent is not an error: the whole local
-    #: contour works without an account (`offline-capability.md`).
-    account_id: AccountId | None
-
-    #: When the stored access credential stops being usable, if one is held.
-    expires_at: Timestamp | None
-
-    #: Where a held credential is kept. Absent when none is held — naming a
-    #: store for a secret that does not exist would suggest one does.
-    credential_store: CredentialStore | None
-
-
-class PassportView(ContractModel):
-    """One local passport at its current head.
-
-    A view, not the passport itself: the envelope and its facts are owned by
-    `packages/passports` and `passport-envelope.md`. What this adds is the local
-    position — which revision is current, and what it descends from — because an
-    agent deciding whether to write needs to know what it would be writing on
-    top of.
-    """
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    #: Every passport kind, matching `ai_stp_passports.envelope.PassportKind`.
-    #: One view rather than one per kind: they are the same shape — an identity,
-    #: a position in a revision chain, and facts — and separate models would be
-    #: the same fields maintained five times. The set is the *whole* set on
-    #: purpose; a subset of it silently rejects a passport the envelope accepts,
-    #: which is a failure this has already had twice.
-    kind: Literal["developer", "device", "project", "component", "setup"]
-    stable_id: Annotated[str, Field(min_length=1)]
-    revision_id: Annotated[str, Field(min_length=1)]
-    parent_revision_ids: list[str]
-    created_at: Timestamp
-
-    #: The owner as this installation records it. Before sign-in that is a
-    #: locally minted identifier and not an account the platform knows
-    #: (`ADR-0060`); `#75` transfers ownership as an ordinary revision.
-    owner_id: AccountId
-
-    #: Facts at this revision, exactly as the envelope holds them.
-    facts: dict[str, JsonValue]
-
-
-class ComponentPassportValidation(ContractModel):
-    """Whether one local component head is complete enough to publish.
-
-    This is a local structural verdict, not permission to write to the cloud.
-    Publication still requires its own authenticated exact plan after the
-    platform contract exists.
-    """
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    stable_id: Annotated[str, Field(min_length=1)]
-    revision_id: Annotated[str, Field(min_length=1)]
-    for_publication: Literal[True] = True
-    ready: bool
-    missing_fields: list[str]
-    invalid_fields: list[str]
-
-
-class ComponentQualityCheck(ContractModel):
-    """One deterministic authoring hint, never a verification result."""
-
-    model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
-
-    schema_version: Literal[1] = 1
-    code: Annotated[str, Field(pattern=r"^[a-z][a-z0-9_]{2,63}$")]
-    status: Literal["passed", "hint"]
-    fields: list[Annotated[str, Field(min_length=1, max_length=64)]] = []
-    message: Annotated[str, Field(min_length=1, max_length=240)]
-
-
-class ComponentQualityDimension(ContractModel):
-    """Mechanical checks grouped under one author-facing quality dimension."""
-
-    model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
-
-    schema_version: Literal[1] = 1
-    dimension: Literal["safety", "clarity", "reusability", "completeness", "actionability"]
-    status: Literal["passed", "hint"]
-    checks: Annotated[list[ComponentQualityCheck], Field(min_length=1)]
-
-    @model_validator(mode="after")
-    def status_matches_checks(self) -> Self:
-        expected = "passed" if all(item.status == "passed" for item in self.checks) else "hint"
-        if self.status != expected:
-            raise ValueError("quality dimension status disagrees with its checks")
-        if len({item.code for item in self.checks}) != len(self.checks):
-            raise ValueError("quality check codes must be unique within a dimension")
-        return self
-
-
-class ComponentQualityReport(ContractModel):
-    """Optional mechanical guidance separated from trust and publication readiness."""
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    profile_version: Literal["mechanical/1"] = "mechanical/1"
-    stable_id: Annotated[str, Field(min_length=1)]
-    revision_id: Annotated[str, Field(min_length=1)]
-    component_type: ComponentType
-    informational_only: Literal[True] = True
-    affects_publication_readiness: Literal[False] = False
-    affects_component_verified: Literal[False] = False
-    affects_trust_lane: Literal[False] = False
-    dimensions: Annotated[list[ComponentQualityDimension], Field(min_length=5, max_length=5)]
-
-    @model_validator(mode="after")
-    def all_dimensions_are_present_once(self) -> Self:
-        expected = {"safety", "clarity", "reusability", "completeness", "actionability"}
-        if {item.dimension for item in self.dimensions} != expected:
-            raise ValueError("quality report must contain every dimension exactly once")
-        return self
-
-
-class ComponentPassportSuggestion(ContractModel):
-    """One exact fact copied from named immutable evidence, awaiting confirmation."""
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    field: Annotated[str, Field(min_length=1, max_length=64)]
-    value: JsonValue
-    source_refs: Annotated[list[str], Field(min_length=1, max_length=8)]
-    requires_confirmation: Literal[True] = True
-
-
-class ComponentPassportSuggestions(ContractModel):
-    """Read-only enrichment candidates for one exact component revision."""
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    stable_id: Annotated[str, Field(min_length=1)]
-    revision_id: Annotated[str, Field(min_length=1)]
-    suggestions: list[ComponentPassportSuggestion]
-    unresolved_fields: list[str]
-
-
-class DeviceApproval(ContractModel):
-    """What a person must approve before a sign-in can complete (issue #75).
-
-    Returned rather than waited on. `#72` fixed that the CLI never blocks for a
-    human decision — a command that polled until someone walked to their browser
-    would hang in CI and in a container, which is the same reason the sign-in is
-    a device-code flow and not a loopback redirect. So this is the first half of
-    the answer, and `auth complete --wait` is the second.
-
-    No secret is representable here. The device code the client polls with is
-    kept in the credential store, not published: it is the bearer of the
-    pending authorization.
-    """
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    provider: OAuthProvider
-
-    #: Typed by a human from a terminal into a browser.
-    user_code: Annotated[str, Field(min_length=1)]
-
-    verification_uri: Annotated[str, Field(min_length=1)]
-
-    #: The same page with the code already filled in. Useless on a machine that
-    #: cannot open a browser, which is why the plain pair above stays required.
-    verification_uri_complete: Annotated[str, Field(min_length=1)]
-
-    expires_in: Annotated[int, Field(ge=1)]
-
-    #: Whether a browser was actually opened. Not an error when false — that is
-    #: the normal case over SSH — but the agent needs to know whether to tell
-    #: the user to open the address themselves.
-    browser_opened: bool
-
-    device_id: DeviceId
-
-
-#: Which half of the catalogue an answer is about. Components and setups are
-#: separate routes with separate cursors (`#71`), so a single call is about one
-#: of them and saying which is not decoration.
-type CatalogKind = Literal["component", "setup"]
-
-#: Where an answer came from. `cache` is not a degraded `online`: it is a
-#: statement about a moment in the past, and `checked_at` says which moment.
-#: Presenting a cached answer as current is the failure `offline-capability.md`
-#: forbids.
-type AnswerSource = Literal["online", "cache"]
-
-
-class CatalogSearchResult(ContractModel):
-    """One page of public catalogue results, and where it came from."""
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    kind: CatalogKind
-    source: AnswerSource
-
-    #: When the platform actually answered. On a cached result this is in the
-    #: past, and it is the field that stops the answer claiming to be current.
-    checked_at: Timestamp
-
-    items: list[ComponentSummary | SetupSummary]
-
-    #: Results from the `experimental` lane, in their own section. `ADR-0016`
-    #: keeps them out of the main list: an experimental candidate that appeared
-    #: among authoritative ones would have been silently promoted.
-    experimental: list[ComponentSummary | SetupSummary]
-
-    #: Absent when there is no further page. Opaque: a client echoes it back and
-    #: never constructs one.
-    next_cursor: str | None
-
-
-class CatalogObjectView(ContractModel):
-    """One catalogue object with its published versions."""
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    kind: CatalogKind
-    source: AnswerSource
-    checked_at: Timestamp
-    summary: ComponentSummary | SetupSummary
-
-    #: Every offered version, newest first. Numbers are not contiguous by
-    #: design: hiding a version does not free its number.
-    versions: list[VersionListEntry]
-
-
-class CatalogVersionView(ContractModel):
-    """One exact published version and the passport it promises (issue #76).
-
-    The digest travels with the passport because a client verifies one against
-    the other: a passport offered under a digest that does not describe it is a
-    truncated download or a substituted body, and both are refused rather than
-    cached.
-    """
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    distribution_visibility: Literal["public", "private"] = "public"
-    kind: CatalogKind
-    source: AnswerSource
-    checked_at: Timestamp
-    passport_digest: Annotated[str, Field(min_length=1)]
-    lifecycle: PublicLifecycle
-    trust: CatalogTrust | PrivateVersionTrust
-    published_at: Timestamp
-
-    #: The passport itself, exactly as the catalogue published it. Kept as the
-    #: document rather than re-modelled: its shape is owned by
-    #: `passport-envelope.md`, and a second model here could drift from it.
-    passport: dict[str, JsonValue]
-
-
-class ProjectCandidate(ContractModel):
-    """One directory that could be registered as a project (`SPEC-004`)."""
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-
-    #: Rendered with the home directory folded away, like every reported path.
-    root: Annotated[str, Field(min_length=1)]
-
-    #: `project`, or `nested_repository` for a repository inside another one.
-    #: A nested repository is reported so the user can see it and registered only
-    #: on an explicit choice (REQ-410).
-    kind: Literal["project", "nested_repository"]
-
-    #: `new` covers an empty folder, an empty repository and a folder holding
-    #: only documentation — none of them has anything to index yet (REQ-402).
-    state: Literal["new", "established"]
-
-    #: What identified it: manifest file names, `git`, or nothing.
-    markers: list[str]
-
-    #: Why it is classified this way, in words a caller can show a person.
-    reason: Annotated[str, Field(min_length=1)]
-
-
-class DiscoveryDiagnostic(ContractModel):
-    """One path skipped while examining an explicit project discovery root."""
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    path: Annotated[str, Field(min_length=1)]
-    code: Literal["excluded", "entry_limit", "symlink", "unreadable"]
-    reason: Annotated[str, Field(min_length=1)]
-
-
-class ProjectCandidates(ContractModel):
-    """Everything found inside one directory the user named."""
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    discovery_root: Annotated[str, Field(min_length=1)]
-    complete: bool
-    candidates: list[ProjectCandidate]
-    diagnostics: list[DiscoveryDiagnostic]
-
-
-class IndexedFile(ContractModel):
-    """One file the index knows about, described without keeping its content."""
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-
-    #: Relative to the project root, POSIX form. No absolute path reaches a
-    #: passport, and two machines indexing the same tree agree.
-    path: Annotated[str, Field(min_length=1)]
-    kind: Literal["manifest", "lock", "agent_surface", "source", "document", "config", "text"]
-    language: str | None = None
-    size_bytes: Annotated[int, Field(ge=0)]
-
-    #: `None` when the file was too large to read; its size is still known.
-    digest: str | None = None
-    lines: int | None = None
-
-
-class ExcludedPath(ContractModel):
-    """One path left out of the index, and why."""
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    path: Annotated[str, Field(min_length=1)]
-    reason: Annotated[str, Field(min_length=1)]
-
-
-class ProjectIndex(ContractModel):
-    """The bounded second-level index of one project root (`SPEC-004`).
-
-    `state` is `partial` when a size, depth, entry or time bound was reached.
-    Saying so is the point: a short answer that looks complete is worse than a
-    complete answer that says where it stopped.
-    """
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    root: Annotated[str, Field(min_length=1)]
-    state: Literal["complete", "partial"]
-    stopped_by: str | None = None
-    files: list[IndexedFile]
-    excluded: list[ExcludedPath]
-
-
-class CliTechnologyEvidence(ContractModel):
-    """One evidence trace of a local technology finding (issue #222)."""
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    source: Literal["declared", "configured", "observed"]
-    path: Annotated[str, Field(min_length=1)]
-    reference: str | None = None
-    confidence: Annotated[float, Field(ge=0, le=1)]
-
-
-class CliTechnologyClaim(ContractModel):
-    """One version claim inside a finding, with its evidence."""
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    version: str | None = None
-    version_kind: Literal["unknown", "declared_range", "observed_version"]
-    evidence: list[CliTechnologyEvidence]
-
-
-class CliTechnologyFinding(ContractModel):
-    """One stored technology finding and its review state (issue #222).
-
-    `technology_id` is the resolved canonical identity when the mapping in
-    effect covers the coordinate, else `null` — an unmapped finding is a fact
-    to report, not an identity to invent.
-    """
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    key: Annotated[str, Field(min_length=1)]
-    kind: Literal["package", "image", "executable", "configuration", "alias"]
-    coordinate: Annotated[str, Field(min_length=1)]
-    context: Literal["production", "development", "testing", "browser_support"]
-    technology_id: str | None = None
-    effective_technology_id: str | None = None
-    version: str | None = None
-    version_kind: Literal["unknown", "declared_range", "observed_version"]
-    review: Literal["proposed", "confirmed", "rejected", "overridden", "retired"]
-    freshness: Literal["current", "stale", "absent", "unknown"]
-    claims: list[CliTechnologyClaim]
-    override_technology_id: str | None = None
-    override_version: str | None = None
-    first_seen_scan: Annotated[str, Field(min_length=1)]
-    last_seen_scan: Annotated[str, Field(min_length=1)]
-    source_revision: Annotated[str | None, Field(pattern=r"^[0-9a-f]{64}$")] = None
-    reviewed_at: str | None = None
-
-
-class CliTechnologyScan(ContractModel):
-    """The result of `project detect`: one stored scan over one root.
-
-    `handoff` resolves findings the way publication does — against the
-    fetched organization snapshot when one is cached, else the bundled
-    table — so an agent can inspect what would travel before anything does.
-    `unmapped` names the coordinates that resolution cannot carry.
-    """
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    scan_id: Annotated[str, Field(pattern=stable_id_pattern("scan"))]
-    project_id: Annotated[str, Field(pattern=stable_id_pattern("project"))]
-    root: Annotated[str, Field(min_length=1)]
-    scope: Annotated[str, Field(min_length=1)]
-    state: Literal["complete", "partial"]
-    stopped_by: str | None = None
-    detector_version: Annotated[str, Field(min_length=1)]
-    mapping_version: Annotated[str, Field(min_length=1)]
-    source_revision: Annotated[str | None, Field(pattern=r"^[0-9a-f]{64}$")] = None
-    findings: list[CliTechnologyFinding]
-    unmapped: list[str]
-    observations: Annotated[int, Field(ge=0)]
-    handoff: TechnologyScanHandoff
-
-
-class CliTechnologyFindings(ContractModel):
-    """Every stored finding for one local project (`project technologies`)."""
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    project_id: Annotated[str, Field(pattern=stable_id_pattern("project"))]
-    findings: list[CliTechnologyFinding]
-
-
-class CliTechnologyReview(ContractModel):
-    """The finding after one confirm, reject, override or retire decision."""
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    finding: CliTechnologyFinding
-
-
-class CliTechnologyMapping(ContractModel):
-    """One cached organization mapping snapshot, summarized."""
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    organization_id: Annotated[str, Field(min_length=1)]
-    version: Annotated[str, Field(min_length=1)]
-    digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
-    entries: Annotated[int, Field(ge=0)]
-
-
-class CliTechnologyMappings(ContractModel):
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    organization_id: Annotated[str, Field(min_length=1)]
-    items: list[CliTechnologyMapping]
-
-
-class CliTechnologyUnmappedItem(ContractModel):
-    """One coordinate the effective mapping cannot resolve, with its contexts."""
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    kind: Literal["package", "image", "executable", "configuration", "alias"]
-    coordinate: Annotated[str, Field(min_length=1)]
-    contexts: Annotated[
-        list[Literal["production", "development", "testing", "browser_support"]],
-        Field(min_length=1),
-    ]
-    project_ids: list[Annotated[str, Field(min_length=1)]] = []
-
-
-class CliTechnologyUnmapped(ContractModel):
-    """The unmapped-coordinate queue for one project, or for one organization.
-
-    Locally this is what `project detect` observed but could not resolve;
-    remotely (`--organization`) it is every coordinate published scans left
-    unresolved — the queue a registry operator works through when extending
-    the mapping.
-    """
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    project_id: str | None = None
-    organization_id: str | None = None
-    scope: str | None = None
-    coordinates: list[CliTechnologyUnmappedItem]
-
-
-class HarnessProgramArtifact(ContractModel):
-    """One archive a program plan named, as the plan named it.
-
-    Repeated here rather than summarised because the consumer fetched exactly
-    this and an agent reading the result may want to check the same bytes
-    itself. `entry_point` is relative to the prefix and is the path the provider
-    exposes there — not a path inside the archive.
-    """
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    platform: Annotated[str, Field(min_length=1)]
-    url: Annotated[str, Field(min_length=1)]
-    sha256: Annotated[str, Field(pattern=DIGEST_PATTERN)]
-    byte_length: Annotated[int, Field(gt=0)]
-    entry_point: Annotated[str, Field(min_length=1)]
-
-
-class HarnessProgram(ContractModel):
-    """The outcome of one program lifecycle operation (`ADR-0122`).
-
-    The subject is the harness program under `--prefix`, not the configuration
-    in `--target`. `state` is what the provider reported after the effect, and
-    `verified` is the only state that says the program is installed and its
-    identity confirmed.
-
-    `operation_id` names the journal entry, which is the same journal a setup
-    installation uses: the state machine, the backup and the plan digest do not
-    change with the subject.
-    """
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    harness_id: Annotated[str, Field(min_length=1)]
-    operation: Literal["software_install", "software_update", "software_remove"]
-    state: Annotated[str, Field(min_length=1)]
-    operation_id: Annotated[str, Field(min_length=1)]
-    prefix: Annotated[str, Field(min_length=1)]
-    plan_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
-
-    #: What the plan said it would do, verbatim. A plan with no effects changes
-    #: nothing and is refused before it reaches here.
-    effects: list[str]
-
-    #: Empty for `software_remove`, which deletes what is already there and
-    #: fetches nothing.
-    artifacts: list[HarnessProgramArtifact] = []
-
-    #: Present once the provider has exposed a command, as an absolute path.
-    #: Read from the provider's own answer rather than joined here, so the two
-    #: cannot disagree.
-    executable: str = ""
-    version: str = ""
-
-    #: `software_remove` only. `false` means there was nothing of this program
-    #: under the prefix — which is a success, because removing is idempotent,
-    #: and a different answer from having removed something. Collapsing the two
-    #: into `verified` alone leaves an agent unable to tell an absence from a
-    #: deletion, and an absence that reads as a deletion invites a retry that
-    #: will never change anything.
-    removed: bool | None = None
-
-    #: What an interrupted earlier operation left, resolved by the provider
-    #: under the lock before it read the prefix. Empty on every ordinary run.
-    #:
-    #: Declared rather than left to `extra="allow"`, which would accept the key
-    #: and then drop it: a prefix the provider had to recover would read
-    #: identically to a clean one, and the one moment the operator could have
-    #: learned an earlier run was interrupted would pass in silence.
-    #:
-    #: The provider resolves this itself because a consumer cannot ask for it.
-    #: `recover-operation` names a `--target`, and program work happens under a
-    #: `--prefix` — a different root with a different lifetime — so there is
-    #: nowhere in the request to name one. Surfacing what the provider did is
-    #: the whole of what this side can offer until that changes.
-    recovered: list[str] = []
-
-
-class HarnessProgramOperation(ContractModel):
-    """One program operation this installation recorded against a prefix."""
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    operation_id: Annotated[str, Field(min_length=1)]
-    operation: Literal["software_install", "software_update", "software_remove"]
-    state: Annotated[str, Field(min_length=1)]
-    at: Annotated[str, Field(min_length=1)]
-
-
-class HarnessProgramStatus(ContractModel):
-    """What stands under one prefix, read from the disk and from the journal.
-
-    The standing report the program lifecycle owes, and the only one
-    (`ADR-0122`). `toolchain harnesses` answers a different question — what is
-    visible on this machine — and the two vocabularies are kept disjoint so no
-    word carries two subjects.
-
-    Two independent sources, deliberately: the journal says what this
-    installation did, the filesystem says what is there now. Reporting only the
-    first would have called a verified operation a success on an empty prefix,
-    which is exactly what happened once — a provider unpacked into a sandbox's
-    own tmpfs, verified it where every check was true, and the files died with
-    the namespace. `lost` exists to make that one glance rather than an
-    investigation.
-
-    `version` comes from the journal and never from running the program.
-    Asking a binary its version would execute a foreign executable from a
-    command declared `read`, which is the same reason `doctor` only checks that
-    `gh` is present.
-    """
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    harness_id: Annotated[str, Field(min_length=1)]
-    prefix: Annotated[str, Field(min_length=1)]
-
-    #: - `present` — this installation put a program here and it is here.
-    #: - `removed` — this installation's last word was a removal, and nothing
-    #:   is here. Distinct from `never_installed` for the same reason
-    #:   `removed: false` is distinct from `verified`: an absence that reads as
-    #:   a deletion invites a retry that cannot change anything.
-    #: - `never_installed` — no record, nothing here.
-    #: - `foreign` — something is here that this installation did not put here.
-    #:   The provider behaves the same way: it removes only what it installed,
-    #:   and an unowned sibling copy survives and is reported.
-    #: - `lost` — a verified operation is recorded and the program is not on
-    #:   disk. Nothing else in the system reports this.
-    #: - `interrupted` — an operation against this prefix stopped without
-    #:   settling. It outranks the rest because it is the one that needs an
-    #:   action rather than a reading.
-    state: Literal["present", "removed", "never_installed", "foreign", "lost", "interrupted"]
-    reason: Annotated[str, Field(min_length=1)]
-
-    #: Read from the filesystem now. Absolute, and empty when nothing is there.
-    executable: str = ""
-
-    #: Relative to the prefix, as the provider exposed it — `bin/<command>`,
-    #: never a path inside the archive.
-    entry_point: str = ""
-
-    #: From the journal. Empty when this installation has no verified record.
-    version: str = ""
-    operation_id: str = ""
-    recorded_operation: str = ""
-    recorded_state: str = ""
-    recorded_at: str = ""
-
-    #: Every operation against this prefix that stopped without settling, so a
-    #: caller that reads `state` alone still learns there is something to
-    #: recover.
-    stopped: list[HarnessProgramOperation] = []
-
-
-class ToolInstallation(ContractModel):
-    """The outcome of one managed install (`SPEC-014` REQ-1405, REQ-1410, REQ-1411).
-
-    `action` is what happened, not what was attempted. `needs_user_action` means
-    something outside the managed directory would have to change, and the plan
-    says exactly what — `REQ-1410` forbids the agent obtaining a password to do
-    it instead.
-    """
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    tool_id: Annotated[str, Field(min_length=1)]
-    version: Annotated[str, Field(min_length=1)]
-    action: Literal["installed", "already_installed", "needs_user_action", "removed"]
-    reason: Annotated[str, Field(min_length=1)]
-
-    #: The exact path the tool is invoked by (`REQ-1404`). Never a bare name:
-    #: the surrounding `PATH` is not a source of truth for a managed toolchain.
-    binary: str | None = None
-
-    #: Whether this could be carried out with no network (`REQ-1413`).
-    offline_capable: bool = False
-
-    #: Every path created or removed (`REQ-1411`). An uninstall reads this list
-    #: rather than deciding what looks like ours.
-    paths: list[str] = []
-
-    #: Paths deliberately left alone, with the reason. A user's own file inside
-    #: a tool directory is theirs.
-    kept: list[str] = []
-
-
-class NativeComponentProvenance(ContractModel):
-    """Allowlisted origin evidence for one native discovery candidate."""
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    kind: Literal["filesystem", "github", "package"]
-    state: Literal["local", "exact", "observed"]
-    repository: (
-        Annotated[
-            str,
-            Field(pattern=r"^https://github\.com/[A-Za-z0-9][A-Za-z0-9_.-]*/[A-Za-z0-9_.-]+$"),
-        ]
-        | None
-    ) = None
-    revision: Annotated[str, Field(pattern=r"^[0-9a-f]{40}$")] | None = None
-    subpath: Annotated[str, Field(min_length=1)] | None = None
-    package_name: Annotated[str, Field(min_length=1)] | None = None
-    package_version: Annotated[str, Field(min_length=1)] | None = None
-    digest: Annotated[str, Field(pattern=r"^(?:sha1:[0-9a-f]{40}|sha256:[0-9a-f]{64})$")] | None = (
-        None
-    )
-    evidence: list[Annotated[str, Field(min_length=1)]] = Field(default_factory=list)
-
-    @model_validator(mode="after")
-    def consistent_origin(self) -> Self:
-        if self.kind == "github":
-            if (
-                self.state != "exact"
-                or self.repository is None
-                or not self.repository.startswith("https://github.com/")
-                or self.revision is None
-            ):
-                raise ValueError("GitHub provenance requires an exact repository and revision")
-        elif self.kind == "package":
-            if (
-                self.state != "observed"
-                or self.package_name is None
-                or any(
-                    value is not None for value in (self.repository, self.revision, self.subpath)
-                )
-            ):
-                raise ValueError("package provenance requires observed package identity only")
-        elif self.state != "local" or any(
-            value is not None
-            for value in (
-                self.repository,
-                self.revision,
-                self.subpath,
-                self.package_name,
-                self.package_version,
-                self.digest,
-            )
-        ):
-            raise ValueError("filesystem provenance may contain only local layout evidence")
-        return self
-
-
-class NativeDiscoveryDiagnostic(ContractModel):
-    """A safe reason an optional provenance adapter could not classify input."""
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    code: Literal[
-        "missing_manifest",
-        "invalid_manifest",
-        "unsupported_manifest",
-        "invalid_record",
-        "missing_source_entry",
-        "bounded_limit",
-        "unreadable",
-    ]
-    source: Annotated[str, Field(min_length=1)]
-    reason: Annotated[str, Field(min_length=1)]
-
-
-class ExternalSourceIdentity(ContractModel):
-    """A parsed external source intent or separately proven exact identity."""
-
-    model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
-
-    schema_version: Literal[1] = 1
-    kind: Literal["published", "github", "github/exact", "local", "collection"]
-    canonical: Annotated[str, Field(min_length=1, max_length=2048)]
-    owner: str | None = None
-    repository: str | None = None
-    ref: str | None = None
-    subpath: str | None = None
-    selector: str | None = None
-    local_path: str | None = None
-    collection_owner: str | None = None
-    collection_handle: str | None = None
-    provenance_proven: bool = False
-
-
-class SourceSearchCandidate(ContractModel):
-    """One name-query hit. Source, catalog status, and trust stay separate."""
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    name: Annotated[str, Field(min_length=1, max_length=256)]
-    source: Literal["catalog", "package", "git"]
-    exact_coordinate: Annotated[str, Field(min_length=1, max_length=1024)]
-    catalog_status: Literal["catalog", "not_in_catalog"]
-    trust_lane: Literal["authoritative", "experimental", "local_owner_or_pinned"]
-    author_verified: bool
-    component_verified: bool
-    stable_id: str | None = None
-
-
-class SourceSearchResult(ContractModel):
-    """Name-only discovery. The resolver never selects a candidate."""
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    query: Annotated[str, Field(min_length=1, max_length=512)]
-    registry_discovery: bool
-    resolution: Literal["unresolved", "needs_selection", "resolved", "failed"]
-    selected: SourceSearchCandidate | None = None
-    candidates: list[SourceSearchCandidate]
-
-
-class ComponentPromotionPlan(ContractModel):
-    """Ordinary publication plan produced from one embedded component (REQ-5714)."""
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    setup_id: Annotated[str, Field(min_length=1)]
-    setup_version: Annotated[str, Field(pattern=r"^\d+\.\d+$")]
-    source_component_id: Annotated[str, Field(min_length=1)]
-    catalog_stable_id: Annotated[str, Field(min_length=1)]
-    catalog_version: Annotated[str, Field(pattern=r"^\d+\.\d+$")]
-    reused_passport: bool
-    still_embedded: bool
-    plan_id: str = ""
-    plan_hash: str = ""
-    state: str = ""
-
-
-class SetupUpdatePlan(ContractModel):
-    """Preview of one explicit embedded-component update. Selection is unchanged."""
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    setup_id: Annotated[str, Field(min_length=1)]
-    from_version: Annotated[str, Field(pattern=r"^\d+\.\d+$")]
-    to_version: Annotated[str, Field(pattern=r"^\d+\.\d+$")]
-    component_id: Annotated[str, Field(min_length=1)]
-    snapshot_coordinate: Annotated[str, Field(min_length=1, max_length=1024)]
-    snapshot_identity: Annotated[str, Field(min_length=1, max_length=256)]
-    plan_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
-    selected_stable_id: str = ""
-    selected_version: str = ""
-    suggested_catalog_stable_id: str = ""
-    suggested_catalog_version: str = ""
-    suggested_catalog_dismissible: bool = False
-
-
-class SetupUpdateResult(ContractModel):
-    """Outcome of a confirmed exact update. A new immutable setup version."""
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    setup_id: Annotated[str, Field(min_length=1)]
-    from_version: Annotated[str, Field(pattern=r"^\d+\.\d+$")]
-    to_version: Annotated[str, Field(pattern=r"^\d+\.\d+$")]
-    created: bool
-    selected_stable_id: str = ""
-    selected_version: str = ""
-    plan_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
-
-
-class SetupComposeMember(ContractModel):
-    """One exact member frozen by a setup composition plan."""
-
-    model_config = ConfigDict(extra="forbid", frozen=True)
-
-    stable_id: Annotated[str, Field(min_length=1)]
-    version: Annotated[str, Field(pattern=r"^\d+\.\d+$")]
-    source: Annotated[str, Field(min_length=1, max_length=1024)]
-    embedded: bool
-
-
-class SetupComposePlan(ContractModel):
-    """Exact preview for a new mixed catalog/Git/package/path setup."""
-
-    model_config = ConfigDict(extra="forbid", frozen=True)
-
-    schema_version: Literal[1] = 1
-    setup_id: Annotated[str, Field(min_length=1)]
-    version: Annotated[str, Field(pattern=r"^\d+\.\d+$")]
-    harness_id: Annotated[str, Field(min_length=1)]
-    created_at: Annotated[str, Field(min_length=1)]
-    definition_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
-    plan_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
-    members: list[SetupComposeMember]
-
-
-class SetupComposeResult(ContractModel):
-    """A newly recorded immutable mixed setup version."""
-
-    model_config = ConfigDict(extra="forbid", frozen=True)
-
-    schema_version: Literal[1] = 1
-    setup_id: Annotated[str, Field(min_length=1)]
-    version: Annotated[str, Field(pattern=r"^\d+\.\d+$")]
-    created_at: Annotated[str, Field(min_length=1)]
-    passport_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
-    definition_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
-    plan_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
-    created: bool
-
-
-class SetupRecastMember(ContractModel):
-    """One source component and what recast will do with it."""
-
-    model_config = ConfigDict(extra="forbid", frozen=True)
-
-    stable_id: Annotated[str, Field(min_length=1)]
-    source_version: Annotated[str, Field(pattern=r"^\d+\.\d+$")]
-    target_version: Annotated[str, Field(pattern=r"^\d+\.\d+$")]
-    component_type: ComponentType
-    disposition: Literal["reuse", "derive", "blocked"]
-    reason: Annotated[str, Field(min_length=1, max_length=512)]
-
-
-class SetupRecastPlan(ContractModel):
-    """Exact preview for a new setup recast onto another harness."""
-
-    model_config = ConfigDict(extra="forbid", frozen=True)
-
-    schema_version: Literal[1] = 1
-    setup_id: Annotated[str, Field(min_length=1)]
-    version: Annotated[str, Field(pattern=r"^\d+\.\d+$")]
-    source_setup_id: Annotated[str, Field(min_length=1)]
-    source_version: Annotated[str, Field(pattern=r"^\d+\.\d+$")]
-    source_harness_id: HarnessId
-    target_harness_id: HarnessId
-    created_at: Annotated[str, Field(min_length=1)]
-    complete: bool
-    plan_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
-    members: list[SetupRecastMember]
-
-
-class SetupRecastResult(ContractModel):
-    """A newly recorded setup recast from an exact source version."""
-
-    model_config = ConfigDict(extra="forbid", frozen=True)
-
-    schema_version: Literal[1] = 1
-    setup_id: Annotated[str, Field(min_length=1)]
-    version: Annotated[str, Field(pattern=r"^\d+\.\d+$")]
-    source_setup_id: Annotated[str, Field(min_length=1)]
-    source_version: Annotated[str, Field(pattern=r"^\d+\.\d+$")]
-    created_at: Annotated[str, Field(min_length=1)]
-    passport_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
-    plan_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
-    created: bool
-
-
-class ComponentMaterializeTarget(ContractModel):
-    """One requested target harness inside a materialize plan."""
-
-    model_config = ConfigDict(extra="forbid", frozen=True)
-
-    target_harness_id: HarnessId
-    disposition: Literal["reuse", "derive", "blocked"]
-    reason: Annotated[str, Field(min_length=1, max_length=512)]
-    projection_digest: Annotated[str, Field(min_length=1)]
-    semantic_losses: list[Annotated[str, Field(min_length=1, max_length=512)]] = []
-    filesystem_permissions: list[Annotated[str, Field(min_length=1, max_length=1024)]] = []
-    network_permissions: list[Annotated[str, Field(min_length=1, max_length=1024)]] = []
-    process_permissions: list[Annotated[str, Field(min_length=1, max_length=1024)]] = []
-
-
-class ComponentMaterializePlan(ContractModel):
-    """Exact preview for one or more target-harness adaptations of a pinned component."""
-
-    model_config = ConfigDict(extra="forbid", frozen=True)
-
-    schema_version: Literal[1] = 1
-    stable_id: Annotated[str, Field(min_length=1)]
-    overlay_id: Annotated[str, Field(min_length=1)]
-    source_version: Annotated[str, Field(pattern=r"^\d+\.\d+$")]
-    target_version: Annotated[str, Field(pattern=r"^\d+\.\d+$")]
-    source_harness_id: HarnessId
-    target_harness_id: HarnessId
-    source_passport_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
-    transform_id: Annotated[str, Field(min_length=1)]
-    transform_version: Annotated[str, Field(min_length=1)]
-    provider_profile_digest: Annotated[str, Field(min_length=1)]
-    projection_digest: Annotated[str, Field(min_length=1)]
-    disposition: Literal["reuse", "derive", "blocked"]
-    reason: Annotated[str, Field(min_length=1, max_length=512)]
-    semantic_losses: list[Annotated[str, Field(min_length=1, max_length=512)]] = []
-    filesystem_permissions: list[Annotated[str, Field(min_length=1, max_length=1024)]] = []
-    network_permissions: list[Annotated[str, Field(min_length=1, max_length=1024)]] = []
-    process_permissions: list[Annotated[str, Field(min_length=1, max_length=1024)]] = []
-    targets: Annotated[list[ComponentMaterializeTarget], Field(min_length=1)]
-    local_only: bool
-    complete: bool
-    created_at: Annotated[str, Field(min_length=1)]
-    plan_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
-
-
-class ComponentMaterializeResult(ContractModel):
-    """A recorded target adaptation, either on the source line or a local overlay."""
-
-    model_config = ConfigDict(extra="forbid", frozen=True)
-
-    schema_version: Literal[1] = 1
-    stable_id: Annotated[str, Field(min_length=1)]
-    version: Annotated[str, Field(pattern=r"^\d+\.\d+$")]
-    source_stable_id: Annotated[str, Field(min_length=1)]
-    source_version: Annotated[str, Field(pattern=r"^\d+\.\d+$")]
-    target_harness_id: HarnessId
-    target_harness_ids: list[HarnessId] = []
-    created_at: Annotated[str, Field(min_length=1)]
-    passport_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
-    plan_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
-    local_only: bool
-    created: bool
-
-
-class CliProgram(ContractModel):
-    """Shared executable lifecycle for one catalog `cli` component."""
-
-    model_config = ConfigDict(extra="forbid", frozen=True)
-
-    schema_version: Literal[1] = 1
-    stable_id: Annotated[str, Field(min_length=1)]
-    version: Annotated[str, Field(pattern=r"^\d+\.\d+$")]
-    operation: Literal["install", "invoke", "status", "remove"]
-    state: Literal["present", "removed", "never_installed", "invoked"]
-    prefix: Annotated[str, Field(min_length=1)]
-    executable: str = ""
-    exit_code: int | None = None
-    output: str = ""
-
-
-class SetupExportResult(ContractModel):
-    """A review tree of one already-recorded local setup. Not a harness tree."""
-
-    model_config = ConfigDict(extra="forbid", frozen=True)
-
-    schema_version: Literal[1] = 1
-    setup_id: Annotated[str, Field(min_length=1)]
-    version: Annotated[str, Field(pattern=r"^\d+\.\d+$")]
-    passport_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
-    definition_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
-    export_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
-    export_format: Literal["ai-stp-setup-export/1"] = "ai-stp-setup-export/1"
-    output: Annotated[str, Field(min_length=1)]
-    files_written: Annotated[int, Field(ge=1)]
-    result: Literal["local_setup_definition"] = "local_setup_definition"
-    storage: Literal["local_registry"] = "local_registry"
-    physical_target_tree_created: Literal[False] = False
-
-
-class ComponentScaffoldView(ContractModel):
-    """One safely created component authoring template."""
-
-    model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
-
-    schema_version: Literal[1] = 1
-    component_type: ComponentType
-    component_name: Annotated[str, Field(min_length=1)]
-    output: Annotated[str, Field(min_length=1)]
-    byte_length: Annotated[int, Field(gt=0)]
-
-
-class ComponentTemplateView(ContractModel):
-    """A deterministic concrete projection of one authoring template."""
-
-    model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
-
-    schema_version: Literal[1] = 1
-    harness_id: HarnessId
-    component_name: Annotated[str, Field(min_length=1)]
-    component_root: Annotated[str, Field(min_length=1)]
-    source_digest: Annotated[str, Field(pattern=r"^sha256:[0-9a-f]{64}$")]
-    rendered_digest: Annotated[str, Field(pattern=r"^sha256:[0-9a-f]{64}$")]
-    placeholders: list[str]
-    content: Annotated[str, Field(max_length=65536)]
-
-
-class NativeComponent(ContractModel):
-    """One native component found on this machine (`SPEC-005` REQ-517).
-
-    Reported without its content being read. `holds_secret` is decided from the
-    path's *name*: opening a file to learn whether it holds a credential is the
-    harm REQ-518 exists to prevent, so the flag says "named as one", never
-    "contains one".
-    """
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    component_type: ComponentType
-    native_role: Literal["mcp_client_config", "mcp_server"] | None = None
-
-    #: `None` for a cross-harness convention such as a project `AGENTS.md`,
-    #: which belongs to no single harness.
-    harness_id: str | None = None
-    scope: Literal["global", "project"]
-    candidate_id: Annotated[str, Field(pattern=r"^sha256:[0-9a-f]{64}$")]
-    layout_source: Annotated[str, Field(min_length=1)]
-    source_path: Annotated[str, Field(min_length=1)]
-    provenance: NativeComponentProvenance
-    entry_points: list[Annotated[str, Field(min_length=1)]] = Field(default_factory=list)
-    transport_capabilities: list[Literal["stdio", "http"]] = Field(
-        default_factory=list[Literal["stdio", "http"]]
-    )
-    evidence_refs: list[Annotated[str, Field(min_length=1)]] = Field(default_factory=list)
-
-    #: `None` when the entry could not be measured, which includes every
-    #: directory. Discovery never opens a file to find out.
-    byte_length: int | None = None
-    holds_secret: bool = False
-    reason: Annotated[str, Field(min_length=1)]
-
-    #: The stable_id this path is already registered as, when the local
-    #: registry's `component_source_binding` answers the same key adoption
-    #: would record. `None` means unregistered — including when no registry
-    #: exists yet. The only join a reader should make; `source_path` is a
-    #: display string, not a key.
-    registered_stable_id: Annotated[str, Field(min_length=1)] | None = None
-
-
-class NativeComponents(ContractModel):
-    """Everything discovery found, and nothing it changed (`REQ-518`)."""
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-
-    #: The explicit project root. When set, discovery does not add global homes.
-    project: str | None = None
-    complete: bool
-    continuation: str | None = None
-    components: list[NativeComponent]
-    diagnostics: list[NativeDiscoveryDiagnostic] = Field(
-        default_factory=list[NativeDiscoveryDiagnostic]
-    )
-
-
-class PathInventoryObject(ContractModel):
-    """One logical object in an explicit-root inventory (`SPEC-005` REQ-534)."""
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    object_kind: Literal["component", "setup"]
-    relation: Literal["independent", "embedded_member", "generated_projection", "duplicate"]
-    origin: Literal["passport", "native"]
-    object_id: Annotated[str, Field(pattern=DIGEST_PATTERN)]
-    relative_path: Annotated[str, Field(min_length=1, max_length=2048)]
-    component_type: ComponentType | None = None
-    name: Annotated[str, Field(min_length=1, max_length=200)] | None = None
-    harness_id: str | None = None
-    passport_path: Annotated[str, Field(min_length=1, max_length=2048)] | None = None
-    generated_from: Annotated[str, Field(min_length=1, max_length=2048)] | None = None
-    stable_id: Annotated[str, Field(min_length=1, max_length=128)] | None = None
-
-
-class PathInventory(ContractModel):
-    """Passport-first inventory of one explicit root. Observation only (`REQ-518`)."""
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    root: Annotated[str, Field(min_length=1)]
-    complete: bool
-    continuation: str | None = None
-    objects: list[PathInventoryObject]
-    diagnostics: list[NativeDiscoveryDiagnostic] = Field(
-        default_factory=list[NativeDiscoveryDiagnostic]
-    )
-
-
-class ConsentRecord(ContractModel):
-    """One durable consent to unverified objects (`unverified-consent.md`).
-
-    `fingerprint` is what the candidate required when the user agreed, and it is
-    stored rather than recomputed: the whole mechanism is "does this now need
-    more than it did then", which cannot be answered without the older answer.
-    """
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    consent_id: Annotated[str, Field(min_length=1)]
-
-    #: The `unverified_consent` sync entity this record answers to — derived
-    #: from scope and target, so it is identical on every device of the
-    #: account. `sync push --id` takes it.
-    sync_entity_id: Annotated[str, Field(min_length=1)]
-
-    #: Three forms and no fourth. "Everything unverified, forever" does not
-    #: exist: `task` names the authorized full-auto profile, not a wildcard.
-    scope: Literal["publisher", "object_major", "task"]
-    target: Annotated[str, Field(min_length=1)]
-    decided_by: Annotated[str, Field(min_length=1)]
-    origin: Annotated[str, Field(min_length=1)]
-    created_at: Annotated[str, Field(min_length=1)]
-    revoked_at: str | None = None
-    fingerprint: dict[str, JsonValue] = {}
-
-    #: The objects the fingerprint was taken from. Empty means the record
-    #: observed no shape at all, which is not the same as a shape that needed
-    #: nothing, and does not cover anything.
-    observed: list[str] = []
-
-
-class ConsentSummary(ContractModel):
-    """Every consent still in force."""
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    records: list[ConsentRecord]
-
-
-class RecordedVersion(ContractModel):
-    """One immutable `X.Y` version (`SPEC-005` REQ-503, REQ-504).
-
-    The number and the digest travel together because that pairing is the whole
-    guarantee: one number stands for one hash, and an exact reference means
-    something only while that holds.
-    """
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    version: Annotated[str, Field(pattern=r"^\d+\.\d+$")]
-    passport_digest: Annotated[str, Field(min_length=1)]
-    revision_id: Annotated[str, Field(min_length=1)]
-    created_at: Annotated[str, Field(min_length=1)]
-
-
-class VersionLine(ContractModel):
-    """Every recorded version of one object, and what comes next.
-
-    `next_minor` is computed from what is stored rather than remembered, so two
-    machines with the same history propose the same number. There is no
-    `next_major`: `REQ-507` makes that a decision, and a field offering it would
-    read as a suggestion to take it.
-    """
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    stable_id: Annotated[str, Field(min_length=1)]
-    versions: list[RecordedVersion]
-    next_minor: Annotated[str, Field(pattern=r"^\d+\.\d+$")]
-
-    #: Set on a fork. Held by the copy, never written on the original.
-    forked_from: str | None = None
-    forked_from_version: str | None = None
-
-    #: Whether this may be published, and why not when it may not (`REQ-522` to
-    #: `REQ-524`). Answered at the fork rather than at publication, so an
-    #: unmodified clone is a rule the caller meets early instead of a surprise.
-    publishable: bool | None = None
-    publish_reason: str | None = None
-
-
-class SearchHit(ContractModel):
-    """One local object a search matched, and the lane it is in (`ADR-0016`)."""
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    stable_id: Annotated[str, Field(min_length=1)]
-    revision_id: Annotated[str, Field(min_length=1)]
-
-    #: Three lanes and no fourth. Nothing promotes a candidate between them:
-    #: `experimental` never becomes `authoritative`, automatically or by an
-    #: agent's decision, and `local_owner_or_pinned` is installable without ever
-    #: being displayed as platform-confirmed.
-    lane: Literal["authoritative", "local_owner_or_pinned", "experimental"]
-    reason: Annotated[str, Field(min_length=1)]
-    fields: dict[str, JsonValue] = {}
-
-
-class LocalSearchResults(ContractModel):
-    """What a local search found, one section per trust lane.
-
-    Separate lists rather than one labelled list: `SPEC-006` REQ-603 requires
-    the unverified candidates to come back as a *separate section*, and a caller
-    rendering a flat list of rows has already lost the distinction it asks for.
-    """
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    authoritative: list[SearchHit]
-    local_owner_or_pinned: list[SearchHit]
-    experimental: list[SearchHit]
-
-    #: Why the experimental section holds what it holds. "Nothing matched" and
-    #: "nothing was allowed" are different answers and an empty list is both.
-    experimental_reason: Annotated[str, Field(min_length=1)]
-
-    #: Whether the result was cut at the bound. Silence here would read as
-    #: "that is all there is".
-    truncated: bool = False
-
-
-class EligibilityRefusal(ContractModel):
-    """One mechanical constraint a candidate failed (`docs/contracts/eligibility-constraints.md`).
-
-    `code` is the machine identity and `summary` is for a person: the text may
-    be reworded, the code may not. A caller branching on the sentence would
-    break the first time somebody improved the wording.
-    """
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-
-    #: The six families of `SPEC-006` REQ-601, in that requirement's own order.
-    family: Literal["compatibility", "access", "trust", "license", "entitlement", "provider"]
-    code: Annotated[str, Field(min_length=1)]
-    summary: Annotated[str, Field(min_length=1)]
-
-    #: The values that took part in the decision — a capability identifier, a
-    #: declared range, a required permission. Never a secret and never the value
-    #: of an environment variable.
-    details: dict[str, str] = {}
-
-
-class EligibilityNote(ContractModel):
-    """One state worth saying that blocks nothing.
-
-    A separate model rather than a refusal with a flag. A missing mandatory
-    environment variable must not stop an install (`SPEC-001` REQ-111,
-    `SPEC-008` REQ-816), and the cheapest way to keep that true is to make a
-    note structurally incapable of being counted as a refusal.
-    """
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    code: Literal["required_env_missing", "authorization_required", "credentials_required"]
-    summary: Annotated[str, Field(min_length=1)]
-    details: dict[str, str] = {}
-
-
-class CandidateEligibility(ContractModel):
-    """What the mechanical stage decided about one candidate, and why.
-
-    Two booleans because there are two questions. `admissible` is "may this be
-    installed" and a trust lane never softens it; `auto_selectable` is "may this
-    be chosen without asking", and `experimental` answers no to that even with
-    consent (`SPEC-006` REQ-603). A single flag would have made a consented
-    unverified object silently installable, which is the failure `ADR-0016`
-    exists to prevent.
-    """
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    stable_id: Annotated[str, Field(min_length=1)]
-    revision_id: Annotated[str, Field(min_length=1)]
-    lane: Literal["authoritative", "local_owner_or_pinned", "experimental"]
-    lane_reason: Annotated[str, Field(min_length=1)]
-    admissible: bool
-    auto_selectable: bool
-    refusals: list[EligibilityRefusal] = []
-    notes: list[EligibilityNote] = []
-
-
-class EligibilityReport(ContractModel):
-    """Every candidate assessed against one target (`SPEC-006` REQ-601, REQ-621).
-
-    The target is echoed back because a verdict without the facts it was reached
-    from cannot be checked. `no_candidate` is an honest state here rather than
-    an error: `SPEC-006` says so explicitly, and an empty admissible list with
-    the reasons beside it is what makes it honest.
-    """
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    harness_id: HarnessId
-    harness_version: str = ""
-    os: Annotated[str, Field(min_length=1)]
-    arch: Annotated[str, Field(min_length=1)]
-
-    #: The capability dictionary this run compared against, versioned apart from
-    #: the passport schema exactly as the tag dictionary is.
-    capability_vocabulary_version: Annotated[str, Field(min_length=1)]
-
-    #: Capabilities the target was found to have. Named so a refusal for a
-    #: missing one can be checked rather than taken on trust.
-    capabilities: list[str] = []
-
-    candidates: list[CandidateEligibility] = []
-    admissible_count: Annotated[int, Field(ge=0)]
-    auto_selectable_count: Annotated[int, Field(ge=0)]
-
-
-class EligibilityMatrix(ContractModel):
-    """One eligibility report per supported harness, whether or not it is here.
-
-    `EligibilityReport` answers for the harness that was named, which is the
-    right answer to "compose this for Codex" and the wrong one to "where does
-    this object fit". Asked the second way with only the first available, an
-    agent answered with the harness its own session happened to run in, and a
-    portable skill acquired that `harness_id` on the way into a draft passport
-    (`#380`).
-
-    Every row of the closed harness set is present. A harness absent from this
-    machine is a row with a reason, never a missing row: whether an object fits
-    Pi is a property of the object, and deleting the question because nobody
-    installed Pi answers a different one. Installation is an input to *running*
-    something, not to whether it may be composed.
-    """
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-
-    #: Ordered by harness id so two runs of the same machine compare directly.
-    harnesses: list[EligibilityReport] = []
-
-    #: The harness set this answer covers, echoed so a caller can tell a
-    #: narrowed request from a complete one without diffing the rows.
-    requested: list[HarnessId] = []
-
-
-class ProposalMember(ContractModel):
-    """One exact reference inside a proposal, and why it was allowed in.
-
-    The lane travels with the member rather than being recomputed when the
-    proposal is confirmed. `REQ-616` wants the trace to record the lane of each
-    candidate, and a lane derived later could differ from the one the user was
-    actually shown.
-    """
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    stable_id: Annotated[str, Field(min_length=1)]
-    version: Annotated[str, Field(pattern=r"^\d+\.\d+$")]
-    passport_digest: Annotated[str, Field(min_length=1)]
-    lane: Literal["authoritative", "local_owner_or_pinned", "experimental"]
-    lane_reason: Annotated[str, Field(min_length=1)]
-
-    #: How an unverified candidate was allowed in, when one was. Empty where no
-    #: consent was needed — `REQ-627` requires the source to reach the trace.
-    consent_source: str = ""
-
-    #: The bounded overlay's revision, when this member is derived (`REQ-605`).
-    overlay_revision_id: str = ""
-
-
-class ProposalView(ContractModel):
-    """One short-lived composition proposal (`ADR-0027`).
-
-    Showing this creates nothing. `state` distinguishes the four situations a
-    caller must act on differently — still open, already confirmed, cancelled,
-    or expired — because "not open" would leave all three failures looking the
-    same.
-    """
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    proposal_id: Annotated[str, Field(min_length=1)]
-    project_id: Annotated[str, Field(min_length=1)]
-    harness_id: HarnessId
-    state: Literal["open", "confirmed", "cancelled", "expired"]
-
-    #: The digest of the input this proposal is bound to. Confirming recomputes
-    #: it, so a caller can see in advance what would make the answer stale.
-    snapshot: Annotated[str, Field(min_length=1)]
-    members: list[ProposalMember] = []
-    created_at: Annotated[str, Field(min_length=1)]
-    expires_at: Annotated[str, Field(min_length=1)]
-
-    #: Set once confirmed. Present so a repeat of a confirmation is visibly the
-    #: same version rather than a new one (`REQ-624`).
-    confirmed_stable_id: str | None = None
-    confirmed_version: str | None = None
-
-
-class ProposalSession(ContractModel):
-    """What one project-and-harness pair currently has open and selected."""
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    project_id: Annotated[str, Field(min_length=1)]
-    harness_id: HarnessId
-    policy_version: Annotated[str, Field(min_length=1)]
-    proposals: list[ProposalView] = []
-
-    #: The proposal the answering call recorded, when it recorded one.
-    #: `select propose` answers with the whole session, and several proposals
-    #: may be open for one pair at once; a caller that took the first row
-    #: confirmed an older proposal and installed nothing. `select session`
-    #: records none and leaves this empty.
-    proposal_id: str | None = None
-
-    #: The version selected for this pair, if one has been confirmed. Selected
-    #: and installed are different facts: `pending_install` is the ordinary
-    #: window between them, not a drift.
-    selected_stable_id: str | None = None
-    selected_version: str | None = None
-    selected_state: Literal["pending_install", "installed"] | None = None
-
-
-class ConfirmationView(ContractModel):
-    """The single object a confirmation froze (`REQ-623`).
-
-    `created` separates "this call made it" from "this call found it already
-    made". `REQ-624` makes a repeat a success rather than a conflict, and a
-    caller still has to be able to tell the two apart.
-    """
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    stable_id: Annotated[str, Field(min_length=1)]
-    version: Annotated[str, Field(pattern=r"^\d+\.\d+$")]
-    revision_id: Annotated[str, Field(min_length=1)]
-    state: Literal["pending_install", "installed"]
-    created: bool
-
-    #: The recorded reasons behind this version (`REQ-616`). Written in the same
-    #: transaction as the version itself, so an answer that has one has both.
-    trace: dict[str, JsonValue] = {}
-
-
-class GraphReference(ContractModel):
-    """One exact edge inside a closure (`docs/contracts/setup-graph.md`).
-
-    All three fields are required together. A digest without a version cannot be
-    looked up and a version without a digest cannot be verified, so either alone
-    would be half a statement the resolver could still act on.
-    """
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    stable_id: Annotated[str, Field(min_length=1)]
-    version: Annotated[str, Field(pattern=r"^\d+\.\d+$")]
-    passport_digest: Annotated[str, Field(pattern=r"^sha256:[0-9a-f]{64}$")]
-
-    #: Which node stated this requirement. Empty for a root, so a refusal can
-    #: name the path a bad reference arrived by rather than only the reference.
-    required_by: str = ""
-
-
-class GraphNode(ContractModel):
-    """One exact version the closure holds."""
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    stable_id: Annotated[str, Field(min_length=1)]
-    version: Annotated[str, Field(pattern=r"^\d+\.\d+$")]
-    passport_digest: Annotated[str, Field(min_length=1)]
-    revision_id: Annotated[str, Field(min_length=1)]
-
-    #: Shortest distance from a root. Descriptive only: the order below is
-    #: topological, and depth would order two independent chains arbitrarily.
-    depth: Annotated[int, Field(ge=0)]
-    requires: list[GraphReference] = []
-
-
-class GraphRefusal(ContractModel):
-    """One reason a closure could not be resolved."""
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    code: Annotated[str, Field(min_length=1)]
-    summary: Annotated[str, Field(min_length=1)]
-    details: dict[str, str] = {}
-
-
-class SetupGraph(ContractModel):
-    """The exact dependency closure of a composition (`SPEC-006` REQ-605).
-
-    `nodes` is empty whenever `resolved` is false, and that is deliberate:
-    `REQ-608` says an unresolved closure blocks, and returning the part that did
-    resolve would read as "almost composed". A composition missing a dependency
-    is not composed at all.
-    """
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    resolved: bool
-    nodes: list[GraphNode] = []
-
-    #: Install order, a dependency before whatever requires it. Total: two nodes
-    #: that could go in either order always go in the same one.
-    order: list[str] = []
-    refusals: list[GraphRefusal] = []
-
-    #: The declared bounds. Returned so a caller can tell a closure that reached
-    #: one from a complete closure, which a truncated answer could not.
-    max_depth: Annotated[int, Field(ge=1)]
-    max_nodes: Annotated[int, Field(ge=1)]
-
-
-class CompositionConflict(ContractModel):
-    """One reason a composition cannot be built (`SPEC-006` REQ-606).
-
-    Nothing resolves it automatically. `REQ-626` forbids semantic merging,
-    equivalent selection and composition optimisation, so this is a statement
-    for a person to act on rather than a step in a repair.
-    """
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    code: Annotated[str, Field(min_length=1)]
-    summary: Annotated[str, Field(min_length=1)]
-    details: dict[str, str] = {}
-
-
-class CompositionChoice(ContractModel):
-    """One component in the composition, with the lane it came in on."""
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    stable_id: Annotated[str, Field(min_length=1)]
-    version: Annotated[str, Field(pattern=r"^\d+\.\d+$")]
-    lane: Literal["authoritative", "local_owner_or_pinned", "experimental"]
-    reason: Annotated[str, Field(min_length=1)]
-
-
-class CompositionRejection(ContractModel):
-    """One candidate considered and not chosen, with a stable reason."""
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    stable_id: Annotated[str, Field(min_length=1)]
-    version: Annotated[str, Field(pattern=r"^\d+\.\d+$")]
-    reason: Annotated[str, Field(min_length=1)]
-
-
-class ConversionEntry(ContractModel):
-    """What one component becomes on the target harness, and what is lost.
-
-    `losses` names each one. A report that says something was lost without
-    saying what cannot be acted on, and `REQ-609` asks for a loss-aware report
-    rather than a loss-counting one.
-    """
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    stable_id: Annotated[str, Field(min_length=1)]
-
-    #: Empty when the passport declares no kind. Allowed rather than rejected:
-    #: such a passport is malformed and the report is where a person finds that
-    #: out, so refusing to render it would hide the thing they need to see.
-    component_type: str = ""
-
-    #: Where it lands natively. Empty exactly when the state is `unsupported`.
-    native_surface: str = ""
-    projection_kind: Literal["marketplace", "plugin", "native_files", "package"] = "native_files"
-    state: Literal["complete", "partial", "unsupported"]
-    losses: list[str] = []
-
-
-class CompositionReports(ContractModel):
-    """The composition and conversion reports a bundle must carry (`REQ-609`).
-
-    Both, always, and together: the first explains what is in the composition
-    and the second what survives translation to the harness. A bundle carrying
-    one of them would answer half the question a person has before installing.
-    """
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    harness_id: HarnessId
-
-    #: True when a conflict blocks. `REQ-608`: an unresolved conflict produces
-    #: no package, so this is the field a caller branches on before building.
-    blocked: bool
-    chosen: list[CompositionChoice] = []
-    rejected: list[CompositionRejection] = []
-    conflicts: list[CompositionConflict] = []
-
-    #: Only from the closed set `REQ-625` allows. Naming the whole set every
-    #: time would prove nothing about what actually happened.
-    operations: list[str] = []
-
-    conversion: list[ConversionEntry] = []
-    conversion_complete: bool = True
-
-
-class BundleFile(ContractModel):
-    """One record in the bundle's file manifest."""
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    path: Annotated[str, Field(min_length=1)]
-    digest: Annotated[str, Field(pattern=r"^sha256:[0-9a-f]{64}$")]
-    byte_length: Annotated[int, Field(ge=0)]
-
-    #: `0644` or `0755` and nothing else. Any other mode is a permissions
-    #: decision a bundle has no business making on the user's behalf.
-    mode: Literal[420, 493]
-    owner: str = ""
-
-
-class BundleRefusal(ContractModel):
-    """One reason a bundle could not be compiled."""
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    code: Annotated[str, Field(min_length=1)]
-    summary: Annotated[str, Field(min_length=1)]
-    details: dict[str, str] = {}
-
-
-class HarnessBundle(ContractModel):
-    """A compiled bundle, or every reason it could not be compiled.
-
-    `digest` and `files` are empty exactly when `compiled` is false. A manifest
-    beside a list of refusals would read as "almost built", and a bundle holding
-    a file that was not accepted is not installable at all.
-    """
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    compiled: bool
-    harness_id: HarnessId
-    #: The projection scope the package was compiled for: the harness home
-    #: (`global`) or a workspace root (`project`), chosen at `select bundle`.
-    target_scope: Literal["global", "project", "user_root"] = "global"
-    bundle_format: Literal["ai-stp-bundle/1", "ai-stp-bundle/2"] = "ai-stp-bundle/1"
-
-    #: Domain-separated over the manifest, which covers every file by content.
-    #: Nothing that varies between machines is inside it — no build time, no
-    #: local path — so two machines compiling one input agree byte for byte.
-    digest: Annotated[str, Field(pattern=r"^(|sha256:[0-9a-f]{64})$")] = ""
-
-    #: SHA-256 of the literal ``ai-stp-bundle/1`` ZIP bytes. Empty for a
-    #: refused compilation, just like ``digest``.
-    artifact_digest: Annotated[str, Field(pattern=r"^(|sha256:[0-9a-f]{64})$")] = ""
-    byte_length: Annotated[int, Field(ge=0)] = 0
-    builder_version: Annotated[str, Field(min_length=1)]
-    protocol_version: Annotated[int, Field(ge=1)]
-    files: list[BundleFile] = []
-    refusals: list[BundleRefusal] = []
-
-    #: Declared bounds, returned so a bundle that reached one is
-    #: distinguishable from a complete one.
-    max_files: Annotated[int, Field(ge=1)]
-    max_file_bytes: Annotated[int, Field(ge=1)]
-    max_bundle_bytes: Annotated[int, Field(ge=1)]
-
-
-class ConformanceCase(ContractModel):
-    """One conformance check and what it decided.
-
-    `detail` names what was wanted and what was got. The audience for a failure
-    here is somebody writing a provider against a protocol they cannot see, and
-    "failed" alone is nothing to work from.
-    """
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    name: Annotated[str, Field(min_length=1)]
-    passed: bool
-    detail: Annotated[str, Field(min_length=1)]
-
-    #: Whose obligation this case is about: `provider` for the protocol,
-    #: `consumer` for reach. A provider declaring a component kind this compiler
-    #: has no route for has met every obligation v3 places on it, so `conforms`
-    #: is decided by provider-subject cases alone. Reporting a consumer gap as
-    #: non-conformance names the wrong party in the one field people read.
-    subject: str = "provider"
-
-    #: Whether the run actually put this case to the test. False is not a
-    #: failure and not a pass — it is "the conditions for asking were not there",
-    #: which is a third thing and used to be written as `passed: true` with the
-    #: explanation in prose. A machine reading the boolean saw coverage that did
-    #: not happen, and prose is not where a machine looks.
-    exercised: bool = True
-
-
-class ConformanceReport(ContractModel):
-    """Whether one provider conforms to the frozen protocol (`SPEC-008` REQ-802).
-
-    `reported_version` is kept beside `protocol_version` rather than compared
-    away: a provider announcing a version this build does not speak is a
-    different situation from one that speaks it and fails a case, and the two
-    are fixed by different people.
-    """
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    harness_id: HarnessId
-    protocol_version: Annotated[int, Field(ge=1)]
-    reported_version: Annotated[int, Field(ge=0)]
-    conforms: bool
-    cases: list[ConformanceCase] = []
-
-
-class ProviderNetworkCapability(ContractModel):
-    """The observed network boundary on this exact machine, for both protocols.
-
-    The report never turns absence into support. Evidence names the launcher
-    version/digest and transport probes when enforcement is observed; an
-    unavailable result remains actionable machine data rather than a log line.
-
-    It answered for protocol v2 alone until 2026-08-27, and v2 is not what
-    anything installs with. `#416` allows a **v3** local phase to run with no
-    network-denying launcher on a platform that has none, gated on a trusted
-    release or an explicit `--unverified-provider` — deliberate security debt,
-    and this is the one output someone would check to find it. Describing only
-    v2 meant the marker pointed at a protocol nobody runs.
-    """
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-
-    #: The protocol the *enforcement* fields below describe. Unchanged: v2 gets
-    #: no exception anywhere, which is what `#423` decided for `target status`,
-    #: `diff` and every spawn outside an install plan.
-    protocol_version: Literal[2] = 2
-    os_name: Annotated[str, Field(min_length=1)]
-    network_enforcement: Literal["enforced", "unavailable"]
-    launcher_id: str = ""
-    evidence: Annotated[list[str], Field(min_length=1)]
-    local_actions_available: bool
-
-    #: What a **v3** local phase does on this machine, which is the question the
-    #: fields above cannot answer.
-    #:
-    #: - `network_denied` — a launcher was proved and the phase runs inside it.
-    #: - `unisolated_by_trust` — no launcher exists on this platform, so the
-    #:   phase runs with the network reachable, permitted only by one of the
-    #:   reasons below. This is the debt `#416` accepted, stated where it can be
-    #:   found rather than left to be inferred from a v2 answer.
-    #: - `refused` — a launcher could exist here and does not, so nothing runs.
-    #:   Distinct from the line above on purpose: a missing dependency and a
-    #:   missing capability of the operating system are different facts with
-    #:   different repairs, and `unisolated_local_phase` refuses to be built on
-    #:   a platform that could isolate.
-    v3_local_phase: Literal["network_denied", "unisolated_by_trust", "refused"]
-
-    #: The reasons that would permit an unisolated phase, empty unless
-    #: `v3_local_phase` is `unisolated_by_trust`. Named rather than counted: a
-    #: caller deciding whether to proceed needs to know it must supply one.
-    v3_local_phase_reasons: list[str] = []
-
-
-class ReleaseRefusal(ContractModel):
-    """One reason a provider release is not acceptable."""
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    code: Annotated[str, Field(min_length=1)]
-    summary: Annotated[str, Field(min_length=1)]
-    details: dict[str, str] = {}
-
-
-class PinnedRelease(ContractModel):
-    """One exact provider artifact this machine approved, and who may deliver it.
-
-    Reported as all three fields because that is what the policy decides on. A
-    digest alone would describe a rule the machine does not apply: the same
-    approved bytes presented under another provider identity are refused.
-    """
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    provider_id: Annotated[str, Field(min_length=1)]
-    repository: Annotated[str, Field(min_length=1)]
-    artifact_digest: Annotated[str, Field(min_length=1)]
-
-
-class TrustedBuildAttestation(ContractModel):
-    """One repository whose attested builds this machine will bind (`ADR-0121`).
-
-    Reported with the signer workflow, not just the repository: the rule is
-    satisfied by an attestation naming that exact workflow, so a report giving
-    only the repository would describe a looser rule than the one enforced.
-    """
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    repository: Annotated[str, Field(min_length=1)]
-    signer_workflow: Annotated[str, Field(min_length=1)]
-    verified_publisher: bool = False
-
-
-class TrustedIndexPublisher(ContractModel):
-    """One PyPI project whose PEP 740 publisher this machine will bind (`ADR-0141`)."""
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    pypi_project: Annotated[str, Field(min_length=1)]
-    repository: Annotated[str, Field(min_length=1)]
-    workflow: Annotated[str, Field(min_length=1)]
-    environment: Annotated[str, Field(min_length=1)]
-    verified_publisher: bool = False
-
-
-class ProviderTrust(ContractModel):
-    """What this machine will accept from a provider, and why (`SPEC-008` REQ-811).
-
-    The policy is reported as it is pinned, not as a manifest describes itself.
-    An empty `allowed_keys` accepts nothing and is the correct state before the
-    owner pins a real signing key — an invented key would be a trust anchor
-    nobody chose.
-    """
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    policy_id: Annotated[str, Field(min_length=1)]
-    policy_schema_version: Annotated[int, Field(ge=1)]
-    signature_subject: Annotated[str, Field(min_length=1)]
-    allowed_publishers: list[str] = []
-    allowed_keys: list[str] = []
-    allowed_repositories: list[str] = []
-    revoked_keys: list[str] = []
-    minimum_sequence: Annotated[int, Field(ge=0)]
-
-    #: Exact releases this machine approved on the Ed25519 path, bound to the
-    #: provider and repository that may present them. An approved-bytes list
-    #: that approved everything when empty would not be a list anybody could
-    #: rely on, so empty accepts nothing *on that path*. `latest` is forbidden
-    #: by the contract.
-    pinned_releases: list[PinnedRelease] = []
-
-    #: Repositories whose attested builds may be bound by `provider fetch`
-    #: without a signed manifest. This is the other half of the answer, and on
-    #: the shipped policy it is the only populated one: `pinned_releases` and
-    #: `allowed_publishers` are both empty there while seven attested
-    #: repositories are trusted. Reporting the empty halves alone told an agent
-    #: that nothing was installable, which was the opposite of the truth.
-    build_attestations: list[TrustedBuildAttestation] = []
-
-    #: PyPI projects whose PEP 740 publisher triple may bind a wheel. Empty is
-    #: the rollback: every index-delivered provider stays `unverified`.
-    index_publishers: list[TrustedIndexPublisher] = []
-
-    #: Present only when a manifest was given to check. `null` means the policy
-    #: was reported and nothing was verified, which is not the same as accepted.
-    accepted: bool | None = None
-    known_sequence: Annotated[int, Field(ge=0)] | None = None
-    refusals: list[ReleaseRefusal] = []
-
-
-class SkillPackageFinding(ContractModel):
-    """One deviation from the Agent Skills Specification (`#455`)."""
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-
-    #: Stable, so a caller branches on the code rather than on the sentence.
-    code: Annotated[str, Field(pattern=r"^SK[0-9]{3}$")]
-    summary: Annotated[str, Field(min_length=1)]
-
-    #: The field or path it is about. Never empty: a finding nobody can locate
-    #: is a finding that has not been reported.
-    at: Annotated[str, Field(min_length=1)]
-
-
-class SkillPackageReport(ContractModel):
-    """Whether a directory is a conforming skill package (`#455`).
-
-    Checked against <https://agentskills.io/specification>, which exists
-    independently of this estate — which is why `skill` is the kind where a
-    validator can be right or wrong about something other than our own opinion.
-    """
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    path: Annotated[str, Field(min_length=1)]
-
-    #: `skill`, `plugin`, or `unknown`. A plugin under `skills/` is a
-    #: well-formed something else, not a skill missing its entry point.
-    packaged_as: Literal["skill", "plugin", "unknown"]
-
-    conforms: bool
-    findings: list[SkillPackageFinding] = []
-
-    name: str = ""
-    description: str = ""
-
-    #: Directories the specification names as conventions, and the ones this
-    #: estate adds. Neither list is a defect: the standard permits any content
-    #: beyond `SKILL.md`.
-    standard_directories: list[str] = []
-    extension_directories: list[str] = []
-    other_entries: list[str] = []
-
-
-class ProviderInstallationCheck(ContractModel):
-    """One harness's provider installation against its pinned release source (`#452`).
-
-    `status` is one word and every one of them is an outcome, including the ones
-    that are not answers: a release source that cannot be reached is
-    `source_unavailable`, not silence and not a guess at the newest version.
-    """
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    harness_id: Annotated[str, Field(min_length=1)]
-
-    status: Literal[
-        "up_to_date",
-        "update_available",
-        "unknown_version",
-        "source_unavailable",
-        "unsupported_platform",
-        "unmanaged",
-        "missing",
-        "ambiguous",
-    ]
-
-    #: Absolute path to the executable that would run, and how it was chosen.
-    #: Empty when nothing resolved, which the status already says.
-    path: str = ""
-    source: Literal["argument", "config", "chosen", "discovered", ""] = ""
-
-    provider_id: str = ""
-    provider_version: str = ""
-
-    #: The newest suitable release, when the source could be asked. `latest`,
-    #: `main` and pre-releases never appear here: `#452` requires an exact tag,
-    #: and a floating name is not one.
-    latest_tag: str = ""
-    latest_commit: str = ""
-    repository: str = ""
-
-    #: Why this status, in the user's terms. Always present, because a status
-    #: nobody can act on is a status that has not been reported.
-    reason: Annotated[str, Field(min_length=1)]
-
-    #: Every provider found when more than one was, so an ambiguous machine
-    #: shows its candidates instead of having one picked for it.
-    candidates: list[str] = []
-
-    checked_at: str = ""
-
-
-class ProviderInstallationReport(ContractModel):
-    """Every harness asked about, in a fixed order (`#452`)."""
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    installations: list[ProviderInstallationCheck] = []
-
-    #: Whether the release source was consulted at all. False after `--offline`
-    #: or a source that could not be reached, and it is reported rather than
-    #: inferred from empty tags.
-    source_consulted: bool = False
-
-
-class ProviderReplacementPlan(ContractModel):
-    """What replacing one provider executable would do, exactly (`#452`).
-
-    A plan, not an installation. Every field a user needs to decide is here —
-    where it would write, what it would replace, the exact bytes it would fetch
-    and the trust verdict on them — because a confirmation given against a
-    summary is a confirmation of something else.
-
-    Replacing a provider does not touch a harness target. That is still the
-    provider's own operation, planned and confirmed on its own.
-    """
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    harness_id: Annotated[str, Field(min_length=1)]
-    operation: Literal["update", "reinstall"]
-
-    #: Where the executable would be written, and what is there now. `path` is
-    #: absolute so it can be acted on; the home directory is folded only when
-    #: a human reads it.
-    path: Annotated[str, Field(min_length=1)]
-    current_version: str = ""
-    current_digest: str = ""
-
-    #: Exactly what would be installed. A floating name never appears: the tag
-    #: is resolved before the plan is made, so the digest belongs to it.
-    repository: Annotated[str, Field(min_length=1)]
-    tag: Annotated[str, Field(min_length=1)]
-    commit: Annotated[str, Field(pattern=r"^[0-9a-f]{40}$")]
-    provider_id: Annotated[str, Field(min_length=1)]
-    provider_version: Annotated[str, Field(min_length=1)]
-    artifact_url: Annotated[str, Field(min_length=1)]
-    artifact_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
-    artifact_bytes: Annotated[int, Field(ge=0)] = 0
-    trust_level: Literal["verified_publisher", "build_attested"]
-
-    #: Where the replaced executable would be kept, so a failed replacement has
-    #: something to come back to.
-    backup: str = ""
-
-    #: Whether the executable being replaced was put there by something other
-    #: than `ai-stp`. Such a file is never overwritten without `--adopt`.
-    foreign: bool = False
-
-    #: The digest `apply` must be given. Recomputed there rather than trusted,
-    #: so a plan that has gone stale refuses instead of installing.
-    plan_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
-    idempotency_key: Annotated[str, Field(min_length=1)]
-
-
-class ProviderReplacementResult(ContractModel):
-    """What replacing a provider actually did (`#452`)."""
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    harness_id: Annotated[str, Field(min_length=1)]
-    operation: Literal["update", "reinstall"]
-
-    #: `replaced`, or `unchanged` when the exact bytes were already in place.
-    #: Idempotent by digest: running it twice installs once.
-    outcome: Literal["replaced", "unchanged"]
-
-    path: Annotated[str, Field(min_length=1)]
-    previous_version: str = ""
-    provider_version: Annotated[str, Field(min_length=1)]
-    tag: Annotated[str, Field(min_length=1)]
-    artifact_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
-    backup: str = ""
-    plan_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
-
-
-class ProviderBoundRelease(ContractModel):
-    """Closed release manifest bound from attested OpenNetwork bytes (`SPEC-008` REQ-847).
-
-    The JSON is a local binding record, not a second trust anchor. Trust remains
-    the pinned `build_attestations` rule plus GitHub attestation of exact bytes.
-    """
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    harness_id: Annotated[str, Field(min_length=1)]
-    repository: Annotated[str, Field(min_length=1)]
-    tag: Annotated[str, Field(min_length=1)]
-    commit: Annotated[str, Field(pattern=r"^[0-9a-f]{40}$")]
-    provider_id: Annotated[str, Field(min_length=1)]
-    provider_version: Annotated[str, Field(min_length=1)]
-    protocol_version: Annotated[int, Field(ge=1)]
-    sequence: Annotated[int, Field(ge=0)]
-    artifact: Annotated[str, Field(min_length=1)]
-    manifest: Annotated[str, Field(min_length=1)]
-    artifact_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
-    artifact_url: Annotated[str, Field(min_length=1)]
-    trust_level: Literal["verified_publisher", "build_attested"]
-
-
-class InstallationStep(ContractModel):
-    """One recorded step of an installation. Append-only and safe to show."""
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    sequence: Annotated[int, Field(ge=1)]
-    at: Annotated[str, Field(min_length=1)]
-    state_before: str = ""
-    state_after: Annotated[str, Field(min_length=1)]
-    result: Annotated[str, Field(min_length=1)]
-
-
-class InstallationView(ContractModel):
-    """One installation operation: its plan, its state and how it got there.
-
-    `plan_digest` is what a confirmation is given against. `operation.md` binds
-    an approval to an exact hash and says it does not carry to a new plan, so a
-    caller approving must send this value back rather than a flag.
-    """
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    operation_id: Annotated[str, Field(min_length=1)]
-    action: Literal["install", "update", "backup", "remove", "rollback"]
-    state: Literal[
-        "planned",
-        "approved",
-        "applying",
-        "applied_unverified",
-        "verified",
-        "partial",
-        "failed",
-        "stale",
-        "cancelled",
-        "rolled_back",
-    ]
-    plan_digest: Annotated[str, Field(pattern=r"^sha256:[0-9a-f]{64}$")]
-    target_id: Annotated[str, Field(min_length=1)]
-    expected_target_digest: Annotated[str, Field(min_length=1)]
-    provider_version: str = ""
-    provider_protocol_version: Annotated[int, Field(ge=1)] = 1
-    provider_target: str = ""
-    provider_release_trust: Literal[
-        "verified_publisher", "signed", "build_attested", "unverified"
-    ] = "unverified"
-    provider_release_trusted: bool = False
-    provider_release_recovery: bool = False
-    bundle_format: str = ""
-    bundle_digest: str = ""
-    bundle_artifact_digest: str = ""
-    bundle_size: Annotated[int, Field(ge=0)] = 0
-    provider_plan_digest: str = ""
-    backup_ref: str | None = None
-    preserved_setup_id: str | None = None
-
-    #: Declared by the exact SetupVersion before apply. It is a requirement,
-    #: never proof that the provider target has completed it (`ADR-0052`).
-    required_authorization: Literal["none", "user_account", "external_service"] = "none"
-
-    #: What the plan says it will do, enumerated. `REQ-805` makes a plan's
-    #: effects part of what the user is approving, not a summary of them.
-    effects: list[str] = []
-
-    #: What the selected setup is and what it says about itself, at the point
-    #: of approval. `effects` enumerates the files a provider will write, which
-    #: is exact and says nothing about what changing them means — and for at
-    #: least one published setup the meaning is the entire content. `full-auto`
-    #: turns off a product's sandbox and its prompting, and its description is
-    #: where the qualifications live, including which parts of that claim hold
-    #: on which platform.
-    #:
-    #: The browse card clamps to two lines and cannot install from there, and
-    #: the detail page shows the whole text — but the CLI is the primary
-    #: consumer here and carried none of it, so the one surface that actually
-    #: precedes an install was the one that said least.
-    setup_name: str = ""
-    setup_description: str = ""
-    managed_paths: list[str] = []
-    recovery_action: str = ""
-    expires_at: Annotated[str, Field(min_length=1)]
-    steps: list[InstallationStep] = []
-
-
-class RecoveryView(ContractModel):
-    """What a stopped operation left behind, and what may be done next.
-
-    All four things `operation.md` asks a recovery report for. Three of them
-    without the fourth leaves a person to guess at the one thing they must not
-    guess at.
-    """
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    operation_id: Annotated[str, Field(min_length=1)]
-    state: Annotated[str, Field(min_length=1)]
-    effects_recorded: list[str] = []
-
-    #: The provider owns the backup bytes; this is the exact reference to them.
-    backup_ref: str | None = None
-    next_actions: list[str] = []
-
-
-class InstallationStatus(ContractModel):
-    """Every operation that stopped without a settled outcome.
-
-    `partial` appears here even though it is terminal: it is an outcome that
-    still needs a person, and an operation nobody is told about is one nobody
-    recovers.
-    """
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    stopped: list[RecoveryView] = []
-
-
-class MultiRootChildView(ContractModel):
-    """One scope-specific operation owned by a multi-root transaction."""
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    scope: Literal["global", "user_root", "project"]
-    operation_id: Annotated[str, Field(min_length=1)]
-    target_id: Annotated[str, Field(min_length=1)]
-    plan_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
-    state: Annotated[str, Field(min_length=1)]
-    backup_ref: str | None = None
-    harness_id: HarnessId | None = None
-    setup_stable_id: str | None = None
-    setup_version: str | None = None
-
-
-class MultiRootTransactionView(ContractModel):
-    """One recoverable decision spanning several provider-owned roots."""
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    transaction_id: Annotated[str, Field(min_length=1)]
-    transaction_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
-    transaction_kind: Literal["single_setup", "environment"] = "single_setup"
-    setup_stable_id: Annotated[str, Field(min_length=1)] | None
-    setup_version: Annotated[str, Field(min_length=1)] | None
-    harness_id: HarnessId | None
-    state: Literal[
-        "planned",
-        "applying",
-        "compensating",
-        "recovery_required",
-        "verified",
-        "rolled_back",
-        "cancelled",
-    ]
-    approved: bool
-    children: Annotated[list[MultiRootChildView], Field(min_length=2, max_length=21)]
-    next_actions: list[str] = []
-
-
-class ImportedFile(ContractModel):
-    """One configuration file an inspection read."""
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    path: Annotated[str, Field(min_length=1)]
-    byte_length: Annotated[int, Field(ge=0)]
-    digest: str = ""
-
-    #: Key names whose value was removed. Names only: `SPEC-008` REQ-815 allows
-    #: the name of a mandatory variable into a passport and nothing else, and a
-    #: list of what was redacted would be a list of secrets.
-    redacted_keys: list[str] = []
-
-    #: Why the file was not read, when it was not. Kept apart from "no secrets
-    #: found": one is a clean file and the other is a file nobody looked at.
-    unreadable: str = ""
-
-    #: Set when the file was read and hashed but is larger than an imported
-    #: configuration file may be. It is excluded from every proposed component
-    #: and it is not a blocker: the import bound is a declared policy, not a
-    #: failure to see the file.
-    oversized: bool = False
-
-
-class ImportInspection(ContractModel):
-    """What one native configuration holds, read and nothing more (`REQ-813`).
-
-    `detection_rule` says how secrets were looked for. A report that will not
-    say how it looked cannot be told apart from one that looked properly, and
-    this one is deliberately partial — it matches key names, so a credential
-    stored under a name that says nothing is not found.
-    """
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    root: Annotated[str, Field(min_length=1)]
-    harness_id: HarnessId
-    detection_rule: Annotated[str, Field(min_length=1)]
-    files: list[ImportedFile] = []
-    redacted_keys: list[str] = []
-    unreadable: list[str] = []
-
-    #: Files excluded by the import size bound. Separate from `unreadable`
-    #: because the remedies differ: an oversized file is excluded by policy,
-    #: while an unreadable one means the configuration was not fully seen.
-    oversized: list[str] = []
-
-
-class SetupImportComponent(ContractModel):
-    """One native component proposed by a read-only setup import plan."""
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    candidate_id: Annotated[str, Field(min_length=1)]
-    component_type: ComponentType
-    native_role: Annotated[str, Field(min_length=1)]
-    paths: Annotated[list[str], Field(min_length=1)]
-    file_set_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
-    byte_length: Annotated[int, Field(ge=0)]
-
-
-class SetupImportPlan(ContractModel):
-    """Deterministic read-only decomposition of one native setup candidate."""
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    root: Annotated[str, Field(min_length=1)]
-    harness_id: HarnessId
-    inspection_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
-    plan_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
-    components: list[SetupImportComponent] = []
-    excluded: list[str] = []
-    blocked_by: list[str] = []
-    effects: list[str] = []
-
-
-class ImportedSetup(ContractModel):
-    """A registered import and the backup it was taken alongside.
-
-    Two identifiers because they are two objects (`REQ-814`). A backup says
-    where the old bytes are; a setup says what was made from them. Deleting the
-    first must not delete the identity of the second.
-    """
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    stable_id: Annotated[str, Field(min_length=1)]
-    revision_id: Annotated[str, Field(min_length=1)]
-    backup_id: Annotated[str, Field(min_length=1)]
-    redacted_keys: list[str] = []
-    plan_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
-    component_ids: Annotated[list[str], Field(min_length=1)]
-
-
-class ShadowedSurface(ContractModel):
-    """A name the product reads that the provider does not own."""
-
-    model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
-
-    schema_version: Literal[1] = 1
-    #: The name the product reads.
-    name: Annotated[str, Field(min_length=1)]
-    #: The owned surface it takes precedence over.
-    over: Annotated[str, Field(min_length=1)]
-    #: What the product does as a result, in the provider's own words.
-    effect: Annotated[str, Field(min_length=1)]
-
-
-class TargetSurvey(ContractModel):
-    """The daily state of one project-and-harness pair (`#177`).
-
-    `states` is a list because a pair can be waiting to install *and* missing a
-    variable at once. Answering with one would send somebody to fix a thing and
-    meet the other immediately after.
-    """
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    project_id: Annotated[str, Field(min_length=1)]
-    harness_id: HarnessId
-    states: Annotated[
-        list[
-            Literal[
-                "not_selected",
-                "pending_install",
-                "local_drift",
-                "catalog_drift",
-                "needs_configuration",
-                "installed",
-            ]
-        ],
-        Field(min_length=1),
-    ]
-
-    selected_stable_id: str = ""
-    selected_version: str = ""
-    installed_stable_id: str = ""
-    installed_version: str = ""
-
-    #: What the target read when it was last verified, and what it reads now.
-    #: Local drift is the difference; one of them alone cannot express it.
-    verified_target_digest: str = ""
-    observed_target_digest: str = ""
-
-    #: Names only, never values.
-    missing_env: list[str] = []
-    pending_authorization: str = ""
-
-    #: Empty means nobody asked the catalogue, which is not the same as "there
-    #: is nothing newer".
-    catalog_version: str = ""
-
-    #: Names the product obeys that the provider does not own, from its `status`.
-    #:
-    #: `installed` with a matching digest says the bytes the provider wrote are
-    #: intact. It says nothing about which file the product reads, and the two
-    #: differ — a `.jsonc` beside an owned `.json`, or a plural spelling of a
-    #: globbed directory, takes precedence over the owned copy. Without this the
-    #: survey called such a target clean.
-    #:
-    #: Empty means nothing shadows, or an older provider that was never asked;
-    #: those are not distinguished here because both leave the operator with
-    #: nothing to act on. The list is reported and never acted on, like
-    #: `catalog_drift`: which file should win belongs to whoever put it there.
-    shadowed_by: list[ShadowedSurface] = []
-
-
-class ManagedPathChange(ContractModel):
-    """One stable managed-path drift class without an absolute local path."""
-
-    model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
-
-    schema_version: Literal[1] = 1
-    code: Literal["modified", "added", "deleted"]
-    path: Annotated[str, Field(min_length=1)]
-    expected_digest: Annotated[str, Field(pattern=rf"^(?:{DIGEST_PATTERN})?$")] = ""
-    observed_digest: Annotated[str, Field(pattern=rf"^(?:{DIGEST_PATTERN}|unsafe)?$")] = ""
-
-    @model_validator(mode="after")
-    def validate_change_shape(self) -> Self:
-        """Keep each stable code tied to one unambiguous evidence shape."""
-        valid = {
-            "modified": bool(self.expected_digest) and bool(self.observed_digest),
-            "added": not self.expected_digest and bool(self.observed_digest),
-            "deleted": bool(self.expected_digest) and not self.observed_digest,
-        }
-        if not valid[self.code]:
-            raise ValueError("managed path evidence does not match its change code")
-        return self
-
-
-class TargetDiff(ContractModel):
-    """What moved between two readings of one pair, named field by field.
-
-    Named rather than counted: "three things changed" is not something anybody
-    can act on, and finding out *which* is the reason to compare at all.
-    """
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    project_id: Annotated[str, Field(min_length=1)]
-    harness_id: HarnessId
-    changes: list[str] = []
-    managed_detail: Literal["not_applicable", "available", "unavailable"] = "not_applicable"
-    managed_changes: list[ManagedPathChange] = []
-
-
-class ManagedVerificationItem(ContractModel):
-    """One managed line or drifted path, classified against authorized records.
-
-    Setup and component items carry the expected coordinates; path items carry
-    the file-level proof. Coordinates, relative paths and digests only — never
-    file content, never an absolute local path.
-    """
-
-    model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
-
-    schema_version: Literal[1] = 1
-    subject: Literal["setup", "component", "path"]
-    stable_id: str = ""
-    component_kind: str = ""
-    version: str = ""
-    revision_id: str = ""
-    passport_digest: str = ""
-    path: str = ""
-    change: Literal["", "added", "modified", "deleted"] = ""
-    expected_digest: str = ""
-    observed_digest: str = ""
-    classification: Literal[
-        "unchanged",
-        "locally_modified",
-        "missing",
-        "extra",
-        "unverifiable",
-        "expected_change",
-    ]
-    #: The corporate plan outcome for the line, when the assignment layer was
-    #: reached. Empty means the verdict rests on local evidence alone.
-    outcome: PlanOutcome | Literal[""] = ""
-    diagnostic: str = ""
-
-
-class ManagedVerification(ContractModel):
-    """Whether a managed target still matches its authorized installed record.
-
-    `status` is the one verdict a CI gate reads; `items` is the evidence behind
-    it. The answer binds the check to tenant, account, project, context and
-    harness, and carries coordinates, digests and timestamps only — a
-    verification report must never contain file content.
-    """
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    status: Literal[
-        "pass",
-        "fail",
-        "outdated",
-        "revoked",
-        "unsupported",
-        "not_enrolled",
-        "unverifiable",
-    ]
-    project_id: Annotated[str, Field(min_length=1)]
-    harness_id: HarnessId
-    organization_id: str = ""
-    account_id: str = ""
-    remote_project_id: str = ""
-    technology_id: str = ""
-    target_id: str = ""
-
-    #: The verified installation the check compared against, and when the
-    #: check itself ran. Both are evidence, never instructions.
-    operation_id: str = ""
-    verified_at: str = ""
-    checked_at: str = ""
-
-    #: `evaluated` — the assignment layer answered; `offline` — the caller
-    #: asked to skip it; `unavailable` — it could not be reached. The local
-    #: verdict is reported either way.
-    corporate: Literal["evaluated", "offline", "unavailable"] = "evaluated"
-
-    verified_target_digest: str = ""
-    observed_target_digest: str = ""
-    shadowed_surfaces: list[ShadowedSurface] = []
-    items: list[ManagedVerificationItem] = []
-    diagnostics: list[str] = []
-
-
-class RollbackTarget(ContractModel):
-    """The exact previous verified version this pair can go back to.
-
-    "Previous" is the one before the current in verification order, not the
-    newest that is not current. The two differ the moment somebody rolls back
-    twice, and the second answer walks forwards.
-    """
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    project_id: Annotated[str, Field(min_length=1)]
-    harness_id: HarnessId
-    setup_stable_id: Annotated[str, Field(min_length=1)]
-    setup_version: Annotated[str, Field(pattern=r"^\d+\.\d+$")]
-    verified_at: str = ""
-
-    #: The operation that verified it. A rollback is a new plan, not a replay of
-    #: this one; the reference is provenance, not an instruction.
-    operation_id: Annotated[str, Field(min_length=1)]
-
-
-class TelemetryStatus(ContractModel):
-    """Whether the anonymous install ping is on, and everything it would send.
-
-    One model for the consent screen and for the status read, because they
-    answer the same question and two shapes would let them drift into saying
-    different things about the same feature.
-    """
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-
-    #: `not_asked`, `declined` or `accepted`. Observably identical on the
-    #: network for the first two; they differ only in whether anything asks
-    #: again (`REQ-1316`).
-    state: Literal["not_asked", "declined", "accepted"]
-
-    #: Whether a ping would actually be sent. Consent alone is not enough: the
-    #: switch in the configuration can turn it off without withdrawing consent.
-    enabled: bool = False
-
-    #: Where a ping would go, and whether that came from the configuration or
-    #: from the default. Named so an operator can see a redirected collector.
-    url: str = ""
-    url_source: Literal["default", "config"] = "default"
-
-    #: Exactly the query fields a ping carries, so the screen shows the closed
-    #: set rather than describing it. The anonymous identifier is named here as
-    #: a field and never printed as a value.
-    collected: list[str] = Field(default_factory=list[str])
-
-
-class TargetBackup(ContractModel):
-    """One provider-owned copy of a target, and what the target held when it was taken.
-
-    A reference and never bytes. The provider owns the copy; recording it here
-    would give one recovery two owners, and only one of them can restore
-    (`REQ-814`).
-    """
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-
-    #: Exactly what `install plan --action rollback --backup-ref` takes.
-    backup_ref: Annotated[str, Field(min_length=1)]
-
-    #: The operation that took the copy. Provenance, not an instruction: a
-    #: restore is a new plan rather than a replay of this one.
-    operation_id: Annotated[str, Field(min_length=1)]
-
-    #: What was installed when the copy was taken. Empty when the copy predates
-    #: any verified setup identity on this pair, which is a fact rather than a
-    #: defect: a backup can be taken of a target nobody has installed onto.
-    setup_stable_id: str = ""
-    setup_version: str = ""
-
-    #: The provider target this copy belongs to. A backup of one target is not
-    #: offered for another, and the field is what lets a reader see that.
-    provider_target: str = ""
-    created_at: str = ""
-
-    #: Whether the provider is protecting this copy from retention, as the
-    #: provider reports it *now*. `None` whenever nobody asked — no provider was
-    #: named, or the one named predates the field. Absence is never `false`: a
-    #: reader that flattened the two would call an unprotected baseline checked.
-    held: bool | None = None
-
-    #: Free text a person typed when placing the hold. Opaque by contract:
-    #: display it, never branch on it. The provider stores a fixed placeholder
-    #: when the operator gave no reason, so its presence is not evidence that
-    #: anybody considered anything.
-    hold_reason: str | None = None
-
-    #: Whether the provider still reports this copy at all. `None` when no
-    #: provider was consulted. `False` is the answer worth having: this pair's
-    #: journal offers a restore source the provider no longer has.
-    present: bool | None = None
-
-
-class PreservedSetupView(ContractModel):
-    """A complete local setup and the provider snapshot retaining its native state."""
-
-    model_config = ConfigDict(extra="forbid", frozen=True)
-
-    schema_version: Literal[1] = 1
-    stable_id: str
-    operation_id: str
-    project_id: str
-    harness_id: str
-    target_scope: str
-    provider_target: str
-    provider_id: str
-    backup_ref: str
-    snapshot_digest: str
-    roots: list[str]
-    base_root: Literal["target", "parent"] = "target"
-    created_at: str
-    verification: Literal["recorded_verified", "verified", "unavailable"] = "recorded_verified"
-    target_state: Literal["not_observed", "matches", "differs", "unavailable"] = "not_observed"
-    held: bool | None = None
-    #: A legible name derived at read time: the applied setup's name and
-    #: version, `local <date>` when no verified install preceded the capture.
-    label: str = ""
-    #: The verified setup version that stood on the target when the snapshot
-    #: was taken. Empty when the captured state was never installed by a
-    #: recorded operation — a hand-built configuration.
-    origin_setup_id: str = ""
-    origin_version: str = ""
-    origin_name: str = ""
-    #: True when the captured bytes differ from the origin version's recorded
-    #: target digest — the user modified what was installed. None when no
-    #: reference digest was recorded to compare against.
-    modified: bool | None = None
-
-
-class EnvironmentRequirement(ContractModel):
-    """One exact prerequisite, measured without executing its preparation."""
-
-    model_config = ConfigDict(extra="forbid", frozen=True)
-
-    kind: Literal[
-        "harness_program",
-        "shared_program",
-        "environment_variable",
-        "authorization",
-        "toolchain_tool",
-    ]
-    identity: str
-    version: str = ""
-    digest: str = ""
-    sources: list[str] = Field(default_factory=list)
-    state: Literal["satisfied", "action_required", "not_observed", "blocked"]
-    reason: str
-    actions: list[list[str]] = Field(default_factory=list[list[str]])
-
-
-class EnvironmentInspection(ContractModel):
-    """Preparation evidence stays distinct from verified native configuration."""
-
-    model_config = ConfigDict(extra="forbid", frozen=True)
-
-    project_id: str
-    setups: list[str]
-    prerequisites_satisfied: bool
-    configuration_state: Literal["not_observed"] = "not_observed"
-    requirements: list[EnvironmentRequirement]
-    detected_harnesses: "HarnessSurvey"
-
-
-class PreservedSetupsView(ContractModel):
-    """Saved local setups remain addressable after restarting the CLI."""
-
-    model_config = ConfigDict(extra="forbid", frozen=True)
-
-    schema_version: Literal[1] = 1
-    setups: list[PreservedSetupView] = []
-
-
-class TargetBackups(ContractModel):
-    """Every provider-owned copy this pair can restore from, oldest first.
-
-    The read half that `SPEC-012` assumed and no command answered: a `BackupRef`
-    appeared once, in the answer to `install apply`, and an agent that did not
-    keep that stdout could not name the copy again. Restoring is still an
-    ordinary plan with an ordinary approval; this only says which copies exist.
-    """
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    project_id: Annotated[str, Field(min_length=1)]
-    harness_id: HarnessId
-    backups: list[TargetBackup] = Field(default_factory=list[TargetBackup])
-
-    #: Whether a provider answered while building this list. False means every
-    #: `held` and `present` below is `None` because nothing was asked, which is
-    #: a different answer from a provider that was asked and said no.
-    provider_observed: bool = False
-
-    #: Copies the provider reports that this pair's journal does not record,
-    #: oldest first. Empty unless a provider answered.
-    #:
-    #: The mirror of `present: false`, and the reason the reconciliation is not
-    #: one-directional. A backup taken with the provider's own CLI — an operator
-    #: holding a baseline before an experiment — never reaches our journal, and
-    #: `install plan --action rollback --backup-ref` accepts it all the same. So
-    #: leaving these out under-answered this command's own summary: they are
-    #: provider-owned copies this pair can restore from.
-    #:
-    #: Refs only, deliberately. A `TargetBackup` carries an `operation_id`
-    #: because every row in `backups` came from an operation we ran; a copy we
-    #: never saw taken has none, and inventing one would put our name on
-    #: somebody else's action. `provider status` holds the detail.
-    unjournalled_refs: list[str] = Field(default_factory=list[str])
-
-
-class LanguageOutline(ContractModel):
-    """What one language contributes to a project (`SPEC-004` REQ-404).
-
-    `method` carries the strength of the answer, and it is not decoration.
-    `syntax_tree` means a real parser read the file; `line_scan` means the words
-    were recognised line by line and a string containing them would be
-    indistinguishable from a declaration. Reporting both as plain symbol counts
-    would hide that difference exactly where a caller decides how far to trust
-    them.
-    """
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    language: Annotated[str, Field(min_length=1)]
-
-    #: `REQ-412`: a language with no adapter is `not_available` with a reason,
-    #: never a partial index presented as a whole one.
-    state: Literal["available", "not_available"]
-    method: Literal["syntax_tree", "line_scan"] | None = None
-    reason: str | None = None
-    files: Annotated[int, Field(ge=0)]
-    symbols: Annotated[int, Field(ge=0)]
-    tests: Annotated[int, Field(ge=0)]
-    entry_points: list[str] = []
-
-
-class ProjectSymbols(ContractModel):
-    """The table of contents of one project, and nothing deeper (`REQ-411`).
-
-    No call graph, no vector representations, no symbol bodies. `state` is
-    `partial` when the file budget was reached, for the same reason the index
-    says so: a short answer that looks complete is the worse failure.
-    """
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    root: Annotated[str, Field(min_length=1)]
-    state: Literal["complete", "partial"]
-    stopped_by: str | None = None
-    languages: list[LanguageOutline]
-
-
-class PinnedTool(ContractModel):
-    """One tool the managed profile pins (`SPEC-014` REQ-1403)."""
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    tool_id: Annotated[str, Field(min_length=1)]
-    purpose: Annotated[str, Field(min_length=1)]
-
-    #: Exact, never a range: a range would let two installations differ while
-    #: both looked pinned.
-    version: Annotated[str, Field(min_length=1)]
-    license: Annotated[str, Field(min_length=1)]
-
-    #: Exact source and its integrity proof for *this* platform.
-    source: Annotated[str, Field(min_length=1)]
-    digest: Annotated[str, Field(min_length=1)]
-
-    #: How the proof was obtained. A checksum the vendor published is an
-    #: upstream statement about the artifact; one pinned during a single
-    #: download only proves nothing changed since. Different strengths, kept
-    #: apart so the difference survives into the answer.
-    digest_source: Literal["vendor_published", "pinned_on_download"]
-
-
-class EcosystemCoverage(ContractModel):
-    """What the profile offers for one ecosystem, including nothing."""
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    ecosystem: Annotated[str, Field(min_length=1)]
-    title: Annotated[str, Field(min_length=1)]
-    state: Literal["available", "not_available"]
-
-    #: Present exactly when `state` is `not_available`. `REQ-1407` asks for the
-    #: reason: an agent reading a short list cannot otherwise tell "nothing
-    #: needed" from "nothing yet".
-    reason: str | None = None
-    tools: list[PinnedTool]
-
-
-class HarnessInstallation(ContractModel):
-    """One place a harness was found (`SPEC-014` REQ-1417)."""
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-
-    #: Absolute and verified, rendered with the home directory folded away.
-    path: Annotated[str, Field(min_length=1)]
-
-    #: The exact version, or `unknown`. Never a guess: `REQ-1415` allows the
-    #: word and not an invented number.
-    version: Annotated[str, Field(min_length=1)]
-    reason: Annotated[str, Field(min_length=1)]
-    surface: Literal["cli", "desktop"] = "cli"
-    version_source: Literal[
-        "process", "package_metadata", "windows_package_metadata", "unavailable"
-    ] = "process"
-    diagnostic: Annotated[str, Field(min_length=1)] = "version_reported"
-
-
-class HarnessPresence(ContractModel):
-    """What is known about one harness on this machine (`REQ-1415`)."""
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    harness_id: Annotated[str, Field(min_length=1)]
-    title: Annotated[str, Field(min_length=1)]
-    support: Literal["primary", "beta"]
-    state: Literal["configured", "installed", "unknown_version", "available"]
-
-    #: Every installation rather than the first: two versions of one harness on
-    #: one machine is ordinary, and reporting one hides the other.
-    installations: list[HarnessInstallation]
-
-    #: The user configuration root, when there is one.
-    configuration: str | None = None
-    reason: Annotated[str, Field(min_length=1)]
-
-
-class HarnessSurvey(ContractModel):
-    """Every declared harness, whether or not it is here.
-
-    Total by construction. A harness absent from the answer would be
-    indistinguishable from one this build does not support, and `REQ-1414`
-    makes the supported set the point.
-    """
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    harnesses: list[HarnessPresence]
-
-
-#: What this build can do with one kind on one harness, and the four answers are
-#: four different situations that `unsupported` was one word for (`#462`).
-#:
-#: `supported` — the product has the surface at a scope a provider owns, and
-#: this compiler routes it.
-#: `projection_missing` — the surface exists and nothing routes it yet. Waiting
-#: helps: the work is on this side.
-#: `project_only` — the surface exists where no provider writes, so there is
-#: nothing to project and nothing missing.
-#: `routed_only` — this compiler routes it and the catalogue records no row at
-#: an owned scope, which is either a translation or a catalogue behind its
-#: source; `tests/contract/test_capability_states.py` names each one.
-#: `unsupported` — the product has no such surface anywhere.
-type CapabilityState = Literal[
-    "supported", "projection_missing", "project_only", "routed_only", "unsupported"
-]
-
-
-class HarnessComponentCapability(ContractModel):
-    """One `(harness, kind)` cell, with native support and projection kept apart.
-
-    Reading a single list of kinds as "what can be installed" is the mistake
-    this exists to remove: the catalogue answers what the *product* reads, and
-    the compiler answers what this build can hand a provider. They are different
-    questions and they disagree on ten of the native-layout cells.
-
-    **None of these fields claims a component is active.** Whether an installed
-    thing is loaded, parsed and running is a third question, and for at least
-    one surface it is not answerable from outside the product at all: driven at
-    a temporary `CODEX_HOME` in four states — valid, malformed, an invented
-    event name, an invented top-level key — codex produced byte-identical
-    output, and identical again with the file absent. A model that reported
-    "active" would have to invent that answer for codex hooks. Runtime evidence
-    is a separate record tied to versions, OS and scope (`#462`, item 8).
-    """
-
-    model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
-
-    schema_version: Literal[1] = 1
-    component_type: ComponentType
-    #: The product reads this kind somewhere, at any scope.
-    native_support: bool
-    #: ...and at a scope a provider owns, which is what makes it projectable.
-    native_at_owned_scope: bool
-    #: This build has a compiler route for it.
-    projection_support: bool
-    #: Where the product reads it, in catalogue order: `global` is the harness
-    #: configuration home, `user_root` the shared convention root, `project` a
-    #: directory in somebody's repository. `#462` item 2: a cell is not one
-    #: answer, and "native" at `project` means something a provider cannot act
-    #: on.
-    native_scopes: list[str]
-    #: Which scopes this build routes it to; empty when nothing routes it.
-    projection_scopes: list[str]
-    state: CapabilityState
-    #: Why the state is not `supported`, or `None` when it is. `#462` item 4
-    #: asks for a machine reason, and these were written twice in places a
-    #: caller could not read — beside each rule in a comment, and in a contract
-    #: test's table.
-    reason: str | None = None
-
-
-class HarnessCapabilityRow(ContractModel):
-    """One executable row from the closed harness capability catalog."""
-
-    model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
-
-    schema_version: Literal[1] = 1
-    harness_id: HarnessId | Literal["undefined"]
-    title: Annotated[str, Field(min_length=1)]
-    support: Literal["primary", "beta", "portable"]
-    #: Every kind the *product* reads, at any scope. Kept because it is a true
-    #: fact about the harness, and no longer the only one reported: read alone
-    #: it was taken for effective support, which is `#462`.
-    component_types: list[ComponentType]
-    #: Every closed kind, each with its own state — present for every kind rather
-    #: than only the interesting ones, because a caller building a matrix should
-    #: not have to infer absence from a missing row.
-    #:
-    #: `null`, and only, for a row no provider owns: the shared-convention row
-    #: carries `no_single_harness_owner` in `gaps`, and a projection state needs
-    #: somebody to project. Reporting `projection_missing` there would say the
-    #: work is ours when there is no provider to route to, and reporting
-    #: `unsupported` would say the convention does not exist. An absent answer
-    #: is the true one.
-    components: list[HarnessComponentCapability] | None = None
-    native_authoring: list[str]
-    global_layouts: list[str]
-    project_layouts: list[str]
-    layout_sources: list[str]
-    gaps: list[str]
-
-
-class HarnessCapabilityTable(ContractModel):
-    """The complete supported harness table, including shared conventions."""
-
-    model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
-
-    schema_version: Literal[1] = 1
-    harnesses: list[HarnessCapabilityRow]
-
-
-class ToolchainProfile(ContractModel):
-    """The managed toolchain as it resolves on this machine (`SPEC-014`).
-
-    Policy, not project: `REQ-1402` makes an empty project and a documentation
-    project resolve to the same profile, because what a developer needs
-    installed is not deducible from what they have written so far.
-    """
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    profile: Annotated[str, Field(min_length=1)]
-    platform: Annotated[str, Field(min_length=1)]
-    ecosystems: list[EcosystemCoverage]
-
-
-class SkillDelivery(ContractModel):
-    """Where the canonical Agent Skill is, and whether this build put it there.
-
-    The Skill is what an agent reads to learn how to drive this CLI, so an
-    installation that carries the binary and not the procedure has delivered
-    half a product. `state` distinguishes a destination this installation owns
-    from one somebody else wrote, because replacing the second would be taking
-    over a file that is not ours.
-    """
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-
-    #: `absent`, `owned`, `foreign` or `stale`.
-    state: Literal["absent", "owned", "foreign", "stale"]
-
-    #: Rendered with the home directory folded away, like every reported path.
-    target: Annotated[str, Field(min_length=1)]
-
-    #: `None` when nothing is installed there.
-    digest: str | None = None
-
-    #: The harness projection installed, or `None` for the canonical Skill.
-    harness: str | None = None
-
-    #: `en` or `ru` when this installation wrote a locale, else `None`.
-    locale: str | None = None
-
-    #: Owned relative paths of the installed package. Empty when absent.
-    files: list[str] = Field(default_factory=list[str])
-
-    #: Every harness this build ships a native projection for.
-    available_harnesses: list[str]
-
-
-class CatalogArtifactView(ContractModel):
-    """Where the verified bytes of one exact version now are (issue #76).
-
-    Answered after the bytes have been checked against the passport, so a caller
-    that receives this knows the file at `path` hashes to `digest` and is
-    `size_bytes` long. `source` says whether the network was involved, which is
-    what an offline caller needs to know about its own cache.
-    """
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    kind: CatalogKind
-    source: AnswerSource
-    checked_at: Timestamp
-    stable_id: Annotated[str, Field(min_length=1)]
-    version: Annotated[str, Field(min_length=1)]
-    digest: Annotated[str, Field(min_length=1)]
-    size_bytes: Annotated[int, Field(ge=0)]
-
-    #: Rendered with the home directory folded away, like every other path this
-    #: CLI reports: `#73` keeps the account name out of output.
-    path: Annotated[str, Field(min_length=1)]
-
-
-class AcquiredComponentVersion(ContractModel):
-    """One exact component made available to the local setup compiler."""
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    stable_id: Annotated[str, Field(min_length=1)]
-    version: Annotated[str, Field(min_length=1)]
-    passport_digest: Annotated[str, Field(min_length=1)]
-    artifact_digest: Annotated[str, Field(min_length=1)]
-
-
-class CatalogSetupAcquisition(ContractModel):
-    """An exact published setup graph materialized in the local registry."""
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    source: AnswerSource
-    checked_at: Timestamp
-    stable_id: Annotated[str, Field(min_length=1)]
-    version: Annotated[str, Field(min_length=1)]
-    passport_digest: Annotated[str, Field(min_length=1)]
-    artifact_digest: Annotated[str, Field(min_length=1)]
-    harness_id: Annotated[str, Field(min_length=1)]
-    components: list[AcquiredComponentVersion]
-
-
-class CliSignedAttestation(AssuranceAuthorAttestation):
-    """Locally signed full attestation plus its owner-only output location."""
-
-    # Extends the assurance model rather than `ContractModel`; defers the same way.
-    model_config = ConfigDict(defer_build=True)
-
-    output_path: Annotated[str, Field(min_length=1)]
-    attestation_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
-
-
-type CliInstallMethod = Literal[
-    "uv_tool",
-    "pipx",
-    "pip_venv",
-    "shared_environment",
-    "system_environment",
-    "source_managed",
-]
-type CliUpdateCheckState = Literal[
-    "current",
-    "available",
-    "unknown",
-    "stale",
-    "unsupported",
-    "source_managed",
-]
-type CliUpdateJournalState = Literal[
-    "idle",
-    "planned",
-    "downloaded",
-    "applying",
-    "pending",
-    "verified",
-    "recovery_required",
-    "rolled_back",
-    "failed",
-]
-type CliUpdateApplyOutcome = Literal[
-    "replaced",
-    "unchanged",
-    "pending",
-    "recovered",
-    "rolled_back",
-    "refused",
-]
-
-
-class CliSelfUpdateCheck(ContractModel):
-    """What `update check` observed, including why nothing is offered."""
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    state: CliUpdateCheckState
-    distribution: Literal["ai-stp-cli"] = "ai-stp-cli"
-    installed_version: Annotated[str, Field(min_length=1)]
-    python_version: Annotated[str, Field(pattern=r"^\d+\.\d+\.\d+")]
-    install_method: CliInstallMethod
-    executable: Annotated[str, Field(min_length=1)]
-    install_root: Annotated[str, Field(min_length=1)]
-    channel: Literal["stable", "prerelease"]
-    candidate_version: str = ""
-    candidate_filename: str = ""
-    candidate_digest: Annotated[str, Field(pattern=rf"^(?:{DIGEST_PATTERN})?$")] = ""
-    index_origin: Annotated[str, Field(min_length=1)]
-    simple_index_ready: bool = False
-    cache_age_seconds: Annotated[int, Field(ge=0)] | None = None
-    reason: Annotated[str, Field(min_length=1)]
-
-
-class CliSelfUpdatePlan(ContractModel):
-    """Exact replacement of this CLI distribution (`SPEC-072`)."""
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    plan_id: Annotated[str, Field(min_length=1)]
-    source_version: Annotated[str, Field(min_length=1)]
-    target_version: Annotated[str, Field(min_length=1)]
-    python_version: Annotated[str, Field(pattern=r"^\d+\.\d+\.\d+")]
-    install_method: CliInstallMethod
-    executable: Annotated[str, Field(min_length=1)]
-    install_root: Annotated[str, Field(min_length=1)]
-    receipt_fingerprint: Annotated[str, Field(min_length=1)]
-    distribution: Literal["ai-stp-cli"] = "ai-stp-cli"
-    artifact_filename: Annotated[str, Field(min_length=1)]
-    artifact_url: Annotated[str, Field(min_length=1)]
-    artifact_bytes: Annotated[int, Field(ge=0)]
-    artifact_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
-    index_origin: Annotated[str, Field(min_length=1)]
-    channel: Literal["stable", "prerelease"]
-    installer_argv: Annotated[list[str], Field(min_length=1)]
-    installer_environment: dict[str, str] = Field(default_factory=dict)
-    restart_effect: Literal["new_process_required"] = "new_process_required"
-    data_backup: Annotated[str, Field(min_length=1)]
-    rollback_available: bool
-    apply_ready: bool
-    reason: Annotated[str, Field(min_length=1)]
-    plan_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
-
-
-class CliSelfUpdateResult(ContractModel):
-    """Outcome of apply, recover or rollback."""
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    outcome: CliUpdateApplyOutcome
-    journal_state: CliUpdateJournalState
-    installed_version: Annotated[str, Field(min_length=1)]
-    target_version: Annotated[str, Field(min_length=1)]
-    executable: Annotated[str, Field(min_length=1)]
-    plan_digest: Annotated[str, Field(pattern=rf"^(?:{DIGEST_PATTERN})?$")] = ""
-    rollback_digest: Annotated[str, Field(pattern=rf"^(?:{DIGEST_PATTERN})?$")] = ""
-    reason: Annotated[str, Field(min_length=1)]
-
-
-class CliSelfUpdateStatus(ContractModel):
-    """Journal plus the distribution a new process actually imported."""
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    journal_state: CliUpdateJournalState
-    installed_version: Annotated[str, Field(min_length=1)]
-    target_version: str = ""
-    previous_version: str = ""
-    install_method: CliInstallMethod
-    executable: Annotated[str, Field(min_length=1)]
-    plan_digest: Annotated[str, Field(pattern=rf"^(?:{DIGEST_PATTERN})?$")] = ""
-    rollback_digest: Annotated[str, Field(pattern=rf"^(?:{DIGEST_PATTERN})?$")] = ""
-    reason: Annotated[str, Field(min_length=1)]

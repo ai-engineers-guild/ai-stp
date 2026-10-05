@@ -22,7 +22,7 @@ import time
 from collections.abc import Iterator
 from contextlib import closing
 from pathlib import Path
-from typing import Any
+from typing import Any, TypeAliasType
 
 import pytest
 from pydantic import BaseModel
@@ -236,3 +236,23 @@ def test_the_contract_package_root_names_load_from_their_modules() -> None:
     assert sorted(ai_stp_contracts.__all__) == sorted(name for _, name in mapped)
     for module, name in sorted(mapped):
         assert getattr(ai_stp_contracts, name) is getattr(importlib.import_module(module), name)
+
+
+def test_machine_help_re_exports_every_contract_family_name() -> None:
+    """The aggregate is what the schema generator and the platform read.
+
+    A definition added to an `ai_stp_contracts.cli` family and not to
+    `machine_help` would be a payload the CLI returns and no published schema
+    describes.
+    """
+    from ai_stp_contracts import cli, machine_help
+
+    defined = {
+        name
+        for info in pkgutil.iter_modules(cli.__path__, "ai_stp_contracts.cli.")
+        for name, value in vars(importlib.import_module(info.name)).items()
+        if not name.startswith("_")
+        and getattr(value, "__module__", None) == info.name
+        and isinstance(value, type | TypeAliasType)
+    }
+    assert sorted(machine_help.__all__) == sorted(defined)
