@@ -120,6 +120,8 @@ export function CatalogQueryField({
                   >
                     <span className="flex items-center justify-between gap-3">
                       <span className="font-medium">{word}</span>
+                      {/* Unrendered between flex items, but it keeps the option's
+                          accessible name two words where no layout blockifies them. */}{" "}
                       <span className="text-muted-foreground font-sans text-xs">
                         {catalogQlWordKind(word) === "field" ? fieldsLabel : operatorsLabel}
                       </span>
