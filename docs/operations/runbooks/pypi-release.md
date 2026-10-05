@@ -135,15 +135,17 @@ No upload token exists here, on the host, or in repository or organization secre
 Trusted Publishing issues an OIDC identity for the run. There is no credential to
 look for.
 
-Live index on 2026-10-05: `ai-stp-cli==0.0.41` from attested candidate
-`37326276638` and publish run `37326610131`, tag `v0.0.41`, commit
-`ffcdcd6e`, GitHub Release
-`https://github.com/ai-engineers-guild/ai-stp/releases/tag/v0.0.41`. The wheel
-`ai_stp_cli-0.0.41-py3-none-any.whl` has digest
-`sha256:67da21b83d0ffe5ad316186746a9026d8076d22b886d8541aacdb00aacbdc8ff` and the
-sdist `sha256:65e215fbae20ca7825b29ead2327d341af306cdded3d38688ed66b04a13bd4fe`,
+Live index on 2026-10-05: `ai-stp-cli==0.0.42` from attested candidate
+`37370223688` and publish run `37374426276`, tag `v0.0.42`, commit
+`980438b4`, GitHub Release
+`https://github.com/ai-engineers-guild/ai-stp/releases/tag/v0.0.42`. The wheel
+`ai_stp_cli-0.0.42-py3-none-any.whl` has digest
+`sha256:2287346a49d68a66d12353650bedb4451712c2aaba1af1070aebefff58eec252` and the
+sdist `sha256:dda9e96791104d38e82751a1d57d4be995ea4eab9612b8530364e9cd9c324278`,
 byte-identical between the PyPI index record and the release's `SHA256SUMS`.
-A `uv tool` installation on this workstation reached it from 0.0.40 through
+The candidate's first attempt got no runner during a GitHub Actions incident
+and its rerun passed; a rerun does not change which bytes the run id names.
+A `uv tool` installation on this workstation reached it from 0.0.41 through
 `update plan` and `update apply`; the journal ended `verified` and `doctor`
 reported every check `ready`. Earlier releases are listed on GitHub Releases
 with their own candidate and publish runs.
