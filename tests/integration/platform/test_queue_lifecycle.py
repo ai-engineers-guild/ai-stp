@@ -20,6 +20,7 @@ from ai_stp_platform.organization_models import (
 from ai_stp_platform.queue.engine import (
     DEFAULT_LEASE_TIMEOUT_SECONDS,
     TenantJobInvalid,
+    backoff_seconds,
     cancel,
     claim,
     enqueue,
@@ -207,6 +208,37 @@ async def test_claim_succeed_and_retry_dead_letter(
         assert retried[0].idempotency_key == "queue-lifecycle-fail"
         await fail(session, retried[0], error="second", now=later)
         assert retried[0].state is JobState.DEAD_LETTER
+
+
+@pytest.mark.asyncio
+async def test_retry_waits_for_the_moment_the_failure_named(
+    db_sessionmaker: async_sessionmaker[AsyncSession],
+) -> None:
+    """A rate-limit reset beyond the backoff moves the retry; an earlier one does not."""
+    now = datetime(2026, 8, 7, 12, 0, tzinfo=UTC)
+    reset = now + timedelta(minutes=40)
+    async with db_sessionmaker() as session, session.begin():
+        for key in ("queue-not-before-later", "queue-not-before-earlier"):
+            await enqueue(
+                session,
+                job_type=JobType.UPLOAD,
+                payload={"path": key},
+                idempotency_key=key,
+                run_after=now,
+            )
+
+    async with db_sessionmaker() as session, session.begin():
+        by_key = {
+            job.idempotency_key: job
+            for job in await claim(session, worker_id="worker-a", batch=2, now=now)
+        }
+        later, earlier = by_key["queue-not-before-later"], by_key["queue-not-before-earlier"]
+        await fail(session, later, error="limited", now=now, not_before=reset)
+        await fail(session, earlier, error="limited", now=now, not_before=now)
+        assert later.state is JobState.RETRY_SCHEDULED
+        assert later.attempts == 1
+        assert later.run_after == reset
+        assert earlier.run_after == now + timedelta(seconds=backoff_seconds(1))
 
 
 @pytest.mark.asyncio

@@ -280,8 +280,12 @@ async def fail(
     permanent: bool = False,
     now: datetime | None = None,
     locked_by: str | None = None,
+    not_before: datetime | None = None,
 ) -> bool:
     """Record a failure: schedule a bounded retry or move to dead-letter.
+
+    `not_before` delays the retry past the backoff to a moment the failure
+    named, such as a rate-limit reset.
 
     Returns False when the row no longer belongs to this worker — the same
     ownership condition `mark_succeeded` guards. A failure observed by a stale
@@ -307,6 +311,8 @@ async def fail(
     else:
         row.state = JobState.RETRY_SCHEDULED
         row.run_after = moment + timedelta(seconds=backoff_seconds(row.attempts))
+        if not_before is not None and not_before > row.run_after:
+            row.run_after = not_before
     await session.flush()
     return True
 
