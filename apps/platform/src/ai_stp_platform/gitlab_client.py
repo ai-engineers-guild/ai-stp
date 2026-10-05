@@ -166,10 +166,12 @@ class GitLabClient:
         allowed_hosts: Iterable[str] = (),
         transport: httpx.AsyncBaseTransport | None = None,
         auth: Literal["private_token", "bearer", "anonymous"] = "private_token",
+        verify: str | bool = True,
     ) -> None:
         self.base_url = gitlab_base_url(base_url, allowed_hosts=allowed_hosts)
         self.transport = transport
         self.auth = auth
+        self.verify = verify
 
     def _headers(self, token: str | None) -> dict[str, str]:
         if self.auth == "anonymous":
@@ -201,6 +203,7 @@ class GitLabClient:
                     timeout=httpx.Timeout(20.0, connect=5.0),
                     follow_redirects=False,
                     trust_env=False,
+                    verify=self.verify,
                     transport=self.transport,
                 ) as client,
                 client.stream("GET", url, headers=headers, params=params) as response,
@@ -250,6 +253,7 @@ class GitLabClient:
                 timeout=httpx.Timeout(20.0, connect=5.0),
                 follow_redirects=False,
                 trust_env=False,
+                verify=self.verify,
                 transport=self.transport,
             ) as client:
                 response = await client.request(
@@ -299,6 +303,7 @@ class GitLabClient:
                     timeout=httpx.Timeout(20.0, connect=5.0),
                     follow_redirects=False,
                     trust_env=False,
+                    verify=self.verify,
                     transport=self.transport,
                 ) as client,
                 client.stream(

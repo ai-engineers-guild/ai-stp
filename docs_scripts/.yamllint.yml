@@ -13,6 +13,7 @@ ignore: |
   .venv-check/
   .serena/
   .serena.local-backup-before-ff/
+  .gitlab-lab/
   node_modules/
   .playwright-mcp/
 

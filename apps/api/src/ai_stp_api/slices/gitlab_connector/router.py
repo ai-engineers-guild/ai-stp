@@ -1,6 +1,6 @@
 """Organization-gated, CSRF-protected GitLab read-only connector endpoints."""
 
-from typing import Annotated
+from typing import Annotated, cast
 
 from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import RedirectResponse
@@ -43,8 +43,10 @@ def _connection(settings: Settings, organization_id: str) -> GitLabConnection:
 
 def _client(request: Request, connection: GitLabConnection) -> GitLabClient:
     injected = getattr(request.app.state, "gitlab_client", None)
+    settings = cast(Settings | None, getattr(request.app.state, "settings", None))
+    verify = settings.gitlab.tls_verify() if settings is not None else True
     candidate = GitLabClient(
-        connection.base_url, allowed_hosts=connection.allowed_hosts, auth="bearer"
+        connection.base_url, allowed_hosts=connection.allowed_hosts, auth="bearer", verify=verify
     )
     if injected is not None and injected.base_url == candidate.base_url:
         return injected

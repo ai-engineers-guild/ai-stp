@@ -99,6 +99,7 @@ export const PAGE_INVENTORY: readonly PageInventoryEntry[] = [
   // paired with the physical page until the compatibility window is removed.
   { pattern: "corporate/components", access: "session", presenter: "domain" },
   { pattern: "corporate/installations", access: "session", presenter: "domain" },
+  { pattern: "corporate/gitlab", access: "session", presenter: "domain" },
   { pattern: "corporate/usage", access: "session", presenter: "domain" },
   { pattern: "corporate/reports", access: "session", presenter: "domain" },
   { pattern: "corporate/reports/heartbeat", access: "session", presenter: "domain" },

@@ -91,14 +91,18 @@ async def authorize_binding(
     return token
 
 
-def anonymous_client(binding: GitLabSourceBinding) -> GitLabClient:
+def anonymous_client(binding: GitLabSourceBinding, *, verify: str | bool = True) -> GitLabClient:
     host = urlsplit(binding.gitlab_base_url).hostname or ""
-    return GitLabClient(binding.gitlab_base_url, allowed_hosts=(host,), auth="anonymous")
+    return GitLabClient(
+        binding.gitlab_base_url, allowed_hosts=(host,), auth="anonymous", verify=verify
+    )
 
 
-async def public_bound_source_bytes(binding: GitLabSourceBinding) -> bytes:
+async def public_bound_source_bytes(
+    binding: GitLabSourceBinding, *, verify: str | bool = True
+) -> bytes:
     """Promotion proves public provenance anonymously; no source credentials."""
-    client = anonymous_client(binding)
+    client = anonymous_client(binding, verify=verify)
     try:
         repository = await client.repository(binding.project_id)
         archive = await client.archive(binding.project_id, sha=binding.commit)

@@ -1018,6 +1018,7 @@ async def execute_publish(
     plan_id: str,
     store: ImmutableObjectStore | None = None,
     now: datetime | None = None,
+    gitlab_verify: str | bool = True,
 ) -> CatalogMetadata | None:
     """Materialize catalog version from a validated plan (idempotent).
 
@@ -1059,7 +1060,7 @@ async def execute_publish(
             await public_bound_source_bytes(source, client=GitHubClient())
         gitlab_source = await gitlab_bound_source(session, plan)
         if gitlab_source is not None and plan_visibility == "public":
-            await gitlab_public_bound_source_bytes(gitlab_source)
+            await gitlab_public_bound_source_bytes(gitlab_source, verify=gitlab_verify)
     except (GitHubError, GitLabError) as exc:
         # A bound-source mismatch (renamed/private/transferred repo) is
         # permanent — settle it instead of dead-lettering into a wedged plan.

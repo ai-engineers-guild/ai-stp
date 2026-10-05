@@ -28,6 +28,9 @@ class GitLabSettings(BaseSettings):
     # AES-GCM key material for connector token ciphertext; URL-safe base64 of
     # exactly 32 bytes, like the GitHub connector key.
     connector_encryption_key: SecretStr = Field(default_factory=lambda: SecretStr(""))
+    # Optional PEM bundle with an internal CA root — on-premise instances
+    # commonly terminate TLS at a corporate CA that public stores cannot see.
+    ca_bundle: str = ""
 
     @field_validator("connector_encryption_key")
     @classmethod
@@ -53,3 +56,7 @@ class GitLabSettings(BaseSettings):
             self.connector_credentials(organization_id)
             and self.connector_encryption_key.get_secret_value()
         )
+
+    def tls_verify(self) -> str | bool:
+        """httpx ``verify`` value: the internal CA bundle path, else public."""
+        return self.ca_bundle or True

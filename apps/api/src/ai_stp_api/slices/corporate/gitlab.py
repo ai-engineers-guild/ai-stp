@@ -52,7 +52,11 @@ def _connection(settings: Settings, organization_id: str) -> tuple[GitLabClient,
     if config is None:
         raise ApiError(ErrorCategory.DEPENDENCY, "GitLab discovery is unavailable")
     try:
-        client = GitLabClient(config.base_url, allowed_hosts=config.allowed_hosts)
+        client = GitLabClient(
+            config.base_url,
+            allowed_hosts=config.allowed_hosts,
+            verify=settings.gitlab.tls_verify(),
+        )
     except GitLabError:
         raise ApiError(ErrorCategory.DEPENDENCY, "GitLab discovery is unavailable") from None
     return client, config.token.get_secret_value()

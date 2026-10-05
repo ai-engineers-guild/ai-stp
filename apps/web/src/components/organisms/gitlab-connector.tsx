@@ -78,9 +78,9 @@ export function GitLabConnector({
   const admin = status?.connections.find((item) => item.purpose === "administration");
   const connected = source?.state === "connected";
   const repositories = source?.repositories ?? [];
-  const canAccess = capabilities.includes("connector.gitlab.access");
-  const canVisibility = capabilities.includes("connector.gitlab.visibility");
-  const canCreate = capabilities.includes("connector.gitlab.create");
+  const showAccessActions = capabilities.includes("connector.gitlab.access");
+  const showVisibilityActions = capabilities.includes("connector.gitlab.visibility");
+  const showCreateAction = capabilities.includes("connector.gitlab.create");
   const levelLabels = {
     guest: t("level_guest"),
     reporter: t("level_reporter"),
@@ -267,7 +267,7 @@ export function GitLabConnector({
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
-              {admin?.state === "connected" && canCreate ? (
+              {admin?.state === "connected" && showCreateAction ? (
                 <Button
                   variant="outline"
                   disabled={busy || !deviceId}
@@ -319,8 +319,8 @@ export function GitLabConnector({
                 key={repository.project_id}
                 repository={repository}
                 adminConnected={admin?.state === "connected"}
-                canAccess={canAccess}
-                canVisibility={canVisibility}
+                showAccessActions={showAccessActions}
+                showVisibilityActions={showVisibilityActions}
                 busy={busy}
                 deviceId={deviceId}
                 onDraft={(next) => {
@@ -538,8 +538,8 @@ function ConnectorSkeleton({ label }: { label: string }) {
 function RepositoryRow({
   repository,
   adminConnected,
-  canAccess,
-  canVisibility,
+  showAccessActions,
+  showVisibilityActions,
   busy,
   deviceId,
   onDraft,
@@ -547,8 +547,8 @@ function RepositoryRow({
 }: {
   repository: GitLabConnectorRepository;
   adminConnected: boolean;
-  canAccess: boolean;
-  canVisibility: boolean;
+  showAccessActions: boolean;
+  showVisibilityActions: boolean;
   busy: boolean;
   deviceId: string | null;
   onDraft: (draft: PlanRequest) => void;
@@ -591,7 +591,7 @@ function RepositoryRow({
       </div>
       {adminConnected ? (
         <div className="flex flex-wrap gap-2">
-          {canVisibility ? (
+          {showVisibilityActions ? (
             <Button
               variant="outline"
               disabled={busy || !deviceId}
@@ -604,7 +604,7 @@ function RepositoryRow({
                 : t("makeRepositoryPublic")}
             </Button>
           ) : null}
-          {canAccess ? (
+          {showAccessActions ? (
             <>
               <Button
                 variant="outline"

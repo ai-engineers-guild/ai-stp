@@ -34,6 +34,15 @@ export default defineConfig({
     // hold a runner until the job's own ceiling.
     testTimeout: 20_000,
     setupFiles: ["./tests/setup.ts"],
+    server: {
+      deps: {
+        // next-intl ships ESM files that import `next/navigation` without an
+        // extension. Externalized, Node's ESM resolver refuses extensionless
+        // subpaths in packages without an exports map; inlined, Vite resolves
+        // them with extension search the way the Next build does.
+        inline: ["next-intl"],
+      },
+    },
     include: ["tests/unit/**/*.{test,spec}.{ts,tsx}", "tests/component/**/*.{test,spec}.{ts,tsx}"],
     exclude: ["node_modules", ".next", "tests/e2e", "src/stories/**", ".storybook/**"],
     css: false,

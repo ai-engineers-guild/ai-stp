@@ -32,6 +32,9 @@ logs/
 .deploy-state/
 .backups/
 
+# Local GitLab lab state: container volumes, internal CA and certificates.
+.gitlab-lab/
+
 # CLIPROXY OAuth session and operator config. Copy auths/ between hosts;
 # never commit the JSON or a filled config.yaml.
 deploy/cliproxy/config.yaml

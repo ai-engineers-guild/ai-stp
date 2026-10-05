@@ -216,7 +216,9 @@ async def test_scenario_worker_handlers_delegate_validate_publish(
     validate_mock.assert_awaited_once_with(
         session, plan_id="plan_w1", release_read_transaction=True
     )
-    publish_mock.assert_awaited_once_with(session, plan_id="plan_w1", store=None)
+    publish_mock.assert_awaited_once_with(
+        session, plan_id="plan_w1", store=None, gitlab_verify=True
+    )
 
 
 @pytest.mark.asyncio

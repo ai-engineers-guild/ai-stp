@@ -95,11 +95,13 @@ async def _require_active_device(db: AsyncSession, *, ctx: AuthContext, device_i
     return device
 
 
-def _gitlab_client(binding: GitLabSourceBinding) -> GitLabClient:
+def _gitlab_client(binding: GitLabSourceBinding, *, verify: str | bool = True) -> GitLabClient:
     """The binding's base URL was allowlist-validated when it was written; the
     same host is the only authority provenance reads may reach again."""
     host = urlsplit(binding.gitlab_base_url).hostname or ""
-    return GitLabClient(binding.gitlab_base_url, allowed_hosts=(host,), auth="bearer")
+    return GitLabClient(
+        binding.gitlab_base_url, allowed_hosts=(host,), auth="bearer", verify=verify
+    )
 
 
 def _to_response(
@@ -200,7 +202,7 @@ async def create_plan(
         await gitlab_authorize_binding(
             db,
             binding,
-            client=gitlab_client or _gitlab_client(binding),
+            client=gitlab_client or _gitlab_client(binding, verify=settings.gitlab.tls_verify()),
             settings=settings.gitlab,
             public=visibility == "public",
         )
@@ -613,7 +615,8 @@ async def confirm_plan(
         await gitlab_authorize_binding(
             db,
             gitlab_binding,
-            client=gitlab_client or _gitlab_client(gitlab_binding),
+            client=gitlab_client
+            or _gitlab_client(gitlab_binding, verify=settings.gitlab.tls_verify()),
             settings=settings.gitlab,
             public=plan.visibility == "public",
         )

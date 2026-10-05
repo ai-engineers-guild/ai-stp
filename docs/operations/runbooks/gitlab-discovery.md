@@ -9,7 +9,10 @@ Configure `AI_STP_GITLAB_CONNECTIONS` as the deployment's secret setting, keyed
 by organization ID. Each connection has a GitLab `base_url`, its exact
 `allowed_hosts`, and a credential supplied by the deployment secret store. Use
 `https://gitlab.com` or an explicitly approved self-hosted HTTPS hostname. Keep
-the connection out of source control, logs, passports, and API requests.
+the connection out of source control, logs, passports, and API requests. When
+the instance terminates TLS at an internal CA public stores cannot verify, set
+`AI_STP_GITLAB_CA_BUNDLE` to a PEM file with that CA's root — discovery, the
+connector, action plans and provenance reads all verify against it.
 
 An authorized operator lists repositories, registers an immutable numeric GitLab
 repository ID, then refreshes the resulting provider observation as needed. The

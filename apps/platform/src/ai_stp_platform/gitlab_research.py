@@ -65,7 +65,11 @@ async def scan_linked_gitlab_project(
     if connection is None:
         raise PermanentJobFailure("gitlab connection is not configured")
     try:
-        client = GitLabClient(connection.base_url, allowed_hosts=connection.allowed_hosts)
+        client = GitLabClient(
+            connection.base_url,
+            allowed_hosts=connection.allowed_hosts,
+            verify=settings.tls_verify(),
+        )
     except GitLabError:
         raise PermanentJobFailure("gitlab connection is not configured") from None
     token = connection.token.get_secret_value()

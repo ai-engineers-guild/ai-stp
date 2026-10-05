@@ -1,0 +1,97 @@
+# Local lab override (not for CI): publishes RustFS on the host loopback so an
+# api/worker process run from the checkout can reach the dev object store, and
+# adds a self-managed GitLab instance for the corporate GitLab flows
+# (OIDC sign-in, read-only source connector, administration connector).
+#
+#   docker compose -f deploy/compose.dev.yml -f deploy/compose.gitlab-local.yml up -d
+#
+# GitLab answers at https://gitlab.lvh.me (lvh.me resolves to 127.0.0.1, so no
+# hosts-file edit is needed). The TLS certificate is issued by a local CA whose
+# root is mounted into api/worker and the GitLab container. Generate it once:
+#
+#   openssl req -x509 -newkey rsa:4096 -sha256 -days 3650 -nodes \
+#     -keyout .gitlab-lab/ssl/ca.key -out .gitlab-lab/ssl/ca.crt \
+#     -subj "/CN=ai-stp local GitLab CA"
+#   # then a SAN certificate for gitlab.lvh.me signed by that CA
+#   openssl req -newkey rsa:2048 -nodes \
+#     -keyout .gitlab-lab/ssl/gitlab.lvh.me.key \
+#     -out .gitlab-lab/ssl/gitlab.lvh.me.csr -subj "/CN=gitlab.lvh.me"
+#   printf 'subjectAltName=DNS:gitlab.lvh.me\n' > .gitlab-lab/ssl/san.cnf
+#   openssl x509 -req -in .gitlab-lab/ssl/gitlab.lvh.me.csr \
+#     -CA .gitlab-lab/ssl/ca.crt -CAkey .gitlab-lab/ssl/ca.key -CAcreateserial \
+#     -days 825 -sha256 -extfile .gitlab-lab/ssl/san.cnf \
+#     -out .gitlab-lab/ssl/gitlab.lvh.me.crt
+#
+# First boot takes several minutes; the root password is generated into
+# /etc/gitlab/initial_root_password inside the container unless
+# GITLAB_ROOT_PASSWORD is set. To exercise the connector, create an OAuth
+# application under Admin area -> Applications with redirect URIs
+#   http://localhost:8000/v1/auth/gitlab/callback
+#   http://localhost:8000/v1/connectors/gitlab/callback
+# and scopes api, read_api, openid, profile, email; then put the application
+# credentials plus a read_api PAT into AI_STP_AUTH_GITLAB_* and
+# AI_STP_GITLAB_CONNECTIONS in .env.dev.
+services:
+  gitlab:
+    image: gitlab/gitlab-ce:19.4.1-ce.0
+    container_name: gitlab-local
+    environment:
+      GITLAB_ROOT_EMAIL: root@gitlab.lvh.me
+      GITLAB_OMNIBUS_CONFIG: |
+        external_url 'https://gitlab.lvh.me'
+        nginx['redirect_http_to_https'] = false
+        nginx['listen_port'] = 443
+        nginx['listen_https'] = true
+        nginx['ssl_certificate'] = '/etc/gitlab/ssl/gitlab.lvh.me.crt'
+        nginx['ssl_certificate_key'] = '/etc/gitlab/ssl/gitlab.lvh.me.key'
+        gitlab_rails['gitlab_email_enabled'] = false
+        prometheus_monitoring['enable'] = false
+        gitlab_kas['enable'] = false
+        registry['enable'] = false
+        # Memory-tuned for a workstation: stock defaults want ~8 GB alone.
+        puma['worker_processes'] = 2
+        puma['min_threads'] = 1
+        puma['max_threads'] = 2
+        sidekiq['concurrency'] = 5
+        postgresql['shared_buffers'] = '256MB'
+        postgresql['max_worker_processes'] = 4
+    ports:
+      - "127.0.0.1:443:443"
+    volumes:
+      - ../.gitlab-lab/ssl:/etc/gitlab/ssl:ro
+      - gitlab-local-config:/etc/gitlab
+      - gitlab-local-logs:/var/log/gitlab
+      - gitlab-local-data:/var/opt/gitlab
+    shm_size: "256m"
+  rustfs:
+    ports:
+      - "127.0.0.1:9000:9000"
+  api:
+    # Let the container api resolve the local GitLab instance at the same
+    # https://gitlab.lvh.me origin the browser uses.
+    extra_hosts:
+      - "gitlab.lvh.me:host-gateway"
+    environment:
+      # Trust the local lab CA for OIDC discovery/token exchange and for any
+      # httpx client that reads the default bundle.
+      SSL_CERT_FILE: /etc/gitlab-local-ca/ca.crt
+      # The corporate GitLab scenario disables the SaaS GitHub surface.
+      AI_STP_AUTH_DISABLED_PROVIDERS: github
+      AI_STP_GITHUB_CONNECTOR_DISABLED: "true"
+    volumes:
+      - ../.gitlab-lab/ssl/ca.crt:/etc/gitlab-local-ca/ca.crt:ro
+  worker:
+    extra_hosts:
+      - "gitlab.lvh.me:host-gateway"
+    environment:
+      SSL_CERT_FILE: /etc/gitlab-local-ca/ca.crt
+    volumes:
+      - ../.gitlab-lab/ssl/ca.crt:/etc/gitlab-local-ca/ca.crt:ro
+  web:
+    environment:
+      # Corporate lab sign-in: GitLab instead of the SaaS google,github set.
+      AI_STP_AUTH_PROVIDERS: gitlab
+volumes:
+  gitlab-local-config:
+  gitlab-local-logs:
+  gitlab-local-data:

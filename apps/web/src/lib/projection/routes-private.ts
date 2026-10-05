@@ -226,6 +226,13 @@ const ACCOUNT_ROUTES: MachineRoute[] = [
     },
   },
   {
+    pattern: "corporate/gitlab",
+    resolve: async () => {
+      const t = await getTranslations("gitlabConnector");
+      return presentPage({ title: t("title") });
+    },
+  },
+  {
     pattern: "corporate/:resource",
     resolve: async ({ segments }) => {
       const requestedResource = segments[1];

@@ -80,15 +80,6 @@ def api_error(error: GitLabError) -> ApiError:
     )
 
 
-def connector_client(connection: GitLabConnection) -> GitLabClient:
-    """The request-scoped client always carries user-grant Bearer credentials."""
-    return GitLabClient(
-        connection.base_url,
-        allowed_hosts=connection.allowed_hosts,
-        auth="bearer",
-    )
-
-
 async def _linked_subjects(db: AsyncSession, account_id: str) -> list[str]:
     return list(
         await db.scalars(
