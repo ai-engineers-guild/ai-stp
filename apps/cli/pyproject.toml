@@ -69,6 +69,10 @@ include = [
     "/README.md",
     "/hatch_build.py",
 ]
+# `src/ai_stp_qualify` drives real agents from a source checkout. The wheel
+# never packages it (`packages` above names only `ai_stp_cli`); the sdist
+# leaves it out too, so no published artifact carries it.
+exclude = ["/src/ai_stp_qualify"]
 
 [tool.hatch.build.hooks.custom]
 path = "hatch_build.py"

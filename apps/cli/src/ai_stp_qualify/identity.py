@@ -9,6 +9,7 @@ from importlib.metadata import PackageNotFoundError, distribution
 from pathlib import Path
 from typing import cast
 
+import ai_stp_cli
 from ai_stp_cli.application.qualify import content_digest
 from ai_stp_cli.runtime import cli_version, installation
 from ai_stp_contracts.cli_copy import INITIALIZE_PROMPT
@@ -54,7 +55,9 @@ def loaded_roots() -> dict[str, Path]:
 
 def canonical_skill(repo: Path) -> Path:
     if installation() == "distribution":
-        return Path(__file__).parent / "skills" / "canonical"
+        # The Skill an installed CLI ships, not a path beside this module:
+        # the harness lives outside the wheel, the Skill inside it.
+        return Path(ai_stp_cli.__file__).parent / "skills" / "canonical"
     return repo / "skills" / "canonical" / "ai-stp"
 
 

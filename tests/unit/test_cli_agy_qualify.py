@@ -1,5 +1,5 @@
 # pyright: reportUnknownVariableType=false, reportUnknownMemberType=false, reportUnknownArgumentType=false, reportUnknownLambdaType=false
-"""Isolated agy qualify workspace and scoring. Live model runs stay in agy_qualify.main."""
+"""Isolated agy qualify workspace and scoring. Live model runs stay in ai_stp_qualify.agy.main."""
 
 from __future__ import annotations
 
@@ -14,7 +14,9 @@ from types import SimpleNamespace
 
 import pytest
 
-from ai_stp_cli.agy_qualify import (
+from ai_stp_cli.application.qualify import AGENT_RUNS, AGENT_SCENARIOS, AGY_MODEL
+from ai_stp_contracts.cli_copy import INITIALIZE_PROMPT, INITIALIZE_START
+from ai_stp_qualify.agy import (
     ANTIGRAVITY,
     AUTH_PUBLISH,
     AUTHOR_DIR,
@@ -79,8 +81,6 @@ from ai_stp_cli.agy_qualify import (
     write_isolation,
     write_native_cell,
 )
-from ai_stp_cli.application.qualify import AGENT_RUNS, AGENT_SCENARIOS, AGY_MODEL
-from ai_stp_contracts.cli_copy import INITIALIZE_PROMPT, INITIALIZE_START
 
 
 def test_prepare_workspace_copies_the_canonical_skill(tmp_path: Path) -> None:
@@ -624,7 +624,7 @@ def test_unassisted_qualify_writes_own_layer(
         (workspace.root / "agy.stderr").write_text("", encoding="utf-8")
         return 0
 
-    monkeypatch.setattr("ai_stp_cli.agy_qualify.run_agy", _run)
+    monkeypatch.setattr("ai_stp_qualify.agy.run_agy", _run)
     code = qualify_one(
         root=tmp_path / "cell",
         scenario=LOGIN_SKIP,
@@ -1313,7 +1313,7 @@ def _readback_stub(
             }
         return {"ok": False, "_exit": 2}
 
-    monkeypatch.setattr("ai_stp_cli.agy_qualify.cell_cli", _cli)
+    monkeypatch.setattr("ai_stp_qualify.agy.cell_cli", _cli)
 
 
 def _capture(workspace: Workspace, *paths: str) -> None:
@@ -1758,9 +1758,9 @@ def test_drive_native_install_rejects_short_key_and_scores_verified_marker(
             },
         }
 
-    monkeypatch.setattr("ai_stp_cli.agy_qualify.native_config_root", _root)
-    monkeypatch.setattr("ai_stp_cli.agy_qualify.native_platform", lambda: "linux-x86_64")
-    monkeypatch.setattr("ai_stp_cli.agy_qualify.run_cli_json", _cli)
+    monkeypatch.setattr("ai_stp_qualify.agy.native_config_root", _root)
+    monkeypatch.setattr("ai_stp_qualify.agy.native_platform", lambda: "linux-x86_64")
+    monkeypatch.setattr("ai_stp_qualify.agy.run_cli_json", _cli)
     input_path = tmp_path / "input.json"
     input_path.write_text(
         json.dumps(
@@ -1805,7 +1805,7 @@ def test_record_isolation_does_not_fill_native(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setattr(
-        "ai_stp_cli.agy_qualify.isolation_snapshot",
+        "ai_stp_qualify.agy.isolation_snapshot",
         lambda: {
             "status": "unavailable",
             "os_name": "linux",
@@ -1833,8 +1833,8 @@ def test_record_isolation_does_not_fill_native(
 
 
 def test_isolation_snapshot_maps_enforcement(monkeypatch: pytest.MonkeyPatch) -> None:
-    from ai_stp_cli.agy_qualify import isolation_snapshot
     from ai_stp_cli.provider.protocol_v2 import NetworkCapability, NetworkEnforcement
+    from ai_stp_qualify.agy import isolation_snapshot
 
     monkeypatch.setattr(
         "ai_stp_cli.provider.network_launcher.discover_launcher",
@@ -1874,7 +1874,7 @@ def test_isolation_snapshot_maps_enforcement(monkeypatch: pytest.MonkeyPatch) ->
 def test_run_agy_does_not_retry_an_empty_log_503(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    from ai_stp_cli.agy_qualify import run_agy
+    from ai_stp_qualify.agy import run_agy
 
     workspace = prepare_workspace(tmp_path)
     calls = {"n": 0}
@@ -1891,8 +1891,8 @@ def test_run_agy_does_not_retry_an_empty_log_503(
     def _sleep(_seconds: float) -> None:
         raise AssertionError("empty-log 503 must not sleep")
 
-    monkeypatch.setattr("ai_stp_cli.agy_qualify.subprocess.run", fake_run)
-    monkeypatch.setattr("ai_stp_cli.agy_qualify.time", SimpleNamespace(sleep=_sleep))
+    monkeypatch.setattr("ai_stp_qualify.agy.subprocess.run", fake_run)
+    monkeypatch.setattr("ai_stp_qualify.agy.time", SimpleNamespace(sleep=_sleep))
     assert run_agy(workspace, agy=Path("/bin/agy"), timeout=5) == 1
     assert calls["n"] == 1
 
@@ -1900,7 +1900,7 @@ def test_run_agy_does_not_retry_an_empty_log_503(
 def test_start_only_503_retries_until_follow_through(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    from ai_stp_cli.agy_qualify import run_agy
+    from ai_stp_qualify.agy import run_agy
 
     workspace = prepare_workspace(tmp_path, scenario=INSTALL_OPEN)
     busy = "UNAVAILABLE (code 503): No capacity available"
@@ -1928,8 +1928,8 @@ def test_start_only_503_retries_until_follow_through(
     def _sleep(_seconds: float) -> None:
         return None
 
-    monkeypatch.setattr("ai_stp_cli.agy_qualify.subprocess.run", fake_run)
-    monkeypatch.setattr("ai_stp_cli.agy_qualify.time", SimpleNamespace(sleep=_sleep))
+    monkeypatch.setattr("ai_stp_qualify.agy.subprocess.run", fake_run)
+    monkeypatch.setattr("ai_stp_qualify.agy.time", SimpleNamespace(sleep=_sleep))
     assert run_agy(workspace, agy=Path("/bin/agy"), timeout=5) == 0
     assert calls["n"] == 2
     (workspace.root / "cli.log").write_text("install plan --json\n", encoding="utf-8")
@@ -2025,7 +2025,7 @@ def test_background_killed_install_stays_unrun(
         (workspace.root / "agy.stderr").write_text(killed, encoding="utf-8")
         return 0
 
-    monkeypatch.setattr("ai_stp_cli.agy_qualify.run_agy", fake_run_agy)
+    monkeypatch.setattr("ai_stp_qualify.agy.run_agy", fake_run_agy)
     code = qualify_one(
         root=tmp_path / "cell",
         scenario=INSTALL_OPEN,
@@ -2053,8 +2053,8 @@ def test_capacity_probe_miss_skips_qualify(
         calls["n"] += 1
         raise AssertionError("qualify must not run after a probe miss")
 
-    monkeypatch.setattr("ai_stp_cli.agy_qualify.capacity_probe", lambda *_a, **_k: False)
-    monkeypatch.setattr("ai_stp_cli.agy_qualify.run_agy", _run)
+    monkeypatch.setattr("ai_stp_qualify.agy.capacity_probe", lambda *_a, **_k: False)
+    monkeypatch.setattr("ai_stp_qualify.agy.run_agy", _run)
     code = main(
         [
             "--root",
@@ -2092,7 +2092,7 @@ def test_503_after_cli_use_is_scored_not_cleared(
         (root / "agy.stderr").write_text("", encoding="utf-8")
         return 1
 
-    monkeypatch.setattr("ai_stp_cli.agy_qualify.run_agy", _run)
+    monkeypatch.setattr("ai_stp_qualify.agy.run_agy", _run)
     code = main(
         [
             "--root",
@@ -2127,7 +2127,7 @@ def test_start_only_503_does_not_erase_a_prior_fail(
         (workspace.root / "agy.stderr").write_text("", encoding="utf-8")
         return 1
 
-    monkeypatch.setattr("ai_stp_cli.agy_qualify.run_agy", _run)
+    monkeypatch.setattr("ai_stp_qualify.agy.run_agy", _run)
     code = main(
         [
             "--root",
@@ -2165,7 +2165,7 @@ def test_unavailable_agy_keeps_a_prior_fail_cell(
     def _sleep(_seconds: float) -> None:
         sleeps["n"] += 1
 
-    monkeypatch.setattr("ai_stp_cli.agy_qualify.time", SimpleNamespace(sleep=_sleep))
+    monkeypatch.setattr("ai_stp_qualify.agy.time", SimpleNamespace(sleep=_sleep))
     code = main(
         [
             "--root",
@@ -2202,7 +2202,7 @@ def test_start_only_503_without_a_prior_cell_stays_absent(
         (workspace.root / "agy.stderr").write_text("", encoding="utf-8")
         return 1
 
-    monkeypatch.setattr("ai_stp_cli.agy_qualify.run_agy", _run)
+    monkeypatch.setattr("ai_stp_qualify.agy.run_agy", _run)
     code = main(
         [
             "--root",
@@ -2266,9 +2266,24 @@ def test_agy_argv_puts_print_equals_last() -> None:
 
 def test_agy_qualify_module_is_not_imported_by_qualify() -> None:
     source = Path("apps/cli/src/ai_stp_cli/application/qualify.py").read_text(encoding="utf-8")
-    assert "agy_qualify" not in source
+    assert "ai_stp_qualify" not in source
     assert "subprocess" not in source
     assert "network_launcher" not in source
+
+
+def test_no_shipped_module_reaches_the_qualification_harness() -> None:
+    """`ai_stp_qualify` is outside every artifact users install.
+
+    An import from `ai_stp_cli` would turn that into a runtime `ImportError` on
+    every installed CLI, so the shipped package must not name it at all.
+    """
+    shipped = Path("apps/cli/src/ai_stp_cli")
+    offenders = [
+        str(path)
+        for path in sorted(shipped.rglob("*.py"))
+        if "ai_stp_qualify" in path.read_text(encoding="utf-8")
+    ]
+    assert offenders == []
 
 
 @pytest.mark.skipif(os.name == "nt", reason="the qualify wrapper is a POSIX shell script")

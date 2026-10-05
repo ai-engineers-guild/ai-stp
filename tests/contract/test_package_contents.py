@@ -84,8 +84,11 @@ FIRST_PARTY_MODULES: Final[frozenset[str]] = frozenset(
     }
 )
 
+#: The shipped module trees. `apps/cli/src` also holds `ai_stp_qualify`, the
+#: checkout-only qualification harness that no artifact carries, so the CLI
+#: root is its package directory rather than `src`.
 FIRST_PARTY_SOURCES: Final[tuple[Path, ...]] = (
-    ROOT / "apps" / "cli" / "src",
+    ROOT / "apps" / "cli" / "src" / "ai_stp_cli",
     ROOT / "packages" / "foundation" / "src",
     ROOT / "packages" / "passports" / "src",
     ROOT / "packages" / "assurance" / "src",
@@ -225,6 +228,19 @@ def test_the_wheel_carries_no_runtime_state_and_no_tests(wheel: Path) -> None:
         assert not any(marker in name for name in names), marker
     assert not any(name.startswith("tests/") for name in names)
     assert not any("/.serena/" in name or name.startswith(".serena/") for name in names)
+
+
+def test_the_wheel_carries_no_agent_qualification_harness(wheel: Path) -> None:
+    """`ai_stp_qualify` spawns real agents from a checkout; users never get it.
+
+    It used to live at `ai_stp_cli/agy_qualify.py` and shipped in every wheel
+    and desktop sidecar although no command could reach it and its repository
+    root (`parents[4]`) means nothing outside a checkout.
+    """
+    with zipfile.ZipFile(wheel) as archive:
+        names = archive.namelist()
+    assert not any(name.startswith("ai_stp_qualify/") for name in names)
+    assert not any("agy_qualify" in name or "qualify_identity" in name for name in names)
 
 
 def test_the_wheel_ships_the_typing_marker(wheel: Path) -> None:

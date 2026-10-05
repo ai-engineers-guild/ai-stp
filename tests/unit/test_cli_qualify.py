@@ -83,7 +83,7 @@ def test_qualify_module_does_not_start_a_process() -> None:
     assert "Popen" not in source
     assert "subprocess" not in source
     assert "network_launcher" not in source
-    assert "agy_qualify" not in source
+    assert "ai_stp_qualify" not in source
 
 
 def test_wheel_and_extra_are_not_built() -> None:
