@@ -22,7 +22,7 @@ x-logging: &default-logging
 
 services:
   postgres:
-    image: postgres:16@sha256:1a6ab3f5345eb6dbe04a1349529caabdb0ab09293a09590fad07b2246bfa4b54
+    image: postgres:18@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722
     # Only the three keys the entrypoint consumes are injected. `env_file`
     # would hand the whole `.env.prod` — OAuth secrets, the session secret,
     # GitHub tokens — to a third-party image that has no use for them.
@@ -32,8 +32,12 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
+    # From 18 the image keeps the cluster in /var/lib/postgresql/<major>/docker,
+    # so the next major can run `pg_upgrade --link` within this one volume.
+    # `pgdata` still holds the 16 cluster as the rollback copy;
+    # deploy/postgres-major-upgrade.sh moved its data here.
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - pgdata18:/var/lib/postgresql
     networks: [internal]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
@@ -385,6 +389,7 @@ networks:
 
 volumes:
   pgdata:
+  pgdata18:
   rustfs:
   logs:
   osv_offline:

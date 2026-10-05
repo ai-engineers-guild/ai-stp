@@ -109,6 +109,11 @@ if grep -q 'apparmor=ai-stp-worker' "${AI_STP_ROOT}/${AI_STP_COMPOSE_FILE}"; the
   log info "worker_apparmor_loaded"
 fi
 
+# A major PostgreSQL upgrade copies the data into the new cluster's volume
+# while the writers are stopped; a no-op once the data is there.
+"${SCRIPT_DIR}/postgres-major-upgrade.sh"
+record_deploy_stage "${COMMIT}" "postgres_layout_checked"
+
 # Ordered bring-up: dependencies, migrate, seed, then serving processes.
 # --wait holds until healthchecks pass: storage.migrate talks to rustfs right
 # after `up` returns, and inside start_period it can hit a not-yet-ready S3.
