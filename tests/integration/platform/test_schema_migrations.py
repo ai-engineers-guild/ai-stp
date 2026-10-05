@@ -57,12 +57,28 @@ def test_migrations_upgrade_repeat_downgrade_and_upgrade_again(
     assert _version(isolated_database_url) == head
 
 
-def test_models_match_migrated_ddl(
-    isolated_database_url: str,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Model metadata must equal the migrated DDL; drift is a missing migration."""
-    # Same module set migrations/env.py registers on Base.metadata.
+#: The module set migrations/env.py registers on Base.metadata.
+_MODEL_MODULES = (
+    "ai_stp_platform.catalog_ownership_models",
+    "ai_stp_platform.dashboard_models",
+    "ai_stp_platform.github_models",
+    "ai_stp_platform.grant_identity_models",
+    "ai_stp_platform.heartbeat_models",
+    "ai_stp_platform.installation_inventory_models",
+    "ai_stp_platform.installation_usage_models",
+    "ai_stp_platform.models",
+    "ai_stp_platform.organization_models",
+    "ai_stp_platform.queue.models",
+    "ai_stp_platform.runtime_usage_models",
+    "ai_stp_platform.technology_models",
+    "ai_stp_platform.telemetry_policy_models",
+    "ai_stp_platform.content.orm",
+    "ai_stp_platform.seo.orm",
+)
+
+
+def _model_drift(database_url: str) -> list[object]:
+    """Autogenerate's view of what the models want that the database lacks."""
     import importlib
 
     from alembic.autogenerate import compare_metadata
@@ -70,31 +86,11 @@ def test_models_match_migrated_ddl(
 
     from ai_stp_platform.db import Base
 
-    for _module in (
-        "ai_stp_platform.catalog_ownership_models",
-        "ai_stp_platform.dashboard_models",
-        "ai_stp_platform.github_models",
-        "ai_stp_platform.grant_identity_models",
-        "ai_stp_platform.heartbeat_models",
-        "ai_stp_platform.installation_inventory_models",
-        "ai_stp_platform.installation_usage_models",
-        "ai_stp_platform.models",
-        "ai_stp_platform.organization_models",
-        "ai_stp_platform.queue.models",
-        "ai_stp_platform.runtime_usage_models",
-        "ai_stp_platform.technology_models",
-        "ai_stp_platform.telemetry_policy_models",
-        "ai_stp_platform.content.orm",
-        "ai_stp_platform.seo.orm",
-    ):
-        importlib.import_module(_module)
-
-    monkeypatch.setenv("AI_STP_DB_URL", isolated_database_url)
-    config = Config("alembic.ini")
-    command.upgrade(config, "head")
+    for module in _MODEL_MODULES:
+        importlib.import_module(module)
 
     async def diff() -> list[object]:
-        engine = create_async_engine(isolated_database_url)
+        engine = create_async_engine(database_url)
         try:
             async with engine.connect() as connection:
                 return await connection.run_sync(
@@ -105,7 +101,155 @@ def test_models_match_migrated_ddl(
         finally:
             await engine.dispose()
 
-    assert asyncio.run(diff()) == []
+    return asyncio.run(diff())
+
+
+def test_models_match_migrated_ddl(
+    isolated_database_url: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Model metadata must equal the migrated DDL; drift is a missing migration."""
+    monkeypatch.setenv("AI_STP_DB_URL", isolated_database_url)
+    config = Config("alembic.ini")
+    command.upgrade(config, "head")
+
+    assert _model_drift(isolated_database_url) == []
+
+
+#: `0096_heartbeat_reports` … `0106_technology_review_queue`, the chain the
+#: reordered history let applied databases skip (see `0112`).
+_SKIPPED_CHAIN = (
+    "0096_heartbeat_reports",
+    "0097_installation_operation_facts",
+    "0098_inventory_scan_policy",
+    "0099_installation_inventory",
+    "0100_usage_evidence_source",
+    "0101_direct_component_usage",
+    "0102_usage_collection_policy",
+    "0103_report_timezone",
+    "0104_project_link_permissions",
+    "0105_technology_unmapped_coordinates",
+    "0106_technology_review_queue",
+)
+
+_CHAIN_TABLES = (
+    "installation_heartbeat_event",
+    "installation_heartbeat_policy_event",
+    "installation_operation_fact",
+    "installation_inventory_snapshot",
+    "technology_unmapped_coordinate",
+)
+
+
+def _skip_chain_like_production(database_url: str, config: Config) -> None:
+    """Leave a database at `0111` without the chain, as production stood.
+
+    The chain's own downgrades remove its objects while `alembic_version`
+    stays where it is. `device.display_name` comes back: production carries it
+    from `0096_device_session_semantics`, which `0096_heartbeat_reports`'s
+    downgrade also drops.
+    """
+    import sqlalchemy as sa
+    from alembic import op
+    from alembic.migration import MigrationContext
+    from alembic.operations import Operations
+    from alembic.script import ScriptDirectory
+
+    scripts = ScriptDirectory.from_config(config)
+
+    def remove(sync_connection: sa.Connection) -> None:
+        with Operations.context(MigrationContext.configure(sync_connection)):
+            for skipped in reversed(_SKIPPED_CHAIN):
+                script = scripts.get_revision(skipped)
+                assert script is not None
+                script.module.downgrade()
+            op.add_column("device", sa.Column("display_name", sa.String(160), nullable=True))
+
+    async def run() -> None:
+        engine = create_async_engine(database_url)
+        try:
+            async with engine.begin() as connection:
+                await connection.run_sync(remove)
+        finally:
+            await engine.dispose()
+
+    asyncio.run(run())
+
+
+def _catalog(database_url: str) -> tuple[object, ...]:
+    """Columns, constraints, indexes, policies and triggers of the public schema."""
+
+    async def read() -> tuple[object, ...]:
+        engine = create_async_engine(database_url)
+        try:
+            async with engine.connect() as connection:
+                parts: list[object] = []
+                for statement in (
+                    "SELECT table_name, column_name, is_nullable, data_type "
+                    "FROM information_schema.columns WHERE table_schema = 'public' "
+                    "ORDER BY 1, 2",
+                    "SELECT conrelid::regclass::text, conname, pg_get_constraintdef(oid) "
+                    "FROM pg_constraint WHERE connamespace = 'public'::regnamespace "
+                    "ORDER BY 1, 2",
+                    "SELECT tablename, indexname FROM pg_indexes "
+                    "WHERE schemaname = 'public' ORDER BY 1, 2",
+                    "SELECT tablename, policyname FROM pg_policies "
+                    "WHERE schemaname = 'public' ORDER BY 1, 2",
+                    "SELECT tgrelid::regclass::text, tgname FROM pg_trigger "
+                    "WHERE NOT tgisinternal ORDER BY 1, 2",
+                ):
+                    rows = await connection.execute(text(statement))
+                    parts.append(tuple(tuple(row) for row in rows))
+                return tuple(parts)
+        finally:
+            await engine.dispose()
+
+    return asyncio.run(read())
+
+
+def test_replay_restores_the_chain_a_reordered_history_skipped(
+    isolated_database_url: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Production stood at `0111` without eleven revisions; `0112` brings them back."""
+    monkeypatch.setenv("AI_STP_DB_URL", isolated_database_url)
+    config = Config("alembic.ini")
+    command.upgrade(config, "0111_corporate_access_provenance")
+    complete = _catalog(isolated_database_url)
+
+    _skip_chain_like_production(isolated_database_url, config)
+    assert _version(isolated_database_url) == "0111_corporate_access_provenance"
+    assert _model_drift(isolated_database_url) != []
+
+    command.upgrade(config, "head")
+    assert _model_drift(isolated_database_url) == []
+    # Autogenerate does not compare policies, triggers or check constraints;
+    # the catalog of a database that ran the chain in order does.
+    assert _catalog(isolated_database_url) == complete
+    for table in _CHAIN_TABLES:
+        assert (
+            asyncio.run(
+                _scalar(
+                    isolated_database_url,
+                    "SELECT relrowsecurity AND relforcerowsecurity "
+                    f"FROM pg_class WHERE relname = '{table}'",
+                )
+            )
+            is True
+        ), table
+
+
+def test_replay_changes_nothing_on_a_database_that_ran_the_chain(
+    isolated_database_url: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("AI_STP_DB_URL", isolated_database_url)
+    config = Config("alembic.ini")
+    command.upgrade(config, "0111_corporate_access_provenance")
+    before = _catalog(isolated_database_url)
+    command.upgrade(config, "head")
+    assert _version(isolated_database_url) == "0112_replay_skipped_feature_chain"
+    assert _catalog(isolated_database_url) == before
 
 
 def test_dashboard_migration_has_tenant_policies_and_downgrades(
