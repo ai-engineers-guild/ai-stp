@@ -307,6 +307,24 @@ record_deploy_stage() {
   mv -f "${temporary}" "${path}"
 }
 
+report_in_progress_marker() {
+  # The pull deployer writes `transfer_started` for the commit it hands over
+  # before rsync touches the tree (mark-transfer.sh), so that marker for the
+  # same commit is the normal handoff. Logged as a recovery, the warning fired
+  # on every deploy and could not tell a real interruption from routine.
+  local commit="$1"
+  local marker="${AI_STP_STATE_DIR}/in-progress"
+  local marked_commit marked_stage
+  [[ -f "${marker}" ]] || return 0
+  marked_commit="$(state_field "${marker}" git_commit)"
+  marked_stage="$(state_field "${marker}" stage)"
+  if [[ ${marked_stage} == "transfer_started" && ${marked_commit} == "${commit}" ]]; then
+    log info "transfer_handoff commit=${commit}"
+  else
+    log warning "recovering_interrupted_deploy commit=${marked_commit} stage=${marked_stage}"
+  fi
+}
+
 state_field() {
   local path="$1"
   local name="$2"

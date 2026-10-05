@@ -81,11 +81,7 @@ require_deploy_env
 # An interrupted run leaves this marker. Every stage below is idempotent, so
 # recovery deterministically restarts the forward path instead of guessing
 # which remote process survived a cancelled SSH session.
-if [[ -f "${AI_STP_STATE_DIR}/in-progress" ]]; then
-  RECOVERY_COMMIT="$(state_field "${AI_STP_STATE_DIR}/in-progress" git_commit)"
-  RECOVERY_STAGE="$(state_field "${AI_STP_STATE_DIR}/in-progress" stage)"
-  log warning "recovering_interrupted_deploy commit=${RECOVERY_COMMIT} stage=${RECOVERY_STAGE}"
-fi
+report_in_progress_marker "${COMMIT}"
 record_deploy_stage "${COMMIT}" "started"
 
 log info "deploy_start"
