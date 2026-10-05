@@ -11,6 +11,7 @@ seven detections of a tenth of a second each are 0.7s in series, and the bound
 is 0.35s.
 """
 
+import ast
 import hashlib
 import importlib
 import pkgutil
@@ -204,3 +205,34 @@ def test_a_local_command_does_not_import_the_http_stack() -> None:
     )
     finished = subprocess.run([sys.executable, "-c", probe], capture_output=True, text=True)
     assert finished.stderr.strip().splitlines()[-1] == "False", finished.stderr
+
+
+def test_the_contract_package_root_names_load_from_their_modules() -> None:
+    """The root keeps its exported names without importing their modules.
+
+    Three lists describe one export set: the `TYPE_CHECKING` imports type
+    checkers read, the map `__getattr__` loads from, and `__all__`. A name
+    added to one and not the others would type-check and then fail at runtime,
+    or load and be invisible to a type checker.
+    """
+    source = Path(ai_stp_contracts.__file__).read_text(encoding="utf-8")
+    guarded = next(
+        node
+        for node in ast.parse(source).body
+        if isinstance(node, ast.If) and ast.unparse(node.test) == "TYPE_CHECKING"
+    )
+    imported = {
+        (statement.module, alias.name)
+        for statement in guarded.body
+        if isinstance(statement, ast.ImportFrom)
+        for alias in statement.names
+    }
+    mapped = {
+        (f"ai_stp_contracts.{module}", name)
+        for module, names in ai_stp_contracts._EXPORTS.items()  # pyright: ignore[reportPrivateUsage]
+        for name in names
+    }
+    assert imported == mapped
+    assert sorted(ai_stp_contracts.__all__) == sorted(name for _, name in mapped)
+    for module, name in sorted(mapped):
+        assert getattr(ai_stp_contracts, name) is getattr(importlib.import_module(module), name)
