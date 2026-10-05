@@ -10,8 +10,9 @@ name: desktop
 on:
   push:
     branches: [dev, main]
-    # The sidecar freezes the workspace CLI, so the app is also a function
-    # of the CLI, its workspace packages, and the locked dependency graph.
+    # The sidecar freezes the CLI wheel built from this tree with its locked
+    # dependency closure, so the app is also a function of the CLI, its
+    # workspace packages, and the lockfile.
     paths:
       - "apps/desktop/**"
       - "apps/cli/**"

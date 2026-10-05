@@ -14,7 +14,7 @@ last_verified: "2026-08-03"
 | [corporate-bootstrap.md](corporate-bootstrap.md) | Create the one initial corporate organization and superadmin safely. | 2026-09-12 |
 | [corporate-dashboards.md](corporate-dashboards.md) | Operate and troubleshoot Corporate Hub health dashboards. | 2026-09-23 |
 | [database-migration.md](database-migration.md) | Runbook: database migration. | 2026-08-05 |
-| [deploy.md](deploy.md) | Runbook: reproducible deployment with a web tier, backups, and rollback. | 2026-09-26 |
+| [deploy.md](deploy.md) | Runbook: reproducible deployment with a web tier, backups, and rollback. | 2026-10-04 |
 | [external-catalog-requests.md](external-catalog-requests.md) | Review and apply service and country request cases without an HTTP administration API. | 2026-09-04 |
 | [first-party-launch-publication.md](first-party-launch-publication.md) | Runbook: publishing the first-party launch corpus through the standard pipeline. | 2026-08-25 |
 | [github-repository-metrics.md](github-repository-metrics.md) | Runbook: best-effort GitHub stars cache for the public catalog. | 2026-09-03 |
@@ -26,9 +26,9 @@ last_verified: "2026-08-03"
 | [provider-lifecycle.md](provider-lifecycle.md) | Discovery, version checking, updating, and reinstalling a setup-system provider. | 2026-09-04 |
 | [provider-update.md](provider-update.md) | Runbook: provider update. | 2026-08-28 |
 | [publish-recovery.md](publish-recovery.md) | Runbook: publish recovery. | 2026-09-24 |
-| [pypi-release.md](pypi-release.md) | Build, verify, publish, yank, and recover a Python release. | 2026-10-02 |
+| [pypi-release.md](pypi-release.md) | Build, verify, publish, yank, and recover a Python release. | 2026-10-04 |
 | [report-triage.md](report-triage.md) | Runbook: report case triage. | 2026-08-04 |
-| [safety-scan.md](safety-scan.md) | Runbook: platform safety scan for publication validation. | 2026-09-29 |
+| [safety-scan.md](safety-scan.md) | Runbook: platform safety scan for publication validation. | 2026-10-04 |
 | [security-incident.md](security-incident.md) | Runbook: security incident. | 2026-08-03 |
 | [seo-publication.md](seo-publication.md) | Runbook: server SEO revisions, sitemap, and optional LiteLLM enrichment. | 2026-08-29 |
 | [sync-conflict.md](sync-conflict.md) | Runbook: sync conflict. | 2026-08-03 |

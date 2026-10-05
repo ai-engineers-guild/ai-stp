@@ -621,7 +621,7 @@ def _debug_provider(binary: str) -> Path | None:
         if raw:
             place = Path(raw)
             return place if place.is_file() else None
-    from ai_stp_cli.agy_qualify import host_home
+    from ai_stp_qualify.agy import host_home
 
     named = os.environ.get("AI_STP_DEBUG_PROVIDERS", "").strip()
     root = (
@@ -704,7 +704,7 @@ def test_docker_initialize_writes_the_catalogued_surface(
 
     import shlex
 
-    from ai_stp_cli.agy_qualify import (
+    from ai_stp_qualify.agy import (
         daemon_mount_refusal,
         docker_cli_command,
         repo_root,

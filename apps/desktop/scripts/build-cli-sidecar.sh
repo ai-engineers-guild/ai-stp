@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Build the ai-stp CLI as a single-file sidecar binary for Tauri
-# `bundle.externalBin`: PyInstaller freezes the workspace CLI into
+# `bundle.externalBin`: PyInstaller freezes the released CLI — its wheel and
+# the locked closure of the dependencies that wheel declares — into
 # `src-tauri/sidecar/ai-stp-desktop-cli-<target-triple>[.exe]`, which the
 # bundler embeds next to the app executable (where core's bundled-path
 # resolver looks first). The name is deliberately not `ai-stp`: a bare
@@ -8,7 +9,7 @@
 # and collide with the standalone CLI package.
 #
 # Requires uv on PATH and a checkout of this repository. The package set is
-# the workspace's locked graph plus a pinned PyInstaller — fetched through uv
+# the CLI's slice of `uv.lock` plus a pinned PyInstaller — fetched through uv
 # so the repository's package-manager contract still holds (uv and bun only).
 #
 # `--stub` writes a stand-in instead: on POSIX hosts a minimal shell stub
@@ -95,20 +96,35 @@ from ai_stp_cli.app import run
 run()
 EOF
 
-uv sync --locked --all-packages --directory "${repo_root}"
+# Freeze what a user installs, not the workspace. The workspace environment
+# also holds the server, the worker and the dev groups, and PyInstaller
+# follows optional imports into whatever is installed: frozen from it, the
+# sidecar carried hypothesis (via pydantic.v1), Pillow and its codecs (via
+# pygments), uvloop (via anyio) and requests — 48 MB where the CLI's own
+# closure freezes to 32 MB, and a dependency set no `pip install ai-stp-cli`
+# ever gets. Here the environment is the built wheel plus the hash-checked,
+# locked closure of exactly the dependencies it declares.
+uv build --directory "${repo_root}" --package ai-stp-cli --wheel \
+  --out-dir "${work_dir}/wheel" -q
+uv export --directory "${repo_root}" --package ai-stp-cli --locked --no-dev \
+  --no-emit-workspace --format requirements-txt \
+  --output-file "${work_dir}/requirements.txt" -q
+uv venv "${work_dir}/venv" --python "$(uv python find --directory "${repo_root}")" -q
+venv_python="${work_dir}/venv/bin/python"
+if [[ -n "${suffix}" ]]; then
+  venv_python="${work_dir}/venv/Scripts/python.exe"
+fi
+uv pip install --python "${venv_python}" --require-hashes -q \
+  -r "${work_dir}/requirements.txt"
+wheels=("${work_dir}"/wheel/ai_stp_cli-*.whl)
+uv pip install --python "${venv_python}" --no-deps -q "${wheels[@]}"
+uv pip install --python "${venv_python}" -q "${PYINSTALLER_TOOLSET[@]}"
 
 # nacl._sodium is a cffi out-of-line extension: it imports _cffi_backend
 # internally at load time, which modulegraph cannot see. Past bundles only
 # received it through an accidental edge — a dependency that pulled in cffi
 # itself — so it is declared here or the frozen CLI dies on nacl import.
-TOOLSET_WITH=()
-for spec in "${PYINSTALLER_TOOLSET[@]}"; do
-  TOOLSET_WITH+=("--with" "${spec}")
-done
-
-uv run --directory "${repo_root}" \
-  "${TOOLSET_WITH[@]}" \
-  pyinstaller --onefile --clean \
+"${venv_python}" -m PyInstaller --onefile --clean \
   --name "ai-stp-desktop-cli-${triple}" \
   --distpath "${work_dir}/dist" \
   --workpath "${work_dir}/build" \

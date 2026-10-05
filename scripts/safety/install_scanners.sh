@@ -145,12 +145,23 @@ install_python_tools() {
   # Cisco second engine: PyPI package cisco-ai-skill-scanner → CLI skill-scanner.
   local cisco_pkg="${SKILL_SCANNER_PACKAGE:-cisco-ai-skill-scanner}"
   local cisco_ver="${SKILL_SCANNER_VERSION:?SKILL_SCANNER_VERSION required}"
-  local cisco_tmp cisco_wheel
+  local cisco_tmp cisco_wheel cisco_url cisco_sha
+  case "$(uname -s | tr '[:upper:]' '[:lower:]')-$(uname -m)" in
+    linux-x86_64|linux-amd64)
+      cisco_url="${SKILL_SCANNER_WHEEL_URL_LINUX_X86_64:?SKILL_SCANNER_WHEEL_URL_LINUX_X86_64 required}"
+      cisco_sha="${SKILL_SCANNER_WHEEL_SHA256_LINUX_X86_64:?SKILL_SCANNER_WHEEL_SHA256_LINUX_X86_64 required}" ;;
+    linux-aarch64|linux-arm64)
+      cisco_url="${SKILL_SCANNER_WHEEL_URL_LINUX_AARCH64:?SKILL_SCANNER_WHEEL_URL_LINUX_AARCH64 required}"
+      cisco_sha="${SKILL_SCANNER_WHEEL_SHA256_LINUX_AARCH64:?SKILL_SCANNER_WHEEL_SHA256_LINUX_AARCH64 required}" ;;
+    *) log "no pinned ${cisco_pkg} wheel for $(uname -s)-$(uname -m)"; exit 1 ;;
+  esac
   cisco_tmp="$(mktemp -d)"
-  cisco_wheel="${cisco_tmp}/cisco_ai_skill_scanner-${cisco_ver}-py3-none-any.whl"
+  # The wheel keeps its published name: the platform tags in it are what an
+  # installer checks against this interpreter.
+  cisco_wheel="${cisco_tmp}/${cisco_url##*/}"
   log "installing minimal static runtime for ${cisco_pkg}==${cisco_ver}"
-  download "${SKILL_SCANNER_WHEEL_URL:?SKILL_SCANNER_WHEEL_URL required}" "${cisco_wheel}"
-  verify_sha256 "${cisco_wheel}" "${SKILL_SCANNER_WHEEL_SHA256}"
+  download "${cisco_url}" "${cisco_wheel}"
+  verify_sha256 "${cisco_wheel}" "${cisco_sha}"
   uv pip install --python "${PIP_VENV}" --no-cache --no-deps "${cisco_wheel}"
   rm -rf "${cisco_tmp}"
 

@@ -1,4 +1,4 @@
-"""Structural guards for the two costs `#453` measured and removed.
+"""Structural guards for the costs `#453` measured and removed.
 
 Both are written as properties rather than as durations wherever a property
 will do. A budget in seconds fails on a loaded runner and passes on a fast one
@@ -13,6 +13,8 @@ is 0.35s.
 
 import hashlib
 import sqlite3
+import subprocess
+import sys
 import time
 from collections.abc import Iterator
 from contextlib import closing
@@ -132,3 +134,25 @@ def test_assessing_eligibility_hashes_no_project_file(
     # wrong reason.
     assert "project.language.python" in target.capabilities
     assert "project.language.go" in target.capabilities
+
+
+def test_version_reads_the_recorded_inventory_instead_of_rendering_schemas() -> None:
+    """`version` and `contract inventory` must not import the schema generator.
+
+    The contract digest digests the JSON Schema of every exported model. Doing
+    that per call cost 4.2s of CPU against 0.41s once the generated record
+    answered instead (Linux, Python 3.14.7) — `version` is the first probe an
+    agent or the desktop shell runs. Asserted as the absence of the import,
+    which is the cause, rather than as a duration, which is its symptom.
+    """
+    probe = (
+        "import sys\n"
+        "from ai_stp_cli.commands import contract, version\n"
+        "version.run({})\n"
+        "contract.inventory({})\n"
+        "print('ai_stp_contracts.schemas' in sys.modules)\n"
+    )
+    finished = subprocess.run(
+        [sys.executable, "-c", probe], capture_output=True, text=True, check=True
+    )
+    assert finished.stdout.strip() == "False", finished.stderr

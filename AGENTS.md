@@ -12,7 +12,7 @@ A system for creating, validating, storing, selecting, and installing complete A
 - `apps/web` — Next.js over the generated contract client;
 - `apps/desktop` — Tauri 2 shell + React/Vite UI consuming the CLI machine contract (`--json` envelopes); the CLI stays the only engine (`ADR-0222`);
 - `packages/` — `foundation` (identifiers, canonicalization, digests, errors), `passports` (passport and revision models), `contracts` (machine contracts, schemas, machine help), `assurance` (author-attestation records), `sources` (GitHub and bounded local source adapters);
-- `schemas/v1`, `provider-kit`, `skills/projections`, `docs/adr/index.md`, and `docs/index.md` are **generated**: edit the source, then run `just back-gen` or `just docs-gen`.
+- `schemas/v1`, `provider-kit`, `skills/projections`, `packages/contracts/src/ai_stp_contracts/standard_inventory.json`, `docs/adr/index.md`, and `docs/index.md` are **generated**: edit the source, then run `just back-gen` or `just docs-gen`.
 
 ## Web UI component gate
 

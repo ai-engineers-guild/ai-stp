@@ -7,8 +7,9 @@ from pathlib import Path
 
 import pytest
 
-from ai_stp_cli import agy_qualify as qualify
-from ai_stp_cli import qualify_identity as identity
+import ai_stp_cli
+from ai_stp_qualify import agy as qualify
+from ai_stp_qualify import identity
 
 
 def test_payload_digest_detects_edits_but_ignores_interpreter_cache(tmp_path: Path) -> None:
@@ -64,7 +65,7 @@ def test_installed_runner_copies_the_packaged_skill(
 ) -> None:
     monkeypatch.setattr(identity, "installation", lambda: "distribution")
     path = identity.canonical_skill(tmp_path)
-    assert path == Path(identity.__file__).parent / "skills" / "canonical"
+    assert path == Path(ai_stp_cli.__file__).parent / "skills" / "canonical"
     assert (path / "SKILL.md").is_file()
 
 

@@ -105,3 +105,47 @@ updates:
     cooldown:
       default-days: 7
       semver-major-days: 14
+  # Container images. Every base and service image is pinned by digest
+  # (`test_container_bases_are_pinned`), and a digest never drifts — which is
+  # the reason it needs something that looks. Without these two entries the
+  # production RustFS sat three months on `1.0.0-beta.8`, a build sixteen
+  # published advisories (two critical) affect, and the Python base kept a
+  # digest Docker Hub had long since republished.
+  #
+  # Majors are ignored only where a bump is a migration rather than an image
+  # change: PostgreSQL's data directory needs `pg_upgrade` across majors, and
+  # the bun image is one of three pins (`.bun-version`, `BUN_VERSION`) a
+  # contract test holds together, so a version bump arrives as one hand-made
+  # change. Digest refreshes of the same tag still arrive for both.
+  - package-ecosystem: docker
+    directory: /deploy/docker
+    target-branch: dev
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(docker)"
+    cooldown:
+      default-days: 7
+      semver-major-days: 14
+    ignore:
+      - dependency-name: oven/bun
+        update-types:
+          - version-update:semver-major
+          - version-update:semver-minor
+          - version-update:semver-patch
+  - package-ecosystem: docker-compose
+    directory: /deploy
+    target-branch: dev
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deploy)"
+    cooldown:
+      default-days: 7
+      semver-major-days: 14
+    ignore:
+      - dependency-name: postgres
+        update-types:
+          - version-update:semver-major

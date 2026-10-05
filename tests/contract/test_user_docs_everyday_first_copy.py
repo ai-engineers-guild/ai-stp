@@ -13,7 +13,7 @@ from pathlib import Path
 
 import pytest
 
-from ai_stp_cli.agy_qualify import FORBIDDEN_LEAVES
+from ai_stp_qualify.agy import FORBIDDEN_LEAVES
 
 ROOT = Path(__file__).resolve().parents[2]
 DOCS = ROOT / "docs-user-facing"

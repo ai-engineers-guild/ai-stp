@@ -45,9 +45,9 @@ from ai_stp_cli.application.qualify import (
     native_platform,
     tree_digest,
 )
-from ai_stp_cli.qualify_identity import canonical_skill, execution_identity
 from ai_stp_contracts.cli_copy import INITIALIZE_PROMPT, INITIALIZE_START
 from ai_stp_foundation.harnesses import HARNESS_ID_ORDER
+from ai_stp_qualify.identity import canonical_skill, execution_identity
 
 ROOT: Final[Path] = Path(__file__).resolve().parents[4]
 

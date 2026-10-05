@@ -11,12 +11,12 @@ last_verified: "2026-08-03"
 | -------- | ----- | ------- |
 | [agent-ux-implementation-plan.md](agent-ux-implementation-plan.md) | Target implementation plan for the agent-first CLI: GPT OSS 120B qualification, shared task engine, and the website-to-native journeys in epic #261. | 2026-10-03 |
 | [catalog-search-benchmark.md](catalog-search-benchmark.md) | How to measure catalog search latency on PostgreSQL 16 without a new harness. | 2026-09-04 |
-| [cli-performance.md](cli-performance.md) | Measured CLI command costs, resolved bottlenecks, and budgets. | 2026-08-29 |
+| [cli-performance.md](cli-performance.md) | Measured CLI command costs, resolved bottlenecks, and budgets. | 2026-10-04 |
 | [coding-rules.md](coding-rules.md) | Rules for errors, I/O, security, and predictable behavior. | 2026-08-03 |
 | [corporate-navigation-access-plan.md](corporate-navigation-access-plan.md) | Evidence, design comparison, dependency order, and task reconciliation for corporate navigation and People and Access. | 2026-09-30 |
 | [corporate-workspace-change-requests.md](corporate-workspace-change-requests.md) | Executable change-request ledger for the Corporate Hub consolidation. | 2026-09-18 |
 | [corporate-workspace-consolidation-plan.md](corporate-workspace-consolidation-plan.md) | Delivery order, gates, migration, and rollback for SPEC-086. | 2026-09-18 |
-| [dependency-policy.md](dependency-policy.md) | Rules of Python, Node, external tools, and provider dependencies. | 2026-08-15 |
+| [dependency-policy.md](dependency-policy.md) | Rules of Python, Node, external tools, and provider dependencies. | 2026-10-04 |
 | [failure-catalog.md](failure-catalog.md) | Historical failure lessons extracted from retired experiments, with current regression owners. | 2026-09-04 |
 | [federated-source-threat-model.md](federated-source-threat-model.md) | Threat model for federated local ports and metadata adapters. | 2026-08-16 |
 | [first-party-corpus.md](first-party-corpus.md) | Rebuilding and publishing the first-party corpus from exact attested setup-system releases. | 2026-09-24 |
@@ -27,11 +27,11 @@ last_verified: "2026-08-03"
 | [local-technology-detection-plan.md](local-technology-detection-plan.md) | Implementation plan for issue #222: deterministic local technology-stack detection in the CLI producing the versioned TechnologyScanHandoff. | 2026-09-21 |
 | [quality-gates.md](quality-gates.md) | Required checks and release evidence. | 2026-09-29 |
 | [real-provider-evidence.md](real-provider-evidence.md) | How to run the full lifecycle against released providers and what is checked in the process. | 2026-08-29 |
-| [release-evidence.md](release-evidence.md) | Required release evidence for the CLI, platform, and providers. | 2026-10-02 |
+| [release-evidence.md](release-evidence.md) | Required release evidence for the CLI, platform, and providers. | 2026-10-04 |
 | [repository-structure.md](repository-structure.md) | Monorepository structure and code ownership rules. | 2026-10-02 |
 | [schema-evolution.md](schema-evolution.md) | Versioning, compatibility, and migration of persisted and transmitted schemas. | 2026-08-03 |
 | [tech-debt-rules.md](tech-debt-rules.md) | Rules for registering temporary compromises. | 2026-08-03 |
-| [tech-stack.md](tech-stack.md) | Application stack and rules for choosing dependencies. | 2026-10-02 |
+| [tech-stack.md](tech-stack.md) | Application stack and rules for choosing dependencies. | 2026-10-04 |
 | [telemetry-heartbeat.md](telemetry-heartbeat.md) | Engineering notes for the corporate installation heartbeat stream (t-heartbeat, GitHub #215). | 2026-09-24 |
 | [telemetry-privacy.md](telemetry-privacy.md) | Operator notes for the telemetry privacy boundary: storage, retention sweeps, subject rights, and audit. | 2026-09-24 |
 | [telemetry-usage.md](telemetry-usage.md) | Operator notes for runtime usage telemetry: outbox, ingestion, scoped reports, and export receipts. | 2026-09-26 |

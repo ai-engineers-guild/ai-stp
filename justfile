@@ -498,13 +498,14 @@ docs-check: docs-static docs-test docs-build docs-regress
 
 # --- back ---------------------------------------------------------------
 
-# Source format and both generated artifacts: schemas/v1 and Skill
-# projections.
+# Source format and the generated artifacts: schemas/v1, the standard
+# inventory record `version` reads, and Skill projections.
 [doc('Rewrite source format and generated artifacts')]
 [group('back')]
 back-gen:
     {{ run }} ruff format .
     {{ run }} python -m ai_stp_contracts.schemas schemas/v1
+    {{ run }} python -m ai_stp_contracts.inventory_record
     {{ run }} python -m ai_stp_contracts.web_projections
     {{ run }} python release_scripts/provider_kit.py provider-kit/v3
     {{ run }} python release_scripts/verifier_requirements.py
@@ -518,6 +519,7 @@ back-static:
     {{ run }} ruff check .
     {{ run }} python -m pyright
     {{ run }} python -m ai_stp_contracts.schemas --check schemas/v1
+    {{ run }} python -m ai_stp_contracts.inventory_record --check
     {{ run }} python -m ai_stp_contracts.web_projections --check
     {{ run }} python release_scripts/provider_kit.py --check provider-kit/v3
     {{ run }} python release_scripts/verifier_requirements.py --check
@@ -781,7 +783,10 @@ infra-check: infra-static
 # combination that must render. `config -q` resolves interpolation and service
 # references without contacting the daemon — read-only, no build, no mutation.
 # The two overlays are invalid alone by design (they patch dev services), so
-# they are validated in the combinations the runbooks actually use.
+# they are validated in the combinations the runbooks actually use. Values an
+# overlay requires by design — the SEO-enrichment credential, the observability
+# image — are supplied as inert placeholders: `config` checks the shape, and a
+# missing required value is the deploy preflight's refusal, not this one's.
 [doc('Lint Dockerfiles, deploy scripts and every valid compose combination')]
 [group('infra')]
 infra-static:
@@ -790,7 +795,7 @@ infra-static:
     docker compose -f deploy/compose.prod.yml config -q
     docker compose -f deploy/compose.dev.yml config -q
     docker compose -f deploy/compose.dev.yml -f deploy/compose.corporate-local.yml config -q
-    docker compose -f deploy/compose.dev.yml -f deploy/compose.seo-enrichment.yml --profile seo_enrichment config -q
+    AI_STP_SEO_ENRICHMENT_CREDENTIAL=infra-static-placeholder docker compose -f deploy/compose.dev.yml -f deploy/compose.seo-enrichment.yml --profile seo_enrichment config -q
     docker compose -f deploy/compose.dev.yml -f deploy/compose.oidc-local.yml config -q
     docker compose -f deploy/compose.dev.yml -f deploy/compose.corporate-e2e.yml config -q
     docker compose -f deploy/compose.prod.yml -f deploy/compose.corporate.yml config -q

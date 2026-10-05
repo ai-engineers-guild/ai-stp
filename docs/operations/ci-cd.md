@@ -1,6 +1,6 @@
 ---
 description: "Public repository checks, pull deployment, and exact-artifact release order."
-last_verified: "2026-10-02"
+last_verified: "2026-10-04"
 ---
 
 # CI and releases
@@ -97,8 +97,10 @@ The build and attestation jobs run on separate GitHub-hosted runners: the build
 has no OIDC authority, and attestation checks out no source (`ADR-0048`). The
 candidate contains one public `ai-stp-cli` wheel and sdist (`ADR-0146`).
 `.github/workflows/publish-pypi.yml` publishes those exact attested bytes through
-Trusted Publishing. Preparation, environment checks, idempotence, and PyPI
-readback belong to [the package release runbook](runbooks/pypi-release.md).
+Trusted Publishing, then its `github-release` job attaches the same candidate
+files to the GitHub Release `ai-stp-cli <version>` on tag `v<version>`.
+Preparation, environment checks, idempotence, and PyPI readback belong to
+[the package release runbook](runbooks/pypi-release.md).
 
 The repository gate does not depend on provider networks or a deployed account.
 The inventory and meaning of release evidence belong to

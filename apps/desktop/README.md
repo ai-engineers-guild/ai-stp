@@ -102,7 +102,10 @@ release. Bundles are unsigned — signing/notarization is a separate track.
 ## Requirements
 
 Release bundles carry the CLI inside: `scripts/build-cli-sidecar.sh`
-freezes `ai-stp` with PyInstaller into
+builds the `ai-stp-cli` wheel, installs it into a fresh environment with the
+hash-checked, locked closure of the dependencies it declares — what
+`pip install ai-stp-cli` gets, nothing from the server or dev groups — and
+freezes that with PyInstaller into
 `src-tauri/sidecar/ai-stp-desktop-cli-<triple>`, and Tauri
 `bundle.externalBin` installs that binary next to the app executable —
 where the resolver's bundled-path tier finds it first, so no separate

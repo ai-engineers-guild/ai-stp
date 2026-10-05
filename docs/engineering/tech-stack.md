@@ -1,6 +1,6 @@
 ---
 description: "Application stack and rules for choosing dependencies."
-last_verified: "2026-10-02"
+last_verified: "2026-10-04"
 ---
 
 # Stack
@@ -9,7 +9,7 @@ last_verified: "2026-10-02"
 
 | Area | Choice |
 |---|---|
-| Language | Python 3.12 and 3.14 — `check.yml` pins 3.14; the platform-evidence matrix exercises both |
+| Language | Python 3.12 and 3.14 — `check.yml` pins 3.14; the platform-evidence matrix exercises both; the server images run 3.12 until `yara-python` (worker-safety) ships cp314 wheels, and `pyright` checks the tree at 3.12 |
 | Dependency management | uv and one root `uv.lock` after bootstrap code |
 | CLI | Click on `ADR-0057`; machine JSON is mandatory |
 | Device key and secrets | Ed25519 via `cryptography`; `keyring` with a closed list of trusted backends via `ADR-0058` |

@@ -54,6 +54,7 @@ _LEAF_TOKENS: dict[str, tuple[str, ...]] = {
         "ruff check ",
         "pyright",
         "-m ai_stp_contracts.schemas --check schemas/v1",
+        "-m ai_stp_contracts.inventory_record --check",
         "-m ai_stp_contracts.web_projections --check",
         "release_scripts/provider_kit.py --check provider-kit/v3",
         "release_scripts/verifier_requirements.py --check",

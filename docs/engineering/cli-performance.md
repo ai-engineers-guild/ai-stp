@@ -1,6 +1,6 @@
 ---
 description: "Measured CLI command costs, resolved bottlenecks, and budgets."
-last_verified: "2026-08-29"
+last_verified: "2026-10-04"
 ---
 
 # CLI Performance
@@ -44,6 +44,16 @@ Linux, Python 3.14.6, `uv run`, a repository of 4,359 files, p50 from 7 repetiti
 The floor is about 0.545s: `uv run` plus imports. Anything close to it is bound
 by interpreter startup, not command execution.
 
+Second measurement, 2026-10-04: Linux, Python 3.14.7, the workspace entry point
+(`.venv/bin/ai-stp`, no `uv run`), CPU time averaged over five runs.
+
+| command | before | after |
+|---|---|---|
+| `version --json` | 4.21 | **0.41** |
+| `contract inventory --json` | ≈4.2 | **0.41** |
+| `capabilities --json` | — | 0.39 |
+| `help --agent` | — | 0.40 |
+
 ## Identified causes
 
 ### Importing the entire command registry
@@ -52,6 +62,18 @@ Three quarters of startup was spent on imports: `handler=version.run` requires
 importing `version`, so thirty command modules loaded regardless of the command
 entered. Descriptors now carry `"module:function"`, and the module is imported
 at invocation time. `version` 0.870 → 0.545.
+
+### Rendering every schema to report one digest
+
+`version` and `contract inventory` report the contract digest of the standard
+inventory (`SPEC-060`). The digest binds the JSON Schema body of every exported
+model, so computing it rendered and canonicalised about five hundred schemas on
+every call: 4.2s of CPU for the command an agent or the desktop shell runs
+first. The digest is a property of the source, not of the call. The generator
+writes it to `ai_stp_contracts/standard_inventory.json`
+(`python -m ai_stp_contracts.inventory_record`, part of `just back-gen`), the
+commands read that record, and `back-static` refuses a record that differs
+from the models. `version` 4.21 → 0.41.
 
 ### Seven sequential subprocesses
 
@@ -115,13 +137,14 @@ The network and provider are outside these budgets and are measured separately.
 
 ## Regression checks
 
-`tests/unit/test_cli_performance_regressions.py` contains three checks, and only
+`tests/unit/test_cli_performance_regressions.py` contains four checks, and only
 one concerns timing, because "runs concurrently" is a timing assertion. The
 margin cannot overlap on any plausible machine: seven 0.1s detections take 0.7s
 sequentially, while the boundary is 0.35s.
 
-The other two check a property rather than duration: an index without digests
-states that in a separate field, and `select eligibility` never calls `sha256`.
+The other three check a property rather than duration: an index without digests
+states that in a separate field, `select eligibility` never calls `sha256`, and
+`version` / `contract inventory` never import the schema generator.
 A budget in seconds fails on a busy runner and passes on a fast runner that has
 regressed; such a check loses credibility by the third occurrence, and a check
 that nobody runs protects nothing.

@@ -1,6 +1,6 @@
 ---
 description: "Runbook: reproducible deployment with a web tier, backups, and rollback."
-last_verified: "2026-09-26"
+last_verified: "2026-10-04"
 ---
 
 # Production deployment
@@ -343,10 +343,13 @@ restorable, but still pass the archive-content checks.
 - PostgreSQL: logical `pg_dump` (custom format)
 - RustFS: copy of the volume data
 - Retention: `AI_STP_BACKUP_RETENTION` (the 7 newest directories by default)
-- `AI_STP_BACKUP_DIR` must be a separately mounted off-host destination. The
-  script refuses the deployment filesystem. Development-only local rehearsal
-  may set `AI_STP_ALLOW_LOCAL_BACKUP=1` explicitly.
-- Schedule: example `deploy/schedule-backup.example.cron`
+- `AI_STP_BACKUP_DIR` should be a separately mounted filesystem. The script
+  refuses the deployment filesystem unless `AI_STP_ALLOW_LOCAL_BACKUP=1` is set
+  explicitly.
+- No schedule: production runs no periodic backup (owner decision,
+  2026-10-05). Take one by hand before a change that needs a way back — a
+  storage or database engine upgrade, a data migration — with a label naming
+  it; a schema downgrade takes its own (`downgrade.sh`).
 - The backup log does not print secrets or object bytes
 
 ## Restoration
