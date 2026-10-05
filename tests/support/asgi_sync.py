@@ -21,7 +21,7 @@ from typing import Any, TypeVar
 
 import anyio.from_thread
 import httpx
-from anyio.abc import BlockingPortal
+from anyio.from_thread import BlockingPortal
 
 _T = TypeVar("_T")
 

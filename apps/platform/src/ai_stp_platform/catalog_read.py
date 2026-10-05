@@ -56,7 +56,7 @@ class CatalogIntegrityError(RuntimeError):
     """Stored passport fails digest or revision integrity before response."""
 
 
-def _public_base(object_kind: ObjectKind) -> Select[tuple[CatalogMetadata]]:
+def _public_base(object_kind: ObjectKind) -> Select[CatalogMetadata]:
     return select(CatalogMetadata).where(
         CatalogMetadata.object_kind == object_kind,
         CatalogMetadata.visibility == "public",
