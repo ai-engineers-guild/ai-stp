@@ -766,10 +766,10 @@ async def delete_subject(
 
 
 def _event_cursor(
-    query: Select[tuple[TelemetryEvent]],
+    query: Select[TelemetryEvent],
     before_occurred_at: datetime | None,
     before_id: str | None,
-) -> Select[tuple[TelemetryEvent]]:
+) -> Select[TelemetryEvent]:
     occurred = func.date_trunc("milliseconds", TelemetryEvent.occurred_at)
     if before_occurred_at is not None:
         if before_id is None:
@@ -871,7 +871,7 @@ async def list_privileged_access(
 ) -> list[TelemetryAudit]:
     """Bounded tenant-scoped page of governance audit rows, newest first."""
     await set_tenant_scope(session, organization_id)
-    query: Select[tuple[TelemetryAudit]] = select(TelemetryAudit).where(
+    query: Select[TelemetryAudit] = select(TelemetryAudit).where(
         TelemetryAudit.organization_id == organization_id
     )
     if before_id is not None:

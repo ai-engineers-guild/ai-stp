@@ -19,7 +19,11 @@ from ai_stp_platform.logging import get_logger
 from ai_stp_platform.models import AuditEvent
 from ai_stp_platform.official_upstream.enqueue import enqueue_daily
 from ai_stp_platform.official_upstream.github import worker_github_token
-from ai_stp_platform.official_upstream.ledger import reconcile_delivery, record_queue_outcome
+from ai_stp_platform.official_upstream.ledger import (
+    reconcile_delivery,
+    record_queue_outcome,
+    unrecorded_queue_outcomes,
+)
 from ai_stp_platform.organization_models import CorporateRoleBinding
 from ai_stp_platform.publication_logic import settle_dead_lettered_plan
 from ai_stp_platform.queue.engine import (
@@ -240,22 +244,7 @@ class Worker:
                 await gc_expired_device_authorizations(session)
                 enqueued_for = today
             await requeue_stale(session, lease_timeout_seconds=self._lease_timeout)
-            queue_events = list(
-                (
-                    await session.scalars(
-                        select(Job)
-                        .where(
-                            Job.job_type == JobType.OFFICIAL_UPSTREAM_SYNC,
-                            Job.state.in_((JobState.RETRY_SCHEDULED, JobState.DEAD_LETTER)),
-                        )
-                        .order_by(Job.updated_at)
-                        # The ledger mapping is idempotent and per-poll; bound
-                        # the scan so accumulated rows cannot grow the poll.
-                        .limit(200)
-                    )
-                ).all()
-            )
-            for queue_event in queue_events:
+            for queue_event in await unrecorded_queue_outcomes(session):
                 await record_queue_outcome(session, queue_event)
             claimed = await claim(
                 session,

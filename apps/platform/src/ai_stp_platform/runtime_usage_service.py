@@ -28,6 +28,7 @@ from sqlalchemy.sql.elements import ColumnElement
 from ai_stp_contracts.runtime_usage import (
     EXPORT_ROW_LIMIT,
     RuntimeUsageAssignedRow,
+    RuntimeUsageComponentKind,
     RuntimeUsageDayBucket,
     RuntimeUsageEmployeeRow,
     RuntimeUsageEvent,
@@ -970,7 +971,7 @@ async def aggregate_report(
         )
         recorded_employees = set(
             await session.scalars(
-                select(distinct(EventRow.employee_account_id)).where(*activity_clauses)
+                select(EventRow.employee_account_id).where(*activity_clauses).distinct()
             )
         )
         members = [
@@ -1123,7 +1124,8 @@ async def aggregate_report(
             )
             .group_by(EventRow.setup_stable_id, EventRow.setup_version)
         ):
-            object_stats[("setup", record[0], record[1], None, None)] = (
+            # The query filters both NULLs out; the row type cannot know that.
+            object_stats[("setup", cast(str, record[0]), cast(str, record[1]), None, None)] = (
                 record[2],
                 record[3],
                 record[4],
@@ -1141,8 +1143,8 @@ async def aggregate_report(
         ):
             employee_uses[employee_id] = uses
             employee_days[employee_id] = day_count
-            if last_used is not None:
-                employee_last_used[employee_id] = last_used
+            # `invoked_at` is NOT NULL, so MAX over a non-empty group is a value.
+            employee_last_used[employee_id] = last_used
         for employee_id, component_id, component_version in await session.execute(
             select(
                 EventRow.employee_account_id,
@@ -1173,12 +1175,14 @@ async def aggregate_report(
                 EventRow.setup_version,
             ).where(*clauses)
         ):
-            invoked_at = event_record[-6]
-            employee_id = event_record[-5]
-            component_id = event_record[-4]
-            component_version = event_record[-3]
-            setup_id = event_record[-2]
-            setup_version = event_record[-1]
+            # The leading `columns` vary per call, so the row type is a union;
+            # the six trailing columns are fixed and typed by the model.
+            invoked_at = cast(datetime, event_record[-6])
+            employee_id = cast(str, event_record[-5])
+            component_id = cast(str, event_record[-4])
+            component_version = cast(str, event_record[-3])
+            setup_id = cast(str | None, event_record[-2])
+            setup_version = cast(str | None, event_record[-1])
             local = (
                 invoked_at.replace(tzinfo=UTC).astimezone(zone)
                 if invoked_at.tzinfo is None
@@ -1248,7 +1252,11 @@ async def aggregate_report(
         rows.append(
             RuntimeUsageReportRow(
                 group_value=":".join(str(value) for value in values),
-                component_kind=values[0] if query.group_by == "component" else None,
+                component_kind=(
+                    cast(RuntimeUsageComponentKind, values[0])
+                    if query.group_by == "component"
+                    else None
+                ),
                 component_stable_id=values[1] if query.group_by == "component" else None,
                 component_version=values[2] if query.group_by == "component" else None,
                 setup_stable_id=values[0] if query.group_by == "setup" else None,

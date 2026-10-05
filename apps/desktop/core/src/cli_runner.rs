@@ -367,11 +367,12 @@ impl CliRunner {
 fn kill_tree(child: &mut Child) {
     #[cfg(unix)]
     {
-        // `kill` resolves through /bin — the child's filtered env does not
-        // apply to this spawn (it inherits ours).
+        // Always delimit negative process-group IDs from command options.
+        // procps kill can interpret an undelimited large negative PID as
+        // a broadcast, terminating unrelated processes of the caller.
         let pgid = format!("-{}", child.id());
         let _ = Command::new("kill")
-            .args(["-TERM", &pgid])
+            .args(["-TERM", "--", &pgid])
             .stdin(Stdio::null())
             .stdout(Stdio::null())
             .stderr(Stdio::null())
@@ -383,7 +384,7 @@ fn kill_tree(child: &mut Child) {
             thread::sleep(Duration::from_millis(50));
         }
         let _ = Command::new("kill")
-            .args(["-KILL", &pgid])
+            .args(["-KILL", "--", &pgid])
             .stdin(Stdio::null())
             .stdout(Stdio::null())
             .stderr(Stdio::null())

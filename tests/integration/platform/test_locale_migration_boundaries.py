@@ -8,7 +8,7 @@ import pytest
 from alembic import command
 from alembic.config import Config
 from alembic.script import ScriptDirectory
-from sqlalchemy import Table, insert, select
+from sqlalchemy import insert, select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from ulid import ULID
 
@@ -55,7 +55,9 @@ def test_locale_repair_preserves_nonconflicting_names(
                 session.add_all([Account(id=owner_id), Account(id=manifest.official_account_id)])
                 await session.flush()
                 columns = set(OfficialUpstreamSource.__table__.columns.keys())
-                source = {key: value for key, value in entry.model_dump().items() if key in columns}
+                source: dict[str, object] = {
+                    key: value for key, value in entry.model_dump().items() if key in columns
+                }
                 source.update(
                     id=entry.source_id,
                     owner_account_id=manifest.official_account_id,
@@ -63,14 +65,10 @@ def test_locale_repair_preserves_nonconflicting_names(
                     name=entry.display_name_en,
                 )
                 source.pop("organization_id", None)
-                source_table = OfficialUpstreamSource.__table__
-                assert isinstance(source_table, Table)
-                await session.execute(insert(source_table).values(source))
+                await session.execute(insert(OfficialUpstreamSource).values(source))
                 for stable_id, slug in ((legacy_id, canonical), (unrelated_id, "review-tool")):
-                    identity_table = CatalogIdentity.__table__
-                    assert isinstance(identity_table, Table)
                     await session.execute(
-                        insert(identity_table).values(
+                        insert(CatalogIdentity).values(
                             stable_id=stable_id,
                             owner_account_id=owner_id,
                             canonical_name=slug,

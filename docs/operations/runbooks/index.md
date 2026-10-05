@@ -13,7 +13,7 @@ last_verified: "2026-08-03"
 | [bootstrap.md](bootstrap.md) | Runbook: bootstrap. | 2026-08-03 |
 | [corporate-bootstrap.md](corporate-bootstrap.md) | Create the one initial corporate organization and superadmin safely. | 2026-09-12 |
 | [corporate-dashboards.md](corporate-dashboards.md) | Operate and troubleshoot Corporate Hub health dashboards. | 2026-09-23 |
-| [database-migration.md](database-migration.md) | Runbook: database migration. | 2026-08-05 |
+| [database-migration.md](database-migration.md) | Runbook: database migration. | 2026-10-05 |
 | [deploy.md](deploy.md) | Runbook: reproducible deployment with a web tier, backups, and rollback. | 2026-10-04 |
 | [external-catalog-requests.md](external-catalog-requests.md) | Review and apply service and country request cases without an HTTP administration API. | 2026-09-04 |
 | [first-party-launch-publication.md](first-party-launch-publication.md) | Runbook: publishing the first-party launch corpus through the standard pipeline. | 2026-08-25 |
@@ -21,7 +21,7 @@ last_verified: "2026-08-03"
 | [gitlab-discovery.md](gitlab-discovery.md) | Operate per-tenant GitLab discovery and retained provider observations. | 2026-09-22 |
 | [installation-recovery.md](installation-recovery.md) | Runbook: installation recovery. | 2026-08-03 |
 | [local-oidc-sso.md](local-oidc-sso.md) | Runbook: standing up local authentik and Keycloak and verifying corporate OIDC SSO end to end. | 2026-09-29 |
-| [official-upstream-components.md](official-upstream-components.md) | Runbook: operator-managed official GitHub and package upstream component snapshots. | 2026-09-04 |
+| [official-upstream-components.md](official-upstream-components.md) | Runbook: operator-managed official GitHub and package upstream component snapshots. | 2026-10-05 |
 | [platform-evidence.md](platform-evidence.md) | Native platform evidence for the exact CLI candidate without publish or deploy authority. | 2026-09-29 |
 | [provider-lifecycle.md](provider-lifecycle.md) | Discovery, version checking, updating, and reinstalling a setup-system provider. | 2026-09-04 |
 | [provider-update.md](provider-update.md) | Runbook: provider update. | 2026-08-28 |

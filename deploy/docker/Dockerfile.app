@@ -34,7 +34,7 @@ ENV PYTHONUNBUFFERED=1 \
 # rather than moving references. The version also now matches the one every
 # gate installs, so what production resolves the lockfile with is what CI
 # proved it with; a contract test holds the two together.
-COPY --from=ghcr.io/astral-sh/uv:0.12.19@sha256:04d046b13e60d6bcec73cbc5e1cad25d680dea90c8573340950a0ac2d1aef424 /uv /bin/uv
+COPY --from=ghcr.io/astral-sh/uv:0.12.23@sha256:61d393e44e249f2e4b526b6c7ddcecce245946826e608e11c93ad4f5bba55b21 /uv /bin/uv
 RUN useradd --create-home --uid 10001 appuser \
     && mkdir /app \
     && chown appuser:appuser /app

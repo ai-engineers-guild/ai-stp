@@ -28,7 +28,7 @@ last_verified: "2026-08-03"
 | [SPEC-017-runtime-shell-observability.md](SPEC-017-runtime-shell-observability.md) | SPEC-017: Server application shell and observability. | 2026-09-20 |
 | [SPEC-018-worker-job-queue.md](SPEC-018-worker-job-queue.md) | SPEC-018: Background worker and PostgreSQL job queue. | 2026-09-20 |
 | [SPEC-019-runtime-deployment-operability.md](SPEC-019-runtime-deployment-operability.md) | SPEC-019: Runtime deployment and operation. | 2026-09-20 |
-| [SPEC-020-persistence-migrations-object-store.md](SPEC-020-persistence-migrations-object-store.md) | SPEC-020: Server-side storage, PostgreSQL migrations, artifact storage, and asset storage. | 2026-09-07 |
+| [SPEC-020-persistence-migrations-object-store.md](SPEC-020-persistence-migrations-object-store.md) | SPEC-020: Server-side storage, PostgreSQL migrations, artifact storage, and asset storage. | 2026-10-05 |
 | [SPEC-021-anonymous-catalog-read-and-seed.md](SPEC-021-anonymous-catalog-read-and-seed.md) | SPEC-021: Anonymous reading of the public catalog and initial seeding of objects. | 2026-09-05 |
 | [SPEC-022-web-shell-landing-catalog.md](SPEC-022-web-shell-landing-catalog.md) | SPEC-022: Web shell, bilingual landing page and anonymous public catalog. | 2026-09-20 |
 | [SPEC-023-web-login-account-devices.md](SPEC-023-web-login-account-devices.md) | SPEC-023: Web login, account profile and device management. | 2026-09-20 |

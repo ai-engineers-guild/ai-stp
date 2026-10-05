@@ -1,6 +1,6 @@
 ---
 description: "Runbook: database migration."
-last_verified: "2026-08-05"
+last_verified: "2026-10-05"
 ---
 
 # Database migration
@@ -102,3 +102,28 @@ component badges from the search index; the normal bootstrap rebuilds them from
 current target and common evidence. Passports and evidence history stay intact.
 Rollback drops only the derived column. Keep the preceding application version
 and rebuild the index after rolling back both code and schema.
+
+## Merged revisions keep their parents (revision 0112)
+
+Alembic counts every ancestor of the stamped revision as applied. Merging two
+parallel chains by moving an already applied revision after the other chain
+makes every database that passed it skip the inserted revisions, without an
+error: the stamp reaches the head while the tables never appear. The
+reports/heartbeat merge (`2b2ea703`, 2026-09-27) re-chained
+`0096_device_session_semantics` after `0096_heartbeat_reports` …
+`0106_technology_review_queue`, and production reached `0111` without them. The
+daily telemetry retention job dead-lettered on the missing
+`installation_operation_fact` table from 2026-09-30.
+
+Revision `0112_replay_skipped_feature_chain` is the forward-fix. It runs each
+skipped revision's own `upgrade()` when that revision's first object is absent
+and changes nothing on a database that ran the chain in order. Both cases are
+exercised in `tests/integration/platform/test_schema_migrations.py`; the replay
+was also rehearsed on a schema-only copy of production, where the model drift
+fell from 21 differences to none.
+
+Resolve parallel heads by chaining the unapplied branch after the applied one,
+or with an Alembic merge revision; never change the parents of a merged
+revision. `migrations/history.lock` records every revision with its parents and
+`tests/contract/test_migration_history.py` rejects a changed or unrecorded
+entry. Append one `revision parent...` line for each new revision.
