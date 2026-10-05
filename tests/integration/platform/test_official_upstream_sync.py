@@ -35,7 +35,11 @@ from ai_stp_platform.official_upstream.errors import (
     OfficialUpstreamError,
 )
 from ai_stp_platform.official_upstream.github import GithubHttpResponse
-from ai_stp_platform.official_upstream.ledger import reconcile_delivery, record_queue_outcome
+from ai_stp_platform.official_upstream.ledger import (
+    reconcile_delivery,
+    record_queue_outcome,
+    unrecorded_queue_outcomes,
+)
 from ai_stp_platform.official_upstream.source import (
     SourceUpsert,
     delete_source,
@@ -304,6 +308,34 @@ async def test_legacy_dlq_without_attempt_id_cannot_poison_new_attempt(
         assert attempts[0].state == "dead_lettered"
         assert attempts[-1].job_id == forced.id
         assert attempts[-1].state == "queued"
+
+
+@pytest.mark.asyncio
+async def test_recorded_dead_letter_is_neither_polled_nor_rewritten(
+    db_sessionmaker: async_sessionmaker[AsyncSession],
+) -> None:
+    now = datetime(2026, 9, 1, 12, 0, tzinfo=UTC)
+    async with db_sessionmaker() as session, session.begin():
+        await _owner(session)
+        await upsert_source(session, _command())
+        daily = (await enqueue_daily(session, now=now))[0]
+        # A lease that expired into dead-letter: no `fail` recorded it.
+        daily.state = JobState.DEAD_LETTER
+        daily.attempts = daily.max_attempts
+        await session.flush()
+        assert [job.id for job in await unrecorded_queue_outcomes(session)] == [daily.id]
+        await record_queue_outcome(session, daily)
+        attempt = await session.scalar(
+            select(OfficialUpstreamSync).where(OfficialUpstreamSync.job_id == daily.id)
+        )
+        assert attempt is not None
+        assert attempt.state == "dead_lettered"
+        recorded_at = attempt.completed_at
+        assert recorded_at is not None
+        assert await unrecorded_queue_outcomes(session) == []
+        await record_queue_outcome(session, daily)
+        assert attempt.completed_at == recorded_at
+        assert not session.dirty
 
 
 @pytest.mark.asyncio

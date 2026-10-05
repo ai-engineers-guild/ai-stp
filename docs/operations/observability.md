@@ -1,6 +1,6 @@
 ---
 description: "Minimum signals for diagnosing the CLI, sync, publishing, and providers."
-last_verified: "2026-08-29"
+last_verified: "2026-10-05"
 ---
 
 # Observability
@@ -61,7 +61,9 @@ python -c "from ai_stp_platform.safety.metrics import snapshot; print(snapshot()
 | `safety_queue_job_*` | handler duration/result |
 | `safety_queue_requeued_total` | drain/stale-lease pressure |
 
-Secrets and raw finding bodies are not included in the metrics.
+Secrets and raw finding bodies are not included in the metrics. The
+`safety_queue_claim` log event is written only for a poll that claimed a job;
+an empty poll is counted in `safety_queue_empty_poll_total` and not logged.
 
 ### Safety performance evidence
 

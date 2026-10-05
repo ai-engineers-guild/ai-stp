@@ -176,6 +176,10 @@ def record_queue_claim(
         if claimed_count:
             _record_bucket(_state.queue_wait_ms_buckets, queue_wait_ms_max)
 
+    if claimed_count == 0:
+        # Counted above; an idle worker polls every second and would
+        # otherwise fill its log with empty claims.
+        return
     _log.info(
         "safety_queue_claim",
         metric="safety_queue_claim_total",
