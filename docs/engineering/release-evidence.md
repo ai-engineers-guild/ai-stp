@@ -1,6 +1,6 @@
 ---
 description: "Required release evidence for the CLI, platform, and providers."
-last_verified: "2026-10-02"
+last_verified: "2026-10-04"
 ---
 
 # Release evidence
@@ -105,8 +105,10 @@ managed release retained the requested exact tag. `config-evidence` also takes
 A desktop release proves that the shell over the CLI contract builds and runs
 on all three OSes: each `desktop-release` bundle leg rebuilds the frontend and
 both Rust crates, freezes the CLI into the PyInstaller sidecar through
-`apps/desktop/scripts/build-cli-sidecar.sh` — which smoke-checks the frozen
-binary's `version --json` before it is embedded — and runs
+`apps/desktop/scripts/build-cli-sidecar.sh` — from the built `ai-stp-cli`
+wheel and the locked closure of its declared dependencies, the set a PyPI
+install gets, and smoke-checking the frozen binary's `version --json` and
+`doctor --json` before it is embedded — and runs
 `apps/desktop/scripts/test-bundled-sidecar.sh`, the spawn test under the app's
 filtered environment, so a bundled CLI that cannot start on a real OS does not
 ship. `SHA256SUMS` covers every published artifact.
