@@ -11,7 +11,8 @@ from datetime import UTC, datetime
 from typing import Literal, cast
 
 from pydantic import BaseModel
-from sqlalchemy import delete, func, select
+from sqlalchemy import ColumnElement, Text, delete, func, or_, select
+from sqlalchemy import cast as sa_cast
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ai_stp_api.audit import emit_audit
@@ -4360,6 +4361,61 @@ async def read_context(
     return response
 
 
+def _audit_where(
+    audit_time: ColumnElement[datetime],
+    *,
+    before_id: int | None,
+    before_created_at: str | None,
+    actor_account_id: str | None,
+    action: str | None,
+    target_id: str | None,
+    target_table: str | None,
+    outcome: str | None,
+    q: str | None,
+    created_from: str | None,
+    created_to: str | None,
+) -> list[ColumnElement[bool]]:
+    """Shared audit journal predicates; list and export must not drift."""
+    clauses: list[ColumnElement[bool]] = []
+    if before_created_at is not None:
+        cursor_created_at = datetime.fromisoformat(before_created_at)
+        if before_id is None:
+            clauses.append(audit_time < cursor_created_at)
+        else:
+            clauses.append(
+                (audit_time < cursor_created_at)
+                | ((audit_time == cursor_created_at) & (AuditEvent.id < before_id))
+            )
+    elif before_id is not None:
+        clauses.append(AuditEvent.id < before_id)
+    if actor_account_id is not None:
+        clauses.append(AuditEvent.actor_account_id == actor_account_id)
+    if action is not None:
+        clauses.append(AuditEvent.action == action)
+    if target_id is not None:
+        clauses.append(AuditEvent.target_id == target_id)
+    if target_table is not None:
+        clauses.append(AuditEvent.target_table == target_table)
+    if outcome is not None:
+        clauses.append(AuditEvent.outcome == outcome)
+    if q is not None:
+        escaped = q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        pattern = f"%{escaped}%"
+        clauses.append(
+            or_(
+                AuditEvent.action.ilike(pattern, escape="\\"),
+                AuditEvent.target_id.ilike(pattern, escape="\\"),
+                AuditEvent.reason.ilike(pattern, escape="\\"),
+                sa_cast(AuditEvent.payload, Text).ilike(pattern, escape="\\"),
+            )
+        )
+    if created_from is not None:
+        clauses.append(audit_time >= datetime.fromisoformat(created_from))
+    if created_to is not None:
+        clauses.append(audit_time <= datetime.fromisoformat(created_to))
+    return clauses
+
+
 async def list_audit(
     db: AsyncSession,
     *,
@@ -4370,38 +4426,54 @@ async def list_audit(
     actor_account_id: str | None,
     action: str | None,
     target_id: str | None,
+    target_table: str | None,
+    outcome: str | None,
+    q: str | None,
     created_from: str | None,
     created_to: str | None,
+    limit: int,
+    offset: int,
     request_id: str | None,
 ) -> CorporateAuditList:
     await authorize(db, ctx=ctx, organization_id=organization_id, permission="audit.list")
     audit_time = func.date_trunc("milliseconds", AuditEvent.created_at)
-    query = select(AuditEvent).where(AuditEvent.organization_id == organization_id)
-    if before_created_at is not None:
-        cursor_created_at = datetime.fromisoformat(before_created_at)
-        if before_id is None:
-            query = query.where(audit_time < cursor_created_at)
-        else:
-            query = query.where(
-                (audit_time < cursor_created_at)
-                | ((audit_time == cursor_created_at) & (AuditEvent.id < before_id))
-            )
-    elif before_id is not None:
-        query = query.where(AuditEvent.id < before_id)
-    if actor_account_id is not None:
-        query = query.where(AuditEvent.actor_account_id == actor_account_id)
-    if action is not None:
-        query = query.where(AuditEvent.action == action)
-    if target_id is not None:
-        query = query.where(AuditEvent.target_id == target_id)
-    if created_from is not None:
-        query = query.where(audit_time >= datetime.fromisoformat(created_from))
-    if created_to is not None:
-        query = query.where(audit_time <= datetime.fromisoformat(created_to))
-    rows = list(
-        (await db.scalars(query.order_by(audit_time.desc(), AuditEvent.id.desc()).limit(101))).all()
+    content_filters = {
+        "actor_account_id": actor_account_id,
+        "action": action,
+        "target_id": target_id,
+        "target_table": target_table,
+        "outcome": outcome,
+        "q": q,
+        "created_from": created_from,
+        "created_to": created_to,
+    }
+    # `total` is the stable count for numbered pagination: cursor parameters only
+    # position the window and must not shrink it.
+    total = await db.scalar(
+        select(func.count(AuditEvent.id)).where(
+            AuditEvent.organization_id == organization_id,
+            *_audit_where(audit_time, before_id=None, before_created_at=None, **content_filters),
+        )
     )
-    page = rows[:100]
+    query = select(AuditEvent).where(
+        AuditEvent.organization_id == organization_id,
+        *_audit_where(
+            audit_time,
+            before_id=before_id,
+            before_created_at=before_created_at,
+            **content_filters,
+        ),
+    )
+    rows = list(
+        (
+            await db.scalars(
+                query.order_by(audit_time.desc(), AuditEvent.id.desc())
+                .offset(offset)
+                .limit(limit + 1)
+            )
+        ).all()
+    )
+    page = rows[:limit]
     await emit_audit(
         db,
         actor_account_id=ctx.account_id,
@@ -4411,10 +4483,12 @@ async def list_audit(
         target_id=organization_id,
         request_id=request_id,
     )
+    has_next = len(rows) > limit
     return CorporateAuditList(
         items=[_audit_entry(row) for row in page],
-        next_before_created_at=(_audit_entry(page[-1]).created_at if len(rows) > 100 else None),
-        next_before_id=page[-1].id if len(rows) > 100 else None,
+        total=total or 0,
+        next_before_created_at=(_audit_entry(page[-1]).created_at if has_next and page else None),
+        next_before_id=page[-1].id if has_next and page else None,
     )
 
 
@@ -4455,35 +4529,38 @@ async def export_audit(
     actor_account_id: str | None,
     action: str | None,
     target_id: str | None,
+    target_table: str | None,
+    outcome: str | None,
+    q: str | None,
     created_from: str | None,
     created_to: str | None,
+    limit: int,
+    offset: int,
     request_id: str | None,
 ) -> CorporateAuditExport:
     await authorize(db, ctx=ctx, organization_id=organization_id, permission="audit.export")
     audit_time = func.date_trunc("milliseconds", AuditEvent.created_at)
-    query = select(AuditEvent).where(AuditEvent.organization_id == organization_id)
-    if before_created_at is not None:
-        cursor_created_at = datetime.fromisoformat(before_created_at)
-        if before_id is None:
-            query = query.where(audit_time < cursor_created_at)
-        else:
-            query = query.where(
-                (audit_time < cursor_created_at)
-                | ((audit_time == cursor_created_at) & (AuditEvent.id < before_id))
-            )
-    elif before_id is not None:
-        query = query.where(AuditEvent.id < before_id)
-    if actor_account_id is not None:
-        query = query.where(AuditEvent.actor_account_id == actor_account_id)
-    if action is not None:
-        query = query.where(AuditEvent.action == action)
-    if target_id is not None:
-        query = query.where(AuditEvent.target_id == target_id)
-    if created_from is not None:
-        query = query.where(audit_time >= datetime.fromisoformat(created_from))
-    if created_to is not None:
-        query = query.where(audit_time <= datetime.fromisoformat(created_to))
-    rows = list((await db.scalars(query.order_by(audit_time, AuditEvent.id).limit(10000))).all())
+    query = select(AuditEvent).where(
+        AuditEvent.organization_id == organization_id,
+        *_audit_where(
+            audit_time,
+            before_id=before_id,
+            before_created_at=before_created_at,
+            actor_account_id=actor_account_id,
+            action=action,
+            target_id=target_id,
+            target_table=target_table,
+            outcome=outcome,
+            q=q,
+            created_from=created_from,
+            created_to=created_to,
+        ),
+    )
+    rows = list(
+        (
+            await db.scalars(query.order_by(audit_time, AuditEvent.id).offset(offset).limit(limit))
+        ).all()
+    )
     response = CorporateAuditExport(
         organization_id=organization_id,
         exported_at=format_timestamp(datetime.now(UTC)),

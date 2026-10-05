@@ -14,13 +14,11 @@ const state = process.env["AI_STP_CORPORATE_STORAGE_STATE"];
 const main = (page: Page) => page.locator("#main-content");
 const organizationBase = "/en/corporate/admins";
 const membersRoute = `${organizationBase}/members`;
-const settingsRoute = `${organizationBase}/settings`;
 const peopleAccessRoutes = [
   membersRoute,
   `${organizationBase}/invitations`,
   `${organizationBase}/access-model`,
   `${organizationBase}/roles`,
-  settingsRoute,
   `${organizationBase}/security`,
   `${organizationBase}/employee-access`,
 ] as const;
@@ -325,9 +323,9 @@ test.describe("People & Access administration", () => {
       await expect(
         dialog.locator('#grant-access-permission option[value="technology.read"]'),
       ).toHaveCount(1);
-      await expect(dialog.locator('#grant-access-permission option[value="team.list"]')).toHaveCount(
-        0,
-      );
+      await expect(
+        dialog.locator('#grant-access-permission option[value="team.list"]'),
+      ).toHaveCount(0);
       await dialog
         .locator("#grant-access-scope")
         .selectOption(
@@ -379,17 +377,9 @@ test.describe("People & Access administration", () => {
     await page.setViewportSize({ width: 390, height: 800 });
     for (const route of peopleAccessRoutes) {
       await page.goto(route);
-      if (mode === "offline" && route === settingsRoute) {
-        // The fixture can manage service principals, but has no landscape/telemetry
-        // policy rights. Those principals now belong to Security.
-        await expect(
-          main(page).getByText("You do not have access to this landscape."),
-        ).toBeVisible();
-      } else {
-        await expect(main(page).getByRole("heading", { level: 1 })).toBeVisible({
-          timeout: urlTimeout,
-        });
-      }
+      await expect(main(page).getByRole("heading", { level: 1 })).toBeVisible({
+        timeout: urlTimeout,
+      });
       await fitsViewport(page);
       const bounds = await main(page).boundingBox();
       expect(bounds?.width, "The content column must use the mobile viewport").toBeGreaterThan(340);

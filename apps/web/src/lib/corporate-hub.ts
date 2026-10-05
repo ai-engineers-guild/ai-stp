@@ -2,9 +2,13 @@
 export function canViewCorporateAdministration(capabilities: readonly string[]): boolean {
   return capabilities.some(
     (permission) =>
-      /^(role\.|binding\.|service_principal\.|audit\.|job_title\.|category\.)/.test(permission) ||
+      /^(role\.|binding\.|service_principal\.|audit\.|job_title\.|category\.|telemetry\.)/.test(
+        permission,
+      ) ||
       permission === "member.update" ||
       permission === "member.delete" ||
+      permission === "member.manage" ||
+      permission === "organization.manage" ||
       permission === "landscape.manage",
   );
 }

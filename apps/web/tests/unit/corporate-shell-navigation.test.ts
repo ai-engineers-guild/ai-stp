@@ -73,9 +73,9 @@ it("highlights the corporate destination that owns the current route", async () 
     true,
   );
   expect(landscape && isPrimaryNavigationActive(landscape, "/corporate/categories")).toBe(true);
-  expect(
-    organization && isPrimaryNavigationActive(organization, "/corporate/admins/members"),
-  ).toBe(false);
+  expect(organization && isPrimaryNavigationActive(organization, "/corporate/admins/members")).toBe(
+    false,
+  );
   expect(admins && isPrimaryNavigationActive(admins, "/corporate/admins/members")).toBe(true);
 });
 
@@ -116,8 +116,6 @@ it.each([
         "employeeAccess",
         "jobTitles",
         "technologyCategories",
-        "settings",
-        "security",
       ],
     },
   ],

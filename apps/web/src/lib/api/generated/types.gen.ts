@@ -2153,6 +2153,53 @@ export type CorporateAuditExport = {
 };
 
 /**
+ * CorporateAuditExportQuery
+ *
+ * Journal export shares the list filters; one dump may return up to 10 000 rows.
+ */
+export type CorporateAuditExportQuery = {
+  /**
+   * Action
+   */
+  action?: string | null;
+  /**
+   * Actor Account Id
+   */
+  actor_account_id?: string | null;
+  before_created_at?: Timestamp | null;
+  /**
+   * Before Id
+   */
+  before_id?: number | null;
+  created_from?: Timestamp | null;
+  created_to?: Timestamp | null;
+  /**
+   * Limit
+   */
+  limit?: number;
+  /**
+   * Offset
+   */
+  offset?: number;
+  /**
+   * Outcome
+   */
+  outcome?: "succeeded" | "denied" | "failed" | null;
+  /**
+   * Q
+   */
+  q?: string | null;
+  /**
+   * Target Id
+   */
+  target_id?: string | null;
+  /**
+   * Target Table
+   */
+  target_table?: string | null;
+};
+
+/**
  * CorporateAuditList
  */
 export type CorporateAuditList = {
@@ -2169,6 +2216,10 @@ export type CorporateAuditList = {
    * Schema Version
    */
   schema_version: 1;
+  /**
+   * Total
+   */
+  total: number;
   [key: string]: unknown;
 };
 
@@ -2192,9 +2243,29 @@ export type CorporateAuditQuery = {
   created_from?: Timestamp | null;
   created_to?: Timestamp | null;
   /**
+   * Limit
+   */
+  limit?: number;
+  /**
+   * Offset
+   */
+  offset?: number;
+  /**
+   * Outcome
+   */
+  outcome?: "succeeded" | "denied" | "failed" | null;
+  /**
+   * Q
+   */
+  q?: string | null;
+  /**
    * Target Id
    */
   target_id?: string | null;
+  /**
+   * Target Table
+   */
+  target_table?: string | null;
 };
 
 /**
@@ -19001,9 +19072,29 @@ export type ListCorporateAuditData = {
     created_from?: Timestamp | null;
     created_to?: Timestamp | null;
     /**
+     * Limit
+     */
+    limit?: number;
+    /**
+     * Offset
+     */
+    offset?: number;
+    /**
+     * Outcome
+     */
+    outcome?: "succeeded" | "denied" | "failed" | null;
+    /**
+     * Q
+     */
+    q?: string | null;
+    /**
      * Target Id
      */
     target_id?: string | null;
+    /**
+     * Target Table
+     */
+    target_table?: string | null;
   };
   url: "/v1/corporate/organizations/{organization_id}/audit";
 };
@@ -19078,9 +19169,29 @@ export type ExportCorporateAuditData = {
     created_from?: Timestamp | null;
     created_to?: Timestamp | null;
     /**
+     * Limit
+     */
+    limit?: number;
+    /**
+     * Offset
+     */
+    offset?: number;
+    /**
+     * Outcome
+     */
+    outcome?: "succeeded" | "denied" | "failed" | null;
+    /**
+     * Q
+     */
+    q?: string | null;
+    /**
      * Target Id
      */
     target_id?: string | null;
+    /**
+     * Target Table
+     */
+    target_table?: string | null;
   };
   url: "/v1/corporate/organizations/{organization_id}/audit/export";
 };

@@ -268,25 +268,34 @@ export function PersonIdentity({
 export function PeoplePager({
   total,
   page,
+  pageSize = PEOPLE_PAGE_SIZE,
   onPage,
   kind,
 }: {
   total: number;
   page: number;
+  pageSize?: number;
   onPage: (page: number) => void;
-  kind: "members" | "invitations";
+  kind: "members" | "invitations" | "events";
 }) {
   const t = useTranslations("people");
-  const pages = Math.max(1, Math.ceil(total / PEOPLE_PAGE_SIZE));
+  const pages = Math.max(1, Math.ceil(total / pageSize));
   const visible = pageWindow(page, pages, 1);
   return (
     <footer className="border-border flex flex-wrap items-center justify-between gap-3 border-t py-3">
       <p aria-live="polite" className="text-muted-foreground text-sm tabular-nums">
-        {t(kind === "members" ? "showingMembers" : "showingInvitations", {
-          start: total ? (page - 1) * PEOPLE_PAGE_SIZE + 1 : 0,
-          end: Math.min(page * PEOPLE_PAGE_SIZE, total),
-          total,
-        })}
+        {t(
+          kind === "members"
+            ? "showingMembers"
+            : kind === "invitations"
+              ? "showingInvitations"
+              : "showingEvents",
+          {
+            start: total ? (page - 1) * pageSize + 1 : 0,
+            end: Math.min(page * pageSize, total),
+            total,
+          },
+        )}
       </p>
       <nav aria-label={t("pagination")} className="flex items-center gap-1">
         <Button

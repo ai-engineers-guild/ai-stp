@@ -1,14 +1,9 @@
 import { getTranslations, setRequestLocale } from "next-intl/server";
+
 import { StatePanel } from "@/components/molecules/state-panel";
 import { CorporateAuditPanel } from "@/components/organisms/corporate-audit-panel";
-import { readCorporateAudit, corporateAuditFilterValues } from "@/lib/api/corporate-audit";
-import { AUDIT_ACTIONS } from "@/lib/audit-labels";
-import { Button } from "@/components/atoms/button";
-import { Input } from "@/components/atoms/input";
-import { Label } from "@/components/atoms/label";
-import { SearchableMultiSelect } from "@/components/molecules/searchable-multi-select";
+import { corporateAuditFilterValues, readCorporateAudit } from "@/lib/api/corporate-audit";
 import { requireSession, sessionCookieValue } from "@/lib/auth/require-session";
-import { Link } from "@/lib/i18n/navigation";
 import { PeopleHeader } from "@/app/[locale]/(site)/corporate/admins/people-shared";
 
 export default async function CorporateAuditPage({
@@ -23,11 +18,9 @@ export default async function CorporateAuditPage({
   await requireSession(locale, `/${locale}/corporate/admins/audit`);
   const t = await getTranslations("corporate");
   const hub = await getTranslations("hub");
-  const auditLabels = await getTranslations("corporate.auditUi");
   const common = await getTranslations("common");
   const technology = await getTranslations("technology");
   const rawSearchParams = await searchParams;
-  const filters = corporateAuditFilterValues(rawSearchParams);
   let result;
   try {
     result = await readCorporateAudit((await sessionCookieValue()) ?? "", rawSearchParams);
@@ -40,88 +33,21 @@ export default async function CorporateAuditPage({
     return (
       <StatePanel kind="error" title={t("auditJournal")} description={technology("forbidden")} />
     );
-  const actions = Array.from(
-    new Set([...AUDIT_ACTIONS, ...result.audit.items.map((item) => item.action)]),
-  ).sort();
   return (
-    <div className="space-y-6">
-      <PeopleHeader section={hub("audit")} current={t("auditJournal")} />
-      <form
-        id="audit-filters"
-        className="border-border bg-card grid gap-4 rounded-lg border p-4 shadow-sm sm:grid-cols-2 lg:grid-cols-5"
-      >
-        {result.members ? (
-          <div className="space-y-2">
-            <Label htmlFor="audit-employee">{t("member")}</Label>
-            <SearchableMultiSelect
-              name="actor_account_id"
-              label={auditLabels("allEmployees")}
-              searchLabel={auditLabels("searchEmployee")}
-              options={result.members.items
-                .filter((member) => member.display_name)
-                .map((member) => ({
-                  value: member.account_id,
-                  label: member.display_name ?? member.account_id,
-                }))}
-              selected={filters.actor_account_id ? [filters.actor_account_id] : []}
-              form="audit-filters"
-              multiple={false}
-              modal
-              closeLabel={auditLabels("close")}
-            />
-          </div>
-        ) : null}
-        <div className="space-y-2">
-          <Label htmlFor="audit-action">{auditLabels("action")}</Label>
-          <Input
-            id="audit-action"
-            name="action"
-            list="audit-actions"
-            defaultValue={filters.action ?? ""}
-            placeholder={auditLabels("allActions")}
-          />
-          <datalist id="audit-actions">
-            {actions.map((action) => (
-              <option key={action} value={action}>
-                {action}
-              </option>
-            ))}
-          </datalist>
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="audit-target">{auditLabels("target")}</Label>
-          <Input id="audit-target" name="target_id" defaultValue={filters.target_id ?? ""} />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="audit-created-from">{auditLabels("from")}</Label>
-          <Input
-            id="audit-created-from"
-            name="created_from"
-            type="date"
-            defaultValue={filters.created_from ?? ""}
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="audit-created-to">{auditLabels("to")}</Label>
-          <Input
-            id="audit-created-to"
-            name="created_to"
-            type="date"
-            defaultValue={filters.created_to ?? ""}
-          />
-        </div>
-        <div className="flex items-end">
-          <Button type="submit" className="w-full">
-            {auditLabels("filterEvents")}
-          </Button>
-        </div>
-      </form>
+    <div className="min-w-0 space-y-6">
+      <PeopleHeader
+        section={hub("audit")}
+        current={t("auditJournal")}
+        description={t("auditJournalDescription")}
+      />
       <CorporateAuditPanel
         organizationId={result.context.organization.organization_id}
         audit={result.audit}
         canExport={result.context.capabilities.includes("audit.export")}
         members={result.members?.items ?? []}
-        filters={filters}
+        filters={corporateAuditFilterValues(rawSearchParams)}
+        page={result.page}
+        pageSize={result.size}
         labels={{
           title: t("auditJournal"),
           export: t("exportAudit"),
@@ -139,22 +65,6 @@ export default async function CorporateAuditPage({
           failed: common("apiUnavailable"),
         }}
       />
-      <nav aria-label={t("auditJournal")} className="flex flex-wrap gap-4">
-        <Link
-          href={`/corporate/admins/audit?${new URLSearchParams(filters)}`}
-          className="inline-flex min-h-11 items-center underline underline-offset-4"
-        >
-          {auditLabels("latestEvents")}
-        </Link>
-        {result.audit.next_before_id && result.audit.next_before_created_at && (
-          <Link
-            href={`/corporate/admins/audit?${new URLSearchParams({ ...filters, before_id: String(result.audit.next_before_id), before_created_at: result.audit.next_before_created_at })}`}
-            className="inline-flex min-h-11 items-center underline underline-offset-4"
-          >
-            {auditLabels("olderEvents")}
-          </Link>
-        )}
-      </nav>
     </div>
   );
 }

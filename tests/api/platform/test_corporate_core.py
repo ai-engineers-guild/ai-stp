@@ -1031,6 +1031,33 @@ async def test_corporate_core_lifecycle_and_tenant_boundary(
     assert len(tail["items"]) == 1
     assert tail["next_before_id"] is None
     assert {item["audit_id"] for item in page["items"] + tail["items"]} == expected_ids
+    assert page["total"] == 101 and tail["total"] == 101
+    offset_page = await client.get(
+        audit_url, params={**filters, "limit": 10, "offset": 95}, headers=auth
+    )
+    assert offset_page.status_code == 200, offset_page.text
+    assert len(offset_page.json()["items"]) == 6
+    assert offset_page.json()["total"] == 101
+    for params, expected_count in (
+        ({"target_table": "organization"}, 101),
+        ({"target_table": "member"}, 0),
+        ({"outcome": "succeeded"}, 101),
+        ({"outcome": "denied"}, 0),
+        ({"q": "audit_PROBE"}, 101),
+        ({"q": "safe"}, 101),
+        ({"q": "must-not-persist"}, 0),
+        ({"q": "no-such-needle"}, 0),
+    ):
+        filtered = await client.get(audit_url, params={**filters, **params}, headers=auth)
+        assert filtered.status_code == 200, filtered.text
+        body = filtered.json()
+        assert body["total"] == expected_count, params
+        assert len(body["items"]) == min(expected_count, 100)
+    denied_export = await client.get(
+        f"{audit_url}/export", params={**filters, "outcome": "denied"}, headers=auth
+    )
+    assert denied_export.status_code == 200, denied_export.text
+    assert denied_export.json()["items"] == []
     filtered_export = await client.get(f"{audit_url}/export", params=filters, headers=auth)
     assert filtered_export.status_code == 200, filtered_export.text
     assert {item["audit_id"] for item in filtered_export.json()["items"]} == expected_ids

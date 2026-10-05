@@ -213,7 +213,10 @@ ownership.
 Corporate audit events are retained indefinitely in B2B-01. The product exposes a
 bounded, filterable journal read and a bounded portable export; both use the stable
 `(created_at, id)` cursor (`before_created_at` plus `before_id`) and there is no deletion
-endpoint. Operational database backup and restore remains the recovery path until a
+endpoint. The journal read also accepts `offset` within `limit` for numbered
+pagination and returns `total` over the content filters, excluding the cursor;
+the export shares the same filters with a larger bound. Operational database
+backup and restore remains the recovery path until a
 versioned retention policy under SPEC-013 defines deletion behavior.
 Journal ordering, cursor comparisons, and time filters use canonical UTC millisecond
 precision, matching the public timestamp representation, including existing rows

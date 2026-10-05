@@ -27,7 +27,7 @@ const ADMINISTRATION_PATHS = [
   "/corporate/admins/employee-access",
   "/corporate/admins/job-titles",
   "/corporate/admins/tech-categories",
-  "/corporate/admins/settings",
+  "/corporate/admins/telemetry",
   "/corporate/admins/security",
 ] as const;
 

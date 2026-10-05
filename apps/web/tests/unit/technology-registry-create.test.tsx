@@ -32,7 +32,6 @@ import {
   CategoryLifecycleControls,
   ProjectActivityEditor,
   ProjectLifecycleControls,
-  TechnologyActivityPolicy,
 } from "@/components/organisms/corporate-governance-controls";
 
 const props = {
@@ -247,31 +246,6 @@ describe("manual registry creation", () => {
       expected_revision: 6,
     });
     expect(mutation.mock.calls[0]?.[0].path).toMatch(/\/lifecycle$/);
-  });
-
-  it("creates an explicit organization activity policy from revision zero", async () => {
-    mutation.mockResolvedValue({ ok: true, data: {} });
-    const { container } = render(
-      <TechnologyActivityPolicy
-        {...props}
-        policy={{
-          organization_id: props.organizationId,
-          inactivity_months: 9,
-          revision: 0,
-        }}
-      />,
-    );
-    fireEvent.change(screen.getByLabelText("inactivityMonths"), { target: { value: "12" } });
-    const form = container.querySelector("form");
-    if (!form) throw new Error("policy form is missing");
-    fireEvent.submit(form);
-    await waitFor(() => {
-      expect(mutation).toHaveBeenCalledOnce();
-    });
-    expect(mutation.mock.calls[0]?.[0].body).toMatchObject({
-      expected_revision: 0,
-      inactivity_months: 12,
-    });
   });
 
   it("pins the edited record revision across capability refresh and preserves the unsaved name", async () => {

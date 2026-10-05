@@ -3,6 +3,7 @@
  * rebrand can swap the set without hunting lucide imports in every file.
  */
 import {
+  Activity,
   AlertCircle,
   ArrowLeft,
   Camera,
@@ -23,6 +24,7 @@ import {
   Github,
   Heart,
   Inbox,
+  Info,
   KeyRound,
   LayoutGrid,
   LayoutList,
@@ -46,6 +48,7 @@ import {
   SortAsc,
   Sparkles,
   Star,
+  Trash2,
   Pencil,
   Play,
   Plus,
@@ -113,7 +116,10 @@ export type IconName =
   | "component"
   | "technology"
   | "setup"
-  | "code";
+  | "code"
+  | "activity"
+  | "info"
+  | "trash";
 
 export type IconSize = keyof typeof iconSizes;
 
@@ -177,6 +183,9 @@ const REGISTRY: Record<IconName, LucideIcon> = {
   technology: Database,
   setup: Settings,
   code: Code,
+  activity: Activity,
+  info: Info,
+  trash: Trash2,
 };
 
 export type IconProps = Omit<LucideProps, "size"> & {

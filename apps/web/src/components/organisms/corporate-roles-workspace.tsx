@@ -5,12 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/atoms/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogTitle,
-} from "@/components/atoms/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/atoms/dialog";
 import { CatalogChoiceMenu } from "@/components/molecules/catalog-choice-menu";
 import { FormDialog } from "@/components/molecules/form-dialog";
 import { SearchableMultiSelect } from "@/components/molecules/searchable-multi-select";

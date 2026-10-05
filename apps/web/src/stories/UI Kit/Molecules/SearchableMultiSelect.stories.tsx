@@ -24,11 +24,7 @@ const teams = [
   { value: "team_growth", label: "Growth" },
 ];
 
-function Demo(props: {
-  modal?: boolean;
-  multiple?: boolean;
-  selected?: string[];
-}) {
+function Demo(props: { modal?: boolean; multiple?: boolean; selected?: string[] }) {
   const [selected, setSelected] = useState<string[]>(props.selected ?? ["team_platform"]);
   return (
     <form className="max-w-md space-y-3">

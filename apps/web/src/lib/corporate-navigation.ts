@@ -24,6 +24,8 @@ export type CorporateNavPage = {
   section?: string;
   /** Requires canViewCorporateAdministration. */
   administration?: boolean;
+  /** Any-of capability requirement on top of the administration gate. */
+  capabilities?: readonly string[];
   /** Rendered as an item inside its own context rail. */
   rail: boolean;
   /** Rendered in the root rail as a context entry. */
@@ -34,8 +36,8 @@ export type CorporateNavPage = {
   prefixes: readonly string[];
   /** Rail item activated for this page; undefined = own id; null = none. */
   activeAs?: string | null;
-  /** Disclosure section inside Administration. */
-  group?: "peopleAndAccess" | "referenceData" | "security" | "organization" | "audit";
+  /** Disclosure section inside Administration; undefined renders a flat rail item. */
+  group?: "peopleAndAccess" | "referenceData" | "security" | "audit";
 };
 
 export const CORPORATE_NAV_PAGES: readonly CorporateNavPage[] = [
@@ -217,7 +219,6 @@ export const CORPORATE_NAV_PAGES: readonly CorporateNavPage[] = [
   },
   {
     id: "auditJournal",
-    group: "audit",
     context: "administration",
     href: "/corporate/admins/audit",
     label: "auditJournal",
@@ -225,6 +226,7 @@ export const CORPORATE_NAV_PAGES: readonly CorporateNavPage[] = [
     root: false,
     rail: true,
     administration: true,
+    capabilities: ["audit.list", "audit.export"],
     prefixes: ["/corporate/admins/audit"],
   },
   {
@@ -265,20 +267,7 @@ export const CORPORATE_NAV_PAGES: readonly CorporateNavPage[] = [
     prefixes: ["/corporate/admins/tech-categories"],
   },
   {
-    id: "settings",
-    group: "organization",
-    context: "administration",
-    href: "/corporate/admins/settings",
-    label: "settings",
-    icon: "setup",
-    root: false,
-    rail: true,
-    administration: true,
-    prefixes: ["/corporate/admins/settings"],
-  },
-  {
     id: "security",
-    group: "security",
     context: "administration",
     href: "/corporate/admins/security",
     label: "security",
@@ -286,7 +275,20 @@ export const CORPORATE_NAV_PAGES: readonly CorporateNavPage[] = [
     root: false,
     rail: true,
     administration: true,
+    capabilities: ["service_principal.list", "organization.manage"],
     prefixes: ["/corporate/admins/security"],
+  },
+  {
+    id: "telemetry",
+    context: "administration",
+    href: "/corporate/admins/telemetry",
+    label: "telemetry",
+    icon: "technology",
+    root: false,
+    rail: true,
+    administration: true,
+    capabilities: ["telemetry.read", "telemetry.manage"],
+    prefixes: ["/corporate/admins/telemetry"],
   },
   {
     id: "roleDetail",
@@ -384,7 +386,13 @@ export function corporateNavPageVisible(
   page: CorporateNavPage,
   capabilities: readonly string[],
 ): boolean {
-  if (page.administration) return canViewCorporateAdministration(capabilities);
+  if (page.administration) {
+    if (!canViewCorporateAdministration(capabilities)) return false;
+    return (
+      page.capabilities === undefined ||
+      page.capabilities.some((permission) => capabilities.includes(permission))
+    );
+  }
   if (page.section) return canViewCorporateSection(page.section, capabilities);
   return true;
 }

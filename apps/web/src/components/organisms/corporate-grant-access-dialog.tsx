@@ -10,11 +10,7 @@ import { FormDialog } from "@/components/molecules/form-dialog";
 import { SearchableMultiSelect } from "@/components/molecules/searchable-multi-select";
 import { ScopeField } from "@/components/organisms/corporate-people-ui";
 import { corporateMutation } from "@/lib/api/corporate-mutation";
-import {
-  permissionEntity,
-  permissionLabel,
-  roleTitle,
-} from "@/lib/corporate-permission-ui";
+import { permissionEntity, permissionLabel, roleTitle } from "@/lib/corporate-permission-ui";
 import type {
   CorporateMember,
   CorporatePermissionDefinition,
@@ -83,9 +79,8 @@ export function CorporateGrantAccessDialog({
       ? definitions
           .filter(
             (definition) =>
-              definition.scopes.includes(
-                scopeKind as (typeof definition.scopes)[number],
-              ) && capabilities.includes(definition.name),
+              definition.scopes.includes(scopeKind as (typeof definition.scopes)[number]) &&
+              capabilities.includes(definition.name),
           )
           .map((definition) => definition.name)
       : capabilities.filter((permission) => permission.includes("."))

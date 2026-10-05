@@ -1,3 +1,6 @@
+/** Allowed audit journal page sizes; shared by the server reader and the client panel. */
+export const AUDIT_PAGE_SIZES = [10, 25, 50] as const;
+
 /** Compact page list: edges, current neighbourhood, gaps. */
 export function pageWindow(current: number, total: number, radius = 2): Array<number | "gap"> {
   if (total < 1) return [];

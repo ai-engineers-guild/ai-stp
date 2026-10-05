@@ -23,8 +23,10 @@ import {
 } from "@/mocks/fixtures/catalog-ids";
 import { entityProfileViewSchema } from "@/lib/corporate-detail";
 import type {
+  CorporateAuditEntry,
   CorporateOverview,
   CorporateContext,
+  CorporateTelemetryPolicyView,
   CorporateTeamView,
   CorporateProjectView,
   CorporateMember,
@@ -53,6 +55,7 @@ import type {
   TechnologyMappingView,
   TechnologyUnmappedEntry,
 } from "./generated/types.gen";
+import type { CorporateSsoView } from "./corporate-sso";
 import type { WorkspaceMockResult } from "./mock-workspace";
 
 const fixture = fixtureData as { cases: Array<{ body: CorporateOverview }> };
@@ -257,6 +260,49 @@ const initMockState = () => ({
     },
   ] as CorporateInvitation[],
   policy: { allowed_email_domains: [] as string[], authorization_revision: 1 },
+  telemetryPolicy: {
+    schema_version: 1,
+    organization_id: organization.organization_id,
+    policy_version: 1,
+    raw_retention_days: 90,
+    aggregate_retention_days: 730,
+    legal_basis: "legitimate_interest",
+    notice_text:
+      "We collect technical telemetry data to improve the platform, understand usage and ensure reliable operation. No source code, content or personal data is collected.",
+    notice_revision: 1,
+    heartbeat_enabled: true,
+    inventory_scan_enabled: true,
+    usage_collection_enabled: true,
+    usage_registration_required: true,
+    report_timezone: "UTC",
+    heartbeat_interval_seconds: 21600,
+    heartbeat_retry_base_seconds: 60,
+    heartbeat_retry_max_seconds: 3600,
+    heartbeat_stale_after_seconds: 86400,
+    updated_at: new Date(Date.now() - 30 * 3_600_000).toISOString(),
+    updated_by_account_id: members[0]!.account_id,
+  } as CorporateTelemetryPolicyView,
+  sso: {
+    providers: [
+      {
+        provider: "saml",
+        enabled: false,
+        issuer_url: null,
+        client_id: null,
+        idp_metadata_url: null,
+        updated_at: null,
+      },
+      {
+        provider: "oidc",
+        enabled: false,
+        issuer_url: null,
+        client_id: null,
+        idp_metadata_url: null,
+        updated_at: null,
+      },
+    ],
+  } as CorporateSsoView,
+  audit: makeMockAudit(),
   roles: [...initialRoleViews] as CorporateRoleView[],
   bindings: [
     {
@@ -343,6 +389,58 @@ const initMockState = () => ({
   ] as CorporateServicePrincipalView[],
 });
 const graphEdges = graph.edges;
+
+/** Deterministic journal rows for the offline admin surfaces. */
+function makeMockAudit(): CorporateAuditEntry[] {
+  const specs = [
+    [
+      "membership.policy.write",
+      "organization_membership",
+      "Updated email domain policy",
+      "succeeded",
+    ],
+    ["member.update", "organization_membership", "Updated member role", "succeeded"],
+    ["role.create", "corporate_role", "Created role", "succeeded"],
+    ["binding.create", "corporate_role_binding", "Assigned role", "succeeded"],
+    ["telemetry.policy.write", "telemetry_policy", "Updated telemetry policy", "succeeded"],
+    [
+      "service_principal.create",
+      "corporate_service_principal",
+      "Created service account",
+      "succeeded",
+    ],
+    ["invitation.created", "corporate_invitation", "Invited member", "succeeded"],
+    ["invitation.revoked", "corporate_invitation", "Revoked invitation", "denied"],
+    ["audit.list", "audit_event", "Listed audit events", "succeeded"],
+    ["audit.export", "audit_event", "Exported audit events", "succeeded"],
+    ["member.delete", "organization_membership", "Removed member", "succeeded"],
+    ["role.update", "corporate_role", "Updated role permissions", "failed"],
+  ] as const;
+  return specs.flatMap((spec, round) =>
+    Array.from({ length: 4 }, (_, index) => {
+      const serial = round * 4 + index + 1;
+      const actor = members[(serial - 1) % members.length]!;
+      const [action, targetTable, reason, outcome] = spec;
+      return {
+        schema_version: 1,
+        audit_id: 5000 - serial,
+        created_at: new Date(Date.now() - serial * 7 * 3_600_000).toISOString(),
+        actor_type: "user" as const,
+        actor_account_id: actor.account_id,
+        actor_id: actor.account_id,
+        effective_role_bindings: [],
+        action,
+        target_table: targetTable,
+        target_id: `${targetTable}_${String(serial).padStart(4, "0")}`,
+        reason,
+        outcome,
+        request_id: `req_mock_${String(serial).padStart(6, "0")}`,
+        payload: { mock: true, sequence: serial },
+      } satisfies CorporateAuditEntry;
+    }),
+  );
+}
+
 const teamMembers = (teamId: string) =>
   graphEdges
     .filter((edge) => edge.kind === "team_employee" && edge.parent_id === teamId)
@@ -669,6 +767,7 @@ const capabilities = [
   "category.update",
   "technology_decision.read",
   "telemetry.read",
+  "telemetry.manage",
 ];
 const context: CorporateContext = {
   schema_version: 1,
@@ -1489,6 +1588,36 @@ export function corporateHandlers(
     invitation.token = null;
     return ok(invitation);
   }
+  if (suffix === "telemetry/policy") {
+    if (method === "PUT") {
+      const payload = (body ?? {}) as Partial<CorporateTelemetryPolicyView>;
+      Object.assign(mockState.telemetryPolicy, payload, {
+        policy_version: mockState.telemetryPolicy.policy_version + 1,
+        updated_at: new Date().toISOString(),
+        updated_by_account_id: member.account_id,
+      });
+    }
+    return ok(mockState.telemetryPolicy);
+  }
+  if (suffix === "sso") {
+    if (method === "PUT") {
+      const payload = (body ?? {}) as Record<string, unknown>;
+      const name =
+        payload.provider === "saml" || payload.provider === "oidc" ? payload.provider : null;
+      const entry = mockState.sso.providers.find((item) => item.provider === name);
+      if (!entry) return error(422, "AI_STP_VALIDATION_ERROR");
+      const textOrNull = (key: string) =>
+        typeof payload[key] === "string" && (payload[key] as string).trim()
+          ? (payload[key] as string).trim()
+          : null;
+      entry.enabled = payload.enabled === true || payload.enabled === "true";
+      entry.issuer_url = textOrNull("issuer_url");
+      entry.client_id = textOrNull("client_id");
+      entry.idp_metadata_url = textOrNull("idp_metadata_url");
+      entry.updated_at = new Date().toISOString();
+    }
+    return ok(mockState.sso);
+  }
   if (suffix === "membership/policy") {
     if (method === "PUT") {
       const payload = (body ?? {}) as { allowed_email_domains?: string[] };
@@ -1871,7 +2000,51 @@ export function corporateHandlers(
     } satisfies CorporatePermissionMatrix);
   }
   if (suffix === "job-titles") return ok({ schema_version: 1, items: [] });
-  if (suffix === "audit") return ok({ schema_version: 1, items: [] });
+  if (suffix === "audit" || suffix === "audit/export") {
+    let items = [...mockState.audit];
+    const actorId = query.get("actor_account_id");
+    const action = query.get("action");
+    const targetTable = query.get("target_table");
+    const targetId = query.get("target_id");
+    const outcome = query.get("outcome");
+    const search = query.get("q")?.toLowerCase();
+    const from = query.get("created_from");
+    const to = query.get("created_to");
+    if (actorId) items = items.filter((item) => item.actor_account_id === actorId);
+    if (action) items = items.filter((item) => item.action === action);
+    if (targetTable) items = items.filter((item) => item.target_table === targetTable);
+    if (targetId) items = items.filter((item) => item.target_id === targetId);
+    if (outcome) items = items.filter((item) => item.outcome === outcome);
+    if (search)
+      items = items.filter((item) =>
+        [item.action, item.target_id, item.reason ?? "", JSON.stringify(item.payload)]
+          .join("\n")
+          .toLowerCase()
+          .includes(search),
+      );
+    if (from) items = items.filter((item) => item.created_at >= from);
+    if (to) items = items.filter((item) => item.created_at <= to);
+    if (suffix === "audit/export")
+      return ok({
+        schema_version: 1,
+        organization_id: organization.organization_id,
+        exported_at: new Date().toISOString(),
+        items: items.slice(0, 10_000),
+      });
+    const total = items.length;
+    const limit = Math.min(100, Math.max(1, Number(query.get("limit")) || 100));
+    const offset = Math.max(0, Number(query.get("offset")) || 0);
+    const page = items.slice(offset, offset + limit);
+    const last = page.at(-1);
+    const hasMore = offset + limit < total;
+    return ok({
+      schema_version: 1,
+      items: page,
+      total,
+      next_before_id: hasMore && last ? last.audit_id : null,
+      next_before_created_at: hasMore && last ? last.created_at : null,
+    });
+  }
   if (suffix === "technology-categories") return ok({ schema_version: 1, items: categoryViews });
   const categoryMatch = suffix.match(/^technology-categories\/([^/]+)$/);
   if (categoryMatch) {

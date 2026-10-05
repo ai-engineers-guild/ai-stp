@@ -985,6 +985,7 @@ class CorporateAuditList(BaseModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     schema_version: Literal[1] = 1
     items: Annotated[list[CorporateAuditEntry], Field(max_length=256)]
+    total: Annotated[int, Field(ge=0)]
     next_before_created_at: Timestamp | None = None
     next_before_id: int | None = None
 
@@ -1004,8 +1005,19 @@ class CorporateAuditQuery(BaseModel):
     actor_account_id: AccountId | None = None
     action: Annotated[str | None, Field(min_length=1, max_length=128)] = None
     target_id: Annotated[str | None, Field(min_length=1, max_length=128)] = None
+    target_table: Annotated[str | None, Field(min_length=1, max_length=128)] = None
+    outcome: Literal["succeeded", "denied", "failed"] | None = None
+    q: Annotated[str | None, Field(min_length=1, max_length=128)] = None
     created_from: Timestamp | None = None
     created_to: Timestamp | None = None
+    limit: Annotated[int, Field(ge=1, le=100)] = 100
+    offset: Annotated[int, Field(ge=0)] = 0
+
+
+class CorporateAuditExportQuery(CorporateAuditQuery):
+    """Journal export shares the list filters; one dump may return up to 10 000 rows."""
+
+    limit: Annotated[int, Field(ge=1, le=10000)] = 10000
 
 
 class CorporateOverviewNode(BaseModel):

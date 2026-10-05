@@ -109,9 +109,7 @@ it("rewrites corporate shared pages and retains private session gates", async ()
   );
   const adminsIndex = middleware(request("/en/corporate/admins"));
   expect(adminsIndex.status).toBe(308);
-  expect(adminsIndex.headers.get("location")).toBe(
-    "http://localhost/en/corporate/admins/members",
-  );
+  expect(adminsIndex.headers.get("location")).toBe("http://localhost/en/corporate/admins/members");
   const legacyPublisher = middleware(request("/en/corporate/publishers/account_01?tab=objects"));
   expect(legacyPublisher.status).toBe(308);
   expect(legacyPublisher.headers.get("location")).toBe(

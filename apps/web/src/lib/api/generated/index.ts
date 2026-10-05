@@ -480,6 +480,7 @@ export {
   type CorporateAssignmentPlanRequest,
   type CorporateAuditEntry,
   type CorporateAuditExport,
+  type CorporateAuditExportQuery,
   type CorporateAuditList,
   type CorporateAuditQuery,
   type CorporateBinding,

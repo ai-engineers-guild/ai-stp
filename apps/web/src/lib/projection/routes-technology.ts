@@ -15,8 +15,6 @@ import {
   readTechnologyLandscape,
   readCategoryDirectory,
   readCategoryDetail,
-  readTechnologyCapabilities,
-  readTechnologyLandscapePolicy,
 } from "@/lib/api/technology";
 import { sessionCookieValue } from "@/lib/auth/require-session";
 import { auditActionLabel } from "@/lib/audit-labels";
@@ -154,31 +152,6 @@ export const TECHNOLOGY_ROUTES: MachineRoute[] = [
         emptyMessage: t("noRoles"),
         links: [[t("backToWorkspace"), "/corporate/admins/members"]],
       });
-    },
-  },
-  {
-    pattern: "corporate/admins/settings",
-    resolve: async () => {
-      const t = await getTranslations("technology");
-      const session = (await sessionCookieValue()) ?? "";
-      const context = await readCorporateContext(session);
-      if (!context) return presentPage({ title: t("activityPolicy"), summary: t("empty") });
-      const organizationId = context.organization.organization_id;
-      const permissions = await readTechnologyCapabilities(session, organizationId);
-      if (
-        !permissions.capabilities.includes("landscape.manage") ||
-        !permissions.capabilities.includes("landscape.read")
-      )
-        return presentPage({ title: t("activityPolicy"), summary: t("forbidden") });
-      try {
-        const policy = await readTechnologyLandscapePolicy(session, organizationId);
-        return presentPage({
-          title: t("activityPolicy"),
-          fields: [[t("inactivityMonths"), String(policy.inactivity_months)]],
-        });
-      } catch {
-        return presentPage({ title: t("activityPolicy"), summary: t("unavailable") });
-      }
     },
   },
   {

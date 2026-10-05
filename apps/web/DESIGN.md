@@ -79,3 +79,27 @@ primitives; domain code supplies fields and submit logic, never its own chrome:
 Page headers use the shared `PeopleHeader` (breadcrumb + title) in
 `corporate/organization/people-shared.tsx`; each page passes its rail-group
 label as `section`.
+
+## Policy & journal surfaces
+
+Administration policy pages (`/corporate/admins/*`) share three molecules the
+kit previously lacked; each exists because no existing component covered the
+pattern:
+
+- `SettingsSection` — titled card region with icon, description and an aside
+  slot; the sectioning unit for policy cards.
+- `SwitchRow` — labelled `Switch` atom row with status text; the single
+  boolean policy control.
+- `InfoNote` — bordered informational callout for policy consequences.
+- `FieldHint` — promoted from `organisms/` to `molecules/`; the organism file
+  re-exports it for existing imports.
+
+`/corporate/admins/telemetry` is a `NavigationTabs` page (heartbeat / usage /
+retention); each tab's submit merges its fields over the known policy into the
+single `PUT telemetry/policy` mutation — tabs never clobber each other's
+fields. `/corporate/admins/audit` composes `PeopleTable`, `PeoplePager`,
+`PeopleSelect`, `PersonIdentity` and `CorporateDetailDrawer` over URL-driven
+server filters (actor/action/target_table/outcome/date/q) with offset
+pagination and a bounded CSV/JSON export gated on `audit.export`. Security
+keeps `SwitchRow` + `SettingsSection` + `InfoNote` composition for the
+email-domain policy.

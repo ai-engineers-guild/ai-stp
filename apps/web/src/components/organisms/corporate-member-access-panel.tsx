@@ -119,15 +119,12 @@ export function CorporateMemberAccessPanel({
 
   function revokeGrant(grant: CorporatePermissionGrant) {
     if (!window.confirm(labels.confirmRevoke)) return;
-    submit(
-      `/v1/corporate/organizations/${organizationId}/permission-grants/${grant.grant_id}`,
-      {
-        schema_version: 1,
-        expected_revision: grant.revision,
-        authorization_revision: authorizationRevision,
-        idempotency_key: crypto.randomUUID(),
-      },
-    );
+    submit(`/v1/corporate/organizations/${organizationId}/permission-grants/${grant.grant_id}`, {
+      schema_version: 1,
+      expected_revision: grant.revision,
+      authorization_revision: authorizationRevision,
+      idempotency_key: crypto.randomUUID(),
+    });
   }
 
   const originLabel = (origin: CorporateBinding["origin"] | null) =>

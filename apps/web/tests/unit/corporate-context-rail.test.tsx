@@ -52,6 +52,7 @@ const allowed = corporateNavPageIds([
   "organization.manage",
   "audit.list",
   "landscape.manage",
+  "telemetry.read",
 ]);
 beforeEach(() => {
   vi.stubGlobal(
@@ -113,7 +114,7 @@ it("replaces the rail with grouped administration and omits the redundant overvi
   route.path = "/corporate/admins/roles";
   renderCorporate();
   const nav = within(desktop());
-  for (const group of ["peopleAndAccess", "referenceData", "security", "organization", "audit"])
+  for (const group of ["peopleAndAccess", "referenceData"])
     expect(
       nav.getByRole("button", {
         name: `${group === "peopleAndAccess" ? "collapseSection" : "expandSection"} ${group}`,
@@ -125,6 +126,12 @@ it("replaces the rail with grouped administration and omits the redundant overvi
     "href",
     "/corporate/admins/employee-access",
   );
+  // Single-item groups render flat rather than as disclosures.
+  for (const id of ["security", "telemetry", "auditJournal"])
+    expect(nav.getByRole("link", { name: id })).toBeVisible();
+  expect(
+    nav.queryByRole("button", { name: /expandSection (security|organization|audit)/ }),
+  ).toBeNull();
 });
 it("never shows admin pages from a URL without server availability", () => {
   route.path = "/corporate/admins/members";
@@ -172,9 +179,9 @@ it.each([false, true])(
     );
     const check = (root: HTMLElement) => {
       expect(
-        root.querySelectorAll(
-          'a[href*="/account"],a[href$="/objects"],a[href$="/access"],a[href$="/reports"],a[href$="/devices"],a[href$="/assigned"],a[href$="/likes"]',
-        ),
+        // Personal destinations all live under /account (or /corporate/account);
+        // corporate links like /corporate/reports legitimately share the tail.
+        root.querySelectorAll('a[href*="/account"]'),
       ).toHaveLength(0);
       expect(root.textContent).not.toContain("corporateHub");
     };

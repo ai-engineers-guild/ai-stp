@@ -1,71 +1,63 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useFormatter, useTranslations } from "next-intl";
 
 import { corporateAuditExportAction } from "@/actions/corporate";
-import { Button } from "@/components/atoms/button";
-import { Link } from "@/lib/i18n/navigation";
+import {
+  AuditExportControls,
+  AuditTableView,
+  AuditToolbar,
+  type AuditEntry,
+  type AuditLabels,
+  type AuditMember,
+  type ExportFormat,
+  type ExportRange,
+} from "@/components/organisms/corporate-audit-ui";
+import { AuditDrawer } from "@/components/organisms/corporate-audit-drawer";
+import { PeoplePager } from "@/components/organisms/corporate-people-ui";
 import type { CorporateAuditFilterValues } from "@/lib/api/corporate-audit";
-import { auditActionLabel } from "@/lib/audit-labels";
+import { AUDIT_PAGE_SIZES } from "@/lib/page-window";
+import { usePathname, useRouter } from "@/lib/i18n/navigation";
 
 import type { CorporateAuditExport, CorporateAuditList } from "@/lib/api/generated/types.gen";
+
+// A shared default keeps the filters-sync branch stable: a per-render `{}`
+// literal would change identity every render and loop `setDraft` forever.
+const EMPTY_FILTERS: CorporateAuditFilterValues = {};
 
 type Props = {
   organizationId: string;
   audit: CorporateAuditList;
   canExport?: boolean;
-  members?: readonly { account_id: string; display_name: string | null }[];
+  members?: readonly AuditMember[];
   filters?: CorporateAuditFilterValues;
-  labels: {
-    title: string;
-    export: string;
-    exporting: string;
-    exportFormat: string;
-    exportRange: string;
-    currentFilters: string;
-    today: string;
-    last7Days: string;
-    last30Days: string;
-    allEvents: string;
-    json: string;
-    csv: string;
-    noAudit: string;
-    failed: string;
-  };
+  page?: number;
+  pageSize?: number;
+  labels: AuditLabels;
 };
 
-type ExportFormat = "json" | "csv";
-type ExportRange = "current" | "today" | "last7" | "last30" | "all";
-
-export function CorporateAuditPanel({
-  organizationId,
-  audit,
-  canExport = true,
-  labels,
-  members = [],
-  filters = {},
-}: Props) {
-  const actors = new Map(
-    members
-      .filter((member) => member.display_name)
-      .map((member) => [member.account_id, member.display_name]),
-  );
-  const [busy, startTransition] = useTransition();
+function useAuditExport(
+  organizationId: string,
+  filters: CorporateAuditFilterValues,
+  failed: string,
+) {
+  const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [exportFormat, setExportFormat] = useState<ExportFormat>("json");
   const [range, setRange] = useState<ExportRange>("current");
 
   function exportAudit() {
     setMessage(null);
-    startTransition(async () => {
+    setBusy(true);
+    void (async () => {
       try {
         const result = await corporateAuditExportAction(
           organizationId,
           exportFiltersForRange(filters, range),
         );
         if (!result.ok) {
-          setMessage(result.message || labels.failed);
+          setMessage(result.message || failed);
           return;
         }
         const blob = new Blob(
@@ -89,68 +81,170 @@ export function CorporateAuditPanel({
           URL.revokeObjectURL(url);
         }, 0);
       } catch {
-        setMessage(labels.failed);
+        setMessage(failed);
+      } finally {
+        setBusy(false);
       }
+    })();
+  }
+
+  return { busy, message, exportFormat, range, setExportFormat, setRange, exportAudit };
+}
+
+export function CorporateAuditPanel({
+  organizationId,
+  audit,
+  canExport = true,
+  labels,
+  members = [],
+  filters = EMPTY_FILTERS,
+  page = 1,
+  pageSize = AUDIT_PAGE_SIZES[0],
+}: Props) {
+  const t = useTranslations("corporate.auditUi");
+  const formatDate = useFormatter();
+  const router = useRouter();
+  const pathname = usePathname();
+  const actors = new Map(members.map((member) => [member.account_id, member]));
+  const [draft, setDraft] = useState(filters);
+  const [applied, setApplied] = useState(filters);
+  const [selected, setSelected] = useState<AuditEntry | null>(null);
+  const { busy, message, exportFormat, range, setExportFormat, setRange, exportAudit } =
+    useAuditExport(organizationId, filters, labels.failed);
+
+  // Adjust the local draft when the server delivers new filters (URL navigation).
+  if (applied !== filters) {
+    setApplied(filters);
+    setDraft(filters);
+  }
+
+  const push = useCallback(
+    (patch: Record<string, string>) => {
+      const params = new URLSearchParams(window.location.search);
+      for (const [name, value] of Object.entries(patch)) {
+        if (value) params.set(name, value);
+        else params.delete(name);
+      }
+      if (!("page" in patch)) params.delete("page");
+      const query = params.toString();
+      router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+    },
+    [pathname, router],
+  );
+
+  function setFilter(name: keyof CorporateAuditFilterValues, value: string) {
+    setDraft((current) => {
+      const { [name]: _removed, ...rest } = current;
+      void _removed;
+      return value ? { ...rest, [name]: value } : rest;
+    });
+    push({ [name]: value });
+  }
+
+  function setQuery(value: string) {
+    setDraft((current) => {
+      const { q: _removed, ...rest } = current;
+      void _removed;
+      return value ? { ...rest, q: value } : rest;
     });
   }
 
+  // Free-text search is debounced; selects and dates apply immediately.
+  useEffect(() => {
+    const next = draft.q ?? "";
+    if (next === (filters.q ?? "")) return;
+    const timer = window.setTimeout(() => {
+      push({ q: next });
+    }, 350);
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [draft.q, filters.q, push]);
+
+  const total = audit.total;
   return (
-    <section className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-xl font-medium">{labels.title}</h2>
-        {canExport ? (
-          <div className="flex flex-wrap items-end gap-3">
-            <label className="space-y-1 text-sm">
-              <span className="text-muted-foreground block">{labels.exportFormat}</span>
-              <select
-                aria-label={labels.exportFormat}
-                value={exportFormat}
-                onChange={(event) => {
-                  setExportFormat(event.target.value as ExportFormat);
-                }}
-                className="border-input bg-background min-h-11 rounded-sm border px-3 text-sm"
-              >
-                <option value="json">{labels.json}</option>
-                <option value="csv">{labels.csv}</option>
-              </select>
-            </label>
-            <label className="space-y-1 text-sm">
-              <span className="text-muted-foreground block">{labels.exportRange}</span>
-              <select
-                aria-label={labels.exportRange}
-                value={range}
-                onChange={(event) => {
-                  setRange(event.target.value as ExportRange);
-                }}
-                className="border-input bg-background min-h-11 rounded-sm border px-3 text-sm"
-              >
-                <option value="current">{labels.currentFilters}</option>
-                <option value="today">{labels.today}</option>
-                <option value="last7">{labels.last7Days}</option>
-                <option value="last30">{labels.last30Days}</option>
-                <option value="all">{labels.allEvents}</option>
-              </select>
-            </label>
-            <Button type="button" disabled={busy} onClick={exportAudit}>
-              {busy ? labels.exporting : labels.export}
-            </Button>
-          </div>
-        ) : null}
+    <section className="space-y-4" aria-label={labels.title}>
+      <AuditToolbar
+        draft={draft}
+        members={members}
+        items={audit.items}
+        t={t}
+        onFilter={setFilter}
+        onQuery={setQuery}
+        onReset={() => {
+          setDraft(EMPTY_FILTERS);
+          router.replace(pathname, { scroll: false });
+        }}
+      />
+
+      <div className="border-border bg-card rounded-lg border shadow-sm">
+        <div className="border-border flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3">
+          <p className="text-sm font-medium tabular-nums">{t("eventCount", { count: total })}</p>
+          {canExport ? (
+            <AuditExportControls
+              busy={busy}
+              format={exportFormat}
+              range={range}
+              labels={labels}
+              onFormat={setExportFormat}
+              onRange={setRange}
+              onExport={exportAudit}
+            />
+          ) : null}
+        </div>
+
+        <AuditTableView
+          audit={audit}
+          actors={actors}
+          selected={selected}
+          t={t}
+          formatDate={formatDate}
+          noAudit={labels.noAudit}
+          onSelect={setSelected}
+        />
+
+        <div className="flex flex-wrap items-center justify-between gap-3 px-4">
+          <PeoplePager
+            kind="events"
+            total={total}
+            page={page}
+            pageSize={pageSize}
+            onPage={(next) => {
+              push({ page: String(next) });
+            }}
+          />
+          <label className="text-muted-foreground flex items-center gap-2 text-sm">
+            {t("rowsPerPage")}
+            <select
+              value={pageSize}
+              aria-label={t("rowsPerPage")}
+              className="border-input bg-background h-11 rounded-sm border px-2 text-sm"
+              onChange={(event) => {
+                push({ size: event.target.value, page: "1" });
+              }}
+            >
+              {AUDIT_PAGE_SIZES.map((size) => (
+                <option key={size} value={size}>
+                  {size}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
       </div>
-      {audit.items.length ? (
-        <ol className="divide-border divide-y text-sm">
-          {audit.items.map((item) => (
-            <AuditItem key={item.audit_id} item={item} actors={actors} />
-          ))}
-        </ol>
-      ) : (
-        <p className="text-muted-foreground text-sm">{labels.noAudit}</p>
-      )}
       {message ? (
         <p className="text-muted-foreground text-sm" role="status" aria-live="polite">
           {message}
         </p>
       ) : null}
+
+      <AuditDrawer
+        item={selected}
+        actor={selected?.actor_account_id ? actors.get(selected.actor_account_id) : undefined}
+        onOpenChange={(open) => {
+          if (!open) setSelected(null);
+        }}
+      />
     </section>
   );
 }
@@ -207,97 +301,4 @@ function csvCell(value: unknown): string {
           ? value.toString()
           : JSON.stringify(value);
   return `"${text.replaceAll('"', '""')}"`;
-}
-
-type AuditEntry = CorporateAuditList["items"][number];
-
-function AuditItem({ item, actors }: { item: AuditEntry; actors: Map<string, string | null> }) {
-  const t = useTranslations("corporate.auditUi");
-  const formatDate = useFormatter();
-  const diff = payloadDiff(item.payload);
-  return (
-    <li className="grid gap-1 py-3 sm:grid-cols-[1fr_auto]">
-      <span>
-        <strong className="font-medium">{auditActionLabel(item.action, t)}</strong>
-        <span className="text-muted-foreground">
-          {" "}
-          ·{" "}
-          {item.outcome === "succeeded"
-            ? t("outcomes.succeeded")
-            : item.outcome === "denied"
-              ? t("outcomes.denied")
-              : t("outcomes.failed")}
-        </span>
-      </span>
-      <time className="text-muted-foreground" dateTime={item.created_at}>
-        {formatDate.dateTime(new Date(item.created_at), {
-          dateStyle: "medium",
-          timeStyle: "short",
-        })}
-      </time>
-      <span className="text-muted-foreground sm:col-span-2">
-        {item.actor_type === "user" &&
-        item.actor_account_id &&
-        actors.has(item.actor_account_id) ? (
-          <Link
-            href={`/corporate/employees/${item.actor_account_id}`}
-            className="underline underline-offset-4"
-          >
-            {actors.get(item.actor_account_id)}
-          </Link>
-        ) : (
-          t(`actors.${item.actor_type}`)
-        )}
-        {" · "}
-        {t.has(`targets.${item.target_table}`)
-          ? t(`targets.${item.target_table}`)
-          : item.target_table}
-        {": "}
-        <span className="font-mono text-xs">{item.target_id}</span>
-      </span>
-      {item.reason ? (
-        <span className="text-muted-foreground sm:col-span-2">
-          {t("reason")}: {item.reason}
-        </span>
-      ) : null}
-      {diff.length ? (
-        <ul className="text-muted-foreground mt-1 space-y-0.5 text-xs sm:col-span-2">
-          {diff.map(([field, before, after]) => (
-            <li key={field} className="font-mono">
-              {field}: {before} → {after}
-            </li>
-          ))}
-        </ul>
-      ) : null}
-    </li>
-  );
-}
-
-type DiffRow = [field: string, before: string, after: string];
-
-const DIFF_LIMIT = 8;
-
-function payloadDiff(payload: Record<string, unknown>): DiffRow[] {
-  const before = isDiffRecord(payload.before) ? payload.before : null;
-  const after = isDiffRecord(payload.after) ? payload.after : null;
-  if (!before && !after) return [];
-  const rows: DiffRow[] = [];
-  const keys = new Set([...Object.keys(before ?? {}), ...Object.keys(after ?? {})]);
-  for (const field of keys) {
-    const oldValue = formatDiffValue(before?.[field]);
-    const newValue = formatDiffValue(after?.[field]);
-    if (oldValue !== newValue) rows.push([field, oldValue, newValue]);
-    if (rows.length >= DIFF_LIMIT) break;
-  }
-  return rows;
-}
-
-function isDiffRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function formatDiffValue(value: unknown): string {
-  if (value === null || value === undefined) return "—";
-  const text = typeof value === "string" ? value : JSON.stringify(value);
-  return text.length > 80 ? `${text.slice(0, 80)}…` : text;
 }

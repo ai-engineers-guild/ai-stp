@@ -2,9 +2,12 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 import { StatePanel } from "@/components/molecules/state-panel";
 import { CorporateServicePrincipalsPanel } from "@/components/organisms/corporate-service-principals-panel";
 import { CorporateMembershipPolicyControls } from "@/components/organisms/corporate-invitations-panel";
+import { CorporateSsoControls } from "@/components/organisms/corporate-sso-controls";
 import { readCorporateMembershipPolicy } from "@/lib/api/corporate-invitations";
+import { readCorporateSso } from "@/lib/api/corporate-sso";
 import { readCorporateContext, readCorporateWorkspace } from "@/lib/api/corporate";
 import { requireSession, sessionCookieValue } from "@/lib/auth/require-session";
+import { getEnv } from "@/lib/env";
 import { readCsrfToken } from "@/lib/auth/session";
 import { PeopleHeader } from "@/app/[locale]/(site)/corporate/admins/people-shared";
 
@@ -30,10 +33,13 @@ export default async function CorporateSecurityPage({
       <StatePanel kind="error" title={hub("security")} description={technology("forbidden")} />
     );
   const organizationId = context.organization.organization_id;
-  const [workspace, policy] = await Promise.all([
+  const [workspace, policy, sso] = await Promise.all([
     canReadPrincipals ? readCorporateWorkspace(session, false) : Promise.resolve(null),
     canManageDomains
       ? readCorporateMembershipPolicy(session, organizationId)
+      : Promise.resolve(null),
+    canManageDomains
+      ? readCorporateSso(session, organizationId).catch(() => null)
       : Promise.resolve(null),
   ]);
   const authority = {
@@ -43,12 +49,24 @@ export default async function CorporateSecurityPage({
   };
   return (
     <div className="min-w-0 space-y-6">
-      <PeopleHeader section={hub("security")} current={hub("security")} />
+      <PeopleHeader
+        section={hub("security")}
+        current={hub("security")}
+        description={corporate("securityPageDescription")}
+      />
       {policy ? (
         <CorporateMembershipPolicyControls
           {...authority}
           allowedDomains={policy.allowed_email_domains}
           peopleVisibility={policy.people_visibility}
+        />
+      ) : null}
+      {canManageDomains ? (
+        <CorporateSsoControls
+          {...authority}
+          sso={sso}
+          canManage={canManageDomains}
+          deploymentProviders={getEnv().AI_STP_AUTH_SSO_PROVIDERS}
         />
       ) : null}
       {workspace?.servicePrincipals ? (

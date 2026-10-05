@@ -172,9 +172,7 @@ it("clears an assignment from the detail panel", async () => {
   renderPanel();
   // Cid Carrier holds jt_pm; open its detail drawer via the row.
   await user.click(screen.getByRole("cell", { name: "Project manager" }));
-  await user.click(
-    await screen.findByRole("button", { name: "personActions:Cid Carrier" }),
-  );
+  await user.click(await screen.findByRole("button", { name: "personActions:Cid Carrier" }));
   await user.click(await screen.findByRole("menuitem", { name: "removeAssignment" }));
   await waitFor(() => {
     expect(mutation).toHaveBeenCalled();

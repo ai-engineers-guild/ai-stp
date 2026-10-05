@@ -14,8 +14,6 @@ import type {
   CorporateProjectView,
   ProjectActivityRequest,
   ProjectActivityView,
-  TechnologyLandscapePolicyRequest,
-  TechnologyLandscapePolicyView,
 } from "@/lib/api/generated/types.gen";
 
 export type GovernanceAuthority = {
@@ -138,61 +136,6 @@ export function CategoryLifecycleControls({
       </div>
       {mutation.message && <p role="status">{mutation.message}</p>}
     </div>
-  );
-}
-
-export function TechnologyActivityPolicy({
-  policy,
-  ...authority
-}: Authority & {
-  policy: TechnologyLandscapePolicyView;
-}) {
-  const t = useTranslations("technology");
-  const revision = useRef(policy.revision);
-  const mutation = useGovernanceMutation(authority);
-  return (
-    <form
-      className="max-w-prose space-y-4"
-      aria-busy={mutation.busy}
-      onSubmit={(event) => {
-        event.preventDefault();
-        const months = Number(new FormData(event.currentTarget).get("inactivity_months"));
-        if (!Number.isSafeInteger(months) || months < 1 || months > 120) return;
-        const effect = {
-          inactivity_months: months,
-          expected_revision: revision.current,
-        } satisfies Omit<
-          TechnologyLandscapePolicyRequest,
-          "schema_version" | "authorization_revision" | "idempotency_key"
-        >;
-        mutation.save(
-          `/v1/corporate/organizations/${authority.organizationId}/technology-landscape-policy`,
-          effect,
-          "PUT",
-          () => {
-            revision.current += 1;
-          },
-        );
-      }}
-    >
-      <h2 className="text-xl font-medium">{t("activityPolicy")}</h2>
-      <p className="text-muted-foreground text-sm">{t("activityPolicyDescription")}</p>
-      <Label htmlFor="policy-months">{t("inactivityMonths")}</Label>
-      <Input
-        id="policy-months"
-        name="inactivity_months"
-        type="number"
-        min={1}
-        max={120}
-        required
-        defaultValue={policy.inactivity_months}
-        disabled={mutation.busy}
-      />
-      <Button type="submit" size="lg" disabled={mutation.busy}>
-        {t(mutation.busy ? "saving" : "saveChanges")}
-      </Button>
-      {mutation.message && <p role="status">{mutation.message}</p>}
-    </form>
   );
 }
 

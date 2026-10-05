@@ -10,6 +10,61 @@ export type CorporateRailEntry = CorporateNavItem & {
   children?: CorporateNavItem[];
 };
 
+const ADMIN_GROUP_ICONS = {
+  peopleAndAccess: "team",
+  referenceData: "technology",
+  security: "lock",
+  audit: "list",
+} as const;
+
+/** Administration rail: flat items plus disclosure groups, single-child groups hoisted. */
+function administrationEntries(
+  allowed: readonly CorporateNavPage[],
+  item: (entry: CorporateNavPage) => CorporateNavItem,
+): CorporateRailEntry[] {
+  // The server list covers every corporate context; this rail owns only the
+  // administration pages plus the explicit landscape cross-link below.
+  const administration = allowed.filter((entry) => entry.context === "administration");
+  const children = new Map<NonNullable<CorporateNavPage["group"]>, CorporateNavItem[]>();
+  for (const entry of administration) {
+    if (!entry.rail || !entry.group) continue;
+    const bucket = children.get(entry.group) ?? [];
+    bucket.push(item(entry));
+    children.set(entry.group, bucket);
+  }
+  // The technology landscape directory is also reachable from Reference data.
+  children
+    .get("referenceData")
+    ?.push(...allowed.filter((entry) => entry.id === "landscape").map(item));
+  const entries: CorporateRailEntry[] = [];
+  const emitted = new Set<string>();
+  for (const entry of administration) {
+    if (!entry.rail) continue;
+    if (!entry.group) {
+      entries.push(item(entry));
+      continue;
+    }
+    if (emitted.has(entry.group)) continue;
+    emitted.add(entry.group);
+    const bucket = children.get(entry.group) ?? [];
+    const [only] = bucket;
+    // A disclosure with one child reads as noise; hoist it flat.
+    entries.push(
+      bucket.length === 1 && only
+        ? only
+        : {
+            id: `group-${entry.group}`,
+            label: entry.group,
+            icon: ADMIN_GROUP_ICONS[entry.group],
+            href: "",
+            active: false,
+            children: bucket,
+          },
+    );
+  }
+  return entries;
+}
+
 /** Presentation of the server's allowed IDs. It never infers authority from a URL. */
 export function resolveCorporateRail(
   pathname: string,
@@ -32,23 +87,7 @@ export function resolveCorporateRail(
   });
   let entries: CorporateRailEntry[];
   if (context === "administration") {
-    const groups = [
-      ["peopleAndAccess", "team"],
-      ["referenceData", "technology"],
-      ["security", "lock"],
-      ["organization", "setup"],
-      ["audit", "list"],
-    ] as const;
-    entries = groups.flatMap(([id, icon]) => {
-      const children = allowed.filter((entry) => entry.group === id && entry.rail).map(item);
-      // The technology landscape directory is also reachable from Reference data.
-      if (id === "referenceData") {
-        children.push(...allowed.filter((entry) => entry.id === "landscape").map(item));
-      }
-      return children.length
-        ? [{ id: `group-${id}`, label: id, icon, href: "", active: false, children }]
-        : [];
-    });
+    entries = administrationEntries(allowed, item);
   } else {
     entries = allowed
       .filter((entry) => entry.root)

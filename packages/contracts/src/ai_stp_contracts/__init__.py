@@ -79,6 +79,7 @@ from ai_stp_contracts.context import (
 from ai_stp_contracts.corporate import (
     CorporateAuditEntry,
     CorporateAuditExport,
+    CorporateAuditExportQuery,
     CorporateAuditList,
     CorporateAuditQuery,
     CorporateBinding,
@@ -199,6 +200,7 @@ __all__ = [
     "ComponentVersionResponse",
     "CorporateAuditEntry",
     "CorporateAuditExport",
+    "CorporateAuditExportQuery",
     "CorporateAuditList",
     "CorporateAuditQuery",
     "CorporateBinding",

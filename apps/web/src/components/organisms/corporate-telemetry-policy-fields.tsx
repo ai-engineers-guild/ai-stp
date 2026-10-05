@@ -1,60 +1,59 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import type { useTranslations } from "next-intl";
 
 import { Input } from "@/components/atoms/input";
 import { Label } from "@/components/atoms/label";
-import { Switch } from "@/components/atoms/switch";
 import { Textarea } from "@/components/atoms/textarea";
+import { FieldHint } from "@/components/molecules/field-hint";
+import { InfoNote } from "@/components/molecules/info-note";
+import { SettingsSection } from "@/components/molecules/settings-section";
+
 import type { CorporateTelemetryPolicyView } from "@/lib/api/generated/types.gen";
-import { Icon } from "@/theme";
 
 type T = ReturnType<typeof useTranslations>;
 
 export const selectClass =
   "border-input bg-background text-foreground focus-visible:ring-ring h-11 w-full rounded-sm border px-3 text-sm focus-visible:ring-2";
 
-/** "?" glyph next to a label; the explanation rides the title for pointer
- * users and an sr-only span for assistive tech. */
-export function FieldHint({ text }: { text: string }) {
-  return (
-    <span className="text-muted-foreground inline-flex align-middle" title={text}>
-      <Icon name="help" size="sm" />
-      <span className="sr-only">{text}</span>
-    </span>
-  );
+export { FieldHint };
+
+const RETENTION_PRESETS = [30, 90, 180, 365, 730, 1095] as const;
+
+// Memoized snapshots for useSyncExternalStore: the hook polls its snapshot, so
+// each call must return a stable reference for the same input.
+const NO_SUBSCRIBE = () => () => {};
+const zoneCache = new Map<string, readonly string[]>();
+const singleZoneCache = new Map<string, readonly string[]>();
+
+function browserZones(current: string): readonly string[] {
+  let zones = zoneCache.get(current);
+  if (!zones) {
+    let all: readonly string[] = [];
+    try {
+      all = Intl.supportedValuesOf("timeZone");
+    } catch {
+      // Older runtimes lack supportedValuesOf; the current zone alone is enough.
+    }
+    // Some ICU builds omit "UTC"; the select must always contain its own value,
+    // otherwise an untouched field silently submits the first listed zone.
+    zones = all.includes(current) ? all : [current, ...all];
+    zoneCache.set(current, zones);
+  }
+  return zones;
 }
 
-export function SwitchRow({
-  id,
-  name,
-  label,
-  hint,
-  value,
-  disabled,
-}: {
-  id: string;
-  name: string;
-  label: string;
-  hint: string | undefined;
-  value: boolean;
-  disabled: boolean;
-}) {
-  return (
-    <div className="flex items-center justify-between gap-4">
-      <span className="flex items-center gap-1">
-        <Label htmlFor={id} className="font-normal">
-          {label}
-        </Label>
-        {hint ? <FieldHint text={hint} /> : null}
-      </span>
-      <Switch id={id} name={name} defaultChecked={value} disabled={disabled} aria-label={label} />
-    </div>
-  );
+function initialZones(current: string): readonly string[] {
+  let zones = singleZoneCache.get(current);
+  if (!zones) {
+    zones = [current];
+    singleZoneCache.set(current, zones);
+  }
+  return zones;
 }
 
-function durationLabel(seconds: number, t: T): string {
+export function durationLabel(seconds: number, t: T): string {
   if (seconds % 86400 === 0) return t("daysLabel", { count: seconds / 86400 });
   if (seconds % 3600 === 0) return t("hoursLabel", { count: seconds / 3600 });
   return t("minutesLabel", { count: Math.max(1, Math.round(seconds / 60)) });
@@ -98,10 +97,7 @@ export function PresetCadenceField({
   const effective = choice === "custom" ? custom * customUnit : Number(choice);
   return (
     <div className="space-y-2">
-      <span className="flex items-center gap-1">
-        <Label htmlFor={id}>{label}</Label>
-        {hint ? <FieldHint text={hint} /> : null}
-      </span>
+      <Label htmlFor={id}>{label}</Label>
       <input type="hidden" name={name} value={effective} />
       <select
         id={id}
@@ -133,6 +129,74 @@ export function PresetCadenceField({
           }}
         />
       )}
+      {hint ? <p className="text-muted-foreground text-xs">{hint}</p> : null}
+    </div>
+  );
+}
+
+/** Preset picker for a *_days field: the submitted hidden value is days. */
+export function PresetDaysField({
+  id,
+  name,
+  label,
+  hint,
+  presets,
+  days,
+  customMin = 1,
+  customMax = 3650,
+  disabled,
+  t,
+}: {
+  id: string;
+  name: string;
+  label: string;
+  hint: string | undefined;
+  presets: readonly number[];
+  days: number;
+  customMin?: number;
+  customMax?: number;
+  disabled: boolean;
+  t: T;
+}) {
+  const matched = presets.includes(days);
+  const [choice, setChoice] = useState(matched ? String(days) : "custom");
+  const [custom, setCustom] = useState(Math.min(customMax, Math.max(customMin, days)));
+  const effective = choice === "custom" ? custom : Number(choice);
+  return (
+    <div className="space-y-2">
+      <Label htmlFor={id}>{label}</Label>
+      <input type="hidden" name={name} value={effective} />
+      <select
+        id={id}
+        value={choice}
+        disabled={disabled}
+        className={selectClass}
+        onChange={(event) => {
+          setChoice(event.target.value);
+        }}
+      >
+        {presets.map((preset) => (
+          <option key={preset} value={preset}>
+            {t("daysLabel", { count: preset })}
+          </option>
+        ))}
+        <option value="custom">{t("custom")}</option>
+      </select>
+      {choice === "custom" && (
+        <Input
+          type="number"
+          min={customMin}
+          max={customMax}
+          required
+          value={custom}
+          disabled={disabled}
+          aria-label={t("customRetentionDays")}
+          onChange={(event) => {
+            setCustom(Number(event.target.value));
+          }}
+        />
+      )}
+      {hint ? <p className="text-muted-foreground text-xs">{hint}</p> : null}
     </div>
   );
 }
@@ -163,10 +227,7 @@ export function UnitSecondsField({
   const [value, setValue] = useState(Math.round(seconds / unit));
   return (
     <div className="space-y-2">
-      <span className="flex items-center gap-1">
-        <Label htmlFor={id}>{label}</Label>
-        {hint ? <FieldHint text={hint} /> : null}
-      </span>
+      <Label htmlFor={id}>{label}</Label>
       <input type="hidden" name={name} value={value * unit} />
       <Input
         id={id}
@@ -180,6 +241,7 @@ export function UnitSecondsField({
           setValue(Number(event.target.value));
         }}
       />
+      {hint ? <p className="text-muted-foreground text-xs">{hint}</p> : null}
     </div>
   );
 }
@@ -201,7 +263,8 @@ export function AdvancedDisclosure({
   );
 }
 
-export function PrivacyReportingSection({
+/** Data-retention tab: legal basis, retention windows, timezone, and notice. */
+export function TelemetryRetentionTab({
   policy,
   disabled,
   t,
@@ -210,89 +273,105 @@ export function PrivacyReportingSection({
   disabled: boolean;
   t: T;
 }) {
+  const current = policy?.report_timezone ?? "UTC";
+  // ICU lists differ between the server runtime and each browser, so the full
+  // option set mounts client-side only; SSR and first render show the current
+  // value alone — identical markup, no hydration mismatch.
+  const timezones = useSyncExternalStore(
+    NO_SUBSCRIBE,
+    () => browserZones(current),
+    () => initialZones(current),
+  );
   return (
-    <section className="border-border space-y-4 border-t pt-4">
-      <h3 className="text-sm font-medium">{t("sectionPrivacyReporting")}</h3>
-      <div className="space-y-2">
-        <span className="flex items-center gap-1">
-          <Label htmlFor="telemetry-legal-basis">{t("telemetryLegalBasis")}</Label>
-          <FieldHint text={t("telemetryLegalBasisHint")} />
-        </span>
-        <select
-          id="telemetry-legal-basis"
-          name="legal_basis"
-          required
-          defaultValue={policy?.legal_basis ?? ""}
-          className={selectClass}
-        >
-          <option value="" disabled>
-            {t("chooseTelemetryLegalBasis")}
-          </option>
-          <option value="consent">{t("telemetryBasisConsent")}</option>
-          <option value="contract">{t("telemetryBasisContract")}</option>
-          <option value="legitimate_interest">{t("telemetryBasisLegitimateInterest")}</option>
-        </select>
-      </div>
-      <div className="space-y-2">
-        <span className="flex items-center gap-1">
-          <Label htmlFor="telemetry-raw-retention">{t("telemetryRawRetention")}</Label>
-          <FieldHint text={t("telemetryRawRetentionHint")} />
-        </span>
-        <Input
-          id="telemetry-raw-retention"
-          name="raw_retention_days"
-          type="number"
-          min={1}
-          max={3650}
-          required
-          defaultValue={policy?.raw_retention_days ?? 90}
-          disabled={disabled}
-        />
-      </div>
-      <AdvancedDisclosure title={t("advanced")}>
-        <div className="space-y-2">
-          <span className="flex items-center gap-1">
-            <Label htmlFor="telemetry-aggregate-retention">
-              {t("telemetryAggregateRetention")}
-            </Label>
-            <FieldHint text={t("telemetryAggregateRetentionHint")} />
-          </span>
-          <Input
-            id="telemetry-aggregate-retention"
-            name="aggregate_retention_days"
-            type="number"
-            min={1}
-            max={3650}
-            required
-            defaultValue={policy?.aggregate_retention_days ?? 365}
+    <>
+      <SettingsSection
+        icon="technology"
+        title={t("retentionCardTitle")}
+        description={t("retentionCardDescription")}
+      >
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-2">
+            <Label htmlFor="telemetry-legal-basis">{t("telemetryLegalBasis")}</Label>
+            <select
+              id="telemetry-legal-basis"
+              name="legal_basis"
+              required
+              defaultValue={policy?.legal_basis ?? ""}
+              disabled={disabled}
+              className={selectClass}
+            >
+              <option value="" disabled>
+                {t("chooseTelemetryLegalBasis")}
+              </option>
+              <option value="consent">{t("telemetryBasisConsent")}</option>
+              <option value="contract">{t("telemetryBasisContract")}</option>
+              <option value="legitimate_interest">{t("telemetryBasisLegitimateInterest")}</option>
+            </select>
+            <p className="text-muted-foreground text-xs">{t("telemetryLegalBasisCaption")}</p>
+          </div>
+          <PresetDaysField
+            id="telemetry-raw-retention"
+            name="raw_retention_days"
+            label={t("telemetryRawRetention")}
+            hint={t("telemetryRawRetentionCaption")}
+            presets={RETENTION_PRESETS}
+            days={policy?.raw_retention_days ?? 90}
             disabled={disabled}
+            t={t}
           />
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="telemetry-notice">{t("telemetryNotice")}</Label>
-          <Textarea
-            id="telemetry-notice"
-            name="notice_text"
-            maxLength={4000}
-            defaultValue={policy?.notice_text ?? ""}
-            disabled={disabled}
-          />
+      </SettingsSection>
+      <SettingsSection
+        icon="setup"
+        title={t("advancedSettingsTitle")}
+        description={t("advancedSettingsDescription")}
+      >
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-4">
+            <PresetDaysField
+              id="telemetry-aggregate-retention"
+              name="aggregate_retention_days"
+              label={t("telemetryAggregateRetention")}
+              hint={t("telemetryAggregateRetentionCaption")}
+              presets={RETENTION_PRESETS}
+              days={policy?.aggregate_retention_days ?? 365}
+              disabled={disabled}
+              t={t}
+            />
+            <div className="space-y-2">
+              <Label htmlFor="report-timezone">{t("reportTimezone")}</Label>
+              <select
+                id="report-timezone"
+                name="report_timezone"
+                required
+                defaultValue={current}
+                disabled={disabled}
+                className={selectClass}
+              >
+                {timezones.map((zone) => (
+                  <option key={zone} value={zone}>
+                    {zone}
+                  </option>
+                ))}
+              </select>
+              <p className="text-muted-foreground text-xs">{t("reportTimezoneCaption")}</p>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="telemetry-notice">{t("telemetryNotice")}</Label>
+            <Textarea
+              id="telemetry-notice"
+              name="notice_text"
+              maxLength={4000}
+              defaultValue={policy?.notice_text ?? ""}
+              disabled={disabled}
+              className="min-h-24"
+            />
+            <p className="text-muted-foreground text-xs">{t("telemetryNoticeCaption")}</p>
+          </div>
         </div>
-        <div className="space-y-2">
-          <span className="flex items-center gap-1">
-            <Label htmlFor="report-timezone">{t("reportTimezone")}</Label>
-            <FieldHint text={t("reportTimezoneHint")} />
-          </span>
-          <Input
-            id="report-timezone"
-            name="report_timezone"
-            required
-            maxLength={64}
-            defaultValue={policy?.report_timezone ?? "UTC"}
-            disabled={disabled}
-          />
-        </div>
-      </AdvancedDisclosure>
-    </section>
+        <InfoNote className="mt-4">{t("telemetryScopeNote")}</InfoNote>
+      </SettingsSection>
+    </>
   );
 }

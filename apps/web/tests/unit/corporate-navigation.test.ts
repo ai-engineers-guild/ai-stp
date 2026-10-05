@@ -48,7 +48,9 @@ describe("corporateNavPage", () => {
       ["/corporate/admins/audit", "auditJournal"],
       ["/corporate/admins/employee-access/account_1", "employeeAccess"],
       ["/corporate/admins/job-titles", "jobTitles"],
-      ["/corporate/admins/settings", "settings"],
+      ["/corporate/admins/settings", null],
+      ["/corporate/admins/security", "security"],
+      ["/corporate/admins/telemetry", "telemetry"],
       ["/corporate/roles/role_1", "roleDetail"],
       ["/corporate/dashboard", "dashboard"],
       ["/corporate/account", null],
@@ -96,14 +98,27 @@ describe("resolveCorporateNav", () => {
       "invitations",
       "accessMatrix",
       "roles",
-      "auditJournal",
       "employeeAccess",
       "jobTitles",
       "technologyCategories",
-      "settings",
-      "security",
     ]);
     expect(nav.items.find((item) => item.active)?.id).toBe("accessMatrix");
+  });
+
+  it("gates each administration page on its own capability family", () => {
+    const caps = [...ADMIN, "audit.list", "service_principal.list", "telemetry.read"];
+    const nav = resolveCorporateNav("/corporate/admins/telemetry", caps);
+    expect(nav.items.map((item) => item.id)).toContain("telemetry");
+    expect(nav.items.map((item) => item.id)).toContain("auditJournal");
+    expect(nav.items.map((item) => item.id)).toContain("security");
+    expect(nav.items.map((item) => item.id)).not.toContain("settings");
+    expect(nav.items.find((item) => item.active)?.id).toBe("telemetry");
+    // Managing telemetry alone does not expose the audit journal.
+    expect(
+      resolveCorporateNav("/corporate/admins/audit", [...ADMIN, "telemetry.manage"]).items.map(
+        (item) => item.id,
+      ),
+    ).not.toContain("auditJournal");
   });
 
   it("lights the administration index for the employee-access route", () => {
@@ -151,8 +166,13 @@ describe("corporateNavPageIds", () => {
   it("lists only pages the capabilities allow", () => {
     expect(corporateNavPageIds([])).toEqual(["overview", "organization"]);
     expect(corporateNavPageIds(ADMIN)).toContain("administration");
-    expect(corporateNavPageIds(ADMIN)).toContain("auditJournal");
+    expect(corporateNavPageIds(ADMIN)).not.toContain("auditJournal");
     expect(corporateNavPageIds(ADMIN)).toContain("employeeAccess");
+    const full = [...ADMIN, "audit.list", "audit.export", "telemetry.read", "landscape.manage"];
+    expect(corporateNavPageIds(full)).toEqual(
+      expect.arrayContaining(["auditJournal", "telemetry"]),
+    );
+    expect(corporateNavPageIds(full)).not.toContain("settings");
   });
 });
 

@@ -84,7 +84,6 @@ const LEGACY_ADMIN_SEGMENTS: Record<string, string> = {
   members: "employee-access",
   roles: "roles",
   security: "security",
-  settings: "settings",
   "tech-categories": "tech-categories",
 };
 
@@ -118,7 +117,6 @@ const LEGACY_ORG_ADMIN_PAGES = new Set([
   "members",
   "roles",
   "security",
-  "settings",
   "tech-categories",
 ]);
 

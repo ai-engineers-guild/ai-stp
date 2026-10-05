@@ -262,6 +262,20 @@ async def _audit_http_outcome(request: Request, error: ApiError) -> None:
                     else error.category.value
                 ),
                 request_id=_request_id(request),
+                # Transport metadata only: method/status/code/field names are
+                # non-sensitive; request bodies and params never enter payloads.
+                # Keys avoid redact substrings (e.g. "code") so they survive
+                # emit_audit's payload scrubbing.
+                payload={
+                    "method": request.method.upper(),
+                    "http_status": int(CATEGORY_STATUS[error.category]),
+                    "error": CATEGORY_CODE[error.category],
+                    **(
+                        {"detail_fields": error.details["fields"]}
+                        if isinstance(error.details.get("fields"), str) and error.details["fields"]
+                        else {}
+                    ),
+                },
             )
             await db.commit()
     except Exception:
@@ -277,7 +291,12 @@ async def _validation_handler(request: Request, exc: Exception) -> JSONResponse:
             sorted(".".join(str(part) for part in error["loc"]) for error in exc.errors())
         )
     await _audit_http_outcome(
-        request, ApiError(ErrorCategory.VALIDATION, "request validation failed")
+        request,
+        ApiError(
+            ErrorCategory.VALIDATION,
+            "request validation failed",
+            details={"fields": fields} if fields else {},
+        ),
     )
     return _build(
         request, ErrorCategory.VALIDATION, "request validation failed", {"fields": fields}

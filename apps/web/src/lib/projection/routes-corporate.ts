@@ -1,6 +1,10 @@
 import { getTranslations } from "next-intl/server";
 
 import { searchComponents } from "@/lib/api/catalog";
+import { readCorporateContext } from "@/lib/api/corporate";
+import { apiRequest } from "@/lib/api/http";
+import type { CorporateTelemetryPolicyView } from "@/lib/api/generated/types.gen";
+import { sessionCookieValue } from "@/lib/auth/require-session";
 import { corporateNavPage } from "@/lib/corporate-navigation";
 import { presentPage } from "@/lib/projection/presenters";
 import type { MachineRoute } from "@/lib/projection/route-table";
@@ -76,6 +80,37 @@ export const CORPORATE_ROUTES: MachineRoute[] = [
       return presentPage({ title: t("title"), links: [[t("title"), "/corporate/reports"]] });
     },
   })),
+  {
+    pattern: "corporate/admins/telemetry",
+    resolve: async () => {
+      const t = await getTranslations("technology");
+      const hub = await getTranslations("hub");
+      const session = (await sessionCookieValue()) ?? "";
+      const context = await readCorporateContext(session);
+      const title = hub("telemetry");
+      if (!context) return presentPage({ title, summary: t("empty") });
+      if (!context.capabilities.includes("telemetry.read"))
+        return presentPage({ title, summary: t("forbidden") });
+      const policy = await apiRequest<CorporateTelemetryPolicyView>(
+        `/v1/corporate/organizations/${context.organization.organization_id}/telemetry/policy`,
+        { sessionToken: session },
+      ).catch(() => null);
+      if (!policy) return presentPage({ title, summary: t("telemetryUnavailable") });
+      const on = (v: boolean) => t(v ? "policyEnabled" : "policyDisabled");
+      return presentPage({
+        title,
+        fields: [
+          [t("heartbeatCardTitle"), on(policy.heartbeat_enabled)],
+          [t("heartbeatInterval"), `${policy.heartbeat_interval_seconds}s`],
+          [t("inventoryScanReporting"), on(policy.inventory_scan_enabled)],
+          [t("usageCollectionReporting"), on(policy.usage_collection_enabled)],
+          [t("telemetryRawRetention"), String(policy.raw_retention_days)],
+          [t("telemetryAggregateRetention"), String(policy.aggregate_retention_days)],
+          [t("reportTimezone"), policy.report_timezone],
+        ],
+      });
+    },
+  },
   // ADR-0219: the machine inventory names the same destinations the rail owns.
   ...(
     [
@@ -88,8 +123,8 @@ export const CORPORATE_ROUTES: MachineRoute[] = [
       ["corporate/admins/audit", "/corporate/admins/members"],
       ["corporate/admins/job-titles", "/corporate/admins/members"],
       ["corporate/admins/tech-categories", "/corporate/admins/members"],
-      ["corporate/admins/settings", "/corporate/admins/members"],
       ["corporate/admins/security", "/corporate/admins/members"],
+      ["corporate/admins/telemetry", "/corporate/admins/members"],
       ["corporate/admins/employee-access", "/corporate/admins/members"],
       ["corporate/admins/employee-access/:accountId", "/corporate/admins/members"],
     ] as const

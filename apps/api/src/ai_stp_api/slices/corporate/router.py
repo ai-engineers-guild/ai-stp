@@ -1168,8 +1168,13 @@ async def list_audit(
     actor_account_id: Annotated[str | None, Query(max_length=64)] = None,
     action: Annotated[str | None, Query(min_length=1, max_length=128)] = None,
     target_id: Annotated[str | None, Query(min_length=1, max_length=128)] = None,
+    target_table: Annotated[str | None, Query(min_length=1, max_length=128)] = None,
+    outcome: Annotated[Literal["succeeded", "denied", "failed"] | None, Query()] = None,
+    q: Annotated[str | None, Query(min_length=1, max_length=128)] = None,
     created_from: Timestamp | None = None,
     created_to: Timestamp | None = None,
+    limit: Annotated[int, Query(ge=1, le=100)] = 100,
+    offset: Annotated[int, Query(ge=0)] = 0,
 ) -> CorporateAuditList:
     return await service.list_audit(
         db,
@@ -1180,8 +1185,13 @@ async def list_audit(
         actor_account_id=actor_account_id,
         action=action,
         target_id=target_id,
+        target_table=target_table,
+        outcome=outcome,
+        q=q,
         created_from=created_from,
         created_to=created_to,
+        limit=limit,
+        offset=offset,
         request_id=_request_id(request),
     )
 
@@ -1200,8 +1210,13 @@ async def export_audit(
     actor_account_id: Annotated[str | None, Query(max_length=64)] = None,
     action: Annotated[str | None, Query(min_length=1, max_length=128)] = None,
     target_id: Annotated[str | None, Query(min_length=1, max_length=128)] = None,
+    target_table: Annotated[str | None, Query(min_length=1, max_length=128)] = None,
+    outcome: Annotated[Literal["succeeded", "denied", "failed"] | None, Query()] = None,
+    q: Annotated[str | None, Query(min_length=1, max_length=128)] = None,
     created_from: Timestamp | None = None,
     created_to: Timestamp | None = None,
+    limit: Annotated[int, Query(ge=1, le=10000)] = 10000,
+    offset: Annotated[int, Query(ge=0)] = 0,
 ) -> CorporateAuditExport:
     return await service.export_audit(
         db,
@@ -1212,7 +1227,12 @@ async def export_audit(
         actor_account_id=actor_account_id,
         action=action,
         target_id=target_id,
+        target_table=target_table,
+        outcome=outcome,
+        q=q,
         created_from=created_from,
         created_to=created_to,
+        limit=limit,
+        offset=offset,
         request_id=_request_id(request),
     )
