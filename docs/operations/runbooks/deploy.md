@@ -218,6 +218,13 @@ the new `api` and `web`: until 2026-10-05 every deploy answered 502 for about a
 minute while migrations ran a second and third time. Now `api` and `web` are each
 down only for their own restart, and `web` is replaced after the import succeeds.
 
+`api`, `worker`, `osv-refresh` and `clamav-refresh` run under Docker's init
+(`init: true`), so none of them is PID 1. PID 1 ignores a SIGTERM it does not
+handle, and a Python PID 1 that had already shut down cleanly still sat out
+the ten-second stop timeout tearing itself down over swapped-out pages. The API
+(uvicorn) and the worker end with the signal that stopped them once their own
+shutdown is done; `docker compose stop` takes well under a second for each.
+
 Before `up`, the production worker Compose configuration requires the
 `ai-stp-worker` profile (`userns`) to be loaded into the kernel. `deploy/deploy.sh` invokes
 `deploy/load-apparmor.sh` itself. The manual path uses the same script as the user who already communicates with Docker:
