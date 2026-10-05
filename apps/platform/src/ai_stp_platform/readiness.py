@@ -7,6 +7,8 @@ these: it must stay independent of dependencies.
 
 from __future__ import annotations
 
+from functools import cache
+
 import httpx
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -27,15 +29,24 @@ async def check_database(sessionmaker: async_sessionmaker[AsyncSession]) -> bool
         return False
 
 
+@cache
+def migration_head() -> str | None:
+    """The Alembic head this build ships, read once per process.
+
+    It is a property of the deployed code. Parsing every revision file took most
+    of a readiness call, synchronously, on the event loop. A failed read raises
+    and is not cached, so the next probe tries again.
+    """
+    from alembic.config import Config
+    from alembic.script import ScriptDirectory
+
+    return ScriptDirectory.from_config(Config("alembic.ini")).get_current_head()
+
+
 async def check_migrations(sessionmaker: async_sessionmaker[AsyncSession]) -> bool:
     """Report whether the database revision has reached the Alembic head."""
     try:
-        from alembic.config import Config
-        from alembic.script import ScriptDirectory
-
-        config = Config("alembic.ini")
-        script = ScriptDirectory.from_config(config)
-        head = script.get_current_head()
+        head = migration_head()
         async with sessionmaker() as session:
             result = await session.execute(text("SELECT version_num FROM alembic_version"))
             return result.scalar_one_or_none() == head
