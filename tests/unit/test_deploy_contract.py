@@ -8,6 +8,7 @@ of which must be provable from the tree that actually deploys.
 from __future__ import annotations
 
 import json
+import os
 import re
 import subprocess
 from collections.abc import Callable
@@ -338,6 +339,7 @@ def test_storage_cutover_and_backups_fail_closed() -> None:
     assert "AI_STP_ALLOW_LOCAL_BACKUP" in backup
 
 
+@pytest.mark.skipif(os.name == "nt", reason="the deploy scripts are bash on a Linux host")
 def test_the_serving_bring_up_replaces_each_service_once_in_order(tmp_path: Path) -> None:
     """Observed on 2026-10-05: the old bring-up held api and web stopped for ~65 s.
 
@@ -353,7 +355,7 @@ def test_the_serving_bring_up_replaces_each_service_once_in_order(tmp_path: Path
     shim.chmod(0o755)
     compose_file = tmp_path / "deploy" / "compose.prod.yml"
     subprocess.run(
-        ["bash", "-c", 'source deploy/lib.sh && start_serving_services'],
+        ["bash", "-c", "source deploy/lib.sh && start_serving_services"],
         check=True,
         env={
             "PATH": f"{shim.parent}:/usr/bin:/bin",
