@@ -6,6 +6,7 @@ import pytest
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from tests.unit.platform.article_fixtures import (
+    COMMIT,
     NOW,
     empty_snapshot,
     pair_snapshot,
@@ -18,6 +19,7 @@ from ai_stp_platform.content.service import (
     import_repository_snapshot,
     list_published,
     publish_staff_article,
+    repository_state,
     unpublish_staff_article,
 )
 from ai_stp_platform.models import Account
@@ -55,6 +57,55 @@ async def test_repository_import_is_atomic_and_repeatable(
         ).scalar_one()
         assert revisions == 2
         assert actives == 0
+
+
+@pytest.mark.asyncio
+async def test_a_new_commit_keeps_the_revisions_whose_content_did_not_change(
+    db_sessionmaker: async_sessionmaker[AsyncSession],
+) -> None:
+    """Every deploy imports a snapshot cut from a new commit (REQ-5406).
+
+    Production created a revision, an SEO build and a deploy-time `dateModified`
+    for each of 46 localized articles on every deploy, though no article changed.
+    """
+    moved, edited = "b" * 40, "c" * 40
+    async with db_sessionmaker() as session, session.begin():
+        await import_repository_snapshot(session, pair_snapshot(), now=NOW)
+        jobs_before = (await session.execute(select(func.count()).select_from(Job))).scalar_one()
+
+        same = await import_repository_snapshot(
+            session, pair_snapshot(commit=moved, expected_generation=1), now=NOW
+        )
+        assert (same.generation, same.created, same.activated, same.unchanged) == (1, 0, 0, 2)
+        assert (await repository_state(session)).commit == moved
+        assert (await session.execute(select(func.count()).select_from(Job))).scalar_one() == (
+            jobs_before
+        )
+
+        changed = await import_repository_snapshot(
+            session,
+            pair_snapshot(commit=edited, body_en="Pin exact versions.", expected_generation=1),
+            now=NOW,
+        )
+        assert (changed.generation, changed.created, changed.activated, changed.unchanged) == (
+            2,
+            1,
+            1,
+            1,
+        )
+        rows = await session.execute(
+            select(ArticleRevision.locale, ArticleRevision.source_ref)
+            .join(ArticleActive, ArticleActive.revision_id == ArticleRevision.id)
+            .where(ArticleActive.article_id == "article:safe-setup")
+        )
+        provenance = {row.locale: row.source_ref for row in rows}
+        # The edited locale names the commit that changed it; the other keeps
+        # the commit that introduced its content.
+        assert provenance == {"en": edited, "ru": COMMIT}
+        revisions = (
+            await session.execute(select(func.count()).select_from(ArticleRevision))
+        ).scalar_one()
+        assert revisions == 3
 
 
 @pytest.mark.asyncio

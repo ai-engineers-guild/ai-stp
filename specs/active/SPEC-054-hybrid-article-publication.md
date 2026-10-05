@@ -1,6 +1,6 @@
 ---
 description: "SPEC-054: Unified server-side publication of repository- and staff-authored articles."
-last_verified: "2026-09-20"
+last_verified: "2026-10-05"
 ---
 
 # SPEC-054: Hybrid article publication through the platform
@@ -63,9 +63,12 @@ transfer between sources without a separate migration operation.
   commit, uniqueness, and locale parity of the entire snapshot, then creates
   revisions and changes only the repository-owned active set in a single
   transaction; an error leaves the previous set and generation unchanged.
-- `REQ-5406`: Repeating the active snapshot is a no-op. A changed entry creates
-  revisions and a new generation, a new entry is activated, and a missing entry
-  is unpublished; history and the staff-owned active set are preserved.
+- `REQ-5406`: Repeating the active snapshot is a no-op. So is a snapshot of a
+  new commit whose entries differ from the active revisions only in that commit:
+  each active revision keeps the commit that introduced its content, and the
+  generation does not change. A changed entry creates revisions and a new
+  generation, a new entry is activated, and a missing entry is unpublished;
+  history and the staff-owned active set are preserved.
 - `REQ-5407`: Repository import rejects an identity already owned by `staff`,
   while a staff operation rejects a `repository` identity; source precedence
   and automatic ownership takeover are prohibited.
@@ -150,7 +153,7 @@ change after the rollback window.
 | `REQ-5401`–`REQ-5402` | A migration/storage test verifies identity, source owner, locale pair, immutable revisions, and digest changes for every public field. |
 | `REQ-5403` | Two builds of the same commit with different traversal orders produce a byte-identical snapshot without network access. |
 | `REQ-5404` | A production scenario proves the migrate→API ready→import→web ready order and that web readiness fails when import fails. |
-| `REQ-5405`–`REQ-5406` | A platform test repeats a snapshot, changes, adds, and removes an entry, and verifies the atomic active set, generation, and preserved history. |
+| `REQ-5405`–`REQ-5406` | A platform test repeats a snapshot, re-imports unchanged content from a new commit, changes, adds, and removes an entry, and verifies the atomic active set, generation, provenance, and preserved history. |
 | `REQ-5407` | A repository/staff conflict matrix rejects takeover in both directions without changing the owner or active revision. |
 | `REQ-5408` | An ASGI test publishes an RU/EN pair, rejects a stale expected digest, and unpublishes a staff article. |
 | `REQ-5409` | A public contract test combines repository/staff entries and proves redaction of unpublished content, history, and the private actor. |
