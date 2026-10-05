@@ -15,7 +15,7 @@ from collections.abc import Mapping
 from ai_stp_cli.answer import Answer
 from ai_stp_cli.application.inspect import doctor as inspect_doctor
 from ai_stp_cli.application.inspect import worst
-from ai_stp_contracts.machine_help import DoctorReport
+from ai_stp_contracts.cli.runtime import DoctorReport
 
 __all__ = ["run", "worst"]
 

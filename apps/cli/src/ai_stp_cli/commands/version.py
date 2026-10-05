@@ -5,8 +5,8 @@ from collections.abc import Mapping
 
 from ai_stp_cli.answer import Answer
 from ai_stp_cli.runtime import cli_version
+from ai_stp_contracts.cli.runtime import VersionReport
 from ai_stp_contracts.inventory_record import recorded
-from ai_stp_contracts.machine_help import VersionReport
 
 
 def run(_parameters: Mapping[str, object]) -> Answer[VersionReport]:

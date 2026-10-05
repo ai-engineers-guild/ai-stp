@@ -14,7 +14,7 @@ from ai_stp_cli.answer import Answer, with_warning
 from ai_stp_cli.cloud import session
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.secrets import open_store
-from ai_stp_contracts.machine_help import DeviceIdentity
+from ai_stp_contracts.cli.identity import DeviceIdentity
 
 
 def init(_parameters: Mapping[str, object]) -> Answer[DeviceIdentity]:

@@ -207,6 +207,49 @@ def test_a_local_command_does_not_import_the_http_stack() -> None:
     assert finished.stderr.strip().splitlines()[-1] == "False", finished.stderr
 
 
+@pytest.mark.parametrize(
+    "argv",
+    [
+        ["version", "--json"],
+        ["capabilities", "--json"],
+        ["help", "--agent"],
+        ["config", "show", "--json"],
+    ],
+)
+def test_a_local_command_loads_only_the_contract_families_it_uses(argv: list[str]) -> None:
+    """An agent's first probes import their own family, not the whole contract.
+
+    Every invocation used to import `ai_stp_contracts.machine_help` — 215
+    definitions and the catalog, corporate, publication and technology contracts
+    behind them — and the package root imported seven more modules eagerly:
+    about 0.5s of the 1.1s of user CPU `version --json` cost. `capabilities`
+    also imported the doctor checks and task-intent models it never used. The
+    families loaded here are the registry every command needs, `runtime` for
+    `version` and `config show`, and `identity` and `self_update` for the
+    checks that end each command.
+    """
+    probe = (
+        "import sys\n"
+        "from ai_stp_cli.app import main\n"
+        f"sys.argv = ['ai-stp', *{argv!r}]\n"
+        "try:\n"
+        "    main()\n"
+        "except SystemExit:\n"
+        "    pass\n"
+        "print(','.join(sorted(sys.modules)), file=sys.stderr)\n"
+    )
+    finished = subprocess.run([sys.executable, "-c", probe], capture_output=True, text=True)
+    loaded = set(finished.stderr.strip().splitlines()[-1].split(","))
+    assert "ai_stp_contracts.machine_help" not in loaded
+    assert "ai_stp_contracts.catalog" not in loaded
+    families = {
+        name.removeprefix("ai_stp_contracts.cli.")
+        for name in loaded
+        if name.startswith("ai_stp_contracts.cli.")
+    }
+    assert families == {"identity", "registry", "runtime", "self_update"}
+
+
 def test_the_contract_package_root_names_load_from_their_modules() -> None:
     """The root keeps its exported names without importing their modules.
 

@@ -12,7 +12,7 @@ from ai_stp_cli import identity
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import passports, setup_author
 from ai_stp_cli.local.database import configured_path, open_registry
-from ai_stp_contracts.machine_help import TaskAuthorOutcome, TaskQuestion
+from ai_stp_contracts.cli.tasks import TaskAuthorOutcome, TaskQuestion
 from ai_stp_foundation.canonical import JsonValue
 from ai_stp_foundation.harnesses import HARNESS_IDS
 from ai_stp_passports.versions import COMPONENT_TYPES, ComponentType

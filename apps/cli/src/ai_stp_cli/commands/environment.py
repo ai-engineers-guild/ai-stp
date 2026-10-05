@@ -17,7 +17,7 @@ from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import cache, cli_program, installation, project_passport, revisions, versions
 from ai_stp_cli.local.database import configured_path, open_readonly
 from ai_stp_cli.toolchain import install as tool_install
-from ai_stp_contracts.machine_help import EnvironmentInspection, EnvironmentRequirement
+from ai_stp_contracts.cli.install import EnvironmentInspection, EnvironmentRequirement
 from ai_stp_foundation.canonical import JsonValue
 from ai_stp_passports import ComponentVersionPassport, SetupVersionPassport
 

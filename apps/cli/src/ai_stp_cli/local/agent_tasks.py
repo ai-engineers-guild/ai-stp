@@ -10,12 +10,7 @@ from dataclasses import dataclass
 from dataclasses import replace as evolve
 from typing import Literal, cast
 
-from ai_stp_contracts.machine_help import (
-    TaskInspectOutcome,
-    TaskOutcome,
-    TaskQuestion,
-    TaskView,
-)
+from ai_stp_contracts.cli.tasks import TaskInspectOutcome, TaskOutcome, TaskQuestion, TaskView
 from ai_stp_foundation.canonical import JsonValue, canonize
 
 
@@ -278,35 +273,35 @@ def parse_outcome(raw: str) -> TaskOutcome:
     if kind == "inspect":
         return TaskInspectOutcome.model_validate(body)
     if kind == "initialize":
-        from ai_stp_contracts.machine_help import TaskInitializeOutcome
+        from ai_stp_contracts.cli.tasks import TaskInitializeOutcome
 
         return TaskInitializeOutcome.model_validate(body)
     if kind == "install":
-        from ai_stp_contracts.machine_help import TaskInstallOutcome
+        from ai_stp_contracts.cli.tasks import TaskInstallOutcome
 
         return TaskInstallOutcome.model_validate(body)
     if kind == "change":
-        from ai_stp_contracts.machine_help import TaskChangeOutcome
+        from ai_stp_contracts.cli.tasks import TaskChangeOutcome
 
         return TaskChangeOutcome.model_validate(body)
     if kind == "author":
-        from ai_stp_contracts.machine_help import TaskAuthorOutcome
+        from ai_stp_contracts.cli.tasks import TaskAuthorOutcome
 
         return TaskAuthorOutcome.model_validate(body)
     if kind == "switch":
-        from ai_stp_contracts.machine_help import TaskSwitchOutcome
+        from ai_stp_contracts.cli.tasks import TaskSwitchOutcome
 
         return TaskSwitchOutcome.model_validate(body)
     if kind == "account":
-        from ai_stp_contracts.machine_help import TaskAccountOutcome
+        from ai_stp_contracts.cli.tasks import TaskAccountOutcome
 
         return TaskAccountOutcome.model_validate(body)
     if kind == "publish":
-        from ai_stp_contracts.machine_help import TaskPublishOutcome
+        from ai_stp_contracts.cli.tasks import TaskPublishOutcome
 
         return TaskPublishOutcome.model_validate(body)
     if kind == "technology":
-        from ai_stp_contracts.machine_help import TaskTechnologyOutcome
+        from ai_stp_contracts.cli.tasks import TaskTechnologyOutcome
 
         return TaskTechnologyOutcome.model_validate(body)
     raise ValueError(f"unsupported task outcome kind: {kind}")

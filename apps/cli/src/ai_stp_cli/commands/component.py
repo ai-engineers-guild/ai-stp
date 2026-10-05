@@ -37,8 +37,7 @@ from ai_stp_cli.local.database import configured_path, open_readonly, open_regis
 from ai_stp_cli.local.passports import moment, owner
 from ai_stp_cli.paths import redact_home
 from ai_stp_contracts.authoring import ComponentScaffoldPlan, ComponentScaffoldResult
-from ai_stp_contracts.github_evidence import GitHubArchiveEvidence, GitHubArchiveHistory
-from ai_stp_contracts.machine_help import (
+from ai_stp_contracts.cli.components import (
     ComponentPassportSuggestion,
     ComponentPassportSuggestions,
     ComponentPassportValidation,
@@ -64,6 +63,7 @@ from ai_stp_contracts.machine_help import (
     SourceSearchResult,
     VersionLine,
 )
+from ai_stp_contracts.github_evidence import GitHubArchiveEvidence, GitHubArchiveHistory
 from ai_stp_foundation.canonical import JsonValue
 from ai_stp_foundation.envelope import Continuation
 from ai_stp_foundation.ids import new_id

@@ -732,7 +732,7 @@ def test_task_key_boundary_values_keep_idempotent_start(key: str) -> None:
 
 
 def test_task_intents_lists_shipped_intents_only() -> None:
-    from ai_stp_cli.application.inspect import SHIPPED_INTENT_NAMES
+    from ai_stp_cli.application.inventory import SHIPPED_INTENT_NAMES
     from ai_stp_cli.registry import COMMANDS
 
     catalog = task_command.intents({})

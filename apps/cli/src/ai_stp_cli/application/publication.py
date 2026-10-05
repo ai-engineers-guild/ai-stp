@@ -24,7 +24,7 @@ from ai_stp_cli.local import (
 from ai_stp_cli.local.author_attestations import load as load_attestation
 from ai_stp_cli.local.author_attestations import verify as verify_attestation
 from ai_stp_cli.local.database import configured_path, open_readonly, open_registry, transaction
-from ai_stp_contracts.machine_help import PublicationPlanView
+from ai_stp_contracts.cli.publication import PublicationPlanView
 from ai_stp_contracts.publication import (
     PLAN_STATES_REFUSED,
     AuthorAttestation,

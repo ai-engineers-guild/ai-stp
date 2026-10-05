@@ -12,7 +12,8 @@ from ai_stp_cli.application.install_task import project_root_question
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import installation, preserved_setups, project_passport
 from ai_stp_cli.local.database import configured_path, open_registry
-from ai_stp_contracts.machine_help import InstallationView, TaskQuestion, TaskSwitchOutcome
+from ai_stp_contracts.cli.install import InstallationView
+from ai_stp_contracts.cli.tasks import TaskQuestion, TaskSwitchOutcome
 from ai_stp_foundation.canonical import JsonValue
 from ai_stp_foundation.harnesses import HARNESS_IDS
 

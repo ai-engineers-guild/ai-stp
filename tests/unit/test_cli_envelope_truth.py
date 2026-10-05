@@ -9,7 +9,7 @@ import pytest
 from pydantic import BaseModel
 
 from ai_stp_cli.answer import Answer
-from ai_stp_cli.application.inspect import capabilities as inspect_capabilities
+from ai_stp_cli.application.capabilities import capabilities as current_capabilities
 from ai_stp_cli.application.install_transaction import (
     _complete,  # pyright: ignore[reportPrivateUsage]
 )
@@ -78,7 +78,7 @@ def _transaction(state: str) -> MultiRootTransactionView:
 
 
 def test_capabilities_are_served_from_application_inspect() -> None:
-    assert machine_help.capabilities({}).payload == inspect_capabilities()
+    assert machine_help.capabilities({}).payload == current_capabilities()
 
 
 def test_doctor_is_served_from_application_inspect() -> None:

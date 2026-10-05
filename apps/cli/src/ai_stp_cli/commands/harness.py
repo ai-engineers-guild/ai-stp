@@ -50,7 +50,7 @@ from ai_stp_cli.provider import (
     software_fetch,
     trust,
 )
-from ai_stp_contracts.machine_help import (
+from ai_stp_contracts.cli.toolchain import (
     HarnessProgram,
     HarnessProgramArtifact,
     HarnessProgramOperation,

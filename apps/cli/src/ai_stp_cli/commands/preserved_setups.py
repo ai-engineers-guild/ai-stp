@@ -13,7 +13,7 @@ from ai_stp_cli.local import installation, preserved_setups
 from ai_stp_cli.local.database import configured_path, open_readonly
 from ai_stp_cli.paths import redact_home
 from ai_stp_cli.provider.status import BackupObservation
-from ai_stp_contracts.machine_help import InstallationView, PreservedSetupsView, PreservedSetupView
+from ai_stp_contracts.cli.install import InstallationView, PreservedSetupsView, PreservedSetupView
 
 
 def _provider_options(parameters: Mapping[str, object]) -> dict[str, object]:

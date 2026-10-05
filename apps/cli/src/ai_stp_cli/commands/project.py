@@ -40,6 +40,31 @@ from ai_stp_cli.local import (
 from ai_stp_cli.local.database import configured_path, open_registry, transaction
 from ai_stp_cli.local.passports import moment, owner
 from ai_stp_cli.paths import redact_home
+from ai_stp_contracts.cli.components import PassportView
+from ai_stp_contracts.cli.project import (
+    DiscoveryDiagnostic,
+    ExcludedPath,
+    ImportedFile,
+    ImportedSetup,
+    ImportInspection,
+    IndexedFile,
+    LanguageOutline,
+    ProjectCandidate,
+    ProjectCandidates,
+    ProjectIndex,
+    ProjectSymbols,
+    SetupImportComponent,
+    SetupImportPlan,
+)
+from ai_stp_contracts.cli.tasks import TaskTechnologyOutcome
+from ai_stp_contracts.cli.technology import (
+    CliTechnologyFindings,
+    CliTechnologyMapping,
+    CliTechnologyMappings,
+    CliTechnologyReview,
+    CliTechnologyScan,
+    CliTechnologyUnmapped,
+)
 from ai_stp_contracts.context import (
     ProjectLinkPlanRequest,
     ProjectLinkPlanResponse,
@@ -55,29 +80,6 @@ from ai_stp_contracts.context import (
     ProjectUnlinkPlanRequest,
     ProjectUnlinkPlanResponse,
     ProjectUnlinkRequest,
-)
-from ai_stp_contracts.machine_help import (
-    CliTechnologyFindings,
-    CliTechnologyMapping,
-    CliTechnologyMappings,
-    CliTechnologyReview,
-    CliTechnologyScan,
-    CliTechnologyUnmapped,
-    DiscoveryDiagnostic,
-    ExcludedPath,
-    ImportedFile,
-    ImportedSetup,
-    ImportInspection,
-    IndexedFile,
-    LanguageOutline,
-    PassportView,
-    ProjectCandidate,
-    ProjectCandidates,
-    ProjectIndex,
-    ProjectSymbols,
-    SetupImportComponent,
-    SetupImportPlan,
-    TaskTechnologyOutcome,
 )
 from ai_stp_contracts.technology import (
     CategoryView,

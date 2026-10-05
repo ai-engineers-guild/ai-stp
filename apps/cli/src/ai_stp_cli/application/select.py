@@ -69,8 +69,7 @@ from ai_stp_cli.provider import (
 )
 from ai_stp_cli.toolchain import install
 from ai_stp_cli.toolchain import load as load_manifest
-from ai_stp_contracts.impact import BlastRadiusReport, SelectionImpactReport
-from ai_stp_contracts.machine_help import (
+from ai_stp_contracts.cli.selection import (
     BundleFile,
     BundleRefusal,
     CandidateEligibility,
@@ -102,6 +101,7 @@ from ai_stp_contracts.machine_help import (
     TrustedBuildAttestation,
     TrustedIndexPublisher,
 )
+from ai_stp_contracts.impact import BlastRadiusReport, SelectionImpactReport
 from ai_stp_foundation.canonical import JsonValue, from_json_bytes
 from ai_stp_foundation.digests import digest_bytes
 from ai_stp_foundation.harnesses import HARNESS_IDS, HarnessId

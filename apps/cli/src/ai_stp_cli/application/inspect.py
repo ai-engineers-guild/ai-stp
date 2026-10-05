@@ -12,15 +12,13 @@ from typing import Final, Literal, TypeAliasType, Union, get_args, get_origin
 from pydantic import BaseModel
 
 from ai_stp_cli import config, identity, paths, secrets
+from ai_stp_cli.application.inventory import SHIPPED_INTENT_NAMES
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import components, database, journal, passports, revisions
 from ai_stp_cli.runtime import cli_version, installation
-from ai_stp_contracts.machine_help import (
-    Capabilities,
-    DoctorCheck,
-    DoctorReport,
-    ParameterType,
-    SetupState,
+from ai_stp_contracts.cli.registry import ParameterType
+from ai_stp_contracts.cli.runtime import DoctorCheck, DoctorReport, SetupState
+from ai_stp_contracts.cli.tasks import (
     TaskAccountInput,
     TaskAuthorInput,
     TaskChangeInput,
@@ -38,17 +36,6 @@ from ai_stp_contracts.machine_help import (
 from ai_stp_foundation.harnesses import HARNESS_IDS
 from ai_stp_foundation.schemas import schema_id
 
-SHIPPED_INTENT_NAMES: Final[tuple[str, ...]] = (
-    "inspect",
-    "initialize",
-    "install",
-    "change",
-    "author",
-    "switch",
-    "account",
-    "publish",
-    "technology",
-)
 #: The validation model behind each intent's `--input` document. `task start`
 #: validates through this table, so the catalog, the JSON Schemas and the
 #: validator can never disagree about which intents exist or what they take.
@@ -106,30 +93,6 @@ INTENT_WHEN: Final[dict[str, str]] = {
         "snapshot. Do not type project detect or technology commands yourself."
     ),
 }
-
-
-def capabilities() -> Capabilities:
-    """What this process can do right now, without a registry dump."""
-    from ai_stp_cli.application.inventory import classified_paths, classify, expert_reason
-    from ai_stp_cli.application.qualify import report
-    from ai_stp_cli.registry import command_paths, registry_digest
-
-    classified_paths()
-    for path in (tuple(item.split()) for item in command_paths()):
-        if classify(path) == "expert":
-            expert_reason(path)
-    report()
-    catalog_enabled, sync_enabled = config.catalog_and_sync_enabled()
-    return Capabilities(
-        cli_version=cli_version(),
-        installation=installation(),
-        registry_digest=registry_digest(),
-        local_schema_version=database.SCHEMA_VERSION,
-        supported_harnesses=sorted(HARNESS_IDS),
-        catalog_enabled=catalog_enabled,
-        sync_enabled=sync_enabled,
-        command_paths=command_paths(),
-    )
 
 
 def orientation() -> TaskOrientation:

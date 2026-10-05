@@ -7,7 +7,7 @@ from ai_stp_cli.cloud.client import Endpoint, login_actions, login_continuations
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import cache
 from ai_stp_cli.secrets import open_store
-from ai_stp_contracts.machine_help import CatalogKind, CatalogVersionView
+from ai_stp_contracts.cli.catalog import CatalogKind, CatalogVersionView
 from ai_stp_contracts.private_access import CliPrivateVersionResponse, PrivateVersionTrust
 from ai_stp_passports import ComponentVersionPassport, SetupVersionPassport
 

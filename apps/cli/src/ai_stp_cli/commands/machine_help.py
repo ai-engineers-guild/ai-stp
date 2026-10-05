@@ -16,7 +16,7 @@ from ai_stp_cli.application.inventory import MIXED_HELP_PREFIXES, intent_for_com
 from ai_stp_cli.application.outcome import intent_start_continuation
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.runtime import cli_version
-from ai_stp_contracts.machine_help import (
+from ai_stp_contracts.cli.registry import (
     Capabilities,
     CliSchemaDocument,
     CliSchemaEntry,
@@ -85,9 +85,9 @@ def _found(commands: list[CommandDescriptor], requested: object) -> list[Command
 
 def capabilities(_parameters: Mapping[str, object]) -> Answer[Capabilities]:
     """Report what this installation can do right now."""
-    from ai_stp_cli.application.inspect import capabilities as inspect_capabilities
+    from ai_stp_cli.application.capabilities import capabilities as current
 
-    return Answer(inspect_capabilities())
+    return Answer(current())
 
 
 def registry(parameters: Mapping[str, object]) -> Answer[MachineHelp]:

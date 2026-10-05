@@ -8,7 +8,7 @@ from typing import cast
 
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import cache, revisions, versions
-from ai_stp_contracts.machine_help import SyncPendingVersion
+from ai_stp_contracts.cli.sync import SyncPendingVersion
 from ai_stp_contracts.sync_versions import (
     MAX_VERSIONS,
     VersionBinding,

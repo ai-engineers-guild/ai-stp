@@ -77,7 +77,7 @@ from ai_stp_cli.provider import (
 )
 from ai_stp_cli.runtime import cli_version
 from ai_stp_cli.secrets import open_store
-from ai_stp_contracts.machine_help import (
+from ai_stp_contracts.cli.install import (
     InstallationStatus,
     InstallationStep,
     InstallationView,

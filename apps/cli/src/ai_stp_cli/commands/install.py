@@ -5,8 +5,7 @@ from collections.abc import Mapping
 from ai_stp_cli.answer import Answer
 from ai_stp_cli.application import install as install_service
 from ai_stp_cli.application import installation_usage
-from ai_stp_contracts.installation_usage import InstallationOperationReceipt
-from ai_stp_contracts.machine_help import (
+from ai_stp_contracts.cli.install import (
     InstallationStatus,
     InstallationView,
     RecoveryView,
@@ -15,6 +14,7 @@ from ai_stp_contracts.machine_help import (
     TargetDiff,
     TargetSurvey,
 )
+from ai_stp_contracts.installation_usage import InstallationOperationReceipt
 
 transaction_child_access = install_service.transaction_child_access
 observe_backups = install_service.observe_backups

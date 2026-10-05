@@ -30,7 +30,7 @@ from ai_stp_cli.paths import (
     write_private,
     write_private_bytes,
 )
-from ai_stp_contracts.machine_help import CliProgram
+from ai_stp_contracts.cli.toolchain import CliProgram
 from ai_stp_foundation.ids import is_valid_id
 from ai_stp_foundation.versioning import parse_version
 from ai_stp_passports.envelope import verify_revision_id
