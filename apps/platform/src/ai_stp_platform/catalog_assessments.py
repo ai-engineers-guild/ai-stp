@@ -550,19 +550,15 @@ async def assess_passport(
     from ai_stp_platform.assessment_projection import project_passport_assessments
 
     records = (
-        (
-            await session.execute(
-                select(TargetAssessmentLatest, TargetAssessment)
-                .join(TargetAssessment, TargetAssessment.id == TargetAssessmentLatest.assessment_id)
-                .where(
-                    TargetAssessmentLatest.component_stable_id == passport.stable_id,
-                    TargetAssessmentLatest.version == passport.version,
-                )
+        await session.execute(
+            select(TargetAssessmentLatest, TargetAssessment)
+            .join(TargetAssessment, TargetAssessment.id == TargetAssessmentLatest.assessment_id)
+            .where(
+                TargetAssessmentLatest.component_stable_id == passport.stable_id,
+                TargetAssessmentLatest.version == passport.version,
             )
         )
-        .tuples()
-        .all()
-    )
+    ).all()
     return project_passport_assessments(passport, passport_digest, records, now=datetime.now(UTC))
 
 

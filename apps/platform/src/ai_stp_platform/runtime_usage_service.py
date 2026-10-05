@@ -971,7 +971,7 @@ async def aggregate_report(
         )
         recorded_employees = set(
             await session.scalars(
-                select(distinct(EventRow.employee_account_id)).where(*activity_clauses)
+                select(EventRow.employee_account_id).where(*activity_clauses).distinct()
             )
         )
         members = [
