@@ -16,18 +16,22 @@ import { PERF_BUDGETS } from "../../src/lib/budgets";
  * lcpMs / cls / tbtMs are recorded in PERF_BUDGETS but not measured here.
  */
 test.describe("performance budgets (REQ-2213)", () => {
-  test("landing route first-load JS gzip stays within budget", async ({ request }) => {
-    const page = await request.get("/en");
-    expect(page.ok(), `GET /en answered ${String(page.status())}`).toBe(true);
-    const html = await page.text();
-
-    const sources = new Set<string>();
-    for (const [tag] of html.matchAll(/<script\b[^>]*>/g)) {
-      const source = /\ssrc="([^"]+)"/.exec(tag)?.[1];
-      if (source !== undefined && !/\snomodule\b/i.test(tag)) {
-        sources.add(source.replaceAll("&amp;", "&"));
-      }
-    }
+  test("landing route first-load JS gzip stays within budget", async ({ page, request }) => {
+    const landing = await request.get("/en");
+    expect(landing.ok(), `GET /en answered ${String(landing.status())}`).toBe(true);
+    // The browser's own parser reads the served markup: no script runs, and
+    // attribute case, quoting and entities are what the browser would see.
+    const sources = new Set(
+      await page.evaluate(
+        (markup) => {
+          const parsed = new DOMParser().parseFromString(markup, "text/html");
+          return Array.from(parsed.querySelectorAll<HTMLScriptElement>("script[src]"))
+            .filter((script) => !script.noModule)
+            .map((script) => script.getAttribute("src") ?? "");
+        },
+        await landing.text(),
+      ),
+    );
 
     // A budget gate that cannot tell "within budget" from "measured nothing" is
     // not a gate: an unreadable chunk must fail here instead of passing as 0 KiB.
