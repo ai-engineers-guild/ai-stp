@@ -54,6 +54,27 @@ host is not an Actions runner: a systemd timer fetches the exact SHA and invokes
 deployment (`ADR-0103`). Fetching is anonymous over HTTPS—the repository is public,
 so the host does not need and does not have a deploy key.
 
+### When GitHub cannot run the gate
+
+If GitHub-hosted runners are not being assigned (an Actions incident on
+githubstatus.com), the push `check` on `main` waits and `deploy/prod` does not
+move. The commit may still be deployed when its tree is verified: every job of
+the promotion pull request passed on GitHub, or a job that never got a runner
+ran in a checkout of that exact SHA with the command its shard runs. Record
+that local run on the pull request, then fast-forward the ref without force:
+
+```bash
+sha=<main merge commit>
+git merge-base --is-ancestor \
+  "$(gh api repos/ai-engineers-guild/ai-stp/git/ref/heads/deploy/prod --jq .object.sha)" "$sha"
+gh api --method PATCH repos/ai-engineers-guild/ai-stp/git/refs/heads/deploy/prod \
+  -f sha="$sha" -F force=false
+```
+
+The host timer deploys it as usual. When `check` later succeeds, `promote`
+writes the same SHA, a no-op, and `verify-public` still records the readback.
+Used on 2026-10-05 for `980438b4` during a two-hour runner-assignment incident.
+
 ## Host preparation
 
 Advancing the ref does not itself deploy anything: the systemd timer on the host

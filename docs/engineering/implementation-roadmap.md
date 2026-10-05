@@ -65,6 +65,17 @@ loads its names on first use. `version --json` fell from 1.10 to 0.70 s of user
 CPU, and every local read-only command is within the 0.8 s budget
 (`cli-performance.md`, fifth measurement).
 
+**Release train through a GitHub Actions incident.** `#701` bumped `ai-stp-cli`
+to 0.0.42 and `ai-stp-desktop` to 0.0.7, and `#702` promoted them to `main`
+(`980438b4`, tags `v0.0.42` and `desktop-v0.0.7`). From 19:11 UTC GitHub-hosted
+runners were not being assigned: `tests-integration` got none in three attempts
+and ran on the exact SHA locally (172 passed, 2 skipped), and `deploy/prod` was
+fast-forwarded to the verified commit by hand (`deploy.md`, "When GitHub cannot
+run the gate"). Production served `980438b4` from 20:53 UTC, with no 502 during
+the roll and `evidence-live` green. The 0.0.42 CLI frozen into the Linux
+sidecar answers `version --json` in 1.56 s against 2.15 s for desktop 0.0.6's,
+wall clock under load 7–9.
+
 ## Deploy, content and upstream repairs; faster CLI and sidecar — 2026-10-05 (evening)
 
 A ten-day session audit (Codex, Claude Code and Devin; Cursor and Grok had no
