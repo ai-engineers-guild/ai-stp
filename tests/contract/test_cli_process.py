@@ -79,6 +79,25 @@ def run(*argv: str, home: Path) -> subprocess.CompletedProcess[str]:
     )
 
 
+def run_json(*argv: str, home: Path) -> dict[str, Any]:
+    """Run one machine command and return its envelope, or say why it has none.
+
+    An empty stdout used to surface as `JSONDecodeError: Expecting value`, which
+    names neither the exit code nor stderr. On the Windows runner `toolchain
+    harnesses --json` produced one on 2026-10-03 and again on 2026-10-05, and
+    neither failure left anything to read.
+    """
+    result = run(*argv, home=home)
+    try:
+        envelope: dict[str, Any] = json.loads(result.stdout)
+    except json.JSONDecodeError:
+        pytest.fail(
+            f"`{' '.join(argv)}` exited {result.returncode} without an envelope;"
+            f" stdout={result.stdout[-500:]!r} stderr={result.stderr[-2000:]!r}"
+        )
+    return envelope
+
+
 @pytest.fixture
 def home(tmp_path: Path) -> Path:
     """A clean installation whose catalogue address resolves nowhere.
@@ -598,7 +617,7 @@ def test_the_auth_repair_offers_exactly_the_declared_providers(home: Path) -> No
         for parameter in command.descriptor.parameters
         if parameter.name == "provider"
     )
-    envelope = json.loads(run("auth", "login", "--json", home=home).stdout)
+    envelope = run_json("auth", "login", "--json", home=home)
     assert envelope["next_actions"] == [
         "task start --intent account --idempotency-key account-session-01 --json"
     ]
@@ -823,8 +842,8 @@ def test_a_clean_home_gets_a_working_installation_without_sudo(home: Path) -> No
 
 
 def test_a_second_run_changes_nothing(home: Path) -> None:
-    first = json.loads(run("device", "init", "--json", home=home).stdout)["data"]
-    second = json.loads(run("device", "show", "--json", home=home).stdout)["data"]
+    first = run_json("device", "init", "--json", home=home)["data"]
+    second = run_json("device", "show", "--json", home=home)["data"]
     assert first == second
 
 
@@ -875,7 +894,7 @@ def test_output_carries_no_home_path_material(home: Path) -> None:
 
 
 def test_a_reset_needs_confirmation_and_then_replaces_the_identity(home: Path) -> None:
-    before = json.loads(run("device", "init", "--json", home=home).stdout)["data"]
+    before = run_json("device", "init", "--json", home=home)["data"]
 
     refused = run("device", "reset", "--json", home=home)
     assert refused.returncode == 4
@@ -964,8 +983,8 @@ def test_two_homes_keep_separate_device_passports_and_separate_owners(tmp_path: 
     # `SPEC-002` REQ-213 and REQ-215: device passports are per device and are
     # never merged into one cross-device environment.
     one, two = tmp_path / "one", tmp_path / "two"
-    first = json.loads(run("passport", "device", "refresh", "--json", home=one).stdout)["data"]
-    second = json.loads(run("passport", "device", "refresh", "--json", home=two).stdout)["data"]
+    first = run_json("passport", "device", "refresh", "--json", home=one)["data"]
+    second = run_json("passport", "device", "refresh", "--json", home=two)["data"]
     assert first["stable_id"] != second["stable_id"]
     assert first["owner_id"] != second["owner_id"]
     # `SPEC-014` REQ-1418 adds the harness survey to the device passport, and
@@ -1019,10 +1038,8 @@ def test_device_passport_and_toolchain_harnesses_share_one_detection_result(
         binary.write_text('#!/bin/sh\necho "9.9.9"\n', encoding="utf-8")
         binary.chmod(binary.stat().st_mode | stat.S_IXUSR)
 
-    survey = json.loads(run("toolchain", "harnesses", "--json", home=home).stdout)["data"][
-        "harnesses"
-    ]
-    refresh = json.loads(run("passport", "device", "refresh", "--json", home=home).stdout)["data"]
+    survey = run_json("toolchain", "harnesses", "--json", home=home)["data"]["harnesses"]
+    refresh = run_json("passport", "device", "refresh", "--json", home=home)["data"]
     installed = [item["harness_id"] for item in survey if item["state"] != "available"]
     available = [item["harness_id"] for item in survey if item["state"] == "available"]
     # Both halves are populated, or the loops below examine nothing and say so.
@@ -1056,7 +1073,7 @@ def test_starting_over_by_deleting_the_data_directory_works(home: Path) -> None:
     # to do anything until the user reset it by hand. That direction is covered
     # in `tests/unit/test_cli_identity.py`, where the store can be controlled;
     # here the store is deliberately the file tier, so this pins the other half.
-    first = json.loads(run("device", "init", "--json", home=home).stdout)["data"]
+    first = run_json("device", "init", "--json", home=home)["data"]
     shutil.rmtree(home / "data")
 
     # Reading says so rather than quietly minting a replacement.
@@ -1186,7 +1203,7 @@ def test_switching_off_the_catalogue_and_sync_leaves_a_complete_offline_path(rea
         assert result.returncode == 0, argv
         assert json.loads(result.stdout)["ok"] is True, argv
 
-    reported = json.loads(run("capabilities", "--json", home=ready).stdout)["data"]
+    reported = run_json("capabilities", "--json", home=ready)["data"]
     assert reported["catalog_enabled"] is False
     assert reported["sync_enabled"] is False
 
@@ -1226,7 +1243,7 @@ def test_the_whole_project_and_toolchain_path_works_with_the_network_off(ready: 
         assert json.loads(result.stdout)["ok"] is True, argv
 
     # Twice, because a re-scan is the thing that must not manufacture history.
-    first = json.loads(run("project", "passport", "--root", str(work), "--json", home=ready).stdout)
+    first = run_json("project", "passport", "--root", str(work), "--json", home=ready)
     second = json.loads(
         run("project", "passport", "--root", str(work), "--json", home=ready).stdout
     )
@@ -1235,7 +1252,7 @@ def test_the_whole_project_and_toolchain_path_works_with_the_network_off(ready: 
 
     # And an install with nothing cached says what a person must do rather than
     # reaching for a network that is not there.
-    profile = json.loads(run("toolchain", "profile", "--json", home=ready).stdout)["data"]
+    profile = run_json("toolchain", "profile", "--json", home=ready)["data"]
     pinned = next(
         item["tools"][0]["tool_id"] for item in profile["ecosystems"] if item.get("tools")
     )
