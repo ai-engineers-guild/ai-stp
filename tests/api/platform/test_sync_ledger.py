@@ -845,7 +845,7 @@ async def test_an_accepted_merge_delivers_the_parent_a_conflict_kept_out_of_the_
     delivered = [str(revision_id) for revision_id, _parents in rows]
     named: set[str] = set()
     for _revision_id, parents in rows:
-        for parent in cast(list[str], parents or []):
+        for parent in parents or []:
             named.add(str(parent))
     missing = sorted(name for name in named if name not in delivered)
     assert not missing, (

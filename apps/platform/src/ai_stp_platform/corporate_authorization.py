@@ -447,7 +447,7 @@ async def explain_effective_permissions(
     return frozenset(effective), tuple(records)
 
 
-def _active_project_teams(organization_id: str) -> Select[tuple[str]]:
+def _active_project_teams(organization_id: str) -> Select[str]:
     """team_id per current project->team link where the team itself is active."""
     return (
         select(ProjectTeamRelation.team_id)
@@ -464,7 +464,7 @@ def _active_project_teams(organization_id: str) -> Select[tuple[str]]:
     )
 
 
-def _technology_current_projects(organization_id: str, technology_id: str) -> Select[tuple[str]]:
+def _technology_current_projects(organization_id: str, technology_id: str) -> Select[str]:
     """Projects whose current technology link to `technology_id` is confirmed
     and fresh, through an active project with an active remote identity — the
     same eligibility shape the per-scope clause always used."""
@@ -505,7 +505,7 @@ def _technology_current_projects(organization_id: str, technology_id: str) -> Se
     )
 
 
-def _technology_responsible_teams(organization_id: str, technology_id: str) -> Select[tuple[str]]:
+def _technology_responsible_teams(organization_id: str, technology_id: str) -> Select[str]:
     return (
         select(TechnologyTeamResponsibility.team_id)
         .join(

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import base64
+import typing
 
 from sqlalchemy import Integer, cast, func, select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -15,6 +16,7 @@ from ai_stp_contracts.seo import (
     SeoCatalogPage,
     SeoIndexResponse,
     SeoIndexShardRef,
+    SeoLocale,
     SeoProfileDocument,
     SeoPublicProfile,
     SeoSitemapShard,
@@ -285,19 +287,17 @@ async def read_catalog_page(
         profile = SeoProfileDocument.model_validate(revision.profile)
         if not render_subject_markdown(profile).strip():
             continue
+        # The columns are plain strings; the writers only store the closed sets.
+        kind = typing.cast(SeoSubjectKind, pointer.subject_kind)
         items.append(
             SeoCatalogEntry(
-                kind=pointer.subject_kind,  # type: ignore[arg-type]
+                kind=kind,
                 subject_id=pointer.subject_id,
-                locale=pointer.locale,  # type: ignore[arg-type]
+                locale=typing.cast(SeoLocale, pointer.locale),
                 canonical_url=profile.canonical_url,
                 title=profile.title,
                 description=profile.description,
-                markdown_url=markdown_url(
-                    origin,
-                    pointer.subject_kind,
-                    pointer.subject_id,  # type: ignore[arg-type]
-                ),
+                markdown_url=markdown_url(origin, kind, pointer.subject_id),
                 revision_id=revision.id,
                 modified_at=profile.modified_at,
             )
