@@ -10,6 +10,7 @@ import pytest
 from alembic.config import Config
 from alembic.script import ScriptDirectory
 
+from ai_stp_platform import readiness
 from ai_stp_platform.readiness import (
     DEPENDENCIES,
     check_database,
@@ -103,6 +104,26 @@ async def test_check_migrations_true_only_at_alembic_head() -> None:
 
     assert await check_migrations(current) is True
     assert await check_migrations(stale) is False
+
+
+@pytest.mark.asyncio
+async def test_the_migration_head_is_read_once_per_process(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    readiness.migration_head.cache_clear()
+    reads = 0
+    parse = ScriptDirectory.from_config
+
+    def counting(config: Config) -> ScriptDirectory:
+        nonlocal reads
+        reads += 1
+        return parse(config)
+
+    monkeypatch.setattr(ScriptDirectory, "from_config", staticmethod(counting))
+    current = cast("Any", FakeSessionmaker(readiness.migration_head()))
+    for _ in range(3):
+        assert await check_migrations(current) is True
+    assert reads == 1
 
 
 @pytest.mark.asyncio
