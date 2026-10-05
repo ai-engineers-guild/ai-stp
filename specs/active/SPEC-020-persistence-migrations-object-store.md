@@ -1,6 +1,6 @@
 ---
 description: "SPEC-020: Server-side storage, PostgreSQL migrations, artifact storage, and asset storage."
-last_verified: "2026-09-07"
+last_verified: "2026-10-05"
 ---
 
 # SPEC-020: Server storage, migrations, and object storage
@@ -61,7 +61,10 @@ retention policy (`SPEC-013`); production infrastructure and public access.
 - `REQ-2002`: Each migration defines a forward operation and a reverse operation, or
   explicitly marks itself irreversible; the default recovery policy is forward-fix,
   and `downgrade` is allowed only within the compatibility window before code promotion,
-  under `docs/operations/runbooks/database-migration.md`.
+  under `docs/operations/runbooks/database-migration.md`. A merged revision keeps
+  its parents: `migrations/history.lock` records each one, and parallel heads are
+  resolved by chaining the unapplied branch after the applied one or by a merge
+  revision.
 - `REQ-2003`: The initial Sprint-1 schema creates account tables,
   `OAuth` identities, devices, sessions, public catalog metadata,
   object locations, and audit events with primary keys, foreign keys, and
@@ -153,7 +156,7 @@ canonicalization of an object requires a new version under `SPEC-015`.
 | Requirement | Executable verification method |
 |---|---|
 | `REQ-2001` | The test applies `upgrade head` on an empty base, repeats the application without discrepancy and confirms the only head of the story. |
-| `REQ-2002` | The migration test confirms the presence of a reverse operation or irreversibility mark and follows the forward-fix on the runbook. |
+| `REQ-2002` | The migration test confirms the presence of a reverse operation or irreversibility mark and follows the forward-fix on the runbook; the history-lock test rejects a changed parent or an unrecorded revision. |
 | `REQ-2003` | The migration creates Sprint-1 tables with primary, foreign and unique keys, which are confirmed by negative constraint violation tests. |
 | `REQ-2004` | Migration and storage tests bind bucket role and owner to each location, reject a foreign owner binding, permit same-owner digest reuse, keep different owners in distinct locations, and confirm that knowledge of the key grants no access. |
 | `REQ-2005` | The adapter test confirms digest and size checks, idempotency of identical bytes and a conflict error for other bytes under the same key. |
