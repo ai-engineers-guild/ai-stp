@@ -797,3 +797,30 @@ def test_module_invocation_resolves_the_installed_cli_not_the_driver_script(
         "Scripts/ai-stp.exe" if sys.platform == "win32" else "bin/ai-stp"
     )
     assert method_mod._argv_executable() == expected
+
+
+def test_doctor_ignores_a_check_cached_by_the_version_it_replaced(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Seen on 2026-10-05 right after `update apply` from 0.0.38 to 0.0.40.
+
+    The cache still held 0.0.38's "available: 0.0.40" report, and `doctor` read
+    it without asking which installation it described, so the freshly updated
+    CLI told its user to plan an update to itself.
+    """
+    from ai_stp_cli.application import inspect
+
+    before = _held(tmp_path, version="0.0.20")
+    report = service.check(
+        {},
+        installation=before,
+        releases=FakeIndex([_wheel("0.0.20", b"c"), _wheel("0.0.21", b"n")]),
+    )
+    assert report.state == "available"
+    monkeypatch.setattr(method_mod, "current_installation", lambda: before)
+    assert inspect._cli_update_check().state == "needs_user_action"  # pyright: ignore[reportPrivateUsage]
+
+    after = replace(before, version="0.0.21")
+    monkeypatch.setattr(method_mod, "current_installation", lambda: after)
+    check = inspect._cli_update_check()  # pyright: ignore[reportPrivateUsage]
+    assert (check.state, check.detail) == ("ready", "no interrupted CLI update")
