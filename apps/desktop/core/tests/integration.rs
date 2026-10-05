@@ -472,11 +472,27 @@ fn garbage_stdout_reports_exit_and_stderr() {
 #[cfg(unix)]
 #[test]
 fn hanging_child_is_killed_as_unconfirmed() {
+    use std::os::unix::process::CommandExt;
+    // This process belongs to another group and must survive the CLI timeout.
+    let mut unrelated = std::process::Command::new("sleep")
+        .arg("30")
+        .process_group(0)
+        .spawn()
+        .unwrap();
     let (dir, exe) = fake_cli("#!/bin/sh\nsleep 30");
     match run_fake(&exe, 300) {
         Err(RunError::TimeoutUnconfirmed) => {}
         other => panic!("expected TimeoutUnconfirmed, got {other:?}"),
     }
+    let unrelated_status = unrelated.try_wait().unwrap();
+    if unrelated_status.is_none() {
+        unrelated.kill().unwrap();
+    }
+    unrelated.wait().unwrap();
+    assert!(
+        unrelated_status.is_none(),
+        "timeout signalled an unrelated process: {unrelated_status:?}"
+    );
     let _ = std::fs::remove_dir_all(&dir);
 }
 
