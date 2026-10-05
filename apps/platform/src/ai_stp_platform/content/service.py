@@ -170,6 +170,34 @@ async def _revision_for(
     return row, True
 
 
+def _publishes(article: Article, revision: ArticleRevision, entry: ContentSnapshotEntry) -> bool:
+    """Whether the active revision already publishes this entry's content.
+
+    `source_ref` is the commit a snapshot was cut from, and every deploy cuts
+    one from a new commit. Restamping the active revision with the entry's
+    commit and comparing digests separates the two cases: equal means only the
+    commit moved, so the revision -- and the commit that introduced its
+    content -- stays. Before this, each deploy created a revision, an SEO build
+    and a `dateModified` of the deploy time for every article (REQ-5406).
+    """
+    restamped = revision_content_digest(
+        article_type=article.article_type,
+        slug=article.slug,
+        locale=revision.locale,
+        title=revision.title,
+        description=revision.description,
+        published_at=revision.published_at,
+        tags=sorted(revision.tags),
+        body=revision.body,
+        source_kind=revision.source_kind,
+        source_ref=entry.source_ref,
+        source_path=revision.source_path,
+        cover_image=revision.cover_image,
+        cover_alt=revision.cover_alt,
+    )
+    return restamped == entry.content_digest
+
+
 async def _set_active(
     session: AsyncSession,
     *,
@@ -258,6 +286,14 @@ async def import_repository_snapshot(
 
     current_actives = list((await session.execute(select(ArticleActive))).scalars())
     current_map = {(row.article_id, row.locale): row for row in current_actives}
+    current_revisions = {
+        row.id: row
+        for row in await session.scalars(
+            select(ArticleRevision).where(
+                ArticleRevision.id.in_([row.revision_id for row in current_actives])
+            )
+        )
+    }
     created = 0
     activated = 0
     unchanged = 0
@@ -279,6 +315,12 @@ async def import_repository_snapshot(
             await session.flush()
             by_id[identity] = article
         for locale, entry in locales.items():
+            pointer = current_map.get((identity, locale))
+            active = current_revisions.get(pointer.revision_id) if pointer is not None else None
+            if active is not None and _publishes(article, active, entry):
+                kept.add((identity, locale))
+                unchanged += 1
+                continue
             revision, is_new = await _revision_for(
                 session,
                 article=article,
@@ -304,7 +346,7 @@ async def import_repository_snapshot(
                 locale=locale,
                 revision_id=revision.id,
                 now=moment,
-                current=current_map.get((identity, locale)),
+                current=pointer,
             )
             kept.add((identity, locale))
             if outcome == "unchanged":
@@ -324,7 +366,10 @@ async def import_repository_snapshot(
         removed += 1
         changed.append((article_id, locale, f"removed:{state.generation + 1}"))
 
-    state.generation += 1
+    # A snapshot of a new commit whose content is all already active changes
+    # nothing a reader sees: the generation stays and no SEO effect is queued.
+    if changed:
+        state.generation += 1
     state.snapshot_digest = snapshot.snapshot_digest
     state.commit = snapshot.commit
     state.updated_at = moment
