@@ -68,6 +68,15 @@ release-equivalent sidecar answered in 2.03 s against 2.93 s for desktop
 0.0.5. `#689` stops a session that cannot reach the operating system key store
 from offering `device reset` for a key that is only out of reach.
 
+**Releases.** `ai-stp-cli` 0.0.40 is on PyPI from attested candidate run
+37316668777 (wheel `sha256:1c29e178…`, matching its GitHub Release), and this
+workstation's `uv tool` installation reached it from 0.0.38 through
+`update plan`/`update apply` with the journal `verified`. `ai-stp-desktop`
+0.0.6 is the repository's latest release: deb, rpm and AppImage for Linux, an
+aarch64 dmg, and an exe and msi for Windows, unsigned. Its shipped sidecar
+reports CLI 0.0.40 and answered `version --json` in 1.96 s against 2.87 s for
+0.0.5's.
+
 One cost remains in the deploy: the API and the worker finish their own
 shutdown within two seconds of SIGTERM — `shutdown` and `worker_stop` are
 logged — yet dockerd stops them by force ten seconds later. Neither the
@@ -230,8 +239,8 @@ own exit gates; sidebar completion does not close those work packages.
 | Platform | `/v1`, PostgreSQL, object storage, queue, authentication/devices, sync, publication, grants/reports, public catalog, article, and SEO projections |
 | Web | Landing, catalog/detail, account/device/owner surfaces, content hub, machine projections, and a three-OS test matrix |
 | Providers | Seven public setup systems at `0.0.88`, read through the vendored provider kit `0.2.15` and protocol v3: native configuration, backup/recovery and software lifecycle. Launch completeness per provider is measured evidence, not a property of the release. |
-| Release | `ai-stp-cli==0.0.39` on PyPI with its GitHub Release (SBOM, manifest, `SHA256SUMS`). GitHub attested acquisition remains the default provider path; PyPI provenance is a second, explicit path (`ADR-0141`). Self-update of the CLI wheel is `SPEC-072` / `ADR-0170`. Source integration, package publication and installed PATH identity are separate observations. |
-| Desktop | `ai-stp-desktop` 0.0.5: a Tauri 2 shell over the CLI machine contract with a frozen CLI sidecar (`ADR-0222`); deb, rpm and AppImage for Linux, an aarch64 dmg, and an exe and msi for Windows, unsigned. |
+| Release | `ai-stp-cli==0.0.40` on PyPI with its GitHub Release (SBOM, manifest, `SHA256SUMS`). GitHub attested acquisition remains the default provider path; PyPI provenance is a second, explicit path (`ADR-0141`). Self-update of the CLI wheel is `SPEC-072` / `ADR-0170`. Source integration, package publication and installed PATH identity are separate observations. |
+| Desktop | `ai-stp-desktop` 0.0.6: a Tauri 2 shell over the CLI machine contract with a frozen CLI sidecar (`ADR-0222`); deb, rpm and AppImage for Linux, an aarch64 dmg, and an exe and msi for Windows, unsigned. |
 | Catalog | The canonical first-party corpus models seven harness families and four postures. Identity projection, exact target assurance, and normal-path publication/readback evidence are implemented in the current platform closeout for `#146`/`#155`. |
 | OBT support tiers | All seven harnesses are `beta` (`SUPPORT_TIERS`, `SPEC-033` REQ-3315). `primary` remains a valid later GA label with no current members |
 
