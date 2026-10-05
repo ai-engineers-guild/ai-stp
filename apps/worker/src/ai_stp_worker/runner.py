@@ -40,7 +40,12 @@ from ai_stp_platform.queue.engine import (
     validate_tenant_job,
 )
 from ai_stp_platform.queue.models import Job
-from ai_stp_platform.queue.states import JobState, JobType, PermanentJobFailure
+from ai_stp_platform.queue.states import (
+    JobState,
+    JobType,
+    PermanentJobFailure,
+    RetryAfterJobFailure,
+)
 from ai_stp_platform.safety.metrics import record_queue_job
 from ai_stp_platform.tenant_scope import set_tenant_scope
 from ai_stp_worker.handlers import resolve
@@ -291,6 +296,7 @@ class Worker:
             heartbeat_task = asyncio.create_task(self._heartbeat(job_id))
             error: str | None = None
             permanent_failure = False
+            not_before: datetime | None = None
             async with self._sessionmaker() as handler_session:
                 try:
                     payload = await validate_tenant_job(handler_session, job)
@@ -301,6 +307,8 @@ class Worker:
                     detail = str(exc).strip()
                     error = type(exc).__name__ + (f": {detail}" if detail else "")
                     permanent_failure = isinstance(exc, PermanentJobFailure)
+                    if isinstance(exc, RetryAfterJobFailure):
+                        not_before = exc.not_before
                     _log.error(
                         "job_handler_failed",
                         job_id=job_id,
@@ -329,6 +337,7 @@ class Worker:
                         error=error,
                         permanent=permanent_failure,
                         locked_by=self._worker_id,
+                        not_before=not_before,
                     ):
                         result = "superseded"
                         return

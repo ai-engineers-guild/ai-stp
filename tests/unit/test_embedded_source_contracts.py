@@ -5,7 +5,7 @@ from __future__ import annotations
 import io
 import json
 import tarfile
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from urllib.parse import urlsplit
 
@@ -286,6 +286,33 @@ async def test_git_rate_limit_is_not_reported_as_a_missing_repository() -> None:
         await resolve_source(_git_intent(), fetch=limited)
     assert raised.value.code == UNAVAILABLE_SOURCE
     assert raised.value.message == "GitHub rate limit exceeded"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("headers", "wait"),
+    [
+        ({"x-ratelimit-remaining": "0", "x-ratelimit-reset": "+1200"}, timedelta(minutes=20)),
+        ({"retry-after": "90", "x-ratelimit-reset": "+1200"}, timedelta(seconds=90)),
+        ({"retry-after": "86400"}, timedelta(hours=1)),
+        ({"x-ratelimit-remaining": "0"}, timedelta(minutes=1)),
+    ],
+)
+async def test_git_rate_limit_names_when_to_retry(headers: dict[str, str], wait: timedelta) -> None:
+    """`retry-after` wins over `x-ratelimit-reset`; neither may exceed GitHub's hour."""
+    before = datetime.now(UTC)
+    reset = str(int(before.timestamp()) + 1200)
+    sent = {key: reset if value == "+1200" else value for key, value in headers.items()}
+
+    async def limited(url: str, *, headers: dict[str, str]) -> GithubHttpResponse:
+        del headers
+        return GithubHttpResponse(403, b'{"message":"API rate limit exceeded"}', sent, url)
+
+    with pytest.raises(SourceError) as raised:
+        await resolve_source(_git_intent(), fetch=limited)
+    retry_at = raised.value.retry_at
+    assert retry_at is not None
+    assert abs(retry_at - (before + wait)) < timedelta(seconds=5)
 
 
 @pytest.mark.asyncio

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Awaitable, Callable, Mapping
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import cast
 from urllib.parse import quote, urlsplit
 
@@ -31,6 +31,10 @@ MAX_REDIRECTS = 2
 MAX_JSON_BYTES = 2 * 1_048_576
 ALLOWED_HOSTS = frozenset({API_HOST, "github.com", "codeload.github.com"})
 ARTIFACT_DIGEST_DOMAIN = "ai-stp:artifact:v1"
+# GitHub's guidance for a rate-limited response that names no moment, and its
+# primary rate-limit window: a longer advertised wait is not trusted.
+DEFAULT_RATE_LIMIT_WAIT = timedelta(minutes=1)
+MAX_RATE_LIMIT_WAIT = timedelta(hours=1)
 
 
 class GithubHttpResponse:
@@ -133,11 +137,28 @@ def _is_rate_limited(response: GithubHttpResponse) -> bool:
     return "rate limit" in body
 
 
+def _rate_limit_reset(response: GithubHttpResponse) -> datetime:
+    """When GitHub allows the next request: `retry-after`, else `x-ratelimit-reset`."""
+    now = datetime.now(UTC)
+    wait = DEFAULT_RATE_LIMIT_WAIT
+    retry_after = response.headers.get("retry-after")
+    reset = response.headers.get("x-ratelimit-reset")
+    if retry_after is not None and retry_after.isdigit():
+        wait = timedelta(seconds=int(retry_after))
+    elif reset is not None and reset.isdigit():
+        wait = datetime.fromtimestamp(int(reset), UTC) - now
+    return now + min(max(wait, timedelta(0)), MAX_RATE_LIMIT_WAIT)
+
+
 def _require_github_ok(response: GithubHttpResponse, missing: str) -> None:
     if response.status_code == 200:
         return
     if _is_rate_limited(response):
-        raise SourceError(UNAVAILABLE_SOURCE, "GitHub rate limit exceeded")
+        raise SourceError(
+            UNAVAILABLE_SOURCE,
+            "GitHub rate limit exceeded",
+            retry_at=_rate_limit_reset(response),
+        )
     raise SourceError(UNAVAILABLE_SOURCE, missing)
 
 
