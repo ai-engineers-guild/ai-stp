@@ -572,6 +572,7 @@
   "the developer passport has no head": "the developer passport has no head",
   "the device environment cannot be summarised for sync": "the device environment cannot be summarised for sync",
   "the device identity has a record but no key and cannot sign": "the device identity has a record but no key and cannot sign",
+  "the device key is not in the owner-only file store this session uses; if the operating system credential store holds it, run from a session that can reach that store, and use `device reset` only if the key is lost": "the device key is not in the owner-only file store this session uses; if the operating system credential store holds it, run from a session that can reach that store, and use `device reset` only if the key is lost",
   "the device passport has no head": "the device passport has no head",
   "the diagnostics file cannot be opened": "the diagnostics file cannot be opened",
   "the diagnostics file changed": "the diagnostics file changed",
