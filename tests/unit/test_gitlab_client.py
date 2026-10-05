@@ -140,3 +140,84 @@ async def test_pagination_keeps_a_constant_page_size(limit: int) -> None:
     client = GitLabClient("https://gitlab.com", transport=httpx.MockTransport(respond))
     repositories = await client.list_repositories(token="fixture", limit=limit)
     assert [row.repository_id for row in repositories] == list(range(1, limit + 1))
+
+
+@pytest.mark.asyncio
+async def test_user_grant_bearer_and_anonymous_modes() -> None:
+    def respond(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/api/v4/user":
+            if "Authorization" in request.headers:
+                assert request.headers["Authorization"] == "Bearer grant-token"
+            else:
+                assert "PRIVATE-TOKEN" not in request.headers
+            return httpx.Response(200, json={"id": 7, "username": "synthetic"})
+        raise AssertionError(request.url)
+
+    bearer = GitLabClient(
+        "https://gitlab.com", transport=httpx.MockTransport(respond), auth="bearer"
+    )
+    identity = await bearer.user(token="grant-token")
+    assert identity.user_id == 7 and identity.username == "synthetic"
+    anonymous = GitLabClient(
+        "https://gitlab.com", transport=httpx.MockTransport(respond), auth="anonymous"
+    )
+    assert (await anonymous.user()).user_id == 7
+    with pytest.raises(GitLabError, match="gitlab_credential_unavailable"):
+        await bearer.user(token="bad\ntoken")
+
+
+@pytest.mark.asyncio
+async def test_archive_download_is_bounded_and_sha_validated() -> None:
+    import io
+    import tarfile
+
+    output = io.BytesIO()
+    with tarfile.open(fileobj=output, mode="w:gz") as archive:
+        payload = b"content"
+        member = tarfile.TarInfo("root/SKILL.md")
+        member.size = len(payload)
+        archive.addfile(member, io.BytesIO(payload))
+    body = output.getvalue()
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == "/api/v4/projects/42/repository/archive.tar.gz"
+        assert request.url.params["sha"] == "a" * 40
+        return httpx.Response(200, content=body)
+
+    client = GitLabClient(
+        "https://gitlab.com", transport=httpx.MockTransport(respond), auth="bearer"
+    )
+    assert await client.archive(42, sha="a" * 40, token="grant") == body
+    with pytest.raises(GitLabError, match="gitlab_branch_invalid"):
+        await client.archive(42, sha="not-a-sha", token="grant")
+
+
+@pytest.mark.asyncio
+async def test_oauth_token_is_the_only_post_and_stays_bounded() -> None:
+    requests: list[httpx.Request] = []
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        assert request.url.path == "/oauth/token"
+        return httpx.Response(
+            200,
+            json={
+                "access_token": "a",
+                "refresh_token": "r",
+                "expires_in": 7200,
+                "token_type": "Bearer",
+            },
+        )
+
+    client = GitLabClient("https://gitlab.com", transport=httpx.MockTransport(respond))
+    payload = await client.oauth_token({"grant_type": "refresh_token", "refresh_token": "r"})
+    assert payload["access_token"] == "a"
+    assert requests[0].method == "POST"
+    assert requests[0].url.path == "/oauth/token"
+
+    failing = GitLabClient(
+        "https://gitlab.com",
+        transport=httpx.MockTransport(lambda _r: httpx.Response(400, json={})),
+    )
+    with pytest.raises(GitLabError, match="gitlab_grant_revoked"):
+        await failing.oauth_token({"grant_type": "refresh_token"})

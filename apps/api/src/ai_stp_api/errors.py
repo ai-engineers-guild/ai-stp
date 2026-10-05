@@ -331,11 +331,22 @@ async def _github_error_handler(request: Request, exc: Exception) -> JSONRespons
     return await _api_error_handler(request, api_error(exc))
 
 
+async def _gitlab_error_handler(request: Request, exc: Exception) -> JSONResponse:
+    from ai_stp_api.slices.gitlab_connector.service import api_error
+    from ai_stp_platform.gitlab_client import GitLabError
+
+    if not isinstance(exc, GitLabError):
+        return await _unhandled_handler(request, exc)
+    return await _api_error_handler(request, api_error(exc))
+
+
 def register_exception_handlers(app: FastAPI) -> None:
     """Register the envelope-producing exception handlers on the app."""
     from ai_stp_platform.github_client import GitHubError
+    from ai_stp_platform.gitlab_client import GitLabError
 
     app.add_exception_handler(GitHubError, _github_error_handler)
+    app.add_exception_handler(GitLabError, _gitlab_error_handler)
     app.add_exception_handler(ApiError, _api_error_handler)
     app.add_exception_handler(RequestValidationError, _validation_handler)
     app.add_exception_handler(StarletteHTTPException, _http_exception_handler)

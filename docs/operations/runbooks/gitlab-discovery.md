@@ -31,6 +31,27 @@ new idempotency key and the current identity revision after access is restored.
 Disconnect clears the observation's installation marker and blocks refresh while
 retaining identity and links. Re-enable through an explicit operator decision.
 
+## Read-only source connector (ADR-0224)
+
+The same `AI_STP_GITLAB_CONNECTIONS` entries may carry the instance's OAuth
+application: `oauth_client_id` and `oauth_client_secret`. Register the
+application on the GitLab instance (Admin → Applications or the group's
+Applications) with redirect URI
+`{api callback base}/v1/connectors/gitlab/callback` and the `read_api` scope
+only. Add `AI_STP_GITLAB_CONNECTOR_ENCRYPTION_KEY` — URL-safe base64 of exactly
+32 random bytes — to encrypt stored user grants. A connection without OAuth
+credentials answers `connector_not_configured` and keeps discovery only.
+
+Members of the organization then connect under
+`/v1/corporate/organizations/{id}/gitlab/*`. Connect requires the account's
+linked `gitlab` sign-in identity on the same instance host, and the grant can
+only ever read: project listing, repository metadata, languages, commit lookup
+and the source archive. Source preparation produces an immutable
+`gitlab_source_binding` that a publication plan references through
+`gitlab_source_binding_id` exactly like the GitHub flow — the plan binds to at
+most one source. Disconnect clears local grant state; nothing writes back to
+GitLab. There is no administration surface.
+
 On application rollback, stop discovery routes. Existing provider identity rows
 remain readable through the project identity flow; migration 0091 can be reversed
 only if the retained branch/revision metadata is no longer needed.

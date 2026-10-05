@@ -1,0 +1,32 @@
+{
+  "$id": "urn:ai-stp:schema:v1:gitlab-connect-request",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "confirmed": {
+      "const": true,
+      "title": "Confirmed",
+      "type": "boolean"
+    },
+    "locale": {
+      "default": "en",
+      "enum": [
+        "en",
+        "ru"
+      ],
+      "title": "Locale",
+      "type": "string"
+    },
+    "purpose": {
+      "const": "source",
+      "default": "source",
+      "title": "Purpose",
+      "type": "string"
+    }
+  },
+  "required": [
+    "confirmed"
+  ],
+  "title": "GitLabConnectRequest",
+  "type": "object"
+}

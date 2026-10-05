@@ -30,9 +30,10 @@ function oauthLoginHref(provider: LoginProvider, returnTo: string): string {
 }
 
 /**
- * Login UX (SPEC-023, ADR-0041). Provider buttons always render; the
- * corporate SSO entry (ADR-0218) shows only in the corporate_hub build for
- * providers listed in AI_STP_AUTH_SSO_PROVIDERS.
+ * Login UX (SPEC-023, ADR-0041). Primary provider buttons render from
+ * AI_STP_AUTH_PROVIDERS (default google,github; ADR-0223); the corporate SSO
+ * entry (ADR-0218) shows only in the corporate_hub build for providers listed
+ * in AI_STP_AUTH_SSO_PROVIDERS.
  * Real OAuth uses same-origin /v1/auth/... (Next rewrite to API in dev; the host proxy
  * path split in staging/prod). Offline e2e keeps mock forms when
  * AI_STP_USE_MOCKS is true. OAuth status=error|cancel|conflict is driven by
@@ -49,6 +50,7 @@ export default async function LoginPage({ params, searchParams }: PageProps) {
   const env = getEnv();
   const showMockSimulators = env.AI_STP_USE_MOCKS && sp.debug === "1";
   const useMockLogin = env.AI_STP_USE_MOCKS;
+  const signInProviders = env.AI_STP_AUTH_PROVIDERS;
   const ssoProviders = corporateSsoProviders(env.AI_STP_AUTH_SSO_PROVIDERS);
   const defaultReturn = corporateHref(`/${locale}/account`);
   const returnTo =
@@ -71,53 +73,41 @@ export default async function LoginPage({ params, searchParams }: PageProps) {
       {sp.status === "conflict" ? <StatePanel kind="error" title={t("conflict")} /> : null}
 
       <div className="flex flex-col gap-3">
-        {useMockLogin ? (
-          <>
-            <form
-              action={async () => {
-                "use server";
-                await startLoginAction("google", {
-                  locale,
-                  returnTo,
-                });
-              }}
-            >
-              <Button type="submit" className="min-h-11 w-full">
-                <Icon name="google" size="sm" />
-                {t("google")}
+        {useMockLogin
+          ? signInProviders.map((provider, index) => (
+              <form
+                key={provider}
+                action={async () => {
+                  "use server";
+                  await startLoginAction(provider, {
+                    locale,
+                    returnTo,
+                  });
+                }}
+              >
+                <Button
+                  type="submit"
+                  variant={index === 0 ? "default" : "secondary"}
+                  className="min-h-11 w-full"
+                >
+                  <Icon name={provider} size="sm" />
+                  {t(provider)}
+                </Button>
+              </form>
+            ))
+          : signInProviders.map((provider, index) => (
+              <Button
+                key={provider}
+                asChild
+                variant={index === 0 ? "default" : "secondary"}
+                className="min-h-11 w-full"
+              >
+                <a href={oauthLoginHref(provider, returnTo)}>
+                  <Icon name={provider} size="sm" />
+                  {t(provider)}
+                </a>
               </Button>
-            </form>
-            <form
-              action={async () => {
-                "use server";
-                await startLoginAction("github", {
-                  locale,
-                  returnTo,
-                });
-              }}
-            >
-              <Button type="submit" variant="secondary" className="min-h-11 w-full">
-                <Icon name="github" size="sm" />
-                {t("github")}
-              </Button>
-            </form>
-          </>
-        ) : (
-          <>
-            <Button asChild className="min-h-11 w-full">
-              <a href={oauthLoginHref("google", returnTo)}>
-                <Icon name="google" size="sm" />
-                {t("google")}
-              </a>
-            </Button>
-            <Button asChild variant="secondary" className="min-h-11 w-full">
-              <a href={oauthLoginHref("github", returnTo)}>
-                <Icon name="github" size="sm" />
-                {t("github")}
-              </a>
-            </Button>
-          </>
-        )}
+            ))}
         <SsoSignIn
           label={t("sso")}
           options={ssoProviders.map((provider) => ({
@@ -126,7 +116,7 @@ export default async function LoginPage({ params, searchParams }: PageProps) {
           }))}
         />
         <CliCopyBlock
-          command={login("github")}
+          command={login(signInProviders[0] ?? "github")}
           title={tCli("loginHint")}
           copyLabel={tCli("copy")}
           copiedLabel={tCli("copied")}

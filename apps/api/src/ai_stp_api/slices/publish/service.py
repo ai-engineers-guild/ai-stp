@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from datetime import UTC, datetime
 from typing import cast
+from urllib.parse import urlsplit
 
 from pydantic import ValidationError
 from sqlalchemy import select
@@ -30,6 +31,14 @@ from ai_stp_platform.artifact_bind import (
 from ai_stp_platform.github_client import GitHubClient, GitHubError
 from ai_stp_platform.github_models import GitHubSourceBinding
 from ai_stp_platform.github_sources import authorize_binding, bound_source
+from ai_stp_platform.gitlab_client import GitLabClient, GitLabError
+from ai_stp_platform.gitlab_models import GitLabSourceBinding
+from ai_stp_platform.gitlab_sources import (
+    authorize_binding as gitlab_authorize_binding,
+)
+from ai_stp_platform.gitlab_sources import (
+    bound_source as gitlab_bound_source,
+)
 from ai_stp_platform.identity import (
     IdentityError,
     assert_publication_owner,
@@ -86,6 +95,13 @@ async def _require_active_device(db: AsyncSession, *, ctx: AuthContext, device_i
     return device
 
 
+def _gitlab_client(binding: GitLabSourceBinding) -> GitLabClient:
+    """The binding's base URL was allowlist-validated when it was written; the
+    same host is the only authority provenance reads may reach again."""
+    host = urlsplit(binding.gitlab_base_url).hostname or ""
+    return GitLabClient(binding.gitlab_base_url, allowed_hosts=(host,), auth="bearer")
+
+
 def _to_response(
     plan: PublicationPlan, evidence: list[dict[str, object]] | None = None
 ) -> PublicationPlanResponse:
@@ -99,6 +115,7 @@ async def create_plan(
     body: PublicationPlanCreateRequest,
     settings: Settings | None = None,
     github_client: GitHubClient | None = None,
+    gitlab_client: GitLabClient | None = None,
 ) -> PublicationPlanResponse:
     await _require_active_device(db, ctx=ctx, device_id=body.device_id)
     if body.object_kind == "setup" and body.artifact_inventory:
@@ -160,6 +177,33 @@ async def create_plan(
             settings=settings.github_connector,
             public=visibility == "public",
         )
+    elif body.gitlab_source_binding_id is not None:
+        binding = await db.scalar(
+            select(GitLabSourceBinding)
+            .where(GitLabSourceBinding.id == body.gitlab_source_binding_id)
+            .with_for_update()
+        )
+        if binding is None or binding.account_id != ctx.account_id:
+            raise GitLabError("source_binding_unavailable", status=404)
+        artifact = body.passport.get("artifact")
+        if (
+            body.object_kind != "component"
+            or body.passport.get("source") is not None
+            or binding.content_digest != body.content_digest
+            or not isinstance(artifact, dict)
+            or cast(dict[str, object], artifact).get("size_bytes") != binding.size_bytes
+            or list(body.artifact_inventory) != binding.inventory
+        ):
+            raise GitLabError("source_binding_mismatch", status=412)
+        if settings is None:
+            raise GitLabError("connector_not_configured")
+        await gitlab_authorize_binding(
+            db,
+            binding,
+            client=gitlab_client or _gitlab_client(binding),
+            settings=settings.gitlab,
+            public=visibility == "public",
+        )
     existing = await db.scalar(
         select(PublicationPlan).where(
             PublicationPlan.actor_account_id == ctx.account_id,
@@ -175,6 +219,7 @@ async def create_plan(
             or existing.content_digest != body.content_digest
             or existing.visibility != visibility
             or existing.source_binding_id != body.source_binding_id
+            or existing.gitlab_source_binding_id != body.gitlab_source_binding_id
             or list(existing.artifact_inventory) != list(body.artifact_inventory)
             or existing.attestations != [a.model_dump(mode="json") for a in body.attestations]
             or existing.passport.get("revision_id") != body.passport.get("revision_id")
@@ -232,6 +277,8 @@ async def create_plan(
     if binding is not None:
         exact_passport_digest = passport_digest(passport_model)
         if binding.passport_digest not in {None, exact_passport_digest}:
+            if isinstance(binding, GitLabSourceBinding):
+                raise GitLabError("source_binding_mismatch", status=412)
             raise GitHubError("source_binding_mismatch", status=412)
         binding.passport_digest = exact_passport_digest
     expected_ownership_revision_id: str | None = None
@@ -278,6 +325,7 @@ async def create_plan(
         artifact_inventory=list(body.artifact_inventory),
         visibility=visibility,
         source_binding_id=body.source_binding_id,
+        gitlab_source_binding_id=body.gitlab_source_binding_id,
     )
     plan = PublicationPlan(
         id=new_id("plan"),
@@ -290,6 +338,7 @@ async def create_plan(
         artifact_inventory=list(body.artifact_inventory),
         visibility=visibility,
         source_binding_id=body.source_binding_id,
+        gitlab_source_binding_id=body.gitlab_source_binding_id,
         policy_version=POLICY_VERSION,
         plan_hash=plan_hash,
         state="ready",
@@ -499,6 +548,7 @@ async def confirm_plan(
     store: ImmutableObjectStore,
     settings: Settings | None = None,
     github_client: GitHubClient | None = None,
+    gitlab_client: GitLabClient | None = None,
 ) -> PublicationPlanResponse:
     plan = await db.get(PublicationPlan, plan_id)
     if plan is None or plan.actor_account_id != ctx.account_id:
@@ -554,6 +604,17 @@ async def confirm_plan(
             binding,
             client=github_client or GitHubClient(),
             settings=settings.github_connector,
+            public=plan.visibility == "public",
+        )
+    gitlab_binding = await gitlab_bound_source(db, plan)
+    if gitlab_binding is not None:
+        if settings is None:
+            raise GitLabError("connector_not_configured")
+        await gitlab_authorize_binding(
+            db,
+            gitlab_binding,
+            client=gitlab_client or _gitlab_client(gitlab_binding),
+            settings=settings.gitlab,
             public=plan.visibility == "public",
         )
 

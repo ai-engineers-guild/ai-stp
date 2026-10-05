@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "standard_family": "ai-stp-standard/1",
-  "contract_digest": "sha256:a9f2ab783a1ced77f22a7d41988990c810d7145ea50207aec4f0aed23b8f2023",
+  "contract_digest": "sha256:ee0986375ab587a43c208960cb9b099573cea459d3e07093a05565145a0abd23",
   "axes": [
     {
       "name": "standard_family",
@@ -1414,6 +1414,22 @@
     },
     {
       "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:gitlab-connect-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:gitlab-connect-response"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:gitlab-connector-status"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:gitlab-disconnect-request"
+    },
+    {
+      "axis": "http_schema",
       "identity": "urn:ai-stp:schema:v1:gitlab-enrich-request"
     },
     {
@@ -1427,6 +1443,14 @@
     {
       "axis": "http_schema",
       "identity": "urn:ai-stp:schema:v1:gitlab-repository-view"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:gitlab-source-prepare-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:gitlab-source-prepared"
     },
     {
       "axis": "http_schema",

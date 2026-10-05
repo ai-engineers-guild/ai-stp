@@ -19,6 +19,9 @@ from ai_stp_platform import (
     github_models as _github_models,  # noqa: F401 register metadata
 )
 from ai_stp_platform import (
+    gitlab_models as _gitlab_models,  # noqa: F401 register metadata
+)
+from ai_stp_platform import (
     grant_identity_models as _grant_identity_models,  # noqa: F401 register metadata
 )
 from ai_stp_platform import (

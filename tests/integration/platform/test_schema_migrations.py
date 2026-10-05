@@ -62,6 +62,7 @@ _MODEL_MODULES = (
     "ai_stp_platform.catalog_ownership_models",
     "ai_stp_platform.dashboard_models",
     "ai_stp_platform.github_models",
+    "ai_stp_platform.gitlab_models",
     "ai_stp_platform.grant_identity_models",
     "ai_stp_platform.heartbeat_models",
     "ai_stp_platform.installation_inventory_models",

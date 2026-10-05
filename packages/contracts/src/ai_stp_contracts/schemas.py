@@ -255,6 +255,14 @@ from ai_stp_contracts.gitlab import (
     GitLabRepositoryList,
     GitLabRepositoryView,
 )
+from ai_stp_contracts.gitlab_connector import (
+    GitLabConnectorStatus,
+    GitLabConnectRequest,
+    GitLabConnectResponse,
+    GitLabDisconnectRequest,
+    GitLabSourcePrepared,
+    GitLabSourcePrepareRequest,
+)
 from ai_stp_contracts.grants import (
     AccessGrantResponse,
     CliGrantAccessView,
@@ -914,6 +922,12 @@ HTTP_MODELS: Final[dict[str, ExportedSchema]] = {
     "gitlab-enrich-request": GitLabEnrichRequest,
     "gitlab-repository-view": GitLabRepositoryView,
     "gitlab-repository-list": GitLabRepositoryList,
+    "gitlab-connect-request": GitLabConnectRequest,
+    "gitlab-connect-response": GitLabConnectResponse,
+    "gitlab-connector-status": GitLabConnectorStatus,
+    "gitlab-disconnect-request": GitLabDisconnectRequest,
+    "gitlab-source-prepare-request": GitLabSourcePrepareRequest,
+    "gitlab-source-prepared": GitLabSourcePrepared,
     "runtime-usage-event": RuntimeUsageEvent,
     "runtime-usage-event-batch": RuntimeUsageEventBatch,
     "runtime-usage-ingest-result": RuntimeUsageIngestResult,

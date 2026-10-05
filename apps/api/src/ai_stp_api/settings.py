@@ -11,7 +11,7 @@ from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as installed_version
 from pathlib import Path
 
-from pydantic import AliasChoices, BaseModel, Field, SecretStr, field_validator, model_validator
+from pydantic import AliasChoices, Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from ai_stp_contracts.catalog import (
@@ -22,6 +22,8 @@ from ai_stp_contracts.catalog import (
 )
 from ai_stp_platform.catalog_usage import CatalogUsagePolicy
 from ai_stp_platform.github_settings import GitHubConnectorSettings
+from ai_stp_platform.gitlab_settings import GitLabConnection as GitLabConnection
+from ai_stp_platform.gitlab_settings import GitLabSettings
 from ai_stp_platform.settings import DatabaseSettings, StorageSettings
 
 # Fail-closed single-node HTTP gate (SPEC-010 REQ-1015, ADR-0128).
@@ -323,16 +325,9 @@ class CorporateSettings(BaseSettings):
     invitation_ttl_seconds: int = Field(default=86_400, ge=60, le=2_592_000)
 
 
-class GitLabConnection(BaseModel):
-    base_url: str
-    token: SecretStr
-    allowed_hosts: list[str] = Field(default_factory=list)
-
-
-class GitLabSettings(BaseSettings):
-    model_config = SettingsConfigDict(env_prefix="AI_STP_GITLAB_", extra="ignore")
-
-    connections: dict[str, GitLabConnection] = Field(default_factory=dict)
+# Canonical GitLab definitions live in platform (gitlab_settings) so connector
+# authority code can use them without importing the API layer; the names stay
+# importable from here for the API surface and its tests.
 
 
 @dataclass(frozen=True)

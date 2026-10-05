@@ -1,0 +1,23 @@
+{
+  "$id": "urn:ai-stp:schema:v1:gitlab-disconnect-request",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "confirmed": {
+      "const": true,
+      "title": "Confirmed",
+      "type": "boolean"
+    },
+    "purpose": {
+      "const": "source",
+      "default": "source",
+      "title": "Purpose",
+      "type": "string"
+    }
+  },
+  "required": [
+    "confirmed"
+  ],
+  "title": "GitLabDisconnectRequest",
+  "type": "object"
+}

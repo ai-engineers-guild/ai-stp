@@ -10987,6 +10987,7 @@ export type PublicationPlanCreateRequest = {
   attestations?: Array<AuthorAttestation>;
   content_digest: ContentDigest;
   device_id: DeviceId;
+  gitlab_source_binding_id?: PlanId | null;
   idempotency_key: IdempotencyKey;
   object_kind: ObjectKind;
   /**
@@ -11035,6 +11036,7 @@ export type PublicationPlanResponse = {
    */
   evidence: Array<EvidenceBindingView>;
   expires_at: Timestamp;
+  gitlab_source_binding_id: PlanId | null;
   object_kind: ObjectKind;
   /**
    * Plan Hash

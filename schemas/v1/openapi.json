@@ -21559,6 +21559,17 @@
           "device_id": {
             "$ref": "#/components/schemas/DeviceId"
           },
+          "gitlab_source_binding_id": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PlanId"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
           "idempotency_key": {
             "$ref": "#/components/schemas/IdempotencyKey"
           },
@@ -21660,6 +21671,17 @@
           "expires_at": {
             "$ref": "#/components/schemas/Timestamp"
           },
+          "gitlab_source_binding_id": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PlanId"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
           "object_kind": {
             "$ref": "#/components/schemas/ObjectKind"
           },
@@ -21715,6 +21737,7 @@
           "effects",
           "evidence",
           "expires_at",
+          "gitlab_source_binding_id",
           "object_kind",
           "plan_hash",
           "plan_id",
