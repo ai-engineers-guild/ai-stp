@@ -783,7 +783,10 @@ infra-check: infra-static
 # combination that must render. `config -q` resolves interpolation and service
 # references without contacting the daemon — read-only, no build, no mutation.
 # The two overlays are invalid alone by design (they patch dev services), so
-# they are validated in the combinations the runbooks actually use.
+# they are validated in the combinations the runbooks actually use. Values an
+# overlay requires by design — the SEO-enrichment credential, the observability
+# image — are supplied as inert placeholders: `config` checks the shape, and a
+# missing required value is the deploy preflight's refusal, not this one's.
 [doc('Lint Dockerfiles, deploy scripts and every valid compose combination')]
 [group('infra')]
 infra-static:
@@ -792,7 +795,7 @@ infra-static:
     docker compose -f deploy/compose.prod.yml config -q
     docker compose -f deploy/compose.dev.yml config -q
     docker compose -f deploy/compose.dev.yml -f deploy/compose.corporate-local.yml config -q
-    docker compose -f deploy/compose.dev.yml -f deploy/compose.seo-enrichment.yml --profile seo_enrichment config -q
+    AI_STP_SEO_ENRICHMENT_CREDENTIAL=infra-static-placeholder docker compose -f deploy/compose.dev.yml -f deploy/compose.seo-enrichment.yml --profile seo_enrichment config -q
     docker compose -f deploy/compose.dev.yml -f deploy/compose.oidc-local.yml config -q
     docker compose -f deploy/compose.dev.yml -f deploy/compose.corporate-e2e.yml config -q
     docker compose -f deploy/compose.prod.yml -f deploy/compose.corporate.yml config -q
