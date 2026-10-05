@@ -124,6 +124,12 @@ uv pip install --python "${venv_python}" -q "${PYINSTALLER_TOOLSET[@]}"
 # internally at load time, which modulegraph cannot see. Past bundles only
 # received it through an accidental edge — a dependency that pulled in cffi
 # itself — so it is declared here or the frozen CLI dies on nacl import.
+#
+# setuptools is in this environment only because PyInstaller depends on it,
+# and the CLI never imports it: cffi refers to it from its build-time
+# helpers alone. Collected, it brought PyInstaller's setuptools runtime hook,
+# which imports setuptools before the CLI starts, on every call: 2.21s against
+# 2.04s for `version --json` from the same freeze (median of five, wall).
 "${venv_python}" -m PyInstaller --onefile --clean \
   --name "ai-stp-desktop-cli-${triple}" \
   --distpath "${work_dir}/dist" \
@@ -136,6 +142,9 @@ uv pip install --python "${venv_python}" -q "${PYINSTALLER_TOOLSET[@]}"
   --collect-all ai_stp_passports \
   --collect-all ai_stp_assurance \
   --collect-all ai_stp_sources \
+  --exclude-module setuptools \
+  --exclude-module pkg_resources \
+  --exclude-module _distutils_hack \
   "${work_dir}/entry.py"
 
 mkdir -p "${out_dir}"
