@@ -1,6 +1,6 @@
 ---
 description: "Building, verifying, and rolling back web deployment profiles."
-last_verified: "2026-09-14"
+last_verified: "2026-10-05"
 ---
 
 # Web deployment profiles
@@ -34,9 +34,9 @@ and feed use matching gated extensions. `next.config.ts` enables these extension
 only for the corresponding compiled features; regional pages are omitted only
 from corporate builds, retaining their existing packaged surface. Disabled page modules are omitted
 from route discovery and compilation, not merely rendered as 404. The generic
-machine route still denies their paths through the feature gate and middleware.
-Corporate builds enable Next's native `skipMiddlewareUrlNormalize` setting to
-keep middleware from reconstructing excluded machine targets; other profiles
+machine route still denies their paths through the feature gate and the request
+proxy (`src/proxy.ts`). Corporate builds enable Next's native
+`skipProxyUrlNormalize` setting to keep the proxy from reconstructing excluded machine targets; other profiles
 leave it disabled.
 Corporate builds reject overrides that reenable editorial or SaaS-public pages.
 The standalone packager reads baked features from `required-server-files.json`
