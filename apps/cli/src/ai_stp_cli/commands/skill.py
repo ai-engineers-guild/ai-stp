@@ -7,7 +7,7 @@ from ai_stp_cli import skill
 from ai_stp_cli.answer import Answer
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.paths import redact_home
-from ai_stp_contracts.machine_help import SkillDelivery
+from ai_stp_contracts.cli.runtime import SkillDelivery
 
 
 def status(parameters: Mapping[str, object]) -> Answer[SkillDelivery]:

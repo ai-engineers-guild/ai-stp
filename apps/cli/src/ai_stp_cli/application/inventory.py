@@ -551,6 +551,21 @@ EXPERT: Final[dict[tuple[str, ...], str]] = {
 
 OBSOLETE: Final[dict[tuple[str, ...], str]] = {}
 
+#: The task intents this build ships, in catalog order. Defined here rather than
+#: beside the intent input models so the command router can name them without
+#: importing the task contract.
+SHIPPED_INTENT_NAMES: Final[tuple[str, ...]] = (
+    "inspect",
+    "initialize",
+    "install",
+    "change",
+    "author",
+    "switch",
+    "account",
+    "publish",
+    "technology",
+)
+
 #: Longest prefix first. Incomplete groups and scoped `help --path` of these
 #: families start the draining intent instead of listing expert leaves.
 DRAINED_GROUPS: Final[tuple[tuple[tuple[str, ...], str], ...]] = (

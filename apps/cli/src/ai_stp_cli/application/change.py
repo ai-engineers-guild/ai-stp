@@ -21,7 +21,7 @@ from ai_stp_cli.application.install_task import (
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import passports, setup_compose, setup_derive, versions
 from ai_stp_cli.local.database import configured_path, open_registry
-from ai_stp_contracts.machine_help import TaskChangeOutcome, TaskQuestion
+from ai_stp_contracts.cli.tasks import TaskChangeOutcome, TaskQuestion
 from ai_stp_foundation.canonical import JsonValue
 from ai_stp_foundation.harnesses import HARNESS_IDS
 from ai_stp_foundation.ids import is_valid_id

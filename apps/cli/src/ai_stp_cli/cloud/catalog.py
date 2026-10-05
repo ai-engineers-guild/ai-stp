@@ -35,14 +35,14 @@ from ai_stp_contracts.catalog import (
     SetupSearchRequest,
     SetupVersionResponse,
 )
-from ai_stp_contracts.http import API_BASE_PATH, PAGE_SIZE_DEFAULT
-from ai_stp_contracts.machine_help import (
+from ai_stp_contracts.cli.catalog import (
     AnswerSource,
     CatalogKind,
     CatalogObjectView,
     CatalogSearchResult,
     CatalogVersionView,
 )
+from ai_stp_contracts.http import API_BASE_PATH, PAGE_SIZE_DEFAULT
 from ai_stp_contracts.private_access import CliPrivateVersionResponse
 from ai_stp_foundation.canonical import JsonValue
 from ai_stp_foundation.timestamps import format_timestamp

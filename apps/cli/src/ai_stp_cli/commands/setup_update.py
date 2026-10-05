@@ -13,7 +13,7 @@ from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import embedded_update, project_passport
 from ai_stp_cli.local.database import configured_path, open_registry
 from ai_stp_cli.local.passports import moment
-from ai_stp_contracts.machine_help import SetupUpdatePlan, SetupUpdateResult
+from ai_stp_contracts.cli.setups import SetupUpdatePlan, SetupUpdateResult
 from ai_stp_foundation.harnesses import HARNESS_IDS
 from ai_stp_sources.models import SourceSnapshot
 

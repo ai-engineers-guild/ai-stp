@@ -27,7 +27,7 @@ from ai_stp_cli.local import (
 )
 from ai_stp_cli.local.components import Rule
 from ai_stp_cli.local.database import transaction
-from ai_stp_contracts.machine_help import SetupRecastMember, SetupRecastPlan, SetupRecastResult
+from ai_stp_contracts.cli.setups import SetupRecastMember, SetupRecastPlan, SetupRecastResult
 from ai_stp_foundation.canonical import JsonValue, canonize
 from ai_stp_foundation.digests import digest_bytes, digest_canonical
 from ai_stp_foundation.harnesses import HARNESS_IDS, HarnessId

@@ -14,7 +14,7 @@ descriptor does not declare — keeps the foundation's derivation rather than
 failing the envelope that carries it.
 """
 
-from ai_stp_contracts.machine_help import CommandDescriptor, CommandParameter
+from ai_stp_contracts.cli.registry import CommandDescriptor, CommandParameter
 from ai_stp_foundation.canonical import JsonValue
 from ai_stp_foundation.envelope import Continuation, bound_continuation
 

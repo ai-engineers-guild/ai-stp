@@ -24,7 +24,7 @@ from ai_stp_cli.local.author_attestations import load, verify
 from ai_stp_cli.local.database import configured_path, open_readonly
 from ai_stp_cli.local.passports import moment
 from ai_stp_cli.paths import redact_home, write_private
-from ai_stp_contracts.machine_help import CliSignedAttestation
+from ai_stp_contracts.cli.publication import CliSignedAttestation
 from ai_stp_foundation.canonical import JsonValue
 from ai_stp_foundation.envelope import Continuation
 from ai_stp_foundation.refs import ComponentRef

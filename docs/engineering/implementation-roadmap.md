@@ -20,20 +20,50 @@ who decides.
 
 | # | Work | Current state | Closes when |
 |---|---|---|---|
-| 1 | CLI startup floor | Contract models build on first use and local commands no longer import httpx; a local read-only command still costs 1.1–1.3 s of user CPU against the 0.8 s budget (`cli-performance.md`) | `ai_stp_contracts.machine_help` is split so a command imports only the models it returns, measured as in `cli-performance.md` |
-| 2 | Desktop sidecar cold start | PyInstaller `--onefile` unpacks the frozen CLI on every call; a `--onedir` freeze measured 0.4–0.5 s faster per call | The CLI ships as a `--onedir` tree through Tauri resources, with `ADR-0222` §7 amended and all three bundles probed |
-| 3 | Official manifest curation | 25 of 52 Official sources fail on every daily run: an unsafe archive (binary, link, secret-like path, oversize) or a validation refusal | The maintainer narrows `component_subpath`, replaces, or removes each entry; `failed_permanent` attempts name the code |
-| 4 | Worker GitHub token | Unauthenticated Official sync waits out GitHub's rate-limit windows and completes over several hours | Owner decision on `AI_STP_WORKER_GITHUB_TOKEN`, a new credential |
-| 5 | PostgreSQL 16 rollback copy | Volume `ai_stp_pgdata` keeps the 16.15 cluster after the 18.6 upgrade | Owner decision to remove it |
-| 6 | Desktop code signing | Bundles are unsigned (`ADR-0222` §7) | Certificates exist and distribution requires them |
-| 7 | Deferred dependency migrations | `httpx2`, Python 3.14 server images, ESLint 10, `js-yaml` 5, Dependabot for `bun` | Each exit condition in `dependency-policy.md` |
-| 8 | Windows process-contract flake | `toolchain harnesses --json` returned no envelope on `windows-latest` on 2026-10-03 and 2026-10-05 | The next occurrence, which now reports exit code and stderr, names the cause |
+| 1 | Desktop sidecar cold start | PyInstaller `--onefile` unpacks the frozen CLI on every call; a `--onedir` freeze measured 0.4–0.5 s faster per call | The CLI ships as a `--onedir` tree through Tauri resources, with `ADR-0222` §7 amended and all three bundles probed |
+| 2 | Official manifest curation | 5 of 52 Official sources fail validation, and 19 refused their archive when last reached on 2026-10-03 (binary, link or special file, secret-like path, oversize); the rate limit in row 3 has hidden the archive refusals since | The maintainer narrows `component_subpath`, replaces, or removes each entry; `failed_permanent` attempts name the code |
+| 3 | Worker GitHub token | On 2026-10-05, 37 of 52 daily syncs dead-lettered on GitHub's unauthenticated rate limit, five attempts within fifteen minutes; that run predates `#666`, and the 2026-10-06 00:00 UTC run is the first to retry at the reset | The 2026-10-06 run shows whether reset-aware retries alone complete the set; a token is an owner decision on `AI_STP_WORKER_GITHUB_TOKEN`, a new credential |
+| 4 | PostgreSQL 16 rollback copy | Volume `ai_stp_pgdata` keeps the 16.15 cluster after the 18.6 upgrade | Owner decision to remove it |
+| 5 | Desktop code signing | Bundles are unsigned (`ADR-0222` §7) | Certificates exist and distribution requires them |
+| 6 | Deferred dependency migrations | `httpx2`, Python 3.14 server images, ESLint 10, `js-yaml` 5, Dependabot for `bun` | Each exit condition in `dependency-policy.md` |
+| 7 | Windows process-contract flake | `toolchain harnesses --json` returned no envelope on `windows-latest` on 2026-10-03 and 2026-10-05 | The next occurrence, which now reports exit code and stderr, names the cause |
 
 Not pursued by owner decision: real-agent qualification corpora (GPT OSS 120B
 through agy-cli, Claude haiku), native Windows and macOS acceptance runs by an
 agent, and scheduled production backups (SPEC-024 `REQ-2409`). Outside this
 plan's owner: the Corporate Hub and `[Enterprise]` backlog (#224, #541–#544
 and the issues it links) and setup-systems #316.
+
+## Live sync evidence and the CLI import floor — 2026-10-05 (night)
+
+**Live evidence on `bc7dbfbb`.** Two disposable homes signed in through the
+device-code flow, each code approved in a browser, and `just evidence-sync`
+verified all five scenarios against production: fast-forward, replay of a
+pushed head (accepted without a second event), conflict, merge, and version
+collision (`AI_STP_CONFLICT` with the local release kept).
+`just evidence-publication` verified the read-only surface: owner objects,
+grant and report lists, an owner object with its versions, a locally signed
+attestation, a report preview, and the publication, grant and report mutations
+each reaching the API and refusing an absent object. The mutations themselves
+were not driven, because each writes an immutable `X.Y` into the public
+catalogue, changes another person's access or files a moderation case.
+
+**Official sync, read from production data.** Of 52 sources, 16 have synced
+since 2026-10-02, 5 are refused with `failed_validation`, and 31 have not got
+past GitHub's unauthenticated rate limit in that time. On 2026-10-05 all 37
+dead letters were `GitHub rate limit exceeded`, five attempts within fifteen
+minutes; the reset-aware retry from `#666` merged after that run. The 19
+sources whose archive was refused when last reached (2026-10-03) are row 2.
+
+**CLI import floor (`#700`).** Every invocation imported the whole machine
+contract: `ai_stp_contracts.machine_help`, 215 definitions with the catalog,
+corporate, publication and technology contracts behind them, and a package root
+that imported seven modules eagerly. The models now live in
+`ai_stp_contracts.cli`, sixteen modules by command family, with `machine_help`
+re-exporting every name and the generated schemas unchanged by a byte; the root
+loads its names on first use. `version --json` fell from 1.10 to 0.70 s of user
+CPU, and every local read-only command is within the 0.8 s budget
+(`cli-performance.md`, fifth measurement).
 
 ## Deploy, content and upstream repairs; faster CLI and sidecar — 2026-10-05 (evening)
 

@@ -10,7 +10,7 @@ from collections.abc import Mapping
 from ai_stp_cli.answer import Answer
 from ai_stp_cli.cloud import session
 from ai_stp_cli.secrets import open_store
-from ai_stp_contracts.machine_help import AuthStatus
+from ai_stp_contracts.cli.identity import AuthStatus
 
 
 def run(_parameters: Mapping[str, object]) -> Answer[AuthStatus]:

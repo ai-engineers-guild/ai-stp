@@ -23,7 +23,7 @@ from ai_stp_cli.self_update import method as method_mod
 from ai_stp_cli.self_update import store
 from ai_stp_cli.self_update.index import Candidate, ReleaseIndex
 from ai_stp_cli.self_update.method import Installation
-from ai_stp_contracts.machine_help import (
+from ai_stp_contracts.cli.self_update import (
     CliSelfUpdateCheck,
     CliSelfUpdatePlan,
     CliSelfUpdateResult,

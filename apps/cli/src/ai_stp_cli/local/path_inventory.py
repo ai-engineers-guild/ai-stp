@@ -18,12 +18,12 @@ from pydantic import ValidationError
 
 from ai_stp_cli.local import components, discovery_continuation
 from ai_stp_cli.paths import redact_home
-from ai_stp_contracts.component_passport import ComponentPassportPatch
-from ai_stp_contracts.machine_help import (
+from ai_stp_contracts.cli.components import (
     NativeDiscoveryDiagnostic,
     PathInventory,
     PathInventoryObject,
 )
+from ai_stp_contracts.component_passport import ComponentPassportPatch
 from ai_stp_foundation.canonical import JsonValue
 from ai_stp_foundation.digests import digest_canonical
 from ai_stp_passports.versions import ComponentType

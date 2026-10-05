@@ -22,7 +22,7 @@ from ai_stp_cli.local.catalog_replacement import (
     suggest_embedded_catalog_replacement,
 )
 from ai_stp_cli.local.database import transaction
-from ai_stp_contracts.machine_help import SetupUpdatePlan, SetupUpdateResult
+from ai_stp_contracts.cli.setups import SetupUpdatePlan, SetupUpdateResult
 from ai_stp_foundation.canonical import JsonValue
 from ai_stp_foundation.digests import digest_bytes, digest_canonical
 from ai_stp_foundation.ids import is_valid_id

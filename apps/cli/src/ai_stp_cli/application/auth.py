@@ -22,7 +22,7 @@ from ai_stp_contracts.auth import (
     DeviceTokenResponse,
     OAuthProvider,
 )
-from ai_stp_contracts.machine_help import AuthStatus, DeviceApproval
+from ai_stp_contracts.cli.identity import AuthStatus, DeviceApproval
 
 #: Re-exported from the contract that owns the set.
 PROVIDERS: tuple[OAuthProvider, ...] = OAUTH_PROVIDERS

@@ -5,7 +5,7 @@ from collections.abc import Mapping
 from ai_stp_cli.answer import Answer
 from ai_stp_cli.application import install
 from ai_stp_cli.application import install_transaction as service
-from ai_stp_contracts.machine_help import MultiRootTransactionView
+from ai_stp_contracts.cli.install import MultiRootTransactionView
 
 __all__ = [
     "apply",

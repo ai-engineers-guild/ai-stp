@@ -35,8 +35,7 @@ from ai_stp_cli.local.database import configured_path, open_registry, transactio
 from ai_stp_cli.local.passports import moment
 from ai_stp_cli.paths import redact_home
 from ai_stp_contracts.catalog import CatalogTrust
-from ai_stp_contracts.http import PAGE_SIZE_MAX
-from ai_stp_contracts.machine_help import (
+from ai_stp_contracts.cli.catalog import (
     AcquiredComponentVersion,
     CatalogArtifactView,
     CatalogKind,
@@ -45,6 +44,7 @@ from ai_stp_contracts.machine_help import (
     CatalogSetupAcquisition,
     CatalogVersionView,
 )
+from ai_stp_contracts.http import PAGE_SIZE_MAX
 from ai_stp_contracts.store_ports import (
     StorePortDiscovery,
     StorePortImportPlan,

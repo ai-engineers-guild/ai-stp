@@ -7,7 +7,7 @@ from ai_stp_cli import config
 from ai_stp_cli.answer import Answer
 from ai_stp_cli.config import effective_config, for_display
 from ai_stp_cli.errors import CliFailure
-from ai_stp_contracts.machine_help import ConfigReport
+from ai_stp_contracts.cli.runtime import ConfigReport
 
 #: Separates the field path from the value in `--set path=value`.
 ASSIGNMENT = "="

@@ -31,7 +31,7 @@ from typing import Final, Protocol, cast
 
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.paths import read_private, secrets_dir, write_private
-from ai_stp_contracts.machine_help import CredentialStore
+from ai_stp_contracts.cli.identity import CredentialStore
 
 #: Backends actually backed by an operating-system facility. Anything absent —
 #: `chainer`, `fail`, `null` and everything in `keyrings.alt` — is treated as

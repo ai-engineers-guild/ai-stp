@@ -21,7 +21,7 @@ from ai_stp_cli.local.composition import rule_for
 from ai_stp_cli.local.database import transaction
 from ai_stp_cli.paths import redact_home
 from ai_stp_contracts.authoring import AUTHORING_DRAFT_MARKER
-from ai_stp_contracts.machine_help import (
+from ai_stp_contracts.cli.setups import (
     SetupComposeMember,
     SetupComposePlan,
     SetupComposeResult,

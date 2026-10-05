@@ -24,7 +24,7 @@ from ai_stp_cli.secrets import (
     promote,
     store_json,
 )
-from ai_stp_contracts.machine_help import AuthStatus, SessionState
+from ai_stp_contracts.cli.identity import AuthStatus, SessionState
 from ai_stp_foundation.timestamps import format_timestamp, parse_timestamp
 
 #: The entry the secure store holds. One entry, one document: a token and the

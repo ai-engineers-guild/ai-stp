@@ -10,7 +10,7 @@ from ai_stp_cli.local import capability_reasons, composition, harness_catalog
 from ai_stp_cli.local import harnesses as harness_detection
 from ai_stp_cli.paths import redact_home
 from ai_stp_cli.toolchain import install
-from ai_stp_contracts.machine_help import (
+from ai_stp_contracts.cli.toolchain import (
     EcosystemCoverage,
     HarnessCapabilityRow,
     HarnessCapabilityTable,

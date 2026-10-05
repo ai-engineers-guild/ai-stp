@@ -4,7 +4,7 @@ from collections.abc import Mapping
 
 from ai_stp_cli.answer import Answer
 from ai_stp_cli.self_update import service
-from ai_stp_contracts.machine_help import (
+from ai_stp_contracts.cli.self_update import (
     CliSelfUpdateCheck,
     CliSelfUpdatePlan,
     CliSelfUpdateResult,
