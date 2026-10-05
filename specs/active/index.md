@@ -32,7 +32,7 @@ last_verified: "2026-08-03"
 | [SPEC-021-anonymous-catalog-read-and-seed.md](SPEC-021-anonymous-catalog-read-and-seed.md) | SPEC-021: Anonymous reading of the public catalog and initial seeding of objects. | 2026-09-05 |
 | [SPEC-022-web-shell-landing-catalog.md](SPEC-022-web-shell-landing-catalog.md) | SPEC-022: Web shell, bilingual landing page and anonymous public catalog. | 2026-10-05 |
 | [SPEC-023-web-login-account-devices.md](SPEC-023-web-login-account-devices.md) | SPEC-023: Web login, account profile and device management. | 2026-09-20 |
-| [SPEC-024-reproducible-deployment.md](SPEC-024-reproducible-deployment.md) | SPEC-024: Reproducible deployment with web tier, health, logs, backups and rollback. | 2026-09-07 |
+| [SPEC-024-reproducible-deployment.md](SPEC-024-reproducible-deployment.md) | SPEC-024: Reproducible deployment with web tier, health, logs, backups and rollback. | 2026-10-05 |
 | [SPEC-025-private-registry-revision-sync.md](SPEC-025-private-registry-revision-sync.md) | SPEC-025: Private registry and server-side revision synchronization. | 2026-09-08 |
 | [SPEC-026-publication-validation-grants-reports.md](SPEC-026-publication-validation-grants-reports.md) | SPEC-026: Server-side publication, validation jobs, grants, reports, and staff audit. | 2026-09-07 |
 | [SPEC-027-web-publication-access-moderation.md](SPEC-027-web-publication-access-moderation.md) | SPEC-027: Web UI for owned objects, publication, rights, reports, and minimal moderation. | 2026-09-20 |

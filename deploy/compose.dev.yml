@@ -5,7 +5,7 @@
 
 # Pinned: the project name used to come from the checkout's directory name
 # (typically `ai-stp`). Under deploy/ it would become `deploy` and orphan
-# dev volumes (pgdata, web_next, ...). Override: COMPOSE_PROJECT_NAME.
+# dev volumes (pgdata18, web_next, ...). Override: COMPOSE_PROJECT_NAME.
 name: ai-stp
 
 x-app-env: &app-env
@@ -71,7 +71,7 @@ x-web-env: &web-env
 
 services:
   postgres:
-    image: postgres:16
+    image: postgres:18
     environment:
       POSTGRES_USER: ai_stp
       POSTGRES_PASSWORD: ai_stp_dev
@@ -80,7 +80,9 @@ services:
       - path: ../.env.dev
         required: false
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      # The 18 image keeps the cluster in /var/lib/postgresql/18/docker. A
+      # 16 dev volume cannot be opened by it; dev data reseeds into a new one.
+      - pgdata18:/var/lib/postgresql
     # Localhost-only access lets the platform test fixtures create isolated
     # databases without exposing PostgreSQL beyond the developer workstation.
     ports:
@@ -357,7 +359,7 @@ networks:
   internal:
 
 volumes:
-  pgdata:
+  pgdata18:
   rustfs:
   logs:
   osv_offline:

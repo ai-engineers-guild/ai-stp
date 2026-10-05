@@ -127,3 +127,36 @@ or with an Alembic merge revision; never change the parents of a merged
 revision. `migrations/history.lock` records every revision with its parents and
 `tests/contract/test_migration_history.py` rejects a changed or unrecorded
 entry. Append one `revision parent...` line for each new revision.
+
+## PostgreSQL major upgrade (16 → 18)
+
+`deploy/postgres-major-upgrade.sh` runs inside every deploy before the
+dependencies start (`SPEC-024` `REQ-2419`) and is a no-op unless the postgres
+container still mounts `/var/lib/postgresql/data`, the pre-18 layout. When it
+does, the stage:
+
+1. pulls the new image while everything still serves, then stops `api`,
+   `worker` and `content-import`; `web` and `docs` keep serving;
+2. starts a one-off container of the new `postgres` service on volume
+   `pgdata18`, without the service alias, so nothing else connects to it;
+3. streams `pg_dump --format=custom` from the 16 container into
+   `pg_restore --exit-on-error --single-transaction`;
+4. compares the row count of every table on both sides and refuses a
+   difference;
+5. stops both containers and records which 16 container instance was copied
+   (`.deploy-state/postgres-upgrade-copied`), after which the ordinary bring-up
+   recreates `postgres` on `pgdata18` and migrates, seeds and starts the stack.
+
+The copy counts only while that 16 container has not run since: a rollback
+recreates it, and the next forward deploy copies its newer data again. A failed
+copy restarts the previous release's writers and creates
+`.deploy-state/postgres-upgrade-failed`; later deploys stop at that file instead
+of taking the site down once a minute. Read the deploy log, fix the cause and
+remove the file.
+
+Volume `pgdata` (the 16 cluster) is never written or removed. To roll back,
+deploy the previous release (`deploy/rollback.sh`): its compose file mounts
+`pgdata` again, with the data as of the upgrade. Writes made on 18 after the
+upgrade are not in that copy; dump them first if they must survive. Remove
+`pgdata` only after the 18 cluster has served long enough that a rollback to it
+would lose more than it saves.

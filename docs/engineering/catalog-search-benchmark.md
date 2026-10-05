@@ -1,6 +1,6 @@
 ---
-description: "How to measure catalog search latency on PostgreSQL 16 without a new harness."
-last_verified: "2026-09-04"
+description: "How to measure catalog search latency on PostgreSQL without a new harness."
+last_verified: "2026-10-05"
 ---
 
 # Catalog search benchmark
@@ -21,7 +21,7 @@ Server-side, measured, not claimed:
 
 ## Preconditions
 
-- PostgreSQL 16 with migrations at head, including `0040_catalog_search_projection`
+- The PostgreSQL major production runs (18) with migrations at head, including `0040_catalog_search_projection`
 - `catalog_search_projection` rebuilt (`rebuild_catalog_search_projection`)
 - A corpus on the order of production (thousands of latest public objects, not
   the fixture dozen)

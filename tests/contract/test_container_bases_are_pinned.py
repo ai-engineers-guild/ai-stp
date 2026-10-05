@@ -28,7 +28,7 @@ _FROM = re.compile(
 )
 
 #: Compose services in the file production actually runs. `deploy/compose.dev.yml`
-#: is deliberately absent: a developer pulling a newer `postgres:16` is the point
+#: is deliberately absent: a developer pulling a newer `postgres:18` is the point
 #: of a dev stack, and pinning it would mean a digest bump before every local
 #: `up`. The exemption is the file, named, rather than a rule about tags.
 _PINNED_COMPOSE = ("deploy/compose.prod.yml",)

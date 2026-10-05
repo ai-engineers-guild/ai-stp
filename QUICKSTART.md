@@ -77,14 +77,14 @@ The verbs are identical within each group, so there is no command list to memori
 
 ### PostgreSQL for platform tests
 
-Platform integration and ASGI tests (`tests/api/platform`, `tests/integration/platform`) require a live PostgreSQL 16 instance. Without `AI_STP_TEST_DB_URL`, they are **skipped**.
+Platform integration and ASGI tests (`tests/api/platform`, `tests/integration/platform`) require a live PostgreSQL 18 instance, the major production runs. Without `AI_STP_TEST_DB_URL`, they are **skipped**.
 
 Locally (a separate container with a port exposed on the host; dev-compose exposes Postgres only to the internal network):
 
 ```bash
 docker run -d --name ai_stp-test-postgres \
   -e POSTGRES_USER=ai_stp -e POSTGRES_PASSWORD=ai_stp_dev -e POSTGRES_DB=ai_stp \
-  -p 127.0.0.1:55432:5432 postgres:16
+  -p 127.0.0.1:55432:5432 postgres:18
 
 export AI_STP_TEST_DB_URL=postgresql+asyncpg://ai_stp:ai_stp_dev@127.0.0.1:55432/ai_stp
 just back-test
@@ -92,7 +92,7 @@ just back-test
 just check
 ```
 
-In CI, the `check` workflow sets the same variable against its `postgres:16` service (the CI-side value is `postgresql+asyncpg://ai_stp:ai_stp_dev@127.0.0.1:5432/ai_stp`). Do not use production data or commit real passwords; the throwaway credentials above are sufficient for tests.
+In CI, the `check` workflow sets the same variable against its `postgres:18` service (the CI-side value is `postgresql+asyncpg://ai_stp:ai_stp_dev@127.0.0.1:5432/ai_stp`). Do not use production data or commit real passwords; the throwaway credentials above are sufficient for tests.
 
 ## Starting a change
 
