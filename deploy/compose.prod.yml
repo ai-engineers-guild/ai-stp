@@ -170,6 +170,11 @@ services:
       # Probe every 2s while starting so `up --wait` in the deploy returns
       # as soon as the new container serves, not after a full interval.
       start_interval: 2s
+    # After its own graceful shutdown the process ends with the signal that
+    # stopped it, which only takes effect when it is not PID 1. As PID 1 it
+    # fell through to interpreter teardown and waited on swapped-out pages
+    # until dockerd killed it ten seconds later (2026-10-05).
+    init: true
     restart: always
     logging: *default-logging
 
@@ -324,6 +329,11 @@ services:
       timeout: 10s
       retries: 3
       start_period: 30s
+    # After its own graceful shutdown the process ends with the signal that
+    # stopped it, which only takes effect when it is not PID 1. As PID 1 it
+    # fell through to interpreter teardown and waited on swapped-out pages
+    # until dockerd killed it ten seconds later (2026-10-05).
+    init: true
     restart: always
     logging: *default-logging
 

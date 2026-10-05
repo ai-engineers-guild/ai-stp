@@ -26,17 +26,41 @@ from ai_stp_worker.settings import Settings, WorkerSettings, load_settings
 _log = get_logger("worker_main")
 
 
+#: The signals that stopped the worker, in arrival order.
+_received: list[int] = []
+
+
 def _install_signals(worker: Worker) -> None:
     loop = asyncio.get_running_loop()
 
-    def _handle_signal(_signum: int, _frame: object | None) -> None:
+    def _stop(signum: int) -> None:
+        _received.append(signum)
         worker.request_stop()
+
+    def _handle_signal(signum: int, _frame: object | None) -> None:
+        _stop(signum)
 
     for sig in (signal.SIGTERM, signal.SIGINT):
         try:
-            loop.add_signal_handler(sig, worker.request_stop)
+            loop.add_signal_handler(sig, _stop, sig)
         except (NotImplementedError, RuntimeError):
             signal.signal(sig, _handle_signal)
+
+
+def _end_with_received_signal() -> None:
+    """After a drained stop, end the process with the signal that requested it.
+
+    This is what uvicorn does for the API. The process then ends at once
+    instead of tearing the interpreter down object by object; on a host short
+    of memory a container's pages are swapped out during the deploy's image
+    build, and that teardown waited on disk until dockerd killed it after ten
+    seconds (2026-10-05, PID 1 in uninterruptible sleep). The compose service
+    runs under an init, so the worker is not PID 1 and the default action
+    applies; as PID 1 the kernel ignores it and the normal exit follows.
+    """
+    for signum in reversed(_received):
+        signal.signal(signum, signal.SIG_DFL)
+        signal.raise_signal(signum)
 
 
 def _load_storage_settings() -> StorageSettings | None:
@@ -150,6 +174,7 @@ def main() -> None:
     settings = load_settings()
     configure_logging(settings.worker.log_dir)
     asyncio.run(_run(settings))
+    _end_with_received_signal()
 
 
 if __name__ == "__main__":
