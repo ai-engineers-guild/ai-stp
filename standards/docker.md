@@ -61,7 +61,7 @@ reach the root, so the same file works from any caller's cwd.
    `deploy/docker/Dockerfile.*` is covered by the contract test. A republished tag leaves no trace; the 2026-08-20 `rustfs`
    `:latest` republish took production down for real (`#394`).
 2. **Dev is exempt from digest pinning only where the exemption is the
-   point.** `deploy/compose.dev.yml` pulls `postgres:16` by tag because a
+   point.** `deploy/compose.dev.yml` pulls `postgres:18` by tag because a
    dev stack tracks its major — that is the one named exemption, recorded in
    the test. `rustfs` in dev pins the *same* digest as prod: a dev stack
    resolving a different build cannot reproduce what production hit.
