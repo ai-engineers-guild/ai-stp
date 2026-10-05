@@ -2121,9 +2121,7 @@ async def list_members(
                 )
                 .group_by(CorporateProvisionedIdentity.account_id)
             )
-        )
-        .tuples()
-        .all()
+        ).all()
     )
     activity = dict(
         (
@@ -2134,9 +2132,7 @@ async def list_members(
                 )
                 .group_by(Device.account_id)
             )
-        )
-        .tuples()
-        .all()
+        ).all()
     )
     titles = dict(
         (
@@ -2145,9 +2141,7 @@ async def list_members(
                     CorporateJobTitle.organization_id == organization_id,
                 )
             )
-        )
-        .tuples()
-        .all()
+        ).all()
     )
     return CorporateMemberList(
         items=[

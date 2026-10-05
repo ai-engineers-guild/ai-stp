@@ -56,7 +56,7 @@ class CatalogIntegrityError(RuntimeError):
     """Stored passport fails digest or revision integrity before response."""
 
 
-def _public_base(object_kind: ObjectKind) -> Select[tuple[CatalogMetadata]]:
+def _public_base(object_kind: ObjectKind) -> Select[CatalogMetadata]:
     return select(CatalogMetadata).where(
         CatalogMetadata.object_kind == object_kind,
         CatalogMetadata.visibility == "public",
@@ -132,7 +132,7 @@ async def current_author_verification(
             AccountAuthorVerification.account_id.in_(account_ids)
         )
     )
-    verified_rows = with_current_author_verification(rows, dict(result.tuples().all()))
+    verified_rows = with_current_author_verification(rows, dict(result.all()))
     from ai_stp_platform.catalog_assessments import current_component_verification
 
     components = await current_component_verification(session, [row.metadata for row in rows])
@@ -150,7 +150,7 @@ async def current_author_verification(
             RepositoryMetric.repository.in_(repositories)
         )
     )
-    stars = dict(metrics.tuples().all())
+    stars = dict(metrics.all())
     starred = [
         replace(
             row,
