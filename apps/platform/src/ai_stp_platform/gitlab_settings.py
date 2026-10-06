@@ -45,8 +45,13 @@ class GitLabSettings(BaseSettings):
                 raise ValueError("connector encryption key must encode exactly 32 bytes")
         return value
 
+    def connection_for(self, organization_id: str) -> GitLabConnection | None:
+        """Exact organization key first, then the ``"*"`` wildcard used when a
+        deployment points every organization at the same corporate instance."""
+        return self.connections.get(organization_id) or self.connections.get("*")
+
     def connector_credentials(self, organization_id: str) -> tuple[str, str] | None:
-        connection = self.connections.get(organization_id)
+        connection = self.connection_for(organization_id)
         if connection is None or not connection.oauth_client_id:
             return None
         return connection.oauth_client_id, connection.oauth_client_secret.get_secret_value()

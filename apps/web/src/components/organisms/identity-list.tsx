@@ -11,13 +11,13 @@ import { Button } from "@/components/atoms/button";
 import type { LinkedIdentity, OAuthProvider } from "@/lib/api/generated/types.gen";
 import { Icon } from "@/theme";
 
-const ALL_PROVIDERS = ["google", "github"] as const;
-
 type IdentityListProps = {
   identities: LinkedIdentity[];
   csrfToken: string;
   /** Relative path returned after step-up OAuth (e.g. /en/account). */
   returnTo: string;
+  /** Sign-in providers enabled for this deployment (env.AI_STP_AUTH_PROVIDERS). */
+  providers: readonly OAuthProvider[];
 };
 
 function providerLabel(provider: string, t: (key: string) => string): string {
@@ -52,7 +52,7 @@ function providerIcon(provider: string): "google" | "github" | "gitlab" | "user"
   return "user";
 }
 
-export function IdentityList({ identities, csrfToken, returnTo }: IdentityListProps) {
+export function IdentityList({ identities, csrfToken, returnTo, providers }: IdentityListProps) {
   const t = useTranslations("account");
   const tc = useTranslations("common");
   const router = useRouter();
@@ -61,7 +61,7 @@ export function IdentityList({ identities, csrfToken, returnTo }: IdentityListPr
 
   const linked = new Set(identities.map((item) => item.provider));
   const canUnlink = identities.length > 1;
-  const missing = ALL_PROVIDERS.filter((provider) => !linked.has(provider));
+  const missing = providers.filter((provider) => !linked.has(provider));
 
   function onUnlink(provider: OAuthProvider) {
     if (!canUnlink) {

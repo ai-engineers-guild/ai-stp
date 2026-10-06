@@ -35,7 +35,7 @@ Config = Annotated[Settings, Depends(get_settings)]
 
 
 def _connection(settings: Settings, organization_id: str) -> GitLabConnection:
-    connection = settings.gitlab.connections.get(organization_id)
+    connection = settings.gitlab.connection_for(organization_id)
     if connection is None:
         raise GitLabError("connector_not_configured")
     return connection

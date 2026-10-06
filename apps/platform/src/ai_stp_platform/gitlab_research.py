@@ -61,7 +61,7 @@ async def scan_linked_gitlab_project(
     settings: GitLabSettings,
 ) -> str:
     """Scan one linked GitLab project; returns ``"applied"`` or ``"skipped"``."""
-    connection = settings.connections.get(organization_id)
+    connection = settings.connection_for(organization_id)
     if connection is None:
         raise PermanentJobFailure("gitlab connection is not configured")
     try:

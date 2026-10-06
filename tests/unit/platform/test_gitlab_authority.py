@@ -95,6 +95,17 @@ def test_encrypted_tokens_bind_account_instance_purpose_and_kind() -> None:
     row.token_ciphertext = access
 
 
+def test_connection_for_falls_back_to_wildcard() -> None:
+    from ai_stp_platform.gitlab_settings import GitLabConnection
+
+    wildcard = GitLabConnection(base_url="https://gitlab.corp.example.com", token=SecretStr("pat"))
+    specific = GitLabConnection(base_url="https://gitlab.other.example.com", token=SecretStr("p"))
+    settings = config(connections={"*": wildcard, "organization_known": specific})
+    assert settings.connection_for("organization_known") is specific
+    assert settings.connection_for("organization_new") is wildcard
+    assert config().connection_for("organization_new") is None
+
+
 def test_missing_encryption_key_keeps_everything_closed() -> None:
     with pytest.raises(GitLabError, match="connector_not_configured"):
         encrypt_token(

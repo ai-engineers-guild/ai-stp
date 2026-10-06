@@ -48,7 +48,7 @@ router = APIRouter(tags=["corporate"])
 
 
 def _connection(settings: Settings, organization_id: str) -> tuple[GitLabClient, str]:
-    config = settings.gitlab.connections.get(organization_id)
+    config = settings.gitlab.connection_for(organization_id)
     if config is None:
         raise ApiError(ErrorCategory.DEPENDENCY, "GitLab discovery is unavailable")
     try:

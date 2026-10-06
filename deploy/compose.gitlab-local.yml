@@ -22,6 +22,13 @@
 #     -days 825 -sha256 -extfile .gitlab-lab/ssl/san.cnf \
 #     -out .gitlab-lab/ssl/gitlab.lvh.me.crt
 #
+# The api/worker containers also need a combined trust bundle so public
+# endpoints (Google OIDC discovery, github.com) keep verifying alongside the
+# lab CA:
+#
+#   python -c "import certifi; print(certifi.where())"   # path to cacert.pem
+#   cat <cacert.pem> .gitlab-lab/ssl/ca.crt > .gitlab-lab/ssl/ca-bundle.pem
+#
 # First boot takes several minutes; the root password is generated into
 # /etc/gitlab/initial_root_password inside the container unless
 # GITLAB_ROOT_PASSWORD is set. To exercise the connector, create an OAuth
@@ -72,25 +79,26 @@ services:
     extra_hosts:
       - "gitlab.lvh.me:host-gateway"
     environment:
-      # Trust the local lab CA for OIDC discovery/token exchange and for any
-      # httpx client that reads the default bundle.
-      SSL_CERT_FILE: /etc/gitlab-local-ca/ca.crt
-      # The corporate GitLab scenario disables the SaaS GitHub surface.
-      AI_STP_AUTH_DISABLED_PROVIDERS: github
-      AI_STP_GITHUB_CONNECTOR_DISABLED: "true"
+      # Trust both the public roots and the local lab CA: OIDC discovery for
+      # Google still needs the public bundle, so SSL_CERT_FILE points at a
+      # combined file (certifi cacert.pem + ca.crt), while
+      # AI_STP_GITLAB_CA_BUNDLE keeps GitLab-scoped verification on the lab CA.
+      SSL_CERT_FILE: /etc/gitlab-local-ca/ca-bundle.pem
     volumes:
       - ../.gitlab-lab/ssl/ca.crt:/etc/gitlab-local-ca/ca.crt:ro
+      - ../.gitlab-lab/ssl/ca-bundle.pem:/etc/gitlab-local-ca/ca-bundle.pem:ro
   worker:
     extra_hosts:
       - "gitlab.lvh.me:host-gateway"
     environment:
-      SSL_CERT_FILE: /etc/gitlab-local-ca/ca.crt
+      SSL_CERT_FILE: /etc/gitlab-local-ca/ca-bundle.pem
     volumes:
       - ../.gitlab-lab/ssl/ca.crt:/etc/gitlab-local-ca/ca.crt:ro
+      - ../.gitlab-lab/ssl/ca-bundle.pem:/etc/gitlab-local-ca/ca-bundle.pem:ro
   web:
     environment:
-      # Corporate lab sign-in: GitLab instead of the SaaS google,github set.
-      AI_STP_AUTH_PROVIDERS: gitlab
+      # Lab sign-in offers every configured provider, including GitLab.
+      AI_STP_AUTH_PROVIDERS: google,github,gitlab
 volumes:
   gitlab-local-config:
   gitlab-local-logs:

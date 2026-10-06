@@ -193,7 +193,7 @@ async def finish_connect(
         raise GitLabError("invalid_connection_state", status=403)
     organization_id = flow.connection_organization_id
     purpose: ConnectorPurpose = "administration" if flow.purpose == "administration" else "source"
-    connection = settings.gitlab.connections.get(organization_id)
+    connection = settings.gitlab.connection_for(organization_id)
     locale, callback_uri = flow.locale, flow.callback_uri
     flow.consumed_at = datetime.now(UTC)
     # A code exchange must never run twice after a lost callback response.

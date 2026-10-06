@@ -14,6 +14,7 @@ import { readCsrfToken } from "@/lib/auth/session";
 import { requireSession, sessionCookieValue } from "@/lib/auth/require-session";
 import { Link } from "@/lib/i18n/navigation";
 import { corporateHref } from "@/lib/features/corporate-path";
+import { getEnv } from "@/lib/env";
 import { Icon } from "@/theme";
 import { COMPILED_FEATURE_PROFILE } from "@/lib/features/compiled";
 
@@ -138,6 +139,7 @@ export default async function AccountPage({ params }: PageProps) {
                 identities={profile.identities}
                 csrfToken={csrfToken}
                 returnTo={corporateHref(`/${locale}/account`)}
+                providers={getEnv().AI_STP_AUTH_PROVIDERS}
               />
             </div>
             <div className="border-border mt-6 space-y-3 border-t pt-5">
