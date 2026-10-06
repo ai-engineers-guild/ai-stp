@@ -13,6 +13,7 @@ from ai_stp_worker.handlers.deliver_corporate_invitation import (
 )
 from ai_stp_worker.handlers.deliver_invitation import handle_deliver_invitation
 from ai_stp_worker.handlers.github_archive import handle_github_archive
+from ai_stp_worker.handlers.gitlab_technology_scan import handle_gitlab_technology_scan
 from ai_stp_worker.handlers.official_upstream import handle_official_upstream_sync
 from ai_stp_worker.handlers.publish import handle_publish
 from ai_stp_worker.handlers.reevaluate import handle_reevaluate
@@ -47,6 +48,7 @@ REGISTRY: Mapping[JobType, JobHandler] = {
     JobType.DELIVER_CORPORATE_INVITATION: handle_deliver_corporate_invitation,
     JobType.REPOSITORY_METRICS: handle_repository_metrics,
     JobType.GITHUB_ARCHIVE: handle_github_archive,
+    JobType.GITLAB_TECHNOLOGY_SCAN: handle_gitlab_technology_scan,
     JobType.CATALOG_ENRICHMENT: handle_catalog_enrichment,
     JobType.SEO_BUILD: handle_seo_build,
     JobType.SEO_ENRICH: handle_seo_enrich,

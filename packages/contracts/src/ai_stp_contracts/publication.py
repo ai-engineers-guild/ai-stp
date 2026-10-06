@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import PurePosixPath
 from typing import Annotated, Final, Literal
 
-from pydantic import ConfigDict, Field, field_validator
+from pydantic import ConfigDict, Field, field_validator, model_validator
 
 from ai_stp_assurance.attestation import SIGNATURE_PATTERN
 from ai_stp_contracts.auth import AccountId, DeviceId
@@ -140,11 +140,18 @@ class PublicationPlanCreateRequest(ContractModel):
     artifact_inventory: Annotated[list[str], Field(default_factory=list, max_length=1000)]
     visibility: PublicationVisibility = "private"
     source_binding_id: PlanId | None = None
+    gitlab_source_binding_id: PlanId | None = None
     policy_version: PolicyVersion = "safety-3"
     passport: dict[str, object]
     attestations: Annotated[list[AuthorAttestation], Field(default_factory=list, max_length=32)]
     idempotency_key: IdempotencyKey
     device_id: DeviceId
+
+    @model_validator(mode="after")
+    def _one_source_binding(self) -> PublicationPlanCreateRequest:
+        if self.source_binding_id is not None and self.gitlab_source_binding_id is not None:
+            raise ValueError("a plan binds to at most one source")
+        return self
 
     _validate_artifact_inventory = field_validator("artifact_inventory")(_artifact_inventory)
 
@@ -191,6 +198,7 @@ class PublicationPlanResponse(ContractModel):
     artifact_inventory: Annotated[list[str], Field(default_factory=list, max_length=1000)]
     visibility: PublicationVisibility
     source_binding_id: PlanId | None = None
+    gitlab_source_binding_id: PlanId | None = None
     policy_version: PolicyVersion
     actor_id: AccountId
     device_id: DeviceId

@@ -270,6 +270,17 @@
     "expires_at": {
       "$ref": "#/$defs/Timestamp"
     },
+    "gitlab_source_binding_id": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/PlanId"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
     "object_kind": {
       "$ref": "#/$defs/ObjectKind"
     },
@@ -325,6 +336,7 @@
     "effects",
     "evidence",
     "expires_at",
+    "gitlab_source_binding_id",
     "object_kind",
     "plan_hash",
     "plan_id",

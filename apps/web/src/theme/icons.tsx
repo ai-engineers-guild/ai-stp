@@ -74,6 +74,17 @@ const Github = createLucideIcon("github", [
   ["path", { d: "M9 18c-4.51 2-5-2-7-2", key: "9comsn" }],
 ]);
 
+// Same treatment for the 0.x `Gitlab` mark (ISC) — the tanuki outline.
+const Gitlab = createLucideIcon("gitlab", [
+  [
+    "path",
+    {
+      d: "m22 13.29-3.33-10a.63.63 0 0 0-.61-.42.63.63 0 0 0-.61.42l-2.65 8H9.2l-2.65-8A.63.63 0 0 0 5.94 3a.63.63 0 0 0-.61.42l-3.33 10a1.28 1.28 0 0 0 .46 1.44l10.08 7.34 10.08-7.34a1.28 1.28 0 0 0 .47-1.44Z",
+      key: "gitlab",
+    },
+  ],
+]);
+
 export type IconName =
   | "search"
   | "sun"
@@ -104,6 +115,7 @@ export type IconName =
   | "flag"
   | "globe"
   | "github"
+  | "gitlab"
   | "google"
   | "heart"
   | "link"
@@ -160,6 +172,7 @@ const REGISTRY: Record<IconName, LucideIcon> = {
   flag: Flag,
   globe: Globe2,
   github: Github,
+  gitlab: Gitlab,
   google: ((props: LucideProps) => (
     <svg viewBox="0 0 24 24" fill="currentColor" {...props}>
       <path d="M21.6 12.23c0-.71-.06-1.4-.18-2.07H12v3.92h5.38a4.6 4.6 0 0 1-2 3.02v2.55h3.24c1.9-1.75 2.98-4.33 2.98-7.42Z" />

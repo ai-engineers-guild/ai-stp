@@ -101,14 +101,14 @@ def test_the_exchange_is_what_binds_the_device_key() -> None:
     assert {"device_code", "device_id", "public_key", "display_name"} <= fields
 
 
-def test_only_the_two_mvp_providers_are_representable() -> None:
+def test_all_named_providers_are_representable() -> None:
     key = "0123456789abcdef0123456789abcdef"
-    for provider in ("google", "github"):
+    for provider in ("google", "github", "authentik", "keycloak", "gitlab"):
         assert (
             DeviceAuthorizationRequest(provider=provider, idempotency_key=key).provider == provider
         )
     with pytest.raises(ValidationError):
-        DeviceAuthorizationRequest(provider="gitlab", idempotency_key=key)  # type: ignore[arg-type]
+        DeviceAuthorizationRequest(provider="bitbucket", idempotency_key=key)  # type: ignore[arg-type]
 
 
 def test_starting_an_authorization_requires_a_key_of_the_declared_shape() -> None:

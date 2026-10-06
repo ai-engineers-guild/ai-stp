@@ -1,0 +1,43 @@
+{
+  "$defs": {
+    "GitLabProjectId": {
+      "exclusiveMinimum": 0,
+      "maximum": 9007199254740991,
+      "type": "integer"
+    },
+    "IdempotencyKey": {
+      "pattern": "^[A-Za-z0-9._~-]{16,128}$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:gitlab-source-prepare-request",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "commit": {
+      "pattern": "^[0-9a-f]{40}$",
+      "title": "Commit",
+      "type": "string"
+    },
+    "idempotency_key": {
+      "$ref": "#/$defs/IdempotencyKey"
+    },
+    "project_id": {
+      "$ref": "#/$defs/GitLabProjectId"
+    },
+    "subpath": {
+      "maxLength": 512,
+      "minLength": 1,
+      "title": "Subpath",
+      "type": "string"
+    }
+  },
+  "required": [
+    "project_id",
+    "commit",
+    "subpath",
+    "idempotency_key"
+  ],
+  "title": "GitLabSourcePrepareRequest",
+  "type": "object"
+}

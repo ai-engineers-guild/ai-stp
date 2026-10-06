@@ -171,6 +171,9 @@ export function GithubConnector({
         </p>
       ) : null}
       {!status ? <ConnectorSkeleton label={t("loading")} /> : null}
+      {status && !status.connections.some((item) => item.configured) ? (
+        <p className="text-muted-foreground max-w-2xl">{t("unavailable")}</p>
+      ) : null}
       {busy ? (
         <div className="text-muted-foreground flex items-center gap-2 text-sm" role="status">
           <Icon name="loader" size="sm" className="animate-spin" />
@@ -178,7 +181,7 @@ export function GithubConnector({
         </div>
       ) : null}
 
-      {status && !connected ? (
+      {status && !connected && source?.configured ? (
         <section className="border-border max-w-2xl space-y-4 rounded-lg border p-5">
           <h2 className="text-xl font-medium">{t("connectTitle")}</h2>
           <p className="text-muted-foreground">{t("connectHint")}</p>
@@ -186,7 +189,7 @@ export function GithubConnector({
             {githubIdentityLinked ? (
               <>
                 <Button
-                  disabled={busy || !source?.configured}
+                  disabled={busy || !source.configured}
                   onClick={() => {
                     connect("source", "authorize");
                   }}
@@ -195,7 +198,7 @@ export function GithubConnector({
                 </Button>
                 <Button
                   variant="outline"
-                  disabled={busy || !source?.configured}
+                  disabled={busy || !source.configured}
                   onClick={() => {
                     connect("source", "install");
                   }}

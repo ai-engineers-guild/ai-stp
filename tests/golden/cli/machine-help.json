@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "cli_version": "0.0.0-pinned",
-  "registry_digest": "sha256:49e0ebeb2b7be88aebae4dfdf0280430183b95617efb430ff442ea2157a72a8c",
+  "registry_digest": "sha256:5baa2983cca53264a47556bd6f18a06bf9504c9007961c13556c5fc35be3767b",
   "global_options": [
     {
       "name": "json",
@@ -207,7 +207,8 @@
             "google",
             "github",
             "authentik",
-            "keycloak"
+            "keycloak",
+            "gitlab"
           ]
         },
         {

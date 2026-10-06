@@ -6,6 +6,7 @@ from collections.abc import Mapping
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ai_stp_platform.gitlab_settings import GitLabSettings
 from ai_stp_platform.publication_logic import execute_publish
 from ai_stp_platform.queue.states import PermanentJobFailure
 from ai_stp_platform.safety.artifact_fetch import close_env_object_store, open_env_object_store
@@ -18,6 +19,11 @@ async def handle_publish(session: AsyncSession, payload: Mapping[str, object]) -
         raise PermanentJobFailure(msg)
     store = await open_env_object_store()
     try:
-        await execute_publish(session, plan_id=plan_id, store=store)
+        await execute_publish(
+            session,
+            plan_id=plan_id,
+            store=store,
+            gitlab_verify=GitLabSettings().tls_verify(),
+        )
     finally:
         await close_env_object_store(store)

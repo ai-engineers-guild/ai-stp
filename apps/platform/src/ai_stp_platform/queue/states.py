@@ -36,6 +36,7 @@ class JobType(StrEnum):
     DELIVER_CORPORATE_INVITATION = "deliver_corporate_invitation"
     REPOSITORY_METRICS = "repository_metrics"
     GITHUB_ARCHIVE = "github_archive"
+    GITLAB_TECHNOLOGY_SCAN = "gitlab_technology_scan"
     CATALOG_ENRICHMENT = "catalog_enrichment"
     SEO_BUILD = "seo_build"
     SEO_ENRICH = "seo_enrich"

@@ -223,7 +223,9 @@ async def oauth_callback(
 
     # Never log token contents.
     try:
-        profile = await profile_from_token(_oauth(request), name, token)
+        profile = await profile_from_token(
+            _oauth(request), name, token, issuer=auth.oidc_issuer(name)
+        )
     except ApiError:
         return _fail("error", ErrorCategory.AUTH_REQUIRED, "authentication failed")
 

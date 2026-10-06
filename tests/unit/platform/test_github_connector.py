@@ -137,6 +137,21 @@ async def test_personal_and_organization_installations_are_preserved() -> None:
     assert [item["id"] for item in installations] == [7, 8]
 
 
+def test_disabled_flag_closes_fully_configured_connector() -> None:
+    settings = config()
+    assert settings.enabled("source") is True
+    assert settings.enabled("administration") is True
+    disabled = GitHubConnectorSettings(
+        client_id=settings.client_id,
+        client_secret=settings.client_secret,
+        app_slug=settings.app_slug,
+        encryption_key=settings.encryption_key,
+        disabled=True,
+    )
+    assert disabled.enabled("source") is False
+    assert disabled.enabled("administration") is False
+
+
 def test_encrypted_tokens_bind_account_purpose_and_expiry() -> None:
     settings, token = config(), uuid4().hex
     row = GitHubConnector(

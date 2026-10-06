@@ -471,7 +471,7 @@ async def test_worker_handlers_validate_payloads_and_delegate(
         {"object_kind": "component", "stable_id": "component_1", "version": "1.0"},
     )
     validate_call.assert_awaited_once_with(session, plan_id="plan_1", release_read_transaction=True)
-    publish_call.assert_awaited_once_with(session, plan_id="plan_1", store=None)
+    publish_call.assert_awaited_once_with(session, plan_id="plan_1", store=None, gitlab_verify=True)
     reevaluate_call.assert_awaited_once_with(
         session, object_kind="component", stable_id="component_1", version="1.0"
     )

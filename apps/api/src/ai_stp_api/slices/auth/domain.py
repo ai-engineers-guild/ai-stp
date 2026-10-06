@@ -13,6 +13,7 @@ class OAuthProvider(StrEnum):
     GITHUB = "github"
     AUTHENTIK = "authentik"
     KEYCLOAK = "keycloak"
+    GITLAB = "gitlab"
 
 
 class LinkState(StrEnum):

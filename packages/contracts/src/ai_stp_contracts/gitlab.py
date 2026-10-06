@@ -51,3 +51,13 @@ class GitLabRepositoryList(ContractModel):
     organization_id: OrganizationId
     total: Annotated[int, Field(ge=0)]
     items: Annotated[list[GitLabRepositoryView], Field(max_length=500)]
+
+
+class GitLabResearchAccepted(ContractModel):
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+
+    schema_version: Literal[1] = 1
+    organization_id: OrganizationId
+    job_id: Annotated[str, Field(min_length=1, max_length=64)]
+    scan_id: Annotated[str, Field(min_length=1, max_length=64)]
+    state: Annotated[str, Field(min_length=1, max_length=32)]

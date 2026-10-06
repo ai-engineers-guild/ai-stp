@@ -15,10 +15,19 @@ from ai_stp_api.settings import Settings
 from ai_stp_api.slices.github_connector.router import Client
 from ai_stp_api.slices.publish import service
 from ai_stp_contracts.publication import PublicationConfirmRequest, PublicationPlanCreateRequest
+from ai_stp_platform.gitlab_client import GitLabClient
 from ai_stp_platform.safety.workdir import MAX_ARTIFACT_BYTES
 from ai_stp_platform.storage.object_store import ImmutableObjectStore
 
 router = APIRouter(tags=["publications"])
+
+
+def _gitlab_client(request: Request) -> GitLabClient | None:
+    """Tests inject a mock instance client; production resolves per binding."""
+    return getattr(request.app.state, "gitlab_client", None)
+
+
+GitLab = Annotated[GitLabClient | None, Depends(_gitlab_client)]
 
 
 async def _bounded_body(request: Request, *, max_bytes: int) -> bytes:
@@ -58,9 +67,10 @@ async def create_publication_plan(
     ctx: Annotated[AuthContext, Depends(require_auth)],
     settings: Annotated[Settings, Depends(get_settings)],
     client: Client,
+    gitlab_client: GitLab,
 ) -> JSONResponse:
     result = await service.create_plan(
-        db, ctx=ctx, body=body, settings=settings, github_client=client
+        db, ctx=ctx, body=body, settings=settings, github_client=client, gitlab_client=gitlab_client
     )
     return _resource(result, status_code=201)
 
@@ -120,6 +130,7 @@ async def confirm_publication_plan(
     ctx: Annotated[AuthContext, Depends(require_auth)],
     settings: Annotated[Settings, Depends(get_settings)],
     client: Client,
+    gitlab_client: GitLab,
 ) -> JSONResponse:
     store = ImmutableObjectStore(settings=settings.storage, client=request.app.state.object_client)
     result = await service.confirm_plan(
@@ -130,5 +141,6 @@ async def confirm_publication_plan(
         store=store,
         settings=settings,
         github_client=client,
+        gitlab_client=gitlab_client,
     )
     return _resource(result)

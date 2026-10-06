@@ -44,9 +44,12 @@ class FakeGitLabClient:
     path = "team/service"
     unavailable = False
 
-    def __init__(self, base_url: str, *, allowed_hosts: list[str]) -> None:
+    def __init__(
+        self, base_url: str, *, allowed_hosts: list[str], verify: str | bool = True
+    ) -> None:
         assert base_url == "https://gitlab.com"
         assert allowed_hosts == []
+        assert verify is True
         self.base_url = base_url
 
     async def list_repositories(self, *, token: str, limit: int) -> list[GitLabRepository]:

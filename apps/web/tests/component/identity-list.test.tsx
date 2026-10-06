@@ -14,10 +14,18 @@ vi.mock("@/actions/account", () => ({
   unlinkIdentityAction: vi.fn(() => Promise.resolve({ ok: true as const })),
 }));
 
-function renderList(identities: React.ComponentProps<typeof IdentityList>["identities"]) {
+function renderList(
+  identities: React.ComponentProps<typeof IdentityList>["identities"],
+  providers: React.ComponentProps<typeof IdentityList>["providers"] = ["google", "github"],
+) {
   return render(
     <NextIntlClientProvider locale="en" messages={en}>
-      <IdentityList identities={identities} csrfToken="csrf" returnTo="/en/account" />
+      <IdentityList
+        identities={identities}
+        csrfToken="csrf"
+        returnTo="/en/account"
+        providers={providers}
+      />
     </NextIntlClientProvider>,
   );
 }
@@ -36,6 +44,21 @@ describe("IdentityList (GitHub / Google bundle)", () => {
     expect(screen.getByText("fixture-github")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Unlink/i })).toBeDisabled();
     expect(screen.getByRole("link", { name: /Google/i })).toBeInTheDocument();
+  });
+
+  it("offers GitLab linking when the deployment enables it", () => {
+    renderList(
+      [
+        {
+          provider: "google",
+          linked_at: FIXTURE_TIMESTAMP,
+          avatar_url: null,
+          display_name: "fixture.google@example.com",
+        },
+      ],
+      ["google", "github", "gitlab"],
+    );
+    expect(screen.getByRole("link", { name: /GitLab/i })).toBeInTheDocument();
   });
 
   it("allows unlink when both providers are linked", () => {

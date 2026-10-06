@@ -482,7 +482,7 @@ def test_completing_without_a_pending_sign_in_is_a_typed_answer() -> None:
     assert raised.value.code == "AI_STP_NOT_FOUND"
 
 
-@pytest.mark.parametrize("given", [None, "gitlab"])
+@pytest.mark.parametrize("given", [None, "bitbucket"])
 def test_an_unusable_provider_is_refused(given: object) -> None:
     from ai_stp_cli.application import auth
 
