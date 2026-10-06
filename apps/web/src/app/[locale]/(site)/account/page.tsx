@@ -5,6 +5,7 @@ import { Badge } from "@/components/atoms/badge";
 import { Button } from "@/components/atoms/button";
 import { CopyValue } from "@/components/molecules/copy-value";
 import { GitHubConnectionLink } from "@/components/molecules/github-connection-link";
+import { GitLabConnectionLink } from "@/components/molecules/gitlab-connection-link";
 import { StatePanel } from "@/components/molecules/state-panel";
 import { IdentityList } from "@/components/organisms/identity-list";
 import { readAccount } from "@/lib/api/account";
@@ -29,6 +30,7 @@ export default async function AccountPage({ params }: PageProps) {
   const t = await getTranslations("account");
   const tc = await getTranslations("common");
   const tg = await getTranslations("githubConnector");
+  const tgl = await getTranslations("gitlabConnector");
   const tn = await getTranslations("nav");
   const token = await sessionCookieValue();
   const csrfToken = (await readCsrfToken()) ?? "";
@@ -139,16 +141,22 @@ export default async function AccountPage({ params }: PageProps) {
                 identities={profile.identities}
                 csrfToken={csrfToken}
                 returnTo={corporateHref(`/${locale}/account`)}
-                providers={getEnv().AI_STP_AUTH_PROVIDERS}
+                providers={[
+                  ...new Set([
+                    ...getEnv().AI_STP_AUTH_PROVIDERS,
+                    ...getEnv().AI_STP_AUTH_SSO_PROVIDERS,
+                  ]),
+                ]}
               />
             </div>
-            <div className="border-border mt-6 space-y-3 border-t pt-5">
-              <div className="space-y-1">
-                <h3 className="font-medium">{tg("title")}</h3>
-                <p className="text-muted-foreground text-xs">{tg("accountHint")}</p>
-              </div>
-              <GitHubConnectionLink csrfToken={csrfToken} compact />
-            </div>
+            <ConnectionsSections
+              csrfToken={csrfToken}
+              organizationId={corporateOrganization?.organization_id ?? null}
+              githubTitle={tg("title")}
+              githubHint={tg("accountHint")}
+              gitlabTitle={tgl("connectionsTitle")}
+              gitlabHint={tgl("accountHint")}
+            />
           </section>
 
           <section className="border-border bg-card min-w-0 rounded-lg border p-5 shadow-sm sm:p-6">
@@ -181,5 +189,51 @@ export default async function AccountPage({ params }: PageProps) {
         </form>
       </section>
     </div>
+  );
+}
+
+function ConnectionsSections({
+  csrfToken,
+  organizationId,
+  githubTitle,
+  githubHint,
+  gitlabTitle,
+  gitlabHint,
+}: {
+  csrfToken: string;
+  organizationId: string | null;
+  githubTitle: string;
+  githubHint: string;
+  gitlabTitle: string;
+  gitlabHint: string;
+}) {
+  const env = getEnv();
+  const showGitLab = [
+    ...env.AI_STP_AUTH_PROVIDERS,
+    ...env.AI_STP_AUTH_SSO_PROVIDERS,
+  ].includes("gitlab");
+  return (
+    <>
+      <div className="border-border mt-6 space-y-3 border-t pt-5">
+        <div className="space-y-1">
+          <h3 className="font-medium">{githubTitle}</h3>
+          <p className="text-muted-foreground text-xs">{githubHint}</p>
+        </div>
+        <GitHubConnectionLink csrfToken={csrfToken} compact />
+      </div>
+      {showGitLab && organizationId ? (
+        <div className="border-border mt-6 space-y-3 border-t pt-5">
+          <div className="space-y-1">
+            <h3 className="font-medium">{gitlabTitle}</h3>
+            <p className="text-muted-foreground text-xs">{gitlabHint}</p>
+          </div>
+          <GitLabConnectionLink
+            csrfToken={csrfToken}
+            organizationId={organizationId}
+            compact
+          />
+        </div>
+      ) : null}
+    </>
   );
 }

@@ -2361,6 +2361,10 @@
   },
   "gitlabConnector": {
     "title": "GitLab connector",
+    "connectionsTitle": "GitLab connections",
+    "accountHint": "Manage connected GitLab accounts.",
+    "connectShort": "Connect",
+    "manageShort": "Manage",
     "simpleIntro": "One OAuth grant connects the GitLab projects you belong to. Nothing is changed without your confirmation.",
     "backToSettings": "Back to settings",
     "loading": "Checking GitLab access…",

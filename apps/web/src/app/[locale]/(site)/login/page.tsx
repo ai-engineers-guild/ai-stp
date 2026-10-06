@@ -113,6 +113,7 @@ export default async function LoginPage({ params, searchParams }: PageProps) {
           options={ssoProviders.map((provider) => ({
             label: t(provider),
             href: oauthLoginHref(provider, returnTo),
+            icon: provider === "gitlab" ? "gitlab" : "access",
           }))}
         />
         <CliCopyBlock

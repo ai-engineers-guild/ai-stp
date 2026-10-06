@@ -2361,6 +2361,10 @@
   },
   "gitlabConnector": {
     "title": "GitLab-коннектор",
+    "connectionsTitle": "Подключения GitLab",
+    "accountHint": "Управляйте подключенными аккаунтами GitLab.",
+    "connectShort": "Подключить",
+    "manageShort": "Управление",
     "simpleIntro": "Один OAuth-грант подключает проекты GitLab, где вы участник. Ничего не меняется без вашего подтверждения.",
     "backToSettings": "Назад к настройкам",
     "loading": "Проверяем доступ GitLab…",
