@@ -2,10 +2,11 @@
 
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import ConfigDict, Field, model_validator
 
 from ai_stp_contracts.auth import AccountId, DeviceId
 from ai_stp_contracts.http import IdempotencyKey, Timestamp, open_wire_object, strict_request_object
+from ai_stp_contracts.model import ContractModel
 from ai_stp_contracts.publication import ContentDigest, PlanId
 
 type GitLabProjectId = Annotated[int, Field(gt=0, le=9_007_199_254_740_991)]
@@ -15,7 +16,7 @@ type GitLabUsername = Annotated[
 ]
 
 
-class GitLabConnectRequest(BaseModel):
+class GitLabConnectRequest(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
 
     purpose: ConnectorPurpose = "source"
@@ -23,28 +24,28 @@ class GitLabConnectRequest(BaseModel):
     confirmed: Literal[True]
 
 
-class GitLabConnectResponse(BaseModel):
+class GitLabConnectResponse(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 
     authorization_url: Annotated[str, Field(pattern=r"^https://")]
     expires_at: Timestamp
 
 
-class GitLabCallbackQuery(BaseModel):
+class GitLabCallbackQuery(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 
     state: Annotated[str, Field(min_length=1, max_length=128)]
     code: Annotated[str | None, Field(max_length=1024)] = None
 
 
-class GitLabDisconnectRequest(BaseModel):
+class GitLabDisconnectRequest(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
 
     purpose: ConnectorPurpose = "source"
     confirmed: Literal[True]
 
 
-class GitLabPlatformObject(BaseModel):
+class GitLabPlatformObject(ContractModel):
     """An ai-stp object published from the connected project."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -56,7 +57,7 @@ class GitLabPlatformObject(BaseModel):
     visibility: Literal["private", "public"]
 
 
-class GitLabConnectorRepository(BaseModel):
+class GitLabConnectorRepository(ContractModel):
     """Selected project metadata visible only to the connected account."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -70,7 +71,7 @@ class GitLabConnectorRepository(BaseModel):
     platform_objects: list[GitLabPlatformObject] = Field(default_factory=list[GitLabPlatformObject])
 
 
-class GitLabConnectionStatus(BaseModel):
+class GitLabConnectionStatus(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 
     purpose: ConnectorPurpose
@@ -84,13 +85,13 @@ class GitLabConnectionStatus(BaseModel):
     reason: str | None = None
 
 
-class GitLabConnectorStatus(BaseModel):
+class GitLabConnectorStatus(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 
     connections: list[GitLabConnectionStatus]
 
 
-class GitLabSourcePrepareRequest(BaseModel):
+class GitLabSourcePrepareRequest(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
 
     project_id: GitLabProjectId
@@ -99,7 +100,7 @@ class GitLabSourcePrepareRequest(BaseModel):
     idempotency_key: IdempotencyKey
 
 
-class GitLabSourcePrepared(BaseModel):
+class GitLabSourcePrepared(ContractModel):
     """Opaque provenance and inventory; no private repository coordinate."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -111,7 +112,7 @@ class GitLabSourcePrepared(BaseModel):
     source_visibility: Literal["private", "public"]
 
 
-class GitLabActionPlanRequest(BaseModel):
+class GitLabActionPlanRequest(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
 
     action: Literal[
@@ -153,7 +154,7 @@ class GitLabActionPlanRequest(BaseModel):
         return self
 
 
-class GitLabActionPlanResponse(BaseModel):
+class GitLabActionPlanResponse(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 
     plan_id: PlanId
@@ -188,7 +189,7 @@ class GitLabActionPlanResponse(BaseModel):
     ]
 
 
-class GitLabActionConfirmRequest(BaseModel):
+class GitLabActionConfirmRequest(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
 
     plan_hash: ContentDigest
