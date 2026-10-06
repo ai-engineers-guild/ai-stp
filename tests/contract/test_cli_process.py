@@ -212,7 +212,7 @@ def test_auth_help_and_machine_registry_expose_provider_choices(home: Path) -> N
     commands = json.loads(registry_result.stdout)["data"]["commands"]
     login = next(command for command in commands if command["path"] == ["auth", "login"])
     provider = next(item for item in login["parameters"] if item["name"] == "provider")
-    assert provider["choices"] == ["google", "github", "authentik", "keycloak"]
+    assert provider["choices"] == ["google", "github", "authentik", "keycloak", "gitlab"]
 
 
 def _group_command_names(help_text: str) -> set[str]:
@@ -557,7 +557,7 @@ def test_publication_visibility_help_hides_plan_and_confirm(home: Path) -> None:
     [
         ("auth", "login"),
         ("auth", "login", "--google"),
-        ("auth", "login", "--provider", "gitlab"),
+        ("auth", "login", "--provider", "bitbucket"),
         ("auth", "google", "login"),
     ],
 )
@@ -622,7 +622,7 @@ def test_the_auth_repair_offers_exactly_the_declared_providers(home: Path) -> No
         "task start --intent account --idempotency-key account-session-01 --json"
     ]
     assert envelope["error"]["details"]["intent"] == "account"
-    assert set(declared) == {"google", "github", "authentik", "keycloak"}
+    assert set(declared) == {"google", "github", "authentik", "keycloak", "gitlab"}
 
 
 def test_a_portable_root_skill_is_discovered_and_adopted_by_exact_path(home: Path) -> None:

@@ -32,6 +32,7 @@ from ai_stp_api.slices.corporate.router import router as corporate_router
 from ai_stp_api.slices.devices.router import router as devices_router
 from ai_stp_api.slices.documents.router import router as documents_router
 from ai_stp_api.slices.github_connector.router import router as github_connector_router
+from ai_stp_api.slices.gitlab_connector.router import router as gitlab_connector_router
 from ai_stp_api.slices.grants.router import router as grants_router
 from ai_stp_api.slices.health.router import router as health_router
 from ai_stp_api.slices.owner.router import router as owner_router
@@ -162,6 +163,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(publish_router, prefix=_API_PREFIX)
     app.include_router(grants_router, prefix=_API_PREFIX)
     app.include_router(github_connector_router, prefix=_API_PREFIX)
+    app.include_router(gitlab_connector_router, prefix=_API_PREFIX)
     app.include_router(visibility_router, prefix=_API_PREFIX)
     app.include_router(reports_router, prefix=_API_PREFIX)
     app.include_router(selection_router, prefix=_API_PREFIX)

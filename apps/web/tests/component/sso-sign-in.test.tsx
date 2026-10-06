@@ -15,7 +15,7 @@ describe("SsoSignIn", () => {
 
   it("links straight to the provider when exactly one is configured", () => {
     render(<SsoSignIn label="Continue with SSO" options={[keycloak]} />);
-    const link = screen.getByRole("link", { name: "Continue with SSO" });
+    const link = screen.getByRole("link", { name: "Continue with Keycloak" });
     expect(link).toHaveAttribute("href", "/v1/auth/keycloak/login");
   });
 

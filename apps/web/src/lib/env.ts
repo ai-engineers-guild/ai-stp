@@ -1,19 +1,30 @@
 import { z } from "zod";
 
 /** Corporate OIDC providers that may render an SSO button on the login page. */
-const SSO_PROVIDERS = ["authentik", "keycloak"] as const;
+const SSO_PROVIDERS = ["authentik", "keycloak", "gitlab"] as const;
 export type SsoProvider = (typeof SSO_PROVIDERS)[number];
+
+/** Providers that may render a primary sign-in button on the login page. */
+const SIGN_IN_PROVIDERS = ["google", "github", "gitlab"] as const;
+export type SignInProvider = (typeof SIGN_IN_PROVIDERS)[number];
+
+const commaList = (value: string) =>
+  value
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter(Boolean);
 
 const ssoProvidersSchema = z
   .string()
   .default("")
-  .transform((value) =>
-    value
-      .split(",")
-      .map((entry) => entry.trim())
-      .filter(Boolean),
-  )
+  .transform(commaList)
   .pipe(z.array(z.enum(SSO_PROVIDERS)));
+
+const signInProvidersSchema = z
+  .string()
+  .default("google,github")
+  .transform(commaList)
+  .pipe(z.array(z.enum(SIGN_IN_PROVIDERS)));
 
 /**
  * Environment boundary (REQ-2201). Missing or invalid vars fail loud at load.
@@ -40,6 +51,10 @@ const envSchema = z.object({
   // Corporate OIDC providers enabled on the API (ADR-0218), comma-separated.
   // Each name renders one SSO button on /login; empty hides them.
   AI_STP_AUTH_SSO_PROVIDERS: ssoProvidersSchema,
+  // Primary sign-in buttons on /login, comma-separated (ADR-0223). Unset shows
+  // the public default google,github; an explicit empty value hides them, so a
+  // corporate deployment can offer only SSO — or gitlab instead of github.
+  AI_STP_AUTH_PROVIDERS: signInProvidersSchema,
   // Contextual corporate rail (ADR-0219). "false" reverts to the secondary tabs.
   AI_STP_CORPORATE_CONTEXT_NAV: z
     .enum(["true", "false"])
@@ -59,6 +74,7 @@ function readRawEnv(): Record<string, string | undefined> {
     AI_STP_SESSION_SECRET: process.env["AI_STP_SESSION_SECRET"],
     AI_STP_INVITATION_CLAIM_TTL_SECONDS: process.env["AI_STP_INVITATION_CLAIM_TTL_SECONDS"],
     AI_STP_AUTH_SSO_PROVIDERS: process.env["AI_STP_AUTH_SSO_PROVIDERS"] ?? "",
+    AI_STP_AUTH_PROVIDERS: process.env["AI_STP_AUTH_PROVIDERS"] ?? "google,github",
     AI_STP_CORPORATE_CONTEXT_NAV: process.env["AI_STP_CORPORATE_CONTEXT_NAV"],
   };
 }

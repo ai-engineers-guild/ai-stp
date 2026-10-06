@@ -20,6 +20,9 @@ class GitHubConnectorSettings(BaseSettings):
     client_secret: SecretStr = Field(default_factory=lambda: SecretStr(""))
     app_slug: str = ""
     encryption_key: SecretStr = Field(default_factory=lambda: SecretStr(""))
+    # Hard off-switch: ``AI_STP_GITHUB_CONNECTOR_DISABLED=true`` makes every
+    # connector route refuse even when the App credentials are configured.
+    disabled: bool = False
 
     @field_validator("app_slug")
     @classmethod
@@ -50,4 +53,8 @@ class GitHubConnectorSettings(BaseSettings):
         return self.client_id, self.client_secret.get_secret_value(), self.app_slug
 
     def enabled(self, purpose: ConnectorPurpose) -> bool:
-        return bool(all(self.credentials(purpose)) and self.encryption_key.get_secret_value())
+        return bool(
+            not self.disabled
+            and all(self.credentials(purpose))
+            and self.encryption_key.get_secret_value()
+        )

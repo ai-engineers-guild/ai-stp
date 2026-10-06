@@ -334,6 +334,17 @@
     "device_id": {
       "$ref": "#/$defs/DeviceId"
     },
+    "gitlab_source_binding_id": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/PlanId"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
     "idempotency_key": {
       "$ref": "#/$defs/IdempotencyKey"
     },

@@ -1,0 +1,233 @@
+{
+  "$defs": {
+    "ConnectorPurpose": {
+      "enum": [
+        "source",
+        "administration"
+      ],
+      "type": "string"
+    },
+    "GitLabConnectionStatus": {
+      "additionalProperties": true,
+      "properties": {
+        "configured": {
+          "title": "Configured",
+          "type": "boolean"
+        },
+        "expires_at": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "gitlab_base_url": {
+          "anyOf": [
+            {
+              "pattern": "^https://",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Gitlab Base Url"
+        },
+        "purpose": {
+          "$ref": "#/$defs/ConnectorPurpose"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reason"
+        },
+        "repositories": {
+          "items": {
+            "$ref": "#/$defs/GitLabConnectorRepository"
+          },
+          "title": "Repositories",
+          "type": "array"
+        },
+        "state": {
+          "enum": [
+            "disconnected",
+            "connected",
+            "reauthorization_required"
+          ],
+          "title": "State",
+          "type": "string"
+        }
+      },
+      "required": [
+        "configured",
+        "expires_at",
+        "gitlab_base_url",
+        "purpose",
+        "reason",
+        "repositories",
+        "state"
+      ],
+      "title": "GitLabConnectionStatus",
+      "type": "object"
+    },
+    "GitLabConnectorRepository": {
+      "additionalProperties": true,
+      "description": "Selected project metadata visible only to the connected account.",
+      "properties": {
+        "default_branch": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Default Branch"
+        },
+        "namespace_id": {
+          "$ref": "#/$defs/GitLabProjectId"
+        },
+        "path_with_namespace": {
+          "maxLength": 256,
+          "minLength": 3,
+          "title": "Path With Namespace",
+          "type": "string"
+        },
+        "platform_objects": {
+          "items": {
+            "$ref": "#/$defs/GitLabPlatformObject"
+          },
+          "title": "Platform Objects",
+          "type": "array"
+        },
+        "project_id": {
+          "$ref": "#/$defs/GitLabProjectId"
+        },
+        "repository_url": {
+          "maxLength": 512,
+          "pattern": "^https://",
+          "title": "Repository Url",
+          "type": "string"
+        },
+        "visibility": {
+          "anyOf": [
+            {
+              "enum": [
+                "private",
+                "internal",
+                "public"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Visibility"
+        }
+      },
+      "required": [
+        "default_branch",
+        "namespace_id",
+        "path_with_namespace",
+        "platform_objects",
+        "project_id",
+        "repository_url",
+        "visibility"
+      ],
+      "title": "GitLabConnectorRepository",
+      "type": "object"
+    },
+    "GitLabPlatformObject": {
+      "additionalProperties": true,
+      "description": "An ai-stp object published from the connected project.",
+      "properties": {
+        "name": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "object_kind": {
+          "enum": [
+            "component",
+            "setup"
+          ],
+          "title": "Object Kind",
+          "type": "string"
+        },
+        "stable_id": {
+          "maxLength": 64,
+          "minLength": 1,
+          "title": "Stable Id",
+          "type": "string"
+        },
+        "version": {
+          "maxLength": 32,
+          "minLength": 1,
+          "title": "Version",
+          "type": "string"
+        },
+        "visibility": {
+          "enum": [
+            "private",
+            "public"
+          ],
+          "title": "Visibility",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "object_kind",
+        "stable_id",
+        "version",
+        "visibility"
+      ],
+      "title": "GitLabPlatformObject",
+      "type": "object"
+    },
+    "GitLabProjectId": {
+      "exclusiveMinimum": 0,
+      "maximum": 9007199254740991,
+      "type": "integer"
+    },
+    "Timestamp": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:gitlab-connector-status",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "properties": {
+    "connections": {
+      "items": {
+        "$ref": "#/$defs/GitLabConnectionStatus"
+      },
+      "title": "Connections",
+      "type": "array"
+    }
+  },
+  "required": [
+    "connections"
+  ],
+  "title": "GitLabConnectorStatus",
+  "type": "object"
+}

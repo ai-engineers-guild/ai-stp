@@ -36,6 +36,7 @@ const meta = {
     csrfToken: "storybook-csrf-token",
     returnTo: "/en/account",
     identities: githubOnly,
+    providers: ["google", "github"],
   },
   parameters: {
     docs: {

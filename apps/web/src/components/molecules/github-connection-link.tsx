@@ -21,6 +21,7 @@ export function GitHubConnectionLink({
   const [connectionState, setConnectionState] = useState<GitHubConnectionStatus["state"] | null>(
     null,
   );
+  const [available, setAvailable] = useState(true);
   const [error, setError] = useState(false);
 
   useEffect(() => {
@@ -29,6 +30,7 @@ export function GitHubConnectionLink({
         const source = result.ok
           ? result.data.connections.find((item) => item.purpose === "source")
           : undefined;
+        setAvailable(!result.ok || (source?.configured ?? false));
         setConnectionState(source?.state ?? (result.ok ? "disconnected" : null));
         setConnected(source?.state === "connected");
         setError(!result.ok);
@@ -37,6 +39,10 @@ export function GitHubConnectionLink({
         setError(true);
       });
   }, [csrfToken]);
+
+  if (!available) {
+    return null;
+  }
 
   const statusLabel =
     connectionState === null

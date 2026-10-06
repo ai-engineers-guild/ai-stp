@@ -501,7 +501,7 @@ def test_click_usage_text_is_not_a_machine_error() -> None:
         (["install", "apply", "--json"], "install"),
         (["auth", "login", "--json"], "account"),
         (["auth", "login", "--google", "--json"], "account"),
-        (["auth", "login", "--provider", "gitlab", "--json"], "account"),
+        (["auth", "login", "--provider", "bitbucket", "--json"], "account"),
         (["auth", "login", "--provider=nope", "--json"], "account"),
         (["auth", "google", "login", "--json"], "account"),
         (["publication", "plan", "--json"], "publish"),
@@ -1034,7 +1034,7 @@ def test_auth_help_teaches_the_account_intent(
     [
         ["auth", "login"],
         ["auth", "login", "--google"],
-        ["auth", "login", "--provider", "gitlab"],
+        ["auth", "login", "--provider", "bitbucket"],
         ["auth", "google", "login"],
     ],
 )

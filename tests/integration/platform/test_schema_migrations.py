@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from typing import cast
 
 import pytest
 from alembic import command
@@ -62,6 +63,7 @@ _MODEL_MODULES = (
     "ai_stp_platform.catalog_ownership_models",
     "ai_stp_platform.dashboard_models",
     "ai_stp_platform.github_models",
+    "ai_stp_platform.gitlab_models",
     "ai_stp_platform.grant_identity_models",
     "ai_stp_platform.heartbeat_models",
     "ai_stp_platform.installation_inventory_models",
@@ -207,6 +209,12 @@ def _catalog(database_url: str) -> tuple[object, ...]:
     return asyncio.run(read())
 
 
+def _rows(catalog: tuple[object, ...]) -> set[object]:
+    """The catalog flattened to rows: later revisions may append objects, so
+    containment is judged per row, not per statement part."""
+    return {row for part in catalog for row in cast(tuple[object, ...], part)}
+
+
 def test_replay_restores_the_chain_a_reordered_history_skipped(
     isolated_database_url: str,
     monkeypatch: pytest.MonkeyPatch,
@@ -224,8 +232,10 @@ def test_replay_restores_the_chain_a_reordered_history_skipped(
     command.upgrade(config, "head")
     assert _model_drift(isolated_database_url) == []
     # Autogenerate does not compare policies, triggers or check constraints;
-    # the catalog of a database that ran the chain in order does.
-    assert _catalog(isolated_database_url) == complete
+    # the catalog of a database that ran the chain in order does. Revisions
+    # after `0112` legitimately add objects, so the check is containment, not
+    # equality: every catalog row that existed before the replay still exists.
+    assert _rows(complete) <= _rows(_catalog(isolated_database_url))
     for table in _CHAIN_TABLES:
         assert (
             asyncio.run(
@@ -248,8 +258,8 @@ def test_replay_changes_nothing_on_a_database_that_ran_the_chain(
     command.upgrade(config, "0111_corporate_access_provenance")
     before = _catalog(isolated_database_url)
     command.upgrade(config, "head")
-    assert _version(isolated_database_url) == "0112_replay_skipped_feature_chain"
-    assert _catalog(isolated_database_url) == before
+    assert _version(isolated_database_url) == "0114_gitlab_action_plans"
+    assert _rows(before) <= _rows(_catalog(isolated_database_url))
 
 
 def test_dashboard_migration_has_tenant_policies_and_downgrades(

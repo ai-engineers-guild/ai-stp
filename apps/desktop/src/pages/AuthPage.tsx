@@ -20,6 +20,7 @@ const PROVIDER_LABELS: Record<string, string> = {
   github: "GitHub",
   authentik: "Authentik",
   keycloak: "Keycloak",
+  gitlab: "GitLab",
 };
 const FALLBACK_PROVIDERS = Object.keys(PROVIDER_LABELS);
 

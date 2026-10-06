@@ -261,11 +261,24 @@ GOVERNANCE_PERMISSIONS = frozenset(
         "catalog_object.explain",
     }
 )
-ROLE_PERMISSIONS["superadmin"] |= (
-    TECHNOLOGY_PERMISSIONS | RELATION_PERMISSIONS | GOVERNANCE_PERMISSIONS
+# Git provider connectors: `use` opens a consent grant, `read` prepares source
+# bindings, `write` mutates repository state, `create` creates repositories,
+# `visibility` changes public/private, `access` manages collaborators.
+CONNECTOR_PERMISSIONS = frozenset(
+    f"connector.{provider}.{action}"
+    for provider in ("github", "gitlab")
+    for action in ("use", "read", "write", "create", "visibility", "access")
 )
-ROLE_PERMISSIONS["lead"] |= {"catalog_object.read", "catalog_object.assign"}
-ROLE_PERMISSIONS["staff"] |= {"catalog_object.read"}
+ROLE_PERMISSIONS["superadmin"] |= (
+    TECHNOLOGY_PERMISSIONS | RELATION_PERMISSIONS | GOVERNANCE_PERMISSIONS | CONNECTOR_PERMISSIONS
+)
+_ROLE_CONNECTOR_READ = frozenset(
+    f"connector.{provider}.{action}"
+    for provider in ("github", "gitlab")
+    for action in ("use", "read")
+)
+ROLE_PERMISSIONS["lead"] |= {"catalog_object.read", "catalog_object.assign"} | _ROLE_CONNECTOR_READ
+ROLE_PERMISSIONS["staff"] |= {"catalog_object.read"} | _ROLE_CONNECTOR_READ
 
 _ROLE_NAME_RE = re.compile(r"^[a-z][a-z0-9_-]{0,63}$")
 _BUILT_IN_ROLES: frozenset[str] = frozenset(ROLE_PERMISSIONS)

@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "cli_version": "0.0.37",
-  "registry_digest": "sha256:49e0ebeb2b7be88aebae4dfdf0280430183b95617efb430ff442ea2157a72a8c",
+  "cli_version": "0.0.0-pinned",
+  "registry_digest": "sha256:5baa2983cca53264a47556bd6f18a06bf9504c9007961c13556c5fc35be3767b",
   "global_options": [
     {
       "name": "json",
@@ -207,7 +207,8 @@
             "google",
             "github",
             "authentik",
-            "keycloak"
+            "keycloak",
+            "gitlab"
           ]
         },
         {
@@ -6320,7 +6321,7 @@
           "value_type": "string",
           "required": false,
           "repeatable": true,
-          "summary": "Governing category_<ulid>. Repeatable \u2014 at least one is required.",
+          "summary": "Governing category_<ulid>. Repeatable — at least one is required.",
           "choices": []
         },
         {
@@ -6372,7 +6373,7 @@
         "technology",
         "create-category"
       ],
-      "summary": "Create a technology category \u2014 a draft unless --active is given.",
+      "summary": "Create a technology category — a draft unless --active is given.",
       "mutability": "apply",
       "confirmation": "none",
       "parameters": [
@@ -6710,7 +6711,7 @@
         "technology",
         "propose"
       ],
-      "summary": "Propose or clear the candidate technology for one queued unmapped coordinate \u2014 a suggestion for review, not a mapping.",
+      "summary": "Propose or clear the candidate technology for one queued unmapped coordinate — a suggestion for review, not a mapping.",
       "mutability": "apply",
       "confirmation": "none",
       "parameters": [
@@ -6991,7 +6992,7 @@
         "technology",
         "resolve"
       ],
-      "summary": "Execute a decisions document against the organization's review queue: propose candidates, create records, publish a derived snapshot \u2014 one call for the whole list.",
+      "summary": "Execute a decisions document against the organization's review queue: propose candidates, create records, publish a derived snapshot — one call for the whole list.",
       "mutability": "apply",
       "confirmation": "none",
       "parameters": [
@@ -7139,7 +7140,7 @@
         "technology",
         "unmapped"
       ],
-      "summary": "List the stored coordinates the effective mapping cannot resolve for one local project \u2014 the registry review queue.",
+      "summary": "List the stored coordinates the effective mapping cannot resolve for one local project — the registry review queue.",
       "mutability": "read",
       "confirmation": "none",
       "parameters": [
@@ -8977,7 +8978,7 @@
           "value_type": "string",
           "required": true,
           "repeatable": false,
-          "summary": "Schema name, urn:ai-stp:schema:v1:\u2026 URN, or *.schema.json file name.",
+          "summary": "Schema name, urn:ai-stp:schema:v1:… URN, or *.schema.json file name.",
           "choices": []
         }
       ],
@@ -11653,7 +11654,7 @@
         "toolchain",
         "harness-capabilities"
       ],
-      "summary": "Per harness and kind: what the product natively reads, what this build can project, and why any gap is a gap. Not a claim that a component is active \u2014 ask the provider for that.",
+      "summary": "Per harness and kind: what the product natively reads, what this build can project, and why any gap is a gap. Not a claim that a component is active — ask the provider for that.",
       "mutability": "read",
       "confirmation": "none",
       "parameters": [],

@@ -66,7 +66,7 @@ async def test_google_profile_rejects_missing_email() -> None:
 
 async def test_unknown_provider_is_a_validation_error() -> None:
     with pytest.raises(ApiError) as exc:
-        await profile_from_token(OAuth(), "gitlab", {"userinfo": {}})
+        await profile_from_token(OAuth(), "bitbucket", {"userinfo": {}})
     assert exc.value.category is ErrorCategory.VALIDATION
 
 
@@ -208,6 +208,40 @@ async def test_keycloak_profile_uses_generic_oidc_claims() -> None:
     assert profile.display_name == "Realm User"
 
 
+async def test_gitlab_profile_qualifies_subject_by_issuer_host() -> None:
+    profile = await profile_from_token(
+        OAuth(),
+        "gitlab",
+        {
+            "userinfo": {
+                "sub": "42",
+                "email": "Dev@Corp.Example",
+                "email_verified": True,
+                "preferred_username": "dev.user",
+                "name": "Corp Dev",
+            }
+        },
+        issuer="https://gitlab.corp.example",
+    )
+    assert profile.provider == "gitlab"
+    # Per-instance integer subjects are host-qualified so a re-pointed issuer
+    # can never collide old and new identities.
+    assert profile.subject == "gitlab.corp.example:42"
+    assert profile.email == "dev@corp.example"
+    assert profile.username == "dev.user"
+    assert profile.display_name == "Corp Dev"
+
+
+async def test_gitlab_profile_requires_a_configured_issuer() -> None:
+    with pytest.raises(ApiError) as exc:
+        await profile_from_token(
+            OAuth(),
+            "gitlab",
+            {"userinfo": {"sub": "1", "email": "d@corp.example", "email_verified": True}},
+        )
+    assert exc.value.category is ErrorCategory.AUTH_REQUIRED
+
+
 async def test_corporate_oidc_profile_rejects_missing_subject() -> None:
     with pytest.raises(ApiError) as exc:
         await profile_from_token(
@@ -244,7 +278,21 @@ def test_build_oauth_registers_corporate_oidc_only_when_configured() -> None:
         keycloak_issuer_url="https://sso.example.com/realms/corp",
         keycloak_client_id="ai-stp",
         keycloak_client_secret="kc-secret",
+        gitlab_issuer_url="https://gitlab.corp.example",
+        gitlab_client_id="ai-stp-gitlab",
+        gitlab_client_secret="gl-secret",
     )
     oauth = build_oauth(both)
     assert get_client(oauth, "authentik") is not None
     assert get_client(oauth, "keycloak") is not None
+    assert get_client(oauth, "gitlab") is not None
+
+    partial = AuthSettings(
+        secret_key="s" * 32,
+        gitlab_issuer_url="https://gitlab.corp.example",
+        gitlab_client_id="ai-stp-gitlab",
+    )
+    # Issuer without client credentials stays off.
+    with pytest.raises(ApiError) as exc:
+        get_client(build_oauth(partial), "gitlab")
+    assert exc.value.category is ErrorCategory.VALIDATION

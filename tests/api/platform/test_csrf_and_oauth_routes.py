@@ -699,26 +699,44 @@ async def test_step_up_callback_links_second_provider_with_avatar(
     await engine.dispose()
 
 
-async def test_oidc_login_redirects_when_keycloak_configured(
+@pytest.mark.parametrize(
+    ("provider", "provider_kwargs"),
+    [
+        (
+            "keycloak",
+            {
+                "keycloak_issuer_url": "http://idp.example/realms/corp",
+                "keycloak_client_id": "ai-stp",
+                "keycloak_client_secret": "kc-secret",
+            },
+        ),
+        (
+            "gitlab",
+            {
+                "gitlab_issuer_url": "https://gitlab.corp.example",
+                "gitlab_client_id": "ai-stp",
+                "gitlab_client_secret": "gl-secret",
+            },
+        ),
+    ],
+)
+async def test_oidc_login_redirects_when_corporate_provider_configured(
     migrated_database_url: str,
     settings_factory: Callable[..., Settings],
+    provider: str,
+    provider_kwargs: dict[str, str],
 ) -> None:
     """Corporate OIDC login reaches the provider redirect when fully configured."""
-    settings = settings_factory(
-        database_url=migrated_database_url,
-        keycloak_issuer_url="http://idp.example/realms/corp",
-        keycloak_client_id="ai-stp",
-        keycloak_client_secret="kc-secret",
-    )
+    settings = settings_factory(database_url=migrated_database_url, **provider_kwargs)
     app = create_app(settings)
     async with app.router.lifespan_context(app):
-        keycloak = app.state.oauth.create_client("keycloak")  # type: ignore[attr-defined]
-        assert keycloak is not None
+        remote = app.state.oauth.create_client(provider)  # type: ignore[attr-defined]
+        assert remote is not None
         fake = AsyncMock(return_value=RedirectResponse(url="http://idp.example/auth"))
-        keycloak.authorize_redirect = fake  # type: ignore[method-assign]
+        remote.authorize_redirect = fake  # type: ignore[method-assign]
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
-            response = await client.get("/v1/auth/keycloak/login", follow_redirects=False)
+            response = await client.get(f"/v1/auth/{provider}/login", follow_redirects=False)
     assert response.status_code in {302, 307}
     fake.assert_awaited()
 

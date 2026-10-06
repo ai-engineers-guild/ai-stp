@@ -101,6 +101,7 @@ def compute_plan_hash(
     artifact_inventory: list[str] | None = None,
     visibility: str = "public",
     source_binding_id: str | None = None,
+    gitlab_source_binding_id: str | None = None,
 ) -> str:
     """Content hash of the immutable plan surface."""
     body = {
@@ -118,6 +119,8 @@ def compute_plan_hash(
     }
     if source_binding_id is not None:
         body["source_binding_id"] = source_binding_id
+    if gitlab_source_binding_id is not None:
+        body["gitlab_source_binding_id"] = gitlab_source_binding_id
     digest = hashlib.sha256(_canonical_json(body)).hexdigest()
     return f"plan_{digest}"
 
@@ -476,10 +479,13 @@ async def execute_validate(
 
     from ai_stp_platform.github_client import GitHubError
     from ai_stp_platform.github_sources import bound_source
+    from ai_stp_platform.gitlab_client import GitLabError
+    from ai_stp_platform.gitlab_sources import bound_source as gitlab_bound_source
 
     try:
         source_binding = await bound_source(session, plan)
-    except GitHubError as exc:
+        gitlab_source_binding = await gitlab_bound_source(session, plan)
+    except (GitHubError, GitLabError) as exc:
         # Permanent binding mismatch — settle as a failed validation rather
         # than dead-lettering the job while the plan stays "validating".
         return await _record_refusal_snapshot(
@@ -488,7 +494,7 @@ async def execute_validate(
     bindings = run_platform_checks(
         passport=plan.passport,
         content_digest=plan.content_digest,
-        source_bound=source_binding is not None,
+        source_bound=source_binding is not None or gitlab_source_binding is not None,
     )
     requires_creds = bool(plan.passport.get("requires_credentials"))
     device = await session.get(Device, plan.device_id)
@@ -1012,6 +1018,7 @@ async def execute_publish(
     plan_id: str,
     store: ImmutableObjectStore | None = None,
     now: datetime | None = None,
+    gitlab_verify: str | bool = True,
 ) -> CatalogMetadata | None:
     """Materialize catalog version from a validated plan (idempotent).
 
@@ -1039,12 +1046,22 @@ async def execute_publish(
         plan_visibility = "public"
     from ai_stp_platform.github_client import GitHubClient, GitHubError
     from ai_stp_platform.github_sources import bound_source, public_bound_source_bytes
+    from ai_stp_platform.gitlab_client import GitLabError
+    from ai_stp_platform.gitlab_sources import (
+        bound_source as gitlab_bound_source,
+    )
+    from ai_stp_platform.gitlab_sources import (
+        public_bound_source_bytes as gitlab_public_bound_source_bytes,
+    )
 
     try:
         source = await bound_source(session, plan)
         if source is not None and plan_visibility == "public":
             await public_bound_source_bytes(source, client=GitHubClient())
-    except GitHubError as exc:
+        gitlab_source = await gitlab_bound_source(session, plan)
+        if gitlab_source is not None and plan_visibility == "public":
+            await gitlab_public_bound_source_bytes(gitlab_source, verify=gitlab_verify)
+    except (GitHubError, GitLabError) as exc:
         # A bound-source mismatch (renamed/private/transferred repo) is
         # permanent — settle it instead of dead-lettering into a wedged plan.
         await _refuse_publish(session, plan, f"bound source refused publish: {exc}")
@@ -1057,7 +1074,7 @@ async def execute_publish(
         content_digest=plan.content_digest,
         owner_account_id=plan.actor_account_id,
         expected_visibility=plan_visibility,
-        source_bound=source is not None,
+        source_bound=source is not None or gitlab_source is not None,
     )
     if passport is None:
         await _refuse_publish(
@@ -1595,6 +1612,7 @@ def plan_to_wire(
         "artifact_inventory": list(getattr(plan, "artifact_inventory", []) or []),
         "visibility": getattr(plan, "visibility", "private"),
         "source_binding_id": getattr(plan, "source_binding_id", None),
+        "gitlab_source_binding_id": getattr(plan, "gitlab_source_binding_id", None),
         "policy_version": plan.policy_version,
         "actor_id": plan.actor_account_id,
         "device_id": plan.device_id,

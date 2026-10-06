@@ -220,6 +220,9 @@ last_verified: "2026-08-03"
 | [ADR-0220-explainable-corporate-access.md](ADR-0220-explainable-corporate-access.md) | Proposed authoritative access descriptors, scoped provenance, and bounded delegation for corporate authorization. | 2026-09-29 |
 | [ADR-0221-corporate-private-catalog-access.md](ADR-0221-corporate-private-catalog-access.md) | Proposed separation of corporate assignments, operational ownership, and private major-line access. | 2026-09-29 |
 | [ADR-0222-desktop-application.md](ADR-0222-desktop-application.md) | The desktop application is a Tauri shell that consumes the CLI machine contract; the CLI remains the sole authority for catalog, selection, installation, and recovery. | 2026-10-03 |
+| [ADR-0223-gitlab-oidc-provider.md](ADR-0223-gitlab-oidc-provider.md) | A self-managed GitLab instance acts as a named OIDC sign-in provider; its per-instance subjects are stored host-qualified. | 2026-10-05 |
+| [ADR-0224-gitlab-source-connector.md](ADR-0224-gitlab-source-connector.md) | The GitLab connector binds expiring user grants to accounts for read-only source preparation; it can never mutate a repository. | 2026-10-05 |
+| [ADR-0225-gitlab-administration-connector.md](ADR-0225-gitlab-administration-connector.md) | A second GitLab consent purpose carries repository administration through durable, confirmed action plans; connector capabilities are organization permissions and providers can be disabled outright. | 2026-10-05 |
 | [binding.md](binding.md) | Which accepted ADRs still constrain non-corporate work; default is binding. | 2026-09-20 |
 | [template.md](template.md) | Architecture decision record template. | 2026-08-03 |
 

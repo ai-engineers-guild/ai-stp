@@ -75,9 +75,13 @@ def _apply_profile_fields(identity: OAuthIdentity, profile: ProviderProfile) -> 
 async def _apply_identity_alias(
     db: AsyncSession, identity: OAuthIdentity, profile: ProviderProfile
 ) -> None:
-    if profile.provider != "github" or profile.username is None:
+    if profile.provider not in {"github", "gitlab"} or profile.username is None:
         return
     normalized = profile.username.strip().lower()
+    # The alias column is bounded at 64; a longer provider username simply
+    # gets no alias rather than a truncated identifier that could collide.
+    if not normalized or len(normalized) > 64:
+        return
     alias = await db.scalar(
         select(OAuthIdentityAlias).where(OAuthIdentityAlias.oauth_identity_id == identity.id)
     )
@@ -85,7 +89,7 @@ async def _apply_identity_alias(
         db.add(
             OAuthIdentityAlias(
                 oauth_identity_id=identity.id,
-                provider="github",
+                provider=profile.provider,
                 normalized_value=normalized,
             )
         )

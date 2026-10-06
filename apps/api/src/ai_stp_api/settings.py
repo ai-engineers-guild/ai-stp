@@ -11,7 +11,7 @@ from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as installed_version
 from pathlib import Path
 
-from pydantic import AliasChoices, BaseModel, Field, SecretStr, field_validator, model_validator
+from pydantic import AliasChoices, Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from ai_stp_contracts.catalog import (
@@ -22,6 +22,8 @@ from ai_stp_contracts.catalog import (
 )
 from ai_stp_platform.catalog_usage import CatalogUsagePolicy
 from ai_stp_platform.github_settings import GitHubConnectorSettings
+from ai_stp_platform.gitlab_settings import GitLabConnection as GitLabConnection
+from ai_stp_platform.gitlab_settings import GitLabSettings
 from ai_stp_platform.settings import DatabaseSettings, StorageSettings
 
 # Fail-closed single-node HTTP gate (SPEC-010 REQ-1015, ADR-0128).
@@ -154,6 +156,16 @@ class AuthSettings(BaseSettings):
     keycloak_issuer_url: str = Field(default="")
     keycloak_client_id: str = Field(default="")
     keycloak_client_secret: str = Field(default="")
+    # Self-managed GitLab sign-in (ADR-0223): the issuer is the instance base
+    # URL; discovery runs against ``{issuer}/.well-known/openid-configuration``.
+    gitlab_issuer_url: str = Field(default="")
+    gitlab_client_id: str = Field(default="")
+    gitlab_client_secret: str = Field(default="")
+    # Comma-separated provider names that are unreachable even when their
+    # credentials are configured — authorize, callback, link, device and CLI
+    # login all answer "unsupported oauth provider". Corporate deployments
+    # disable `github` here; `gitlab` is never configured on SaaS anyway.
+    disabled_providers: str = Field(default="")
     # Comma-separated account ids that may perform audited admin reads.
     admin_account_ids: str = Field(default="")
 
@@ -191,6 +203,16 @@ class AuthSettings(BaseSettings):
         ordered.extend(item for item in extra if item != default)
         return tuple(ordered)
 
+    @field_validator("disabled_providers")
+    @classmethod
+    def _disabled_providers_known(cls, value: str) -> str:
+        names = {part.strip() for part in value.split(",") if part.strip()}
+        known = {"google", "github", "authentik", "keycloak", "gitlab"}
+        unknown = names - known
+        if unknown:
+            raise ValueError(f"disabled_providers names unknown providers: {sorted(unknown)}")
+        return value
+
     @field_validator("cookie_samesite")
     @classmethod
     def _samesite_allowed(cls, value: str) -> str:
@@ -211,7 +233,7 @@ class AuthSettings(BaseSettings):
             raise ValueError(msg)
         return value
 
-    @field_validator("authentik_issuer_url", "keycloak_issuer_url")
+    @field_validator("authentik_issuer_url", "keycloak_issuer_url", "gitlab_issuer_url")
     @classmethod
     def _issuer_url_is_http(cls, value: str) -> str:
         trimmed = value.strip()
@@ -232,11 +254,14 @@ class AuthSettings(BaseSettings):
 
     def provider_enabled(self, provider: str) -> bool:
         """Report whether both client id and secret are configured for provider."""
+        disabled = {part.strip() for part in self.disabled_providers.split(",") if part.strip()}
+        if provider in disabled:
+            return False
         if provider == "google":
             return bool(self.google_client_id and self.google_client_secret)
         if provider == "github":
             return bool(self.github_client_id and self.github_client_secret)
-        if provider in {"authentik", "keycloak"}:
+        if provider in {"authentik", "keycloak", "gitlab"}:
             issuer = self.oidc_issuer(provider)
             return bool(
                 issuer
@@ -318,16 +343,9 @@ class CorporateSettings(BaseSettings):
     invitation_ttl_seconds: int = Field(default=86_400, ge=60, le=2_592_000)
 
 
-class GitLabConnection(BaseModel):
-    base_url: str
-    token: SecretStr
-    allowed_hosts: list[str] = Field(default_factory=list)
-
-
-class GitLabSettings(BaseSettings):
-    model_config = SettingsConfigDict(env_prefix="AI_STP_GITLAB_", extra="ignore")
-
-    connections: dict[str, GitLabConnection] = Field(default_factory=dict)
+# Canonical GitLab definitions live in platform (gitlab_settings) so connector
+# authority code can use them without importing the API layer; the names stay
+# importable from here for the API surface and its tests.
 
 
 @dataclass(frozen=True)

@@ -34,6 +34,9 @@ from ai_stp_passports.versions import COMPONENT_TYPES
 from ai_stp_platform import (
     github_models as _github_models,  # noqa: F401  # pyright: ignore[reportUnusedImport]
 )
+from ai_stp_platform import (
+    gitlab_models as _gitlab_models,  # noqa: F401  # pyright: ignore[reportUnusedImport]
+)
 from ai_stp_platform.db import Base
 from ai_stp_platform.organization_scope import OrganizationScopedMixin
 
@@ -778,6 +781,12 @@ class PublicationPlan(OrganizationScopedMixin, Base):
     source_binding_id: Mapped[str | None] = mapped_column(
         String(64),
         ForeignKey("github_source_binding.id", ondelete="RESTRICT"),
+        nullable=True,
+        unique=True,
+    )
+    gitlab_source_binding_id: Mapped[str | None] = mapped_column(
+        String(64),
+        ForeignKey("gitlab_source_binding.id", ondelete="RESTRICT"),
         nullable=True,
         unique=True,
     )
