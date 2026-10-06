@@ -369,6 +369,10 @@ async def _connection_status(
             if connector.gitlab_subject not in await _linked_subjects(db, ctx.account_id):
                 raise GitLabError("gitlab_identity_mismatch", status=403)
             repositories = await member_projects(client, token=token)
+            # A connected scope that now enumerates no member projects lost
+            # access upstream, like GitHub's empty-installation check.
+            if not repositories and row.projects:
+                raise GitLabError("gitlab_membership_lost", status=403)
             row.projects = _project_scope(repositories)
             status = status.model_copy(
                 update={

@@ -23,11 +23,16 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from ai_stp_api.app import create_app
 from ai_stp_api.session import issue_session
 from ai_stp_api.settings import Settings
+from ai_stp_foundation.ids import new_id
 from ai_stp_platform.gitlab_client import GitLabClient
 from ai_stp_platform.gitlab_models import GitLabConnector, GitLabSourceBinding
 from ai_stp_platform.gitlab_settings import GitLabConnection, GitLabSettings
 from ai_stp_platform.models import Account, AuditEvent, Device, OAuthIdentity
-from ai_stp_platform.organization_models import Organization, OrganizationMembership
+from ai_stp_platform.organization_models import (
+    CorporatePermissionGrant,
+    Organization,
+    OrganizationMembership,
+)
 from ai_stp_platform.storage.memory import MemoryObjectClient
 
 pytestmark = pytest.mark.platform
@@ -176,8 +181,6 @@ async def harness(migrated_database_url: str, settings_factory: Any) -> AsyncIte
         app.state.object_client = MemoryObjectClient()
         sessions = app.state.sessionmaker
         async with sessions() as db:
-            from ai_stp_foundation.ids import new_id
-
             account = Account(id=new_id("account"))
             device = Device(
                 id=new_id("device"), account_id=account.id, public_key="synthetic", state="active"
@@ -204,6 +207,28 @@ async def harness(migrated_database_url: str, settings_factory: Any) -> AsyncIte
             db.add(
                 OrganizationMembership(
                     organization_id=organization.id, account_id=account.id, role="owner"
+                )
+            )
+            await db.flush()
+            # The connector gates every route on scoped permissions; grant the
+            # harness owner the whole connector set directly (ADR-0220).
+            db.add_all(
+                CorporatePermissionGrant(
+                    id=new_id("operation"),
+                    organization_id=organization.id,
+                    principal_type="user",
+                    account_id=account.id,
+                    permission=permission,
+                    scope_kind="organization",
+                    scope_id=organization.id,
+                    issuer_account_id=account.id,
+                )
+                for permission in (
+                    "connector.gitlab.use",
+                    "connector.gitlab.read",
+                    "connector.gitlab.access",
+                    "connector.gitlab.visibility",
+                    "connector.gitlab.create",
                 )
             )
             session = await issue_session(
@@ -314,7 +339,7 @@ async def test_unlinked_gitlab_identity_and_lost_membership_are_refused(harness:
 async def test_foreign_organization_membership_is_denied(harness: Harness) -> None:
     h = harness
     response = await h.client.post(
-        "/v1/corporate/organizations/organization_missing/gitlab/connect",
+        f"/v1/corporate/organizations/{new_id('organization')}/gitlab/connect",
         headers=h.headers,
         json={"purpose": "source", "locale": "en", "confirmed": True},
     )
