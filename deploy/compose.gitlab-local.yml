@@ -97,8 +97,14 @@ services:
       - ../.gitlab-lab/ssl/ca-bundle.pem:/etc/gitlab-local-ca/ca-bundle.pem:ro
   web:
     environment:
-      # Lab sign-in offers every configured provider, including GitLab.
-      AI_STP_AUTH_PROVIDERS: google,github,gitlab
+      # Corporate build (compose.corporate-local.yml parity): no public SaaS
+      # landing/nav, and GitLab lives in the corporate SSO slot.
+      AI_STP_WEB_PROFILE: corporate_hub
+      AI_STP_FEATURE_CONTENT_HUB: "false"
+      AI_STP_FEATURE_SAAS_PUBLIC_PAGES: "false"
+      AI_STP_FEATURE_CATALOG_USAGE_METRICS: "false"
+      AI_STP_AUTH_PROVIDERS: google,github
+      AI_STP_AUTH_SSO_PROVIDERS: gitlab
 volumes:
   gitlab-local-config:
   gitlab-local-logs:
