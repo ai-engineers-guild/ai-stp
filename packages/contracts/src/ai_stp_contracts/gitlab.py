@@ -53,7 +53,7 @@ class GitLabRepositoryList(ContractModel):
     items: Annotated[list[GitLabRepositoryView], Field(max_length=500)]
 
 
-class GitLabResearchAccepted(BaseModel):
+class GitLabResearchAccepted(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 
     schema_version: Literal[1] = 1

@@ -208,10 +208,9 @@ function ConnectionsSections({
   gitlabHint: string;
 }) {
   const env = getEnv();
-  const showGitLab = [
-    ...env.AI_STP_AUTH_PROVIDERS,
-    ...env.AI_STP_AUTH_SSO_PROVIDERS,
-  ].includes("gitlab");
+  const showGitLab = [...env.AI_STP_AUTH_PROVIDERS, ...env.AI_STP_AUTH_SSO_PROVIDERS].includes(
+    "gitlab",
+  );
   return (
     <>
       <div className="border-border mt-6 space-y-3 border-t pt-5">
@@ -227,11 +226,7 @@ function ConnectionsSections({
             <h3 className="font-medium">{gitlabTitle}</h3>
             <p className="text-muted-foreground text-xs">{gitlabHint}</p>
           </div>
-          <GitLabConnectionLink
-            csrfToken={csrfToken}
-            organizationId={organizationId}
-            compact
-          />
+          <GitLabConnectionLink csrfToken={csrfToken} organizationId={organizationId} compact />
         </div>
       ) : null}
     </>

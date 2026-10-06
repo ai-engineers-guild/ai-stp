@@ -20,9 +20,9 @@ export function GitLabConnectionLink({
 }) {
   const t = useTranslations("gitlabConnector");
   const [connected, setConnected] = useState<boolean | null>(null);
-  const [connectionState, setConnectionState] = useState<
-    GitLabConnectionStatus["state"] | null
-  >(null);
+  const [connectionState, setConnectionState] = useState<GitLabConnectionStatus["state"] | null>(
+    null,
+  );
   const [available, setAvailable] = useState(true);
   const [error, setError] = useState(false);
 

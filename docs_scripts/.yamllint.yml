@@ -14,6 +14,7 @@ ignore: |
   .serena/
   .serena.local-backup-before-ff/
   .gitlab-lab/
+  .gds/
   node_modules/
   .playwright-mcp/
 
