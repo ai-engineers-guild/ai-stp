@@ -33,7 +33,10 @@ logs/
 .backups/
 
 # Local GitLab lab state: container volumes, internal CA and certificates.
+# The compose overlay that runs a self-managed GitLab instance stays on the
+# host too — it is a workstation tool, not part of the shipped project.
 .gitlab-lab/
+deploy/compose.gitlab-local.yml
 
 # CLIPROXY OAuth session and operator config. Copy auths/ between hosts;
 # never commit the JSON or a filled config.yaml.

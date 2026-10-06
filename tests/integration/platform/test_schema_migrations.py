@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from typing import cast
 
 import pytest
 from alembic import command
@@ -208,6 +209,12 @@ def _catalog(database_url: str) -> tuple[object, ...]:
     return asyncio.run(read())
 
 
+def _rows(catalog: tuple[object, ...]) -> set[object]:
+    """The catalog flattened to rows: later revisions may append objects, so
+    containment is judged per row, not per statement part."""
+    return {row for part in catalog for row in cast(tuple[object, ...], part)}
+
+
 def test_replay_restores_the_chain_a_reordered_history_skipped(
     isolated_database_url: str,
     monkeypatch: pytest.MonkeyPatch,
@@ -227,8 +234,8 @@ def test_replay_restores_the_chain_a_reordered_history_skipped(
     # Autogenerate does not compare policies, triggers or check constraints;
     # the catalog of a database that ran the chain in order does. Revisions
     # after `0112` legitimately add objects, so the check is containment, not
-    # equality: everything that existed before the replay still exists.
-    assert set(complete) <= set(_catalog(isolated_database_url))
+    # equality: every catalog row that existed before the replay still exists.
+    assert _rows(complete) <= _rows(_catalog(isolated_database_url))
     for table in _CHAIN_TABLES:
         assert (
             asyncio.run(
@@ -252,7 +259,7 @@ def test_replay_changes_nothing_on_a_database_that_ran_the_chain(
     before = _catalog(isolated_database_url)
     command.upgrade(config, "head")
     assert _version(isolated_database_url) == "0114_gitlab_action_plans"
-    assert set(before) <= set(_catalog(isolated_database_url))
+    assert _rows(before) <= _rows(_catalog(isolated_database_url))
 
 
 def test_dashboard_migration_has_tenant_policies_and_downgrades(
