@@ -152,23 +152,24 @@ impl AppState {
             .map_err(|_| RunError::Internal("state poisoned".into()))?
             .clone();
         if let Some((reg, checked_at)) = cached {
-            let live = if checked_at.elapsed() < REGISTRY_TTL {
-                true
-            } else {
-                // Cheap freshness probe outside the lock: `capabilities`
-                // carries the live digest.
-                match runner.run(&["capabilities".into()]) {
-                    Ok(env) => {
-                        env.ok
-                            && env
-                                .data
-                                .as_ref()
-                                .and_then(|d| d.get("registry_digest"))
-                                .and_then(|d| d.as_str())
-                                == Some(reg.registry_digest.as_str())
-                    }
-                    Err(_) => false,
+            if checked_at.elapsed() < REGISTRY_TTL {
+                // A cache hit is not a verification. Moving the timestamp
+                // here would keep an actively used registry fresh forever.
+                return Ok(reg);
+            }
+            // Cheap freshness probe outside the lock: `capabilities`
+            // carries the live digest.
+            let live = match runner.run(&["capabilities".into()]) {
+                Ok(env) => {
+                    env.ok
+                        && env
+                            .data
+                            .as_ref()
+                            .and_then(|d| d.get("registry_digest"))
+                            .and_then(|d| d.as_str())
+                            == Some(reg.registry_digest.as_str())
                 }
+                Err(_) => false,
             };
             if live {
                 let mut guard = self
@@ -806,6 +807,33 @@ pub fn run() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn registry_reads_do_not_postpone_verification() {
+        let st = AppState::new();
+        let help: MachineHelp =
+            serde_json::from_str(include_str!("../../core/tests/fixtures/machine-help.json"))
+                .unwrap();
+        let reg = CommandRegistry::from_help(&help);
+        let checked_at = Instant::now() - Duration::from_secs(1);
+        *st.registry.lock().unwrap() = Some((reg.clone(), checked_at));
+        // An empty executable cannot spawn. Fresh reads need no subprocess;
+        // once expired, a failed probe must not return the stale registry.
+        *st.runner.lock().unwrap() = Some(CliRunner {
+            executable: PathBuf::new(),
+            env: Vec::new(),
+            timeout: Duration::from_secs(1),
+        });
+        for _ in 0..3 {
+            assert_eq!(
+                st.command_registry().unwrap().registry_digest,
+                reg.registry_digest
+            );
+            assert_eq!(st.registry.lock().unwrap().as_ref().unwrap().1, checked_at);
+        }
+        st.registry.lock().unwrap().as_mut().unwrap().1 = Instant::now() - REGISTRY_TTL;
+        assert!(st.command_registry().is_err());
+    }
 
     /// Real-CLI smoke tests for the shell's sync core. Skipped unless a real
     /// `ai-stp` is intended: `AI_STP_REAL_CLI=1 cargo test`.

@@ -110,7 +110,9 @@ client-side authority) are rejected.
   bootloader resolves its `_MEI` extraction dir from them and dies with
   "Could not create temporary directory!" when they are stripped.
 - Envelope `schema_version` mismatches fail closed with an update prompt;
-  `registry_digest` invalidates the app's cached command descriptors.
+  `registry_digest` invalidates the app's cached command descriptors. The
+  30-second freshness interval starts at the last successful CLI verification;
+  using a cached descriptor does not extend it.
 - The provider co-owned roots (`~/.agents/skills`, `~/.claude/skills`) are
   surfaced in the UI when an operation touches them, because removal in one
   provider changes what other products read.
