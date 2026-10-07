@@ -224,6 +224,7 @@ last_verified: "2026-08-03"
 | [ADR-0224-gitlab-source-connector.md](ADR-0224-gitlab-source-connector.md) | The GitLab connector binds expiring user grants to accounts for read-only source preparation; it can never mutate a repository. | 2026-10-05 |
 | [ADR-0225-gitlab-administration-connector.md](ADR-0225-gitlab-administration-connector.md) | A second GitLab consent purpose carries repository administration through durable, confirmed action plans; connector capabilities are organization permissions and providers can be disabled outright. | 2026-10-05 |
 | [ADR-0226-saml-identity-provider.md](ADR-0226-saml-identity-provider.md) | A SAML 2.0 IdP is a sixth named sign-in provider feeding validated assertions into the shared identity pipeline; verification is pinned to configured certificates. | 2026-10-06 |
+| [ADR-0227-rust-cli-v2-migration-boundary.md](ADR-0227-rust-cli-v2-migration-boundary.md) | Develop the Rust CLI against explicit business and compatibility boundaries, with isolated previews and one verified default-runtime cutover. | 2026-10-07 |
 | [binding.md](binding.md) | Which accepted ADRs still constrain non-corporate work; default is binding. | 2026-09-20 |
 | [template.md](template.md) | Architecture decision record template. | 2026-08-03 |
 
