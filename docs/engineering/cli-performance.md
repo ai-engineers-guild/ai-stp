@@ -138,7 +138,7 @@ check imports with the corporate contract behind it (about 0.06s).
 At the fifth measurement the desktop sidecar added its own cost: PyInstaller `--onefile`
 unpacks the archive on every call. On the same workstation a `--onedir` freeze
 of the same CLI answered `version --json` in 2.6s against 3.1s for `--onefile`
-(median of five, wall clock); the change of bundle layout that would take is
+(median of five, wall clock); the required change of bundle layout
 was recorded in the roadmap rather than made in that wave. The sidecar ran
 the same imports, so the fifth measurement lowered its per-call cost as well.
 
