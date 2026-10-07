@@ -5,7 +5,7 @@ import { ApiError } from "@/lib/api/errors";
 import { readCorporateOrganization } from "@/lib/api/corporate";
 import { apiRequest } from "@/lib/api/http";
 import { sessionCookieValue } from "@/lib/auth/require-session";
-import type { UsageReport } from "@/components/usage/usage-report-types";
+import type { UsageReport } from "@/lib/usage-report-types";
 
 export const dynamic = "force-dynamic";
 
