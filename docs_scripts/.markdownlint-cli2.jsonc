@@ -66,6 +66,8 @@
     "plans/**",
     "apps/web/test-results/**",
     "apps/web/playwright-report/**",
-    "apps/web/blob-report/**"
+    "apps/web/blob-report/**",
+    "apps/desktop/src-tauri/sidecar/**",
+    "apps/desktop/**/target/**"
   ]
 }

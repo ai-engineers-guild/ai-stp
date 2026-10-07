@@ -6,6 +6,7 @@ use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+use tauri::Manager;
 
 /// Every IPC reply is a typed result — the frontend renders `ok` or the
 /// structured error; it never receives raw stderr.
@@ -94,6 +95,7 @@ fn error_code_for(e: &RunError) -> &'static str {
 /// by `registry_digest`, and a mutation mutex serializing every write —
 /// plan/apply, task-engine steps, and credential mutations.
 struct AppState {
+    bundled_cli: Option<PathBuf>,
     runner: Mutex<Option<CliRunner>>,
     /// Cached descriptors + when the digest was last verified live. The
     /// lock guards the Option only — never held across a subprocess spawn.
@@ -112,8 +114,9 @@ struct AppState {
 const REGISTRY_TTL: Duration = Duration::from_secs(30);
 
 impl AppState {
-    fn new() -> Self {
+    fn new(bundled_cli: Option<PathBuf>) -> Self {
         Self {
+            bundled_cli,
             runner: Mutex::new(None),
             registry: Mutex::new(None),
             mutation_lock: Mutex::new(()),
@@ -128,7 +131,7 @@ impl AppState {
         if let Some(r) = &*guard {
             return Ok(r.clone());
         }
-        let bundled = bundled_cli_path();
+        let bundled = self.bundled_cli.clone();
         // `AI_STP_CLI` pins a configured override — dev installs where the
         // bundled tier is absent and PATH is minimal (e.g. macOS launchd).
         let configured = std::env::var_os("AI_STP_CLI")
@@ -201,19 +204,6 @@ impl AppState {
             Some((reg.clone(), Instant::now()));
         Ok(reg)
     }
-}
-
-fn bundled_cli_path() -> Option<PathBuf> {
-    let exe = std::env::current_exe().ok()?;
-    // Named `ai-stp-desktop-cli` (not `ai-stp`) so a Linux package cannot
-    // collide with the standalone CLI package's /usr/bin/ai-stp.
-    let name = if cfg!(windows) {
-        "ai-stp-desktop-cli.exe"
-    } else {
-        "ai-stp-desktop-cli"
-    };
-    let candidate = exe.parent()?.join(name);
-    candidate.is_file().then_some(candidate)
 }
 
 fn run_cli(state: &AppState, args: &[String]) -> CmdResult {
@@ -450,7 +440,7 @@ async fn gated_run(
 async fn debug_info(state: tauri::State<'_, Arc<AppState>>) -> Result<CmdResult, String> {
     let st = state.inner().clone();
     tauri::async_runtime::spawn_blocking(move || {
-        let bundled = bundled_cli_path();
+        let bundled = st.bundled_cli.clone();
         let info = match st.runner() {
             Ok(r) => serde_json::json!({
                 "cli_found": true,
@@ -752,11 +742,22 @@ async fn task_list(state: tauri::State<'_, Arc<AppState>>) -> Result<CmdResult, 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        .manage(Arc::new(AppState::new()))
+        .setup(|app| {
+            let name = if cfg!(windows) {
+                "cli/ai-stp-desktop-cli.exe"
+            } else {
+                "cli/ai-stp-desktop-cli"
+            };
+            let bundled = app
+                .path()
+                .resolve(name, tauri::path::BaseDirectory::Resource)?;
+            let bundled = bundled.is_file().then_some(bundled);
+            app.manage(Arc::new(AppState::new(bundled)));
+            Ok(())
+        })
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
             // A second launch raises the existing window instead of
             // silently exiting — otherwise a minimized app looks dead.
-            use tauri::Manager;
             if let Some(w) = app.get_webview_window("main") {
                 let _ = w.unminimize();
                 let _ = w.show();
@@ -810,7 +811,7 @@ mod tests {
 
     #[test]
     fn registry_reads_do_not_postpone_verification() {
-        let st = AppState::new();
+        let st = AppState::new(None);
         let help: MachineHelp =
             serde_json::from_str(include_str!("../../core/tests/fixtures/machine-help.json"))
                 .unwrap();
@@ -846,7 +847,7 @@ mod tests {
         if !real() {
             return;
         }
-        let st = AppState::new();
+        let st = AppState::new(None);
         let r = st.runner().expect("cli resolves");
         assert!(r.executable.is_file());
         let env = r.run(&argv("version")).expect("spawn");
@@ -858,7 +859,7 @@ mod tests {
         if !real() {
             return;
         }
-        let st = AppState::new();
+        let st = AppState::new(None);
         let reg = st.command_registry().expect("machine help parses");
         assert!(reg.all_descriptors().len() > 200);
         assert!(!reg.registry_digest.is_empty());
@@ -874,7 +875,7 @@ mod tests {
         if !real() {
             return;
         }
-        let st = AppState::new();
+        let st = AppState::new(None);
         let reg = st.command_registry().unwrap();
         let desc = reg.descriptor("install apply").expect("descriptor");
         assert_eq!(desc.mutability, "apply");
@@ -887,7 +888,7 @@ mod tests {
         if !real() {
             return;
         }
-        let st = AppState::new();
+        let st = AppState::new(None);
         let reg = st.command_registry().unwrap();
         let desc = reg
             .descriptor("harness list")
@@ -907,7 +908,7 @@ mod tests {
         if !real() {
             return;
         }
-        let st = AppState::new();
+        let st = AppState::new(None);
         let reg = st.command_registry().unwrap();
         let desc = reg.descriptor("device show").expect("descriptor");
         // device show is read-tier — the plan gate must refuse it

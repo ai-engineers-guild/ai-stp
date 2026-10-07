@@ -1,12 +1,8 @@
 #!/usr/bin/env bash
-# Build the ai-stp CLI as a single-file sidecar binary for Tauri
-# `bundle.externalBin`: PyInstaller freezes the released CLI — its wheel and
-# the locked closure of the dependencies that wheel declares — into
-# `src-tauri/sidecar/ai-stp-desktop-cli-<target-triple>[.exe]`, which the
-# bundler embeds next to the app executable (where core's bundled-path
-# resolver looks first). The name is deliberately not `ai-stp`: a bare
-# `ai-stp` sidecar would be installed at /usr/bin/ai-stp by Linux packages
-# and collide with the standalone CLI package.
+# Freeze the released CLI wheel and its locked dependency closure as a
+# complete PyInstaller directory. Tauri bundle.resources preserves the
+# tree under cli/ in the platform resource directory. Keeping the name
+# ai-stp-desktop-cli avoids collisions with the standalone CLI.
 #
 # Requires uv on PATH and a checkout of this repository. The package set is
 # the CLI's slice of `uv.lock` plus a pinned PyInstaller — fetched through uv
@@ -14,21 +10,21 @@
 #
 # `--stub` writes a stand-in instead: on POSIX hosts a minimal shell stub
 # that answers `version --json`, on Windows a marked non-runnable
-# placeholder — the shell crate's checks need the externalBin path to
+# placeholder — the shell crate's checks need the resource path to
 # exist at compile time but never execute it. An existing sidecar is never
 # overwritten either way, so `cargo check`/`cargo test`/`tauri dev` work
 # without a 5-minute freeze and a real build is left in place.
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "$0")/../../.." && pwd)"
-out_dir="${repo_root}/apps/desktop/src-tauri/sidecar"
+out_dir="${repo_root}/apps/desktop/src-tauri/sidecar/cli"
 
 triple="$(rustc -vV | sed -n 's/^host: //p')"
 case "${triple}" in
   *windows*) suffix=".exe" ;;
   *) suffix="" ;;
 esac
-bin="ai-stp-desktop-cli-${triple}${suffix}"
+bin="ai-stp-desktop-cli${suffix}"
 
 if [[ "${1:-}" == "--stub" ]]; then
   # Never overwrite an existing sidecar — a real PyInstaller build must not
@@ -39,7 +35,7 @@ if [[ "${1:-}" == "--stub" ]]; then
   fi
   if [[ -n "${suffix}" ]]; then
     # Windows: shell-crate checks need the file to exist (tauri-build
-    # verifies externalBin paths at compile time) but never execute it —
+    # verifies resource paths at compile time) but never execute it —
     # the real CLI tests are gated behind AI_STP_REAL_CLI. A marked
     # non-runnable placeholder is honest; running it fails loudly.
     mkdir -p "${out_dir}"
@@ -130,8 +126,8 @@ uv pip install --python "${venv_python}" -q "${PYINSTALLER_TOOLSET[@]}"
 # helpers alone. Collected, it brought PyInstaller's setuptools runtime hook,
 # which imports setuptools before the CLI starts, on every call: 2.21s against
 # 2.04s for `version --json` from the same freeze (median of five, wall).
-"${venv_python}" -m PyInstaller --onefile --clean \
-  --name "ai-stp-desktop-cli-${triple}" \
+"${venv_python}" -m PyInstaller --onedir --clean \
+  --name "ai-stp-desktop-cli" \
   --distpath "${work_dir}/dist" \
   --workpath "${work_dir}/build" \
   --specpath "${work_dir}" \
@@ -147,8 +143,11 @@ uv pip install --python "${venv_python}" -q "${PYINSTALLER_TOOLSET[@]}"
   --exclude-module _distutils_hack \
   "${work_dir}/entry.py"
 
+# Replace only this script's generated tree; the build is reproducible from
+# the wheel and lockfile, and stale libraries must not survive a new freeze.
+rm -rf "${out_dir}"
 mkdir -p "${out_dir}"
-cp "${work_dir}/dist/ai-stp-desktop-cli-${triple}${suffix}" "${out_dir}/${bin}"
+cp -a "${work_dir}/dist/ai-stp-desktop-cli/." "${out_dir}/"
 chmod +x "${out_dir}/${bin}" || true
 
 # Prove the frozen binary actually works on this OS before it ships inside
@@ -169,7 +168,7 @@ cat > "${work_dir}/run_bounded.py" <<'EOF'
 """Run a probe with a wall-clock bound; exit 124 on timeout.
 
 The probe is started in its own process group where the platform supports
-it so a PyInstaller onefile parent+child pair is killed together.
+it so the CLI and any descendants are killed together.
 """
 import os
 import signal

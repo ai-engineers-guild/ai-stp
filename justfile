@@ -727,7 +727,7 @@ desktop-gen:
     cd apps/desktop/src-tauri && cargo fmt
 
 # The frozen lockfile is the contract; `vite build` emits `dist/` and the
-# stub sidecar satisfies the externalBin existence check before the crates
+# stub sidecar satisfies the resource existence check before the crates
 # compile. `run_bash.py` picks Git-for-Windows bash over WSL on Windows —
 # the recipe line stays identical everywhere.
 [doc('Frontend build plus a stub sidecar for compile-time checks')]

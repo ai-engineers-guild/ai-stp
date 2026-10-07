@@ -46,8 +46,8 @@
         ]
       }
     },
-    "externalBin": [
-      "sidecar/ai-stp-desktop-cli"
-    ]
+    "resources": {
+      "sidecar/cli/": "cli/"
+    }
   }
 }

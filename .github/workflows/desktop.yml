@@ -98,7 +98,7 @@ jobs:
           cargo test --locked
       - name: Stub sidecar for shell-crate checks
         shell: bash
-        # tauri-build's build.rs verifies externalBin paths exist at compile
+        # tauri-build's build.rs verifies resource paths exist at compile
         # time; the stub satisfies that before the real PyInstaller sidecar
         # is built below.
         run: bash apps/desktop/scripts/build-cli-sidecar.sh --stub
@@ -130,6 +130,9 @@ jobs:
         working-directory: apps/desktop
         shell: bash
         run: bun x tauri build
+      - name: Probe the packaged CLI resource tree
+        shell: bash
+        run: uv run --locked python apps/desktop/scripts/test-packaged-sidecar.py
       - name: Upload bundles
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
