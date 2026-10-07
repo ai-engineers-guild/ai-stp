@@ -137,6 +137,10 @@ using API version `2026-03-10`. It never selects the latest run from a list:
 another operator may have dispatched in between. A missing or invalid run ID
 stops before approval; inspect that dispatch before retrying. An approval HTTP
 failure is a failure, not permission to continue.
+Before dispatch, the candidate must be a successful `release-candidate.yml`
+`workflow_dispatch` on the exact version tag in this repository, with a
+successful `attest-public-candidate` job in its latest attempt. An ordinary
+green check on the same SHA, or a skipped attestation, is refused.
 
 No upload token exists here, on the host, or in repository or organization secrets—
 Trusted Publishing issues an OIDC identity for the run. There is no credential to

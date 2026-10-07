@@ -36,7 +36,7 @@ remain available.
 | 5 | Deferred dependency exit conditions | Primary release metadata checked October 7 still supports the five concrete deferrals in `dependency-policy.md`. Resume only when the documented upstream conditions change. |
 | 6 | Release and live synchronization | CLI 0.0.43 is attested and byte-identical across candidate, GitHub and PyPI; Python 3.12/3.14 installation evidence passes. Local self-update is `verified`; all 13 doctor checks are ready with the existing user session's credential store. The release deployment readback at `e7964854` verified migration `0115` and all eight healthy containers. |
 | 7 | Documentation and memory reconciliation | Closed Agent UX and dated roadmap checkpoints are archived. Active canon, deployment guidance and release evidence describe the implemented code. Project memory reconciliation preserves owner decisions and historical transcripts, with a private backup before replacement. |
-| 8 | Publication dispatch identity | The helper binds approval to the ID returned by GitHub's dispatch response. It refuses missing or invalid IDs and propagates approval HTTP failure. Eleven focused regression/contract tests and backend static checks pass; final integration evidence is in #711. |
+| 8 | Publication dispatch identity | The helper requires the exact tagged candidate workflow and a successful attestation job, then binds approval to the dispatch response ID. Missing identities and approval HTTP failures are refusals. Eighteen focused regression/contract tests and backend static checks pass; final integration evidence is in #711. |
 
 The published CLI's anonymous live slice agrees with the API and machine
 projections for 204 components and 28 setups, and serves exact cached objects

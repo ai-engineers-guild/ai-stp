@@ -20,7 +20,16 @@ def test_a_newer_publication_does_not_receive_this_dispatch_approval(
         del check
         reads.append(path)
         if path.endswith("/actions/runs/17"):
-            return {"conclusion": "success", "head_sha": "release-sha"}
+            return {
+                "conclusion": "success",
+                "head_sha": "release-sha",
+                "path": ".github/workflows/release-candidate.yml",
+                "event": "workflow_dispatch",
+                "head_branch": "v1.2.3",
+                "head_repository": {"full_name": publish_pypi.REPO},
+            }
+        if path.endswith("/actions/runs/17/jobs"):
+            return {"jobs": [{"name": "attest-public-candidate", "conclusion": "success"}]}
         if path.endswith("/git/ref/tags/v1.2.3"):
             return {"object": {"type": "commit", "sha": "release-sha"}}
         if path.endswith("/dispatches"):
@@ -72,6 +81,58 @@ def test_a_newer_publication_does_not_receive_this_dispatch_approval(
     assert publish_pypi.main() == 0
     assert approved == [f"repos/{publish_pypi.REPO}/actions/runs/41/pending_deployments"]
     assert not any(path.endswith("/workflows/publish-pypi.yml/runs") for path in reads)
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("path", ".github/workflows/check.yml"),
+        ("event", "pull_request"),
+        ("head_branch", "main"),
+        ("head_repository", {"full_name": "another-owner/ai-stp"}),
+    ],
+)
+def test_an_unrelated_successful_run_cannot_stand_in_for_a_candidate(
+    monkeypatch: pytest.MonkeyPatch, field: str, value: object
+) -> None:
+    run: dict[str, object] = {
+        "conclusion": "success",
+        "head_sha": "release-sha",
+        "path": ".github/workflows/release-candidate.yml",
+        "event": "workflow_dispatch",
+        "head_branch": "v1.2.3",
+        "head_repository": {"full_name": publish_pypi.REPO},
+        field: value,
+    }
+
+    def github(path: str, *_arguments: str) -> object:
+        assert path.endswith("/actions/runs/17")
+        return run
+
+    monkeypatch.setattr(publish_pypi, "api", github)
+    with pytest.raises(SystemExit, match="not this repository's candidate"):
+        publish_pypi.candidate_head("17", "1.2.3")
+
+
+@pytest.mark.parametrize("conclusion", ["skipped", "failure", None])
+def test_a_candidate_without_successful_attestation_is_refused(
+    monkeypatch: pytest.MonkeyPatch, conclusion: str | None
+) -> None:
+    def github(path: str, *_arguments: str) -> object:
+        if path.endswith("/jobs"):
+            return {"jobs": [{"name": "attest-public-candidate", "conclusion": conclusion}]}
+        return {
+            "conclusion": "success",
+            "head_sha": "release-sha",
+            "path": ".github/workflows/release-candidate.yml",
+            "event": "workflow_dispatch",
+            "head_branch": "v1.2.3",
+            "head_repository": {"full_name": publish_pypi.REPO},
+        }
+
+    monkeypatch.setattr(publish_pypi, "api", github)
+    with pytest.raises(SystemExit, match="no successful public attestation job"):
+        publish_pypi.candidate_head("17", "1.2.3")
 
 
 @pytest.mark.parametrize(
