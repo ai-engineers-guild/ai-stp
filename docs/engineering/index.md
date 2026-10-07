@@ -35,6 +35,7 @@ last_verified: "2026-08-03"
 | [telemetry-privacy.md](telemetry-privacy.md) | Operator notes for the telemetry privacy boundary: storage, retention sweeps, subject rights, and audit. | 2026-09-24 |
 | [telemetry-usage.md](telemetry-usage.md) | Operator notes for runtime usage telemetry: outbox, ingestion, scoped reports, and export receipts. | 2026-09-26 |
 | [testing.md](testing.md) | Test strategy for passports, builds, sync, providers, and platform. | 2026-09-10 |
+| [web-component-consolidation-plan.md](web-component-consolidation-plan.md) | Consolidation of the apps/web component library: dead-code removal, missing primitives, tier corrections, and the component-driven boundary. | 2026-10-07 |
 | [web-quality.md](web-quality.md) | Web operating rules: SEO, machine discovery, browser storage, selectors, and quality gates. | 2026-08-29 |
 
 <!-- END CONTENTS -->

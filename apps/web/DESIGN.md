@@ -34,6 +34,33 @@ Primary signal: `#fb631b` → hover `#f4793f`. Type: plexSans + plexMono.
 6. Icons only via `@/theme` `Icon`.
 7. Public landing, catalog, detail, login, and account stay usable at 360–430px: no document overflow, visible install/view CTA, 44px primary actions.
 
+## Component boundary (hard)
+
+UI is component-driven. Pages and layouts compose registered kit components;
+they do not invent controls inline.
+
+1. Interfaces use only components from
+   `src/components/{atoms,molecules,organisms,layouts,screens}` and icons from
+   `@/theme`. Raw `<select>`, `<table>` row markup, and direct `radix-ui`
+   imports are forbidden outside the kit file that owns that primitive.
+2. Every component ships with a Storybook story under
+   `src/stories/UI Kit/<Tier>/` and a component test under
+   `tests/component/` (pure helpers may use `tests/unit/`). A component
+   without both is not mergeable.
+3. Adapt before create: search the kit first and extend the existing
+   component; a new component is allowed only after the kit is shown
+   insufficient, with the reason recorded in the PR description or this file.
+4. Tiers: `atoms` — single elements and radix wrappers; `molecules` —
+   composed atoms, no data fetch; `organisms` — feature sections; `layouts` —
+   shells and chrome; `screens` — route-level compositions that may fetch and
+   gate sessions. Hooks, label factories, and type-only modules live in
+   `src/lib/`, not in component tiers.
+5. File name equals the primary export name; no re-export barrels between
+   component files.
+
+The consolidation order and the audit baseline are in
+[`docs/engineering/web-component-consolidation-plan.md`](../../docs/engineering/web-component-consolidation-plan.md).
+
 ## Recipient import reuse
 
 The existing kit has no validated file-drop field or recipient review table.
