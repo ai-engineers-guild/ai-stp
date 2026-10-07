@@ -5,7 +5,9 @@ last_verified: "2026-10-07"
 
 # ADR-0222: Desktop application is a contract consumer, not a second engine
 
-Status: proposed.
+Status: accepted. Implemented in `apps/desktop` and distributed through the
+`desktop-v*` release series; the October 7 review reconciles this status with
+the shipped contract consumer.
 
 ## Context
 
