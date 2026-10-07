@@ -13,6 +13,68 @@ closing records are history in
 [implementation-roadmap-history.md](../archive/implementation-roadmap-history.md):
 true as of their dates, not a queue to replay.
 
+## Current program: Rust CLI v2
+
+The owner's October 8 instruction activates
+[#57](https://github.com/ai-engineers-guild/ai-stp/issues/57), superseding its
+earlier rewrite deferral. The objective is a complete native CLI with explicit
+business scope, a small risk-based proof set and a controlled production switch.
+Python CLI 0.0.43 remains the shipped engine. C0 adds evidence and decisions;
+it contains no Rust runtime, new capability claim or production state migration.
+
+The [business scope and frozen ledger](cli-v2-scope.md) account for all 245
+registered commands and nine intents at `7220c991`. They explain compatibility
+risks, measured startup cost and the native provenance gap.
+[ADR-0227](../adr/ADR-0227-rust-cli-v2-migration-boundary.md) owns isolation,
+authority, state transfer and rollback. Existing implemented surfaces below
+remain implemented; the following rows describe their Rust replacement.
+
+| Checkpoint | Concrete result | Evidence required before advancing | State |
+|---|---|---|---|
+| C0 — scope and decisions | Complete command-to-business ledger, current behavior versus intended changes, architecture boundary and ordered migration plan | Verify every descriptor/handler/classification against the baseline revision; documentation gate, existing status contracts and final diff review | Recorded by [#717](https://github.com/ai-engineers-guild/ai-stp/issues/717); exact-SHA integration results belong to the issue/PR |
+| C1 — native boundary proof | A functioning `apps/cli-v2` package with `ai-stp-v2` metadata commands; canonicalization/digest parity, read-only schema-53 backup access and a native provenance feasibility result | Real binary/envelope checks; cross-language vectors; SQLite snapshot/newer-schema refusal; signed, tampered and wrong-publisher PyPI evidence; explicit credential/installer ownership findings. No claim that unimplemented leaves or intents exist | Next; no implementation yet |
+| C2 — useful read path | Rust environment/configuration inspection, local object/project evidence and catalog reads with bounded online/offline caching | Same observable outcomes against seeded state and the actual API; no accidental production writes, credential migration or metadata housekeeping; release-build measurements with comparable work | Planned |
+| C3 — authoring and selection | Rust adoption/scaffolding, immutable revisions/import/export, graph validation, mechanical eligibility and deterministic bundle compilation | Author → exact-version selection → bundle journey; canonical/descriptor/schema parity; refusal of invalid graphs, escaping paths, secrets and stale evidence | Planned |
+| C4 — provider execution and recovery | Rust trusted provider/software lifecycle, single- and multi-root installation, preserve/restore/switch and durable task flows for completed services | First one real provider on temporary targets, then all seven declared profiles; bounded process execution, interrupted apply, idempotent retry, rollback and active-environment handoff. Advertise only completed task intents | Planned |
+| C5 — connected capabilities | Rust account/device/grants, private sync and conflict handling, publication/readback, technology mappings, assurance/reporting and existing governed-operation adapters | Real CLI↔API journeys, revocation/retry/restart, explicit visibility decisions, exact provenance and terminal readback; bounded heartbeat/usage delivery with current consent policy | Planned |
+| C6 — native distribution and consumers | Owner-aware native install/update/recovery, attested artifacts/SBOM and a packaged Rust desktop sidecar | Exact-artifact Linux x86_64, Windows x86_64 and macOS arm64 execution; filtered desktop child environment, correct sidecar selection, installer coexistence, interruption/rollback and current-state recovery | Planned |
+| C7 — controlled cutover and retirement | Transfer production writer ownership, switch the default executable, retire superseded Python CLI code/tests and reconcile all docs/memories | Every ledger row has a verified disposition; no unsupported pending task/state; tested quiescence/backup/ownership transfer; rollback after v2 mutations uses current compatible state or proved conversion; local/GitHub/deployed identities agree | Planned |
+
+### Checkpoint execution rules
+
+1. Open a concrete checkpoint issue with owned paths and an exact starting SHA.
+   Trace the affected current handlers, contract models and consumers before
+   choosing a Rust API. Recheck primary upstream sources for the dependencies
+   and failure boundary being changed; record what is observed and unresolved.
+2. Resolve the business outcome first. For each changed ledger row, record
+   `retain`, an evidenced replacement, or an evidenced retirement with consumer
+   impact. Preserve exact pins, trust axes, provider authority, machine
+   compatibility and recoverability; simplify internal structure freely.
+3. Deliver small complete slices, with atomic commits and a draft PR into
+   `dev`. Add only dependencies needed by that slice. Use a single package
+   until a real boundary requires another. No placeholder handlers, fabricated
+   success, automatic Python fallback or broad speculative abstraction.
+4. Run the affected real-I/O/contract checks. Record failures as failures; fix
+   or narrow the slice before promotion. A negative native feasibility result
+   is useful evidence but does not complete C1 or authorize the final switch.
+   Local isolated Rust work may continue while that dependency is resolved.
+5. Rewrite affected active specs from the implemented behavior, regenerate
+   owned artifacts, reconcile the command ledger and review the complete diff.
+   Re-run current integration gates on the final SHA. Promote `dev` to `main`
+   through the normal PR flow and synchronize local/remote history. Publish a
+   preview/release only when its own artifact checks have actually passed.
+6. After each wave, recheck working tree, remote refs, capability registry,
+   state ownership, affected consumer behavior and relevant upstream guidance.
+   Recheck production identity/health when promotion changes the deployed
+   source. Update this plan and the checkpoint issue with the observed receipt.
+
+The first code checkpoint must expose the hard native boundaries early rather
+than spending the migration translating easy commands first. Full CLI scope
+includes current Corporate client adapters; Corporate service implementation and
+colleague policy remain outside this program. The backend rewrite (#59), an
+extensible component-kind model (#58), and provider repository rewrites are not
+implicitly activated by the Rust CLI decision.
+
 ## October 7–8 audit outcome
 
 The audit started from `dev` at `ba8bcd0a` and production at `d9edaaf2`.
@@ -174,12 +236,14 @@ closed or forbade. Those findings are not re-opened here:
 | Authoring freeze (SCA-004) | Done: `setup-scaffold/5` points nested members at `projections/<harness>` with `managed_paths`; compose and `component version release` refuse `TODO(ai-stp-scaffold):` markers and freeze a content-addressed `ComponentAdaptation` on the exact provider surface. |
 | Setup export (SCA-003) | Done: `setup export` writes a separate `ai-stp-setup-export/1` review tree whose manifest binds the recorded passport, definition, and every exported file; it mutates neither authoring nor harness state. |
 | Control-plane Skill package (`#97`) | Done: `skill install` writes `SKILL.md` plus `references/` for every harness; projections carry the procedure; Russian is a generated locale; machine help still owns flags (`ADR-0149`). |
-| Rust rewrite / further component kinds | Separate backlog. The ninth `cli` kind already exists under `ADR-0155`; its existence does not prove runtime lifecycle completion. Historical experiments are not current evidence. |
+| Rust CLI rewrite | Activated by the October 8 owner instruction and ADR-0227; the C0–C7 program above replaces the earlier deferral. Python remains the production engine until the controlled cutover. |
+| Further component kinds | Separate backlog. The ninth `cli` kind already exists under `ADR-0155`; its existence does not prove runtime lifecycle completion. Historical experiments are not current evidence. |
 
 ## Explicitly out of scope for this pass
 
-Corporate implementation and its proposals remain owned by the colleague's
-workstream. GitLab integration and SAML sign-in already ship in production;
+Corporate backend implementation and its proposals remain owned by the colleague's
+workstream; existing CLI adapters are retained in the Rust compatibility scope.
+GitLab integration and SAML sign-in already ship in production;
 they are not unimplemented backlog. New product scope is evaluated
 against current code and requires the applicable specification and ADR.
 
