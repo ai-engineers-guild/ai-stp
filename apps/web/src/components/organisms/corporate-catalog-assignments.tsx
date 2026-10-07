@@ -1,4 +1,5 @@
 "use client";
+import { Select } from "@/components/atoms/select";
 import { useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import {
@@ -319,7 +320,7 @@ export function CorporateCatalogAssignments({
           >
             <fieldset disabled={busy} className="space-y-3">
               <Label htmlFor="assignment-kind">{h("objectKind")}</Label>
-              <select
+              <Select
                 id="assignment-kind"
                 className="border-input bg-background min-h-11 w-full rounded-sm border px-3 text-sm"
                 value={kind}
@@ -335,7 +336,7 @@ export function CorporateCatalogAssignments({
               >
                 <option value="setup">{h("setup")}</option>
                 <option value="component">{h("component")}</option>
-              </select>
+              </Select>
               <Label htmlFor="assignment-query">{h("search")}</Label>
               <Input id="assignment-query" name="query" maxLength={200} />
               <Button type="submit">{h("search")}</Button>
@@ -360,7 +361,7 @@ export function CorporateCatalogAssignments({
             <div className="space-y-3">
               <p className="font-medium">{selected.name}</p>
               <Label htmlFor="assignment-version">{h("exactVersion")}</Label>
-              <select
+              <Select
                 id="assignment-version"
                 className="border-input bg-background min-h-11 w-full rounded-sm border px-3 text-sm"
                 value={version}
@@ -374,7 +375,7 @@ export function CorporateCatalogAssignments({
                     {value}
                   </option>
                 ))}
-              </select>
+              </Select>
               <Button
                 disabled={busy || !version}
                 onClick={() => {

@@ -1,6 +1,5 @@
 "use client";
 
-import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
@@ -8,6 +7,7 @@ import type { CorporateAssignContext } from "@/actions/corporate";
 import { deleteObjectAction } from "@/actions/object-presentation";
 import { visibilityConfirm, visibilityPlan } from "@/actions/github";
 import { Button } from "@/components/atoms/button";
+import { MenuItem } from "@/components/atoms/menu";
 import {
   Dialog,
   DialogContent,
@@ -23,9 +23,6 @@ import type {
 } from "@/components/organisms/component-actions";
 import { Link, useRouter } from "@/lib/i18n/navigation";
 import { Icon } from "@/theme/icons";
-
-const itemClassName =
-  "hover:bg-muted focus-visible:bg-muted flex min-h-11 w-full cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-left text-sm focus-visible:outline-none";
 
 export type PrivilegedObjectMenuProps = {
   labels: ObjectActionLabels;
@@ -59,35 +56,33 @@ export function PrivilegedObjectMenuItems({
   return (
     <>
       {editHref ? (
-        <DropdownMenu.Item asChild>
-          <Link href={editHref} className={itemClassName}>
+        <MenuItem asChild>
+          <Link href={editHref}>
             <Icon name="edit" size="sm" />
             {labels.editPresentation ?? "Edit public presentation"}
           </Link>
-        </DropdownMenu.Item>
+        </MenuItem>
       ) : null}
       {manageAccessHref ? (
-        <DropdownMenu.Item asChild>
-          <Link href={manageAccessHref} className={itemClassName} prefetch={false}>
+        <MenuItem asChild>
+          <Link href={manageAccessHref} prefetch={false}>
             <Icon name="access" size="sm" />
             {labels.manageAccess ?? "Manage access"}
           </Link>
-        </DropdownMenu.Item>
+        </MenuItem>
       ) : null}
       {hasOwnerEdit ? (
-        <DropdownMenu.Item
-          className={itemClassName}
+        <MenuItem
           onSelect={() => {
             onOwnerOpen();
           }}
         >
           <Icon name="edit" size="sm" />
           {labels.edit ?? "Edit"}
-        </DropdownMenu.Item>
+        </MenuItem>
       ) : null}
       {visibilityEdit ? (
-        <DropdownMenu.Item
-          className={itemClassName}
+        <MenuItem
           onSelect={() => {
             onVisibilityOpen();
           }}
@@ -96,18 +91,17 @@ export function PrivilegedObjectMenuItems({
           {visibilityEdit.visibility === "public"
             ? visibilityEdit.labels.removeFromPublic
             : visibilityEdit.labels.goPublic}
-        </DropdownMenu.Item>
+        </MenuItem>
       ) : null}
       {assignCtx?.ok ? (
-        <DropdownMenu.Item
-          className={itemClassName}
+        <MenuItem
           onSelect={() => {
             onAssignOpen();
           }}
         >
           <Icon name="team" size="sm" />
           {assignCtx.labels.assign}
-        </DropdownMenu.Item>
+        </MenuItem>
       ) : null}
       {objectDelete ? (
         <ObjectDeleteMenuItem labels={labels} objectDelete={objectDelete} objectKind={objectKind} />
@@ -128,8 +122,8 @@ function ObjectDeleteMenuItem({
   const router = useRouter();
   const [deleting, startDeleteTransition] = useTransition();
   return (
-    <DropdownMenu.Item
-      className={`${itemClassName} text-destructive`}
+    <MenuItem
+      className="text-destructive"
       disabled={deleting}
       onSelect={(event) => {
         event.preventDefault();
@@ -152,7 +146,7 @@ function ObjectDeleteMenuItem({
     >
       <Icon name="close" size="sm" />
       {deleting ? "…" : (labels.delete ?? "Delete")}
-    </DropdownMenu.Item>
+    </MenuItem>
   );
 }
 

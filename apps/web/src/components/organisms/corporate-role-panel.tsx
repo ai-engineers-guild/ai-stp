@@ -1,5 +1,6 @@
 "use client";
 
+import { Select } from "@/components/atoms/select";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
@@ -81,7 +82,7 @@ function RoleForm({
       ) : null}
       <div className="space-y-1.5">
         <Label htmlFor={`${idPrefix}-parent`}>{labels.parentRole}</Label>
-        <select
+        <Select
           id={`${idPrefix}-parent`}
           name="parentRole"
           defaultValue={role?.parent_role ?? ""}
@@ -93,7 +94,7 @@ function RoleForm({
               {item.name}
             </option>
           ))}
-        </select>
+        </Select>
       </div>
       <div className="space-y-1.5 sm:col-span-2">
         <span className="text-sm font-medium">{labels.permissions}</span>

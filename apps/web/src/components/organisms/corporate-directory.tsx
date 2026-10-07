@@ -1,5 +1,6 @@
 "use client";
 
+import { Select } from "@/components/atoms/select";
 import { useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { useTranslations } from "next-intl";
@@ -105,7 +106,7 @@ function InlineCorporateCreate({
             </div>
             <div className="space-y-2">
               <Label htmlFor="create-role">{c("organizationRole")}</Label>
-              <select
+              <Select
                 id="create-role"
                 name="role"
                 className="border-input bg-background min-h-11 w-full rounded-sm border px-3 text-sm"
@@ -115,7 +116,7 @@ function InlineCorporateCreate({
                     {role}
                   </option>
                 ))}
-              </select>
+              </Select>
             </div>
           </>
         ) : null}

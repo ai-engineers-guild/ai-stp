@@ -1,6 +1,7 @@
 "use client";
 /* eslint-disable max-lines, max-lines-per-function -- one bounded constructor and its accessible result views share the query state. */
 
+import { Select } from "@/components/atoms/select";
 import { useEffect, useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
 
@@ -11,6 +12,7 @@ import {
 } from "@/actions/dashboard";
 import { Button } from "@/components/atoms/button";
 import { Input } from "@/components/atoms/input";
+import { Table, TBody, Td, THead, Th, Tr } from "@/components/atoms/table";
 import { StatePanel } from "@/components/molecules/state-panel";
 import type { DashboardQuery, DashboardResult, DashboardView } from "@/lib/api/generated/types.gen";
 
@@ -184,7 +186,7 @@ export function DashboardBuilder({
         <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <label className="space-y-1 text-sm">
             <span>{t("dataset")}</span>
-            <select
+            <Select
               className={selectClass}
               value={query.dataset}
               onChange={(e) => {
@@ -196,11 +198,11 @@ export function DashboardBuilder({
                   {t(`datasetNames.${value}`)}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
           <label className="space-y-1 text-sm">
             <span>{t("view")}</span>
-            <select
+            <Select
               className={selectClass}
               value={query.view}
               onChange={(e) => {
@@ -233,11 +235,11 @@ export function DashboardBuilder({
                   {t(`charts.${value}`)}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
           <label className="space-y-1 text-sm">
             <span>{t("sort")}</span>
-            <select
+            <Select
               className={selectClass}
               value={query.sort_by}
               onChange={(e) => {
@@ -252,11 +254,11 @@ export function DashboardBuilder({
                   {t(`fields.${value}`)}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
           <label className="space-y-1 text-sm">
             <span>{t("sortOrder")}</span>
-            <select
+            <Select
               className={selectClass}
               value={query.sort_order}
               onChange={(e) => {
@@ -268,7 +270,7 @@ export function DashboardBuilder({
             >
               <option value="desc">{t("descending")}</option>
               <option value="asc">{t("ascending")}</option>
-            </select>
+            </Select>
           </label>
           <label className="space-y-1 text-sm">
             <span>{t("limit")}</span>
@@ -351,7 +353,7 @@ export function DashboardBuilder({
           {(["group_by", "pivot_rows", "pivot_columns"] as const).map((field) => (
             <label key={field} className="space-y-1 text-sm">
               <span>{t(field)}</span>
-              <select
+              <Select
                 className={selectClass}
                 value={query[field]?.[0] ?? ""}
                 onChange={(e) => {
@@ -367,14 +369,14 @@ export function DashboardBuilder({
                     {t(`fields.${value}`)}
                   </option>
                 ))}
-              </select>
+              </Select>
             </label>
           ))}
         </div>
         <div className="mt-5 grid gap-3 sm:grid-cols-[1fr_2fr_auto] sm:items-end">
           <label className="space-y-1 text-sm">
             <span>{t("filterDimension")}</span>
-            <select
+            <Select
               className={selectClass}
               value={filterDimension}
               onChange={(e) => {
@@ -386,7 +388,7 @@ export function DashboardBuilder({
                   {t(`fields.${value}`)}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
           <label className="space-y-1 text-sm">
             <span>{t("filterValues")}</span>
@@ -494,7 +496,7 @@ export function DashboardBuilder({
         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <label className="space-y-1 text-sm">
             <span>{t("loadView")}</span>
-            <select
+            <Select
               className={selectClass}
               value={selectedView}
               onChange={(e) => {
@@ -507,7 +509,7 @@ export function DashboardBuilder({
                   {item.name}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
           <label className="space-y-1 text-sm">
             <span>{t("name")}</span>
@@ -521,7 +523,7 @@ export function DashboardBuilder({
           </label>
           <label className="space-y-1 text-sm">
             <span>{t("scope")}</span>
-            <select
+            <Select
               className={selectClass}
               value={scope}
               disabled={Boolean(selectedView)}
@@ -534,12 +536,12 @@ export function DashboardBuilder({
               {canShareOrganization && (
                 <option value="organization">{t("scopes.organization")}</option>
               )}
-            </select>
+            </Select>
           </label>
           {scope === "team" && (
             <label className="space-y-1 text-sm">
               <span>{t("team")}</span>
-              <select
+              <Select
                 className={selectClass}
                 value={teamId}
                 disabled={Boolean(selectedView)}
@@ -552,7 +554,7 @@ export function DashboardBuilder({
                     {team.name}
                   </option>
                 ))}
-              </select>
+              </Select>
             </label>
           )}
         </div>
@@ -741,39 +743,39 @@ function DashboardVisual({ result, measure }: { result: DashboardResult; measure
               <PivotTable result={result} measure={measure} />
             )}
           <div className="mt-5 max-w-full overflow-x-auto">
-            <table className="w-full min-w-max border-collapse text-left text-sm">
+            <Table className="min-w-max text-left">
               <caption className="sr-only">{t("results")}</caption>
-              <thead>
-                <tr className="border-border border-b">
+              <THead>
+                <Tr>
                   {dimensions.map((key) => (
-                    <th key={key} scope="col" className="p-2 font-medium">
+                    <Th key={key} className="p-2">
                       {t(`fields.${key}`)}
-                    </th>
+                    </Th>
                   ))}
                   {(result.query.measures ?? []).map((key) => (
-                    <th key={key} scope="col" className="p-2 font-medium">
+                    <Th key={key} className="p-2">
                       {t(`fields.${key}`)}
-                    </th>
+                    </Th>
                   ))}
-                </tr>
-              </thead>
-              <tbody>
+                </Tr>
+              </THead>
+              <TBody>
                 {items.map((item, index) => (
-                  <tr key={index} className="border-border border-b">
+                  <Tr key={index}>
                     {dimensions.map((key) => (
-                      <td key={key} className="p-2">
+                      <Td key={key} className="p-2">
                         {item.dimensions[key] ?? "—"}
-                      </td>
+                      </Td>
                     ))}
                     {(result.query.measures ?? []).map((key) => (
-                      <td key={key} className="p-2 font-mono">
+                      <Td key={key} className="p-2 font-mono">
                         {item.measures[key] ?? 0}
-                      </td>
+                      </Td>
                     ))}
-                  </tr>
+                  </Tr>
                 ))}
-              </tbody>
-            </table>
+              </TBody>
+            </Table>
           </div>
         </>
       )}
@@ -797,35 +799,35 @@ function PivotTable({ result, measure }: { result: DashboardResult; measure: Mea
   }
   return (
     <div className="mt-5 max-w-full overflow-x-auto">
-      <table className="w-full min-w-max border-collapse text-left text-sm">
+      <Table className="min-w-max text-left">
         <caption className="mb-2 text-left font-medium">{t("pivotTitle")}</caption>
-        <thead>
-          <tr className="border-border border-b">
-            <th scope="col" className="p-2">
+        <THead>
+          <Tr>
+            <Th className="p-2">
               {t(`fields.${rowKey}`)} / {t(`fields.${columnKey}`)}
-            </th>
+            </Th>
             {columns.map((column) => (
-              <th key={column} scope="col" className="p-2">
+              <Th key={column} className="p-2">
                 {column}
-              </th>
+              </Th>
             ))}
-          </tr>
-        </thead>
-        <tbody>
+          </Tr>
+        </THead>
+        <TBody>
           {rows.map((row) => (
-            <tr key={row} className="border-border border-b">
-              <th scope="row" className="p-2 font-medium">
+            <Tr key={row}>
+              <Th scope="row" className="text-foreground p-2 font-medium">
                 {row}
-              </th>
+              </Th>
               {columns.map((column) => (
-                <td key={column} className="p-2 font-mono">
+                <Td key={column} className="p-2 font-mono">
                   {cells.get(`${row}\u0000${column}`) ?? 0}
-                </td>
+                </Td>
               ))}
-            </tr>
+            </Tr>
           ))}
-        </tbody>
-      </table>
+        </TBody>
+      </Table>
     </div>
   );
 }

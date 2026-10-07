@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/atoms/button";
+import { Menu, MenuContent, MenuItem, MenuTrigger } from "@/components/atoms/menu";
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/atoms/dialog";
 import { resolveCorporateRail } from "@/lib/corporate-navigation";
 import { COMPILED_FEATURE_PROFILE } from "@/lib/features/compiled";
@@ -96,8 +96,8 @@ function RailItems({
     const label = t(open ? "collapseSection" : "expandSection", { section: item.label });
     if (collapsed)
       return (
-        <DropdownMenu.Root key={item.id} modal={false}>
-          <DropdownMenu.Trigger asChild>
+        <Menu key={item.id} modal={false}>
+          <MenuTrigger asChild>
             <Button
               type="button"
               variant="ghost"
@@ -114,38 +114,35 @@ function RailItems({
             >
               <Icon name={item.icon} size="md" />
             </Button>
-          </DropdownMenu.Trigger>
-          <DropdownMenu.Portal>
-            <DropdownMenu.Content
-              side="right"
-              align="start"
-              sideOffset={8}
-              collisionPadding={12}
-              aria-label={item.label}
-              className="border-border bg-popover text-popover-foreground z-[70] max-h-[var(--radix-dropdown-menu-content-available-height)] max-w-[calc(100vw-1.5rem)] min-w-52 overflow-y-auto rounded-lg border p-1 shadow-md"
-            >
-              {(item.href ? [item, ...item.children] : item.children).map((child) => (
-                <DropdownMenu.Item key={child.id} asChild>
-                  <Link
-                    href={child.href}
-                    prefetch={false}
-                    data-ui={child.id}
-                    aria-current={child.active ? "page" : undefined}
-                    className={cn(
-                      itemClass,
-                      "focus:bg-muted",
-                      child.active && "text-primary font-medium",
-                    )}
-                    onClick={onNavigate}
-                  >
-                    <Icon name={child.icon} size="md" />
-                    <span className="min-w-0 flex-1 break-words">{child.label}</span>
-                  </Link>
-                </DropdownMenu.Item>
-              ))}
-            </DropdownMenu.Content>
-          </DropdownMenu.Portal>
-        </DropdownMenu.Root>
+          </MenuTrigger>
+          <MenuContent
+            side="right"
+            align="start"
+            sideOffset={8}
+            aria-label={item.label}
+            className="max-h-[var(--radix-dropdown-menu-content-available-height)] min-w-52 overflow-y-auto"
+          >
+            {(item.href ? [item, ...item.children] : item.children).map((child) => (
+              <MenuItem key={child.id} asChild>
+                <Link
+                  href={child.href}
+                  prefetch={false}
+                  data-ui={child.id}
+                  aria-current={child.active ? "page" : undefined}
+                  className={cn(
+                    itemClass,
+                    "focus:bg-muted",
+                    child.active && "text-primary font-medium",
+                  )}
+                  onClick={onNavigate}
+                >
+                  <Icon name={child.icon} size="md" />
+                  <span className="min-w-0 flex-1 break-words">{child.label}</span>
+                </Link>
+              </MenuItem>
+            ))}
+          </MenuContent>
+        </Menu>
       );
     return (
       <div key={item.id} className="space-y-1">

@@ -66,7 +66,7 @@ describe("prefetch policy", () => {
   it("disables prefetch on catalog pagination, object cards, and private lists", () => {
     const root = path.resolve(__dirname, "../../src");
     const required = [
-      "components/organisms/catalog-page-nav.tsx",
+      "components/molecules/page-pager.tsx",
       "components/organisms/object-card.tsx",
       "components/organisms/catalog-filters.tsx",
       "components/organisms/account-drawer.tsx",

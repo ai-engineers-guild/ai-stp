@@ -1,11 +1,11 @@
 "use client";
 
-import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { createContext, useContext, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 
 import { corporateAssignContextAction, type CorporateAssignContext } from "@/actions/corporate";
 import { Button } from "@/components/atoms/button";
+import { Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from "@/components/atoms/menu";
 import { ContactReportDialog } from "@/components/organisms/contact-report-dialog";
 import { CorporateAssignDialog } from "@/components/organisms/corporate-assign-dialog";
 import {
@@ -81,9 +81,6 @@ export type ObjectActionProps = {
 };
 
 const LikeContext = createContext<LikeState | null>(null);
-
-const itemClassName =
-  "hover:bg-muted focus-visible:bg-muted flex min-h-11 w-full cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-left text-sm focus-visible:outline-none";
 
 function useLikeState(props: {
   stableId: string;
@@ -198,7 +195,7 @@ export function ObjectOverflowMenu({
 
   return (
     <>
-      <DropdownMenu.Root
+      <Menu
         modal={false}
         onOpenChange={(open) => {
           if (open && assignCtx === null) {
@@ -210,7 +207,7 @@ export function ObjectOverflowMenu({
           }
         }}
       >
-        <DropdownMenu.Trigger asChild>
+        <MenuTrigger asChild>
           <Button
             type="button"
             variant="ghost"
@@ -220,105 +217,91 @@ export function ObjectOverflowMenu({
           >
             <Icon name="moreVertical" size="sm" />
           </Button>
-        </DropdownMenu.Trigger>
-        <DropdownMenu.Portal>
-          <DropdownMenu.Content
-            align="end"
-            sideOffset={4}
-            className="border-border bg-popover z-30 max-w-[min(20rem,calc(100vw-1.5rem))] min-w-52 rounded-lg border p-1 shadow-md"
+        </MenuTrigger>
+        <MenuContent>
+          {openHref ? (
+            <MenuItem asChild>
+              <Link href={openHref} prefetch={false}>
+                <Icon name="eye" size="sm" />
+                {labels.openDetails ?? "Open details"}
+              </Link>
+            </MenuItem>
+          ) : null}
+          <MenuItem
+            disabled={like.pending}
+            onSelect={() => {
+              like.toggle();
+            }}
           >
-            {openHref ? (
-              <DropdownMenu.Item asChild>
-                <Link href={openHref} className={itemClassName} prefetch={false}>
-                  <Icon name="eye" size="sm" />
-                  {labels.openDetails ?? "Open details"}
-                </Link>
-              </DropdownMenu.Item>
-            ) : null}
-            <DropdownMenu.Item
-              className={itemClassName}
-              disabled={like.pending}
+            <Icon name="heart" size="sm" fill={like.liked ? "currentColor" : "none"} />
+            {like.liked ? unlikeMenu : likeMenu}
+          </MenuItem>
+          <MenuSeparator />
+          <MenuItem
+            onSelect={() => {
+              void copy(stableId);
+            }}
+          >
+            <Icon name="copy" size="sm" />
+            {labels.copyId}
+          </MenuItem>
+          <MenuItem
+            onSelect={() => {
+              void copy(canonicalUrl ?? new URL(sharePath, location.origin).toString());
+            }}
+          >
+            <Icon name="link" size="sm" />
+            {labels.copyUrl}
+          </MenuItem>
+          {cliCommand ? (
+            <MenuItem
               onSelect={() => {
-                like.toggle();
+                void copy(cliCommand);
               }}
             >
-              <Icon name="heart" size="sm" fill={like.liked ? "currentColor" : "none"} />
-              {like.liked ? unlikeMenu : likeMenu}
-            </DropdownMenu.Item>
-            <DropdownMenu.Separator className="border-border my-1 border-t" />
-            <DropdownMenu.Item
-              className={itemClassName}
-              onSelect={() => {
-                void copy(stableId);
-              }}
-            >
-              <Icon name="copy" size="sm" />
-              {labels.copyId}
-            </DropdownMenu.Item>
-            <DropdownMenu.Item
-              className={itemClassName}
-              onSelect={() => {
-                void copy(canonicalUrl ?? new URL(sharePath, location.origin).toString());
-              }}
-            >
-              <Icon name="link" size="sm" />
-              {labels.copyUrl}
-            </DropdownMenu.Item>
-            {cliCommand ? (
-              <DropdownMenu.Item
-                className={itemClassName}
-                onSelect={() => {
-                  void copy(cliCommand);
-                }}
-              >
-                <Icon name="code" size="sm" />
-                {labels.copyCli ?? "Copy CLI command"}
-              </DropdownMenu.Item>
-            ) : null}
-            <DropdownMenu.Item
-              className={itemClassName}
-              onSelect={() => {
-                void share();
-              }}
-            >
-              <Icon name="link" size="sm" />
-              {labels.share}
-            </DropdownMenu.Item>
-            {hasPrivileged ? (
-              <DropdownMenu.Separator className="border-border my-1 border-t" />
-            ) : null}
-            <PrivilegedObjectMenuItems
-              labels={labels}
-              editHref={editHref}
-              manageAccessHref={manageAccessHref}
-              hasOwnerEdit={Boolean(ownerEdit)}
-              onOwnerOpen={() => {
-                setOwnerOpen(true);
-              }}
-              visibilityEdit={visibilityEdit}
-              onVisibilityOpen={() => {
-                setVisibilityOpen(true);
-              }}
-              assignCtx={assignCtx}
-              onAssignOpen={() => {
-                setAssignOpen(true);
-              }}
-              objectDelete={objectDelete ? { ...objectDelete, stableId } : undefined}
-              objectKind={objectKind}
-            />
-            <DropdownMenu.Separator className="border-border my-1 border-t" />
-            <DropdownMenu.Item
-              className={itemClassName}
-              onSelect={() => {
-                setReportOpen(true);
-              }}
-            >
-              <Icon name="flag" size="sm" />
-              {labels.report}
-            </DropdownMenu.Item>
-          </DropdownMenu.Content>
-        </DropdownMenu.Portal>
-      </DropdownMenu.Root>
+              <Icon name="code" size="sm" />
+              {labels.copyCli ?? "Copy CLI command"}
+            </MenuItem>
+          ) : null}
+          <MenuItem
+            onSelect={() => {
+              void share();
+            }}
+          >
+            <Icon name="link" size="sm" />
+            {labels.share}
+          </MenuItem>
+          {hasPrivileged ? <MenuSeparator /> : null}
+          <PrivilegedObjectMenuItems
+            labels={labels}
+            editHref={editHref}
+            manageAccessHref={manageAccessHref}
+            hasOwnerEdit={Boolean(ownerEdit)}
+            onOwnerOpen={() => {
+              setOwnerOpen(true);
+            }}
+            visibilityEdit={visibilityEdit}
+            onVisibilityOpen={() => {
+              setVisibilityOpen(true);
+            }}
+            assignCtx={assignCtx}
+            onAssignOpen={() => {
+              setAssignOpen(true);
+            }}
+            objectDelete={objectDelete ? { ...objectDelete, stableId } : undefined}
+            objectKind={objectKind}
+          />
+          <MenuSeparator />
+          <MenuItem
+            onSelect={() => {
+              setReportOpen(true);
+            }}
+          >
+            <Icon name="flag" size="sm" />
+            {labels.report}
+          </MenuItem>
+        </MenuContent>
+      </Menu>
       {assignCtx?.ok ? (
         <CorporateAssignDialog
           open={assignOpen}

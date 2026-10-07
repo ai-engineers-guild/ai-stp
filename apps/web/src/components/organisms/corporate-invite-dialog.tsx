@@ -8,7 +8,7 @@ import { Input } from "@/components/atoms/input";
 import { Label } from "@/components/atoms/label";
 import { MemberImportFields } from "@/components/molecules/member-import-fields";
 import { SearchableMultiSelect } from "@/components/molecules/searchable-multi-select";
-import { peopleSelectClass } from "@/components/organisms/corporate-people-ui";
+import { Select } from "@/components/atoms/select";
 import { type MemberImportRow, type ImportedMember } from "@/lib/member-import";
 import { CopyValue } from "@/components/molecules/copy-value";
 import { downloadInvitationLinks, type InvitationLinkRow } from "@/lib/member-export";
@@ -279,7 +279,7 @@ function InviteAccessFields({
             *
           </span>
         </Label>
-        <select
+        <Select
           id="invite-role"
           name="role"
           required
@@ -289,7 +289,6 @@ function InviteAccessFields({
             setRole(event.target.value);
           }}
           disabled={busy}
-          className={peopleSelectClass}
         >
           <option value="" disabled>
             {t("selectRole")}
@@ -299,7 +298,7 @@ function InviteAccessFields({
               {allowedRoles.includes(role) ? role : `${role} — ${t("roleUnavailable")}`}
             </option>
           ))}
-        </select>
+        </Select>
         {roleHint ? (
           <p
             id="invite-role-hint"
@@ -331,7 +330,7 @@ function InviteAccessFields({
             *
           </span>
         </Label>
-        <select
+        <Select
           id="invite-ttl"
           name="ttl"
           required
@@ -340,14 +339,13 @@ function InviteAccessFields({
             setTtl(event.target.value);
           }}
           disabled={busy}
-          className={peopleSelectClass}
         >
           {[1, 3, 7, 14, 30].map((days) => (
             <option key={days} value={days}>
               {t("days", { days })}
             </option>
           ))}
-        </select>
+        </Select>
       </div>
     </>
   );

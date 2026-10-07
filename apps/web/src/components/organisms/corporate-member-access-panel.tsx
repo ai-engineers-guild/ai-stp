@@ -1,6 +1,7 @@
 /* eslint-disable max-lines, max-lines-per-function, @typescript-eslint/no-confusing-void-expression */
 "use client";
 
+import { Select } from "@/components/atoms/select";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
@@ -244,7 +245,7 @@ export function CorporateMemberAccessPanel({
             >
               <div className="space-y-1.5">
                 <Label htmlFor="binding-role">{labels.role}</Label>
-                <select
+                <Select
                   id="binding-role"
                   name="role"
                   required
@@ -255,7 +256,7 @@ export function CorporateMemberAccessPanel({
                       {name}
                     </option>
                   ))}
-                </select>
+                </Select>
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="binding-scope">{labels.scope}</Label>
@@ -269,14 +270,14 @@ export function CorporateMemberAccessPanel({
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="binding-coverage">{labels.coverage}</Label>
-                <select
+                <Select
                   id="binding-coverage"
                   name="coverage"
                   className="border-input bg-background focus-visible:ring-ring flex h-10 w-full rounded-md border px-3 text-sm focus-visible:ring-2 focus-visible:outline-none"
                 >
                   <option value="self">{labels.coverageSelf}</option>
                   <option value="descendants">{labels.coverageDescendants}</option>
-                </select>
+                </Select>
               </div>
               <Button type="submit" disabled={busy}>
                 {busy ? labels.creating : labels.create}
@@ -352,7 +353,7 @@ export function CorporateMemberAccessPanel({
             >
               <div className="space-y-1.5">
                 <Label htmlFor="grant-permission">{labels.permission}</Label>
-                <select
+                <Select
                   id="grant-permission"
                   name="permission"
                   required
@@ -374,7 +375,7 @@ export function CorporateMemberAccessPanel({
                       {permission}
                     </option>
                   ))}
-                </select>
+                </Select>
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="grant-scope">{labels.scope}</Label>
@@ -427,7 +428,7 @@ export function CorporateMemberAccessPanel({
           >
             <div className="space-y-1.5">
               <Label htmlFor="assign-team">{labels.team}</Label>
-              <select
+              <Select
                 id="assign-team"
                 name="teamId"
                 className="border-input bg-background focus-visible:ring-ring flex h-10 w-full rounded-md border px-3 text-sm focus-visible:ring-2 focus-visible:outline-none"
@@ -438,11 +439,11 @@ export function CorporateMemberAccessPanel({
                     {team.name}
                   </option>
                 ))}
-              </select>
+              </Select>
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="assign-project">{labels.project}</Label>
-              <select
+              <Select
                 id="assign-project"
                 name="projectId"
                 className="border-input bg-background focus-visible:ring-ring flex h-10 w-full rounded-md border px-3 text-sm focus-visible:ring-2 focus-visible:outline-none"
@@ -453,18 +454,18 @@ export function CorporateMemberAccessPanel({
                     {project.name}
                   </option>
                 ))}
-              </select>
+              </Select>
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="assign-operation">{labels.operation}</Label>
-              <select
+              <Select
                 id="assign-operation"
                 name="operation"
                 className="border-input bg-background focus-visible:ring-ring flex h-10 w-full rounded-md border px-3 text-sm focus-visible:ring-2 focus-visible:outline-none"
               >
                 <option value="assign">{labels.assign}</option>
                 <option value="remove">{labels.remove}</option>
-              </select>
+              </Select>
             </div>
             <Button type="submit" disabled={busy}>
               {busy ? labels.creating : labels.update}
@@ -496,7 +497,7 @@ function ScopeField({
   onKindChange?: (kind: string) => void;
 }) {
   return (
-    <select
+    <Select
       id={id}
       name="scope"
       defaultValue={`organization:${organizationId}`}
@@ -518,6 +519,6 @@ function ScopeField({
           </option>
         ))}
       </optgroup>
-    </select>
+    </Select>
   );
 }

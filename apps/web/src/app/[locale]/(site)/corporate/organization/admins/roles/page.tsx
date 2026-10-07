@@ -1,6 +1,7 @@
 import { getTranslations, setRequestLocale } from "next-intl/server";
 
 import { Badge } from "@/components/atoms/badge";
+import { Table, TBody, Td, THead, Th, Tr } from "@/components/atoms/table";
 import { CopyValue } from "@/components/molecules/copy-value";
 import { StatePanel } from "@/components/molecules/state-panel";
 import { CorporateRolePanel } from "@/components/organisms/corporate-role-panel";
@@ -45,9 +46,6 @@ async function loadWorkspace(): Promise<LoadResult> {
   const workspace = await readCorporateWorkspace(session, false);
   return workspace ? { status: "ok", workspace } : { status: "empty" };
 }
-
-const rowClass = "border-border hover:bg-muted/40 border-b transition-colors last:border-0";
-const headCellClass = "text-muted-foreground px-3 py-2 text-xs font-medium";
 
 /** Permissions inherited through the parent chain, cycle-safe. */
 function inheritedPermissions(
@@ -162,27 +160,21 @@ function RoleAssignments({
     return <p className="text-muted-foreground mt-2 text-sm">{t("noRoleAssignments")}</p>;
   return (
     <div className="-mx-4 mt-2 overflow-x-auto px-4 sm:-mx-5 sm:px-5">
-      <table className="w-full min-w-max border-collapse text-sm">
-        <thead>
-          <tr className="border-border border-b">
-            <th scope="col" className={`${headCellClass} pl-0 text-left`}>
+      <Table className="min-w-max">
+        <THead>
+          <Tr>
+            <Th scope="col" className="pl-0">
               {t("member")}
-            </th>
-            <th scope="col" className={`${headCellClass} text-left`}>
-              {t("scope")}
-            </th>
-            <th scope="col" className={`${headCellClass} text-left`}>
-              {t("coverage")}
-            </th>
-            <th scope="col" className={`${headCellClass} text-left`}>
-              {t("origin")}
-            </th>
-          </tr>
-        </thead>
-        <tbody>
+            </Th>
+            <Th scope="col">{t("scope")}</Th>
+            <Th scope="col">{t("coverage")}</Th>
+            <Th scope="col">{t("origin")}</Th>
+          </Tr>
+        </THead>
+        <TBody>
           {assignments.map((binding) => (
-            <tr key={binding.binding_id} className={rowClass}>
-              <td className="py-2 pr-4">
+            <Tr key={binding.binding_id} className="hover:bg-muted/40 transition-colors">
+              <Td className="pr-4 pl-0">
                 {binding.account_id ? (
                   <Link
                     href={`/corporate/organization/admins/employees/${encodeURIComponent(binding.account_id)}`}
@@ -193,20 +185,20 @@ function RoleAssignments({
                 ) : (
                   subjectLabel(binding, members)
                 )}
-              </td>
-              <td className="px-3 py-2 font-mono text-xs">
+              </Td>
+              <Td className="font-mono text-xs">
                 {binding.scope_kind}:{binding.scope_id}
-              </td>
-              <td className="px-3 py-2">
+              </Td>
+              <Td>
                 {binding.coverage === "descendants" ? t("coverageDescendants") : t("coverageSelf")}
-              </td>
-              <td className="px-3 py-2">
+              </Td>
+              <Td>
                 <Badge variant="secondary">{originLabel(binding.origin, t)}</Badge>
-              </td>
-            </tr>
+              </Td>
+            </Tr>
           ))}
-        </tbody>
-      </table>
+        </TBody>
+      </Table>
     </div>
   );
 }

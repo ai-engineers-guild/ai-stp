@@ -1,5 +1,6 @@
 "use client";
 
+import { Select } from "@/components/atoms/select";
 import { useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 
@@ -257,7 +258,7 @@ export function ProjectActivityEditor({
       <fieldset disabled={mutation.busy} className="space-y-4">
         <div className="space-y-2">
           <Label htmlFor="project-source-availability">{t("source_availability")}</Label>
-          <select
+          <Select
             id="project-source-availability"
             name="source_availability"
             defaultValue={activity.source_availability ?? "unknown"}
@@ -268,7 +269,7 @@ export function ProjectActivityEditor({
                 {t(`values.${value}`)}
               </option>
             ))}
-          </select>
+          </Select>
         </div>
         <div className="space-y-2">
           <Label htmlFor="project-activity-time">{t("activityTime")}</Label>
@@ -282,7 +283,7 @@ export function ProjectActivityEditor({
         </div>
         <div className="space-y-2">
           <Label htmlFor="project-activity-override">{t("activityOverride")}</Label>
-          <select
+          <Select
             id="project-activity-override"
             name="activity_override"
             defaultValue={activity.activity_override ?? ""}
@@ -291,7 +292,7 @@ export function ProjectActivityEditor({
             <option value="">{t("clearOverride")}</option>
             <option value="active">{t("values.active")}</option>
             <option value="inactive">{t("values.inactive")}</option>
-          </select>
+          </Select>
         </div>
       </fieldset>
       <Button type="submit" size="lg" disabled={mutation.busy}>

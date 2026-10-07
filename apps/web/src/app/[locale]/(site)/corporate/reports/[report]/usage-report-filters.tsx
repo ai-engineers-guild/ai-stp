@@ -1,3 +1,4 @@
+import { Select } from "@/components/atoms/select";
 import { getTranslations } from "next-intl/server";
 import { Button } from "@/components/atoms/button";
 import { Input } from "@/components/atoms/input";
@@ -64,7 +65,7 @@ export async function UsageReportFilters({
       />
       <label className="text-sm">
         {t("period")}
-        <select
+        <Select
           name="period"
           defaultValue={period}
           className="border-input bg-background mt-1 w-full rounded-sm border px-2 py-1"
@@ -72,11 +73,11 @@ export async function UsageReportFilters({
           <option value="7d">{t("period7days")}</option>
           <option value="30d">{t("period30days")}</option>
           <option value="90d">{t("period90days")}</option>
-        </select>
+        </Select>
       </label>
       <label className="text-sm">
         {t("usageState")}
-        <select
+        <Select
           name="usage_state"
           defaultValue={usageState}
           className="border-input bg-background mt-1 w-full rounded-sm border px-2 py-1"
@@ -84,7 +85,7 @@ export async function UsageReportFilters({
           <option value="all">{t("usageAll")}</option>
           <option value="recorded">{t("usageRecorded")}</option>
           <option value="no_recorded">{t("usageNoRecorded")}</option>
-        </select>
+        </Select>
       </label>
       <div className="flex items-end">
         <Button type="submit">{t("apply")}</Button>
@@ -94,7 +95,7 @@ export async function UsageReportFilters({
         <div className="mt-3 grid gap-3 sm:grid-cols-3">
           <label className="text-sm">
             {t("outcome")}
-            <select
+            <Select
               name="outcome"
               defaultValue={selected("outcome")}
               className="border-input bg-background mt-1 w-full rounded-sm border px-2 py-1"
@@ -103,11 +104,11 @@ export async function UsageReportFilters({
               <option value="succeeded">{t("outcomeSucceeded")}</option>
               <option value="failed">{t("outcomeFailed")}</option>
               <option value="cancelled">{t("outcomeCancelled")}</option>
-            </select>
+            </Select>
           </label>
           <label className="text-sm">
             {t("collectionState")}
-            <select
+            <Select
               name="collection_state"
               defaultValue={selected("collection_state")}
               className="border-input bg-background mt-1 w-full rounded-sm border px-2 py-1"
@@ -118,7 +119,7 @@ export async function UsageReportFilters({
               <option value="stale">{t("collectionStale")}</option>
               <option value="unknown">{t("collectionUnknown")}</option>
               <option value="disabled">{t("collectionDisabled")}</option>
-            </select>
+            </Select>
           </label>
           {ADDITIONAL_FILTER_FIELDS.map(({ key, labelKey }) => (
             <label key={key} className="text-sm">

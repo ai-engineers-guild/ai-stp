@@ -1,5 +1,6 @@
 "use client";
 
+import { Select } from "@/components/atoms/select";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { CorporateJobTitleView, CorporateRoleView } from "@/lib/api/generated/types.gen";
@@ -147,7 +148,7 @@ export function CorporateAdminPanel({
                 }}
               />
               <Label htmlFor="corporate-member-role">{labels.role}</Label>
-              <select
+              <Select
                 id="corporate-member-role"
                 value={member.role}
                 onChange={(event) => {
@@ -160,7 +161,7 @@ export function CorporateAdminPanel({
                     {item.name}
                   </option>
                 ))}
-              </select>
+              </Select>
               <Button type="submit" disabled={busy} className="w-full">
                 {busy ? labels.creating : labels.create}
               </Button>
@@ -390,7 +391,7 @@ export function CorporateAdminPanel({
                       <Label htmlFor={`corporate-job-title-${item.job_title_id}-state`}>
                         {labels.jobTitleState}
                       </Label>
-                      <select
+                      <Select
                         id={`corporate-job-title-${item.job_title_id}-state`}
                         value={draft.state}
                         onChange={(event) => {
@@ -406,7 +407,7 @@ export function CorporateAdminPanel({
                       >
                         <option value="current">{labels.jobTitleCurrent}</option>
                         <option value="retired">{labels.jobTitleRetired}</option>
-                      </select>
+                      </Select>
                       <Button type="submit" disabled={busy}>
                         {labels.jobTitleSave}
                       </Button>

@@ -3,6 +3,8 @@
 import Image from "next/image";
 import { useState, type ReactNode } from "react";
 
+import { cn } from "@/lib/cn";
+
 type AvatarImageProps = {
   src: string | null | undefined;
   className: string;
@@ -34,5 +36,28 @@ export function AvatarImage({ src, className, fallback, width, height }: AvatarI
         setFailedSrc(src);
       }}
     />
+  );
+}
+
+/** Two-letter initials circle — the shared fallback for person identity. */
+export function InitialsAvatar({ name, className }: { name: string; className?: string }) {
+  const initials = name
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase();
+  return (
+    <span
+      aria-hidden
+      className={cn(
+        "bg-muted text-foreground grid size-8 shrink-0 place-items-center rounded-full text-xs font-medium",
+        className,
+      )}
+    >
+      {initials}
+    </span>
   );
 }

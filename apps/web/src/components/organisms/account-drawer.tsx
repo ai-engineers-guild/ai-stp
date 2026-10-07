@@ -1,10 +1,10 @@
 "use client";
 
-import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { useLocale, useTranslations } from "next-intl";
 import { useRef } from "react";
 
 import { Button } from "@/components/atoms/button";
+import { Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from "@/components/atoms/menu";
 import { Link } from "@/lib/i18n/navigation";
 import { isShellPrefetchHref } from "@/lib/prefetch-policy";
 import { UI } from "@/lib/ui-selectors";
@@ -32,8 +32,8 @@ export function AccountControl({ signedIn }: { signedIn: boolean }) {
   }
 
   return (
-    <DropdownMenu.Root modal={false}>
-      <DropdownMenu.Trigger asChild>
+    <Menu modal={false}>
+      <MenuTrigger asChild>
         <Button
           type="button"
           size="icon"
@@ -46,9 +46,9 @@ export function AccountControl({ signedIn }: { signedIn: boolean }) {
           <Icon name="user" size="md" />
           <span className="sr-only">{t("profileShortcut")}</span>
         </Button>
-      </DropdownMenu.Trigger>
+      </MenuTrigger>
       <AccountMenu />
-    </DropdownMenu.Root>
+    </Menu>
   );
 }
 
@@ -61,47 +61,44 @@ export function AccountMenu() {
     <>
       {/* Stay mounted outside Content: selecting an item unmounts the portal before a nested form can POST. */}
       <form ref={logoutFormRef} action={`/api/auth/logout?locale=${locale}`} method="post" hidden />
-      <DropdownMenu.Portal>
-        <DropdownMenu.Content
-          align="end"
-          sideOffset={8}
-          collisionPadding={12}
-          aria-label={t("accountMenu")}
-          className="border-border bg-popover text-popover-foreground z-[80] max-h-[min(24rem,calc(100dvh-5rem))] w-[min(14rem,calc(100vw-1.5rem))] overflow-x-hidden overflow-y-auto rounded-lg border p-1.5 shadow-md"
+      <MenuContent
+        align="end"
+        sideOffset={8}
+        aria-label={t("accountMenu")}
+        className="max-h-[min(24rem,calc(100dvh-5rem))] w-[min(14rem,calc(100vw-1.5rem))] overflow-x-hidden overflow-y-auto p-1.5"
+      >
+        <AccountMenuLink href="/account" icon="user">
+          {t("profile")}
+        </AccountMenuLink>
+        <AccountMenuLink href="/objects" icon="objects" ui={UI.navigation.objects}>
+          {t("myObjects")}
+        </AccountMenuLink>
+        <AccountMenuLink href="/assigned" icon="team">
+          {t("assignedToMe")}
+        </AccountMenuLink>
+        <AccountMenuLink href="/likes" icon="heart">
+          {t("myLikes")}
+        </AccountMenuLink>
+        <AccountMenuLink href="/devices" icon="devices" ui={UI.navigation.devices}>
+          {t("devices")}
+        </AccountMenuLink>
+        <AccountMenuLink href="/access" icon="access" ui={UI.navigation.access}>
+          {t("access")}
+        </AccountMenuLink>
+        <AccountMenuLink href="/reports" icon="flag" ui={UI.navigation.reports}>
+          {t("reports")}
+        </AccountMenuLink>
+        <MenuSeparator />
+        <MenuItem
+          className="text-destructive hover:bg-destructive/10 focus:bg-destructive/10"
+          onSelect={() => {
+            logoutFormRef.current?.requestSubmit();
+          }}
         >
-          <AccountMenuLink href="/account" icon="user">
-            {t("profile")}
-          </AccountMenuLink>
-          <AccountMenuLink href="/objects" icon="objects" ui={UI.navigation.objects}>
-            {t("myObjects")}
-          </AccountMenuLink>
-          <AccountMenuLink href="/assigned" icon="team">
-            {t("assignedToMe")}
-          </AccountMenuLink>
-          <AccountMenuLink href="/likes" icon="heart">
-            {t("myLikes")}
-          </AccountMenuLink>
-          <AccountMenuLink href="/devices" icon="devices" ui={UI.navigation.devices}>
-            {t("devices")}
-          </AccountMenuLink>
-          <AccountMenuLink href="/access" icon="access" ui={UI.navigation.access}>
-            {t("access")}
-          </AccountMenuLink>
-          <AccountMenuLink href="/reports" icon="flag" ui={UI.navigation.reports}>
-            {t("reports")}
-          </AccountMenuLink>
-          <DropdownMenu.Separator className="bg-border my-1.5 h-px" />
-          <DropdownMenu.Item
-            className="text-destructive hover:bg-destructive/10 focus:bg-destructive/10 flex min-h-11 w-full cursor-pointer items-center gap-3 rounded-sm px-3 py-2 text-sm outline-none"
-            onSelect={() => {
-              logoutFormRef.current?.requestSubmit();
-            }}
-          >
-            <Icon name="logout" size="sm" />
-            {t("logout")}
-          </DropdownMenu.Item>
-        </DropdownMenu.Content>
-      </DropdownMenu.Portal>
+          <Icon name="logout" size="sm" />
+          {t("logout")}
+        </MenuItem>
+      </MenuContent>
     </>
   );
 }
@@ -118,16 +115,16 @@ function AccountMenuLink({
   children: string;
 }) {
   return (
-    <DropdownMenu.Item asChild>
+    <MenuItem asChild>
       <Link
         href={corporateHref(href)}
         prefetch={false}
         {...(ui ? { "data-ui": ui } : {})}
-        className="hover:bg-muted focus:bg-muted flex min-h-11 items-center gap-3 rounded-sm px-3 py-2 text-sm outline-none"
+        className="gap-3"
       >
         <Icon name={icon} size="sm" />
         {children}
       </Link>
-    </DropdownMenu.Item>
+    </MenuItem>
   );
 }

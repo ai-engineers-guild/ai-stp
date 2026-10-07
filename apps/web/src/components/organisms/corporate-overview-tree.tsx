@@ -1,5 +1,6 @@
 "use client";
 
+import { Select } from "@/components/atoms/select";
 import { useState } from "react";
 import { OverviewFilterControls } from "./corporate-overview-filters";
 import { ComponentUsageView } from "./corporate-overview-usage";
@@ -118,7 +119,7 @@ export function CorporateOverviewTree({ graph }: { graph: CorporateOverview }) {
         </div>
         <label className="flex min-h-11 w-full items-center gap-2 text-sm md:ml-auto md:w-auto">
           {t(view === "organization" ? "expandTo" : "sortBy")}
-          <select
+          <Select
             aria-label={t(view === "organization" ? "expandTo" : "sortBy")}
             className="border-input bg-background focus-visible:ring-ring min-h-11 min-w-0 flex-1 rounded-sm border px-3 focus-visible:ring-2 md:flex-none"
             value={view === "organization" ? depth : sort}
@@ -138,7 +139,7 @@ export function CorporateOverviewTree({ graph }: { graph: CorporateOverview }) {
                     {t(value === "name" ? "sortName" : "sortUsage")}
                   </option>
                 ))}
-          </select>
+          </Select>
         </label>
         {(query.trim() ||
           technologies.length ||

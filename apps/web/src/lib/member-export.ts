@@ -5,6 +5,13 @@
  * admin downloads can be pasted back into the bulk importer elsewhere.
  */
 
+import type {
+  CorporateContext,
+  CorporateInvitation,
+  CorporateMember,
+} from "@/lib/api/generated/types.gen";
+import { invitationDisplayState } from "@/lib/corporate-invitation-state";
+
 export type InvitationLinkRow = {
   displayName: string;
   email: string;
@@ -148,4 +155,30 @@ export function downloadInvitationLinks(
   anchor.download = filename;
   anchor.click();
   URL.revokeObjectURL(url);
+}
+
+export function exportInvitationDirectory(
+  rows: readonly CorporateInvitation[],
+  context: CorporateContext,
+  members: readonly CorporateMember[],
+  stamp: number,
+) {
+  downloadPeopleCsv("invitations.csv", [
+    ["display_name", "email", "role", "status", "teams", "invited_by", "sent", "expires"],
+    ...rows.map((row) => [
+      row.display_name,
+      row.recipient_email,
+      row.role,
+      invitationDisplayState(row, stamp),
+      context.teams
+        .filter((team) => row.team_ids.includes(team.team_id))
+        .map((team) => team.name)
+        .join("; "),
+      members.find((member) => member.account_id === row.issuer_account_id)?.display_name ??
+        row.issuer_account_id ??
+        "",
+      row.created_at,
+      row.expires_at,
+    ]),
+  ]);
 }

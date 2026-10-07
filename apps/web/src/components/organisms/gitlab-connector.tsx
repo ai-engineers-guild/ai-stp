@@ -2,6 +2,7 @@
 
 /* eslint-disable max-lines, max-lines-per-function, complexity -- one compact connector state machine. */
 
+import { Select } from "@/components/atoms/select";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
 import {
@@ -362,7 +363,7 @@ export function GitLabConnector({
               {!draft.revoke ? (
                 <label className="block space-y-2 text-sm">
                   {t("accessLevel")}
-                  <select
+                  <Select
                     className="border-border bg-background block w-full rounded-md border px-3 py-2"
                     value={accessLevel}
                     onChange={(event) => {
@@ -374,7 +375,7 @@ export function GitLabConnector({
                         {levelLabels[level]}
                       </option>
                     ))}
-                  </select>
+                  </Select>
                 </label>
               ) : null}
             </div>
@@ -403,7 +404,7 @@ export function GitLabConnector({
               </label>
               <label className="block space-y-2 text-sm">
                 {t("targetVisibility")}
-                <select
+                <Select
                   className="border-border bg-background block w-full rounded-md border px-3 py-2"
                   value={repoVisibility}
                   onChange={(event) => {
@@ -415,7 +416,7 @@ export function GitLabConnector({
                       {visibilityLabels[value]}
                     </option>
                   ))}
-                </select>
+                </Select>
               </label>
             </div>
           ) : null}

@@ -1,7 +1,9 @@
+import { Select } from "@/components/atoms/select";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 
 import { Badge } from "@/components/atoms/badge";
 import { Button } from "@/components/atoms/button";
+import { Table, TBody, Td, THead, Th, Tr } from "@/components/atoms/table";
 import { HistoryBackButton } from "@/components/molecules/history-back-button";
 import { LocalizedResourceActions } from "@/components/organisms/localized-corporate-resource-actions";
 import { CorporateMemberAccessPanel } from "@/components/organisms/corporate-member-access-panel";
@@ -27,9 +29,6 @@ const SCOPE_KINDS = [
   "catalog_object",
   "member",
 ] as const;
-
-const headCellClass = "text-muted-foreground px-3 py-2 text-xs font-medium";
-const rowClass = "border-border hover:bg-muted/40 border-b transition-colors last:border-0";
 
 export default async function EmployeeAccessPage({
   params,
@@ -159,24 +158,22 @@ function EffectiveDecisions({
       <p className="text-muted-foreground mt-1 text-sm">{t("effectiveDecisionsBody")}</p>
       {effective.length ? (
         <div className="-mx-4 mt-3 overflow-x-auto px-4 sm:-mx-5 sm:px-5">
-          <table className="w-full min-w-max border-collapse text-sm">
-            <thead>
-              <tr className="border-border border-b">
-                <th scope="col" className={`${headCellClass} pl-0 text-left`}>
+          <Table className="min-w-max">
+            <THead>
+              <Tr>
+                <Th scope="col" className="pl-0">
                   {t("permission")}
-                </th>
-                <th scope="col" className={`${headCellClass} text-left`}>
-                  {t("grantedBy")}
-                </th>
-              </tr>
-            </thead>
-            <tbody>
+                </Th>
+                <Th scope="col">{t("grantedBy")}</Th>
+              </Tr>
+            </THead>
+            <TBody>
               {effective.map((item) => (
-                <tr key={item.permission} className={rowClass}>
-                  <td className="py-2 pr-4 font-mono text-xs whitespace-nowrap">
+                <Tr key={item.permission} className="hover:bg-muted/40 transition-colors">
+                  <Td className="pr-4 pl-0 font-mono text-xs whitespace-nowrap">
                     {item.permission}
-                  </td>
-                  <td className="px-3 py-2">
+                  </Td>
+                  <Td>
                     <span className="inline-flex flex-wrap gap-1">
                       {item.source_records.length
                         ? item.source_records.map((source) => (
@@ -194,11 +191,11 @@ function EffectiveDecisions({
                             </Badge>
                           ))}
                     </span>
-                  </td>
-                </tr>
+                  </Td>
+                </Tr>
               ))}
-            </tbody>
-          </table>
+            </TBody>
+          </Table>
         </div>
       ) : (
         <p className="text-muted-foreground mt-3 text-sm">{t("noEffective")}</p>
@@ -266,7 +263,7 @@ function ScopeSelectForm({
       <label htmlFor="access-scope" className="text-sm font-medium">
         {selectLabel}
       </label>
-      <select
+      <Select
         id="access-scope"
         name="scope"
         defaultValue={
@@ -279,7 +276,7 @@ function ScopeSelectForm({
             {option.label}
           </option>
         ))}
-      </select>
+      </Select>
       <Button type="submit" variant="outline" size="sm">
         {submitLabel}
       </Button>

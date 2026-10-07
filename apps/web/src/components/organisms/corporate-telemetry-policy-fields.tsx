@@ -1,5 +1,6 @@
 "use client";
 
+import { Select } from "@/components/atoms/select";
 import { useState } from "react";
 import type { useTranslations } from "next-intl";
 
@@ -103,7 +104,7 @@ export function PresetCadenceField({
         {hint ? <FieldHint text={hint} /> : null}
       </span>
       <input type="hidden" name={name} value={effective} />
-      <select
+      <Select
         id={id}
         value={choice}
         disabled={disabled}
@@ -118,7 +119,7 @@ export function PresetCadenceField({
           </option>
         ))}
         <option value="custom">{t("custom")}</option>
-      </select>
+      </Select>
       {choice === "custom" && (
         <Input
           type="number"
@@ -218,7 +219,7 @@ export function PrivacyReportingSection({
           <Label htmlFor="telemetry-legal-basis">{t("telemetryLegalBasis")}</Label>
           <FieldHint text={t("telemetryLegalBasisHint")} />
         </span>
-        <select
+        <Select
           id="telemetry-legal-basis"
           name="legal_basis"
           required
@@ -231,7 +232,7 @@ export function PrivacyReportingSection({
           <option value="consent">{t("telemetryBasisConsent")}</option>
           <option value="contract">{t("telemetryBasisContract")}</option>
           <option value="legitimate_interest">{t("telemetryBasisLegitimateInterest")}</option>
-        </select>
+        </Select>
       </div>
       <div className="space-y-2">
         <span className="flex items-center gap-1">

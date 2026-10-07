@@ -1,5 +1,6 @@
 "use client";
 
+import { Select } from "@/components/atoms/select";
 import { useRef, useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
 
@@ -242,7 +243,7 @@ function CategoryStateField({ prefix }: { prefix: string }) {
   return (
     <div className="space-y-2">
       <Label htmlFor={`${prefix}-state`}>{t("categoryState")}</Label>
-      <select
+      <Select
         id={`${prefix}-state`}
         name="state"
         defaultValue="active"
@@ -250,7 +251,7 @@ function CategoryStateField({ prefix }: { prefix: string }) {
       >
         <option value="active">{t("values.active")}</option>
         <option value="draft">{t("values.draft")}</option>
-      </select>
+      </Select>
     </div>
   );
 }

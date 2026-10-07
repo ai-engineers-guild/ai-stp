@@ -1,8 +1,10 @@
 "use client";
 
+import { Select } from "@/components/atoms/select";
 import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/atoms/button";
+import { Table, TBody, Td, THead, Th, Tr } from "@/components/atoms/table";
 import { SearchableMultiSelect } from "@/components/molecules/searchable-multi-select";
 import {
   groupByEmployee,
@@ -164,7 +166,7 @@ export function CorporateHeartbeatReport({
           {view === "history" && (
             <label className="text-muted-foreground text-xs">
               {t("period")}
-              <select
+              <Select
                 className="border-border bg-background text-foreground mt-1 block h-11 w-full rounded-sm border px-2 text-sm"
                 value={period}
                 onChange={(event) => {
@@ -181,7 +183,7 @@ export function CorporateHeartbeatReport({
                 <option value="7d">{t("period7d")}</option>
                 <option value="30d">{t("period30d")}</option>
                 <option value="custom">{t("periodCustom")}</option>
-              </select>
+              </Select>
             </label>
           )}
           {view === "history" && period === "custom" && (
@@ -258,7 +260,7 @@ export function CorporateHeartbeatReport({
         <div className="flex items-center gap-3">
           <label className="text-muted-foreground flex items-center gap-2">
             {t("perPage")}
-            <select
+            <Select
               value={report.page_size}
               onChange={(event) => {
                 change({ page_size: event.target.value });
@@ -270,7 +272,7 @@ export function CorporateHeartbeatReport({
                   {size}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
           <span>
             {t("pageRange", { from: report.total ? first : 0, to: last, total: report.total })}
@@ -300,27 +302,23 @@ export function CorporateHeartbeatReport({
         </div>
       </div>
       <div className="border-border mt-4 overflow-x-auto rounded-lg border">
-        <table className="w-full min-w-[900px] text-left text-sm">
-          <thead className="bg-card text-muted-foreground border-border border-b">
-            <tr>
-              <th className="px-4 py-3 font-medium">{sortable("employee", t("employee"))}</th>
-              <th className="px-4 py-3 font-medium">{sortable("team", t("team"))}</th>
-              <th className="px-4 py-3 font-medium">{t("device")}</th>
-              {view === "history" && (
-                <th className="px-4 py-3 font-medium">{t("heartbeatHistory")}</th>
-              )}
-              <th className="px-4 py-3 font-medium">
-                {sortable("last_heartbeat", t("lastHeartbeat"))}
-              </th>
-              <th className="px-4 py-3 font-medium">
+        <Table className="min-w-[900px] text-left">
+          <THead className="bg-card text-muted-foreground border-border border-b">
+            <Tr className="border-b-0">
+              <Th className="px-4 py-3">{sortable("employee", t("employee"))}</Th>
+              <Th className="px-4 py-3">{sortable("team", t("team"))}</Th>
+              <Th className="px-4 py-3">{t("device")}</Th>
+              {view === "history" && <Th className="px-4 py-3">{t("heartbeatHistory")}</Th>}
+              <Th className="px-4 py-3">{sortable("last_heartbeat", t("lastHeartbeat"))}</Th>
+              <Th className="px-4 py-3">
                 {sortable(
                   view === "history" ? "coverage" : "status",
                   view === "history" ? t("coveragePercent") : t("status"),
                 )}
-              </th>
-            </tr>
-          </thead>
-          <tbody>
+              </Th>
+            </Tr>
+          </THead>
+          <TBody>
             {groupByEmployee(report.items).map(({ accountId, rows }) => (
               <HeartbeatEmployeeRows
                 key={accountId}
@@ -337,15 +335,15 @@ export function CorporateHeartbeatReport({
               />
             ))}
             {report.items.length === 0 && (
-              <tr>
-                <td colSpan={view === "history" ? 6 : 5} className="px-4 py-12 text-center">
+              <Tr>
+                <Td colSpan={view === "history" ? 6 : 5} className="px-4 py-12 text-center">
                   <p>{t("empty")}</p>
                   <p className="text-muted-foreground mt-2">{t("emptyHint")}</p>
-                </td>
-              </tr>
+                </Td>
+              </Tr>
             )}
-          </tbody>
-        </table>
+          </TBody>
+        </Table>
       </div>
     </>
   );

@@ -148,7 +148,7 @@ two thin organisms with provider deltas. Reuses the renamed
 | ----- | ----- | --------- |
 | 0 docs boundary | done | this change |
 | 1 dead code | done | this change |
-| 2 primitives | pending | |
+| 2 primitives | done | this change |
 | 3 merges/renames | pending | |
 | 4 tier moves | pending | |
 | 5 connectors | pending | |
