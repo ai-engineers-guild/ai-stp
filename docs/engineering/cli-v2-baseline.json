@@ -1,0 +1,2073 @@
+{
+  "record_format": "ai-stp-cli-v2-baseline/1",
+  "status": "frozen_v1_evidence_not_v2_capabilities",
+  "evidence_digest_algorithm": "SHA-256 over project canonical JSON; record_digest excludes itself; no product digest domain",
+  "source_commit": "7220c991ac7ef3be7d23357a7e24739a20ae860d",
+  "cli_version": "0.0.43",
+  "registry_digest": "sha256:e8ecda2ee31f601ddbb2161fc22e09081d273ee40f752dbe42a3a7301b141475",
+  "counts": {
+    "commands": 245,
+    "intents": 9,
+    "python_files": 234,
+    "physical_python_lines": 90881,
+    "sqlite_schema": 53,
+    "sqlite_tables": 51
+  },
+  "task_classes": {
+    "expert": 60,
+    "inspect": 23,
+    "task_covered": 34,
+    "task_pending": 128
+  },
+  "intents": [
+    "inspect",
+    "initialize",
+    "install",
+    "change",
+    "author",
+    "switch",
+    "account",
+    "publish",
+    "technology"
+  ],
+  "business_functions": [
+    {
+      "id": "orientation",
+      "outcome": "Understand the CLI, configuration and environment",
+      "commands": 15
+    },
+    {
+      "id": "identity_access",
+      "outcome": "Manage developer/device identity, authentication, grants and consent",
+      "commands": 21
+    },
+    {
+      "id": "catalog_sources",
+      "outcome": "Find and acquire exact objects and inspect source evidence",
+      "commands": 17
+    },
+    {
+      "id": "authoring",
+      "outcome": "Create, adopt, version and exchange components and setups",
+      "commands": 29
+    },
+    {
+      "id": "projects",
+      "outcome": "Discover projects and maintain their local identity and links",
+      "commands": 12
+    },
+    {
+      "id": "technology",
+      "outcome": "Resolve and maintain evidence-backed technology facts",
+      "commands": 17
+    },
+    {
+      "id": "selection",
+      "outcome": "Explain eligibility, select exact versions and compile bundles",
+      "commands": 11
+    },
+    {
+      "id": "installation",
+      "outcome": "Apply, observe, preserve, switch, recover and roll back setup state",
+      "commands": 25
+    },
+    {
+      "id": "software",
+      "outcome": "Manage trusted providers, harness/toolchain executables and control skills",
+      "commands": 27
+    },
+    {
+      "id": "synchronization",
+      "outcome": "Exchange private state and project revisions with conflict handling",
+      "commands": 8
+    },
+    {
+      "id": "publication",
+      "outcome": "Publish exact versions and manage their distribution/readback",
+      "commands": 14
+    },
+    {
+      "id": "assurance",
+      "outcome": "Run declared evaluations and manage attestations/contribution reports",
+      "commands": 15
+    },
+    {
+      "id": "governed_operations",
+      "outcome": "Consume corporate assignments and consented health/usage policy",
+      "commands": 21
+    },
+    {
+      "id": "workflow",
+      "outcome": "Drive the same business services through durable agent tasks",
+      "commands": 7
+    },
+    {
+      "id": "cli_lifecycle",
+      "outcome": "Update, recover and roll back the installed CLI through its owner",
+      "commands": 6
+    }
+  ],
+  "commands": [
+    {
+      "path": "attestation sign",
+      "handler": "attestations:sign",
+      "business_function": "assurance",
+      "v1_task_class": "expert",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:3eb2643c44d710aecfbf0795bad8cb64413a53efc44e5b30a3aa7546bb6a9050"
+    },
+    {
+      "path": "auth complete",
+      "handler": "auth:complete",
+      "business_function": "identity_access",
+      "v1_task_class": "task_covered",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:d790f386a4840df4dbe7796bf1cf13a8486190a9a0b3f8113240a4cdf9e7fa6d"
+    },
+    {
+      "path": "auth login",
+      "handler": "auth:begin",
+      "business_function": "identity_access",
+      "v1_task_class": "task_covered",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:3e1e3b04bef69cd853c5e23687b3b301d46e559d1262a27ba31ec703aecbe22f"
+    },
+    {
+      "path": "auth logout",
+      "handler": "auth:logout",
+      "business_function": "identity_access",
+      "v1_task_class": "task_covered",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:138094a07f37957260b4e523e23962c52a6b08e5f781637901808db24a17f62e"
+    },
+    {
+      "path": "auth status",
+      "handler": "auth_status:run",
+      "business_function": "identity_access",
+      "v1_task_class": "inspect",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:13bafc8eafb0222b4a346928b7e3ed572aa57c02976d45745dac5019399eafa9"
+    },
+    {
+      "path": "capabilities",
+      "handler": "machine_help:capabilities",
+      "business_function": "orientation",
+      "v1_task_class": "inspect",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:06a9a2b2cb16ec45ec5520ab33ed42acc35893dde652ced2a00e0a8ff68dcc4d"
+    },
+    {
+      "path": "component adaptation add",
+      "handler": "component:adaptation_add",
+      "business_function": "authoring",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:1bd7c4d621cf43b7495ffeb5027aa1d5fc60cb92b1be9fb1909c961e52302cad"
+    },
+    {
+      "path": "component adopt",
+      "handler": "component:adopt",
+      "business_function": "authoring",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:c994cbbe9b27001728ffc1d097a29f62c9cec0d1777b3ba57e11d0ceb5966d99"
+    },
+    {
+      "path": "component discover",
+      "handler": "component:discover",
+      "business_function": "authoring",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:b82c956d2313e2c6f0eb2d70c3763fec3181ecd62b9337f78c595870f1195f94"
+    },
+    {
+      "path": "component find",
+      "handler": "component:find",
+      "business_function": "catalog_sources",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:e949d1447dea8f69f1c4712c2e805d14fb0d29fd045d9b6631aea5fb8c7f671b"
+    },
+    {
+      "path": "component forget",
+      "handler": "component:forget",
+      "business_function": "authoring",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:a87e936e2b26571f4ac47aec739990039b2700f6ecc11a8f1b084982098dfcc6"
+    },
+    {
+      "path": "component fork",
+      "handler": "component:fork",
+      "business_function": "authoring",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:24e37219c764f0a88083d170ea16c4ceeaed6f0358bba173e839c18aa8d96d68"
+    },
+    {
+      "path": "component inventory",
+      "handler": "component:inventory",
+      "business_function": "catalog_sources",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:17229a1f8f14f6d5b1775e4aebaa15b36bcae4d4673495f79e6f3d19dfc48e67"
+    },
+    {
+      "path": "component materialize apply",
+      "handler": "component_materialize:apply",
+      "business_function": "authoring",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:0dcf518c066395179ba7b2d4b74b64638da03b563e1012d6cb14d7facd32270d"
+    },
+    {
+      "path": "component materialize plan",
+      "handler": "component_materialize:plan",
+      "business_function": "authoring",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:c2d3b960ef4831649198fe181c04173c1a6757730193b4912f09fe455c528bf6"
+    },
+    {
+      "path": "component passport quality",
+      "handler": "component:passport_quality",
+      "business_function": "authoring",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:609df9300b9620f0454dadeac6b879fe82798b755e1b626ac6710707949b10fb"
+    },
+    {
+      "path": "component passport show",
+      "handler": "component:passport_show",
+      "business_function": "authoring",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:c7ea7ac43d0d7a51d7a96f52ccf8ce37e03230c1555046cd950704d552073625"
+    },
+    {
+      "path": "component passport suggest",
+      "handler": "component:passport_suggest",
+      "business_function": "authoring",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:5d15fd15c448c18c6303ed236f7d5792bb90b0c2f8b1cd57efd35732c5c49597"
+    },
+    {
+      "path": "component passport update",
+      "handler": "component:passport_update",
+      "business_function": "authoring",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:ed94830937eeaaf1605ba3ddc2a1893e82f411ccd82b0fadfda7ed72837c7c94"
+    },
+    {
+      "path": "component passport validate",
+      "handler": "component:passport_validate",
+      "business_function": "authoring",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:c3bdf6de3fd49aea486242cc97e7d03ffd0291762807f3b7cd3d05ec04ccfe52"
+    },
+    {
+      "path": "component portability apply",
+      "handler": "component_materialize:portability_apply",
+      "business_function": "authoring",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:e7775ef5f2678237a5da0619993b76e099eb9f6e85cb6e6883797a22303004a9"
+    },
+    {
+      "path": "component portability plan",
+      "handler": "component_materialize:portability_plan",
+      "business_function": "authoring",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:b7341f6b64b8e235cc27610b6193a7ef059f24bb9d558a11a6a5adb4d88d6589"
+    },
+    {
+      "path": "component program install",
+      "handler": "cli_program:install",
+      "business_function": "software",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:715c588be0395ca602ebec655cd9cdb1858c38602f1d1cc7c2fee22d7c575328"
+    },
+    {
+      "path": "component program invoke",
+      "handler": "cli_program:invoke",
+      "business_function": "software",
+      "v1_task_class": "expert",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:94fbe924f104a4e65c27019d5a148cc75da5ce4173d62050d51ed5bdcac3266f"
+    },
+    {
+      "path": "component program remove",
+      "handler": "cli_program:remove",
+      "business_function": "software",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:049bc9d9c6281e3acf5231f01ac24b7c9f727a77581db6d39d30143ce66e51d9"
+    },
+    {
+      "path": "component program status",
+      "handler": "cli_program:status",
+      "business_function": "software",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:0ed8d87852638c456a98ba65c6cc0e3ee0f24e2296e066157044dcc58169d816"
+    },
+    {
+      "path": "component publish",
+      "handler": "component_publish:publish",
+      "business_function": "publication",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:3b2ba13b48f378fdad64e4ac2d79e9b7a7e00b40f95efc00543472ea946a25e3"
+    },
+    {
+      "path": "component scaffold apply",
+      "handler": "component:scaffold_apply",
+      "business_function": "authoring",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:4288671c1b44b5b69fba3e7c3c67b8436c38891a50cb19dd056c86dc0fa20810"
+    },
+    {
+      "path": "component scaffold plan",
+      "handler": "component:scaffold_plan",
+      "business_function": "authoring",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:895d64da276c4457f3083b84849c4d09332a710e73a4e177f20f940a79515f4d"
+    },
+    {
+      "path": "component skill validate",
+      "handler": "component:skill_validate",
+      "business_function": "assurance",
+      "v1_task_class": "expert",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:55187677aeb251d2078837754bd365a10657e06e1d2708a0700004639d329d17"
+    },
+    {
+      "path": "component source evidence history",
+      "handler": "component:source_evidence_history",
+      "business_function": "catalog_sources",
+      "v1_task_class": "expert",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:58e683a9b78b556126514492d195f31d1af61fc472d0f49ac0f6070c0706fab1"
+    },
+    {
+      "path": "component source evidence refresh",
+      "handler": "component:source_evidence_refresh",
+      "business_function": "catalog_sources",
+      "v1_task_class": "expert",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:bf3ec4df284fa0a4d3b771e8f2e13c852b49f5b8d48f55599a48394e0b575e1f"
+    },
+    {
+      "path": "component source evidence show",
+      "handler": "component:source_evidence_show",
+      "business_function": "catalog_sources",
+      "v1_task_class": "expert",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:4b608fe049ba502d52607b116f6014e599709f4d70901686138dd2ce44ba9e72"
+    },
+    {
+      "path": "component source parse",
+      "handler": "component:source_parse",
+      "business_function": "catalog_sources",
+      "v1_task_class": "expert",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:b2acf951e92e39acb213b36218fe7a220b8e5d385a7f3bd9e43b9cddfd88d076"
+    },
+    {
+      "path": "component source resolve",
+      "handler": "component:source_resolve",
+      "business_function": "catalog_sources",
+      "v1_task_class": "expert",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:b39c085006f35bcb2508d1357384e693ddfab40baca7c16f03484d5da9d9e311"
+    },
+    {
+      "path": "component source search",
+      "handler": "component:source_search",
+      "business_function": "catalog_sources",
+      "v1_task_class": "expert",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:08e6dbb8bf6e70e420a8d9a10f18c460649de242e55c0099f529e495b88a809a"
+    },
+    {
+      "path": "component template render",
+      "handler": "component:template_render",
+      "business_function": "authoring",
+      "v1_task_class": "expert",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:59eb1cacd8bb55b6dd9d7a862319d9a8d23de9e32e4a0f049ad86b31ac1385a7"
+    },
+    {
+      "path": "component version list",
+      "handler": "component:version_list",
+      "business_function": "authoring",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:fc7abaa578f2e2c6879504ee5cfb47bca58257f7d254cf42c29d6cfa4e3c39df"
+    },
+    {
+      "path": "component version release",
+      "handler": "component:version_release",
+      "business_function": "authoring",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:3f50a552fa2871e9ffb370d473757a4d0b46e0701d8b4ccc5598f3894d206291"
+    },
+    {
+      "path": "config init",
+      "handler": "config_show:init",
+      "business_function": "orientation",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:1c1e945b0915936c0a75e627f50067cbaa68d093f825727d3c062f54fcd47336"
+    },
+    {
+      "path": "config set",
+      "handler": "config_show:set_",
+      "business_function": "orientation",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:7c39ee0bac500fc3bc245ef98bdf88e75a8d38691c296e8bc1f989cbf0d16f52"
+    },
+    {
+      "path": "config show",
+      "handler": "config_show:run",
+      "business_function": "orientation",
+      "v1_task_class": "inspect",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:11ece6e5088ffab5c75af5a1e4c513afb001dd31cdeec3ce8cca0a6009017550"
+    },
+    {
+      "path": "config unset",
+      "handler": "config_show:unset",
+      "business_function": "orientation",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:4cb4842d1d6b5783905c3b70d362eab31bc73697bed2c5d5da43d34718305427"
+    },
+    {
+      "path": "config validate",
+      "handler": "config_show:validate",
+      "business_function": "orientation",
+      "v1_task_class": "inspect",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:b794396daa3e24ae1b4098ecb3edcbeef3ececb882dfc309210fed36c0ab59a3"
+    },
+    {
+      "path": "consent allow",
+      "handler": "component:consent_allow",
+      "business_function": "identity_access",
+      "v1_task_class": "expert",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:cd68f19cf6763cf9d2b02a5c0ae73e56e25d2627f4fc811a4053bc805bcd5eda"
+    },
+    {
+      "path": "consent list",
+      "handler": "component:consent_list",
+      "business_function": "identity_access",
+      "v1_task_class": "expert",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:c11fe7c3fe0db32a944fb943372661f25e60ed90d6b897d036edfe60a8fb0372"
+    },
+    {
+      "path": "consent revoke",
+      "handler": "component:consent_revoke",
+      "business_function": "identity_access",
+      "v1_task_class": "expert",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:feb650925a312dd75daab000c4d2f23a27c7eaedc429f9ff7b1afeb66f58cb34"
+    },
+    {
+      "path": "contract inventory",
+      "handler": "contract:inventory",
+      "business_function": "orientation",
+      "v1_task_class": "inspect",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:7134fe52dc810699f97b0d420b6c4fff0a6cd932ad0198de74d3f1031b1cc0e4"
+    },
+    {
+      "path": "corporate assignment distribute",
+      "handler": "corporate:distribute",
+      "business_function": "governed_operations",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:efc29ee018ea7625bfcaeeb79b4170fbfbe6fa198f8fd91472dbf8dcafce196c"
+    },
+    {
+      "path": "corporate assignment distribution",
+      "handler": "corporate:distribution",
+      "business_function": "governed_operations",
+      "v1_task_class": "inspect",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:ce2253f1011853f361c921e4b50e2f8975d40871d8cad2c9768455d369cea4b8"
+    },
+    {
+      "path": "corporate assignment effective",
+      "handler": "corporate:effective",
+      "business_function": "governed_operations",
+      "v1_task_class": "inspect",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:6efcf6d8bdc10c00e6278b89fdf22683a49856833417f7b64e351d0361efdbb3"
+    },
+    {
+      "path": "corporate assignment plan",
+      "handler": "corporate:plan",
+      "business_function": "governed_operations",
+      "v1_task_class": "inspect",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:ce6fea48dc093949361cd8f4631d238c514bd14cef78b69c3469e9bea4b8be04"
+    },
+    {
+      "path": "corporate assignment verify",
+      "handler": "corporate:verify",
+      "business_function": "governed_operations",
+      "v1_task_class": "inspect",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:10fa5cf1cfebdc062d46c556c4a9e0f140ee04b97df861ac042cf33fbabe1e7c"
+    },
+    {
+      "path": "device init",
+      "handler": "device:init",
+      "business_function": "identity_access",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:d945cd7e9faea8f0bb5a2f1463252122bd98c6fbba8144d579dc0ab15dc86bd3"
+    },
+    {
+      "path": "device reset",
+      "handler": "device:reset",
+      "business_function": "identity_access",
+      "v1_task_class": "expert",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:66b1857551cfb705d81d278c4e3af93f7bbd5c054bbe6e080846dc2f96a8354b"
+    },
+    {
+      "path": "device show",
+      "handler": "device:show",
+      "business_function": "identity_access",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:b5e511e02dc4f8eeec4b44e6259ea03e6ad559566b3124c5e8ad6464e0d62533"
+    },
+    {
+      "path": "doctor",
+      "handler": "doctor:run",
+      "business_function": "orientation",
+      "v1_task_class": "inspect",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:f43d40ce48b96c6e8aca63c9d002cfb111d7650c7c4799302fbd6cb88a4b4052"
+    },
+    {
+      "path": "environment inspect",
+      "handler": "environment:inspect",
+      "business_function": "orientation",
+      "v1_task_class": "inspect",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:9e4f31c9a747effef59cbbc74273b3839da6a5f906332219b00669ec2d1bcd50"
+    },
+    {
+      "path": "environment plan",
+      "handler": "install_transaction:compose_environment",
+      "business_function": "orientation",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:4ab752aba5a5aaf8bcd43874808e2a39386e7fc914ba66f20d6614635caedaef"
+    },
+    {
+      "path": "eval component plan",
+      "handler": "evaluation:component_plan",
+      "business_function": "assurance",
+      "v1_task_class": "expert",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:8301514a1856b6863a6e2d96d0ba41e4fc04fe91631c6ce4af311d000f3d083e"
+    },
+    {
+      "path": "eval component run",
+      "handler": "evaluation:component_run",
+      "business_function": "assurance",
+      "v1_task_class": "expert",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:ceb3977e23a6dd1c86f7f9ea39abbd69c80c8fd8978c1ce258aa99889b266de1"
+    },
+    {
+      "path": "eval component show",
+      "handler": "evaluation:component_show",
+      "business_function": "assurance",
+      "v1_task_class": "expert",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:e929bf87f5986b599d9bea8a5283e9d807a84a7e2549aff42fbcf102f9205d88"
+    },
+    {
+      "path": "eval component status",
+      "handler": "evaluation:component_status",
+      "business_function": "assurance",
+      "v1_task_class": "expert",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:1247ab4c58ab196f791c2228bfb22f188cf41267864d8cf64ab5a7a67bc0089f"
+    },
+    {
+      "path": "eval plan",
+      "handler": "evaluation:plan",
+      "business_function": "assurance",
+      "v1_task_class": "expert",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:8155576eec9cce9f5a7e2b5aed3b1a566f998c45d867f5fbd1596413c5eb1d5c"
+    },
+    {
+      "path": "eval profile",
+      "handler": "evaluation:profile",
+      "business_function": "assurance",
+      "v1_task_class": "expert",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:b98d36676a6e4c1b189c29ad76bdf851d5cfea2c019ac8dd5820be97f667c2ec"
+    },
+    {
+      "path": "eval run",
+      "handler": "evaluation:run",
+      "business_function": "assurance",
+      "v1_task_class": "expert",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:f73172f85758e39314e297aa4fb690009db72b0da49df3b94c07ef60743dbcac"
+    },
+    {
+      "path": "eval show",
+      "handler": "evaluation:show",
+      "business_function": "assurance",
+      "v1_task_class": "expert",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:a8c0312d2b20ca953e88291611c5b77df36ee39304ba75faafe6fadb39668a10"
+    },
+    {
+      "path": "eval status",
+      "handler": "evaluation:status",
+      "business_function": "assurance",
+      "v1_task_class": "expert",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:e580108fb2665aa6d6a6a9b85aea8321872d5a2d9845a45c2fb48e34aaadcc85"
+    },
+    {
+      "path": "github source prepare",
+      "handler": "github:prepare",
+      "business_function": "publication",
+      "v1_task_class": "expert",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:0ef8d6b027710699b243510af392f9f34e3deea140003a597009c3be3a2fcdb8"
+    },
+    {
+      "path": "github status",
+      "handler": "github:status",
+      "business_function": "publication",
+      "v1_task_class": "expert",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:1957ac1d176882bef625a7352bebfba11b3ad0d43a15e8cace802d4e3cf22ff1"
+    },
+    {
+      "path": "grant accept",
+      "handler": "grants:accept",
+      "business_function": "identity_access",
+      "v1_task_class": "expert",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:5796f486da18c5acab7b31a79ef96c0faa622df61c8c67e275ad15e9e4528160"
+    },
+    {
+      "path": "grant direct",
+      "handler": "grants:direct",
+      "business_function": "identity_access",
+      "v1_task_class": "expert",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:e0891d01555038bc96ddbf54029770b14a896426e76523113c9ead87756d0180"
+    },
+    {
+      "path": "grant invitation revoke",
+      "handler": "grants:revoke_invitation",
+      "business_function": "identity_access",
+      "v1_task_class": "expert",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:a872ecf40f8d514a68189a560730d667172a8cad5ab2a07e78a031badd4686f1"
+    },
+    {
+      "path": "grant invite",
+      "handler": "grants:invite",
+      "business_function": "identity_access",
+      "v1_task_class": "expert",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:c637f344458d4f160b32dd2940e3589903380a527f82f25336980aaa9d45bd86"
+    },
+    {
+      "path": "grant list",
+      "handler": "grants:list_all",
+      "business_function": "identity_access",
+      "v1_task_class": "expert",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:872af4ae6f31e073fcacc2efbbc2f64750d396739cacaab775478317bdba373a"
+    },
+    {
+      "path": "grant revoke",
+      "handler": "grants:revoke",
+      "business_function": "identity_access",
+      "v1_task_class": "expert",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:5a7057a56f6b036cf0ad945ec773cf76f7b7c5f88c001e95f42528ef1ac5adc3"
+    },
+    {
+      "path": "harness install",
+      "handler": "harness:install",
+      "business_function": "software",
+      "v1_task_class": "expert",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:d36b2e47d5d275f0455218274e58f19398ce4266c93e71b0751792f540fa1134"
+    },
+    {
+      "path": "harness remove",
+      "handler": "harness:remove",
+      "business_function": "software",
+      "v1_task_class": "expert",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:8cc685eba21d61cba7ac1b836c1e7cbd77c167c7d0f9cbfb6a7d99c41b8416ad"
+    },
+    {
+      "path": "harness resume",
+      "handler": "harness:resume",
+      "business_function": "software",
+      "v1_task_class": "expert",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:bfb264ff7f48a6098ec91f353383f56a4d4989977b0fad405e3d4986068dee62"
+    },
+    {
+      "path": "harness status",
+      "handler": "harness:status",
+      "business_function": "software",
+      "v1_task_class": "expert",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:d32ba3ab0c56b2d2d5995d8c51b56cfefcca431afdccea27d61093970b26374a"
+    },
+    {
+      "path": "harness update",
+      "handler": "harness:update",
+      "business_function": "software",
+      "v1_task_class": "expert",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:c6a8781c68b6360f7244dabb9f4bdb170a904c304d2fa28286da4406d72065bd"
+    },
+    {
+      "path": "heartbeat disable",
+      "handler": "heartbeat:disable",
+      "business_function": "governed_operations",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:f5948afe7ad23a8445ce2e5c432aef2465d61373f41e7bb309b3629ccff9bfae"
+    },
+    {
+      "path": "heartbeat enable",
+      "handler": "heartbeat:enable",
+      "business_function": "governed_operations",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:1d775b390d777e8f7aaa0f904b79d57fdaa19efb1f2ef1d0fe542ba954c0b79d"
+    },
+    {
+      "path": "heartbeat installations",
+      "handler": "heartbeat:installations",
+      "business_function": "governed_operations",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:f9f436813e4d42ecb64f9ef700f0002f47be54c9fa91c8beefef7d9620b389f3"
+    },
+    {
+      "path": "heartbeat local-status",
+      "handler": "heartbeat:local_status",
+      "business_function": "governed_operations",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:a1705359f9573f8c0bd64f392be982a16aef713ca618e48794734276701ab1d2"
+    },
+    {
+      "path": "heartbeat send",
+      "handler": "heartbeat:send",
+      "business_function": "governed_operations",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:a970dcaff021880de53ca6b084b9aaecf4d55c185195c5d14b6fc55057d61765"
+    },
+    {
+      "path": "heartbeat status",
+      "handler": "heartbeat:status",
+      "business_function": "governed_operations",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:5316e4aa90ba7517223255e82657a2c411b7d3941f7d82acdcfa022362381c2a"
+    },
+    {
+      "path": "heartbeat tick",
+      "handler": "heartbeat:tick",
+      "business_function": "governed_operations",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:83b6f48cdc920e96cb9e660d6d45d05b7fd0845896a58e55432ce79c7b05a89c"
+    },
+    {
+      "path": "help",
+      "handler": "machine_help:registry",
+      "business_function": "orientation",
+      "v1_task_class": "inspect",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:e96a26628bbc0ac120eeecbd0bd9e37c354fa566b8a7cd03c25d48274b1b4deb"
+    },
+    {
+      "path": "install apply",
+      "handler": "install:apply",
+      "business_function": "installation",
+      "v1_task_class": "task_covered",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:71fa054e60cbf6e60cbbc19ba9fcd645ef9294ed43e7a6932c8303dacd70f0d6"
+    },
+    {
+      "path": "install approve",
+      "handler": "install:approve",
+      "business_function": "installation",
+      "v1_task_class": "task_covered",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:d505bdbf9ca0c2a4f21d1fb894656df9390f3e1a60f1c7bb753253281accd870"
+    },
+    {
+      "path": "install cancel",
+      "handler": "install:cancel",
+      "business_function": "installation",
+      "v1_task_class": "task_covered",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:ef8a52788116909ae7dd6f0a9ac52596b4d434dc02d6e8aaa475fa13beaaafd6"
+    },
+    {
+      "path": "install plan",
+      "handler": "install:plan",
+      "business_function": "installation",
+      "v1_task_class": "task_covered",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:a9fdd02161c80a81e22577c3167ce4b0d7a7776f5a3a44f0efee4b0d69e8ea93"
+    },
+    {
+      "path": "install recover",
+      "handler": "install:recover",
+      "business_function": "installation",
+      "v1_task_class": "task_covered",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:03f545f470f3b61177c539e42e7f693274f8dc35c83f4e03ba3f5f600908ba7d"
+    },
+    {
+      "path": "install resume",
+      "handler": "install:resume",
+      "business_function": "installation",
+      "v1_task_class": "task_covered",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:0358ac13df199a1f129d17f44d235f647044c42e55caab92320da79f71aba79d"
+    },
+    {
+      "path": "install status",
+      "handler": "install:status",
+      "business_function": "installation",
+      "v1_task_class": "task_covered",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:f5bfcfc83935319b0e768e42ae46a93640381a1905f9edabfdf13d0f28682a2d"
+    },
+    {
+      "path": "install sync-results",
+      "handler": "install:sync_results",
+      "business_function": "installation",
+      "v1_task_class": "task_covered",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:c9df17063e5df4d4ccd3968d53dd6f7d2e4ada9a72d8f6c09fc7906e8d529758"
+    },
+    {
+      "path": "install transaction apply",
+      "handler": "install_transaction:apply",
+      "business_function": "installation",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:e63c3565687141081181b1e26ad0bb88e86ba23ddd04065426038245bafa64cd"
+    },
+    {
+      "path": "install transaction approve",
+      "handler": "install_transaction:approve",
+      "business_function": "installation",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:646320a56803a64e2628c43d4d77af1a762a0c230de761485df8d1c29cf76b31"
+    },
+    {
+      "path": "install transaction cancel",
+      "handler": "install_transaction:cancel",
+      "business_function": "installation",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:b5ca96e280a5f1447a75be6d469f11ca73d45133ef6358a9e5b081f6862acc0d"
+    },
+    {
+      "path": "install transaction plan",
+      "handler": "install_transaction:plan",
+      "business_function": "installation",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:be50f956eb7dabec140c5c3219f5b14064ba69e61e17ac75e79a5fd87fd5b17b"
+    },
+    {
+      "path": "install transaction recover",
+      "handler": "install_transaction:recover",
+      "business_function": "installation",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:2ed2fa5ef8795b8859a6dcccdbeb6201c6ef70c0bf2c05dac67c48b0bdca3d9f"
+    },
+    {
+      "path": "install transaction status",
+      "handler": "install_transaction:status",
+      "business_function": "installation",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:0cf63f0f2ddb8101705530cde8d76557588d6d1bb5f815fbbc4222c1d60cf865"
+    },
+    {
+      "path": "link web",
+      "handler": "link:web",
+      "business_function": "orientation",
+      "v1_task_class": "expert",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:a00816756048a0b184162be390485da2cc14a7bf60f3343d58a392df62273bed"
+    },
+    {
+      "path": "owner object show",
+      "handler": "owner:show_object",
+      "business_function": "publication",
+      "v1_task_class": "expert",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:8f4d6962a69fd4db55fe12d9a95d612fe4775d133b666152b50d7fcf2494d5b3"
+    },
+    {
+      "path": "owner objects",
+      "handler": "owner:list_objects",
+      "business_function": "publication",
+      "v1_task_class": "expert",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:d0d10e6468ebd196b50a1cf5378ba00efc142bc43a2357c37febcc956e46aebe"
+    },
+    {
+      "path": "owner version show",
+      "handler": "owner:show_version",
+      "business_function": "publication",
+      "v1_task_class": "expert",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:27395fd13eb7f1143801c493660a5733d68399adc9aa60b0700104dfde5d0fa5"
+    },
+    {
+      "path": "passport developer init",
+      "handler": "passport:developer_init",
+      "business_function": "identity_access",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:8046f36bb843bab8eecebfd0287e440a8e1c287f337ef605df7c63305f9a77bb"
+    },
+    {
+      "path": "passport developer show",
+      "handler": "passport:developer_show",
+      "business_function": "identity_access",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:c343b24fefef289c7bd952e54b94e1301a76f90541fa0a9f241cc1d7475f5fe1"
+    },
+    {
+      "path": "passport developer update",
+      "handler": "passport:developer_update",
+      "business_function": "identity_access",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:cbd2b09f97787af0b50da60160a85468bdf1abe9321f59b1a86d2dad23eec0cd"
+    },
+    {
+      "path": "passport device refresh",
+      "handler": "passport:device_refresh",
+      "business_function": "identity_access",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:bf4bc73946b4d29491c61abf9392b45585c8a3104468759405e931e6e1c32ecc"
+    },
+    {
+      "path": "passport device show",
+      "handler": "passport:device_show",
+      "business_function": "identity_access",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:fbe712c1564a89389746c0c9bd9eddf544ea4c061c7cfc25ade37d123872f938"
+    },
+    {
+      "path": "project detect",
+      "handler": "project:detect",
+      "business_function": "projects",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:fb094de5ac8227c458d5eb44b04c6249a5859c0f3cd00e2944b52e749b79cb95"
+    },
+    {
+      "path": "project discover",
+      "handler": "project:discover",
+      "business_function": "projects",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:e968b9279b352c58fe717b383e2749c39c23bcdcb2f4ce30dff32aa4ef079c70"
+    },
+    {
+      "path": "project index",
+      "handler": "project:index",
+      "business_function": "projects",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:617f93182b30886d259111b3b0d0949f4e763cd0eb046b128a2c400913cf9c73"
+    },
+    {
+      "path": "project link create",
+      "handler": "project:link",
+      "business_function": "projects",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:31f531c6c94f2b37c2878685d4e1c9ebda6b97d7ff8b191bb07cfc12a50261ac"
+    },
+    {
+      "path": "project link plan create",
+      "handler": "project:link_plan",
+      "business_function": "projects",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:1ec3884fa5f081eb77b9dc68f6cc16c41bfe093b43a4bb3d1881d365400ec845"
+    },
+    {
+      "path": "project link plan show",
+      "handler": "project:link_plan_show",
+      "business_function": "projects",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:0ed9026c85c102cf918d51afb0e84557ba0f950d8a10b1523a9b126b488b6b68"
+    },
+    {
+      "path": "project link show",
+      "handler": "project:link_show",
+      "business_function": "projects",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:1aa1cf9d2b488e32ea7ee0411a0dfce37a9157a05e894c608203f5142857c932"
+    },
+    {
+      "path": "project passport",
+      "handler": "project:passport",
+      "business_function": "projects",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:ad718e7fdc7f4ac8fc534300d961c519f649435771e332980ea801a0a189d235"
+    },
+    {
+      "path": "project revision pull",
+      "handler": "project:revision_pull",
+      "business_function": "synchronization",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:16b9c06dd5f99a530fb5900f22d355f70a4380e880f29fff07e6ca99ed5746c2"
+    },
+    {
+      "path": "project revision push",
+      "handler": "project:revision_push",
+      "business_function": "synchronization",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:0900e579ae57ff42d338186d07612a6463627084eccb82704fae255c5f4c9db6"
+    },
+    {
+      "path": "project symbols",
+      "handler": "project:symbol_index",
+      "business_function": "projects",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:7a3cceeba8e2ee2a77aeb27258726e1045dd91e29a20f84068112885329f38c8"
+    },
+    {
+      "path": "project sync apply",
+      "handler": "project:sync_apply",
+      "business_function": "synchronization",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:9c6a10d8177a63377cc3741e67306578774da0d862ec320c39b778c63d165941"
+    },
+    {
+      "path": "project sync plan",
+      "handler": "project:sync_plan",
+      "business_function": "synchronization",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:f6de70941accc1897ec774c6324f14d1d05ba3bdc8153b99d8f79b604058753a"
+    },
+    {
+      "path": "project technologies",
+      "handler": "project:technologies",
+      "business_function": "technology",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:529c0da82576efa17489ad93561215fff64bbc9c72705199066d51c022232f45"
+    },
+    {
+      "path": "project technology apply",
+      "handler": "project:technology_apply",
+      "business_function": "technology",
+      "v1_task_class": "task_covered",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:3241adc984e34b3e4aa28bcb47e2664a2beade84fc2a162de10c951c1c4ffaa9"
+    },
+    {
+      "path": "project technology confirm",
+      "handler": "project:technology_confirm",
+      "business_function": "technology",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:8783fee797d39356ea20d9aef3ed0671b128245b6e00388bb97735f1868606e4"
+    },
+    {
+      "path": "project technology create",
+      "handler": "project:technology_create",
+      "business_function": "technology",
+      "v1_task_class": "task_covered",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:96510bbc6784a3a3503bf208525a1bce840ae66673b52a8b06b6d2162170e177"
+    },
+    {
+      "path": "project technology create-category",
+      "handler": "project:technology_category_create",
+      "business_function": "technology",
+      "v1_task_class": "task_covered",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:f453a6b393e9935ce82309a80a6143d73ef771d3cfacc0c6cf89bff523f3dc01"
+    },
+    {
+      "path": "project technology mappings fetch",
+      "handler": "project:technology_mapping_fetch",
+      "business_function": "technology",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:3fbda464d9bcc769263c8daff31e52a6c1026803e57b00145c1084c5bf0fb0ca"
+    },
+    {
+      "path": "project technology mappings list",
+      "handler": "project:technology_mappings",
+      "business_function": "technology",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:75ae5dc2ac757658d75812636dfabb4ad39d8aebc843e91ef42b2650b97b5ad4"
+    },
+    {
+      "path": "project technology mappings publish",
+      "handler": "project:technology_mapping_publish",
+      "business_function": "technology",
+      "v1_task_class": "task_covered",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:0e8f8d0264056d6aeab105296b3ad41449eca062f42e891e06e5fe88732ded26"
+    },
+    {
+      "path": "project technology mappings remote",
+      "handler": "project:technology_mapping_versions",
+      "business_function": "technology",
+      "v1_task_class": "task_covered",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:3f0116d1d09674dc87bb5031ada989d2dd11fd5aa1d7decdc6bd8ba1a488e588"
+    },
+    {
+      "path": "project technology override",
+      "handler": "project:technology_override",
+      "business_function": "technology",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:a4b5ffc82df8752bc3f953801a38475974e1365e9eae57c8caa827ec5ab12276"
+    },
+    {
+      "path": "project technology propose",
+      "handler": "project:technology_propose",
+      "business_function": "technology",
+      "v1_task_class": "task_covered",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:1e4c4c1002aa2586e8dbff517a79089b86f27895a32c76f49db3e8c68d47aa81"
+    },
+    {
+      "path": "project technology publish",
+      "handler": "project:technology_publish",
+      "business_function": "technology",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:dbf16c7a20973d2d63dd810445268965783c2a54a33a4ade41f5866cb339da8f"
+    },
+    {
+      "path": "project technology reject",
+      "handler": "project:technology_reject",
+      "business_function": "technology",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:938cbe19060d5bdab5dfcd9547bfed842795aee11c84e5e709c108152cc38917"
+    },
+    {
+      "path": "project technology resolve",
+      "handler": "project:technology_resolve",
+      "business_function": "technology",
+      "v1_task_class": "task_covered",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:8c7f4631f122c7527b1a08386385220ba06d5c9146b7a0f010bb1cdd24273abb"
+    },
+    {
+      "path": "project technology retire",
+      "handler": "project:technology_retire",
+      "business_function": "technology",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:b90886289161cb7fb415838ef142ecc785958e35ee22237d18cd33e8bcbc3c4f"
+    },
+    {
+      "path": "project technology unmapped",
+      "handler": "project:technology_unmapped",
+      "business_function": "technology",
+      "v1_task_class": "task_covered",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:962f838d3ad384e4f63a5e8ec7f9d641b6564dab75e485a84cbbb8bfb86be523"
+    },
+    {
+      "path": "project technology unmapped-remote",
+      "handler": "project:technology_unmapped_remote",
+      "business_function": "technology",
+      "v1_task_class": "task_covered",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:f817d1fcb7b86fdc8f497017fbc2e7c5b52df74e12b1a87eed50f9bd7cd458c5"
+    },
+    {
+      "path": "project unlink",
+      "handler": "project:unlink",
+      "business_function": "projects",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:a12e20a42654ec223093db92a411bd7e60c6a2b84d9eacc9e44cf58744846589"
+    },
+    {
+      "path": "project unlink-plan create",
+      "handler": "project:unlink_plan",
+      "business_function": "projects",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:d85aa09b34fdb52d90273f70272e05ffb2e172b0895d7c6f41c67f4a7f5199be"
+    },
+    {
+      "path": "project unlink-plan show",
+      "handler": "project:unlink_plan_show",
+      "business_function": "projects",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:c201db9e493b0aa34253accacc44af9b8eaa875ffd1ba13f97bad029442fe683"
+    },
+    {
+      "path": "provider check",
+      "handler": "provider:check",
+      "business_function": "software",
+      "v1_task_class": "expert",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:a002af3290808db1ae308f16d300ab9b2beaeedd97863794f1f58a1de5bdd33c"
+    },
+    {
+      "path": "provider conformance",
+      "handler": "select:provider_conformance",
+      "business_function": "software",
+      "v1_task_class": "expert",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:4eae6961df2e068085353107a16700e7ca0ab11523b11c251ee075a4eaaeaf64"
+    },
+    {
+      "path": "provider fetch",
+      "handler": "select:provider_fetch",
+      "business_function": "software",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:9ff86b795e7564492a8064b7a30a290c7e7d07f7e458125b759d8cec6e8e81b0"
+    },
+    {
+      "path": "provider forget",
+      "handler": "provider:forget",
+      "business_function": "software",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:700e15d3b4dc3f49015dc0d4e670ce4fff944de1ccb7179576e57507ae875036"
+    },
+    {
+      "path": "provider network",
+      "handler": "select:provider_network",
+      "business_function": "software",
+      "v1_task_class": "expert",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:e3cdfa3c467805e54aa7ae00c133636c8a3862dfb5f8b714b6c0a3592f73446b"
+    },
+    {
+      "path": "provider reinstall apply",
+      "handler": "provider:reinstall_apply",
+      "business_function": "software",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:692634e257b5a821021ad79c49c50ecbdef83de27fdf2468e7af8d9b017292e6"
+    },
+    {
+      "path": "provider reinstall plan",
+      "handler": "provider:reinstall_plan",
+      "business_function": "software",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:29679272bc5e5ee0a85fe3487d8ec2dc8218f825712008581d55b75adb620aec"
+    },
+    {
+      "path": "provider trust",
+      "handler": "select:provider_trust",
+      "business_function": "software",
+      "v1_task_class": "expert",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:1916213d546d8e3e99be814f82cdf1c967c7b2576ccd9329a841d3f6b273aa01"
+    },
+    {
+      "path": "provider update apply",
+      "handler": "provider:update_apply",
+      "business_function": "software",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:5c0339158e63c34725b054ca4d0741cc62447d1a99d9bab6a3b350bb272693a1"
+    },
+    {
+      "path": "provider update plan",
+      "handler": "provider:update_plan",
+      "business_function": "software",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:ca0a26489bd7fb885973dfc267862b3f680d6496d1220f0d9615cd0206b18836"
+    },
+    {
+      "path": "publication confirm",
+      "handler": "publication:confirm",
+      "business_function": "publication",
+      "v1_task_class": "task_covered",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:478a127b8e4c985d589f4b69586b2a15888ac9ab7e717ad5ccf051f12a25176a"
+    },
+    {
+      "path": "publication plan",
+      "handler": "publication:plan",
+      "business_function": "publication",
+      "v1_task_class": "task_covered",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:d700d2a03575a9de1227924e6b2fbc7ac49a0249372aa077d161ddda96dce335"
+    },
+    {
+      "path": "publication status",
+      "handler": "publication:show",
+      "business_function": "publication",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:3e0aa69ed8656128fab22720810974058924271553c9c10a1a62281f4bd2e83e"
+    },
+    {
+      "path": "publication visibility confirm",
+      "handler": "visibility:confirm",
+      "business_function": "publication",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:39bef37eb887780b2d775af1dd2631425ddbba3768565d28d9489625f4869b2c"
+    },
+    {
+      "path": "publication visibility plan",
+      "handler": "visibility:plan",
+      "business_function": "publication",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:9957dd5bdc2af121d414e1ead31067bd0ce17c232f666de4e72c1efd813c5fd9"
+    },
+    {
+      "path": "publication visibility status",
+      "handler": "visibility:status",
+      "business_function": "publication",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:2705053264d1ffb83978cd5faab6f4817a7bf1302fd6fb8033bf7c231412cc38"
+    },
+    {
+      "path": "registry acquire",
+      "handler": "registry:acquire",
+      "business_function": "catalog_sources",
+      "v1_task_class": "task_covered",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:53f55f175f6288f4d7d7831b0ba550944da4e0df70a09571bcce13ebc2805301"
+    },
+    {
+      "path": "registry fetch",
+      "handler": "registry:fetch",
+      "business_function": "catalog_sources",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:01efa649a9f5f7a037b6eb47ef63e8e43a7632e861b0b333e60e6cefcce9a822"
+    },
+    {
+      "path": "registry port discover",
+      "handler": "registry:port_discover",
+      "business_function": "catalog_sources",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:6f7d682e5eca794c4689f5b12aeb79afad7213386f8d29529796d345294b6904"
+    },
+    {
+      "path": "registry port import",
+      "handler": "registry:port_import",
+      "business_function": "catalog_sources",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:4d0f9135a1eb728372b1e58a5968a6c78baf8375a933d3188133c0b3686a0f80"
+    },
+    {
+      "path": "registry port inspect",
+      "handler": "registry:port_inspect",
+      "business_function": "catalog_sources",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:397c8cafcfcde159ba121519faadfe826c8b378fbff7069c04f2a83c027c1e89"
+    },
+    {
+      "path": "registry port plan",
+      "handler": "registry:port_plan",
+      "business_function": "catalog_sources",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:d8c05a469ee1f2071c4cbb27b51523aadb7170eecef40d9285d9204d0919b850"
+    },
+    {
+      "path": "registry search",
+      "handler": "registry:search",
+      "business_function": "catalog_sources",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:6cdb5219ecc75ced3656d27f093705e7601f214e2a625fda2f5f75aaeee33d38"
+    },
+    {
+      "path": "registry show",
+      "handler": "registry:show",
+      "business_function": "catalog_sources",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:9c39799d48e7ebdc7b7c0b7752676dc1029bfb44ba1d23eee3932648905f3040"
+    },
+    {
+      "path": "registry version",
+      "handler": "registry:version",
+      "business_function": "catalog_sources",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:eaa4f27c7919013c07e7e93b321e900570914d4e0e7472c421d3b654f6784165"
+    },
+    {
+      "path": "report confirm",
+      "handler": "reports:confirm",
+      "business_function": "assurance",
+      "v1_task_class": "expert",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:97160061fcffc2242877afc9ee4a6488f05a4cf2042b759781373989338d1a73"
+    },
+    {
+      "path": "report list",
+      "handler": "reports:list_all",
+      "business_function": "assurance",
+      "v1_task_class": "expert",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:acaa154ad5d60ddabbf586fe146402ac3edadd4150e9b101e5524740c2ee7175"
+    },
+    {
+      "path": "report preview",
+      "handler": "reports:preview",
+      "business_function": "assurance",
+      "v1_task_class": "expert",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:64f488c7259313be3a793b915bd8b6741466ca7f14e5f0f12d33232429003b90"
+    },
+    {
+      "path": "report status",
+      "handler": "reports:status",
+      "business_function": "assurance",
+      "v1_task_class": "expert",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:ec6f67e867ea8210dc89048d7a22ad28df1848aedb6fd478bd41d2d6211fe7e6"
+    },
+    {
+      "path": "schema list",
+      "handler": "machine_help:schema_list",
+      "business_function": "orientation",
+      "v1_task_class": "inspect",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:5a93b431dfc3b679ca2feaedd04427e9e02e7d47b93cb4c3e66b5439f0801a49"
+    },
+    {
+      "path": "schema show",
+      "handler": "machine_help:schema_show",
+      "business_function": "orientation",
+      "v1_task_class": "inspect",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:3da148541d60ef999f997492400ab328cc3ffc7f3abe98c6995e88e7b7778852"
+    },
+    {
+      "path": "select blast-radius",
+      "handler": "select:blast_radius",
+      "business_function": "selection",
+      "v1_task_class": "expert",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:a913ca7eb187662c7155cb856925346396ec3b5345cce9574d485e51136ecf0e"
+    },
+    {
+      "path": "select bundle",
+      "handler": "select:harness_bundle",
+      "business_function": "selection",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:490c37f9167162b39508c69122766fa33124950b098b2fbac9c82da69fe9c87b"
+    },
+    {
+      "path": "select cancel",
+      "handler": "select:cancel",
+      "business_function": "selection",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:922d3997a6822968b803094a44ee54fbfa623b43310bece20f7d95668ab5191f"
+    },
+    {
+      "path": "select confirm",
+      "handler": "select:confirm",
+      "business_function": "selection",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:443a01cb3c999703874edd25d5924994541bd9e117a0c64d3fe1cee6e5fc6411"
+    },
+    {
+      "path": "select eligibility",
+      "handler": "select:eligible",
+      "business_function": "selection",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:f12d7cfa927ba1bd55a4fbbe5c29033273a7138e3d414e2582cb52732d0706e7"
+    },
+    {
+      "path": "select eligibility-matrix",
+      "handler": "select:eligible_everywhere",
+      "business_function": "selection",
+      "v1_task_class": "expert",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:6da35a54dbe7dab5e06536bbc4c8cc792498c1637bd32612999fced8afca1d74"
+    },
+    {
+      "path": "select graph",
+      "handler": "select:dependency_graph",
+      "business_function": "selection",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:3868f630dbd11467dbcc2e931d9c028b524cc919d3f8f0eda8100cf8dba7b03c"
+    },
+    {
+      "path": "select impact",
+      "handler": "select:impact_report",
+      "business_function": "selection",
+      "v1_task_class": "expert",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:cbaa8f8e25be1c52c2afc36900996ecc31f2e3b7f00732fb2288529d66d52a10"
+    },
+    {
+      "path": "select propose",
+      "handler": "select:propose",
+      "business_function": "selection",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:e0e85f7959df698ea1d51515944b56e46a34b83d1fa1bfb0421da185c9f0c01c"
+    },
+    {
+      "path": "select reports",
+      "handler": "select:reports",
+      "business_function": "selection",
+      "v1_task_class": "expert",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:9ea2b3cd5fdc26cc7aa8c1fd2ccd53bd7d853f678d0177234409fc1cdfec6ad5"
+    },
+    {
+      "path": "select session",
+      "handler": "select:session",
+      "business_function": "selection",
+      "v1_task_class": "expert",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:cd8ee75584f7154246fd72a63abbb3c4be167678681a375839027d86f7d7eb37"
+    },
+    {
+      "path": "setup compose apply",
+      "handler": "setup_compose:apply",
+      "business_function": "authoring",
+      "v1_task_class": "task_covered",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:a553cba0057d05acc69c524bff7afe02a04927b19c9c372cf0fbe84d2638df84"
+    },
+    {
+      "path": "setup compose plan",
+      "handler": "setup_compose:plan",
+      "business_function": "authoring",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:c7215e8d20a05e0b2e45787684f4224ea49070079a4978f557bb01a5b50ad66c"
+    },
+    {
+      "path": "setup export",
+      "handler": "setup_compose:export",
+      "business_function": "authoring",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:d5d45bab4e40e99cd09702b2c7cd50814b5dfea90f98a05d6360ce8f8da67c71"
+    },
+    {
+      "path": "setup import inspect",
+      "handler": "project:import_inspect",
+      "business_function": "authoring",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:c754fb01a51fead105084998c4aec053b7cb1886ea00a29d290dc0ab3578fe99"
+    },
+    {
+      "path": "setup import plan",
+      "handler": "project:import_plan",
+      "business_function": "authoring",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:55121bc1f22498a340aa896e44cfa245325844cc66714afe26039f98d5812fec"
+    },
+    {
+      "path": "setup import register",
+      "handler": "project:import_register",
+      "business_function": "authoring",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:b54dbd0e40120a2de8aaae103f57bbe22e2da7c79b4bf4517538590b5f2ecf33"
+    },
+    {
+      "path": "setup preserve plan",
+      "handler": "preserved_setups:preserve_plan",
+      "business_function": "installation",
+      "v1_task_class": "task_covered",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:b6099d9037fc2dd59bfee9cb239ce2293698c159bbcd056ad5b92dea49a57870"
+    },
+    {
+      "path": "setup preserve recover",
+      "handler": "install:recover_preserved",
+      "business_function": "installation",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:593db973ee8b7e59b878cc5ffe9b0edffdc3ab4672c75867dbb8fa8b883e7d17"
+    },
+    {
+      "path": "setup preserved list",
+      "handler": "preserved_setups:list_saved",
+      "business_function": "installation",
+      "v1_task_class": "task_covered",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:ba6cad84002e8b9817d3dc17e52428940021ee4e9d1cbd064ff94b57fdc297ab"
+    },
+    {
+      "path": "setup preserved show",
+      "handler": "preserved_setups:show",
+      "business_function": "installation",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:f010f27cf4da678ebf775d3bd050a43a84f5c61f316e0dcafa4caa9f0bfe1b90"
+    },
+    {
+      "path": "setup publish confirm",
+      "handler": "setup_publication:confirm",
+      "business_function": "publication",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:ab9af65ac1aac717fdaf453c39c76d5f7bf34eef662c23901456f71a9da01448"
+    },
+    {
+      "path": "setup publish plan",
+      "handler": "setup_publication:plan",
+      "business_function": "publication",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:fc03c603bfd319923722e0b3d43e5611ef6382e3226f87a22c0e68bb95148698"
+    },
+    {
+      "path": "setup recast apply",
+      "handler": "setup_recast:apply",
+      "business_function": "authoring",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:274173e0fb9de0df003470916752ed0ac456e533be801eca581d99f5063d56f6"
+    },
+    {
+      "path": "setup recast plan",
+      "handler": "setup_recast:plan",
+      "business_function": "authoring",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:90b7978b40a407ddb09e34f4390370ce52b95eafd85539efffe3c763bcde2bd9"
+    },
+    {
+      "path": "setup restore plan",
+      "handler": "preserved_setups:restore_plan",
+      "business_function": "installation",
+      "v1_task_class": "task_covered",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:b6dc87a0d4238a51260d51556053c28646bed080fe36bff00484e87b1bcde20a"
+    },
+    {
+      "path": "setup scaffold apply",
+      "handler": "setup_scaffold:apply",
+      "business_function": "authoring",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:2d56f4f75e7588c0f774a888b5ca25fde9cdb4372e5388278929deb2057e382c"
+    },
+    {
+      "path": "setup scaffold plan",
+      "handler": "setup_scaffold:plan",
+      "business_function": "authoring",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:c3ce5ce6d5e9f67fbb6570ca2ee4d717e2965e7f459d74c96a85e6143a5d5984"
+    },
+    {
+      "path": "setup update apply",
+      "handler": "setup_update:apply",
+      "business_function": "installation",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:1a8becdcffe541edc6ee8b985b15dea2c554a34ae8b94acd330b5cd7de7a8693"
+    },
+    {
+      "path": "setup update plan",
+      "handler": "setup_update:plan",
+      "business_function": "installation",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:37a2f8a413e05c3795b3c04a2fa28f9dd1e177e1f91784251ca854c41ffa316a"
+    },
+    {
+      "path": "skill install",
+      "handler": "skill:install",
+      "business_function": "software",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:b1df1db69d198a034422b4d2e5e014277a4f222bf6ac17f7619d1fe13279ac6a"
+    },
+    {
+      "path": "skill remove",
+      "handler": "skill:remove",
+      "business_function": "software",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:b3663e9b6b2a3d48c610138c3ad3c413eb9c8e605c1fd1961b1ba2b68a1a12d9"
+    },
+    {
+      "path": "skill status",
+      "handler": "skill:status",
+      "business_function": "software",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:e41fa93eb758ba0684f962c98433d33e5e2c27bf1a97f45887cdcbbdb157623d"
+    },
+    {
+      "path": "sync merge",
+      "handler": "sync:merge",
+      "business_function": "synchronization",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:e5d7d468aa30addb61694b5853126708a4482017399a86f695ff31cb42d08071"
+    },
+    {
+      "path": "sync preview",
+      "handler": "sync:preview",
+      "business_function": "synchronization",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:75fda5ccc58eacfd495bfaa559519f11246adc029a1137a4eeb98134d94bdf4b"
+    },
+    {
+      "path": "sync pull",
+      "handler": "sync:pull",
+      "business_function": "synchronization",
+      "v1_task_class": "task_covered",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:231d0ceafb1b1f5349fbc869afe8f25c704afff612696cdd66a38ab87f31fbdc"
+    },
+    {
+      "path": "sync push",
+      "handler": "sync:push",
+      "business_function": "synchronization",
+      "v1_task_class": "task_covered",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:83a5f753082d3bbb5be5b2a73940a8bb2adb9bc778c5a7f4e5123b75c7eb14c6"
+    },
+    {
+      "path": "target backups",
+      "handler": "install:target_backups",
+      "business_function": "installation",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:b984a40be9d4a621d403980868e5e172f39e4c4ed80cffd94121e1e6cc6b45a9"
+    },
+    {
+      "path": "target diff",
+      "handler": "install:target_diff",
+      "business_function": "installation",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:1ad4cf9476b7a757fbfa16ec3daf6c50dda3958a4fea92dcec865da00c195145"
+    },
+    {
+      "path": "target rollback",
+      "handler": "install:target_rollback",
+      "business_function": "installation",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:79b5dadcbf66e0cca626667ad6679a88d4ade8265c76ddc502df3aba3c846c21"
+    },
+    {
+      "path": "target status",
+      "handler": "install:target_status",
+      "business_function": "installation",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:bdee9b426b227ef9aac5c9b9d51f0a496022ed50b7944a581dc99c893a1a1676"
+    },
+    {
+      "path": "task answer",
+      "handler": "task:answer",
+      "business_function": "workflow",
+      "v1_task_class": "task_covered",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:d7cef9488163221a2b74362e6a279146472365128387aad958a2778368f8aa5b"
+    },
+    {
+      "path": "task cancel",
+      "handler": "task:cancel",
+      "business_function": "workflow",
+      "v1_task_class": "task_covered",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:89a3bebce9c5b74c1c82478ee2952ca7161b9c452a6429270c4cb5ec41fe7476"
+    },
+    {
+      "path": "task continue",
+      "handler": "task:continue_",
+      "business_function": "workflow",
+      "v1_task_class": "task_covered",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:ce11a17a5aa7bcaafcd8b7c08c5a37ae51e15e38642df3348c48f7c475edab0f"
+    },
+    {
+      "path": "task intents",
+      "handler": "task:intents",
+      "business_function": "workflow",
+      "v1_task_class": "inspect",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:1a575901da3881d701438e4eb00fded9ff4873f5ecb8fd19137b8eb5d9374b5d"
+    },
+    {
+      "path": "task list",
+      "handler": "task:list_",
+      "business_function": "workflow",
+      "v1_task_class": "inspect",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:2b5b3a2069466669f8998cfeb0abed9ac96ef39b42d0180a4d6617e18592b1a1"
+    },
+    {
+      "path": "task start",
+      "handler": "task:start",
+      "business_function": "workflow",
+      "v1_task_class": "task_covered",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:3c45ca193c375f6623233f6a48740ea90c246d34dc260ef9050dcdf033015c9f"
+    },
+    {
+      "path": "task status",
+      "handler": "task:status",
+      "business_function": "workflow",
+      "v1_task_class": "task_covered",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:27558f95391924425b6dfc1fce7a73f70875cff56d0d0f8ed01b78f4c5406025"
+    },
+    {
+      "path": "telemetry consent",
+      "handler": "telemetry:consent",
+      "business_function": "governed_operations",
+      "v1_task_class": "expert",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:06c40ad40ab0eab9022f5349f79ffa6832a82b507e37dabc0610cdb18048fa5a"
+    },
+    {
+      "path": "telemetry show",
+      "handler": "telemetry:show",
+      "business_function": "governed_operations",
+      "v1_task_class": "inspect",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:8152a35c3735844e223e484b3a9513ee27c7e4fa4f58239eaa84e454033832dd"
+    },
+    {
+      "path": "toolchain harness-capabilities",
+      "handler": "toolchain:harness_capabilities",
+      "business_function": "software",
+      "v1_task_class": "inspect",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:d11db71afcbf0d438014f94a3a6a29066f8407b71f075b662473dc05293682b9"
+    },
+    {
+      "path": "toolchain harnesses",
+      "handler": "toolchain:harnesses",
+      "business_function": "software",
+      "v1_task_class": "inspect",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:5a35ad0e94999f0b502f0aa2052de5475bf9733e25c36fadf41505ae3fe040d8"
+    },
+    {
+      "path": "toolchain install",
+      "handler": "toolchain:install_tool",
+      "business_function": "software",
+      "v1_task_class": "expert",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:6e7eebe8d5d5b3df25f766d6bf42de98896eaf3f5909495952be23507550f7b7"
+    },
+    {
+      "path": "toolchain profile",
+      "handler": "toolchain:profile",
+      "business_function": "software",
+      "v1_task_class": "inspect",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:a887e41695d957539c0513f39d04f4bce24ab67284669d7e2a6b3ce2a60b85e8"
+    },
+    {
+      "path": "toolchain remove",
+      "handler": "toolchain:remove_tool",
+      "business_function": "software",
+      "v1_task_class": "expert",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:c039eed2e46da2e25f850b7f4f565261d2ade60f5687803d84584fbeb6637c1c"
+    },
+    {
+      "path": "update apply",
+      "handler": "update:apply",
+      "business_function": "cli_lifecycle",
+      "v1_task_class": "expert",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:d871a86dacffba165ce6974788d4e8f79adcbfb2877e9534943e56b4ea3539ff"
+    },
+    {
+      "path": "update check",
+      "handler": "update:check",
+      "business_function": "cli_lifecycle",
+      "v1_task_class": "inspect",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:de2a16ff160053d0109cf79f2f7c60078e42759a6c7214bed0c3c986560cc260"
+    },
+    {
+      "path": "update plan",
+      "handler": "update:plan",
+      "business_function": "cli_lifecycle",
+      "v1_task_class": "expert",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:3cd05c78fb0c0179c7a381a4efe8034d24712127c60ffc180942257d6110e37b"
+    },
+    {
+      "path": "update recover",
+      "handler": "update:recover",
+      "business_function": "cli_lifecycle",
+      "v1_task_class": "expert",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:e4b5091c9db506f93d7c6800f239409077b6cb6f6dea1f51ca3c19e2c19b83f5"
+    },
+    {
+      "path": "update rollback",
+      "handler": "update:rollback",
+      "business_function": "cli_lifecycle",
+      "v1_task_class": "expert",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:03096ad981e498e0134bc595c85c437c8dee4ee9593b827a36e19fe9d4b35254"
+    },
+    {
+      "path": "update status",
+      "handler": "update:status",
+      "business_function": "cli_lifecycle",
+      "v1_task_class": "inspect",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:2e23d1fbfac636d0028b265d0b75f6717f8d77cb33a6789c23b69946d089a0eb"
+    },
+    {
+      "path": "usage events",
+      "handler": "usage:events",
+      "business_function": "governed_operations",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:38856f78865f762340b03d262b056b5e006f218826614c680d71d79c8c55d943"
+    },
+    {
+      "path": "usage export",
+      "handler": "usage:export",
+      "business_function": "governed_operations",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:17d81de4e6c15c206faf1f4c5b34ae400ea566fb2194814256edbe7caa73aba7"
+    },
+    {
+      "path": "usage flush",
+      "handler": "usage:flush",
+      "business_function": "governed_operations",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:ae7563f6de048aac2b0175980ba2ae9240635e859ebf9dd7d5dd362c639f3e1f"
+    },
+    {
+      "path": "usage hook",
+      "handler": "usage:hook",
+      "business_function": "governed_operations",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:a0e799ad1707a905bb3290812d285d6e6f969dfc9e09e96efba7b55e819689f9"
+    },
+    {
+      "path": "usage outbox",
+      "handler": "usage:outbox",
+      "business_function": "governed_operations",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:5ad6402384b80bc58229c230d14b62cd8ccb5204bf7d8a03789ea607070e81b0"
+    },
+    {
+      "path": "usage record",
+      "handler": "usage:record",
+      "business_function": "governed_operations",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:d4277e9aec1b1bc0a5afbe28d34337f59a8dc444d6e7a0a10294fda97f962ada"
+    },
+    {
+      "path": "usage report",
+      "handler": "usage:report",
+      "business_function": "governed_operations",
+      "v1_task_class": "task_pending",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:ae2503808f91216958f16af3a9590eb68fc4116a728fe1a6351b967fd56efa3c"
+    },
+    {
+      "path": "version",
+      "handler": "version:run",
+      "business_function": "orientation",
+      "v1_task_class": "inspect",
+      "disposition": "retain",
+      "descriptor_digest": "sha256:b18ee30a434dbdfcfe0ba13a7b52b68b4a7f4813ebb46b3999333728fccc28fe"
+    }
+  ],
+  "record_digest": "sha256:24769a1d24b8713132e3b5ab6e046f383e33ce08b3cee88a8e8da0ef002279de"
+}

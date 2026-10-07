@@ -11,6 +11,7 @@ last_verified: "2026-08-03"
 | -------- | ----- | ------- |
 | [catalog-search-benchmark.md](catalog-search-benchmark.md) | How to measure catalog search latency on PostgreSQL without a new harness. | 2026-10-05 |
 | [cli-performance.md](cli-performance.md) | Measured CLI command costs, resolved bottlenecks, and budgets. | 2026-10-07 |
+| [cli-v2-scope.md](cli-v2-scope.md) | Code-derived business scope, compatibility risks and baseline evidence for the Rust CLI migration. | 2026-10-07 |
 | [coding-rules.md](coding-rules.md) | Rules for errors, I/O, security, and predictable behavior. | 2026-08-03 |
 | [corporate-navigation-access-plan.md](corporate-navigation-access-plan.md) | Evidence, design comparison, dependency order, and task reconciliation for corporate navigation and People and Access. | 2026-09-30 |
 | [corporate-workspace-change-requests.md](corporate-workspace-change-requests.md) | Executable change-request ledger for the Corporate Hub consolidation. | 2026-09-18 |
