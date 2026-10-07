@@ -21,7 +21,7 @@ last_verified: "2026-08-03"
 | [gitlab-discovery.md](gitlab-discovery.md) | Operate per-tenant GitLab discovery and retained provider observations. | 2026-09-22 |
 | [installation-recovery.md](installation-recovery.md) | Runbook: installation recovery. | 2026-08-03 |
 | [local-oidc-sso.md](local-oidc-sso.md) | Runbook: standing up local authentik and Keycloak and verifying corporate OIDC SSO end to end. | 2026-09-29 |
-| [official-upstream-components.md](official-upstream-components.md) | Runbook: operator-managed official GitHub and package upstream component snapshots. | 2026-10-05 |
+| [official-upstream-components.md](official-upstream-components.md) | Runbook: operator-managed official GitHub and package upstream component snapshots. | 2026-10-07 |
 | [platform-evidence.md](platform-evidence.md) | Native platform evidence for the exact CLI candidate without publish or deploy authority. | 2026-09-29 |
 | [provider-lifecycle.md](provider-lifecycle.md) | Discovery, version checking, updating, and reinstalling a setup-system provider. | 2026-09-04 |
 | [provider-update.md](provider-update.md) | Runbook: provider update. | 2026-08-28 |
