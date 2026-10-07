@@ -111,7 +111,10 @@ install gets, and smoke-checking the frozen binary's `version --json` and
 `doctor --json` before it is embedded — and runs
 `apps/desktop/scripts/test-bundled-sidecar.sh`, the spawn test under the app's
 filtered environment, so a bundled CLI that cannot start on a real OS does not
-ship. `SHA256SUMS` covers every published artifact.
+ship. After `tauri build`, `just desktop-bundle-test` probes the resource tree
+from an extracted Linux deb, the macOS app, or an administratively extracted
+Windows MSI, without installing the app. `SHA256SUMS` covers every published
+artifact.
 
 It does not prove code integrity by signature — the bundles are unsigned
 (`SHA256SUMS` is the integrity record), the CI never launches the installed

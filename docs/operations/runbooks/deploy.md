@@ -439,10 +439,10 @@ after the new commit answers does `verify-public` record the readback.
 | broad CI → ref move | one `check` run | required checks on `main` |
 | host pull tick | ≤ 1 min | the systemd timer period |
 | build / migrate / restart | measured 29–31 min per roll warm, ~75 min cold | image rebuilds on the host |
-| service transition | seconds-scale probe blips warm; a sustained 502 window is possible when a cold rebuild leaves replacement containers `Created` behind stopped old ones | container swap |
+| service transition | brief readiness failures can occur during the sequential service swaps; image builds finish before serving containers are replaced | container swap |
 | promote → public readback | ≤ 65 min (`verify-public` wait = two queued rolls); a cold rebuild can exceed it — the host finishes and a `verify-public` rerun proves the same ref | the two phases above |
 
-Three measured rolls:
+Historical measurements before the October 5 serving-order repair:
 
 - `b35536eb` (job 108114839932, 2026-09-25): first probe 14:38:06Z, success
   14:54:51Z after 55 attempts; discrete 503/502 probe failures at 14:38:06,
@@ -462,9 +462,13 @@ Three measured rolls:
 
 Accepted target: the previously deployed artifact keeps answering throughout a
 roll; readiness probes may fail discretely (seconds) while containers swap.
-On a cold rebuild the swap window is not seconds — it is bounded by the build,
-and nginx has no maintenance page, so the gap reads as sustained 502.
-A sustained readiness failure beyond the cold-build window, a roll exceeding
+Since `#678`, image builds complete first and `start_serving_services` uses
+`--no-deps`, replacing each serving service once after migration and seed.
+The historical cold-build outage above is a diagnosed failure, not an accepted
+availability target for the current implementation. On `79e0dc09`, migration
+and seed each ran once and the web restart took three seconds; six sampled
+502 responses still prevent a zero-downtime claim.
+A sustained readiness failure during an image build, a roll exceeding
 the 65-minute bound with the host idle, or a readback naming the wrong commit
 is a breach to investigate—not a condition to poll longer against. Discrete
 failed probes are transition noise, not an outage duration: the probe cadence
@@ -554,7 +558,7 @@ curl -fsS -o /dev/null -w '%{http_code}\n' "$ORIGIN/v1/health/ready"
 | File | Purpose |
 | ---- | ---------- |
 | `deploy/docker/Dockerfile.web` (`dev`) | bun + `next dev`, EXPOSE 3000 |
-| `deploy/docker/Dockerfile.web` (`prod`) | multi-stage standalone → `node:22.18.0-slim`, non-root uid 10001 |
+| `deploy/docker/Dockerfile.web` (`prod`) | multi-stage standalone → digest-pinned `node:24-slim`, non-root uid 10001 |
 
 ```bash
 docker build -f deploy/docker/Dockerfile.web --target dev -t ai-stp-web:dev .

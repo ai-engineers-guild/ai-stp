@@ -1,11 +1,12 @@
 ---
 description: "Decision to own the AI STP Official inventory in Git and reconcile it through a durable outbox, queue, ledger, and transfer fence."
-last_verified: "2026-09-04"
+last_verified: "2026-10-07"
 ---
 
 # ADR-0153: Git-owned Official registry and recoverable synchronization
 
-Status: proposed.
+Status: accepted. Implemented by the Official manifest, outbox, sync ledger,
+reconciliation and ownership fence in `ai_stp_platform.official_upstream`.
 
 ## Context
 

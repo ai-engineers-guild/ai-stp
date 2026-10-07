@@ -1,6 +1,6 @@
 ---
 description: "Rules of Python, Node, external tools, and provider dependencies."
-last_verified: "2026-10-05"
+last_verified: "2026-10-07"
 ---
 
 # Dependency Policy
@@ -35,6 +35,12 @@ the reason and the condition that ends the deferral, so the decision survives
 the session that made it. Advisory exceptions are not listed: they live beside
 the lockfile in `osv-scanner.toml`, where `ignoreUntil` makes the gate fail
 again on its own.
+
+Rechecked on October 7 against the primary release metadata: `yara-python`
+4.5.4 still has no cp314 wheel; the three ESLint plugins below retain peers
+through 9; `@hey-api/json-schema-ref-parser` 1.4.4 still pins `js-yaml` 4.2.0;
+Dependabot's linked fix remains open. The httpx2 migration documentation still
+specifies the OS trust store. None of these exit conditions has been met.
 
 | Migration | Why it waits | Ends when |
 |---|---|---|

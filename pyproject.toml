@@ -138,6 +138,15 @@ select = ["E", "F", "W", "I", "UP", "B", "C4", "SIM", "PTH", "RUF"]
 
 [tool.pyright]
 include = ["packages", "apps", "tests", "docs_scripts", "release_scripts"]
+# Frozen desktop resources and Rust build output contain copies of sources,
+# not additional Python modules owned by this workspace.
+exclude = [
+    "**/node_modules",
+    "**/__pycache__",
+    "**/.*",
+    "apps/desktop/**/target",
+    "apps/desktop/src-tauri/sidecar",
+]
 # Product code and its tests are strict; the documentation validators run at
 # basic level until their full typing lands.
 typeCheckingMode = "basic"

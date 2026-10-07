@@ -17,8 +17,8 @@ case "${triple}" in
   *) suffix="" ;;
 esac
 
-export AI_STP_SIDECAR_EXE="${repo_root}/apps/desktop/src-tauri/sidecar/ai-stp-desktop-cli-${triple}${suffix}"
+export AI_STP_SIDECAR_EXE="${AI_STP_SIDECAR_EXE:-${repo_root}/apps/desktop/src-tauri/sidecar/cli/ai-stp-desktop-cli${suffix}}"
 cd "${repo_root}/apps/desktop/core"
 # `--exact` guards the repo's own green-meant-nothing mode: a substring
 # filter that matches nothing still exits 0, so name the test precisely.
-cargo test --test integration -- --exact bundled_sidecar_spawns_under_runner_env --nocapture
+cargo test --locked --test integration -- --exact bundled_sidecar_spawns_under_runner_env --nocapture
