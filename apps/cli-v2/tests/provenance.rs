@@ -70,7 +70,9 @@ fn public_pypi_evidence_and_adversarial_variants() -> Result<(), Box<dyn Error>>
                     }
                 };
                 let mut bytes = STANDARD.decode(field.as_str().ok_or("base64")?)?;
-                bytes[0] ^= 1;
+                // Keep DER framing intact: this must fail verification, not
+                // merely parsing of the signature's sequence tag.
+                *bytes.last_mut().ok_or("empty evidence")? ^= 1;
                 *field = STANDARD.encode(bytes).into();
             }
         }
