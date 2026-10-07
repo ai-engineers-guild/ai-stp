@@ -1,6 +1,6 @@
 ---
 description: "Runbook: reproducible deployment with a web tier, backups, and rollback."
-last_verified: "2026-10-04"
+last_verified: "2026-10-07"
 ---
 
 # Production deployment
@@ -74,6 +74,19 @@ gh api --method PATCH repos/ai-engineers-guild/ai-stp/git/refs/heads/deploy/prod
 The host timer deploys it as usual. When `check` later succeeds, `promote`
 writes the same SHA, a no-op, and `verify-public` still records the readback.
 Used on 2026-10-05 for `980438b4` during a two-hour runner-assignment incident.
+
+### October 7 stabilization receipt
+
+The `e7964854` deployment completed at 19:01:21 UTC; API, web, docs, worker and
+all four supporting containers were healthy. The API reports migration
+`0115_saml_sso_request`. API recreate-to-healthy took 19 seconds
+(19:00:17–19:00:36), with no forced-stop messages in the Docker journal.
+An external observer sampling about every five seconds saw 88 HTTP 200 replies,
+three 502 replies during that replacement and one earlier transport timeout
+during the image build. This single-instance deployment does not claim zero
+downtime; the sample is an availability observation, not a continuous outage
+measurement. The final readiness checks passed database, migrations and object
+storage. Disk usage after replacement was 57%, with 33 GiB free.
 
 ## Host preparation
 

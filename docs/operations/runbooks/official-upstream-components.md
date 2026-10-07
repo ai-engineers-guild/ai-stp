@@ -115,6 +115,18 @@ the normal worker still determines publication and verification. The other
 16 enabled sources keep their existing coordinates. A local archive probe is
 not a substitute for the publication pipeline.
 
+Production reconciliation on October 7 at release SHA `e7964854` reports the
+same 17/35 scheduling split and manifest digest
+`sha256:92ce68c3db017e2b996f6d9141eeba5b50afdde6135191798add414e4f318187`.
+One audited manual Agent Browser job, `33882` (attempt `1613`), completed at
+19:04:19 UTC and published `1.0` from upstream commit
+`98e8c79e2a1a8a8e7a88f22e4dbe89bfac232eba`. All 16 required checks passed.
+The [public version readback](https://ai-stp.aiguild.space/v1/catalog/components/component_01M1MEBR369ZWN0ERB08GN78ZA/versions/1.0)
+reports artifact digest
+`sha256:79a4da99d293c8b6ae5fc93784177f8781c762e221d021442818b59caeb2989c`,
+`author_verified: true`, `component_verified: false`, and the experimental trust
+line. Passed pipeline checks do not grant independent component verification.
+
 Re-enabling is a reviewed manifest change followed by reconciliation and a
 new worker attempt. Record its exact resolved revision and final evidence.
 Do not widen archive limits, suppress a detector, or select an arbitrary
