@@ -1,6 +1,6 @@
 ---
 description: "Current ai_stp status and the ordered plan for remaining work."
-last_verified: "2026-10-05"
+last_verified: "2026-10-07"
 ---
 
 # Current status and plan
@@ -15,18 +15,80 @@ true as of their dates, not a queue to replay.
 
 ## Remaining work
 
-Ordered by what it unblocks. Each row names the evidence that closes it and
-who decides.
+The October 7 audit starts from `dev` at `ba8bcd0a` and production at
+`d9edaaf2`. Each wave is checked against the implemented boundary before it
+changes. Work branches enter `dev` by PR; exact-SHA checks precede promotion
+to `main`, and the deployment is read back independently. Reverting the
+individual fix commit through the same flow is the default rollback; existing
+published versions, deployment records and database rollback copies are kept.
 
 | # | Work | Current state | Closes when |
 |---|---|---|---|
-| 1 | Desktop sidecar cold start | PyInstaller `--onefile` unpacks the frozen CLI on every call; a `--onedir` freeze measured 0.4–0.5 s faster per call | The CLI ships as a `--onedir` tree through Tauri resources, with `ADR-0222` §7 amended and all three bundles probed |
-| 2 | Official manifest curation | 5 of 52 Official sources fail validation, and 19 refused their archive when last reached on 2026-10-03 (binary, link or special file, secret-like path, oversize); the rate limit in row 3 has hidden the archive refusals since | The maintainer narrows `component_subpath`, replaces, or removes each entry; `failed_permanent` attempts name the code |
-| 3 | Worker GitHub token | On 2026-10-05, 37 of 52 daily syncs dead-lettered on GitHub's unauthenticated rate limit, five attempts within fifteen minutes; that run predates `#666`, and the 2026-10-06 00:00 UTC run is the first to retry at the reset | The 2026-10-06 run shows whether reset-aware retries alone complete the set; a token is an owner decision on `AI_STP_WORKER_GITHUB_TOKEN`, a new credential |
-| 4 | PostgreSQL 16 rollback copy | Volume `ai_stp_pgdata` keeps the 16.15 cluster after the 18.6 upgrade | Owner decision to remove it |
-| 5 | Desktop code signing | Bundles are unsigned (`ADR-0222` §7) | Certificates exist and distribution requires them |
-| 6 | Deferred dependency migrations | `httpx2`, Python 3.14 server images, ESLint 10, `js-yaml` 5, Dependabot for `bun` | Each exit condition in `dependency-policy.md` |
-| 7 | Windows process-contract flake | `toolchain harnesses --json` returned no envelope on `windows-latest` on 2026-10-03 and 2026-10-05 | The next occurrence, which now reports exit code and stderr, names the cause |
+| 1 | Desktop registry freshness | `AppState::command_registry` refreshes `checked_at` on cache hits that perform no CLI probe; frequent calls can indefinitely postpone digest verification | A regression drives repeated reads and a changed digest; the 30-second interval is measured from the last actual verification, with failures still refusing stale capabilities |
+| 2 | Official download memory bound | `official_upstream/github.py::default_fetch` buffers the complete HTTP body before the shared resolver checks its limit | Streaming enforces the existing maximum, closes the response on early refusal, and tests cover misleading or absent length headers and transport failure |
+| 3 | Official manifest curation | Read-only production queries on October 7 show 31 `unsafe_archive`, 5 `failed_validation`, and 16 successful sources on both October 6 and 7 | Every source has a reproduced, specific disposition; corrected subpaths preserve the declared object, unsupported snapshots stay visibly refused or paused, and safety checks and published identities remain intact |
+| 4 | Desktop sidecar cold start | PyInstaller `--onefile` extracts the frozen CLI on every invocation; the existing measurement found a 0.4–0.5 s saving with `--onedir` | The complete tree ships through Tauri resources, installed resource resolution and filtered-env spawning pass, Linux packages are inspected, all three CI bundles pass, and ADR-0222 describes the resulting layout |
+| 5 | Deferred dependency exit conditions | `httpx2`, server Python 3.14, ESLint 10, `js-yaml` 5 and Dependabot for `bun` have dated blockers | Primary upstream sources and the actual lockfiles support either a verified migration or an updated, concrete deferral in `dependency-policy.md` |
+| 6 | Release and synchronization | `dev` includes the already merged SAML change absent from production; CLI and desktop releases remain 0.0.42 and 0.0.7 | Affected local checks and exact-SHA CI pass; release checksums, local installation, remote refs and production readbacks agree with their respective release records |
+| 7 | Documentation and memory reconciliation | Earlier sessions contain completed tasks, superseded measurements and owner exclusions alongside genuine defects | Current documents describe the final code, dated checkpoints live in history, generated indexes are regenerated, and project memories link to current evidence |
+
+### Verification and stop conditions
+
+For rows 1 and 4, use `just desktop-check`, the real bundled-sidecar probe and
+the three-OS desktop workflow. For rows 2 and 3, use focused shared-source and
+Official tests, PostgreSQL integration tests, `just back-static`, and the
+backend gate. `just docs-check` proves document and generated-index changes;
+the complete `check` workflow proves the integration and promotion heads.
+Process-terminating local tests run in an isolated PID namespace. Python gate
+commands share one environment and are run sequentially to avoid dependency
+installation races.
+
+After each wave, fetch remote refs, review the exact diff, check the affected
+invariants, revisit the relevant upstream guidance and record actual results.
+A new finding joins this table only after reproduction against code. A failed
+compatibility or security check is a refusal, never a reason to weaken the
+check or label incomplete evidence as passed.
+
+Primary references checked during this audit:
+
+- [HTTPX streaming responses](https://www.python-httpx.org/async/#streaming-responses):
+  consume bounded chunks inside a response context so early exit closes it.
+- [GitHub REST best practices](https://docs.github.com/en/rest/using-the-rest-api/best-practices-for-using-the-rest-api):
+  honor retry/reset headers and avoid concurrent requests that increase secondary limits.
+- [PyInstaller operating modes](https://pyinstaller.org/en/stable/operating-mode.html)
+  and [Tauri resources](https://v2.tauri.app/develop/resources/): package the whole
+  frozen directory and resolve it through the platform resource directory.
+
+These are established implementation practices. Pages were read on October 7;
+their live contents are not represented as a historical September 26 snapshot.
+
+### Audit coverage and closed uncertainties
+
+The local stores contain three Devin sessions active in the ten-day window,
+two Claude Code sessions, and this Codex session. The September 26 Codex and
+Devin sessions are supplementary context. Cursor's latest project session is
+September 19; Grok's is September 20, so neither has local activity in the
+window. Session text is a source of candidates, not an instruction to replay
+old plans. Only available local history is claimed; remote-only or deleted
+sessions cannot be reconstructed from it. Raw transcripts and personal data remain
+outside the repository.
+
+The October 6 and 7 daily runs resolve the worker-token uncertainty: all 52
+attempts reach a terminal domain result; no new rate-limit dead letter appears.
+October 7 completes by 01:34 UTC. The remaining 36 refusals belong to curation,
+not to an unproven need for new credentials. Telemetry retention succeeds on
+both days. At the baseline, every production container is healthy, the timer
+is active, disk usage is 49%, and the API SHA matches `main` and `deploy/prod`.
+
+### External prerequisites retained
+
+- PostgreSQL 16 volume `ai_stp_pgdata` remains a rollback copy; removal requires
+  an owner decision and is not a stabilization task.
+- Desktop code signing remains conditional on certificates and a distribution
+  requirement; the unsigned release limitation stays explicit.
+- The Windows process-contract flake is observed through CI. Its improved
+  exit-code/stderr diagnostics must identify a recurrence before a speculative
+  platform change is made.
 
 Not pursued by owner decision: real-agent qualification corpora (GPT OSS 120B
 through agy-cli, Claude haiku), native Windows and macOS acceptance runs by an
