@@ -1,7 +1,7 @@
 import { z } from "zod";
 
-/** Corporate OIDC providers that may render an SSO button on the login page. */
-const SSO_PROVIDERS = ["authentik", "keycloak", "gitlab"] as const;
+/** Corporate SSO providers that may render an SSO button on the login page. */
+const SSO_PROVIDERS = ["authentik", "keycloak", "gitlab", "saml"] as const;
 export type SsoProvider = (typeof SSO_PROVIDERS)[number];
 
 /** Providers that may render a primary sign-in button on the login page. */

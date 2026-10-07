@@ -71,6 +71,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.state.engine = engine
         app.state.sessionmaker = make_sessionmaker(engine)
         app.state.oauth = build_oauth(resolved.auth)
+        # Resolves once: explicit AI_STP_AUTH_SAML_* fields or an IdP metadata
+        # fetch; a configured-but-unresolvable IdP fails startup, not logins.
+        from ai_stp_api.slices.auth.saml import load_saml_idp
+
+        app.state.saml_idp = load_saml_idp(resolved.auth)
         from ai_stp_api.slices.documents.service import sync_builtin_policies
 
         memory_client: MemoryObjectClient | None = None

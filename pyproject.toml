@@ -25,6 +25,7 @@ dev = [
     "httpx>=0.28",
     "hypothesis>=6.112",
     "jsonschema>=4.23",
+    "lxml-stubs>=0.5.1",
     "openapi-spec-validator>=0.7",
     "pyright>=1.1.400",
     "pytest>=8.3",

@@ -36,6 +36,9 @@ function providerLabel(provider: string, t: (key: string) => string): string {
   if (provider === "gitlab") {
     return t("providerGitlab");
   }
+  if (provider === "saml") {
+    return t("providerSaml");
+  }
   return provider;
 }
 

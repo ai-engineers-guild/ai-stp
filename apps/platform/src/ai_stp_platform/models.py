@@ -112,6 +112,40 @@ class OAuthIdentity(Base):
     account: Mapped[Account] = relationship(lazy="raise")
 
 
+class SamlSsoRequest(Base):
+    """One pending SP-initiated SAML login (ADR-0226).
+
+    The row carries everything the ACS POST cannot read from a SameSite=Lax
+    session cookie — flow, client hint, return path, the link target and the
+    remembered web device — and doubles as the replay guard: ``assertion_id``
+    is written exactly once when the matching response is consumed.
+    """
+
+    __tablename__ = "saml_sso_request"
+    __table_args__ = (
+        UniqueConstraint("relay_state", name="uq_saml_sso_request_relay_state"),
+        CheckConstraint("flow in ('login', 'link')", name="ck_saml_sso_request_flow"),
+    )
+
+    # SAML request ids are NCNames: the leading '_' is required by the spec.
+    id: Mapped[str] = mapped_column(String(128), primary_key=True)
+    # <=80 bytes per the SAML binding rules; echoed verbatim by the IdP.
+    relay_state: Mapped[str] = mapped_column(String(80), nullable=False)
+    flow: Mapped[str] = mapped_column(String(8), nullable=False, default="login")
+    client: Mapped[str] = mapped_column(String(8), nullable=False, default="web")
+    return_to: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    link_account_id: Mapped[str | None] = mapped_column(
+        String(64), ForeignKey("account.id", ondelete="CASCADE"), nullable=True
+    )
+    device_id: Mapped[str | None] = mapped_column(
+        String(64), ForeignKey("device.id", ondelete="SET NULL"), nullable=True
+    )
+    # Assertion id of the response that consumed this request; NULL until then.
+    assertion_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class Device(Base):
     """Registered CLI installation or browser session device."""
 

@@ -6,7 +6,8 @@
         "github",
         "authentik",
         "keycloak",
-        "gitlab"
+        "gitlab",
+        "saml"
       ],
       "type": "string"
     }

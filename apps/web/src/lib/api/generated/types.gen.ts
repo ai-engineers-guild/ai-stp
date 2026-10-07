@@ -9388,6 +9388,7 @@ export const OAuthProvider = {
   AUTHENTIK: "authentik",
   KEYCLOAK: "keycloak",
   GITLAB: "gitlab",
+  SAML: "saml",
 } as const;
 
 export type OAuthProvider = (typeof OAuthProvider)[keyof typeof OAuthProvider];

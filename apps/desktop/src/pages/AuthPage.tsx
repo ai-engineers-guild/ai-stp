@@ -21,6 +21,7 @@ const PROVIDER_LABELS: Record<string, string> = {
   authentik: "Authentik",
   keycloak: "Keycloak",
   gitlab: "GitLab",
+  saml: "SAML SSO",
 };
 const FALLBACK_PROVIDERS = Object.keys(PROVIDER_LABELS);
 
