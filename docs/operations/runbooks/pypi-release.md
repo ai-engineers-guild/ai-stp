@@ -131,6 +131,13 @@ from both is not required and self-review is permitted. This avoids depending
 on one person's availability. Approval is performed through the API within the
 owner's release authorization, so publication needs no manual UI steps.
 
+The helper dispatches on protected `main` and retains `workflow_run_id` from
+the [GitHub dispatch response](https://docs.github.com/en/rest/actions/workflows#create-a-workflow-dispatch-event)
+using API version `2026-03-10`. It never selects the latest run from a list:
+another operator may have dispatched in between. A missing or invalid run ID
+stops before approval; inspect that dispatch before retrying. An approval HTTP
+failure is a failure, not permission to continue.
+
 No upload token exists here, on the host, or in repository or organization secrets—
 Trusted Publishing issues an OIDC identity for the run. There is no credential to
 look for.

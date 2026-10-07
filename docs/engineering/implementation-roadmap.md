@@ -31,6 +31,7 @@ published versions, deployment records and database rollback copies are kept.
 | 5 | Deferred dependency exit conditions | Rechecked October 7: primary release metadata still supports all five concrete deferrals in `dependency-policy.md` | Closed for this audit; migrations resume when their documented upstream conditions change |
 | 6 | Release and synchronization | `dev` includes the already merged SAML change absent from production; CLI and desktop releases remain 0.0.42 and 0.0.7 | Affected local checks and exact-SHA CI pass; release checksums, local installation, remote refs and production readbacks agree with their respective release records |
 | 7 | Documentation and memory reconciliation | Closed Agent UX plan and dated roadmap checkpoints archived; current canon, deployment guidance and dependency evidence corrected; docs-check passes | Final release evidence is recorded and project memories point to the resulting code and release identities |
+| 8 | Publication dispatch identity | Release readback exposed a race: the helper selects the latest workflow run after dispatch instead of retaining the created run | Bind approval to the run ID returned by GitHub's dispatch response; prove concurrent-run and missing-ID refusals; re-run affected gates |
 
 ### Verification and stop conditions
 
