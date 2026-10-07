@@ -9,12 +9,13 @@
 # A group is a check's owner, and the prefix is mandatory:
 #   docs-*    — the documentation basis (specs, ADRs, docs/, MkDocs);
 #   back-*    — Python: packages/, apps/api, apps/platform, apps/cli, tests/;
+#   cli-v2-*  — apps/cli-v2 (native CLI and its boundary proofs);
 #   web-*     — apps/web;
 #   desktop-* — apps/desktop (UI + core + src-tauri crates);
 #   infra-*   — Docker images, Compose stacks and the host-side deploy chain.
 #
 # `desktop-*` and `infra-*` are deliberately not in `check`: they need the
-# Rust/WebKitGTK and Docker toolchains, which are not universal — fleet
+# WebKitGTK and Docker toolchains, which are not universal — fleet
 # devices exist with no Docker at all, and `check` is the gate every host
 # can run.
 #
@@ -119,11 +120,11 @@ hooks:
 
 # Everything that writes. The resulting diff is reviewed by hand.
 [group('gate')]
-gen: docs-gen back-gen web-gen
+gen: docs-gen back-gen web-gen cli-v2-gen
 
 # Everything that reads.
 [group('gate')]
-check: docs-check back-check web-check security
+check: docs-check back-check cli-v2-check web-check security
 
 # Fast gate for the local commit hook: source-level documentation checks, their
 # validator unit tests, and static Python analysis. Full documentation builds,
@@ -706,6 +707,38 @@ web-feature-profiles:
 [doc('The web aggregate')]
 [group('web')]
 web-check: web-build web-storybook web-static web-test web-regress web-feature-profiles
+
+# --- cli-v2 ----------------------------------------------------------------
+
+# Format native sources explicitly; checks never rewrite them
+[group('cli-v2')]
+cli-v2-gen:
+    cd apps/cli-v2 && cargo fmt
+
+# Native formatting and compiler diagnostics, including evidence examples
+[group('cli-v2')]
+cli-v2-static:
+    cd apps/cli-v2 && cargo fmt --check
+    cd apps/cli-v2 && cargo clippy --locked --all-targets -- -D warnings
+
+# Canonical vectors, real binary behavior and adversarial signed provenance
+[group('cli-v2')]
+cli-v2-test:
+    cd apps/cli-v2 && cargo test --locked
+
+# Optimized native executable and explicit provider evidence runner
+[group('cli-v2')]
+cli-v2-build:
+    cd apps/cli-v2 && cargo build --locked --release --bins --examples
+
+# Existing envelope consumer, registry digest and live-WAL backup compatibility
+[group('cli-v2')]
+cli-v2-regress: cli-v2-build
+    {{ run }} python apps/cli-v2/scripts/verify.py apps/cli-v2/target/release/ai-stp-v2
+
+# Native CLI boundary gate (also part of the repository gate)
+[group('cli-v2')]
+cli-v2-check: cli-v2-static cli-v2-test cli-v2-build cli-v2-regress
 
 # --- desktop ---------------------------------------------------------------
 

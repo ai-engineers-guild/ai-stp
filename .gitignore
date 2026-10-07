@@ -65,7 +65,7 @@ dist/
 build/
 *.egg-info/
 
-# Rust build output (apps/desktop)
+# Rust build output
 target/
 
 # Tool caches
