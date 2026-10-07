@@ -77,6 +77,13 @@ _LEAF_TOKENS: dict[str, tuple[str, ...]] = {
     "back-resource": ("tests/contract/test_cli_resource_lifecycle.py",),
     "back-build": ("uv build --all-packages",),
     "back-regress": ("clean_install_regress.sh",),
+    "cli-v2-static": (
+        "cargo fmt --check",
+        "cargo clippy --locked --all-targets -- -D warnings",
+    ),
+    "cli-v2-test": ("cargo test --locked",),
+    "cli-v2-build": ("cargo build --locked --release --bins --examples",),
+    "cli-v2-regress": ("apps/cli-v2/scripts/verify.py apps/cli-v2/target/release/ai-stp-v2",),
     "security": ("bun run audit", "scan_lockfile.sh"),
     "web-build": ("AI_STP_WEB_PROFILE=public_saas bun run build",),
     "web-storybook": ("build-storybook",),
@@ -187,7 +194,7 @@ def test_every_recipe_leaf_of_just_check_appears_in_the_gate() -> None:
 def test_the_parser_sees_the_shape_it_claims_to_see() -> None:
     """A gate nobody has watched fail is a gate of unknown shape."""
     graph = _dependencies()
-    assert graph["check"] == ("docs-check", "back-check", "web-check", "security")
+    assert graph["check"] == ("docs-check", "back-check", "cli-v2-check", "web-check", "security")
     assert "back-test" in _expand(["back-check"])
     assert _expand(["security"]) == {"security"}
 

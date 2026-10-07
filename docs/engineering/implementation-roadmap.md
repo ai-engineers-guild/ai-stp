@@ -19,8 +19,10 @@ The owner's October 8 instruction activates
 [#57](https://github.com/ai-engineers-guild/ai-stp/issues/57), superseding its
 earlier rewrite deferral. The objective is a complete native CLI with explicit
 business scope, a small risk-based proof set and a controlled production switch.
-Python CLI 0.0.43 remains the shipped engine. C0 adds evidence and decisions;
-it contains no Rust runtime, new capability claim or production state migration.
+Python CLI 0.0.43 remains the shipped engine. C0 froze migration evidence;
+C1 adds the isolated native preview under `apps/cli-v2`, without transferring
+production state ownership. Its code-adjacent README owns the preview contract;
+command details come from the executable registry, not copied specifications.
 
 The [business scope and frozen ledger](cli-v2-scope.md) account for all 245
 registered commands and nine intents at `7220c991`. They explain compatibility
@@ -32,7 +34,7 @@ remain implemented; the following rows describe their Rust replacement.
 | Checkpoint | Concrete result | Evidence required before advancing | State |
 |---|---|---|---|
 | C0 — scope and decisions | Complete command-to-business ledger, current behavior versus intended changes, architecture boundary and ordered migration plan | Verify every descriptor/handler/classification against the baseline revision; documentation gate, existing status contracts and final diff review | Recorded by [#717](https://github.com/ai-engineers-guild/ai-stp/issues/717); exact-SHA integration results belong to the issue/PR |
-| C1 — native boundary proof | A functioning `apps/cli-v2` package with `ai-stp-v2` metadata commands; canonicalization/digest parity, read-only schema-53 backup access and a native provenance feasibility result | Real binary/envelope checks; cross-language vectors; SQLite snapshot/newer-schema refusal; signed, tampered and wrong-publisher PyPI evidence; explicit credential/installer ownership findings. No claim that unimplemented leaves or intents exist | Next: [#718](https://github.com/ai-engineers-guild/ai-stp/issues/718); no implementation yet |
+| C1 — native boundary proof | One Rust package with offline metadata, explicit schema-53 snapshot inspection, strict canonical data and native PEP 740 verification | Existing vectors and envelope/help consumers; all 51 tables from a real live-WAL backup; exact digest and newer-schema refusals; real PyPI artifact and eight negative mutations; three-OS CI and release-build measurements | Implemented; final integration and dated evidence tracked by [#718](https://github.com/ai-engineers-guild/ai-stp/issues/718) |
 | C2 — useful read path | Rust environment/configuration inspection, local object/project evidence and catalog reads with bounded online/offline caching | Same observable outcomes against seeded state and the actual API; no accidental production writes, credential migration or metadata housekeeping; release-build measurements with comparable work | Planned |
 | C3 — authoring and selection | Rust adoption/scaffolding, immutable revisions/import/export, graph validation, mechanical eligibility and deterministic bundle compilation | Author → exact-version selection → bundle journey; canonical/descriptor/schema parity; refusal of invalid graphs, escaping paths, secrets and stale evidence | Planned |
 | C4 — provider execution and recovery | Rust trusted provider/software lifecycle, single- and multi-root installation, preserve/restore/switch and durable task flows for completed services | First one real provider on temporary targets, then all seven declared profiles; bounded process execution, interrupted apply, idempotent retry, rollback and active-environment handoff. Advertise only completed task intents | Planned |
@@ -41,6 +43,21 @@ remain implemented; the following rows describe their Rust replacement.
 | C7 — controlled cutover and retirement | Transfer production writer ownership, switch the default executable, retire superseded Python CLI code/tests and reconcile all docs/memories | Every ledger row has a verified disposition; no unsupported pending task/state; tested quiescence/backup/ownership transfer; rollback after v2 mutations uses current compatible state or proved conversion; local/GitHub/deployed identities agree | Planned |
 
 ### Checkpoint execution rules
+
+Maintain only current code-adjacent contracts, generated command reference and
+this ordered plan for v2. Do not copy the Python documentation/ADR tree into the
+new package or add placeholder modules. C0's ledger is frozen migration evidence
+until reconciliation at C7, not a second capability registry.
+
+C1 verified the native signature dependency, but does not expose acquisition:
+C4 must implement authenticated TUF refresh and apply the signed-environment
+policy before installation. C5 must explicitly transfer credential ownership:
+v1 uses service `ai-stp`, per-device `device-key.<device_id>`, shared
+`cloud-credentials`/`pending-authorization`, and owner-only file fallback with
+promotion side effects. C1 never opens that store. C6 must distinguish uv-tool,
+pipx, dedicated-venv, shared/system and source ownership; the v1 updater journal
+is keyed by interpreter prefix outside that prefix. A native preview must not
+replace an installer-owned Python entry point or silently lose its journal.
 
 1. Open a concrete checkpoint issue with owned paths and an exact starting SHA.
    Trace the affected current handlers, contract models and consumers before

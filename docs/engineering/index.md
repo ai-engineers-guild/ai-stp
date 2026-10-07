@@ -25,13 +25,13 @@ last_verified: "2026-08-03"
 | [implementation-canon.md](implementation-canon.md) | Classification of specs, docs, and tests against implemented non-corporate code. | 2026-10-07 |
 | [implementation-roadmap.md](implementation-roadmap.md) | Current ai_stp status and the ordered plan for remaining work. | 2026-10-07 |
 | [local-technology-detection-plan.md](local-technology-detection-plan.md) | Implementation plan for issue #222: deterministic local technology-stack detection in the CLI producing the versioned TechnologyScanHandoff. | 2026-09-21 |
-| [quality-gates.md](quality-gates.md) | Required checks and release evidence. | 2026-10-05 |
+| [quality-gates.md](quality-gates.md) | Required checks and release evidence. | 2026-10-07 |
 | [real-provider-evidence.md](real-provider-evidence.md) | How to run the full lifecycle against released providers and what is checked in the process. | 2026-08-29 |
 | [release-evidence.md](release-evidence.md) | Required release evidence for the CLI, platform, and providers. | 2026-10-04 |
 | [repository-structure.md](repository-structure.md) | Monorepository structure and code ownership rules. | 2026-10-02 |
 | [schema-evolution.md](schema-evolution.md) | Versioning, compatibility, and migration of persisted and transmitted schemas. | 2026-08-03 |
 | [tech-debt-rules.md](tech-debt-rules.md) | Rules for registering temporary compromises. | 2026-08-03 |
-| [tech-stack.md](tech-stack.md) | Application stack and rules for choosing dependencies. | 2026-10-04 |
+| [tech-stack.md](tech-stack.md) | Application stack and rules for choosing dependencies. | 2026-10-07 |
 | [telemetry-heartbeat.md](telemetry-heartbeat.md) | Engineering notes for the corporate installation heartbeat stream (t-heartbeat, GitHub #215). | 2026-09-24 |
 | [telemetry-privacy.md](telemetry-privacy.md) | Operator notes for the telemetry privacy boundary: storage, retention sweeps, subject rights, and audit. | 2026-09-24 |
 | [telemetry-usage.md](telemetry-usage.md) | Operator notes for runtime usage telemetry: outbox, ingestion, scoped reports, and export receipts. | 2026-09-26 |
