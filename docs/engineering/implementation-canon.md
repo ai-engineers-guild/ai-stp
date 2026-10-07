@@ -41,6 +41,7 @@ Test tags used in later rows: **keep** (real I/O against live modules), **replac
 | --- | --- | --- |
 | CLI task engine | `apps/cli/src/ai_stp_cli/application/`, SPEC-080 | Nine drained intents on `main` (incl. `technology`); code-backed |
 | CLI expert registry | `apps/cli/src/ai_stp_cli/commands/`, `registry.py` | Lazy command-family loading; machine help defines the registered leaves |
+| Rust CLI v2 | ADR-0227; `docs/engineering/cli-v2-scope.md` and its frozen command ledger | Authorized migration design only; no Rust CLI implementation at C0. Python remains the shipped code owner; ordered work belongs only to the roadmap |
 | Local registry / passports | `apps/cli/src/ai_stp_cli/local/`, `packages/passports` | code-backed |
 | Providers / install | `apps/cli/src/ai_stp_cli/provider/`, `provider-kit/v3` | kit `0.2.15`; code-backed |
 | API `/v1` | `apps/api/src/ai_stp_api/slices/`, `packages/contracts`, `schemas/v1` | code-backed |
@@ -169,6 +170,7 @@ Cluster-level labels; a file-level move requires evidence against current code.
 | `docs/archive/*-implementation-plan.md` — `article-publication`, `artifact-storage-private-delivery`, `github-connector`, `official-registry-identity-and-requests`, `seo-publication` | historical | Plans whose code ships; archived 2026-09-20 |
 | `docs/archive/agent-ux-implementation-plan.md` | historical | Epic #261–#275 closed September 26; implementation is owned by SPEC-080 and CLI code, while qualification measurements remain dated evidence |
 | `docs/engineering/` working evidence — `implementation-roadmap`, `catalog-search-benchmark`, `cli-performance`, `real-provider-evidence`, `first-party-corpus`, `federated-source-threat-model` | code-backed | Live procedure/plan/threat-model docs read 2026-09-20 |
+| `docs/engineering/cli-v2-scope.md`, `cli-v2-baseline.json` | code-backed baseline; planned replacement explicitly separated | October 8 extraction of the Python command registry and migration risks; the proposed Rust implementation is not classified as shipped or code-backed |
 | `docs/archive/audit-remediation-status.md`, `docs/archive/runner-separation-readiness.md` | historical | A retained audit disposition and a dated readiness snapshot; archived 2026-09-20. The contract test retargeted to the archive path now guards its immutability |
 | `docs/engineering/corporate-*` | colleague | frozen |
 | `docs/contracts/` | code-backed | Read 2026-09-20: semantic contracts (closed lists, state machines, privacy, idempotency, authority pointers) that generated schemas do not express; generated schemas own field shapes |
