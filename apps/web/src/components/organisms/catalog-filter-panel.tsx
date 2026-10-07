@@ -4,7 +4,7 @@
 import { useMemo, useState } from "react";
 
 import { SearchableMultiSelect } from "@/components/molecules/searchable-multi-select";
-import type { CorporateCatalogFacetConfig } from "@/components/organisms/corporate-directory-types";
+import type { CorporateCatalogFacetConfig } from "@/lib/corporate-directory-types";
 import type { CatalogAuthorOption, ExternalProduct } from "@/lib/api/catalog";
 import { CATALOG_UNSPECIFIED_FILTER, type ParsedCatalogQuery } from "@/lib/catalog-query";
 import { Input } from "@/components/atoms/input";

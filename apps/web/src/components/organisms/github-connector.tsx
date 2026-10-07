@@ -25,10 +25,10 @@ import { Skeleton } from "@/components/atoms/skeleton";
 import { HistoryBackButton } from "@/components/molecules/history-back-button";
 import { Link } from "@/lib/i18n/navigation";
 import {
-  navigateGitHubConnectionWindow,
-  openGitHubConnectionWindow,
-  watchGitHubConnection,
-} from "@/lib/github-connection-flow";
+  navigateConnectionWindow,
+  openConnectionWindow,
+  watchConnection,
+} from "@/lib/connection-flow";
 import type {
   GitHubActionPlanResponse,
   GitHubConnectorStatus,
@@ -87,13 +87,13 @@ export function GithubConnector({
   }
 
   function connect(purpose: "source" | "administration", mode: "install" | "authorize") {
-    const popup = openGitHubConnectionWindow();
+    const popup = openConnectionWindow();
     run(
       () => githubConnect(csrfToken, { purpose, locale, mode, confirmed: true }),
       (result) => {
-        navigateGitHubConnectionWindow(popup, result.authorization_url);
+        navigateConnectionWindow(popup, result.authorization_url);
         stopPolling.current?.();
-        stopPolling.current = watchGitHubConnection(
+        stopPolling.current = watchConnection(
           popup,
           async () => {
             const current = await githubStatus(csrfToken);

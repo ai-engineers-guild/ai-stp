@@ -1,14 +1,14 @@
 const POLL_TIMEOUT_MS = 2 * 60 * 1000;
 
-export function openGitHubConnectionWindow(): Window | null {
+export function openConnectionWindow(): Window | null {
   return window.open(
     "about:blank",
-    "ai-stp-github-connection",
+    "ai-stp-connection",
     "popup,width=600,height=760,resizable=yes,scrollbars=yes",
   );
 }
 
-export function navigateGitHubConnectionWindow(popup: Window | null, url: string): void {
+export function navigateConnectionWindow(popup: Window | null, url: string): void {
   if (popup && !popup.closed) {
     popup.location.replace(url);
     popup.focus();
@@ -17,7 +17,7 @@ export function navigateGitHubConnectionWindow(popup: Window | null, url: string
   window.location.assign(url);
 }
 
-export function watchGitHubConnection(
+export function watchConnection(
   popup: Window | null,
   check: () => Promise<boolean>,
   onConnected: () => void,

@@ -11,7 +11,7 @@ import {
   CatalogFilterPanel,
   type CatalogFilterPanelLabels,
 } from "@/components/organisms/catalog-filter-panel";
-import type { CorporateCatalogFacetConfig } from "@/components/organisms/corporate-directory-types";
+import type { CorporateCatalogFacetConfig } from "@/lib/corporate-directory-types";
 import { CatalogSearchForm } from "@/components/organisms/catalog-search-form";
 import {
   appliedFilterChips,

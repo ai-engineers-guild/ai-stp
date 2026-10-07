@@ -16,7 +16,7 @@ import {
   PeopleSearch,
   PeopleSelect,
   usePeopleFilters,
-} from "@/components/organisms/corporate-people-ui";
+} from "@/components/molecules/people-ui";
 import { PagePager } from "@/components/molecules/page-pager";
 import type {
   CorporateContext,
@@ -29,10 +29,6 @@ import type { ImportedMember } from "@/lib/member-import";
 import { InvitationTable } from "@/components/organisms/corporate-invitations-table";
 import { Icon } from "@/theme";
 import { isOutstandingInvitation, invitationDisplayState } from "@/lib/corporate-invitation-state";
-
-export { CorporateMembershipPolicyControls } from "@/components/organisms/corporate-membership-policy-controls";
-
-export { isOutstandingInvitation } from "@/lib/corporate-invitation-state";
 
 type Props = {
   csrfToken: string;

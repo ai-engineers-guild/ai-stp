@@ -18,12 +18,10 @@ import {
   type DirectoryResource,
   type CorporateCatalogFacet,
   type CorporateCatalogFacetConfig,
-} from "./corporate-directory-types";
+} from "@/lib/corporate-directory-types";
 import { usePathname, useRouter } from "@/lib/i18n/navigation";
 import { PagePager } from "@/components/molecules/page-pager";
 import type { CorporateDirectoryFacets } from "@/lib/api/generated/types.gen";
-
-export type { DirectoryItem, DirectoryResource } from "./corporate-directory-types";
 
 const EMPTY_CATALOG_FACETS: readonly CorporateCatalogFacetConfig[] = [];
 const EMPTY_CATALOG_SELECTION: Partial<Record<CorporateCatalogFacet, string[]>> = {};

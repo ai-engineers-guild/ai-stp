@@ -8,7 +8,7 @@ import {
   MediaItemEditor,
   type MediaItemLabels,
 } from "@/components/organisms/object-presentation-media-item";
-import type { PresentationMediaDraft } from "@/components/organisms/use-object-presentation-form";
+import type { PresentationMediaDraft } from "@/lib/use-object-presentation-form";
 
 const FIELD_CLASS =
   "border-input bg-background focus-visible:ring-ring min-h-11 w-full rounded-sm border px-3 py-2 text-sm focus-visible:ring-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-60";

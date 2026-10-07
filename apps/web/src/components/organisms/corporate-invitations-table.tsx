@@ -7,7 +7,7 @@ import {
   PeopleRole,
   PeopleTeams,
   PersonIdentity,
-} from "@/components/organisms/corporate-people-ui";
+} from "@/components/molecules/people-ui";
 import { Table, TBody, Td, THead, Th, Tr } from "@/components/atoms/table";
 import type {
   CorporateContext,

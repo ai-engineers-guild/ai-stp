@@ -20,7 +20,7 @@ import {
   type DirectoryResource,
   type CorporateCatalogFacet,
   type CorporateCatalogFacetConfig,
-} from "./corporate-directory-types";
+} from "@/lib/corporate-directory-types";
 import type { CorporateDirectoryFacets } from "@/lib/api/generated/types.gen";
 
 type Selected = Partial<Record<DirectoryFacet, string[]>>;

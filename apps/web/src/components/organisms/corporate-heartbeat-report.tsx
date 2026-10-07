@@ -9,7 +9,7 @@ import { SearchableMultiSelect } from "@/components/molecules/searchable-multi-s
 import {
   groupByEmployee,
   HeartbeatEmployeeRows,
-} from "@/components/organisms/corporate-heartbeat-rows";
+} from "@/components/molecules/corporate-heartbeat-rows";
 import type { HeartbeatReport as HeartbeatReportData } from "@/lib/api/generated/types.gen";
 import { usePathname, useRouter } from "@/lib/i18n/navigation";
 

@@ -2,7 +2,7 @@ import { render } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import { describe, expect, it } from "vitest";
 
-import { LandingHeroPreview } from "@/components/molecules/landing-hero-preview";
+import { LandingHeroPreview } from "@/components/organisms/landing-hero-preview";
 
 function renderPreview(locale: "en" | "ru") {
   return render(

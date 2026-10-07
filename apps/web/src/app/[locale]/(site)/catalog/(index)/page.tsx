@@ -25,10 +25,7 @@ import { catalogQueryToRecord, parseCatalogSearchParams } from "@/lib/catalog-qu
 import { catalogResultsLabels } from "@/lib/catalog-results-labels";
 import { filterAndSortOwnerObjects } from "@/lib/owner-catalog";
 import { readCanonicalPathname } from "@/lib/projection/mode";
-import type {
-  CorporateCatalogFacetConfig,
-  DirectoryItem,
-} from "@/components/organisms/corporate-directory-types";
+import type { CorporateCatalogFacetConfig, DirectoryItem } from "@/lib/corporate-directory-types";
 
 type PageProps = {
   params: Promise<{ locale: string }>;

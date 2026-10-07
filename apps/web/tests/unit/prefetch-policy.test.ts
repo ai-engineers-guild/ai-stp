@@ -44,7 +44,7 @@ describe("prefetch policy", () => {
       path.normalize(path.join(root, "lib/prefetch-policy.ts")),
       path.normalize(path.join(root, "components/molecules/navigation-tabs.tsx")),
       path.normalize(path.join(root, "components/layouts/site-header.tsx")),
-      path.normalize(path.join(root, "components/organisms/account-drawer.tsx")),
+      path.normalize(path.join(root, "components/organisms/account-control.tsx")),
     ]);
     const forced: string[] = [];
     for (const file of walk(root)) {
@@ -69,7 +69,7 @@ describe("prefetch policy", () => {
       "components/molecules/page-pager.tsx",
       "components/organisms/object-card.tsx",
       "components/organisms/catalog-filters.tsx",
-      "components/organisms/account-drawer.tsx",
+      "components/organisms/account-control.tsx",
       "components/molecules/catalog-choice-menu.tsx",
       "components/molecules/object-version-history.tsx",
       "app/[locale]/(site)/staff/reports/page.tsx",

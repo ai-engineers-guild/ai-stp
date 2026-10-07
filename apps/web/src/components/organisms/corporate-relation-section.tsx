@@ -17,12 +17,12 @@ import type {
   DirectoryItem,
   DirectoryRef,
   DirectoryResource,
-} from "@/components/organisms/corporate-directory-types";
+} from "@/lib/corporate-directory-types";
 import {
   directoryFacetParams,
   directoryFacets,
   directoryReferences,
-} from "@/components/organisms/corporate-directory-types";
+} from "@/lib/corporate-directory-types";
 import { Icon } from "@/theme";
 
 type Labels = {

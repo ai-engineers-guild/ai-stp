@@ -17,7 +17,7 @@ import {
   PeopleSearch,
   PeopleSelect,
   usePeopleFilters,
-} from "@/components/organisms/corporate-people-ui";
+} from "@/components/molecules/people-ui";
 import { PagePager } from "@/components/molecules/page-pager";
 import type {
   CorporateContext,

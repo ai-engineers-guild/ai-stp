@@ -13,7 +13,7 @@ import {
   type DirectoryItem,
   type DirectoryRef,
   type DirectoryResource,
-} from "./corporate-directory-types";
+} from "@/lib/corporate-directory-types";
 
 type Labels = {
   lead: string;

@@ -16,7 +16,7 @@ import {
   CorporateCatalogOwnerDialog,
   type CorporateCatalogOwnerEdit,
 } from "@/components/organisms/corporate-catalog-owner-editor";
-import { useCatalogLike, type LikeState } from "@/components/organisms/use-catalog-like";
+import { useCatalogLike, type LikeState } from "@/lib/use-catalog-like";
 import { Link } from "@/lib/i18n/navigation";
 import { UI } from "@/lib/ui-selectors";
 import { Icon } from "@/theme/icons";

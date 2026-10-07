@@ -26,10 +26,10 @@ import { Skeleton } from "@/components/atoms/skeleton";
 import { HistoryBackButton } from "@/components/molecules/history-back-button";
 import { Link } from "@/lib/i18n/navigation";
 import {
-  navigateGitHubConnectionWindow,
-  openGitHubConnectionWindow,
-  watchGitHubConnection,
-} from "@/lib/github-connection-flow";
+  navigateConnectionWindow,
+  openConnectionWindow,
+  watchConnection,
+} from "@/lib/connection-flow";
 import type {
   GitLabActionPlanRequest,
   GitLabActionPlanResponse,
@@ -124,13 +124,13 @@ export function GitLabConnector({
   }
 
   function connect(purpose: "source" | "administration") {
-    const popup = openGitHubConnectionWindow();
+    const popup = openConnectionWindow();
     run(
       () => gitlabConnect(csrfToken, organizationId, { purpose, locale, confirmed: true }),
       (result) => {
-        navigateGitHubConnectionWindow(popup, result.authorization_url);
+        navigateConnectionWindow(popup, result.authorization_url);
         stopPolling.current?.();
-        stopPolling.current = watchGitHubConnection(
+        stopPolling.current = watchConnection(
           popup,
           async () => {
             const current = await gitlabStatus(csrfToken, organizationId);

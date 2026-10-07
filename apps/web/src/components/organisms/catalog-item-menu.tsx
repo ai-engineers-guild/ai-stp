@@ -8,7 +8,7 @@ import { Button } from "@/components/atoms/button";
 import { Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from "@/components/atoms/menu";
 import { ContactReportDialog } from "@/components/organisms/contact-report-dialog";
 import { CorporateAssignDialog } from "@/components/organisms/corporate-assign-dialog";
-import { useCatalogLike } from "@/components/organisms/use-catalog-like";
+import { useCatalogLike } from "@/lib/use-catalog-like";
 import { registryCommand } from "@/lib/cli-copy";
 import { buildDeepLink, normalizeTarget } from "@/lib/deep-links";
 import { Icon } from "@/theme";

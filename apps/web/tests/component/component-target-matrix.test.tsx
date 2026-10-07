@@ -9,7 +9,7 @@ vi.mock("@/lib/i18n/navigation", () => ({
   ),
 }));
 
-import { ComponentTargetMatrix } from "@/components/molecules/component-target-matrix";
+import { ComponentTargetMatrix } from "@/components/organisms/component-target-matrix";
 import type { TargetMatrix } from "@/lib/api/generated/types.gen";
 
 const labels = {

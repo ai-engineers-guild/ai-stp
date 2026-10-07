@@ -7,7 +7,7 @@ import { CorporateEntityDetail } from "@/components/organisms/corporate-entity-d
 import { CorporateCatalogAssignments } from "@/components/organisms/corporate-catalog-assignments";
 import { LocalizedResourceDeleteMenuItem } from "@/components/organisms/localized-corporate-resource-actions";
 import { CorporateRelationSection } from "@/components/organisms/corporate-relation-section";
-import { relationSectionLabels } from "@/components/organisms/corporate-directory-types";
+import { relationSectionLabels } from "@/lib/corporate-directory-types";
 import { readCorporatePresentation } from "@/lib/api/corporate-detail";
 import { readCorporateCatalogAssignments, readCorporateContext } from "@/lib/api/corporate";
 import { readTechnologyDetail } from "@/lib/api/technology";

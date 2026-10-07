@@ -22,13 +22,13 @@ import {
 } from "@/components/molecules/requirements-summary";
 import { StatePanel } from "@/components/molecules/state-panel";
 import { HistoryBackButton } from "@/components/molecules/history-back-button";
-import { contextBudgetLabels } from "@/components/organisms/context-budget-labels";
+import { contextBudgetLabels } from "@/lib/context-budget-labels";
 import { ContextBudgetPanel } from "@/components/organisms/context-budget-panel";
 import { ObjectDetailFrame } from "@/components/organisms/object-detail-frame";
 import { ObjectDetailHeader } from "@/components/organisms/object-detail-header";
 import { ComponentMediaGallery } from "@/components/organisms/component-media-gallery";
 import { CorporateCatalogUsage } from "@/components/organisms/corporate-catalog-usage";
-import { usageSectionLabels } from "@/components/organisms/corporate-directory-types";
+import { usageSectionLabels } from "@/lib/corporate-directory-types";
 import { CorporateCatalogOwnerEditor } from "@/components/organisms/corporate-catalog-owner-editor";
 import { SetupComposition } from "@/components/organisms/setup-composition";
 import { SetupFamilyBlock, setupFamilyLabels } from "@/components/molecules/setup-family";

@@ -16,7 +16,7 @@ import type {
   CorporateCatalogFacetConfig,
   DirectoryItem,
   DirectoryResource,
-} from "@/components/organisms/corporate-directory-types";
+} from "@/lib/corporate-directory-types";
 import { useRouter } from "@/lib/i18n/navigation";
 import type { CorporateDirectoryFacets } from "@/lib/api/generated/types.gen";
 
