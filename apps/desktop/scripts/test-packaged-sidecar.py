@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import platform
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
 
@@ -45,7 +46,11 @@ def main() -> None:
             raise RuntimeError(f"incomplete packaged CLI tree at {executable.parent}")
         env = {**os.environ, "AI_STP_SIDECAR_EXE": str(executable)}
         subprocess.run(
-            ["bash", str(repo / "apps/desktop/scripts/test-bundled-sidecar.sh")],
+            [
+                sys.executable,
+                str(repo / "release_scripts/run_bash.py"),
+                str(repo / "apps/desktop/scripts/test-bundled-sidecar.sh"),
+            ],
             env=env,
             check=True,
             timeout=300,

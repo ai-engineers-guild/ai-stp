@@ -765,6 +765,13 @@ desktop-regress: desktop-build
     {{ run }} python release_scripts/run_bash.py apps/desktop/scripts/build-cli-sidecar.sh
     {{ run }} python release_scripts/run_bash.py apps/desktop/scripts/test-bundled-sidecar.sh
 
+# Requires existing OS bundles from `bun x tauri build`; extraction is local
+# and never installs the application on the developer's machine.
+[doc('Extract an existing desktop bundle and probe its CLI resource tree')]
+[group('desktop')]
+desktop-bundle-test:
+    {{ run }} python apps/desktop/scripts/test-packaged-sidecar.py
+
 [doc('The desktop aggregate')]
 [group('desktop')]
 desktop-check: desktop-build desktop-static desktop-test desktop-regress
