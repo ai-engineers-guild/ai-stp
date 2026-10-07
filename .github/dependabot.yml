@@ -136,9 +136,9 @@ updates:
     open-pull-requests-limit: 5
     commit-message:
       prefix: "chore(docker)"
+    # Container ecosystems support default-days, not semver-specific cooldowns.
     cooldown:
       default-days: 7
-      semver-major-days: 14
     ignore:
       - dependency-name: oven/bun
         update-types:
@@ -155,7 +155,6 @@ updates:
       prefix: "chore(deploy)"
     cooldown:
       default-days: 7
-      semver-major-days: 14
     ignore:
       - dependency-name: postgres
         update-types:
