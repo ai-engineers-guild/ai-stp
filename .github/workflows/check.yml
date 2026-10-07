@@ -70,7 +70,9 @@ jobs:
           } >> "${GITHUB_ENV}"
       - name: Install the Python contract oracle
         shell: bash
-        run: uv sync --locked --package ai-stp-cli --no-default-groups
+        # The published CLI wheel bundles its shared contract modules; a lone
+        # editable CLI install intentionally leaves them in sibling packages.
+        run: uv sync --locked --package ai-stp-cli --no-default-groups --no-editable
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
           path: |
