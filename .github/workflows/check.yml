@@ -34,6 +34,66 @@ env:
   BUN_VERSION: "1.4.2"
 
 jobs:
+  cli-v2:
+    name: cli-v2-${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    env:
+      CARGO_BUILD_JOBS: "2"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Install pinned uv
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash .github/scripts/install-uv.sh "${UV_VERSION}" "${RUNNER_TEMP}/uv"
+          echo "${RUNNER_TEMP}/uv" >> "${GITHUB_PATH}"
+      - name: Prepare the Python contract oracle
+        shell: bash
+        run: |
+          set -euo pipefail
+          python_path="$(python -c 'import sys; print(sys.executable)')"
+          test -n "${python_path}"
+          {
+            echo "UV_PYTHON=${python_path}"
+            echo "UV_PROJECT_ENVIRONMENT=${RUNNER_TEMP}/ai-stp-cli-v2"
+            echo "UV_CACHE_DIR=${RUNNER_TEMP}/uv-cache"
+          } >> "${GITHUB_ENV}"
+      - name: Install the Python contract oracle
+        shell: bash
+        # The published CLI wheel bundles its shared contract modules; a lone
+        # editable CLI install intentionally leaves them in sibling packages.
+        run: uv sync --locked --package ai-stp-cli --no-default-groups --no-editable
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            apps/cli-v2/target
+          key: cli-v2-${{ runner.os }}-${{ hashFiles('apps/cli-v2/Cargo.*', 'apps/cli-v2/*.toml') }}
+      - name: Native boundary checks
+        working-directory: apps/cli-v2
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo fmt --check
+          cargo clippy --locked --all-targets -- -D warnings
+          cargo test --locked
+          cargo build --locked --release --bins --examples
+      - name: Existing consumers and real SQLite backup
+        shell: bash
+        run: |
+          uv run --no-sync python apps/cli-v2/scripts/verify.py apps/cli-v2/target/release/ai-stp-v2
+
   docs:
     name: docs
     runs-on: ubuntu-latest

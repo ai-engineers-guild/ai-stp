@@ -32,7 +32,7 @@ Fixed order, top to bottom:
 4. `default` — lists recipes, never runs work.
 5. Gate aggregates — `setup`, `gen`, `check`, `pre-commit`.
 6. Group sections, each under a `# --- <group> ---` rule, in the order
-   `docs`, `back`, `web`. `desktop-*` and `infra-*` recipes follow web
+   `docs`, `back`, `web`, `cli-v2`. `desktop-*` and `infra-*` recipes follow them
    (Tauri shell + crates; Docker, Compose, host deploy). They are groups,
    but they are not in `check`. Ungrouped concerns (release, evidence,
    safety) come last.
@@ -46,6 +46,7 @@ A recipe's group is its owner and its prefix is mandatory:
 | `docs-*` | documentation basis — specs, ADRs, `docs/`, MkDocs |
 | `back-*` | Python — `packages/`, `apps/api`, `apps/platform`, `apps/cli`, `tests/` |
 | `web-*` | `apps/web` |
+| `cli-v2-*` | `apps/cli-v2` — native library, executable and boundary proofs |
 | `desktop-*` | `apps/desktop` — **not** in `just check` |
 | `infra-*` | Docker images, Compose stacks, host-side deploy chain — **not** in `just check` |
 
@@ -98,7 +99,7 @@ Recipes outside those prefixes name a domain directly: `evidence-*`
 7. **Every recipe gets `[group('…')]`** matching its section, so
    `just --list` renders the taxonomy instead of a flat wall of 60+ names.
    Groups: `gate`, `docs`, `back`, `web`, `release`, `evidence`, `safety`,
-   `misc`.
+   `misc`, `cli-v2`, `desktop`, `infra`.
 8. **Every parameter gets `[arg(name, help="…")]`** — parameters are the
    recipe's interface and `--show`/usage output should say what each one is.
 9. **Pass-through args use `*args` + `{{args}}` interpolation**, not

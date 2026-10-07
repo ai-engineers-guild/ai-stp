@@ -1,6 +1,6 @@
 ---
 description: "Application stack and rules for choosing dependencies."
-last_verified: "2026-10-04"
+last_verified: "2026-10-07"
 ---
 
 # Stack
@@ -12,6 +12,7 @@ last_verified: "2026-10-04"
 | Language | Python 3.12 and 3.14 — `check.yml` pins 3.14; the platform-evidence matrix exercises both; the server images run 3.12 until `yara-python` (worker-safety) ships cp314 wheels, and `pyright` checks the tree at 3.12 |
 | Dependency management | uv and one root `uv.lock` after bootstrap code |
 | CLI | Click on `ADR-0057`; machine JSON is mandatory |
+| Native CLI preview | `apps/cli-v2`, one Rust library/binary package under ADR-0227; rustup and Cargo pins live beside the code; `clap`, strict NFC/JCS, bundled `rusqlite`, and native Sigstore verification; no production state ownership yet |
 | Device key and secrets | Ed25519 via `cryptography`; `keyring` with a closed list of trusted backends via `ADR-0058` |
 | Local registry | standard `sqlite3` with WAL and own migration runner via `ADR-0059`; Alembic and SQLAlchemy are not used in CLI |
 | Cloud CLI client | `httpx` with limited timeouts and retries; transport is part of `Endpoint`, so mock from #71 and real server go the same path |

@@ -96,7 +96,8 @@ default-groups = ["dev"]
 members = ["packages/*", "apps/*"]
 # apps/web is a Node/bun workspace (ADR-0043), not a Python package; keep it out of uv.
 # apps/desktop is a Tauri (Rust/Vite) app (ADR-0219), not a Python package either.
-exclude = ["apps/web", "apps/desktop"]
+# apps/cli-v2 is the isolated native CLI package (ADR-0227).
+exclude = ["apps/web", "apps/desktop", "apps/cli-v2"]
 
 [tool.uv.sources]
 ai-stp-foundation = { workspace = true }
@@ -145,6 +146,7 @@ exclude = [
     "**/__pycache__",
     "**/.*",
     "apps/desktop/**/target",
+    "apps/cli-v2/target",
     "apps/desktop/src-tauri/sidecar",
 ]
 # Product code and its tests are strict; the documentation validators run at
