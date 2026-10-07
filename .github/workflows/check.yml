@@ -59,6 +59,17 @@ jobs:
           echo "${RUNNER_TEMP}/uv" >> "${GITHUB_PATH}"
       - name: Prepare the Python contract oracle
         shell: bash
+        run: |
+          set -euo pipefail
+          python_path="$(python -c 'import sys; print(sys.executable)')"
+          test -n "${python_path}"
+          {
+            echo "UV_PYTHON=${python_path}"
+            echo "UV_PROJECT_ENVIRONMENT=${RUNNER_TEMP}/ai-stp-cli-v2"
+            echo "UV_CACHE_DIR=${RUNNER_TEMP}/uv-cache"
+          } >> "${GITHUB_ENV}"
+      - name: Install the Python contract oracle
+        shell: bash
         run: uv sync --locked --package ai-stp-cli --no-default-groups
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
