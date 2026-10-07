@@ -8,8 +8,8 @@ last_verified: "2026-10-07"
 This is the sole owner of the current plan. GitHub issues remain backlog, ADRs
 record decisions, and specifications define requirements; review and session
 plans are not continued literally after the implementation changes.
-Checkpoints before 2026-09-29, the session audits of September 24 and 26 and
-the closing records are history in
+Earlier checkpoints, the session audits of September 24 and 26, and the
+closing records are history in
 [implementation-roadmap-history.md](../archive/implementation-roadmap-history.md):
 true as of their dates, not a queue to replay.
 
@@ -96,238 +96,6 @@ agent, and scheduled production backups (SPEC-024 `REQ-2409`). Outside this
 plan's owner: the Corporate Hub and `[Enterprise]` backlog (#224, #541–#544
 and the issues it links) and setup-systems #316.
 
-## Live sync evidence and the CLI import floor — 2026-10-05 (night)
-
-**Live evidence on `bc7dbfbb`.** Two disposable homes signed in through the
-device-code flow, each code approved in a browser, and `just evidence-sync`
-verified all five scenarios against production: fast-forward, replay of a
-pushed head (accepted without a second event), conflict, merge, and version
-collision (`AI_STP_CONFLICT` with the local release kept).
-`just evidence-publication` verified the read-only surface: owner objects,
-grant and report lists, an owner object with its versions, a locally signed
-attestation, a report preview, and the publication, grant and report mutations
-each reaching the API and refusing an absent object. The mutations themselves
-were not driven, because each writes an immutable `X.Y` into the public
-catalogue, changes another person's access or files a moderation case.
-
-**Official sync, read from production data.** Of 52 sources, 16 have synced
-since 2026-10-02, 5 are refused with `failed_validation`, and 31 have not got
-past GitHub's unauthenticated rate limit in that time. On 2026-10-05 all 37
-dead letters were `GitHub rate limit exceeded`, five attempts within fifteen
-minutes; the reset-aware retry from `#666` merged after that run. The 19
-sources whose archive was refused when last reached (2026-10-03) are row 2.
-
-**CLI import floor (`#700`).** Every invocation imported the whole machine
-contract: `ai_stp_contracts.machine_help`, 215 definitions with the catalog,
-corporate, publication and technology contracts behind them, and a package root
-that imported seven modules eagerly. The models now live in
-`ai_stp_contracts.cli`, sixteen modules by command family, with `machine_help`
-re-exporting every name and the generated schemas unchanged by a byte; the root
-loads its names on first use. `version --json` fell from 1.10 to 0.70 s of user
-CPU, and every local read-only command is within the 0.8 s budget
-(`cli-performance.md`, fifth measurement).
-
-**Release train through a GitHub Actions incident.** `#701` bumped `ai-stp-cli`
-to 0.0.42 and `ai-stp-desktop` to 0.0.7, and `#702` promoted them to `main`
-(`980438b4`, tags `v0.0.42` and `desktop-v0.0.7`). From 19:11 UTC GitHub-hosted
-runners were not being assigned: `tests-integration` got none in three attempts
-and ran on the exact SHA locally (172 passed, 2 skipped), and `deploy/prod` was
-fast-forwarded to the verified commit by hand (`deploy.md`, "When GitHub cannot
-run the gate"). Production served `980438b4` from 20:53 UTC, with no 502 during
-the roll and `evidence-live` green; when `check` on `main` passed at 21:33,
-`promote` wrote the same SHA and `verify-public` succeeded. `ai-stp-cli` 0.0.42
-reached PyPI from candidate 37370223688 at 21:17 UTC, its digests matching the
-GitHub Release, and this workstation's `uv tool` installation updated itself
-from 0.0.41 with the journal `verified` and `doctor` all `ready`.
-`ai-stp-desktop` 0.0.7 is the repository's latest release: deb, rpm and
-AppImage for Linux, an aarch64 dmg, and an exe and msi for Windows, unsigned.
-Its shipped sidecar reports CLI 0.0.42 and answered `version --json` in 1.51 s
-against 2.03 s for 0.0.6's (wall clock, median of seven).
-
-## Deploy, content and upstream repairs; faster CLI and sidecar — 2026-10-05 (evening)
-
-A ten-day session audit (Codex, Claude Code and Devin; Cursor and Grok had no
-ai-stp activity in the window) was checked against production data rather
-than CI. Production showed four defects, each repaired with a regression test
-and verified on the `79e0dc09` deploy:
-
-- **Deploy outage (`#678`).** The final `compose up` followed `depends_on`: it
-  stopped the api and web containers it was recreating, then restarted the
-  exited migrate and seed one-shots before starting the new ones. Migrate ran
-  three times and seed twice per deploy, and api, web and docs answered 502 for
-  about 65 s. `deploy/lib.sh` `start_serving_services` now replaces each
-  service once, with `--no-deps`, in order: api, the content import, web and
-  docs, the scanner sidecars, the worker. On `79e0dc09` migrate and seed ran
-  once, web restarted in 3 s, and the whole deploy produced six 502 responses.
-- **Article churn (`#679`).** Every deploy created 46 article revisions, 46 SEO
-  builds and a deploy-time `dateModified`, because the revision digest binds
-  the snapshot commit. An entry whose content only changed commit keeps its
-  revision (SPEC-054 `REQ-5406`). The `79e0dc09` import left the 6,408
-  revisions, 5,244 seo_build jobs and generation 203 unchanged.
-- **Official upstream refusals (`#680`).** An unsafe archive, invalid source or
-  changed repository identity is recorded once as `failed_permanent` instead of
-  five downloads from the unauthenticated GitHub budget (SPEC-056 `REQ-5606`).
-- **Unserved locale (`#681`).** A crawl of `/ai/content/...` no longer reaches
-  the content API and logs an SSR error.
-
-The CLI and the desktop sidecar got faster: contract models build on first use
-and local commands no longer import httpx (`#687`; `version --json` 1.75 →
-1.13 s of user CPU), and the sidecar freezes without setuptools (`#688`). A
-release-equivalent sidecar answered in 2.03 s against 2.93 s for desktop
-0.0.5. `#689` stops a session that cannot reach the operating system key store
-from offering `device reset` for a key that is only out of reach.
-
-**Releases.** `ai-stp-cli` 0.0.40 is on PyPI from attested candidate run
-37316668777 (wheel `sha256:1c29e178…`, matching its GitHub Release), and this
-workstation's `uv tool` installation reached it from 0.0.38 through
-`update plan`/`update apply` with the journal `verified`. `ai-stp-desktop`
-0.0.6 is the repository's latest release: deb, rpm and AppImage for Linux, an
-aarch64 dmg, and an exe and msi for Windows, unsigned. Its shipped sidecar
-reports CLI 0.0.40 and answered `version --json` in 1.96 s against 2.87 s for
-0.0.5's.
-`ai-stp-cli` 0.0.41 followed (candidate 37326276638) with `#693`: right after
-an update, `doctor` no longer asks to update to the version just installed. The
-same workstation updated 0.0.40 → 0.0.41 with `doctor` all `ready`.
-
-Every deploy also stopped four containers by force after ten seconds (`#692`).
-The scanner sidecars' `sh -c` loop is PID 1 and ignores SIGTERM. The API and
-the worker finished their own shutdown within two seconds, but a read-only
-watcher on the host caught both PID 1s in uninterruptible sleep
-(`folio_wait_bit_common`): the 4 GB host had swapped them out during the image
-build, and Python's interpreter teardown waited on those pages. All four now
-run under Docker's init, and the worker, like uvicorn, ends with the signal
-that stopped it; with docker-init as PID 1 the worker exited 0.14 s and the API
-0.24 s after SIGTERM.
-
-## Production repairs, current majors, and PostgreSQL 18 — 2026-10-05
-
-Between the 2026-10-03 checkpoint and this one, `#617`–`#646` shipped
-`ai-stp-cli` 0.0.37 and 0.0.38 with desktop 0.0.3 and 0.0.4. They also
-carried a five-agent desktop contract audit, a system-wide audit wave
-(frozen-guard ordering, shell codes, deploy hardening), a bound on docker
-residue after every pull-deploy attempt, and the release-tag membership
-check. This checkpoint covers `#649`–`#675`.
-
-**Production repairs, found by reading production rather than CI.**
-
-- **Migration chain (`#664`).** The 2026-09-27 reports/heartbeat merge had
-  re-chained an applied revision, so production reached `0111` without
-  `0096_heartbeat_reports` … `0106_technology_review_queue`. Five tables,
-  six columns and their policies were missing, and `telemetry_retention`
-  dead-lettered daily from 2026-09-30. `0112_replay_skipped_feature_chain`
-  replays the skipped revisions. Production now reports
-  `alembic check: No new upgrade operations detected`, and the retention
-  sweep completes. `migrations/history.lock` with
-  `tests/contract/test_migration_history.py` makes a changed parent a CI
-  failure (SPEC-020 `REQ-2002`).
-- **Idle worker (`#665`).** Each idle poll rewrote the 200 oldest
-  dead-lettered Official sync attempts: 8.9 million updates and half a core.
-  Worker CPU fell from 49.5 % to about 1 %, ledger updates from 120 per second
-  to 0, and empty claims are no longer logged.
-- **Upstream rate limit (`#666`).** Without a GitHub token, 37–42 of the 52
-  daily Official syncs on most days spent all five attempts within fifteen minutes of a
-  closed rate-limit window. Retries now wait for `retry-after` or
-  `x-ratelimit-reset`, bounded to an hour (SPEC-018 `REQ-1806`, SPEC-056
-  `REQ-5606`). A worker token remains an optional owner decision.
-- **Readiness (`#673`).** `/v1/health/ready` no longer parses all 119
-  revision files per call.
-
-**Dependencies at their current releases**, with every deferral recorded in
-`dependency-policy.md` and its exit condition:
-
-- uv 0.12.23 and the Python set with SQLAlchemy 2.1 (`#663`);
-- RustFS 1.0.1 (`#651`), container bases and worker-safety scanners
-  (`#655`, `#659`, `#660`), Dependabot over container images (`#650`);
-- Next.js 16 with Turbopack, plus the web toolchain and lucide-react 1.x
-  (`#669`, `#674`);
-- desktop on Rust edition 2024 (`#667`);
-- PostgreSQL 18.6 (`#670`), moved in by a verified dump-and-restore deploy
-  stage (SPEC-024 `REQ-2419`).
-
-Deferred: `httpx2` (TLS trust store), Python 3.14 server images
-(`yara-python` wheels), Dependabot `bun` (lockfile v2), ESLint 10 (plugin
-peers) and `js-yaml` 5 (tree-wide override).
-
-**Correctness of the web gate.** Next 16 removed `app-build-manifest.json`,
-and the page entry it held had left out the layout chunks. The REQ-2213 gate
-now measures every module script that the served `/en` page loads: 207 KiB on
-Next 15, 229 KiB on Next 16, mostly framework runtime. The budget is 240 KiB.
-
-**Desktop safety.** `#661` delimits process-group signals with `--`.
-Desktop 0.0.4's timeout path could make procps-ng broadcast SIGTERM. Process
-tests on the development workstation run only inside an isolated PID
-namespace.
-
-**Owner decisions.** Production runs no scheduled backup (`#658`, SPEC-024
-`REQ-2409`).
-
-**Releases.** `ai-stp-cli` 0.0.39 is on PyPI (wheel and sdist from attested
-candidate run 37266590041), with its GitHub Release carrying the SBOM, release
-manifest and `SHA256SUMS`. `ai-stp-desktop` 0.0.5 is the repository's latest
-release: deb, rpm and AppImage for Linux, an aarch64 dmg, and an exe and msi for
-Windows, unsigned as before. Production serves Next.js 16.3.8; its landing page
-loads 229.0 KiB of gzipped module JS, the figure the gate measured before
-deployment.
-
-**PostgreSQL 18 in production.** The `d02a3af6` deploy ran the upgrade stage
-at 06:08 UTC on 2026-10-05. It stopped the writers, restored the 16.15
-database into `ai_stp_pgdata18`, verified the row count of all 132 tables, and
-brought the stack up on 18.6 within one minute. After the deploy, `alembic
-check` reports no drift, the worker completes jobs, and readiness answers in
-about 25 ms on loopback (it was about 190 ms). `ai_stp_pgdata` keeps the 16
-cluster as the rollback copy; removing it is a separate decision.
-
-## Desktop CI, dependency security, and contract drift — 2026-10-03
-
-Four pull requests landed on `dev` since the 2026-09-29 checkpoint. `#611`
-gave the desktop shell its own CI: `desktop.yml` runs the `src-tauri` crate's
-fmt/clippy/tests on all three OSes behind a compile-time stub sidecar, then the
-real PyInstaller sidecar and a filtered-env spawn test; the `desktop-*` just
-group mirrors it locally outside `just check`. `#612` moved Next.js to 15.5.27
-for the September 30 security advisories, extended `scan_lockfile.sh` to the
-three desktop lockfiles (the unfixable `glib`/`proc-macro-error` findings sit
-behind dated `osv-scanner.toml` ignores at the one lockfile that carries them),
-repaired the Dependabot `uv` job by normalizing the six mixed-case docs pins
-to PEP 503 names, and raised the `httpx` floors to 0.28. `#613` made SPEC-080
-name the shipped `technology` intent, completed the HTTP status table with the
-thirteen registered codes it was missing and a contract test that parses it
-against `http_status_for`, recorded two verified wire facts in `http-api.md`,
-applied the catalogue loopback rule to telemetry endpoints, and made the
-consent record an owner-only atomic write. `#615` patches the unfixable
-`braces` advisory (GHSA-vfj7-8cjw-p6xm) in place — `patchedDependencies` adds
-the upstream-recommended nesting-depth guard to the dev-tool installs — with
-the scanner exception scoped to the version string it still reports.
-
-In the authoring estate, setup-systems `#382` refreshed all seven vendor pins
-(claude 2.1.288, codex 0.160.0, grok 1.0.49, pi 1.0.0, opencode 1.18.34,
-cursor 2026.10.01-e373342, antigravity 1.2.15), taught the baseline comparator
-to read Mach-O code signatures so a re-signed-but-identical binary reads
-`signature-only`, and added pi 1.0.0's `mcp-auth.json` token store to
-`never_touch`. `#383` prepares the 0.0.88 release; publication is the next
-step.
-
-## Corporate navigation and People & Access design — 2026-09-29
-
-ADR-0219 and active SPEC-095 describe the shared Human sidebar for both profiles.
-ADR-0220–0221, proposed SPEC-096–097, and
-`corporate-navigation-access-plan.md` retain the remaining access workstream.
-The proposed access documents do not replace the current active corporate
-specifications. SPEC-095 owns the implemented sidebar behavior. The completed corporate-core foundation plan
-is retained in `docs/archive/`. The older workspace consolidation ledger
-remains evidence for SPEC-086, not a queue to replay without checking its
-current implementation and exact-SHA gates.
-GitHub #541–#544 track bounded implementation slices under open program #224.
-
-The 2026-09-30 navigation correction is implemented on
-`fix/shared-context-navigation`, preserving prior unfinished access and OIDC
-work. It mounts one sidebar in the Human shell for both profiles, adds collapse
-and grouped disclosure states, and separates Security from invitations/settings.
-A signed-in Chrome profile on local `:3000` supplies live Corporate evidence;
-the temporary SaaS preview supplies the second-profile evidence. The detailed
-gap table and repair scope are in `corporate-navigation-access-plan.md`.
-Remaining People & Access content redesign and policy migration retain their
-own exit gates; sidebar completion does not close those work packages.
-
 ## Decision-making vision
 
 - Seven setup systems own native harness writes and real software
@@ -347,7 +115,7 @@ own exit gates; sidebar completion does not close those work packages.
   provenance, and compatibility remain mechanical integrity constraints without
   creating an additional approval round.
 
-## Implemented surfaces (release coordinates in the current checkpoint)
+## Implemented surfaces
 
 | Area | Observable state |
 |---|---|
@@ -355,8 +123,8 @@ own exit gates; sidebar completion does not close those work packages.
 | Platform | `/v1`, PostgreSQL, object storage, queue, authentication/devices, sync, publication, grants/reports, public catalog, article, and SEO projections |
 | Web | Landing, catalog/detail, account/device/owner surfaces, content hub, machine projections, and a three-OS test matrix |
 | Providers | Seven public setup systems at `0.0.88`, read through the vendored provider kit `0.2.15` and protocol v3: native configuration, backup/recovery and software lifecycle. Launch completeness per provider is measured evidence, not a property of the release. |
-| Release | `ai-stp-cli==0.0.41` on PyPI with its GitHub Release (SBOM, manifest, `SHA256SUMS`). GitHub attested acquisition remains the default provider path; PyPI provenance is a second, explicit path (`ADR-0141`). Self-update of the CLI wheel is `SPEC-072` / `ADR-0170`. Source integration, package publication and installed PATH identity are separate observations. |
-| Desktop | `ai-stp-desktop` 0.0.6: a Tauri 2 shell over the CLI machine contract with a frozen CLI sidecar (`ADR-0222`); deb, rpm and AppImage for Linux, an aarch64 dmg, and an exe and msi for Windows, unsigned. |
+| Release | `ai-stp-cli==0.0.42` on PyPI with its GitHub Release (SBOM, manifest, `SHA256SUMS`). GitHub attested acquisition remains the default provider path; PyPI provenance is a second, explicit path (`ADR-0141`). Self-update of the CLI wheel is `SPEC-072` / `ADR-0170`. Source integration, package publication and installed PATH identity are separate observations. |
+| Desktop | `ai-stp-desktop` 0.0.7: a Tauri 2 shell over the CLI machine contract with a frozen CLI sidecar (`ADR-0222`); deb, rpm and AppImage for Linux, an aarch64 dmg, and an exe and msi for Windows, unsigned. |
 | Catalog | The canonical first-party corpus models seven harness families and four postures. Identity projection, exact target assurance, and normal-path publication/readback evidence are implemented in the current platform closeout for `#146`/`#155`. |
 | OBT support tiers | All seven harnesses are `beta` (`SUPPORT_TIERS`, `SPEC-033` REQ-3315). `primary` remains a valid later GA label with no current members |
 
@@ -396,11 +164,10 @@ closed or forbade. Those findings are not re-opened here:
 
 ## Explicitly out of scope for this pass
 
-The open roadmap items—corporate hub, SSO/GitLab, bot protection, malware
-integrations, discovery standards, illustrations, and possible new component
-kinds—remain backlog. They are not defects in the current release and are not
-closed to satisfy an empty counter. Promotion starts with a check against the
-current product and a new active specification.
+Corporate implementation and its proposals remain owned by the colleague's
+workstream. GitLab integration and SAML sign-in already ship in the integration
+branch; they are not unimplemented backlog. New product scope is evaluated
+against current code and requires the applicable specification and ADR.
 
 ## Done
 
