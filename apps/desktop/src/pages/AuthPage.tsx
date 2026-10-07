@@ -21,6 +21,7 @@ const PROVIDER_LABELS: Record<string, string> = {
   authentik: "Authentik",
   keycloak: "Keycloak",
   gitlab: "GitLab",
+  saml: "SAML SSO",
 };
 const FALLBACK_PROVIDERS = Object.keys(PROVIDER_LABELS);
 
@@ -76,6 +77,8 @@ export default function AuthPage() {
   }
 
   async function openAndWait() {
+    const gen = ++pollGen.current;
+    setWaiting(true);
     if (verificationUrl) {
       try {
         await openUrl(verificationUrl);
@@ -83,8 +86,9 @@ export default function AuthPage() {
         /* headless — user copies the link */
       }
     }
-    const gen = ++pollGen.current;
-    setWaiting(true);
+    // Opening the browser is asynchronous too: cancellation or unmount
+    // during that await must not start a new poller afterwards.
+    if (pollGen.current !== gen) return;
     // Poll without --wait: the CLI's blocking wait can outlive the runner's
     // bounded deadline, which would surface as a false "unconfirmed" kill.
     // The loop mirrors `cloud/login.py::poll` exactly — the same bounds

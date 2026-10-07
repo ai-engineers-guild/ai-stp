@@ -1,6 +1,6 @@
 ---
 description: "Measured CLI command costs, resolved bottlenecks, and budgets."
-last_verified: "2026-10-05"
+last_verified: "2026-10-07"
 ---
 
 # CLI Performance
@@ -135,12 +135,32 @@ passports package root, which loads markdown-it for the three constants the
 registry needs (about 0.05s), and the heartbeat contract that the end-of-command
 check imports with the corporate contract behind it (about 0.06s).
 
-The frozen desktop sidecar adds its own cost on top: PyInstaller `--onefile`
+At the fifth measurement the desktop sidecar added its own cost: PyInstaller `--onefile`
 unpacks the archive on every call. On the same workstation a `--onedir` freeze
 of the same CLI answered `version --json` in 2.6s against 3.1s for `--onefile`
-(median of five, wall clock); the change of bundle layout that would take is
-recorded in the roadmap rather than made here. The sidecar runs the same
-imports, so the fifth measurement lowers its per-call cost as well.
+(median of five, wall clock); the required change of bundle layout
+was recorded in the roadmap rather than made in that wave. The sidecar ran
+the same imports, so the fifth measurement lowered its per-call cost as well.
+
+## Desktop directory packaging — October 7
+
+The shell now bundles the complete PyInstaller `--onedir` tree through Tauri
+resources (ADR-0222), with no extraction on each invocation. A control freeze
+used the earlier onefile script against the same CLI 0.0.42 source and locked
+dependency closure. After one warm-up per binary, seven alternating
+`version --json` calls used the same temporary home on this Linux workstation.
+Wall-clock medians were **3.133 s onefile → 2.223 s onedir** (29% lower).
+The host was concurrently building packages: ranges were 2.082–5.972 s and
+1.313–5.763 s, respectively. This is a loaded-host packaging comparison, not
+a portable latency promise or a replacement for the CLI user-CPU budgets.
+
+Control executable SHA-256:
+`49c384eea1978b2775068e920191c597a707082a2b0d28d4842dc06c8a769e15`.
+The local deb containing the onedir tree has SHA-256
+`e92fa670eb0b2254a84763b4be26f4ee7e4bc1cec1fc54e0dd4127d7a9335870`.
+Its extracted resource tree passed the app's filtered-environment runner
+probe. These are audit artifacts, not published desktop 0.0.7 release bytes;
+the new layout is prepared for desktop 0.0.8.
 
 ## Identified causes
 

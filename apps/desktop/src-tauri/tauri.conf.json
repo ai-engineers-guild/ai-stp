@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "ai-stp-desktop",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "identifier": "space.aiguild.ai-stp-desktop",
   "build": {
     "frontendDist": "../dist",
@@ -46,8 +46,8 @@
         ]
       }
     },
-    "externalBin": [
-      "sidecar/ai-stp-desktop-cli"
-    ]
+    "resources": {
+      "sidecar/cli/": "cli/"
+    }
   }
 }

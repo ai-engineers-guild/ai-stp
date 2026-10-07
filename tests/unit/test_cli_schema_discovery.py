@@ -98,6 +98,7 @@ def test_task_intents_describe_input_fields() -> None:
         "gitlab",
         "google",
         "keycloak",
+        "saml",
     ]
 
     assert by_name["inspect"].input_fields == []

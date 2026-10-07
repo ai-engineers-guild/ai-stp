@@ -1,9 +1,15 @@
 ---
-description: "Target implementation plan for the agent-first CLI: GPT OSS 120B qualification, shared task engine, and the website-to-native journeys in epic #261."
+description: "Historical Agent UX implementation and qualification plan for the closed epic #261; retained as dated evidence."
 last_verified: "2026-10-03"
 ---
 
-# Agent UX implementation plan
+# Historical Agent UX implementation plan
+
+Archived on 2026-10-07: epic #261–#275 is closed and the task engine is
+implemented. This is a dated design and measurement record, not current work
+authority or a release gate. Current behavior belongs to SPEC-080 and the
+implemented CLI; the current plan and owner exclusions belong to
+[the implementation roadmap](../engineering/implementation-roadmap.md).
 
 This document is a **target execution plan**, not a description of current
 behavior. Live requirements remain epic
@@ -47,7 +53,7 @@ unassisted matrix is 14 pass / 10 fail / 76 unrun, including invalid host
 change fixtures. They do not qualify the September 26 repair. New overlays bind
 CLI/Skill bytes and refuse old unidentified candidates; fresh GPT OSS 120B
 attempts currently encounter individual quota exhaustion. See the
-[canonical execution plan](implementation-roadmap.md).
+[canonical execution plan](../engineering/implementation-roadmap.md).
 
 ### Live CLI
 

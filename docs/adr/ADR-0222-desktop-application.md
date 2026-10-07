@@ -1,11 +1,13 @@
 ---
 description: "The desktop application is a Tauri shell that consumes the CLI machine contract; the CLI remains the sole authority for catalog, selection, installation, and recovery."
-last_verified: "2026-10-03"
+last_verified: "2026-10-07"
 ---
 
 # ADR-0222: Desktop application is a contract consumer, not a second engine
 
-Status: proposed.
+Status: accepted. Implemented in `apps/desktop` and distributed through the
+`desktop-v*` release series; the October 7 review reconciles this status with
+the shipped contract consumer.
 
 ## Context
 
@@ -88,7 +90,13 @@ client-side authority) are rejected.
    Gatekeeper and Windows SmartScreen warnings are documented behavior. The
    embedded sidecar is named `ai-stp-desktop-cli` (never `ai-stp`), so
    Linux packages cannot collide with a standalone `ai-stp-cli` install at
-   `/usr/bin/ai-stp`. Bundles are not promised byte-reproducible.
+   `/usr/bin/ai-stp`. PyInstaller's complete `--onedir` output is bundled
+   as the `cli/` Tauri resource tree. The shell resolves its executable
+   through Tauri's platform resource directory, including AppImage and
+   macOS app layouts; it does not guess a path beside the app executable.
+   This avoids unpacking a `--onefile` archive on every CLI invocation.
+   The installed resource tree is tested with the same filtered child
+   environment as the app. Bundles are not promised byte-reproducible.
 8. v1 scope: sign-in, catalog browse, environment/provider diagnostics,
    setup select → plan → approve → apply, status/drift, backups/rollback,
    devices, settings. Out of v1: corporate surfaces, publishing, a
@@ -100,17 +108,19 @@ client-side authority) are rejected.
   and `bun` toolchains to developer setup for that tree only.
 - The app depends on a resolvable `ai-stp` executable. Runtime distribution
   is resolved: release bundles embed the CLI as a PyInstaller-frozen sidecar
-  (`bundle.externalBin`, `scripts/build-cli-sidecar.sh`), so no separate
+  (`bundle.resources`, `scripts/build-cli-sidecar.sh`), so no separate
   install is required; a configured path or PATH remains the development
   fallback. Every spawn runs under a filtered environment: `CliRunner`
   clears the inherited env and re-adds an explicit passthrough set
   (session, temp, profile, proxy, CA-bundle, and `AI_STP_*` variables),
   synthesizing a per-app temp dir when the parent supplies none. On
-  Windows the temp/profile entries are load-bearing — the frozen
-  bootloader resolves its `_MEI` extraction dir from them and dies with
-  "Could not create temporary directory!" when they are stripped.
+  Windows the temp/profile entries remain necessary for CLI operations and
+  for configured onefile executables, even though the bundled onedir CLI
+  no longer extracts a `_MEI` directory.
 - Envelope `schema_version` mismatches fail closed with an update prompt;
-  `registry_digest` invalidates the app's cached command descriptors.
+  `registry_digest` invalidates the app's cached command descriptors. The
+  30-second freshness interval starts at the last successful CLI verification;
+  using a cached descriptor does not extend it.
 - The provider co-owned roots (`~/.agents/skills`, `~/.claude/skills`) are
   surfaced in the UI when an operation touches them, because removal in one
   provider changes what other products read.

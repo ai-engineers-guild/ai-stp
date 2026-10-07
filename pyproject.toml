@@ -25,6 +25,7 @@ dev = [
     "httpx>=0.28",
     "hypothesis>=6.112",
     "jsonschema>=4.23",
+    "lxml-stubs>=0.5.1",
     "openapi-spec-validator>=0.7",
     "pyright>=1.1.400",
     "pytest>=8.3",
@@ -137,6 +138,15 @@ select = ["E", "F", "W", "I", "UP", "B", "C4", "SIM", "PTH", "RUF"]
 
 [tool.pyright]
 include = ["packages", "apps", "tests", "docs_scripts", "release_scripts"]
+# Frozen desktop resources and Rust build output contain copies of sources,
+# not additional Python modules owned by this workspace.
+exclude = [
+    "**/node_modules",
+    "**/__pycache__",
+    "**/.*",
+    "apps/desktop/**/target",
+    "apps/desktop/src-tauri/sidecar",
+]
 # Product code and its tests are strict; the documentation validators run at
 # basic level until their full typing lands.
 typeCheckingMode = "basic"

@@ -49,6 +49,8 @@ BEYOND_THE_CONTRACT: Final[dict[str, str]] = {
     "/v1/account/public-profile/preview": "publisher profile draft lifecycle",
     "/v1/account/public-profile/publish": "publisher profile draft lifecycle",
     "/v1/auth/link/{provider}": "step-up identity linking, browser-only",
+    "/v1/auth/saml/acs": "IdP form POST, browser-only (ADR-0226)",
+    "/v1/auth/saml/metadata": "SP EntityDescriptor for IdP-side registration, XML",
     "/v1/auth/{provider}/login": "browser redirect entry point; the CLI uses the device flow",
     "/v1/organizations/{organization_id}/provider-project-observations": (
         "provider identity observation; it never creates a project link"

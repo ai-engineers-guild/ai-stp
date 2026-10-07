@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "cli_version": "0.0.0-pinned",
-  "registry_digest": "sha256:5baa2983cca53264a47556bd6f18a06bf9504c9007961c13556c5fc35be3767b",
+  "registry_digest": "sha256:e8ecda2ee31f601ddbb2161fc22e09081d273ee40f752dbe42a3a7301b141475",
   "global_options": [
     {
       "name": "json",
@@ -208,7 +208,8 @@
             "github",
             "authentik",
             "keycloak",
-            "gitlab"
+            "gitlab",
+            "saml"
           ]
         },
         {
