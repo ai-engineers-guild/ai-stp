@@ -13,24 +13,36 @@ closing records are history in
 [implementation-roadmap-history.md](../archive/implementation-roadmap-history.md):
 true as of their dates, not a queue to replay.
 
-## Remaining work
+## October 7–8 audit outcome
 
-The October 7 audit starts from `dev` at `ba8bcd0a` and production at
-`d9edaaf2`. Each wave is checked against the implemented boundary before it
-changes. Work branches enter `dev` by PR; exact-SHA checks precede promotion
-to `main`, and the deployment is read back independently. Reverting the
-individual fix commit through the same flow is the default rollback; existing
-published versions, deployment records and database rollback copies are kept.
+The audit started from `dev` at `ba8bcd0a` and production at `d9edaaf2`.
+Implementation PR [#712](https://github.com/ai-engineers-guild/ai-stp/pull/712)
+and promotion [#713](https://github.com/ai-engineers-guild/ai-stp/pull/713)
+produced release commit `e7964854a6ff77200946b1c1462daeb245efb38f`.
+The final publication-helper and documentation integration, branch synchronization
+and deployed SHA are recorded in
+[#711](https://github.com/ai-engineers-guild/ai-stp/issues/711).
+Released artifacts stay bound to their original tags when later operational or
+documentation commits are promoted. Revert an individual fix through the normal
+PR flow; published versions, deployment records and database rollback copies
+remain available.
 
-| # | Work | Current state | Closes when |
-|---|---|---|---|
-| 1 | Desktop registry freshness and cancellation | Fixed: cache reads preserve the last verification timestamp; a failed expired probe refuses stale descriptors. Sign-in cancellation also survives the browser-opening await | Registry regression, desktop checks and final three-OS CI pass |
-| 2 | Official download memory bound | Fixed: the worker streams within the existing maximum and closes early refusals; five transport regressions pass | Final backend gate and deployed worker verification pass |
-| 3 | Official manifest curation | All 52 sources reviewed: 17 enabled, 35 paused with specific re-enabling conditions in the Official runbook; native roots corrected for Agent Browser and Impeccable; 53 focused tests pass | Production reconciliation reports the same manifest digest and scheduling states; the corrected enabled source completes its normal validation path |
-| 4 | Desktop sidecar cold start | Implemented: onedir resources use the Tauri resolver; extracted Linux deb probe passes; a controlled loaded-host comparison records 29% lower median wall time in `cli-performance.md` | Final desktop gate, all three CI bundles and published artifact readback pass |
-| 5 | Deferred dependency exit conditions | Rechecked October 7: primary release metadata still supports all five concrete deferrals in `dependency-policy.md` | Closed for this audit; migrations resume when their documented upstream conditions change |
-| 6 | Release and synchronization | `dev` includes the already merged SAML change absent from production; CLI and desktop releases remain 0.0.42 and 0.0.7 | Affected local checks and exact-SHA CI pass; release checksums, local installation, remote refs and production readbacks agree with their respective release records |
-| 7 | Documentation and memory reconciliation | Closed Agent UX plan and dated roadmap checkpoints archived; current canon, deployment guidance and dependency evidence corrected; docs-check passes | Final release evidence is recorded and project memories point to the resulting code and release identities |
+| # | Work | Observed result |
+|---|---|---|
+| 1 | Desktop registry freshness and cancellation | Cache reads preserve the last verification timestamp; an expired failed probe refuses stale descriptors. Sign-in cancellation survives the browser-opening await. Local desktop checks and the three-OS promotion and release matrices pass. |
+| 2 | Official download memory bound | The worker streams within the existing maximum and closes early refusals. Five transport regressions, backend checks and the deployed worker's normal publication path pass. |
+| 3 | Official manifest curation | All 52 identities preserved: production reports 17 enabled and 35 paused with the exact reviewed manifest digest. Agent Browser job `33882` publishes `1.0` with 16 passed checks; public readback retains `component_verified: false` and the experimental trust line. Re-enabling conditions remain in the Official runbook. |
+| 4 | Desktop sidecar cold start | Onedir resources use the Tauri resolver. Desktop 0.0.8 ships six bundles, all downloaded and verified against `SHA256SUMS`; the published deb's CLI also passes the filtered-environment runner probe. A controlled loaded-host comparison records 29% lower median wall time, not a portable latency promise. |
+| 5 | Deferred dependency exit conditions | Primary release metadata checked October 7 still supports the five concrete deferrals in `dependency-policy.md`. Resume only when the documented upstream conditions change. |
+| 6 | Release and live synchronization | CLI 0.0.43 is attested and byte-identical across candidate, GitHub and PyPI; Python 3.12/3.14 installation evidence passes. Local self-update is `verified`; all 13 doctor checks are ready with the existing user session's credential store. The release deployment readback at `e7964854` verified migration `0115` and all eight healthy containers. |
+| 7 | Documentation and memory reconciliation | Closed Agent UX and dated roadmap checkpoints are archived. Active canon, deployment guidance and release evidence describe the implemented code. Project memory reconciliation preserves owner decisions and historical transcripts, with a private backup before replacement. |
+| 8 | Publication dispatch identity | The helper requires the exact tagged candidate workflow and a successful attestation job, then binds approval to the dispatch response ID. Missing identities and approval HTTP failures are refusals. Eighteen focused regression/contract tests and backend static checks pass; final integration evidence is in #711. |
+
+The published CLI's anonymous live slice agrees with the API and machine
+projections for 204 components and 28 setups, and serves exact cached objects
+when the route is unavailable. This is a dated catalog readback, not an invariant
+object count. Login, grant and native-provider scenarios not driven in this audit
+remain explicitly unverified; earlier receipts do not qualify them on a new SHA.
 
 ### Verification and stop conditions
 
@@ -105,12 +117,14 @@ and the issues it links) and setup-systems #316.
 - The current component vocabulary is the closed `component_type` list in
   `docs/contracts/component-setup-passports.md` and may be extended by a new
   ADR when a proven native form exists.
-- The release target is Linux, Windows, and macOS on both architectures —
-  `x86_64`/`arm64` — with real-product evidence; bundles remain portable between
-  operating systems.
-- Package classifiers name all three operating systems. Every new release
-  candidate requires retained six-leg evidence at its exact artifact identities;
-  a classifier or an older passing matrix does not qualify the new candidate.
+- The platform vocabulary covers Linux, Windows, and macOS and
+  `x86_64`/`arm64`. ADR-0172 requires beta qualification on Linux x86_64,
+  Windows x86_64 and macOS arm64; the other three pairs remain `not_verified`
+  and do not delay beta. Native binaries are specific to their platform.
+- Package classifiers do not prove qualification. Evidence binds the exact
+  candidate artifacts; a Python-version install matrix and provider native
+  qualification answer different questions. Older passing matrices do not
+  qualify a new candidate, and the owner exclusions above remain explicit.
 - The agent chooses the engineering path within the task. Digest, rollback,
   provenance, and compatibility remain mechanical integrity constraints without
   creating an additional approval round.
@@ -123,8 +137,8 @@ and the issues it links) and setup-systems #316.
 | Platform | `/v1`, PostgreSQL, object storage, queue, authentication/devices, sync, publication, grants/reports, public catalog, article, and SEO projections |
 | Web | Landing, catalog/detail, account/device/owner surfaces, content hub, machine projections, and a three-OS test matrix |
 | Providers | Seven public setup systems at `0.0.88`, read through the vendored provider kit `0.2.15` and protocol v3: native configuration, backup/recovery and software lifecycle. Launch completeness per provider is measured evidence, not a property of the release. |
-| Release | `ai-stp-cli==0.0.42` on PyPI with its GitHub Release (SBOM, manifest, `SHA256SUMS`). GitHub attested acquisition remains the default provider path; PyPI provenance is a second, explicit path (`ADR-0141`). Self-update of the CLI wheel is `SPEC-072` / `ADR-0170`. Source integration, package publication and installed PATH identity are separate observations. |
-| Desktop | `ai-stp-desktop` 0.0.7: a Tauri 2 shell over the CLI machine contract with a frozen CLI sidecar (`ADR-0222`); deb, rpm and AppImage for Linux, an aarch64 dmg, and an exe and msi for Windows, unsigned. |
+| Release | `ai-stp-cli==0.0.43` on PyPI with its GitHub Release (SBOM, manifest, `SHA256SUMS`). Automatic provider acquisition uses PyPI with the CLI-managed verifier (`ADR-0171`); explicit GitHub acquisition retains its attestation policy. Self-update of the CLI wheel is `SPEC-072` / `ADR-0170`. Source integration, package publication and installed PATH identity are separate observations. |
+| Desktop | `ai-stp-desktop` 0.0.8: a Tauri 2 shell over the CLI machine contract with a frozen CLI sidecar (`ADR-0222`); deb, rpm and AppImage for Linux, an aarch64 dmg, and an exe and msi for Windows, unsigned. |
 | Catalog | The canonical first-party corpus models seven harness families and four postures. Identity projection, exact target assurance, and normal-path publication/readback evidence are implemented in the current platform closeout for `#146`/`#155`. |
 | OBT support tiers | All seven harnesses are `beta` (`SUPPORT_TIERS`, `SPEC-033` REQ-3315). `primary` remains a valid later GA label with no current members |
 
@@ -151,7 +165,7 @@ closed or forbade. Those findings are not re-opened here:
 | Protect `ai-stp/main` (GOV-001) | ADR-0180 restores protected `main`, promotion checks, and administrator bypass with zero mandatory approvals (default later moved to `main`; see the ADR amendment). |
 | Six-package publication (REL-002) | Superseded by `ADR-0146`: one public `ai-stp-cli` wheel. Historical six-package artifacts stay immutable. |
 | Provider-owned multi-root commit (LAY-002) | Superseded by `ADR-0145` / SPEC-058: the consumer owns a recoverable transaction over unchanged provider v3 (one target). |
-| PyPI as the default provider channel (PYP-002) | Not claimed. GitHub attested releases remain the default until six-leg evidence exists for the index path. |
+| PyPI as the default provider channel (PYP-002) | Implemented by `ADR-0171`: automatic acquisition uses PyPI with a CLI-owned verifier; GitHub is explicit. Three primary platform pairs are required; the other three remain `not_verified`. Current default selection does not qualify an unexercised platform. |
 | Public provider disclosure (PUB-001/002) | Owned by the provider estate, not this consumer. Public documentation remains self-contained. |
 | Persist adaptation assessments (CMP-003) | Implemented by the target-bound assessment history/latest model and migration `0050`; PostgreSQL concurrency evidence is required at release time. |
 | Catalog/web per-harness matrix (CMP-004) | Implemented by exact adaptation target matrices and exact-only harness filters; aggregate fields remain compatibility-only. |
@@ -165,8 +179,8 @@ closed or forbade. Those findings are not re-opened here:
 ## Explicitly out of scope for this pass
 
 Corporate implementation and its proposals remain owned by the colleague's
-workstream. GitLab integration and SAML sign-in already ship in the integration
-branch; they are not unimplemented backlog. New product scope is evaluated
+workstream. GitLab integration and SAML sign-in already ship in production;
+they are not unimplemented backlog. New product scope is evaluated
 against current code and requires the applicable specification and ADR.
 
 ## Done
