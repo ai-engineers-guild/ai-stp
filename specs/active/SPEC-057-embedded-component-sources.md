@@ -125,7 +125,10 @@ the architecture and extends ADR-0051 without changing `ComponentRef`.
 - `REQ-5718`: All resolver and registry clients use bounded time, response size,
   redirect host, extraction size/count, and dependency-graph limits. Tokens,
   credential-bearing URLs, local absolute paths, and secret-like files do not
-  enter passports, setup definitions, queue payloads, logs, or fixtures.
+  enter passports, setup definitions, queue payloads, logs, or fixtures. The
+  Official worker enforces the 100 MiB Git transport ceiling while streaming,
+  before buffering an oversized body; an absent or understated `Content-Length`
+  does not bypass the limit. The response closes on refusal or transport error.
 - `REQ-5719`: Catalog setup summaries expose the mechanically supported harness
   projections and never show an aggregate safety percentage. Setup detail lists
   every exact constituent by its human name and version, labels embedded members,
