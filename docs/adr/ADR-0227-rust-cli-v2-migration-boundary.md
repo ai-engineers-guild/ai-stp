@@ -5,7 +5,8 @@ last_verified: "2026-10-07"
 
 # ADR-0227: Rust CLI v2 migration boundary
 
-Status: accepted for development. No Rust CLI runtime ships at this checkpoint.
+Status: accepted. C1 implements an isolated native preview; the production CLI
+and state writer remain Python.
 
 ## Context
 
@@ -61,6 +62,23 @@ active specifications ahead of code (ADR-0194).
   it does not link the new domain library as a second engine.
 
 ### Compatibility and native dependencies
+
+C1's code-backed preview boundary is documented beside `apps/cli-v2`. It keeps
+envelope v1 and the machine-help shape. Its version/capability payloads are
+explicitly preview-specific: reporting a Python version or a supported harness
+before one exists would be false. No production payload schema URN is advertised
+for these responses. Their final consumer-compatible replacement remains a
+cutover requirement, not an implicit wire migration.
+
+The native PEP 740 verifier uses `sigstore-verify` from `sigstore/sigstore-rust`,
+with certificate, SCT and transparency verification enabled. Signed deployment
+environment is also required. The C1 oracle showed that `pypi-attestations`
+0.0.30 checks signed repository/workflow but ignores its environment argument;
+the shipped wrapper compares environment only with unsigned index metadata.
+Preserving that gap would contradict the pinned publisher rule. The preview
+therefore refuses a missing or mismatched signed environment. No production
+provider path changes in C1; authenticated trust-root refresh still belongs to
+the acquisition slice before that service can install a provider.
 
 - The command ledger starts with `retain` for every shipped leaf. Internal
   simplification is encouraged; removing, merging or changing an observable

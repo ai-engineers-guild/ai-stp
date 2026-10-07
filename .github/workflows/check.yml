@@ -77,7 +77,7 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             apps/cli-v2/target
-          key: ${{ runner.os }}-cli-v2-${{ hashFiles('apps/cli-v2/Cargo.lock', 'apps/cli-v2/rust-toolchain.toml') }}
+          key: cli-v2-${{ runner.os }}-${{ hashFiles('apps/cli-v2/Cargo.*', 'apps/cli-v2/*.toml') }}
       - name: Native boundary checks
         working-directory: apps/cli-v2
         shell: bash
@@ -89,7 +89,8 @@ jobs:
           cargo build --locked --release --bins --examples
       - name: Existing consumers and real SQLite backup
         shell: bash
-        run: uv run --no-sync python apps/cli-v2/scripts/verify.py apps/cli-v2/target/release/ai-stp-v2
+        run: |
+          uv run --no-sync python apps/cli-v2/scripts/verify.py apps/cli-v2/target/release/ai-stp-v2
 
   docs:
     name: docs

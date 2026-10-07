@@ -1,6 +1,6 @@
 ---
 description: "Required checks and release evidence."
-last_verified: "2026-10-05"
+last_verified: "2026-10-07"
 ---
 
 # Quality gates
@@ -273,12 +273,23 @@ over the web lockfile and `scripts/safety/scan_lockfile.sh`, which fetches the
 pinned `osv-scanner` (checksum-verified from its own release SHA256SUMS) and
 scans every committed lockfile — `uv.lock`, `apps/web/bun.lock`,
 `docs_scripts/bun.lock`, `apps/desktop/bun.lock`, the desktop Rust crates
-(`apps/desktop/core/Cargo.lock`, `apps/desktop/src-tauri/Cargo.lock`), the
+(`apps/desktop/core/Cargo.lock`, `apps/desktop/src-tauri/Cargo.lock`), the native
+CLI (`apps/cli-v2/Cargo.lock`), the
 vendored provider-verifier environment
 (`apps/cli/src/ai_stp_cli/provider/verifier-requirements.txt`), and the
-scanner venv lock (`scripts/safety/requirements.lock`). All eight always
-report: the script exits nonzero at the end if any one of them trips rather
+scanner venv lock (`scripts/safety/requirements.lock`). Every lockfile always
+reports: the script exits nonzero at the end if any one of them trips rather
 than aborting at the first advisory.
+
+## Native CLI (`apps/cli-v2`)
+
+`just cli-v2-check` is part of `just check`. It runs the pinned rustup toolchain,
+format/Clippy checks, risk-based Rust tests, an optimized executable build and
+the existing-envelope/real-SQLite backup proof. `check.yml` runs the same commands
+on Linux, Windows and macOS. The Python script is a development oracle; native
+child processes have an empty PATH and no Python runtime dependency. Preview
+commands and current limits are owned beside their implementation, in
+`apps/cli-v2/README.md`. Rust build output is excluded from Python analysis.
 
 ## Frontend (`apps/web`)
 
