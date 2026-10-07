@@ -14,6 +14,7 @@ class OAuthProvider(StrEnum):
     AUTHENTIK = "authentik"
     KEYCLOAK = "keycloak"
     GITLAB = "gitlab"
+    SAML = "saml"
 
 
 class LinkState(StrEnum):

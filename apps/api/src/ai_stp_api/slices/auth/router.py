@@ -4,10 +4,10 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 from typing import Annotated, Any
-from urllib.parse import urlencode
+from urllib.parse import parse_qs, urlencode
 
 from authlib.integrations.base_client import OAuthError
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, Query, Request, Response
 from fastapi.responses import JSONResponse, RedirectResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -33,9 +33,23 @@ from ai_stp_api.session import (
     revoke_sessions_for_device,
 )
 from ai_stp_api.settings import AuthSettings
-from ai_stp_api.slices.auth.domain import validate_provider
+from ai_stp_api.slices.auth.domain import (
+    LinkDecision,
+    normalize_email,
+    validate_provider,
+)
 from ai_stp_api.slices.auth.oauth import get_client, profile_from_token
 from ai_stp_api.slices.auth.onboarding import complete_onboarding, required_revisions
+from ai_stp_api.slices.auth.saml import (
+    SamlError,
+    build_sso_redirect,
+    consume_sso_request,
+    mark_consumed,
+    new_sso_request,
+    purge_expired_requests,
+    sp_metadata_xml,
+    validate_response,
+)
 from ai_stp_api.slices.auth.service import (
     resolve_login_identity,
     resolve_step_up_link,
@@ -53,7 +67,12 @@ from ai_stp_foundation.ids import new_id
 from ai_stp_foundation.timestamps import format_timestamp, parse_timestamp
 from ai_stp_platform.identity import IdentityError, set_account_identity
 from ai_stp_platform.logging import get_logger
-from ai_stp_platform.models import Account, Device, OAuthIdentity
+from ai_stp_platform.models import Account, Device, OAuthIdentity, SamlSsoRequest
+from ai_stp_platform.organization_models import (
+    CorporateProvisionedIdentity,
+    Organization,
+)
+from ai_stp_platform.tenant_scope import set_tenant_scope
 
 router = APIRouter(tags=["auth"])
 compatibility_router = APIRouter(tags=["auth"], include_in_schema=False)
@@ -146,10 +165,45 @@ def _prefer_browser_redirect(request: Request, client_hint: str | None) -> bool:
     return not _wants_json(request, None)
 
 
+def _saml_idp(request: Request) -> Any:
+    """Startup-resolved IdP config; SAML stays absent on apps without one."""
+    return getattr(request.app.state, "saml_idp", None)
+
+
+async def _saml_start(
+    request: Request,
+    db: AsyncSession,
+    auth: AuthSettings,
+    *,
+    flow: str,
+    client: str | None,
+    return_to: str | None,
+    link_account_id: str | None,
+) -> str:
+    """Persist the pending request and return the IdP SSO redirect URL."""
+    idp = _saml_idp(request)
+    if idp is None:
+        raise ApiError(ErrorCategory.DEPENDENCY, "oauth provider is not configured")
+    await purge_expired_requests(db)
+    row = new_sso_request(
+        flow=flow,
+        client=client if client in {"cli", "web"} else "web",
+        return_to=_safe_return_to(return_to),
+        link_account_id=link_account_id,
+        # The browser device cookie reaches this same-origin GET but not the
+        # IdP's cross-site ACS POST, so the remembered device rides the row.
+        device_id=request.cookies.get(auth.device_cookie_name),
+    )
+    db.add(row)
+    await db.flush()
+    return build_sso_redirect(idp, request_id=row.id, relay_state=row.relay_state, auth=auth)
+
+
 @router.get("/auth/{provider}/login", response_model=None)
 async def oauth_login(
     provider: str,
     request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
     auth: Annotated[AuthSettings, Depends(get_auth_settings)],
     client: str | None = Query(default=None, description="cli or web"),
     return_to: str | None = Query(
@@ -164,6 +218,20 @@ async def oauth_login(
         raise ApiError(ErrorCategory.VALIDATION, "unsupported oauth provider") from exc
     if not auth.provider_enabled(name):
         raise ApiError(ErrorCategory.DEPENDENCY, "oauth provider is not configured")
+
+    if name == "saml":
+        return RedirectResponse(
+            url=await _saml_start(
+                request,
+                db,
+                auth,
+                flow="login",
+                client=client,
+                return_to=return_to,
+                link_account_id=None,
+            ),
+            status_code=303,
+        )
 
     # Transient handshake state lives in the signed SessionMiddleware cookie.
     request.session[_SESSION_KEY_FLOW] = "login"
@@ -211,6 +279,8 @@ async def oauth_callback(
             )
         raise ApiError(category, message)
 
+    if name == "saml":
+        raise ApiError(ErrorCategory.VALIDATION, "saml responses arrive at POST /v1/auth/saml/acs")
     remote = get_client(_oauth(request), name)
     try:
         token = await remote.authorize_access_token(request)
@@ -252,6 +322,35 @@ async def oauth_callback(
             return _fail("error", exc.category, exc.message)
         raise
 
+    return await _issue_login_session(
+        request,
+        db,
+        auth,
+        decision=decision,
+        client_hint=client_hint if isinstance(client_hint, str) else None,
+        return_to=return_to if isinstance(return_to, str) else None,
+        response_mode=response_mode,
+        remembered_device_id=request.cookies.get(auth.device_cookie_name),
+    )
+
+
+async def _issue_login_session(
+    request: Request,
+    db: AsyncSession,
+    auth: AuthSettings,
+    *,
+    decision: LinkDecision,
+    client_hint: str | None,
+    return_to: str | None,
+    response_mode: str | None,
+    remembered_device_id: str | None,
+) -> JSONResponse | RedirectResponse:
+    """Register the web device, issue the session and shape the response.
+
+    Shared by the OAuth callback and the SAML ACS: everything past identity
+    resolution is one invariant (REQ-2313 device reuse, onboarding redirect,
+    cookie shape).
+    """
     web_device: Device | None = None
     if client_hint == "web" or (client_hint != "cli" and not _wants_json(request, response_mode)):
         location = approximate_location(
@@ -265,11 +364,10 @@ async def oauth_callback(
             location = (
                 ", ".join(part for part in (forwarded_city, forwarded_country) if part) or None
             )
-        remembered_id = request.cookies.get(auth.device_cookie_name)
-        if remembered_id:
+        if remembered_device_id:
             web_device = await db.scalar(
                 select(Device).where(
-                    Device.id == remembered_id,
+                    Device.id == remembered_device_id,
                     Device.account_id == decision.account_id,
                     Device.device_type == _WEB_DEVICE_TYPE,
                     Device.state == "active",
@@ -347,6 +445,136 @@ async def oauth_callback(
     return response
 
 
+async def _saml_org_admits(db: AsyncSession, auth: AuthSettings, email: str) -> bool:
+    """Organization restriction for SAML logins (#220).
+
+    A configured org admits an assertion email when the org's
+    ``allowed_email_domains`` lists it, or when the email was provisioned
+    into the org ahead of time. An empty domain list does not fail open.
+    """
+    organization = await db.get(Organization, auth.saml_organization_id)
+    if organization is None or organization.state != "active":
+        return False
+    normalized = normalize_email(email)
+    domains = {
+        item.strip().lower().lstrip("@.")
+        for item in (organization.allowed_email_domains or [])
+        if item.strip()
+    }
+    if normalized.rsplit("@", 1)[-1] in domains:
+        return True
+    await set_tenant_scope(db, "*")
+    provisioned = await db.scalar(
+        select(CorporateProvisionedIdentity).where(
+            CorporateProvisionedIdentity.organization_id == organization.id,
+            CorporateProvisionedIdentity.normalized_email == normalized,
+        )
+    )
+    return provisioned is not None
+
+
+@router.post("/auth/saml/acs", response_model=None)
+async def saml_acs(
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    auth: Annotated[AuthSettings, Depends(get_auth_settings)],
+) -> JSONResponse | RedirectResponse:
+    """Consume the IdP's SAMLResponse POST and issue a session (ADR-0226).
+
+    The IdP's form POST is a cross-site navigation, so no session cookie —
+    and therefore no CSRF double-submit — is expected here. Flow state
+    arrives via the RelayState row the login start persisted.
+    """
+    if not auth.provider_enabled("saml"):
+        raise ApiError(ErrorCategory.DEPENDENCY, "oauth provider is not configured")
+    idp = _saml_idp(request)
+    if idp is None:
+        raise ApiError(ErrorCategory.DEPENDENCY, "oauth provider is not configured")
+
+    form = parse_qs((await request.body()).decode("utf-8", "replace"), keep_blank_values=True)
+    saml_response = (form.get("SAMLResponse") or [""])[0]
+    relay_state = (form.get("RelayState") or [""])[0]
+
+    request_row: SamlSsoRequest | None = None
+    return_to: str | None = None
+
+    def _fail(status: str, reason: str) -> RedirectResponse:
+        _log.info("saml_acs_failed", reason=reason)
+        return RedirectResponse(
+            url=_web_login_status_location(auth, return_to=return_to, status=status),
+            status_code=303,
+        )
+
+    try:
+        request_row = await consume_sso_request(db, relay_state=relay_state)
+        return_to = request_row.return_to
+        profile, assertion_id = validate_response(
+            saml_response, idp=idp, auth=auth, expected_request_id=request_row.id
+        )
+        await mark_consumed(db, request_id=request_row.id, assertion_id=assertion_id)
+        if auth.saml_organization_id and not await _saml_org_admits(db, auth, profile.email):
+            raise SamlError("organization_denied")
+    except SamlError as exc:
+        await emit_audit(
+            db,
+            actor_account_id=None,
+            action="auth.saml_login",
+            target_table="saml_sso_request",
+            target_id=request_row.id if request_row is not None else "-",
+            outcome="failed",
+            reason=exc.reason,
+            request_id=getattr(request.state, "request_id", None),
+            payload={"provider": "saml"},
+        )
+        return _fail("error", exc.reason)
+    # consume_sso_request raises on every failure path, so past the except the
+    # row is bound; pyright narrows request_row to non-None here.
+
+    try:
+        if request_row.flow == "link" and request_row.link_account_id:
+            decision = await resolve_step_up_link(
+                db, session_account_id=request_row.link_account_id, profile=profile
+            )
+        else:
+            decision = await resolve_login_identity(db, profile)
+    except ApiError as exc:
+        status = "conflict" if exc.category is ErrorCategory.CONFLICT else "error"
+        return _fail(status, exc.category.value)
+
+    await emit_audit(
+        db,
+        actor_account_id=decision.account_id,
+        action="auth.saml_login",
+        target_table="saml_sso_request",
+        target_id=request_row.id,
+        request_id=getattr(request.state, "request_id", None),
+        payload={"provider": "saml", "flow": request_row.flow},
+    )
+    return await _issue_login_session(
+        request,
+        db,
+        auth,
+        decision=decision,
+        # ACS is always a browser navigation; the session leaves as cookies.
+        client_hint="web",
+        return_to=return_to,
+        response_mode="redirect",
+        remembered_device_id=request_row.device_id,
+    )
+
+
+@router.get("/auth/saml/metadata", response_model=None)
+async def saml_sp_metadata(
+    request: Request,
+    auth: Annotated[AuthSettings, Depends(get_auth_settings)],
+) -> Response:
+    """SP EntityDescriptor for IdP-side registration (ADR-0226)."""
+    del request
+    if not auth.provider_enabled("saml"):
+        raise ApiError(ErrorCategory.DEPENDENCY, "oauth provider is not configured")
+    return Response(content=sp_metadata_xml(auth), media_type="application/samlmetadata+xml")
+
+
 @compatibility_router.get("/api/auth/callback/google", response_model=None)
 async def google_oauth_callback_compatibility(
     request: Request,
@@ -370,6 +598,7 @@ async def start_step_up_link(
     request: Request,
     ctx: Annotated[AuthContext, Depends(require_auth)],
     auth: Annotated[AuthSettings, Depends(get_auth_settings)],
+    db: Annotated[AsyncSession, Depends(get_db)],
     return_to: str | None = Query(
         default=None,
         description="Relative post-link path for web clients (must start with /)",
@@ -387,6 +616,23 @@ async def start_step_up_link(
         raise ApiError(ErrorCategory.VALIDATION, "unsupported oauth provider") from exc
     if not auth.provider_enabled(name):
         raise ApiError(ErrorCategory.DEPENDENCY, "oauth provider is not configured")
+
+    if name == "saml":
+        sso_url = await _saml_start(
+            request,
+            db,
+            auth,
+            flow="link",
+            client="cli" if _wants_json(request, None) else "web",
+            return_to=return_to,
+            link_account_id=ctx.account_id,
+        )
+        if _wants_json(request, None):
+            return success_response(
+                request_id=request.state.request_id,
+                data={"authorization_url": sso_url},
+            )
+        return RedirectResponse(url=sso_url, status_code=303)
 
     request.session[_SESSION_KEY_FLOW] = "link"
     request.session[_SESSION_KEY_LINK_ACCOUNT] = ctx.account_id

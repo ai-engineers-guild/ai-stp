@@ -258,7 +258,7 @@ def test_replay_changes_nothing_on_a_database_that_ran_the_chain(
     command.upgrade(config, "0111_corporate_access_provenance")
     before = _catalog(isolated_database_url)
     command.upgrade(config, "head")
-    assert _version(isolated_database_url) == "0114_gitlab_action_plans"
+    assert _version(isolated_database_url) == "0115_saml_sso_request"
     assert _rows(before) <= _rows(_catalog(isolated_database_url))
 
 

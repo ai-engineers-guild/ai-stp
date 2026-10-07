@@ -1,7 +1,7 @@
 /* Generated from ai_stp_contracts.cli_copy. Do not edit. */
 
 export type ObjectKind = "component" | "setup";
-export type LoginProvider = "google" | "github" | "authentik" | "keycloak" | "gitlab";
+export type LoginProvider = "google" | "github" | "authentik" | "keycloak" | "gitlab" | "saml";
 
 export const DISTRIBUTION = "ai-stp-cli" as const;
 export const INSTALL_CLI = "uv tool install ai-stp-cli" as const;

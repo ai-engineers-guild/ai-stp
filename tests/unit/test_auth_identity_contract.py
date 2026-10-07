@@ -103,7 +103,7 @@ def test_the_exchange_is_what_binds_the_device_key() -> None:
 
 def test_all_named_providers_are_representable() -> None:
     key = "0123456789abcdef0123456789abcdef"
-    for provider in ("google", "github", "authentik", "keycloak", "gitlab"):
+    for provider in ("google", "github", "authentik", "keycloak", "gitlab", "saml"):
         assert (
             DeviceAuthorizationRequest(provider=provider, idempotency_key=key).provider == provider
         )

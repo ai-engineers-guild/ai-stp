@@ -161,6 +161,44 @@ class AuthSettings(BaseSettings):
     gitlab_issuer_url: str = Field(default="")
     gitlab_client_id: str = Field(default="")
     gitlab_client_secret: str = Field(default="")
+    # SAML 2.0 identity provider (ADR-0226): one IdP per deployment for
+    # organizations whose enterprise IdP cannot speak OIDC (#220). Enabled by
+    # ``saml_idp_metadata_url`` alone, or by ``saml_idp_sso_url`` plus
+    # ``saml_idp_certificates``; explicit fields override what metadata says.
+    saml_idp_metadata_url: str = Field(default="")
+    saml_idp_entity_id: str = Field(default="")
+    saml_idp_sso_url: str = Field(default="")
+    # IdP signing certificates as an inline PEM bundle or a filesystem path to
+    # one. Certificates are public material, not secrets; more than one block
+    # in the bundle is the supported rotation-overlap window.
+    saml_idp_certificates: str = Field(default="")
+    # SP entity id registered at the IdP; empty derives it from the metadata
+    # endpoint this deployment serves.
+    saml_sp_entity_id: str = Field(default="")
+    # Comma-separated assertion attribute names; the first present claim wins.
+    # The OID tails cover SimpleSAMLphp/LDAP-style name2oid mapping, where
+    # `email` arrives as pkcs9 emailAddress and `displayName` as its OID.
+    saml_attribute_email: str = Field(
+        default=(
+            "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress,"
+            "email,mail,urn:oid:0.9.2342.19200300.100.1.3,"
+            "urn:oid:1.2.840.113549.1.9.1"
+        )
+    )
+    saml_attribute_display_name: str = Field(
+        default=(
+            "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name,"
+            "displayName,name,urn:oid:2.16.840.1.113730.3.1.241"
+        )
+    )
+    # Optional organization restriction: when set, a SAML login must resolve to
+    # an active organization whose ``allowed_email_domains`` admits the
+    # assertion email, or to a CorporateProvisionedIdentity row for that org.
+    saml_organization_id: str = Field(default="")
+    # IdP-only login mode (#220): with this on, every non-SAML provider
+    # reports as unconfigured — the corporate IdP is the only way in for
+    # browser login, linking and device authorization alike.
+    saml_idp_only: bool = Field(default=False)
     # Comma-separated provider names that are unreachable even when their
     # credentials are configured — authorize, callback, link, device and CLI
     # login all answer "unsupported oauth provider". Corporate deployments
@@ -207,7 +245,7 @@ class AuthSettings(BaseSettings):
     @classmethod
     def _disabled_providers_known(cls, value: str) -> str:
         names = {part.strip() for part in value.split(",") if part.strip()}
-        known = {"google", "github", "authentik", "keycloak", "gitlab"}
+        known = {"google", "github", "authentik", "keycloak", "gitlab", "saml"}
         unknown = names - known
         if unknown:
             raise ValueError(f"disabled_providers names unknown providers: {sorted(unknown)}")
@@ -247,6 +285,41 @@ class AuthSettings(BaseSettings):
             raise ValueError(msg)
         return trimmed
 
+    @field_validator("saml_idp_sso_url", "saml_idp_metadata_url")
+    @classmethod
+    def _saml_url_is_http(cls, value: str) -> str:
+        trimmed = value.strip()
+        if not trimmed:
+            return ""
+        if not trimmed.startswith(("http://", "https://")):
+            msg = "saml url must be an http(s) URL"
+            raise ValueError(msg)
+        if any(marker in trimmed for marker in ("?", "#", "\n", "\r")):
+            msg = "saml url must not contain a query, fragment or separator"
+            raise ValueError(msg)
+        return trimmed
+
+    @field_validator("saml_organization_id")
+    @classmethod
+    def _saml_organization_id_is_stable(cls, value: str) -> str:
+        trimmed = value.strip()
+        if trimmed and not trimmed.startswith("organization_"):
+            msg = "saml_organization_id must be an organization id"
+            raise ValueError(msg)
+        return trimmed
+
+    @model_validator(mode="after")
+    def _saml_idp_only_keeps_a_door(self) -> AuthSettings:
+        """IdP-only without a working SAML IdP boots into a total lockout."""
+        disabled = {part.strip() for part in self.disabled_providers.split(",") if part.strip()}
+        configured = self.saml_idp_metadata_url or (
+            self.saml_idp_sso_url and self.saml_idp_certificates
+        )
+        if self.saml_idp_only and (not configured or "saml" in disabled):
+            msg = "saml_idp_only requires an enabled, configured SAML IdP"
+            raise ValueError(msg)
+        return self
+
     def admin_ids(self) -> frozenset[str]:
         """Return the configured admin account id set."""
         parts = [part.strip() for part in self.admin_account_ids.split(",")]
@@ -256,6 +329,13 @@ class AuthSettings(BaseSettings):
         """Report whether both client id and secret are configured for provider."""
         disabled = {part.strip() for part in self.disabled_providers.split(",") if part.strip()}
         if provider in disabled:
+            return False
+        if provider == "saml":
+            return bool(
+                self.saml_idp_metadata_url or (self.saml_idp_sso_url and self.saml_idp_certificates)
+            )
+        # IdP-only mode (#220): a live SAML IdP is the only way in.
+        if self.saml_idp_only:
             return False
         if provider == "google":
             return bool(self.google_client_id and self.google_client_secret)
@@ -273,6 +353,21 @@ class AuthSettings(BaseSettings):
     def oidc_issuer(self, provider: str) -> str:
         """Issuer base URL for a corporate OIDC provider, or empty."""
         return getattr(self, f"{provider}_issuer_url", "").strip().rstrip("/")
+
+    def saml_sp_entity_id_resolved(self) -> str:
+        """SP entity id; defaults to the metadata endpoint this SP serves."""
+        return (
+            self.saml_sp_entity_id.strip() or f"{self.oauth_callback_base()}/v1/auth/saml/metadata"
+        )
+
+    def saml_acs_url(self) -> str:
+        """Assertion consumer service URL registered at the IdP."""
+        return f"{self.oauth_callback_base()}/v1/auth/saml/acs"
+
+    def saml_attribute_names(self, field: str) -> tuple[str, ...]:
+        """Configured assertion attribute candidates for ``field``, in order."""
+        raw = getattr(self, f"saml_attribute_{field}")
+        return tuple(part.strip() for part in raw.split(",") if part.strip())
 
 
 class CatalogSettings(BaseSettings):
