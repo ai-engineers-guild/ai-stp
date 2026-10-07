@@ -197,11 +197,19 @@ reconstruction of the earlier requested September 26 snapshot.
   requirements owned by current code.
 - [PyPI attestations](https://docs.pypi.org/attestations/): verification binds
   artifacts and publisher identity, not merely a downloaded checksum.
-- [Sigstore Rust](https://github.com/sigstore/sigstore-rs): the project describes
-  itself as experimental and lists attestation verification limitations.
-  Bundle examples do not establish compatibility with this CLI's complete
-  PyPI verification policy. Evaluate the actual API and negative vectors before
-  choosing it; this is an unresolved native dependency, not proof of impossibility.
+- [sigstore-rs](https://github.com/sigstore/sigstore-rs): the experimental
+  implementation already has DSSE/in-toto verification code, despite broader
+  README limitations. Its
+  [verifier at `038e36ae`](https://github.com/sigstore/sigstore-rs/blob/038e36aefac21dd4ae608cda33736a494250fd1f/src/bundle/verify/verifier.rs)
+  still has explicit TODOs for Merkle inclusion and signed entry timestamp
+  verification. A successful bundle example does not establish policy parity.
+- The separate [sigstore-rust](https://github.com/sigstore/sigstore-rust)
+  project documents `sigstore-verify` 0.11, transparency proofs and TUF trust-root
+  support. It is a candidate for C1, not a selected dependency. Check its
+  released code, PyPI provenance conversion, exact publisher policy and negative
+  vectors against the existing verifier. The first library's limitations do not
+  prove that native verification is impossible. Source inspection and upstream
+  claims are not an executed ai-stp verification result.
 
 Out of scope: a Rust backend (#59), open-ended component kinds (#58), rewriting
 public providers in their separate repositories, Corporate backend/policy work,
