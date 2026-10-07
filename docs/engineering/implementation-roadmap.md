@@ -105,12 +105,14 @@ and the issues it links) and setup-systems #316.
 - The current component vocabulary is the closed `component_type` list in
   `docs/contracts/component-setup-passports.md` and may be extended by a new
   ADR when a proven native form exists.
-- The release target is Linux, Windows, and macOS on both architectures —
-  `x86_64`/`arm64` — with real-product evidence; bundles remain portable between
-  operating systems.
-- Package classifiers name all three operating systems. Every new release
-  candidate requires retained six-leg evidence at its exact artifact identities;
-  a classifier or an older passing matrix does not qualify the new candidate.
+- The platform vocabulary covers Linux, Windows, and macOS and
+  `x86_64`/`arm64`. ADR-0172 requires beta qualification on Linux x86_64,
+  Windows x86_64 and macOS arm64; the other three pairs remain `not_verified`
+  and do not delay beta. Native binaries are specific to their platform.
+- Package classifiers do not prove qualification. Evidence binds the exact
+  candidate artifacts; a Python-version install matrix and provider native
+  qualification answer different questions. Older passing matrices do not
+  qualify a new candidate, and the owner exclusions above remain explicit.
 - The agent chooses the engineering path within the task. Digest, rollback,
   provenance, and compatibility remain mechanical integrity constraints without
   creating an additional approval round.
