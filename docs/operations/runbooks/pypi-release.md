@@ -126,10 +126,10 @@ that run and start again with named inputs.
 ### Who confirms
 
 The `pypi*` environments list **`letya999` and `rldyourmnd`**;
-`prevent_self_review` is `false`. Two-person control remains: either person can
-confirm, rather than depending on one person whose absence delayed publication for
-a day on August 25. Approval is performed through the API, so publication needs no
-manual steps.
+`prevent_self_review` is `false`. Either listed reviewer can approve; approval
+from both is not required and self-review is permitted. This avoids depending
+on one person's availability. Approval is performed through the API within the
+owner's release authorization, so publication needs no manual UI steps.
 
 No upload token exists here, on the host, or in repository or organization secrets—
 Trusted Publishing issues an OIDC identity for the run. There is no credential to
@@ -158,10 +158,13 @@ digests. Index deletion retires fresh installation of the superseded split alpha
 recovery is a new unified CLI patch release. The current owner actions and measured
 index status belong to [the roadmap](../../engineering/implementation-roadmap.md).
 
-Verified **with PyPI**, not from a green run:
+The current distribution is one project, `ai-stp-cli`, with a wheel and sdist.
+Historical `0.0.16` index cleanup is recorded in the
+[roadmap history](../../archive/implementation-roadmap-history.md).
 
-- one project, `ai-stp-cli`, with a wheel and sdist; historical `0.0.16`
-  index cleanup status is recorded in the roadmap;
+Historical `0.0.5` publication evidence, read back from PyPI independently of CI.
+This is not qualification of the current release:
+
 - attestation of the published wheel succeeds and names its source—workflow
   `release-candidate.yml@refs/tags/v0.0.5`, commit `6514a36b…`. The negative
   control (random bytes) returns 404, so the check distinguishes them;
