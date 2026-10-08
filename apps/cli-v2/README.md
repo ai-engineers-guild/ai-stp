@@ -70,7 +70,25 @@ The report contains source digests, modes and sizes, without source bytes or cod
 execution. `source_ready` is a structural result; publication remains unassessed.
 Older scaffold generations must be explicitly migrated before using this reader.
 
-Planning writes nothing and binds the resolved parent directory's physical
+The headless `authoring::adaptations` service prepares one explicit harness scope
+from that snapshot and uses the release compiler for the same projection manifest
+and archive. It binds the original source artifact and deterministic transform,
+retains executable modes and scope constraints, and remains experimental until
+harness execution is assessed. Skills retain their complete tree and validate the
+standard name/description fields; target-specific frontmatter requires an explicit
+native adaptation. Text components require one source, preserving the full body:
+Codex agents use `developer_instructions`, Cursor rules use `.mdc` and
+`alwaysApply`, and Antigravity modular rules use `trigger: always_on`.
+No scope fallback, unmapped helper deletion, source rewrite or generated projection
+directory is implicit. Portable Grok agents and legacy Antigravity workflows are
+refused until an explicit native implementation is supplied. Preparation does not
+store state, install files or attest a provider; project binding remains pending.
+Syntax follows the [Agent Skills format](https://agentskills.io/specification),
+[Codex agent schema](https://learn.chatgpt.com/docs/agent-configuration/subagents),
+[Cursor rules](https://cursor.com/docs/rules) and
+[Antigravity rules](https://antigravity.google/docs/rules).
+
+Scaffold planning writes nothing and binds the resolved parent directory's physical
 identity and lossless output path. Applying requires the exact plan digest,
 regenerates the planned files and rechecks that identity. It uses a locked,
 private sibling stage; only matching prefixes of planned files can be resumed.

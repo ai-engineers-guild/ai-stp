@@ -1,5 +1,6 @@
 //! Native source capture and authoring services.
 
+pub mod adaptations;
 pub mod adoption;
 pub mod contribution;
 pub mod discovery;

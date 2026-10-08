@@ -125,6 +125,7 @@ pub(super) fn render(request: &Request) -> Result<BTreeMap<String, String>> {
         || name.len() > 64
         || name.starts_with('-')
         || name.ends_with('-')
+        || (kind == "skill" && name.contains("--"))
         || !name
             .bytes()
             .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-')

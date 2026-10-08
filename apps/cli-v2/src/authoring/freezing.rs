@@ -210,6 +210,21 @@ fn freeze(
     providers: &[Info],
     store_at: Option<&str>,
 ) -> Result<Value> {
+    let payload = revisions::read_content(transaction, text(source, "content_digest")?)?;
+    let (adaptation, bytes) = project(values, source, payload, providers)?;
+    if let Some(at) = store_at {
+        revisions::content(transaction, &bytes, at)?;
+    }
+    Ok(adaptation)
+}
+
+/// The same deterministic projection compiler serves release and source preparation.
+pub(super) fn project(
+    values: &Value,
+    source: &Value,
+    payload: Vec<u8>,
+    providers: &[Info],
+) -> Result<(Value, Vec<u8>)> {
     let harness = text(source, "harness_id")?;
     let kind = text(values, "component_type")?;
     let requested: Scope =
@@ -271,7 +286,6 @@ fn freeze(
     if !key.is_empty() && source["source_locator"] != format!("{}#{key}", route.relative) {
         return Err(invalid());
     }
-    let payload = revisions::read_content(transaction, text(source, "content_digest")?)?;
     let mut files = match text(source, "content_format")? {
         artifacts::FILE_FORMAT => {
             if payload.len() > artifacts::MAX_FILE_BYTES {
@@ -357,10 +371,7 @@ fn freeze(
         "withdrawal_semantics":if key.is_empty(){"remove_path"}else{"preserve_unowned"}
     }))).collect::<Result<Vec<_>>>()?;
     let bytes = artifact::build_members(&members, &files)?;
-    let address = match store_at {
-        Some(at) => revisions::content(transaction, &bytes, at)?,
-        None => digest::bytes("ai-stp:artifact:v1", &bytes)?,
-    };
+    let address = digest::bytes("ai-stp:artifact:v1", &bytes)?;
     let mut scope = json!({"scope":route.target_scope,"projection_format":artifact::FORMAT,
         "projection_artifact":{"digest":address,"size_bytes":bytes.len()},
         "provider_component_kind":if route.provider_kind.is_empty(){kind}else{&route.provider_kind},
@@ -381,8 +392,9 @@ fn freeze(
             "the exact provider declaration does not cover this native projection",
         ));
     }
-    passport::versions::seal_adaptation(
+    let adaptation = passport::versions::seal_adaptation(
         &json!({"harness_id":harness,"implementation_mode":"native",
         "source_artifact":null,"transform":null,"logical_component_type":kind,"scope_adaptations":[scope]}),
-    )
+    )?;
+    Ok((adaptation, bytes))
 }
