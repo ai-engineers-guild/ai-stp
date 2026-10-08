@@ -70,7 +70,7 @@ fn component(
     let profile = provider.profile(scope).ok_or("profile missing")?;
     let kind = if contribution.is_some() {
         "mcp"
-    } else if file.path.starts_with("commands/") {
+    } else if file.path.starts_with("commands/") || file.path.starts_with("prompts/") {
         "command"
     } else if file.path.starts_with("agents/") {
         "agent"
@@ -85,10 +85,11 @@ fn component(
         let stem = file
             .path
             .strip_prefix("commands/")
+            .or_else(|| file.path.strip_prefix("prompts/"))
             .ok_or("command root missing")?
             .strip_suffix(".md")
             .ok_or("command suffix missing")?;
-        json!([if provider.document()["harness_id"] == "opencode" {
+        json!([if provider.document()["harness_id"] != "claude-code" {
             stem.to_owned()
         } else {
             stem.replace('/', ":")
@@ -265,6 +266,67 @@ fn export(name: &str, bundle: &bundle::Bundle) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
+fn pi_namespaces(store: &mut Store, declarations: &[Value]) -> Result<(), Box<dyn Error>> {
+    let declaration = declarations
+        .iter()
+        .find(|value| value["harness_id"] == "pi")
+        .ok_or("Pi missing")?;
+    let provider = Info::parse(&serde_json::to_vec(declaration)?)?;
+    let target = target("pi", Scope::Global);
+    let skill = component(
+        store,
+        &provider,
+        Scope::Global,
+        File {
+            path: "skills/review/SKILL.md".into(),
+            bytes: b"---\ndescription: Review source.\n---\nReview.\n".to_vec(),
+            mode: 0o644,
+        },
+        None,
+    )?;
+    let prompt = component(
+        store,
+        &provider,
+        Scope::Global,
+        File {
+            path: "prompts/review.md".into(),
+            bytes: b"---\nname: ignored\n---\nReview.\n".to_vec(),
+            mode: 0o644,
+        },
+        None,
+    )?;
+    let (setup, evidence) = compose(store, "pi", &[skill.clone(), prompt])?;
+    let built = bundle::compile(store, &setup, &target, &evidence, &provider, &Hosts::new())?;
+    export("pi-entries", &built)?;
+    rejects_fabricated_ids(store, &skill, &built, &target, &provider, &Hosts::new())?;
+    // Separate, individually valid components must not hide one another.
+    for (path, body) in [
+        (
+            "skills/SKILL.md",
+            "---\ndescription: A skill at the scan root.\n---\nRoot.\n",
+        ),
+        ("skills/.ignore", "review/\n"),
+    ] {
+        let masking = component(
+            store,
+            &provider,
+            Scope::Global,
+            File {
+                path: path.into(),
+                bytes: body.as_bytes().to_vec(),
+                mode: 0o644,
+            },
+            None,
+        )?;
+        let (setup, evidence) = compose(store, "pi", &[skill.clone(), masking])?;
+        let refusal = bundle::compile(store, &setup, &target, &evidence, &provider, &Hosts::new())
+            .err()
+            .ok_or("Pi component was hidden by another component")?;
+        assert_eq!(refusal.details["constraint"], "native_visibility_mismatch");
+    }
+    Ok(())
+}
+
 fn opencode_namespaces(store: &mut Store, declarations: &[Value]) -> Result<(), Box<dyn Error>> {
     let declaration = declarations
         .iter()
@@ -386,6 +448,7 @@ fn exact_bundles_cover_every_released_profile_and_refuse_unrepresentable_inputs(
     let declarations: Vec<Value> =
         serde_json::from_str(include_str!("fixtures/provider-declarations.json"))?;
     opencode_namespaces(&mut store, &declarations)?;
+    pi_namespaces(&mut store, &declarations)?;
     let mut profiles = 0;
     for declaration in &declarations {
         let provider = Info::parse(&serde_json::to_vec(declaration)?)?;

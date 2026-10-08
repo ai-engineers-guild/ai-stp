@@ -220,9 +220,27 @@ This proves identity handling, not complete upstream configuration validation or
 runtime compatibility across OpenCode versions. Built-in commands and dynamically
 discovered MCP prompts need runtime evidence before installation.
 
+Pi identities follow its pinned 1.0.0 loader. Skills need a nonblank description;
+their name falls back to the containing directory when absent, empty or not a
+string. A `SKILL.md` stops recursion below that directory. Category discovery
+honors captured `.gitignore`, `.ignore` and `.fdignore` rules, skips hidden and
+`node_modules` directories, and reads standalone Markdown only at the skills root.
+Prompts load only direct `prompts/*.md` files and ignore frontmatter `name`.
+Skill and prompt names occupy separate spaces (`/skill:name` and `/name`).
+Assembly rechecks visible entries across all selected files: a root skill or
+ignore file cannot silently hide another component. External target settings and
+ignore files remain installation-time preconditions, outside this local proof.
+
+The Pi reader owns the `ignore` dependency's in-memory gitignore parser; removing
+that reader removes this dependency. It reads no host ignore configuration.
+Ignore inputs are bounded to 64 KiB per file, 4 KiB per pattern, 10,000 patterns
+and 32 directory levels, in addition to existing capture/archive limits.
+
 Other harnesses retain conservative shared-name collision checks until their
-native semantics are verified. Remaining format/identity checks, Pi's executable
-MCP extension adapter and credential handling outside these named MCP fields
+native semantics are verified. Pi 1.0.0 has native `mcp.json`, but the pinned
+`pi/native-files/2` provider profile admits neither that path nor the MCP kind;
+support needs a public provider profile and a versioned route, not an extension
+substitute. Remaining format/identity checks and credential handling outside these named MCP fields
 (including URLs, opaque arguments/scripts and other configuration kinds) are pending.
 
 `component adaptation edit plan` replaces one complete native adaptation in an
@@ -624,7 +642,7 @@ no async runtime or tracing feature is enabled for it.
 | `authoring/native_edit.rs` | Exact native adaptation replacement with complete scope preservation |
 | `authoring/setups/copies.rs` | Private exact setup forks and recasts with atomic lineage |
 | `authoring/setups/export.rs` | Exact review-tree export from query-only retained state |
-| `authoring/native_identity.rs`, `authoring/native_identity/` | Captured and projected MCP identities and Claude/OpenCode Markdown names |
+| `authoring/native_identity.rs`, `authoring/native_identity/` | Captured/projected native identities, Markdown loaders and Pi entry visibility |
 | `authoring/frontmatter.rs` | Shared bounded YAML header parsing without source execution |
 | `authoring/project_binding.rs` | Atomic portable project identity and complete adaptation refresh |
 | `authoring/runtime.rs` | Identity-bound local plans, closed operation dispatch and private registry reads |

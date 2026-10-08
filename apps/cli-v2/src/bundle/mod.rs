@@ -257,7 +257,7 @@ fn compile_snapshot(
             "host inputs must cover exactly the configuration contributions",
         ));
     }
-    composition.validate()?;
+    composition.validate(&files)?;
     let profile = provider
         .profile(target.scope)
         .ok_or_else(|| invalid("provider profile missing"))?;

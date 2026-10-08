@@ -67,6 +67,7 @@ impl Composition {
             ("claude-code" | "opencode", "skill" | "command") => "invocation",
             ("claude-code", kind) => kind,
             ("opencode", "agent" | "mcp") => kind,
+            ("pi", "skill" | "command") => kind,
             // Other harnesses keep the conservative shared space until verified.
             _ => "native",
         }
@@ -220,7 +221,31 @@ impl Composition {
 
     /// Check after collecting every selected component, so neither graph order
     /// nor the side that declares an exclusion can hide a contradiction.
-    pub fn validate(&self) -> Result<()> {
+    pub fn validate(&self, files: &[super::File]) -> Result<()> {
+        if self.harness == "pi" {
+            for kind in ["skill", "command"] {
+                let visible = crate::authoring::native_identity::visible_pi_entries(
+                    kind,
+                    files
+                        .iter()
+                        .map(|file| (file.member.path.as_str(), file.member.bytes.as_slice())),
+                )?;
+                let declared: Vec<_> = self
+                    .native_ids
+                    .get(kind)
+                    .into_iter()
+                    .flat_map(|names| names.keys())
+                    .map(String::as_str)
+                    .collect();
+                if visible.iter().map(String::as_str).collect::<Vec<_>>() != declared {
+                    return Err(invalid("the assembled files change the visible Pi entries")
+                        .with_details([(
+                            "constraint".into(),
+                            "native_visibility_mismatch".into(),
+                        )]));
+                }
+            }
+        }
         for exclusion in &self.exclusions {
             let other = if exclusion.family == "paths" {
                 overlap_owner(

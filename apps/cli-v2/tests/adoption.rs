@@ -49,6 +49,47 @@ fn counts(store: &mut Store) -> Result<(i64, i64, i64), Failure> {
 fn native_identity_journey(identity: &Identity, at: &str) -> Result<(), Box<dyn Error>> {
     let root = tempfile::tempdir()?;
     let mut store = Store::open(root.path(), true)?;
+    // These same cases were independently run through the pinned Pi loader.
+    let cases: serde_json::Value =
+        serde_json::from_str(include_str!("fixtures/pi-native-entries.json"))?;
+    for case in cases.as_array().ok_or("Pi cases missing")? {
+        let native = tempfile::tempdir()?;
+        for (path, body) in case["files"].as_object().ok_or("Pi files missing")? {
+            let file = native.path().join(path);
+            fs::create_dir_all(file.parent().ok_or("parent")?)?;
+            fs::write(file, body.as_str().ok_or("Pi body missing")?)?;
+        }
+        let before = counts(&mut store)?;
+        let planned = adoption::plan(
+            &mut store,
+            selected(
+                native.path(),
+                "pi",
+                Scope::Global,
+                case["kind"].as_str().ok_or("Pi kind missing")?,
+            )?,
+            identity.clone(),
+            at,
+        );
+        if case["adoptable"] == true {
+            let plan = planned?;
+            assert_eq!(
+                plan.passport["facts"]["native_ids"]["value"], case["names"],
+                "{}",
+                case["id"]
+            );
+            adoption::apply(&mut store, &plan, &plan.digest()?, identity, at)?;
+        } else {
+            assert!(planned.is_err(), "{}", case["id"]);
+            assert_eq!(counts(&mut store)?, before);
+        }
+        for (path, body) in case["files"].as_object().ok_or("Pi files missing")? {
+            assert_eq!(
+                fs::read_to_string(native.path().join(path))?,
+                body.as_str().ok_or("Pi body missing")?
+            );
+        }
+    }
     for (harness, scope, name, content) in [
         (
             "claude-code",

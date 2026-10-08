@@ -1,0 +1,97 @@
+[
+  {
+    "id": "skill-alias",
+    "kind": "skill",
+    "files": {
+      "skills/folder/SKILL.md": "---\nname: inspect\ndescription: Inspect source.\n---\nInspect.\n",
+      "skills/folder/nested/SKILL.md": "---\nname: hidden-by-parent\ndescription: Hidden skill.\n---\nHidden.\n"
+    },
+    "names": [
+      "inspect"
+    ],
+    "adoptable": true
+  },
+  {
+    "id": "skill-fallback",
+    "kind": "skill",
+    "files": {
+      "skills/folder/SKILL.md": "---\nname: 42\ndescription: Inspect source.\n---\nInspect.\n"
+    },
+    "names": [
+      "folder"
+    ],
+    "adoptable": true
+  },
+  {
+    "id": "skill-category",
+    "kind": "skill",
+    "files": {
+      "skills/team/.ignore": "ignored/\nFIRST/\n!first/\n",
+      "skills/team/first/SKILL.md": "---\nname: inspect\ndescription: Inspect source.\n---\nInspect.\n",
+      "skills/team/first/nested/SKILL.md": "---\nname: hidden\ndescription: Hidden.\n---\nHidden.\n",
+      "skills/team/second/SKILL.md": "---\nname: Review_WithCaps\ndescription: Review.\n---\nReview.\n",
+      "skills/team/ignored/SKILL.md": "---\nname: ignored\ndescription: Ignored.\n---\nIgnored.\n",
+      "skills/team/.hidden/SKILL.md": "---\nname: dot\ndescription: Ignored.\n---\nIgnored.\n",
+      "skills/team/node_modules/dep/SKILL.md": "---\nname: dependency\ndescription: Ignored.\n---\nIgnored.\n",
+      "skills/team/notes.md": "---\nname: auxiliary\ndescription: Not a root entry.\n---\nNotes.\n"
+    },
+    "names": [
+      "Review_WithCaps",
+      "inspect"
+    ],
+    "adoptable": true
+  },
+  {
+    "id": "skill-standalone",
+    "kind": "skill",
+    "files": {
+      "skills/review.md": "---\ndescription: Inspect source.\n---\nInspect.\n"
+    },
+    "names": [
+      "skills"
+    ],
+    "adoptable": true
+  },
+  {
+    "id": "skill-missing-description",
+    "kind": "skill",
+    "files": {
+      "skills/folder/SKILL.md": "---\nname: inspect\n---\nInspect.\n"
+    },
+    "names": [],
+    "adoptable": false
+  },
+  {
+    "id": "prompt-name",
+    "kind": "command",
+    "files": {
+      "prompts/review.md": "---\nname: ignored\n---\nReview.\n"
+    },
+    "names": [
+      "review"
+    ],
+    "adoptable": true
+  },
+  {
+    "id": "prompt-nested",
+    "kind": "command",
+    "files": {
+      "prompts/team/review.md": "Review.\n"
+    },
+    "names": [],
+    "adoptable": false
+  },
+  {
+    "id": "skill-duplicate",
+    "kind": "skill",
+    "files": {
+      "skills/team/first/SKILL.md": "---\nname: inspect\ndescription: Inspect.\n---\nInspect.\n",
+      "skills/team/second/SKILL.md": "---\nname: inspect\ndescription: Inspect again.\n---\nInspect.\n"
+    },
+    "names": [
+      "inspect",
+      "inspect"
+    ],
+    "adoptable": false
+  }
+]

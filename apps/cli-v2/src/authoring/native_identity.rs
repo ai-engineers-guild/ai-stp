@@ -3,6 +3,7 @@
 mod claude;
 mod mcp;
 mod opencode;
+mod pi;
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -36,7 +37,7 @@ fn valid(names: &[String]) -> Result<()> {
 pub(super) fn has_markdown_entries(harness: &str, kind: &str) -> bool {
     matches!(
         (harness, kind),
-        ("claude-code", "skill" | "command") | ("opencode", "skill" | "command" | "agent")
+        ("claude-code" | "pi", "skill" | "command") | ("opencode", "skill" | "command" | "agent")
     )
 }
 
@@ -48,8 +49,18 @@ fn markdown_entries<'a>(
     match harness {
         "claude-code" => claude::invocations(kind, files),
         "opencode" => opencode::entries(kind, files),
+        "pi" => pi::entries(kind, files),
         _ => Err(invalid()),
     }
+}
+
+pub(crate) fn visible_pi_entries<'a>(
+    kind: &str,
+    files: impl IntoIterator<Item = (&'a str, &'a [u8])>,
+) -> Result<Vec<String>> {
+    let names = pi::visible(kind, files)?;
+    valid(&names)?;
+    Ok(names)
 }
 
 pub(super) fn read(candidate: &Candidate, content: &Captured) -> Result<Vec<String>> {
