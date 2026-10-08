@@ -111,30 +111,12 @@ def test_machine_table_exposes_support_layouts_capabilities_and_gaps() -> None:
 
 
 def test_every_harness_either_declares_client_mcp_or_states_a_verified_gap() -> None:
-    """A missing layout is reported, not left as silence.
+    """Report integration gaps without denying an upstream capability.
 
-    Five harnesses declare where their client servers live. Two do not, for
-    different reasons, and the difference is why the gap is named rather than
-    counted.
-
-    Pi has no documented location at all: the `mcp.json` files under its root
-    are written by a community extension rather than by Pi, they disagree on
-    the key, and its documentation index carries no MCP page to declare one
-    from (`#377`).
-
-    Cursor was the second until 2026-08-28, on the reading that `mcpServers` is
-    a key inside a plugin manifest and there is no global file. The product
-    disagrees, and it was settled by running it rather than by reading: a server
-    written straight to `~/.cursor/mcp.json` is listed and dialled, the file
-    removed reports no servers, and the same file one directory to the side
-    reports no servers. The CLI's own help names the global path unprompted.
-
-    So the gap was true of `cursor.com/docs` and false of the product. It is
-    withdrawn rather than softened, and what remains of it is `no_global_agent`
-    — the one kind the same sweep found no user-scope directory for.
-
-    Inventing a layout would be the guess the discovery contract forbids. So
-    would keeping a gap after the thing it denies has been observed.
+    Pi 1.0.0 documents mcp.json, but discovery has not integrated it and the
+    pinned pi/native-files/2 provider profile admits neither that path nor MCP.
+    Cursor's global/project MCP layouts are implemented; its separate global
+    agent gap remains explicit.
     """
     rows = {row.harness_id: row for row in toolchain.harness_capabilities({}).payload.harnesses}
     declaring = {
@@ -152,9 +134,9 @@ def test_every_harness_either_declares_client_mcp_or_states_a_verified_gap() -> 
         "antigravity",
         "cursor",
     }
-    assert "no_documented_mcp_client_config" in rows["pi"].gaps
+    assert "mcp_config_not_integrated" in rows["pi"].gaps
     assert "no_global_agent" in rows["cursor"].gaps
-    assert all("no_documented_mcp_client_config" not in rows[harness].gaps for harness in declaring)
+    assert all("mcp_config_not_integrated" not in rows[harness].gaps for harness in declaring)
 
 
 #: Harnesses the migration oracles cannot cover, pinned instead.

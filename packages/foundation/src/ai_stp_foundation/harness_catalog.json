@@ -419,7 +419,7 @@
       "executable_aliases": [],
       "gaps": [
         "no_project_plugin_manifest",
-        "no_documented_mcp_client_config"
+        "mcp_config_not_integrated"
       ],
       "harness_id": "pi",
       "layouts": [

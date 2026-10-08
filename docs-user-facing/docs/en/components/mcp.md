@@ -32,8 +32,9 @@ or [`instruction`](instruction.md)), "which package extends the harness?"
     bearing URLs, command, args, headers, and env **never** enter
     discovery output, passports, logs, or fixtures.
 
-    Files named `mcp.json` under Pi are user extensions, not harness
-    layouts. The machine table reports `no_documented_mcp_client_config`.
+    Pi 1.0.0 has native `mcp.json`, but ai_stp discovery and the pinned
+    provider profile do not yet support that route. The machine table reports
+    `mcp_config_not_integrated`.
 
 ## Neighbours
 
@@ -161,10 +162,10 @@ From the discovery matrix:
 | --- | --- | --- | --- |
 | Claude Code | yes | yes | plugin-internal `.mcp.json` is `mcp_client_config`; discovery does not open it |
 | Codex | names in `config.toml` | names in `config.toml` | file is also a `setting`; key `mcp_servers`; existence is not enough |
-| Pi | no | no | gap `no_documented_mcp_client_config`; `mcp.json` files are user extensions |
+| Pi | not integrated | not integrated | native `mcp.json` exists in Pi 1.0.0; ai_stp reports `mcp_config_not_integrated` |
 | OpenCode | names in `opencode.json` / `opencode.jsonc` | same files | file is also a `setting`; key `mcp`; existence is not enough |
 | Grok Build | names in `config.toml` | names in `config.toml` | file is also a `setting`; key `mcp_servers`; existence is not enough |
-| Cursor | not invented from an adjacent directory | not invented from an adjacent directory | official plugin schema names `mcpServers`; walker does not invent the file |
+| Cursor | names in `mcp.json` | names in `.cursor/mcp.json` | declared `mcpServers` key; adjacent files do not qualify |
 | Antigravity | yes | yes | |
 | `undefined` | portable conventions | portable conventions | not a harness; automatic install is not considered safe |
 | (server package) | n/a | n/a | `harness_id=null`; Python or TypeScript chain as above |
@@ -305,8 +306,8 @@ See [Setups](../setups/index.md).
 - Treating plugin `.mcp.json` as if it were the server package.
 - Opening `.mcp.json` or a settings MCP block to "check" for tokens —
   discovery already refuses to read those values.
-- Pi `mcp.json` files treated as a harness layout
-  (`no_documented_mcp_client_config`).
+- Pi MCP installation claimed before discovery and the public provider
+  profile support the native `mcp.json` route (`mcp_config_not_integrated`).
 - A `config.toml` / `opencode.json` with no servers under the key,
   labelled as MCP because the file exists.
 - Unpinned `npx` / `uvx` launchers, or command/args/URL/headers/env
