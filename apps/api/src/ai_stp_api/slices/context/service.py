@@ -826,6 +826,19 @@ async def _validate_link_targets(
         )
         if provider is None:
             raise ApiError(ErrorCategory.NOT_FOUND, "provider project not found")
+        other = await db.scalar(
+            select(ProjectLink).where(
+                ProjectLink.organization_id == organization_id,
+                ProjectLink.remote_project_id == payload.remote_project_id,
+                ProjectLink.state == "linked",
+                ProjectLink.provider_project_id.is_not(None),
+                ProjectLink.provider_project_id != payload.provider_project_id,
+            )
+        )
+        if other is not None:
+            raise ApiError(
+                ErrorCategory.CONFLICT, "corporate project already has a different repository"
+            )
 
 
 async def _validate_link_target_revisions(

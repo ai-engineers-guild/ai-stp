@@ -14770,6 +14770,40 @@ export type TechnologyDecisionView = {
 };
 
 /**
+ * TechnologyDetectedCoordinate
+ */
+export type TechnologyDetectedCoordinate = {
+  /**
+   * Context
+   */
+  context?: "production" | "development" | "testing" | "browser_support" | null;
+  /**
+   * Coordinate
+   */
+  coordinate: string;
+  /**
+   * Evidence
+   */
+  evidence?: Array<TechnologyEvidence>;
+  /**
+   * Kind
+   */
+  kind: "package" | "image" | "executable" | "configuration" | "alias";
+  /**
+   * Technology Id
+   */
+  technology_id?: string | null;
+  /**
+   * Version
+   */
+  version?: string | null;
+  /**
+   * Version Kind
+   */
+  version_kind?: "unknown" | "declared_range" | "observed_version";
+};
+
+/**
  * TechnologyEvidence
  */
 export type TechnologyEvidence = {
@@ -14802,6 +14836,86 @@ export type TechnologyEvidence = {
    * Source Revision
    */
   source_revision?: string | null;
+};
+
+/**
+ * TechnologyFindingDecision
+ */
+export type TechnologyFindingDecision = {
+  /**
+   * Category Id
+   */
+  category_id?: string | null;
+  /**
+   * Comment
+   */
+  comment?: string;
+  /**
+   * Context
+   */
+  context?: "production" | "development" | "testing" | "browser_support" | null;
+  /**
+   * Coordinate
+   */
+  coordinate: string;
+  /**
+   * Expected Revision
+   */
+  expected_revision?: number;
+  /**
+   * Kind
+   */
+  kind: "package" | "image" | "executable" | "configuration" | "alias";
+  /**
+   * Review
+   */
+  review: "confirmed" | "rejected";
+  /**
+   * Scan Id
+   */
+  scan_id: string;
+  /**
+   * Technology Id
+   */
+  technology_id?: string | null;
+};
+
+/**
+ * TechnologyFindingReviewRequest
+ */
+export type TechnologyFindingReviewRequest = {
+  /**
+   * Authorization Revision
+   */
+  authorization_revision: number | string;
+  /**
+   * Expected Revision
+   */
+  expected_revision?: number;
+  idempotency_key: IdempotencyKey;
+  /**
+   * Items
+   */
+  items: Array<TechnologyFindingDecision>;
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
+};
+
+/**
+ * TechnologyFindingReviewResult
+ */
+export type TechnologyFindingReviewResult = {
+  /**
+   * Organization Id
+   */
+  organization_id: string;
+  /**
+   * Updated
+   */
+  updated: number;
+  [key: string]: unknown;
 };
 
 /**
@@ -14878,6 +14992,10 @@ export type TechnologyLandscapeQuery = {
    * Include Inactive
    */
   include_inactive?: boolean;
+  /**
+   * Include Proposed
+   */
+  include_proposed?: boolean;
   /**
    * Lifecycle
    */
@@ -15382,6 +15500,14 @@ export type TechnologyScanDetail = {
    */
   detector_version: string | null;
   /**
+   * Duration Seconds
+   */
+  duration_seconds: number | null;
+  /**
+   * Error
+   */
+  error: string | null;
+  /**
    * Findings
    */
   findings: Array<TechnologyScanFinding>;
@@ -15414,6 +15540,14 @@ export type TechnologyScanDetail = {
    */
   scan_id: string;
   /**
+   * Scan Types
+   */
+  scan_types: Array<"dependencies" | "configs" | "languages">;
+  /**
+   * Scope
+   */
+  scope: string | null;
+  /**
    * Source
    */
   source: "gitlab" | "github" | "local";
@@ -15435,6 +15569,10 @@ export type TechnologyScanFinding = {
    */
   candidate_technology_id: string | null;
   /**
+   * Comment
+   */
+  comment: string;
+  /**
    * Context
    */
   context: "production" | "development" | "testing" | "browser_support" | null;
@@ -15451,9 +15589,17 @@ export type TechnologyScanFinding = {
    */
   kind: "package" | "image" | "executable" | "configuration" | "alias";
   /**
+   * Review
+   */
+  review: "proposed" | "confirmed" | "rejected";
+  /**
+   * Review Revision
+   */
+  review_revision: number;
+  /**
    * State
    */
-  state: "resolved" | "candidate" | "open";
+  state: "resolved" | "candidate" | "open" | "rejected";
   /**
    * Technology Id
    */
@@ -15477,6 +15623,10 @@ export type TechnologyScanHandoff = {
    * Complete
    */
   complete: boolean;
+  /**
+   * Coordinates
+   */
+  coordinates?: Array<TechnologyDetectedCoordinate>;
   /**
    * Detector Version
    */
@@ -15619,6 +15769,14 @@ export type TechnologyScanListEntry = {
   commit: string | null;
   created_at: Timestamp;
   /**
+   * Duration Seconds
+   */
+  duration_seconds: number | null;
+  /**
+   * Error
+   */
+  error: string | null;
+  /**
    * Found
    */
   found: number;
@@ -15642,6 +15800,14 @@ export type TechnologyScanListEntry = {
    * Scan Id
    */
   scan_id: string;
+  /**
+   * Scan Types
+   */
+  scan_types: Array<"dependencies" | "configs" | "languages">;
+  /**
+   * Scope
+   */
+  scope: string | null;
   /**
    * Source
    */
@@ -15892,6 +16058,10 @@ export type TechnologyUnmappedCoordinate = {
    * Version
    */
   version?: string | null;
+  /**
+   * Version Kind
+   */
+  version_kind?: "unknown" | "declared_range" | "observed_version";
 };
 
 /**
@@ -28148,6 +28318,68 @@ export type ChangeTechnologyCategoryLifecycleResponses = {
 export type ChangeTechnologyCategoryLifecycleResponse =
   ChangeTechnologyCategoryLifecycleResponses[keyof ChangeTechnologyCategoryLifecycleResponses];
 
+export type ReviewTechnologyFindingsData = {
+  body: TechnologyFindingReviewRequest;
+  headers: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+    /**
+     * Client-chosen key; a retry must not become a second effect.
+     */
+    "Idempotency-Key": string;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/technology-findings/review";
+};
+
+export type ReviewTechnologyFindingsErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ReviewTechnologyFindingsError =
+  ReviewTechnologyFindingsErrors[keyof ReviewTechnologyFindingsErrors];
+
+export type ReviewTechnologyFindingsResponses = {
+  /**
+   * Review retained findings and refresh their current interpretation.
+   */
+  200: TechnologyFindingReviewResult;
+};
+
+export type ReviewTechnologyFindingsResponse =
+  ReviewTechnologyFindingsResponses[keyof ReviewTechnologyFindingsResponses];
+
 export type ReadTechnologyLandscapeData = {
   body?: never;
   headers?: {
@@ -28191,6 +28423,10 @@ export type ReadTechnologyLandscapeData = {
      * Include Inactive
      */
     include_inactive?: boolean;
+    /**
+     * Include Proposed
+     */
+    include_proposed?: boolean;
     /**
      * Lifecycle
      */

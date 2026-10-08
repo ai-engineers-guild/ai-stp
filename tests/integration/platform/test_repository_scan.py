@@ -33,7 +33,9 @@ from ai_stp_platform.organization_models import (
     ProjectIdentity,
     ProjectLink,
 )
-from ai_stp_platform.queue.states import PermanentJobFailure
+from ai_stp_platform.queue.engine import TenantJobInvalid, enqueue, validate_tenant_job
+from ai_stp_platform.queue.models import Job
+from ai_stp_platform.queue.states import JobType, PermanentJobFailure
 from ai_stp_platform.repository_scan import RepositorySnapshot, scan_linked_repository
 from ai_stp_platform.technology_models import (
     ProjectTechnologyRelation,
@@ -553,3 +555,55 @@ async def test_rescan_replaces_unmapped_queue_but_keeps_candidates(
     organization.state = "suspended"
     with pytest.raises(PermanentJobFailure, match="link changed"):
         await _scan(db_session, organization_id, project_id, provider_id, adapter=_Adapter())
+
+
+async def test_scan_batch_reauthorizes_siblings_but_keeps_unrelated_stale_jobs_rejected(
+    db_session: AsyncSession,
+) -> None:
+    ctx, org, project, provider, _ = await _linked_scan_setup(db_session)
+    second, second_provider = await _add_linked_project(
+        db_session,
+        organization_id=org,
+        account_id=ctx.account_id,
+        ctx=ctx,
+        provider_kind="gitlab",
+        identity_overrides={},
+        authorization_revision=4,
+    )
+    organization = await db_session.get(Organization, org)
+    assert organization is not None
+    revision = organization.policy_revision
+    scan_ids = [new_id("scan") for _ in range(3)]
+    jobs: list[Job] = []
+    for index, scan_id in enumerate(scan_ids):
+        target = project if index == 0 else second
+        jobs.append(
+            await enqueue(
+                db_session,
+                job_type=JobType.GITLAB_TECHNOLOGY_SCAN,
+                payload={
+                    "scan_id": scan_id,
+                    "project_id": target,
+                    "batch_id": "acceptance-batch" if index < 2 else "unrelated-batch",
+                },
+                idempotency_key=f"batch-job-{scan_id}",
+                organization_id=org,
+                authorization_revision=revision,
+                principal_type="user",
+                principal_id=ctx.account_id,
+                required_permission="technology.scan.publish",
+                scope_kind="project",
+                scope_id=target,
+            )
+        )
+    await validate_tenant_job(db_session, jobs[0])
+    await _scan(db_session, org, project, provider, scan_id=scan_ids[0])
+    await validate_tenant_job(db_session, jobs[1])
+    with pytest.raises(TenantJobInvalid, match="revision is stale"):
+        await validate_tenant_job(db_session, jobs[2])
+    await _scan(db_session, org, second, second_provider, scan_id=scan_ids[1])
+    # A policy mutation independent of the batch must still reject old authority.
+    organization.policy_revision += 1
+    await db_session.flush()
+    with pytest.raises(TenantJobInvalid, match="revision is stale"):
+        await validate_tenant_job(db_session, jobs[0])

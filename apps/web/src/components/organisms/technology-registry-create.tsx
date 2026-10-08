@@ -171,6 +171,7 @@ export function TechnologyRegistryCreate({
   initial,
   initialCategory,
   initialArea,
+  onCreated,
 }: {
   kind: RegistryKind;
   organizationId: string;
@@ -181,6 +182,7 @@ export function TechnologyRegistryCreate({
   initial?: TechnologyView;
   initialCategory?: CategoryView;
   initialArea?: AreaView;
+  onCreated?: (record: TechnologyView | CategoryView | AreaView) => void;
 }) {
   const t = useTranslations("technology");
   const router = useRouter();
@@ -221,6 +223,7 @@ export function TechnologyRegistryCreate({
       retry.current = null;
       if (record) recordRevision.current += 1;
       if (!record) form.reset();
+      if (!record) onCreated?.(result.data as TechnologyView | CategoryView | AreaView);
       setMessage(t("saved"));
       router.refresh();
     });

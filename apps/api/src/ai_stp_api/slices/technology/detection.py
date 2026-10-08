@@ -1,6 +1,7 @@
 """Immutable detector snapshots refresh facts, never owner decisions or project links."""
 
-from typing import Literal, cast
+from datetime import UTC, datetime
+from typing import Literal, TypedDict, cast
 
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -14,6 +15,8 @@ from ai_stp_api.slices.technology.service import (
     mutation_effect,
 )
 from ai_stp_contracts.technology import (
+    TechnologyFindingReviewRequest,
+    TechnologyFindingReviewResult,
     TechnologyMappingEntry,
     TechnologyMappingList,
     TechnologyMappingRequest,
@@ -41,6 +44,7 @@ from ai_stp_foundation.canonical import JsonValue
 from ai_stp_foundation.digests import digest_canonical
 from ai_stp_foundation.ids import new_id
 from ai_stp_foundation.timestamps import format_timestamp
+from ai_stp_platform.corporate_authorization import has_corporate_permission
 from ai_stp_platform.organization_models import (
     CorporateProject,
     ProjectIdentity,
@@ -49,9 +53,19 @@ from ai_stp_platform.organization_models import (
 from ai_stp_platform.queue.engine import enqueue
 from ai_stp_platform.queue.models import Job
 from ai_stp_platform.queue.states import JobState, JobType
+from ai_stp_platform.technology_interpretation import (
+    finding_key,
+    interpreted_findings,
+    latest_mapping_version,
+    reproject_current_scans,
+    scan_coordinates,
+)
 from ai_stp_platform.technology_models import (
     Technology,
+    TechnologyCategory,
+    TechnologyClassification,
     TechnologyCoordinateMapping,
+    TechnologyFindingReview,
     TechnologyScan,
     TechnologyUnmappedCoordinate,
 )
@@ -171,7 +185,10 @@ async def list_mappings(
             select(TechnologyCoordinateMapping.version, func.count())
             .where(TechnologyCoordinateMapping.organization_id == organization_id)
             .group_by(TechnologyCoordinateMapping.version)
-            .order_by(TechnologyCoordinateMapping.version)
+            .order_by(
+                func.max(TechnologyCoordinateMapping.published_at),
+                TechnologyCoordinateMapping.version,
+            )
         )
     ).all()
     items: list[TechnologyMappingSummary] = []
@@ -241,6 +258,7 @@ async def publish_mapping(
                 TechnologyCoordinateMapping(
                     organization_id=organization_id,
                     version=version,
+                    published_at=datetime.now(UTC),
                     **entry.model_dump(),
                 )
             )
@@ -266,6 +284,25 @@ async def publish_mapping(
             .where(TechnologyUnmappedCoordinate.organization_id == organization_id)
             .values(resolved_technology_id=resolved)
         )
+    if before is None:
+        projects = set(
+            (
+                await db.scalars(
+                    select(TechnologyScan.project_id).where(
+                        TechnologyScan.organization_id == organization_id
+                    )
+                )
+            ).all()
+        )
+        for project_id in projects:
+            await _pair_authority(db, ctx, organization_id, project_id, "update")
+            await _reproject_authorized(
+                db,
+                ctx,
+                organization_id,
+                project_id,
+                {(entry.kind, entry.coordinate) for entry in payload.entries},
+            )
     await finish_mutation(
         db,
         ctx=ctx,
@@ -378,6 +415,22 @@ async def publish_scan(
     }
     if any(key[0] not in mapped_ids for key in observations):
         raise ApiError(ErrorCategory.VALIDATION, "observation is outside its mapping snapshot")
+    for coordinate in handoff.coordinates:
+        if not coordinate.evidence or any(
+            entry.source == "manual"
+            or entry.detector_version != handoff.detector_version
+            or entry.mapping_version != handoff.mapping_version
+            for entry in coordinate.evidence
+        ):
+            raise ApiError(
+                ErrorCategory.VALIDATION, "coordinate evidence must name detector and mapping"
+            )
+        if coordinate.technology_id:
+            current = await _technology_authority(
+                db, ctx, organization_id, coordinate.technology_id
+            )
+            if (current, coordinate.context or "production") not in observations:
+                raise ApiError(ErrorCategory.VALIDATION, "coordinate is outside scan observations")
     digest = mutation_effect(payload, project_id)
     retained = await db.get(TechnologyScan, (organization_id, handoff.scan_id))
     if retained is not None:
@@ -544,8 +597,14 @@ async def read_unmapped(
         statement = statement.where(TechnologyUnmappedCoordinate.scan_id == scan_id)
     rows = list((await db.scalars(statement)).all())
     grouped: dict[tuple[str, str], list[TechnologyUnmappedCoordinate]] = {}
+    allowed = {
+        project
+        for project in {row.project_id for row in rows}
+        if await _can_read_scan_project(db, ctx, organization_id, project)
+    }
     for row in rows:
-        grouped.setdefault((row.kind, row.coordinate), []).append(row)
+        if row.project_id in allowed:
+            grouped.setdefault((row.kind, row.coordinate), []).append(row)
     response = TechnologyUnmappedView(
         organization_id=organization_id,
         coordinates=[_unmapped_entry(group) for _, group in sorted(grouped.items())],
@@ -647,18 +706,100 @@ def _scan_status(job: Job | None, scan: TechnologyScan | None) -> TechnologyScan
 
 
 async def _latest_mapping_version(db: AsyncSession, organization_id: str) -> str | None:
-    return await db.scalar(
-        select(func.max(TechnologyCoordinateMapping.version)).where(
-            TechnologyCoordinateMapping.organization_id == organization_id
-        )
+    return await latest_mapping_version(db, organization_id)
+
+
+async def _can_read_scan_project(
+    db: AsyncSession, ctx: AuthContext, organization_id: str, project_id: str
+) -> bool:
+    return all(
+        [
+            await has_corporate_permission(
+                db,
+                organization_id=organization_id,
+                principal_type="user",
+                principal_id=ctx.account_id,
+                permission=permission,
+                scope_kind="project",
+                scope_id=project_id,
+            )
+            for permission in ("project.read", "project_technology.read")
+        ]
     )
 
 
-def _observation_count(scan: TechnologyScan) -> int:
-    handoff = scan.handoff.get("handoff")
-    if not isinstance(handoff, dict):
-        return 0
-    return len(TechnologyScanHandoff.model_validate(handoff).observations)
+def _finding_scan_types(
+    findings: list[TechnologyScanFinding],
+) -> list[Literal["dependencies", "configs", "languages"]]:
+    kinds: dict[str, Literal["dependencies", "configs", "languages"]] = {
+        "package": "dependencies",
+        "image": "dependencies",
+        "executable": "dependencies",
+        "configuration": "configs",
+        "alias": "languages",
+    }
+    return sorted({kinds[row.kind] for row in findings})
+
+
+class _ScanMetadata(TypedDict):
+    repository: str | None
+    source: TechnologyScanSource
+    branch: str | None
+    commit: str | None
+    created_at: str
+    status: TechnologyScanStatus
+    duration_seconds: int | None
+    error: str | None
+    scope: str | None
+
+
+async def _scan_metadata(
+    db: AsyncSession, organization_id: str, scan: TechnologyScan | None, job: Job | None
+) -> _ScanMetadata:
+    handoff = TechnologyScanHandoff.model_validate(scan.handoff["handoff"]) if scan else None
+    provider_id = job.payload.get("provider_project_id") if job else None
+    identity = await db.get(ProjectIdentity, provider_id) if isinstance(provider_id, str) else None
+    if identity and identity.organization_id != organization_id:
+        identity = None
+    source = (
+        scan.source
+        if scan and scan.source
+        else (
+            "gitlab"
+            if job and job.job_type == str(JobType.GITLAB_TECHNOLOGY_SCAN)
+            else "github"
+            if job
+            else "local"
+        )
+    )
+    evidence = (
+        [entry for observation in handoff.observations for entry in observation.fact.evidence]
+        if handoff
+        else []
+    )
+    commit = scan.commit if scan else None
+    if not commit:
+        commit = next((entry.source_revision for entry in evidence if entry.source_revision), None)
+    created = job.created_at if job else scan.created_at if scan else datetime.now(UTC)
+    if not job and evidence and evidence[0].observed_at:
+        created = datetime.fromisoformat(evidence[0].observed_at.replace("Z", "+00:00"))
+    return {
+        "repository": (scan.repository if scan else None)
+        or (identity.current_url if identity else None),
+        "source": cast(TechnologyScanSource, source),
+        "branch": (scan.branch if scan else None)
+        or (identity.provider_default_branch if identity else None),
+        "commit": commit,
+        "created_at": format_timestamp(created),
+        "status": _scan_status(job, scan),
+        "duration_seconds": max(0, int((job.updated_at - job.created_at).total_seconds()))
+        if job and job.state in {str(JobState.SUCCEEDED), str(JobState.DEAD_LETTER)}
+        else None,
+        "error": "Repository scan failed; check the provider connection and repository access."
+        if job and _scan_status(job, scan) == "failed"
+        else None,
+        "scope": handoff.scope if handoff else None,
+    }
 
 
 async def list_scans(
@@ -689,66 +830,30 @@ async def list_scans(
             )
         ).all()
     }
-    pending_counts = {
-        str(scan_id): int(count)
-        for scan_id, count in (
-            await db.execute(
-                select(
-                    TechnologyUnmappedCoordinate.scan_id,
-                    func.count(),
-                )
-                .where(
-                    TechnologyUnmappedCoordinate.organization_id == organization_id,
-                    TechnologyUnmappedCoordinate.resolved_technology_id.is_(None),
-                )
-                .group_by(TechnologyUnmappedCoordinate.scan_id)
-            )
-        ).all()
-    }
     entries: dict[str, TechnologyScanListEntry] = {}
-    for job in jobs:
-        scan_id = job.payload.get("scan_id")
-        job_project = job.payload.get("project_id")
-        if not isinstance(scan_id, str):
+    jobs_by_scan = {str(job.payload.get("scan_id")): job for job in jobs}
+    project_ids = {scan.project_id for scan in scans.values()} | {
+        str(job.payload.get("project_id")) for job in jobs
+    }
+    allowed = {
+        project
+        for project in project_ids
+        if await _can_read_scan_project(db, ctx, organization_id, project)
+    }
+    for scan_id in scans.keys() | jobs_by_scan.keys():
+        scan, job = scans.get(scan_id), jobs_by_scan.get(scan_id)
+        project = scan.project_id if scan else str(job.payload.get("project_id")) if job else ""
+        if project not in allowed:
             continue
-        scan = scans.pop(scan_id, None)
+        findings = await interpreted_findings(db, organization_id, scan) if scan else []
         entries[scan_id] = TechnologyScanListEntry(
             scan_id=scan_id,
-            project_id=cast("str", scan.project_id if scan is not None else job_project),
-            project_name=project_names.get(
-                cast("str", scan.project_id if scan is not None else job_project)
-            ),
-            repository=scan.repository
-            if scan is not None
-            else cast("str | None", job.payload.get("provider_project_id")),
-            source=cast(
-                "TechnologyScanSource",
-                scan.source
-                if scan is not None and scan.source is not None
-                else "gitlab"
-                if job.job_type == str(JobType.GITLAB_TECHNOLOGY_SCAN)
-                else "github",
-            ),
-            branch=scan.branch if scan is not None else None,
-            commit=scan.commit if scan is not None else None,
-            created_at=format_timestamp((scan or job).created_at),
-            status=_scan_status(job, scan),
-            found=_observation_count(scan) if scan is not None else 0,
-            pending=pending_counts.get(scan_id, 0),
-        )
-    for scan_id, scan in scans.items():
-        entries[scan_id] = TechnologyScanListEntry(
-            scan_id=scan_id,
-            project_id=scan.project_id,
-            project_name=project_names.get(scan.project_id),
-            repository=scan.repository,
-            source=cast("TechnologyScanSource", scan.source or "local"),
-            branch=scan.branch,
-            commit=scan.commit,
-            created_at=format_timestamp(scan.created_at),
-            status="succeeded",
-            found=_observation_count(scan),
-            pending=pending_counts.get(scan_id, 0),
+            project_id=project,
+            project_name=project_names.get(project),
+            found=len(findings),
+            scan_types=_finding_scan_types(findings),
+            pending=sum(row.state != "rejected" and row.review != "confirmed" for row in findings),
+            **await _scan_metadata(db, organization_id, scan, job),
         )
     items = sorted(entries.values(), key=lambda entry: entry.created_at, reverse=True)
     await emit_audit(
@@ -805,13 +910,21 @@ async def launch_scans(
                 scope_kind="project",
                 scope_id=project_id,
             )
-            link = await db.scalar(
-                select(ProjectLink).where(
-                    ProjectLink.organization_id == organization_id,
-                    ProjectLink.remote_project_id == project_id,
-                    ProjectLink.state == "linked",
-                )
+            links = list(
+                (
+                    await db.scalars(
+                        select(ProjectLink).where(
+                            ProjectLink.organization_id == organization_id,
+                            ProjectLink.remote_project_id == project_id,
+                            ProjectLink.state == "linked",
+                            ProjectLink.provider_project_id.is_not(None),
+                        )
+                    )
+                ).all()
             )
+            if len(links) > 1:
+                raise ApiError(ErrorCategory.CONFLICT, "project has multiple linked repositories")
+            link = links[0] if links else None
             provider_identity = (
                 await db.get(ProjectIdentity, link.provider_project_id)
                 if link is not None and link.provider_project_id is not None
@@ -840,6 +953,7 @@ async def launch_scans(
                     "project_id": project_id,
                     "scan_id": scan_id,
                     "mapping_version": mapping_version,
+                    "batch_id": payload.idempotency_key,
                 },
                 idempotency_key=f"{provider}_technology_scan:{organization_id}:{scan_id}",
                 organization_id=organization_id,
@@ -895,15 +1009,14 @@ async def read_scan_detail(
     """One journal row expanded into its detector findings."""
     await authorize(db, ctx=ctx, organization_id=organization_id, permission="landscape.read")
     scan = await db.get(TechnologyScan, (organization_id, scan_id))
-    job: Job | None = None
-    if scan is None:
-        job = await db.scalar(
-            select(Job).where(
-                Job.organization_id == organization_id,
-                Job.job_type.in_([str(job_type) for job_type in _SCAN_JOB_TYPES]),
-                Job.payload["scan_id"].as_string() == scan_id,
-            )
+    job = await db.scalar(
+        select(Job).where(
+            Job.organization_id == organization_id,
+            Job.job_type.in_([str(job_type) for job_type in _SCAN_JOB_TYPES]),
+            Job.payload["scan_id"].as_string() == scan_id,
         )
+    )
+    if scan is None:
         if job is None:
             raise ApiError(ErrorCategory.PERMISSION, "scan is unavailable")
         project_id = cast("object", job.payload.get("project_id"))
@@ -926,58 +1039,13 @@ async def read_scan_detail(
             CorporateProject.id == project_id,
         )
     )
-    findings: list[TechnologyScanFinding] = []
-    handoff: TechnologyScanHandoff | None = None
-    pending = 0
-    if scan is not None:
-        handoff = TechnologyScanHandoff.model_validate(scan.handoff["handoff"])
-        unmapped_rows = {
-            (row.kind, row.coordinate): row
-            for row in (
-                await db.scalars(
-                    select(TechnologyUnmappedCoordinate).where(
-                        TechnologyUnmappedCoordinate.organization_id == organization_id,
-                        TechnologyUnmappedCoordinate.scan_id == scan_id,
-                    )
-                )
-            ).all()
-        }
-        for observation in handoff.observations:
-            findings.append(
-                TechnologyScanFinding(
-                    kind="alias",
-                    coordinate=observation.technology_id,
-                    context=observation.fact.context,
-                    technology_id=observation.technology_id,
-                    version=observation.fact.version,
-                    version_kind=observation.fact.version_kind,
-                    evidence=list(observation.fact.evidence),
-                    state="resolved",
-                )
-            )
-        for coordinate in handoff.unmapped_coordinates:
-            row = unmapped_rows.get((coordinate.kind, coordinate.coordinate))
-            resolved = row.resolved_technology_id if row is not None else None
-            candidate = row.candidate_technology_id if row is not None else None
-            if resolved is not None:
-                state: Literal["resolved", "candidate", "open"] = "resolved"
-            elif candidate is not None:
-                state = "candidate"
-            else:
-                state = "open"
-                pending += 1
-            findings.append(
-                TechnologyScanFinding(
-                    kind=coordinate.kind,
-                    coordinate=coordinate.coordinate,
-                    context=coordinate.context,
-                    technology_id=resolved,
-                    version=coordinate.version,
-                    evidence=list(coordinate.evidence),
-                    state=state,
-                    candidate_technology_id=candidate,
-                )
-            )
+    handoff = TechnologyScanHandoff.model_validate(scan.handoff["handoff"]) if scan else None
+    findings = await interpreted_findings(db, organization_id, scan) if scan else []
+    for finding in findings:
+        for technology_id in (finding.technology_id, finding.candidate_technology_id):
+            if technology_id:
+                await _technology_authority(db, ctx, organization_id, technology_id)
+    pending = sum(item.state != "rejected" and item.review != "confirmed" for item in findings)
     await emit_audit(
         db,
         actor_account_id=ctx.account_id,
@@ -987,33 +1055,219 @@ async def read_scan_detail(
         target_id=scan_id,
         request_id=request_id,
     )
-    if scan is not None:
-        repository = scan.repository
-        source = cast("TechnologyScanSource", scan.source or "local")
-        branch, commit, created = scan.branch, scan.commit, scan.created_at
-    else:
-        assert job is not None
-        repository = cast("str | None", job.payload.get("provider_project_id"))
-        source = cast(
-            "TechnologyScanSource",
-            "gitlab" if job.job_type == str(JobType.GITLAB_TECHNOLOGY_SCAN) else "github",
-        )
-        branch = commit = None
-        created = job.created_at
     return TechnologyScanDetail(
         scan_id=scan_id,
         project_id=project_id,
         project_name=project.name if project is not None else None,
-        repository=repository,
-        source=source,
-        branch=branch,
-        commit=commit,
-        created_at=format_timestamp(created),
-        status=_scan_status(job, scan),
-        found=len(handoff.observations) if handoff is not None else 0,
+        found=len(findings),
+        scan_types=_finding_scan_types(findings),
         pending=pending,
+        **await _scan_metadata(db, organization_id, scan, job),
         detector_version=handoff.detector_version if handoff is not None else None,
         mapping_version=handoff.mapping_version if handoff is not None else None,
         complete=handoff.complete if handoff is not None else True,
         findings=findings,
     )
+
+
+async def _reproject_authorized(
+    db: AsyncSession,
+    ctx: AuthContext,
+    organization_id: str,
+    project_id: str,
+    confirmed: set[tuple[str, str]],
+) -> None:
+    async def authorize_pair(action: str) -> None:
+        await _pair_authority(db, ctx, organization_id, project_id, action)
+
+    async def resolve_technology(technology_id: str) -> str:
+        return await _technology_authority(db, ctx, organization_id, technology_id)
+
+    await reproject_current_scans(
+        db,
+        organization_id,
+        project_id,
+        confirmed=confirmed,
+        authorize_pair=authorize_pair,
+        resolve_technology=resolve_technology,
+    )
+
+
+async def review_findings(
+    db: AsyncSession,
+    *,
+    ctx: AuthContext,
+    organization_id: str,
+    payload: TechnologyFindingReviewRequest,
+    request_id: str | None,
+) -> TechnologyFindingReviewResult:
+    """Atomically interpret selected findings, classify technologies and refresh usage."""
+    operation = "technology.findings.review"
+    organization, receipt = await authorize_idempotent(
+        db,
+        ctx=ctx,
+        organization_id=organization_id,
+        permission="technology.update",
+        authorization_revision=payload.authorization_revision,
+        idempotency_key=payload.idempotency_key,
+        operation=operation,
+        fingerprint=mutation_effect(payload, organization_id),
+        request_id=request_id,
+    )
+    if receipt is not None:
+        return TechnologyFindingReviewResult.model_validate(receipt.response_body)
+    projects: set[str] = set()
+    confirmed: dict[tuple[str, str], TechnologyMappingEntry] = {}
+    for item in payload.items:
+        scan = await db.get(TechnologyScan, (organization_id, item.scan_id))
+        if scan is None:
+            raise ApiError(ErrorCategory.PERMISSION, "scan is unavailable")
+        await _pair_authority(db, ctx, organization_id, scan.project_id, "update")
+        projects.add(scan.project_id)
+        findings = await interpreted_findings(db, organization_id, scan)
+        key = finding_key(item.kind, item.coordinate, item.context)
+        if not any(finding_key(row.kind, row.coordinate, row.context) == key for row in findings):
+            raise ApiError(ErrorCategory.VALIDATION, "finding is not part of this scan")
+        row = await db.get(TechnologyFindingReview, (organization_id, item.scan_id, key))
+        if (row.revision if row else 0) != item.expected_revision:
+            raise ApiError(ErrorCategory.CONFLICT, "finding review revision changed")
+        technology_id = (
+            await _technology_authority(db, ctx, organization_id, item.technology_id, update=True)
+            if item.technology_id
+            else None
+        )
+        if item.review == "confirmed" and item.category_id is not None:
+            if technology_id is None:
+                raise ApiError(ErrorCategory.VALIDATION, "classification requires a technology")
+            await authorize(
+                db,
+                ctx=ctx,
+                organization_id=organization_id,
+                permission="category.read",
+                scope_kind="category",
+                scope_id=item.category_id,
+            )
+            category = await db.get(TechnologyCategory, (organization_id, item.category_id))
+            if category is None or category.state == "archived":
+                raise ApiError(ErrorCategory.VALIDATION, "category is unavailable")
+            classification = await db.get(
+                TechnologyClassification, (organization_id, technology_id, item.category_id)
+            )
+            if classification is None:
+                db.add(
+                    TechnologyClassification(
+                        organization_id=organization_id,
+                        technology_id=technology_id,
+                        category_id=item.category_id,
+                    )
+                )
+                technology = await db.get(Technology, (organization_id, technology_id))
+                if technology is not None:
+                    technology.revision += 1
+        if row is None:
+            row = TechnologyFindingReview(
+                organization_id=organization_id,
+                scan_id=item.scan_id,
+                finding_key=key,
+                kind=item.kind,
+                coordinate=item.coordinate,
+                context=item.context,
+                revision=1,
+            )
+            db.add(row)
+        else:
+            row.revision += 1
+        row.technology_id, row.review, row.comment = technology_id, item.review, item.comment
+        row.updated_at = datetime.now(UTC)
+        if item.review == "confirmed" and technology_id:
+            prior = confirmed.get((item.kind, item.coordinate))
+            if prior and prior.technology_id != technology_id:
+                raise ApiError(ErrorCategory.VALIDATION, "coordinate has conflicting decisions")
+            confirmed[(item.kind, item.coordinate)] = TechnologyMappingEntry(
+                kind=item.kind,
+                coordinate=item.coordinate,
+                technology_id=technology_id,
+                provenance="review",
+            )
+        if item.review == "confirmed":
+            await db.execute(
+                update(TechnologyUnmappedCoordinate)
+                .where(
+                    TechnologyUnmappedCoordinate.organization_id == organization_id,
+                    TechnologyUnmappedCoordinate.kind == item.kind,
+                    TechnologyUnmappedCoordinate.coordinate == item.coordinate,
+                )
+                .values(resolved_technology_id=technology_id)
+            )
+    if confirmed:
+        projects.update(await _projects_with_coordinates(db, organization_id, set(confirmed)))
+        for project_id in projects:
+            await _pair_authority(db, ctx, organization_id, project_id, "update")
+        base = await latest_mapping_version(db, organization_id)
+        entries = (
+            {
+                (entry.kind, entry.coordinate): entry
+                for entry in await _mapped_entries(db, organization_id, base)
+            }
+            if base
+            else {}
+        )
+        entries.update(confirmed)
+        version = "review-" + mutation_effect(payload, organization_id).split(":")[-1][:24]
+        for entry in entries.values():
+            db.add(
+                TechnologyCoordinateMapping(
+                    organization_id=organization_id,
+                    version=version,
+                    published_at=datetime.now(UTC),
+                    **entry.model_dump(),
+                )
+            )
+    await db.flush()
+    for project_id in projects:
+        await _reproject_authorized(db, ctx, organization_id, project_id, set(confirmed))
+        project = await db.scalar(
+            select(CorporateProject).where(
+                CorporateProject.organization_id == organization_id,
+                CorporateProject.id == project_id,
+            )
+        )
+        if project:
+            project.revision += 1
+    organization.policy_revision += 1
+    await db.flush()
+    response = TechnologyFindingReviewResult(
+        organization_id=organization_id, updated=len(payload.items)
+    )
+    await finish_mutation(
+        db,
+        ctx=ctx,
+        organization_id=organization_id,
+        payload=payload,
+        operation=operation,
+        target=organization_id,
+        response=response,
+        before=None,
+        request_id=request_id,
+        target_table="technology_finding_review",
+    )
+    return response
+
+
+async def _projects_with_coordinates(
+    db: AsyncSession, organization_id: str, coordinates: set[tuple[str, str]]
+) -> set[str]:
+    scans = (
+        await db.scalars(
+            select(TechnologyScan).where(TechnologyScan.organization_id == organization_id)
+        )
+    ).all()
+    projects: set[str] = set()
+    for scan in scans:
+        handoff = TechnologyScanHandoff.model_validate(scan.handoff["handoff"])
+        if any(
+            (item.kind, item.coordinate) in coordinates
+            for item in await scan_coordinates(db, organization_id, handoff)
+        ):
+            projects.add(scan.project_id)
+    return projects

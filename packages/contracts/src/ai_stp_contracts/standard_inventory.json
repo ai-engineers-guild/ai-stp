@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "standard_family": "ai-stp-standard/1",
-  "contract_digest": "sha256:46317758706161cbe88898a7c3e23607838b0ca4a9b4ded0a34a180c0b269ea7",
+  "contract_digest": "sha256:d359d166b5ca8874369e5e4e087b169ef39c2cd9c5d411ec240eb6c0ec3edc2b",
   "axes": [
     {
       "name": "standard_family",
@@ -2014,6 +2014,22 @@
     },
     {
       "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:technology-area"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:technology-area-lifecycle-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:technology-area-list"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:technology-area-write-request"
+    },
+    {
+      "axis": "http_schema",
       "identity": "urn:ai-stp:schema:v1:technology-category-lifecycle-request"
     },
     {
@@ -2035,6 +2051,14 @@
     {
       "axis": "http_schema",
       "identity": "urn:ai-stp:schema:v1:technology-decision-view"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:technology-finding-review-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:technology-finding-review-result"
     },
     {
       "axis": "http_schema",
@@ -2099,6 +2123,26 @@
     {
       "axis": "http_schema",
       "identity": "urn:ai-stp:schema:v1:technology-owner-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:technology-scan-detail"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:technology-scan-launch-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:technology-scan-launch-result"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:technology-scan-list"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:technology-scan-list-query"
     },
     {
       "axis": "http_schema",

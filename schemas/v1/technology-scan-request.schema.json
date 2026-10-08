@@ -4,6 +4,98 @@
       "pattern": "^[A-Za-z0-9._~-]{16,128}$",
       "type": "string"
     },
+    "TechnologyDetectedCoordinate": {
+      "additionalProperties": false,
+      "properties": {
+        "context": {
+          "anyOf": [
+            {
+              "enum": [
+                "production",
+                "development",
+                "testing",
+                "browser_support"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Context"
+        },
+        "coordinate": {
+          "maxLength": 512,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9._:/@+*-]+$",
+          "title": "Coordinate",
+          "type": "string"
+        },
+        "evidence": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/TechnologyEvidence"
+          },
+          "maxItems": 64,
+          "title": "Evidence",
+          "type": "array"
+        },
+        "kind": {
+          "enum": [
+            "package",
+            "image",
+            "executable",
+            "configuration",
+            "alias"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "technology_id": {
+          "anyOf": [
+            {
+              "pattern": "^technology_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Technology Id"
+        },
+        "version": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Version"
+        },
+        "version_kind": {
+          "default": "unknown",
+          "enum": [
+            "unknown",
+            "declared_range",
+            "observed_version"
+          ],
+          "title": "Version Kind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "coordinate"
+      ],
+      "title": "TechnologyDetectedCoordinate",
+      "type": "object"
+    },
     "TechnologyEvidence": {
       "additionalProperties": false,
       "properties": {
@@ -139,6 +231,15 @@
         "complete": {
           "title": "Complete",
           "type": "boolean"
+        },
+        "coordinates": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/TechnologyDetectedCoordinate"
+          },
+          "maxItems": 4096,
+          "title": "Coordinates",
+          "type": "array"
         },
         "detector_version": {
           "maxLength": 128,
@@ -301,6 +402,16 @@
           ],
           "default": null,
           "title": "Version"
+        },
+        "version_kind": {
+          "default": "unknown",
+          "enum": [
+            "unknown",
+            "declared_range",
+            "observed_version"
+          ],
+          "title": "Version Kind",
+          "type": "string"
         }
       },
       "required": [

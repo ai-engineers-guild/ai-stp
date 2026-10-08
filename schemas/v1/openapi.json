@@ -29632,6 +29632,98 @@
         "title": "TechnologyDecisionView",
         "type": "object"
       },
+      "TechnologyDetectedCoordinate": {
+        "additionalProperties": false,
+        "properties": {
+          "context": {
+            "anyOf": [
+              {
+                "enum": [
+                  "production",
+                  "development",
+                  "testing",
+                  "browser_support"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Context"
+          },
+          "coordinate": {
+            "maxLength": 512,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9._:/@+*-]+$",
+            "title": "Coordinate",
+            "type": "string"
+          },
+          "evidence": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/TechnologyEvidence"
+            },
+            "maxItems": 64,
+            "title": "Evidence",
+            "type": "array"
+          },
+          "kind": {
+            "enum": [
+              "package",
+              "image",
+              "executable",
+              "configuration",
+              "alias"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "technology_id": {
+            "anyOf": [
+              {
+                "pattern": "^technology_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Technology Id"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Version"
+          },
+          "version_kind": {
+            "default": "unknown",
+            "enum": [
+              "unknown",
+              "declared_range",
+              "observed_version"
+            ],
+            "title": "Version Kind",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "coordinate"
+        ],
+        "title": "TechnologyDetectedCoordinate",
+        "type": "object"
+      },
       "TechnologyEvidence": {
         "additionalProperties": false,
         "properties": {
@@ -29740,6 +29832,178 @@
           "observed_at"
         ],
         "title": "TechnologyEvidence",
+        "type": "object"
+      },
+      "TechnologyFindingDecision": {
+        "additionalProperties": false,
+        "properties": {
+          "category_id": {
+            "anyOf": [
+              {
+                "pattern": "^category_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Category Id"
+          },
+          "comment": {
+            "default": "",
+            "maxLength": 500,
+            "title": "Comment",
+            "type": "string"
+          },
+          "context": {
+            "anyOf": [
+              {
+                "enum": [
+                  "production",
+                  "development",
+                  "testing",
+                  "browser_support"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Context"
+          },
+          "coordinate": {
+            "maxLength": 512,
+            "minLength": 1,
+            "title": "Coordinate",
+            "type": "string"
+          },
+          "expected_revision": {
+            "default": 0,
+            "minimum": 0,
+            "title": "Expected Revision",
+            "type": "integer"
+          },
+          "kind": {
+            "enum": [
+              "package",
+              "image",
+              "executable",
+              "configuration",
+              "alias"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "review": {
+            "enum": [
+              "confirmed",
+              "rejected"
+            ],
+            "title": "Review",
+            "type": "string"
+          },
+          "scan_id": {
+            "pattern": "^scan_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "title": "Scan Id",
+            "type": "string"
+          },
+          "technology_id": {
+            "anyOf": [
+              {
+                "pattern": "^technology_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Technology Id"
+          }
+        },
+        "required": [
+          "scan_id",
+          "kind",
+          "coordinate",
+          "review"
+        ],
+        "title": "TechnologyFindingDecision",
+        "type": "object"
+      },
+      "TechnologyFindingReviewRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "authorization_revision": {
+            "anyOf": [
+              {
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^corporate:organization_[A-Za-z0-9_-]+:[1-9][0-9]*:[1-9][0-9]*$",
+                "type": "string"
+              }
+            ],
+            "title": "Authorization Revision"
+          },
+          "expected_revision": {
+            "default": 0,
+            "maximum": 0,
+            "minimum": 0,
+            "title": "Expected Revision",
+            "type": "integer"
+          },
+          "idempotency_key": {
+            "$ref": "#/components/schemas/IdempotencyKey"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/TechnologyFindingDecision"
+            },
+            "maxItems": 512,
+            "minItems": 1,
+            "title": "Items",
+            "type": "array"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "authorization_revision",
+          "idempotency_key",
+          "items"
+        ],
+        "title": "TechnologyFindingReviewRequest",
+        "type": "object"
+      },
+      "TechnologyFindingReviewResult": {
+        "additionalProperties": true,
+        "properties": {
+          "organization_id": {
+            "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "title": "Organization Id",
+            "type": "string"
+          },
+          "updated": {
+            "minimum": 0,
+            "title": "Updated",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "organization_id",
+          "updated"
+        ],
+        "title": "TechnologyFindingReviewResult",
         "type": "object"
       },
       "TechnologyLandscapePolicyRequest": {
@@ -29914,6 +30178,11 @@
           "include_inactive": {
             "default": false,
             "title": "Include Inactive",
+            "type": "boolean"
+          },
+          "include_proposed": {
+            "default": false,
+            "title": "Include Proposed",
             "type": "boolean"
           },
           "lifecycle": {
@@ -30951,6 +31220,31 @@
             "default": null,
             "title": "Detector Version"
           },
+          "duration_seconds": {
+            "anyOf": [
+              {
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Duration Seconds"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Error"
+          },
           "findings": {
             "default": [],
             "items": {
@@ -31017,6 +31311,31 @@
             "title": "Scan Id",
             "type": "string"
           },
+          "scan_types": {
+            "default": [],
+            "items": {
+              "enum": [
+                "dependencies",
+                "configs",
+                "languages"
+              ],
+              "type": "string"
+            },
+            "title": "Scan Types",
+            "type": "array"
+          },
+          "scope": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Scope"
+          },
           "source": {
             "enum": [
               "gitlab",
@@ -31043,6 +31362,8 @@
           "complete",
           "created_at",
           "detector_version",
+          "duration_seconds",
+          "error",
           "findings",
           "found",
           "mapping_version",
@@ -31051,6 +31372,8 @@
           "project_name",
           "repository",
           "scan_id",
+          "scan_types",
+          "scope",
           "source",
           "status"
         ],
@@ -31073,6 +31396,12 @@
             ],
             "default": null,
             "title": "Candidate Technology Id"
+          },
+          "comment": {
+            "default": "",
+            "maxLength": 500,
+            "title": "Comment",
+            "type": "string"
           },
           "context": {
             "anyOf": [
@@ -31115,11 +31444,28 @@
             "title": "Kind",
             "type": "string"
           },
+          "review": {
+            "default": "proposed",
+            "enum": [
+              "proposed",
+              "confirmed",
+              "rejected"
+            ],
+            "title": "Review",
+            "type": "string"
+          },
+          "review_revision": {
+            "default": 0,
+            "minimum": 0,
+            "title": "Review Revision",
+            "type": "integer"
+          },
           "state": {
             "enum": [
               "resolved",
               "candidate",
-              "open"
+              "open",
+              "rejected"
             ],
             "title": "State",
             "type": "string"
@@ -31162,10 +31508,13 @@
         },
         "required": [
           "candidate_technology_id",
+          "comment",
           "context",
           "coordinate",
           "evidence",
           "kind",
+          "review",
+          "review_revision",
           "state",
           "technology_id",
           "version",
@@ -31180,6 +31529,15 @@
           "complete": {
             "title": "Complete",
             "type": "boolean"
+          },
+          "coordinates": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/TechnologyDetectedCoordinate"
+            },
+            "maxItems": 4096,
+            "title": "Coordinates",
+            "type": "array"
           },
           "detector_version": {
             "maxLength": 128,
@@ -31484,6 +31842,31 @@
           "created_at": {
             "$ref": "#/components/schemas/Timestamp"
           },
+          "duration_seconds": {
+            "anyOf": [
+              {
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Duration Seconds"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Error"
+          },
           "found": {
             "default": 0,
             "minimum": 0,
@@ -31530,6 +31913,31 @@
             "title": "Scan Id",
             "type": "string"
           },
+          "scan_types": {
+            "default": [],
+            "items": {
+              "enum": [
+                "dependencies",
+                "configs",
+                "languages"
+              ],
+              "type": "string"
+            },
+            "title": "Scan Types",
+            "type": "array"
+          },
+          "scope": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Scope"
+          },
           "source": {
             "enum": [
               "gitlab",
@@ -31554,12 +31962,16 @@
           "branch",
           "commit",
           "created_at",
+          "duration_seconds",
+          "error",
           "found",
           "pending",
           "project_id",
           "project_name",
           "repository",
           "scan_id",
+          "scan_types",
+          "scope",
           "source",
           "status"
         ],
@@ -32025,6 +32437,16 @@
             ],
             "default": null,
             "title": "Version"
+          },
+          "version_kind": {
+            "default": "unknown",
+            "enum": [
+              "unknown",
+              "declared_range",
+              "observed_version"
+            ],
+            "title": "Version Kind",
+            "type": "string"
           }
         },
         "required": [
@@ -72102,6 +72524,24 @@
           "200": {
             "content": {
               "application/json": {
+                "examples": {
+                  "listTechnologyAreas.technology": {
+                    "summary": "Technology workspace operation uses the canonical machine contract.",
+                    "value": {
+                      "items": [
+                        {
+                          "area_id": "area_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                          "description": "",
+                          "name": "Server applications",
+                          "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                          "provenance": "manual",
+                          "revision": 1,
+                          "state": "active"
+                        }
+                      ]
+                    }
+                  }
+                },
                 "schema": {
                   "$ref": "#/components/schemas/AreaList"
                 }
@@ -72285,6 +72725,22 @@
         "requestBody": {
           "content": {
             "application/json": {
+              "examples": {
+                "createTechnologyArea.technology": {
+                  "summary": "Technology workspace operation uses the canonical machine contract.",
+                  "value": {
+                    "authorization_revision": 1,
+                    "expected_revision": 0,
+                    "idempotency_key": "fixture-createTechnologyArea-0001",
+                    "metadata": {
+                      "description": "",
+                      "name": "Server applications"
+                    },
+                    "schema_version": 1,
+                    "state": null
+                  }
+                }
+              },
               "schema": {
                 "$ref": "#/components/schemas/AreaWriteRequest"
               }
@@ -72296,6 +72752,20 @@
           "200": {
             "content": {
               "application/json": {
+                "examples": {
+                  "createTechnologyArea.technology": {
+                    "summary": "Technology workspace operation uses the canonical machine contract.",
+                    "value": {
+                      "area_id": "area_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "description": "",
+                      "name": "Server applications",
+                      "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "provenance": "manual",
+                      "revision": 1,
+                      "state": "active"
+                    }
+                  }
+                },
                 "schema": {
                   "$ref": "#/components/schemas/AreaView"
                 }
@@ -72505,6 +72975,17 @@
         "requestBody": {
           "content": {
             "application/json": {
+              "examples": {
+                "archiveTechnologyArea.technology": {
+                  "summary": "Technology workspace operation uses the canonical machine contract.",
+                  "value": {
+                    "authorization_revision": 1,
+                    "expected_revision": 1,
+                    "idempotency_key": "fixture-archiveTechnologyArea-0001",
+                    "schema_version": 1
+                  }
+                }
+              },
               "schema": {
                 "$ref": "#/components/schemas/TechnologyMutation"
               }
@@ -72516,6 +72997,20 @@
           "200": {
             "content": {
               "application/json": {
+                "examples": {
+                  "archiveTechnologyArea.technology": {
+                    "summary": "Technology workspace operation uses the canonical machine contract.",
+                    "value": {
+                      "area_id": "area_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "description": "",
+                      "name": "Server applications",
+                      "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "provenance": "manual",
+                      "revision": 1,
+                      "state": "archived"
+                    }
+                  }
+                },
                 "schema": {
                   "$ref": "#/components/schemas/AreaView"
                 }
@@ -72706,6 +73201,20 @@
           "200": {
             "content": {
               "application/json": {
+                "examples": {
+                  "readTechnologyArea.technology": {
+                    "summary": "Technology workspace operation uses the canonical machine contract.",
+                    "value": {
+                      "area_id": "area_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "description": "",
+                      "name": "Server applications",
+                      "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "provenance": "manual",
+                      "revision": 1,
+                      "state": "active"
+                    }
+                  }
+                },
                 "schema": {
                   "$ref": "#/components/schemas/AreaView"
                 }
@@ -72899,6 +73408,22 @@
         "requestBody": {
           "content": {
             "application/json": {
+              "examples": {
+                "writeTechnologyArea.technology": {
+                  "summary": "Technology workspace operation uses the canonical machine contract.",
+                  "value": {
+                    "authorization_revision": 1,
+                    "expected_revision": 1,
+                    "idempotency_key": "fixture-writeTechnologyArea-0001",
+                    "metadata": {
+                      "description": "",
+                      "name": "Server applications"
+                    },
+                    "schema_version": 1,
+                    "state": null
+                  }
+                }
+              },
               "schema": {
                 "$ref": "#/components/schemas/AreaWriteRequest"
               }
@@ -72910,6 +73435,20 @@
           "200": {
             "content": {
               "application/json": {
+                "examples": {
+                  "writeTechnologyArea.technology": {
+                    "summary": "Technology workspace operation uses the canonical machine contract.",
+                    "value": {
+                      "area_id": "area_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "description": "",
+                      "name": "Server applications",
+                      "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "provenance": "manual",
+                      "revision": 1,
+                      "state": "active"
+                    }
+                  }
+                },
                 "schema": {
                   "$ref": "#/components/schemas/AreaView"
                 }
@@ -73119,6 +73658,18 @@
         "requestBody": {
           "content": {
             "application/json": {
+              "examples": {
+                "changeTechnologyAreaLifecycle.technology": {
+                  "summary": "Technology workspace operation uses the canonical machine contract.",
+                  "value": {
+                    "authorization_revision": 1,
+                    "expected_revision": 1,
+                    "idempotency_key": "fixture-changeTechnologyAreaLifecycle-0001",
+                    "schema_version": 1,
+                    "target": "active"
+                  }
+                }
+              },
               "schema": {
                 "$ref": "#/components/schemas/AreaLifecycleRequest"
               }
@@ -73130,6 +73681,20 @@
           "200": {
             "content": {
               "application/json": {
+                "examples": {
+                  "changeTechnologyAreaLifecycle.technology": {
+                    "summary": "Technology workspace operation uses the canonical machine contract.",
+                    "value": {
+                      "area_id": "area_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "description": "",
+                      "name": "Server applications",
+                      "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "provenance": "manual",
+                      "revision": 1,
+                      "state": "active"
+                    }
+                  }
+                },
                 "schema": {
                   "$ref": "#/components/schemas/AreaView"
                 }
@@ -73318,6 +73883,7 @@
                     "value": {
                       "items": [
                         {
+                          "area_id": null,
                           "category_id": "category_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                           "description": "",
                           "name": "Runtime",
@@ -73540,6 +74106,7 @@
                   "createTechnologyCategory.technology": {
                     "summary": "An authorized tenant request preserves the governed canonical identifiers.",
                     "value": {
+                      "area_id": null,
                       "category_id": "category_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "description": "",
                       "name": "Runtime",
@@ -73783,6 +74350,7 @@
                   "removeTechnologyCategory.technology": {
                     "summary": "Category lifecycle retains the governed identity and prior classifications.",
                     "value": {
+                      "area_id": null,
                       "category_id": "category_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "description": "",
                       "name": "Runtime",
@@ -73986,6 +74554,7 @@
                   "readTechnologyCategory.technology": {
                     "summary": "An authorized tenant request preserves the governed canonical identifiers.",
                     "value": {
+                      "area_id": null,
                       "category_id": "category_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "description": "",
                       "name": "Runtime",
@@ -74216,6 +74785,7 @@
                   "writeTechnologyCategory.technology": {
                     "summary": "An authorized tenant request preserves the governed canonical identifiers.",
                     "value": {
+                      "area_id": null,
                       "category_id": "category_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "description": "",
                       "name": "Runtime",
@@ -74460,6 +75030,7 @@
                   "changeTechnologyCategoryLifecycle.technology": {
                     "summary": "Category lifecycle retains the governed identity and prior classifications.",
                     "value": {
+                      "area_id": null,
                       "category_id": "category_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "description": "",
                       "name": "Runtime",
@@ -74622,6 +75193,233 @@
         "summary": "Explicitly archive or restore the same retained category identity."
       }
     },
+    "/v1/corporate/organizations/{organization_id}/technology-findings/review": {
+      "put": {
+        "operationId": "reviewTechnologyFindings",
+        "parameters": [
+          {
+            "description": "Explicit remote organization selected for this request.",
+            "in": "path",
+            "name": "organization_id",
+            "required": true,
+            "schema": {
+              "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Client-chosen key; a retry must not become a second effect.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "examples": {
+                "reviewTechnologyFindings.technology": {
+                  "summary": "Owner decisions update current usage and mapping without rewriting scan evidence.",
+                  "value": {
+                    "authorization_revision": 1,
+                    "expected_revision": 0,
+                    "idempotency_key": "fixture-finding-review-0001",
+                    "items": [
+                      {
+                        "category_id": null,
+                        "comment": "Reviewed from the manifest",
+                        "context": "production",
+                        "coordinate": "left-pad",
+                        "expected_revision": 0,
+                        "kind": "package",
+                        "review": "confirmed",
+                        "scan_id": "scan_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                        "technology_id": "technology_00000000000000000000000001"
+                      }
+                    ],
+                    "schema_version": 1
+                  }
+                }
+              },
+              "schema": {
+                "$ref": "#/components/schemas/TechnologyFindingReviewRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "reviewTechnologyFindings.technology": {
+                    "summary": "Owner decisions update current usage and mapping without rewriting scan evidence.",
+                    "value": {
+                      "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "updated": 1
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/TechnologyFindingReviewResult"
+                }
+              }
+            },
+            "description": "Review retained findings and refresh their current interpretation.",
+            "headers": {
+              "X-Operation-Id": {
+                "description": "Durable operation id of this mutation.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Review retained findings and refresh their current interpretation."
+      }
+    },
     "/v1/corporate/organizations/{organization_id}/technology-landscape": {
       "get": {
         "operationId": "readTechnologyLandscape",
@@ -74763,6 +75561,16 @@
             "schema": {
               "default": false,
               "title": "Include Inactive",
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "include_proposed",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Include Proposed",
               "type": "boolean"
             }
           },
@@ -76595,6 +77403,34 @@
           "200": {
             "content": {
               "application/json": {
+                "examples": {
+                  "listTechnologyScans.technology": {
+                    "summary": "Technology workspace operation uses the canonical machine contract.",
+                    "value": {
+                      "items": [
+                        {
+                          "branch": "main",
+                          "commit": "a7b1c9e",
+                          "created_at": "2026-10-08T10:00:00.000Z",
+                          "duration_seconds": 2,
+                          "error": null,
+                          "found": 0,
+                          "pending": 0,
+                          "project_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                          "project_name": "Platform API",
+                          "repository": "https://gitlab.example/platform/api",
+                          "scan_id": "scan_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                          "scan_types": [],
+                          "scope": "dependencies",
+                          "source": "gitlab",
+                          "status": "succeeded"
+                        }
+                      ],
+                      "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "total": 1
+                    }
+                  }
+                },
                 "schema": {
                   "$ref": "#/components/schemas/TechnologyScanList"
                 }
@@ -76778,6 +77614,20 @@
         "requestBody": {
           "content": {
             "application/json": {
+              "examples": {
+                "launchTechnologyScans.technology": {
+                  "summary": "Technology workspace operation uses the canonical machine contract.",
+                  "value": {
+                    "authorization_revision": 1,
+                    "expected_revision": 0,
+                    "idempotency_key": "fixture-launchTechnologyScans-0001",
+                    "project_ids": [
+                      "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+                    ],
+                    "schema_version": 1
+                  }
+                }
+              },
               "schema": {
                 "$ref": "#/components/schemas/TechnologyScanLaunchRequest"
               }
@@ -76789,6 +77639,23 @@
           "200": {
             "content": {
               "application/json": {
+                "examples": {
+                  "launchTechnologyScans.technology": {
+                    "summary": "Technology workspace operation uses the canonical machine contract.",
+                    "value": {
+                      "items": [
+                        {
+                          "detail": null,
+                          "job_id": 1,
+                          "project_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                          "scan_id": "scan_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                          "state": "queued"
+                        }
+                      ],
+                      "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+                    }
+                  }
+                },
                 "schema": {
                   "$ref": "#/components/schemas/TechnologyScanLaunchResult"
                 }
@@ -76981,6 +77848,32 @@
           "200": {
             "content": {
               "application/json": {
+                "examples": {
+                  "readTechnologyScanDetail.technology": {
+                    "summary": "Technology workspace operation uses the canonical machine contract.",
+                    "value": {
+                      "branch": "main",
+                      "commit": "a7b1c9e",
+                      "complete": true,
+                      "created_at": "2026-10-08T10:00:00.000Z",
+                      "detector_version": "repository-content-v1",
+                      "duration_seconds": 2,
+                      "error": null,
+                      "findings": [],
+                      "found": 0,
+                      "mapping_version": "fixture-v1",
+                      "pending": 0,
+                      "project_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "project_name": "Platform API",
+                      "repository": "https://gitlab.example/platform/api",
+                      "scan_id": "scan_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "scan_types": [],
+                      "scope": "dependencies",
+                      "source": "gitlab",
+                      "status": "succeeded"
+                    }
+                  }
+                },
                 "schema": {
                   "$ref": "#/components/schemas/TechnologyScanDetail"
                 }

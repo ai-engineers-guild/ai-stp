@@ -153,7 +153,8 @@
     "security": "Security",
     "audit": "Audit",
     "scans": "Scans",
-    "technologyAreas": "Technology areas"
+    "technologyAreas": "Technology areas",
+    "technologyMap": "Technology map"
   },
   "corporateReports": {
     "title": "Reports",
@@ -372,9 +373,6 @@
     "editTechnology": "Edit technology",
     "saveChanges": "Save changes",
     "view": "Presentation",
-    "groupedNote": "One technology may appear in several categories. Each count remains distinct projects for that technology; category rows are not additive totals.",
-    "decisionUnavailable": "Adoption decision unavailable or not recorded",
-    "noKnownUse": "No known matching use",
     "editCategory": "Edit category",
     "mergedIdentity": "Retained identity redirects to the canonical technology",
     "version": "Version (optional)",
@@ -393,26 +391,10 @@
     "mappingTitle": "Technology mapping",
     "mappingDescription": "Coordinates scans could not resolve, review candidates, and the published coordinate snapshots.",
     "mappingQueue": "Unmapped coordinates",
-    "mappingQueueDescription": "A candidate is a suggestion. It takes effect only when the coordinate is written into a new published snapshot.",
     "mappingQueueEmpty": "Every reported coordinate is resolved.",
-    "mappingOpenCount": "{count, plural, one {# open} other {# open}}",
-    "mappingShowResolved": "Show {count} resolved",
-    "mappingHideResolved": "Hide resolved",
-    "mappingApply": "Publish mapping",
-    "mappingApplyAll": "{count, plural, one {Publish # candidate} other {Publish # candidates}}",
     "mappingCandidate": "Candidate:",
-    "mappingCandidateLabel": "Candidate technology",
-    "mappingNoCandidate": "No candidate",
     "mappingResolved": "Mapped to",
-    "mappingProjects": "{count, plural, one {# project} other {# projects}}",
-    "mappingCreateTechnology": "Create a technology for this queue",
     "mappingVersions": "Published snapshots",
-    "mappingVersionsDescription": "Immutable coordinate mappings. The newest snapshot defines resolution.",
-    "mappingVersionsEmpty": "No organization snapshots yet.",
-    "mappingEntries": "{count, plural, one {# entry} other {# entries}}",
-    "mappingSnapshot": "Snapshot {version}",
-    "mappingSnapshotMissing": "This snapshot is unavailable.",
-    "mappingSearch": "Filter coordinates",
     "mappingState": {
       "open": "open",
       "resolved": "resolved"
@@ -464,9 +446,7 @@
       "adopt": "Adopt",
       "hold": "Hold",
       "table": "Table",
-      "grouped": "By category",
-      "radar": "Adoption radar",
-      "relationships": "Technology–project links"
+      "grouped": "By category"
     },
     "title": "Technology landscape",
     "description": "Distinct accessible projects after the selected filters. Proposed uses are counted separately.",
@@ -573,11 +553,8 @@
         "evidence": "Evidence"
       },
       "findings": "Findings",
-      "foundCount": "{count, plural, one {# finding} other {# findings}}",
-      "pendingCount": "{count, plural, one {# to review} other {# to review}}",
       "detectorVersion": "detector {version}",
       "mappingVersion": "mapping {version}",
-      "openInMapping": "Review {count, plural, one {# finding} other {# findings}} in Mapping",
       "empty": "No scans yet."
     },
     "areas": {
@@ -589,6 +566,660 @@
       "unassigned": "No area",
       "unclassified": "Unclassified",
       "empty": "No technology areas yet."
+    },
+    "workspace": {
+      "organization": "Organization",
+      "allOrganization": "Entire organization",
+      "allProjects": "All projects",
+      "searchProject": "Find a project",
+      "searchTechnology": "Find technology…",
+      "map": "Map",
+      "table": "Table",
+      "filterDescription": "Refine projects, classification and technology states.",
+      "area": "Area",
+      "versions": "Versions",
+      "status": "Status",
+      "actions": "Actions",
+      "summary": "Technology summary",
+      "summaryDescription": "Key technologies, their areas, categories, versions and project usage.",
+      "landscapeHeading": "Technology landscape",
+      "landscapeDescription": "Technologies grouped by area and category, with actual versions used in the organization.",
+      "shown": "Showing {count} of {total}",
+      "draft": "Draft",
+      "review": "Review",
+      "standard": "Standard",
+      "openTechnology": "Open {name}",
+      "pagination": "Pagination",
+      "page": "Page {page}",
+      "showPerPage": "Show",
+      "pageSize": "Rows per page",
+      "ofTechnologies": "of {total} technologies",
+      "technologyUsage": "Technology versions and project usage.",
+      "openRegistry": "Open technology record",
+      "backScans": "Back to scans",
+      "backLandscape": "Back to landscape",
+      "publish": "Publish changes",
+      "applyChanges": "Apply changes",
+      "scanTitle": "Scan {id}",
+      "scanDescription": "Project scan results and recognized technologies. Review findings, refine classification and correct detection.",
+      "mappingDescription": "Match scan results to organizational technologies, categories and areas. Review unrecognized and disputed findings.",
+      "project": "Project",
+      "repository": "Repository",
+      "source": "Source",
+      "branch": "Branch",
+      "commit": "Commit",
+      "scanType": "Scan type",
+      "duration": "Duration",
+      "found": "Found",
+      "pending": "Needs review",
+      "seconds": "{count} sec",
+      "scanFailed": "The scan failed. Check the connection and repository access, then retry.",
+      "searchMapping": "Search by detected name, technology or project…",
+      "scan": "Scan",
+      "allCurrentScans": "All scans",
+      "reason": "Reason",
+      "allReasons": "All reasons",
+      "allStatuses": "All statuses",
+      "findingSummary": "{total} findings · {pending} need review · {resolved} already matched",
+      "searchFindings": "Search findings, files, technologies…",
+      "type": "Type",
+      "allTypes": "All types",
+      "pendingOnly": "Only findings needing review",
+      "suggested": "Suggested",
+      "classification": "Area / Category",
+      "file": "File",
+      "selectAll": "Select all findings on this page",
+      "selectFinding": "Select finding {name}",
+      "inspectFinding": "Review finding {name}",
+      "perPage": "{count} per page",
+      "noFindings": "No findings match these filters.",
+      "findingDetails": "Finding review",
+      "evidence": "Evidence",
+      "basicInfo": "Basic information",
+      "reference": "Reference",
+      "mapping": "Mapping",
+      "chooseTechnology": "Choose an existing technology",
+      "chooseCategory": "Choose a category",
+      "derivedArea": "Derived from category",
+      "applicationStatus": "Application status",
+      "confirm": "Confirmed",
+      "exclude": "Excluded",
+      "comment": "Comment",
+      "commentPlaceholder": "Add a comment…",
+      "whatChanges": "What will change",
+      "changeExplanation": "The mapping updates the landscape and is retained for future scans. Original scan history remains unchanged.",
+      "confirmApply": "Confirm and apply",
+      "excludeFinding": "Exclude finding",
+      "chooseFinding": "Select a finding to review.",
+      "createDescription": "Create a directory record and continue mapping the finding.",
+      "confidence": "Confidence: {count}%",
+      "searchScans": "Search project, repository or scan ID…",
+      "allSources": "All sources",
+      "dateFrom": "Starting from date",
+      "id": "ID",
+      "projectRepository": "Project / Repository",
+      "dateTime": "Date and time (UTC)",
+      "openScan": "Open scan {id}",
+      "journalDescription": "Repository and project scan history. Results are used to detect and map technologies.",
+      "mapTitle": "Technology map",
+      "mapDescription": "Actual technologies and versions used in the organization, grouped by technology area and category.",
+      "technologiesCount": "technologies",
+      "areasCount": "areas",
+      "scannedProjects": "projects with scans",
+      "needsReview": "need review",
+      "lastScan": "Last scan",
+      "neverScanned": "Not scanned yet",
+      "findingState": {
+        "open": "Unrecognized",
+        "candidate": "Needs review",
+        "resolved": "Confirmed",
+        "rejected": "Excluded",
+        "confirmation": "Requires confirmation",
+        "category": "Requires category"
+      },
+      "resetFinding": "Reset",
+      "rerunScan": "Rerun scan",
+      "reasonState": {
+        "unrecognized": "Unrecognized",
+        "candidate": "Requires review",
+        "excluded": "Excluded",
+        "confirmed": "Confirmed",
+        "category": "Requires category",
+        "confirmation": "Requires confirmation"
+      },
+      "category": "Category",
+      "dateDescription": "Show scans on or after the selected date.",
+      "allTime": "All time",
+      "createTechnology": "Create technology",
+      "scanTypes": {
+        "dependencies": "Dependencies",
+        "configs": "Configurations",
+        "languages": "Languages"
+      },
+      "emptyArea": "No technologies found"
+    },
+    "close": "Close",
+    "taxonomy": {
+      "area_00000000000000000000000001": {
+        "name": "Languages and runtimes",
+        "label": "Languages and runtimes"
+      },
+      "area_00000000000000000000000002": {
+        "name": "Client applications and interfaces",
+        "label": "Client applications and interfaces"
+      },
+      "area_00000000000000000000000003": {
+        "name": "Server applications",
+        "label": "Server applications"
+      },
+      "area_00000000000000000000000004": {
+        "name": "Integration and messaging",
+        "label": "Integration and messaging"
+      },
+      "area_00000000000000000000000005": {
+        "name": "Data storage and search",
+        "label": "Data storage and search"
+      },
+      "area_00000000000000000000000006": {
+        "name": "Data processing and analytics",
+        "label": "Data processing and analytics"
+      },
+      "area_00000000000000000000000007": {
+        "name": "Artificial intelligence and ML",
+        "label": "Artificial intelligence and ML"
+      },
+      "area_00000000000000000000000008": {
+        "name": "Compute and infrastructure",
+        "label": "Compute and infrastructure"
+      },
+      "area_00000000000000000000000009": {
+        "name": "Networks and traffic management",
+        "label": "Networks and traffic management"
+      },
+      "area_00000000000000000000000010": {
+        "name": "Security and access",
+        "label": "Security and access"
+      },
+      "area_00000000000000000000000011": {
+        "name": "Observability and reliability",
+        "label": "Observability and reliability"
+      },
+      "area_00000000000000000000000012": {
+        "name": "Development, testing and delivery",
+        "label": "Development, testing and delivery"
+      },
+      "area_00000000000000000000000013": {
+        "name": "Shared SaaS services",
+        "label": "Shared SaaS services"
+      },
+      "category_00000000000000000000001101": {
+        "name": "Programming and query languages",
+        "label": "Programming and query languages"
+      },
+      "category_00000000000000000000001102": {
+        "name": "Compilers",
+        "label": "Compilers"
+      },
+      "category_00000000000000000000001103": {
+        "name": "Interpreters",
+        "label": "Interpreters"
+      },
+      "category_00000000000000000000001104": {
+        "name": "Language runtimes and virtual machines",
+        "label": "Language runtimes and virtual machines"
+      },
+      "category_00000000000000000000001201": {
+        "name": "Web interfaces",
+        "label": "Web interfaces"
+      },
+      "category_00000000000000000000001202": {
+        "name": "Cross-platform UI frameworks",
+        "label": "Cross-platform UI frameworks"
+      },
+      "category_00000000000000000000001203": {
+        "name": "Native mobile development",
+        "label": "Native mobile development"
+      },
+      "category_00000000000000000000001204": {
+        "name": "Desktop interfaces",
+        "label": "Desktop interfaces"
+      },
+      "category_00000000000000000000001205": {
+        "name": "Console interfaces",
+        "label": "Console interfaces"
+      },
+      "category_00000000000000000000001206": {
+        "name": "State management",
+        "label": "State management"
+      },
+      "category_00000000000000000000001207": {
+        "name": "UI component systems",
+        "label": "UI component systems"
+      },
+      "category_00000000000000000000001301": {
+        "name": "Server web and API frameworks",
+        "label": "Server web and API frameworks"
+      },
+      "category_00000000000000000000001302": {
+        "name": "Application servers",
+        "label": "Application servers"
+      },
+      "category_00000000000000000000001303": {
+        "name": "Business rule engines",
+        "label": "Business rule engines"
+      },
+      "category_00000000000000000000001304": {
+        "name": "Business process engines",
+        "label": "Business process engines"
+      },
+      "category_00000000000000000000001305": {
+        "name": "Specialized application engines",
+        "label": "Specialized application engines"
+      },
+      "category_00000000000000000000001306": {
+        "name": "Serialization and validation",
+        "label": "Serialization and validation"
+      },
+      "category_00000000000000000000001401": {
+        "name": "RPC and interservice communication",
+        "label": "RPC and interservice communication"
+      },
+      "category_00000000000000000000001402": {
+        "name": "Protocols and API contracts",
+        "label": "Protocols and API contracts"
+      },
+      "category_00000000000000000000001403": {
+        "name": "API management",
+        "label": "API management"
+      },
+      "category_00000000000000000000001404": {
+        "name": "Integration platforms and connectors",
+        "label": "Integration platforms and connectors"
+      },
+      "category_00000000000000000000001405": {
+        "name": "Message brokers",
+        "label": "Message brokers"
+      },
+      "category_00000000000000000000001406": {
+        "name": "Persistent event streams",
+        "label": "Persistent event streams"
+      },
+      "category_00000000000000000000001407": {
+        "name": "Task queues",
+        "label": "Task queues"
+      },
+      "category_00000000000000000000001408": {
+        "name": "Distributed workflow engines",
+        "label": "Distributed workflow engines"
+      },
+      "category_00000000000000000000001501": {
+        "name": "Relational databases",
+        "label": "Relational databases"
+      },
+      "category_00000000000000000000001502": {
+        "name": "Document databases",
+        "label": "Document databases"
+      },
+      "category_00000000000000000000001503": {
+        "name": "Key-value databases",
+        "label": "Key-value databases"
+      },
+      "category_00000000000000000000001504": {
+        "name": "Graph databases",
+        "label": "Graph databases"
+      },
+      "category_00000000000000000000001505": {
+        "name": "Specialized databases",
+        "label": "Specialized databases"
+      },
+      "category_00000000000000000000001506": {
+        "name": "Analytical databases",
+        "label": "Analytical databases"
+      },
+      "category_00000000000000000000001507": {
+        "name": "Caches",
+        "label": "Caches"
+      },
+      "category_00000000000000000000001508": {
+        "name": "Search engines",
+        "label": "Search engines"
+      },
+      "category_00000000000000000000001509": {
+        "name": "Vector engines",
+        "label": "Vector engines"
+      },
+      "category_00000000000000000000001510": {
+        "name": "Object storage",
+        "label": "Object storage"
+      },
+      "category_00000000000000000000001511": {
+        "name": "File storage",
+        "label": "File storage"
+      },
+      "category_00000000000000000000001512": {
+        "name": "Block storage",
+        "label": "Block storage"
+      },
+      "category_00000000000000000000001513": {
+        "name": "Database drivers and ORM",
+        "label": "Database drivers and ORM"
+      },
+      "category_00000000000000000000001514": {
+        "name": "Database migrations and administration",
+        "label": "Database migrations and administration"
+      },
+      "category_00000000000000000000001601": {
+        "name": "Data ingestion and replication",
+        "label": "Data ingestion and replication"
+      },
+      "category_00000000000000000000001602": {
+        "name": "Data transformation and modeling",
+        "label": "Data transformation and modeling"
+      },
+      "category_00000000000000000000001603": {
+        "name": "Batch processing",
+        "label": "Batch processing"
+      },
+      "category_00000000000000000000001604": {
+        "name": "Stream processing",
+        "label": "Stream processing"
+      },
+      "category_00000000000000000000001605": {
+        "name": "SQL query engines",
+        "label": "SQL query engines"
+      },
+      "category_00000000000000000000001606": {
+        "name": "Pipeline orchestration",
+        "label": "Pipeline orchestration"
+      },
+      "category_00000000000000000000001607": {
+        "name": "BI and reporting",
+        "label": "BI and reporting"
+      },
+      "category_00000000000000000000001608": {
+        "name": "Semantic layers",
+        "label": "Semantic layers"
+      },
+      "category_00000000000000000000001609": {
+        "name": "Data quality",
+        "label": "Data quality"
+      },
+      "category_00000000000000000000001610": {
+        "name": "Data catalogs and lineage",
+        "label": "Data catalogs and lineage"
+      },
+      "category_00000000000000000000001611": {
+        "name": "Analytical storage formats",
+        "label": "Analytical storage formats"
+      },
+      "category_00000000000000000000001701": {
+        "name": "ML frameworks",
+        "label": "ML frameworks"
+      },
+      "category_00000000000000000000001702": {
+        "name": "Dataset preparation",
+        "label": "Dataset preparation"
+      },
+      "category_00000000000000000000001703": {
+        "name": "Model training",
+        "label": "Model training"
+      },
+      "category_00000000000000000000001704": {
+        "name": "Experiments and model registries",
+        "label": "Experiments and model registries"
+      },
+      "category_00000000000000000000001705": {
+        "name": "Models",
+        "label": "Models"
+      },
+      "category_00000000000000000000001706": {
+        "name": "Inference servers and APIs",
+        "label": "Inference servers and APIs"
+      },
+      "category_00000000000000000000001707": {
+        "name": "Agent frameworks",
+        "label": "Agent frameworks"
+      },
+      "category_00000000000000000000001708": {
+        "name": "Context retrieval",
+        "label": "Context retrieval"
+      },
+      "category_00000000000000000000001709": {
+        "name": "Model evaluation and monitoring",
+        "label": "Model evaluation and monitoring"
+      },
+      "category_00000000000000000000001801": {
+        "name": "Operating systems",
+        "label": "Operating systems"
+      },
+      "category_00000000000000000000001802": {
+        "name": "Virtualization",
+        "label": "Virtualization"
+      },
+      "category_00000000000000000000001803": {
+        "name": "Compute platforms",
+        "label": "Compute platforms"
+      },
+      "category_00000000000000000000001804": {
+        "name": "Container runtimes",
+        "label": "Container runtimes"
+      },
+      "category_00000000000000000000001805": {
+        "name": "Container orchestration",
+        "label": "Container orchestration"
+      },
+      "category_00000000000000000000001806": {
+        "name": "Serverless",
+        "label": "Serverless"
+      },
+      "category_00000000000000000000001807": {
+        "name": "Infrastructure as Code",
+        "label": "Infrastructure as Code"
+      },
+      "category_00000000000000000000001808": {
+        "name": "Configuration management",
+        "label": "Configuration management"
+      },
+      "category_00000000000000000000001901": {
+        "name": "DNS and service discovery",
+        "label": "DNS and service discovery"
+      },
+      "category_00000000000000000000001902": {
+        "name": "Virtual networks",
+        "label": "Virtual networks"
+      },
+      "category_00000000000000000000001903": {
+        "name": "Load balancers",
+        "label": "Load balancers"
+      },
+      "category_00000000000000000000001904": {
+        "name": "Reverse proxies",
+        "label": "Reverse proxies"
+      },
+      "category_00000000000000000000001905": {
+        "name": "Forward proxies",
+        "label": "Forward proxies"
+      },
+      "category_00000000000000000000001906": {
+        "name": "Ingress and egress gateways",
+        "label": "Ingress and egress gateways"
+      },
+      "category_00000000000000000000001907": {
+        "name": "Service mesh",
+        "label": "Service mesh"
+      },
+      "category_00000000000000000000001908": {
+        "name": "CDN",
+        "label": "CDN"
+      },
+      "category_00000000000000000000001909": {
+        "name": "VPN and private connections",
+        "label": "VPN and private connections"
+      },
+      "category_00000000000000000000002001": {
+        "name": "Authentication and SSO",
+        "label": "Authentication and SSO"
+      },
+      "category_00000000000000000000002002": {
+        "name": "Authorization",
+        "label": "Authorization"
+      },
+      "category_00000000000000000000002003": {
+        "name": "Identity management",
+        "label": "Identity management"
+      },
+      "category_00000000000000000000002004": {
+        "name": "Secrets and keys",
+        "label": "Secrets and keys"
+      },
+      "category_00000000000000000000002005": {
+        "name": "Certificates",
+        "label": "Certificates"
+      },
+      "category_00000000000000000000002006": {
+        "name": "Security analysis",
+        "label": "Security analysis"
+      },
+      "category_00000000000000000000002007": {
+        "name": "Runtime protection",
+        "label": "Runtime protection"
+      },
+      "category_00000000000000000000002008": {
+        "name": "Vulnerability management",
+        "label": "Vulnerability management"
+      },
+      "category_00000000000000000000002009": {
+        "name": "Security audit",
+        "label": "Security audit"
+      },
+      "category_00000000000000000000002101": {
+        "name": "Metrics",
+        "label": "Metrics"
+      },
+      "category_00000000000000000000002102": {
+        "name": "Logs",
+        "label": "Logs"
+      },
+      "category_00000000000000000000002103": {
+        "name": "Tracing",
+        "label": "Tracing"
+      },
+      "category_00000000000000000000002104": {
+        "name": "Profiling",
+        "label": "Profiling"
+      },
+      "category_00000000000000000000002105": {
+        "name": "Error monitoring",
+        "label": "Error monitoring"
+      },
+      "category_00000000000000000000002106": {
+        "name": "Telemetry collection",
+        "label": "Telemetry collection"
+      },
+      "category_00000000000000000000002107": {
+        "name": "Alerts and incidents",
+        "label": "Alerts and incidents"
+      },
+      "category_00000000000000000000002108": {
+        "name": "Backup",
+        "label": "Backup"
+      },
+      "category_00000000000000000000002109": {
+        "name": "Recovery",
+        "label": "Recovery"
+      },
+      "category_00000000000000000000002110": {
+        "name": "Resilience testing",
+        "label": "Resilience testing"
+      },
+      "category_00000000000000000000002111": {
+        "name": "Resource and cost management",
+        "label": "Resource and cost management"
+      },
+      "category_00000000000000000000002201": {
+        "name": "Source control",
+        "label": "Source control"
+      },
+      "category_00000000000000000000002202": {
+        "name": "IDEs",
+        "label": "IDEs"
+      },
+      "category_00000000000000000000002203": {
+        "name": "Package managers",
+        "label": "Package managers"
+      },
+      "category_00000000000000000000002204": {
+        "name": "Build tools",
+        "label": "Build tools"
+      },
+      "category_00000000000000000000002205": {
+        "name": "Artifact registries",
+        "label": "Artifact registries"
+      },
+      "category_00000000000000000000002206": {
+        "name": "CI/CD",
+        "label": "CI/CD"
+      },
+      "category_00000000000000000000002207": {
+        "name": "Testing",
+        "label": "Testing"
+      },
+      "category_00000000000000000000002208": {
+        "name": "Linters and type checking",
+        "label": "Linters and type checking"
+      },
+      "category_00000000000000000000002209": {
+        "name": "Deployment and GitOps",
+        "label": "Deployment and GitOps"
+      },
+      "category_00000000000000000000002210": {
+        "name": "Developer portals",
+        "label": "Developer portals"
+      },
+      "category_00000000000000000000002211": {
+        "name": "Documentation",
+        "label": "Documentation"
+      },
+      "category_00000000000000000000002301": {
+        "name": "Tenant management",
+        "label": "Tenant management"
+      },
+      "category_00000000000000000000002302": {
+        "name": "Plans and features",
+        "label": "Plans and features"
+      },
+      "category_00000000000000000000002303": {
+        "name": "Subscriptions, billing and payments",
+        "label": "Subscriptions, billing and payments"
+      },
+      "category_00000000000000000000002304": {
+        "name": "Usage accounting",
+        "label": "Usage accounting"
+      },
+      "category_00000000000000000000002305": {
+        "name": "Quotas",
+        "label": "Quotas"
+      },
+      "category_00000000000000000000002306": {
+        "name": "Feature flags",
+        "label": "Feature flags"
+      },
+      "category_00000000000000000000002307": {
+        "name": "Notifications",
+        "label": "Notifications"
+      },
+      "category_00000000000000000000002308": {
+        "name": "Content and media",
+        "label": "Content and media"
+      },
+      "category_00000000000000000000002309": {
+        "name": "Localization",
+        "label": "Localization"
+      },
+      "category_00000000000000000000002310": {
+        "name": "Product analytics",
+        "label": "Product analytics"
+      }
     }
   },
   "githubConnector": {

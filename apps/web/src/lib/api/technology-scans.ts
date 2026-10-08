@@ -49,7 +49,7 @@ export async function readTechnologyScanDetail(
     permissions.capabilities.includes("technology.list")
       ? privateApiRequest<TechnologyList>(`${path}/technologies`, {
           sessionToken,
-          query: { limit: "256" },
+          query: { limit: "256", include_archived: "true" },
         })
       : null,
     permissions.capabilities.includes("category.list") &&
@@ -59,4 +59,53 @@ export async function readTechnologyScanDetail(
     privateApiRequest<TechnologyMappingList>(`${path}/technology-mappings`, { sessionToken }),
   ]);
   return { permissions, scan, technologies, categories, mappings };
+}
+
+export async function readTechnologyReviewWorkspace(
+  sessionToken: string,
+  organizationId: string,
+  scanId?: string,
+) {
+  const journal = await readTechnologyScanJournal(sessionToken, organizationId);
+  if (!journal) return null;
+  const path = `/v1/corporate/organizations/${organizationId}`;
+  const canReadCategories =
+    journal.permissions.capabilities.includes("category.list") &&
+    journal.permissions.capabilities.includes("category.read");
+  const [technologies, categories, areas, scans] = await Promise.all([
+    journal.permissions.capabilities.includes("technology.list")
+      ? privateApiRequest<TechnologyList>(`${path}/technologies`, {
+          sessionToken,
+          query: { limit: "256", include_archived: "true" },
+        })
+      : null,
+    canReadCategories
+      ? privateApiRequest<CategoryList>(`${path}/technology-categories`, { sessionToken })
+      : null,
+    canReadCategories
+      ? privateApiRequest<AreaList>(`${path}/technology-areas`, { sessionToken })
+      : null,
+    Promise.all(
+      (scanId ? [{ scan_id: scanId }] : journal.scans.items).map((item) =>
+        privateApiRequest<TechnologyScanDetail>(`${path}/technology-scans/${item.scan_id}`, {
+          sessionToken,
+        }),
+      ),
+    ),
+  ]);
+  if (technologies) {
+    while (technologies.items.length < technologies.total) {
+      const page = await privateApiRequest<TechnologyList>(`${path}/technologies`, {
+        sessionToken,
+        query: {
+          offset: String(technologies.items.length),
+          limit: "256",
+          include_archived: "true",
+        },
+      });
+      if (!page.items.length) break;
+      technologies.items.push(...page.items);
+    }
+  }
+  return { permissions: journal.permissions, technologies, categories, areas, scans };
 }

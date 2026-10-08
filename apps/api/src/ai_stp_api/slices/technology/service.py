@@ -88,6 +88,7 @@ from ai_stp_platform.technology_models import (
     TechnologyUsageFact,
 )
 from ai_stp_platform.technology_scan_merge import project_technology_view
+from ai_stp_platform.technology_taxonomy import classify_seed_technologies
 
 
 async def read_landscape_policy(
@@ -419,6 +420,9 @@ async def import_seed(
             for technology_id, kind, coordinate in SEED_COORDINATES
         )
         mapping_written = True
+    await (await db.connection()).run_sync(
+        classify_seed_technologies, organization_id, created_technologies
+    )
     if created_categories or created_technologies or mapping_written:
         organization.policy_revision += 1
     await db.flush()
@@ -623,6 +627,7 @@ async def read_landscape(
                     fact.review == filters.review
                     if filters.review
                     else fact.review in ("confirmed", "overridden")
+                    or (filters.include_proposed and fact.review == "proposed")
                 )
             ]
             if selected:

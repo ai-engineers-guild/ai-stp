@@ -155,9 +155,7 @@ export function resolveCorporateRail(
       const children = allowed.filter((entry) => entry.group === id && entry.rail).map(item);
       // Existing reference directories also have an administrative entry.
       if (id === "referenceData") {
-        children.push(
-          ...allowed.filter((entry) => ["categories", "landscape"].includes(entry.id)).map(item),
-        );
+        children.push(...allowed.filter((entry) => entry.id === "categories").map(item));
       }
       return children.length
         ? [{ id: `group-${id}`, label: id, icon, href: "", active: false, children }]
@@ -171,7 +169,11 @@ export function resolveCorporateRail(
           entry.context !== "root" && entry.context !== "administration"
             ? allowed
                 .filter(
-                  (child) => child.context === entry.context && child.rail && child.id !== entry.id,
+                  (child) =>
+                    child.context === entry.context &&
+                    child.rail &&
+                    child.id !== "categories" &&
+                    (child.id !== entry.id || entry.id === "landscape"),
                 )
                 .map(item)
             : [];
@@ -191,6 +193,9 @@ export function resolveCorporateRail(
   return {
     context,
     entries,
-    back: detail ? { href: page.href, label: page.label } : null,
+    back:
+      detail && page.href !== "/corporate/technology-scans"
+        ? { href: page.href, label: page.label }
+        : null,
   };
 }

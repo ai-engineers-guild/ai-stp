@@ -16,6 +16,7 @@ import {
   DialogTrigger,
 } from "@/components/atoms/dialog";
 import { useRouter } from "@/lib/i18n/navigation";
+import { Icon } from "@/theme";
 import type {
   CorporateProjectView,
   TechnologyScanLaunchResult,
@@ -26,11 +27,15 @@ export function TechnologyScanLaunch({
   authorizationRevision,
   csrfToken,
   projects,
+  variant = "default",
+  label,
 }: {
   organizationId: string;
   authorizationRevision: string | number;
   csrfToken: string;
   projects: CorporateProjectView[];
+  variant?: "default" | "outline";
+  label?: string;
 }) {
   const t = useTranslations("technology");
   const scans = useTranslations("technology.scans");
@@ -85,7 +90,10 @@ export function TechnologyScanLaunch({
       }}
     >
       <DialogTrigger asChild>
-        <Button size="lg">{scans("launch")}</Button>
+        <Button variant={variant}>
+          <Icon name="play" size="sm" />
+          {label ?? scans("launch")}
+        </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>

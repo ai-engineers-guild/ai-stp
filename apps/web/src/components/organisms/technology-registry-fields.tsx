@@ -5,6 +5,8 @@ import { useTranslations } from "next-intl";
 import { Input } from "@/components/atoms/input";
 import { Select } from "@/components/atoms/select";
 import { Label } from "@/components/atoms/label";
+import { SearchableMultiSelect } from "@/components/molecules/searchable-multi-select";
+import { useTechnologyTaxonomy } from "@/lib/technology-taxonomy";
 import type { AreaView, CategoryView, TechnologyView } from "@/lib/api/generated/types.gen";
 
 export function AreaField({
@@ -18,6 +20,7 @@ export function AreaField({
 }) {
   const t = useTranslations("technology");
   const areaT = useTranslations("technology.areas");
+  const localize = useTechnologyTaxonomy();
   return (
     <div className="space-y-2">
       <Label htmlFor={`${prefix}-area`}>{t("areas.field")}</Label>
@@ -30,7 +33,7 @@ export function AreaField({
         <option value="">{areaT("unassigned")}</option>
         {areas.map((area) => (
           <option key={area.area_id} value={area.area_id}>
-            {area.name}
+            {localize(area).name}
           </option>
         ))}
       </Select>
@@ -66,6 +69,7 @@ export function TechnologyFields({
   initial: TechnologyView | undefined;
 }) {
   const t = useTranslations("technology");
+  const localize = useTechnologyTaxonomy();
   return (
     <>
       {categories === null ? (
@@ -79,24 +83,24 @@ export function TechnologyFields({
           />
         </div>
       ) : (
-        <fieldset className="space-y-1">
-          <legend className="text-sm font-medium">{t("categories")}</legend>
-          {categories.map((category) => (
-            <label key={category.category_id} className="flex min-h-11 items-center gap-3">
-              <input
-                type="checkbox"
-                name="category_ids"
-                value={category.category_id}
-                defaultChecked={initial?.category_ids.includes(category.category_id)}
-                className="accent-primary h-4 w-4"
-              />
-              {category.name}
-            </label>
-          ))}
+        <div className="space-y-1">
+          <SearchableMultiSelect
+            name="category_ids"
+            label={t("categories")}
+            searchLabel={t("search")}
+            options={categories.map((category) => ({
+              value: category.category_id,
+              label: localize(category).name,
+            }))}
+            selected={initial?.category_ids ?? []}
+            modal
+            closeLabel={t("close")}
+            emptyHint={t("categories")}
+          />
           {categories.length === 0 && (
             <p className="text-muted-foreground text-sm">{t("categoryRequired")}</p>
           )}
-        </fieldset>
+        </div>
       )}
       <div className="space-y-2">
         <Label htmlFor={`${prefix}-aliases`}>{t("aliases")}</Label>

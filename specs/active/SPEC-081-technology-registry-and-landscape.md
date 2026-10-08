@@ -1,6 +1,6 @@
 ---
 description: "SPEC-081: Governed technology metadata, usage facts, detection handoff, and authorized landscape projections."
-last_verified: "2026-09-26"
+last_verified: "2026-10-08"
 ---
 
 # SPEC-081: Technology registry and landscape
@@ -54,6 +54,19 @@ filtering without changing these registry and relation semantics.
   `harness`, `setup`, `component`, `mcp`, `skill`, `hook`, `agent`, `plugin`, and
   `command` are not categories. Bun is one technology with multiple categories;
   npm CLI/registry and GitLab CI/CD/Runner are separate identities.
+  Migration `0118_technology_taxonomy_defaults` installs the frozen functional
+  taxonomy v2: 13 areas and 117 categories. Corporate bootstrap installs the same
+  defaults for new organizations. Each category belongs to one area; one technology
+  can have several functional categories. The complete 292-identity detector seed
+  has explicit functional classifications. Existing canonical aliases also link
+  older registry IDs to these classes without duplicating technology identities.
+  Installation is additive and idempotent: tenant names, descriptions, states,
+  category-area bindings, existing classifications, and IDs survive. Seed import
+  classifies only newly created technologies, so replay preserves later owner edits.
+  Defaults remain ordinary editable registry records, and custom extensions use the
+  same CRUD. Display translates unchanged defaults and prefers functional classes
+  over retained legacy seed classes; tenant-authored names display verbatim. Empty
+  areas remain visible without fabricating technology usage or scan results.
 - `REQ-8203`: Alias resolution normalizes Unicode NFKC, case, and whitespace;
   punctuation is not silently deleted. Explicit React.js and Postgres aliases
   resolve to React and PostgreSQL. Collisions return a stable conflict and
@@ -528,7 +541,7 @@ entries with project, repository, source, timestamps, found and pending counts,
 optionally filtered to one project. `GET` on `/technology-scans/{scan_id}`
 expands one entry under `landscape.read` plus independent project and
 canonical-pair read authority: each finding carries kind, coordinate, context,
-version, evidence, and its current state (`open`, `candidate`, `resolved`) so
+version, evidence, and its current state (`open`, `candidate`, `resolved`, `rejected`) so
 review inside a scan reuses the same unmapped-coordinate mechanism as the
 organization queue without rewriting the immutable scan record.
 
@@ -538,3 +551,49 @@ Periodic or webhook-triggered scanning is a future milestone item, not part of
 this specification. Every scan starts from an explicit local publication or an
 explicit authorized launch. Registry growth is review-driven, never scheduled
 background mutation.
+
+## Shared finding review and reference workspace
+
+`PUT /v1/corporate/organizations/{organization_id}/technology-findings/review`
+accepts one to 512 unique scan/kind/coordinate/context decisions. Each decision
+carries its expected review revision, optional technology and category, a
+confirmed/rejected decision, and a comment of at most 500 characters. Confirmation
+requires a canonical technology. The operation checks organization authorization,
+project pair authority, technology authority, the retained scan's coordinate
+membership, and every revision before committing the atomic mutation. Replays
+return the original receipt. A rejection does not reclassify a technology.
+
+Owner reviews are tenant-scoped records separate from the append-only scan.
+Original coordinates, version kinds and evidence are retained in new CLI and
+worker handoffs. Legacy handoffs remain readable through their pinned mapping.
+The current interpretation combines the original coordinate with the most recently
+published immutable mapping snapshot and the owner's decision in the same scan
+scope. An exact scan decision takes precedence over an inherited decision.
+Confirmation publishes a new mapping snapshot for subsequent scans and refreshes
+current project usage; rejection excludes the selected finding. The original
+handoff and result remain unchanged. Incomplete scans cannot establish absence.
+
+The Landscape navigation exposes Technology map, Scans and Mapping. The map and
+six-column summary share organization/project/search/advanced filters and derive
+areas, categories, distinct project counts and versions from authorized API data.
+Technology chips and summary actions open versions, related projects and evidence.
+The journal shows repository provenance, duration, job state and found/pending
+counts. Global mapping and scan detail compose the same table, draft state,
+inline review panel and creation dialogs. Both permit correction of already
+recognized findings, category assignment, hierarchy creation, bulk confirmation,
+comment/reset/exclusion, and retained-history review. Desktop follows the five
+provided references; narrow viewports stack the editor below the table and
+contain horizontal table scrolling. Fixtures appear only in Storybook and tests.
+Archived technologies and categories remain available for historical name lookup,
+but are excluded from new selections. A saved confirmation or rejection keeps its
+persisted status when a referenced registry record is archived.
+
+Acceptance evidence: `test_technology_finding_reviews.py` exercises idempotent
+review, current usage, retained original documents, rescan inheritance and
+rejection. `technology-workspace.test.tsx` exercises map drill-down, summary
+columns, resolved finding edits, reset/exclusion, source filtering and read-only
+states. Playwright acceptance inspects the deployed local Docker workspace.
+
+Scan journal and detail expose `scan_types` derived from retained finding kinds: dependencies, configurations, and languages. An empty or queued scan has no invented scan type. Confirming a selected category preserves the technology's other category bindings.
+
+Multi-project repository launches share a batch identity. After a scan changes the policy revision, queued siblings whose authority matched the immediately preceding revision are reauthorized at the current revision under the organization lock. Denied or already stale jobs remain rejected; unrelated batches are unchanged (`ADR-0228`).

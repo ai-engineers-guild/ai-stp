@@ -233,6 +233,7 @@ class TechnologyUnmappedCoordinate(ContractModel):
     ]
     context: UsageContext | None = None
     version: Annotated[str | None, Field(max_length=128)] = None
+    version_kind: Literal["unknown", "declared_range", "observed_version"] = "unknown"
     evidence: Annotated[list[TechnologyEvidence], Field(max_length=64)] = []
 
     @field_validator("coordinate")
@@ -241,6 +242,10 @@ class TechnologyUnmappedCoordinate(ContractModel):
         if "://" in value and urlsplit(value).username is not None:
             raise ValueError("unmapped coordinates must not contain credentials")
         return value
+
+
+class TechnologyDetectedCoordinate(TechnologyUnmappedCoordinate):
+    technology_id: TechnologyId | None = None
 
 
 class TechnologyScanHandoff(ContractModel):
@@ -256,6 +261,7 @@ class TechnologyScanHandoff(ContractModel):
     mapping_version: MappingVersion
     observations: Annotated[list[TechnologyObservation], Field(max_length=4096)]
     unmapped_coordinates: Annotated[list[TechnologyUnmappedCoordinate], Field(max_length=512)] = []
+    coordinates: Annotated[list[TechnologyDetectedCoordinate], Field(max_length=4096)] = []
 
     @model_validator(mode="after")
     def explicit_identity(self) -> TechnologyScanHandoff:
@@ -679,6 +685,10 @@ class TechnologyScanListEntry(ContractModel):
     status: TechnologyScanStatus
     found: Annotated[int, Field(ge=0)] = 0
     pending: Annotated[int, Field(ge=0)] = 0
+    duration_seconds: Annotated[int | None, Field(ge=0)] = None
+    error: str | None = None
+    scope: str | None = None
+    scan_types: list[Literal["dependencies", "configs", "languages"]] = []
 
 
 class TechnologyScanList(ContractModel):
@@ -737,8 +747,44 @@ class TechnologyScanFinding(ContractModel):
     version: str | None = None
     version_kind: Literal["unknown", "declared_range", "observed_version"] = "unknown"
     evidence: list[TechnologyEvidence] = []
-    state: Literal["resolved", "candidate", "open"]
+    state: Literal["resolved", "candidate", "open", "rejected"]
     candidate_technology_id: TechnologyId | None = None
+    review: Literal["proposed", "confirmed", "rejected"] = "proposed"
+    review_revision: Annotated[int, Field(ge=0)] = 0
+    comment: Annotated[str, Field(max_length=500)] = ""
+
+
+class TechnologyFindingDecision(ContractModel):
+    model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
+    scan_id: TechnologyScanId
+    kind: Literal["package", "image", "executable", "configuration", "alias"]
+    coordinate: Annotated[str, Field(min_length=1, max_length=512)]
+    context: UsageContext | None = None
+    technology_id: TechnologyId | None = None
+    category_id: CategoryId | None = None
+    review: Literal["confirmed", "rejected"]
+    expected_revision: Annotated[int, Field(ge=0)] = 0
+    comment: Annotated[str, Field(max_length=500)] = ""
+
+
+class TechnologyFindingReviewRequest(TechnologyMutation):
+    expected_revision: Annotated[int, Field(ge=0, le=0)] = 0
+    items: Annotated[list[TechnologyFindingDecision], Field(min_length=1, max_length=512)]
+
+    @model_validator(mode="after")
+    def unique_findings(self) -> TechnologyFindingReviewRequest:
+        keys = [(item.scan_id, item.kind, item.coordinate, item.context) for item in self.items]
+        if len(keys) != len(set(keys)):
+            raise ValueError("finding decisions must be distinct")
+        if any(item.review == "confirmed" and item.technology_id is None for item in self.items):
+            raise ValueError("confirmation requires a technology")
+        return self
+
+
+class TechnologyFindingReviewResult(ContractModel):
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+    organization_id: OrganizationId
+    updated: Annotated[int, Field(ge=0)]
 
 
 class TechnologyScanDetail(TechnologyScanListEntry):
@@ -846,6 +892,7 @@ class TechnologyLandscapeQuery(ContractModel):
     freshness: EvidenceFreshness | None = None
     include_history: bool = False
     include_inactive: bool = False
+    include_proposed: bool = False
     offset: Annotated[int, Field(ge=0)] = 0
     limit: Annotated[int, Field(ge=1, le=256)] = 128
     project_offset: Annotated[int, Field(ge=0)] = 0

@@ -1464,6 +1464,10 @@ export function corporateHandlers(
           commit: null,
           created_at: new Date().toISOString(),
           status: "queued",
+          duration_seconds: null,
+          error: null,
+          scope: null,
+          scan_types: [],
           found: 0,
           pending: 0,
         });

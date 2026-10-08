@@ -9,6 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ai_stp_contracts.technology import (
+    TechnologyDetectedCoordinate,
     TechnologyEvidence,
     TechnologyObservation,
     TechnologyScanHandoff,
@@ -132,6 +133,7 @@ async def detection_handoff(
     coordinate; an ambiguous or absent mapping keeps the finding in
     ``unmapped_coordinates`` for review rather than guessing an identity.
     """
+    detections = tuple(detections)
     mappings = await db.scalars(
         select(TechnologyCoordinateMapping).where(
             TechnologyCoordinateMapping.organization_id == organization_id,
@@ -179,7 +181,7 @@ async def detection_handoff(
         project_id=project_id,
         scan_id=scan_id,
         scope=f"{provider}/{provider_project_id}",
-        complete=complete,
+        complete=complete and len(detections) <= 4096 and len(unmapped) <= 512,
         detector_version=detector,
         mapping_version=mapping_version,
         observations=[
@@ -194,12 +196,38 @@ async def detection_handoff(
             )
             for (technology_id, context), slot in sorted(grouped.items())
         ],
+        coordinates=[
+            TechnologyDetectedCoordinate(
+                kind=item.kind,
+                coordinate=item.coordinate,
+                context=item.context,
+                technology_id=snapshot.resolve(item.kind, item.coordinate),
+                version=item.version,
+                version_kind=item.version_kind,
+                evidence=[
+                    TechnologyEvidence(
+                        source=trace.source,
+                        path=trace.path,
+                        reference=trace.reference,
+                        observed_at=observed_at,
+                        source_revision=head,
+                        confidence=trace.confidence,
+                        detector_version=detector,
+                        mapping_version=mapping_version,
+                    )
+                    for trace in item.traces[:8]
+                ],
+            )
+            for item in detections
+            if _COORDINATE.fullmatch(item.coordinate)
+        ][:4096],
         unmapped_coordinates=[
             TechnologyUnmappedCoordinate(
                 kind=detection.kind,
                 coordinate=detection.coordinate,
                 context=detection.context,
                 version=detection.version,
+                version_kind=detection.version_kind,
                 evidence=[
                     TechnologyEvidence(
                         source=trace.source,

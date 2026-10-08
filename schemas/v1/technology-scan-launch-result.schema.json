@@ -1,0 +1,93 @@
+{
+  "$defs": {
+    "TechnologyScanLaunchItem": {
+      "additionalProperties": true,
+      "properties": {
+        "detail": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Detail"
+        },
+        "job_id": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Job Id"
+        },
+        "project_id": {
+          "pattern": "^remote_project_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+          "title": "Project Id",
+          "type": "string"
+        },
+        "scan_id": {
+          "anyOf": [
+            {
+              "pattern": "^scan_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Scan Id"
+        },
+        "state": {
+          "enum": [
+            "queued",
+            "rejected",
+            "failed"
+          ],
+          "title": "State",
+          "type": "string"
+        }
+      },
+      "required": [
+        "detail",
+        "job_id",
+        "project_id",
+        "scan_id",
+        "state"
+      ],
+      "title": "TechnologyScanLaunchItem",
+      "type": "object"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:technology-scan-launch-result",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "properties": {
+    "items": {
+      "items": {
+        "$ref": "#/$defs/TechnologyScanLaunchItem"
+      },
+      "title": "Items",
+      "type": "array"
+    },
+    "organization_id": {
+      "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "title": "Organization Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "items",
+    "organization_id"
+  ],
+  "title": "TechnologyScanLaunchResult",
+  "type": "object"
+}

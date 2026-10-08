@@ -706,6 +706,9 @@ import type {
   ResolveProjectConflictData,
   ResolveProjectConflictErrors,
   ResolveProjectConflictResponses,
+  ReviewTechnologyFindingsData,
+  ReviewTechnologyFindingsErrors,
+  ReviewTechnologyFindingsResponses,
   ReviewTechnologyUnmappedCoordinateData,
   ReviewTechnologyUnmappedCoordinateErrors,
   ReviewTechnologyUnmappedCoordinateResponses,
@@ -4213,6 +4216,26 @@ export const changeTechnologyCategoryLifecycle = <ThrowOnError extends boolean =
   >({
     security: [{ scheme: "bearer", type: "http" }],
     url: "/v1/corporate/organizations/{organization_id}/technology-categories/{category_id}/lifecycle",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Review retained findings and refresh their current interpretation.
+ */
+export const reviewTechnologyFindings = <ThrowOnError extends boolean = false>(
+  options: Options<ReviewTechnologyFindingsData, ThrowOnError>,
+): RequestResult<ReviewTechnologyFindingsResponses, ReviewTechnologyFindingsErrors, ThrowOnError> =>
+  (options.client ?? client).put<
+    ReviewTechnologyFindingsResponses,
+    ReviewTechnologyFindingsErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/technology-findings/review",
     ...options,
     headers: {
       "Content-Type": "application/json",

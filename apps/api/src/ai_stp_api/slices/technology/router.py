@@ -37,6 +37,8 @@ from ai_stp_contracts.technology import (
     TeamId,
     TechnologyDecisionRequest,
     TechnologyDecisionView,
+    TechnologyFindingReviewRequest,
+    TechnologyFindingReviewResult,
     TechnologyId,
     TechnologyLandscapePolicyRequest,
     TechnologyLandscapePolicyView,
@@ -76,6 +78,23 @@ from ai_stp_contracts.technology import (
 router = APIRouter(prefix="/corporate/organizations/{organization_id}", tags=["technology"])
 Db = Annotated[AsyncSession, Depends(get_db)]
 Auth = Annotated[AuthContext, Depends(require_auth)]
+
+
+@router.put("/technology-findings/review", response_model=TechnologyFindingReviewResult)
+async def review_findings(
+    organization_id: OrganizationId,
+    payload: TechnologyFindingReviewRequest,
+    request: Request,
+    db: Db,
+    ctx: Auth,
+) -> TechnologyFindingReviewResult:
+    return await detection.review_findings(
+        db,
+        ctx=ctx,
+        organization_id=organization_id,
+        payload=payload,
+        request_id=getattr(request.state, "request_id", None),
+    )
 
 
 @router.get("/members/{account_id}/technologies", response_model=EmployeeTechnologyList)

@@ -27,6 +27,7 @@ from typing import Final, Literal, cast
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import tech_detect
 from ai_stp_contracts.technology import (
+    TechnologyDetectedCoordinate,
     TechnologyEvidence,
     TechnologyObservation,
     TechnologyScanHandoff,
@@ -655,6 +656,7 @@ def build_handoff(
     unique. An override swaps the coordinate's resolution for the identity
     the reviewer named; it does not fabricate evidence.
     """
+    coordinates: list[TechnologyDetectedCoordinate] = []
     unmapped: list[str] = []
     unmapped_coordinates: set[tuple[str, str]] = set()
     excluded: list[str] = []
@@ -675,6 +677,31 @@ def build_handoff(
         technology_id = finding.override_technology_id if finding.review == "overridden" else None
         if technology_id is None:
             technology_id = mapping.resolve(finding.kind, finding.coordinate)
+        headline = finding.headline
+        coordinates.append(
+            TechnologyDetectedCoordinate(
+                kind=finding.kind,
+                coordinate=finding.coordinate,
+                context=finding.context,
+                technology_id=technology_id,
+                version=headline.version if headline else None,
+                version_kind=headline.version_kind if headline else "unknown",
+                evidence=[
+                    TechnologyEvidence(
+                        source=trace.source,
+                        path=trace.path,
+                        reference=trace.reference,
+                        observed_at=at,
+                        source_revision=source_revision,
+                        confidence=trace.confidence,
+                        detector_version=detector_version,
+                        mapping_version=mapping.version,
+                    )
+                    for claim in finding.claims
+                    for trace in claim.evidence
+                ][:64],
+            )
+        )
         if technology_id is None:
             unmapped.append(finding.key)
             unmapped_coordinates.add((finding.kind, finding.coordinate))
@@ -743,16 +770,12 @@ def build_handoff(
             detector_version=detector_version,
             mapping_version=mapping.version,
             observations=items,
+            coordinates=coordinates[:4096],
             unmapped_coordinates=[
-                TechnologyUnmappedCoordinate(
-                    kind=cast(
-                        Literal["package", "image", "executable", "configuration", "alias"],
-                        kind,
-                    ),
-                    coordinate=coordinate,
-                )
-                for kind, coordinate in sorted(unmapped_coordinates)[:512]
-            ],
+                TechnologyUnmappedCoordinate(**item.model_dump(exclude={"technology_id"}))
+                for item in coordinates
+                if item.technology_id is None
+            ][:512],
         ),
         unmapped=tuple(unmapped),
         excluded=tuple(excluded),

@@ -27,7 +27,8 @@
         "description": "",
         "revision": 2,
         "provenance": "manual",
-        "state": "archived"
+        "state": "archived",
+        "area_id": null
       },
       "error_code": null
     },
@@ -58,7 +59,8 @@
         "description": "",
         "revision": 2,
         "provenance": "manual",
-        "state": "active"
+        "state": "active",
+        "area_id": null
       },
       "error_code": null
     },
@@ -221,7 +223,8 @@
         "description": "",
         "category_id": "category_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
         "revision": 1,
-        "provenance": "manual"
+        "provenance": "manual",
+        "area_id": null
       },
       "error_code": null
     },
@@ -483,7 +486,8 @@
             "description": "",
             "category_id": "category_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
             "revision": 1,
-            "provenance": "manual"
+            "provenance": "manual",
+            "area_id": null
           }
         ]
       },
@@ -618,7 +622,8 @@
         "description": "",
         "category_id": "category_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
         "revision": 1,
-        "provenance": "manual"
+        "provenance": "manual",
+        "area_id": null
       },
       "error_code": null
     },
@@ -906,7 +911,8 @@
         "description": "",
         "category_id": "category_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
         "revision": 2,
-        "provenance": "manual"
+        "provenance": "manual",
+        "area_id": null
       },
       "error_code": null
     },
@@ -1843,6 +1849,343 @@
         "state": "current",
         "revision": 1
       }
+    },
+    {
+      "case_id": "reviewTechnologyFindings.technology",
+      "operation_id": "reviewTechnologyFindings",
+      "kind": "positive",
+      "why": "Owner decisions update current usage and mapping without rewriting scan evidence.",
+      "request": {
+        "path_params": {
+          "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        },
+        "body": {
+          "schema_version": 1,
+          "expected_revision": 0,
+          "authorization_revision": 1,
+          "idempotency_key": "fixture-finding-review-0001",
+          "items": [
+            {
+              "scan_id": "scan_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+              "kind": "package",
+              "coordinate": "left-pad",
+              "context": "production",
+              "technology_id": "technology_00000000000000000000000001",
+              "category_id": null,
+              "review": "confirmed",
+              "expected_revision": 0,
+              "comment": "Reviewed from the manifest"
+            }
+          ]
+        }
+      },
+      "status": 200,
+      "body": {
+        "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "updated": 1
+      }
+    },
+    {
+      "case_id": "archiveTechnologyArea.technology",
+      "operation_id": "archiveTechnologyArea",
+      "kind": "positive",
+      "why": "Technology workspace operation uses the canonical machine contract.",
+      "request": {
+        "path_params": {
+          "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "area_id": "area_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        },
+        "query": {},
+        "body": {
+          "schema_version": 1,
+          "authorization_revision": 1,
+          "expected_revision": 1,
+          "idempotency_key": "fixture-archiveTechnologyArea-0001"
+        },
+        "headers": {}
+      },
+      "status": 200,
+      "body": {
+        "name": "Server applications",
+        "description": "",
+        "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "area_id": "area_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "revision": 1,
+        "provenance": "manual",
+        "state": "archived"
+      },
+      "error_code": null
+    },
+    {
+      "case_id": "changeTechnologyAreaLifecycle.technology",
+      "operation_id": "changeTechnologyAreaLifecycle",
+      "kind": "positive",
+      "why": "Technology workspace operation uses the canonical machine contract.",
+      "request": {
+        "path_params": {
+          "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "area_id": "area_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        },
+        "query": {},
+        "body": {
+          "schema_version": 1,
+          "authorization_revision": 1,
+          "expected_revision": 1,
+          "idempotency_key": "fixture-changeTechnologyAreaLifecycle-0001",
+          "target": "active"
+        },
+        "headers": {}
+      },
+      "status": 200,
+      "body": {
+        "name": "Server applications",
+        "description": "",
+        "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "area_id": "area_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "revision": 1,
+        "provenance": "manual",
+        "state": "active"
+      },
+      "error_code": null
+    },
+    {
+      "case_id": "createTechnologyArea.technology",
+      "operation_id": "createTechnologyArea",
+      "kind": "positive",
+      "why": "Technology workspace operation uses the canonical machine contract.",
+      "request": {
+        "path_params": {
+          "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        },
+        "query": {},
+        "body": {
+          "schema_version": 1,
+          "authorization_revision": 1,
+          "expected_revision": 0,
+          "idempotency_key": "fixture-createTechnologyArea-0001",
+          "metadata": {
+            "name": "Server applications",
+            "description": ""
+          },
+          "state": null
+        },
+        "headers": {}
+      },
+      "status": 200,
+      "body": {
+        "name": "Server applications",
+        "description": "",
+        "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "area_id": "area_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "revision": 1,
+        "provenance": "manual",
+        "state": "active"
+      },
+      "error_code": null
+    },
+    {
+      "case_id": "launchTechnologyScans.technology",
+      "operation_id": "launchTechnologyScans",
+      "kind": "positive",
+      "why": "Technology workspace operation uses the canonical machine contract.",
+      "request": {
+        "path_params": {
+          "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        },
+        "query": {},
+        "body": {
+          "schema_version": 1,
+          "authorization_revision": 1,
+          "expected_revision": 0,
+          "idempotency_key": "fixture-launchTechnologyScans-0001",
+          "project_ids": [
+            "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+          ]
+        },
+        "headers": {}
+      },
+      "status": 200,
+      "body": {
+        "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "items": [
+          {
+            "project_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+            "scan_id": "scan_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+            "job_id": 1,
+            "state": "queued",
+            "detail": null
+          }
+        ]
+      },
+      "error_code": null
+    },
+    {
+      "case_id": "listTechnologyAreas.technology",
+      "operation_id": "listTechnologyAreas",
+      "kind": "positive",
+      "why": "Technology workspace operation uses the canonical machine contract.",
+      "request": {
+        "path_params": {
+          "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        },
+        "query": {},
+        "body": null,
+        "headers": {}
+      },
+      "status": 200,
+      "body": {
+        "items": [
+          {
+            "name": "Server applications",
+            "description": "",
+            "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+            "area_id": "area_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+            "revision": 1,
+            "provenance": "manual",
+            "state": "active"
+          }
+        ]
+      },
+      "error_code": null
+    },
+    {
+      "case_id": "listTechnologyScans.technology",
+      "operation_id": "listTechnologyScans",
+      "kind": "positive",
+      "why": "Technology workspace operation uses the canonical machine contract.",
+      "request": {
+        "path_params": {
+          "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        },
+        "query": {},
+        "body": null,
+        "headers": {}
+      },
+      "status": 200,
+      "body": {
+        "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "items": [
+          {
+            "scan_id": "scan_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+            "project_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+            "project_name": "Platform API",
+            "repository": "https://gitlab.example/platform/api",
+            "source": "gitlab",
+            "branch": "main",
+            "commit": "a7b1c9e",
+            "created_at": "2026-10-08T10:00:00.000Z",
+            "status": "succeeded",
+            "found": 0,
+            "pending": 0,
+            "duration_seconds": 2,
+            "error": null,
+            "scope": "dependencies",
+            "scan_types": []
+          }
+        ],
+        "total": 1
+      },
+      "error_code": null
+    },
+    {
+      "case_id": "readTechnologyArea.technology",
+      "operation_id": "readTechnologyArea",
+      "kind": "positive",
+      "why": "Technology workspace operation uses the canonical machine contract.",
+      "request": {
+        "path_params": {
+          "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "area_id": "area_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        },
+        "query": {},
+        "body": null,
+        "headers": {}
+      },
+      "status": 200,
+      "body": {
+        "name": "Server applications",
+        "description": "",
+        "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "area_id": "area_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "revision": 1,
+        "provenance": "manual",
+        "state": "active"
+      },
+      "error_code": null
+    },
+    {
+      "case_id": "readTechnologyScanDetail.technology",
+      "operation_id": "readTechnologyScanDetail",
+      "kind": "positive",
+      "why": "Technology workspace operation uses the canonical machine contract.",
+      "request": {
+        "path_params": {
+          "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "scan_id": "scan_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        },
+        "query": {},
+        "body": null,
+        "headers": {}
+      },
+      "status": 200,
+      "body": {
+        "scan_id": "scan_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "project_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "project_name": "Platform API",
+        "repository": "https://gitlab.example/platform/api",
+        "source": "gitlab",
+        "branch": "main",
+        "commit": "a7b1c9e",
+        "created_at": "2026-10-08T10:00:00.000Z",
+        "status": "succeeded",
+        "found": 0,
+        "pending": 0,
+        "duration_seconds": 2,
+        "error": null,
+        "scope": "dependencies",
+        "detector_version": "repository-content-v1",
+        "mapping_version": "fixture-v1",
+        "complete": true,
+        "findings": [],
+        "scan_types": []
+      },
+      "error_code": null
+    },
+    {
+      "case_id": "writeTechnologyArea.technology",
+      "operation_id": "writeTechnologyArea",
+      "kind": "positive",
+      "why": "Technology workspace operation uses the canonical machine contract.",
+      "request": {
+        "path_params": {
+          "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "area_id": "area_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        },
+        "query": {},
+        "body": {
+          "schema_version": 1,
+          "authorization_revision": 1,
+          "expected_revision": 1,
+          "idempotency_key": "fixture-writeTechnologyArea-0001",
+          "metadata": {
+            "name": "Server applications",
+            "description": ""
+          },
+          "state": null
+        },
+        "headers": {}
+      },
+      "status": 200,
+      "body": {
+        "name": "Server applications",
+        "description": "",
+        "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "area_id": "area_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "revision": 1,
+        "provenance": "manual",
+        "state": "active"
+      },
+      "error_code": null
     }
   ]
 }

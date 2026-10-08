@@ -19,20 +19,23 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Literal, Protocol
+from typing import Literal, Protocol, cast
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ai_stp_contracts.technology import TechnologyObservation
 from ai_stp_foundation.timestamps import format_timestamp
+from ai_stp_platform.corporate_authorization import has_corporate_permission
 from ai_stp_platform.organization_models import (
     CorporateProject,
     Organization,
     ProjectIdentity,
     ProjectLink,
 )
-from ai_stp_platform.queue.states import PermanentJobFailure
+from ai_stp_platform.queue.engine import TENANT_ENVELOPE_KEY
+from ai_stp_platform.queue.models import Job
+from ai_stp_platform.queue.states import JobState, JobType, PermanentJobFailure
 from ai_stp_platform.technology_forge import detection_handoff
 from ai_stp_platform.technology_models import (
     Technology,
@@ -253,6 +256,7 @@ async def scan_linked_repository(
     ):
         raise PermanentJobFailure(f"{adapter.provider} observation or project link changed")
 
+    prior_policy_revision = organization.policy_revision
     await merge_scan_facts(
         db,
         organization_id=organization_id,
@@ -272,7 +276,80 @@ async def scan_linked_repository(
             "commit": snapshot.head,
         },
     )
+    await _refresh_scan_batch_authority(db, organization, scan_id, prior_policy_revision)
     return "applied"
+
+
+async def _refresh_scan_batch_authority(
+    db: AsyncSession, organization: Organization, scan_id: str, prior_revision: int
+) -> None:
+    """Reauthorize queued siblings after this scan advances the policy revision.
+
+    The queue's stale-envelope rejection remains intact. Only this scan's own
+    revision advance can refresh its batch, and each sibling needs current
+    permission before its envelope changes.
+    """
+    scan_types = [str(JobType.GITLAB_TECHNOLOGY_SCAN), str(JobType.GITHUB_TECHNOLOGY_SCAN)]
+    current = await db.scalar(
+        select(Job).where(
+            Job.organization_id == organization.id,
+            Job.job_type.in_(scan_types),
+            Job.payload["scan_id"].as_string() == scan_id,
+        )
+    )
+    batch = current.payload.get("batch_id") if current else None
+    if not isinstance(batch, str) or not batch:
+        return
+    siblings = await db.scalars(
+        select(Job)
+        .where(
+            Job.organization_id == organization.id,
+            Job.job_type.in_(scan_types),
+            Job.payload["batch_id"].as_string() == batch,
+            Job.payload["scan_id"].as_string() != scan_id,
+            Job.state.in_([str(JobState.QUEUED), str(JobState.RETRY_SCHEDULED)]),
+        )
+        .with_for_update()
+    )
+    for sibling in siblings:
+        raw_envelope = sibling.payload.get(TENANT_ENVELOPE_KEY)
+        if not isinstance(raw_envelope, dict):
+            continue
+        envelope = cast(dict[str, object], raw_envelope)
+        principal = envelope.get("principal_id")
+        project = sibling.payload.get("project_id")
+        if (
+            envelope.get("authorization_revision") != prior_revision
+            or envelope.get("organization_id") != organization.id
+            or envelope.get("principal_type") != "user"
+            or envelope.get("required_permission") != "technology.scan.publish"
+            or envelope.get("scope_kind") != "project"
+            or envelope.get("scope_id") != project
+            or not isinstance(principal, str)
+            or not isinstance(project, str)
+        ):
+            continue
+        if await has_corporate_permission(
+            db,
+            organization_id=organization.id,
+            principal_type="user",
+            principal_id=principal,
+            permission="technology.scan.publish",
+            scope_kind="project",
+            scope_id=project,
+            authorization_revision=organization.policy_revision,
+        ):
+            sibling.payload = {
+                **sibling.payload,
+                TENANT_ENVELOPE_KEY: {
+                    **envelope,
+                    "authorization_revision": organization.policy_revision,
+                    "authorization_refreshed_from": envelope.get(
+                        "authorization_refreshed_from", prior_revision
+                    ),
+                },
+            }
+    await db.flush()
 
 
 __all__ = [

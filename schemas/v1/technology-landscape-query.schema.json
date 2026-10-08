@@ -98,6 +98,11 @@
       "title": "Include Inactive",
       "type": "boolean"
     },
+    "include_proposed": {
+      "default": false,
+      "title": "Include Proposed",
+      "type": "boolean"
+    },
     "lifecycle": {
       "anyOf": [
         {

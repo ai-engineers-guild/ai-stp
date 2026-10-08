@@ -1,0 +1,159 @@
+{
+  "$defs": {
+    "IdempotencyKey": {
+      "pattern": "^[A-Za-z0-9._~-]{16,128}$",
+      "type": "string"
+    },
+    "TechnologyFindingDecision": {
+      "additionalProperties": false,
+      "properties": {
+        "category_id": {
+          "anyOf": [
+            {
+              "pattern": "^category_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Category Id"
+        },
+        "comment": {
+          "default": "",
+          "maxLength": 500,
+          "title": "Comment",
+          "type": "string"
+        },
+        "context": {
+          "anyOf": [
+            {
+              "enum": [
+                "production",
+                "development",
+                "testing",
+                "browser_support"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Context"
+        },
+        "coordinate": {
+          "maxLength": 512,
+          "minLength": 1,
+          "title": "Coordinate",
+          "type": "string"
+        },
+        "expected_revision": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Expected Revision",
+          "type": "integer"
+        },
+        "kind": {
+          "enum": [
+            "package",
+            "image",
+            "executable",
+            "configuration",
+            "alias"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "review": {
+          "enum": [
+            "confirmed",
+            "rejected"
+          ],
+          "title": "Review",
+          "type": "string"
+        },
+        "scan_id": {
+          "pattern": "^scan_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+          "title": "Scan Id",
+          "type": "string"
+        },
+        "technology_id": {
+          "anyOf": [
+            {
+              "pattern": "^technology_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Technology Id"
+        }
+      },
+      "required": [
+        "scan_id",
+        "kind",
+        "coordinate",
+        "review"
+      ],
+      "title": "TechnologyFindingDecision",
+      "type": "object"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:technology-finding-review-request",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "authorization_revision": {
+      "anyOf": [
+        {
+          "minimum": 1,
+          "type": "integer"
+        },
+        {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^corporate:organization_[A-Za-z0-9_-]+:[1-9][0-9]*:[1-9][0-9]*$",
+          "type": "string"
+        }
+      ],
+      "title": "Authorization Revision"
+    },
+    "expected_revision": {
+      "default": 0,
+      "maximum": 0,
+      "minimum": 0,
+      "title": "Expected Revision",
+      "type": "integer"
+    },
+    "idempotency_key": {
+      "$ref": "#/$defs/IdempotencyKey"
+    },
+    "items": {
+      "items": {
+        "$ref": "#/$defs/TechnologyFindingDecision"
+      },
+      "maxItems": 512,
+      "minItems": 1,
+      "title": "Items",
+      "type": "array"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "authorization_revision",
+    "idempotency_key",
+    "items"
+  ],
+  "title": "TechnologyFindingReviewRequest",
+  "type": "object"
+}

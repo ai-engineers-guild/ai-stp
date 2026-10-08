@@ -127,7 +127,7 @@ def test_docker_stage_alias_is_not_an_image(tmp_path: Path) -> None:
 
 
 def test_depth_limit_is_incomplete(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(project_index, "MAX_DEPTH", 1)
+    monkeypatch.setattr("ai_stp_sources.project_index.MAX_DEPTH", 1)
     deep = tmp_path / "nested"
     deep.mkdir()
     (deep / "main.py").write_text("pass", encoding="utf-8")
@@ -160,7 +160,7 @@ def test_detection_time_limit_returns_partial(
 ) -> None:
     (tmp_path / "package.json").write_text("{}", encoding="utf-8")
     index = project_index.build(tmp_path)
-    monkeypatch.setattr(project_index, "MAX_SECONDS", 0)
+    monkeypatch.setattr("ai_stp_sources.project_index.MAX_SECONDS", 0)
     scan = tech_detect.detect(index)
     assert not scan.complete
     assert scan.stopped_by == "detection time budget"

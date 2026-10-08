@@ -127,6 +127,7 @@ from ai_stp_platform.technology_models import (
     Technology,
     TechnologyTeamResponsibility,
 )
+from ai_stp_platform.technology_taxonomy import install_technology_taxonomy
 from ai_stp_platform.tenant_scope import set_tenant_scope
 
 TECHNOLOGY_PERMISSIONS = frozenset(
@@ -811,6 +812,7 @@ async def bootstrap(
     db.add(organization)
     await db.flush()
     await set_tenant_scope(db, organization.id)
+    await (await db.connection()).run_sync(install_technology_taxonomy, organization.id)
     membership = OrganizationMembership(
         organization_id=organization.id,
         account_id=account.id,
@@ -4381,11 +4383,48 @@ async def read_context(
             scope_id=row.id,
         )
     ][:256]
+    repositories: dict[str, list[CorporateProjectRepository]] = {}
+    linked = (
+        await db.execute(
+            select(ProjectLink.remote_project_id, ProjectIdentity)
+            .join(
+                ProjectIdentity,
+                (ProjectLink.organization_id == ProjectIdentity.organization_id)
+                & (ProjectLink.provider_project_id == ProjectIdentity.id),
+            )
+            .where(
+                ProjectLink.organization_id == organization_id,
+                ProjectLink.remote_project_id.in_([row.id for row in project_rows]),
+                ProjectLink.state == "linked",
+                ProjectIdentity.provider_kind.in_(["gitlab", "github"]),
+            )
+            .distinct()
+            .order_by(ProjectIdentity.id)
+        )
+    ).all()
+    for project_id, identity in linked:
+        if identity.current_url is not None:
+            repositories.setdefault(project_id, []).append(
+                CorporateProjectRepository(
+                    provider_project_id=identity.id,
+                    provider=cast(Literal["github", "gitlab"], identity.provider_kind),
+                    namespace=identity.observed_name or identity.display_name,
+                    repository_url=identity.current_url,
+                    default_branch=identity.provider_default_branch,
+                    observed_revision=identity.provider_observed_revision,
+                    observed_at=format_timestamp(identity.observed_at)
+                    if identity.observed_at
+                    else None,
+                )
+            )
     response = CorporateContext(
         organization=organization_view(organization),
         member=member_view(membership, account),
         bindings=[_binding_view(row) for row in bindings],
-        projects=[_project_view(row) for row in project_rows],
+        projects=[
+            _project_view(row).model_copy(update={"repositories": repositories.get(row.id, [])})
+            for row in project_rows
+        ],
         teams=(
             await list_teams(db, ctx=ctx, organization_id=organization_id, request_id=request_id)
         ).items,

@@ -899,8 +899,8 @@ async def test_scan_journal_launch_and_detail(
     assert entry.project_name == "Scanned project"
     assert entry.source == "local"
     assert entry.status == "succeeded"
-    assert entry.found == 1
-    assert entry.pending == 1
+    assert entry.found == 2
+    assert entry.pending == 2
 
     filtered = await list_scans(
         db_session,
@@ -921,13 +921,15 @@ async def test_scan_journal_launch_and_detail(
     assert detail.project_id == first.project_id
     assert detail.source == "local"
     assert detail.status == "succeeded"
-    assert detail.found == 1
-    assert detail.pending == 1
+    assert detail.found == 2
+    assert detail.pending == 2
     assert detail.detector_version == "v1"
     assert detail.mapping_version == SEED_COORDINATES_VERSION
     assert detail.complete is True
     states = {finding.coordinate: finding for finding in detail.findings}
-    resolved = states[technology_id]
+    resolved = next(
+        finding for finding in detail.findings if finding.technology_id == technology_id
+    )
     assert resolved.state == "resolved"
     assert resolved.technology_id == technology_id
     assert resolved.version == "1.2.3"
@@ -1276,6 +1278,9 @@ async def test_technology_area_lifecycle_and_category_binding(
             request_id="area-test",
         )
     ).state == "archived"
-    assert (
-        await list_areas(db_session, ctx=ctx, organization_id=org, request_id="area-test")
-    ).items[0].area_id == area.area_id
+    assert area.area_id in {
+        item.area_id
+        for item in (
+            await list_areas(db_session, ctx=ctx, organization_id=org, request_id="area-test")
+        ).items
+    }

@@ -4,8 +4,16 @@
  */
 import {
   AlertCircle,
+  RotateCw,
+  Trash2,
+  Folder,
+  Network,
+  ShieldCheck,
+  ChartNoAxesCombined,
+  BrainCircuit,
   ArrowLeft,
   Camera,
+  CalendarDays,
   Clock3,
   CheckCircle2,
   Check,
@@ -86,6 +94,13 @@ const Gitlab = createLucideIcon("gitlab", [
 ]);
 
 export type IconName =
+  | "refresh"
+  | "trash"
+  | "folder"
+  | "network"
+  | "shield"
+  | "chart"
+  | "brain"
   | "search"
   | "sun"
   | "moon"
@@ -122,6 +137,7 @@ export type IconName =
   | "lock"
   | "more"
   | "moreVertical"
+  | "calendar"
   | "clock"
   | "sparkles"
   | "star"
@@ -143,6 +159,13 @@ export type IconName =
 export type IconSize = keyof typeof iconSizes;
 
 const REGISTRY: Record<IconName, LucideIcon> = {
+  refresh: RotateCw,
+  trash: Trash2,
+  folder: Folder,
+  network: Network,
+  shield: ShieldCheck,
+  chart: ChartNoAxesCombined,
+  brain: BrainCircuit,
   search: Search,
   sun: Sun,
   moon: Moon,
@@ -186,6 +209,7 @@ const REGISTRY: Record<IconName, LucideIcon> = {
   lock: LockKeyhole,
   more: MoreHorizontal,
   moreVertical: MoreVertical,
+  calendar: CalendarDays,
   clock: Clock3,
   sparkles: Sparkles,
   star: Star,

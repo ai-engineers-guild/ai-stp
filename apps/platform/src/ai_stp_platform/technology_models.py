@@ -399,6 +399,41 @@ class TechnologyCoordinateMapping(_TenantRow, Base):
     coordinate: Mapped[str] = mapped_column(String(512), primary_key=True)
     technology_id: Mapped[str] = mapped_column(String(64), primary_key=True)
     provenance: Mapped[str] = mapped_column(String(256), nullable=False)
+    published_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+
+class TechnologyFindingReview(_TenantRow, Base):
+    """Mutable interpretation kept separately from the immutable scan evidence."""
+
+    __tablename__ = "technology_finding_review"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["organization_id", "scan_id"],
+            ["technology_scan.organization_id", "technology_scan.id"],
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["organization_id", "technology_id"],
+            ["technology.organization_id", "technology.id"],
+            ondelete="RESTRICT",
+        ),
+        CheckConstraint("review IN ('confirmed','rejected')", name="ck_finding_review"),
+        CheckConstraint("revision >= 1", name="ck_finding_review_revision"),
+    )
+    scan_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    finding_key: Mapped[str] = mapped_column(String(71), primary_key=True)
+    kind: Mapped[str] = mapped_column(String(32), nullable=False)
+    coordinate: Mapped[str] = mapped_column(String(512), nullable=False)
+    context: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    technology_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    review: Mapped[str] = mapped_column(String(16), nullable=False)
+    comment: Mapped[str] = mapped_column(String(500), nullable=False, default="", server_default="")
+    revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
 
 
 class TechnologyUnmappedCoordinate(_TenantRow, Base):

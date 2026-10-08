@@ -71,3 +71,24 @@ CompactChipList remain shared kit components. Files are parsed locally; the prev
 never sends mutations. `read-excel-file` is dynamically loaded by
 `src/lib/member-import-file.ts` solely for XLSX. That adapter owns the dependency;
 remove it when XLSX support is removed. Other formats use the existing text parser.
+
+## Technology workspace reuse
+
+The five supplied references define the technology map/table, journal, mapping
+and scan-detail compositions. The existing `TechnologyLandscapeResults`,
+`TechnologyLandscapeFilters`, `TechnologyScanFindings`, `TechnologyScanLaunch`
+and `TechnologyRegistryCreate` remain the feature entry points. The kit had no
+scan journal with repository/date/duration filtering or persistent master/detail
+finding editor. `TechnologyScanJournal`, `TechnologyReviewHeader`,
+`TechnologyFindingsTable`, `TechnologyFindingPanel` and `TechnologyReviewDialogs`
+compose existing Table, PagePager, Select, SearchableMultiSelect, Dialog and
+registry forms; they do not introduce primitives. Shared draft/review state lives
+in `src/lib/technology-review-state.ts`. The old standalone mapping editor is
+removed to keep recognized and unknown findings on one mutation path.
+
+`TechnologyWorkspace.stories.tsx` registers map, table, journal, mapping, scan,
+empty, read-only and dark states. `technology-workspace.test.tsx` exercises their
+functional compositions. Scoped technology CSS uses existing theme tokens and
+Plex typography, five area columns and five metrics on desktop, a persistent
+inline editor, and stacked contained tables on narrow screens. Production
+counts and rows always come from the authorized contract client.

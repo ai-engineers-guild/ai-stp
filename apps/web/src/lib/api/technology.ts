@@ -402,6 +402,7 @@ export const LANDSCAPE_FILTER_KEYS = [
   "freshness",
   "include_history",
   "include_inactive",
+  "include_proposed",
   "offset",
   "limit",
   "project_offset",
