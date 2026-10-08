@@ -94,6 +94,11 @@ fn git_and_plain_capture_preserve_complete_safe_content() -> Result<(), Box<dyn 
     let file = source::capture(&component.join("SKILL.md"))?;
     assert_eq!(file.format, artifacts::FILE_FORMAT);
     assert_eq!(file.bytes, b"# Component\n");
+    assert_eq!(file.file_mode, Some(0o644));
+    let script = source::capture(&component.join("scripts/run.sh"))?;
+    assert_eq!(script.format, artifacts::FILE_FORMAT);
+    assert_eq!(script.file_mode, Some(0o755));
+    assert_eq!(script.bytes, b"#!/bin/sh\nexit 0\n");
     assert!(source::capture(&component.join(".env")).is_err());
     fs::hard_link(component.join("SKILL.md"), component.join("linked.md"))?;
     assert!(

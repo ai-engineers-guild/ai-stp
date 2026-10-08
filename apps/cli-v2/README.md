@@ -152,6 +152,9 @@ executable modes survive Windows capture. Filesystem capture refuses links,
 credential-named paths, incomplete reads and file/count/depth budgets. A
 `hooks.json` capture includes its bounded `hooks/` sibling tree. Adoption owns
 registration of the captured source.
+Standalone files retain their original artifact bytes and carry their normalized
+execute mode separately as `source_mode`; tracked Windows files use the Git
+index's mode. Git path selections are literal and do not update the index.
 
 `authoring/contribution` extracts one owned top-level object/table and compiles
 it back into a host configuration in memory. JSON, JSONC and TOML retain unowned

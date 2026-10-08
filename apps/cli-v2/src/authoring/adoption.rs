@@ -312,6 +312,7 @@ fn document(
         "source_path":candidate.native_path,"source_name":name,"native_ids":native_ids,
         "entry_points":candidate.entry_points,"transport_capabilities":candidate.transport_capabilities,
         "evidence_refs":candidate.evidence_refs,"content_format":source.content.format,
+        "source_mode":source.content.file_mode,
         "content_digest":source.content_digest,"byte_length":source.content.bytes.len(),
         "managed_paths":projection::covers(&candidate.component_type,&candidate.harness_id,name,scope)?,
         "declared_key":candidate.declared_key,"source_locator":locator,

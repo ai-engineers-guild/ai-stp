@@ -21,6 +21,7 @@ use crate::{
 pub struct Captured {
     pub format: &'static str,
     pub bytes: Vec<u8>,
+    pub file_mode: Option<u32>,
 }
 
 fn invalid() -> Failure {
@@ -29,7 +30,7 @@ fn invalid() -> Failure {
 
 type SourceMember = (String, Option<u32>);
 
-fn git_members(root: &Path) -> Result<Option<Vec<SourceMember>>> {
+fn git_members(root: &Path, selected: Option<&str>) -> Result<Option<Vec<SourceMember>>> {
     let mut repository = false;
     for parent in root.ancestors() {
         match parent.join(".git").symlink_metadata() {
@@ -83,6 +84,7 @@ fn git_members(root: &Path) -> Result<Option<Vec<SourceMember>>> {
     ]);
     let arguments = [
         "--no-pager",
+        "--literal-pathspecs",
         "--no-optional-locks",
         "-c",
         "core.fsmonitor=false",
@@ -95,7 +97,7 @@ fn git_members(root: &Path) -> Result<Option<Vec<SourceMember>>> {
         "--others",
         "--exclude-standard",
         "--",
-        ".",
+        selected.unwrap_or("."),
     ]
     .map(OsString::from);
     let output = process::run(process::Request {
@@ -278,7 +280,7 @@ fn same_directory(root: &Path, directory: &Dir) -> Result<()> {
 fn tree(root: &Path, directory: &Dir, require_manifest: bool) -> Result<Vec<Member>> {
     let started = Instant::now();
     same_directory(root, directory)?;
-    let names = match git_members(root)? {
+    let names = match git_members(root, None)? {
         Some(names) => names,
         None => {
             let mut names = Vec::new();
@@ -386,12 +388,22 @@ fn capture_open(directory: &Dir, name: &str, absolute: &Path) -> Result<Captured
         return Ok(Captured {
             format: artifacts::TREE_FORMAT,
             bytes: artifacts::encode_tree(&members)?,
+            file_mode: None,
         });
     }
     if !metadata.is_file() {
         return Err(invalid());
     }
-    let member = read(directory, name)?;
+    let mut member = read(directory, name)?;
+    if cfg!(windows)
+        && let Some(mode) = git_members(absolute.parent().ok_or_else(invalid)?, Some(name))?
+            .into_iter()
+            .flatten()
+            .find(|(path, _)| path == name)
+            .and_then(|(_, mode)| mode)
+    {
+        member.mode = mode;
+    }
     if name == "hooks.json" {
         match directory.symlink_metadata("hooks") {
             Ok(metadata) if metadata.is_dir() && !metadata.file_type().is_symlink() => {
@@ -411,6 +423,7 @@ fn capture_open(directory: &Dir, name: &str, absolute: &Path) -> Result<Captured
                 return Ok(Captured {
                     format: artifacts::TREE_FORMAT,
                     bytes: artifacts::encode_tree(&members)?,
+                    file_mode: None,
                 });
             }
             Ok(_) => return Err(invalid()),
@@ -421,5 +434,6 @@ fn capture_open(directory: &Dir, name: &str, absolute: &Path) -> Result<Captured
     Ok(Captured {
         format: artifacts::FILE_FORMAT,
         bytes: member.bytes,
+        file_mode: Some(member.mode),
     })
 }
