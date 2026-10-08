@@ -188,8 +188,13 @@ from their normalized display; distinct filesystem locations with a colliding
 normalized binding address are refused. Identity is supplied by the owning runtime;
 this service does not claim cloud authentication or expose authoring commands.
 
-Headless passport editing accepts the embedded closed component-patch contract,
-including its description, source, path and secret-field rules. A plan binds the
+Headless passport editing accepts the embedded closed component-patch shape,
+with source, path and secret-field checks. Descriptions use the immutable
+version's safe CommonMark profile already at draft entry. The preview deliberately
+does not reuse public-profile word moderation, which rejects ordinary technical
+descriptions accepted by the version contract; for example, "Kill child processes
+after a timeout." This also makes the release format's size, line, link and
+image restrictions apply consistently at editing. A plan binds the
 owner, exact head, confirmed facts and resulting passport. Applying stores the
 revision and verified receipt in one transaction; a failed write rolls both
 back. Repeated confirmed values create no revision, and completed replay never

@@ -33,7 +33,7 @@ fn confirmed_edit_is_closed_causal_atomic_and_replayable() -> Result<(), Box<dyn
     let original = first["revision_id"].as_str().ok_or("revision missing")?;
     let mut other = identity.clone();
     other.account_id = "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z".into();
-    let patch_bytes = br##"{"name":"Confirmed name","description":"A **useful** component.","tags":["rust"],"permissions":{},"source":{"repository":"https://example.com/owner/repo","commit":"1111111111111111111111111111111111111111","path":"skill"},"required_env":[{"name":"EXAMPLE_TOKEN","purpose":"Authentication"}]}"##;
+    let patch_bytes = br##"{"name":"Confirmed name","description":"Kill child processes after a timeout.","tags":["rust"],"permissions":{},"source":{"repository":"https://example.com/owner/repo","commit":"1111111111111111111111111111111111111111","path":"skill"},"required_env":[{"name":"EXAMPLE_TOKEN","purpose":"Authentication"}]}"##;
     let path = root.path().join("patch.json");
     fs::write(&path, patch_bytes)?;
     assert!(passports::plan(&mut store, id, original, Patch::read(&path)?, other, at).is_err());
