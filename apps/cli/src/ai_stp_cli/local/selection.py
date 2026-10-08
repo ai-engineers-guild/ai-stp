@@ -296,19 +296,20 @@ def cancel(connection: sqlite3.Connection, proposal_id: str, *, at: str) -> Prop
     The terminal session row stays so repeating the same cancellation returns
     the same outcome instead of turning a completed request into not-found.
     """
-    proposal = _require(connection, proposal_id)
-    if proposal.confirmed_version is not None:
-        raise CliFailure(
-            "AI_STP_PRECONDITION_FAILED",
-            "this proposal was already confirmed and its version exists",
-            details={"proposal_id": proposal_id, "version": proposal.confirmed_version},
+    with transaction(connection):
+        proposal = _require(connection, proposal_id)
+        if proposal.confirmed_version is not None:
+            raise CliFailure(
+                "AI_STP_PRECONDITION_FAILED",
+                "this proposal was already confirmed and its version exists",
+                details={"proposal_id": proposal_id, "version": proposal.confirmed_version},
+            )
+        if proposal.cancelled_at is not None:
+            return proposal
+        connection.execute(
+            "UPDATE proposal SET cancelled_at = ? WHERE proposal_id = ?", (at, proposal_id)
         )
-    if proposal.cancelled_at is not None:
-        return proposal
-    connection.execute(
-        "UPDATE proposal SET cancelled_at = ? WHERE proposal_id = ?", (at, proposal_id)
-    )
-    return _require(connection, proposal_id)
+        return _require(connection, proposal_id)
 
 
 def confirm(
@@ -334,42 +335,9 @@ def confirm(
     """
     proposal = _require(connection, proposal_id)
 
-    # Idempotent replay comes first: a repeat of a confirmation is a success
-    # that returns the same version, and checking staleness before it would let
-    # a later context change turn an already-created version into an error.
-    if proposal.confirmed_version is not None and proposal.confirmed_stable_id is not None:
-        recorded = versions.held(
-            connection, proposal.confirmed_stable_id, proposal.confirmed_version
-        )
-        if recorded is None:  # pragma: no cover - the transaction below is atomic
-            raise CliFailure(
-                "AI_STP_INTERNAL",
-                "a confirmed proposal names a version the registry does not hold",
-                details={"proposal_id": proposal_id},
-            )
-        return Confirmation(
-            stable_id=recorded.stable_id,
-            version=recorded.version,
-            revision_id=recorded.revision_id,
-            state=PENDING_INSTALL,
-            created=False,
-        )
-
-    state = proposal.state(at)
-    if state == STATE_CANCELLED:
-        raise CliFailure(
-            "AI_STP_PRECONDITION_FAILED",
-            "this proposal was cancelled",
-            details={"proposal_id": proposal_id},
-            next_actions=["select propose --harness <id> --json"],
-        )
-    if state == STATE_EXPIRED:
-        raise CliFailure(
-            "AI_STP_PLAN_STALE",
-            "this proposal has expired and a new session is required",
-            details={"proposal_id": proposal_id, "expired_at": proposal.expires_at},
-            next_actions=["select propose --harness <id> --json"],
-        )
+    replay = _terminal_confirmation(connection, proposal, at)
+    if replay is not None:
+        return replay
 
     _members_still_valid(connection, proposal)
 
@@ -385,25 +353,73 @@ def confirm(
     operation_id = journal.begin(connection, "selection.confirm", at)
     try:
         with transaction(connection):
-            # The preflight check above did not hold a lock. This one does, and
-            # closes the only interval in which another process could change a
-            # context passport or member before its exact refs become immutable.
-            _context_still_current(connection, context)
-            _members_still_valid(connection, proposal)
-            confirmation = _freeze(
-                connection,
-                proposal,
-                context=context,
-                owner_id=owner_id,
-                device_id=device_id,
-                operation_id=operation_id,
-                at=at,
-            )
+            # Another confirmation or cancellation can finish after preflight.
+            # Re-read terminal state under the writer before creating anything.
+            proposal = _require(connection, proposal_id)
+            replay = _terminal_confirmation(connection, proposal, at)
+            if replay is not None:
+                confirmation = replay
+            else:
+                _context_still_current(connection, context)
+                _members_still_valid(connection, proposal)
+                confirmation = _freeze(
+                    connection,
+                    proposal,
+                    context=context,
+                    owner_id=owner_id,
+                    device_id=device_id,
+                    operation_id=operation_id,
+                    at=at,
+                )
     except BaseException as error:
         journal.settle(connection, operation_id, "failed", at, type(error).__name__)
         raise
     journal.settle(connection, operation_id, "verified", at)
     return confirmation
+
+
+def _terminal_confirmation(
+    connection: sqlite3.Connection, proposal: Proposal, at: str
+) -> Confirmation | None:
+    """Replay a completed effect or refuse a terminal proposal before freezing."""
+    # Idempotent replay comes first: a repeat of a confirmation is a success
+    # that returns the same version, and checking staleness before it would let
+    # a later context change turn an already-created version into an error.
+    if proposal.confirmed_version is not None and proposal.confirmed_stable_id is not None:
+        recorded = versions.held(
+            connection, proposal.confirmed_stable_id, proposal.confirmed_version
+        )
+        if recorded is None:  # pragma: no cover - the transaction below is atomic
+            raise CliFailure(
+                "AI_STP_INTERNAL",
+                "a confirmed proposal names a version the registry does not hold",
+                details={"proposal_id": proposal.proposal_id},
+            )
+        return Confirmation(
+            stable_id=recorded.stable_id,
+            version=recorded.version,
+            revision_id=recorded.revision_id,
+            state=PENDING_INSTALL,
+            created=False,
+        )
+
+    state = proposal.state(at)
+    if state == STATE_CANCELLED:
+        raise CliFailure(
+            "AI_STP_PRECONDITION_FAILED",
+            "this proposal was cancelled",
+            details={"proposal_id": proposal.proposal_id},
+            next_actions=["select propose --harness <id> --json"],
+        )
+    if state == STATE_EXPIRED:
+        raise CliFailure(
+            "AI_STP_PLAN_STALE",
+            "this proposal has expired and a new session is required",
+            details={"proposal_id": proposal.proposal_id, "expired_at": proposal.expires_at},
+            next_actions=["select propose --harness <id> --json"],
+        )
+
+    return None
 
 
 def selected(

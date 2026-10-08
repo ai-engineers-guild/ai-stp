@@ -1,7 +1,9 @@
 """The recommendation session: showing creates nothing, confirming creates once."""
 
 import sqlite3
+import threading
 from collections.abc import Generator, Iterator
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing, contextmanager
 from typing import cast
 
@@ -9,7 +11,7 @@ import pytest
 from tests.support.component_passports import adaptation_fields
 
 from ai_stp_cli.errors import CliFailure
-from ai_stp_cli.local import cache, content, lifecycle, revisions, selection, versions
+from ai_stp_cli.local import cache, content, journal, lifecycle, revisions, selection, versions
 from ai_stp_cli.local.database import configured_path, open_registry, transaction
 from ai_stp_foundation.canonical import JsonValue, from_json_bytes
 from ai_stp_passports import SetupVersionPassport
@@ -466,6 +468,66 @@ def test_confirming_twice_returns_one_version_and_makes_no_second_object(
     assert setups["held"] == 1
     traces = registry.execute("SELECT count(*) AS held FROM recommendation_trace").fetchone()
     assert traces["held"] == 1
+
+
+@pytest.mark.parametrize("competing", ["confirm", "cancel"])
+def test_confirmation_rechecks_terminal_state_after_acquiring_the_writer(
+    registry: sqlite3.Connection, monkeypatch: pytest.MonkeyPatch, competing: str
+) -> None:
+    context = _context(registry)
+    proposal = selection.propose(
+        registry, context=context, members=(), empty=True, at=AT, expires_at=SOON
+    )
+    path = configured_path()
+    ready, resume = threading.Event(), threading.Event()
+    original = journal.begin
+
+    def pause_after_journal(connection: sqlite3.Connection, kind: str, at: str) -> str:
+        operation = original(connection, kind, at)
+        if threading.current_thread() is not threading.main_thread():
+            ready.set()
+            assert resume.wait(10), "the competing operation did not finish"
+        return operation
+
+    def confirm(connection: sqlite3.Connection) -> selection.Confirmation:
+        return selection.confirm(
+            connection,
+            proposal.proposal_id,
+            context=context,
+            owner_id=OWNER,
+            device_id=DEVICE,
+            at=AT,
+        )
+
+    def delayed() -> selection.Confirmation:
+        with closing(open_registry(path)) as connection:
+            return confirm(connection)
+
+    monkeypatch.setattr(journal, "begin", pause_after_journal)
+    winner: selection.Confirmation | None = None
+    with ThreadPoolExecutor(max_workers=1) as workers:
+        future = workers.submit(delayed)
+        try:
+            assert ready.wait(10), "the first confirmation did not reach its write boundary"
+            if competing == "confirm":
+                winner = confirm(registry)
+            else:
+                selection.cancel(registry, proposal.proposal_id, at=AT)
+        finally:
+            resume.set()
+        if competing == "confirm":
+            assert winner is not None
+            replay = future.result(timeout=10)
+            assert replay.stable_id == winner.stable_id
+            assert not replay.created
+        else:
+            with pytest.raises(CliFailure, match="cancelled"):
+                future.result(timeout=10)
+    expected = 1 if competing == "confirm" else 0
+    assert (
+        registry.execute("SELECT count(*) FROM entity WHERE kind='setup'").fetchone()[0] == expected
+    )
+    assert registry.execute("SELECT count(*) FROM recommendation_trace").fetchone()[0] == expected
 
 
 def test_an_already_confirmed_proposal_replays_even_when_the_context_moved(
