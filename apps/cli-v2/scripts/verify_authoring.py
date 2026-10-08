@@ -23,7 +23,7 @@ from ai_stp_contracts.cli.components import (
 )
 from ai_stp_foundation.digests import digest_bytes, digest_canonical
 from ai_stp_foundation.ids import new_id
-from ai_stp_passports import ComponentVersionPassport, SetupVersionPassport
+from ai_stp_passports import ComponentVersionPassport, PassportEnvelope, SetupVersionPassport
 from ai_stp_passports.envelope import verify_revision_id
 
 Runner = Callable[[Path, Path, list[str], int], dict[str, Any]]
@@ -629,6 +629,34 @@ def prove(binary: Path, home: Path, temporary: Path, run: Runner) -> None:
     adopted = apply(adopt, "adopt")
     assert adopted["owner_id"] == owner
     assert adopted["facts"]["native_ids"]["value"] == ["example"], "MCP IDs must identify servers"
+    assert (native / "config.toml").read_text(encoding="utf-8") == config
+
+    (native / "AGENTS.md").write_text("# Review instructions\n", encoding="utf-8")
+    discovered = invoke(["component", "discover", *source_args])
+    selected = [
+        c for c in discovered["components"] if c["component_type"] in {"instruction", "mcp"}
+    ]
+    assert len(selected) == 2
+    imported_plan = invoke(
+        [
+            "setup",
+            "import",
+            "plan",
+            "--state-dir",
+            str(state),
+            *source_args,
+            *[arg for c in selected for arg in ["--candidate-id", c["candidate_id"]]],
+        ]
+    )
+    imported = apply(imported_plan, "setup-import")
+    imported_model = PassportEnvelope.model_validate(imported)
+    assert imported_model.model_dump(mode="json") == imported
+    assert verify_revision_id(imported_model)
+    assert imported["visibility"] == "private" and "version" not in imported
+    assert imported["facts"]["capture_mode"]["value"] == "selected_components"
+    assert adopted["stable_id"] in {
+        member["stable_id"] for member in imported["facts"]["components"]["value"]
+    }
     assert (native / "config.toml").read_text(encoding="utf-8") == config
 
     before_forget = invoke(show)

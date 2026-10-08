@@ -490,6 +490,22 @@ the source disappears. Bound portable refresh refuses independently authored
 native adaptations. Flat adopted drafts still use their adoption/release flow;
 this operation accepts complete source-bound or exact-forked drafts.
 
+`setup import plan` captures 1–128 explicitly selected `component discover`
+candidates from one concrete harness, scope and root. Discovery must complete;
+capture shares adoption's native identity, path, credential and source-binding
+checks. It scans the root once and caps selected content at 64 MiB, capture at
+30 seconds and the domain plan at 8 MiB. Unselected candidates remain outside
+the declared `selected_components` capture; this is not a complete-machine claim.
+
+Apply revalidates the selected bytes, bindings, owner and exact component heads,
+then atomically records their content, draft revisions, bindings, one new private
+setup draft and its receipt. Setup members name exact draft revisions, not
+invented release versions. Existing source identities and authored metadata are
+retained. A new plan creates a new setup draft; retrying a committed plan returns
+its original graph even after expiry or source removal, without rewinding heads.
+Publication metadata and licenses still require authoring and release. Import
+creates no backup and does not write the source or invoke a provider.
+
 `setup fork plan` and `setup recast plan` read an exact setup ID, `X.Y` and
 passport digest, then create a private owned `1.0` with a new identity. Fork
 retains the harness; recast requires a different concrete harness and records
@@ -836,7 +852,8 @@ Redistribution is the conjunction of member declarations. The exact passports
 remain authoritative for scope-specific permissions, platform, version and capability constraints;
 composition is not mechanical installation eligibility or a provider approval.
 Request metadata is bounded to 256 KiB and the resulting passport to 1 MiB.
-Native configuration import and native recast derivation remain pending.
+Selected native configuration import is implemented; native recast derivation
+and acquisition of external setup packages remain pending.
 Project identity registration and the headless project-to-setup selection
 transaction are implemented; the selection command adapter remains pending.
 
@@ -953,6 +970,7 @@ no async runtime or tracing feature is enabled for it.
 | `harnesses.rs`, `authoring/discovery.rs` | Shared declarative harness facts and bounded inspection of native layouts |
 | `projection.rs` | Shared exact provider profiles and target-relative ownership routes |
 | `authoring/adoption.rs` | Exact local adoption plans, binding reconciliation and atomic journaled registration |
+| `authoring/importing.rs` | Explicit native component selection, bounded capture and atomic private draft graphs |
 | `authoring/passports.rs`, `store/journal.rs` | Closed confirmed edits, exact head plans and bound atomic receipts |
 | `authoring/lifecycle.rs` | Planned local tombstones, retained history and verified replay |
 | `store/versions.rs` | Verified immutable coordinates, explicit major advancement and replay without draft movement |

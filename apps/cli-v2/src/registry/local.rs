@@ -8,8 +8,8 @@ use std::path::{Path, PathBuf};
 use super::{Declaration, ID, KIND, Parameter, ParameterType, ROOT, STATE_DIR};
 use crate::{
     authoring::{
-        adoption, discovery, forks, lifecycle, native_edit, passports, project_binding, releases,
-        review, runtime, scaffold, setups,
+        adoption, discovery, forks, importing, lifecycle, native_edit, passports, project_binding,
+        releases, review, runtime, scaffold, setups,
     },
     canonical,
     error::{Failure, Result},
@@ -29,6 +29,7 @@ pub(super) enum Handler {
     ProjectPassport,
     Bind,
     Adopt,
+    Import,
     Discover,
     Update,
     NativeEdit,
@@ -324,6 +325,28 @@ pub(super) const COMMANDS: &[Declaration] = &[
             },
         ],
         handler: super::Handler::Local(Handler::Adopt),
+    },
+    Declaration {
+        path: &["setup", "import", "plan"],
+        summary: "Plan one private draft from explicitly selected native components without changing the harness.",
+        parameters: &[
+            STATE_DIR,
+            NATIVE_ROOT,
+            Parameter {
+                kind: ParameterType::Choice(CONCRETE_HARNESSES),
+                summary: "Concrete destination harness for the selected configuration.",
+                ..HARNESS
+            },
+            SCOPE,
+            ROOT_KIND,
+            Parameter {
+                name: "candidate-id",
+                summary: "Exact discovery candidate; repeat to select 1–128 components.",
+                kind: ParameterType::Strings,
+                required: true,
+            },
+        ],
+        handler: super::Handler::Local(Handler::Import),
     },
     Declaration {
         path: &["component", "passport", "update", "plan"],
@@ -630,6 +653,23 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
             };
             runtime::plan(path(args, "state-dir")?, |store, identity, at| {
                 adoption::plan(store, source, identity, at)
+            })
+        }
+        Handler::Import => {
+            let request = importing::Request {
+                root: path(args, "root")?.into(),
+                harness_id: text(args, "harness")?.into(),
+                scope: choice(args, "scope")?,
+                root_kind: choice(args, "root-kind")?,
+                candidates: args
+                    .get_many::<String>("candidate-id")
+                    .into_iter()
+                    .flatten()
+                    .cloned()
+                    .collect(),
+            };
+            runtime::plan(path(args, "state-dir")?, |store, identity, at| {
+                importing::plan(store, request, identity, at)
             })
         }
         Handler::Update => {

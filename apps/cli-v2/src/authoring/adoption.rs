@@ -119,6 +119,14 @@ pub(super) fn prepare_for(request: &Source, harness: &str) -> Result<Prepared> {
                 invalid()
             }
         })?;
+    prepare_candidate(request, harness, candidate)
+}
+
+pub(super) fn prepare_candidate(
+    request: &Source,
+    harness: &str,
+    candidate: Candidate,
+) -> Result<Prepared> {
     if candidate.harness_id == "undefined" && candidate.component_type != "skill" {
         return Err(Failure::input(
             "only shared skills can select a destination harness",
@@ -250,7 +258,7 @@ fn document(
     )
 }
 
-fn build(
+pub(super) fn build(
     transaction: &Transaction<'_>,
     prepared: &Prepared,
     source: &Source,
@@ -348,7 +356,7 @@ fn journal_state(connection: &Connection, plan: &Plan, expected: &str) -> Result
     journal::state(connection, &plan.operation_id, &plan.action, expected)
 }
 
-fn replay(connection: &Connection, plan: &Plan) -> Result<Value> {
+pub(super) fn replay(connection: &Connection, plan: &Plan) -> Result<Value> {
     let revision = plan.passport["revision_id"].as_str().ok_or_else(invalid)?;
     let held = Objects { connection }.revision(revision)?;
     if held != plan.passport {
@@ -361,6 +369,27 @@ fn replay(connection: &Connection, plan: &Plan) -> Result<Value> {
     if held["facts"]["byte_length"]["value"].as_u64() != Some(bytes.len() as u64) {
         return Err(invalid());
     }
+    Ok(held)
+}
+
+pub(super) fn persist(
+    transaction: &Transaction<'_>,
+    plan: &Plan,
+    prepared: &Prepared,
+    identity: &Identity,
+    at: &str,
+) -> Result<Value> {
+    revisions::content(transaction, &prepared.content.bytes, at)?;
+    let held = revisions::commit(
+        transaction,
+        &plan.passport,
+        &identity.device_id,
+        Some(&plan.operation_id),
+        Write::Advance {
+            expected_heads: &plan.expected_heads,
+        },
+    )?;
+    bindings::replace(transaction, plan.previous_binding.as_ref(), &plan.binding)?;
     Ok(held)
 }
 
@@ -431,9 +460,7 @@ pub fn apply(
             }
             let current = build(transaction,&prepared,&plan.source,&plan.identity,&plan.created_at,&plan.operation_id,&plan.binding.stable_id)?;
             if current.digest()? != expected_digest { return Err(stale()); }
-            revisions::content(transaction,&prepared.content.bytes,at)?;
-            let held = revisions::commit(transaction,&plan.passport,&identity.device_id,Some(&plan.operation_id),Write::Advance { expected_heads:&plan.expected_heads })?;
-            bindings::replace(transaction,plan.previous_binding.as_ref(),&plan.binding)?;
+            let held = persist(transaction,plan,&prepared,identity,at)?;
             let settled = transaction.execute("UPDATE operation SET state='verified',finished_at=? WHERE operation_id=? AND state='applying'",params![at,plan.operation_id]).map_err(database)?;
             if settled != 1 { return Err(stale()); }
             Ok(held)

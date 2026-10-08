@@ -5,7 +5,8 @@ use serde_json::{Value, json};
 use std::path::{Path, PathBuf};
 
 use super::{
-    Identity, adoption, forks, lifecycle, native_edit, passports, project_binding, releases, setups,
+    Identity, adoption, forks, importing, lifecycle, native_edit, passports, project_binding,
+    releases, setups,
 };
 use crate::{
     canonical, digest,
@@ -131,6 +132,7 @@ pub fn apply(path: &Path, expected_digest: &str) -> Result<Value> {
         "project.passport.record" => execute(plan, projects::passports::apply),
         "passport.developer.record" => execute(plan, developer::apply),
         "setup.compose" => execute(plan, setups::apply),
+        "setup.import" => execute(plan, importing::apply),
         "setup.fork" | "setup.recast" => execute(plan, setups::copies::apply),
         _ => Err(Failure::input(
             "this operation is not implemented by the local authoring runtime",

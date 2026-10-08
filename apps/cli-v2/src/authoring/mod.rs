@@ -8,6 +8,7 @@ pub mod discovery;
 pub mod forks;
 mod freezing;
 mod frontmatter;
+pub mod importing;
 pub mod lifecycle;
 pub mod native_edit;
 pub(crate) mod native_identity;
