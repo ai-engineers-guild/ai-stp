@@ -446,6 +446,74 @@ fn native_release_preserves_owned_bytes_graphs_and_atomic_history() -> Result<()
             assert_eq!(stored["adaptations"][1], released[2]["adaptations"][0]);
         }
     }
+    // One harness may have several explicit scopes; duplicate resolved scopes
+    // refuse and source-specific prerequisites must survive compilation.
+    let global = sources[1].clone();
+    let mut project = global.clone();
+    project["scope"] = "project".into();
+    project["managed_paths"] = json!([".cursor/hooks.json", ".cursor/hooks"]);
+    project["supported_os"] = json!(["windows"]);
+    project["permissions"] = json!({"filesystem":[],"network":["project-endpoint"],"process":[]});
+    let mut previous_scopes = None;
+    for (index, entries) in [
+        vec![global.clone(), global.clone()],
+        vec![global.clone(), project.clone()],
+        vec![project, global],
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let mut facts = released[2]["facts"].clone();
+        facts["adaptation_contents"] = json!({"value":entries,"origin":"declared","confirmation":"user_confirmed","confirmed_at":AT});
+        let seed = json!({"kind":"component","stable_id":format!("component_{}",ulid::Ulid::generate()),"owner_id":identity.account_id,"created_at":AT,"facts":facts});
+        let head = store.transaction(|t| {
+            revisions::commit(
+                t,
+                &seed,
+                &identity.device_id,
+                None,
+                Write::Advance {
+                    expected_heads: &[],
+                },
+            )
+        })?;
+        let planned = releases::plan(
+            &mut store,
+            field(&head, "stable_id")?,
+            field(&head, "revision_id")?,
+            Increment::Minor,
+            &providers,
+            identity.clone(),
+            AT,
+        );
+        if index == 0 {
+            assert!(planned.is_err());
+            continue;
+        }
+        let planned = planned?;
+        let stored = releases::apply(&mut store, &planned, &planned.digest()?, &identity, AT)?;
+        let scopes = &stored["adaptations"][0]["scope_adaptations"];
+        assert_eq!(
+            stored["adaptations"]
+                .as_array()
+                .ok_or("adaptations missing")?
+                .len(),
+            1
+        );
+        assert_eq!(scopes.as_array().ok_or("scopes missing")?.len(), 2);
+        assert_eq!(scopes[0]["scope"], "global");
+        assert_eq!(scopes[1]["scope"], "project");
+        assert_eq!(scopes[0]["permissions"]["network"], json!([]));
+        assert_eq!(
+            scopes[1]["permissions"]["network"],
+            json!(["project-endpoint"])
+        );
+        assert_eq!(scopes[1]["supported_os"], json!(["windows"]));
+        if let Some(previous) = previous_scopes {
+            assert_eq!(previous, stored["adaptations"]);
+        }
+        previous_scopes = Some(stored["adaptations"].clone());
+    }
     let mut corrupt = complete.clone();
     corrupt["stable_id"] = format!("component_{}", ulid::Ulid::generate()).into();
     corrupt["adaptations"][1] = corrupt["adaptations"][0].clone();

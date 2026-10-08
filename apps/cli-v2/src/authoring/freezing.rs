@@ -1,6 +1,6 @@
 //! Deterministic draft compilation. Only the caller's transaction may store bytes.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use rusqlite::{Connection, Transaction};
 use serde_json::{Value, json};
@@ -127,17 +127,35 @@ pub(super) fn compile(
     }
     let sources = match values.get("adaptation_contents") {
         None | Some(Value::Null) => std::slice::from_ref(&values),
-        Some(Value::Array(sources)) if !sources.is_empty() && sources.len() <= 7 => sources,
+        Some(Value::Array(sources)) if !sources.is_empty() && sources.len() <= 21 => sources,
         _ => return Err(invalid()),
     };
-    let mut harnesses = BTreeSet::new();
-    let mut adaptations = Vec::new();
+    let mut harnesses: BTreeMap<&str, Value> = BTreeMap::new();
     for source in sources {
-        if !harnesses.insert(text(source, "harness_id")?) {
-            return Err(invalid());
+        let adaptation = freeze(transaction, &values, source, providers, store_at)?;
+        if let Some(existing) = harnesses.get_mut(text(source, "harness_id")?) {
+            let selected = &adaptation["scope_adaptations"][0];
+            let scopes = existing["scope_adaptations"]
+                .as_array_mut()
+                .ok_or_else(invalid)?;
+            if scopes
+                .iter()
+                .any(|scope| scope["scope"] == selected["scope"])
+            {
+                return Err(Failure::precondition(
+                    "a release cannot declare the same resolved harness scope twice",
+                ));
+            }
+            scopes.push(selected.clone());
+            scopes.sort_by(|a, b| a["scope"].as_str().cmp(&b["scope"].as_str()));
+        } else {
+            harnesses.insert(text(source, "harness_id")?, adaptation);
         }
-        adaptations.push(freeze(transaction, &values, source, providers, store_at)?);
     }
+    let adaptations = harnesses
+        .into_values()
+        .map(|value| passport::versions::seal_adaptation(&value))
+        .collect::<Result<Vec<_>>>()?;
     document["artifact"] = adaptations[0]["scope_adaptations"][0]["projection_artifact"].clone();
     document["artifact_format"] = artifact::FORMAT.into();
     document["adaptations"] = adaptations.into();
@@ -337,7 +355,7 @@ fn freeze(
         "provider_component_kind":if route.provider_kind.is_empty(){kind}else{&route.provider_kind},
         "projection_kind":route.projection_kind,"required_surface":{"profile_id":profile["profile_id"],
         "profile_digest":profile["digest"],"bundle_format":"ai-stp-bundle/2"},
-        "permissions":permissions(&values["permissions"])?,"members":members,
+        "permissions":permissions(source.get("permissions").unwrap_or(&values["permissions"]))?,"members":members,
         "technical_support":"experimental","technical_support_reason":"locally authored component pending assessment",
         "semantic_losses":[]});
     for field in [
@@ -345,7 +363,7 @@ fn freeze(
         "supported_os",
         "supported_arch",
     ] {
-        scope[field] = default(values, field, json!([]));
+        scope[field] = default(source, field, default(values, field, json!([])));
     }
     if !provider.supports_scope(route.target_scope, &scope) {
         return Err(Failure::precondition(

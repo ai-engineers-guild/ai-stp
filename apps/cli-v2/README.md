@@ -239,6 +239,11 @@ captured hook manifests retain their sibling scripts and executable modes. A
 provider that does not own those helper paths refuses release; compilation never
 drops a helper to make the profile fit. Shared skill
 routes resolve to their actual `user_root` profile in the planned passport.
+Up to 21 explicit source entries compile into one adaptation per harness, with
+at most one entry for each resolved scope. Harnesses and scopes are ordered
+deterministically; duplicate resolved scopes refuse. Each scope retains its own
+platform/version declarations and permissions, while logical permissions still
+apply to the component as a whole.
 Unsupported routes and incomplete facts refuse release; local compilation stays
 experimental and makes no support or installation claim. Imported source artifact
 formats and adaptation authoring remain separate unfinished services.
@@ -371,7 +376,8 @@ no async runtime or tracing feature is enabled for it.
 | `http.rs`, `catalog/` | Bounded anonymous catalog reads and explicit public cache |
 | `projects/` | Bounded project discovery and content-free file evidence |
 | `environment.rs` | Exact setup prerequisites, project binding and variable-name presence |
-| `selection/` | Verified exact dependency graphs and deterministic ordering |
+| `selection/` | Verified exact graphs, deterministic ordering and graph-wide mechanical eligibility |
+| `provider.rs`, `bundle/` | Exact provider declarations, composition constraints and deterministic v2 packages |
 | `store/`, `files/owned.rs` | Explicit owned state, atomic revision writes and shared private-file primitives |
 | `archive.rs`, `artifacts.rs`, `projection/artifact.rs` | Shared canonical ZIP transport and closed component/scope archives |
 | `authoring/source.rs`, `process.rs` | Complete bounded source capture and explicit child process lifecycle |
