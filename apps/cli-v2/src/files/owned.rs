@@ -86,8 +86,21 @@ impl OwnedDirectory {
             }
         }
         let mut lock_options = private_options();
-        lock_options.read(true).create(create);
-        let lock = match directory.open_with("lock", &lock_options) {
+        lock_options.read(true);
+        // Elect the creator atomically, then join the existing inode. Concurrent
+        // O_CREAT opens can fail with ENOENT on Darwin even for this bare leaf.
+        // Neither path replaces the lock or follows a substituted symlink.
+        let opened = if create {
+            match directory.open_with("lock", lock_options.clone().create_new(true)) {
+                Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {
+                    directory.open_with("lock", &lock_options)
+                }
+                result => result,
+            }
+        } else {
+            directory.open_with("lock", &lock_options)
+        };
+        let lock = match opened {
             Ok(lock) => lock.into_std(),
             Err(error) if !create && error.kind() == std::io::ErrorKind::NotFound => {
                 if directory

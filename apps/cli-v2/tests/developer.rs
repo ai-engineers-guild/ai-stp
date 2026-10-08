@@ -40,14 +40,23 @@ fn developer_context_is_private_causal_singleton_and_replayable() -> Result<(), 
     let mut read = Store::planning(root.path())?;
     assert!(developer::show(&mut read).is_err());
     let first = developer::plan(&mut read, None, None, identity.clone(), AT)?;
-    let competitor = developer::plan(&mut read, None, None, identity.clone(), AT)?;
+    let mut competitors = vec![first.clone()];
+    for _ in 1..8 {
+        competitors.push(developer::plan(
+            &mut read,
+            None,
+            None,
+            identity.clone(),
+            AT,
+        )?);
+    }
     assert_eq!(counts(&mut read)?, [0, 0, 0]);
     assert_eq!(std::fs::read_dir(root.path())?.count(), 0);
     drop(read);
-    // Two independent handles start together with plans from the same absence.
+    // Independent handles start together with plans from the same absence.
     // Exactly one profile and one receipt may survive; the loser must reconcile.
-    let barrier = Arc::new(Barrier::new(2));
-    let handles: Vec<_> = [first.clone(), competitor]
+    let barrier = Arc::new(Barrier::new(competitors.len()));
+    let handles: Vec<_> = competitors
         .into_iter()
         .map(|plan| {
             let barrier = barrier.clone();

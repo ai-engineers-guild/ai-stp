@@ -694,6 +694,9 @@ Private-directory failures include a fixed operation `stage` and, for I/O
 failures, an optional numeric `os_error`. Paths, file contents and raw OS error
 messages are excluded. The stage distinguishes lock contention, ownership
 validation and persistence failures without changing their refusal behavior.
+The process lock is created exclusively; an existing lock is opened without
+creation or truncation. Concurrent initializers acquire the same persistent
+file, then revalidate ownership and registry state under its lock.
 
 The immutable coordinate writer validates complete passports before recording
 an `X.Y`. Replaying a number requires the same exact passport; another digest
