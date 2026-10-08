@@ -7,6 +7,7 @@ use ai_stp_cli_v2::{
     store::{
         Store,
         revisions::{self, Write},
+        versions::{self, Increment},
     },
 };
 use serde_json::{Value, json};
@@ -126,6 +127,10 @@ fn durable_revision_history_replay_conflict_and_atomic_rollback() -> Result<(), 
         .ok_or("version fixture absent")?["body"]["passport"]
         .clone();
     immutable["stable_id"] = id.into();
+    assert_eq!(
+        ai_stp_cli_v2::passport::versions::seal_adaptation(&immutable["adaptations"][0])?,
+        immutable["adaptations"][0]
+    );
     immutable["owner_id"] = "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z".into();
     assert!(
         reopened
@@ -140,10 +145,28 @@ fn durable_revision_history_replay_conflict_and_atomic_rollback() -> Result<(), 
         "an immutable snapshot changed its entity owner"
     );
     immutable["owner_id"] = document["owner_id"].clone();
+    immutable["version"] = "1.0".into();
     reopened.transaction(|transaction| {
-        revisions::commit(transaction, &immutable, device, None, Write::Immutable)
+        assert_eq!(versions::next(transaction, id, Increment::Minor)?, "1.0");
+        versions::record(transaction, &immutable, device, None, at)
     })?;
+    let mut substituted = immutable.clone();
+    substituted["name"] = "Substituted immutable version".into();
+    assert!(
+        reopened
+            .transaction(|transaction| versions::record(
+                transaction,
+                &substituted,
+                device,
+                None,
+                at
+            ))
+            .is_err()
+    );
     reopened.transaction(|transaction| {
+        versions::record(transaction, &immutable, device, None, at)?;
+        assert_eq!(versions::next(transaction, id, Increment::Minor)?, "1.1");
+        assert_eq!(versions::next(transaction, id, Increment::Major)?, "2.0");
         assert_eq!(
             revisions::heads(transaction, id)?,
             std::slice::from_ref(&current)
@@ -174,6 +197,10 @@ fn durable_revision_history_replay_conflict_and_atomic_rollback() -> Result<(), 
     let snapshot = Snapshot::from_bytes(&bytes, &digest::sha256(&bytes))?;
     assert_eq!(snapshot.report()["table_count"], 51);
     assert_eq!(snapshot.report()["row_counts"]["revision"], 3);
+    assert_eq!(
+        snapshot.exact_version(id, "1.0", None)?["name"],
+        immutable["name"]
+    );
     assert_eq!(
         snapshot.passport("component", Some(id))?["revision_id"],
         current

@@ -26,6 +26,14 @@ fn invalid() -> Failure {
 
 pub fn build(scope: &Value, files: &[Member]) -> Result<Vec<u8>> {
     versions::validate_scope(scope)?;
+    build_members(scope["members"].as_array().ok_or_else(invalid)?, files)
+}
+
+/// Construct bytes before the scope can bind their digest and length.
+pub fn build_members(members: &[Value], files: &[Member]) -> Result<Vec<u8>> {
+    if members.is_empty() || members.len() > LIMITS.entries || files.len() > LIMITS.entries {
+        return Err(invalid());
+    }
     let mut contents = BTreeMap::new();
     for file in files {
         if contents.insert(file.path.as_str(), file).is_some() {
@@ -33,7 +41,8 @@ pub fn build(scope: &Value, files: &[Member]) -> Result<Vec<u8>> {
         }
     }
     let mut entries = Vec::new();
-    for member in scope["members"].as_array().ok_or_else(invalid)? {
+    for member in members {
+        versions::validate_member(member)?;
         let path = member["path"].as_str().ok_or_else(invalid)?;
         let mode = member["mode"].as_u64().ok_or_else(invalid)? as u32;
         let (kind, bytes) = if member["object_type"] == "directory" {

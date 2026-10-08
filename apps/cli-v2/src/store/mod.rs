@@ -3,6 +3,7 @@
 
 pub(crate) mod journal;
 pub mod revisions;
+pub mod versions;
 
 use std::{path::Path, sync::OnceLock, time::Duration};
 
