@@ -5,9 +5,10 @@ last_verified: "2026-10-07"
 
 # Rust CLI v2 scope and evidence
 
-This is the C0 design and evidence record for
-[#57](https://github.com/ai-engineers-guild/ai-stp/issues/57), not a claim that
-Rust code ships. Python CLI 0.0.43 remains the supported runtime.
+This is the frozen C0 design and evidence record for
+[#57](https://github.com/ai-engineers-guild/ai-stp/issues/57), before the first
+Rust slice. Current native preview behavior belongs to `apps/cli-v2` and its
+code-adjacent README. Python CLI 0.0.43 remains the production runtime.
 [ADR-0227](../adr/ADR-0227-rust-cli-v2-migration-boundary.md) owns the migration
 boundary. The [implementation roadmap](implementation-roadmap.md) is the sole
 ordered plan; this document explains what that plan must preserve and prove.
@@ -108,8 +109,8 @@ repository layer, plugin protocol, background service or speculative workspace
 crate. Split a module only when it has a concrete owner and independent reason
 to change.
 
-Rust 1.99.0 is available in this checkout; that observation does not pin the
-future toolchain. At the first code checkpoint, select and lock a stable
+At C0, Rust 1.99.0 was available in this checkout; that observation did not pin
+the future toolchain. C0 assigned the first code checkpoint to select a stable
 toolchain and the smallest required dependencies, verify their current official
 documentation and supported targets, and record an upgrade/removal owner.
 Resolve parser/descriptors, canonical JSON, bundled SQLite, OS credential access,

@@ -7,6 +7,7 @@ A system for creating, validating, storing, selecting, and installing complete A
 ## Code map
 
 - `apps/cli` — command registry, SQLite state, discovery, passports, selection, bundles, providers, installation, and recovery;
+- `apps/cli-v2` — isolated Rust preview, with its code-adjacent contract and executable command registry; production state ownership remains in `apps/cli` until verified cutover;
 - `apps/api` — the `/v1` HTTP surface; `apps/worker` — asynchronous jobs;
 - `apps/platform` — persistence, queue, object storage, and domain services;
 - `apps/web` — Next.js over the generated contract client;
@@ -114,6 +115,7 @@ These are what you run individually while working, invoked through `just`:
 - `just docs-check` — documentation, specifications, contract lint, and links;
 - `just back-static` — formatting, Ruff, Pyright, and generated-source drift;
 - `just back-test` — tests; coverage is printed, not a fail-under (`ADR-0147`);
+- `just cli-v2-check` — native CLI formatting, Clippy, contract proofs, release build and real SQLite/envelope regression; also part of `just check`;
 - `just web-check` — build, types, unit, E2E, and function profiles;
 - `just desktop-check` for `apps/desktop` changes — build, static, test, and the sidecar regression; deliberately outside `just check` because it needs a Rust toolchain and WebKitGTK, like `infra-*` (covered in CI by `desktop.yml`).
 

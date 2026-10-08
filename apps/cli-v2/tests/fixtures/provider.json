@@ -1,0 +1,12 @@
+{
+  "artifact_url": "https://files.pythonhosted.org/packages/51/c7/79d4709883bfe2d77c5cfc8c08e222de75df9d26ddb588b31aea91729795/codex_setup_system-0.0.88-py3-none-macosx_10_12_x86_64.whl",
+  "provenance_url": "https://pypi.org/integrity/codex-setup-system/0.0.88/codex_setup_system-0.0.88-py3-none-macosx_10_12_x86_64.whl/provenance",
+  "sha256": "f877879c687447a596efb69659ef947855113c73e7e76f32cac6c07158b4d7d8",
+  "filename": "codex_setup_system-0.0.88-py3-none-macosx_10_12_x86_64.whl",
+  "publisher": {
+    "environment": "pypi",
+    "repository": "NDDev-OpenNetwork/codex-setup-system",
+    "workflow": "publish-pypi.yml"
+  },
+  "source_commit": "33453f5cd80805b7688218a5f888197f5fa934b3"
+}

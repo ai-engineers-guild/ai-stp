@@ -20,6 +20,17 @@
 # `scripts/safety/scan_lockfile.sh` (OSV) in CI and JS freshness is manual.
 version: 2
 updates:
+  - package-ecosystem: cargo
+    directory: /apps/cli-v2
+    target-branch: dev
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(cli-v2)"
+    cooldown:
+      default-days: 7
+      semver-major-days: 14
   - package-ecosystem: github-actions
     directory: /
     target-branch: dev
@@ -125,9 +136,9 @@ updates:
     open-pull-requests-limit: 5
     commit-message:
       prefix: "chore(docker)"
+    # Container ecosystems support default-days, not semver-specific cooldowns.
     cooldown:
       default-days: 7
-      semver-major-days: 14
     ignore:
       - dependency-name: oven/bun
         update-types:
@@ -144,7 +155,6 @@ updates:
       prefix: "chore(deploy)"
     cooldown:
       default-days: 7
-      semver-major-days: 14
     ignore:
       - dependency-name: postgres
         update-types:

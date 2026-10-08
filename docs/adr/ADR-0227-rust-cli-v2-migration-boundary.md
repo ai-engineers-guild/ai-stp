@@ -1,11 +1,12 @@
 ---
 description: "Develop the Rust CLI against explicit business and compatibility boundaries, with isolated previews and one verified default-runtime cutover."
-last_verified: "2026-10-07"
+last_verified: "2026-10-08"
 ---
 
 # ADR-0227: Rust CLI v2 migration boundary
 
-Status: accepted for development. No Rust CLI runtime ships at this checkpoint.
+Status: accepted. C1–C2 implement an isolated native preview; the production CLI
+and state writer remain Python.
 
 ## Context
 
@@ -61,6 +62,39 @@ active specifications ahead of code (ADR-0194).
   it does not link the new domain library as a second engine.
 
 ### Compatibility and native dependencies
+
+The code-backed preview boundary is documented beside `apps/cli-v2`. It keeps
+envelope v1 and the machine-help shape. Its version/capability payloads are
+explicitly preview-specific: reporting a Python version or a supported harness
+before one exists would be false. No production payload schema URN is advertised
+for these responses. Their final consumer-compatible replacement remains a
+cutover requirement, not an implicit wire migration.
+
+C2 implements explicit configuration, verified local passport/version reads,
+project discovery/indexing and anonymous catalog reads. Project traversal uses
+held directory capabilities and excludes all symlinks, including internal
+aliases accepted by the Python indexer, to avoid raced credential reads.
+Catalog cache ownership is explicit and separate; offline provenance keeps the
+original observation time, and authoritative refusals cannot become stale
+successes. Historical wire passports keep their original fields and strings;
+published passport digests and complete adaptation identities remain distinct.
+
+The native `environment requirements` service verifies declared exact setup
+prerequisites and project binding without preparation. It exposes no production
+inspection schema or claim of observed harness/program readiness. The existing
+`environment inspect` calls provider status and toolchain planning; those
+observations are retained in C4 with the bounded execution lifecycle. This is
+staged coverage, not retirement of the production command.
+
+The native PEP 740 verifier uses `sigstore-verify` from `sigstore/sigstore-rust`,
+with certificate, SCT and transparency verification enabled. Signed deployment
+environment is also required. The C1 oracle showed that `pypi-attestations`
+0.0.30 checks signed repository/workflow but ignores its environment argument;
+the shipped wrapper compares environment only with unsigned index metadata.
+Preserving that gap would contradict the pinned publisher rule. The preview
+therefore refuses a missing or mismatched signed environment. No production
+provider path changes in C1; authenticated trust-root refresh still belongs to
+the acquisition slice before that service can install a provider.
 
 - The command ledger starts with `retain` for every shipped leaf. Internal
   simplification is encouraged; removing, merging or changing an observable
