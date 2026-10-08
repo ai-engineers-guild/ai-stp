@@ -230,6 +230,7 @@ fn native_identity_journey(identity: &Identity, at: &str) -> Result<(), Box<dyn 
             "cursor",
             include_str!("fixtures/cursor-native-entries.json"),
         ),
+        ("cursor", include_str!("fixtures/cursor-native-agents.json")),
     ] {
         let cases: serde_json::Value = serde_json::from_str(fixture)?;
         for case in cases.as_array().ok_or("native cases missing")? {

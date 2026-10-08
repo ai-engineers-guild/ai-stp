@@ -166,7 +166,23 @@ pub(super) fn from_snapshot(
                 document["developer_instructions"] = toml_edit::value(body);
                 document.to_string().into_bytes()
             }
-            ("agent", "claude-code" | "cursor" | "antigravity") => {
+            ("agent", "cursor") => {
+                // Cursor's pinned local agent loader retains quotes literally.
+                // Emit exact single-line fields instead of YAML serialization.
+                if [name, description].iter().any(|value| {
+                    value.trim() != *value
+                        || value.chars().any(|character| {
+                            character.is_control()
+                                || matches!(character, '\u{feff}' | '\u{2028}' | '\u{2029}')
+                        })
+                }) {
+                    return Err(invalid(
+                        "Cursor agent metadata must be single-line and unpadded; provide an explicit native adaptation",
+                    ));
+                }
+                format!("---\nname: {name}\ndescription: {description}\n---\n{body}").into_bytes()
+            }
+            ("agent", "claude-code" | "antigravity") => {
                 markdown(json!({"name":name,"description":description}), body)?
             }
             ("agent", "opencode") => {

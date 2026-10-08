@@ -223,8 +223,8 @@ impl Composition {
     /// nor the side that declares an exclusion can hide a contradiction.
     pub fn validate(&self, files: &[super::File]) -> Result<()> {
         let kinds: &[&str] = match self.harness.as_str() {
-            "codex" | "cursor" => &["skill"],
-            "antigravity" => &["agent", "skill"],
+            "codex" => &["skill"],
+            "antigravity" | "cursor" => &["agent", "skill"],
             "pi" | "grok-build" => &["skill", "command"],
             _ => &[],
         };

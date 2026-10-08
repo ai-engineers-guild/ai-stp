@@ -42,9 +42,9 @@ pub(super) fn has_markdown_entries(harness: &str, kind: &str) -> bool {
     matches!(
         (harness, kind),
         ("claude-code" | "pi", "skill" | "command")
-            | ("antigravity", "agent" | "skill")
+            | ("antigravity" | "cursor", "agent" | "skill")
             | ("opencode", "skill" | "command" | "agent")
-            | ("codex" | "cursor" | "grok-build", "skill")
+            | ("codex" | "grok-build", "skill")
     )
 }
 
@@ -58,6 +58,7 @@ fn markdown_entries<'a>(
         "antigravity" if kind == "skill" => antigravity::skills(files),
         "antigravity" => antigravity::agents(files),
         "codex" => codex::skills(files),
+        "cursor" if kind == "agent" => cursor::agents(files),
         "cursor" => cursor::skills(files),
         "grok-build" => grok::skills(files),
         "opencode" => opencode::entries(kind, files),
@@ -76,6 +77,7 @@ pub(crate) fn visible_entries<'a>(
         ("antigravity", "agent") => antigravity::visible(files)?,
         ("antigravity", "skill") => antigravity::visible_skills(files)?,
         ("cursor", "skill") => cursor::visible(files)?,
+        ("cursor", "agent") => cursor::visible_agents(files)?,
         ("grok-build", _) => grok::visible(kind, files)?,
         ("pi", _) => pi::visible(kind, files)?,
         _ => return Err(invalid()),

@@ -72,7 +72,10 @@ fn component(
         "mcp"
     } else if file.path.starts_with("commands/") || file.path.starts_with("prompts/") {
         "command"
-    } else if file.path.starts_with("agents/") || file.path.starts_with("config/agents/") {
+    } else if file.path.starts_with("agents/")
+        || file.path.starts_with("config/agents/")
+        || file.path.starts_with(".cursor/agents/")
+    {
         "agent"
     } else if file.path.ends_with("/SKILL.md") {
         "skill"
@@ -297,7 +300,9 @@ fn entry_inventory(
         .find(|value| value["harness_id"] == harness)
         .ok_or("skill provider missing")?;
     let provider = Info::parse(&serde_json::to_vec(declaration)?)?;
-    let scope = if matches!(harness, "grok-build" | "antigravity") {
+    let scope = if harness == "cursor" && agent {
+        Scope::Project
+    } else if matches!(harness, "grok-build" | "antigravity") {
         Scope::Global
     } else {
         Scope::UserRoot
@@ -308,7 +313,9 @@ fn entry_inventory(
         &provider,
         scope,
         File {
-            path: if agent {
+            path: if agent && harness == "cursor" {
+                ".cursor/agents/review.md"
+            } else if agent {
                 "config/agents/review.md"
             } else if harness == "antigravity" {
                 "config/skills/review/SKILL.md"
@@ -335,7 +342,9 @@ fn entry_inventory(
         &built,
     )?;
     rejects_fabricated_ids(store, &skill, &built, &target, &provider, &Hosts::new())?;
-    for path in std::iter::once(if agent {
+    for path in std::iter::once(if agent && harness == "cursor" {
+        ".cursor/agents/extra.md"
+    } else if agent {
         "config/agents/extra.md"
     } else if harness == "antigravity" {
         "config/skills/extra/SKILL.md"
@@ -395,13 +404,18 @@ fn entry_inventory(
             "{refusal:?}"
         );
     }
-    if harness == "antigravity" && !agent {
+    if harness == "antigravity" && !agent || harness == "cursor" && agent {
         let duplicate = component(
             store,
             &provider,
             scope,
             File {
-                path: "config/skills/another-folder/SKILL.md".into(),
+                path: if agent {
+                    ".cursor/agents/nested/review.md"
+                } else {
+                    "config/skills/another-folder/SKILL.md"
+                }
+                .into(),
                 bytes: b"---\ndescription: Another skill.\n---\nInspect.\n".to_vec(),
                 mode: 0o644,
             },
@@ -723,6 +737,7 @@ fn exact_bundles_cover_every_released_profile_and_refuse_unrepresentable_inputs(
     for (harness, agent) in [
         ("codex", false),
         ("cursor", false),
+        ("cursor", true),
         ("grok-build", false),
         ("antigravity", true),
         ("antigravity", false),

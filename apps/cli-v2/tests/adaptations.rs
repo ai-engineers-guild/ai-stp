@@ -55,13 +55,16 @@ fn portable_sources_preserve_behavior_and_bind_exact_native_surfaces() -> Result
             root.join("component-passport.json"),
             canonical::bytes(&patch)?,
         )?;
-        let entry = patch["entry_points"][0].as_str().ok_or("entry missing")?;
+        let entry = patch["entry_points"][0]
+            .as_str()
+            .ok_or("entry missing")?
+            .to_owned();
         let authored = if kind == "skill" {
             format!("---\nname: safe-review\ndescription: Review changed code.\n---\n{body}")
         } else {
             body.into()
         };
-        fs::write(root.join("source").join(entry), &authored)?;
+        fs::write(root.join("source").join(&entry), &authored)?;
         if kind == "skill" {
             fs::create_dir(root.join("source/scripts"))?;
             fs::write(root.join("source/scripts/check.sh"), b"#!/bin/sh\nexit 0\n")?;
@@ -123,6 +126,10 @@ fn portable_sources_preserve_behavior_and_bind_exact_native_surfaces() -> Result
             assert_eq!(scope["permissions"], patch["permissions"]);
             assert_eq!(scope["supported_os"], json!(["linux"]));
             let files = artifact::verify(scope, &prepared.projection_bytes)?;
+            if kind == "agent" && route.harness_id == "cursor" {
+                assert_eq!(scope["members"][0]["native_ids"], json!(["safe-review"]));
+                assert!(files[0].bytes.starts_with(b"---\nname: safe-review\n"));
+            }
             if kind == "skill" {
                 assert_eq!(files.len(), 2);
                 assert_eq!(files[0].bytes, authored.as_bytes());
@@ -162,6 +169,40 @@ fn portable_sources_preserve_behavior_and_bind_exact_native_surfaces() -> Result
                 }
             }
         }
+        if kind == "agent" {
+            let cursor = providers.get("cursor").ok_or("Cursor missing")?;
+            patch["description"] = "Review: preserve \"quotes\" # literally.".into();
+            fs::write(
+                root.join("component-passport.json"),
+                canonical::bytes(&patch)?,
+            )?;
+            let prepared = adaptations::prepare(&root, Scope::Project, cursor)?;
+            let scope = &prepared.adaptation["scope_adaptations"][0];
+            let files = artifact::verify(scope, &prepared.projection_bytes)?;
+            assert!(
+                std::str::from_utf8(&files[0].bytes)?
+                    .contains("\ndescription: Review: preserve \"quotes\" # literally.\n")
+            );
+            for description in [
+                "Review\nmodel: unwanted",
+                " Review.",
+                "Review. ",
+                "\u{feff}Review.",
+            ] {
+                patch["description"] = description.into();
+                fs::write(
+                    root.join("component-passport.json"),
+                    serde_json::to_vec(&patch)?,
+                )?;
+                assert!(adaptations::prepare(&root, Scope::Project, cursor).is_err());
+                assert_eq!(fs::read_to_string(root.join("source").join(&entry))?, body);
+            }
+            patch["description"] = "Review changes with explicit findings.".into();
+            fs::write(
+                root.join("component-passport.json"),
+                canonical::bytes(&patch)?,
+            )?;
+        }
         if kind == "skill" {
             let codex = providers.get("codex").ok_or("Codex missing")?;
             assert!(adaptations::prepare(&root, Scope::Global, codex).is_err());
@@ -178,7 +219,7 @@ fn portable_sources_preserve_behavior_and_bind_exact_native_surfaces() -> Result
             }
         } else {
             fs::write(
-                root.join("source").join(entry),
+                root.join("source").join(&entry),
                 format!("---\nmodel: example\n---\n{body}"),
             )?;
             assert!(
@@ -189,7 +230,7 @@ fn portable_sources_preserve_behavior_and_bind_exact_native_surfaces() -> Result
                 )
                 .is_err()
             );
-            fs::write(root.join("source").join(entry), body)?;
+            fs::write(root.join("source").join(&entry), body)?;
             fs::write(root.join("source/unmapped.txt"), b"keep this file")?;
             assert!(
                 adaptations::prepare(

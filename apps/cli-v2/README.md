@@ -259,7 +259,8 @@ refuse; plugin-specific fallback semantics do not apply to ordinary agent files.
 The shared data-only YAML reader keeps the existing 64 KiB header and parsing
 budgets. Each caller selects its dialect: portable sources, Codex, Pi and Grok use core
 scalar types without implicit merge expansion. Claude applies merges with core
-scalar types, as do Antigravity Markdown agents; OpenCode and Cursor use js-yaml 3 merge and legacy-octal rules.
+scalar types, as do Antigravity Markdown agents; OpenCode and Cursor skills use
+js-yaml 3 merge and legacy-octal rules. Cursor agents use their own line parser.
 `yes` and `on` remain strings.
 Aliases preserve their native meaning. Payload bytes and unknown metadata remain
 intact. Exact-version reuse
@@ -420,6 +421,29 @@ The [Cursor skill documentation](https://cursor.com/docs/skills) describes the
 folder identity; its stricter frontmatter naming recommendation is not used to
 invent aliases that this local loader does not expose. Plugin skill namespaces
 and other Cursor component formats remain separate pending checks.
+
+Cursor local agents use the same pinned scanner under `agents` or project
+`.cursor/agents`, with case-insensitive `.md`, `.mdc` and `.markdown` extensions.
+Hidden files load; hidden and excluded directories do not. Headers are parsed
+as case-insensitive `key: value` lines, not YAML: quotes, comments, scalar spelling
+and bracketed values remain literal, and the last `name` line wins. Missing or
+empty names use the filename stem with runs of whitespace/underscores replaced
+by a hyphen; description is optional. A nonblank body is required. Reserved
+`claude-code-tutor` entries are invisible. Duplicate identities refuse instead
+of relying on native first-match ordering. The preview additionally requires
+exact opening/closing delimiters and at most 64 KiB of header, and rejects
+noncanonical, control-containing or overlong identities.
+
+Portable Cursor agents emit unquoted name/description lines. Metadata that
+cannot survive this single-line representation unchanged requires an explicit
+native adaptation. Adoption, release, retained reuse and whole-bundle inventory
+use the same byte-derived identities. The 39 shared cases were exercised with
+the pinned distribution's actual local agent parser, scanner and merged loader;
+plugin and third-party compatibility roots remain separate boundaries. The
+[current documentation](https://cursor.com/docs/subagents) describes YAML, but
+the pinned reader's observed string semantics own this implementation.
+The current provider has an agent route only for `project`; detecting a user
+agent does not establish a global/user-root installation route.
 
 Pi identities follow its pinned 1.0.0 loader. Skills need a nonblank description;
 their name falls back to the containing directory when absent, empty or not a
