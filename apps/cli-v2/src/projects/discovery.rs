@@ -12,13 +12,14 @@ fn candidate(root: &Path, entries: &[DirEntry], kind: &str, reason: Option<&str>
         let Some(name) = name.to_str() else {
             continue;
         };
-        if MANIFESTS.contains(&name) {
+        let file_type = entry.file_type().ok();
+        if MANIFESTS.contains(&name) && file_type.is_some_and(|kind| kind.is_file()) {
             markers.push(name.to_owned());
         }
-        if name == ".git" {
+        if name == ".git" && file_type.is_some_and(|kind| kind.is_file() || kind.is_dir()) {
             markers.push("git".to_owned());
         }
-        if !name.starts_with('.') && entry.file_type().is_ok_and(|ft| ft.is_file()) {
+        if !name.starts_with('.') && file_type.is_some_and(|kind| kind.is_file()) {
             if Path::new(name)
                 .extension()
                 .and_then(|s| s.to_str())
@@ -126,7 +127,12 @@ impl Discovery {
                     continue;
                 }
             };
-            let is_repository = children.iter().any(|e| e.file_name() == ".git");
+            let is_repository = children.iter().any(|entry| {
+                entry.file_name() == ".git"
+                    && entry
+                        .file_type()
+                        .is_ok_and(|kind| kind.is_file() || kind.is_dir())
+            });
             let mut child_inside = inside;
             if direct || is_repository {
                 let kind = if !direct && inside {

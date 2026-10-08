@@ -68,7 +68,17 @@ def prove(binary: Path, home: Path, temporary: Path, run: Runner) -> None:
     }
     assert before == after
     assert "must-not-be-echoed" not in str(answer)
+    false_markers = temporary / "false-markers"
+    false_markers.mkdir()
+    (false_markers / "Cargo.toml").mkdir()
     if os.name != "nt":
+        (false_markers / "package.json").symlink_to(root / ".env")
+        (root / "src" / ".git").symlink_to(temporary)
+        discovery = run(binary, home, ["project", "discover", "--root", str(root)], 0)["data"]
+        assert {Path(item["root"]).name for item in discovery["candidates"]} == {
+            "project",
+            "nested",
+        }
         (root / "escape").symlink_to(temporary)
         (root / "alias.txt").symlink_to(".env")
         os.mkfifo(root / "pipe")
@@ -78,6 +88,8 @@ def prove(binary: Path, home: Path, temporary: Path, run: Runner) -> None:
         assert excluded["pipe"] == "not a regular file"
         run(binary, home, ["config", "show", "--config", str(root / "pipe")], 2)
         run(binary, home, ["config", "show", "--config", str(root / "alias.txt")], 2)
+    result = run(binary, home, ["project", "discover", "--root", str(false_markers)], 0)["data"]
+    assert all(not item["markers"] for item in result["candidates"])
     deep = root
     for _ in range(13):
         deep = deep / "deeper"
