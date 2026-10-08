@@ -82,11 +82,28 @@ Codex agents use `developer_instructions`, Cursor rules use `.mdc` and
 No scope fallback, unmapped helper deletion, source rewrite or generated projection
 directory is implicit. Portable Grok agents and legacy Antigravity workflows are
 refused until an explicit native implementation is supplied. Preparation does not
-store state, install files or attest a provider; project binding remains pending.
+store state, install files or attest a provider.
 Syntax follows the [Agent Skills format](https://agentskills.io/specification),
 [Codex agent schema](https://learn.chatgpt.com/docs/agent-configuration/subagents),
 [Cursor rules](https://cursor.com/docs/rules) and
 [Antigravity rules](https://antigravity.google/docs/rules).
+
+`authoring::project_binding` retains the project as one private component, using
+the existing neutral `undefined` source binding and no origin harness claim.
+Its exact plan binds the complete project snapshot, owner/device, current heads,
+provider declarations and requested scopes. Binding requires explicit tags and
+the complete version metadata contract; structural source readiness alone does
+not satisfy that contract. All scopes compile from one capture, with at most 21
+targets, seven declarations and 128 MiB of distinct retained artifacts.
+Source and projection CAS, the draft, source binding and receipt commit in one
+SQLite transaction. Unchanged refreshes keep the revision; relocation preserves
+the identity only when one matching old source vanished, while copies stay distinct.
+The local path stays in the local binding and plan, outside the passport.
+Refresh uses the project's passport patch, preserves unrelated passport extensions,
+and must include every existing scope; it cannot replace an independently authored
+native adaptation. Adding scopes keeps the component identity. Replay verifies
+retained artifacts and returns the original result without rewinding later heads.
+This service remains headless until the owning runtime supplies native identity.
 
 Scaffold planning writes nothing and binds the resolved parent directory's physical
 identity and lossless output path. Applying requires the exact plan digest,
@@ -426,6 +443,10 @@ no async runtime or tracing feature is enabled for it.
 | `authoring/templates.rs` | Bounded portable template rendering with literal CommonMark code blocks |
 | `authoring/setups/` | Exact private setup composition, conservative requirement aggregation and atomic immutable registration |
 | `authoring/scaffold/` | Minimal exact source plans and recoverable non-overwriting directory creation |
+| `authoring/source_project.rs` | One bounded source snapshot, metadata separation and structural readiness |
+| `authoring/adaptations.rs` | Explicit portable-to-native projections preserving source bodies and modes |
+| `authoring/project_binding.rs` | Atomic portable project identity and complete adaptation refresh |
+| `authoring/bindings.rs` | Shared local source addresses, relocation and binding replacement |
 | `provenance.rs` | Offline PEP 740 cryptographic verification and publisher policy |
 
 The provenance service accepts a caller-owned trusted root and an artifact

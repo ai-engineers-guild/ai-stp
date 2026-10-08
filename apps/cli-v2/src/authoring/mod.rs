@@ -2,11 +2,13 @@
 
 pub mod adaptations;
 pub mod adoption;
+mod bindings;
 pub mod contribution;
 pub mod discovery;
 pub mod forks;
 mod freezing;
 pub mod passports;
+pub mod project_binding;
 pub mod releases;
 pub mod scaffold;
 pub mod setups;

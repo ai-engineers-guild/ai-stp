@@ -87,11 +87,19 @@ fn markdown(metadata: Value, body: &str) -> Result<Vec<u8>> {
 /// Reads source only; installing or storing the result requires a separate exact plan.
 pub fn prepare(root: &Path, requested: Scope, provider: &Info) -> Result<Prepared> {
     let project = source_project::capture(root)?;
+    from_snapshot(&project, requested, provider)
+}
+
+pub(super) fn from_snapshot(
+    project: &source_project::Captured,
+    requested: Scope,
+    provider: &Info,
+) -> Result<Prepared> {
     if project.report["source_ready"] != true {
         return Err(invalid("the portable source is not structurally ready")
-            .with_details([("source".into(), project.report)]));
+            .with_details([("source".into(), project.report.clone())]));
     }
-    let values: Value = project.patch.into();
+    let values: Value = project.patch.clone().into();
     let kind = text(&values, "component_type")?;
     let name = text(&values, "name")?;
     let description = text(&values, "description")?;
@@ -213,19 +221,33 @@ pub fn prepare(root: &Path, requested: Scope, provider: &Info) -> Result<Prepare
     }
     let (mut adaptation, projection_bytes) =
         freezing::project(&values, &source, payload, std::slice::from_ref(provider))?;
-    let transform = json!({"transform_id":"portable-source","version":"1.0",
-        "harness_id":harness,"scope":requested,"component_type":kind,
-        "source_digest":source_digest,"projection_digest":adaptation["scope_adaptations"][0]["projection_artifact"]["digest"]});
     adaptation["implementation_mode"] = "derived".into();
     adaptation["source_artifact"] = json!({"digest":source_digest,"size_bytes":source_bytes.len()});
-    adaptation["transform"] = json!({"transform_id":"portable-source","version":"1.0",
-        "digest":digest::canonical("ai-stp:component-adaptation:v1",&transform)?});
     adaptation["scope_adaptations"][0]["technical_support_reason"] = "portable source compiled for the explicit provider profile; harness execution not assessed".into();
-    let adaptation = passport::versions::seal_adaptation(&adaptation)?;
+    let adaptation = seal_derived(adaptation)?;
     Ok(Prepared {
         adaptation,
         projection_bytes,
         source_bytes,
         snapshot_digest: text(&project.report, "snapshot_digest")?.into(),
     })
+}
+
+pub(super) fn seal_derived(mut adaptation: Value) -> Result<Value> {
+    let scopes = adaptation["scope_adaptations"]
+        .as_array_mut()
+        .ok_or_else(|| invalid("portable adaptation scopes are invalid"))?;
+    scopes.sort_by(|a, b| a["scope"].as_str().cmp(&b["scope"].as_str()));
+    let projections: Vec<_> = scopes
+        .iter()
+        .map(
+            |scope| json!({"scope":scope["scope"],"digest":scope["projection_artifact"]["digest"]}),
+        )
+        .collect();
+    let transform = json!({"transform_id":"portable-source","version":"1.0",
+        "harness_id":adaptation["harness_id"],"component_type":adaptation["logical_component_type"],
+        "source_digest":adaptation["source_artifact"]["digest"],"projections":projections});
+    adaptation["transform"] = json!({"transform_id":"portable-source","version":"1.0",
+        "digest":digest::canonical("ai-stp:component-adaptation:v1",&transform)?});
+    passport::versions::seal_adaptation(&adaptation)
 }

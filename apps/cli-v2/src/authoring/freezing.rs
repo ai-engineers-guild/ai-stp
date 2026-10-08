@@ -158,6 +158,18 @@ pub(super) fn compile(
         .into_values()
         .map(|value| passport::versions::seal_adaptation(&value))
         .collect::<Result<Vec<_>>>()?;
+    complete(document, &values, adaptations)
+}
+
+/// Shared complete-passport assembly; source projects and native releases use one contract.
+pub(super) fn complete(
+    mut document: Value,
+    values: &Value,
+    adaptations: Vec<Value>,
+) -> Result<Value> {
+    if adaptations.is_empty() {
+        return Err(invalid());
+    }
     document["artifact"] = adaptations[0]["scope_adaptations"][0]["projection_artifact"].clone();
     document["artifact_format"] = artifact::FORMAT.into();
     document["adaptations"] = adaptations.into();
@@ -187,19 +199,21 @@ pub(super) fn compile(
         "requires_capabilities",
         "runtime_requirements",
     ] {
-        document[field] = default(&values, field, json!([]));
+        document[field] = default(values, field, json!([]));
     }
-    document["requires_credentials"] = default(&values, "requires_credentials", false.into());
-    document["requires_authorization"] = default(&values, "requires_authorization", "none".into());
+    document["requires_credentials"] = default(values, "requires_credentials", false.into());
+    document["requires_authorization"] = default(values, "requires_authorization", "none".into());
     document["permissions"] = permissions(&values["permissions"])?;
-    let mut conflicts = default(&values, "conflicts", json!({}));
+    let mut conflicts = default(values, "conflicts", json!({}));
     let object = conflicts.as_object_mut().ok_or_else(invalid)?;
     for key in ["paths", "commands", "agents", "hooks", "mcp", "plugins"] {
         object.entry(key).or_insert(json!([]));
     }
     document["conflicts"] = conflicts;
     let document = revisions::seal(&document)?;
-    passport::versions::validate_document(&document)?;
+    let mut version = document.clone();
+    version["parent_revision_ids"] = json!([]);
+    passport::versions::validate_document(&revisions::seal(&version)?)?;
     Ok(document)
 }
 
