@@ -198,6 +198,11 @@ projection member bytes; a valid archive/passport digest alone does not establis
 native identity. MCP contributions must name the harness's actual configuration
 key. Mismatched retained versions refuse without rewriting their immutable data.
 
+An optional header uses an exact `---` on the first line. BOM-prefixed, padded,
+indented or displaced opening delimiters refuse explicitly instead of silently
+using a directory/path fallback when the native loader might read a name.
+This restriction leaves accepted no-header content and captured bytes unchanged.
+
 The supported YAML subset rejects explicit version directives and non-core tags,
 including binary/timestamp tags, before persistence. Noncanonical Boolean/null
 spellings such as `tRuE` and `nUlL` need quotes. js-yaml 3 headers additionally

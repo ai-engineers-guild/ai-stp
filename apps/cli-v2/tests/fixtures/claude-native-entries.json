@@ -130,5 +130,74 @@
       "folder"
     ],
     "adoptable": true
+  },
+  {
+    "id": "bom",
+    "kind": "skill",
+    "files": {
+      "skills/folder/SKILL.md": "\ufeff---\nname: inspect\ndescription: Inspect.\n---\nBody.\n"
+    },
+    "names": [
+      "folder",
+      "inspect"
+    ],
+    "adoptable": false
+  },
+  {
+    "id": "leading-blank",
+    "kind": "skill",
+    "files": {
+      "skills/folder/SKILL.md": "\n---\nname: inspect\ndescription: Inspect.\n---\nBody.\n"
+    },
+    "names": [
+      "folder"
+    ],
+    "adoptable": false
+  },
+  {
+    "id": "opening-space",
+    "kind": "skill",
+    "files": {
+      "skills/folder/SKILL.md": "--- \nname: inspect\ndescription: Inspect.\n---\nBody.\n"
+    },
+    "names": [
+      "folder",
+      "inspect"
+    ],
+    "adoptable": false
+  },
+  {
+    "id": "opening-tab",
+    "kind": "skill",
+    "files": {
+      "skills/folder/SKILL.md": "---\t\nname: inspect\ndescription: Inspect.\n---\nBody.\n"
+    },
+    "names": [
+      "folder",
+      "inspect"
+    ],
+    "adoptable": false
+  },
+  {
+    "id": "indented-opening",
+    "kind": "skill",
+    "files": {
+      "skills/folder/SKILL.md": "  ---\nname: inspect\ndescription: Inspect.\n---\nBody.\n"
+    },
+    "names": [
+      "folder"
+    ],
+    "adoptable": false
+  },
+  {
+    "id": "four-dashes",
+    "kind": "skill",
+    "files": {
+      "skills/folder/SKILL.md": "----\nname: inspect\ndescription: Inspect.\n---\nBody.\n"
+    },
+    "names": [
+      "folder"
+    ],
+    "adoptable": false
   }
 ]

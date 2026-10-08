@@ -36,6 +36,13 @@ pub(super) fn optional(bytes: &[u8], dialect: Dialect) -> Result<Value> {
         .map_err(|_| Failure::precondition("the Markdown source must be UTF-8"))?;
     if text.lines().next() == Some("---") {
         required(bytes, dialect)
+    } else if text
+        .trim_start_matches(|character: char| character.is_whitespace() || character == '\u{feff}')
+        .starts_with("---")
+    {
+        Err(Failure::precondition(
+            "frontmatter requires an exact opening delimiter on the first line without a BOM",
+        ))
     } else {
         Ok(serde_json::json!({}))
     }
