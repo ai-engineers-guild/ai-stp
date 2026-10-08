@@ -1,4 +1,5 @@
 use ai_stp_cli_v2::artifacts::{self, Member};
+use ai_stp_cli_v2::{digest, projection::artifact};
 use base64::{Engine, engine::general_purpose::STANDARD};
 use serde::Deserialize;
 use std::{
@@ -17,6 +18,14 @@ struct File {
     path: String,
     content_base64: String,
     mode: u32,
+}
+
+#[derive(Deserialize)]
+struct Projection {
+    name: String,
+    scope: serde_json::Value,
+    files: Vec<File>,
+    artifact_base64: String,
 }
 
 #[test]
@@ -109,6 +118,14 @@ fn artifact_wire_identity_and_unsafe_archive_refusals() -> Result<(), Box<dyn Er
     let mut descendant = file.clone();
     descendant.path = "skill.md/child".into();
     assert!(artifacts::encode_tree(&[file.clone(), descendant]).is_err());
+    let mut first_directory = file.clone();
+    first_directory.path = "Assets/first".into();
+    let mut second_directory = file.clone();
+    second_directory.path = "assets/second".into();
+    assert!(
+        artifacts::encode_tree(&[first_directory, second_directory]).is_err(),
+        "one portable directory has conflicting case spellings"
+    );
     let mut oversized = file.clone();
     oversized.bytes.resize(artifacts::MAX_FILE_BYTES + 1, 0);
     assert!(artifacts::encode_tree(&[oversized]).is_err());
@@ -122,5 +139,48 @@ fn artifact_wire_identity_and_unsafe_archive_refusals() -> Result<(), Box<dyn Er
     archive.start_file("files/undeclared", options)?;
     archive.write_all(b"unexpected")?;
     assert!(artifacts::decode_tree(&archive.finish()?.into_inner()).is_err());
+
+    // The existing projection builder supplies an independent byte oracle,
+    // including explicit empty directories, non-default modes and ownership.
+    let cases: Vec<Projection> =
+        serde_json::from_str(include_str!("fixtures/projection-artifacts.json"))?;
+    for case in cases {
+        let mut files = case
+            .files
+            .into_iter()
+            .map(|file| {
+                Ok(Member {
+                    path: file.path,
+                    bytes: STANDARD.decode(file.content_base64)?,
+                    mode: file.mode,
+                })
+            })
+            .collect::<Result<Vec<_>, base64::DecodeError>>()?;
+        let expected = STANDARD.decode(case.artifact_base64)?;
+        assert_eq!(
+            artifact::build(&case.scope, &files)?,
+            expected,
+            "{} changed its projection identity",
+            case.name
+        );
+        files.sort_by(|a, b| a.path.cmp(&b.path));
+        assert_eq!(artifact::verify(&case.scope, &expected)?, files);
+        let mut wrong = case.scope.clone();
+        wrong["members"][0]["mode"] = 0.into();
+        assert!(artifact::verify(&wrong, &expected).is_err());
+        let mut corrupt = expected.clone();
+        corrupt[30] ^= 1;
+        wrong = case.scope.clone();
+        wrong["projection_artifact"]["digest"] =
+            digest::bytes("ai-stp:artifact:v1", &corrupt)?.into();
+        assert!(artifact::verify(&wrong, &corrupt).is_err());
+        let extra = Member {
+            path: "undeclared".into(),
+            bytes: b"unexpected".to_vec(),
+            mode: 0o644,
+        };
+        files.push(extra);
+        assert!(artifact::build(&case.scope, &files).is_err());
+    }
     Ok(())
 }

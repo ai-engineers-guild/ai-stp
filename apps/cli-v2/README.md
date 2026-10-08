@@ -133,8 +133,17 @@ Only the complete canonical archive encoding is accepted: duplicate records,
 disagreeing ZIP headers, extra metadata and alternate ordering are refused.
 Portable names exclude Windows devices and reserved characters; a file cannot
 also be an ancestor of another member, including through a case alias.
+Shared directory prefixes must keep one spelling across the archive.
 `zip` owns archive decoding; `crc32fast` supplies the wire checksum. Compression
 and encryption features are disabled because this format admits neither.
+
+Scope projection archives use the same ZIP transport and retain their own
+8,192-member and 64 MiB limits. They preserve explicit empty directories and
+declared ordinary Unix permissions. Every file's bytes, length and mode must
+match its scope; the complete archive must match the recorded digest and size.
+The scope owns whole-path or structured-contribution semantics. Alternate
+ordering, undeclared entries and conflicting metadata are refused. Building a
+projection does not declare provider support or perform installation.
 
 Native source capture reads explicit files and manifest-bearing directories.
 Within Git, it includes tracked and nonignored untracked members without
@@ -211,7 +220,7 @@ no async runtime or tracing feature is enabled for it.
 | `environment.rs` | Exact setup prerequisites, project binding and variable-name presence |
 | `selection/` | Verified exact dependency graphs and deterministic ordering |
 | `store/`, `files/owned.rs` | Explicit owned state, atomic revision writes and shared private-file primitives |
-| `artifacts.rs` | Canonical component archives, bounded decoding and portable member identities |
+| `archive.rs`, `artifacts.rs`, `projection/artifact.rs` | Shared canonical ZIP transport and closed component/scope archives |
 | `authoring/source.rs`, `process.rs` | Complete bounded source capture and explicit child process lifecycle |
 | `authoring/contribution.rs` | Owned configuration extraction and format-preserving in-memory assembly |
 | `harnesses.rs`, `authoring/discovery.rs` | Shared declarative harness facts and bounded inspection of native layouts |

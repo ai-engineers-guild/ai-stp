@@ -16,6 +16,10 @@ static COMPONENT: Schema = Schema::reader(include_str!(
 static SETUP: Schema = Schema::reader(include_str!(
     "../../../../schemas/v1/setup-version-passport.schema.json"
 ));
+static SCOPE: Schema = Schema::definition(
+    include_str!("../../../../schemas/v1/component-adaptation.schema.json"),
+    "ScopeAdaptation",
+);
 
 pub fn validate_document(document: &Value) -> Result<()> {
     match document["kind"].as_str() {
@@ -95,29 +99,7 @@ fn validate_adaptation(adaptation: &Value) -> Result<()> {
     let scopes = array(&adaptation["scope_adaptations"])?;
     unique(scopes, "scope")?;
     for scope in scopes {
-        let members = array(&scope["members"])?;
-        let mut paths = BTreeSet::new();
-        for member in members {
-            let path = member["path"].as_str().ok_or_else(invalid)?;
-            if !paths.insert(unicase::UniCase::new(path).to_folded_case()) {
-                return Err(invalid());
-            }
-            if member["ownership"] == "contribution" {
-                if member["object_type"] != "file"
-                    || member["parser_id"].is_null()
-                    || member["ownership_key"].is_null()
-                    || member["write_semantics"] != "merge"
-                    || member["withdrawal_semantics"] != "preserve_unowned"
-                {
-                    return Err(invalid());
-                }
-            } else if !member["ownership_key"].is_null()
-                || member["write_semantics"] != "replace"
-                || member["withdrawal_semantics"] != "remove_path"
-            {
-                return Err(invalid());
-            }
-        }
+        scope_invariants(scope)?;
     }
     // Adaptation IDs are over the complete model, unlike published passport
     // digests. Fill only the defaults owned by this closed adaptation contract.
@@ -170,6 +152,38 @@ fn validate_adaptation(adaptation: &Value) -> Result<()> {
     );
     if held != expected {
         return Err(invalid());
+    }
+    Ok(())
+}
+
+pub(crate) fn validate_scope(scope: &Value) -> Result<()> {
+    SCOPE.validate(scope)?;
+    scope_invariants(scope)
+}
+
+fn scope_invariants(scope: &Value) -> Result<()> {
+    let members = array(&scope["members"])?;
+    let mut paths = BTreeSet::new();
+    for member in members {
+        let path = member["path"].as_str().ok_or_else(invalid)?;
+        if !paths.insert(unicase::UniCase::new(path).to_folded_case()) {
+            return Err(invalid());
+        }
+        if member["ownership"] == "contribution" {
+            if member["object_type"] != "file"
+                || member["parser_id"].is_null()
+                || member["ownership_key"].is_null()
+                || member["write_semantics"] != "merge"
+                || member["withdrawal_semantics"] != "preserve_unowned"
+            {
+                return Err(invalid());
+            }
+        } else if !member["ownership_key"].is_null()
+            || member["write_semantics"] != "replace"
+            || member["withdrawal_semantics"] != "remove_path"
+        {
+            return Err(invalid());
+        }
     }
     Ok(())
 }

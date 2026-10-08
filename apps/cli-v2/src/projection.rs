@@ -1,5 +1,7 @@
 //! Exact provider surfaces and target-relative ownership, independent of discovery.
 
+pub mod artifact;
+
 use std::{collections::BTreeSet, sync::OnceLock};
 
 use serde::{Deserialize, Serialize};

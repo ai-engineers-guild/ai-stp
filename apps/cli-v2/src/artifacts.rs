@@ -1,11 +1,10 @@
 //! Closed component artifacts and the canonical uncompressed ZIP wire encoding.
 
 use serde_json::{Value, json};
-use std::{
-    collections::{BTreeMap, BTreeSet},
-    io::{Cursor, Read},
-};
-use unicode_normalization::UnicodeNormalization;
+use std::collections::{BTreeMap, BTreeSet};
+
+pub use crate::archive::safe_path;
+use crate::archive::{self, Entry, Kind, Limits};
 
 use crate::{
     canonical, digest,
@@ -27,41 +26,6 @@ pub struct Member {
 
 fn invalid() -> Failure {
     Failure::precondition("the artifact violates its path, identity, metadata or size contract")
-}
-
-pub fn safe_path(path: &str) -> bool {
-    !path.is_empty()
-        && path.len() <= 1024
-        && !path.starts_with(['/', '~'])
-        && !path.contains(['\\', ':', '<', '>', '"', '|', '?', '*'])
-        && path.nfc().eq(path.chars())
-        && !path.chars().any(char::is_control)
-        && path.split('/').all(|part| {
-            !part.is_empty()
-                && ![".", ".."].contains(&part)
-                && part.len() <= 255
-                && !part.ends_with(['.', ' '])
-                && !reserved_device(part)
-        })
-}
-
-fn reserved_device(part: &str) -> bool {
-    let stem = part
-        .split('.')
-        .next()
-        .unwrap_or_default()
-        .to_ascii_uppercase();
-    matches!(
-        stem.as_str(),
-        "CON" | "PRN" | "AUX" | "NUL" | "CONIN$" | "CONOUT$"
-    ) || ["COM", "LPT"].iter().any(|prefix| {
-        stem.strip_prefix(prefix).is_some_and(|suffix| {
-            matches!(
-                suffix,
-                "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" | "¹" | "²" | "³"
-            )
-        })
-    })
 }
 
 fn validate(files: &[Member], max_files: usize, max_bytes: usize) -> Result<()> {
@@ -93,57 +57,27 @@ fn validate(files: &[Member], max_files: usize, max_bytes: usize) -> Result<()> 
     Ok(())
 }
 
-/// Exact ZIP_STORED profile: fixed epoch, Unix regular files, UTF-8 names and
-/// version 2.0 headers. zip's general writer chooses version 1.0 for stored
-/// members; those different bytes would change existing artifact identities.
-/// This bounded serializer owns only our wire profile; zip owns input decoding.
+/// Canonical regular-file archive with caller-defined member order.
 pub fn zip_stored(files: &[Member]) -> Result<Vec<u8>> {
     validate(files, 2000, 64 * 1024 * 1024)?;
-    let mut output = Vec::new();
-    let mut central = Vec::new();
-    for member in files {
-        let name = member.path.as_bytes();
-        let flag: u16 = if name.is_ascii() { 0 } else { 1 << 11 };
-        let size = member.bytes.len() as u32;
-        let crc = crc32fast::hash(&member.bytes);
-        let offset = output.len() as u32;
-        output.extend(0x04034b50_u32.to_le_bytes());
-        for field in [20_u16, flag, 0, 0, 33] {
-            output.extend(field.to_le_bytes());
-        }
-        for field in [crc, size, size] {
-            output.extend(field.to_le_bytes());
-        }
-        for field in [name.len() as u16, 0] {
-            output.extend(field.to_le_bytes());
-        }
-        output.extend(name);
-        output.extend(&member.bytes);
-        central.extend(0x02014b50_u32.to_le_bytes());
-        for field in [0x0314_u16, 20, flag, 0, 0, 33] {
-            central.extend(field.to_le_bytes());
-        }
-        for field in [crc, size, size] {
-            central.extend(field.to_le_bytes());
-        }
-        for field in [name.len() as u16, 0, 0, 0, 0] {
-            central.extend(field.to_le_bytes());
-        }
-        central.extend(((0o100000 | member.mode) << 16).to_le_bytes());
-        central.extend(offset.to_le_bytes());
-        central.extend(name);
-    }
-    let offset = output.len() as u32;
-    let size = central.len() as u32;
-    output.extend(central);
-    output.extend(0x06054b50_u32.to_le_bytes());
-    for field in [0_u16, 0, files.len() as u16, files.len() as u16] {
-        output.extend(field.to_le_bytes());
-    }
-    output.extend(size.to_le_bytes());
-    output.extend(offset.to_le_bytes());
-    output.extend(0_u16.to_le_bytes());
-    Ok(output)
+    let entries: Vec<_> = files
+        .iter()
+        .map(|file| Entry {
+            path: file.path.as_str().into(),
+            bytes: file.bytes.as_slice().into(),
+            mode: file.mode,
+            kind: Kind::File,
+        })
+        .collect();
+    archive::encode(
+        &entries,
+        Limits {
+            entries: 2000,
+            file_bytes: MAX_FILE_BYTES,
+            content_bytes: 64 * 1024 * 1024,
+            archive_bytes: 68 * 1024 * 1024,
+        },
+    )
 }
 
 pub fn encode_tree(files: &[Member]) -> Result<Vec<u8>> {
@@ -177,64 +111,24 @@ pub fn encode_tree(files: &[Member]) -> Result<Vec<u8>> {
 }
 
 pub fn decode_tree(payload: &[u8]) -> Result<Vec<Member>> {
-    if payload.len() > MAX_TREE_BYTES + 4 * 1024 * 1024 {
-        return Err(invalid());
-    }
-    // Bound central-directory allocation before the general ZIP reader runs.
-    // This profile has one disk, a 32-bit directory and no archive comment.
-    let end = payload.len().checked_sub(22).ok_or_else(invalid)?;
-    let footer = &payload[end..];
-    let count = u16::from_le_bytes([footer[10], footer[11]]) as usize;
-    let directory_size =
-        u32::from_le_bytes(footer[12..16].try_into().map_err(|_| invalid())?) as usize;
-    let directory_start =
-        u32::from_le_bytes(footer[16..20].try_into().map_err(|_| invalid())?) as usize;
-    if &footer[..4] != b"PK\x05\x06"
-        || footer[4..8] != [0; 4]
-        || footer[8..10] != footer[10..12]
-        || footer[20..22] != [0; 2]
-        || count > MAX_FILES + 1
-        || directory_start.checked_add(directory_size) != Some(end)
-    {
-        return Err(invalid());
-    }
-    let mut archive = zip::ZipArchive::new(Cursor::new(payload)).map_err(|_| invalid())?;
-    // zip indexes by name and otherwise hides repeated central-directory names.
-    if archive.len() != count
-        || archive.offset() != 0
-        || archive.central_directory_start() != directory_start as u64
-    {
-        return Err(invalid());
-    }
+    let entries = archive::decode(
+        payload,
+        Limits {
+            entries: MAX_FILES + 1,
+            file_bytes: MAX_FILE_BYTES,
+            content_bytes: MAX_TREE_BYTES,
+            archive_bytes: MAX_TREE_BYTES + 4 * 1024 * 1024,
+        },
+    )?;
     let mut members = BTreeMap::new();
-    let mut names = BTreeSet::new();
-    let mut total: u64 = 0;
-    for index in 0..archive.len() {
-        let file = archive.by_index(index).map_err(|_| invalid())?;
-        let path = file.name().to_owned();
-        let mode = file.unix_mode().ok_or_else(invalid)?;
-        total = total.checked_add(file.size()).ok_or_else(invalid)?;
-        if !safe_path(&path)
-            || !names.insert(unicase::UniCase::new(path.clone()))
-            || file.compression() != zip::CompressionMethod::Stored
-            || file.encrypted()
-            || file.is_dir()
-            || mode & 0o170000 != 0o100000
-            || !matches!(mode & 0o7777, 0o644 | 0o755)
-            || file.size() > MAX_FILE_BYTES as u64
-            || total > MAX_TREE_BYTES as u64
-        {
+    for entry in entries {
+        if entry.kind != Kind::File || !matches!(entry.mode, 0o644 | 0o755) {
             return Err(invalid());
         }
-        let size = file.size();
-        let mut bytes = Vec::new();
-        file.take(MAX_FILE_BYTES as u64 + 1)
-            .read_to_end(&mut bytes)
-            .map_err(|_| invalid())?;
-        if bytes.len() as u64 != size {
-            return Err(invalid());
-        }
-        members.insert(path, (bytes, mode & 0o777));
+        members.insert(
+            entry.path.into_owned(),
+            (entry.bytes.into_owned(), entry.mode),
+        );
     }
     let (manifest, mode) = members.remove("component.json").ok_or_else(invalid)?;
     let document = canonical::parse(&manifest)?;
