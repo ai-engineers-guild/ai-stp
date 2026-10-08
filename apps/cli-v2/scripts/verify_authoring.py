@@ -12,6 +12,8 @@ from contextlib import closing
 from pathlib import Path
 from typing import Any
 
+from verify_context import prove as prove_context
+
 from ai_stp_contracts.cli.components import (
     ComponentPassportValidation,
     ComponentQualityReport,
@@ -169,6 +171,7 @@ def prove(binary: Path, home: Path, temporary: Path, run: Runner) -> None:
             assert connection.execute(f"SELECT count(*) FROM {table}").fetchone()[0] == 0
     skill.write_text(content, encoding="utf-8")
     component = apply(planned, "binding")
+    prove_context(root, state, invoke, apply)
     owner = identity["plan"]["account_id"]
     assert component["owner_id"] == owner
     component_id = component["stable_id"]

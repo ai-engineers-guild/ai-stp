@@ -12,7 +12,8 @@ use crate::{
     error::{ErrorKind, Failure, Result},
     files, identity,
     objects::Objects,
-    passport, projects,
+    passport::{self, developer},
+    projects,
     store::Store,
 };
 
@@ -128,6 +129,7 @@ pub fn apply(path: &Path, expected_digest: &str) -> Result<Value> {
         "component.fork" => execute(plan, forks::apply),
         "component.forget" => execute(plan, lifecycle::apply),
         "project.passport.record" => execute(plan, projects::passports::apply),
+        "passport.developer.record" => execute(plan, developer::apply),
         "setup.compose" => execute(plan, setups::apply),
         "setup.fork" | "setup.recast" => execute(plan, setups::copies::apply),
         _ => Err(Failure::input(

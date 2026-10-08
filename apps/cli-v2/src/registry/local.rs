@@ -13,13 +13,17 @@ use crate::{
     },
     canonical,
     error::{Failure, Result},
-    files, projects,
+    files,
+    passport::developer,
+    projects,
     provider::Info,
     store::{Store, versions::Increment},
 };
 
 #[derive(Clone, Copy)]
 pub(super) enum Handler {
+    DeveloperInitialize,
+    DeveloperUpdate,
     Validate,
     Quality,
     ProjectPassport,
@@ -127,6 +131,27 @@ const PROVIDERS: Parameter = Parameter {
 };
 
 pub(super) const COMMANDS: &[Declaration] = &[
+    Declaration {
+        path: &["passport", "developer", "initialize", "plan"],
+        summary: "Plan a private developer context or retain its exact current revision without inferring preferences.",
+        parameters: &[STATE_DIR],
+        handler: super::Handler::Local(Handler::DeveloperInitialize),
+    },
+    Declaration {
+        path: &["passport", "developer", "update", "plan"],
+        summary: "Plan explicit developer preferences against the exact current revision; environment and authority fields refuse.",
+        parameters: &[
+            STATE_DIR,
+            REVISION,
+            Parameter {
+                name: "patch",
+                summary: "Closed JSON declarations up to 16 KiB: role/autonomy strings and typical_tasks/priorities/preferred_languages/preferred_harnesses arrays.",
+                kind: ParameterType::Path,
+                required: true,
+            },
+        ],
+        handler: super::Handler::Local(Handler::DeveloperUpdate),
+    },
     Declaration {
         path: &["component", "passport", "validate"],
         summary: "Check local publication structure and retained native bytes without releasing or publishing.",
@@ -397,11 +422,17 @@ pub(super) const COMMANDS: &[Declaration] = &[
     },
     Declaration {
         path: &["local", "passport", "show"],
-        summary: "Read the verified current component, setup or project passport from explicit preview state without credentials.",
+        summary: "Read one verified current passport by exact kind and ID from preview state without credentials.",
         parameters: &[
             STATE_DIR,
             Parameter {
-                kind: ParameterType::Choice(&["component", "setup", "project"]),
+                kind: ParameterType::Choice(&[
+                    "component",
+                    "setup",
+                    "project",
+                    "developer",
+                    "device",
+                ]),
                 summary: "Local object kind.",
                 ..KIND
             },
@@ -456,6 +487,18 @@ fn providers(args: &ArgMatches) -> Result<Vec<Info>> {
 
 pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
     match handler {
+        Handler::DeveloperInitialize | Handler::DeveloperUpdate => {
+            let update = matches!(handler, Handler::DeveloperUpdate);
+            let patch = update
+                .then(|| developer::Patch::read(path(args, "patch")?))
+                .transpose()?;
+            let expected = update
+                .then(|| text(args, "expected-revision"))
+                .transpose()?;
+            runtime::plan(path(args, "state-dir")?, |store, identity, at| {
+                developer::plan(store, expected, patch, identity, at)
+            })
+        }
         Handler::Validate | Handler::Quality => {
             let providers = providers(args)?;
             let mut store = Store::planning(path(args, "state-dir")?)?;

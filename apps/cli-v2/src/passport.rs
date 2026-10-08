@@ -1,5 +1,6 @@
 //! Passport shape, identity and content addressing at the native boundary.
 
+pub mod developer;
 pub(crate) mod markdown;
 pub mod versions;
 
