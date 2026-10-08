@@ -55,9 +55,20 @@ descriptor. It creates no boilerplate README, evaluation report, duplicate
 projection or Git repository. Every program has one runnable entry point and
 exits unsuccessfully with an explicit draft message until implemented. Descriptions
 carry the existing draft marker, so an unedited scaffold cannot be released.
-Removing that description marker does not prove source readiness; identifying
-unchanged generated stubs in authoring-project checks remains pending. Harness-specific scaffolds and hook/MCP/plugin generation remain pending;
+Release also refuses the reserved scaffold marker in newly compiled source.
+Harness-specific scaffolds and hook/MCP/plugin generation remain pending;
 the preview does not advertise the old generators' unsupported semantics.
+
+`component source inspect` captures one explicit `/7` authoring project using the
+bounded Git/regular-file source reader. It validates the generator-owned descriptor
+and closed passport patch, checks up to 64 distinct portable source entry paths,
+and reports absent, empty or non-UTF-8 entries and remaining scaffold markers.
+Ordinary TODOs and literal Markdown code examples are allowed. Only `source/`
+members become source content; passport, descriptor and project notes contribute
+to the complete snapshot digest but are never projected into the harness.
+The report contains source digests, modes and sizes, without source bytes or code
+execution. `source_ready` is a structural result; publication remains unassessed.
+Older scaffold generations must be explicitly migrated before using this reader.
 
 Planning writes nothing and binds the resolved parent directory's physical
 identity and lossless output path. Applying requires the exact plan digest,

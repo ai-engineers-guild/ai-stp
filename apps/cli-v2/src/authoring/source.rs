@@ -351,6 +351,23 @@ pub fn capture(path: &Path) -> Result<Captured> {
     capture_open(&directory, name, &absolute)
 }
 
+/// Authoring projects own metadata above source/, so no native manifest is implied.
+pub(super) fn project(root: &Path) -> Result<Vec<Member>> {
+    let metadata = root.symlink_metadata().map_err(|_| invalid())?;
+    if !metadata.is_dir() || metadata.file_type().is_symlink() {
+        return Err(invalid());
+    }
+    let root = root.canonicalize().map_err(|_| invalid())?;
+    if root.parent().is_none()
+        || files::home()
+            .and_then(|home| home.canonicalize().ok())
+            .is_some_and(|home| home == root)
+    {
+        return Err(invalid());
+    }
+    tree(&root, &open_directory(&root)?, false)
+}
+
 /// Capture a catalog-selected source without following any layout ancestor link.
 pub fn capture_scoped(root: &Path, relative: &str) -> Result<Captured> {
     check_name(relative)?;

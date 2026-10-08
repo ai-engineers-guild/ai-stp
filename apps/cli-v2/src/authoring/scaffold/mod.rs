@@ -112,7 +112,7 @@ fn encoded(value: serde_json::Value) -> Result<String> {
     String::from_utf8(canonical::bytes(&value)?).map_err(|_| invalid())
 }
 
-fn render(request: &Request) -> Result<BTreeMap<String, String>> {
+pub(super) fn render(request: &Request) -> Result<BTreeMap<String, String>> {
     let Request {
         name,
         component_type: kind,

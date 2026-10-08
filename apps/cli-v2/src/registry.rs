@@ -4,7 +4,7 @@ use clap::{Arg, ArgAction, ArgMatches, Command, builder::ValueParser};
 use serde_json::{Value, json};
 
 use crate::{
-    authoring::{scaffold, templates},
+    authoring::{scaffold, source_project, templates},
     catalog, config, digest, environment,
     error::{ErrorKind, Failure, Result},
     projects, selection, snapshot,
@@ -31,6 +31,7 @@ enum Handler {
     TemplateRender,
     ScaffoldPlan,
     ScaffoldApply,
+    SourceInspect,
 }
 
 #[derive(Clone, Copy)]
@@ -202,6 +203,12 @@ const COMMANDS: &[Declaration] = &[
             },
         ],
         handler: Handler::ScaffoldPlan,
+    },
+    Declaration {
+        path: &["component", "source", "inspect"],
+        summary: "Inspect exact portable source bytes and unresolved scaffold fields without executing code.",
+        parameters: &[ROOT],
+        handler: Handler::SourceInspect,
     },
     Declaration {
         path: &["component", "template", "render"],
@@ -595,6 +602,10 @@ pub fn dispatch(matches: &ArgMatches) -> Result<Value> {
             )?,
             leaf.get_one::<String>("plan-digest")
                 .ok_or_else(|| Failure::input("plan digest is required"))?,
+        ),
+        Handler::SourceInspect => source_project::inspect(
+            leaf.get_one::<std::path::PathBuf>("root")
+                .ok_or_else(|| Failure::input("source root is required"))?,
         ),
         Handler::Config => config::show(
             leaf.get_one::<std::path::PathBuf>("config")

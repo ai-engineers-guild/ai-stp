@@ -6,6 +6,7 @@ use rusqlite::{Connection, Transaction};
 use serde_json::{Value, json};
 
 use super::contribution::{self, Format};
+use super::source_project;
 use crate::{
     artifacts::{self, Member},
     digest,
@@ -101,7 +102,8 @@ pub(super) fn compile(
     // Presence commits the draft to its complete graph. Invalid complete data must
     // never fall through to a reconstruction from one harness's flat facts.
     if document.get("adaptations").is_some() {
-        if text(&document, "description")?.contains("TODO(ai-stp-scaffold)") {
+        if source_project::unfinished("description.md", text(&document, "description")?.as_bytes())
+        {
             return Err(invalid());
         }
         let document = revisions::seal(&document)?;
@@ -122,7 +124,7 @@ pub(super) fn compile(
             return Err(invalid());
         }
     }
-    if text(&values, "description")?.contains("TODO(ai-stp-scaffold)") {
+    if source_project::unfinished("description.md", text(&values, "description")?.as_bytes()) {
         return Err(invalid());
     }
     let sources = match values.get("adaptation_contents") {
@@ -330,6 +332,15 @@ fn freeze(
         } else {
             format!("{}/{}", paths[0], file.path)
         };
+        if source_project::unfinished(&file.path, &file.bytes) {
+            return Err(Failure::precondition(
+                "the source still contains an unfinished scaffold marker",
+            )
+            .with_details([
+                ("constraint".into(), "scaffold_marker".into()),
+                ("path".into(), file.path.clone().into()),
+            ]));
+        }
     }
     if route.shape == Shape::File && !files.iter().any(|file| file.path == route.relative) {
         return Err(invalid());

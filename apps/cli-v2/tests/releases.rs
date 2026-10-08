@@ -147,6 +147,31 @@ fn native_release_preserves_owned_bytes_graphs_and_atomic_history() -> Result<()
             AT,
         )?;
         let mut draft = passports::apply(&mut store, &edit, &edit.digest()?, &identity, AT)?;
+        if harness == "claude-code" {
+            // A finished passport description cannot turn an unedited source stub into a release.
+            fs::write(
+                &path,
+                br#"{"hooks":{"PreToolUse":[{"hooks":[{"type":"command","command":"TODO(ai-stp-scaffold): implement the handler"}]}]}}"#,
+            )?;
+            let unfinished = adopt(&mut store, &root, harness, kind, &identity)?;
+            let before = counts(&mut store)?;
+            let refusal = releases::plan(
+                &mut store,
+                field(&unfinished, "stable_id")?,
+                field(&unfinished, "revision_id")?,
+                Increment::Minor,
+                &providers,
+                identity.clone(),
+                AT,
+            )
+            .err()
+            .ok_or("unfinished source released")?;
+            assert_eq!(refusal.details["constraint"], "scaffold_marker");
+            assert_eq!(refusal.details["path"], "settings.json");
+            assert_eq!(counts(&mut store)?, before);
+            fs::write(&path, bytes)?;
+            draft = adopt(&mut store, &root, harness, kind, &identity)?;
+        }
         if harness == "cursor" {
             // The released provider owns hooks.json but not the hooks/ sibling.
             // Capture keeps helper bytes; release must refuse, never drop them.

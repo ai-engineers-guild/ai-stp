@@ -297,6 +297,23 @@ def prove_scaffold(binary: Path, home: Path, root: Path) -> None:
         assert not (output / ".git").exists()
         assert not (output / "eval-profile.json").exists()
         assert not list(folder.glob(".ai-stp-scaffold-*"))
+        inspect = ["component", "source", "inspect", "--root", str(output)]
+        captured = run(binary, home, inspect)["data"]
+        assert captured["source_ready"] is False
+        assert captured["execution"] == "not_run" and captured["publication"] == "not_assessed"
+        assert {item["code"] for item in captured["issues"]} == {
+            "description_incomplete",
+            "scaffold_marker",
+        }
+        assert len(captured["files"]) == 1
+        patch = json.loads((output / "component-passport.json").read_bytes())
+        patch["description"] = "A bounded implementation for local review."
+        (output / "component-passport.json").write_text(json.dumps(patch), encoding="utf-8")
+        described = run(binary, home, inspect)["data"]
+        assert described["source_ready"] is False
+        assert described["source_digest"] == captured["source_digest"]
+        assert described["snapshot_digest"] != captured["snapshot_digest"]
+        assert [item["code"] for item in described["issues"]] == ["scaffold_marker"]
     assert not list(home.iterdir())
 
 

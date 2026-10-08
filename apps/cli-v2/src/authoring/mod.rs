@@ -10,6 +10,7 @@ pub mod releases;
 pub mod scaffold;
 pub mod setups;
 pub mod source;
+pub mod source_project;
 pub mod templates;
 
 use serde::{Deserialize, Serialize};
