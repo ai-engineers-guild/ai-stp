@@ -315,7 +315,7 @@ fn describe(
         byte_length: metadata.is_file().then_some(metadata.len()),
         holds_secret,
         reason: if holds_secret {
-            "named as a credential file; its content is never read"
+            "credential-named file; discovery never reads its content"
         } else {
             "found where this harness declares this kind lives"
         },

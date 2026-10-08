@@ -188,8 +188,16 @@ No URL is fetched and no environment reference is resolved.
 The data-only readers retain the existing size, depth and node bounds.
 
 This does not validate transport execution
-or grant credential access; named secret files, including `.mcp.json`, remain
-refused before capture.
+or grant credential access. Generic file/tree capture still refuses credential-named
+files. Explicit Claude project MCP adoption alone can read the discovered
+`.mcp.json` through a fixed-filename reader with the same no-link, hard-link,
+size and file-stability checks. Its only root key must be `mcpServers`; unrelated
+host metadata is refused rather than retained or silently removed. Native names
+and credential checks run before persistence, and apply rereads the same source.
+Discovery still reports its credential-bearing filename without reading values.
+Accepted bytes and external references remain exact. Capturing this source
+does not add a provider route or authorize a native MCP connection. Global
+`~/.claude.json` capture remains outside the declared discovery surface.
 
 Local Claude Code agent identifiers come from required `name`/`description`
 frontmatter, not the filename. Invalid local names or absent/ambiguous headers

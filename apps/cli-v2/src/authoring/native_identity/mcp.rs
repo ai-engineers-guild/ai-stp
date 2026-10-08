@@ -295,6 +295,15 @@ pub(super) fn names(
         let CstInputValue::Object(root) = &parsed else {
             return Err(invalid());
         };
+        if harness == "claude-code"
+            && path == ".mcp.json"
+            && declared_key.is_empty()
+            && root.iter().any(|(name, _)| name != expected)
+        {
+            return Err(Failure::precondition(
+                "project .mcp.json capture requires only the mcpServers root key",
+            ));
+        }
         if declared_key.is_empty() {
             for (name, value) in root.iter().filter(|(name, _)| name != expected) {
                 guard.json(value, name, guard.field("host", name, Field::Plain), 1)?;

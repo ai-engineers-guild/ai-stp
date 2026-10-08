@@ -305,11 +305,9 @@ fn native_identity_journey(identity: &Identity, at: &str) -> Result<(), Box<dyn 
         fs::write(&file, content)?;
         let selected = selected(&native, harness, scope, "mcp")?;
         if harness == "claude-code" {
-            // Credential-named .mcp.json remains unreadable to source adoption.
-            let before = counts(&mut store)?;
-            assert!(adoption::plan(&mut store, selected, identity.clone(), at).is_err());
-            assert_eq!(counts(&mut store)?, before);
-            continue;
+            // Only the explicit MCP path gets guarded capture, never generic reads.
+            assert!(ai_stp_cli_v2::authoring::source::capture(&file).is_err());
+            assert!(ai_stp_cli_v2::authoring::source::capture_scoped(&native, name).is_err());
         }
         let plan = adoption::plan(&mut store, selected, identity.clone(), at)?;
         assert_eq!(
@@ -323,6 +321,24 @@ fn native_identity_journey(identity: &Identity, at: &str) -> Result<(), Box<dyn 
             plan.passport["facts"]["native_ids"]
         );
         assert_eq!(fs::read_to_string(file)?, content);
+    }
+    let project = root.path().join("claude-code");
+    let selected_mcp = selected(&project, "claude-code", Scope::Project, "mcp")?;
+    let mcp_path = project.join(".mcp.json");
+    let before = counts(&mut store)?;
+    let alias = project.join("mcp-alias");
+    fs::hard_link(&mcp_path, &alias)?;
+    assert!(adoption::plan(&mut store, selected_mcp.clone(), identity.clone(), at).is_err());
+    assert_eq!(counts(&mut store)?, before);
+    fs::remove_file(&alias)?;
+    #[cfg(unix)]
+    {
+        fs::rename(&mcp_path, &alias)?;
+        std::os::unix::fs::symlink(&alias, &mcp_path)?;
+        assert!(adoption::plan(&mut store, selected_mcp, identity.clone(), at).is_err());
+        assert_eq!(counts(&mut store)?, before);
+        fs::remove_file(&mcp_path)?;
+        fs::rename(&alias, &mcp_path)?;
     }
     for (kind, path, body, names) in [
         (
@@ -502,6 +518,21 @@ fn native_identity_journey(identity: &Identity, at: &str) -> Result<(), Box<dyn 
     }
     for (harness, name, content) in [
         (
+            "claude-code",
+            ".mcp.json",
+            r#"{"mcpServers":{"review":{"command":"server","env":{"API_TOKEN":"synthetic-sensitive-value"}}}}"#,
+        ),
+        (
+            "claude-code",
+            ".mcp.json",
+            r#"{"personal_note":"synthetic-sensitive-value","mcpServers":{"review":{"command":"server"}}}"#,
+        ),
+        (
+            "claude-code",
+            ".mcp.json",
+            r#"{"mcpServers":{"review":{"command":"server"}},"mcpServers":{}}"#,
+        ),
+        (
             "cursor",
             "mcp.json",
             r#"{"mcpServers":{"review":{"command":"server","env":{"GITHUB_TOKEN":"synthetic-sensitive-value"}}}}"#,
@@ -606,7 +637,12 @@ fn native_identity_journey(identity: &Identity, at: &str) -> Result<(), Box<dyn 
         let file = native.join(name);
         fs::create_dir_all(file.parent().ok_or("parent")?)?;
         fs::write(&file, content)?;
-        let selected = selected(&native, harness, Scope::Global, "mcp")?;
+        let scope = if harness == "claude-code" {
+            Scope::Project
+        } else {
+            Scope::Global
+        };
+        let selected = selected(&native, harness, scope, "mcp")?;
         let before = counts(&mut store)?;
         let result = adoption::plan(&mut store, selected, identity.clone(), at);
         assert!(
@@ -624,6 +660,12 @@ fn native_identity_journey(identity: &Identity, at: &str) -> Result<(), Box<dyn 
         assert_eq!(fs::read_to_string(file)?, content);
     }
     for (harness, name, key, content) in [
+        (
+            "claude-code",
+            ".mcp.json",
+            "",
+            r#"{"mcpServers":{"review":{"type":"http","url":"https://example.invalid/mcp","headers":{"Authorization":"Bearer ${REVIEW_TOKEN}"}}}}"#,
+        ),
         (
             "cursor",
             "mcp.json",
@@ -655,7 +697,16 @@ fn native_identity_journey(identity: &Identity, at: &str) -> Result<(), Box<dyn 
         fs::write(&file, content)?;
         let plan = adoption::plan(
             &mut store,
-            selected(&native, harness, Scope::Global, "mcp")?,
+            selected(
+                &native,
+                harness,
+                if harness == "claude-code" {
+                    Scope::Project
+                } else {
+                    Scope::Global
+                },
+                "mcp",
+            )?,
             identity.clone(),
             at,
         )?;

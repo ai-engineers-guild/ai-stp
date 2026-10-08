@@ -124,13 +124,21 @@ pub(super) fn prepare_for(request: &Source, harness: &str) -> Result<Prepared> {
             "only shared skills can select a destination harness",
         ));
     }
-    if candidate.holds_secret {
+    let project_mcp = candidate.harness_id == "claude-code"
+        && candidate.component_type == "mcp"
+        && candidate.scope == Scope::Project
+        && request.root_kind == Root::Config
+        && candidate.native_path == ".mcp.json"
+        && candidate.declared_key.is_empty();
+    if candidate.holds_secret && !project_mcp {
         return Err(Failure::precondition(
             "credential-named sources cannot be adopted",
         ));
     }
     native_identity::check_source_context(harness, &candidate, &request.root)?;
-    let mut content = if native_identity::has_markdown_entries(harness, &candidate.component_type) {
+    let mut content = if project_mcp {
+        source::capture_claude_mcp(&request.root)?
+    } else if native_identity::has_markdown_entries(harness, &candidate.component_type) {
         source::capture_native_entries(&request.root, &candidate.native_path)?
     } else {
         source::capture_scoped(&request.root, &candidate.native_path)?

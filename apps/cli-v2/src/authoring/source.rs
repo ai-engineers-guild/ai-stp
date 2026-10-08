@@ -159,6 +159,12 @@ fn check_name(path: &str) -> Result<()> {
 
 fn read(directory: &Dir, path: &str) -> Result<Member> {
     check_name(path)?;
+    read_member(directory, path)
+}
+
+// Ordinary callers validate the path with check_name. The guarded Claude MCP
+// reader is the sole exception and supplies a fixed single filename.
+fn read_member(directory: &Dir, path: &str) -> Result<Member> {
     // Walk every ancestor without following links, then inspect the actual file.
     let mut directory = directory.try_clone().map_err(|_| invalid())?;
     let mut parts = path.split('/').peekable();
@@ -373,6 +379,24 @@ pub fn capture_scoped(root: &Path, relative: &str) -> Result<Captured> {
     capture_scoped_with(root, relative, true)
 }
 
+/// A discovered project MCP file is read only for subsequent data-only validation.
+/// This exception never applies to generic file/tree capture or another filename.
+pub(super) fn capture_claude_mcp(root: &Path) -> Result<Captured> {
+    let metadata = root.symlink_metadata().map_err(|_| invalid())?;
+    if !metadata.is_dir() || metadata.file_type().is_symlink() {
+        return Err(invalid());
+    }
+    let root = root.canonicalize().map_err(|_| invalid())?;
+    let directory = open_directory(&root)?;
+    let member = file_member(&directory, ".mcp.json", &root.join(".mcp.json"))?;
+    same_directory(&root, &directory)?;
+    Ok(Captured {
+        format: artifacts::FILE_FORMAT,
+        bytes: member.bytes,
+        file_mode: Some(member.mode),
+    })
+}
+
 /// A declared native Markdown directory is defined by its executable entries.
 /// The caller must validate those names before storing the bounded capture.
 pub(super) fn capture_native_entries(root: &Path, relative: &str) -> Result<Captured> {
@@ -463,16 +487,7 @@ fn capture_open(
     if !metadata.is_file() {
         return Err(invalid());
     }
-    let mut member = read(directory, name)?;
-    if cfg!(windows)
-        && let Some(mode) = git_members(absolute.parent().ok_or_else(invalid)?, Some(name))?
-            .into_iter()
-            .flatten()
-            .find(|(path, _)| path == name)
-            .and_then(|(_, mode)| mode)
-    {
-        member.mode = mode;
-    }
+    let member = file_member(directory, name, absolute)?;
     if name == "hooks.json" {
         match directory.symlink_metadata("hooks") {
             Ok(metadata) if metadata.is_dir() && !metadata.file_type().is_symlink() => {
@@ -505,4 +520,18 @@ fn capture_open(
         bytes: member.bytes,
         file_mode: Some(member.mode),
     })
+}
+
+fn file_member(directory: &Dir, name: &str, absolute: &Path) -> Result<Member> {
+    let mut member = read_member(directory, name)?;
+    if cfg!(windows)
+        && let Some(mode) = git_members(absolute.parent().ok_or_else(invalid)?, Some(name))?
+            .into_iter()
+            .flatten()
+            .find(|(path, _)| path == name)
+            .and_then(|(_, mode)| mode)
+    {
+        member.mode = mode;
+    }
+    Ok(member)
 }
