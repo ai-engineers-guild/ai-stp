@@ -14,7 +14,7 @@ use ai_stp_cli_v2::{
         revisions::{self, Write},
     },
 };
-use serde_json::json;
+use serde_json::{Value, json};
 
 fn source(root: &Path) -> Result<Source, Box<dyn Error>> {
     selected(root, "codex", Scope::Global, "mcp")
@@ -321,6 +321,37 @@ fn native_identity_journey(identity: &Identity, at: &str) -> Result<(), Box<dyn 
             plan.passport["facts"]["native_ids"]
         );
         assert_eq!(fs::read_to_string(file)?, content);
+    }
+    // The real loader's transport metadata, without starting a server or model.
+    let transports: Vec<Value> =
+        serde_json::from_str(include_str!("fixtures/claude-native-mcp.json"))?;
+    for row in transports {
+        let id = row["id"].as_str().ok_or("fixture id")?;
+        let native = root.path().join(format!("claude-mcp-{id}"));
+        fs::create_dir(&native)?;
+        let file = native.join(".mcp.json");
+        let bytes = serde_json::to_vec(&json!({"mcpServers":{"review":row["server"]}}))?;
+        fs::write(&file, &bytes)?;
+        let before = counts(&mut store)?;
+        let result = adoption::plan(
+            &mut store,
+            selected(&native, "claude-code", Scope::Project, "mcp")?,
+            identity.clone(),
+            at,
+        );
+        assert_eq!(result.is_ok(), row["accepted"] == true, "Claude MCP {id}");
+        match result {
+            Ok(plan) => {
+                assert_eq!(row["native_loaded"], true);
+                assert_eq!(
+                    plan.passport["facts"]["native_ids"]["value"],
+                    json!(["review"])
+                );
+            }
+            Err(error) => assert_eq!(error.details["constraint"], "native_mcp_transport"),
+        }
+        assert_eq!(counts(&mut store)?, before);
+        assert_eq!(fs::read(&file)?, bytes);
     }
     let project = root.path().join("claude-code");
     let selected_mcp = selected(&project, "claude-code", Scope::Project, "mcp")?;

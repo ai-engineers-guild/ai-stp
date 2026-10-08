@@ -208,6 +208,21 @@ entry. Provider profile support remains a separate requirement; these rules do
 not invent a missing route. The generic owned-contribution bundle proof uses
 Cursor's declared `mcp.json` surface.
 
+Claude's MCP reader also checks transport shape before accepting a native ID:
+stdio requires a nonblank command and optional string arguments/environment;
+HTTP (including `streamable-http`), SSE and WebSocket require a nonblank URL
+and correctly typed headers/helper fields. HTTP/SSE OAuth metadata retains its
+string fields, HTTPS metadata URL and integral TCP callback port. Unknown/SDK
+transport types and invalid known fields refuse with `native_mcp_transport`.
+Unknown fields retain their bytes and still pass through credential checks;
+fields belonging to another transport do not select or change the actual
+transport. The 55-case fixture records real Claude 2.1.294 loader results, including its
+case-sensitive `https://` metadata URL spelling before URL normalization.
+The preview additionally refuses whitespace-only commands, empty URLs and ports
+above 65535 even where that loader accepts them. Loading metadata does not prove
+endpoint validity, executable availability, authentication or connectivity;
+those remain runtime checks. No server, header helper or OAuth flow runs here.
+
 Local Claude Code agent identifiers come from required `name`/`description`
 frontmatter, not the filename. Invalid local names or absent/ambiguous headers
 refuse; plugin-specific fallback semantics do not apply to ordinary agent files.

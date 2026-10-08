@@ -1,5 +1,7 @@
 //! Observe MCP entries and reject credential literals and credential-bearing URLs.
 
+mod claude;
+
 use jsonc_parser::cst::CstInputValue;
 use toml_edit::{DocumentMut, Item, TableLike, Value};
 
@@ -330,10 +332,13 @@ pub(super) fn names(
             root
         };
         for (name, server) in entries {
-            if !matches!(server, CstInputValue::Object(_)) {
+            let CstInputValue::Object(fields) = server else {
                 return Err(invalid());
-            }
+            };
             guard.json(server, "", Field::Plain, 0)?;
+            if harness == "claude-code" {
+                claude::check(fields)?;
+            }
             names.push(name.to_owned());
         }
     }
