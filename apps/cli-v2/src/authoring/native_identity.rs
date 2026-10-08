@@ -42,7 +42,7 @@ pub(super) fn has_markdown_entries(harness: &str, kind: &str) -> bool {
     matches!(
         (harness, kind),
         ("claude-code" | "pi", "skill" | "command")
-            | ("antigravity", "agent")
+            | ("antigravity", "agent" | "skill")
             | ("opencode", "skill" | "command" | "agent")
             | ("codex" | "cursor" | "grok-build", "skill")
     )
@@ -55,6 +55,7 @@ fn markdown_entries<'a>(
 ) -> Result<Vec<String>> {
     match harness {
         "claude-code" => claude::invocations(kind, files),
+        "antigravity" if kind == "skill" => antigravity::skills(files),
         "antigravity" => antigravity::agents(files),
         "codex" => codex::skills(files),
         "cursor" => cursor::skills(files),
@@ -73,6 +74,7 @@ pub(crate) fn visible_entries<'a>(
     let names = match (harness, kind) {
         ("codex", "skill") => codex::visible(files)?,
         ("antigravity", "agent") => antigravity::visible(files)?,
+        ("antigravity", "skill") => antigravity::visible_skills(files)?,
         ("cursor", "skill") => cursor::visible(files)?,
         ("grok-build", _) => grok::visible(kind, files)?,
         ("pi", _) => pi::visible(kind, files)?,

@@ -1,4 +1,4 @@
-//! Markdown agent definitions observed in provider-pinned Antigravity 1.2.15.
+//! Markdown identities observed in provider-pinned Antigravity 1.2.15.
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -14,6 +14,73 @@ struct Agent {
     description: String,
     #[serde(flatten)]
     fields: BTreeMap<String, Value>,
+}
+
+#[derive(Default, Deserialize)]
+struct Skill {
+    name: Option<String>,
+    #[serde(rename = "description")]
+    _description: Option<String>,
+    #[serde(rename = "disable-model-invocation")]
+    _disable_model_invocation: Option<bool>,
+    #[serde(rename = "disable-slash-command")]
+    _disable_slash_command: Option<bool>,
+}
+
+fn skill_path(path: &str) -> Option<&str> {
+    let path = path.strip_prefix(".gemini/").unwrap_or(path);
+    ["config/skills/", ".agents/skills/", ".agent/skills/"]
+        .into_iter()
+        .find_map(|root| path.strip_prefix(root))
+}
+
+pub(super) fn skills<'a>(
+    files: impl IntoIterator<Item = (&'a str, &'a [u8])>,
+) -> Result<Vec<String>> {
+    let files: Vec<_> = files.into_iter().collect();
+    if files.iter().any(|(path, _)| skill_path(path).is_none()) {
+        return Err(invalid());
+    }
+    let names = visible_skills(files)?;
+    if names.is_empty() {
+        return Err(invalid());
+    }
+    Ok(names)
+}
+
+pub(super) fn visible_skills<'a>(
+    files: impl IntoIterator<Item = (&'a str, &'a [u8])>,
+) -> Result<Vec<String>> {
+    let mut names = BTreeSet::new();
+    for (path, bytes) in files {
+        let Some(relative) = skill_path(path) else {
+            continue;
+        };
+        // The pinned scanner visits immediate child directories only, including
+        // hidden and node_modules directories. Auxiliary Markdown is not a skill.
+        let Some((_, leaf)) = relative.split_once('/') else {
+            continue;
+        };
+        let Some(stem) = leaf.strip_suffix(".md") else {
+            continue;
+        };
+        if !stem.eq_ignore_ascii_case("skill") {
+            continue;
+        }
+        let skill: Option<Skill> = frontmatter::decode(bytes, frontmatter::Dialect::CoreMerged)?;
+        // The native fallback is the file stem, not the containing directory.
+        let name = skill
+            .unwrap_or_default()
+            .name
+            .filter(|name| !name.is_empty())
+            .unwrap_or_else(|| stem.into());
+        if !names.insert(name) {
+            return Err(
+                invalid().with_details([("constraint".into(), "native_id_collision".into())])
+            );
+        }
+    }
+    Ok(names.into_iter().collect())
 }
 
 fn local_path(path: &str) -> Option<&str> {

@@ -306,6 +306,27 @@ including files hidden in another logical kind. Native global `agy agents` inspe
 uses an isolated synthetic home without authentication or model turns; this checks
 metadata loading, not agent execution. See the native [agent format](https://antigravity.google/docs/subagents).
 
+Antigravity 1.2.15 skills load only immediate `<folder>/SKILL.md` entries under
+`config/skills` or project `.agents/skills` (including the `.agent` alias).
+Hidden and `node_modules` folders are included; root-level and deeper Markdown
+files are auxiliary. A nonempty `name` preserves its scalar spelling and spaces.
+An absent, null or empty name falls back to the filename stem (`SKILL` for
+`SKILL.md`), rather than the directory. The stem is case insensitive while the
+`.md` extension is case sensitive; fallback preserves the original stem spelling.
+Description is optional. Invocation flags must be Boolean
+or null; they retain native meaning without changing identity. Duplicate names
+refuse, including collisions between otherwise valid components.
+
+These rules were checked against the pinned binary's local `GetAllSkills`
+metadata endpoint in an isolated synthetic home with network access disabled,
+an ephemeral local transport token and no account credentials or model turns.
+The current [skill documentation](https://antigravity.google/docs/skills)
+describes a folder fallback and required description; this reader follows the
+observed pinned loader. It requires exact frontmatter delimiters without a BOM
+and valid bounded YAML, refusing native repair heuristics. Release, retained
+reuse and whole-bundle inventory recheck identities from the captured bytes.
+Plugin namespaces and external target context remain separate checks.
+
 Grok Build 1.0.49 local skills use a normalized frontmatter name, falling back to
 its containing directory when the name is absent or invalid. Normalization uses
 ASCII lowercase letters/digits and single hyphens, with a 64-byte limit. Integer

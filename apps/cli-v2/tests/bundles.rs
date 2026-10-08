@@ -111,6 +111,9 @@ fn component(
         } else {
             stem.replace('/', ":")
         }])
+    } else if kind == "skill" && harness == "antigravity" && !file.bytes.starts_with(b"---\nname:")
+    {
+        json!(["SKILL"])
     } else if kind == "skill" {
         json!([file.path.rsplit('/').nth(1).ok_or("skill folder missing")?])
     } else {
@@ -287,13 +290,13 @@ fn entry_inventory(
     store: &mut Store,
     declarations: &[Value],
     harness: &str,
+    agent: bool,
 ) -> Result<(), Box<dyn Error>> {
     let declaration = declarations
         .iter()
         .find(|value| value["harness_id"] == harness)
         .ok_or("skill provider missing")?;
     let provider = Info::parse(&serde_json::to_vec(declaration)?)?;
-    let agent = harness == "antigravity";
     let scope = if matches!(harness, "grok-build" | "antigravity") {
         Scope::Global
     } else {
@@ -307,6 +310,8 @@ fn entry_inventory(
         File {
             path: if agent {
                 "config/agents/review.md"
+            } else if harness == "antigravity" {
+                "config/skills/review/SKILL.md"
             } else {
                 "skills/review/SKILL.md"
             }
@@ -332,6 +337,8 @@ fn entry_inventory(
     rejects_fabricated_ids(store, &skill, &built, &target, &provider, &Hosts::new())?;
     for path in std::iter::once(if agent {
         "config/agents/extra.md"
+    } else if harness == "antigravity" {
+        "config/skills/extra/SKILL.md"
     } else {
         "skills/extra/SKILL.md"
     })
@@ -386,6 +393,27 @@ fn entry_inventory(
             refusal.details.get("constraint"),
             Some(&json!("native_visibility_mismatch")),
             "{refusal:?}"
+        );
+    }
+    if harness == "antigravity" && !agent {
+        let duplicate = component(
+            store,
+            &provider,
+            scope,
+            File {
+                path: "config/skills/another-folder/SKILL.md".into(),
+                bytes: b"---\ndescription: Another skill.\n---\nInspect.\n".to_vec(),
+                mode: 0o644,
+            },
+            None,
+        )?;
+        let (setup, evidence) = compose(store, harness, &[skill, duplicate])?;
+        assert!(
+            bundle::compile(store, &setup, &target, &evidence, &provider, &Hosts::new())
+                .err()
+                .ok_or("two fallback names were accepted")?
+                .message
+                .contains("native_id_collision")
         );
     }
     Ok(())
@@ -692,8 +720,14 @@ fn exact_bundles_cover_every_released_profile_and_refuse_unrepresentable_inputs(
         serde_json::from_str(include_str!("fixtures/provider-declarations.json"))?;
     opencode_namespaces(&mut store, &declarations)?;
     pi_namespaces(&mut store, &declarations)?;
-    for harness in ["codex", "cursor", "grok-build", "antigravity"] {
-        entry_inventory(&mut store, &declarations, harness)?;
+    for (harness, agent) in [
+        ("codex", false),
+        ("cursor", false),
+        ("grok-build", false),
+        ("antigravity", true),
+        ("antigravity", false),
+    ] {
+        entry_inventory(&mut store, &declarations, harness, agent)?;
     }
     let mut profiles = 0;
     for declaration in &declarations {

@@ -215,6 +215,10 @@ fn native_identity_journey(identity: &Identity, at: &str) -> Result<(), Box<dyn 
             include_str!("fixtures/antigravity-native-agents.json"),
         ),
         (
+            "antigravity",
+            include_str!("fixtures/antigravity-native-skills.json"),
+        ),
+        (
             "grok-build",
             include_str!("fixtures/grok-native-entries.json"),
         ),
@@ -236,19 +240,36 @@ fn native_identity_journey(identity: &Identity, at: &str) -> Result<(), Box<dyn 
                 fs::write(file, body.as_str().ok_or("native body missing")?)?;
             }
             let before = counts(&mut store)?;
+            let scope = if case["scope"] == "project" {
+                Scope::Project
+            } else {
+                Scope::Global
+            };
+            if case["discoverable"] == false {
+                let found = discovery::at(native.path(), harness, scope, Root::Config)?;
+                assert!(found.complete);
+                assert!(
+                    found
+                        .components
+                        .iter()
+                        .all(|item| item.component_type != case["kind"])
+                );
+                assert_eq!(counts(&mut store)?, before);
+                continue;
+            }
             let planned = adoption::plan(
                 &mut store,
                 selected(
                     native.path(),
                     harness,
-                    Scope::Global,
+                    scope,
                     case["kind"].as_str().ok_or("native kind missing")?,
                 )?,
                 identity.clone(),
                 at,
             );
             if case["adoptable"] == true {
-                let plan = planned?;
+                let plan = planned.map_err(|error| format!("{}: {error:?}", case["id"]))?;
                 assert_eq!(
                     plan.passport["facts"]["native_ids"]["value"], case["names"],
                     "{}",
