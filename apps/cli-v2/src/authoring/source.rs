@@ -373,9 +373,9 @@ pub fn capture_scoped(root: &Path, relative: &str) -> Result<Captured> {
     capture_scoped_with(root, relative, true)
 }
 
-/// A declared Claude command directory is defined by its Markdown entries.
+/// A declared native Markdown directory is defined by its executable entries.
 /// The caller must validate those names before storing the bounded capture.
-pub(super) fn capture_commands(root: &Path, relative: &str) -> Result<Captured> {
+pub(super) fn capture_native_entries(root: &Path, relative: &str) -> Result<Captured> {
     capture_scoped_with(root, relative, false)
 }
 

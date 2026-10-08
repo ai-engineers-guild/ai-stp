@@ -206,6 +206,20 @@ have separate spaces, so an agent and MCP server named `review` can coexist, whi
 a command colliding with either skill alias refuses. Explicit `commands` conflicts
 also cover skill aliases. Duplicate definitions inside one component refuse too.
 New compilation and retained-version verification use the same member check.
+
+OpenCode Markdown identities follow the provider-pinned 1.18.34 loader: skills
+require a string frontmatter `name`; description is optional and the directory
+does not add an alias. Commands and agents use the relative Markdown path without
+its extension, preserving nested `/`, unless frontmatter `name` overrides it.
+Category directories include all nested entries and preserve auxiliary files.
+Invalid metadata and duplicate definitions refuse before adoption writes state.
+Skills also become commands, so skills and commands share an invocation space;
+agent and MCP server names stay separate. Command exclusions cover skill names.
+Retained projections undergo the same byte-derived check.
+This proves identity handling, not complete upstream configuration validation or
+runtime compatibility across OpenCode versions. Built-in commands and dynamically
+discovered MCP prompts need runtime evidence before installation.
+
 Other harnesses retain conservative shared-name collision checks until their
 native semantics are verified. Remaining format/identity checks, Pi's executable
 MCP extension adapter and credential handling outside these named MCP fields
@@ -610,7 +624,7 @@ no async runtime or tracing feature is enabled for it.
 | `authoring/native_edit.rs` | Exact native adaptation replacement with complete scope preservation |
 | `authoring/setups/copies.rs` | Private exact setup forks and recasts with atomic lineage |
 | `authoring/setups/export.rs` | Exact review-tree export from query-only retained state |
-| `authoring/native_identity.rs`, `authoring/native_identity/` | Captured and projected MCP identities and Claude agent/invocation names |
+| `authoring/native_identity.rs`, `authoring/native_identity/` | Captured and projected MCP identities and Claude/OpenCode Markdown names |
 | `authoring/frontmatter.rs` | Shared bounded YAML header parsing without source execution |
 | `authoring/project_binding.rs` | Atomic portable project identity and complete adaptation refresh |
 | `authoring/runtime.rs` | Identity-bound local plans, closed operation dispatch and private registry reads |

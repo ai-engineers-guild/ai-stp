@@ -111,12 +111,14 @@ pub(super) fn prepare(request: &Source) -> Result<Prepared> {
             "credential-named sources cannot be adopted",
         ));
     }
-    let mut content =
-        if candidate.harness_id == "claude-code" && candidate.component_type == "command" {
-            source::capture_commands(&request.root, &candidate.native_path)?
-        } else {
-            source::capture_scoped(&request.root, &candidate.native_path)?
-        };
+    let mut content = if native_identity::has_markdown_entries(
+        &candidate.harness_id,
+        &candidate.component_type,
+    ) {
+        source::capture_native_entries(&request.root, &candidate.native_path)?
+    } else {
+        source::capture_scoped(&request.root, &candidate.native_path)?
+    };
     if !candidate.declared_key.is_empty() {
         content.bytes = contribution::extract(
             Format::for_path(&candidate.native_path)?,

@@ -82,13 +82,17 @@ fn component(
     let native_ids = if matches!(kind, "mcp" | "agent") {
         json!(["review"])
     } else if kind == "command" {
-        json!([file
+        let stem = file
             .path
             .strip_prefix("commands/")
             .ok_or("command root missing")?
             .strip_suffix(".md")
-            .ok_or("command suffix missing")?
-            .replace('/', ":")])
+            .ok_or("command suffix missing")?;
+        json!([if provider.document()["harness_id"] == "opencode" {
+            stem.to_owned()
+        } else {
+            stem.replace('/', ":")
+        }])
     } else if kind == "skill" {
         json!([file.path.rsplit('/').nth(1).ok_or("skill folder missing")?])
     } else {
@@ -261,6 +265,119 @@ fn export(name: &str, bundle: &bundle::Bundle) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
+fn opencode_namespaces(store: &mut Store, declarations: &[Value]) -> Result<(), Box<dyn Error>> {
+    let declaration = declarations
+        .iter()
+        .find(|value| value["harness_id"] == "opencode")
+        .ok_or("OpenCode missing")?;
+    let provider = Info::parse(&serde_json::to_vec(declaration)?)?;
+    let target = target("opencode", Scope::Global);
+    let mut members = Vec::new();
+    for (path, body, contribution) in [
+        (
+            "skills/inspect/SKILL.md",
+            "---\nname: inspect\n---\nInspect source.\n",
+            None,
+        ),
+        ("commands/review.md", "Review source.\n", None),
+        (
+            "agents/review.md",
+            "---\nmode: subagent\n---\nReview source.\n",
+            None,
+        ),
+        (
+            "opencode.json",
+            r#"{"review":{"type":"local","command":["review-tool"]}}"#,
+            Some("mcp"),
+        ),
+    ] {
+        members.push(component(
+            store,
+            &provider,
+            Scope::Global,
+            File {
+                path: path.into(),
+                bytes: body.as_bytes().to_vec(),
+                mode: 0o644,
+            },
+            contribution,
+        )?);
+    }
+    let hosts: Hosts = [(
+        "opencode.json".into(),
+        Some(br#"{"autoupdate":false}"#.to_vec()),
+    )]
+    .into();
+    let (setup, evidence) = compose(store, "opencode", &members)?;
+    let built = bundle::compile(store, &setup, &target, &evidence, &provider, &hosts)?;
+    export("opencode-entries", &built)?;
+    rejects_fabricated_ids(
+        store,
+        &members[0],
+        &built,
+        &target,
+        &provider,
+        &Hosts::new(),
+    )?;
+    // Skill invocations participate in explicit command exclusions too.
+    for declarer in [1, 0] {
+        let mut document = members[declarer].clone();
+        document["version"] = "3.0".into();
+        document["conflicts"]["commands"] = json!(["inspect"]);
+        let document = store
+            .transaction(|t| versions::record(t, &document, &identity().device_id, None, AT))?;
+        let mut selected = members.clone();
+        selected[declarer] = document;
+        let (setup, evidence) = compose(store, "opencode", &selected)?;
+        let result = bundle::compile(store, &setup, &target, &evidence, &provider, &hosts);
+        if declarer == 0 {
+            result?;
+        } else {
+            assert_eq!(
+                result.err().ok_or("command exclusion ignored")?.details["constraint"],
+                "declared_conflict"
+            );
+        }
+    }
+    let shadowing = component(
+        store,
+        &provider,
+        Scope::Global,
+        File {
+            path: "commands/inspect.md".into(),
+            bytes: b"Inspect source.\n".to_vec(),
+            mode: 0o644,
+        },
+        None,
+    )?;
+    let (setup, evidence) = compose(store, "opencode", &[members[0].clone(), shadowing])?;
+    assert!(
+        bundle::compile(store, &setup, &target, &evidence, &provider, &Hosts::new())
+            .err()
+            .ok_or("OpenCode command shadowed skill")?
+            .message
+            .contains("native_id_collision")
+    );
+    let duplicate = component(
+        store,
+        &provider,
+        Scope::Global,
+        File {
+            path: "agents/duplicate.md".into(),
+            bytes: b"---\nname: review\nmode: subagent\n---\nReview source.\n".to_vec(),
+            mode: 0o644,
+        },
+        None,
+    )?;
+    members.push(duplicate);
+    let (setup, evidence) = compose(store, "opencode", &members)?;
+    let refused = bundle::compile(store, &setup, &target, &evidence, &provider, &hosts)
+        .err()
+        .ok_or("duplicate OpenCode agent accepted")?;
+    assert!(refused.message.contains("native_id_collision"));
+    Ok(())
+}
+
 #[test]
 fn exact_bundles_cover_every_released_profile_and_refuse_unrepresentable_inputs()
 -> Result<(), Box<dyn Error>> {
@@ -268,6 +385,7 @@ fn exact_bundles_cover_every_released_profile_and_refuse_unrepresentable_inputs(
     let mut store = Store::open(root.path(), true)?;
     let declarations: Vec<Value> =
         serde_json::from_str(include_str!("fixtures/provider-declarations.json"))?;
+    opencode_namespaces(&mut store, &declarations)?;
     let mut profiles = 0;
     for declaration in &declarations {
         let provider = Info::parse(&serde_json::to_vec(declaration)?)?;
@@ -299,7 +417,11 @@ fn exact_bundles_cover_every_released_profile_and_refuse_unrepresentable_inputs(
                 scope,
                 File {
                     path,
-                    bytes: b"# Review\nInspect project conventions.\n".to_vec(),
+                    bytes: if skill.is_some() {
+                        b"---\nname: review\ndescription: Inspect project conventions.\n---\n# Review\nInspect project conventions.\n".to_vec()
+                    } else {
+                        b"# Review\nInspect project conventions.\n".to_vec()
+                    },
                     mode: 0o644,
                 },
                 None,

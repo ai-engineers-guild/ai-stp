@@ -2,6 +2,7 @@
 
 mod claude;
 mod mcp;
+mod opencode;
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -32,6 +33,25 @@ fn valid(names: &[String]) -> Result<()> {
     Ok(())
 }
 
+pub(super) fn has_markdown_entries(harness: &str, kind: &str) -> bool {
+    matches!(
+        (harness, kind),
+        ("claude-code", "skill" | "command") | ("opencode", "skill" | "command" | "agent")
+    )
+}
+
+fn markdown_entries<'a>(
+    harness: &str,
+    kind: &str,
+    files: impl IntoIterator<Item = (&'a str, &'a [u8])>,
+) -> Result<Vec<String>> {
+    match harness {
+        "claude-code" => claude::invocations(kind, files),
+        "opencode" => opencode::entries(kind, files),
+        _ => Err(invalid()),
+    }
+}
+
 pub(super) fn read(candidate: &Candidate, content: &Captured) -> Result<Vec<String>> {
     let file_name = candidate
         .absolute
@@ -42,10 +62,11 @@ pub(super) fn read(candidate: &Candidate, content: &Captured) -> Result<Vec<Stri
         candidate.component_type.as_str(),
         candidate.harness_id.as_str(),
     ) {
-        ("skill" | "command", "claude-code") => {
+        (kind, harness) if has_markdown_entries(harness, kind) => {
             if content.format == artifacts::FILE_FORMAT {
-                claude::invocations(
-                    &candidate.component_type,
+                markdown_entries(
+                    harness,
+                    kind,
                     [(candidate.native_path.as_str(), content.bytes.as_slice())],
                 )?
             } else if content.format == artifacts::TREE_FORMAT {
@@ -53,8 +74,9 @@ pub(super) fn read(candidate: &Candidate, content: &Captured) -> Result<Vec<Stri
                 for file in &mut files {
                     file.path = format!("{}/{}", candidate.native_path, file.path);
                 }
-                claude::invocations(
-                    &candidate.component_type,
+                markdown_entries(
+                    harness,
+                    kind,
                     files
                         .iter()
                         .map(|file| (file.path.as_str(), file.bytes.as_slice())),
@@ -136,8 +158,9 @@ pub(crate) fn verify_files(
     declarations: &[Value],
     files: &[artifacts::Member],
 ) -> Result<()> {
-    if harness == "claude-code" && matches!(kind, "skill" | "command") {
-        let expected = claude::invocations(
+    if has_markdown_entries(harness, kind) {
+        let expected = markdown_entries(
+            harness,
             kind,
             files
                 .iter()

@@ -3,6 +3,16 @@
 use crate::error::{Failure, Result};
 use serde_json::Value;
 
+pub(super) fn optional(bytes: &[u8]) -> Result<Value> {
+    let text = std::str::from_utf8(bytes)
+        .map_err(|_| Failure::precondition("the Markdown source must be UTF-8"))?;
+    if text.lines().next() == Some("---") {
+        required(bytes)
+    } else {
+        Ok(serde_json::json!({}))
+    }
+}
+
 pub(super) fn required(bytes: &[u8]) -> Result<Value> {
     let text = std::str::from_utf8(bytes)
         .map_err(|_| Failure::precondition("the Markdown source must be UTF-8"))?;

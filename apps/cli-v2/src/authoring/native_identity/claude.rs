@@ -42,21 +42,18 @@ fn skill(path: &str, bytes: &[u8]) -> Result<Option<BTreeSet<String>>> {
     if folder.eq_ignore_ascii_case("synced") || reserved(folder) {
         return Err(invalid());
     }
-    let body = std::str::from_utf8(bytes).map_err(|_| invalid())?;
     let mut names = BTreeSet::from([folder.to_owned()]);
-    if body.lines().next() == Some("---") {
-        let header = frontmatter::required(bytes)?;
-        if let Some(name) = header.get("name") {
-            let name = name.as_str().ok_or_else(invalid)?;
-            if name.is_empty()
-                || name.chars().any(char::is_whitespace)
-                || name.contains(['/', '\\'])
-                || reserved(name)
-            {
-                return Err(invalid());
-            }
-            names.insert(name.to_owned());
+    let header = frontmatter::optional(bytes)?;
+    if let Some(name) = header.get("name") {
+        let name = name.as_str().ok_or_else(invalid)?;
+        if name.is_empty()
+            || name.chars().any(char::is_whitespace)
+            || name.contains(['/', '\\'])
+            || reserved(name)
+        {
+            return Err(invalid());
         }
+        names.insert(name.to_owned());
     }
     Ok(Some(names))
 }

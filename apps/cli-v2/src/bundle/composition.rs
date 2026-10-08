@@ -64,8 +64,9 @@ impl Composition {
 
     fn namespace<'a>(&self, kind: &'a str) -> &'a str {
         match (self.harness.as_str(), kind) {
-            ("claude-code", "skill" | "command") => "invocation",
+            ("claude-code" | "opencode", "skill" | "command") => "invocation",
             ("claude-code", kind) => kind,
+            ("opencode", "agent" | "mcp") => kind,
             // Other harnesses keep the conservative shared space until verified.
             _ => "native",
         }
@@ -241,7 +242,7 @@ impl Composition {
                     .and_then(|names| names.get(&exclusion.value))
                     .filter(|owner| {
                         *owner != &exclusion.owner
-                            && (self.harness == "claude-code"
+                            && (self.namespace(kind) == "invocation"
                                 || self.kinds.get(*owner).is_some_and(|held| held == kind))
                     })
                     .map(String::as_str)

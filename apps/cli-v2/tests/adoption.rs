@@ -106,6 +106,92 @@ fn native_identity_journey(identity: &Identity, at: &str) -> Result<(), Box<dyn 
         );
         assert_eq!(fs::read_to_string(file)?, content);
     }
+    for (kind, path, body, names) in [
+        (
+            "skill",
+            "skills/folder/SKILL.md",
+            "---\nname: inspect\n---\nInspect source.\n",
+            vec!["inspect"],
+        ),
+        (
+            "command",
+            "commands/team/review.md",
+            "Review source.\n",
+            vec!["team/review"],
+        ),
+        (
+            "command",
+            "commands/review.md",
+            "---\nname: inspect\n---\nInspect source.\n",
+            vec!["inspect"],
+        ),
+        (
+            "agent",
+            "agents/auditor.md",
+            "---\nname: inspect\nmode: subagent\n---\nInspect source.\n",
+            vec!["inspect"],
+        ),
+    ] {
+        let native = tempfile::tempdir()?;
+        let file = native.path().join(path);
+        fs::create_dir_all(file.parent().ok_or("parent")?)?;
+        fs::write(&file, body)?;
+        let plan = adoption::plan(
+            &mut store,
+            selected(native.path(), "opencode", Scope::Global, kind)?,
+            identity.clone(),
+            at,
+        )?;
+        assert_eq!(
+            plan.passport["facts"]["native_ids"]["value"],
+            json!(names),
+            "OpenCode {kind}: {path}"
+        );
+        adoption::apply(&mut store, &plan, &plan.digest()?, identity, at)?;
+        assert_eq!(fs::read_to_string(file)?, body);
+    }
+    // Category directories retain all executable definitions and auxiliary bytes.
+    let category = root.path().join("opencode-category");
+    for (directory, name) in [("first", "inspect"), ("second", "review")] {
+        let directory = category.join("skills/team").join(directory);
+        fs::create_dir_all(&directory)?;
+        fs::write(
+            directory.join("SKILL.md"),
+            format!("---\nname: {name}\n---\nReview.\n"),
+        )?;
+        fs::write(directory.join("notes.txt"), "Keep this auxiliary file.\n")?;
+    }
+    let plan = adoption::plan(
+        &mut store,
+        selected(&category, "opencode", Scope::Global, "skill")?,
+        identity.clone(),
+        at,
+    )?;
+    assert_eq!(
+        plan.passport["facts"]["native_ids"]["value"],
+        json!(["inspect", "review"])
+    );
+    adoption::apply(&mut store, &plan, &plan.digest()?, identity, at)?;
+    let before = counts(&mut store)?;
+    for body in [
+        "---\nname: inspect\n---\nDuplicate actual name.\n",
+        "Review without a header.\n",
+        "---\ndescription: Missing name\n---\nReview.\n",
+        "---\nname: review\ndescription: 42\n---\nReview.\n",
+        "---\nname: first\nname: second\n---\nReview.\n",
+    ] {
+        fs::write(category.join("skills/team/second/SKILL.md"), body)?;
+        assert!(
+            adoption::plan(
+                &mut store,
+                selected(&category, "opencode", Scope::Global, "skill")?,
+                identity.clone(),
+                at,
+            )
+            .is_err()
+        );
+        assert_eq!(counts(&mut store)?, before);
+    }
     for (index, (kind, path, content, names)) in [
         ("skill", "skills/folder/SKILL.md", "---\nname: inspect\ndescription: Inspect source.\nallowed-tools: Read\n---\nInspect source.\n", vec!["folder", "inspect"]),
         ("skill", "skills/folder/SKILL.md", "Inspect source with the directory name.\n", vec!["folder"]),
