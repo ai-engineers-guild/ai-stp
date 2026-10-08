@@ -116,6 +116,21 @@ def prove(binary: Path, home: Path, temporary: Path, run: Runner) -> None:
     ]
     assert actual == expected
     assert snapshot.read_bytes() == original
+    # Different path spellings can refer to the same existing directory. In
+    # particular, Rust and Python resolve Windows verbatim prefixes differently.
+    marker = target / ".ai-stp" / "project-id"
+    marker.unlink()
+    with closing(sqlite3.connect(snapshot)) as equivalent:
+        equivalent.execute(
+            "UPDATE project_root SET root = ? WHERE stable_id = ?",
+            (str(target.resolve() / ".." / target.name), project),
+        )
+        equivalent.commit()
+    args[-1] = "sha256:" + hashlib.sha256(snapshot.read_bytes()).hexdigest()
+    assert run(binary, home, args, 0)["data"] == result
+    snapshot.write_bytes(original)
+    args[-1] = "sha256:" + hashlib.sha256(original).hexdigest()
+    marker.write_text(project, encoding="ascii")
     # A copied marker cannot take the identity while its original exists.
     moved = temporary / "environment-moved"
     moved.mkdir()
