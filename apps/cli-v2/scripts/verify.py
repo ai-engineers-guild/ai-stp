@@ -35,7 +35,11 @@ from ai_stp_foundation.envelope import ErrorEnvelope, SuccessEnvelope
 
 def run(binary: Path, home: Path, args: list[str], expected: int = 0) -> dict[str, Any]:
     environment = {
-        name: value for name, value in os.environ.items() if name in {"SystemRoot", "WINDIR"}
+        # Python normalizes Windows environment keys to uppercase. Winsock needs
+        # SYSTEMROOT even when the child needs neither PATH nor user state.
+        name: value
+        for name, value in os.environ.items()
+        if name.upper() in {"SYSTEMROOT", "WINDIR"}
     }
     environment.update(
         PATH="",
