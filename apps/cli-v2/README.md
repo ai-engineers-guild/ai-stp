@@ -87,6 +87,17 @@ Release also refuses the reserved scaffold marker in newly compiled source.
 Harness-specific scaffolds and hook/MCP/plugin generation remain pending;
 the preview does not advertise the old generators' unsupported semantics.
 
+`setup scaffold plan` takes one concrete harness and a bounded lowercase name.
+It produces only `setup-request.json`, directly consumed by `setup compose plan`.
+The request starts with no component references; authors select exact released
+versions or deliberately retain an empty composition. Description and purpose
+carry the reserved draft marker. Composition rejects that marker in all three
+text fields: name, description and purpose. Components keep their independent
+`component scaffold`/bind/release lifecycle; no nested duplicate passports,
+projection placeholders, evaluation files, README or Git repository are generated.
+`setup scaffold apply` uses the exact digest in the existing setup-scaffold
+domain and the same closed 64 KiB plan reader and durable publisher as components.
+
 `component source inspect` captures one explicit `/7` authoring project using the
 bounded Git/regular-file source reader. It validates the generator-owned descriptor
 and closed passport patch, checks up to 64 distinct portable source entry paths,
@@ -423,7 +434,7 @@ Redistribution is the conjunction of member declarations. The exact passports
 remain authoritative for scope-specific permissions, platform, version and capability constraints;
 composition is not mechanical installation eligibility or a provider approval.
 Request metadata is bounded to 256 KiB and the resulting passport to 1 MiB.
-Setup scaffolding, native configuration import, native recast derivation and
+Native configuration import, native recast derivation and
 project state binding remain pending.
 
 Component artifacts use the canonical uncompressed ZIP profile. The encoder
@@ -542,7 +553,7 @@ no async runtime or tracing feature is enabled for it.
 | `authoring/forks.rs` | Exact private component copies with atomic lineage and replay |
 | `authoring/templates.rs` | Bounded portable template rendering with literal CommonMark code blocks |
 | `authoring/setups/` | Exact private setup composition, conservative requirement aggregation and atomic immutable registration |
-| `authoring/scaffold/` | Minimal exact portable source plans |
+| `authoring/scaffold/` | Minimal exact component sources and consumable setup requests |
 | `files/tree.rs` | Shared recoverable directory publication with no-replace rename |
 | `identity/` | Explicit offline identity initialization, private key storage and public signing identity |
 | `authoring/source_project.rs` | One bounded source snapshot, metadata separation and structural readiness |

@@ -9,7 +9,7 @@ use super::{Declaration, ID, KIND, Parameter, ParameterType, ROOT, STATE_DIR};
 use crate::{
     authoring::{
         adoption, discovery, forks, native_edit, passports, project_binding, releases, runtime,
-        setups,
+        scaffold, setups,
     },
     canonical,
     error::{Failure, Result},
@@ -32,6 +32,8 @@ pub(super) enum Handler {
     SetupRecast,
     ExportPlan,
     ExportApply,
+    SetupScaffoldPlan,
+    SetupScaffoldApply,
     Apply,
     Show,
     Version,
@@ -42,12 +44,21 @@ impl Handler {
     pub(super) fn mutability(self) -> &'static str {
         match self {
             Self::Discover | Self::Show | Self::Version | Self::Versions => "read",
-            Self::Apply | Self::ExportApply => "apply",
+            Self::Apply | Self::ExportApply | Self::SetupScaffoldApply => "apply",
             _ => "plan",
         }
     }
 }
 
+const CONCRETE_HARNESSES: &[&str] = &[
+    "claude-code",
+    "codex",
+    "pi",
+    "opencode",
+    "grok-build",
+    "cursor",
+    "antigravity",
+];
 const HARNESS: Parameter = Parameter {
     name: "harness",
     summary: "Native layout harness, or undefined for shared user skill sources.",
@@ -107,6 +118,50 @@ const PROVIDERS: Parameter = Parameter {
 };
 
 pub(super) const COMMANDS: &[Declaration] = &[
+    Declaration {
+        path: &["setup", "scaffold", "plan"],
+        summary: "Plan one editable setup-request.json for exact composition, without nested components or generated documentation.",
+        parameters: &[
+            Parameter {
+                name: "harness",
+                summary: "The concrete harness this setup belongs to.",
+                kind: ParameterType::Choice(CONCRETE_HARNESSES),
+                required: true,
+            },
+            Parameter {
+                name: "name",
+                summary: "Lowercase setup name, at most 64 ASCII letters, digits or hyphens.",
+                kind: ParameterType::String,
+                required: true,
+            },
+            Parameter {
+                name: "output",
+                summary: "Unused authoring directory beneath an existing parent.",
+                kind: ParameterType::Path,
+                required: true,
+            },
+        ],
+        handler: super::Handler::Local(Handler::SetupScaffoldPlan),
+    },
+    Declaration {
+        path: &["setup", "scaffold", "apply"],
+        summary: "Create or replay the exact minimal setup authoring directory without overwriting existing content.",
+        parameters: &[
+            Parameter {
+                name: "plan",
+                summary: "Closed setup scaffold plan JSON, at most 64 KiB.",
+                kind: ParameterType::Path,
+                required: true,
+            },
+            Parameter {
+                name: "plan-digest",
+                summary: "Exact digest returned by setup scaffold plan.",
+                kind: ParameterType::String,
+                required: true,
+            },
+        ],
+        handler: super::Handler::Local(Handler::SetupScaffoldApply),
+    },
     Declaration {
         path: &["setup", "export", "plan"],
         summary: "Plan three exact setup review files from retained state; requires no credentials and creates no harness tree.",
@@ -264,15 +319,7 @@ pub(super) const COMMANDS: &[Declaration] = &[
             Parameter {
                 name: "target-harness",
                 summary: "Concrete destination harness, distinct from the source setup.",
-                kind: ParameterType::Choice(&[
-                    "claude-code",
-                    "codex",
-                    "pi",
-                    "opencode",
-                    "grok-build",
-                    "cursor",
-                    "antigravity",
-                ]),
+                kind: ParameterType::Choice(CONCRETE_HARNESSES),
                 required: true,
             },
         ],
@@ -364,6 +411,20 @@ fn providers(args: &ArgMatches) -> Result<Vec<Info>> {
 
 pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
     match handler {
+        Handler::SetupScaffoldPlan => {
+            let plan = scaffold::setup::plan(
+                path(args, "output")?,
+                scaffold::setup::Request {
+                    name: text(args, "name")?.into(),
+                    harness_id: text(args, "harness")?.into(),
+                },
+            )?;
+            Ok(serde_json::json!({"plan_digest":plan.digest()?,"plan":plan}))
+        }
+        Handler::SetupScaffoldApply => scaffold::setup::apply(
+            &scaffold::setup::read(path(args, "plan")?)?,
+            text(args, "plan-digest")?,
+        ),
         Handler::ExportPlan => {
             let plan = setups::export::plan(
                 path(args, "state-dir")?,

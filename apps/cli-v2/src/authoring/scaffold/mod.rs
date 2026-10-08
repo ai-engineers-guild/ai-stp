@@ -1,8 +1,10 @@
-//! Minimal portable source trees, planned byte-for-byte before creation.
+//! Minimal authoring trees, planned byte-for-byte before creation.
+
+pub mod setup;
 
 use std::{collections::BTreeMap, path::Path};
 
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use serde_json::json;
 
 use super::passports::Patch;
@@ -34,7 +36,7 @@ pub struct Request {
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 #[serde(deny_unknown_fields)]
-pub struct Plan {
+pub struct Plan<T = Request> {
     pub schema_version: u8,
     pub action: String,
     #[serde(
@@ -43,17 +45,19 @@ pub struct Plan {
     )]
     pub output: String,
     pub parent_identity: [String; 2],
-    pub request: Request,
+    pub request: T,
     /// Exact UTF-8 source, not an execution instruction or an arbitrary file upload.
     pub files: BTreeMap<String, String>,
 }
 
-impl Plan {
+impl<T: Serialize> Plan<T> {
     pub fn digest(&self) -> Result<String> {
-        digest::canonical(
-            "ai-stp:scaffold-plan:v1",
-            &serde_json::to_value(self).map_err(|_| invalid())?,
-        )
+        let domain = match self.action.as_str() {
+            "component.scaffold" => "ai-stp:scaffold-plan:v1",
+            "setup.scaffold" => "ai-stp:setup-scaffold-plan:v1",
+            _ => return Err(invalid()),
+        };
+        digest::canonical(domain, &serde_json::to_value(self).map_err(|_| invalid())?)
     }
 }
 
@@ -63,6 +67,15 @@ fn invalid() -> Failure {
 
 pub fn plan(output: &Path, request: Request) -> Result<Plan> {
     let files = render(&request)?;
+    planned(output, "component.scaffold", request, files)
+}
+
+fn planned<T>(
+    output: &Path,
+    action: &str,
+    request: T,
+    files: BTreeMap<String, String>,
+) -> Result<Plan<T>> {
     let (output, parent_identity) = tree::destination(output)?;
     match Path::new(&output).symlink_metadata() {
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
@@ -74,7 +87,7 @@ pub fn plan(output: &Path, request: Request) -> Result<Plan> {
     }
     Ok(Plan {
         schema_version: 1,
-        action: "component.scaffold".into(),
+        action: action.into(),
         output,
         parent_identity,
         request,
@@ -83,19 +96,34 @@ pub fn plan(output: &Path, request: Request) -> Result<Plan> {
 }
 
 pub fn read(path: &Path) -> Result<Plan> {
+    read_plan(path)
+}
+
+fn read_plan<T: DeserializeOwned>(path: &Path) -> Result<Plan<T>> {
     serde_json::from_value(canonical::parse(&files::read(path, 64 * 1024)?)?).map_err(|_| invalid())
 }
 
 pub fn apply(plan: &Plan, expected_digest: &str) -> Result<serde_json::Value> {
+    apply_exact(
+        plan,
+        expected_digest,
+        "component.scaffold",
+        render(&plan.request)?,
+    )
+}
+
+fn apply_exact<T: Serialize>(
+    plan: &Plan<T>,
+    expected_digest: &str,
+    action: &str,
+    files: BTreeMap<String, String>,
+) -> Result<serde_json::Value> {
     if plan.digest()? != expected_digest {
         return Err(Failure::precondition(
             "the scaffold plan digest changed before apply",
         ));
     }
-    if plan.schema_version != 1
-        || plan.action != "component.scaffold"
-        || plan.files != render(&plan.request)?
-    {
+    if plan.schema_version != 1 || plan.action != action || plan.files != files {
         return Err(invalid());
     }
     let (created, cleanup_pending) = tree::publish(
@@ -118,6 +146,16 @@ fn encoded(value: serde_json::Value) -> Result<String> {
     String::from_utf8(canonical::bytes(&value)?).map_err(|_| invalid())
 }
 
+fn valid_name(name: &str) -> bool {
+    !name.is_empty()
+        && name.len() <= 64
+        && !name.starts_with('-')
+        && !name.ends_with('-')
+        && name
+            .bytes()
+            .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-')
+}
+
 pub(super) fn render(request: &Request) -> Result<BTreeMap<String, String>> {
     let Request {
         name,
@@ -127,14 +165,8 @@ pub(super) fn render(request: &Request) -> Result<BTreeMap<String, String>> {
     if !KINDS.contains(&kind.as_str())
         || !LANGUAGES.contains(&language.as_str())
         || (kind == "cli") == (language == "none")
-        || name.is_empty()
-        || name.len() > 64
-        || name.starts_with('-')
-        || name.ends_with('-')
+        || !valid_name(name)
         || (kind == "skill" && name.contains("--"))
-        || !name
-            .bytes()
-            .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-')
     {
         return Err(invalid());
     }

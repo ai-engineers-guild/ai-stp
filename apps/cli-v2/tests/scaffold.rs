@@ -208,5 +208,46 @@ fn source_tree_creation_recovers_without_overwriting_or_claiming_a_product()
         )
         .is_err()
     );
+    let output = root.join("setup");
+    let plan = scaffold::setup::plan(
+        &output,
+        scaffold::setup::Request {
+            name: "project-review".into(),
+            harness_id: "codex".into(),
+        },
+    )?;
+    assert!(!output.exists());
+    let plan: scaffold::setup::Plan = serde_json::from_value(canonical::parse(
+        &canonical::bytes(&serde_json::to_value(&plan)?)?,
+    )?)?;
+    let mut forged = plan.clone();
+    forged.action = "component.scaffold".into();
+    assert!(scaffold::setup::apply(&forged, &forged.digest()?).is_err());
+    forged = plan.clone();
+    forged.files.insert("README.md".into(), "unplanned".into());
+    assert!(scaffold::setup::apply(&forged, &forged.digest()?).is_err());
+    let result = scaffold::setup::apply(&plan, &plan.digest()?)?;
+    assert_eq!(result["files_written"], 1);
+    assert_eq!(fs::read_dir(&output)?.count(), 1);
+    let request: ai_stp_cli_v2::authoring::setups::Request =
+        serde_json::from_slice(&fs::read(output.join("setup-request.json"))?)?;
+    assert!(request.members.is_empty());
+    assert_eq!(request.harness_id, "codex");
+    assert_eq!(
+        scaffold::setup::apply(&plan, &plan.digest()?)?["files_written"],
+        0
+    );
+    for (name, harness) in [("../escape", "codex"), ("setup", "undefined")] {
+        assert!(
+            scaffold::setup::plan(
+                &root.join("invalid-setup"),
+                scaffold::setup::Request {
+                    name: name.into(),
+                    harness_id: harness.into(),
+                }
+            )
+            .is_err()
+        );
+    }
     Ok(())
 }

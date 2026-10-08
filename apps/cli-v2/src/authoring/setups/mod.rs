@@ -130,7 +130,9 @@ fn compile(
         || request.name.len() > 1024
         || request.purpose.trim().is_empty()
         || request.purpose.len() > 16384
-        || request.description.contains("TODO(ai-stp-scaffold)")
+        || [&request.name, &request.description, &request.purpose]
+            .iter()
+            .any(|value| value.contains("TODO(ai-stp-scaffold)"))
         || request.members.len() > 512
         || canonical::bytes(&input)?.len() > 256 * 1024
         || request

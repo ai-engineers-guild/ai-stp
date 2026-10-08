@@ -343,7 +343,35 @@ def prove(binary: Path, home: Path, temporary: Path, run: Runner) -> None:
     native_version = apply(native_release, "native-release")
     ComponentVersionPassport.model_validate(native_version)
     assert native_version["adaptations"] == native_draft["adaptations"]
-    request = root / "setup.json"
+    setup_root = root / "setup-authoring"
+    starter = invoke(
+        [
+            "setup",
+            "scaffold",
+            "plan",
+            "--harness",
+            "codex",
+            "--name",
+            "review",
+            "--output",
+            str(setup_root),
+        ]
+    )
+    starter_path = plan_file(starter, "setup-starter", "ai-stp:setup-scaffold-plan:v1")
+    starter_args = [
+        "setup",
+        "scaffold",
+        "apply",
+        "--plan",
+        str(starter_path),
+        "--plan-digest",
+        starter["plan_digest"],
+    ]
+    assert invoke(starter_args)["files_written"] == 1
+    assert invoke(starter_args)["files_written"] == 0
+    assert [p.name for p in setup_root.iterdir()] == ["setup-request.json"]
+    request = setup_root / "setup-request.json"
+    invoke(["setup", "compose", "plan", "--state-dir", str(state), "--request", str(request)], 2)
     request.write_text(
         json.dumps(
             {

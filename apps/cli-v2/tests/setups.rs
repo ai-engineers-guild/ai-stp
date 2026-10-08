@@ -409,6 +409,20 @@ fn exact_setup_closure_constraints_atomicity_and_replay() -> Result<(), Box<dyn 
         "unused scopes leaked into unconditional permissions"
     );
     let before = counts(&mut store)?;
+    for field in ["name", "description", "purpose"] {
+        let mut unfinished = serde_json::to_value(&request)?;
+        unfinished[field] = "TODO(ai-stp-scaffold): complete this field.".into();
+        assert!(
+            setups::plan(
+                &mut store,
+                serde_json::from_value(unfinished)?,
+                identity.clone(),
+                AT
+            )
+            .is_err()
+        );
+    }
+    assert_eq!(counts(&mut store)?, before);
     let plan = setups::plan(&mut store, request.clone(), identity.clone(), AT)?;
     assert_eq!(counts(&mut store)?, before);
     assert_eq!(
