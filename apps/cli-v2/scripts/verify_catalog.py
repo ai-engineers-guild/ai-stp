@@ -128,7 +128,9 @@ def prove_reads(binary: Path, home: Path, root: Path, run: Runner, server: Catal
     case = next(c for c in load_cases() if c.case_id == "readComponentVersion.published")
     body: dict[str, Any] = json.loads(json.dumps(dict(case.body or {})))
     corpus = json.loads(
-        files("ai_stp_passports.fixtures").joinpath("safe-markdown-v1.json").read_text()
+        files("ai_stp_passports.fixtures")
+        .joinpath("safe-markdown-v1.json")
+        .read_text(encoding="utf-8")
     )
     for lane, expected in [("accepted", 0), ("rejected", 4)]:
         for vector in corpus[lane]:

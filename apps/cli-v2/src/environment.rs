@@ -37,11 +37,30 @@ fn bind_project(state: &Snapshot, project: &str, target: &Path) -> Result<()> {
         )
         .optional()
         .map_err(|_| invalid())?;
+    let mut statement = state
+        .connection
+        .prepare("SELECT root FROM project_root WHERE stable_id = ? LIMIT 2")
+        .map_err(|_| invalid())?;
+    let roots = statement
+        .query_map([project], |row| row.get::<_, String>(0))
+        .map_err(|_| invalid())?
+        .collect::<std::result::Result<Vec<_>, _>>()
+        .map_err(|_| invalid())?;
+    if roots.len() > 1 {
+        return Err(invalid());
+    }
+    // SQLite stores Python's resolved spelling. Windows Rust canonical paths
+    // include a verbatim prefix; compare resolved locations, not those strings.
+    let same_location = roots.first().is_some_and(|held| {
+        Path::new(held)
+            .canonicalize()
+            .is_ok_and(|held| held == root)
+    });
     if let Some(bound) = bound {
         if bound != project {
             return Err(invalid());
         }
-    } else {
+    } else if !same_location {
         let marker = directory
             .open_dir_nofollow(".ai-stp")
             .map_err(|_| invalid())?;
@@ -55,21 +74,11 @@ fn bind_project(state: &Snapshot, project: &str, target: &Path) -> Result<()> {
         {
             return Err(invalid());
         }
-        let mut statement = state
-            .connection
-            .prepare("SELECT root FROM project_root WHERE stable_id = ? LIMIT 2")
-            .map_err(|_| invalid())?;
-        let roots = statement
-            .query_map([project], |row| row.get::<_, String>(0))
-            .map_err(|_| invalid())?
-            .collect::<std::result::Result<Vec<_>, _>>()
-            .map_err(|_| invalid())?;
-        // More than one recorded location is ambiguous. A copy cannot claim the
-        // original identity while any previous location still exists.
-        if roots.len() > 1
-            || roots
-                .iter()
-                .any(|root| Path::new(root).try_exists().unwrap_or(true))
+        // A copy cannot claim the original identity while its previous location
+        // still exists or cannot be inspected.
+        if roots
+            .iter()
+            .any(|root| Path::new(root).try_exists().unwrap_or(true))
         {
             return Err(invalid());
         }
