@@ -153,7 +153,7 @@ fn native_identity_journey(identity: &Identity, at: &str) -> Result<(), Box<dyn 
         assert!(adoption::plan(&mut store, source, identity.clone(), at).is_err());
         assert_eq!(counts(&mut store)?, initial);
     }
-    for harness in ["claude-code", "opencode", "pi"] {
+    for harness in ["claude-code", "opencode", "pi", "cursor"] {
         let native = tempfile::tempdir()?;
         fs::create_dir_all(native.path().join(".agents/skills/review"))?;
         fs::write(
@@ -172,45 +172,52 @@ fn native_identity_journey(identity: &Identity, at: &str) -> Result<(), Box<dyn 
         );
         assert_eq!(plan.binding.harness_id, harness);
     }
-    // These same cases were independently run through the pinned Pi loader.
-    let cases: serde_json::Value =
-        serde_json::from_str(include_str!("fixtures/pi-native-entries.json"))?;
-    for case in cases.as_array().ok_or("Pi cases missing")? {
-        let native = tempfile::tempdir()?;
-        for (path, body) in case["files"].as_object().ok_or("Pi files missing")? {
-            let file = native.path().join(path);
-            fs::create_dir_all(file.parent().ok_or("parent")?)?;
-            fs::write(file, body.as_str().ok_or("Pi body missing")?)?;
-        }
-        let before = counts(&mut store)?;
-        let planned = adoption::plan(
-            &mut store,
-            selected(
-                native.path(),
-                "pi",
-                Scope::Global,
-                case["kind"].as_str().ok_or("Pi kind missing")?,
-            )?,
-            identity.clone(),
-            at,
-        );
-        if case["adoptable"] == true {
-            let plan = planned?;
-            assert_eq!(
-                plan.passport["facts"]["native_ids"]["value"], case["names"],
-                "{}",
-                case["id"]
+    // Shared cases are also exercised with the pinned upstream loaders.
+    for (harness, fixture) in [
+        ("pi", include_str!("fixtures/pi-native-entries.json")),
+        (
+            "cursor",
+            include_str!("fixtures/cursor-native-entries.json"),
+        ),
+    ] {
+        let cases: serde_json::Value = serde_json::from_str(fixture)?;
+        for case in cases.as_array().ok_or("native cases missing")? {
+            let native = tempfile::tempdir()?;
+            for (path, body) in case["files"].as_object().ok_or("native files missing")? {
+                let file = native.path().join(path);
+                fs::create_dir_all(file.parent().ok_or("parent")?)?;
+                fs::write(file, body.as_str().ok_or("native body missing")?)?;
+            }
+            let before = counts(&mut store)?;
+            let planned = adoption::plan(
+                &mut store,
+                selected(
+                    native.path(),
+                    harness,
+                    Scope::Global,
+                    case["kind"].as_str().ok_or("native kind missing")?,
+                )?,
+                identity.clone(),
+                at,
             );
-            adoption::apply(&mut store, &plan, &plan.digest()?, identity, at)?;
-        } else {
-            assert!(planned.is_err(), "{}", case["id"]);
-            assert_eq!(counts(&mut store)?, before);
-        }
-        for (path, body) in case["files"].as_object().ok_or("Pi files missing")? {
-            assert_eq!(
-                fs::read_to_string(native.path().join(path))?,
-                body.as_str().ok_or("Pi body missing")?
-            );
+            if case["adoptable"] == true {
+                let plan = planned?;
+                assert_eq!(
+                    plan.passport["facts"]["native_ids"]["value"], case["names"],
+                    "{}",
+                    case["id"]
+                );
+                adoption::apply(&mut store, &plan, &plan.digest()?, identity, at)?;
+            } else {
+                assert!(planned.is_err(), "{}", case["id"]);
+                assert_eq!(counts(&mut store)?, before);
+            }
+            for (path, body) in case["files"].as_object().ok_or("native files missing")? {
+                assert_eq!(
+                    fs::read_to_string(native.path().join(path))?,
+                    body.as_str().ok_or("native body missing")?
+                );
+            }
         }
     }
     for (harness, scope, name, content) in [

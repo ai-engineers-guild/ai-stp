@@ -44,6 +44,7 @@ dependencies = [
  "keyring-core",
  "process-wrap",
  "pulldown-cmark",
+ "regex",
  "rusqlite",
  "rustix",
  "security-framework",

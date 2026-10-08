@@ -266,14 +266,18 @@ fn export(name: &str, bundle: &bundle::Bundle) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn codex_skills(store: &mut Store, declarations: &[Value]) -> Result<(), Box<dyn Error>> {
+fn skill_inventory(
+    store: &mut Store,
+    declarations: &[Value],
+    harness: &str,
+) -> Result<(), Box<dyn Error>> {
     let declaration = declarations
         .iter()
-        .find(|value| value["harness_id"] == "codex")
-        .ok_or("Codex missing")?;
+        .find(|value| value["harness_id"] == harness)
+        .ok_or("skill provider missing")?;
     let provider = Info::parse(&serde_json::to_vec(declaration)?)?;
     let scope = Scope::UserRoot;
-    let target = target("codex", scope);
+    let target = target(harness, scope);
     let skill = component(
         store,
         &provider,
@@ -285,9 +289,9 @@ fn codex_skills(store: &mut Store, declarations: &[Value]) -> Result<(), Box<dyn
         },
         None,
     )?;
-    let (setup, evidence) = compose(store, "codex", std::slice::from_ref(&skill))?;
+    let (setup, evidence) = compose(store, harness, std::slice::from_ref(&skill))?;
     let built = bundle::compile(store, &setup, &target, &evidence, &provider, &Hosts::new())?;
-    export("codex-fallback-skill", &built)?;
+    export(&format!("{harness}-fallback-skill"), &built)?;
     rejects_fabricated_ids(store, &skill, &built, &target, &provider, &Hosts::new())?;
     // A skill hidden in a different logical kind cannot bypass the entry inventory.
     let hidden = component(
@@ -319,7 +323,7 @@ fn codex_skills(store: &mut Store, declarations: &[Value]) -> Result<(), Box<dyn
         )?;
         versions::record(t, &hidden, &identity().device_id, None, AT)
     })?;
-    let (catalog_setup, catalog_evidence) = compose(store, "codex", &[hidden])?;
+    let (catalog_setup, catalog_evidence) = compose(store, harness, &[hidden])?;
     let refusal = bundle::compile(
         store,
         &catalog_setup,
@@ -521,7 +525,9 @@ fn exact_bundles_cover_every_released_profile_and_refuse_unrepresentable_inputs(
         serde_json::from_str(include_str!("fixtures/provider-declarations.json"))?;
     opencode_namespaces(&mut store, &declarations)?;
     pi_namespaces(&mut store, &declarations)?;
-    codex_skills(&mut store, &declarations)?;
+    for harness in ["codex", "cursor"] {
+        skill_inventory(&mut store, &declarations, harness)?;
+    }
     let mut profiles = 0;
     for declaration in &declarations {
         let provider = Info::parse(&serde_json::to_vec(declaration)?)?;

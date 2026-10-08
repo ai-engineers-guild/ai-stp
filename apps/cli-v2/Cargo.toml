@@ -41,6 +41,7 @@ ed25519-dalek = { version = "=3.0.0", default-features = false, features = ["fas
 getrandom = "=0.4.3"
 zeroize = "=1.9.1"
 ignore = "=0.4.33"
+regex = { version = "=1.13.1", default-features = false, features = ["std"] }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 zbus = { version = "=5.19.0", default-features = false, features = ["async-io", "blocking-api"] }

@@ -22,6 +22,17 @@ pub(super) fn required(bytes: &[u8]) -> Result<Value> {
 }
 
 pub(super) fn decode<T: serde::de::DeserializeOwned>(bytes: &[u8]) -> Result<T> {
+    serde_saphyr::from_str_with_options(&header(bytes)?, options())
+        .map_err(|_| Failure::precondition("frontmatter is invalid or exceeds its parsing budget"))
+}
+
+pub(super) fn options() -> serde_saphyr::Options {
+    serde_saphyr::options! { budget: serde_saphyr::budget! {
+        max_depth:8, max_events:10_000, max_aliases:100, max_documents:1,
+    }}
+}
+
+pub(super) fn header(bytes: &[u8]) -> Result<String> {
     let text = std::str::from_utf8(bytes)
         .map_err(|_| Failure::precondition("the Markdown source must be UTF-8"))?;
     let mut lines = text.split_inclusive('\n');
@@ -36,12 +47,7 @@ pub(super) fn decode<T: serde::de::DeserializeOwned>(bytes: &[u8]) -> Result<T> 
     let mut header = String::new();
     for line in lines {
         if line.trim_end_matches(['\r', '\n']) == "---" {
-            let options = serde_saphyr::options! { budget: serde_saphyr::budget! {
-                max_depth:8, max_events:10_000, max_aliases:100, max_documents:1,
-            }};
-            return serde_saphyr::from_str_with_options(&header, options).map_err(|_| {
-                Failure::precondition("frontmatter is invalid or exceeds its parsing budget")
-            });
+            return Ok(header);
         }
         header.push_str(line);
         if header.len() > 64 * 1024 {

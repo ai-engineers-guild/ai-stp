@@ -248,6 +248,34 @@ and traversal/namespace rules against its
 The pinned Codex provider admits skills only in `user_root`; discovery of a
 project skill does not establish a project installation route.
 
+Cursor local skills follow the provider-pinned `2026.10.01-e373342` loader.
+Their identity comes from the directory containing `SKILL.md`; frontmatter `name`
+does not rename it. A nonempty string description is required. The scanner reaches
+ten directories below `skills`, continues below a skill entry, and skips hidden,
+`node_modules`, `__pycache__`, `dist` and `build` directories; ignore files do not
+change that traversal. `metadata.surfaces` filters entries for the `cli` surface.
+This preview requires that filter to be a string, array or null. The bounded YAML
+reader distinguishes quoted/block strings from implicit timestamps, base-60 numbers
+and tagged binary descriptions, including aliases and merge-derived values.
+Unknown explicit YAML tags refuse; mixed-case Boolean/null words need quotes.
+The Cursor reader owns the direct `regex` pin
+for the legacy scalar grammar; removing this reader removes that direct dependency.
+The package was already present in the dependency closure.
+Conditional paths, environments and `disable-model-invocation` remain native
+metadata, not claims that a skill will run in every context.
+
+`alwaysApply: true` entries become Cursor rules and refuse this skill adaptation;
+they need an explicit instruction adaptation. Duplicate folder identities refuse
+instead of relying on upstream ordering. Release and retained reuse re-read the
+verified member bytes, and assembly checks the complete visible skill inventory.
+Shared fixtures were exercised against extracted parser/scanner functions from the
+[official pinned Linux distribution](https://downloads.cursor.com/lab/2026.10.01-e373342/linux/x64/agent-cli-package.tar.gz)
+and the Rust reader. This is loader evidence, not an agent execution assessment.
+The [Cursor skill documentation](https://cursor.com/docs/skills) describes the
+folder identity; its stricter frontmatter naming recommendation is not used to
+invent aliases that this local loader does not expose. Plugin skill namespaces
+and other Cursor component formats remain separate pending checks.
+
 Pi identities follow its pinned 1.0.0 loader. Skills need a nonblank description;
 their name falls back to the containing directory when absent, empty or not a
 string. A `SKILL.md` stops recursion below that directory. Category discovery

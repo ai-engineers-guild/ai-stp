@@ -2,6 +2,7 @@
 
 mod claude;
 mod codex;
+mod cursor;
 mod mcp;
 mod opencode;
 mod pi;
@@ -40,7 +41,7 @@ pub(super) fn has_markdown_entries(harness: &str, kind: &str) -> bool {
         (harness, kind),
         ("claude-code" | "pi", "skill" | "command")
             | ("opencode", "skill" | "command" | "agent")
-            | ("codex", "skill")
+            | ("codex" | "cursor", "skill")
     )
 }
 
@@ -52,6 +53,7 @@ fn markdown_entries<'a>(
     match harness {
         "claude-code" => claude::invocations(kind, files),
         "codex" => codex::skills(files),
+        "cursor" => cursor::skills(files),
         "opencode" => opencode::entries(kind, files),
         "pi" => pi::entries(kind, files),
         _ => Err(invalid()),
@@ -67,10 +69,15 @@ pub(crate) fn visible_pi_entries<'a>(
     Ok(names)
 }
 
-pub(crate) fn visible_codex_skills<'a>(
+pub(crate) fn visible_skills<'a>(
+    harness: &str,
     files: impl IntoIterator<Item = (&'a str, &'a [u8])>,
 ) -> Result<Vec<String>> {
-    let names = codex::visible(files)?;
+    let names = match harness {
+        "codex" => codex::visible(files)?,
+        "cursor" => cursor::visible(files)?,
+        _ => return Err(invalid()),
+    };
     valid(&names)?;
     Ok(names)
 }
