@@ -3,6 +3,7 @@
 import { useTranslations } from "next-intl";
 
 import { Input } from "@/components/atoms/input";
+import { Select } from "@/components/atoms/select";
 import { Label } from "@/components/atoms/label";
 import type { AreaView, CategoryView, TechnologyView } from "@/lib/api/generated/types.gen";
 
@@ -19,7 +20,7 @@ export function AreaField({
   return (
     <div className="space-y-2">
       <Label htmlFor={`${prefix}-area`}>{t("areas.field")}</Label>
-      <select
+      <Select
         id={`${prefix}-area`}
         name="area_id"
         defaultValue={initial?.area_id ?? ""}
@@ -31,7 +32,7 @@ export function AreaField({
             {area.name}
           </option>
         ))}
-      </select>
+      </Select>
     </div>
   );
 }
@@ -41,7 +42,7 @@ export function CategoryStateField({ prefix }: { prefix: string }) {
   return (
     <div className="space-y-2">
       <Label htmlFor={`${prefix}-state`}>{t("categoryState")}</Label>
-      <select
+      <Select
         id={`${prefix}-state`}
         name="state"
         defaultValue="active"
@@ -49,7 +50,7 @@ export function CategoryStateField({ prefix }: { prefix: string }) {
       >
         <option value="active">{t("values.active")}</option>
         <option value="draft">{t("values.draft")}</option>
-      </select>
+      </Select>
     </div>
   );
 }
