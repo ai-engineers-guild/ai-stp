@@ -306,7 +306,10 @@ fn seed(
 ) -> Result<Value, Box<dyn Error>> {
     let bytes = artifacts::encode_tree(&[File {
         path: "SKILL.md".into(),
-        bytes: format!("# {name}\n").into_bytes(),
+        bytes: format!(
+            "---\nname: {name}\ndescription: Inspect project conventions.\n---\n# {name}\n"
+        )
+        .into_bytes(),
         mode: 0o644,
     }])?;
     let draft = store.transaction(|t| {

@@ -43,7 +43,7 @@ fn adopt(
         root,
         harness,
         Scope::Global,
-        if harness == "undefined" {
+        if harness == "codex" && kind == "skill" {
             Root::Home
         } else {
             Root::Config
@@ -59,7 +59,7 @@ fn adopt(
         root: root.into(),
         harness_id: harness.into(),
         scope: Scope::Global,
-        root_kind: if harness == "undefined" {
+        root_kind: if harness == "codex" && kind == "skill" {
             Root::Home
         } else {
             Root::Config
@@ -98,7 +98,7 @@ fn native_release_preserves_owned_bytes_graphs_and_atomic_history() -> Result<()
         ("claude-code","hook","settings.json",br#"{"model":"unowned","hooks":{"PreToolUse":[{"hooks":[{"type":"command","command":"example"}]}]}}"#.as_slice(),"json/1"),
         ("codex","mcp","config.toml",b"model = 'unowned'\n[mcp_servers.example]\ncommand = 'example'\n".as_slice(),"toml/1"),
         ("cursor","hook","hooks.json",br#"{"version":1,"hooks":{}}"#.as_slice(),""),
-        ("undefined","skill",".agents/skills/example/SKILL.md",b"# Example\n".as_slice(),""),
+        ("codex","skill",".agents/skills/example/SKILL.md",b"---\nname: example\ndescription: Inspect conventions.\n---\n# Example\n".as_slice(),""),
         ("claude-code","command","commands/team/review.md",b"---\nname: ignored\n---\nReview source.\n".as_slice(),""),
         ("claude-code","skill","skills/folder/SKILL.md",b"---\nname: inspect\ndescription: Inspect source.\n---\nInspect source.\n".as_slice(),""),
     ];
@@ -141,11 +141,8 @@ fn native_release_preserves_owned_bytes_graphs_and_atomic_history() -> Result<()
             )
             .is_err()
         );
-        let mut facts = json!({"name":"Example","description":"Run the example safely.","tags":["development"],
+        let facts = json!({"name":"Example","description":"Run the example safely.","tags":["development"],
             "license":{"spdx_id":"MIT","redistribution_allowed":true}});
-        if harness == "undefined" {
-            facts["harness_id"] = "codex".into();
-        }
         let edit = passports::plan(
             &mut store,
             id,
@@ -155,7 +152,7 @@ fn native_release_preserves_owned_bytes_graphs_and_atomic_history() -> Result<()
             AT,
         )?;
         let mut draft = passports::apply(&mut store, &edit, &edit.digest()?, &identity, AT)?;
-        if harness == "codex" {
+        if harness == "codex" && kind == "mcp" {
             // Declared metadata cannot substitute server IDs carried by retained bytes.
             let edit = passports::plan(
                 &mut store,

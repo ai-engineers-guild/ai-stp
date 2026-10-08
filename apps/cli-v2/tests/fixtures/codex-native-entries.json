@@ -1,0 +1,62 @@
+[
+  {
+    "id": "declared",
+    "folder": "folder",
+    "body": "---\nname: inspect\ndescription: Inspect.\n---\nBody.\n",
+    "name": "inspect"
+  },
+  {
+    "id": "fallback",
+    "folder": "review",
+    "body": "---\ndescription: Review.\n---\nBody.\n",
+    "name": "review"
+  },
+  {
+    "id": "whitespace",
+    "folder": "folder",
+    "body": "---\nname: \"  review\\n source  \"\ndescription: Review.\n---\nBody.\n",
+    "name": "review source"
+  },
+  {
+    "id": "empty-name",
+    "folder": "folder",
+    "body": "---\nname: \" \"\ndescription: Review.\n---\nBody.\n",
+    "name": "folder"
+  },
+  {
+    "id": "numeric-name",
+    "folder": "folder",
+    "body": "---\nname: 42\ndescription: Review.\n---\nBody.\n",
+    "name": "42"
+  },
+  {
+    "id": "missing-description",
+    "folder": "folder",
+    "body": "---\nname: inspect\n---\nBody.\n",
+    "name": null
+  },
+  {
+    "id": "long-name",
+    "folder": "folder",
+    "body": "---\nname: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\ndescription: Review.\n---\nBody.\n",
+    "name": null
+  },
+  {
+    "id": "invalid-metadata",
+    "folder": "folder",
+    "body": "---\nname: inspect\ndescription: Review.\nmetadata: []\n---\nBody.\n",
+    "name": null
+  },
+  {
+    "id": "hex-name",
+    "folder": "folder",
+    "body": "---\nname: 0x2A\ndescription: Review.\n---\nBody.\n",
+    "name": "0x2A"
+  },
+  {
+    "id": "null-name",
+    "folder": "folder",
+    "body": "---\nname: null\ndescription: Review.\n---\nBody.\n",
+    "name": "folder"
+  }
+]

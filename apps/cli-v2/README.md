@@ -220,6 +220,34 @@ This proves identity handling, not complete upstream configuration validation or
 runtime compatibility across OpenCode versions. Built-in commands and dynamically
 discovered MCP prompts need runtime evidence before installation.
 
+Shared `.agents/skills` discovery is included when a concrete harness is selected
+at its declared home/project root. Candidate identity and observed ownership stay
+neutral; adoption requires a concrete destination and records that choice separately
+from `observed_harness_id`. Shared commands and instructions are not reassigned.
+Adaptation editing can retain a neutral source selector because its explicit
+provider supplies the destination; both paths run the same native reader.
+
+Codex skills follow the provider-pinned 0.160.0 parser: optional `name` falls back
+to the directory, whitespace collapses, and a nonblank description is required.
+Typed YAML scalars preserve their spelling (`0x2A` does not become `42`); names
+are limited to 64 Unicode characters. Recursive discovery reaches six directories
+below `skills`, skips hidden directories and continues below a `SKILL.md`.
+Duplicate identities refuse. Payload and auxiliary bytes remain unchanged.
+The bounded YAML reader requires valid YAML rather than applying Codex's prose
+repair heuristic. This is an explicit acceptance restriction, not a source rewrite.
+
+Codex plugin manifests inside the captured tree or above the selected source within
+the explicit root refuse: plugin namespace adaptation is not implemented. The same
+check runs again on apply. Release and retained reuse re-derive names; assembly
+also checks the complete visible skill inventory across all components, so another
+logical kind cannot introduce undeclared skills or change their namespace.
+External target context remains an installation precondition. Parser behavior was
+checked against the [pinned Codex parser](https://github.com/openai/codex/blob/a956835d020762cb2b570053af06f643a11c0ecc/codex-rs/skills/src/parser.rs)
+and traversal/namespace rules against its
+[loader](https://github.com/openai/codex/tree/a956835d020762cb2b570053af06f643a11c0ecc/codex-rs/ext/skills/src/loader).
+The pinned Codex provider admits skills only in `user_root`; discovery of a
+project skill does not establish a project installation route.
+
 Pi identities follow its pinned 1.0.0 loader. Skills need a nonblank description;
 their name falls back to the containing directory when absent, empty or not a
 string. A `SKILL.md` stops recursion below that directory. Category discovery
@@ -642,7 +670,7 @@ no async runtime or tracing feature is enabled for it.
 | `authoring/native_edit.rs` | Exact native adaptation replacement with complete scope preservation |
 | `authoring/setups/copies.rs` | Private exact setup forks and recasts with atomic lineage |
 | `authoring/setups/export.rs` | Exact review-tree export from query-only retained state |
-| `authoring/native_identity.rs`, `authoring/native_identity/` | Captured/projected native identities, Markdown loaders and Pi entry visibility |
+| `authoring/native_identity.rs`, `authoring/native_identity/` | Captured/projected native identities, Markdown loaders and assembled entry visibility |
 | `authoring/frontmatter.rs` | Shared bounded YAML header parsing without source execution |
 | `authoring/project_binding.rs` | Atomic portable project identity and complete adaptation refresh |
 | `authoring/runtime.rs` | Identity-bound local plans, closed operation dispatch and private registry reads |

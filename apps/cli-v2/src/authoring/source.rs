@@ -379,6 +379,43 @@ pub(super) fn capture_native_entries(root: &Path, relative: &str) -> Result<Capt
     capture_scoped_with(root, relative, false)
 }
 
+/// Namespace manifests above the selected component are context, not payload.
+/// Inspect only their presence within the explicit root, without following links.
+pub(super) fn reject_plugin_ancestors(root: &Path, relative: &str, markers: &[&str]) -> Result<()> {
+    check_name(relative)?;
+    let mut directory = open_directory(root)?;
+    let mut parts = relative.split('/');
+    loop {
+        for marker in markers {
+            match directory.symlink_metadata(marker) {
+                Ok(_) => {
+                    let plugin = directory.open_dir_nofollow(marker).map_err(|_| invalid())?;
+                    match plugin.symlink_metadata("plugin.json") {
+                        Ok(_) => {
+                            return Err(Failure::precondition(
+                                "namespaced skills require a plugin adaptation",
+                            ));
+                        }
+                        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+                        Err(_) => return Err(invalid()),
+                    }
+                }
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+                Err(_) => return Err(invalid()),
+            }
+        }
+        let Some(part) = parts.next() else {
+            break;
+        };
+        let metadata = directory.symlink_metadata(part).map_err(|_| invalid())?;
+        if metadata.is_file() && !metadata.file_type().is_symlink() {
+            break;
+        }
+        directory = directory.open_dir_nofollow(part).map_err(|_| invalid())?;
+    }
+    Ok(())
+}
+
 fn capture_scoped_with(root: &Path, relative: &str, require_manifest: bool) -> Result<Captured> {
     check_name(relative)?;
     let root_metadata = root.symlink_metadata().map_err(|_| invalid())?;

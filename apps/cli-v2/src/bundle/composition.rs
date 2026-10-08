@@ -222,6 +222,27 @@ impl Composition {
     /// Check after collecting every selected component, so neither graph order
     /// nor the side that declares an exclusion can hide a contradiction.
     pub fn validate(&self, files: &[super::File]) -> Result<()> {
+        if self.harness == "codex" {
+            let visible = crate::authoring::native_identity::visible_codex_skills(
+                files
+                    .iter()
+                    .map(|file| (file.member.path.as_str(), file.member.bytes.as_slice())),
+            )?;
+            let declared: Vec<_> = self
+                .native_ids
+                .get(self.namespace("skill"))
+                .into_iter()
+                .flat_map(|names| names.iter())
+                .filter(|(_, owner)| self.kinds.get(*owner).is_some_and(|kind| kind == "skill"))
+                .map(|(name, _)| name.as_str())
+                .collect();
+            if visible.iter().map(String::as_str).collect::<Vec<_>>() != declared {
+                return Err(
+                    invalid("the assembled files change the visible Codex skills")
+                        .with_details([("constraint".into(), "native_visibility_mismatch".into())]),
+                );
+            }
+        }
         if self.harness == "pi" {
             for kind in ["skill", "command"] {
                 let visible = crate::authoring::native_identity::visible_pi_entries(

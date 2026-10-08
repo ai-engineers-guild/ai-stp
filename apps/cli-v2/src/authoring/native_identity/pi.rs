@@ -8,7 +8,10 @@ use super::invalid;
 use crate::{authoring::frontmatter, error::Result};
 
 fn local_path<'a>(kind: &str, path: &'a str) -> Option<&'a str> {
-    let path = path.strip_prefix(".pi/").unwrap_or(path);
+    let path = path
+        .strip_prefix(".pi/")
+        .or_else(|| path.strip_prefix(".agents/"))
+        .unwrap_or(path);
     path.strip_prefix(match kind {
         "skill" => "skills/",
         "command" => "prompts/",

@@ -331,11 +331,25 @@ fn describe(
 /// Package provenance, portable recursion and installed-plugin adapters are separate sources.
 pub fn at(root: &Path, harness: &str, scope: Scope, root_kind: Root) -> Result<Discovery> {
     let definition = harnesses::definition(harness)?;
-    if !definition
+    let mut layouts: Vec<_> = definition
         .layouts
         .iter()
-        .any(|layout| layout.scope == scope && layout.root == root_kind)
-    {
+        .filter(|layout| layout.scope == scope && layout.root == root_kind)
+        .map(|layout| (definition, layout))
+        .collect();
+    if harness != "undefined" {
+        let shared = harnesses::definition("undefined")?;
+        for layout in shared.layouts.iter().filter(|layout| {
+            layout.scope == scope && layout.root == root_kind && layout.component_type == "skill"
+        }) {
+            if !layouts.iter().any(|(_, own)| {
+                own.relative == layout.relative && own.component_type == layout.component_type
+            }) {
+                layouts.push((shared, layout));
+            }
+        }
+    }
+    if layouts.is_empty() {
         return Err(Failure::input(
             "the harness has no declared layouts for this scope and root",
         ));
@@ -367,11 +381,7 @@ pub fn at(root: &Path, harness: &str, scope: Scope, root_kind: Root) -> Result<D
         complete: true,
     };
     let mut seen = BTreeSet::new();
-    for layout in definition
-        .layouts
-        .iter()
-        .filter(|layout| layout.scope == scope && layout.root == root_kind)
-    {
+    for (definition, layout) in layouts {
         match scanner.layout(&directory, &root, definition, layout) {
             Ok(found) => result.components.extend(
                 found

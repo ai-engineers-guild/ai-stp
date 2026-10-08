@@ -1,6 +1,7 @@
 //! Native identifiers are observed from captured content, never from display metadata.
 
 mod claude;
+mod codex;
 mod mcp;
 mod opencode;
 mod pi;
@@ -37,7 +38,9 @@ fn valid(names: &[String]) -> Result<()> {
 pub(super) fn has_markdown_entries(harness: &str, kind: &str) -> bool {
     matches!(
         (harness, kind),
-        ("claude-code" | "pi", "skill" | "command") | ("opencode", "skill" | "command" | "agent")
+        ("claude-code" | "pi", "skill" | "command")
+            | ("opencode", "skill" | "command" | "agent")
+            | ("codex", "skill")
     )
 }
 
@@ -48,6 +51,7 @@ fn markdown_entries<'a>(
 ) -> Result<Vec<String>> {
     match harness {
         "claude-code" => claude::invocations(kind, files),
+        "codex" => codex::skills(files),
         "opencode" => opencode::entries(kind, files),
         "pi" => pi::entries(kind, files),
         _ => Err(invalid()),
@@ -63,16 +67,40 @@ pub(crate) fn visible_pi_entries<'a>(
     Ok(names)
 }
 
-pub(super) fn read(candidate: &Candidate, content: &Captured) -> Result<Vec<String>> {
+pub(crate) fn visible_codex_skills<'a>(
+    files: impl IntoIterator<Item = (&'a str, &'a [u8])>,
+) -> Result<Vec<String>> {
+    let names = codex::visible(files)?;
+    valid(&names)?;
+    Ok(names)
+}
+
+pub(super) fn check_source_context(
+    harness: &str,
+    candidate: &Candidate,
+    root: &std::path::Path,
+) -> Result<()> {
+    if harness == "codex" && candidate.component_type == "skill" {
+        super::source::reject_plugin_ancestors(
+            root,
+            &candidate.native_path,
+            &codex::PLUGIN_DIRECTORIES,
+        )?;
+    }
+    Ok(())
+}
+
+pub(super) fn read(
+    harness: &str,
+    candidate: &Candidate,
+    content: &Captured,
+) -> Result<Vec<String>> {
     let file_name = candidate
         .absolute
         .file_name()
         .and_then(|name| name.to_str())
         .ok_or_else(invalid)?;
-    let names = match (
-        candidate.component_type.as_str(),
-        candidate.harness_id.as_str(),
-    ) {
+    let names = match (candidate.component_type.as_str(), harness) {
         (kind, harness) if has_markdown_entries(harness, kind) => {
             if content.format == artifacts::FILE_FORMAT {
                 markdown_entries(
@@ -101,12 +129,12 @@ pub(super) fn read(candidate: &Candidate, content: &Captured) -> Result<Vec<Stri
             if content.format != artifacts::FILE_FORMAT {
                 return Err(invalid());
             }
-            let key = mcp::key(&candidate.harness_id)?;
+            let key = mcp::key(harness)?;
             if !candidate.declared_key.is_empty() && candidate.declared_key != key {
                 return Err(invalid());
             }
             let names = mcp::names(
-                &candidate.harness_id,
+                harness,
                 &candidate.native_path,
                 &candidate.declared_key,
                 &content.bytes,

@@ -266,6 +266,78 @@ fn export(name: &str, bundle: &bundle::Bundle) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
+fn codex_skills(store: &mut Store, declarations: &[Value]) -> Result<(), Box<dyn Error>> {
+    let declaration = declarations
+        .iter()
+        .find(|value| value["harness_id"] == "codex")
+        .ok_or("Codex missing")?;
+    let provider = Info::parse(&serde_json::to_vec(declaration)?)?;
+    let scope = Scope::UserRoot;
+    let target = target("codex", scope);
+    let skill = component(
+        store,
+        &provider,
+        scope,
+        File {
+            path: "skills/review/SKILL.md".into(),
+            bytes: b"---\ndescription: Review source.\n---\nBody.\n".to_vec(),
+            mode: 0o644,
+        },
+        None,
+    )?;
+    let (setup, evidence) = compose(store, "codex", std::slice::from_ref(&skill))?;
+    let built = bundle::compile(store, &setup, &target, &evidence, &provider, &Hosts::new())?;
+    export("codex-fallback-skill", &built)?;
+    rejects_fabricated_ids(store, &skill, &built, &target, &provider, &Hosts::new())?;
+    // A skill hidden in a different logical kind cannot bypass the entry inventory.
+    let hidden = component(
+        store,
+        &provider,
+        scope,
+        File {
+            path: "skills/extra/SKILL.md".into(),
+            bytes: b"---\nname: extra\ndescription: Extra.\n---\nBody.\n".to_vec(),
+            mode: 0o644,
+        },
+        None,
+    )?;
+    let mut hidden = hidden;
+    hidden["component_type"] = "instruction".into();
+    hidden["adaptations"][0]["logical_component_type"] = "instruction".into();
+    hidden["adaptations"][0]["scope_adaptations"][0]["members"][0]["native_ids"] = json!([]);
+    hidden["adaptations"][0] = passport::versions::seal_adaptation(&hidden["adaptations"][0])?;
+    hidden["stable_id"] = format!("component_{}", ulid::Ulid::generate()).into();
+    let hidden = store.transaction(|t| {
+        revisions::commit(
+            t,
+            &hidden,
+            &identity().device_id,
+            None,
+            revisions::Write::Advance {
+                expected_heads: &[],
+            },
+        )?;
+        versions::record(t, &hidden, &identity().device_id, None, AT)
+    })?;
+    let (catalog_setup, catalog_evidence) = compose(store, "codex", &[hidden])?;
+    let refusal = bundle::compile(
+        store,
+        &catalog_setup,
+        &target,
+        &catalog_evidence,
+        &provider,
+        &Hosts::new(),
+    )
+    .err()
+    .ok_or("undeclared skill accepted")?;
+    assert_eq!(
+        refusal.details.get("constraint"),
+        Some(&json!("native_visibility_mismatch")),
+        "{refusal:?}"
+    );
+    Ok(())
+}
+
 fn pi_namespaces(store: &mut Store, declarations: &[Value]) -> Result<(), Box<dyn Error>> {
     let declaration = declarations
         .iter()
@@ -449,6 +521,7 @@ fn exact_bundles_cover_every_released_profile_and_refuse_unrepresentable_inputs(
         serde_json::from_str(include_str!("fixtures/provider-declarations.json"))?;
     opencode_namespaces(&mut store, &declarations)?;
     pi_namespaces(&mut store, &declarations)?;
+    codex_skills(&mut store, &declarations)?;
     let mut profiles = 0;
     for declaration in &declarations {
         let provider = Info::parse(&serde_json::to_vec(declaration)?)?;

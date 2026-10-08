@@ -80,12 +80,25 @@ fn stale() -> Failure {
 
 pub(super) struct Prepared {
     candidate: Candidate,
+    harness_id: String,
     pub(super) content: source::Captured,
     address: Address,
     native_ids: Vec<String>,
 }
 
 pub(super) fn prepare(request: &Source) -> Result<Prepared> {
+    prepare_for(request, &request.harness_id)
+}
+
+pub(super) fn prepare_for(request: &Source, harness: &str) -> Result<Prepared> {
+    if harness == "undefined" {
+        return Err(Failure::input(
+            "adoption requires a concrete destination harness",
+        ));
+    }
+    if request.harness_id != harness && request.harness_id != "undefined" {
+        return Err(invalid());
+    }
     let report = discovery::at(
         &request.root,
         &request.harness_id,
@@ -106,15 +119,18 @@ pub(super) fn prepare(request: &Source) -> Result<Prepared> {
                 invalid()
             }
         })?;
+    if candidate.harness_id == "undefined" && candidate.component_type != "skill" {
+        return Err(Failure::input(
+            "only shared skills can select a destination harness",
+        ));
+    }
     if candidate.holds_secret {
         return Err(Failure::precondition(
             "credential-named sources cannot be adopted",
         ));
     }
-    let mut content = if native_identity::has_markdown_entries(
-        &candidate.harness_id,
-        &candidate.component_type,
-    ) {
+    native_identity::check_source_context(harness, &candidate, &request.root)?;
+    let mut content = if native_identity::has_markdown_entries(harness, &candidate.component_type) {
         source::capture_native_entries(&request.root, &candidate.native_path)?
     } else {
         source::capture_scoped(&request.root, &candidate.native_path)?
@@ -126,16 +142,18 @@ pub(super) fn prepare(request: &Source) -> Result<Prepared> {
             &candidate.declared_key,
         )?;
     }
-    let native_ids = native_identity::read(&candidate, &content)?;
+    native_identity::check_source_context(harness, &candidate, &request.root)?;
+    let native_ids = native_identity::read(harness, &candidate, &content)?;
     let content_digest = digest::bytes("ai-stp:artifact:v1", &content.bytes)?;
     let address = Address::new(
-        &candidate.harness_id,
+        harness,
         &candidate.component_type,
         &candidate.absolute,
         content_digest,
     )?;
     Ok(Prepared {
         candidate,
+        harness_id: harness.into(),
         content,
         address,
         native_ids,
@@ -153,7 +171,7 @@ pub(super) fn source_values(source: &Prepared) -> Result<Value> {
         .file_name()
         .and_then(|name| name.to_str())
         .ok_or_else(invalid)?;
-    let route = projection::route(&candidate.component_type, &candidate.harness_id, scope)?;
+    let route = projection::route(&candidate.component_type, &source.harness_id, scope)?;
     let locator = if candidate.declared_key.is_empty() {
         String::new()
     } else {
@@ -167,13 +185,14 @@ pub(super) fn source_values(source: &Prepared) -> Result<Value> {
     };
     let mut values = json!({
         "component_type":candidate.component_type, "projection_kind":candidate.projection_kind,
-        "native_role":candidate.native_role,"harness_id":candidate.harness_id,"scope":candidate.scope,
+        "native_role":candidate.native_role,"harness_id":source.harness_id,"scope":candidate.scope,
+        "observed_harness_id":(candidate.harness_id != "undefined").then_some(&candidate.harness_id),
         "source_path":candidate.native_path,"source_name":name,"native_ids":source.native_ids,
         "entry_points":candidate.entry_points,"transport_capabilities":candidate.transport_capabilities,
         "evidence_refs":candidate.evidence_refs,"content_format":source.content.format,
         "source_mode":source.content.file_mode,
         "content_digest":source.address.content_digest,"byte_length":source.content.bytes.len(),
-        "managed_paths":projection::covers(&candidate.component_type,&candidate.harness_id,name,scope)?,
+        "managed_paths":projection::covers(&candidate.component_type,&source.harness_id,name,scope)?,
         "declared_key":candidate.declared_key,"source_locator":locator,
     });
     for field in [
@@ -203,8 +222,13 @@ fn document(
     let mut changed = head.is_none();
     for (key, value) in values.as_object().ok_or_else(invalid)? {
         if facts.get(key).is_none_or(|fact| fact["value"] != *value) {
+            let origin = if key == "harness_id" && source.candidate.harness_id == "undefined" {
+                "declared"
+            } else {
+                "observed"
+            };
             facts[key] =
-                json!({"value":value,"origin":"observed","confirmation":"none","observed_at":at});
+                json!({"value":value,"origin":origin,"confirmation":"none","observed_at":at});
             changed = true;
         }
     }
@@ -265,7 +289,7 @@ fn build(
         binding: Binding {
             source_key: prepared.address.source_key.clone(),
             stable_id: id.into(),
-            harness_id: prepared.candidate.harness_id.clone(),
+            harness_id: prepared.harness_id.clone(),
             component_type: prepared.candidate.component_type.clone(),
             absolute_path: prepared.address.location.clone(),
             created_at: previous_binding

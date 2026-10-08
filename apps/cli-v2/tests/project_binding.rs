@@ -50,15 +50,15 @@ fn native_edit_journey(
         )
     })?;
     let native = root.join("native-cursor");
-    fs::create_dir_all(native.join("skills/native-review"))?;
-    let path = native.join("skills/native-review/SKILL.md");
+    fs::create_dir_all(native.join(".agents/skills/native-review"))?;
+    let path = native.join(".agents/skills/native-review/SKILL.md");
     let body = "---\nname: native-review\ndescription: Review native code.\nallowed-tools: Read\n---\nPreserve this explicitly authored body.\n";
     fs::write(&path, body)?;
     let candidate = discovery::at(
         &native,
-        "cursor",
+        "undefined",
         ai_stp_cli_v2::harnesses::Scope::Global,
-        ai_stp_cli_v2::harnesses::Root::Config,
+        ai_stp_cli_v2::harnesses::Root::Home,
     )?
     .components
     .into_iter()
@@ -70,9 +70,9 @@ fn native_edit_journey(
             scope,
             source: adoption::Source {
                 root: native.clone(),
-                harness_id: "cursor".into(),
+                harness_id: "undefined".into(),
                 scope: ai_stp_cli_v2::harnesses::Scope::Global,
-                root_kind: ai_stp_cli_v2::harnesses::Root::Config,
+                root_kind: ai_stp_cli_v2::harnesses::Root::Home,
                 candidate_id: candidate.candidate_id.clone(),
             },
         })

@@ -280,6 +280,28 @@ def prove(binary: Path, home: Path, temporary: Path, run: Runner) -> None:
         ]
     )
     native_candidate = next(c for c in candidates["components"] if c["component_type"] == "skill")
+    shared_adoption = [
+        "component",
+        "adopt",
+        "plan",
+        "--state-dir",
+        str(state),
+        "--root",
+        str(native_home),
+        "--scope",
+        "global",
+        "--root-kind",
+        "home",
+        "--candidate-id",
+        native_candidate["candidate_id"],
+        "--harness",
+    ]
+    invoke([*shared_adoption, "undefined"], 2)
+    shared = apply(invoke([*shared_adoption, "codex"]), "shared-adopt")
+    assert shared["facts"]["native_ids"]["value"] == ["native-review"]
+    assert shared["facts"]["harness_id"]["value"] == "codex"
+    assert shared["facts"]["harness_id"]["origin"] == "declared"
+    assert shared["facts"]["observed_harness_id"]["value"] is None
     sources = root / "native-sources.json"
     sources.write_text(
         json.dumps(

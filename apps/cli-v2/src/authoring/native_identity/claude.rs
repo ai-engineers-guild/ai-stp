@@ -24,6 +24,7 @@ fn local_path<'a>(path: &'a str, root: &str) -> Result<&'a str> {
     path.strip_prefix(root)
         .or_else(|| {
             path.strip_prefix(".claude/")
+                .or_else(|| path.strip_prefix(".agents/"))
                 .and_then(|path| path.strip_prefix(root))
         })
         .ok_or_else(invalid)

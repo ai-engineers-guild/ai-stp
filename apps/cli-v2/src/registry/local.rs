@@ -247,11 +247,15 @@ pub(super) const COMMANDS: &[Declaration] = &[
     },
     Declaration {
         path: &["component", "adopt", "plan"],
-        summary: "Plan local adoption of an exact native discovery candidate.",
+        summary: "Plan local adoption of an exact native discovery candidate for a concrete harness.",
         parameters: &[
             STATE_DIR,
             NATIVE_ROOT,
-            HARNESS,
+            Parameter {
+                summary: "Concrete destination harness; shared skill candidates keep their observed neutral ownership.",
+                kind: ParameterType::Choice(CONCRETE_HARNESSES),
+                ..HARNESS
+            },
             SCOPE,
             ROOT_KIND,
             Parameter {

@@ -86,13 +86,11 @@ fn capture(sources: &[Source], provider: &Info) -> Result<Vec<Captured>> {
             {
                 return Err(invalid());
             }
-            let captured = adoption::prepare(&source.source)?;
+            let captured = adoption::prepare_for(&source.source, harness)?;
             let mut values = adoption::source_values(&captured)?;
             // Shared skills have neutral discovery identity; their bytes are explicitly
             // supplied as native content for this concrete harness, without a transform.
-            if values["harness_id"] != harness
-                && !(values["harness_id"] == "undefined" && values["component_type"] == "skill")
-            {
+            if values["harness_id"] != harness {
                 return Err(invalid());
             }
             let kind = text(&values, "component_type")?;

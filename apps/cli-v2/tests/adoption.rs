@@ -26,7 +26,17 @@ fn selected(
     scope: Scope,
     kind: &str,
 ) -> Result<Source, Box<dyn Error>> {
-    let discovered = discovery::at(root, harness, scope, Root::Config)?;
+    selected_root(root, harness, scope, Root::Config, kind)
+}
+
+fn selected_root(
+    root: &Path,
+    harness: &str,
+    scope: Scope,
+    root_kind: Root,
+    kind: &str,
+) -> Result<Source, Box<dyn Error>> {
+    let discovered = discovery::at(root, harness, scope, root_kind)?;
     assert!(discovered.complete);
     let candidate = discovered
         .components
@@ -37,7 +47,7 @@ fn selected(
         root: root.to_owned(),
         harness_id: harness.into(),
         scope,
-        root_kind: Root::Config,
+        root_kind,
         candidate_id: candidate.candidate_id,
     })
 }
@@ -49,6 +59,119 @@ fn counts(store: &mut Store) -> Result<(i64, i64, i64), Failure> {
 fn native_identity_journey(identity: &Identity, at: &str) -> Result<(), Box<dyn Error>> {
     let root = tempfile::tempdir()?;
     let mut store = Store::open(root.path(), true)?;
+    let cases: serde_json::Value =
+        serde_json::from_str(include_str!("fixtures/codex-native-entries.json"))?;
+    for case in cases.as_array().ok_or("Codex cases missing")? {
+        let native = tempfile::tempdir()?;
+        let folder = case["folder"].as_str().ok_or("Codex folder missing")?;
+        let body = case["body"].as_str().ok_or("Codex body missing")?;
+        let file = native
+            .path()
+            .join(".agents/skills")
+            .join(folder)
+            .join("SKILL.md");
+        fs::create_dir_all(file.parent().ok_or("parent")?)?;
+        fs::write(&file, body)?;
+        let source = selected_root(native.path(), "codex", Scope::Global, Root::Home, "skill")?;
+        let shared = discovery::at(native.path(), "undefined", Scope::Global, Root::Home)?;
+        assert_eq!(shared.components.len(), 1);
+        assert_eq!(source.candidate_id, shared.components[0].candidate_id);
+        assert_eq!(shared.components[0].harness_id, "undefined");
+        let before = counts(&mut store)?;
+        let result = adoption::plan(&mut store, source, identity.clone(), at);
+        if case["name"].is_null() {
+            assert!(result.is_err(), "{}", case["id"]);
+            assert_eq!(counts(&mut store)?, before);
+        } else {
+            let plan = result?;
+            assert_eq!(
+                plan.passport["facts"]["native_ids"]["value"],
+                json!([case["name"]]),
+                "{}",
+                case["id"]
+            );
+            assert_eq!(plan.passport["facts"]["harness_id"]["value"], "codex");
+            assert_eq!(plan.passport["facts"]["harness_id"]["origin"], "declared");
+            assert_eq!(plan.binding.harness_id, "codex");
+            assert_eq!(
+                plan.passport["facts"]["observed_harness_id"]["value"],
+                json!(null)
+            );
+            adoption::apply(&mut store, &plan, &plan.digest()?, identity, at)?;
+        }
+        assert_eq!(fs::read_to_string(file)?, body);
+    }
+    // Shared discovery stays neutral while adoption chooses an explicit consumer.
+    for (scope, root_kind) in [(Scope::Global, Root::Home), (Scope::Project, Root::Config)] {
+        let native = tempfile::tempdir()?;
+        let base = native.path().join(".agents/skills/review");
+        for (path, name) in [
+            ("SKILL.md", "review"),
+            ("nested/SKILL.md", "nested"),
+            ("a/b/c/d/e/SKILL.md", "deep"),
+            ("a/b/c/d/e/f/SKILL.md", "unreachable"),
+            (".hidden/SKILL.md", "hidden"),
+        ] {
+            let file = base.join(path);
+            fs::create_dir_all(file.parent().ok_or("parent")?)?;
+            fs::write(
+                file,
+                format!("---\nname: {name}\ndescription: Inspect.\n---\nBody.\n"),
+            )?;
+        }
+        let source = selected_root(native.path(), "codex", scope, root_kind, "skill")?;
+        let mut neutral = source.clone();
+        neutral.harness_id = "undefined".into();
+        let before = counts(&mut store)?;
+        assert!(adoption::plan(&mut store, neutral, identity.clone(), at).is_err());
+        assert_eq!(counts(&mut store)?, before);
+        let plan = adoption::plan(&mut store, source.clone(), identity.clone(), at)?;
+        assert_eq!(
+            plan.passport["facts"]["native_ids"]["value"],
+            json!(["deep", "nested", "review"])
+        );
+        // Plugin context can appear after planning and must invalidate apply too.
+        for marker in [".codex-plugin", ".claude-plugin", ".cursor-plugin"] {
+            let plan = adoption::plan(&mut store, source.clone(), identity.clone(), at)?;
+            let directory = native.path().join(marker);
+            fs::create_dir(&directory)?;
+            fs::write(directory.join("plugin.json"), b"{\"name\":\"example\"}")?;
+            assert!(adoption::apply(&mut store, &plan, &plan.digest()?, identity, at).is_err());
+            assert_eq!(counts(&mut store)?, before);
+            fs::remove_file(directory.join("plugin.json"))?;
+            fs::remove_dir(directory)?;
+        }
+        let plan = adoption::plan(&mut store, source.clone(), identity.clone(), at)?;
+        adoption::apply(&mut store, &plan, &plan.digest()?, identity, at)?;
+        let initial = counts(&mut store)?;
+        adoption::apply(&mut store, &plan, &plan.digest()?, identity, at)?;
+        assert_eq!(counts(&mut store)?, initial);
+        fs::write(
+            base.join("nested/SKILL.md"),
+            b"---\nname: review\ndescription: Duplicate.\n---\nBody.\n",
+        )?;
+        assert!(adoption::plan(&mut store, source, identity.clone(), at).is_err());
+        assert_eq!(counts(&mut store)?, initial);
+    }
+    for harness in ["claude-code", "opencode", "pi"] {
+        let native = tempfile::tempdir()?;
+        fs::create_dir_all(native.path().join(".agents/skills/review"))?;
+        fs::write(
+            native.path().join(".agents/skills/review/SKILL.md"),
+            b"---\nname: review\ndescription: Inspect.\n---\nBody.\n",
+        )?;
+        let plan = adoption::plan(
+            &mut store,
+            selected_root(native.path(), harness, Scope::Global, Root::Home, "skill")?,
+            identity.clone(),
+            at,
+        )?;
+        assert_eq!(
+            plan.passport["facts"]["native_ids"]["value"],
+            json!(["review"])
+        );
+        assert_eq!(plan.binding.harness_id, harness);
+    }
     // These same cases were independently run through the pinned Pi loader.
     let cases: serde_json::Value =
         serde_json::from_str(include_str!("fixtures/pi-native-entries.json"))?;

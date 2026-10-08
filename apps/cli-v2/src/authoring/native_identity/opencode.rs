@@ -6,7 +6,10 @@ use super::invalid;
 use crate::{authoring::frontmatter, error::Result};
 
 fn local_path<'a>(kind: &str, path: &'a str) -> Result<&'a str> {
-    let path = path.strip_prefix(".opencode/").unwrap_or(path);
+    let path = path
+        .strip_prefix(".opencode/")
+        .or_else(|| path.strip_prefix(".agents/"))
+        .unwrap_or(path);
     let roots = match kind {
         "skill" => ["skills/", "skill/"],
         "command" => ["commands/", "command/"],
