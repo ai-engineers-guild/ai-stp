@@ -13,6 +13,7 @@ pub mod error;
 mod files;
 pub mod harnesses;
 mod http;
+pub mod identity;
 pub mod objects;
 pub mod passport;
 pub mod process;

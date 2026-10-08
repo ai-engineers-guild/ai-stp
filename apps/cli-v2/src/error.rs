@@ -63,7 +63,7 @@ impl ErrorKind {
             Self::Internal => ("report_bug", "An unexpected internal failure occurred."),
             Self::Unavailable => (
                 "retry_if_retryable",
-                "The requested remote service is temporarily unavailable.",
+                "A required service or dependency is temporarily unavailable.",
             ),
         };
         json!({"code": self.code(), "exit_class": self.exit_code(), "handling": handling, "description": description})

@@ -7,7 +7,7 @@ use crate::{
     authoring::{scaffold, source_project, templates},
     catalog, config, digest, environment,
     error::{ErrorKind, Failure, Result},
-    projects, selection, snapshot,
+    identity, projects, selection, snapshot,
 };
 
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -32,6 +32,9 @@ enum Handler {
     ScaffoldPlan,
     ScaffoldApply,
     SourceInspect,
+    IdentityPlan,
+    IdentityApply,
+    IdentityShow,
 }
 
 #[derive(Clone, Copy)]
@@ -122,6 +125,13 @@ const ROOT: Parameter = Parameter {
     required: true,
 };
 
+const STATE_DIR: Parameter = Parameter {
+    name: "state-dir",
+    summary: "Existing parent directory for isolated native preview state.",
+    kind: ParameterType::Path,
+    required: true,
+};
+
 const KIND: Parameter = Parameter {
     name: "kind",
     summary: "Public catalog object kind.",
@@ -147,6 +157,45 @@ const COMMANDS: &[Declaration] = &[
         summary: "List the capabilities implemented by this native preview.",
         parameters: &[],
         handler: Handler::Capabilities,
+    },
+    Declaration {
+        path: &["device", "initialize", "apply"],
+        summary: "Initialize or recover exactly the planned offline identity without replacing an existing key.",
+        parameters: &[
+            Parameter {
+                name: "plan",
+                summary: "Explicit JSON plan from device initialize plan.",
+                kind: ParameterType::Path,
+                required: true,
+            },
+            Parameter {
+                name: "plan-digest",
+                summary: "Exact initialization plan digest returned by planning.",
+                kind: ParameterType::String,
+                required: true,
+            },
+        ],
+        handler: Handler::IdentityApply,
+    },
+    Declaration {
+        path: &["device", "initialize", "plan"],
+        summary: "Plan a new offline owner and Ed25519 device without opening credentials or writing state.",
+        parameters: &[
+            STATE_DIR,
+            Parameter {
+                name: "credential-store",
+                summary: "Explicit credential store; file requires Unix private permissions and is not encrypted at rest. No automatic fallback.",
+                kind: ParameterType::Choice(&["os_keyring", "file"]),
+                required: true,
+            },
+        ],
+        handler: Handler::IdentityPlan,
+    },
+    Declaration {
+        path: &["device", "show"],
+        summary: "Verify the isolated local key and return its public device identity without initializing it.",
+        parameters: &[STATE_DIR],
+        handler: Handler::IdentityShow,
     },
     Declaration {
         path: &["component", "passport", "show"],
@@ -492,8 +541,8 @@ pub fn error_descriptors() -> Vec<Value> {
 fn descriptors() -> Vec<Value> {
     COMMANDS.iter().map(|item| json!({
         "path": item.path, "summary": item.summary,
-        "mutability": match item.handler { Handler::ScaffoldPlan => "plan", Handler::ScaffoldApply => "apply", _ => "read" },
-        "confirmation": if matches!(item.handler,Handler::ScaffoldApply) { "plan_digest" } else { "none" },
+        "mutability": match item.handler { Handler::ScaffoldPlan | Handler::IdentityPlan => "plan", Handler::ScaffoldApply | Handler::IdentityApply => "apply", _ => "read" },
+        "confirmation": if matches!(item.handler,Handler::ScaffoldApply | Handler::IdentityApply) { "plan_digest" } else { "none" },
         "parameters": item.parameters.iter().map(Parameter::descriptor).collect::<Vec<_>>(),
         "parameter_rules": [], "result_schema": null, "next_actions": []
     })).collect()
@@ -563,6 +612,7 @@ pub fn dispatch(matches: &ArgMatches) -> Result<Value> {
             "command_paths": COMMANDS.iter().map(|item| item.path.join(" ")).collect::<Vec<_>>(),
             "task_intents": [], "supported_harnesses": [], "catalog_enabled": true, "sync_enabled": false,
             "state_access": "explicit_snapshot_read_only", "cache_access": "explicit_public_catalog_cache",
+            "identity_access": "explicit_isolated_device",
             "authoring_access": "explicit_new_directory", "readable_local_schema_versions": [snapshot::SCHEMA_VERSION]})),
         Handler::Help => help(
             leaf.get_one::<String>("path").map_or("", String::as_str),
@@ -607,6 +657,44 @@ pub fn dispatch(matches: &ArgMatches) -> Result<Value> {
             leaf.get_one::<std::path::PathBuf>("root")
                 .ok_or_else(|| Failure::input("source root is required"))?,
         ),
+        Handler::IdentityPlan => {
+            let storage = match leaf
+                .get_one::<String>("credential-store")
+                .map(String::as_str)
+            {
+                Some("os_keyring") => identity::Storage::OsKeyring,
+                Some("file") => identity::Storage::File,
+                _ => return Err(Failure::input("credential store is required")),
+            };
+            let plan = identity::plan(
+                leaf.get_one::<std::path::PathBuf>("state-dir")
+                    .ok_or_else(|| Failure::input("state directory is required"))?,
+                storage,
+                &format!("{:.3}", jiff::Timestamp::now()),
+            )?;
+            Ok(json!({"plan_digest": plan.digest()?, "plan": plan}))
+        }
+        Handler::IdentityApply => Ok(identity::apply(
+            &identity::read_plan(
+                leaf.get_one::<std::path::PathBuf>("plan")
+                    .ok_or_else(|| Failure::input("plan is required"))?,
+            )?,
+            leaf.get_one::<String>("plan-digest")
+                .ok_or_else(|| Failure::input("plan digest is required"))?,
+            &format!("{:.3}", jiff::Timestamp::now()),
+        )?
+        .report()),
+        Handler::IdentityShow => identity::current(
+            leaf.get_one::<std::path::PathBuf>("state-dir")
+                .ok_or_else(|| Failure::input("state directory is required"))?,
+        )?
+        .map(|identity| identity.report())
+        .ok_or_else(|| {
+            Failure::new(
+                ErrorKind::NotFound,
+                "the native preview identity has not been initialized",
+            )
+        }),
         Handler::Config => config::show(
             leaf.get_one::<std::path::PathBuf>("config")
                 .map(|p| p.as_path()),

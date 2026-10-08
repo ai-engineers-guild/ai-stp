@@ -21,6 +21,7 @@ from typing import Any
 
 import verify_catalog
 import verify_environment
+import verify_identity
 import verify_projects
 import verify_selection
 
@@ -91,6 +92,7 @@ def prove(binary: Path, root: Path) -> None:
     prove_config(binary, home, root)
     prove_template(binary, home, root)
     prove_scaffold(binary, home, root)
+    verify_identity.prove(binary, home, root, run)
     prove_objects(binary, home, root)
     verify_projects.prove(binary, home, root, run)
     verify_catalog.prove(binary, home, root, run)
