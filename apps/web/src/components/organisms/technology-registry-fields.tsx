@@ -40,7 +40,6 @@ export function AreaField({
 
 export function CategoryStateField({ prefix }: { prefix: string }) {
   const t = useTranslations("technology");
-  const areaT = useTranslations("technology.areas");
   return (
     <div className="space-y-2">
       <Label htmlFor={`${prefix}-state`}>{t("categoryState")}</Label>
@@ -67,7 +66,6 @@ export function TechnologyFields({
   initial: TechnologyView | undefined;
 }) {
   const t = useTranslations("technology");
-  const areaT = useTranslations("technology.areas");
   return (
     <>
       {categories === null ? (
