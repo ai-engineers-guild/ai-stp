@@ -731,6 +731,9 @@ class Found:
     transport_capabilities: tuple[str, ...]
     evidence_refs: tuple[str, ...]
 
+    #: Source ownership from the matched layout, independent of installation support.
+    declared_key: str = ""
+
 
 @dataclass(frozen=True)
 class Discovery:
@@ -1047,23 +1050,15 @@ def adopt(
         )
 
     adopted = _read(item.absolute)
-    # A component that contributes a key to an owned file carries the key's
-    # value, not the file. `contribution.parse_value` says so and `assemble`
-    # depends on it; adoption stored the whole host file, so the document became
-    # the value of its own key and the target grew `[mcp_servers.mcp_servers.…]`
-    # under a copy of unrelated settings — with `verified` reported, because the
-    # provider wrote exactly the bytes it was handed.
-    #
-    # Imported here rather than at module scope: `composition` imports this
-    # module, and the rule table is what knows a kind lands inside a host file.
-    from ai_stp_cli.local import composition, contribution
+    # Discovery owns source extraction. A missing provider route must never
+    # widen a selected contribution to the entire host configuration.
+    if item.declared_key:
+        from ai_stp_cli.local import contribution
 
-    rule = composition.rule_for(item.component_type, item.harness_id, scope=item.scope)
-    if rule is not None and rule.declared_key:
         adopted = replace(
             adopted,
             payload=contribution.extract_value(
-                host=rule.relative, content=adopted.payload, key=rule.declared_key
+                host=item.native_path, content=adopted.payload, key=item.declared_key
             ),
         )
     at = moment()
@@ -1261,13 +1256,10 @@ def _adopted_managed_paths(item: Found) -> tuple[str, ...]:
 
 
 def _contribution_locator(item: Found) -> tuple[str, str]:
-    """The key a contribution owns, and the host-file locator freeze projects onto."""
-    from ai_stp_cli.local import composition
-
-    rule = composition.rule_for(item.component_type, item.harness_id, scope=item.scope)
-    if rule is None or not rule.declared_key:
+    """The source key and layout-relative host, regardless of provider support."""
+    if not item.declared_key:
         return "", ""
-    return rule.declared_key, f"{rule.relative}#{rule.declared_key}"
+    return item.declared_key, f"{item.native_path}#{item.declared_key}"
 
 
 def _source_name(item: Found) -> str:
@@ -1939,6 +1931,7 @@ def _describe(
         entry_points=entry_points,
         transport_capabilities=transport_capabilities,
         evidence_refs=evidence_refs,
+        declared_key=rule.declared_key,
     )
 
 
