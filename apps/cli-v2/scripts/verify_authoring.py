@@ -14,12 +14,15 @@ from typing import Any
 
 from verify_context import prove as prove_context
 
+from ai_stp_cli.local import content as stored_content
+from ai_stp_cli.local import revisions, setup_versions, versions
 from ai_stp_contracts.cli.components import (
     ComponentPassportValidation,
     ComponentQualityReport,
     PassportView,
 )
 from ai_stp_foundation.digests import digest_bytes, digest_canonical
+from ai_stp_foundation.ids import new_id
 from ai_stp_passports import ComponentVersionPassport, SetupVersionPassport
 from ai_stp_passports.envelope import verify_revision_id
 
@@ -523,6 +526,76 @@ def prove(binary: Path, home: Path, temporary: Path, run: Runner) -> None:
         )
         == setup
     )
+
+    # Read an actual production-builder setup without rewriting its immutable
+    # three-field definition references to the passport's explicit null defaults.
+    with closing(sqlite3.connect(database)) as connection:
+        connection.row_factory = sqlite3.Row
+        connection.execute("PRAGMA foreign_keys=ON")
+        connection.execute("BEGIN IMMEDIATE")
+        document = setup_versions.passport_content(
+            connection,
+            stable_id=new_id("setup"),
+            version="1.0",
+            owner_id=owner,
+            project_id=new_id("project"),
+            harness_id="codex",
+            snapshot=setup["facts"]["snapshot"]["value"],
+            members=(setup_versions.MemberRef(component_id, "1.0", digest),),
+            at=setup["created_at"],
+        )
+        held = revisions.commit(connection, document, device_id=identity["plan"]["device_id"])
+        legacy = held.envelope.model_dump(mode="json")
+        legacy_digest = digest_canonical("ai-stp:passport:v1", legacy)
+        versions.record(
+            connection,
+            stable_id=held.stable_id,
+            version="1.0",
+            passport_digest=legacy_digest,
+            revision_id=held.revision_id,
+            at=setup["created_at"],
+        )
+        legacy_definition = stored_content.get(connection, legacy["artifact"]["digest"])
+        connection.commit()
+    assert legacy["components"][0]["variant_id"] is None
+    assert "variant_id" not in json.loads(legacy_definition)["components"][0]
+    legacy_args = [
+        "--state-dir",
+        str(state),
+        "--id",
+        held.stable_id,
+        "--version",
+        "1.0",
+        "--passport-digest",
+        legacy_digest,
+    ]
+    copied = apply(invoke(["setup", "fork", "plan", *legacy_args]), "python-setup-fork")
+    assert copied["components"] == legacy["components"]
+    legacy_output = root / "python-setup-export"
+    export_plan = invoke(
+        [
+            "setup",
+            "export",
+            "plan",
+            *legacy_args,
+            "--output",
+            str(legacy_output),
+        ]
+    )
+    path = plan_file(export_plan, "python-setup-export-plan")
+    invoke(
+        [
+            "setup",
+            "export",
+            "apply",
+            "--plan",
+            str(path),
+            "--plan-digest",
+            export_plan["plan_digest"],
+        ]
+    )
+    assert (legacy_output / "setup-definition.json").read_bytes() == legacy_definition
+    assert json.loads((legacy_output / "setup-passport.json").read_bytes()) == legacy
 
     native = root / "native-codex"
     native.mkdir()

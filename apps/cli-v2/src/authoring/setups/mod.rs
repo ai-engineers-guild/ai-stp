@@ -213,10 +213,19 @@ pub(crate) fn verify(connection: &Connection, document: &Value) -> Result<()> {
             .as_str()
             .ok_or_else(invalid)?,
     )?;
+    let mut retained = canonical::parse(&payload)?;
     if document["artifact_format"] != FORMAT
         || document["artifact"]["size_bytes"] != payload.len()
-        || payload != canonical::bytes(&definition(document))?
+        || payload != canonical::bytes(&retained)?
     {
+        return Err(invalid());
+    }
+    // The production builder omits optional reference defaults in the artifact.
+    // Compare their meaning without changing either immutable representation.
+    let mut expected = definition(document);
+    passport::versions::normalize_component_refs(&mut retained["components"])?;
+    passport::versions::normalize_component_refs(&mut expected["components"])?;
+    if retained != expected {
         return Err(invalid());
     }
     for reference in document["components"].as_array().ok_or_else(invalid)? {

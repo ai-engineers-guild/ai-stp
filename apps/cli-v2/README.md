@@ -505,6 +505,11 @@ Source-harness version constraints remain only on a same-harness fork; a recast
 records any omitted source constraints explicitly as provenance facts. Definition
 bytes, revision, immutable coordinate, lineage and receipt share one transaction.
 Replay verifies retained lineage and member artifacts and preserves newer heads.
+Retained definition references may omit `variant_id` where the passport contains
+its explicit null default, as produced by the Python builder. Validation checks
+the original canonical artifact bytes, digest and size before comparing reference
+meaning. Other differences and non-null selectors refuse; export preserves both
+original representations and their immutable digests.
 
 `setup export plan` reads an explicit state directory and an exact setup ID,
 `X.Y` and passport digest without credentials. It verifies the retained definition

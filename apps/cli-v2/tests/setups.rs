@@ -318,6 +318,55 @@ fn copies_journey(
         store.transaction(|t| versions::record(t, &weaker, &identity.device_id, None, AT))?,
         weaker
     );
+    // Optional null equivalence must not admit other artifact substitutions,
+    // even when the substituted bytes have a valid stored digest and size.
+    for case in ["snapshot", "extension", "variant", "encoding"] {
+        let document = store.transaction(|t| {
+            let mut document = source.clone();
+            document["stable_id"] = format!("setup_{}", ulid::Ulid::generate()).into();
+            let original = revisions::read_content(
+                t,
+                source["artifact"]["digest"]
+                    .as_str()
+                    .ok_or_else(|| Failure::input("proof artifact missing"))?,
+            )?;
+            let mut definition = ai_stp_cli_v2::canonical::parse(&original)?;
+            definition["stable_id"] = document["stable_id"].clone();
+            match case {
+                "snapshot" => definition["input_digest"] = digest::sha256(b"substituted").into(),
+                "extension" => definition["unrecognized"] = true.into(),
+                "variant" => definition["components"][0]["variant_id"] = "substituted".into(),
+                _ => {}
+            }
+            let mut bytes = ai_stp_cli_v2::canonical::bytes(&definition)?;
+            if case == "encoding" {
+                bytes.push(b'\n');
+            }
+            document["artifact"] =
+                json!({"digest":revisions::content(t,&bytes,AT)?,"size_bytes":bytes.len()});
+            let document = revisions::commit(
+                t,
+                &document,
+                &identity.device_id,
+                None,
+                Write::Advance {
+                    expected_heads: &[],
+                },
+            )?;
+            versions::record(t, &document, &identity.device_id, None, AT)
+        })?;
+        let reference = setups::Source {
+            stable_id: field(&document, "stable_id")?.into(),
+            version: "1.0".into(),
+            passport_digest: digest::canonical("ai-stp:passport:v1", &document)?,
+        };
+        let before = counts(store)?;
+        assert!(
+            copies::plan(store, reference, None, identity.clone(), AT).is_err(),
+            "{case}"
+        );
+        assert_eq!(counts(store)?, before);
+    }
     Ok(())
 }
 fn seed(
