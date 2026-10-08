@@ -283,6 +283,14 @@ fn actual_passport_scopes_and_provider_profiles_control_eligibility() -> Result<
         "{}:1",
         private["stable_id"].as_str().ok_or("id missing")?
     ));
+    for sentinel in ["NOASSERTION", " none ", "LicenseRef-unknown"] {
+        let mut changed = document.clone();
+        changed["license"]["spdx_id"] = sentinel.into();
+        assert!(
+            codes(&reassess(changed, &another, &provider)?).contains("license_undeclared"),
+            "unknown license accepted: {sentinel}"
+        );
+    }
     assert_eq!(
         eligibility::assess(&private, &another, &evidence, Some(&provider))?["admissible"],
         true

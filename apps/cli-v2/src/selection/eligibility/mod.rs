@@ -212,9 +212,13 @@ pub fn assess(
         );
     }
     let license = document["license"]["spdx_id"].as_str().unwrap_or("");
+    let license_marker = license.trim().to_ascii_uppercase();
     if !own
-        && (license.trim().is_empty()
-            || matches!(license, "NOASSERTION" | "NONE" | "LicenseRef-Unknown"))
+        && (license_marker.is_empty()
+            || matches!(
+                license_marker.as_str(),
+                "NOASSERTION" | "NONE" | "LICENSEREF-UNKNOWN"
+            ))
     {
         report.refuse(
             "license",
