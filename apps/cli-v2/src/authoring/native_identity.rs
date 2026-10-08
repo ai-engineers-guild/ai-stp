@@ -1,5 +1,6 @@
 //! Native identifiers are observed from captured content, never from display metadata.
 
+mod antigravity;
 mod claude;
 mod codex;
 mod cursor;
@@ -41,6 +42,7 @@ pub(super) fn has_markdown_entries(harness: &str, kind: &str) -> bool {
     matches!(
         (harness, kind),
         ("claude-code" | "pi", "skill" | "command")
+            | ("antigravity", "agent")
             | ("opencode", "skill" | "command" | "agent")
             | ("codex" | "cursor" | "grok-build", "skill")
     )
@@ -53,6 +55,7 @@ fn markdown_entries<'a>(
 ) -> Result<Vec<String>> {
     match harness {
         "claude-code" => claude::invocations(kind, files),
+        "antigravity" => antigravity::agents(files),
         "codex" => codex::skills(files),
         "cursor" => cursor::skills(files),
         "grok-build" => grok::skills(files),
@@ -69,6 +72,7 @@ pub(crate) fn visible_entries<'a>(
 ) -> Result<Vec<String>> {
     let names = match (harness, kind) {
         ("codex", "skill") => codex::visible(files)?,
+        ("antigravity", "agent") => antigravity::visible(files)?,
         ("cursor", "skill") => cursor::visible(files)?,
         ("grok-build", _) => grok::visible(kind, files)?,
         ("pi", _) => pi::visible(kind, files)?,

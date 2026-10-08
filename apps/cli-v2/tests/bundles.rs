@@ -72,7 +72,7 @@ fn component(
         "mcp"
     } else if file.path.starts_with("commands/") || file.path.starts_with("prompts/") {
         "command"
-    } else if file.path.starts_with("agents/") {
+    } else if file.path.starts_with("agents/") || file.path.starts_with("config/agents/") {
         "agent"
     } else if file.path.ends_with("/SKILL.md") {
         "skill"
@@ -266,7 +266,7 @@ fn export(name: &str, bundle: &bundle::Bundle) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn skill_inventory(
+fn entry_inventory(
     store: &mut Store,
     declarations: &[Value],
     harness: &str,
@@ -276,7 +276,8 @@ fn skill_inventory(
         .find(|value| value["harness_id"] == harness)
         .ok_or("skill provider missing")?;
     let provider = Info::parse(&serde_json::to_vec(declaration)?)?;
-    let scope = if harness == "grok-build" {
+    let agent = harness == "antigravity";
+    let scope = if matches!(harness, "grok-build" | "antigravity") {
         Scope::Global
     } else {
         Scope::UserRoot
@@ -287,18 +288,37 @@ fn skill_inventory(
         &provider,
         scope,
         File {
-            path: "skills/review/SKILL.md".into(),
-            bytes: b"---\ndescription: Review source.\n---\nBody.\n".to_vec(),
+            path: if agent {
+                "config/agents/review.md"
+            } else {
+                "skills/review/SKILL.md"
+            }
+            .into(),
+            bytes: if agent {
+                b"---\nname: review\ndescription: Review source.\n---\nBody.\n".to_vec()
+            } else {
+                b"---\ndescription: Review source.\n---\nBody.\n".to_vec()
+            },
             mode: 0o644,
         },
         None,
     )?;
     let (setup, evidence) = compose(store, harness, std::slice::from_ref(&skill))?;
     let built = bundle::compile(store, &setup, &target, &evidence, &provider, &Hosts::new())?;
-    export(&format!("{harness}-fallback-skill"), &built)?;
+    export(
+        &format!(
+            "{harness}-{}",
+            if agent { "agent" } else { "fallback-skill" }
+        ),
+        &built,
+    )?;
     rejects_fabricated_ids(store, &skill, &built, &target, &provider, &Hosts::new())?;
-    for path in std::iter::once("skills/extra/SKILL.md")
-        .chain((harness == "grok-build").then_some("commands/extra.md"))
+    for path in std::iter::once(if agent {
+        "config/agents/extra.md"
+    } else {
+        "skills/extra/SKILL.md"
+    })
+    .chain((harness == "grok-build").then_some("commands/extra.md"))
     {
         // Hidden Markdown entries cannot bypass the inventory through another logical kind.
         let hidden = component(
@@ -537,8 +557,8 @@ fn exact_bundles_cover_every_released_profile_and_refuse_unrepresentable_inputs(
         serde_json::from_str(include_str!("fixtures/provider-declarations.json"))?;
     opencode_namespaces(&mut store, &declarations)?;
     pi_namespaces(&mut store, &declarations)?;
-    for harness in ["codex", "cursor", "grok-build"] {
-        skill_inventory(&mut store, &declarations, harness)?;
+    for harness in ["codex", "cursor", "grok-build", "antigravity"] {
+        entry_inventory(&mut store, &declarations, harness)?;
     }
     let mut profiles = 0;
     for declaration in &declarations {

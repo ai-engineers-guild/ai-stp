@@ -189,7 +189,7 @@ refuse; plugin-specific fallback semantics do not apply to ordinary agent files.
 The shared data-only YAML reader keeps the existing 64 KiB header and parsing
 budgets. Each caller selects its dialect: portable sources, Codex, Pi and Grok use core
 scalar types without implicit merge expansion. Claude applies merges with core
-scalar types; OpenCode and Cursor use js-yaml 3 merge and legacy-octal rules.
+scalar types, as do Antigravity Markdown agents; OpenCode and Cursor use js-yaml 3 merge and legacy-octal rules.
 `yes` and `on` remain strings.
 Aliases preserve their native meaning. Payload bytes and unknown metadata remain
 intact. Exact-version reuse
@@ -198,7 +198,7 @@ projection member bytes; a valid archive/passport digest alone does not establis
 native identity. MCP contributions must name the harness's actual configuration
 key. Mismatched retained versions refuse without rewriting their immutable data.
 
-An optional header uses an exact `---` on the first line. BOM-prefixed, padded,
+The shared optional-header reader uses an exact `---` on the first line. BOM-prefixed, padded,
 indented or displaced opening delimiters refuse explicitly instead of silently
 using a directory/path fallback when the native loader might read a name.
 This restriction leaves accepted no-header content and captured bytes unchanged.
@@ -219,6 +219,22 @@ The Claude 2.1.294 command inventory was checked through its initialization
 handshake in a network-isolated synthetic home, without a model turn. The preview
 requires string names even where Claude coerces numbers or booleans; quoted names
 retain their spelling. Date-shaped core scalars remain strings.
+
+Antigravity 1.2.15 Markdown agents use required nonempty `name` and `description`
+fields, preserving scalar spelling rather than the filename. Definitions are
+flat `agents/*.md` or one-level `agents/<folder>/agent.md`, including hidden names;
+deeper Markdown files are auxiliary. Both `config/agents` and
+`antigravity-cli/agents` are native global roots, and `.agents/agents` is the
+project root. Discovery and provider routes still select only their declared
+roots; a native alias does not add a provider route. This preview refuses native
+JSON agent definitions. The documented list, Boolean and string fields must have
+their declared types. Agent-scoped `mcpServers` must contain uniquely named objects
+and pass the same credential-field guard as standalone MCP configuration.
+`mainAgent`/`subagent` affect selection without renaming the agent definition.
+Retained projections and assembled agent inventory recheck these identities,
+including files hidden in another logical kind. Native global `agy agents` inspection
+uses an isolated synthetic home without authentication or model turns; this checks
+metadata loading, not agent execution. See the native [agent format](https://antigravity.google/docs/subagents).
 
 Grok Build 1.0.49 local skills use a normalized frontmatter name, falling back to
 its containing directory when the name is absent or invalid. Normalization uses

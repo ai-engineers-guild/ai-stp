@@ -211,6 +211,10 @@ fn native_identity_journey(identity: &Identity, at: &str) -> Result<(), Box<dyn 
     for (harness, fixture) in [
         ("pi", include_str!("fixtures/pi-native-entries.json")),
         (
+            "antigravity",
+            include_str!("fixtures/antigravity-native-agents.json"),
+        ),
+        (
             "grok-build",
             include_str!("fixtures/grok-native-entries.json"),
         ),

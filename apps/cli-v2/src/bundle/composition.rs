@@ -224,6 +224,7 @@ impl Composition {
     pub fn validate(&self, files: &[super::File]) -> Result<()> {
         let kinds: &[&str] = match self.harness.as_str() {
             "codex" | "cursor" => &["skill"],
+            "antigravity" => &["agent"],
             "pi" | "grok-build" => &["skill", "command"],
             _ => &[],
         };
