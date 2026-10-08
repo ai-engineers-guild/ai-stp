@@ -20,10 +20,37 @@ fn declared<'a>(document: &'a Value, field: &str) -> Result<&'a Value> {
 pub(super) struct Composition {
     paths: BTreeMap<String, String>,
     native_ids: BTreeMap<String, String>,
+    kinds: BTreeMap<String, String>,
+    exclusions: Vec<Exclusion>,
     precedence: BTreeMap<i64, String>,
     hooks: BTreeMap<(String, i64), String>,
     chosen: Vec<Value>,
     converted: Vec<Value>,
+}
+
+struct Exclusion {
+    owner: String,
+    family: &'static str,
+    value: String,
+}
+
+fn overlap_owner<'a>(
+    paths: &'a BTreeMap<String, String>,
+    path: &str,
+    except: &str,
+) -> Option<&'a str> {
+    let mut ancestor = Some(path);
+    while let Some(path) = ancestor {
+        if let Some(owner) = paths.get(path).filter(|owner| owner.as_str() != except) {
+            return Some(owner);
+        }
+        ancestor = path.rsplit_once('/').map(|(parent, _)| parent);
+    }
+    let prefix = format!("{path}/");
+    paths
+        .range(prefix.clone()..)
+        .take_while(|(held, _)| held.starts_with(&prefix))
+        .find_map(|(_, owner)| (owner != except).then_some(owner.as_str()))
 }
 
 impl Composition {
@@ -34,23 +61,16 @@ impl Composition {
             ));
         }
         let folded = unicase::UniCase::new(path).to_folded_case();
-        let prefix = format!("{folded}/");
-        let descendant = self.paths.contains_key(&folded)
-            || self
-                .paths
-                .range(prefix.clone()..)
-                .next()
-                .is_some_and(|(held, _)| held.starts_with(&prefix));
-        let mut ancestor = folded.as_str();
-        let mut owned_ancestor = false;
-        while let Some((parent, _)) = ancestor.rsplit_once('/') {
-            owned_ancestor |= self.paths.contains_key(parent);
-            ancestor = parent;
-        }
-        if descendant || owned_ancestor {
+        if let Some(held) = overlap_owner(&self.paths, &folded, "") {
             return Err(invalid(
                 "managed_path_owned_twice: bundle v2 cannot assign a file to multiple components",
-            ));
+            )
+            .with_details([
+                ("constraint".into(), "managed_path_owned_twice".into()),
+                ("stable_id".into(), owner.into()),
+                ("also".into(), held.into()),
+                ("path".into(), path.into()),
+            ]));
         }
         self.paths.insert(folded, owner.into());
         Ok(())
@@ -58,6 +78,34 @@ impl Composition {
 
     pub fn include(&mut self, document: &Value, scope: &Value, assessment: &Value) -> Result<()> {
         let id = text(document, "stable_id")?;
+        self.kinds
+            .insert(id.into(), text(document, "component_type")?.into());
+        for family in ["paths", "commands", "agents", "hooks", "mcp", "plugins"] {
+            for value in document["conflicts"][family]
+                .as_array()
+                .into_iter()
+                .flatten()
+            {
+                let value = value
+                    .as_str()
+                    .ok_or_else(|| invalid("a declared conflict is not a string"))?;
+                if self.exclusions.len() >= 8192
+                    || value.is_empty()
+                    || value.len() > 1024
+                    || value.chars().any(char::is_control)
+                    || (family == "paths" && !crate::artifacts::safe_path(value))
+                {
+                    return Err(invalid(
+                        "declared conflicts exceed their bounded native name or relative path contract",
+                    ));
+                }
+                self.exclusions.push(Exclusion {
+                    owner: id.into(),
+                    family,
+                    value: value.into(),
+                });
+            }
+        }
         for member in scope["members"]
             .as_array()
             .ok_or_else(|| invalid("members missing"))?
@@ -146,6 +194,49 @@ impl Composition {
             "component_type":scope["provider_component_kind"],"logical_component_type":document["component_type"],
             "native_surface":common.join("/"),"native_paths":paths,"projection_kind":scope["projection_kind"],
             "state":if losses.is_empty(){"complete"}else{"partial"},"losses":losses}));
+        Ok(())
+    }
+
+    /// Check after collecting every selected component, so neither graph order
+    /// nor the side that declares an exclusion can hide a contradiction.
+    pub fn validate(&self) -> Result<()> {
+        for exclusion in &self.exclusions {
+            let other = if exclusion.family == "paths" {
+                overlap_owner(
+                    &self.paths,
+                    &unicase::UniCase::new(&exclusion.value).to_folded_case(),
+                    &exclusion.owner,
+                )
+            } else {
+                let kind = match exclusion.family {
+                    "commands" => "command",
+                    "agents" => "agent",
+                    "hooks" => "hook",
+                    "mcp" => "mcp",
+                    "plugins" => "plugin",
+                    _ => return Err(invalid("unknown native conflict family")),
+                };
+                self.native_ids
+                    .get(&exclusion.value)
+                    .filter(|owner| {
+                        *owner != &exclusion.owner
+                            && self.kinds.get(*owner).is_some_and(|held| held == kind)
+                    })
+                    .map(String::as_str)
+            };
+            if let Some(other) = other {
+                return Err(
+                    invalid("a component explicitly excludes a selected native surface")
+                        .with_details([
+                            ("constraint".into(), "declared_conflict".into()),
+                            ("stable_id".into(), exclusion.owner.clone().into()),
+                            ("also".into(), other.into()),
+                            ("family".into(), exclusion.family.into()),
+                            ("value".into(), exclusion.value.clone().into()),
+                        ]),
+                );
+            }
+        }
         Ok(())
     }
 

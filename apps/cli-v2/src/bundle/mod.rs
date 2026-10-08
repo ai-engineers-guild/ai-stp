@@ -111,9 +111,10 @@ fn compile_snapshot(
         Some(provider),
     )?;
     if assessment["admissible"] != true {
-        return Err(invalid(
-            "the exact setup graph is not mechanically admissible",
-        ));
+        return Err(
+            invalid("the exact setup graph is not mechanically admissible")
+                .with_details([("eligibility".into(), assessment)]),
+        );
     }
     let document = exact(connection, setup)?;
     let setup_bytes = revisions::read_content(connection, text(&document["artifact"], "digest")?)?;
@@ -250,6 +251,7 @@ fn compile_snapshot(
             "host inputs must cover exactly the configuration contributions",
         ));
     }
+    composition.validate()?;
     let profile = provider
         .profile(target.scope)
         .ok_or_else(|| invalid("provider profile missing"))?;

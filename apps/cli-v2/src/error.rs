@@ -6,6 +6,7 @@ pub type Result<T> = std::result::Result<T, Failure>;
 pub struct Failure {
     pub kind: ErrorKind,
     pub message: String,
+    pub details: std::collections::BTreeMap<String, Value>,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -74,7 +75,13 @@ impl Failure {
         Self {
             kind,
             message: message.into(),
+            details: Default::default(),
         }
+    }
+
+    pub fn with_details(mut self, details: impl IntoIterator<Item = (String, Value)>) -> Self {
+        self.details.extend(details);
+        self
     }
 
     pub fn input(message: impl Into<String>) -> Self {

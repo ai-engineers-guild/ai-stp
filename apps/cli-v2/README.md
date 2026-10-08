@@ -184,7 +184,12 @@ change an already selected version. Reports retain declared semantic losses and
 distinguish logical component kinds from provider-native kinds.
 
 Path overlap, portable case collisions, duplicate native identifiers and tied
-instruction/hook ordering refuse the whole bundle. A configuration contribution
+instruction/hook ordering refuse the whole bundle. Explicit passport conflicts
+also exclude other selected components by relative path or typed native name,
+independently of graph order; declarations do not exclude their own component.
+Conflict metadata is bounded to 8,192 entries of at most 1,024 bytes each.
+Refusals preserve structured constraint details or the failed graph assessment
+without returning a partial package. A configuration contribution
 requires explicit observed host bytes or observed absence; unknown is not empty.
 The compiler preserves unowned configuration and binds host identities into its
 input digest. Provider execution must revalidate those observations. It does not

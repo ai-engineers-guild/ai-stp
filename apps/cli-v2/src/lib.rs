@@ -56,7 +56,7 @@ impl Invocation {
                 envelope["warnings"] = json!([]);
             }
             Err(failure) => {
-                envelope["error"] = json!({"code": failure.kind.code(), "message": failure.message, "retryable": matches!(failure.kind, error::ErrorKind::Unavailable), "details": {}})
+                envelope["error"] = json!({"code": failure.kind.code(), "message": failure.message, "retryable": matches!(failure.kind, error::ErrorKind::Unavailable), "details": failure.details})
             }
         }
         envelope

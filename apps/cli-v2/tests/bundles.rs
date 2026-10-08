@@ -544,3 +544,125 @@ fn exact_bundles_cover_every_released_profile_and_refuse_unrepresentable_inputs(
     assert!(bundle::compile(&mut store, &setup, &target, &evidence, &provider, &hosts).is_err());
     Ok(())
 }
+
+#[test]
+fn declared_exclusions_are_symmetric_and_do_not_conflict_with_their_owner()
+-> Result<(), Box<dyn Error>> {
+    let root = tempfile::tempdir()?;
+    let mut store = Store::open(root.path(), true)?;
+    let declarations: Vec<Value> =
+        serde_json::from_str(include_str!("fixtures/provider-declarations.json"))?;
+    let declaration = declarations
+        .iter()
+        .find(|value| value["harness_id"] == "claude-code")
+        .ok_or("Claude missing")?;
+    let provider = Info::parse(&serde_json::to_vec(declaration)?)?;
+    let target = target("claude-code", Scope::Global);
+    for family in ["paths", "commands"] {
+        let mut originals = Vec::new();
+        for name in ["left", "right"] {
+            let path = if family == "paths" {
+                format!("skills/{name}/SKILL.md")
+            } else {
+                format!("commands/{name}.md")
+            };
+            originals.push(component(
+                &mut store,
+                &provider,
+                Scope::Global,
+                File {
+                    path,
+                    bytes: b"# Review\n".to_vec(),
+                    mode: 0o644,
+                },
+                None,
+            )?);
+        }
+        originals.sort_by(|a, b| a["stable_id"].as_str().cmp(&b["stable_id"].as_str()));
+        for case in 0..6 {
+            let declarer = case % 2;
+            let excluded = if case < 2 { 1 - declarer } else { declarer };
+            let mut members = Vec::new();
+            for (index, original) in originals.iter().enumerate() {
+                let mut document = original.clone();
+                document["version"] = format!("2.{case}").into();
+                let path = text(
+                    &original["adaptations"][0]["scope_adaptations"][0]["members"][0],
+                    "path",
+                )?;
+                let name = path
+                    .split('/')
+                    .nth(1)
+                    .ok_or("name missing")?
+                    .trim_end_matches(".md");
+                document["adaptations"][0]["scope_adaptations"][0]["members"][0]["native_ids"] =
+                    json!([name]);
+                if family == "commands" {
+                    document["component_type"] = "command".into();
+                    document["adaptations"][0]["logical_component_type"] = "command".into();
+                    document["adaptations"][0]["scope_adaptations"][0]["provider_component_kind"] =
+                        "command".into();
+                }
+                if index == declarer {
+                    let banned_path = text(
+                        &originals[excluded]["adaptations"][0]["scope_adaptations"][0]["members"]
+                            [0],
+                        "path",
+                    )?;
+                    let banned = if family == "paths" {
+                        banned_path.rsplit_once('/').ok_or("parent missing")?.0
+                    } else {
+                        banned_path
+                            .split('/')
+                            .nth(1)
+                            .ok_or("name missing")?
+                            .trim_end_matches(".md")
+                    };
+                    let banned = if case >= 4 {
+                        format!("{banned}-other")
+                    } else {
+                        banned.to_owned()
+                    };
+                    document["conflicts"][family] = json!([banned]);
+                }
+                document["adaptations"][0] =
+                    passport::versions::seal_adaptation(&document["adaptations"][0])?;
+                members.push(store.transaction(|t| {
+                    versions::record(t, &document, &identity().device_id, None, AT)
+                })?);
+            }
+            let (setup, evidence) = compose(&mut store, "claude-code", &members)?;
+            let result = bundle::compile(
+                &mut store,
+                &setup,
+                &target,
+                &evidence,
+                &provider,
+                &Hosts::new(),
+            );
+            if case < 2 {
+                let refusal = result
+                    .err()
+                    .ok_or_else(|| format!("ignored {family} exclusion from member {declarer}"))?;
+                assert_eq!(refusal.details["constraint"], "declared_conflict");
+                assert_eq!(refusal.details["family"], family);
+                assert_eq!(refusal.details["stable_id"], members[declarer]["stable_id"]);
+                assert_eq!(refusal.details["also"], members[excluded]["stable_id"]);
+                let envelope = ai_stp_cli_v2::Invocation {
+                    result: Err(refusal),
+                    machine: true,
+                    text: None,
+                }
+                .envelope();
+                assert_eq!(
+                    envelope["error"]["details"]["constraint"],
+                    "declared_conflict"
+                );
+                assert!(envelope.get("data").is_none());
+            } else {
+                result?;
+            }
+        }
+    }
+    Ok(())
+}
