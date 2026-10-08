@@ -18,8 +18,14 @@ pub(crate) struct OwnedDirectory {
     _lock: std::fs::File,
 }
 
-fn invalid() -> Failure {
+fn invalid(stage: &'static str) -> Failure {
     Failure::precondition("explicit private directory is invalid, busy or inaccessible")
+        .with_details([("stage".into(), stage.into())])
+}
+
+fn io_failure(stage: &'static str, error: std::io::Error) -> Failure {
+    // OS error numbers are diagnostic; never include paths or error strings.
+    invalid(stage).with_details([("os_error".into(), error.raw_os_error().into())])
 }
 
 pub(crate) fn private_options() -> OpenOptions {
@@ -38,8 +44,8 @@ pub(crate) fn private_options() -> OpenOptions {
 
 impl OwnedDirectory {
     pub fn open(root: &Path, name: &str, owner: &[u8], create: bool) -> Result<Option<Self>> {
-        let parent =
-            Dir::open_ambient_dir(root, cap_std::ambient_authority()).map_err(|_| invalid())?;
+        let parent = Dir::open_ambient_dir(root, cap_std::ambient_authority())
+            .map_err(|error| io_failure("parent_open", error))?;
         Self::open_at(&parent, name, owner, create)
     }
 
@@ -55,7 +61,7 @@ impl OwnedDirectory {
             match parent.create_dir_with(name, &builder) {
                 Ok(()) => {}
                 Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {}
-                Err(_) => return Err(invalid()),
+                Err(error) => return Err(io_failure("directory_create", error)),
             }
         }
         let directory = match parent.open_dir_nofollow(name) {
@@ -63,20 +69,20 @@ impl OwnedDirectory {
             Err(error) if !create && error.kind() == std::io::ErrorKind::NotFound => {
                 return Ok(None);
             }
-            Err(_) => return Err(invalid()),
+            Err(error) => return Err(io_failure("directory_open", error)),
         };
         #[cfg(unix)]
         {
             use cap_std::fs::PermissionsExt;
             if directory
                 .dir_metadata()
-                .map_err(|_| invalid())?
+                .map_err(|error| io_failure("directory_metadata", error))?
                 .permissions()
                 .mode()
                 & 0o077
                 != 0
             {
-                return Err(invalid());
+                return Err(invalid("directory_permissions"));
             }
         }
         let mut lock_options = private_options();
@@ -84,15 +90,24 @@ impl OwnedDirectory {
         let lock = match directory.open_with("lock", &lock_options) {
             Ok(lock) => lock.into_std(),
             Err(error) if !create && error.kind() == std::io::ErrorKind::NotFound => {
-                if directory.entries().map_err(|_| invalid())?.next().is_none() {
+                if directory
+                    .entries()
+                    .map_err(|error| io_failure("directory_inventory", error))?
+                    .next()
+                    .is_none()
+                {
                     return Ok(None);
                 }
-                return Err(invalid());
+                return Err(invalid("lock_missing"));
             }
-            Err(_) => return Err(invalid()),
+            Err(error) => return Err(io_failure("lock_open", error)),
         };
-        if !lock.metadata().map_err(|_| invalid())?.is_file() {
-            return Err(invalid());
+        if !lock
+            .metadata()
+            .map_err(|error| io_failure("lock_metadata", error))?
+            .is_file()
+        {
+            return Err(invalid("lock_type"));
         }
         let started = Instant::now();
         loop {
@@ -103,7 +118,10 @@ impl OwnedDirectory {
                 {
                     thread::sleep(Duration::from_millis(20))
                 }
-                Err(_) => return Err(invalid()),
+                Err(std::fs::TryLockError::Error(error)) => {
+                    return Err(io_failure("lock_acquire", error));
+                }
+                Err(std::fs::TryLockError::WouldBlock) => return Err(invalid("lock_timeout")),
             }
         }
         let owned = Self {
@@ -117,14 +135,14 @@ impl OwnedDirectory {
                 if owned
                     .directory
                     .entries()
-                    .map_err(|_| invalid())?
+                    .map_err(|error| io_failure("owner_inventory", error))?
                     .any(|entry| {
                         entry.map_or(true, |entry| {
                             !matches!(entry.file_name().to_str(), Some("lock" | "owner"))
                         })
                     })
                 {
-                    return Err(invalid());
+                    return Err(invalid("owner_unclaimed_content"));
                 }
                 if !create {
                     return Ok(None);
@@ -136,24 +154,26 @@ impl OwnedDirectory {
                 let mut file = owned
                     .directory
                     .open_with("owner", private_options().read(true).create(true))
-                    .map_err(|_| invalid())?;
-                let metadata = file.metadata().map_err(|_| invalid())?;
+                    .map_err(|error| io_failure("owner_open", error))?;
+                let metadata = file
+                    .metadata()
+                    .map_err(|error| io_failure("owner_metadata", error))?;
                 if !metadata.is_file() || metadata.nlink() != 1 {
-                    return Err(invalid());
+                    return Err(invalid("owner_type"));
                 }
                 let mut prefix = Vec::new();
                 Read::by_ref(&mut file)
                     .take(257)
                     .read_to_end(&mut prefix)
-                    .map_err(|_| invalid())?;
+                    .map_err(|error| io_failure("owner_read", error))?;
                 if !expected_owner.starts_with(&prefix) {
-                    return Err(invalid());
+                    return Err(invalid("owner_prefix"));
                 }
                 file.write_all(&expected_owner[prefix.len()..])
                     .and_then(|_| file.sync_all())
-                    .map_err(|_| invalid())?;
+                    .map_err(|error| io_failure("owner_write", error))?;
             }
-            _ => return Err(invalid()),
+            _ => return Err(invalid("owner_mismatch")),
         }
         if create {
             // Reflush on retry as well: a previous call may have written all
@@ -161,17 +181,23 @@ impl OwnedDirectory {
             let file = owned
                 .directory
                 .open_with("owner", &private_options())
-                .map_err(|_| invalid())?;
-            if file.metadata().map_err(|_| invalid())?.nlink() != 1 {
-                return Err(invalid());
+                .map_err(|error| io_failure("owner_flush_open", error))?;
+            if file
+                .metadata()
+                .map_err(|error| io_failure("owner_flush_metadata", error))?
+                .nlink()
+                != 1
+            {
+                return Err(invalid("owner_links"));
             }
-            file.sync_all().map_err(|_| invalid())?;
+            file.sync_all()
+                .map_err(|error| io_failure("owner_flush", error))?;
             owned.sync()?;
             #[cfg(unix)]
             parent
                 .open(".")
                 .and_then(|file| file.sync_all())
-                .map_err(|_| invalid())?;
+                .map_err(|error| io_failure("parent_flush", error))?;
         }
         Ok(Some(owned))
     }
@@ -180,14 +206,14 @@ impl OwnedDirectory {
         let file = match files::open_regular(&self.directory, Path::new(name)) {
             Ok(file) => file,
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
-            Err(_) => return Err(invalid()),
+            Err(error) => return Err(io_failure("file_open", error)),
         };
         let mut bytes = Vec::new();
         file.take(max + 1)
             .read_to_end(&mut bytes)
-            .map_err(|_| invalid())?;
+            .map_err(|error| io_failure("file_read", error))?;
         if bytes.len() as u64 > max {
-            return Err(invalid());
+            return Err(invalid("file_size"));
         }
         Ok(Some(bytes))
     }
@@ -198,14 +224,14 @@ impl OwnedDirectory {
             let mut file = self
                 .directory
                 .open_with(&temporary, private_options().create_new(true))
-                .map_err(|_| invalid())?;
+                .map_err(|error| io_failure("temporary_create", error))?;
             file.write_all(bytes)
                 .and_then(|_| file.sync_all())
-                .map_err(|_| invalid())?;
+                .map_err(|error| io_failure("temporary_write", error))?;
             drop(file);
             self.directory
                 .rename(&temporary, &self.directory, name)
-                .map_err(|_| invalid())?;
+                .map_err(|error| io_failure("temporary_publish", error))?;
             self.sync()
         })();
         if result.is_err() {
@@ -218,9 +244,9 @@ impl OwnedDirectory {
         #[cfg(unix)]
         self.directory
             .open(".")
-            .map_err(|_| invalid())?
+            .map_err(|error| io_failure("directory_flush_open", error))?
             .sync_all()
-            .map_err(|_| invalid())?;
+            .map_err(|error| io_failure("directory_flush", error))?;
         Ok(())
     }
 }

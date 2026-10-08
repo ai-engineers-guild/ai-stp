@@ -669,6 +669,11 @@ harness at creation; every later draft and immutable version must preserve it,
 including agreement between the logical field and its fact when both are present.
 Production registry import remains a separate pending operation.
 
+Private-directory failures include a fixed operation `stage` and, for I/O
+failures, an optional numeric `os_error`. Paths, file contents and raw OS error
+messages are excluded. The stage distinguishes lock contention, ownership
+validation and persistence failures without changing their refusal behavior.
+
 The immutable coordinate writer validates complete passports before recording
 an `X.Y`. Replaying a number requires the same exact passport; another digest
 cannot replace it. Minor numbering advances the latest verified line, while
