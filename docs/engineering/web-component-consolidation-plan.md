@@ -151,4 +151,4 @@ two thin organisms with provider deltas. Reuses the renamed
 | 2 primitives | done | this change |
 | 3 merges/renames | done | this change |
 | 4 tier moves | done | this change |
-| 5 connectors | pending | |
+| 5 connectors | done | this change |
