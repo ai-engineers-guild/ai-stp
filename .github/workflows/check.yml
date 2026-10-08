@@ -73,7 +73,8 @@ jobs:
         # The published CLI wheel bundles its shared contract modules; a lone
         # editable CLI install intentionally leaves them in sibling packages.
         run: uv sync --locked --package ai-stp-cli --no-default-groups --no-editable
-      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+        id: native-cache
         with:
           path: |
             ~/.cargo/registry
@@ -89,6 +90,15 @@ jobs:
           cargo clippy --locked --all-targets -- -D warnings
           cargo test --locked
           cargo build --locked --release --bins --examples
+      - name: Cache the successful native build
+        if: steps.native-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            apps/cli-v2/target
+          key: ${{ steps.native-cache.outputs.cache-primary-key }}
       - name: Existing consumers and real SQLite backup
         shell: bash
         run: |
