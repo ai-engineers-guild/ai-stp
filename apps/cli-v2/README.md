@@ -141,8 +141,24 @@ Within Git, it includes tracked and nonignored untracked members without
 changing the index; unresolved entries and submodules are refused. Tracked
 executable modes survive Windows capture. Filesystem capture refuses links,
 credential-named paths, incomplete reads and file/count/depth budgets. A
-`hooks.json` capture includes its bounded `hooks/` sibling tree. This service
-does not yet register a component or extract a contribution from a host config.
+`hooks.json` capture includes its bounded `hooks/` sibling tree. Source capture
+does not yet register a component.
+
+`authoring/contribution` extracts one owned top-level object/table and compiles
+it back into a host configuration in memory. JSON, JSONC and TOML retain unowned
+settings and comments; JSON number tokens retain their exact precision. Duplicate
+keys, scalar contributions and JSON5 extensions are refused. Repeated assembly
+is stable. `jsonc-parser` and `toml_edit` own format-preserving syntax; they can
+be removed if these native configuration formats cease to be supported. This
+service never writes the harness file; that remains the public provider's job.
+
+The native catalog consumes the same passive harness data as other repository
+consumers. Declared-layout discovery accepts one explicit scope and root,
+including Cursor's distinct configuration root. It reports incomplete evidence
+for unsafe links, malformed configuration and exhausted budgets; it never treats
+these as an empty inventory. Structural configuration reads return names only.
+This service covers catalog layouts; package provenance, recursive portable
+discovery and installed-plugin sources remain separate unfinished adapters.
 
 `process` owns one-shot child execution with an absolute executable, explicit
 environment, closed stdin, concurrent bounded output and a deadline. Its Git
@@ -170,6 +186,8 @@ no async runtime or tracing feature is enabled for it.
 | `store/`, `files/owned.rs` | Explicit owned state, atomic revision writes and shared private-file primitives |
 | `artifacts.rs` | Canonical component archives, bounded decoding and portable member identities |
 | `authoring/source.rs`, `process.rs` | Complete bounded source capture and explicit child process lifecycle |
+| `authoring/contribution.rs` | Owned configuration extraction and format-preserving in-memory assembly |
+| `harnesses.rs`, `authoring/discovery.rs` | Shared declarative harness facts and bounded inspection of native layouts |
 | `provenance.rs` | Offline PEP 740 cryptographic verification and publisher policy |
 
 The provenance service accepts a caller-owned trusted root and an artifact

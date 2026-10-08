@@ -9,6 +9,7 @@ pub mod digest;
 pub mod environment;
 pub mod error;
 mod files;
+pub mod harnesses;
 mod http;
 pub mod objects;
 pub mod passport;
