@@ -5,7 +5,7 @@
 import { useId, useRef, useState } from "react";
 
 import { Button } from "@/components/atoms/button";
-import { type PresentationMediaDraft } from "@/components/organisms/use-object-presentation-form";
+import { type PresentationMediaDraft } from "@/lib/use-object-presentation-form";
 import {
   COMPONENT_MEDIA_ACCEPT,
   isExternalMediaUrl,

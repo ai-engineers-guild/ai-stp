@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 
 import { Button } from "@/components/atoms/button";
-import { LandingHeroPreview } from "@/components/molecules/landing-hero-preview";
+import { LandingHeroPreview } from "@/components/organisms/landing-hero-preview";
 import { SignedOutOnly } from "@/components/molecules/signed-out-only";
 import { InstallBlock } from "@/components/organisms/install-block";
 import { Link } from "@/lib/i18n/navigation";

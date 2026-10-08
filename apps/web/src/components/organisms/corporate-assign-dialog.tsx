@@ -1,5 +1,6 @@
 "use client";
 
+import { Select } from "@/components/atoms/select";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
@@ -172,7 +173,7 @@ export function CorporateAssignDialog({
         <div className="space-y-4">
           <div className="space-y-2 text-sm">
             <Label htmlFor="assign-version">{h.version}</Label>
-            <select
+            <Select
               id="assign-version"
               className="border-input bg-background min-h-11 w-full rounded-sm border px-3 text-sm"
               value={version}
@@ -187,7 +188,7 @@ export function CorporateAssignDialog({
                   {value}
                 </option>
               ))}
-            </select>
+            </Select>
           </div>
           {SUBJECT_KINDS.map((kind) => (
             <SearchableMultiSelect

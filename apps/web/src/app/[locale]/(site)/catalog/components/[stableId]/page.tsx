@@ -23,12 +23,12 @@ import { HistoryBackButton } from "@/components/molecules/history-back-button";
 import {
   ComponentTargetMatrix,
   targetMatrixLabels,
-} from "@/components/molecules/component-target-matrix";
+} from "@/components/organisms/component-target-matrix";
 import { ComponentMediaGallery } from "@/components/organisms/component-media-gallery";
 import { CorporateCatalogUsage } from "@/components/organisms/corporate-catalog-usage";
-import { usageSectionLabels } from "@/components/organisms/corporate-directory-types";
+import { usageSectionLabels } from "@/lib/corporate-directory-types";
 import { CorporateCatalogOwnerEditor } from "@/components/organisms/corporate-catalog-owner-editor";
-import { contextBudgetLabels } from "@/components/organisms/context-budget-labels";
+import { contextBudgetLabels } from "@/lib/context-budget-labels";
 import { ComponentContextBudgetPanel } from "@/components/organisms/context-budget-panel";
 import { ObjectDetailFrame } from "@/components/organisms/object-detail-frame";
 import { ObjectDetailHeader } from "@/components/organisms/object-detail-header";

@@ -14,11 +14,11 @@ import { CatalogChoiceMenu } from "@/components/molecules/catalog-choice-menu";
 import { CorporateCreateForm } from "@/components/organisms/corporate-create-form";
 import {
   PEOPLE_PAGE_SIZE,
-  PeoplePager,
   PeopleSearch,
   PeopleSelect,
   usePeopleFilters,
-} from "@/components/organisms/corporate-people-ui";
+} from "@/components/molecules/people-ui";
+import { PagePager } from "@/components/molecules/page-pager";
 import type {
   CorporateContext,
   CorporateJobTitleView,
@@ -242,10 +242,24 @@ export function CorporateMembersDirectory(props: Props) {
         update={filters.update}
         empty={members.length === 0}
       />
-      <PeoplePager
-        total={filtered.length}
+      <PagePager
+        label={t("pagination")}
         page={page}
-        kind="members"
+        totalPages={Math.max(1, Math.ceil(filtered.length / PEOPLE_PAGE_SIZE))}
+        summary={
+          <p aria-live="polite" className="text-muted-foreground text-sm tabular-nums">
+            {t("showingMembers", {
+              start: filtered.length ? (page - 1) * PEOPLE_PAGE_SIZE + 1 : 0,
+              end: Math.min(page * PEOPLE_PAGE_SIZE, filtered.length),
+              total: filtered.length,
+            })}
+          </p>
+        }
+        controls={{
+          previous: t("previousPage"),
+          next: t("nextPage"),
+          page: (value) => t("page", { page: value }),
+        }}
         onPage={(value) => {
           filters.update("page", String(value));
         }}

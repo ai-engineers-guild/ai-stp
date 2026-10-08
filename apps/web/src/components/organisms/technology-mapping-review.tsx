@@ -1,5 +1,6 @@
 "use client";
 
+import { Select } from "@/components/atoms/select";
 import { useId, useState } from "react";
 import { useTranslations } from "next-intl";
 
@@ -253,7 +254,7 @@ function UnmappedRow({
         <div className="flex flex-wrap items-end gap-3">
           <div className="min-w-56 space-y-1">
             <Label htmlFor={selectId}>{t("mappingCandidateLabel")}</Label>
-            <select
+            <Select
               id={selectId}
               className="border-input bg-background text-foreground focus-visible:ring-ring h-11 w-full rounded-sm border px-3 text-sm focus-visible:ring-2"
               value={shownCandidate}
@@ -270,7 +271,7 @@ function UnmappedRow({
                     : `${technology.name} (${t(`values.${technology.lifecycle}`)})`}
                 </option>
               ))}
-            </select>
+            </Select>
           </div>
           <Button
             variant="outline"

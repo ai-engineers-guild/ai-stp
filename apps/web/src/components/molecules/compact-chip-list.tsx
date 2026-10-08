@@ -1,10 +1,9 @@
 "use client";
 
-import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
-
 import { Badge, badgeVariants } from "@/components/atoms/badge";
 import { cn } from "@/lib/cn";
 import { Link } from "@/lib/i18n/navigation";
+import { Menu, MenuContent, MenuItem, MenuTrigger } from "@/components/atoms/menu";
 
 const VISIBLE_LIMIT = 3;
 
@@ -46,8 +45,8 @@ export function CompactChipList({
       })}
       {hidden.length ? (
         <span className="relative z-30 shrink-0">
-          <DropdownMenu.Root modal={false}>
-            <DropdownMenu.Trigger asChild>
+          <Menu modal={false}>
+            <MenuTrigger asChild>
               <button
                 type="button"
                 className={cn(
@@ -58,34 +57,31 @@ export function CompactChipList({
               >
                 +{hidden.length}
               </button>
-            </DropdownMenu.Trigger>
-            <DropdownMenu.Portal>
-              <DropdownMenu.Content
-                side="top"
-                align="start"
-                sideOffset={8}
-                collisionPadding={12}
-                className="border-border bg-popover text-popover-foreground z-[80] w-max max-w-[min(18rem,calc(100vw-2rem))] rounded-lg border p-2 shadow-md"
-              >
-                <p className="text-muted-foreground mb-1 text-xs font-medium">{label}</p>
-                <div className="flex flex-wrap gap-1">
-                  {unique.map((value) => {
-                    const href = hrefForValue?.(value);
-                    const chip = <Badge variant={variant}>{value}</Badge>;
-                    return href ? (
-                      <DropdownMenu.Item key={value} asChild>
-                        <Link href={href} className="focus:bg-accent rounded-sm outline-none">
-                          {chip}
-                        </Link>
-                      </DropdownMenu.Item>
-                    ) : (
-                      <span key={value}>{chip}</span>
-                    );
-                  })}
-                </div>
-              </DropdownMenu.Content>
-            </DropdownMenu.Portal>
-          </DropdownMenu.Root>
+            </MenuTrigger>
+            <MenuContent
+              side="top"
+              align="start"
+              sideOffset={8}
+              className="w-max max-w-[min(18rem,calc(100vw-2rem))] p-2"
+            >
+              <p className="text-muted-foreground mb-1 text-xs font-medium">{label}</p>
+              <div className="flex flex-wrap gap-1">
+                {unique.map((value) => {
+                  const href = hrefForValue?.(value);
+                  const chip = <Badge variant={variant}>{value}</Badge>;
+                  return href ? (
+                    <MenuItem key={value} asChild>
+                      <Link href={href} className="focus:bg-accent rounded-sm outline-none">
+                        {chip}
+                      </Link>
+                    </MenuItem>
+                  ) : (
+                    <span key={value}>{chip}</span>
+                  );
+                })}
+              </div>
+            </MenuContent>
+          </Menu>
         </span>
       ) : null}
     </div>

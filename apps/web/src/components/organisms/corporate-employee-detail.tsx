@@ -8,7 +8,7 @@ import { DetailAccordion } from "@/components/molecules/detail-accordion";
 import { ObjectCard } from "@/components/organisms/object-card";
 import type { CorporateEmployeeContent } from "@/lib/api/corporate-employee";
 import { Link } from "@/lib/i18n/navigation";
-import type { CorporateEmployeeDetailLabels } from "@/components/organisms/corporate-employee-labels";
+import type { CorporateEmployeeDetailLabels } from "@/lib/corporate-employee-labels";
 
 export function CorporateEmployeeDetail({
   content,

@@ -1,4 +1,5 @@
 import { getTranslations, setRequestLocale } from "next-intl/server";
+import { Table, TBody, Td, Tr } from "@/components/atoms/table";
 import { CorporateReportCard } from "@/components/organisms/corporate-report-card";
 import { StatePanel } from "@/components/molecules/state-panel";
 import { readCorporateContext } from "@/lib/api/corporate";
@@ -25,22 +26,22 @@ export default async function CorporateReportsPage({
     ["Desktop", "M. Lee", "●", "—"],
   ];
   const heartbeatPreview = (
-    <table className="w-full text-left text-[10px]">
-      <tbody>
+    <Table className="text-left text-[10px]">
+      <TBody>
         {rows.map((row, index) => (
-          <tr key={index} className="border-border border-b last:border-0">
+          <Tr key={index}>
             {row.map((cell, column) => (
-              <td
+              <Td
                 key={column}
-                className={`py-2 pr-2 ${index === 0 ? "text-muted-foreground" : ""}`}
+                className={`px-0 py-2 pr-2 text-[10px] ${index === 0 ? "text-muted-foreground" : ""}`}
               >
                 {cell}
-              </td>
+              </Td>
             ))}
-          </tr>
+          </Tr>
         ))}
-      </tbody>
-    </table>
+      </TBody>
+    </Table>
   );
   const bars = (widths: number[]) => (
     <div className="flex h-full min-h-36 items-end gap-2">
@@ -63,24 +64,24 @@ export default async function CorporateReportsPage({
     </div>
   );
   const providerPreview = (
-    <table className="w-full text-left text-[10px]">
-      <tbody>
+    <Table className="text-left text-[10px]">
+      <TBody>
         {[
           [t("providerName"), t("status"), t("lastSeen"), t("issues")],
           ["Codex", t("active"), "12m", "—"],
           ["Claude", t("active"), "28m", "—"],
           ["Gemini", t("stale"), "2h", "1"],
         ].map((row, index) => (
-          <tr key={index} className="border-border border-b last:border-0">
+          <Tr key={index}>
             {row.map((cell, column) => (
-              <td key={column} className="py-2 pr-2">
+              <Td key={column} className="px-0 py-2 pr-2 text-[10px]">
                 {cell}
-              </td>
+              </Td>
             ))}
-          </tr>
+          </Tr>
         ))}
-      </tbody>
-    </table>
+      </TBody>
+    </Table>
   );
   const coveragePreview = (
     <div className="flex h-full flex-col justify-center gap-4">

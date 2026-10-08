@@ -41,7 +41,7 @@ Sidebar groups:
 
 - **Foundations** — Introduction, Colors, Typography, Spacing, Radius, Icons
 - **UI Kit / Atoms** — Badge, Button, Dialog, Input, Label, Skeleton, Textarea
-- **UI Kit / Molecules** — RouteLoading, SearchField, StatePanel, ThemeToggle
+- **UI Kit / Molecules** — RouteLoading, StatePanel, ThemeToggle
 - **UI Kit / Organisms** — CatalogFilters, CatalogResults, DeviceList, IdentityList, InstallBlock, ObjectCard, ProfileForm
 - **UI Kit / Layouts** — AppShell, SiteHeader
 

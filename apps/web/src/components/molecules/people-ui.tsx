@@ -4,19 +4,14 @@ import { useEffect, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Badge } from "@/components/atoms/badge";
+import { InitialsAvatar } from "@/components/atoms/avatar-image";
+import { Select } from "@/components/atoms/select";
 import { CompactChipList } from "@/components/molecules/compact-chip-list";
 import { Link } from "@/lib/i18n/navigation";
-import { Button } from "@/components/atoms/button";
 import { Input } from "@/components/atoms/input";
-import { pageWindow } from "@/lib/page-window";
 import { Icon } from "@/theme";
 
 export const PEOPLE_PAGE_SIZE = 10;
-export const peopleSelectClass =
-  "border-input bg-background focus-visible:ring-ring h-11 w-full min-w-0 rounded-sm border px-3 text-sm focus-visible:ring-2 focus-visible:outline-none";
-export const peopleHeadClass =
-  "text-muted-foreground h-12 px-3 text-left text-xs font-medium whitespace-nowrap";
-export const peopleCellClass = "px-3 py-2 text-sm";
 
 /** Native history keeps filtering instant, addressable, and restorable on Back. */
 export function usePeopleFilters() {
@@ -75,10 +70,10 @@ export function PeopleSelect({
   options: readonly { value: string; label: string }[];
 }) {
   return (
-    <select
+    <Select
       aria-label={label}
       value={value}
-      className={`${peopleSelectClass} sm:w-auto sm:min-w-32`}
+      className="sm:w-auto sm:min-w-32"
       onChange={(event) => {
         onChange(event.target.value);
       }}
@@ -89,7 +84,7 @@ export function PeopleSelect({
           {option.label}
         </option>
       ))}
-    </select>
+    </Select>
   );
 }
 
@@ -135,21 +130,9 @@ export function PersonIdentity({
   you?: boolean;
 }) {
   const t = useTranslations("people");
-  const initials = name
-    .trim()
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((part) => part[0])
-    .join("")
-    .toUpperCase();
   return (
     <div className="flex min-w-0 items-center gap-3">
-      <span
-        aria-hidden
-        className="bg-muted text-foreground grid size-8 shrink-0 place-items-center rounded-full text-xs font-medium"
-      >
-        {initials}
-      </span>
+      <InitialsAvatar name={name} />
       <div className="min-w-0">
         <div className="flex items-center gap-2">
           <span className="truncate">{name}</span>
@@ -162,81 +145,6 @@ export function PersonIdentity({
         {email ? <p className="text-muted-foreground truncate text-xs">{email}</p> : null}
       </div>
     </div>
-  );
-}
-
-export function PeoplePager({
-  total,
-  page,
-  onPage,
-  kind,
-}: {
-  total: number;
-  page: number;
-  onPage: (page: number) => void;
-  kind: "members" | "invitations";
-}) {
-  const t = useTranslations("people");
-  const pages = Math.max(1, Math.ceil(total / PEOPLE_PAGE_SIZE));
-  const visible = pageWindow(page, pages, 1);
-  return (
-    <footer className="border-border flex flex-wrap items-center justify-between gap-3 border-t py-3">
-      <p aria-live="polite" className="text-muted-foreground text-sm tabular-nums">
-        {t(kind === "members" ? "showingMembers" : "showingInvitations", {
-          start: total ? (page - 1) * PEOPLE_PAGE_SIZE + 1 : 0,
-          end: Math.min(page * PEOPLE_PAGE_SIZE, total),
-          total,
-        })}
-      </p>
-      <nav aria-label={t("pagination")} className="flex items-center gap-1">
-        <Button
-          type="button"
-          variant="outline"
-          size="icon"
-          aria-label={t("previousPage")}
-          disabled={page <= 1}
-          onClick={() => {
-            onPage(page - 1);
-          }}
-        >
-          <Icon name="chevronLeft" size="sm" />
-        </Button>
-        {visible.map((value, index) =>
-          value === "gap" ? (
-            <span key={`gap-${index}`} aria-hidden className="text-muted-foreground px-1">
-              &hellip;
-            </span>
-          ) : (
-            <Button
-              key={value}
-              type="button"
-              variant="ghost"
-              size="icon"
-              aria-current={value === page ? "page" : undefined}
-              aria-label={t("page", { page: value })}
-              className={value === page ? "border-primary text-primary border" : ""}
-              onClick={() => {
-                onPage(value);
-              }}
-            >
-              {value}
-            </Button>
-          ),
-        )}
-        <Button
-          type="button"
-          variant="outline"
-          size="icon"
-          aria-label={t("nextPage")}
-          disabled={page >= pages}
-          onClick={() => {
-            onPage(page + 1);
-          }}
-        >
-          <Icon name="chevronRight" size="sm" />
-        </Button>
-      </nav>
-    </footer>
   );
 }
 

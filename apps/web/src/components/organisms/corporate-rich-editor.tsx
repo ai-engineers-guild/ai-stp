@@ -27,7 +27,7 @@ import {
   previewSrc,
   readLocalMediaPreview,
   type PresentationMediaDraft,
-} from "@/components/organisms/use-object-presentation-form";
+} from "@/lib/use-object-presentation-form";
 import type { TechnologyMetadata } from "@/lib/api/generated/types.gen";
 import { kindFromMime, validateComponentMediaFile } from "@/lib/component-media";
 import {

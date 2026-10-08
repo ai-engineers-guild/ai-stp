@@ -4,14 +4,12 @@
 import { useMemo, useState } from "react";
 
 import { SearchableMultiSelect } from "@/components/molecules/searchable-multi-select";
-import type { CorporateCatalogFacetConfig } from "@/components/organisms/corporate-directory-types";
+import type { CorporateCatalogFacetConfig } from "@/lib/corporate-directory-types";
 import type { CatalogAuthorOption, ExternalProduct } from "@/lib/api/catalog";
 import { CATALOG_UNSPECIFIED_FILTER, type ParsedCatalogQuery } from "@/lib/catalog-query";
+import { Input } from "@/components/atoms/input";
 import { localizedCountryName } from "@/lib/country-name";
 import { COMPONENT_TYPE_FACETS, HARNESS_FACETS, TAG_FACETS } from "@/lib/tag-vocabulary";
-
-const selectClassName =
-  "h-11 w-full rounded-sm border border-input bg-background px-3 text-base text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:text-sm";
 
 export type CatalogFilterPanelLabels = {
   experimentalConsent: string;
@@ -439,26 +437,26 @@ function UpdatedRangeFields({
         <div className="border-border grid gap-3 border-t p-3 sm:grid-cols-2">
           <label className="space-y-1 text-xs font-medium">
             <span>{labels.updatedFrom ?? "Updated from"}</span>
-            <input
+            <Input
               type="date"
               name="updated_from"
               value={updatedFrom}
+              className="h-11"
               onChange={(event) => {
                 onFromChange(event.target.value);
               }}
-              className={selectClassName}
             />
           </label>
           <label className="space-y-1 text-xs font-medium">
             <span>{labels.updatedTo ?? "Updated to"}</span>
-            <input
+            <Input
               type="date"
               name="updated_to"
               value={updatedTo}
+              className="h-11"
               onChange={(event) => {
                 onToChange(event.target.value);
               }}
-              className={selectClassName}
             />
           </label>
         </div>

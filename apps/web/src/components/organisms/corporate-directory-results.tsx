@@ -1,5 +1,6 @@
 "use client";
 
+import { Select } from "@/components/atoms/select";
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 
@@ -17,12 +18,10 @@ import {
   type DirectoryResource,
   type CorporateCatalogFacet,
   type CorporateCatalogFacetConfig,
-} from "./corporate-directory-types";
+} from "@/lib/corporate-directory-types";
 import { usePathname, useRouter } from "@/lib/i18n/navigation";
-import { PageNav } from "@/components/organisms/catalog-page-nav";
+import { PagePager } from "@/components/molecules/page-pager";
 import type { CorporateDirectoryFacets } from "@/lib/api/generated/types.gen";
-
-export type { DirectoryItem, DirectoryResource } from "./corporate-directory-types";
 
 const EMPTY_CATALOG_FACETS: readonly CorporateCatalogFacetConfig[] = [];
 const EMPTY_CATALOG_SELECTION: Partial<Record<CorporateCatalogFacet, string[]>> = {};
@@ -416,7 +415,7 @@ export function CorporateDirectoryResults({
         {serverPaginated ? (
           <label className="text-muted-foreground flex items-center gap-2 text-sm">
             <span>{t("pageSize")}</span>
-            <select
+            <Select
               value={pageSize}
               onChange={(event) => {
                 changePageSize(Number(event.target.value));
@@ -428,7 +427,7 @@ export function CorporateDirectoryResults({
                   {size}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
         ) : null}
       </div>
@@ -448,9 +447,9 @@ export function CorporateDirectoryResults({
         emptyLabel={t(items.length ? "noMatches" : "empty")}
       />
       {serverPaginated && total && total > pageSize ? (
-        <PageNav
+        <PagePager
           label={paginationLabel}
-          pageNumber={pageNumber}
+          page={pageNumber}
           totalPages={Math.ceil(total / pageSize)}
           hrefFor={(page) => {
             const params = new URLSearchParams(filters);

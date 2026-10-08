@@ -1,7 +1,7 @@
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { StatePanel } from "@/components/molecules/state-panel";
 import { CorporateServicePrincipalsPanel } from "@/components/organisms/corporate-service-principals-panel";
-import { CorporateMembershipPolicyControls } from "@/components/organisms/corporate-invitations-panel";
+import { CorporateMembershipPolicyControls } from "@/components/organisms/corporate-membership-policy-controls";
 import { readCorporateMembershipPolicy } from "@/lib/api/corporate-invitations";
 import { readCorporateContext, readCorporateWorkspace } from "@/lib/api/corporate";
 import { requireSession, sessionCookieValue } from "@/lib/auth/require-session";

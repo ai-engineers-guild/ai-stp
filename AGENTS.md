@@ -18,13 +18,22 @@ A system for creating, validating, storing, selecting, and installing complete A
 ## Web UI component gate
 
 For changes under `apps/web`, read [`apps/web/DESIGN.md`](apps/web/DESIGN.md)
-and [`docs/product/DESIGN.md`](docs/product/DESIGN.md) first. Before creating a
-new UI component, inspect the existing atoms, molecules, organisms, layouts,
-theme tokens, and icon registry under `apps/web/src/components` and
-`apps/web/src/theme`. New components are prohibited until the existing library
-is shown to be insufficient; prefer reusing or extending the existing
-component and record the reason when a new one is necessary. UI must use the
-kit, semantic tokens, and registered icons—no one-off controls or raw colors.
+and [`docs/product/DESIGN.md`](docs/product/DESIGN.md) first. The boundary is
+hard: every interface is composed only from components registered in
+`apps/web/src/components/{atoms,molecules,organisms,layouts,screens}` and
+icons from `apps/web/src/theme`. Raw `<select>`, `<table>` row markup, and
+direct `radix-ui` imports are forbidden outside the kit file that owns the
+primitive; one-off controls and raw colors are likewise forbidden.
+
+Adapt before create: inspect the existing atoms, molecules, organisms, layouts,
+screens, theme tokens, and icon registry first; a new component is prohibited
+until the existing library is shown to be insufficient, and the reason is
+recorded in the PR description or `apps/web/DESIGN.md`. Every component ships a
+Storybook story under `apps/web/src/stories/UI Kit/<Tier>/` and a component
+test under `apps/web/tests/component/`; a component without both is not
+mergeable. Tier rules, consolidation order, and the audit baseline live in
+[`apps/web/DESIGN.md`](apps/web/DESIGN.md) and
+[`docs/engineering/web-component-consolidation-plan.md`](docs/engineering/web-component-consolidation-plan.md).
 
 ## Source of truth
 

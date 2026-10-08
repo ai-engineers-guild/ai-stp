@@ -4,14 +4,14 @@ import { useState, type ReactNode } from "react";
 
 import type { CatalogAuthorOption, ExternalProduct } from "@/lib/api/catalog";
 import { Button } from "@/components/atoms/button";
-import { AvatarImage } from "@/components/atoms/avatar-image";
+import { AvatarImage, InitialsAvatar } from "@/components/atoms/avatar-image";
 import { CatalogQueryField } from "@/components/molecules/catalog-query-field";
 import { CatalogChoiceMenu } from "@/components/molecules/catalog-choice-menu";
 import {
   CatalogFilterPanel,
   type CatalogFilterPanelLabels,
 } from "@/components/organisms/catalog-filter-panel";
-import type { CorporateCatalogFacetConfig } from "@/components/organisms/corporate-directory-types";
+import type { CorporateCatalogFacetConfig } from "@/lib/corporate-directory-types";
 import { CatalogSearchForm } from "@/components/organisms/catalog-search-form";
 import {
   appliedFilterChips,
@@ -397,16 +397,10 @@ function AuthorChipContent({
         height={20}
         className="size-5 shrink-0 rounded-full object-cover"
         fallback={
-          <span className="bg-background text-muted-foreground grid size-5 shrink-0 place-items-center rounded-full text-[9px] font-medium">
-            {displayName
-              .trim()
-              .split(/\s+/)
-              .filter(Boolean)
-              .slice(0, 2)
-              .map((part) => part[0])
-              .join("")
-              .toUpperCase()}
-          </span>
+          <InitialsAvatar
+            name={displayName}
+            className="bg-background text-muted-foreground size-5 text-[9px]"
+          />
         }
       />
       <span className="truncate">{displayName}</span>

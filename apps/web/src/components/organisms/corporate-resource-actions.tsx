@@ -1,14 +1,15 @@
 "use client";
 
+import { Select } from "@/components/atoms/select";
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { Icon } from "@/theme";
 import type { CorporateRoleView } from "@/lib/api/generated/types.gen";
 
 import { corporateMutationAction } from "@/actions/corporate";
 import { Button } from "@/components/atoms/button";
+import { Menu, MenuContent, MenuItem, MenuTrigger } from "@/components/atoms/menu";
 import { Input } from "@/components/atoms/input";
 import { Label } from "@/components/atoms/label";
 
@@ -72,7 +73,7 @@ export function CorporateResourceDeleteMenuItem({
   const [busy, startTransition] = useTransition();
 
   return (
-    <DropdownMenu.Item
+    <MenuItem
       disabled={busy}
       className="focus:bg-muted text-destructive flex min-h-11 cursor-pointer items-center rounded-sm px-3 py-2 text-sm outline-none"
       onSelect={(event) => {
@@ -97,7 +98,7 @@ export function CorporateResourceDeleteMenuItem({
     >
       <Icon name="close" size="sm" />
       {busy ? "…" : label}
-    </DropdownMenu.Item>
+    </MenuItem>
   );
 }
 
@@ -176,50 +177,44 @@ export function CorporateResourceActions({
   return (
     <section className="space-y-4">
       {!editing && (canUpdate || canDelete) && (
-        <DropdownMenu.Root modal={false}>
-          <DropdownMenu.Trigger asChild>
+        <Menu modal={false}>
+          <MenuTrigger asChild>
             <Button variant="outline" size="icon" aria-label={labels.title}>
               <Icon name="more" />
             </Button>
-          </DropdownMenu.Trigger>
-          <DropdownMenu.Portal>
-            <DropdownMenu.Content
-              align="end"
-              className="border-border bg-popover text-popover-foreground z-50 min-w-40 rounded-lg border p-1 shadow-md"
-            >
-              {canUpdate && (
-                <DropdownMenu.Item
-                  className="focus:bg-muted cursor-default rounded-sm px-3 py-2 outline-none"
-                  onSelect={() => {
-                    setNextParentRole(parentRole ?? "");
-                    setNextPermissions((rolePermissions ?? []).join(", "));
-                    setNextName(name);
-                    setNextRole(role ?? "staff");
-                    setNextState(state);
-                    setEditing(true);
-                  }}
-                >
-                  {t("edit")}
-                </DropdownMenu.Item>
-              )}
-              {canDelete && (
-                <DropdownMenu.Item
-                  className="focus:bg-muted text-destructive cursor-default rounded-sm px-3 py-2 outline-none"
-                  onSelect={() => {
-                    if (window.confirm(labels.confirmDelete))
-                      submit("DELETE", {
-                        schema_version: 1,
-                        expected_revision: revision,
-                        authorization_revision: authorizationRevision,
-                      });
-                  }}
-                >
-                  {labels.delete}
-                </DropdownMenu.Item>
-              )}
-            </DropdownMenu.Content>
-          </DropdownMenu.Portal>
-        </DropdownMenu.Root>
+          </MenuTrigger>
+          <MenuContent>
+            {canUpdate && (
+              <MenuItem
+                onSelect={() => {
+                  setNextParentRole(parentRole ?? "");
+                  setNextPermissions((rolePermissions ?? []).join(", "));
+                  setNextName(name);
+                  setNextRole(role ?? "staff");
+                  setNextState(state);
+                  setEditing(true);
+                }}
+              >
+                {t("edit")}
+              </MenuItem>
+            )}
+            {canDelete && (
+              <MenuItem
+                className="text-destructive"
+                onSelect={() => {
+                  if (window.confirm(labels.confirmDelete))
+                    submit("DELETE", {
+                      schema_version: 1,
+                      expected_revision: revision,
+                      authorization_revision: authorizationRevision,
+                    });
+                }}
+              >
+                {labels.delete}
+              </MenuItem>
+            )}
+          </MenuContent>
+        </Menu>
       )}
       {canUpdate && editing ? (
         <form
@@ -247,7 +242,7 @@ export function CorporateResourceActions({
           {resource === "members" ? (
             <>
               <Label htmlFor="corporate-resource-role">{labels.role}</Label>
-              <select
+              <Select
                 id="corporate-resource-role"
                 required
                 value={nextRole}
@@ -261,7 +256,7 @@ export function CorporateResourceActions({
                     {item.name}
                   </option>
                 ))}
-              </select>
+              </Select>
             </>
           ) : resource === "roles" ? (
             <>
@@ -298,7 +293,7 @@ export function CorporateResourceActions({
           {resource !== "roles" ? (
             <>
               <Label htmlFor="corporate-resource-state">{labels.state}</Label>
-              <select
+              <Select
                 id="corporate-resource-state"
                 value={nextState}
                 onChange={(event) => {
@@ -310,7 +305,7 @@ export function CorporateResourceActions({
                 <option value={resource === "members" ? "suspended" : "archived"}>
                   {resource === "members" ? labels.suspended : labels.archived}
                 </option>
-              </select>
+              </Select>
             </>
           ) : null}
           <Button type="submit" disabled={busy}>

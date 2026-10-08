@@ -2,6 +2,7 @@ import { getTranslations } from "next-intl/server";
 import { Link } from "@/lib/i18n/navigation";
 import type { RuntimeUsageObjectRow, RuntimeUsageReport } from "@/lib/api/generated/types.gen";
 import type { DisplayRow } from "./usage-report-data";
+import { Table, TBody, Td, THead, Th, Tr } from "@/components/atoms/table";
 
 type TableProps = {
   data: RuntimeUsageReport;
@@ -63,19 +64,19 @@ function ObjectTableRow({
 }) {
   if (entry.kind === "direct") {
     return (
-      <tr key="direct-components" className="border-border bg-muted/30 border-t">
-        <th colSpan={7} className="px-3 py-2 text-left font-medium">
+      <Tr key="direct-components" className="bg-muted/30 border-t border-b-0">
+        <Th colSpan={7} className="text-foreground font-medium">
           {t("directComponents")}
-        </th>
-      </tr>
+        </Th>
+      </Tr>
     );
   }
   return (
-    <tr
+    <Tr
       key={`${entry.row.object_kind}:${entry.row.stable_id}:${entry.row.version}:${entry.row.parent_setup_stable_id ?? ""}`}
-      className="border-border border-t"
+      className="border-t border-b-0"
     >
-      <td className="px-3 py-2">
+      <Td>
         {entry.row.parent_setup_stable_id ? <span className="pl-5">↳ </span> : null}
         <Link className="text-primary hover:underline" href={objectDetailHref(entry.row)}>
           {entry.row.name ?? entry.row.stable_id} · {entry.row.version}
@@ -90,25 +91,25 @@ function ObjectTableRow({
               : t("showComponents")}
           </Link>
         )}
-      </td>
-      <td className="px-3 py-2">{entry.row.assigned_to}</td>
-      <td className="px-3 py-2">
+      </Td>
+      <Td>{entry.row.assigned_to}</Td>
+      <Td>
         {entry.row.installed_for}
         {employeeId && (
           <span className="text-muted-foreground block text-xs">
             {entry.row.installation_state ?? t("unknown")}
           </span>
         )}
-      </td>
-      <td className="px-3 py-2">{entry.row.used_by}</td>
-      <td className="px-3 py-2">
+      </Td>
+      <Td>{entry.row.used_by}</Td>
+      <Td>
         <Link className="text-primary hover:underline" href={objectDetailHref(entry.row)}>
           {entry.row.uses}
         </Link>
-      </td>
-      <td className="px-3 py-2">{entry.row.active_days}</td>
-      <td className="px-3 py-2">{entry.row.last_used_at ?? t("noRecordedUseInPeriod")}</td>
-    </tr>
+      </Td>
+      <Td>{entry.row.active_days}</Td>
+      <Td>{entry.row.last_used_at ?? t("noRecordedUseInPeriod")}</Td>
+    </Tr>
   );
 }
 
@@ -130,32 +131,30 @@ function EmployeeTableRow({
   t: Translator;
 }) {
   return (
-    <tr key={row.employee_id} className="border-border border-t">
-      <td className="px-3 py-2">
+    <Tr key={row.employee_id} className="border-t border-b-0">
+      <Td>
         <Link className="text-primary hover:underline" href={employeeHref(row.employee_id)}>
           {row.name ?? row.employee_id}
         </Link>
-      </td>
-      <td className="px-3 py-2">
-        {row.team_ids.map((id) => teamNames.get(id) ?? id).join(", ") || "—"}
-      </td>
-      <td className="px-3 py-2">
+      </Td>
+      <Td>{row.team_ids.map((id) => teamNames.get(id) ?? id).join(", ") || "—"}</Td>
+      <Td>
         {row.assigned_components} / {row.installed_components} / {row.used_components}
         <span className="text-muted-foreground block text-xs">
           {!inventoryScanEnabled ? t("scanOff") : (inventory?.coverage ?? t("notScanned"))}
         </span>
-      </td>
-      <td className="px-3 py-2">
+      </Td>
+      <Td>
         <Link
           className="text-primary hover:underline"
           href={detailHref({ employee_id: row.employee_id, detail_page: "" })}
         >
           {row.uses}
         </Link>
-      </td>
-      <td className="px-3 py-2">{row.active_days}</td>
-      <td className="px-3 py-2">{row.last_used_at ?? t("noRecordedUseInPeriod")}</td>
-    </tr>
+      </Td>
+      <Td>{row.active_days}</Td>
+      <Td>{row.last_used_at ?? t("noRecordedUseInPeriod")}</Td>
+    </Tr>
   );
 }
 
@@ -186,11 +185,11 @@ export async function UsageReportTable({
   return (
     <>
       <div className="border-border overflow-x-auto rounded-lg border">
-        <table className="w-full text-left text-sm">
-          <thead className="bg-muted/40">
-            <tr>
+        <Table className="text-left">
+          <THead className="bg-muted/40">
+            <Tr className="border-b-0">
               {headings.map(({ headingKey, key }) => (
-                <th key={headingKey} scope="col" className="px-3 py-2">
+                <Th key={headingKey}>
                   {key ? (
                     <Link href={sortHref(key)} className="hover:text-primary">
                       {t(headingKey)}
@@ -199,11 +198,11 @@ export async function UsageReportTable({
                   ) : (
                     t(headingKey)
                   )}
-                </th>
+                </Th>
               ))}
-            </tr>
-          </thead>
-          <tbody>
+            </Tr>
+          </THead>
+          <TBody>
             {objectMode
               ? displayRows.map((entry) => (
                   <ObjectTableRow
@@ -234,8 +233,8 @@ export async function UsageReportTable({
                       t={t}
                     />
                   ))}
-          </tbody>
-        </table>
+          </TBody>
+        </Table>
         {totalItems === 0 && (
           <p className="text-muted-foreground p-4 text-sm">{t("noMatchingResults")}</p>
         )}

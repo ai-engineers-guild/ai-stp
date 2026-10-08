@@ -1,5 +1,6 @@
 "use client";
 
+import { Select } from "@/components/atoms/select";
 import { useRef, useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
 import { z } from "zod";
@@ -174,7 +175,7 @@ function OwnerEditForm({
     >
       <div className="space-y-2 text-sm">
         <Label htmlFor={`${objectKind}-catalog-owner`}>{h("operationalOwner")}</Label>
-        <select
+        <Select
           id={`${objectKind}-catalog-owner`}
           className="border-input bg-background min-h-11 w-full rounded-sm border px-3 text-sm"
           disabled={pending}
@@ -191,7 +192,7 @@ function OwnerEditForm({
                 {member.name}
               </option>
             ))}
-        </select>
+        </Select>
       </div>
       {error ? (
         <p role="alert" className="text-destructive text-sm">

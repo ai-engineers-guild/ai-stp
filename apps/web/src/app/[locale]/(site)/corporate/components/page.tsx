@@ -13,10 +13,7 @@ import type {
 import { requireSession, sessionCookieValue } from "@/lib/auth/require-session";
 import { readCsrfToken } from "@/lib/auth/session";
 import { safeCorporateQuery } from "@/lib/corporate-routes";
-import type {
-  CorporateCatalogFacetConfig,
-  DirectoryItem,
-} from "@/components/organisms/corporate-directory-types";
+import type { CorporateCatalogFacetConfig, DirectoryItem } from "@/lib/corporate-directory-types";
 
 type CatalogSearchParams = Record<string, string | string[] | undefined>;
 type CorporateCatalogContext = NonNullable<Awaited<ReturnType<typeof readCorporateContext>>>;

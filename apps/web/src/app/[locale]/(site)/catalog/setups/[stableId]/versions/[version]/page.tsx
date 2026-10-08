@@ -8,7 +8,7 @@ import { CatalogUsageStats } from "@/components/molecules/catalog-usage-stats";
 import { CliCopyBlock } from "@/components/molecules/cli-copy-block";
 import { ExactSourceLink } from "@/components/molecules/exact-source-link";
 import { SetupFamilyBlock, setupFamilyLabels } from "@/components/molecules/setup-family";
-import { contextBudgetLabels } from "@/components/organisms/context-budget-labels";
+import { contextBudgetLabels } from "@/lib/context-budget-labels";
 import { ContextBudgetPanel } from "@/components/organisms/context-budget-panel";
 import { SetupComposition } from "@/components/organisms/setup-composition";
 import { StatePanel } from "@/components/molecules/state-panel";

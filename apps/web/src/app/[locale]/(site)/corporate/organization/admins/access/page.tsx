@@ -1,6 +1,7 @@
 import { getTranslations, setRequestLocale } from "next-intl/server";
 
 import { Badge } from "@/components/atoms/badge";
+import { Table, TBody, Td, THead, Th, Tr } from "@/components/atoms/table";
 import { Button } from "@/components/atoms/button";
 import { Input } from "@/components/atoms/input";
 import { Label } from "@/components/atoms/label";
@@ -24,9 +25,6 @@ type PageProps = {
   params: Promise<{ locale: string }>;
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
-
-const rowClass = "border-border hover:bg-muted/40 border-b transition-colors last:border-0";
-const headCellClass = "text-muted-foreground px-3 py-2 text-xs font-medium";
 
 function matchesQuery(definition: CorporatePermissionDefinition, query: string): boolean {
   if (!query) return true;
@@ -76,30 +74,28 @@ function MatrixTable({
 }) {
   return (
     <div className="-mx-4 overflow-x-auto px-4 sm:-mx-5 sm:px-5">
-      <table className="w-full min-w-max border-collapse text-sm">
-        <thead>
-          <tr className="border-border border-b">
-            <th scope="col" className={`${headCellClass} py-2 pr-4 pl-0 text-left`}>
-              {labels.permission}
-            </th>
+      <Table className="min-w-max">
+        <THead>
+          <Tr>
+            <Th className="py-2 pr-4 pl-0">{labels.permission}</Th>
             {roles.map((role) => (
-              <th key={role.name} scope="col" className={`${headCellClass} text-center`}>
+              <Th key={role.name} className="text-center">
                 <Link
                   href={`/corporate/organization/admins/roles?role=${encodeURIComponent(role.name)}`}
                   className="text-foreground underline underline-offset-4"
                 >
                   {role.name}
                 </Link>
-              </th>
+              </Th>
             ))}
-          </tr>
-        </thead>
-        <tbody>
+          </Tr>
+        </THead>
+        <TBody>
           {permissions.map((permission) => (
-            <tr key={permission} className={rowClass}>
-              <td className="py-2 pr-4 font-mono text-xs whitespace-nowrap">{permission}</td>
+            <Tr key={permission} className="hover:bg-muted/40 transition-colors">
+              <Td className="pr-4 pl-0 font-mono text-xs whitespace-nowrap">{permission}</Td>
               {roles.map((role) => (
-                <td key={role.name} className="px-3 py-2 text-center align-middle">
+                <Td key={role.name} className="text-center align-middle">
                   {roleHasPermission(role, permission, roles) ? (
                     <Icon
                       name="check"
@@ -115,12 +111,12 @@ function MatrixTable({
                       <span className="sr-only">{labels.notGranted}</span>
                     </>
                   )}
-                </td>
+                </Td>
               ))}
-            </tr>
+            </Tr>
           ))}
-        </tbody>
-      </table>
+        </TBody>
+      </Table>
     </div>
   );
 }
@@ -134,25 +130,26 @@ function EffectiveAccessTable({
 }) {
   return (
     <div className="-mx-4 overflow-x-auto px-4 sm:-mx-5 sm:px-5">
-      <table className="w-full min-w-max border-collapse text-sm">
-        <thead>
-          <tr className="border-border border-b">
+      <Table className="min-w-max">
+        <THead>
+          <Tr>
             {[labels.permission, labels.scope, labels.scopeId, labels.grantedBy].map((label) => (
-              <th key={label} scope="col" className={`${headCellClass} text-left`}>
-                {label}
-              </th>
+              <Th key={label}>{label}</Th>
             ))}
-          </tr>
-        </thead>
-        <tbody>
+          </Tr>
+        </THead>
+        <TBody>
           {effective.map((item) => (
-            <tr key={`${item.permission}:${item.scope_kind}:${item.scope_id}`} className={rowClass}>
-              <td className="py-2 pr-4 font-mono text-xs whitespace-nowrap">{item.permission}</td>
-              <td className="px-3 py-2">
+            <Tr
+              key={`${item.permission}:${item.scope_kind}:${item.scope_id}`}
+              className="hover:bg-muted/40 transition-colors"
+            >
+              <Td className="pr-4 pl-0 font-mono text-xs whitespace-nowrap">{item.permission}</Td>
+              <Td>
                 <Badge variant="outline">{item.scope_kind}</Badge>
-              </td>
-              <td className="px-3 py-2 font-mono text-xs break-all">{item.scope_id}</td>
-              <td className="px-3 py-2">
+              </Td>
+              <Td className="font-mono text-xs break-all">{item.scope_id}</Td>
+              <Td>
                 <span className="inline-flex flex-wrap gap-1">
                   {item.sources.map((source) => (
                     <Badge key={source} variant="secondary">
@@ -160,11 +157,11 @@ function EffectiveAccessTable({
                     </Badge>
                   ))}
                 </span>
-              </td>
-            </tr>
+              </Td>
+            </Tr>
           ))}
-        </tbody>
-      </table>
+        </TBody>
+      </Table>
     </div>
   );
 }
@@ -185,21 +182,17 @@ function EntitiesView({
   return (
     <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,3fr)_minmax(19rem,1fr)]">
       <div className="border-border bg-card min-w-0 overflow-x-auto rounded-lg border">
-        <table className="w-full min-w-[36rem] border-collapse text-sm">
-          <thead>
-            <tr className="border-border border-b">
-              <th scope="col" className={`${headCellClass} text-left`}>
-                {t("entitiesAndActions")}
-              </th>
-              <th scope="col" className={`${headCellClass} text-left`}>
-                {t("actions")}
-              </th>
-            </tr>
-          </thead>
-          <tbody>
+        <Table className="min-w-max">
+          <THead>
+            <Tr>
+              <Th>{t("entitiesAndActions")}</Th>
+              <Th>{t("actions")}</Th>
+            </Tr>
+          </THead>
+          <TBody>
             {[...byResource.entries()].map(([resource, resourceDefinitions]) => (
-              <tr key={resource} className={rowClass}>
-                <th scope="row" className="px-3 py-3 text-left align-top">
+              <Tr key={resource} className="hover:bg-muted/40 transition-colors">
+                <Th scope="row" className="px-3 py-3 text-left align-top">
                   <Link
                     href={`/corporate/organization/admins/access?view=entities&entity=${encodeURIComponent(resource)}${query ? `&query=${encodeURIComponent(query)}` : ""}`}
                     aria-current={resource === activeEntity ? "true" : undefined}
@@ -207,8 +200,8 @@ function EntitiesView({
                   >
                     {resource.replaceAll("_", " ")}
                   </Link>
-                </th>
-                <td className="px-3 py-3">
+                </Th>
+                <Td className="py-3">
                   <span className="flex flex-wrap gap-1">
                     {resourceDefinitions.map((definition) => (
                       <Badge key={definition.name} variant="outline" title={definition.name}>
@@ -216,11 +209,11 @@ function EntitiesView({
                       </Badge>
                     ))}
                   </span>
-                </td>
-              </tr>
+                </Td>
+              </Tr>
             ))}
-          </tbody>
-        </table>
+          </TBody>
+        </Table>
       </div>
       <aside
         className="border-border bg-card min-w-0 self-start rounded-lg border p-4"

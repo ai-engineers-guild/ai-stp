@@ -42,7 +42,7 @@ vi.mock("@/lib/i18n/navigation", () => ({
   },
 }));
 
-const { AccountControl } = await import("@/components/organisms/account-drawer");
+const { AccountControl } = await import("@/components/organisms/account-control");
 
 describe("AccountControl", () => {
   it("keeps unauthenticated profile as a sign-in link", () => {

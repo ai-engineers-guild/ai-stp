@@ -3,6 +3,7 @@
 import { Fragment } from "react";
 import type { useTranslations } from "next-intl";
 import { Badge } from "@/components/atoms/badge";
+import { Td, Tr } from "@/components/atoms/table";
 import type { HeartbeatReport as HeartbeatReportData } from "@/lib/api/generated/types.gen";
 import { Link } from "@/lib/i18n/navigation";
 import { Icon } from "@/theme";
@@ -66,9 +67,9 @@ function deviceCells(
 ) {
   return (
     <>
-      <td className="px-4 py-3">{row.device_name}</td>
+      <Td className="px-4 py-3">{row.device_name}</Td>
       {view === "history" && (
-        <td className="px-4 py-3">
+        <Td className="px-4 py-3">
           <div className="flex min-w-52 gap-px" role="group" aria-label={t("heartbeatHistory")}>
             {(row.buckets ?? []).map((bucket, index) => (
               <button
@@ -94,15 +95,15 @@ function deviceCells(
               </span>
             ))}
           </div>
-        </td>
+        </Td>
       )}
-      <td
+      <Td
         className="px-4 py-3"
         title={row.last_heartbeat_at ? utcDateTime(row.last_heartbeat_at) : undefined}
       >
         {relativeTime(row.last_heartbeat_at, evaluatedAt, locale, t("never"))}
-      </td>
-      <td className="px-4 py-3">
+      </Td>
+      <Td className="px-4 py-3">
         {view === "history" ? (
           row.coverage_percent === null || row.coverage_percent === undefined ? (
             "—"
@@ -120,7 +121,7 @@ function deviceCells(
         ) : (
           <Badge variant={BADGES[row.status]}>● {t(row.status)}</Badge>
         )}
-      </td>
+      </Td>
     </>
   );
 }
@@ -148,7 +149,7 @@ export function HeartbeatEmployeeRows({
   if (!first) return null;
   const personCells = (row: Row, toggle?: React.ReactNode) => (
     <>
-      <td className="px-4 py-3">
+      <Td className="px-4 py-3">
         <span className="flex items-center gap-1">
           {toggle}
           <Link
@@ -158,8 +159,8 @@ export function HeartbeatEmployeeRows({
             {row.employee_name}
           </Link>
         </span>
-      </td>
-      <td className="px-4 py-3">
+      </Td>
+      <Td className="px-4 py-3">
         {row.teams.map((team, index) => (
           <span key={team.id}>
             {index > 0 && ", "}
@@ -168,15 +169,15 @@ export function HeartbeatEmployeeRows({
             </Link>
           </span>
         ))}
-      </td>
+      </Td>
     </>
   );
   if (rows.length === 1) {
     return (
-      <tr className="border-border border-b last:border-0">
+      <Tr>
         {personCells(first)}
         {deviceCells(first, view, period, t, evaluatedAt, locale)}
-      </tr>
+      </Tr>
     );
   }
   const latest = rows.reduce((best, row) =>
@@ -185,7 +186,7 @@ export function HeartbeatEmployeeRows({
   const worst = rows.reduce((a, b) => (SEVERITY[a.status] <= SEVERITY[b.status] ? a : b));
   return (
     <Fragment>
-      <tr className="border-border border-b">
+      <Tr>
         {personCells(
           first,
           <button
@@ -198,29 +199,29 @@ export function HeartbeatEmployeeRows({
             <Icon name={expanded ? "chevronDown" : "chevronRight"} size="sm" />
           </button>,
         )}
-        <td className="px-4 py-3">{t("devices", { count: rows.length })}</td>
-        {view === "history" && <td className="text-muted-foreground px-4 py-3">—</td>}
-        <td
+        <Td className="px-4 py-3">{t("devices", { count: rows.length })}</Td>
+        {view === "history" && <Td className="text-muted-foreground px-4 py-3">—</Td>}
+        <Td
           className="px-4 py-3"
           title={latest.last_heartbeat_at ? utcDateTime(latest.last_heartbeat_at) : undefined}
         >
           {relativeTime(latest.last_heartbeat_at, evaluatedAt, locale, t("never"))}
-        </td>
-        <td className="px-4 py-3">
+        </Td>
+        <Td className="px-4 py-3">
           {view === "history" ? (
             <span className="text-muted-foreground">—</span>
           ) : (
             <Badge variant={BADGES[worst.status]}>● {t(worst.status)}</Badge>
           )}
-        </td>
-      </tr>
+        </Td>
+      </Tr>
       {expanded &&
         rows.map((row) => (
-          <tr key={row.device_id} className="border-border bg-muted/30 border-b last:border-0">
-            <td className="px-4 py-3" />
-            <td className="px-4 py-3" />
+          <Tr key={row.device_id} className="bg-muted/30">
+            <Td className="px-4 py-3" />
+            <Td className="px-4 py-3" />
             {deviceCells(row, view, period, t, evaluatedAt, locale)}
-          </tr>
+          </Tr>
         ))}
     </Fragment>
   );

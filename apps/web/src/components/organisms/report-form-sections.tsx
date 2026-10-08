@@ -1,3 +1,4 @@
+import { Select } from "@/components/atoms/select";
 import type { FormEventHandler, ReactNode } from "react";
 
 import { Button } from "@/components/atoms/button";
@@ -104,7 +105,7 @@ export function ReportTopicSelector({
   return (
     <div className="space-y-2">
       <Label htmlFor="report-topic">{labels.topic}</Label>
-      <select
+      <Select
         id="report-topic"
         className="border-input bg-background w-full rounded-sm border px-2 py-1 text-sm"
         value={topic}
@@ -117,7 +118,7 @@ export function ReportTopicSelector({
             {labels.topics[value]}
           </option>
         ))}
-      </select>
+      </Select>
     </div>
   );
 }

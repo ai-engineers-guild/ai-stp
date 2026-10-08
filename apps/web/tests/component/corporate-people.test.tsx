@@ -6,7 +6,7 @@ import { expect, it, vi } from "vitest";
 import messages from "../../messages/en.json";
 import ru from "../../messages/ru.json";
 import { CorporateInviteDialog } from "@/components/organisms/corporate-invite-dialog";
-import { PeopleCheckbox } from "@/components/organisms/corporate-people-ui";
+import { PeopleCheckbox } from "@/components/molecules/people-ui";
 vi.mock("@/lib/i18n/navigation", () => ({ Link: () => null }));
 vi.mock("next/navigation", () => ({ useSearchParams: () => new URLSearchParams() }));
 

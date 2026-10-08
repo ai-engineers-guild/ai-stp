@@ -1,5 +1,6 @@
 "use client";
 
+import { Select } from "@/components/atoms/select";
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 
@@ -19,7 +20,7 @@ import {
   type DirectoryResource,
   type CorporateCatalogFacet,
   type CorporateCatalogFacetConfig,
-} from "./corporate-directory-types";
+} from "@/lib/corporate-directory-types";
 import type { CorporateDirectoryFacets } from "@/lib/api/generated/types.gen";
 
 type Selected = Partial<Record<DirectoryFacet, string[]>>;
@@ -310,7 +311,7 @@ export function CorporateDirectoryToolbar({
             ) : null}
             <label className="min-w-0 space-y-2 text-sm">
               <span className="font-medium">{t("sortBy")}</span>
-              <select
+              <Select
                 value={draftSort}
                 onChange={(event) => {
                   setDraftSort(event.target.value as "name" | "name_desc");
@@ -319,7 +320,7 @@ export function CorporateDirectoryToolbar({
               >
                 <option value="name">{t("sortName")}</option>
                 <option value="name_desc">{catalog("sortDescending")}</option>
-              </select>
+              </Select>
             </label>
           </div>
           <div className="border-border bg-card sticky bottom-0 mt-6 flex flex-wrap items-center justify-between gap-3 border-t py-5">

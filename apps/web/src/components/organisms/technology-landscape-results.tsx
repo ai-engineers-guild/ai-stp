@@ -1,6 +1,7 @@
 import { getTranslations } from "next-intl/server";
 
 import { Badge } from "@/components/atoms/badge";
+import { Table, TBody, Td, THead, Th, Tr } from "@/components/atoms/table";
 import { Button } from "@/components/atoms/button";
 import { landscapeSearchParams } from "@/lib/api/technology";
 import { Link } from "@/lib/i18n/navigation";
@@ -194,33 +195,33 @@ function LandscapeTable({
 }) {
   return (
     <div className="overflow-x-auto">
-      <table className="w-full text-left text-sm">
+      <Table className="w-full text-left text-sm">
         <caption className="sr-only">
           {labels.technology} — {labels.projects}
         </caption>
-        <thead className="border-border border-b">
-          <tr>
-            <th scope="col" className="p-3 font-medium">
+        <THead>
+          <Tr>
+            <Th className="p-3 font-medium">
               {labels.technology}
-            </th>
-            <th scope="col" className="p-3 font-medium">
+            </Th>
+            <Th className="p-3 font-medium">
               {labels.versions}
-            </th>
-            <th scope="col" className="p-3 font-medium">
+            </Th>
+            <Th className="p-3 font-medium">
               {labels.projects}
-            </th>
-            <th scope="col" className="p-3 font-medium">
+            </Th>
+            <Th className="p-3 font-medium">
               {labels.proposed}
-            </th>
-          </tr>
-        </thead>
-        <tbody>
+            </Th>
+          </Tr>
+        </THead>
+        <TBody>
           {rows.map((row) => (
-            <tr key={row.technology.technology_id} className="border-border border-b align-top">
-              <th scope="row" className="p-3 font-medium">
+            <Tr key={row.technology.technology_id} className="align-top">
+              <Th scope="row" className="p-3 font-medium">
                 <TechnologyLink row={row} />
-              </th>
-              <td className="p-3">
+              </Th>
+              <Td className="p-3">
                 <span className="flex flex-wrap gap-1">
                   {rowVersions(row).map((version) => (
                     <Badge key={version} variant="outline">
@@ -229,19 +230,19 @@ function LandscapeTable({
                   ))}
                   {!rowVersions(row).length && "—"}
                 </span>
-              </td>
-              <td className="p-3">
+              </Td>
+              <Td className="p-3">
                 <span className="tabular-nums">{row.project_count}</span>
                 {!row.project_count && !row.proposed_project_count && (
                   <p className="text-muted-foreground mt-2">{labels.noKnownUse}</p>
                 )}
                 <ProjectLinks row={row} filters={filters} landscape={landscape} labels={labels} />
-              </td>
-              <td className="p-3 tabular-nums">{row.proposed_project_count}</td>
-            </tr>
+              </Td>
+              <Td className="p-3 tabular-nums">{row.proposed_project_count}</Td>
+            </Tr>
           ))}
-        </tbody>
-      </table>
+        </TBody>
+      </Table>
     </div>
   );
 }

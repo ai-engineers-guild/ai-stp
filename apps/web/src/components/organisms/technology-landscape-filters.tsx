@@ -1,3 +1,4 @@
+import { Select } from "@/components/atoms/select";
 import { getTranslations } from "next-intl/server";
 
 import { Button } from "@/components/atoms/button";
@@ -136,7 +137,7 @@ function FilterSelect({
   return (
     <div className="space-y-2">
       <Label htmlFor={`landscape-${name}`}>{label}</Label>
-      <select
+      <Select
         id={`landscape-${name}`}
         name={name}
         defaultValue={value ?? ""}
@@ -148,7 +149,7 @@ function FilterSelect({
             {option.label}
           </option>
         ))}
-      </select>
+      </Select>
     </div>
   );
 }

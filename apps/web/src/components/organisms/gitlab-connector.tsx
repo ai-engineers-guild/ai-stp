@@ -2,7 +2,8 @@
 
 /* eslint-disable max-lines, max-lines-per-function, complexity -- one compact connector state machine. */
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { Select } from "@/components/atoms/select";
+import { useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   gitlabConfirm,
@@ -21,14 +22,10 @@ import {
   DialogTitle,
 } from "@/components/atoms/dialog";
 import { Input } from "@/components/atoms/input";
-import { Skeleton } from "@/components/atoms/skeleton";
+import { ConnectorSkeleton } from "@/components/molecules/connector-skeleton";
 import { HistoryBackButton } from "@/components/molecules/history-back-button";
 import { Link } from "@/lib/i18n/navigation";
-import {
-  navigateGitHubConnectionWindow,
-  openGitHubConnectionWindow,
-  watchGitHubConnection,
-} from "@/lib/github-connection-flow";
+import { useConnectorFlow } from "@/lib/use-connector-flow";
 import type {
   GitLabActionPlanRequest,
   GitLabActionPlanResponse,
@@ -60,7 +57,13 @@ export function GitLabConnector({
   capabilities: readonly string[];
 }) {
   const t = useTranslations("gitlabConnector");
-  const [status, setStatus] = useState<GitLabConnectorStatus | null>(null);
+  const { status, setStatus, error, busy, run, connect, refresh, source, admin, connected } =
+    useConnectorFlow<GitLabConnectorStatus>({
+      fetchStatus: () => gitlabStatus(csrfToken, organizationId),
+      requestConnect: (purpose) =>
+        gitlabConnect(csrfToken, organizationId, { purpose, locale, confirmed: true }),
+      deps: [csrfToken, organizationId],
+    });
   const [plan, setPlan] = useState<GitLabActionPlanResponse | null>(null);
   const [draft, setDraft] = useState<PlanRequest | null>(null);
   const [typedName, setTypedName] = useState("");
@@ -71,12 +74,6 @@ export function GitLabConnector({
   const [repoVisibility, setRepoVisibility] = useState<"private" | "internal" | "public">(
     "private",
   );
-  const [error, setError] = useState("");
-  const [busy, start] = useTransition();
-  const stopPolling = useRef<(() => void) | null>(null);
-  const source = status?.connections.find((item) => item.purpose === "source");
-  const admin = status?.connections.find((item) => item.purpose === "administration");
-  const connected = source?.state === "connected";
   const repositories = source?.repositories ?? [];
   const showAccessActions = capabilities.includes("connector.gitlab.access");
   const showVisibilityActions = capabilities.includes("connector.gitlab.visibility");
@@ -103,62 +100,6 @@ export function GitLabConnector({
   const identityLinkHref = `/v1/auth/link/gitlab?${new URLSearchParams({
     return_to: `/${locale}/corporate/gitlab`,
   }).toString()}`;
-
-  useEffect(() => () => stopPolling.current?.(), []);
-
-  function run<T>(
-    request: () => Promise<{ ok: true; data: T } | { ok: false; code: string }>,
-    done: (data: T) => void,
-    failed?: () => void,
-  ) {
-    setError("");
-    start(async () => {
-      const result = await request();
-      if (result.ok) done(result.data);
-      else {
-        setError(result.code);
-        failed?.();
-      }
-    });
-  }
-
-  function connect(purpose: "source" | "administration") {
-    const popup = openGitHubConnectionWindow();
-    run(
-      () => gitlabConnect(csrfToken, organizationId, { purpose, locale, confirmed: true }),
-      (result) => {
-        navigateGitHubConnectionWindow(popup, result.authorization_url);
-        stopPolling.current?.();
-        stopPolling.current = watchGitHubConnection(
-          popup,
-          async () => {
-            const current = await gitlabStatus(csrfToken, organizationId);
-            if (!current.ok) {
-              setError(current.code);
-              return false;
-            }
-            setStatus(current.data);
-            return current.data.connections.some((item) => item.state === "connected");
-          },
-          refresh,
-        );
-      },
-      () => popup?.close(),
-    );
-  }
-
-  function refresh() {
-    void gitlabStatus(csrfToken, organizationId)
-      .then((result) => {
-        if (result.ok) setStatus(result.data);
-        else setError(result.code);
-      })
-      .catch(() => {
-        setError("unavailable");
-      });
-  }
-
-  useEffect(refresh, [csrfToken, organizationId]);
 
   function submitDraft() {
     if (!deviceId || !draft) return;
@@ -362,7 +303,7 @@ export function GitLabConnector({
               {!draft.revoke ? (
                 <label className="block space-y-2 text-sm">
                   {t("accessLevel")}
-                  <select
+                  <Select
                     className="border-border bg-background block w-full rounded-md border px-3 py-2"
                     value={accessLevel}
                     onChange={(event) => {
@@ -374,7 +315,7 @@ export function GitLabConnector({
                         {levelLabels[level]}
                       </option>
                     ))}
-                  </select>
+                  </Select>
                 </label>
               ) : null}
             </div>
@@ -403,7 +344,7 @@ export function GitLabConnector({
               </label>
               <label className="block space-y-2 text-sm">
                 {t("targetVisibility")}
-                <select
+                <Select
                   className="border-border bg-background block w-full rounded-md border px-3 py-2"
                   value={repoVisibility}
                   onChange={(event) => {
@@ -415,7 +356,7 @@ export function GitLabConnector({
                       {visibilityLabels[value]}
                     </option>
                   ))}
-                </select>
+                </Select>
               </label>
             </div>
           ) : null}
@@ -521,16 +462,6 @@ export function GitLabConnector({
           ) : null}
         </DialogContent>
       </Dialog>
-    </div>
-  );
-}
-
-function ConnectorSkeleton({ label }: { label: string }) {
-  return (
-    <div className="space-y-3" role="status" aria-label={label} aria-busy="true">
-      <Skeleton className="h-5 w-48" />
-      <Skeleton className="h-16 w-full rounded-lg" />
-      <Skeleton className="h-16 w-full rounded-lg" />
     </div>
   );
 }

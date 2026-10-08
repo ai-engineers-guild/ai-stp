@@ -1,14 +1,14 @@
 "use client";
 
-import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { useState, type ReactNode } from "react";
 import { toast } from "sonner";
 
 import { corporateAssignContextAction, type CorporateAssignContext } from "@/actions/corporate";
 import { Button } from "@/components/atoms/button";
+import { Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from "@/components/atoms/menu";
 import { ContactReportDialog } from "@/components/organisms/contact-report-dialog";
 import { CorporateAssignDialog } from "@/components/organisms/corporate-assign-dialog";
-import { useCatalogLike } from "@/components/organisms/use-catalog-like";
+import { useCatalogLike } from "@/lib/use-catalog-like";
 import { registryCommand } from "@/lib/cli-copy";
 import { buildDeepLink, normalizeTarget } from "@/lib/deep-links";
 import { Icon } from "@/theme";
@@ -32,9 +32,6 @@ type CatalogItemMenuProps = {
     unlike: string;
   };
 };
-
-const itemClassName =
-  "hover:bg-muted focus:bg-muted flex w-full cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-left text-sm outline-none";
 
 export function CatalogItemMenu({
   kind,
@@ -73,7 +70,7 @@ export function CatalogItemMenu({
 
   return (
     <>
-      <DropdownMenu.Root
+      <Menu
         modal={false}
         onOpenChange={(open) => {
           if (open && assignCtx === null) {
@@ -85,7 +82,7 @@ export function CatalogItemMenu({
           }
         }}
       >
-        <DropdownMenu.Trigger asChild>
+        <MenuTrigger asChild>
           <Button
             type="button"
             variant="ghost"
@@ -95,80 +92,64 @@ export function CatalogItemMenu({
           >
             <Icon name="more" size="sm" />
           </Button>
-        </DropdownMenu.Trigger>
-        <DropdownMenu.Portal>
-          <DropdownMenu.Content
-            side="bottom"
-            align="end"
-            sideOffset={4}
-            collisionPadding={12}
-            className="border-border bg-popover text-popover-foreground z-[80] max-w-[calc(100vw-1.5rem)] min-w-56 rounded-lg border p-1 shadow-md"
+        </MenuTrigger>
+        <MenuContent>
+          {leadingItems}
+          {leadingItems?.length ? <MenuSeparator /> : null}
+          <MenuItem
+            onSelect={() => {
+              void copy(publicUrl());
+            }}
           >
-            {leadingItems}
-            {leadingItems?.length ? (
-              <DropdownMenu.Separator className="border-border my-1 border-t" />
-            ) : null}
-            <DropdownMenu.Item
-              className={itemClassName}
+            <Icon name="link" size="sm" />
+            {labels.copyUrl}
+          </MenuItem>
+          <MenuItem
+            onSelect={() => {
+              void copy(stableId);
+            }}
+          >
+            <Icon name="copy" size="sm" />
+            {labels.copyId}
+          </MenuItem>
+          <MenuItem
+            onSelect={() => {
+              void copy(cliCommand);
+            }}
+          >
+            <Icon name="copy" size="sm" />
+            {labels.copyCli}
+          </MenuItem>
+          <MenuSeparator />
+          <MenuItem
+            disabled={like.pending}
+            onSelect={() => {
+              like.toggle();
+            }}
+          >
+            <Icon name="heart" size="sm" fill={like.liked ? "currentColor" : "none"} />
+            {like.liked ? labels.unlike : labels.like}
+          </MenuItem>
+          {assignCtx?.ok ? (
+            <MenuItem
               onSelect={() => {
-                void copy(publicUrl());
+                setAssignOpen(true);
               }}
             >
-              <Icon name="link" size="sm" />
-              {labels.copyUrl}
-            </DropdownMenu.Item>
-            <DropdownMenu.Item
-              className={itemClassName}
-              onSelect={() => {
-                void copy(stableId);
-              }}
-            >
-              <Icon name="copy" size="sm" />
-              {labels.copyId}
-            </DropdownMenu.Item>
-            <DropdownMenu.Item
-              className={itemClassName}
-              onSelect={() => {
-                void copy(cliCommand);
-              }}
-            >
-              <Icon name="copy" size="sm" />
-              {labels.copyCli}
-            </DropdownMenu.Item>
-            <DropdownMenu.Separator className="border-border my-1 border-t" />
-            <DropdownMenu.Item
-              className={itemClassName}
-              disabled={like.pending}
-              onSelect={() => {
-                like.toggle();
-              }}
-            >
-              <Icon name="heart" size="sm" fill={like.liked ? "currentColor" : "none"} />
-              {like.liked ? labels.unlike : labels.like}
-            </DropdownMenu.Item>
-            {assignCtx?.ok ? (
-              <DropdownMenu.Item
-                className={itemClassName}
-                onSelect={() => {
-                  setAssignOpen(true);
-                }}
-              >
-                <Icon name="team" size="sm" />
-                {assignCtx.labels.assign}
-              </DropdownMenu.Item>
-            ) : null}
-            <DropdownMenu.Item
-              className={itemClassName}
-              onSelect={() => {
-                setReportOpen(true);
-              }}
-            >
-              <Icon name="flag" size="sm" />
-              {labels.report}
-            </DropdownMenu.Item>
-          </DropdownMenu.Content>
-        </DropdownMenu.Portal>
-      </DropdownMenu.Root>
+              <Icon name="team" size="sm" />
+              {assignCtx.labels.assign}
+            </MenuItem>
+          ) : null}
+          <MenuItem
+            onSelect={() => {
+              setReportOpen(true);
+            }}
+          >
+            <Icon name="flag" size="sm" />
+            {labels.report}
+          </MenuItem>
+        </MenuContent>
+      </Menu>
       {assignCtx?.ok ? (
         <CorporateAssignDialog
           open={assignOpen}

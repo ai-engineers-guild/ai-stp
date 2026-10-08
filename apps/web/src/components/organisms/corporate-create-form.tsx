@@ -1,5 +1,6 @@
 "use client";
 
+import { Select } from "@/components/atoms/select";
 import { useId, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 
@@ -90,7 +91,7 @@ function EmployeeCatalogFields({
       {selected ? (
         <div className="space-y-2">
           <p className="text-muted-foreground text-sm">{selected.name}</p>
-          <select
+          <Select
             aria-label={h("exactVersion")}
             value={version}
             disabled={busy}
@@ -105,7 +106,7 @@ function EmployeeCatalogFields({
                 {item}
               </option>
             ))}
-          </select>
+          </Select>
         </div>
       ) : null}
     </div>
@@ -192,7 +193,7 @@ function CorporateCreateFields({
           </div>
           <div className="space-y-2">
             <Label htmlFor={`${formId}-role`}>{c("role")}</Label>
-            <select
+            <Select
               id={`${formId}-role`}
               name="role"
               required
@@ -203,7 +204,7 @@ function CorporateCreateFields({
                   {role}
                 </option>
               ))}
-            </select>
+            </Select>
           </div>
           {select("team_ids", h("teams"), options.teams)}
           {select("project_ids", h("projects"), options.projects)}

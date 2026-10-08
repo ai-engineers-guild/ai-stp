@@ -1,13 +1,10 @@
 import { DetailAccordion } from "@/components/molecules/detail-accordion";
-import {
-  contextBudgetMessage,
-  type ContextBudgetLabels,
-} from "@/components/organisms/context-budget-labels";
+import { contextBudgetMessage, type ContextBudgetLabels } from "@/lib/context-budget-labels";
 import type { ComponentContextBudget, SetupContextBudget } from "@/lib/api/catalog";
 import { UI } from "@/lib/ui-selectors";
 
-export type { ContextBudgetLabels } from "@/components/organisms/context-budget-labels";
-export { contextBudgetLabels } from "@/components/organisms/context-budget-labels";
+export type { ContextBudgetLabels } from "@/lib/context-budget-labels";
+export { contextBudgetLabels } from "@/lib/context-budget-labels";
 
 export function ContextBudgetPanel({
   budget,

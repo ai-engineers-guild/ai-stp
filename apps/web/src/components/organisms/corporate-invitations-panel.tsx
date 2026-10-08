@@ -13,26 +13,22 @@ import {
 } from "@/components/organisms/corporate-invite-dialog";
 import {
   PEOPLE_PAGE_SIZE,
-  PeoplePager,
   PeopleSearch,
   PeopleSelect,
   usePeopleFilters,
-} from "@/components/organisms/corporate-people-ui";
+} from "@/components/molecules/people-ui";
+import { PagePager } from "@/components/molecules/page-pager";
 import type {
   CorporateContext,
   CorporateInvitation,
   CorporateMember,
   CorporateRoleView,
 } from "@/lib/api/generated/types.gen";
-import { downloadPeopleCsv, type InvitationLinkRow } from "@/lib/member-export";
+import { exportInvitationDirectory, type InvitationLinkRow } from "@/lib/member-export";
 import type { ImportedMember } from "@/lib/member-import";
 import { InvitationTable } from "@/components/organisms/corporate-invitations-table";
 import { Icon } from "@/theme";
 import { isOutstandingInvitation, invitationDisplayState } from "@/lib/corporate-invitation-state";
-
-export { CorporateMembershipPolicyControls } from "@/components/organisms/corporate-membership-policy-controls";
-
-export { isOutstandingInvitation } from "@/lib/corporate-invitation-state";
 
 type Props = {
   csrfToken: string;
@@ -167,14 +163,7 @@ export function CorporateInvitationsPanel({
             );
           }}
         />
-        <PeoplePager
-          kind="invitations"
-          total={filtered.length}
-          page={page}
-          onPage={(value) => {
-            filters.update("page", String(value));
-          }}
-        />
+        <InvitationsPager page={page} filtered={filtered} filters={filters} />
       </div>
       <CorporateInviteDialog
         {...{ open, busy, error }}
@@ -202,6 +191,42 @@ export function CorporateInvitationsPanel({
         }}
       />
     </section>
+  );
+}
+
+function InvitationsPager({
+  page,
+  filtered,
+  filters,
+}: {
+  page: number;
+  filtered: readonly CorporateInvitation[];
+  filters: ReturnType<typeof usePeopleFilters>;
+}) {
+  const t = useTranslations("people");
+  return (
+    <PagePager
+      label={t("pagination")}
+      page={page}
+      totalPages={Math.max(1, Math.ceil(filtered.length / PEOPLE_PAGE_SIZE))}
+      summary={
+        <p aria-live="polite" className="text-muted-foreground text-sm tabular-nums">
+          {t("showingInvitations", {
+            start: filtered.length ? (page - 1) * PEOPLE_PAGE_SIZE + 1 : 0,
+            end: Math.min(page * PEOPLE_PAGE_SIZE, filtered.length),
+            total: filtered.length,
+          })}
+        </p>
+      }
+      controls={{
+        previous: t("previousPage"),
+        next: t("nextPage"),
+        page: (value) => t("page", { page: value }),
+      }}
+      onPage={(value) => {
+        filters.update("page", String(value));
+      }}
+    />
   );
 }
 
@@ -406,30 +431,4 @@ function useInvitationActions(csrfToken: string, context: CorporateContext) {
     create,
     revokeConfirmed,
   };
-}
-
-function exportInvitationDirectory(
-  rows: readonly CorporateInvitation[],
-  context: CorporateContext,
-  members: readonly CorporateMember[],
-  stamp: number,
-) {
-  downloadPeopleCsv("invitations.csv", [
-    ["display_name", "email", "role", "status", "teams", "invited_by", "sent", "expires"],
-    ...rows.map((row) => [
-      row.display_name,
-      row.recipient_email,
-      row.role,
-      invitationDisplayState(row, stamp),
-      context.teams
-        .filter((team) => row.team_ids.includes(team.team_id))
-        .map((team) => team.name)
-        .join("; "),
-      members.find((member) => member.account_id === row.issuer_account_id)?.display_name ??
-        row.issuer_account_id ??
-        "",
-      row.created_at,
-      row.expires_at,
-    ]),
-  ]);
 }

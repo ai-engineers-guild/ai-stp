@@ -8,9 +8,8 @@ import {
   PeopleRole,
   PeopleTeams,
   PersonIdentity,
-  peopleCellClass,
-  peopleHeadClass,
-} from "@/components/organisms/corporate-people-ui";
+} from "@/components/molecules/people-ui";
+import { Table, TBody, Td, THead, Th, Tr } from "@/components/atoms/table";
 import type { CorporateMember, CorporateContext } from "@/lib/api/generated/types.gen";
 import { Link } from "@/lib/i18n/navigation";
 import { Icon } from "@/theme";
@@ -55,22 +54,19 @@ function MemberRow({
     team.members.some((entry) => entry.account_id === member.account_id),
   );
   return (
-    <tr
-      className="border-border hover:bg-muted/30 border-b transition-colors last:border-0"
-      data-selected={selected || undefined}
-    >
-      <td>
+    <Tr className="hover:bg-muted/30 transition-colors" data-selected={selected || undefined}>
+      <Td className="p-0">
         <PeopleCheckbox label={t("selectPerson", { name })} checked={selected} onChange={toggle} />
-      </td>
-      <td className={`${peopleCellClass} max-w-64`}>
+      </Td>
+      <Td className="max-w-64">
         <Link
           href={profile}
           className="focus-visible:ring-ring block rounded-sm hover:underline focus-visible:ring-2 focus-visible:outline-none"
         >
           <PersonIdentity name={name} you={member.account_id === context.member.account_id} />
         </Link>
-      </td>
-      <td className={peopleCellClass}>
+      </Td>
+      <Td>
         {member.contact_email ? (
           <a
             className="text-muted-foreground hover:text-foreground hover:underline"
@@ -83,29 +79,29 @@ function MemberRow({
             {t("noEmail")}
           </Badge>
         )}
-      </td>
-      <td className={`${peopleCellClass} whitespace-nowrap`}>{member.job_title_name ?? "—"}</td>
-      <td className={`${peopleCellClass} max-w-72`}>
+      </Td>
+      <Td className="whitespace-nowrap">{member.job_title_name ?? "—"}</Td>
+      <Td className="max-w-72">
         <PeopleTeams teams={teams} />
-      </td>
-      <td className={peopleCellClass}>
+      </Td>
+      <Td>
         <PeopleRole role={member.role} />
-      </td>
-      <td className={peopleCellClass}>
+      </Td>
+      <Td>
         <Badge
           variant="outline"
           className={`border-transparent font-sans font-normal tracking-normal ${member.state === "active" ? "bg-success/15" : "bg-warning/15"}`}
         >
           {t(member.state)}
         </Badge>
-      </td>
-      <td className={`${peopleCellClass} text-muted-foreground whitespace-nowrap tabular-nums`}>
+      </Td>
+      <Td className="text-muted-foreground whitespace-nowrap tabular-nums">
         {member.joined_at?.slice(0, 10) ?? "—"}
-      </td>
-      <td className={`${peopleCellClass} text-muted-foreground whitespace-nowrap`}>
+      </Td>
+      <Td className="text-muted-foreground whitespace-nowrap">
         {activityLabel(member.last_activity_at, now, locale)}
-      </td>
-      <td className="text-right">
+      </Td>
+      <Td className="text-right">
         <CatalogChoiceMenu
           icon="more"
           variant="ghost"
@@ -124,8 +120,8 @@ function MemberRow({
               : []),
           ]}
         />
-      </td>
-    </tr>
+      </Td>
+    </Tr>
   );
 }
 
@@ -158,10 +154,10 @@ export function CorporateMembersTable({
       // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
       tabIndex={0}
     >
-      <table className="w-full min-w-[1100px] border-collapse">
-        <thead>
-          <tr className="border-border border-b">
-            <th className="w-11">
+      <Table className="min-w-[1100px]">
+        <THead>
+          <Tr>
+            <Th className="w-11">
               <PeopleCheckbox
                 label={t("selectPage")}
                 checked={
@@ -180,7 +176,7 @@ export function CorporateMembersTable({
                   );
                 }}
               />
-            </th>
+            </Th>
             {[
               "nameColumn",
               "contact",
@@ -191,7 +187,7 @@ export function CorporateMembersTable({
               "joinedColumn",
               "lastActivity",
             ].map((key) => (
-              <th scope="col" key={key} className={peopleHeadClass}>
+              <Th key={key}>
                 {key === "joinedColumn" ? (
                   <button
                     type="button"
@@ -206,14 +202,14 @@ export function CorporateMembersTable({
                 ) : (
                   t(key)
                 )}
-              </th>
+              </Th>
             ))}
-            <th className="relative w-11" scope="col">
+            <Th className="relative w-11">
               <span className="sr-only">{t("actions")}</span>
-            </th>
-          </tr>
-        </thead>
-        <tbody>
+            </Th>
+          </Tr>
+        </THead>
+        <TBody>
           {rows.map((member) => (
             <MemberRow
               key={member.account_id}
@@ -231,14 +227,14 @@ export function CorporateMembersTable({
             />
           ))}
           {!rows.length ? (
-            <tr>
-              <td colSpan={10} className="text-muted-foreground py-14 text-center text-sm">
+            <Tr>
+              <Td colSpan={10} className="text-muted-foreground py-14 text-center">
                 {t(empty ? "noMembers" : "noMatchingMembers")}
-              </td>
-            </tr>
+              </Td>
+            </Tr>
           ) : null}
-        </tbody>
-      </table>
+        </TBody>
+      </Table>
     </div>
   );
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { Select } from "@/components/atoms/select";
 import { useState, useTransition } from "react";
 import { useFormatter, useTranslations } from "next-intl";
 
@@ -103,7 +104,7 @@ export function CorporateAuditPanel({
           <div className="flex flex-wrap items-end gap-3">
             <label className="space-y-1 text-sm">
               <span className="text-muted-foreground block">{labels.exportFormat}</span>
-              <select
+              <Select
                 aria-label={labels.exportFormat}
                 value={exportFormat}
                 onChange={(event) => {
@@ -113,11 +114,11 @@ export function CorporateAuditPanel({
               >
                 <option value="json">{labels.json}</option>
                 <option value="csv">{labels.csv}</option>
-              </select>
+              </Select>
             </label>
             <label className="space-y-1 text-sm">
               <span className="text-muted-foreground block">{labels.exportRange}</span>
-              <select
+              <Select
                 aria-label={labels.exportRange}
                 value={range}
                 onChange={(event) => {
@@ -130,7 +131,7 @@ export function CorporateAuditPanel({
                 <option value="last7">{labels.last7Days}</option>
                 <option value="last30">{labels.last30Days}</option>
                 <option value="all">{labels.allEvents}</option>
-              </select>
+              </Select>
             </label>
             <Button type="button" disabled={busy} onClick={exportAudit}>
               {busy ? labels.exporting : labels.export}

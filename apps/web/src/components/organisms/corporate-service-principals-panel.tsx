@@ -2,6 +2,7 @@
 
 /* eslint-disable max-lines-per-function, @typescript-eslint/no-confusing-void-expression */
 
+import { Select } from "@/components/atoms/select";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
@@ -119,7 +120,7 @@ export function CorporateServicePrincipalsPanel({
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="principal-role">{labels.role}</Label>
-            <select
+            <Select
               id="principal-role"
               required
               value={role}
@@ -131,11 +132,11 @@ export function CorporateServicePrincipalsPanel({
                   {item.name}
                 </option>
               ))}
-            </select>
+            </Select>
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="principal-scope">{labels.scope}</Label>
-            <select
+            <Select
               id="principal-scope"
               required
               value={scope}
@@ -157,7 +158,7 @@ export function CorporateServicePrincipalsPanel({
                   </option>
                 ))}
               </optgroup>
-            </select>
+            </Select>
           </div>
           <Button type="submit" disabled={busy} className="self-end">
             {busy ? labels.creating : labels.create}

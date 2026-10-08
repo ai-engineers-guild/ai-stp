@@ -7,7 +7,7 @@ import { corporateHref } from "@/lib/features/corporate-path";
 import { Button } from "@/components/atoms/button";
 import { KeyboardNavigation } from "@/components/molecules/keyboard-navigation";
 import { ThemeToggle } from "@/components/molecules/theme-toggle";
-import { AccountControl } from "@/components/organisms/account-drawer";
+import { AccountControl } from "@/components/organisms/account-control";
 import { Link, usePathname } from "@/lib/i18n/navigation";
 import { localeNeutralPathname } from "@/lib/i18n/locale-path";
 import type { AppLocale } from "@/lib/i18n/routing";
