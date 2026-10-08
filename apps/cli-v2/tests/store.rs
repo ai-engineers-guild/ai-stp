@@ -115,6 +115,34 @@ fn durable_revision_history_replay_conflict_and_atomic_rollback() -> Result<(), 
     assert!(Store::open(root.path(), true).is_err());
     drop(store);
     let mut reopened = Store::open(root.path(), false)?;
+    let cases: Value = serde_json::from_str(include_str!(
+        "../../../packages/contracts/src/ai_stp_contracts/fixtures/v1/catalog.json"
+    ))?;
+    let mut immutable = cases["cases"]
+        .as_array()
+        .ok_or("fixture cases absent")?
+        .iter()
+        .find(|case| case["case_id"] == "readComponentVersion.published")
+        .ok_or("version fixture absent")?["body"]["passport"]
+        .clone();
+    immutable["stable_id"] = id.into();
+    immutable["owner_id"] = "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z".into();
+    assert!(
+        reopened
+            .transaction(|transaction| revisions::commit(
+                transaction,
+                &immutable,
+                device,
+                None,
+                Write::Immutable
+            ))
+            .is_err(),
+        "an immutable snapshot changed its entity owner"
+    );
+    immutable["owner_id"] = document["owner_id"].clone();
+    reopened.transaction(|transaction| {
+        revisions::commit(transaction, &immutable, device, None, Write::Immutable)
+    })?;
     reopened.transaction(|transaction| {
         assert_eq!(
             revisions::heads(transaction, id)?,
@@ -124,6 +152,13 @@ fn durable_revision_history_replay_conflict_and_atomic_rollback() -> Result<(), 
     })?;
     drop(reopened);
     let path = root.path().join("ai-stp-v2-state/registry.sqlite3");
+    let alias = root.path().join("registry-alias");
+    fs::hard_link(&path, &alias)?;
+    assert!(
+        Store::open(root.path(), false).is_err(),
+        "a hard-linked writable registry was opened"
+    );
+    fs::remove_file(alias)?;
     let connection = rusqlite::Connection::open(&path)?;
     let integrity: String = connection.query_row("PRAGMA integrity_check", [], |row| row.get(0))?;
     assert_eq!(integrity, "ok");
@@ -138,7 +173,7 @@ fn durable_revision_history_replay_conflict_and_atomic_rollback() -> Result<(), 
     let bytes = fs::read(&path)?;
     let snapshot = Snapshot::from_bytes(&bytes, &digest::sha256(&bytes))?;
     assert_eq!(snapshot.report()["table_count"], 51);
-    assert_eq!(snapshot.report()["row_counts"]["revision"], 2);
+    assert_eq!(snapshot.report()["row_counts"]["revision"], 3);
     assert_eq!(
         snapshot.passport("component", Some(id))?["revision_id"],
         current

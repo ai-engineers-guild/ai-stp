@@ -98,20 +98,23 @@ impl Store {
         }
         let file = crate::files::open_regular(&directory.directory, Path::new("registry.sqlite3"))
             .map_err(|_| Failure::precondition("the registry must be an owned regular file"))?;
+        let metadata = file
+            .metadata()
+            .map_err(|_| Failure::precondition("the registry cannot be inspected"))?;
+        if cap_fs_ext::MetadataExt::nlink(&metadata) != 1 {
+            return Err(Failure::precondition(
+                "the writable registry must have one link",
+            ));
+        }
         #[cfg(unix)]
         {
-            use std::os::unix::fs::MetadataExt;
-            let metadata = file
-                .into_std()
-                .metadata()
-                .map_err(|_| Failure::precondition("the registry cannot be inspected"))?;
-            if metadata.mode() & 0o077 != 0 || metadata.nlink() != 1 {
+            use cap_std::fs::MetadataExt;
+            if metadata.mode() & 0o077 != 0 {
                 return Err(Failure::precondition(
                     "the registry must be private and have one link",
                 ));
             }
         }
-        #[cfg(not(unix))]
         drop(file);
         let path = parent
             .canonicalize()

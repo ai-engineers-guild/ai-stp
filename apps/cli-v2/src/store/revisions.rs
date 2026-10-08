@@ -86,6 +86,31 @@ pub fn commit(
     let revision = text("revision_id")?;
     let kind = text("kind")?;
     let created = text("created_at")?;
+    let existing: Option<String> = transaction
+        .query_row("SELECT kind FROM entity WHERE stable_id = ?", [id], |row| {
+            row.get(0)
+        })
+        .optional()
+        .map_err(database)?;
+    let current_heads = heads(transaction, id)?;
+    if let Some(held) = &existing {
+        if held != kind || current_heads.is_empty() {
+            return Err(Failure::precondition(
+                "the existing entity kind or revision heads are inconsistent",
+            ));
+        }
+        for head in &current_heads {
+            let held = Objects {
+                connection: transaction,
+            }
+            .revision(head)?;
+            if held["stable_id"] != id || held["owner_id"] != document["owner_id"] {
+                return Err(Failure::precondition(
+                    "a revision cannot change its entity owner",
+                ));
+            }
+        }
+    }
     let known: bool = transaction
         .query_row(
             "SELECT EXISTS(SELECT 1 FROM revision WHERE revision_id = ?)",
@@ -114,25 +139,13 @@ pub fn commit(
         .filter_map(Value::as_str)
         .map(str::to_owned)
         .collect();
-    let existing: Option<String> = transaction
-        .query_row("SELECT kind FROM entity WHERE stable_id = ?", [id], |row| {
-            row.get(0)
-        })
-        .optional()
-        .map_err(database)?;
-    if existing.as_ref().is_some_and(|held| held != kind) {
-        return Err(Failure::new(
-            ErrorKind::Conflict,
-            "the entity kind cannot change",
-        ));
-    }
     match &write {
         Write::Advance { expected_heads } => {
             let mut expected = expected_heads.to_vec();
             expected.sort();
             let mut declared = parents.clone();
             declared.sort();
-            if heads(transaction, id)? != expected || declared != expected {
+            if current_heads != expected || declared != expected {
                 return Err(Failure::new(
                     ErrorKind::Conflict,
                     "the current heads differ from the planned passport parents",
