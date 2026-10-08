@@ -66,12 +66,9 @@ fn developer_context_is_private_causal_singleton_and_replayable() -> Result<(), 
         .map(|h| h.join().map_err(|_| "writer panicked"))
         .collect::<Result<Vec<_>, _>>()?;
     assert_eq!(results.iter().filter(|r| r.is_ok()).count(), 1);
-    assert!(
-        results
-            .iter()
-            .filter_map(|r| r.as_ref().err())
-            .all(|e| matches!(e.kind, ErrorKind::Conflict))
-    );
+    for error in results.iter().filter_map(|r| r.as_ref().err()) {
+        assert!(matches!(error.kind, ErrorKind::Conflict), "{error:?}");
+    }
     let (initialize, initial) = results
         .into_iter()
         .find_map(Result::ok)
