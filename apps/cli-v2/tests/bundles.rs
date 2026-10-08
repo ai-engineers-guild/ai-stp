@@ -79,6 +79,23 @@ fn component(
     } else {
         "instruction"
     };
+    let harness = provider.document()["harness_id"]
+        .as_str()
+        .ok_or("harness missing")?;
+    let provider_kind = projection::route(kind, harness, scope)?.map_or(
+        if contribution.is_some() {
+            "setting"
+        } else {
+            kind
+        },
+        |route| {
+            if route.provider_kind.is_empty() {
+                kind
+            } else {
+                route.provider_kind.as_str()
+            }
+        },
+    );
     let native_ids = if matches!(kind, "mcp" | "agent") {
         json!(["review"])
     } else if kind == "command" {
@@ -109,7 +126,7 @@ fn component(
     let adaptation = passport::versions::seal_adaptation(
         &json!({"harness_id":provider.document()["harness_id"],"implementation_mode":"native",
         "source_artifact":null,"transform":null,"logical_component_type":kind,"scope_adaptations":[{"scope":scope,"projection_format":projection::artifact::FORMAT,
-        "projection_artifact":artifact,"provider_component_kind":if contribution.is_some(){"setting"}else{kind},"projection_kind":"native_files",
+        "projection_artifact":artifact,"provider_component_kind":provider_kind,"projection_kind":"native_files",
         "required_surface":{"profile_id":profile["profile_id"],"profile_digest":profile["digest"],"bundle_format":"ai-stp-bundle/2"},
         "permissions":{"filesystem":[],"network":[],"process":[]},"members":[declared],"technical_support":"experimental","technical_support_reason":"Local proof", "semantic_losses":[]}]}),
     )?;
@@ -548,6 +565,124 @@ fn opencode_namespaces(store: &mut Store, declarations: &[Value]) -> Result<(), 
     Ok(())
 }
 
+fn mcp_contributions(store: &mut Store, declarations: &[Value]) -> Result<(), Box<dyn Error>> {
+    let declaration = declarations
+        .iter()
+        .find(|value| value["harness_id"] == "cursor")
+        .ok_or("Cursor missing")?;
+    let provider = Info::parse(&serde_json::to_vec(declaration)?)?;
+    let target = target("cursor", Scope::Global);
+    // One contribution preserves the unowned host object and binds its exact bytes.
+    let mcp = component(
+        store,
+        &provider,
+        Scope::Global,
+        File {
+            path: "mcp.json".into(),
+            bytes: br#"{"review":{"command":"review-tool"}}"#.to_vec(),
+            mode: 0o644,
+        },
+        Some("mcpServers"),
+    )?;
+    let (setup, evidence) = compose(store, "cursor", std::slice::from_ref(&mcp))?;
+    assert!(bundle::compile(store, &setup, &target, &evidence, &provider, &Hosts::new()).is_err());
+    let hosts: Hosts = [("mcp.json".into(), Some(br#"{"theme":"night"}"#.to_vec()))].into();
+    let built = bundle::compile(store, &setup, &target, &evidence, &provider, &hosts)?;
+    let mut archive = zip::ZipArchive::new(std::io::Cursor::new(&built.archive))?;
+    let mut bytes = Vec::new();
+    std::io::Read::read_to_end(&mut archive.by_name("files/mcp.json")?, &mut bytes)?;
+    let parsed: Value = serde_json::from_slice(&bytes)?;
+    assert_eq!(parsed["theme"], "night");
+    assert_eq!(parsed["mcpServers"]["review"]["command"], "review-tool");
+    export("cursor-contribution", &built)?;
+    rejects_fabricated_ids(store, &mcp, &built, &target, &provider, &hosts)?;
+    // A digest-valid catalog entry must not bypass the source credential guard.
+    let reference_mcp = component(
+        store,
+        &provider,
+        Scope::Global,
+        File {
+            path: "mcp.json".into(),
+            bytes:
+                br#"{"review":{"command":"review-tool","env":{"API_KEY":"${env:REVIEW_TOKEN}"}}}"#
+                    .to_vec(),
+            mode: 0o644,
+        },
+        Some("mcpServers"),
+    )?;
+    let (reference_setup, reference_evidence) = compose(store, "cursor", &[reference_mcp])?;
+    let reference_bundle = bundle::compile(
+        store,
+        &reference_setup,
+        &target,
+        &reference_evidence,
+        &provider,
+        &hosts,
+    )?;
+    export("cursor-references", &reference_bundle)?;
+    let literal_mcp = component(
+        store, &provider, Scope::Global,
+        File {
+            path: "mcp.json".into(),
+            bytes: br#"{"review":{"command":"review-tool","env":{"API_KEY":"synthetic-sensitive-value"}}}"#.to_vec(),
+            mode: 0o644,
+        }, Some("mcpServers"),
+    )?;
+    assert!(compose(store, "cursor", std::slice::from_ref(&literal_mcp)).is_err());
+    let (catalog_setup, catalog_evidence) = catalog_repin(store, &reference_bundle, &literal_mcp)?;
+    let refusal = bundle::compile(
+        store,
+        &catalog_setup,
+        &target,
+        &catalog_evidence,
+        &provider,
+        &hosts,
+    )
+    .err()
+    .ok_or("catalog literal credential accepted")?;
+    assert_eq!(refusal.details["constraint"], "literal_credential");
+    assert!(!refusal.message.contains("synthetic-sensitive-value"));
+    let absent: Hosts = [("mcp.json".into(), None)].into();
+    let fresh = bundle::compile(store, &setup, &target, &evidence, &provider, &absent)?;
+    assert_ne!(
+        built.manifest["input_digest"],
+        fresh.manifest["input_digest"]
+    );
+    assert_ne!(built.artifact_digest, fresh.artifact_digest);
+    let mut surplus = absent;
+    surplus.insert("unowned.json".into(), None);
+    assert!(bundle::compile(store, &setup, &target, &evidence, &provider, &surplus).is_err());
+    let whole = component(
+        store,
+        &provider,
+        Scope::Global,
+        File {
+            path: "mcp.json".into(),
+            bytes: b"{}".to_vec(),
+            mode: 0o644,
+        },
+        None,
+    )?;
+    let (setup, evidence) = compose(store, "cursor", &[mcp.clone(), whole])?;
+    assert!(bundle::compile(store, &setup, &target, &evidence, &provider, &hosts).is_err());
+    // A corrupt stored projection never becomes a partially compiled package.
+    let (setup, evidence) = compose(store, "cursor", std::slice::from_ref(&mcp))?;
+    store.transaction(|t| {
+        t.execute(
+            "UPDATE content SET bytes=? WHERE digest=?",
+            rusqlite::params![
+                b"corrupt".as_slice(),
+                text(&mcp["artifact"], "digest")
+                    .map_err(|_| ai_stp_cli_v2::error::Failure::input("digest missing"))?
+            ],
+        )
+        .map(|_| ())
+        .map_err(|_| ai_stp_cli_v2::error::Failure::input("proof corruption failed"))
+    })?;
+    assert!(bundle::compile(store, &setup, &target, &evidence, &provider, &hosts).is_err());
+    Ok(())
+}
+
 #[test]
 fn exact_bundles_cover_every_released_profile_and_refuse_unrepresentable_inputs()
 -> Result<(), Box<dyn Error>> {
@@ -856,98 +991,6 @@ fn exact_bundles_cover_every_released_profile_and_refuse_unrepresentable_inputs(
             .is_err()
         );
     }
-    // One contribution preserves the unowned host object and binds its exact bytes.
-    let mcp = component(
-        &mut store,
-        &provider,
-        Scope::Global,
-        File {
-            path: "settings.json".into(),
-            bytes: br#"{"review":{"command":"review-tool"}}"#.to_vec(),
-            mode: 0o644,
-        },
-        Some("mcpServers"),
-    )?;
-    let (setup, evidence) = compose(&mut store, "claude-code", std::slice::from_ref(&mcp))?;
-    assert!(
-        bundle::compile(
-            &mut store,
-            &setup,
-            &target,
-            &evidence,
-            &provider,
-            &Hosts::new()
-        )
-        .is_err()
-    );
-    let hosts: Hosts = [(
-        "settings.json".into(),
-        Some(br#"{"theme":"night"}"#.to_vec()),
-    )]
-    .into();
-    let built = bundle::compile(&mut store, &setup, &target, &evidence, &provider, &hosts)?;
-    let mut archive = zip::ZipArchive::new(std::io::Cursor::new(&built.archive))?;
-    let mut bytes = Vec::new();
-    std::io::Read::read_to_end(&mut archive.by_name("files/settings.json")?, &mut bytes)?;
-    let parsed: Value = serde_json::from_slice(&bytes)?;
-    assert_eq!(parsed["theme"], "night");
-    assert_eq!(parsed["mcpServers"]["review"]["command"], "review-tool");
-    export("claude-code-contribution", &built)?;
-    rejects_fabricated_ids(&mut store, &mcp, &built, &target, &provider, &hosts)?;
-    // A digest-valid catalog entry must not bypass the source credential guard.
-    let reference_mcp = component(
-        &mut store,
-        &provider,
-        Scope::Global,
-        File {
-            path: "settings.json".into(),
-            bytes: br#"{"review":{"command":"review-tool","env":{"API_KEY":"${REVIEW_TOKEN}"}}}"#
-                .to_vec(),
-            mode: 0o644,
-        },
-        Some("mcpServers"),
-    )?;
-    let (reference_setup, reference_evidence) =
-        compose(&mut store, "claude-code", &[reference_mcp])?;
-    let reference_bundle = bundle::compile(
-        &mut store,
-        &reference_setup,
-        &target,
-        &reference_evidence,
-        &provider,
-        &hosts,
-    )?;
-    export("claude-code-references", &reference_bundle)?;
-    let literal_mcp = component(
-        &mut store, &provider, Scope::Global,
-        File {
-            path: "settings.json".into(),
-            bytes: br#"{"review":{"command":"review-tool","env":{"API_KEY":"synthetic-sensitive-value"}}}"#.to_vec(),
-            mode: 0o644,
-        }, Some("mcpServers"),
-    )?;
-    assert!(
-        compose(
-            &mut store,
-            "claude-code",
-            std::slice::from_ref(&literal_mcp)
-        )
-        .is_err()
-    );
-    let (catalog_setup, catalog_evidence) =
-        catalog_repin(&mut store, &reference_bundle, &literal_mcp)?;
-    let refusal = bundle::compile(
-        &mut store,
-        &catalog_setup,
-        &target,
-        &catalog_evidence,
-        &provider,
-        &hosts,
-    )
-    .err()
-    .ok_or("catalog literal credential accepted")?;
-    assert_eq!(refusal.details["constraint"], "literal_credential");
-    assert!(!refusal.message.contains("synthetic-sensitive-value"));
     let agent = component(
         &mut store,
         &provider,
@@ -979,16 +1022,64 @@ fn exact_bundles_cover_every_released_profile_and_refuse_unrepresentable_inputs(
         &provider,
         &Hosts::new(),
     )?;
-    let (separate, separate_evidence) = compose(&mut store, "claude-code", &[mcp.clone(), agent])?;
+    let command = component(
+        &mut store,
+        &provider,
+        Scope::Global,
+        File {
+            path: "commands/review.md".into(),
+            bytes: b"Review source.\n".to_vec(),
+            mode: 0o644,
+        },
+        None,
+    )?;
+    let (separate, separate_evidence) = compose(&mut store, "claude-code", &[command, agent])?;
     let separate_bundle = bundle::compile(
         &mut store,
         &separate,
         &target,
         &separate_evidence,
         &provider,
-        &hosts,
+        &Hosts::new(),
     )?;
     export("claude-code-separate-names", &separate_bundle)?;
+    // A provider namespace is not proof that the harness reads this logical kind.
+    let misplaced_mcp = component(
+        &mut store,
+        &provider,
+        Scope::Global,
+        File {
+            path: "settings.json".into(),
+            bytes: br#"{"review":{"command":"review-tool"}}"#.to_vec(),
+            mode: 0o644,
+        },
+        Some("mcpServers"),
+    )?;
+    let refusal = compose(
+        &mut store,
+        "claude-code",
+        std::slice::from_ref(&misplaced_mcp),
+    )
+    .err()
+    .ok_or("non-native Claude MCP surface composed")?;
+    assert!(refusal.to_string().contains("Claude MCP requires"));
+    let (catalog_setup, catalog_evidence) =
+        catalog_repin(&mut store, &separate_bundle, &misplaced_mcp)?;
+    let refusal = bundle::compile(
+        &mut store,
+        &catalog_setup,
+        &target,
+        &catalog_evidence,
+        &provider,
+        &[(
+            "settings.json".into(),
+            Some(br#"{"theme":"night"}"#.to_vec()),
+        )]
+        .into(),
+    )
+    .err()
+    .ok_or("non-native catalog MCP surface bundled")?;
+    assert_eq!(refusal.details["constraint"], "native_mcp_surface");
     let aliased = component(
         &mut store,
         &provider,
@@ -1044,44 +1135,7 @@ fn exact_bundles_cover_every_released_profile_and_refuse_unrepresentable_inputs(
             );
         }
     }
-    let absent: Hosts = [("settings.json".into(), None)].into();
-    let fresh = bundle::compile(&mut store, &setup, &target, &evidence, &provider, &absent)?;
-    assert_ne!(
-        built.manifest["input_digest"],
-        fresh.manifest["input_digest"]
-    );
-    assert_ne!(built.artifact_digest, fresh.artifact_digest);
-    let mut surplus = absent;
-    surplus.insert("unowned.json".into(), None);
-    assert!(bundle::compile(&mut store, &setup, &target, &evidence, &provider, &surplus).is_err());
-    let whole = component(
-        &mut store,
-        &provider,
-        Scope::Global,
-        File {
-            path: "settings.json".into(),
-            bytes: b"{}".to_vec(),
-            mode: 0o644,
-        },
-        None,
-    )?;
-    let (setup, evidence) = compose(&mut store, "claude-code", &[mcp.clone(), whole])?;
-    assert!(bundle::compile(&mut store, &setup, &target, &evidence, &provider, &hosts).is_err());
-    // A corrupt stored projection never becomes a partially compiled package.
-    let (setup, evidence) = compose(&mut store, "claude-code", std::slice::from_ref(&mcp))?;
-    store.transaction(|t| {
-        t.execute(
-            "UPDATE content SET bytes=? WHERE digest=?",
-            rusqlite::params![
-                b"corrupt".as_slice(),
-                text(&mcp["artifact"], "digest")
-                    .map_err(|_| ai_stp_cli_v2::error::Failure::input("digest missing"))?
-            ],
-        )
-        .map(|_| ())
-        .map_err(|_| ai_stp_cli_v2::error::Failure::input("proof corruption failed"))
-    })?;
-    assert!(bundle::compile(&mut store, &setup, &target, &evidence, &provider, &hosts).is_err());
+    mcp_contributions(&mut store, &declarations)?;
     Ok(())
 }
 

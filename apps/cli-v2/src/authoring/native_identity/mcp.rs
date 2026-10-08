@@ -259,6 +259,14 @@ pub(super) fn names(
     payload: &[u8],
 ) -> Result<Vec<String>> {
     let expected = key(harness)?;
+    if harness == "claude-code"
+        && !(path == ".mcp.json" || path == ".claude.json" && declared_key == expected)
+    {
+        return Err(Failure::precondition(
+            "Claude MCP requires project .mcp.json or an owned .claude.json mcpServers contribution",
+        )
+        .with_details([("constraint".into(), "native_mcp_surface".into())]));
+    }
     if !declared_key.is_empty() && declared_key != expected {
         return Err(invalid());
     }

@@ -199,6 +199,15 @@ Accepted bytes and external references remain exact. Capturing this source
 does not add a provider route or authorize a native MCP connection. Global
 `~/.claude.json` capture remains outside the declared discovery surface.
 
+Retained Claude MCP definitions must use `.mcp.json`, or an owned `mcpServers`
+contribution to `.claude.json`. Whole `.claude.json` capture and arbitrary host
+paths refuse. In particular, `settings.json#mcpServers` is not a native MCP
+surface even if a provider accepts the package. Actual Claude 2.1.294 metadata
+inspection finds project `.mcp.json` servers and does not find this settings
+entry. Provider profile support remains a separate requirement; these rules do
+not invent a missing route. The generic owned-contribution bundle proof uses
+Cursor's declared `mcp.json` surface.
+
 Local Claude Code agent identifiers come from required `name`/`description`
 frontmatter, not the filename. Invalid local names or absent/ambiguous headers
 refuse; plugin-specific fallback semantics do not apply to ordinary agent files.
