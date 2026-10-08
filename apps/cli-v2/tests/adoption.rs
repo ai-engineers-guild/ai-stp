@@ -1,0 +1,261 @@
+use std::{error::Error, fs, path::Path};
+
+use ai_stp_cli_v2::{
+    authoring::{
+        adoption::{self, Identity, Source},
+        discovery,
+    },
+    canonical, digest,
+    error::Failure,
+    harnesses::{Root, Scope},
+    store::{
+        Store,
+        revisions::{self, Write},
+    },
+};
+use serde_json::json;
+
+fn source(root: &Path) -> Result<Source, Box<dyn Error>> {
+    let discovered = discovery::at(root, "codex", Scope::Global, Root::Config)?;
+    assert!(discovered.complete);
+    let candidate = discovered
+        .components
+        .into_iter()
+        .find(|item| item.component_type == "mcp")
+        .ok_or("MCP absent")?;
+    Ok(Source {
+        root: root.to_owned(),
+        harness_id: "codex".into(),
+        scope: Scope::Global,
+        root_kind: Root::Config,
+        candidate_id: candidate.candidate_id,
+    })
+}
+
+fn counts(store: &mut Store) -> Result<(i64, i64, i64), Failure> {
+    store.transaction(|transaction| transaction.query_row("SELECT (SELECT count(*) FROM entity), (SELECT count(*) FROM revision), (SELECT count(*) FROM content)",[],|row|Ok((row.get(0)?,row.get(1)?,row.get(2)?))).map_err(|_| Failure::precondition("proof query failed")))
+}
+
+#[test]
+fn adoption_is_planned_atomic_replayable_and_preserves_authored_facts() -> Result<(), Box<dyn Error>>
+{
+    let temporary = tempfile::tempdir()?;
+    let root = temporary.path().join("codex");
+    fs::create_dir(&root)?;
+    let config = b"model = 'unowned-setting'\n[mcp_servers.example]\ncommand = 'example-server'\n";
+    fs::write(root.join("config.toml"), config)?;
+    let identity = Identity {
+        account_id: "account_01ARZ3NDEKTSV4RRFFQ69G5FAV".into(),
+        device_id: "device_01ARZ3NDEKTSV4RRFFQ69G5FAV".into(),
+    };
+    let at = "2026-10-08T00:00:00.000Z";
+    let later = "2026-10-08T00:00:01.000Z";
+    let mut store = Store::open(temporary.path(), true)?;
+    let stale = adoption::plan(&mut store, source(&root)?, identity.clone(), at)?;
+    assert_eq!(counts(&mut store)?, (0, 0, 0));
+    fs::write(
+        root.join("config.toml"),
+        b"[mcp_servers.example]\ncommand = 'changed'\n",
+    )?;
+    assert!(adoption::apply(&mut store, &stale, &stale.digest()?, &identity, later).is_err());
+    assert_eq!(counts(&mut store)?, (0, 0, 0));
+    fs::write(root.join("config.toml"), config)?;
+    let plan = adoption::plan(&mut store, source(&root)?, identity.clone(), at)?;
+    let plan: adoption::Plan = serde_json::from_value(serde_json::to_value(plan)?)?;
+    assert!(
+        adoption::apply(
+            &mut store,
+            &plan,
+            &digest::sha256(b"wrong"),
+            &identity,
+            later
+        )
+        .is_err()
+    );
+    let first = adoption::apply(&mut store, &plan, &plan.digest()?, &identity, later)?;
+    assert_eq!(counts(&mut store)?, (1, 1, 1));
+    assert!(
+        !serde_json::to_string(&first)?.contains(&temporary.path().to_string_lossy().to_string())
+    );
+    assert_eq!(
+        first["facts"]["source_locator"]["value"],
+        "config.toml#mcp_servers"
+    );
+    assert_eq!(
+        first["facts"]["managed_paths"]["value"],
+        json!(["config.toml"])
+    );
+    #[cfg(windows)]
+    assert!(!plan.binding.absolute_path.starts_with(r"\\?\"));
+    store.transaction(|transaction| {
+        let bytes: Vec<u8> = transaction
+            .query_row("SELECT bytes FROM content", [], |row| row.get(0))
+            .map_err(|_| Failure::precondition("proof query failed"))?;
+        let text = std::str::from_utf8(&bytes)
+            .map_err(|_| Failure::precondition("proof content invalid"))?;
+        assert!(text.contains("[example]"));
+        assert!(!text.contains("unowned-setting"));
+        assert!(!text.contains("mcp_servers"));
+        Ok(())
+    })?;
+    fs::remove_file(root.join("config.toml"))?;
+    assert_eq!(
+        adoption::apply(&mut store, &plan, &plan.digest()?, &identity, later)?,
+        first
+    );
+    assert_eq!(counts(&mut store)?, (1, 1, 1));
+    fs::write(root.join("config.toml"), config)?;
+    let unchanged = adoption::plan(&mut store, source(&root)?, identity.clone(), later)?;
+    assert_eq!(unchanged.passport, first);
+    adoption::apply(
+        &mut store,
+        &unchanged,
+        &unchanged.digest()?,
+        &identity,
+        later,
+    )?;
+    assert_eq!(counts(&mut store)?, (1, 1, 1));
+
+    let stale = adoption::plan(&mut store, source(&root)?, identity.clone(), later)?;
+    let original_revision = first["revision_id"]
+        .as_str()
+        .ok_or("revision absent")?
+        .to_owned();
+    let mut authored = first.clone();
+    authored["parent_revision_ids"] = json!([original_revision]);
+    authored["facts"]["name"] = json!({"value":"User title","origin":"declared","confirmation":"user_confirmed","confirmed_at":later});
+    let authored = store.transaction(|transaction| {
+        revisions::commit(
+            transaction,
+            &authored,
+            &identity.device_id,
+            None,
+            Write::Advance {
+                expected_heads: std::slice::from_ref(&original_revision),
+            },
+        )
+    })?;
+    assert!(adoption::apply(&mut store, &stale, &stale.digest()?, &identity, later).is_err());
+    assert_eq!(counts(&mut store)?, (1, 2, 1));
+    let changed = b"[mcp_servers.example]\ncommand = 'changed-server'\n";
+    fs::write(root.join("config.toml"), changed)?;
+    let update = adoption::plan(&mut store, source(&root)?, identity.clone(), later)?;
+    assert_eq!(update.passport["facts"]["name"], authored["facts"]["name"]);
+    let updated = adoption::apply(&mut store, &update, &update.digest()?, &identity, later)?;
+    assert_eq!(
+        updated["parent_revision_ids"],
+        json!([authored["revision_id"]])
+    );
+    assert_eq!(counts(&mut store)?, (1, 3, 2));
+
+    let moved = temporary.path().join("moved-codex");
+    fs::rename(&root, &moved)?;
+    let relocation = adoption::plan(&mut store, source(&moved)?, identity.clone(), later)?;
+    assert_eq!(relocation.binding.stable_id, plan.binding.stable_id);
+    assert_eq!(relocation.passport, updated);
+    adoption::apply(
+        &mut store,
+        &relocation,
+        &relocation.digest()?,
+        &identity,
+        later,
+    )?;
+    assert_eq!(counts(&mut store)?, (1, 3, 2));
+    fs::create_dir(&root)?;
+    fs::write(root.join("config.toml"), changed)?;
+    let copy = adoption::plan(&mut store, source(&root)?, identity.clone(), later)?;
+    assert_ne!(copy.binding.stable_id, relocation.binding.stable_id);
+    adoption::apply(&mut store, &copy, &copy.digest()?, &identity, later)?;
+    assert_eq!(counts(&mut store)?, (2, 4, 2));
+    let before = counts(&mut store)?;
+    let mut tampered = adoption::plan(&mut store, source(&root)?, identity.clone(), later)?;
+    tampered.passport["facts"]["name"] = json!({"value":"Forged source metadata","origin":"observed","confirmation":"none","observed_at":later});
+    assert!(adoption::apply(&mut store, &tampered, &tampered.digest()?, &identity, later).is_err());
+    assert_eq!(counts(&mut store)?, before);
+    drop(store);
+    let mut store = Store::open(temporary.path(), false)?;
+    assert_eq!(
+        adoption::apply(
+            &mut store,
+            &copy,
+            &copy.digest()?,
+            &identity,
+            "2026-10-09T00:00:00.000Z"
+        )?,
+        copy.passport
+    );
+    assert_eq!(counts(&mut store)?, before);
+    let composed = temporary.path().join("caf\u{e9}");
+    let decomposed = temporary.path().join("cafe\u{301}");
+    fs::create_dir(&composed)?;
+    fs::write(composed.join("config.toml"), changed)?;
+    let unicode = adoption::plan(&mut store, source(&composed)?, identity.clone(), later)?;
+    adoption::apply(&mut store, &unicode, &unicode.digest()?, &identity, later)?;
+    if !decomposed.try_exists()? {
+        fs::create_dir(&decomposed)?;
+        fs::write(decomposed.join("config.toml"), changed)?;
+        assert!(
+            adoption::plan(&mut store, source(&decomposed)?, identity.clone(), later).is_err(),
+            "Unicode-normalized binding addresses conflated distinct filesystem locations"
+        );
+    }
+    let exact_root = temporary.path().join("only-e\u{301}");
+    fs::create_dir(&exact_root)?;
+    fs::write(exact_root.join("config.toml"), changed)?;
+    let exact = adoption::plan(&mut store, source(&exact_root)?, identity.clone(), later)?;
+    let encoded = canonical::bytes(&serde_json::to_value(&exact)?)?;
+    let decoded: adoption::Plan = serde_json::from_slice(&encoded)?;
+    assert_eq!(decoded.source.root, exact.source.root);
+    assert_eq!(decoded.binding.absolute_path, exact.binding.absolute_path);
+    assert_eq!(decoded.digest()?, exact.digest()?);
+    let mut false_display = serde_json::to_value(&exact)?;
+    false_display["source"]["root"]["display"] = json!("/different");
+    assert!(serde_json::from_value::<adoption::Plan>(false_display).is_err());
+    let exact_digest = decoded.digest()?;
+    store.transaction(|transaction| {
+        transaction.execute("INSERT INTO operation(operation_id,kind,state,started_at,detail) VALUES (?,'component.adopt','applying',?,?)",rusqlite::params![decoded.operation_id,later,exact_digest]).map_err(|_|Failure::precondition("proof journal failed"))?;
+        Ok(())
+    })?;
+    assert_eq!(
+        adoption::apply(&mut store, &decoded, &exact_digest, &identity, later)?,
+        exact.passport
+    );
+    let interrupted = adoption::plan(&mut store, source(&root)?, identity.clone(), later)?;
+    let interrupted_digest = interrupted.digest()?;
+    store.transaction(|transaction| {
+        transaction.execute("INSERT INTO operation(operation_id,kind,state,started_at,detail) VALUES (?,'component.adopt','applying',?,?)",rusqlite::params![interrupted.operation_id,later,interrupted_digest]).map_err(|_|Failure::precondition("proof journal failed"))?;
+        Ok(())
+    })?;
+    assert!(
+        adoption::apply(
+            &mut store,
+            &interrupted,
+            &interrupted_digest,
+            &identity,
+            "2026-10-08T00:16:00.000Z"
+        )
+        .is_err()
+    );
+    let interrupted_state = store.transaction(|transaction| {
+        transaction
+            .query_row(
+                "SELECT state FROM operation WHERE operation_id=?",
+                [&interrupted.operation_id],
+                |row| row.get::<_, String>(0),
+            )
+            .map_err(|_| Failure::precondition("proof journal failed"))
+    })?;
+    store.transaction(|transaction| {
+        transaction
+            .execute("UPDATE content SET bytes=X'00'", [])
+            .map_err(|_| Failure::precondition("proof corruption failed"))?;
+        Ok(())
+    })?;
+    let corrupt_replay_refused =
+        adoption::apply(&mut store, &copy, &copy.digest()?, &identity, later).is_err();
+    assert_eq!(
+        (interrupted_state.as_str(), corrupt_replay_refused),
+        ("stale", true)
+    );
+    Ok(())
+}

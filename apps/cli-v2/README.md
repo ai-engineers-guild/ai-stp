@@ -141,8 +141,8 @@ Within Git, it includes tracked and nonignored untracked members without
 changing the index; unresolved entries and submodules are refused. Tracked
 executable modes survive Windows capture. Filesystem capture refuses links,
 credential-named paths, incomplete reads and file/count/depth budgets. A
-`hooks.json` capture includes its bounded `hooks/` sibling tree. Source capture
-does not yet register a component.
+`hooks.json` capture includes its bounded `hooks/` sibling tree. Adoption owns
+registration of the captured source.
 
 `authoring/contribution` extracts one owned top-level object/table and compiles
 it back into a host configuration in memory. JSON, JSONC and TOML retain unowned
@@ -165,6 +165,19 @@ discovery scope separate from provider target scope, including shared user roots
 configuration-key contributions, translated provider kinds and hook sibling
 ownership. A discoverable source can still have no valid provider route. These
 facts do not replace live authenticated provider verification before execution.
+
+Headless adoption creates an exact, fifteen-minute plan for one discovered
+source. Applying it rechecks content, source bindings and revision heads before
+atomically storing bytes, the passport and the verified journal outcome.
+Copies retain distinct identities; one vanished matching source can move.
+Recapture preserves authored passport fields. Completed replay checks stored
+content and never rewinds heads; interrupted expired plans become stale.
+The source walk holds directory handles through every layout ancestor. Local
+binding paths retain ordinary Windows spelling only after verifying that it
+resolves to the same location. Plans preserve exact UTF-8 path bytes separately
+from their normalized display; distinct filesystem locations with a colliding
+normalized binding address are refused. Identity is supplied by the owning runtime;
+this service does not claim cloud authentication or expose authoring commands.
 
 `process` owns one-shot child execution with an absolute executable, explicit
 environment, closed stdin, concurrent bounded output and a deadline. Its Git
@@ -195,6 +208,7 @@ no async runtime or tracing feature is enabled for it.
 | `authoring/contribution.rs` | Owned configuration extraction and format-preserving in-memory assembly |
 | `harnesses.rs`, `authoring/discovery.rs` | Shared declarative harness facts and bounded inspection of native layouts |
 | `projection.rs` | Shared exact provider profiles and target-relative ownership routes |
+| `authoring/adoption.rs` | Exact local adoption plans, binding reconciliation and atomic journaled registration |
 | `provenance.rs` | Offline PEP 740 cryptographic verification and publisher policy |
 
 The provenance service accepts a caller-owned trusted root and an artifact

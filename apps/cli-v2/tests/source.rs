@@ -83,6 +83,10 @@ fn git_and_plain_capture_preserve_complete_safe_content() -> Result<(), Box<dyn 
     );
     assert_eq!(source::capture(&component)?.bytes, captured.bytes);
     assert_eq!(
+        source::capture_scoped(&repository, "components/demo")?.bytes,
+        captured.bytes
+    );
+    assert_eq!(
         fs::read(repository.join(".git/index"))?,
         index,
         "capture mutated the Git index"
@@ -102,6 +106,8 @@ fn git_and_plain_capture_preserve_complete_safe_content() -> Result<(), Box<dyn 
         std::os::unix::fs::symlink(repository.join("outside.md"), component.join("linked.md"))?;
         assert!(source::capture(&component).is_err(), "symlink was captured");
         fs::remove_file(component.join("linked.md"))?;
+        std::os::unix::fs::symlink(&component, repository.join("alias"))?;
+        assert!(source::capture_scoped(&repository, "alias/SKILL.md").is_err());
     }
     fs::write(component.join(".env.local"), b"synthetic secret fixture")?;
     assert!(
@@ -114,6 +120,10 @@ fn git_and_plain_capture_preserve_complete_safe_content() -> Result<(), Box<dyn 
     fs::write(plain.join("hooks.json"), b"{}")?;
     fs::write(plain.join("hooks/helper.sh"), b"exit 0\n")?;
     let captured = source::capture(&plain.join("hooks.json"))?;
+    assert_eq!(
+        source::capture_scoped(&plain, "hooks.json")?.bytes,
+        captured.bytes
+    );
     assert_eq!(captured.format, artifacts::TREE_FORMAT);
     let files = artifacts::decode_tree(&captured.bytes)?;
     assert_eq!(

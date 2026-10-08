@@ -285,7 +285,7 @@ fn describe(
     evidence_refs: Vec<String>,
 ) -> Result<Candidate> {
     let absolute = root.join(relative);
-    let source_path = files::display(&absolute);
+    let source_path = files::display(Path::new(&files::location(&absolute)?));
     let native_role = (layout.component_type == "mcp").then_some("mcp_client_config");
     let holds_secret = relative.split('/').any(projects::secret_name);
     let provenance = json!({"kind":"filesystem", "state":"local", "repository":null,

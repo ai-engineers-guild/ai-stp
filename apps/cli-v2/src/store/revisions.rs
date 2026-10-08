@@ -1,6 +1,6 @@
 //! Content-addressed writes with explicit head preconditions inside one writer.
 
-use rusqlite::{OptionalExtension, Transaction, params};
+use rusqlite::{Connection, OptionalExtension, Transaction, params};
 use serde_json::{Value, json};
 
 use super::database;
@@ -206,18 +206,34 @@ pub fn content(transaction: &Transaction<'_>, payload: &[u8], at: &str) -> Resul
     }
     let address = digest::bytes("ai-stp:artifact:v1", payload)?;
     transaction.execute("INSERT INTO content (digest, bytes, byte_length, stored_at) VALUES (?, ?, ?, ?) ON CONFLICT (digest) DO NOTHING", params![address, payload, payload.len() as i64, at]).map_err(database)?;
-    let (held, length): (Vec<u8>, i64) = transaction
-        .query_row(
-            "SELECT bytes, byte_length FROM content WHERE digest = ?",
-            [&address],
-            |row| Ok((row.get(0)?, row.get(1)?)),
-        )
-        .map_err(database)?;
-    if held != payload || length != payload.len() as i64 {
+    if read_content(transaction, &address)? != payload {
         return Err(Failure::new(
             ErrorKind::Conflict,
             "the stored content differs from its address",
         ));
     }
     Ok(address)
+}
+
+pub fn read_content(connection: &Connection, address: &str) -> Result<Vec<u8>> {
+    let row: Option<(Vec<u8>, i64, i64)> = connection
+        .query_row(
+            "SELECT substr(bytes,1,67108865),byte_length,length(bytes) FROM content WHERE digest=?",
+            [address],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+        )
+        .optional()
+        .map_err(database)?;
+    let (bytes, declared, actual) =
+        row.ok_or_else(|| Failure::new(ErrorKind::NotFound, "the component content is absent"))?;
+    if bytes.len() > 64 * 1024 * 1024
+        || declared != actual
+        || actual != bytes.len() as i64
+        || digest::bytes("ai-stp:artifact:v1", &bytes)? != address
+    {
+        return Err(Failure::precondition(
+            "the stored component content differs from its address or length",
+        ));
+    }
+    Ok(bytes)
 }

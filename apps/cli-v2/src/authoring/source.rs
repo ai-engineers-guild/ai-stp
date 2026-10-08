@@ -5,7 +5,7 @@ use std::{
     env,
     ffi::OsString,
     io::Read,
-    path::{Path, PathBuf},
+    path::Path,
     time::{Duration, Instant},
 };
 
@@ -262,13 +262,27 @@ fn open_directory(root: &Path) -> Result<Dir> {
         .map_err(|_| invalid())
 }
 
-fn tree(root: &Path, require_manifest: bool) -> Result<Vec<Member>> {
-    let directory = open_directory(root)?;
+fn same_directory(root: &Path, directory: &Dir) -> Result<()> {
+    let held = directory.dir_metadata().map_err(|_| invalid())?;
+    let current = open_directory(root)?
+        .dir_metadata()
+        .map_err(|_| invalid())?;
+    if cap_fs_ext::MetadataExt::dev(&held) != cap_fs_ext::MetadataExt::dev(&current)
+        || cap_fs_ext::MetadataExt::ino(&held) != cap_fs_ext::MetadataExt::ino(&current)
+    {
+        return Err(invalid());
+    }
+    Ok(())
+}
+
+fn tree(root: &Path, directory: &Dir, require_manifest: bool) -> Result<Vec<Member>> {
+    let started = Instant::now();
+    same_directory(root, directory)?;
     let names = match git_members(root)? {
         Some(names) => names,
         None => {
             let mut names = Vec::new();
-            walk(&directory, "", &mut names, &mut 0, Instant::now())?;
+            walk(directory, "", &mut names, &mut 0, Instant::now())?;
             names.into_iter().map(|name| (name, None)).collect()
         }
     };
@@ -295,7 +309,10 @@ fn tree(root: &Path, require_manifest: bool) -> Result<Vec<Member>> {
     let mut total = 0;
     let mut members = Vec::new();
     for (name, git_mode) in names {
-        let mut member = read(&directory, &name)?;
+        if started.elapsed() > Duration::from_secs(10) {
+            return Err(invalid());
+        }
+        let mut member = read(directory, &name)?;
         if cfg!(windows)
             && let Some(mode) = git_mode
         {
@@ -306,6 +323,10 @@ fn tree(root: &Path, require_manifest: bool) -> Result<Vec<Member>> {
             return Err(invalid());
         }
         members.push(member);
+    }
+    same_directory(root, directory)?;
+    if started.elapsed() > Duration::from_secs(10) {
+        return Err(invalid());
     }
     Ok(members)
 }
@@ -318,12 +339,41 @@ pub fn capture(path: &Path) -> Result<Captured> {
         return Err(invalid());
     }
     let absolute = path.canonicalize().map_err(|_| invalid())?;
-    check_name(
-        absolute
-            .file_name()
-            .and_then(|name| name.to_str())
-            .ok_or_else(invalid)?,
-    )?;
+    let parent = absolute.parent().ok_or_else(invalid)?;
+    let name = absolute
+        .file_name()
+        .and_then(|name| name.to_str())
+        .ok_or_else(invalid)?;
+    let directory =
+        Dir::open_ambient_dir(parent, cap_std::ambient_authority()).map_err(|_| invalid())?;
+    capture_open(&directory, name, &absolute)
+}
+
+/// Capture a catalog-selected source without following any layout ancestor link.
+pub fn capture_scoped(root: &Path, relative: &str) -> Result<Captured> {
+    check_name(relative)?;
+    let root_metadata = root.symlink_metadata().map_err(|_| invalid())?;
+    if !root_metadata.is_dir() || root_metadata.file_type().is_symlink() {
+        return Err(invalid());
+    }
+    let root = root.canonicalize().map_err(|_| invalid())?;
+    let mut directory = open_directory(&root)?;
+    let mut parts = relative.split('/').peekable();
+    while let Some(part) = parts.next() {
+        if parts.peek().is_none() {
+            return capture_open(&directory, part, &root.join(relative));
+        }
+        directory = directory.open_dir_nofollow(part).map_err(|_| invalid())?;
+    }
+    Err(invalid())
+}
+
+fn capture_open(directory: &Dir, name: &str, absolute: &Path) -> Result<Captured> {
+    check_name(name)?;
+    let metadata = directory.symlink_metadata(name).map_err(|_| invalid())?;
+    if metadata.file_type().is_symlink() {
+        return Err(invalid());
+    }
     if metadata.is_dir() {
         if files::home()
             .and_then(|home| home.canonicalize().ok())
@@ -331,7 +381,8 @@ pub fn capture(path: &Path) -> Result<Captured> {
         {
             return Err(invalid());
         }
-        let members = tree(&absolute, true)?;
+        let child = directory.open_dir_nofollow(name).map_err(|_| invalid())?;
+        let members = tree(absolute, &child, true)?;
         return Ok(Captured {
             format: artifacts::TREE_FORMAT,
             bytes: artifacts::encode_tree(&members)?,
@@ -340,23 +391,23 @@ pub fn capture(path: &Path) -> Result<Captured> {
     if !metadata.is_file() {
         return Err(invalid());
     }
-    let parent = absolute.parent().ok_or_else(invalid)?;
-    let name = absolute
-        .file_name()
-        .and_then(|name| name.to_str())
-        .ok_or_else(invalid)?;
-    let directory =
-        Dir::open_ambient_dir(parent, cap_std::ambient_authority()).map_err(|_| invalid())?;
-    let member = read(&directory, name)?;
-    let siblings: PathBuf = parent.join("hooks");
+    let member = read(directory, name)?;
     if name == "hooks.json" {
-        match siblings.symlink_metadata() {
+        match directory.symlink_metadata("hooks") {
             Ok(metadata) if metadata.is_dir() && !metadata.file_type().is_symlink() => {
+                let child = directory
+                    .open_dir_nofollow("hooks")
+                    .map_err(|_| invalid())?;
+                let siblings = absolute.parent().ok_or_else(invalid)?.join("hooks");
                 let mut members = vec![member];
-                members.extend(tree(&siblings, false)?.into_iter().map(|mut member| {
-                    member.path = format!("hooks/{}", member.path);
-                    member
-                }));
+                members.extend(
+                    tree(&siblings, &child, false)?
+                        .into_iter()
+                        .map(|mut member| {
+                            member.path = format!("hooks/{}", member.path);
+                            member
+                        }),
+                );
                 return Ok(Captured {
                     format: artifacts::TREE_FORMAT,
                     bytes: artifacts::encode_tree(&members)?,
