@@ -352,9 +352,10 @@ keys, duplicate YAML keys, invalid types and unsupported schemas are refused
 without echoing rejected values. Parsing is bounded to 1 MiB, eight levels and
 10,000 events; file inclusion and environment interpolation are disabled.
 
-`snapshot inspect` requires an explicit backup path and its `sha256:<hex>`.
-Prepare it with SQLite's backup API and close the destination in DELETE journal
-mode before hashing. A raw copy of a live WAL file is not a backup. The reader
+`snapshot inspect` requires an explicitly supplied consistent database file and
+its `sha256:<hex>`; it does not create a backup. If the owner explicitly requests
+backup creation, use SQLite's backup API and close the destination in DELETE
+journal mode before hashing. A raw copy of a live WAL file is not a backup. The reader
 checks the digest, loads those exact bytes into read-only in-memory SQLite,
 checks integrity and reports table row counts without record contents. It
 accepts schema 53 only, bounds the input to 128 MiB and limits SQLite work.

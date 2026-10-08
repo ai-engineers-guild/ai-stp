@@ -118,7 +118,8 @@ bounded HTTP/process execution and provenance separately against their actual
 contracts. Do not add all prospective libraries in the first commit.
 
 The preview reads only explicit isolated state; any v1 snapshot import checks
-its source and backup digest first. Never copy secrets into fixtures or evidence.
+its source and exact digest first. This does not authorize creating a backup.
+Never copy secrets into fixtures or evidence.
 The production switch must account for keychain identity, persistent object
 paths, pending tasks, provider backups and legacy writers together. Restoring
 an earlier database after later harness writes is not a valid rollback.
@@ -188,8 +189,9 @@ reconstruction of the earlier requested September 26 snapshot.
 - [Rust CLI testing](https://rust-cli.github.io/book/tutorial/testing.html):
   exercise the executable and its observable output/error behavior.
 - [SQLite online backup](https://sqlite.org/backup.html) and
-  [WAL](https://sqlite.org/wal.html): use a consistent backup mechanism and
-  preserve one-writer assumptions. The documented WAL-reset defect was fixed
+  [WAL](https://sqlite.org/wal.html): when backup creation is explicitly requested,
+  use a consistent mechanism; always preserve one-writer assumptions.
+  The documented WAL-reset defect was fixed
   in 3.51.3 and selected backports; the audited Python runtime uses 3.53.1.
   Verify the SQLite version actually bundled into Rust rather than assuming
   the crate's release date proves the fix.
