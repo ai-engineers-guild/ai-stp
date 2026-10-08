@@ -1,5 +1,7 @@
 //! One command definition drives both the parser and its machine description.
 
+mod local;
+
 use clap::{Arg, ArgAction, ArgMatches, Command, builder::ValueParser};
 use serde_json::{Value, json};
 
@@ -14,6 +16,7 @@ pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[derive(Clone, Copy)]
 enum Handler {
+    Local(local::Handler),
     Version,
     Help,
     Capabilities,
@@ -42,6 +45,7 @@ enum ParameterType {
     String,
     Boolean,
     Path,
+    Paths,
     Strings,
     Choice(&'static [&'static str]),
 }
@@ -67,13 +71,16 @@ impl Parameter {
                 clap::builder::PossibleValuesParser::new(values.iter().copied()),
             ),
             ParameterType::Path => argument.value_parser(ValueParser::path_buf()),
+            ParameterType::Paths => argument
+                .value_parser(ValueParser::path_buf())
+                .action(ArgAction::Append),
         }
     }
 
     fn descriptor(&self) -> Value {
         json!({"name": self.name, "kind": "option",
             "value_type": if matches!(self.kind, ParameterType::Boolean) { "boolean" } else { "string" },
-            "required": self.required, "repeatable": matches!(self.kind, ParameterType::Strings), "summary": self.summary,
+            "required": self.required, "repeatable": matches!(self.kind, ParameterType::Strings | ParameterType::Paths), "summary": self.summary,
             "choices": match self.kind {ParameterType::Choice(values) => values, _ => &[]}})
     }
 }
@@ -492,10 +499,14 @@ const COMMANDS: &[Declaration] = &[
     },
 ];
 
+fn declarations() -> impl Iterator<Item = &'static Declaration> {
+    COMMANDS.iter().chain(local::COMMANDS)
+}
+
 fn children(parent: Command, prefix: &[&str]) -> Command {
     let mut names = std::collections::BTreeSet::new();
     let mut parent = parent;
-    for declaration in COMMANDS {
+    for declaration in declarations() {
         if !declaration.path.starts_with(prefix) || declaration.path.len() <= prefix.len() {
             continue;
         }
@@ -506,7 +517,7 @@ fn children(parent: Command, prefix: &[&str]) -> Command {
         let mut path = prefix.to_vec();
         path.push(name);
         let mut command = Command::new(name);
-        if let Some(leaf) = COMMANDS.iter().find(|item| item.path == path) {
+        if let Some(leaf) = declarations().find(|item| item.path == path) {
             command = command.about(leaf.summary);
             for parameter in leaf.parameters {
                 command = command.arg(parameter.argument());
@@ -539,13 +550,22 @@ pub fn error_descriptors() -> Vec<Value> {
 }
 
 fn descriptors() -> Vec<Value> {
-    COMMANDS.iter().map(|item| json!({
+    declarations().map(|item| json!({
         "path": item.path, "summary": item.summary,
-        "mutability": match item.handler { Handler::ScaffoldPlan | Handler::IdentityPlan => "plan", Handler::ScaffoldApply | Handler::IdentityApply => "apply", _ => "read" },
-        "confirmation": if matches!(item.handler,Handler::ScaffoldApply | Handler::IdentityApply) { "plan_digest" } else { "none" },
+        "mutability": mutability(item.handler),
+        "confirmation": if mutability(item.handler) == "apply" { "plan_digest" } else { "none" },
         "parameters": item.parameters.iter().map(Parameter::descriptor).collect::<Vec<_>>(),
         "parameter_rules": [], "result_schema": null, "next_actions": []
     })).collect()
+}
+
+fn mutability(handler: Handler) -> &'static str {
+    match handler {
+        Handler::ScaffoldPlan | Handler::IdentityPlan => "plan",
+        Handler::ScaffoldApply | Handler::IdentityApply => "apply",
+        Handler::Local(handler) => handler.mutability(),
+        _ => "read",
+    }
 }
 
 pub fn digest() -> Result<String> {
@@ -567,8 +587,7 @@ pub fn digest() -> Result<String> {
 pub fn help(path: &str, find: &str) -> Result<Value> {
     let prefix: Vec<_> = path.split_whitespace().collect();
     let needle = find.to_lowercase();
-    let commands: Vec<_> = COMMANDS
-        .iter()
+    let commands: Vec<_> = declarations()
         .zip(descriptors())
         .filter_map(|(item, descriptor)| {
             (item.path.starts_with(&prefix)
@@ -600,20 +619,20 @@ pub fn dispatch(matches: &ArgMatches) -> Result<Value> {
     if path.is_empty() {
         return help("", "");
     }
-    let declaration = COMMANDS
-        .iter()
+    let declaration = declarations()
         .find(|item| item.path == path)
         .ok_or_else(|| Failure::new(ErrorKind::Internal, "parsed command has no handler"))?;
     match declaration.handler {
+        Handler::Local(handler) => local::dispatch(handler, leaf),
         Handler::Version => Ok(json!({"schema_version": 1, "cli_version": VERSION,
             "wire_schema_version": 1, "runtime": "rust", "release_channel": "preview"})),
         Handler::Capabilities => Ok(json!({"schema_version": 1, "cli_version": VERSION,
             "wire_schema_version": 1, "registry_digest": digest()?, "release_channel": "preview",
-            "command_paths": COMMANDS.iter().map(|item| item.path.join(" ")).collect::<Vec<_>>(),
+            "command_paths": declarations().map(|item| item.path.join(" ")).collect::<Vec<_>>(),
             "task_intents": [], "supported_harnesses": [], "catalog_enabled": true, "sync_enabled": false,
-            "state_access": "explicit_snapshot_read_only", "cache_access": "explicit_public_catalog_cache",
+            "state_access": "explicit_snapshot_and_isolated_authoring", "cache_access": "explicit_public_catalog_cache",
             "identity_access": "explicit_isolated_device",
-            "authoring_access": "explicit_new_directory", "readable_local_schema_versions": [snapshot::SCHEMA_VERSION]})),
+            "authoring_access": "identity_bound_local_plans", "readable_local_schema_versions": [snapshot::SCHEMA_VERSION]})),
         Handler::Help => help(
             leaf.get_one::<String>("path").map_or("", String::as_str),
             leaf.get_one::<String>("find").map_or("", String::as_str),

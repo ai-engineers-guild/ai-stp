@@ -23,6 +23,27 @@ fn durable_revision_history_replay_conflict_and_atomic_rollback() -> Result<(), 
     let document = json!({"kind": "component", "stable_id": id,
         "owner_id": "account_01ARZ3NDEKTSV4RRFFQ69G5FAV", "created_at": at,
         "facts": {"name": {"value": "Native", "origin": "declared", "confirmation": "none"}}});
+    let mut planning = Store::planning(root.path())?;
+    assert!(
+        planning
+            .transaction(|t| revisions::commit(
+                t,
+                &document,
+                device,
+                None,
+                Write::Advance {
+                    expected_heads: &[]
+                }
+            ))
+            .is_err()
+    );
+    assert!(
+        planning
+            .transaction(|t| revisions::heads(t, id))?
+            .is_empty()
+    );
+    drop(planning);
+    assert_eq!(fs::read_dir(root.path())?.count(), 0);
     let mut store = Store::open(root.path(), true)?;
     let first = store.transaction(|transaction| {
         revisions::commit(
@@ -115,6 +136,17 @@ fn durable_revision_history_replay_conflict_and_atomic_rollback() -> Result<(), 
     // Another process cannot initialize or mutate this directory while owned.
     assert!(Store::open(root.path(), true).is_err());
     drop(store);
+    let mut planning = Store::planning(root.path())?;
+    assert_eq!(
+        planning.transaction(|t| revisions::heads(t, id))?,
+        std::slice::from_ref(&current)
+    );
+    assert!(
+        planning
+            .transaction(|t| revisions::content(t, b"planning must never persist", at))
+            .is_err()
+    );
+    drop(planning);
     let mut reopened = Store::open(root.path(), false)?;
     let cases: Value = serde_json::from_str(include_str!(
         "../../../packages/contracts/src/ai_stp_contracts/fixtures/v1/catalog.json"

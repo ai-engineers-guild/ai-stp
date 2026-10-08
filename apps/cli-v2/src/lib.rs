@@ -64,7 +64,7 @@ impl Invocation {
     }
 }
 
-/// Arguments include argv[0]. No state, credentials or network initialization.
+/// Arguments include argv[0]. Only the selected handler opens its explicit resources.
 pub fn invoke(arguments: impl IntoIterator<Item = OsString>) -> Invocation {
     let arguments: Vec<_> = arguments.into_iter().collect();
     let machine = arguments

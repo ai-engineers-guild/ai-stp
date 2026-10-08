@@ -23,7 +23,8 @@ type Schema = Vec<(String, String, String, String)>;
 pub struct Store {
     // Drop SQLite before releasing the process lock and directory handle.
     pub(crate) connection: Connection,
-    _directory: OwnedDirectory,
+    _directory: Option<OwnedDirectory>,
+    planning: bool,
 }
 
 pub(crate) fn database(error: rusqlite::Error) -> Failure {
@@ -72,6 +73,34 @@ fn expected_schema() -> Result<&'static Schema> {
 
 impl Store {
     pub fn open(parent: &Path, create: bool) -> Result<Self> {
+        Self::open_existing(parent, create, false)
+    }
+
+    /// A missing registry is represented in memory. Existing state is query-only:
+    /// planning cannot bootstrap a directory or commit domain records.
+    pub fn planning(parent: &Path) -> Result<Self> {
+        match Self::open_existing(parent, false, true) {
+            Ok(store) => Ok(store),
+            Err(error) if matches!(error.kind, ErrorKind::NotFound) => {
+                let connection = Connection::open_in_memory().map_err(database)?;
+                connection.execute_batch(BOOTSTRAP).map_err(database)?;
+                connection
+                    .pragma_update(None, "user_version", SCHEMA_VERSION)
+                    .map_err(database)?;
+                connection
+                    .pragma_update(None, "query_only", true)
+                    .map_err(database)?;
+                Ok(Self {
+                    connection,
+                    _directory: None,
+                    planning: true,
+                })
+            }
+            Err(error) => Err(error),
+        }
+    }
+
+    fn open_existing(parent: &Path, create: bool, planning: bool) -> Result<Self> {
         let directory =
             OwnedDirectory::open(parent, NAMESPACE, OWNER, create)?.ok_or_else(|| {
                 Failure::new(
@@ -170,7 +199,15 @@ impl Store {
             ));
         }
         let mode: String = connection
-            .query_row("PRAGMA journal_mode=WAL", [], |row| row.get(0))
+            .query_row(
+                if planning {
+                    "PRAGMA journal_mode"
+                } else {
+                    "PRAGMA journal_mode=WAL"
+                },
+                [],
+                |row| row.get(0),
+            )
             .map_err(database)?;
         if mode != "wal" {
             return Err(Failure::precondition(
@@ -180,9 +217,15 @@ impl Store {
         connection
             .pragma_update(None, "synchronous", "FULL")
             .map_err(database)?;
+        if planning {
+            connection
+                .pragma_update(None, "query_only", true)
+                .map_err(database)?;
+        }
         Ok(Self {
             connection,
-            _directory: directory,
+            _directory: Some(directory),
+            planning,
         })
     }
 
@@ -192,7 +235,11 @@ impl Store {
     ) -> Result<T> {
         let transaction = self
             .connection
-            .transaction_with_behavior(TransactionBehavior::Immediate)
+            .transaction_with_behavior(if self.planning {
+                TransactionBehavior::Deferred
+            } else {
+                TransactionBehavior::Immediate
+            })
             .map_err(database)?;
         let result = operation(&transaction)?;
         transaction.commit().map_err(database)?;

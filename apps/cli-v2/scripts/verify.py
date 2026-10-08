@@ -19,6 +19,7 @@ from contextlib import closing
 from pathlib import Path
 from typing import Any
 
+import verify_authoring
 import verify_catalog
 import verify_environment
 import verify_identity
@@ -93,6 +94,7 @@ def prove(binary: Path, root: Path) -> None:
     prove_template(binary, home, root)
     prove_scaffold(binary, home, root)
     verify_identity.prove(binary, home, root, run)
+    verify_authoring.prove(binary, home, root, run)
     prove_objects(binary, home, root)
     verify_projects.prove(binary, home, root, run)
     verify_catalog.prove(binary, home, root, run)

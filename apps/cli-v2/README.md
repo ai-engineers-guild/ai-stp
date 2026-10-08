@@ -27,8 +27,8 @@ help uses `--help`; in machine mode it returns the complete registry. A missing
 command returns help. Error messages do not echo rejected argument values.
 
 Preview `version` reports `runtime: rust` and `release_channel: preview`.
-Preview `capabilities` reports explicit read-only snapshot access and readable
-schema versions. They deliberately do not claim the Python-only version payload
+Preview `capabilities` reports explicit snapshot reads, isolated planned authoring
+and readable schema versions. They deliberately do not claim the Python-only version payload
 or the production capability payload, which requires a supported harness.
 Envelope and machine-help consumers are checked against the existing models;
 preview payloads have no production result-schema URN. Default cutover still
@@ -131,7 +131,25 @@ Refresh uses the project's passport patch, preserves unrelated passport extensio
 and must include every existing scope; it cannot replace an independently authored
 native adaptation. Adding scopes keeps the component identity. Replay verifies
 retained artifacts and returns the original result without rewinding later heads.
-This service remains headless until the owning runtime supplies native identity.
+The CLI plans this service through its verified isolated identity.
+
+Local authoring plans wrap the domain operation and lossless state parent in one
+digest. The executable exposes source binding, native discovery/adoption,
+confirmed metadata updates, immutable component release, exact forks and setup
+composition. `local apply` dispatches only these closed operation types, derives
+the current author from the private identity and verifies the complete plan before
+opening writable state. A different owner, altered plan or unsupported action
+cannot initialize a registry. Domain services retain their exact source, head,
+expiry and idempotency checks; successful replay does not rewind newer work.
+
+Planning uses query-only SQLite with deferred read transactions. A missing
+registry is represented by an in-memory bootstrap and creates no directory.
+Apply initializes the explicit registry if absent; a later source/precondition
+refusal may leave that empty registry, but commits no domain records or artifacts.
+Existing WAL housekeeping remains SQLite's responsibility. Local passport and
+version inspection use one read transaction and never open credentials. Provider
+declaration files describe packaging only; executable trust and installation
+remain separate pending boundaries.
 
 Scaffold planning writes nothing and binds the resolved parent directory's physical
 identity and lossless output path. Applying requires the exact plan digest,
@@ -289,8 +307,8 @@ check all expected heads inside `BEGIN IMMEDIATE`; content and revisions commit
 or roll back together. Replaying a known revision preserves the current head.
 Immutable snapshots never move draft heads. A setup requires one concrete
 harness at creation; every later draft and immutable version must preserve it,
-including agreement between the logical field and its fact when both are present. This service does not yet expose
-authoring commands or import a production registry.
+including agreement between the logical field and its fact when both are present.
+Production registry import remains a separate pending operation.
 
 The immutable coordinate writer validates complete passports before recording
 an `X.Y`. Replaying a number requires the same exact passport; another digest
@@ -418,7 +436,7 @@ binding paths retain ordinary Windows spelling only after verifying that it
 resolves to the same location. Plans preserve exact UTF-8 path bytes separately
 from their normalized display; distinct filesystem locations with a colliding
 normalized binding address are refused. Identity is supplied by the owning runtime;
-this service does not claim cloud authentication or expose authoring commands.
+this service does not claim cloud authentication.
 
 Headless passport editing accepts the embedded closed component-patch shape,
 with source, path and secret-field checks. Descriptions use the immutable
@@ -447,7 +465,7 @@ no async runtime or tracing feature is enabled for it.
 | --- | --- |
 | `main.rs` | Process I/O and exit status |
 | `lib.rs`, `error.rs` | Invocation and envelope/error boundary |
-| `registry.rs` | Executable command definitions and dispatch |
+| `registry.rs`, `registry/` | Executable command declarations, parsing and argument conversion |
 | `canonical.rs`, `digest.rs` | Strict NFC + RFC 8785 data and closed digest domains |
 | `config.rs`, `files.rs` | Explicit bounded configuration reads and path rendering |
 | `snapshot.rs`, `objects.rs` | Explicit backup inspection and verified local reads |
@@ -475,6 +493,7 @@ no async runtime or tracing feature is enabled for it.
 | `authoring/source_project.rs` | One bounded source snapshot, metadata separation and structural readiness |
 | `authoring/adaptations.rs` | Explicit portable-to-native projections preserving source bodies and modes |
 | `authoring/project_binding.rs` | Atomic portable project identity and complete adaptation refresh |
+| `authoring/runtime.rs` | Identity-bound local plans, closed operation dispatch and private registry reads |
 | `authoring/bindings.rs` | Shared local source addresses, relocation and binding replacement |
 | `provenance.rs` | Offline PEP 740 cryptographic verification and publisher policy |
 
@@ -504,6 +523,11 @@ coordinates and depth/edge exhaustion against the existing graph consumer.
 The native state journey checks persisted history after reopen, stale writes,
 ancestor replay, writer exclusion and rollback before commit. The schema oracle
 compares every table, index and constraint with a real schema-53 registry.
+The Unix CLI authoring journey covers identity, source binding, metadata updates,
+release, fork, setup composition, adoption and independent Python passport validation.
+Windows has a real native Credential Manager identity/CLI roundtrip with cleanup
+of only its newly generated test entry. Linux Secret Service evidence is run in
+an isolated D-Bus session outside the ordinary cross-platform gate.
 Artifact vectors retain exact bytes from the existing encoder and exercise
 Unicode names, executable metadata, corrupt content and escaping/undeclared paths.
 

@@ -10,6 +10,7 @@ mod freezing;
 pub mod passports;
 pub mod project_binding;
 pub mod releases;
+pub mod runtime;
 pub mod scaffold;
 pub mod setups;
 pub mod source;
