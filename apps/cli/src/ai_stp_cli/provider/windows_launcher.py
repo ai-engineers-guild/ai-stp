@@ -50,6 +50,7 @@ import os
 import platform
 import socket
 import subprocess
+from contextlib import ExitStack
 from dataclasses import dataclass
 from pathlib import Path
 from typing import IO, Any, Final, Self, cast
@@ -72,6 +73,7 @@ PROFILE_NAME: Final[str] = "ai-stp-provider-local-phase"
 #: `ProcThreadAttributeSecurityCapabilities` (9) or'd with
 #: `PROC_THREAD_ATTRIBUTE_INPUT` (0x00020000).
 _ATTRIBUTE_SECURITY_CAPABILITIES: Final[int] = 0x00020009
+_ATTRIBUTE_JOB_LIST: Final[int] = 0x0002000D
 
 _EXTENDED_STARTUPINFO_PRESENT: Final[int] = 0x00080000
 _CREATE_NO_WINDOW: Final[int] = 0x08000000
@@ -79,9 +81,8 @@ _STARTF_USESTDHANDLES: Final[int] = 0x00000100
 _HANDLE_FLAG_INHERIT: Final[int] = 0x00000001
 _ERROR_ALREADY_EXISTS: Final[int] = 0xB7
 
-#: The process starts suspended so it can be put in the job before it runs. A
-#: process assigned after it is already executing has had time to spawn a child
-#: outside the job, which is the whole thing the job is for.
+#: Job ownership is an atomic creation attribute. Suspension also keeps the
+#: provider from executing before the parent's output channel is ready.
 _CREATE_SUSPENDED: Final[int] = 0x00000004
 
 #: `JobObjectExtendedLimitInformation`, and the one limit that matters here:
@@ -235,7 +236,7 @@ class _Api:
 #: which is 32 bits, and a Windows `HANDLE` is a 64-bit pointer. So
 #: `CreateJobObjectW` — added with the job object that owns the provider's
 #: process tree — handed back a *truncated* handle, and every later use of it
-#: (`AssignProcessToJobObject`, `CloseHandle`) was operating on a value that is
+#: (`SetInformationJobObject`, `CloseHandle`) was operating on a value that is
 #: not the handle the kernel returned. On a 64-bit host the job would not hold
 #: the tree it exists to hold, and the failure appears only as a descendant
 #: surviving a timeout.
@@ -251,7 +252,43 @@ _KERNEL_SIGNATURES: Final[dict[str, tuple[list[Any], Any]]] = {
         [ctypes.c_void_p, ctypes.c_int32, ctypes.c_void_p, ctypes.c_uint32],
         ctypes.c_int32,
     ),
-    "AssignProcessToJobObject": ([ctypes.c_void_p, ctypes.c_void_p], ctypes.c_int32),
+    "CreatePipe": (
+        [ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p, ctypes.c_uint32],
+        ctypes.c_int32,
+    ),
+    "InitializeProcThreadAttributeList": (
+        [ctypes.c_void_p, ctypes.c_uint32, ctypes.c_uint32, ctypes.c_void_p],
+        ctypes.c_int32,
+    ),
+    "UpdateProcThreadAttribute": (
+        [
+            ctypes.c_void_p,
+            ctypes.c_uint32,
+            ctypes.c_size_t,
+            ctypes.c_void_p,
+            ctypes.c_size_t,
+            ctypes.c_void_p,
+            ctypes.c_void_p,
+        ],
+        ctypes.c_int32,
+    ),
+    "DeleteProcThreadAttributeList": ([ctypes.c_void_p], None),
+    "CreateProcessW": (
+        [
+            ctypes.c_wchar_p,
+            ctypes.c_wchar_p,
+            ctypes.c_void_p,
+            ctypes.c_void_p,
+            ctypes.c_int32,
+            ctypes.c_uint32,
+            ctypes.c_void_p,
+            ctypes.c_wchar_p,
+            ctypes.c_void_p,
+            ctypes.c_void_p,
+        ],
+        ctypes.c_int32,
+    ),
+    "LocalFree": ([ctypes.c_void_p], ctypes.c_void_p),
     "ResumeThread": ([ctypes.c_void_p], ctypes.c_uint32),
     "TerminateProcess": ([ctypes.c_void_p, ctypes.c_uint32], ctypes.c_int32),
     "CloseHandle": ([ctypes.c_void_p], ctypes.c_int32),
@@ -335,11 +372,10 @@ class AppContainerProcess:
     one handle this held, so a provider that spawned a child and then exceeded
     the timeout or the output limit lost its parent and kept the child — alive,
     inside the container, holding whatever the container had been granted. The
-    job object owns the lifetime instead: the process is created suspended,
-    assigned, and only then resumed, so nothing can be spawned outside it, and
-    the job is set to kill everything in it when the last handle closes. That
-    covers the case no explicit call can, which is this process dying without
-    running any of its own cleanup.
+    job object owns the lifetime instead: process creation assigns the job
+    atomically, including if this parent dies before CreateProcessW returns.
+    Closing the last job handle kills the entire tree. Missing job support is
+    a refusal, including on systems without Windows 10 job-list attributes.
     """
 
     def __init__(self, api: _Api, sid: ctypes.c_void_p, argv: list[str], env: dict[str, str]):
@@ -347,6 +383,21 @@ class AppContainerProcess:
         self._handle: ctypes.c_void_p | None = None
         self._job: ctypes.c_void_p | None = _job(api)
         self.stdout: IO[bytes] | None = None
+        if self._job is None:
+            raise OSError(ctypes.get_last_error(), "the isolation job could not be configured")
+        try:
+            # Release transient handles on every path. The process/job remain
+            # owned by this object, and the stream takes over the read handle.
+            with ExitStack() as cleanup:
+                self._start(sid, argv, env, cleanup)
+        except BaseException:
+            self.__exit__()
+            raise
+
+    def _start(
+        self, sid: ctypes.c_void_p, argv: list[str], env: dict[str, str], cleanup: ExitStack
+    ) -> None:
+        api = self._api
         attributes = _SecurityAttributes(
             nLength=ctypes.sizeof(_SecurityAttributes), lpSecurityDescriptor=None, bInheritHandle=1
         )
@@ -355,33 +406,48 @@ class AppContainerProcess:
             ctypes.byref(read_end), ctypes.byref(write_end), ctypes.byref(attributes), 0
         ):
             raise OSError(ctypes.get_last_error(), "the isolation pipe could not be created")
+        read_owner = cleanup.enter_context(ExitStack())
+        read_owner.callback(api.kernel.CloseHandle, read_end)
+        cleanup.callback(api.kernel.CloseHandle, write_end)
         # The read end must not travel to the child, or this process never sees
         # end of file: its own copy keeps the pipe open after the child exits.
-        api.kernel.SetHandleInformation(read_end, _HANDLE_FLAG_INHERIT, 0)
+        if not api.kernel.SetHandleInformation(read_end, _HANDLE_FLAG_INHERIT, 0):
+            raise OSError(ctypes.get_last_error(), "the isolation pipe inheritance was refused")
 
         size = ctypes.c_size_t(0)
-        api.kernel.InitializeProcThreadAttributeList(None, 1, 0, ctypes.byref(size))
-        self._attributes = ctypes.create_string_buffer(size.value)
+        api.kernel.InitializeProcThreadAttributeList(None, 2, 0, ctypes.byref(size))
+        attribute_list = ctypes.create_string_buffer(size.value)
         capabilities = _SecurityCapabilities(
             AppContainerSid=sid, Capabilities=None, CapabilityCount=0, Reserved=0
         )
-        started = bool(
-            api.kernel.InitializeProcThreadAttributeList(self._attributes, 1, 0, ctypes.byref(size))
-        ) and bool(
-            api.kernel.UpdateProcThreadAttribute(
-                self._attributes,
-                0,
-                ctypes.c_size_t(_ATTRIBUTE_SECURITY_CAPABILITIES),
-                ctypes.byref(capabilities),
-                ctypes.sizeof(capabilities),
-                None,
-                None,
-            )
-        )
-        if not started:
-            api.kernel.CloseHandle(read_end)
-            api.kernel.CloseHandle(write_end)
+        assert self._job is not None
+        jobs = (ctypes.c_void_p * 1)(self._job.value)
+        if not api.kernel.InitializeProcThreadAttributeList(
+            attribute_list, 2, 0, ctypes.byref(size)
+        ):
             raise OSError(ctypes.get_last_error(), "the isolation attributes were refused")
+
+        # Attribute backing values must remain alive until the list is deleted.
+        # This callback retains them even while unwinding this frame on failure.
+        def delete_attributes() -> None:
+            _ = capabilities, jobs
+            api.kernel.DeleteProcThreadAttributeList(attribute_list)
+
+        cleanup.callback(delete_attributes)
+        for attribute, value in (
+            (_ATTRIBUTE_SECURITY_CAPABILITIES, capabilities),
+            (_ATTRIBUTE_JOB_LIST, jobs),
+        ):
+            if not api.kernel.UpdateProcThreadAttribute(
+                attribute_list,
+                0,
+                attribute,
+                ctypes.byref(value),
+                ctypes.sizeof(value),
+                None,
+                None,
+            ):
+                raise OSError(ctypes.get_last_error(), "the isolation attributes were refused")
 
         # Standard error goes to the NUL device, as `conformance._popen` sends
         # it to `DEVNULL` on every other platform. It went into the same pipe
@@ -403,18 +469,17 @@ class AppContainerProcess:
             )
         )
         if not discard.value or discard.value == _INVALID_HANDLE_VALUE:
-            api.kernel.CloseHandle(read_end)
-            api.kernel.CloseHandle(write_end)
             raise OSError(
                 ctypes.get_last_error(), "the isolation sink for stderr could not be opened"
             )
+        cleanup.callback(api.kernel.CloseHandle, discard)
         start = _StartupInfoEx()
         start.cb = ctypes.sizeof(_StartupInfoEx)
         start.dwFlags = _STARTF_USESTDHANDLES
         start.hStdOutput = write_end
         start.hStdError = discard
         start.hStdInput = None
-        start.lpAttributeList = ctypes.cast(self._attributes, ctypes.c_void_p)
+        start.lpAttributeList = ctypes.cast(attribute_list, ctypes.c_void_p)
         information = _ProcessInformation()
         system = {name: os.environ[name] for name in _SYSTEM_ENVIRONMENT if name in os.environ}
         merged = {**system, **env}
@@ -431,33 +496,14 @@ class AppContainerProcess:
             ctypes.byref(start),
             ctypes.byref(information),
         )
-        api.kernel.CloseHandle(write_end)
-        api.kernel.CloseHandle(discard)
         if not created:
-            api.kernel.CloseHandle(read_end)
-            self._close_job()
             raise OSError(ctypes.get_last_error(), "the provider could not be started isolated")
         self._handle = ctypes.c_void_p(information.hProcess)
         #: The child's identifier, for the one caller that must find it from
         #: outside: the measurement of what happens to it when this process dies.
         self.pid = int(information.dwProcessId)
         thread = ctypes.c_void_p(information.hThread)
-        # Assigned while suspended, so there is no interval in which the
-        # provider is running and outside the job. A failure here is fatal
-        # rather than a warning: an unowned tree is the condition this exists to
-        # prevent, and starting anyway would be reporting containment that is
-        # not there.
-        if self._job is not None and not api.kernel.AssignProcessToJobObject(
-            self._job, self._handle
-        ):
-            reason = ctypes.get_last_error()
-            api.kernel.TerminateProcess(self._handle, 1)
-            api.kernel.CloseHandle(thread)
-            api.kernel.CloseHandle(read_end)
-            self.__exit__()
-            raise OSError(reason, "the provider could not be placed under a job object")
-        api.kernel.ResumeThread(thread)
-        api.kernel.CloseHandle(thread)
+        cleanup.callback(api.kernel.CloseHandle, thread)
         # Buffered, as `subprocess.Popen(stdout=PIPE)` is on every other
         # platform. `conformance._bounded_output` reads `limit + 1` bytes in one
         # call; on an unbuffered pipe that is a single `ReadFile` returning the
@@ -468,7 +514,15 @@ class AppContainerProcess:
         # `windows-latest` against codex 0.0.55. A buffered reader keeps
         # reading until the bound or end of file, which is the contract the
         # bounded read was written against.
-        self.stdout = cast("IO[bytes]", os.fdopen(msvcrt_open_osfhandle(read_end.value or 0), "rb"))
+        descriptor = msvcrt_open_osfhandle(read_end.value or 0)
+        read_owner.pop_all()  # The CRT descriptor now owns the native handle.
+        try:
+            self.stdout = cast("IO[bytes]", os.fdopen(descriptor, "rb"))
+        except BaseException:
+            os.close(descriptor)
+            raise
+        if api.kernel.ResumeThread(thread) == 0xFFFFFFFF:
+            raise OSError(ctypes.get_last_error(), "the isolated provider could not be resumed")
 
     def kill(self) -> None:
         """End the whole tree, not just the process this holds a handle to.
@@ -498,14 +552,15 @@ class AppContainerProcess:
         return self
 
     def __exit__(self, *_: object) -> None:
-        if self.stdout is not None:
-            self.stdout.close()
-        if self._handle is not None:
-            self._api.kernel.CloseHandle(self._handle)
-            self._handle = None
-        # Last, and unconditionally. A descendant the provider left behind is
-        # still in the job, and this is the handle whose closing ends it.
         self._close_job()
+        try:
+            if self.stdout is not None:
+                self.stdout.close()
+                self.stdout = None
+        finally:
+            if self._handle is not None:
+                self._api.kernel.CloseHandle(self._handle)
+                self._handle = None
 
 
 def msvcrt_open_osfhandle(handle: int) -> int:
