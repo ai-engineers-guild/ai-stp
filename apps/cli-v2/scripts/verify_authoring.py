@@ -499,4 +499,5 @@ def prove(binary: Path, home: Path, temporary: Path, run: Runner) -> None:
     )
     adopted = apply(adopt, "adopt")
     assert adopted["owner_id"] == owner
+    assert adopted["facts"]["native_ids"]["value"] == ["example"], "MCP IDs must identify servers"
     assert (native / "config.toml").read_text(encoding="utf-8") == config

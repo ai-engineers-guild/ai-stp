@@ -4,7 +4,7 @@ use std::path::Path;
 
 use serde_json::{Value, json};
 
-use super::{freezing, source_project};
+use super::{freezing, frontmatter, source_project};
 use crate::{
     artifacts, canonical, digest,
     error::{Failure, Result},
@@ -30,38 +30,6 @@ fn text<'a>(value: &'a Value, key: &str) -> Result<&'a str> {
         .as_str()
         .filter(|s| !s.trim().is_empty())
         .ok_or_else(|| invalid("portable source metadata is incomplete"))
-}
-
-fn frontmatter(bytes: &[u8]) -> Result<Value> {
-    let text = std::str::from_utf8(bytes).map_err(|_| invalid("skill source must be UTF-8"))?;
-    let mut lines = text.split_inclusive('\n');
-    if lines
-        .next()
-        .is_none_or(|line| line.trim_end_matches(['\r', '\n']) != "---")
-    {
-        return Err(invalid("a portable skill requires YAML frontmatter"));
-    }
-    let mut header = String::new();
-    for line in lines {
-        if line.trim_end_matches(['\r', '\n']) == "---" {
-            let options = serde_saphyr::options! { budget: serde_saphyr::budget! {
-                max_depth:8, max_events:10_000, max_aliases:100, max_documents:1,
-            }};
-            let value: Value =
-                serde_saphyr::from_str_with_options(&header, options).map_err(|_| {
-                    invalid("skill frontmatter is invalid or exceeds its parsing budget")
-                })?;
-            if !value.is_object() {
-                return Err(invalid("skill frontmatter must be an object"));
-            }
-            return Ok(value);
-        }
-        header.push_str(line);
-        if header.len() > 64 * 1024 {
-            return Err(invalid("skill frontmatter exceeds 64 KiB"));
-        }
-    }
-    Err(invalid("skill frontmatter is not closed"))
 }
 
 fn markdown(metadata: Value, body: &str) -> Result<Vec<u8>> {
@@ -120,7 +88,7 @@ pub(super) fn from_snapshot(
             .iter()
             .find(|file| file.path == "SKILL.md")
             .ok_or_else(|| invalid("a skill source must contain SKILL.md at its root"))?;
-        let metadata = frontmatter(&entry.bytes)?;
+        let metadata = frontmatter::required(&entry.bytes)?;
         if metadata.as_object().is_none_or(|object| {
             object.keys().any(|key| {
                 ![

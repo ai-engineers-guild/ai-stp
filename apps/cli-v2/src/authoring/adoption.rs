@@ -11,7 +11,7 @@ use super::{
     bindings::{self, Address},
     contribution::{self, Format},
     discovery::{self, Candidate},
-    expiry, source,
+    expiry, native_identity, source,
 };
 use crate::{
     digest,
@@ -82,6 +82,7 @@ pub(super) struct Prepared {
     candidate: Candidate,
     pub(super) content: source::Captured,
     address: Address,
+    native_ids: Vec<String>,
 }
 
 pub(super) fn prepare(request: &Source) -> Result<Prepared> {
@@ -111,6 +112,7 @@ pub(super) fn prepare(request: &Source) -> Result<Prepared> {
         ));
     }
     let mut content = source::capture_scoped(&request.root, &candidate.native_path)?;
+    let native_ids = native_identity::read(&candidate, &content)?;
     if !candidate.declared_key.is_empty() {
         content.bytes = contribution::extract(
             Format::for_path(&candidate.native_path)?,
@@ -129,6 +131,7 @@ pub(super) fn prepare(request: &Source) -> Result<Prepared> {
         candidate,
         content,
         address,
+        native_ids,
     })
 }
 
@@ -155,15 +158,10 @@ pub(super) fn source_values(source: &Prepared) -> Result<Value> {
             candidate.declared_key
         )
     };
-    let native_ids = if matches!(candidate.component_type.as_str(), "instruction" | "skill") {
-        Vec::new()
-    } else {
-        vec![name]
-    };
     let mut values = json!({
         "component_type":candidate.component_type, "projection_kind":candidate.projection_kind,
         "native_role":candidate.native_role,"harness_id":candidate.harness_id,"scope":candidate.scope,
-        "source_path":candidate.native_path,"source_name":name,"native_ids":native_ids,
+        "source_path":candidate.native_path,"source_name":name,"native_ids":source.native_ids,
         "entry_points":candidate.entry_points,"transport_capabilities":candidate.transport_capabilities,
         "evidence_refs":candidate.evidence_refs,"content_format":source.content.format,
         "source_mode":source.content.file_mode,

@@ -129,7 +129,7 @@ pub fn has_entries(format: Format, host: &[u8], name: &str) -> Result<bool> {
 pub fn entry_names(format: Format, host: &[u8], name: &str) -> Result<Vec<String>> {
     key(name)?;
     let source = text(host)?;
-    let mut names: Vec<String> = if format == Format::Toml {
+    let names: Vec<String> = if format == Format::Toml {
         let document: DocumentMut = source.parse().map_err(|_| invalid())?;
         document
             .get(name)
@@ -144,6 +144,25 @@ pub fn entry_names(format: Format, host: &[u8], name: &str) -> Result<Vec<String
             Err(error) => return Err(error),
         }
     };
+    checked_names(names)
+}
+
+/// Top-level names of an already-extracted contribution, without a host wrapper.
+pub(super) fn component_names(format: Format, component: &[u8]) -> Result<Vec<String>> {
+    let source = text(component)?;
+    let names = if format == Format::Toml {
+        let document: DocumentMut = source.parse().map_err(|_| invalid())?;
+        document.iter().map(|(name, _)| name.to_owned()).collect()
+    } else {
+        let CstInputValue::Object(properties) = parse_json(source, format)? else {
+            return Err(invalid());
+        };
+        properties.into_iter().map(|(name, _)| name).collect()
+    };
+    checked_names(names)
+}
+
+fn checked_names(mut names: Vec<String>) -> Result<Vec<String>> {
     if names.len() > 500
         || names
             .iter()

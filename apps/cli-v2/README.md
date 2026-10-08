@@ -162,6 +162,23 @@ version inspection use one read transaction and never open credentials. Provider
 declaration files describe packaging only; executable trust and installation
 remain separate pending boundaries.
 
+Native adoption and adaptation editing derive MCP identifiers from the captured
+host's server keys: `mcp_servers` for Codex/Grok, `mcp` for OpenCode, and
+`mcpServers` for Cursor/Antigravity. A contribution's captured key set must still
+match discovery before extraction. Missing, empty or non-object server maps and noncanonical
+identifiers refuse before persistence. Projection compilation independently checks
+these IDs against retained content, so a later metadata edit cannot invent them.
+This does not validate transport execution
+or grant credential access; named secret files, including `.mcp.json`, remain
+refused before capture.
+
+Local Claude Code agent identifiers come from required `name`/`description`
+frontmatter, not the filename. Invalid local names or absent/ambiguous headers
+refuse; plugin-specific fallback semantics do not apply to ordinary agent files.
+The shared data-only YAML reader keeps the existing 64 KiB header and parsing
+budgets. Payload bytes and unknown metadata remain intact. Other harness-specific
+native identity/format checks and structured credential handling remain pending.
+
 `component adaptation edit plan` replaces one complete native adaptation in an
 owned complete draft. `--sources` reads an array of up to three `{scope, source}`
 entries; each `source` selects a discovery candidate by `root`, `harness_id`,
@@ -561,6 +578,8 @@ no async runtime or tracing feature is enabled for it.
 | `authoring/native_edit.rs` | Exact native adaptation replacement with complete scope preservation |
 | `authoring/setups/copies.rs` | Private exact setup forks and recasts with atomic lineage |
 | `authoring/setups/export.rs` | Exact review-tree export from query-only retained state |
+| `authoring/native_identity.rs` | Captured MCP server and Claude local agent identifiers |
+| `authoring/frontmatter.rs` | Shared bounded YAML header parsing without source execution |
 | `authoring/project_binding.rs` | Atomic portable project identity and complete adaptation refresh |
 | `authoring/runtime.rs` | Identity-bound local plans, closed operation dispatch and private registry reads |
 | `authoring/bindings.rs` | Shared local source addresses, relocation and binding replacement |

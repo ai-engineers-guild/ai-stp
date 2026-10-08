@@ -6,7 +6,7 @@ use rusqlite::{Connection, Transaction};
 use serde_json::{Value, json};
 
 use super::contribution::{self, Format};
-use super::source_project;
+use super::{native_identity, source_project};
 use crate::{
     artifacts::{self, Member},
     digest,
@@ -300,6 +300,7 @@ pub(super) fn project(
     if !key.is_empty() && source["source_locator"] != format!("{}#{key}", route.relative) {
         return Err(invalid());
     }
+    native_identity::verify_projection(kind, harness, source, &payload)?;
     let mut files = match text(source, "content_format")? {
         artifacts::FILE_FORMAT => {
             if payload.len() > artifacts::MAX_FILE_BYTES {

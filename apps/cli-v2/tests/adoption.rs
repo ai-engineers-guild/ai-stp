@@ -17,17 +17,26 @@ use ai_stp_cli_v2::{
 use serde_json::json;
 
 fn source(root: &Path) -> Result<Source, Box<dyn Error>> {
-    let discovered = discovery::at(root, "codex", Scope::Global, Root::Config)?;
+    selected(root, "codex", Scope::Global, "mcp")
+}
+
+fn selected(
+    root: &Path,
+    harness: &str,
+    scope: Scope,
+    kind: &str,
+) -> Result<Source, Box<dyn Error>> {
+    let discovered = discovery::at(root, harness, scope, Root::Config)?;
     assert!(discovered.complete);
     let candidate = discovered
         .components
         .into_iter()
-        .find(|item| item.component_type == "mcp")
-        .ok_or("MCP absent")?;
+        .find(|item| item.component_type == kind)
+        .ok_or("candidate absent")?;
     Ok(Source {
         root: root.to_owned(),
-        harness_id: "codex".into(),
-        scope: Scope::Global,
+        harness_id: harness.into(),
+        scope,
         root_kind: Root::Config,
         candidate_id: candidate.candidate_id,
     })
@@ -35,6 +44,117 @@ fn source(root: &Path) -> Result<Source, Box<dyn Error>> {
 
 fn counts(store: &mut Store) -> Result<(i64, i64, i64), Failure> {
     store.transaction(|transaction| transaction.query_row("SELECT (SELECT count(*) FROM entity), (SELECT count(*) FROM revision), (SELECT count(*) FROM content)",[],|row|Ok((row.get(0)?,row.get(1)?,row.get(2)?))).map_err(|_| Failure::precondition("proof query failed")))
+}
+
+fn native_identity_journey(identity: &Identity, at: &str) -> Result<(), Box<dyn Error>> {
+    let root = tempfile::tempdir()?;
+    let mut store = Store::open(root.path(), true)?;
+    for (harness, scope, name, content) in [
+        (
+            "claude-code",
+            Scope::Project,
+            ".mcp.json",
+            "{\"mcpServers\":{\"a.b\":{\"command\":\"server\"},\"review\":{\"command\":\"server\"}}}",
+        ),
+        (
+            "cursor",
+            Scope::Global,
+            "mcp.json",
+            "{\"mcpServers\":{\"a.b\":{\"command\":\"server\"},\"review\":{\"command\":\"server\"}}}",
+        ),
+        (
+            "antigravity",
+            Scope::Global,
+            "config/mcp_config.json",
+            "{\"mcpServers\":{\"a.b\":{\"command\":\"server\"},\"review\":{\"command\":\"server\"}}}",
+        ),
+        (
+            "opencode",
+            Scope::Global,
+            "opencode.jsonc",
+            "{ /* preserve */ \"mcp\":{\"a.b\":{\"command\":[\"server\"]},\"review\":{\"command\":[\"server\"]},},}",
+        ),
+        (
+            "grok-build",
+            Scope::Global,
+            "config.toml",
+            "[mcp_servers.'a.b']\ncommand = 'server'\n[mcp_servers.review]\ncommand = 'server'\n",
+        ),
+    ] {
+        let native = root.path().join(harness);
+        let file = native.join(name);
+        fs::create_dir_all(file.parent().ok_or("parent")?)?;
+        fs::write(&file, content)?;
+        let selected = selected(&native, harness, scope, "mcp")?;
+        if harness == "claude-code" {
+            // Credential-named .mcp.json remains unreadable to source adoption.
+            let before = counts(&mut store)?;
+            assert!(adoption::plan(&mut store, selected, identity.clone(), at).is_err());
+            assert_eq!(counts(&mut store)?, before);
+            continue;
+        }
+        let plan = adoption::plan(&mut store, selected, identity.clone(), at)?;
+        assert_eq!(
+            plan.passport["facts"]["native_ids"]["value"],
+            json!(["a.b", "review"]),
+            "{harness}"
+        );
+        let adopted = adoption::apply(&mut store, &plan, &plan.digest()?, identity, at)?;
+        assert_eq!(
+            adopted["facts"]["native_ids"],
+            plan.passport["facts"]["native_ids"]
+        );
+        assert_eq!(fs::read_to_string(file)?, content);
+    }
+    let native = root.path().join("local-agents");
+    fs::create_dir_all(native.join("agents"))?;
+    let agent = native.join("agents/different-filename.md");
+    let body = "---\nname: repo-auditor\ndescription: Review local source.\nallowed-tools: Read\n---\nReport findings.\n";
+    fs::write(&agent, body)?;
+    let plan = adoption::plan(
+        &mut store,
+        selected(&native, "claude-code", Scope::Global, "agent")?,
+        identity.clone(),
+        at,
+    )?;
+    assert_eq!(
+        plan.passport["facts"]["native_ids"]["value"],
+        json!(["repo-auditor"])
+    );
+    adoption::apply(&mut store, &plan, &plan.digest()?, identity, at)?;
+    assert_eq!(fs::read_to_string(&agent)?, body);
+    let before = counts(&mut store)?;
+    for content in [
+        "Documentation without an agent header.",
+        "---\nname: one\nname: two\ndescription: Duplicate name\n---\n",
+        "---\nname: -invalid\ndescription: Invalid name\n---\n",
+        "---\nname: plugin:agent\ndescription: Wrong namespace\n---\n",
+        "---\nname: missing-description\n---\n",
+        "---\nname: cafe\u{301}\ndescription: Noncanonical identifier\n---\n",
+    ] {
+        fs::write(&agent, content)?;
+        let source = selected(&native, "claude-code", Scope::Global, "agent")?;
+        assert!(adoption::plan(&mut store, source, identity.clone(), at).is_err());
+        assert_eq!(counts(&mut store)?, before);
+    }
+    let mcp = root.path().join("cursor/mcp.json");
+    for content in [
+        "{}",
+        "{\"mcpServers\": []}",
+        "{\"mcpServers\":{\"\":{}}}",
+        "{\"mcpServers\":{\"cafe\u{301}\":{}}}",
+    ] {
+        fs::write(&mcp, content)?;
+        let source = selected(
+            mcp.parent().ok_or("parent")?,
+            "cursor",
+            Scope::Global,
+            "mcp",
+        )?;
+        assert!(adoption::plan(&mut store, source, identity.clone(), at).is_err());
+        assert_eq!(counts(&mut store)?, before);
+    }
+    Ok(())
 }
 
 #[test]
@@ -75,6 +195,7 @@ fn adoption_is_planned_atomic_replayable_and_preserves_authored_facts() -> Resul
     );
     let first = adoption::apply(&mut store, &plan, &plan.digest()?, &identity, later)?;
     assert_eq!(counts(&mut store)?, (1, 1, 1));
+    assert_eq!(first["facts"]["native_ids"]["value"], json!(["example"]));
     assert!(
         !serde_json::to_string(&first)?.contains(&temporary.path().to_string_lossy().to_string())
     );
@@ -258,5 +379,6 @@ fn adoption_is_planned_atomic_replayable_and_preserves_authored_facts() -> Resul
         (interrupted_state.as_str(), corrupt_replay_refused),
         ("stale", true)
     );
+    native_identity_journey(&identity, at)?;
     Ok(())
 }

@@ -147,6 +147,33 @@ fn native_release_preserves_owned_bytes_graphs_and_atomic_history() -> Result<()
             AT,
         )?;
         let mut draft = passports::apply(&mut store, &edit, &edit.digest()?, &identity, AT)?;
+        if harness == "codex" {
+            // Declared metadata cannot substitute server IDs carried by retained bytes.
+            let edit = passports::plan(
+                &mut store,
+                id,
+                field(&draft, "revision_id")?,
+                Patch::try_from(json!({"native_ids":["fabricated"]}))?,
+                identity.clone(),
+                AT,
+            )?;
+            draft = passports::apply(&mut store, &edit, &edit.digest()?, &identity, AT)?;
+            let before = counts(&mut store)?;
+            let refused = releases::plan(
+                &mut store,
+                id,
+                field(&draft, "revision_id")?,
+                Increment::Minor,
+                &providers,
+                identity.clone(),
+                AT,
+            )
+            .err()
+            .ok_or("fabricated MCP IDs released")?;
+            assert_eq!(refused.details["constraint"], "native_identifier_mismatch");
+            assert_eq!(counts(&mut store)?, before);
+            draft = adopt(&mut store, &root, harness, kind, &identity)?;
+        }
         if harness == "claude-code" {
             // A finished passport description cannot turn an unedited source stub into a release.
             fs::write(
