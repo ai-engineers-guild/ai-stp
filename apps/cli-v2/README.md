@@ -179,6 +179,14 @@ from their normalized display; distinct filesystem locations with a colliding
 normalized binding address are refused. Identity is supplied by the owning runtime;
 this service does not claim cloud authentication or expose authoring commands.
 
+Headless passport editing accepts the embedded closed component-patch contract,
+including its description, source, path and secret-field rules. A plan binds the
+owner, exact head, confirmed facts and resulting passport. Applying stores the
+revision and verified receipt in one transaction; a failed write rolls both
+back. Repeated confirmed values create no revision, and completed replay never
+rewinds a newer head. Unchanged facts, visibility and passport extensions remain
+intact. These local plans do not publish an object or change its access.
+
 `process` owns one-shot child execution with an absolute executable, explicit
 environment, closed stdin, concurrent bounded output and a deadline. Its Git
 caller disables fsmonitor, optional locks and inherited Git overrides.
@@ -209,6 +217,7 @@ no async runtime or tracing feature is enabled for it.
 | `harnesses.rs`, `authoring/discovery.rs` | Shared declarative harness facts and bounded inspection of native layouts |
 | `projection.rs` | Shared exact provider profiles and target-relative ownership routes |
 | `authoring/adoption.rs` | Exact local adoption plans, binding reconciliation and atomic journaled registration |
+| `authoring/passports.rs`, `store/journal.rs` | Closed confirmed edits, exact head plans and bound atomic receipts |
 | `provenance.rs` | Offline PEP 740 cryptographic verification and publisher policy |
 
 The provenance service accepts a caller-owned trusted root and an artifact

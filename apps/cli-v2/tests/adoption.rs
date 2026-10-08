@@ -2,7 +2,8 @@ use std::{error::Error, fs, path::Path};
 
 use ai_stp_cli_v2::{
     authoring::{
-        adoption::{self, Identity, Source},
+        Identity,
+        adoption::{self, Source},
         discovery,
     },
     canonical, digest,

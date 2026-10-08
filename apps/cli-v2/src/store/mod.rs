@@ -1,6 +1,7 @@
 //! Explicit preview state. A fresh schema-53 bootstrap keeps the rollback format
 //! without replaying historical migrations or opening the production registry.
 
+pub(crate) mod journal;
 pub mod revisions;
 
 use std::{path::Path, sync::OnceLock, time::Duration};

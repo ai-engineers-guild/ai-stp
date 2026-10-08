@@ -10,9 +10,10 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
 use super::{
+    Identity,
     contribution::{self, Format},
     discovery::{self, Candidate},
-    source,
+    expiry, source,
 };
 use crate::{
     digest,
@@ -22,17 +23,10 @@ use crate::{
     objects::Objects,
     passport, projection,
     store::{
-        Store, database,
+        Store, database, journal,
         revisions::{self, Write},
     },
 };
-
-#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
-#[serde(deny_unknown_fields)]
-pub struct Identity {
-    pub account_id: String,
-    pub device_id: String,
-}
 
 #[derive(Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -422,10 +416,8 @@ fn build(
 
 /// Identity comes from the owning runtime; these local IDs do not assert cloud authentication.
 pub fn plan(store: &mut Store, mut source: Source, identity: Identity, at: &str) -> Result<Plan> {
-    if !passport::stable_id(&identity.account_id, "account")
-        || !passport::stable_id(&identity.device_id, "device")
-        || !passport::timestamp(at)
-    {
+    identity.validate()?;
+    if !passport::timestamp(at) {
         return Err(invalid());
     }
     source.root = PathBuf::from(files::location(&source.root)?);
@@ -445,31 +437,8 @@ pub fn plan(store: &mut Store, mut source: Source, identity: Identity, at: &str)
     })
 }
 
-fn expiry(at: &str) -> Result<String> {
-    let expires = at
-        .parse::<jiff::Timestamp>()
-        .map_err(|_| invalid())?
-        .checked_add(Duration::from_secs(900))
-        .map_err(|_| invalid())?;
-    Ok(format!("{expires:.3}"))
-}
-
 fn journal_state(connection: &Connection, plan: &Plan, expected: &str) -> Result<Option<String>> {
-    let known: Option<(String, String, String)> = connection
-        .query_row(
-            "SELECT kind,state,coalesce(detail,'') FROM operation WHERE operation_id=?",
-            [&plan.operation_id],
-            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
-        )
-        .optional()
-        .map_err(database)?;
-    match known {
-        Some((kind, state, binding)) if kind == plan.action && binding == expected => {
-            Ok(Some(state))
-        }
-        Some(_) => Err(stale()),
-        None => Ok(None),
-    }
+    journal::state(connection, &plan.operation_id, &plan.action, expected)
 }
 
 fn replay(connection: &Connection, plan: &Plan) -> Result<Value> {
@@ -495,11 +464,10 @@ pub fn apply(
     identity: &Identity,
     at: &str,
 ) -> Result<Value> {
+    identity.validate()?;
     if plan.schema_version != 1
         || plan.action != "component.adopt"
         || plan.identity != *identity
-        || !passport::stable_id(&identity.account_id, "account")
-        || !passport::stable_id(&identity.device_id, "device")
         || plan.digest()? != expected_digest
         || !plan.source.root.is_absolute()
         || !passport::stable_id(&plan.operation_id, "operation")

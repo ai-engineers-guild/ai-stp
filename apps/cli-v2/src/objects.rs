@@ -1,4 +1,4 @@
-//! Verified local object evidence from an explicit immutable snapshot.
+//! Verified local object records, shared by snapshot reads and native authoring.
 
 use rusqlite::OptionalExtension;
 use serde_json::{Value, json};
@@ -101,7 +101,11 @@ impl Objects<'_> {
                 ids.first().ok_or_else(absent)?.clone()
             }
         };
-        if !passport::stable_id(&id, kind) {
+        Ok(passport::view(&self.head(kind, &id)?))
+    }
+
+    pub fn head(&self, kind: &str, id: &str) -> Result<Value> {
+        if !passport::stable_id(id, kind) {
             return Err(Failure::input(
                 "passport identifier must match the requested kind",
             ));
@@ -127,7 +131,7 @@ impl Objects<'_> {
                 "snapshot head points to another object",
             ));
         }
-        Ok(passport::view(&document))
+        Ok(document)
     }
 
     pub fn revision(&self, id: &str) -> Result<Value> {
