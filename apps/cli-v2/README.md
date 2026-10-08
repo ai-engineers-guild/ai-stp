@@ -160,6 +160,12 @@ these as an empty inventory. Structural configuration reads return names only.
 This service covers catalog layouts; package provenance, recursive portable
 discovery and installed-plugin sources remain separate unfinished adapters.
 
+`projection` reads shared provider routes and exact profile identities. It keeps
+discovery scope separate from provider target scope, including shared user roots,
+configuration-key contributions, translated provider kinds and hook sibling
+ownership. A discoverable source can still have no valid provider route. These
+facts do not replace live authenticated provider verification before execution.
+
 `process` owns one-shot child execution with an absolute executable, explicit
 environment, closed stdin, concurrent bounded output and a deadline. Its Git
 caller disables fsmonitor, optional locks and inherited Git overrides.
@@ -188,6 +194,7 @@ no async runtime or tracing feature is enabled for it.
 | `authoring/source.rs`, `process.rs` | Complete bounded source capture and explicit child process lifecycle |
 | `authoring/contribution.rs` | Owned configuration extraction and format-preserving in-memory assembly |
 | `harnesses.rs`, `authoring/discovery.rs` | Shared declarative harness facts and bounded inspection of native layouts |
+| `projection.rs` | Shared exact provider profiles and target-relative ownership routes |
 | `provenance.rs` | Offline PEP 740 cryptographic verification and publisher policy |
 
 The provenance service accepts a caller-owned trusted root and an artifact

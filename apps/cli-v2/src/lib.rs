@@ -14,6 +14,7 @@ mod http;
 pub mod objects;
 pub mod passport;
 pub mod process;
+pub mod projection;
 pub mod projects;
 pub mod provenance;
 pub mod registry;

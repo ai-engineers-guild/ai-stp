@@ -3,6 +3,7 @@ use std::{error::Error, fs};
 use ai_stp_cli_v2::{
     authoring::discovery,
     harnesses::{self, Root, Scope},
+    projection::{self, Scope as TargetScope},
 };
 
 #[test]
@@ -40,6 +41,35 @@ fn declared_discovery_distinguishes_ownership_without_exposing_values() -> Resul
     assert_eq!(mcp.evidence_refs, ["mcp_servers.example"]);
     assert_eq!(mcp.declared_key, "mcp_servers");
     assert_eq!(mcp.native_path, ".codex/config.toml");
+    // A discovered source does not create a provider route for that scope.
+    assert!(projection::route("mcp", "codex", TargetScope::Project)?.is_none());
+    let route =
+        projection::route("mcp", "codex", TargetScope::Global)?.ok_or("MCP route absent")?;
+    assert_eq!(route.declared_key, mcp.declared_key);
+    assert_eq!(route.provider_kind, "setting");
+    let shared =
+        projection::route("skill", "codex", TargetScope::Global)?.ok_or("skill route absent")?;
+    assert_eq!(shared.target_scope, TargetScope::UserRoot);
+    assert_eq!(
+        projection::covers("skill", "codex", "plain", TargetScope::Global)?,
+        ["skills/plain"]
+    );
+    assert_eq!(
+        projection::profile("codex", shared.target_scope)?.profile_id,
+        "codex/native-files/user-root/1"
+    );
+    assert_eq!(
+        projection::route("mcp", "pi", TargetScope::Global)?
+            .ok_or("Pi MCP route absent")?
+            .provider_kind,
+        "plugin"
+    );
+    assert!(projection::route("mcp", "claude-code", TargetScope::Global)?.is_none());
+    assert_eq!(
+        projection::covers("hook", "cursor", "hooks.json", TargetScope::Project)?,
+        [".cursor/hooks.json", ".cursor/hooks"]
+    );
+    assert!(projection::covers("skill", "codex", "../escape", TargetScope::Global).is_err());
     let encoded = serde_json::to_string(&codex)?;
     assert!(!encoded.contains("synthetic-private"));
     assert_eq!(
