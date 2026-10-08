@@ -1,6 +1,7 @@
 //! Headless native services. The executable only renders their result.
 
 pub mod artifacts;
+pub mod authoring;
 pub mod canonical;
 pub mod catalog;
 pub mod config;
@@ -11,6 +12,7 @@ mod files;
 mod http;
 pub mod objects;
 pub mod passport;
+pub mod process;
 pub mod projects;
 pub mod provenance;
 pub mod registry;

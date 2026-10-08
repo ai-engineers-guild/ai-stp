@@ -19,6 +19,7 @@ clap = { version = "=4.6.7", default-features = false, features = ["std", "help"
 jiff = { version = "=0.2.38", default-features = false, features = ["std"] }
 jsonschema = { version = "=0.58.6", default-features = false }
 pulldown-cmark = { version = "=0.13.4", default-features = false }
+process-wrap = { version = "=10.0.1", default-features = false, features = ["std", "process-group", "job-object"] }
 rusqlite = { version = "=0.40.2", features = ["bundled", "serialize", "hooks", "limits"] }
 serde = { version = "=1.0.229", features = ["derive"] }
 serde_json = { version = "=1.0.151", features = ["raw_value", "float_roundtrip"] }
