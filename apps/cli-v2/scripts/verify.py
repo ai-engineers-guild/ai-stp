@@ -297,6 +297,12 @@ def prove_objects(binary: Path, home: Path, root: Path) -> None:
             "AI_STP_PRECONDITION_FAILED",
         ),
         (
+            "UPDATE object_version SET created_at = ?",
+            ("invalid",),
+            ["component", "version", "list", "--id", component],
+            "AI_STP_PRECONDITION_FAILED",
+        ),
+        (
             "INSERT INTO head (stable_id, revision_id) "
             "SELECT ?, revision_id FROM revision WHERE stable_id = ?",
             (component, device),

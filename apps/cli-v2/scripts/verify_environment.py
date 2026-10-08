@@ -129,12 +129,17 @@ def prove(binary: Path, home: Path, temporary: Path, run: Runner) -> None:
     target.rename(moved)
     assert run(binary, home, args, 0)["data"] == result
     assert snapshot.read_bytes() == original, "a read updated the moved-root mapping"
-    with closing(sqlite3.connect(snapshot)) as corrupt:
-        corrupt.execute(
+    for statement, parameters in [
+        (
             "UPDATE object_version SET passport_digest = ? WHERE stable_id = ?",
             ("sha256:" + "0" * 64, component["stable_id"]),
-        )
-        corrupt.commit()
-    args[-1] = "sha256:" + hashlib.sha256(snapshot.read_bytes()).hexdigest()
-    run(binary, home, args, 4)
+        ),
+        ("UPDATE object_version SET major = ? WHERE stable_id = ?", (99, component["stable_id"])),
+    ]:
+        snapshot.write_bytes(original)
+        with closing(sqlite3.connect(snapshot)) as corrupt:
+            corrupt.execute(statement, parameters)
+            corrupt.commit()
+        args[-1] = "sha256:" + hashlib.sha256(snapshot.read_bytes()).hexdigest()
+        run(binary, home, args, 4)
     assert not list(home.iterdir())

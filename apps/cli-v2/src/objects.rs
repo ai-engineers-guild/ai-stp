@@ -30,13 +30,16 @@ impl Snapshot {
                 "an exact version requires a component or setup id and X.Y number",
             ));
         }
-        let row: Option<(String, String)> = self.connection.query_row(
-            "SELECT revision_id, passport_digest FROM object_version WHERE stable_id = ? AND version = ?",
-            [id, version], |row| Ok((row.get(0)?, row.get(1)?)),
+        let row: Option<(String, String, i64, i64)> = self.connection.query_row(
+            "SELECT revision_id, passport_digest, major, minor FROM object_version WHERE stable_id = ? AND version = ?",
+            [id, version], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
         ).optional().map_err(database)?;
-        let (revision, held) = row.ok_or_else(absent)?;
+        let (revision, held, major, minor) = row.ok_or_else(absent)?;
         let document = self.revision(&revision)?;
-        if document["stable_id"] != id
+        if major < 0
+            || minor < 0
+            || version != format!("{major}.{minor}")
+            || document["stable_id"] != id
             || document["version"] != version
             || digest::canonical("ai-stp:passport:v1", &document)? != held
             || expected.is_some_and(|expected| expected != held)
@@ -167,6 +170,7 @@ impl Snapshot {
             let document = self.revision(&revision)?;
             if major < 0
                 || minor < 0
+                || !passport::timestamp(&created)
                 || version != format!("{major}.{minor}")
                 || document["stable_id"] != id
                 || document["version"] != version
