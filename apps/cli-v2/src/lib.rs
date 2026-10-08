@@ -13,6 +13,7 @@ pub mod passport;
 pub mod projects;
 pub mod provenance;
 pub mod registry;
+pub mod selection;
 pub mod snapshot;
 mod wire;
 

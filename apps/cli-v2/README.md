@@ -105,6 +105,16 @@ The production `environment inspect` also calls provider/toolchain services;
 that executable observation belongs to the provider slice, not this declaration
 read. This preview result does not claim the production inspection schema.
 
+`select graph` reads exact members or a saved proposal from the same snapshot.
+It validates current component/setup version passports and their recorded
+identities, then follows component requirements and setup members. Shared exact
+dependencies expand once, with a deterministic dependency-first order and
+shortest root distance. Drafts, tombstones, missing or substituted versions,
+conflicting pins and incomplete closures refuse the whole graph; no partial
+install order is returned. Limits are depth 32, 512 nodes and 8,192 edges.
+Proposal inspection creates no session or object. Historical fact-only drafts
+are not accepted as complete immutable version passports.
+
 ## Modules and proof
 
 | Owner | Responsibility |
@@ -119,6 +129,7 @@ read. This preview result does not claim the production inspection schema.
 | `http.rs`, `catalog/` | Bounded anonymous catalog reads and explicit public cache |
 | `projects/` | Bounded project discovery and content-free file evidence |
 | `environment.rs` | Exact setup prerequisites, project binding and variable-name presence |
+| `selection/` | Verified exact dependency graphs and deterministic ordering |
 | `provenance.rs` | Offline PEP 740 cryptographic verification and publisher policy |
 
 The provenance service accepts a caller-owned trusted root and an artifact
@@ -141,6 +152,9 @@ Linux, Windows and macOS. The same oracle drives project reads through real
 files and catalog reads through TCP using the shared contract corpus, including
 safe-Markdown vectors, historical bytes, privacy/digest refusals, offline
 provenance, cache corruption, contention and eviction.
+Graph evidence uses real component/setup versions and saved proposals, checking
+shared dependencies, input-order independence, substitution, deletion, stale
+coordinates and depth/edge exhaustion against the existing graph consumer.
 
 For an independently downloaded artifact and its provenance, the explicit
 evidence runner hashes the actual file before verification:

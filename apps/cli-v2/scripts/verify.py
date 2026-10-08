@@ -22,6 +22,7 @@ from typing import Any
 import verify_catalog
 import verify_environment
 import verify_projects
+import verify_selection
 
 from ai_stp_cli.local import revisions, versions
 from ai_stp_cli.local.database import open_registry
@@ -92,6 +93,7 @@ def prove(binary: Path, root: Path) -> None:
     verify_projects.prove(binary, home, root, run)
     verify_catalog.prove(binary, home, root, run)
     verify_environment.prove(binary, home, root, run)
+    verify_selection.prove(binary, home, root, run)
 
     live = root / "live.sqlite"
     backup = root / "backup.sqlite"

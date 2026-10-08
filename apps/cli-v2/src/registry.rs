@@ -6,7 +6,7 @@ use serde_json::{Value, json};
 use crate::{
     catalog, config, digest, environment,
     error::{ErrorKind, Failure, Result},
-    projects, snapshot,
+    projects, selection, snapshot,
 };
 
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -26,6 +26,7 @@ enum Handler {
     CatalogShow,
     CatalogVersion,
     EnvironmentRequirements,
+    DependencyGraph,
 }
 
 #[derive(Clone, Copy)]
@@ -308,6 +309,27 @@ const COMMANDS: &[Declaration] = &[
         handler: Handler::CatalogVersion,
     },
     Declaration {
+        path: &["select", "graph"],
+        summary: "Resolve exact dependencies with bounded deterministic ordering and complete refusals.",
+        parameters: &[
+            SNAPSHOT,
+            SHA256,
+            Parameter {
+                name: "member",
+                summary: "Exact component or setup id@X.Y; repeat for multiple roots.",
+                kind: ParameterType::Strings,
+                required: false,
+            },
+            Parameter {
+                name: "proposal",
+                summary: "Existing proposal whose exact members are the graph roots.",
+                kind: ParameterType::String,
+                required: false,
+            },
+        ],
+        handler: Handler::DependencyGraph,
+    },
+    Declaration {
         path: &["snapshot", "inspect"],
         summary: "Inspect an explicit schema-53 SQLite backup without opening live state.",
         parameters: &[SNAPSHOT, SHA256],
@@ -504,6 +526,7 @@ pub fn dispatch(matches: &ArgMatches) -> Result<Value> {
         Handler::Snapshot
         | Handler::Passport(_)
         | Handler::Versions
+        | Handler::DependencyGraph
         | Handler::EnvironmentRequirements => {
             let path = leaf
                 .get_one::<std::path::PathBuf>("snapshot")
@@ -513,6 +536,14 @@ pub fn dispatch(matches: &ArgMatches) -> Result<Value> {
                 .ok_or_else(|| Failure::input("sha256 is required"))?;
             let state = snapshot::Snapshot::open(path, digest)?;
             match declaration.handler {
+                Handler::DependencyGraph => selection::graph::read(
+                    &state,
+                    &leaf
+                        .get_many::<String>("member")
+                        .map(|items| items.cloned().collect::<Vec<_>>())
+                        .unwrap_or_default(),
+                    leaf.get_one::<String>("proposal").map(String::as_str),
+                ),
                 Handler::EnvironmentRequirements => environment::requirements(
                     &state,
                     leaf.get_one::<String>("project")
