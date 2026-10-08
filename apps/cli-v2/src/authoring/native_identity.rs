@@ -3,6 +3,7 @@
 mod claude;
 mod codex;
 mod cursor;
+mod grok;
 mod mcp;
 mod opencode;
 mod pi;
@@ -41,7 +42,7 @@ pub(super) fn has_markdown_entries(harness: &str, kind: &str) -> bool {
         (harness, kind),
         ("claude-code" | "pi", "skill" | "command")
             | ("opencode", "skill" | "command" | "agent")
-            | ("codex" | "cursor", "skill")
+            | ("codex" | "cursor" | "grok-build", "skill")
     )
 }
 
@@ -54,28 +55,23 @@ fn markdown_entries<'a>(
         "claude-code" => claude::invocations(kind, files),
         "codex" => codex::skills(files),
         "cursor" => cursor::skills(files),
+        "grok-build" => grok::skills(files),
         "opencode" => opencode::entries(kind, files),
         "pi" => pi::entries(kind, files),
         _ => Err(invalid()),
     }
 }
 
-pub(crate) fn visible_pi_entries<'a>(
+pub(crate) fn visible_entries<'a>(
+    harness: &str,
     kind: &str,
     files: impl IntoIterator<Item = (&'a str, &'a [u8])>,
 ) -> Result<Vec<String>> {
-    let names = pi::visible(kind, files)?;
-    valid(&names)?;
-    Ok(names)
-}
-
-pub(crate) fn visible_skills<'a>(
-    harness: &str,
-    files: impl IntoIterator<Item = (&'a str, &'a [u8])>,
-) -> Result<Vec<String>> {
-    let names = match harness {
-        "codex" => codex::visible(files)?,
-        "cursor" => cursor::visible(files)?,
+    let names = match (harness, kind) {
+        ("codex", "skill") => codex::visible(files)?,
+        ("cursor", "skill") => cursor::visible(files)?,
+        ("grok-build", _) => grok::visible(kind, files)?,
+        ("pi", _) => pi::visible(kind, files)?,
         _ => return Err(invalid()),
     };
     valid(&names)?;

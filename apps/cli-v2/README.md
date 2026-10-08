@@ -187,7 +187,7 @@ Local Claude Code agent identifiers come from required `name`/`description`
 frontmatter, not the filename. Invalid local names or absent/ambiguous headers
 refuse; plugin-specific fallback semantics do not apply to ordinary agent files.
 The shared data-only YAML reader keeps the existing 64 KiB header and parsing
-budgets. Each caller selects its dialect: portable sources, Codex and Pi use core
+budgets. Each caller selects its dialect: portable sources, Codex, Pi and Grok use core
 scalar types without implicit merge expansion. Claude applies merges with core
 scalar types; OpenCode and Cursor use js-yaml 3 merge and legacy-octal rules.
 `yes` and `on` remain strings.
@@ -214,6 +214,23 @@ The Claude 2.1.294 command inventory was checked through its initialization
 handshake in a network-isolated synthetic home, without a model turn. The preview
 requires string names even where Claude coerces numbers or booleans; quoted names
 retain their spelling. Date-shaped core scalars remain strings.
+
+Grok Build 1.0.49 local skills use a normalized frontmatter name, falling back to
+its containing directory when the name is absent or invalid. Normalization uses
+ASCII lowercase letters/digits and single hyphens, with a 64-byte limit. Integer
+and Boolean names are supported; floating-point names require quotes. Description
+is optional. Local traversal includes hidden directories, continues below an
+existing skill, reaches six directories, and excludes `skills/SKILL.md` at the
+scan root. Headers must close within the native 4 KiB read budget; malformed YAML
+and unclosed/oversized headers refuse instead of reproducing native repair heuristics.
+Whole-bundle inventory also reads direct `commands/*.md` entries: the current
+catalogue has no command authoring route, so an undeclared command hidden in
+another logical kind refuses. Duplicate normalized identities refuse. Invocation
+flags and path conditions are retained metadata, not an execution guarantee.
+These rules were checked against the pinned official binary's offline `inspect`
+command in an isolated synthetic home; the public source is supporting evidence,
+not a claim that its commit is the release build. Shared `.agents/skills` adoption
+uses the same reader. See the native [skill format](https://docs.x.ai/build/features/skills-plugins-marketplaces).
 
 Local Claude skills expose the root `SKILL.md` frontmatter name and directory
 alias; absent `name` falls back to the directory. Reserved local skill folders,

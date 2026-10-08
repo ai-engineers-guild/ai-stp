@@ -64,7 +64,7 @@ impl Composition {
 
     fn namespace<'a>(&self, kind: &'a str) -> &'a str {
         match (self.harness.as_str(), kind) {
-            ("claude-code" | "opencode", "skill" | "command") => "invocation",
+            ("claude-code" | "opencode" | "grok-build", "skill" | "command") => "invocation",
             ("claude-code", kind) => kind,
             ("opencode", "agent" | "mcp") => kind,
             ("pi", "skill" | "command") => kind,
@@ -222,50 +222,32 @@ impl Composition {
     /// Check after collecting every selected component, so neither graph order
     /// nor the side that declares an exclusion can hide a contradiction.
     pub fn validate(&self, files: &[super::File]) -> Result<()> {
-        if matches!(self.harness.as_str(), "codex" | "cursor") {
-            let visible = crate::authoring::native_identity::visible_skills(
+        let kinds: &[&str] = match self.harness.as_str() {
+            "codex" | "cursor" => &["skill"],
+            "pi" | "grok-build" => &["skill", "command"],
+            _ => &[],
+        };
+        for kind in kinds {
+            let visible = crate::authoring::native_identity::visible_entries(
                 &self.harness,
+                kind,
                 files
                     .iter()
                     .map(|file| (file.member.path.as_str(), file.member.bytes.as_slice())),
             )?;
             let declared: Vec<_> = self
                 .native_ids
-                .get(self.namespace("skill"))
+                .get(self.namespace(kind))
                 .into_iter()
                 .flat_map(|names| names.iter())
-                .filter(|(_, owner)| self.kinds.get(*owner).is_some_and(|kind| kind == "skill"))
+                .filter(|(_, owner)| self.kinds.get(*owner).is_some_and(|held| held == kind))
                 .map(|(name, _)| name.as_str())
                 .collect();
             if visible.iter().map(String::as_str).collect::<Vec<_>>() != declared {
                 return Err(
-                    invalid("the assembled files change the visible native skills")
+                    invalid("the assembled files change the visible native entries")
                         .with_details([("constraint".into(), "native_visibility_mismatch".into())]),
                 );
-            }
-        }
-        if self.harness == "pi" {
-            for kind in ["skill", "command"] {
-                let visible = crate::authoring::native_identity::visible_pi_entries(
-                    kind,
-                    files
-                        .iter()
-                        .map(|file| (file.member.path.as_str(), file.member.bytes.as_slice())),
-                )?;
-                let declared: Vec<_> = self
-                    .native_ids
-                    .get(kind)
-                    .into_iter()
-                    .flat_map(|names| names.keys())
-                    .map(String::as_str)
-                    .collect();
-                if visible.iter().map(String::as_str).collect::<Vec<_>>() != declared {
-                    return Err(invalid("the assembled files change the visible Pi entries")
-                        .with_details([(
-                            "constraint".into(),
-                            "native_visibility_mismatch".into(),
-                        )]));
-                }
             }
         }
         for exclusion in &self.exclusions {

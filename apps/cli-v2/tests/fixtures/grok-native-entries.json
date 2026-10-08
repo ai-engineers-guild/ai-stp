@@ -1,0 +1,277 @@
+[
+  {
+    "id": "normalized",
+    "kind": "skill",
+    "files": {
+      "skills/folder/SKILL.md": "---\nname: Review_Code.v2\n---\nInspect source.\n"
+    },
+    "names": [
+      "review-code-v2"
+    ],
+    "adoptable": true
+  },
+  {
+    "id": "numeric",
+    "kind": "skill",
+    "files": {
+      "skills/folder/SKILL.md": "---\nname: 42\n---\nInspect source.\n"
+    },
+    "names": [
+      "42"
+    ],
+    "adoptable": true
+  },
+  {
+    "id": "hex",
+    "kind": "skill",
+    "files": {
+      "skills/folder/SKILL.md": "---\nname: 0x2A\n---\nInspect source.\n"
+    },
+    "names": [
+      "42"
+    ],
+    "adoptable": true
+  },
+  {
+    "id": "boolean",
+    "kind": "skill",
+    "files": {
+      "skills/folder/SKILL.md": "---\nname: true\n---\nInspect source.\n"
+    },
+    "names": [
+      "true"
+    ],
+    "adoptable": true
+  },
+  {
+    "id": "no-header",
+    "kind": "skill",
+    "files": {
+      "skills/Review_Folder/SKILL.md": "Inspect source.\n"
+    },
+    "names": [
+      "review-folder"
+    ],
+    "adoptable": true
+  },
+  {
+    "id": "empty-header",
+    "kind": "skill",
+    "files": {
+      "skills/folder/SKILL.md": "---\n---\n"
+    },
+    "names": [
+      "folder"
+    ],
+    "adoptable": true
+  },
+  {
+    "id": "missing-description",
+    "kind": "skill",
+    "files": {
+      "skills/folder/SKILL.md": "---\nname: review\n---\nInspect source.\n"
+    },
+    "names": [
+      "review"
+    ],
+    "adoptable": true
+  },
+  {
+    "id": "invalid-name-fallback",
+    "kind": "skill",
+    "files": {
+      "skills/folder/SKILL.md": "---\nname: [review]\n---\nInspect source.\n"
+    },
+    "names": [
+      "folder"
+    ],
+    "adoptable": true
+  },
+  {
+    "id": "long-name-fallback",
+    "kind": "skill",
+    "files": {
+      "skills/folder/SKILL.md": "---\nname: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n---\nInspect source.\n"
+    },
+    "names": [
+      "folder"
+    ],
+    "adoptable": true
+  },
+  {
+    "id": "hidden-invocation",
+    "kind": "skill",
+    "files": {
+      "skills/folder/SKILL.md": "---\nname: review\nuser-invocable: false\n---\nInspect source.\n"
+    },
+    "names": [
+      "review"
+    ],
+    "adoptable": true
+  },
+  {
+    "id": "duplicate",
+    "kind": "skill",
+    "files": {
+      "skills/team/first/SKILL.md": "---\nname: review\n---\nInspect source.\n",
+      "skills/team/second/SKILL.md": "---\nname: review\n---\nInspect source.\n"
+    },
+    "names": [
+      "review",
+      "review"
+    ],
+    "adoptable": false
+  },
+  {
+    "id": "nested",
+    "kind": "skill",
+    "files": {
+      "skills/team/SKILL.md": "---\nname: team\n---\nInspect source.\n",
+      "skills/team/nested/SKILL.md": "---\nname: nested\n---\nInspect source.\n",
+      "skills/team/.hidden/SKILL.md": "---\nname: hidden\n---\nInspect source.\n",
+      "skills/team/node_modules/dep/SKILL.md": "---\nname: dependency\n---\nInspect source.\n",
+      "skills/team/a/b/c/d/e/SKILL.md": "---\nname: depth6\n---\nInspect source.\n",
+      "skills/team/a/b/c/d/e/f/SKILL.md": "---\nname: depth7\n---\nInspect source.\n"
+    },
+    "names": [
+      "dependency",
+      "depth6",
+      "hidden",
+      "nested",
+      "team"
+    ],
+    "adoptable": true
+  },
+  {
+    "id": "merged-name",
+    "kind": "skill",
+    "files": {
+      "skills/folder/SKILL.md": "---\ndefaults: &defaults\n  name: merged\n<<: *defaults\n---\nInspect source.\n"
+    },
+    "names": [
+      "folder"
+    ],
+    "adoptable": true
+  },
+  {
+    "id": "alias-name",
+    "kind": "skill",
+    "files": {
+      "skills/folder/SKILL.md": "---\nalias: &alias aliased\nname: *alias\n---\nInspect source.\n"
+    },
+    "names": [
+      "aliased"
+    ],
+    "adoptable": true
+  },
+  {
+    "id": "binary-name",
+    "kind": "skill",
+    "files": {
+      "skills/folder/SKILL.md": "---\nname: !!binary aGVsbG8=\n---\nInspect source.\n"
+    },
+    "names": [
+      "agvsbg8"
+    ],
+    "adoptable": false
+  },
+  {
+    "id": "mixed-null-name",
+    "kind": "skill",
+    "files": {
+      "skills/folder/SKILL.md": "---\nname: nUlL\n---\nInspect source.\n"
+    },
+    "names": [
+      "null"
+    ],
+    "adoptable": false
+  },
+  {
+    "id": "boolean-word-name",
+    "kind": "skill",
+    "files": {
+      "skills/folder/SKILL.md": "---\nname: yes\n---\nInspect source.\n"
+    },
+    "names": [
+      "yes"
+    ],
+    "adoptable": true
+  },
+  {
+    "id": "float-name",
+    "kind": "skill",
+    "files": {
+      "skills/folder/SKILL.md": "---\nname: 1.25\n---\nInspect.\n"
+    },
+    "names": [
+      "1-25"
+    ],
+    "adoptable": false
+  },
+  {
+    "id": "leading-blank",
+    "kind": "skill",
+    "files": {
+      "skills/folder/SKILL.md": " \n---\nname: Review_Code\n---\nInspect.\n"
+    },
+    "names": [
+      "review-code"
+    ],
+    "adoptable": true
+  },
+  {
+    "id": "unterminated",
+    "kind": "skill",
+    "files": {
+      "skills/folder/SKILL.md": "---\nname: inspect\n"
+    },
+    "names": [
+      "folder"
+    ],
+    "adoptable": false
+  },
+  {
+    "id": "header-limit",
+    "kind": "skill",
+    "files": {
+      "skills/folder/SKILL.md": "---\nname: inspect\n# xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n---\nInspect.\n"
+    },
+    "names": [
+      "folder"
+    ],
+    "adoptable": false
+  },
+  {
+    "id": "root-entry",
+    "kind": "skill",
+    "files": {
+      "skills/SKILL.md": "---\nname: root\n---\nInspect.\n"
+    },
+    "names": [],
+    "adoptable": false
+  },
+  {
+    "id": "normalized-collision",
+    "kind": "skill",
+    "files": {
+      "skills/team/one/SKILL.md": "---\nname: Review_Code\n---\nInspect.\n",
+      "skills/team/two/SKILL.md": "---\nname: review-code\n---\nInspect.\n"
+    },
+    "names": [
+      "review-code",
+      "review-code"
+    ],
+    "adoptable": false
+  },
+  {
+    "id": "trailing-hyphen-limit",
+    "kind": "skill",
+    "files": {
+      "skills/folder/SKILL.md": "---\nname: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx_\n---\nInspect.\n"
+    },
+    "names": [
+      "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    ],
+    "adoptable": true
+  }
+]

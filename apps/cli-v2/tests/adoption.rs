@@ -153,7 +153,7 @@ fn native_identity_journey(identity: &Identity, at: &str) -> Result<(), Box<dyn 
         assert!(adoption::plan(&mut store, source, identity.clone(), at).is_err());
         assert_eq!(counts(&mut store)?, initial);
     }
-    for harness in ["claude-code", "opencode", "pi", "cursor"] {
+    for harness in ["claude-code", "opencode", "pi", "cursor", "grok-build"] {
         let native = tempfile::tempdir()?;
         fs::create_dir_all(native.path().join(".agents/skills/review"))?;
         fs::write(
@@ -210,6 +210,10 @@ fn native_identity_journey(identity: &Identity, at: &str) -> Result<(), Box<dyn 
     // Shared cases are also exercised with the pinned upstream loaders.
     for (harness, fixture) in [
         ("pi", include_str!("fixtures/pi-native-entries.json")),
+        (
+            "grok-build",
+            include_str!("fixtures/grok-native-entries.json"),
+        ),
         (
             "claude-code",
             include_str!("fixtures/claude-native-entries.json"),

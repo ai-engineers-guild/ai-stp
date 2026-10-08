@@ -276,7 +276,11 @@ fn skill_inventory(
         .find(|value| value["harness_id"] == harness)
         .ok_or("skill provider missing")?;
     let provider = Info::parse(&serde_json::to_vec(declaration)?)?;
-    let scope = Scope::UserRoot;
+    let scope = if harness == "grok-build" {
+        Scope::Global
+    } else {
+        Scope::UserRoot
+    };
     let target = target(harness, scope);
     let skill = component(
         store,
@@ -293,52 +297,60 @@ fn skill_inventory(
     let built = bundle::compile(store, &setup, &target, &evidence, &provider, &Hosts::new())?;
     export(&format!("{harness}-fallback-skill"), &built)?;
     rejects_fabricated_ids(store, &skill, &built, &target, &provider, &Hosts::new())?;
-    // A skill hidden in a different logical kind cannot bypass the entry inventory.
-    let hidden = component(
-        store,
-        &provider,
-        scope,
-        File {
-            path: "skills/extra/SKILL.md".into(),
-            bytes: b"---\nname: extra\ndescription: Extra.\n---\nBody.\n".to_vec(),
-            mode: 0o644,
-        },
-        None,
-    )?;
-    let mut hidden = hidden;
-    hidden["component_type"] = "instruction".into();
-    hidden["adaptations"][0]["logical_component_type"] = "instruction".into();
-    hidden["adaptations"][0]["scope_adaptations"][0]["members"][0]["native_ids"] = json!([]);
-    hidden["adaptations"][0] = passport::versions::seal_adaptation(&hidden["adaptations"][0])?;
-    hidden["stable_id"] = format!("component_{}", ulid::Ulid::generate()).into();
-    let hidden = store.transaction(|t| {
-        revisions::commit(
-            t,
-            &hidden,
-            &identity().device_id,
-            None,
-            revisions::Write::Advance {
-                expected_heads: &[],
+    for path in std::iter::once("skills/extra/SKILL.md")
+        .chain((harness == "grok-build").then_some("commands/extra.md"))
+    {
+        // Hidden Markdown entries cannot bypass the inventory through another logical kind.
+        let hidden = component(
+            store,
+            &provider,
+            scope,
+            File {
+                path: path.into(),
+                bytes: b"---\nname: extra\ndescription: Extra.\n---\nBody.\n".to_vec(),
+                mode: 0o644,
             },
+            None,
         )?;
-        versions::record(t, &hidden, &identity().device_id, None, AT)
-    })?;
-    let (catalog_setup, catalog_evidence) = compose(store, harness, &[hidden])?;
-    let refusal = bundle::compile(
-        store,
-        &catalog_setup,
-        &target,
-        &catalog_evidence,
-        &provider,
-        &Hosts::new(),
-    )
-    .err()
-    .ok_or("undeclared skill accepted")?;
-    assert_eq!(
-        refusal.details.get("constraint"),
-        Some(&json!("native_visibility_mismatch")),
-        "{refusal:?}"
-    );
+        let mut hidden = hidden;
+        hidden["component_type"] = "instruction".into();
+        if harness == "grok-build" {
+            hidden["adaptations"][0]["scope_adaptations"][0]["provider_component_kind"] =
+                "instruction".into();
+        }
+        hidden["adaptations"][0]["logical_component_type"] = "instruction".into();
+        hidden["adaptations"][0]["scope_adaptations"][0]["members"][0]["native_ids"] = json!([]);
+        hidden["adaptations"][0] = passport::versions::seal_adaptation(&hidden["adaptations"][0])?;
+        hidden["stable_id"] = format!("component_{}", ulid::Ulid::generate()).into();
+        let hidden = store.transaction(|t| {
+            revisions::commit(
+                t,
+                &hidden,
+                &identity().device_id,
+                None,
+                revisions::Write::Advance {
+                    expected_heads: &[],
+                },
+            )?;
+            versions::record(t, &hidden, &identity().device_id, None, AT)
+        })?;
+        let (catalog_setup, catalog_evidence) = compose(store, harness, &[hidden])?;
+        let refusal = bundle::compile(
+            store,
+            &catalog_setup,
+            &target,
+            &catalog_evidence,
+            &provider,
+            &Hosts::new(),
+        )
+        .err()
+        .ok_or("undeclared native entry accepted")?;
+        assert_eq!(
+            refusal.details.get("constraint"),
+            Some(&json!("native_visibility_mismatch")),
+            "{refusal:?}"
+        );
+    }
     Ok(())
 }
 
@@ -525,7 +537,7 @@ fn exact_bundles_cover_every_released_profile_and_refuse_unrepresentable_inputs(
         serde_json::from_str(include_str!("fixtures/provider-declarations.json"))?;
     opencode_namespaces(&mut store, &declarations)?;
     pi_namespaces(&mut store, &declarations)?;
-    for harness in ["codex", "cursor"] {
+    for harness in ["codex", "cursor", "grok-build"] {
         skill_inventory(&mut store, &declarations, harness)?;
     }
     let mut profiles = 0;
