@@ -150,7 +150,7 @@ impl Plan {
     }
 }
 
-fn current(
+pub(super) fn current(
     connection: &Connection,
     id: &str,
     expected: &str,
@@ -176,15 +176,45 @@ fn current(
 
 fn edit(mut document: Value, patch: &Patch, at: &str) -> Result<Value> {
     let patch = patch.0.as_object().ok_or_else(invalid)?;
+    let complete = document.get("adaptations").is_some();
+    if complete
+        && patch.keys().any(|key| {
+            !matches!(
+                key.as_str(),
+                "name"
+                    | "description"
+                    | "tags"
+                    | "source"
+                    | "license"
+                    | "provides_capabilities"
+                    | "requires_components"
+                    | "requires_capabilities"
+                    | "conflicts"
+                    | "required_env"
+                    | "requires_credentials"
+                    | "requires_authorization"
+                    | "external_endpoints"
+                    | "runtime_requirements"
+            )
+        })
+    {
+        return Err(Failure::precondition(
+            "native facts of a complete passport require an explicit adaptation edit",
+        ));
+    }
     if patch.iter().all(|(key, value)| {
         document["facts"][key]["value"] == *value
             && document["facts"][key]["confirmation"] == "user_confirmed"
+            && (!complete || document[key] == *value)
     }) {
         return Ok(document);
     }
     document["parent_revision_ids"] = json!([document["revision_id"]]);
     document["created_at"] = at.into();
     for (key, value) in patch {
+        if complete {
+            document[key] = value.clone();
+        }
         document["facts"][key] = json!({"value":value,"origin":"declared",
             "confirmation":"user_confirmed","confirmed_at":at});
     }

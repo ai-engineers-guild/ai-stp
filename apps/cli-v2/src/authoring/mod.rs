@@ -3,7 +3,9 @@
 pub mod adoption;
 pub mod contribution;
 pub mod discovery;
+mod freezing;
 pub mod passports;
+pub mod releases;
 pub mod source;
 
 use serde::{Deserialize, Serialize};

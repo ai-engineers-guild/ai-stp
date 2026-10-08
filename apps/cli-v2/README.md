@@ -129,8 +129,25 @@ The immutable coordinate writer validates complete passports before recording
 an `X.Y`. Replaying a number requires the same exact passport; another digest
 cannot replace it. Minor numbering advances the latest verified line, while
 major advancement is an explicit choice. Numeric overflow is refused, and
-recording a version preserves the current draft head. Draft-to-version
-compilation remains a separate unfinished service.
+recording a version preserves the current draft head.
+
+The component release service binds the exact draft, next number and resulting
+passport in a fifteen-minute plan. Applying rechecks them and commits projection
+bytes, the immutable coordinate and its receipt together. An interrupted write
+rolls back; a completed replay verifies stored bytes even after expiry and does
+not move the draft. Another release invalidates a plan for the same next number.
+Complete passports retain every adaptation through metadata edits and releases;
+invalid graphs never fall back to reconstruction from flat draft facts. Native
+fields of complete passports require an explicit adaptation edit, which remains
+unfinished. Metadata edits update both declared facts and logical passport fields.
+
+Flat drafts compile bounded file/tree artifacts through the declared provider
+route. JSON and TOML contributions retain their actual parser and ownership key;
+hook manifests keep their sibling scripts and executable modes. Shared skill
+routes resolve to their actual `user_root` profile in the planned passport.
+Unsupported routes and incomplete facts refuse release; local compilation stays
+experimental and makes no support or installation claim. Imported source artifact
+formats and adaptation authoring remain separate unfinished services.
 
 Component artifacts use the canonical uncompressed ZIP profile. The encoder
 preserves existing bytes, including fixed timestamps, Unicode flags and Unix
@@ -243,6 +260,7 @@ no async runtime or tracing feature is enabled for it.
 | `authoring/adoption.rs` | Exact local adoption plans, binding reconciliation and atomic journaled registration |
 | `authoring/passports.rs`, `store/journal.rs` | Closed confirmed edits, exact head plans and bound atomic receipts |
 | `store/versions.rs` | Verified immutable coordinates, explicit major advancement and replay without draft movement |
+| `authoring/releases.rs`, `authoring/freezing.rs` | Planned component releases and deterministic native projection compilation |
 | `provenance.rs` | Offline PEP 740 cryptographic verification and publisher policy |
 
 The provenance service accepts a caller-owned trusted root and an artifact
