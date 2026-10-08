@@ -39,6 +39,14 @@ They do not discover production state, initialize a
 device, open credentials, launch providers, refresh tokens or send housekeeping
 requests. There is no Python or subprocess fallback in the native library.
 
+`component template render` reads an explicit UTF-8 template of at most 64 KiB.
+It expands four declared path/name placeholders and nonnested harness conditionals,
+and returns at most 64 KiB of rendered text with both SHA-256 identities. CommonMark owns
+code-block boundaries: fenced, indented and quoted code stays literal, including
+valid fences continuing to the end of input. This replaces the old three-character
+fence heuristic. Active malformed/unknown template tags are refused. Reading
+normalizes line endings; rendering creates no state or files.
+
 Configuration reads use defaults unless an explicit YAML file is supplied.
 They preserve the existing closed fields and report each value's source;
 invocation overrides never write the file. The default registry location is
@@ -268,6 +276,7 @@ no async runtime or tracing feature is enabled for it.
 | `store/versions.rs` | Verified immutable coordinates, explicit major advancement and replay without draft movement |
 | `authoring/releases.rs`, `authoring/freezing.rs` | Planned component releases and deterministic native projection compilation |
 | `authoring/forks.rs` | Exact private component copies with atomic lineage and replay |
+| `authoring/templates.rs` | Bounded portable template rendering with literal CommonMark code blocks |
 | `provenance.rs` | Offline PEP 740 cryptographic verification and publisher policy |
 
 The provenance service accepts a caller-owned trusted root and an artifact

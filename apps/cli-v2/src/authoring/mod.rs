@@ -8,6 +8,7 @@ mod freezing;
 pub mod passports;
 pub mod releases;
 pub mod source;
+pub mod templates;
 
 use serde::{Deserialize, Serialize};
 use std::time::Duration;

@@ -4,6 +4,7 @@ use clap::{Arg, ArgAction, ArgMatches, Command, builder::ValueParser};
 use serde_json::{Value, json};
 
 use crate::{
+    authoring::templates,
     catalog, config, digest, environment,
     error::{ErrorKind, Failure, Result},
     projects, selection, snapshot,
@@ -27,6 +28,7 @@ enum Handler {
     CatalogVersion,
     EnvironmentRequirements,
     DependencyGraph,
+    TemplateRender,
 }
 
 #[derive(Clone, Copy)]
@@ -148,6 +150,45 @@ const COMMANDS: &[Declaration] = &[
         summary: "Read and verify the current component passport from an explicit snapshot.",
         parameters: &[SNAPSHOT, SHA256, ID],
         handler: Handler::Passport("component"),
+    },
+    Declaration {
+        path: &["component", "template", "render"],
+        summary: "Render a bounded portable template with literal CommonMark code blocks.",
+        parameters: &[
+            Parameter {
+                name: "template",
+                summary: "Explicit UTF-8 authoring template, at most 64 KiB.",
+                kind: ParameterType::Path,
+                required: true,
+            },
+            Parameter {
+                name: "harness",
+                summary: "Concrete target harness.",
+                kind: ParameterType::Choice(&[
+                    "claude-code",
+                    "codex",
+                    "pi",
+                    "opencode",
+                    "grok-build",
+                    "cursor",
+                    "antigravity",
+                ]),
+                required: true,
+            },
+            Parameter {
+                name: "name",
+                summary: "Lowercase component slug, at most 64 ASCII characters.",
+                kind: ParameterType::String,
+                required: true,
+            },
+            Parameter {
+                name: "component-root",
+                summary: "Portable target-relative component path.",
+                kind: ParameterType::String,
+                required: true,
+            },
+        ],
+        handler: Handler::TemplateRender,
     },
     Declaration {
         path: &["component", "version", "list"],
@@ -464,6 +505,16 @@ pub fn dispatch(matches: &ArgMatches) -> Result<Value> {
         Handler::Help => help(
             leaf.get_one::<String>("path").map_or("", String::as_str),
             leaf.get_one::<String>("find").map_or("", String::as_str),
+        ),
+        Handler::TemplateRender => templates::read(
+            leaf.get_one::<std::path::PathBuf>("template")
+                .ok_or_else(|| Failure::input("template is required"))?,
+            leaf.get_one::<String>("harness")
+                .ok_or_else(|| Failure::input("harness is required"))?,
+            leaf.get_one::<String>("name")
+                .ok_or_else(|| Failure::input("name is required"))?,
+            leaf.get_one::<String>("component-root")
+                .ok_or_else(|| Failure::input("component root is required"))?,
         ),
         Handler::Config => config::show(
             leaf.get_one::<std::path::PathBuf>("config")

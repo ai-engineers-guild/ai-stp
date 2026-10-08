@@ -89,6 +89,7 @@ def prove(binary: Path, root: Path) -> None:
     assert run(binary, home, ["version"])["data"]["runtime"] == "rust"
     run(binary, home, ["unknown"], 2)
     prove_config(binary, home, root)
+    prove_template(binary, home, root)
     prove_objects(binary, home, root)
     verify_projects.prove(binary, home, root, run)
     verify_catalog.prove(binary, home, root, run)
@@ -243,6 +244,75 @@ def prove_config(binary: Path, home: Path, root: Path) -> None:
         assert "must-not-be-echoed" not in json.dumps(answer)
     config.unlink()
     run(binary, home, ["config", "show", "--config", str(config)], 2)
+
+
+def prove_template(binary: Path, home: Path, root: Path) -> None:
+    from ai_stp_cli.local import authoring
+    from ai_stp_contracts.cli.components import ComponentTemplateView
+
+    template = root / "template.md"
+    source = authoring.scaffold("skill", "review-kit")
+    template.write_bytes(source.replace("\n", "\r\n").encode())
+    arguments = [
+        "component",
+        "template",
+        "render",
+        "--template",
+        str(template),
+        "--name",
+        "review-kit",
+        "--component-root",
+        "skills/review-kit",
+        "--harness",
+    ]
+    for harness in sorted(authoring.HARNESSES):
+        actual = ComponentTemplateView.model_validate(
+            run(binary, home, [*arguments, harness])["data"]
+        )
+        expected = authoring.render(
+            source,
+            harness_id=harness,
+            component_name="review-kit",
+            component_root="skills/review-kit",
+        )
+        assert actual.content == expected.content
+        assert actual.placeholders == list(expected.placeholders)
+        assert actual.source_digest == "sha256:" + hashlib.sha256(source.encode()).hexdigest()
+        assert (
+            actual.rendered_digest
+            == "sha256:" + hashlib.sha256(actual.content.encode()).hexdigest()
+        )
+    # CommonMark owns code boundaries, including a longer outer fence, quote
+    # containers, indentation and valid fences that continue to end of input.
+    for literal in (
+        "````text\n```\n{{unknown}}\n````\n",
+        "> ```text\n> {{unknown}}\n> ```\n",
+        "    {{unknown}}\n",
+        "```text\n{{unknown}}\n",
+    ):
+        template.write_text("Before {{component_name}}.\n\n" + literal, encoding="utf-8")
+        actual = ComponentTemplateView.model_validate(
+            run(binary, home, [*arguments, "codex"])["data"]
+        )
+        assert actual.content == "Before review-kit.\n\n" + literal
+        assert actual.placeholders == ["component_name"]
+    for malformed in (
+        "{{unknown}}\n",
+        "{{component_name\n",
+        "{{/harness}}\n",
+        "{{#harness:codex,codex}}\nx\n{{/harness}}\n",
+        "{{#harness:codex}}\n{{#harness:pi}}\n",
+        "{{#harness:undefined}}\nx\n{{/harness}}\n",
+        "{{#harness:codex}}\n",
+        "x" * (64 * 1024 + 1),
+    ):
+        template.write_text(malformed, encoding="utf-8")
+        run(binary, home, [*arguments, "codex"], 2)
+    template.write_text("{{component_root}}\n" * 300, encoding="utf-8")
+    expanded_arguments = arguments.copy()
+    expanded_arguments[expanded_arguments.index("--component-root") + 1] = "segment/" * 40 + "leaf"
+    run(binary, home, [*expanded_arguments, "codex"], 2)
+    assert list(home.iterdir()) == []
 
 
 def prove_objects(binary: Path, home: Path, root: Path) -> None:
