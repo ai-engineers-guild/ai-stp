@@ -176,7 +176,11 @@ Local Claude Code agent identifiers come from required `name`/`description`
 frontmatter, not the filename. Invalid local names or absent/ambiguous headers
 refuse; plugin-specific fallback semantics do not apply to ordinary agent files.
 The shared data-only YAML reader keeps the existing 64 KiB header and parsing
-budgets. Payload bytes and unknown metadata remain intact. Other harness-specific
+budgets. Payload bytes and unknown metadata remain intact. Exact-version reuse
+and bundle compilation independently re-derive these identifiers from verified
+projection member bytes; a valid archive/passport digest alone does not establish
+native identity. MCP contributions must name the harness's actual configuration
+key. Mismatched retained versions refuse without rewriting their immutable data. Other harness-specific
 native identity/format checks and structured credential handling remain pending.
 
 `component adaptation edit plan` replaces one complete native adaptation in an

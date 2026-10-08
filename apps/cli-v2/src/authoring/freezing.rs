@@ -84,7 +84,13 @@ pub(super) fn verify(connection: &Connection, document: &Value) -> Result<()> {
                 connection,
                 text(&scope["projection_artifact"], "digest")?,
             )?;
-            artifact::verify(scope, &payload)?;
+            let files = artifact::verify(scope, &payload)?;
+            native_identity::verify_members(
+                text(document, "component_type")?,
+                text(adaptation, "harness_id")?,
+                scope,
+                &files,
+            )?;
         }
     }
     Ok(())

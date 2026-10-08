@@ -177,6 +177,12 @@ fn compile_snapshot(
                 "bundle v2 requires a file for every component and cannot preserve explicit directory members",
             ));
         }
+        crate::authoring::native_identity::verify_members(
+            text(&component, "component_type")?,
+            &target.harness_id,
+            scope,
+            &members,
+        )?;
         composition.include(&component, scope, &assessment)?;
         let declared: BTreeMap<_, _> = declared
             .iter()

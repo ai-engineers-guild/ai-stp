@@ -9,7 +9,7 @@ pub mod forks;
 mod freezing;
 mod frontmatter;
 pub mod native_edit;
-mod native_identity;
+pub(crate) mod native_identity;
 pub mod passports;
 pub mod project_binding;
 pub mod releases;

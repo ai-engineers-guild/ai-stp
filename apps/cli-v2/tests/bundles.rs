@@ -70,13 +70,15 @@ fn component(
     let profile = provider.profile(scope).ok_or("profile missing")?;
     let kind = if contribution.is_some() {
         "mcp"
+    } else if file.path.starts_with("agents/") {
+        "agent"
     } else if file.path.contains("skills/") {
         "skill"
     } else {
         "instruction"
     };
     let declared = json!({"path":file.path,"object_type":"file","mode":file.mode,"content_artifact":{"digest":digest::bytes("ai-stp:artifact:v1",&file.bytes)?,"size_bytes":file.bytes.len()},
-        "native_ids":[],"content_format":"application/octet-stream","parser_id":contribution.map(|_|if file.path.ends_with("toml"){"toml/1"}else{"json/1"}),
+        "native_ids":if matches!(kind,"mcp"|"agent"){json!(["review"])}else{json!([])},"content_format":"application/octet-stream","parser_id":contribution.map(|_|if file.path.ends_with("toml"){"toml/1"}else{"json/1"}),
         "ownership":if contribution.is_some(){"contribution"}else{"whole"},"ownership_key":contribution,
         "write_semantics":if contribution.is_some(){"merge"}else{"replace"},"withdrawal_semantics":if contribution.is_some(){"preserve_unowned"}else{"remove_path"}});
     let payload = projection::artifact::build_members(std::slice::from_ref(&declared), &[file])?;
@@ -154,6 +156,80 @@ fn compose(
         })
         .collect::<Result<_, Box<dyn Error>>>()?;
     Ok((serde_json::to_value(reference(&setup)?)?, evidence))
+}
+// A retained catalog setup is schema-valid without passing local authoring.
+// Repin both its passport and canonical definition to exercise that boundary.
+fn catalog_repin(
+    store: &mut Store,
+    setup: &bundle::Bundle,
+    component: &Value,
+) -> Result<(Value, BTreeMap<String, Evidence>), Box<dyn Error>> {
+    let mut archive = zip::ZipArchive::new(std::io::Cursor::new(&setup.archive))?;
+    let mut bytes = Vec::new();
+    std::io::Read::read_to_end(&mut archive.by_name("setup-passport.json")?, &mut bytes)?;
+    let mut document: Value = serde_json::from_slice(&bytes)?;
+    document["version"] = "2.0".into();
+    document["components"] = json!([reference(component)?]);
+    let payload = canonical::bytes(
+        &json!({"schema_version":1,"format":"ai-stp-setup-definition/1",
+        "stable_id":document["stable_id"],"version":document["version"],"harness_id":document["harness_id"],
+        "input_digest":document["facts"]["snapshot"]["value"],"components":document["components"]}),
+    )?;
+    document["artifact"] =
+        json!({"digest":digest::bytes("ai-stp:artifact:v1",&payload)?,"size_bytes":payload.len()});
+    let document = store.transaction(|t| {
+        revisions::content(t, &payload, AT)?;
+        versions::record(t, &document, &identity().device_id, None, AT)
+    })?;
+    let evidence = [&document, component]
+        .into_iter()
+        .map(|document| {
+            Ok((
+                text(document, "stable_id")?.into(),
+                Evidence {
+                    passport_digest: digest::canonical("ai-stp:passport:v1", document)?,
+                    registrable: true,
+                    blocked: false,
+                    author_verified: false,
+                    component_verified: false,
+                    checks_current: false,
+                    consented: false,
+                },
+            ))
+        })
+        .collect::<Result<_, Box<dyn Error>>>()?;
+    Ok((serde_json::to_value(reference(&document)?)?, evidence))
+}
+fn rejects_fabricated_ids(
+    store: &mut Store,
+    component: &Value,
+    built: &bundle::Bundle,
+    target: &Target,
+    provider: &Info,
+    hosts: &Hosts,
+) -> Result<(), Box<dyn Error>> {
+    let mut forged = component.clone();
+    forged["version"] = "2.0".into();
+    forged["adaptations"][0]["scope_adaptations"][0]["members"][0]["native_ids"] =
+        json!(["fabricated"]);
+    forged["adaptations"][0] = passport::versions::seal_adaptation(&forged["adaptations"][0])?;
+    let forged =
+        store.transaction(|t| versions::record(t, &forged, &identity().device_id, None, AT))?;
+    assert!(compose(store, &target.harness_id, std::slice::from_ref(&forged)).is_err());
+    let (catalog_setup, catalog_evidence) = catalog_repin(store, built, &forged)?;
+    let refused = bundle::compile(
+        store,
+        &catalog_setup,
+        target,
+        &catalog_evidence,
+        provider,
+        hosts,
+    )
+    .err()
+    .ok_or("bundle trusted fabricated native IDs")?;
+    assert_eq!(refused.details["constraint"], "native_identifier_mismatch");
+
+    Ok(())
 }
 fn export(name: &str, bundle: &bundle::Bundle) -> Result<(), Box<dyn Error>> {
     if let Some(path) = std::env::var_os("AI_STP_BUNDLE_PROOF_DIR") {
@@ -504,6 +580,38 @@ fn exact_bundles_cover_every_released_profile_and_refuse_unrepresentable_inputs(
     assert_eq!(parsed["theme"], "night");
     assert_eq!(parsed["mcpServers"]["review"]["command"], "review-tool");
     export("claude-code-contribution", &built)?;
+    rejects_fabricated_ids(&mut store, &mcp, &built, &target, &provider, &hosts)?;
+    let agent = component(
+        &mut store,
+        &provider,
+        Scope::Global,
+        File {
+            path: "agents/auditor.md".into(),
+            bytes: b"---\nname: review\ndescription: Review project conventions.\n---\n# Review\n"
+                .to_vec(),
+            mode: 0o644,
+        },
+        None,
+    )?;
+    let (agent_setup, agent_evidence) =
+        compose(&mut store, "claude-code", std::slice::from_ref(&agent))?;
+    let agent_bundle = bundle::compile(
+        &mut store,
+        &agent_setup,
+        &target,
+        &agent_evidence,
+        &provider,
+        &Hosts::new(),
+    )?;
+    export("claude-code-agent", &agent_bundle)?;
+    rejects_fabricated_ids(
+        &mut store,
+        &agent,
+        &agent_bundle,
+        &target,
+        &provider,
+        &Hosts::new(),
+    )?;
     let absent: Hosts = [("settings.json".into(), None)].into();
     let fresh = bundle::compile(&mut store, &setup, &target, &evidence, &provider, &absent)?;
     assert_ne!(

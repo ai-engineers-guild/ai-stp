@@ -1,6 +1,6 @@
 //! Native identifiers are observed from captured content, never from display metadata.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use serde_json::Value;
 use unicode_normalization::UnicodeNormalization;
@@ -22,13 +22,24 @@ fn invalid() -> Failure {
     )
 }
 
-fn mcp_key<'a>(harness: &str, declared: &'a str) -> Result<&'a str> {
-    if !declared.is_empty() {
-        return Ok(declared);
-    }
+fn mcp_key(harness: &str) -> Result<&'static str> {
     match harness {
-        "cursor" | "antigravity" => Ok("mcpServers"),
+        "claude-code" | "cursor" | "antigravity" => Ok("mcpServers"),
+        "codex" | "grok-build" => Ok("mcp_servers"),
+        "opencode" => Ok("mcp"),
         _ => Err(invalid()),
+    }
+}
+
+fn mcp_names(harness: &str, path: &str, key: &str, payload: &[u8]) -> Result<Vec<String>> {
+    let format = Format::for_path(path)?;
+    let expected_key = mcp_key(harness)?;
+    if key.is_empty() {
+        contribution::entry_names(format, payload, expected_key)
+    } else if key == expected_key {
+        contribution::component_names(format, payload)
+    } else {
+        Err(invalid())
     }
 }
 
@@ -74,7 +85,10 @@ pub(super) fn read(candidate: &Candidate, content: &Captured) -> Result<Vec<Stri
             if content.format != artifacts::FILE_FORMAT {
                 return Err(invalid());
             }
-            let key = mcp_key(&candidate.harness_id, &candidate.declared_key)?;
+            let key = mcp_key(&candidate.harness_id)?;
+            if !candidate.declared_key.is_empty() && candidate.declared_key != key {
+                return Err(invalid());
+            }
             let names = contribution::entry_names(
                 Format::for_path(&candidate.native_path)?,
                 &content.bytes,
@@ -121,13 +135,12 @@ pub(super) fn verify_projection(
                 return Err(invalid());
             }
             let name = source["source_name"].as_str().ok_or_else(invalid)?;
-            let format = Format::for_path(name)?;
-            let key = source["declared_key"].as_str().unwrap_or("");
-            if key.is_empty() {
-                contribution::entry_names(format, payload, mcp_key(harness, key)?)?
-            } else {
-                contribution::component_names(format, payload)?
-            }
+            mcp_names(
+                harness,
+                name,
+                source["declared_key"].as_str().unwrap_or(""),
+                payload,
+            )?
         }
         ("agent", "claude-code") => {
             if source["content_format"] != artifacts::FILE_FORMAT {
@@ -137,8 +150,12 @@ pub(super) fn verify_projection(
         }
         _ => return Ok(()),
     };
-    valid(&expected)?;
-    let declared = source["native_ids"].as_array().ok_or_else(invalid)?;
+    matches(&source["native_ids"], &expected)
+}
+
+fn matches(declaration: &Value, expected: &[String]) -> Result<()> {
+    valid(expected)?;
+    let declared = declaration.as_array().ok_or_else(invalid)?;
     let names = declared
         .iter()
         .map(|name| name.as_str().ok_or_else(invalid))
@@ -150,6 +167,48 @@ pub(super) fn verify_projection(
         return Err(
             invalid().with_details([("constraint".into(), "native_identifier_mismatch".into())])
         );
+    }
+    Ok(())
+}
+
+/// Retained or catalog projections get the same byte-derived check as new sources.
+/// Call only after the archive has closed over its member digests and metadata.
+pub(crate) fn verify_members(
+    kind: &str,
+    harness: &str,
+    scope: &Value,
+    files: &[artifacts::Member],
+) -> Result<()> {
+    if !(kind == "mcp" || kind == "agent" && harness == "claude-code") {
+        return Ok(());
+    }
+    let declared: BTreeMap<_, _> = scope["members"]
+        .as_array()
+        .ok_or_else(invalid)?
+        .iter()
+        .map(|item| Ok((item["path"].as_str().ok_or_else(invalid)?, item)))
+        .collect::<Result<_>>()?;
+    if files.is_empty() {
+        return Err(invalid());
+    }
+    for file in files {
+        let declaration = declared.get(file.path.as_str()).ok_or_else(invalid)?;
+        let names = if kind == "mcp" {
+            let key = match declaration["ownership"].as_str() {
+                Some("whole") => "",
+                Some("contribution") => {
+                    declaration["ownership_key"].as_str().ok_or_else(invalid)?
+                }
+                _ => return Err(invalid()),
+            };
+            mcp_names(harness, &file.path, key, &file.bytes)?
+        } else {
+            if declaration["ownership"] != "whole" || !file.path.ends_with(".md") {
+                return Err(invalid());
+            }
+            agent_name(&file.bytes)?
+        };
+        matches(&declaration["native_ids"], &names)?;
     }
     Ok(())
 }
