@@ -263,6 +263,22 @@ fn exact_setup_closure_constraints_atomicity_and_replay() -> Result<(), Box<dyn 
         Some(&provider),
     )?;
     assert_eq!(assessed["admissible"], true, "{assessed:#}");
+    let bundle_evidence = evidence.clone();
+    let compiled = ai_stp_cli_v2::bundle::compile(
+        &mut store,
+        &roots[0],
+        &target,
+        &bundle_evidence,
+        &provider,
+        &Default::default(),
+    )?;
+    assert_eq!(
+        compiled.manifest["files"]
+            .as_array()
+            .ok_or("files missing")?
+            .len(),
+        2
+    );
     assert_eq!(
         assessed["assessments"]
             .as_array()
@@ -322,6 +338,18 @@ fn exact_setup_closure_constraints_atomicity_and_replay() -> Result<(), Box<dyn 
         )
     })?;
     let current = field(&edited, "revision_id")?.to_owned();
+    assert_eq!(
+        compiled.archive,
+        ai_stp_cli_v2::bundle::compile(
+            &mut store,
+            &roots[0],
+            &target,
+            &bundle_evidence,
+            &provider,
+            &Default::default()
+        )?
+        .archive
+    );
     for fields in [[true, false], [false, true], [true, true]] {
         let mut invalid = edited.clone();
         invalid["parent_revision_ids"] = json!([current]);

@@ -174,6 +174,33 @@ plan/status scope arguments. Provider paths match complete namespace segments.
 Requests and provider declarations are bounded; unknown runtime facts are not
 invented from a static route table.
 
+The headless bundle compiler takes one exact setup, target evidence and an
+explicit provider declaration. It reassesses the whole graph in one database
+view, verifies selected projection CAS bytes and binds the exact adaptation,
+profile, file owner, content and mode in `ai-stp-bundle/2`. Logical bundle identity
+and literal ZIP SHA-256 remain separate. Fixed ordering, timestamps and archive
+metadata make repeated compilation byte-identical; later draft edits do not
+change an already selected version. Reports retain declared semantic losses and
+distinguish logical component kinds from provider-native kinds.
+
+Path overlap, portable case collisions, duplicate native identifiers and tied
+instruction/hook ordering refuse the whole bundle. A configuration contribution
+requires explicit observed host bytes or observed absence; unknown is not empty.
+The compiler preserves unowned configuration and binds host identities into its
+input digest. Provider execution must revalidate those observations. It does not
+read target files, capture credentials or authorize installation. Bundle limits
+are 2,000 files, 4 MiB per file and 64 MiB including package metadata; selected
+projection archives together are bounded to 128 MiB. Provider profile limits also
+apply to the complete result, not just each component separately.
+
+Current provider v3 requires at least one adaptation and one output file per
+bound owner. Empty setups remain valid objects but have no installable bundle.
+Multiple components owning one output file and explicit directory members refuse
+instead of losing ownership, bytes or directory metadata. The compiler never
+invents a synthetic component to evade those restrictions. A real SQLite journey
+covers all 16 released profiles; the author/release/setup journey also compiles
+a transitive graph and proves byte stability after a later draft edit.
+
 The headless `store` service owns an explicit `ai-stp-v2-state` directory with
 private permissions, an ownership marker and a bounded process lock. Its clean
 schema-53 bootstrap preserves the complete data format without historical

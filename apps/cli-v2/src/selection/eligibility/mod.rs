@@ -251,26 +251,57 @@ pub fn assess_graph(
     evidence: &BTreeMap<String, Evidence>,
     provider: Option<&Info>,
 ) -> Result<Value> {
+    store.transaction(|t| assess_connection(t, roots, target, evidence, provider))
+}
+
+pub(crate) fn assess_connection(
+    connection: &rusqlite::Connection,
+    roots: &[Value],
+    target: &Target,
+    evidence: &BTreeMap<String, Evidence>,
+    provider: Option<&Info>,
+) -> Result<Value> {
     if roots.is_empty() {
         return Err(Failure::input(
             "eligibility requires an exact component or setup root",
         ));
     }
-    store.transaction(|t| {
-        let graph = super::graph::exact(t,roots)?;
-        let mut assessments = Vec::new();
-        if graph["resolved"] == true {
-            for node in graph["nodes"].as_array().ok_or_else(||Failure::precondition("graph nodes missing"))? {
-                let id = node["stable_id"].as_str().ok_or_else(||Failure::precondition("graph identity missing"))?;
-                let held = evidence.get(id).ok_or_else(||Failure::precondition("an exact graph member has no established eligibility evidence"))?;
-                let document = crate::objects::Objects {connection:t}.exact_version(id,
-                    node["version"].as_str().ok_or_else(||Failure::precondition("graph version missing"))?,
-                    Some(node["passport_digest"].as_str().ok_or_else(||Failure::precondition("graph digest missing"))?))?;
-                assessments.push(assess(&document,target,held,provider)?);
-            }
+    let graph = super::graph::exact(connection, roots)?;
+    let mut assessments = Vec::new();
+    if graph["resolved"] == true {
+        for node in graph["nodes"]
+            .as_array()
+            .ok_or_else(|| Failure::precondition("graph nodes missing"))?
+        {
+            let id = node["stable_id"]
+                .as_str()
+                .ok_or_else(|| Failure::precondition("graph identity missing"))?;
+            let held = evidence.get(id).ok_or_else(|| {
+                Failure::precondition(
+                    "an exact graph member has no established eligibility evidence",
+                )
+            })?;
+            let document = crate::objects::Objects { connection }.exact_version(
+                id,
+                node["version"]
+                    .as_str()
+                    .ok_or_else(|| Failure::precondition("graph version missing"))?,
+                Some(
+                    node["passport_digest"]
+                        .as_str()
+                        .ok_or_else(|| Failure::precondition("graph digest missing"))?,
+                ),
+            )?;
+            assessments.push(assess(&document, target, held, provider)?);
         }
-        let admissible = graph["resolved"] == true && assessments.iter().all(|item|item["admissible"] == true);
-        let automatic = admissible && assessments.iter().all(|item|item["auto_selectable"] == true);
-        Ok(json!({"schema_version":1,"graph":graph,"assessments":assessments,"admissible":admissible,"auto_selectable":automatic}))
-    })
+    }
+    let admissible =
+        graph["resolved"] == true && assessments.iter().all(|item| item["admissible"] == true);
+    let automatic = admissible
+        && assessments
+            .iter()
+            .all(|item| item["auto_selectable"] == true);
+    Ok(
+        json!({"schema_version":1,"graph":graph,"assessments":assessments,"admissible":admissible,"auto_selectable":automatic}),
+    )
 }

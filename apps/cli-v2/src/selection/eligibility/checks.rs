@@ -1,9 +1,5 @@
 use super::{Assessment, CAPABILITIES, Target};
-use crate::{
-    error::{Failure, Result},
-    projection::Scope,
-    provider::Info,
-};
+use crate::{error::Result, provider::Info};
 use serde_json::{Value, json};
 use std::collections::BTreeSet;
 use unicode_normalization::UnicodeNormalization;
@@ -53,19 +49,9 @@ pub(super) fn compatibility<'a>(
         }
         limits(report, document, target);
     } else {
-        let scope_name = match target.scope {
-            Scope::Global => "global",
-            Scope::Project => "project",
-            Scope::UserRoot => "user_root",
-        };
-        let adaptations = document["adaptations"]
-            .as_array()
-            .ok_or_else(|| Failure::precondition("component adaptations missing"))?;
-        scope = adaptations
-            .iter()
-            .find(|item| item["harness_id"] == target.harness_id)
-            .and_then(|item| item["scope_adaptations"].as_array())
-            .and_then(|items| items.iter().find(|item| item["scope"] == scope_name));
+        let scope_name = target.scope.as_str();
+        scope = crate::projection::adaptation(document, &target.harness_id, target.scope)
+            .map(|(_, scope)| scope);
         match scope {
             Some(scope) => {
                 if scope["technical_support"] == "unsupported" {

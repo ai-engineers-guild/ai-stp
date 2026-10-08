@@ -3,6 +3,7 @@
 mod archive;
 pub mod artifacts;
 pub mod authoring;
+pub mod bundle;
 pub mod canonical;
 pub mod catalog;
 pub mod config;

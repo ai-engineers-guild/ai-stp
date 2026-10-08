@@ -20,6 +20,33 @@ pub enum Scope {
     Project,
 }
 
+impl Scope {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Global => "global",
+            Self::UserRoot => "user_root",
+            Self::Project => "project",
+        }
+    }
+}
+
+/// Select only the explicitly declared harness and scope, with no fallback.
+pub fn adaptation<'a>(
+    document: &'a serde_json::Value,
+    harness: &str,
+    scope: Scope,
+) -> Option<(&'a serde_json::Value, &'a serde_json::Value)> {
+    let adaptation = document["adaptations"]
+        .as_array()?
+        .iter()
+        .find(|value| value["harness_id"] == harness)?;
+    let selected = adaptation["scope_adaptations"]
+        .as_array()?
+        .iter()
+        .find(|value| value["scope"] == scope.as_str())?;
+    Some((adaptation, selected))
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Profile {
