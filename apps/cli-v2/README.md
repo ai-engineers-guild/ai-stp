@@ -154,6 +154,26 @@ install order is returned. Limits are depth 32, 512 nodes and 8,192 edges.
 Proposal inspection creates no session or object. Historical fact-only drafts
 are not accepted as complete immutable version passports.
 
+Native eligibility reads each exact passport directly, including the chosen
+harness/scope's supported platforms, exact harness versions and permissions.
+It keeps access, independent author/version trust axes, current evidence,
+licenses, grants, capabilities, entitlements and provider constraints separate.
+Consent never overrides a mechanical refusal. Missing environment names,
+authorization and credentials remain readiness advisories. Experimental objects
+can be admissible with consent but never become automatically selectable.
+A redistribution request respects the declaration even for an owned object.
+
+The graph assessment evaluates every transitive member in one database view;
+a root's grant or trust cannot cover a dependency. Evidence is supplied by the
+owning runtime and must bind the exact passport digest. An absent evidence entry
+refuses the graph. This headless service does not authenticate evidence, acquire
+providers or expose an installation command. Provider declarations use the
+embedded v3 schema, required command/operation checks, launch consistency and
+content-addressed scoped profiles. Non-global targets also require declared
+plan/status scope arguments. Provider paths match complete namespace segments.
+Requests and provider declarations are bounded; unknown runtime facts are not
+invented from a static route table.
+
 The headless `store` service owns an explicit `ai-stp-v2-state` directory with
 private permissions, an ownership marker and a bounded process lock. Its clean
 schema-53 bootstrap preserves the complete data format without historical
@@ -173,7 +193,11 @@ major advancement is an explicit choice. Numeric overflow is refused, and
 recording a version preserves the current draft head.
 
 The component release service binds the exact draft, next number and resulting
-passport in a fifteen-minute plan. Applying rechecks them and commits projection
+passport and explicit provider declarations in a fifteen-minute plan. Flat-source
+compilation uses those declarations' exact scoped profile identities, namespaces,
+kinds and bundle format. It never substitutes the corpus's historical profile
+pins for the observed provider. Parsing declarations does not attest their binary;
+trusted acquisition/invocation remains a separate boundary. Applying rechecks them and commits projection
 bytes, the immutable coordinate and its receipt together. An interrupted write
 rolls back; a completed replay verifies stored bytes even after expiry and does
 not move the draft. Another release invalidates a plan for the same next number.
@@ -184,7 +208,9 @@ unfinished. Metadata edits update both declared facts and logical passport field
 
 Flat drafts compile bounded file/tree artifacts through the declared provider
 route. JSON and TOML contributions retain their actual parser and ownership key;
-hook manifests keep their sibling scripts and executable modes. Shared skill
+captured hook manifests retain their sibling scripts and executable modes. A
+provider that does not own those helper paths refuses release; compilation never
+drops a helper to make the profile fit. Shared skill
 routes resolve to their actual `user_root` profile in the planned passport.
 Unsupported routes and incomplete facts refuse release; local compilation stays
 experimental and makes no support or installation claim. Imported source artifact
@@ -205,14 +231,13 @@ head, immutable coordinate and bound receipt together. Replay verifies the
 original artifacts and members without changing a later draft. Declared-empty
 setups are valid compositions.
 
-One aggregate preserves every declared environment purpose, unions permissions
-(including all scopes of the selected adaptation), endpoints and runtime
+One aggregate preserves every declared environment purpose, unions logical permissions, endpoints and runtime
 requirements, and keeps the strongest authorization and any credential
 requirement. Input order cannot weaken these summaries. Multiple license
 declarations are individually parenthesized before conjunction; the existing
 free-form license field is not an SPDX parser or a compatibility verdict.
 Redistribution is the conjunction of member declarations. The exact passports
-remain authoritative for scope, platform, version and capability constraints;
+remain authoritative for scope-specific permissions, platform, version and capability constraints;
 composition is not mechanical installation eligibility or a provider approval.
 Request metadata is bounded to 256 KiB and the resulting passport to 1 MiB.
 Project binding, later setup versions, recasting, import/export and CLI exposure

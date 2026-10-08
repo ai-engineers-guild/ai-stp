@@ -10,6 +10,7 @@ use crate::{
     error::{ErrorKind, Failure, Result},
     objects::Objects,
     passport,
+    provider::Info,
     store::{
         Store, database, journal,
         versions::{self, Increment},
@@ -28,6 +29,7 @@ pub struct Plan {
     pub stable_id: String,
     pub expected_revision: String,
     pub increment: Increment,
+    pub providers: Vec<Value>,
     pub passport: Value,
 }
 
@@ -49,15 +51,24 @@ pub fn plan(
     id: &str,
     expected_revision: &str,
     increment: Increment,
+    providers: &[Info],
     identity: Identity,
     at: &str,
 ) -> Result<Plan> {
     identity.validate()?;
     let expires_at = expiry(at)?;
+    let declared: std::collections::BTreeSet<_> = providers
+        .iter()
+        .map(|info| &info.document()["harness_id"])
+        .map(Value::to_string)
+        .collect();
+    if providers.len() > 7 || declared.len() != providers.len() {
+        return Err(invalid());
+    }
     let passport = store.transaction(|transaction| {
         let draft = passports::current(transaction, id, expected_revision, &identity)?;
         let version = versions::next(transaction, id, increment)?;
-        freezing::compile(transaction, draft, &version, None)
+        freezing::compile(transaction, draft, &version, providers, None)
     })?;
     Ok(Plan {
         schema_version: 1,
@@ -69,6 +80,10 @@ pub fn plan(
         stable_id: id.into(),
         expected_revision: expected_revision.into(),
         increment,
+        providers: providers
+            .iter()
+            .map(|info| info.document().clone())
+            .collect(),
         passport,
     })
 }
@@ -108,10 +123,27 @@ pub fn apply(
         if plan.passport["version"] != version {
             return Err(Failure::new(ErrorKind::Conflict,"the next immutable version changed after planning"));
         }
-        let document = freezing::compile(transaction,draft,&version,Some(at))?;
+        let providers = parse_providers(&plan.providers)?;
+        let document = freezing::compile(transaction,draft,&version,&providers,Some(at))?;
         if document != plan.passport { return Err(invalid()); }
         transaction.execute("INSERT INTO operation(operation_id,kind,state,started_at,finished_at,detail) VALUES (?,?,'verified',?,?,?)",
             params![plan.operation_id,plan.action,at,at,expected_digest]).map_err(database)?;
         versions::record(transaction,&document,&identity.device_id,Some(&plan.operation_id),at)
     })
+}
+
+fn parse_providers(values: &[Value]) -> Result<Vec<Info>> {
+    if values.len() > 7 {
+        return Err(invalid());
+    }
+    let mut harnesses = std::collections::BTreeSet::new();
+    values
+        .iter()
+        .map(|value| {
+            if !harnesses.insert(value["harness_id"].as_str().ok_or_else(invalid)?) {
+                return Err(invalid());
+            }
+            Info::parse(&serde_json::to_vec(value).map_err(|_| invalid())?)
+        })
+        .collect()
 }

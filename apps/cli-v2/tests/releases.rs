@@ -84,6 +84,16 @@ fn native_release_preserves_owned_bytes_graphs_and_atomic_history() -> Result<()
         account_id: "account_01ARZ3NDEKTSV4RRFFQ69G5FAV".into(),
         device_id: "device_01ARZ3NDEKTSV4RRFFQ69G5FAV".into(),
     };
+    let declarations: Vec<Value> =
+        serde_json::from_str(include_str!("fixtures/provider-declarations.json"))?;
+    let providers = declarations
+        .iter()
+        .map(|value| {
+            Ok(ai_stp_cli_v2::provider::Info::parse(&serde_json::to_vec(
+                value,
+            )?)?)
+        })
+        .collect::<Result<Vec<_>, Box<dyn Error>>>()?;
     let cases = [
         ("claude-code","hook","settings.json",br#"{"model":"unowned","hooks":{"PreToolUse":[{"hooks":[{"type":"command","command":"example"}]}]}}"#.as_slice(),"json/1"),
         ("codex","mcp","config.toml",b"model = 'unowned'\n[mcp_servers.example]\ncommand = 'example'\n".as_slice(),"toml/1"),
@@ -117,6 +127,7 @@ fn native_release_preserves_owned_bytes_graphs_and_atomic_history() -> Result<()
                 id,
                 field(&draft, "revision_id")?,
                 Increment::Minor,
+                &providers,
                 identity.clone(),
                 AT
             )
@@ -135,17 +146,64 @@ fn native_release_preserves_owned_bytes_graphs_and_atomic_history() -> Result<()
             identity.clone(),
             AT,
         )?;
-        let draft = passports::apply(&mut store, &edit, &edit.digest()?, &identity, AT)?;
+        let mut draft = passports::apply(&mut store, &edit, &edit.digest()?, &identity, AT)?;
+        if harness == "cursor" {
+            // The released provider owns hooks.json but not the hooks/ sibling.
+            // Capture keeps helper bytes; release must refuse, never drop them.
+            assert!(
+                releases::plan(
+                    &mut store,
+                    field(&draft, "stable_id")?,
+                    field(&draft, "revision_id")?,
+                    Increment::Minor,
+                    &providers,
+                    identity.clone(),
+                    AT
+                )
+                .is_err()
+            );
+            assert!(root.join("hooks/helper.sh").is_file());
+            fs::remove_file(root.join("hooks/helper.sh"))?;
+            fs::remove_dir(root.join("hooks"))?;
+            draft = adopt(&mut store, &root, harness, kind, &identity)?;
+        }
         let id = field(&draft, "stable_id")?;
         let head = field(&draft, "revision_id")?;
         let before = counts(&mut store)?;
-        let plan = releases::plan(&mut store, id, head, Increment::Minor, identity.clone(), AT)?;
+        assert!(
+            releases::plan(
+                &mut store,
+                id,
+                head,
+                Increment::Minor,
+                &[],
+                identity.clone(),
+                AT
+            )
+            .is_err()
+        );
+        let plan = releases::plan(
+            &mut store,
+            id,
+            head,
+            Increment::Minor,
+            &providers,
+            identity.clone(),
+            AT,
+        )?;
         assert_eq!(counts(&mut store)?, before);
         let plan: releases::Plan =
             serde_json::from_slice(&canonical::bytes(&serde_json::to_value(plan)?)?)?;
         assert_eq!(plan.passport["version"], "1.0");
-        let competing =
-            releases::plan(&mut store, id, head, Increment::Minor, identity.clone(), AT)?;
+        let competing = releases::plan(
+            &mut store,
+            id,
+            head,
+            Increment::Minor,
+            &providers,
+            identity.clone(),
+            AT,
+        )?;
         assert!(
             releases::apply(
                 &mut store,
@@ -204,11 +262,9 @@ fn native_release_preserves_owned_bytes_graphs_and_atomic_history() -> Result<()
                         .iter()
                         .map(|file| file.path.as_str())
                         .collect::<Vec<_>>(),
-                    ["hooks.json", "hooks/helper.sh"]
+                    ["hooks.json"]
                 );
                 assert_eq!(files[0].bytes, bytes);
-                #[cfg(unix)]
-                assert_eq!(files[1].mode, 0o755);
             } else {
                 assert_eq!(scope["scope"], "user_root");
                 assert_eq!(
@@ -285,6 +341,7 @@ fn native_release_preserves_owned_bytes_graphs_and_atomic_history() -> Result<()
         id,
         field(&complete, "revision_id")?,
         Increment::Minor,
+        &providers,
         identity.clone(),
         AT,
     )?;
@@ -318,6 +375,7 @@ fn native_release_preserves_owned_bytes_graphs_and_atomic_history() -> Result<()
         id,
         field(&edited, "revision_id")?,
         Increment::Minor,
+        &providers,
         identity.clone(),
         LATER,
     )?;
@@ -329,6 +387,7 @@ fn native_release_preserves_owned_bytes_graphs_and_atomic_history() -> Result<()
         id,
         field(&edited, "revision_id")?,
         Increment::Major,
+        &providers,
         identity.clone(),
         LATER,
     )?;
@@ -370,6 +429,7 @@ fn native_release_preserves_owned_bytes_graphs_and_atomic_history() -> Result<()
             field(&head, "stable_id")?,
             field(&head, "revision_id")?,
             Increment::Minor,
+            &providers,
             identity.clone(),
             AT,
         )?;
@@ -406,6 +466,36 @@ fn native_release_preserves_owned_bytes_graphs_and_atomic_history() -> Result<()
             field(&corrupt, "stable_id")?,
             field(&corrupt, "revision_id")?,
             Increment::Minor,
+            &providers,
+            identity.clone(),
+            AT
+        )
+        .is_err()
+    );
+    let mut missing_source = complete.clone();
+    missing_source["stable_id"] = format!("component_{}", ulid::Ulid::generate()).into();
+    missing_source["adaptations"][0]["source_artifact"] =
+        json!({"digest":digest::sha256(b"absent source"),"size_bytes":17});
+    missing_source["adaptations"][0] =
+        ai_stp_cli_v2::passport::versions::seal_adaptation(&missing_source["adaptations"][0])?;
+    let missing_source = store.transaction(|t| {
+        revisions::commit(
+            t,
+            &missing_source,
+            &identity.device_id,
+            None,
+            Write::Advance {
+                expected_heads: &[],
+            },
+        )
+    })?;
+    assert!(
+        releases::plan(
+            &mut store,
+            field(&missing_source, "stable_id")?,
+            field(&missing_source, "revision_id")?,
+            Increment::Minor,
+            &providers,
             identity.clone(),
             AT
         )

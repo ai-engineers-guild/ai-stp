@@ -54,11 +54,22 @@ fn seed(
             .map(|(key,value)|(key.clone(),json!({"value":value,"origin":"declared","confirmation":"none"}))).collect();
         revisions::commit(t,&json!({"kind":"component","stable_id":format!("component_{}",ulid::Ulid::generate()),"owner_id":identity.account_id,"created_at":AT,"facts":facts}),&identity.device_id,None,Write::Advance {expected_heads:&[]})
     })?;
+    let declarations: Vec<Value> =
+        serde_json::from_str(include_str!("fixtures/provider-declarations.json"))?;
+    let providers = declarations
+        .iter()
+        .map(|value| {
+            Ok(ai_stp_cli_v2::provider::Info::parse(&serde_json::to_vec(
+                value,
+            )?)?)
+        })
+        .collect::<Result<Vec<_>, Box<dyn Error>>>()?;
     let plan = releases::plan(
         store,
         field(&draft, "stable_id")?,
         field(&draft, "revision_id")?,
         Increment::Minor,
+        &providers,
         identity.clone(),
         AT,
     )?;
@@ -108,6 +119,23 @@ fn exact_setup_closure_constraints_atomicity_and_replay() -> Result<(), Box<dyn 
         purpose: "Check project conventions.".into(),
         members: vec![reference(&second)?],
     };
+    // Scope-specific privileges must not become unconditional setup permissions.
+    let mut scoped = first.clone();
+    scoped["version"] = "1.1".into();
+    scoped["adaptations"][0]["scope_adaptations"][0]["permissions"]["network"] =
+        json!(["global-only"]);
+    scoped["adaptations"][0] =
+        ai_stp_cli_v2::passport::versions::seal_adaptation(&scoped["adaptations"][0])?;
+    let scoped =
+        store.transaction(|t| versions::record(t, &scoped, &identity.device_id, None, AT))?;
+    let mut scoped_request = request.clone();
+    scoped_request.members = vec![reference(&scoped)?];
+    let scoped_setup = setups::plan(&mut store, scoped_request, identity.clone(), AT)?;
+    assert_eq!(
+        scoped_setup.passport["permissions"]["network"],
+        json!([]),
+        "unused scopes leaked into unconditional permissions"
+    );
     let before = counts(&mut store)?;
     let plan = setups::plan(&mut store, request.clone(), identity.clone(), AT)?;
     assert_eq!(counts(&mut store)?, before);
@@ -184,6 +212,99 @@ fn exact_setup_closure_constraints_atomicity_and_replay() -> Result<(), Box<dyn 
             .map_err(|_| Failure::precondition("proof cleanup failed"))
     })?;
     let setup = setups::apply(&mut store, &plan, &plan.digest()?, &identity, AT)?;
+    let target = ai_stp_cli_v2::selection::eligibility::Target {
+        harness_id: "claude-code".into(),
+        scope: ai_stp_cli_v2::projection::Scope::Global,
+        os: "linux".into(),
+        arch: "x86_64".into(),
+        harness_version: "2.1.224".into(),
+        owner_id: identity.account_id.clone(),
+        capabilities: Default::default(),
+        permissions: [
+            "filesystem:read:project".into(),
+            "network:https:example.com".into(),
+            "process:python".into(),
+        ]
+        .into(),
+        entitlements: Default::default(),
+        env_present: Default::default(),
+        grants: Default::default(),
+        pinned_passport_digests: Default::default(),
+        for_redistribution: false,
+    };
+    let declarations: Vec<Value> =
+        serde_json::from_str(include_str!("fixtures/provider-declarations.json"))?;
+    let declaration = declarations
+        .iter()
+        .find(|value| value["harness_id"] == "claude-code")
+        .ok_or("Claude declaration missing")?;
+    let provider = ai_stp_cli_v2::provider::Info::parse(&serde_json::to_vec(declaration)?)?;
+    let mut evidence = std::collections::BTreeMap::new();
+    for member in [&setup, &first, &second] {
+        evidence.insert(
+            field(member, "stable_id")?.to_owned(),
+            ai_stp_cli_v2::selection::eligibility::Evidence {
+                passport_digest: digest::canonical("ai-stp:passport:v1", member)?,
+                registrable: true,
+                blocked: false,
+                author_verified: false,
+                component_verified: false,
+                checks_current: false,
+                consented: false,
+            },
+        );
+    }
+    let roots = [serde_json::to_value(reference(&setup)?)?];
+    let assessed = ai_stp_cli_v2::selection::eligibility::assess_graph(
+        &mut store,
+        &roots,
+        &target,
+        &evidence,
+        Some(&provider),
+    )?;
+    assert_eq!(assessed["admissible"], true, "{assessed:#}");
+    assert_eq!(
+        assessed["assessments"]
+            .as_array()
+            .ok_or("assessments missing")?
+            .len(),
+        3
+    );
+    evidence
+        .get_mut(first_id)
+        .ok_or("evidence missing")?
+        .blocked = true;
+    assert_eq!(
+        ai_stp_cli_v2::selection::eligibility::assess_graph(
+            &mut store,
+            &roots,
+            &target,
+            &evidence,
+            Some(&provider)
+        )?["admissible"],
+        false
+    );
+    evidence.remove(first_id);
+    assert!(
+        ai_stp_cli_v2::selection::eligibility::assess_graph(
+            &mut store,
+            &roots,
+            &target,
+            &evidence,
+            Some(&provider)
+        )
+        .is_err()
+    );
+    assert!(
+        ai_stp_cli_v2::selection::eligibility::assess_graph(
+            &mut store,
+            &[],
+            &target,
+            &evidence,
+            Some(&provider)
+        )
+        .is_err()
+    );
     let id = field(&setup, "stable_id")?;
     let head = field(&setup, "revision_id")?.to_owned();
     let mut edited = setup.clone();

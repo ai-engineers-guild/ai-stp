@@ -51,7 +51,7 @@ fn extend(target: &mut BTreeSet<String>, value: &Value) -> Result<()> {
 }
 
 impl Aggregate {
-    pub(super) fn include(&mut self, document: &Value, harness: &str) -> Result<()> {
+    pub(super) fn include(&mut self, document: &Value) -> Result<()> {
         if let Some(items) = document["required_env"].as_array() {
             for item in items {
                 self.environment
@@ -72,19 +72,6 @@ impl Aggregate {
         );
         for (key, values) in &mut self.permissions {
             extend(values, &document["permissions"][*key])?;
-            for adaptation in document["adaptations"]
-                .as_array()
-                .ok_or_else(invalid)?
-                .iter()
-                .filter(|item| item["harness_id"] == harness)
-            {
-                for scope in adaptation["scope_adaptations"]
-                    .as_array()
-                    .ok_or_else(invalid)?
-                {
-                    extend(values, &scope["permissions"][*key])?;
-                }
-            }
         }
         extend(&mut self.endpoints, &document["external_endpoints"])?;
         extend(&mut self.runtimes, &document["runtime_requirements"])?;

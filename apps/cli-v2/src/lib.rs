@@ -18,6 +18,7 @@ pub mod process;
 pub mod projection;
 pub mod projects;
 pub mod provenance;
+pub mod provider;
 pub mod registry;
 pub mod selection;
 pub mod snapshot;

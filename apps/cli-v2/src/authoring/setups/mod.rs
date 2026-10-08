@@ -147,7 +147,7 @@ fn compile(
                 "a setup cannot freeze a conflicted or scaffold draft member",
             ));
         }
-        aggregate.include(&document, &request.harness_id)?;
+        aggregate.include(&document)?;
     }
     let fact = |value: Value| json!({"value":value,"origin":"derived","confirmation":"none","observed_at":at});
     let mut document = json!({"kind":"setup","stable_id":id,"owner_id":identity.account_id,

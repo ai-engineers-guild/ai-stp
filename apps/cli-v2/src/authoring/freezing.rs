@@ -13,6 +13,7 @@ use crate::{
     harnesses::Shape,
     passport,
     projection::{self, Scope, artifact},
+    provider::Info,
     store::revisions,
 };
 
@@ -67,6 +68,13 @@ pub(super) fn verify(connection: &Connection, document: &Value) -> Result<()> {
     }
     drop(payload);
     for adaptation in document["adaptations"].as_array().ok_or_else(invalid)? {
+        if !adaptation["source_artifact"].is_null() {
+            let source = &adaptation["source_artifact"];
+            let bytes = revisions::read_content(connection, text(source, "digest")?)?;
+            if source["size_bytes"] != bytes.len() {
+                return Err(invalid());
+            }
+        }
         for scope in adaptation["scope_adaptations"]
             .as_array()
             .ok_or_else(invalid)?
@@ -85,6 +93,7 @@ pub(super) fn compile(
     transaction: &Transaction<'_>,
     mut document: Value,
     version: &str,
+    providers: &[Info],
     store_at: Option<&str>,
 ) -> Result<Value> {
     document["version"] = version.into();
@@ -127,7 +136,7 @@ pub(super) fn compile(
         if !harnesses.insert(text(source, "harness_id")?) {
             return Err(invalid());
         }
-        adaptations.push(freeze(transaction, &values, source, store_at)?);
+        adaptations.push(freeze(transaction, &values, source, providers, store_at)?);
     }
     document["artifact"] = adaptations[0]["scope_adaptations"][0]["projection_artifact"].clone();
     document["artifact_format"] = artifact::FORMAT.into();
@@ -178,6 +187,7 @@ fn freeze(
     transaction: &Transaction<'_>,
     values: &Value,
     source: &Value,
+    providers: &[Info],
     store_at: Option<&str>,
 ) -> Result<Value> {
     let harness = text(source, "harness_id")?;
@@ -189,7 +199,17 @@ fn freeze(
             "this harness and component kind have no declared native provider route",
         )
     })?;
-    let profile = projection::profile(harness, route.target_scope)?;
+    let provider = providers
+        .iter()
+        .find(|info| info.document()["harness_id"] == harness)
+        .ok_or_else(|| {
+            Failure::precondition(
+                "native release requires an explicit provider declaration for every source harness",
+            )
+        })?;
+    let profile = provider
+        .profile(route.target_scope)
+        .ok_or_else(|| Failure::precondition("the provider has no profile for the source scope"))?;
     if source["projection_kind"] != route.projection_kind {
         return Err(invalid());
     }
@@ -315,8 +335,8 @@ fn freeze(
     let mut scope = json!({"scope":route.target_scope,"projection_format":artifact::FORMAT,
         "projection_artifact":{"digest":address,"size_bytes":bytes.len()},
         "provider_component_kind":if route.provider_kind.is_empty(){kind}else{&route.provider_kind},
-        "projection_kind":route.projection_kind,"required_surface":{"profile_id":profile.profile_id,
-        "profile_digest":profile.profile_digest,"bundle_format":profile.bundle_format},
+        "projection_kind":route.projection_kind,"required_surface":{"profile_id":profile["profile_id"],
+        "profile_digest":profile["digest"],"bundle_format":"ai-stp-bundle/2"},
         "permissions":permissions(&values["permissions"])?,"members":members,
         "technical_support":"experimental","technical_support_reason":"locally authored component pending assessment",
         "semantic_losses":[]});
@@ -326,6 +346,11 @@ fn freeze(
         "supported_arch",
     ] {
         scope[field] = default(values, field, json!([]));
+    }
+    if !provider.supports_scope(route.target_scope, &scope) {
+        return Err(Failure::precondition(
+            "the exact provider declaration does not cover this native projection",
+        ));
     }
     passport::versions::seal_adaptation(
         &json!({"harness_id":harness,"implementation_mode":"native",
