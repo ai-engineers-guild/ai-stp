@@ -125,6 +125,17 @@ or roll back together. Replaying a known revision preserves the current head.
 Immutable snapshots never move draft heads. This service does not yet expose
 authoring commands or import a production registry.
 
+Component artifacts use the canonical uncompressed ZIP profile. The encoder
+preserves existing bytes, including fixed timestamps, Unicode flags and Unix
+file modes. The bounded decoder refuses unsafe or colliding paths, extra members,
+nonregular files and disagreement between the manifest and actual bytes/modes.
+Only the complete canonical archive encoding is accepted: duplicate records,
+disagreeing ZIP headers, extra metadata and alternate ordering are refused.
+Portable names exclude Windows devices and reserved characters; a file cannot
+also be an ancestor of another member, including through a case alias.
+`zip` owns archive decoding; `crc32fast` supplies the wire checksum. Compression
+and encryption features are disabled because this format admits neither.
+
 ## Modules and proof
 
 | Owner | Responsibility |
@@ -141,6 +152,7 @@ authoring commands or import a production registry.
 | `environment.rs` | Exact setup prerequisites, project binding and variable-name presence |
 | `selection/` | Verified exact dependency graphs and deterministic ordering |
 | `store/`, `files/owned.rs` | Explicit owned state, atomic revision writes and shared private-file primitives |
+| `artifacts.rs` | Canonical component archives, bounded decoding and portable member identities |
 | `provenance.rs` | Offline PEP 740 cryptographic verification and publisher policy |
 
 The provenance service accepts a caller-owned trusted root and an artifact
@@ -169,6 +181,8 @@ coordinates and depth/edge exhaustion against the existing graph consumer.
 The native state journey checks persisted history after reopen, stale writes,
 ancestor replay, writer exclusion and rollback before commit. The schema oracle
 compares every table, index and constraint with a real schema-53 registry.
+Artifact vectors retain exact bytes from the existing encoder and exercise
+Unicode names, executable metadata, corrupt content and escaping/undeclared paths.
 
 For an independently downloaded artifact and its provenance, the explicit
 evidence runner hashes the actual file before verification:
