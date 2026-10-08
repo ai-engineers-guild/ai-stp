@@ -124,7 +124,7 @@ fn compile_snapshot(
         ));
     }
     drop(setup_bytes);
-    let mut composition = composition::Composition::default();
+    let mut composition = composition::Composition::new(&target.harness_id);
     let mut files = Vec::new();
     let mut bindings = Vec::new();
     let mut remaining_hosts: BTreeMap<_, _> = hosts
@@ -177,10 +177,10 @@ fn compile_snapshot(
                 "bundle v2 requires a file for every component and cannot preserve explicit directory members",
             ));
         }
-        crate::authoring::native_identity::verify_members(
+        crate::authoring::native_identity::verify_files(
             text(&component, "component_type")?,
             &target.harness_id,
-            scope,
+            declared,
             &members,
         )?;
         composition.include(&component, scope, &assessment)?;

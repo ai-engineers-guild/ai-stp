@@ -1,5 +1,7 @@
 //! Native identifiers are observed from captured content, never from display metadata.
 
+mod claude;
+
 use std::collections::{BTreeMap, BTreeSet};
 
 use serde_json::Value;
@@ -8,7 +10,6 @@ use unicode_normalization::UnicodeNormalization;
 use super::{
     contribution::{self, Format},
     discovery::Candidate,
-    frontmatter,
     source::Captured,
 };
 use crate::{
@@ -43,21 +44,6 @@ fn mcp_names(harness: &str, path: &str, key: &str, payload: &[u8]) -> Result<Vec
     }
 }
 
-fn agent_name(bytes: &[u8]) -> Result<Vec<String>> {
-    let header = frontmatter::required(bytes)?;
-    let name = header["name"].as_str().ok_or_else(invalid)?;
-    if name.starts_with('-')
-        || name.contains(':')
-        || name.chars().count() > 256
-        || header["description"]
-            .as_str()
-            .is_none_or(|text| text.trim().is_empty())
-    {
-        return Err(invalid());
-    }
-    Ok(vec![name.to_owned()])
-}
-
 fn valid(names: &[String]) -> Result<()> {
     if names.iter().any(|name| {
         name.trim().is_empty()
@@ -80,6 +66,27 @@ pub(super) fn read(candidate: &Candidate, content: &Captured) -> Result<Vec<Stri
         candidate.component_type.as_str(),
         candidate.harness_id.as_str(),
     ) {
+        ("skill" | "command", "claude-code") => {
+            if content.format == artifacts::FILE_FORMAT {
+                claude::invocations(
+                    &candidate.component_type,
+                    [(candidate.native_path.as_str(), content.bytes.as_slice())],
+                )?
+            } else if content.format == artifacts::TREE_FORMAT {
+                let mut files = artifacts::decode_tree(&content.bytes)?;
+                for file in &mut files {
+                    file.path = format!("{}/{}", candidate.native_path, file.path);
+                }
+                claude::invocations(
+                    &candidate.component_type,
+                    files
+                        .iter()
+                        .map(|file| (file.path.as_str(), file.bytes.as_slice())),
+                )?
+            } else {
+                return Err(invalid());
+            }
+        }
         ("instruction" | "skill", _) => Vec::new(),
         ("mcp", _) => {
             if content.format != artifacts::FILE_FORMAT {
@@ -114,7 +121,7 @@ pub(super) fn read(candidate: &Candidate, content: &Captured) -> Result<Vec<Stri
             if content.format != artifacts::FILE_FORMAT || !file_name.ends_with(".md") {
                 return Err(invalid());
             }
-            agent_name(&content.bytes)?
+            claude::agent_names(&content.bytes)?
         }
         _ => vec![file_name.to_owned()],
     };
@@ -122,48 +129,21 @@ pub(super) fn read(candidate: &Candidate, content: &Captured) -> Result<Vec<Stri
     Ok(names)
 }
 
-/// Passport declarations cannot replace mechanically observed native identities.
-pub(super) fn verify_projection(
-    kind: &str,
-    harness: &str,
-    source: &Value,
-    payload: &[u8],
-) -> Result<()> {
-    let expected = match (kind, harness) {
-        ("mcp", _) => {
-            if source["content_format"] != artifacts::FILE_FORMAT {
-                return Err(invalid());
-            }
-            let name = source["source_name"].as_str().ok_or_else(invalid)?;
-            mcp_names(
-                harness,
-                name,
-                source["declared_key"].as_str().unwrap_or(""),
-                payload,
-            )?
-        }
-        ("agent", "claude-code") => {
-            if source["content_format"] != artifacts::FILE_FORMAT {
-                return Err(invalid());
-            }
-            agent_name(payload)?
-        }
-        _ => return Ok(()),
-    };
-    matches(&source["native_ids"], &expected)
-}
-
-fn matches(declaration: &Value, expected: &[String]) -> Result<()> {
-    valid(expected)?;
+fn declared_names(declaration: &Value) -> Result<BTreeSet<&str>> {
     let declared = declaration.as_array().ok_or_else(invalid)?;
     let names = declared
         .iter()
         .map(|name| name.as_str().ok_or_else(invalid))
         .collect::<Result<BTreeSet<_>>>()?;
-    if expected.is_empty()
-        || names.len() != declared.len()
-        || names != expected.iter().map(String::as_str).collect()
-    {
+    if names.len() != declared.len() {
+        return Err(invalid());
+    }
+    Ok(names)
+}
+
+fn matches(names: BTreeSet<&str>, expected: &[String]) -> Result<()> {
+    valid(expected)?;
+    if expected.is_empty() || names != expected.iter().map(String::as_str).collect() {
         return Err(
             invalid().with_details([("constraint".into(), "native_identifier_mismatch".into())])
         );
@@ -172,25 +152,40 @@ fn matches(declaration: &Value, expected: &[String]) -> Result<()> {
 }
 
 /// Retained or catalog projections get the same byte-derived check as new sources.
-/// Call only after the archive has closed over its member digests and metadata.
-pub(crate) fn verify_members(
+/// Inputs come from freshly compiled files or an archive verified against its declarations.
+pub(crate) fn verify_files(
     kind: &str,
     harness: &str,
-    scope: &Value,
+    declarations: &[Value],
     files: &[artifacts::Member],
 ) -> Result<()> {
+    if harness == "claude-code" && matches!(kind, "skill" | "command") {
+        let expected = claude::invocations(
+            kind,
+            files
+                .iter()
+                .map(|file| (file.path.as_str(), file.bytes.as_slice())),
+        )?;
+        let mut names = BTreeSet::new();
+        for declaration in declarations {
+            if declaration["ownership"] != "whole" {
+                return Err(invalid());
+            }
+            names.extend(declared_names(&declaration["native_ids"])?);
+        }
+        return matches(names, &expected);
+    }
     if !(kind == "mcp" || kind == "agent" && harness == "claude-code") {
         return Ok(());
     }
-    let declared: BTreeMap<_, _> = scope["members"]
-        .as_array()
-        .ok_or_else(invalid)?
+    let declared: BTreeMap<_, _> = declarations
         .iter()
         .map(|item| Ok((item["path"].as_str().ok_or_else(invalid)?, item)))
         .collect::<Result<_>>()?;
     if files.is_empty() {
         return Err(invalid());
     }
+    let mut observed = BTreeSet::new();
     for file in files {
         let declaration = declared.get(file.path.as_str()).ok_or_else(invalid)?;
         let names = if kind == "mcp" {
@@ -206,9 +201,16 @@ pub(crate) fn verify_members(
             if declaration["ownership"] != "whole" || !file.path.ends_with(".md") {
                 return Err(invalid());
             }
-            agent_name(&file.bytes)?
+            claude::agent_names(&file.bytes)?
         };
-        matches(&declaration["native_ids"], &names)?;
+        for name in &names {
+            if !observed.insert(name.clone()) {
+                return Err(
+                    invalid().with_details([("constraint".into(), "native_id_collision".into())])
+                );
+            }
+        }
+        matches(declared_names(&declaration["native_ids"])?, &names)?;
     }
     Ok(())
 }

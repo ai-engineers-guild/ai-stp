@@ -70,15 +70,32 @@ fn component(
     let profile = provider.profile(scope).ok_or("profile missing")?;
     let kind = if contribution.is_some() {
         "mcp"
+    } else if file.path.starts_with("commands/") {
+        "command"
     } else if file.path.starts_with("agents/") {
         "agent"
-    } else if file.path.contains("skills/") {
+    } else if file.path.ends_with("/SKILL.md") {
         "skill"
     } else {
         "instruction"
     };
+    let native_ids = if matches!(kind, "mcp" | "agent") {
+        json!(["review"])
+    } else if kind == "command" {
+        json!([file
+            .path
+            .strip_prefix("commands/")
+            .ok_or("command root missing")?
+            .strip_suffix(".md")
+            .ok_or("command suffix missing")?
+            .replace('/', ":")])
+    } else if kind == "skill" {
+        json!([file.path.rsplit('/').nth(1).ok_or("skill folder missing")?])
+    } else {
+        json!([])
+    };
     let declared = json!({"path":file.path,"object_type":"file","mode":file.mode,"content_artifact":{"digest":digest::bytes("ai-stp:artifact:v1",&file.bytes)?,"size_bytes":file.bytes.len()},
-        "native_ids":if matches!(kind,"mcp"|"agent"){json!(["review"])}else{json!([])},"content_format":"application/octet-stream","parser_id":contribution.map(|_|if file.path.ends_with("toml"){"toml/1"}else{"json/1"}),
+        "native_ids":native_ids,"content_format":"application/octet-stream","parser_id":contribution.map(|_|if file.path.ends_with("toml"){"toml/1"}else{"json/1"}),
         "ownership":if contribution.is_some(){"contribution"}else{"whole"},"ownership_key":contribution,
         "write_semantics":if contribution.is_some(){"merge"}else{"replace"},"withdrawal_semantics":if contribution.is_some(){"preserve_unowned"}else{"remove_path"}});
     let payload = projection::artifact::build_members(std::slice::from_ref(&declared), &[file])?;
@@ -612,6 +629,71 @@ fn exact_bundles_cover_every_released_profile_and_refuse_unrepresentable_inputs(
         &provider,
         &Hosts::new(),
     )?;
+    let (separate, separate_evidence) = compose(&mut store, "claude-code", &[mcp.clone(), agent])?;
+    let separate_bundle = bundle::compile(
+        &mut store,
+        &separate,
+        &target,
+        &separate_evidence,
+        &provider,
+        &hosts,
+    )?;
+    export("claude-code-separate-names", &separate_bundle)?;
+    let aliased = component(
+        &mut store,
+        &provider,
+        Scope::Global,
+        File {
+            path: "skills/directory/SKILL.md".into(),
+            bytes: b"---\nname: review\ndescription: Review source.\n---\nReview source.\n"
+                .to_vec(),
+            mode: 0o644,
+        },
+        None,
+    )?;
+    // The catalog fixture's directory-only declaration cannot omit its explicit alias.
+    assert!(compose(&mut store, "claude-code", std::slice::from_ref(&aliased)).is_err());
+    let mut aliased = aliased;
+    aliased["version"] = "1.1".into();
+    aliased["adaptations"][0]["scope_adaptations"][0]["members"][0]["native_ids"] =
+        json!(["directory", "review"]);
+    aliased["adaptations"][0] = passport::versions::seal_adaptation(&aliased["adaptations"][0])?;
+    let aliased =
+        store.transaction(|t| versions::record(t, &aliased, &identity().device_id, None, AT))?;
+    for name in ["review", "directory", "team:review"] {
+        let command = component(
+            &mut store,
+            &provider,
+            Scope::Global,
+            File {
+                path: format!("commands/{}.md", name.replace(':', "/")),
+                bytes: b"---\nname: ignored\n---\nReview source.\n".to_vec(),
+                mode: 0o644,
+            },
+            None,
+        )?;
+        let (mixed, mixed_evidence) =
+            compose(&mut store, "claude-code", &[aliased.clone(), command])?;
+        let result = bundle::compile(
+            &mut store,
+            &mixed,
+            &target,
+            &mixed_evidence,
+            &provider,
+            &Hosts::new(),
+        );
+        if name == "team:review" {
+            export("claude-code-invocations", &result?)?;
+        } else {
+            assert!(
+                result
+                    .err()
+                    .ok_or("skill alias command collision accepted")?
+                    .message
+                    .contains("native_id_collision")
+            );
+        }
+    }
     let absent: Hosts = [("settings.json".into(), None)].into();
     let fresh = bundle::compile(&mut store, &setup, &target, &evidence, &provider, &absent)?;
     assert_ne!(
@@ -666,10 +748,15 @@ fn declared_exclusions_are_symmetric_and_do_not_conflict_with_their_owner()
         .ok_or("Claude missing")?;
     let provider = Info::parse(&serde_json::to_vec(declaration)?)?;
     let target = target("claude-code", Scope::Global);
-    for family in ["paths", "commands"] {
+    for scenario in ["paths", "commands", "skill-invocations"] {
+        let family = if scenario == "skill-invocations" {
+            "commands"
+        } else {
+            scenario
+        };
         let mut originals = Vec::new();
         for name in ["left", "right"] {
-            let path = if family == "paths" {
+            let path = if scenario != "commands" {
                 format!("skills/{name}/SKILL.md")
             } else {
                 format!("commands/{name}.md")
@@ -705,7 +792,7 @@ fn declared_exclusions_are_symmetric_and_do_not_conflict_with_their_owner()
                     .trim_end_matches(".md");
                 document["adaptations"][0]["scope_adaptations"][0]["members"][0]["native_ids"] =
                     json!([name]);
-                if family == "commands" {
+                if scenario == "commands" {
                     document["component_type"] = "command".into();
                     document["adaptations"][0]["logical_component_type"] = "command".into();
                     document["adaptations"][0]["scope_adaptations"][0]["provider_component_kind"] =

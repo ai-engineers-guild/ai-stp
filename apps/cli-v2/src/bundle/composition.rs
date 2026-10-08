@@ -18,8 +18,9 @@ fn declared<'a>(document: &'a Value, field: &str) -> Result<&'a Value> {
 
 #[derive(Default)]
 pub(super) struct Composition {
+    harness: String,
     paths: BTreeMap<String, String>,
-    native_ids: BTreeMap<String, String>,
+    native_ids: BTreeMap<String, BTreeMap<String, String>>,
     kinds: BTreeMap<String, String>,
     exclusions: Vec<Exclusion>,
     precedence: BTreeMap<i64, String>,
@@ -54,6 +55,22 @@ fn overlap_owner<'a>(
 }
 
 impl Composition {
+    pub fn new(harness: &str) -> Self {
+        Self {
+            harness: harness.into(),
+            ..Self::default()
+        }
+    }
+
+    fn namespace<'a>(&self, kind: &'a str) -> &'a str {
+        match (self.harness.as_str(), kind) {
+            ("claude-code", "skill" | "command") => "invocation",
+            ("claude-code", kind) => kind,
+            // Other harnesses keep the conservative shared space until verified.
+            _ => "native",
+        }
+    }
+
     pub fn claim(&mut self, owner: &str, path: &str) -> Result<()> {
         if !crate::artifacts::safe_path(path) {
             return Err(invalid(
@@ -78,6 +95,7 @@ impl Composition {
 
     pub fn include(&mut self, document: &Value, scope: &Value, assessment: &Value) -> Result<()> {
         let id = text(document, "stable_id")?;
+        let namespace = self.namespace(text(document, "component_type")?).to_owned();
         self.kinds
             .insert(id.into(), text(document, "component_type")?.into());
         for family in ["paths", "commands", "agents", "hooks", "mcp", "plugins"] {
@@ -116,6 +134,8 @@ impl Composition {
                     .ok_or_else(|| invalid("a native identifier is invalid"))?;
                 if self
                     .native_ids
+                    .entry(namespace.clone())
+                    .or_default()
                     .insert(native.into(), id.into())
                     .is_some_and(|held| held != id)
                 {
@@ -217,10 +237,12 @@ impl Composition {
                     _ => return Err(invalid("unknown native conflict family")),
                 };
                 self.native_ids
-                    .get(&exclusion.value)
+                    .get(self.namespace(kind))
+                    .and_then(|names| names.get(&exclusion.value))
                     .filter(|owner| {
                         *owner != &exclusion.owner
-                            && self.kinds.get(*owner).is_some_and(|held| held == kind)
+                            && (self.harness == "claude-code"
+                                || self.kinds.get(*owner).is_some_and(|held| held == kind))
                     })
                     .map(String::as_str)
             };

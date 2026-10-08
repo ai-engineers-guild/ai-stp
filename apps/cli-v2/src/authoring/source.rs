@@ -348,7 +348,7 @@ pub fn capture(path: &Path) -> Result<Captured> {
         .ok_or_else(invalid)?;
     let directory =
         Dir::open_ambient_dir(parent, cap_std::ambient_authority()).map_err(|_| invalid())?;
-    capture_open(&directory, name, &absolute)
+    capture_open(&directory, name, &absolute, true)
 }
 
 /// Authoring projects own metadata above source/, so no native manifest is implied.
@@ -370,6 +370,16 @@ pub(super) fn project(root: &Path) -> Result<Vec<Member>> {
 
 /// Capture a catalog-selected source without following any layout ancestor link.
 pub fn capture_scoped(root: &Path, relative: &str) -> Result<Captured> {
+    capture_scoped_with(root, relative, true)
+}
+
+/// A declared Claude command directory is defined by its Markdown entries.
+/// The caller must validate those names before storing the bounded capture.
+pub(super) fn capture_commands(root: &Path, relative: &str) -> Result<Captured> {
+    capture_scoped_with(root, relative, false)
+}
+
+fn capture_scoped_with(root: &Path, relative: &str, require_manifest: bool) -> Result<Captured> {
     check_name(relative)?;
     let root_metadata = root.symlink_metadata().map_err(|_| invalid())?;
     if !root_metadata.is_dir() || root_metadata.file_type().is_symlink() {
@@ -380,14 +390,19 @@ pub fn capture_scoped(root: &Path, relative: &str) -> Result<Captured> {
     let mut parts = relative.split('/').peekable();
     while let Some(part) = parts.next() {
         if parts.peek().is_none() {
-            return capture_open(&directory, part, &root.join(relative));
+            return capture_open(&directory, part, &root.join(relative), require_manifest);
         }
         directory = directory.open_dir_nofollow(part).map_err(|_| invalid())?;
     }
     Err(invalid())
 }
 
-fn capture_open(directory: &Dir, name: &str, absolute: &Path) -> Result<Captured> {
+fn capture_open(
+    directory: &Dir,
+    name: &str,
+    absolute: &Path,
+    require_manifest: bool,
+) -> Result<Captured> {
     check_name(name)?;
     let metadata = directory.symlink_metadata(name).map_err(|_| invalid())?;
     if metadata.file_type().is_symlink() {
@@ -401,7 +416,7 @@ fn capture_open(directory: &Dir, name: &str, absolute: &Path) -> Result<Captured
             return Err(invalid());
         }
         let child = directory.open_dir_nofollow(name).map_err(|_| invalid())?;
-        let members = tree(absolute, &child, true)?;
+        let members = tree(absolute, &child, require_manifest)?;
         return Ok(Captured {
             format: artifacts::TREE_FORMAT,
             bytes: artifacts::encode_tree(&members)?,

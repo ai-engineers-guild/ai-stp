@@ -106,6 +106,65 @@ fn native_identity_journey(identity: &Identity, at: &str) -> Result<(), Box<dyn 
         );
         assert_eq!(fs::read_to_string(file)?, content);
     }
+    for (index, (kind, path, content, names)) in [
+        ("skill", "skills/folder/SKILL.md", "---\nname: inspect\ndescription: Inspect source.\nallowed-tools: Read\n---\nInspect source.\n", vec!["folder", "inspect"]),
+        ("skill", "skills/folder/SKILL.md", "Inspect source with the directory name.\n", vec!["folder"]),
+        ("command", "commands/review.md", "---\nname: ignored-name\ndescription: Review source.\n---\nReview source.\n", vec!["review"]),
+        ("command", "commands/team/review.md", "Review source.\n", vec!["team:review"]),
+    ].into_iter().enumerate() {
+        let native = root.path().join(format!("invocation-{index}"));
+        let file = native.join(path);
+        fs::create_dir_all(file.parent().ok_or("parent")?)?;
+        fs::write(&file, content)?;
+        let plan = adoption::plan(&mut store, selected(&native, "claude-code", Scope::Global, kind)?, identity.clone(), at)?;
+        assert_eq!(plan.passport["facts"]["native_ids"]["value"], json!(names), "{kind}: {path}");
+        adoption::apply(&mut store, &plan, &plan.digest()?, identity, at)?;
+        assert_eq!(fs::read_to_string(file)?, content);
+    }
+    let invalid_skill = root.path().join("invalid-skill");
+    fs::create_dir_all(invalid_skill.join("skills/folder"))?;
+    let before = counts(&mut store)?;
+    for body in [
+        "---\nname: first\nname: second\n---\nReview.\n",
+        "---\nname: has space\n---\nReview.\n",
+        "---\nname: cafe\u{301}\n---\nReview.\n",
+        "---\nname: anthropic-skills:review\n---\nReview.\n",
+    ] {
+        fs::write(invalid_skill.join("skills/folder/SKILL.md"), body)?;
+        assert!(
+            adoption::plan(
+                &mut store,
+                selected(&invalid_skill, "claude-code", Scope::Global, "skill")?,
+                identity.clone(),
+                at
+            )
+            .is_err()
+        );
+        assert_eq!(counts(&mut store)?, before);
+    }
+    let duplicate_commands = root.path().join("duplicate-commands");
+    fs::create_dir_all(duplicate_commands.join("commands/team/sub"))?;
+    fs::write(
+        duplicate_commands.join("commands/team/sub/review.md"),
+        "Review source.",
+    )?;
+    #[cfg(unix)]
+    {
+        fs::write(
+            duplicate_commands.join("commands/team/sub:review.md"),
+            "Review again.",
+        )?;
+        assert!(
+            adoption::plan(
+                &mut store,
+                selected(&duplicate_commands, "claude-code", Scope::Global, "command")?,
+                identity.clone(),
+                at
+            )
+            .is_err()
+        );
+        assert_eq!(counts(&mut store)?, before);
+    }
     let native = root.path().join("local-agents");
     fs::create_dir_all(native.join("agents"))?;
     let agent = native.join("agents/different-filename.md");

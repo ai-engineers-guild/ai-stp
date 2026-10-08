@@ -99,6 +99,8 @@ fn native_release_preserves_owned_bytes_graphs_and_atomic_history() -> Result<()
         ("codex","mcp","config.toml",b"model = 'unowned'\n[mcp_servers.example]\ncommand = 'example'\n".as_slice(),"toml/1"),
         ("cursor","hook","hooks.json",br#"{"version":1,"hooks":{}}"#.as_slice(),""),
         ("undefined","skill",".agents/skills/example/SKILL.md",b"# Example\n".as_slice(),""),
+        ("claude-code","command","commands/team/review.md",b"---\nname: ignored\n---\nReview source.\n".as_slice(),""),
+        ("claude-code","skill","skills/folder/SKILL.md",b"---\nname: inspect\ndescription: Inspect source.\n---\nInspect source.\n".as_slice(),""),
     ];
     let mut released = Vec::new();
     let mut first_plan = None;
@@ -118,6 +120,12 @@ fn native_release_preserves_owned_bytes_graphs_and_atomic_history() -> Result<()
                     fs::Permissions::from_mode(0o755),
                 )?;
             }
+        }
+        if harness == "claude-code" && kind == "skill" {
+            fs::write(
+                root.join("skills/folder/reference.md"),
+                b"Read project conventions.\n",
+            )?;
         }
         let draft = adopt(&mut store, &root, harness, kind, &identity)?;
         let id = field(&draft, "stable_id")?;
@@ -174,7 +182,7 @@ fn native_release_preserves_owned_bytes_graphs_and_atomic_history() -> Result<()
             assert_eq!(counts(&mut store)?, before);
             draft = adopt(&mut store, &root, harness, kind, &identity)?;
         }
-        if harness == "claude-code" {
+        if harness == "claude-code" && kind == "hook" {
             // A finished passport description cannot turn an unedited source stub into a release.
             fs::write(
                 &path,
@@ -317,6 +325,18 @@ fn native_release_preserves_owned_bytes_graphs_and_atomic_history() -> Result<()
                     ["hooks.json"]
                 );
                 assert_eq!(files[0].bytes, bytes);
+            } else if harness == "claude-code" {
+                assert_eq!(scope["scope"], "global");
+                let (expected_path, names) = if kind == "command" {
+                    ("commands/team/review.md", json!(["team:review"]))
+                } else {
+                    assert_eq!(files.len(), 2);
+                    assert_eq!(files[1].bytes, b"Read project conventions.\n");
+                    ("skills/folder/SKILL.md", json!(["folder", "inspect"]))
+                };
+                assert_eq!(files[0].path, expected_path);
+                assert_eq!(files[0].bytes, bytes);
+                assert_eq!(scope["members"][0]["native_ids"], names);
             } else {
                 assert_eq!(scope["scope"], "user_root");
                 assert_eq!(

@@ -111,7 +111,12 @@ pub(super) fn prepare(request: &Source) -> Result<Prepared> {
             "credential-named sources cannot be adopted",
         ));
     }
-    let mut content = source::capture_scoped(&request.root, &candidate.native_path)?;
+    let mut content =
+        if candidate.harness_id == "claude-code" && candidate.component_type == "command" {
+            source::capture_commands(&request.root, &candidate.native_path)?
+        } else {
+            source::capture_scoped(&request.root, &candidate.native_path)?
+        };
     let native_ids = native_identity::read(&candidate, &content)?;
     if !candidate.declared_key.is_empty() {
         content.bytes = contribution::extract(

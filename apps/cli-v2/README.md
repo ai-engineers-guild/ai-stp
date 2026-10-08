@@ -180,8 +180,24 @@ budgets. Payload bytes and unknown metadata remain intact. Exact-version reuse
 and bundle compilation independently re-derive these identifiers from verified
 projection member bytes; a valid archive/passport digest alone does not establish
 native identity. MCP contributions must name the harness's actual configuration
-key. Mismatched retained versions refuse without rewriting their immutable data. Other harness-specific
-native identity/format checks and structured credential handling remain pending.
+key. Mismatched retained versions refuse without rewriting their immutable data.
+
+Local Claude skills expose the root `SKILL.md` frontmatter name and directory
+alias; absent `name` falls back to the directory. Reserved local skill folders,
+ambiguous headers and skill-folder plugin manifests refuse. Skill auxiliary bytes
+remain intact. Claude legacy commands use the `.md` filename and colon-separated
+subdirectories; their frontmatter `name` does not rename the invocation. A declared
+command directory needs Markdown entries, not an unrelated package manifest, and
+retains the same link, secret-name, Git-set and capture limits.
+
+Claude skills and commands share one invocation space. Agents and MCP servers
+have separate spaces, so an agent and MCP server named `review` can coexist, while
+a command colliding with either skill alias refuses. Explicit `commands` conflicts
+also cover skill aliases. Duplicate definitions inside one component refuse too.
+New compilation and retained-version verification use the same member check.
+Other harnesses retain conservative shared-name collision checks until their
+native semantics are verified. Remaining format/identity checks, Pi's executable
+MCP extension adapter and structured credential handling are pending.
 
 `component adaptation edit plan` replaces one complete native adaptation in an
 owned complete draft. `--sources` reads an array of up to three `{scope, source}`
@@ -582,7 +598,7 @@ no async runtime or tracing feature is enabled for it.
 | `authoring/native_edit.rs` | Exact native adaptation replacement with complete scope preservation |
 | `authoring/setups/copies.rs` | Private exact setup forks and recasts with atomic lineage |
 | `authoring/setups/export.rs` | Exact review-tree export from query-only retained state |
-| `authoring/native_identity.rs` | Captured MCP server and Claude local agent identifiers |
+| `authoring/native_identity.rs`, `authoring/native_identity/` | Captured and projected MCP identities and Claude agent/invocation names |
 | `authoring/frontmatter.rs` | Shared bounded YAML header parsing without source execution |
 | `authoring/project_binding.rs` | Atomic portable project identity and complete adaptation refresh |
 | `authoring/runtime.rs` | Identity-bound local plans, closed operation dispatch and private registry reads |
