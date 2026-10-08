@@ -177,6 +177,14 @@ Documented environment references remain intact (Claude/Grok `${NAME}`, Cursor
 `${env:NAME}`, OpenCode `{env:NAME}` and `{file:path}`). Codex's server-level
 `env_http_headers` contains variable names; placing that field elsewhere does not
 bypass credential checks. Reference defaults containing literal values refuse.
+This includes `Proxy-Authorization`, access-key IDs and session cookies. Absolute
+host-bearing URL scalars, including arguments and environment values, refuse
+userinfo and recognized credential parameters in queries or form-shaped fragments.
+Parameter names are percent-decoded before checking. Credential parameters refuse
+even when their value is an external reference; ordinary public query parameters
+remain intact. This follows [MCP token transport](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization#access-token-usage)
+and [HTTP userinfo rules](https://www.rfc-editor.org/rfc/rfc9110.html#section-4.2.4).
+No URL is fetched and no environment reference is resolved.
 The data-only readers retain the existing size, depth and node bounds.
 
 This does not validate transport execution
@@ -351,7 +359,7 @@ native semantics are verified. Pi 1.0.0 has native `mcp.json`, but the pinned
 `pi/native-files/2` provider profile admits neither that path nor the MCP kind;
 support needs a public provider profile and a versioned route, not an extension
 substitute. Remaining format/identity checks and credential handling outside these named MCP fields
-(including URLs, opaque arguments/scripts and other configuration kinds) are pending.
+(including URLs embedded inside opaque arguments/scripts and other configuration kinds) are pending.
 
 `component adaptation edit plan` replaces one complete native adaptation in an
 owned complete draft. `--sources` reads an array of up to three `{scope, source}`

@@ -1,4 +1,4 @@
-//! Observe MCP entries and reject literals in named credential fields.
+//! Observe MCP entries and reject credential literals and credential-bearing URLs.
 
 use jsonc_parser::cst::CstInputValue;
 use toml_edit::{DocumentMut, Item, TableLike, Value};
@@ -36,9 +36,11 @@ fn sensitive(parent: &str, name: &str) -> bool {
         name.as_str(),
         "apikey"
             | "accesskey"
+            | "accesskeyid"
             | "accesstoken"
             | "authtoken"
             | "authorization"
+            | "proxyauthorization"
             | "clientsecret"
             | "credential"
             | "credentials"
@@ -53,18 +55,47 @@ fn sensitive(parent: &str, name: &str) -> bool {
             | "bearertoken"
             | "cookie"
             | "setcookie"
-    ) || (matches!(parent, "env" | "environment" | "headers" | "http_headers")
-        && [
-            "apikey",
-            "accesskey",
-            "token",
-            "secret",
-            "password",
-            "passwd",
-            "privatekey",
-        ]
-        .iter()
-        .any(|suffix| name.ends_with(suffix)))
+    ) || (matches!(
+        parent,
+        "env" | "environment" | "headers" | "http_headers" | "query"
+    ) && [
+        "apikey",
+        "accesskey",
+        "accesskeyid",
+        "token",
+        "secret",
+        "password",
+        "passwd",
+        "privatekey",
+        "cookie",
+    ]
+    .iter()
+    .any(|suffix| name.ends_with(suffix)))
+}
+
+fn check_url(value: &str) -> Result<()> {
+    let Ok(url) = url::Url::parse(value) else {
+        return Ok(());
+    };
+    if !url.has_host() {
+        return Ok(());
+    }
+    // Parse the scalar as data, without resolving references or contacting a
+    // host. URL/form decoding exposes encoded parameter names exactly once.
+    if !url.username().is_empty()
+        || url.password().is_some()
+        || url.query_pairs().any(|(key, _)| sensitive("query", &key))
+        || url.fragment().is_some_and(|fragment| {
+            url::form_urlencoded::parse(fragment.as_bytes())
+                .any(|(key, _)| sensitive("query", &key))
+        })
+    {
+        return Err(Failure::precondition(
+            "MCP URLs must not contain user information or credential parameters",
+        )
+        .with_details([("constraint".into(), "credential_url".into())]));
+    }
+    Ok(())
 }
 
 fn variable(name: &str) -> bool {
@@ -145,7 +176,7 @@ impl Guard<'_> {
                 Err(credential())
             }
             Field::EnvironmentName if !value.is_some_and(variable) => Err(invalid()),
-            _ => Ok(()),
+            _ => value.map_or(Ok(()), check_url),
         }
     }
 

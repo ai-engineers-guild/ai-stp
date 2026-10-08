@@ -541,6 +541,66 @@ fn native_identity_journey(identity: &Identity, at: &str) -> Result<(), Box<dyn 
             "mcp.json",
             r#"{"accessToken":"synthetic-sensitive-value","mcpServers":{"review":{"command":"server"}}}"#,
         ),
+        (
+            "cursor",
+            "mcp.json",
+            r#"{"mcpServers":{"review":{"url":"https://example.invalid/mcp","headers":{"Proxy-Authorization":"Basic synthetic-sensitive-value"}}}}"#,
+        ),
+        (
+            "codex",
+            "config.toml",
+            "[mcp_servers.review]\nurl = 'https://example.invalid/mcp'\nhttp_headers = { Proxy-Authorization = 'synthetic-sensitive-value' }\n",
+        ),
+        (
+            "cursor",
+            "mcp.json",
+            r#"{"mcpServers":{"review":{"url":"https://user:synthetic-sensitive-value@example.invalid/mcp"}}}"#,
+        ),
+        (
+            "antigravity",
+            "config/mcp_config.json",
+            r#"{"mcpServers":{"review":{"serverUrl":"https://synthetic-sensitive-value@example.invalid/mcp"}}}"#,
+        ),
+        (
+            "cursor",
+            "mcp.json",
+            r#"{"mcpServers":{"review":{"url":"https://example.invalid/mcp?mode=review&%61ccess%5ftoken=synthetic-sensitive-value"}}}"#,
+        ),
+        (
+            "grok-build",
+            "config.toml",
+            "[mcp_servers.review]\nurl = 'https://example.invalid/mcp?X-API-Key=synthetic-sensitive-value'\n",
+        ),
+        (
+            "opencode",
+            "opencode.jsonc",
+            r#"{"mcp":{"review":{"type":"local","command":["mcp-remote","https://example.invalid/mcp?token=synthetic-sensitive-value"]}}}"#,
+        ),
+        (
+            "cursor",
+            "mcp.json",
+            r#"{"mcpServers":{"review":{"url":"https://example.invalid/mcp#access_token=synthetic-sensitive-value"}}}"#,
+        ),
+        (
+            "cursor",
+            "mcp.json",
+            r#"{"mcpServers":{"review":{"url":"https://example.invalid/mcp?access_token=${env:REVIEW_TOKEN}"}}}"#,
+        ),
+        (
+            "cursor",
+            "mcp.json",
+            r#"{"mcpServers":{"review":{"command":"server","env":{"DATABASE_URL":"postgresql://user:synthetic-sensitive-value@example.invalid/db"}}}}"#,
+        ),
+        (
+            "cursor",
+            "mcp.json",
+            r#"{"mcpServers":{"review":{"command":"server","env":{"AWS_ACCESS_KEY_ID":"synthetic-sensitive-value"}}}}"#,
+        ),
+        (
+            "cursor",
+            "mcp.json",
+            r#"{"mcpServers":{"review":{"command":"server","env":{"SESSION_COOKIE":"synthetic-sensitive-value"}}}}"#,
+        ),
     ] {
         let native = root.path().join(format!("credential-{harness}"));
         let file = native.join(name);
@@ -568,7 +628,7 @@ fn native_identity_journey(identity: &Identity, at: &str) -> Result<(), Box<dyn 
             "cursor",
             "mcp.json",
             "",
-            r#"{"mcpServers":{"review":{"command":"server","envFile":".env","env":{"API_KEY":"${env:my-api-key}","LOG_LEVEL":"info"},"headers":{"Authorization":"Bearer ${env:REVIEW_TOKEN}"}}}}"#,
+            r#"{"mcpServers":{"review":{"command":"server","url":"https://example.invalid/mcp?mode=review&client_id=public#section","envFile":".env","env":{"API_KEY":"${env:my-api-key}","AWS_ACCESS_KEY_ID":"${env:ACCESS_ID}","SESSION_COOKIE":"${env:COOKIE}","LOG_LEVEL":"info"},"headers":{"Authorization":"Bearer ${env:REVIEW_TOKEN}","Proxy-Authorization":"${env:PROXY_AUTH}"}}}}"#,
         ),
         (
             "codex",
