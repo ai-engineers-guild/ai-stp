@@ -156,9 +156,8 @@ retained artifacts and returns the original result without rewinding later heads
 The CLI plans this service through its verified isolated identity.
 
 Local authoring plans wrap the domain operation and lossless state parent in one
-digest. The executable exposes source binding, native discovery/adoption,
-confirmed metadata updates, immutable component release, exact forks and setup
-composition. `local apply` dispatches only these closed operation types, derives
+digest. `local apply` dispatches the closed authoring and project-registration
+operations declared by the executable registry, derives
 the current author from the private identity and verifies the complete plan before
 opening writable state. A different owner, altered plan or unsupported action
 cannot initialize a registry. Domain services retain their exact source, head,
@@ -534,7 +533,7 @@ bindings; passport display paths redact the current home.
 
 Apply first durably records the exact accepted plan as `prepared`, then writes
 the marker, then commits the passport, root binding and `verified` receipt in one
-SQLite transaction. No project entity is exposed before that final commit. A
+SQLite transaction. No new project entity is exposed before that final commit. A
 repeated plan returns a pending operation for recovery, even after its start
 interval expires. Recovery finishes the already accepted observation; a later
 scan records later source changes. Completed replay returns its original receipt
@@ -656,6 +655,23 @@ cannot replace it. Minor numbering advances the latest verified line, while
 major advancement is an explicit choice. Numeric overflow is refused, and
 recording a version preserves the current draft head.
 
+`component passport validate` checks the current head in one read-only view.
+It reports missing publication metadata, exact HTTPS source-coordinate shape and
+local lifecycle blockers, then invokes the release compiler without persisting
+artifacts or reserving a version. Flat drafts need explicit `--provider-info`
+declarations; complete passports verify every retained adaptation directly.
+`blocking_checks` retains typed compilation failures, including invalid native
+identities, missing CAS content and unsupported provider surfaces. The structural
+result does not establish remote source accessibility, source-content provenance,
+authentication, publication approval, trust or runtime readiness.
+
+`component passport quality` uses the same view for five deterministic hint
+categories. Complete passports supply top-level metadata and every adaptation
+scope; flat drafts supply declared facts. Its generated report contract keeps
+`informational_only` true and all trust/publication effects false. No score or
+verification is inferred from a hint. Both commands need the explicit state
+parent but no credential session, and neither changes stored revisions or bytes.
+
 The component release service binds the exact draft, next number and resulting
 passport and explicit provider declarations in a fifteen-minute plan. Flat-source
 compilation uses those declarations' exact scoped profile identities, namespaces,
@@ -667,8 +683,8 @@ rolls back; a completed replay verifies stored bytes even after expiry and does
 not move the draft. Another release invalidates a plan for the same next number.
 Complete passports retain every adaptation through metadata edits and releases;
 invalid graphs never fall back to reconstruction from flat draft facts. Native
-fields of complete passports require an explicit adaptation edit, which remains
-unfinished. Metadata edits update both declared facts and logical passport fields.
+fields of complete passports use `component adaptation edit plan`; metadata edits
+update both declared facts and logical passport fields.
 
 Flat drafts compile bounded file/tree artifacts through the declared provider
 route. JSON and TOML contributions retain their actual parser and ownership key;
@@ -682,8 +698,8 @@ deterministically; duplicate resolved scopes refuse. Each scope retains its own
 platform/version declarations and permissions, while logical permissions still
 apply to the component as a whole.
 Unsupported routes and incomplete facts refuse release; local compilation stays
-experimental and makes no support or installation claim. Imported source artifact
-formats and adaptation authoring remain separate unfinished services.
+experimental and makes no support or installation claim. Imported source formats
+outside the supported capture/compilation formats remain separate services; explicit native adaptation replacement uses the same verifier.
 
 Component forks bind an exact source version and passport digest to a new private
 draft owned by the local authoring identity. The full adaptation graph and bytes
@@ -709,8 +725,9 @@ Redistribution is the conjunction of member declarations. The exact passports
 remain authoritative for scope-specific permissions, platform, version and capability constraints;
 composition is not mechanical installation eligibility or a provider approval.
 Request metadata is bounded to 256 KiB and the resulting passport to 1 MiB.
-Native configuration import, native recast derivation and
-project state binding remain pending.
+Native configuration import, native recast derivation and project-to-setup
+selection binding remain pending. Project identity registration is implemented
+separately from that selection.
 
 Component artifacts use the canonical uncompressed ZIP profile. The encoder
 preserves existing bytes, including fixed timestamps, Unicode flags and Unix
@@ -835,6 +852,7 @@ no async runtime or tracing feature is enabled for it.
 | `identity/` | Explicit offline identity initialization, private key storage and public signing identity |
 | `authoring/source_project.rs` | One bounded source snapshot, metadata separation and structural readiness |
 | `authoring/adaptations.rs` | Explicit portable-to-native projections preserving source bodies and modes |
+| `authoring/review.rs` | Read-only publication structure and optional quality hints over every retained adaptation |
 | `authoring/native_edit.rs` | Exact native adaptation replacement with complete scope preservation |
 | `authoring/setups/copies.rs` | Private exact setup forks and recasts with atomic lineage |
 | `authoring/setups/export.rs` | Exact review-tree export from query-only retained state |

@@ -4,7 +4,7 @@ use ai_stp_cli_v2::{
     authoring::{
         Identity, adoption, discovery, forks,
         passports::{self, Patch},
-        releases,
+        releases, review,
     },
     canonical, digest,
     error::Failure,
@@ -129,6 +129,19 @@ fn native_release_preserves_owned_bytes_graphs_and_atomic_history() -> Result<()
         }
         let draft = adopt(&mut store, &root, harness, kind, &identity)?;
         let id = field(&draft, "stable_id")?;
+        let before_review = counts(&mut store)?;
+        let validation = review::validate(&mut store, id, &providers)?;
+        assert_eq!(validation["ready"], false);
+        assert!(
+            validation["missing_fields"]
+                .as_array()
+                .ok_or("fields missing")?
+                .contains(&json!("license"))
+        );
+        let quality = review::quality(&mut store, id, &providers)?;
+        assert_eq!(quality["informational_only"], true);
+        assert_eq!(quality["affects_component_verified"], false);
+        assert_eq!(counts(&mut store)?, before_review);
         assert!(
             releases::plan(
                 &mut store,
@@ -176,6 +189,12 @@ fn native_release_preserves_owned_bytes_graphs_and_atomic_history() -> Result<()
             .err()
             .ok_or("fabricated MCP IDs released")?;
             assert_eq!(refused.details["constraint"], "native_identifier_mismatch");
+            let validation = review::validate(&mut store, id, &providers)?;
+            assert_eq!(validation["ready"], false);
+            assert_eq!(
+                validation["blocking_checks"][0]["details"]["constraint"],
+                "native_identifier_mismatch"
+            );
             assert_eq!(counts(&mut store)?, before);
             draft = adopt(&mut store, &root, harness, kind, &identity)?;
         }
@@ -227,6 +246,10 @@ fn native_release_preserves_owned_bytes_graphs_and_atomic_history() -> Result<()
         let id = field(&draft, "stable_id")?;
         let head = field(&draft, "revision_id")?;
         let before = counts(&mut store)?;
+        let validation = review::validate(&mut store, id, &providers)?;
+        assert_eq!(validation["missing_fields"], json!(["source"]));
+        assert_eq!(validation["invalid_fields"], json!([]));
+        assert_eq!(counts(&mut store)?, before);
         assert!(
             releases::plan(
                 &mut store,
@@ -355,6 +378,7 @@ fn native_release_preserves_owned_bytes_graphs_and_atomic_history() -> Result<()
     complete["stable_id"] = id.into();
     complete["owner_id"] = "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z".into();
     complete["visibility"] = "public".into();
+    complete["source"] = json!({"repository":"https://gitlab.com/example/native","commit":"1111111111111111111111111111111111111111","path":"components/example"});
     complete["adaptations"]
         .as_array_mut()
         .ok_or("adaptations missing")?
@@ -439,6 +463,18 @@ fn native_release_preserves_owned_bytes_graphs_and_atomic_history() -> Result<()
     assert!(releases::apply(&mut store, &stale, &stale.digest()?, &identity, LATER).is_err());
     assert_eq!(edited["name"], "Two harnesses");
     assert_eq!(edited["adaptations"], complete["adaptations"]);
+    // Complete passports own metadata at the top level and native surfaces in
+    // every adaptation. Flat legacy fields are not required by these reports.
+    let before_review = counts(&mut store)?;
+    let validation = review::validate(&mut store, id, &[])?;
+    assert_eq!(validation["missing_fields"], json!([]));
+    assert_eq!(validation["ready"], true);
+    assert_eq!(validation["invalid_fields"], json!([]));
+    let quality = review::quality(&mut store, id, &[])?;
+    assert_eq!(quality["dimensions"][4]["status"], "passed");
+    assert_eq!(quality["dimensions"][2]["checks"][2]["status"], "passed");
+    assert_eq!(quality, review::quality(&mut store, id, &[])?);
+    assert_eq!(counts(&mut store)?, before_review);
     let release = releases::plan(
         &mut store,
         id,
@@ -610,6 +646,9 @@ fn native_release_preserves_owned_bytes_graphs_and_atomic_history() -> Result<()
         .is_err()
     );
     let mut missing_source = complete.clone();
+    let validation = review::validate(&mut store, field(&corrupt, "stable_id")?, &[])?;
+    assert_eq!(validation["ready"], false);
+    assert_eq!(validation["invalid_fields"], json!(["native_release"]));
     missing_source["stable_id"] = format!("component_{}", ulid::Ulid::generate()).into();
     missing_source["adaptations"][0]["source_artifact"] =
         json!({"digest":digest::sha256(b"absent source"),"size_bytes":17});

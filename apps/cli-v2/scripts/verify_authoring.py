@@ -12,7 +12,11 @@ from contextlib import closing
 from pathlib import Path
 from typing import Any
 
-from ai_stp_contracts.cli.components import PassportView
+from ai_stp_contracts.cli.components import (
+    ComponentPassportValidation,
+    ComponentQualityReport,
+    PassportView,
+)
 from ai_stp_foundation.digests import digest_bytes, digest_canonical
 from ai_stp_passports import ComponentVersionPassport, SetupVersionPassport
 
@@ -182,6 +186,26 @@ def prove(binary: Path, home: Path, temporary: Path, run: Runner) -> None:
     view = invoke(show)
     PassportView.model_validate(view)
     assert view["revision_id"] == component["revision_id"]
+    review_args = ["--state-dir", str(state), "--id", component_id]
+    with closing(sqlite3.connect(database)) as connection:
+        before_review = {
+            table: connection.execute(f"SELECT count(*) FROM {table}").fetchone()[0]
+            for table in ("revision", "content", "operation", "object_version")
+        }
+    validation = invoke(["component", "passport", "validate", *review_args])
+    ComponentPassportValidation.model_validate(validation)
+    assert validation["ready"] is False and validation["missing_fields"] == ["source"]
+    assert validation["invalid_fields"] == []
+    quality = invoke(["component", "passport", "quality", *review_args])
+    ComponentQualityReport.model_validate(quality)
+    assert quality["informational_only"] is True
+    assert quality["affects_trust_lane"] is False
+    assert invoke(["component", "passport", "quality", *review_args]) == quality
+    with closing(sqlite3.connect(database)) as connection:
+        assert all(
+            connection.execute(f"SELECT count(*) FROM {table}").fetchone()[0] == count
+            for table, count in before_review.items()
+        )
     patch = root / "patch.json"
     patch.write_text(json.dumps({"tags": ["review", "quality"]}), encoding="utf-8")
     update = invoke(
@@ -571,6 +595,9 @@ def prove(binary: Path, home: Path, temporary: Path, run: Runner) -> None:
     )
     invoke(bind, 4)
     invoke(["setup", "compose", "plan", "--state-dir", str(state), "--request", str(request)], 4)
+    validation = invoke(["component", "passport", "validate", *review_args])
+    assert validation["ready"] is False
+    assert validation["blocking_checks"][0]["details"]["constraint"] == "object_forgotten"
     with closing(sqlite3.connect(database)) as connection:
         assert all(
             connection.execute(f"SELECT count(*) FROM {table}").fetchone()[0] == count

@@ -14,6 +14,7 @@ pub(crate) mod native_identity;
 pub mod passports;
 pub mod project_binding;
 pub mod releases;
+pub mod review;
 pub mod runtime;
 pub mod scaffold;
 pub mod setups;

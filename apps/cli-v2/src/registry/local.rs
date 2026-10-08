@@ -9,17 +9,19 @@ use super::{Declaration, ID, KIND, Parameter, ParameterType, ROOT, STATE_DIR};
 use crate::{
     authoring::{
         adoption, discovery, forks, lifecycle, native_edit, passports, project_binding, releases,
-        runtime, scaffold, setups,
+        review, runtime, scaffold, setups,
     },
     canonical,
     error::{Failure, Result},
     files, projects,
     provider::Info,
-    store::versions::Increment,
+    store::{Store, versions::Increment},
 };
 
 #[derive(Clone, Copy)]
 pub(super) enum Handler {
+    Validate,
+    Quality,
     ProjectPassport,
     Bind,
     Adopt,
@@ -45,7 +47,12 @@ pub(super) enum Handler {
 impl Handler {
     pub(super) fn mutability(self) -> &'static str {
         match self {
-            Self::Discover | Self::Show | Self::Version | Self::Versions => "read",
+            Self::Discover
+            | Self::Show
+            | Self::Version
+            | Self::Versions
+            | Self::Validate
+            | Self::Quality => "read",
             Self::Apply | Self::ExportApply | Self::SetupScaffoldApply => "apply",
             _ => "plan",
         }
@@ -120,6 +127,18 @@ const PROVIDERS: Parameter = Parameter {
 };
 
 pub(super) const COMMANDS: &[Declaration] = &[
+    Declaration {
+        path: &["component", "passport", "validate"],
+        summary: "Check local publication structure and retained native bytes without releasing or publishing.",
+        parameters: &[STATE_DIR, ID, PROVIDERS],
+        handler: super::Handler::Local(Handler::Validate),
+    },
+    Declaration {
+        path: &["component", "passport", "quality"],
+        summary: "Read deterministic authoring hints across every adaptation without changing trust or publication decisions.",
+        parameters: &[STATE_DIR, ID, PROVIDERS],
+        handler: super::Handler::Local(Handler::Quality),
+    },
     Declaration {
         path: &["project", "passport", "plan"],
         summary: "Plan or recover one private project observation and preview marker without importing production identity.",
@@ -437,6 +456,15 @@ fn providers(args: &ArgMatches) -> Result<Vec<Info>> {
 
 pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
     match handler {
+        Handler::Validate | Handler::Quality => {
+            let providers = providers(args)?;
+            let mut store = Store::planning(path(args, "state-dir")?)?;
+            if matches!(handler, Handler::Validate) {
+                review::validate(&mut store, text(args, "id")?, &providers)
+            } else {
+                review::quality(&mut store, text(args, "id")?, &providers)
+            }
+        }
         Handler::ProjectPassport => {
             runtime::plan(path(args, "state-dir")?, |store, identity, at| {
                 projects::passports::plan(store, path(args, "root")?, identity, at)
