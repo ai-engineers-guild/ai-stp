@@ -1,6 +1,6 @@
 ---
 description: "SPEC-062: Recast a complete setup onto another harness with provenance."
-last_verified: "2026-09-06"
+last_verified: "2026-10-08"
 ---
 
 # SPEC-062: Setup recast
@@ -83,6 +83,11 @@ of provenance (`#139`).
   the member. A path-only copy of the source syntax is not a successful
   derive. An existing derived adaptation whose transform revision is older
   than the current rewrite is derived again, not reused.
+  MCP conversion accepts only an unambiguous local command, string arguments
+  and one string-valued environment map. Unknown fields, enablement/tool-access
+  controls, working-directory/timeouts, remote or mixed transports, duplicate
+  command/environment representations, non-string coercion and harness-specific
+  environment/file interpolation block conversion rather than being dropped.
 
 ## States and errors
 
@@ -102,7 +107,8 @@ model, or write a harness target.
 `ported_from` and `related_setup_ids` stay the existing passport fields.
 Historical setups with null provenance remain valid. No generation port.
 File-preserving rewrite is transform content revision `1.1`. Scope and
-constraint preservation is `1.2`. Native syntax rewrite is `1.3`. Immutable
+constraint preservation is `1.2`. Native syntax rewrite is `1.3`; closed MCP
+conversion without silent control loss is `1.4`. Immutable
 adaptations produced by earlier revisions are not rewritten in place; a
 stale derived adaptation is replaced by a new minor. This is not a new HTTP,
 provider, scaffold, or standard-family generation. Pre-change plans become

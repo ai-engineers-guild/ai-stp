@@ -1,6 +1,6 @@
 ---
 description: "SPEC-063: Materialize one target-harness adaptation from a pinned component."
-last_verified: "2026-09-06"
+last_verified: "2026-10-08"
 ---
 
 # SPEC-063: Component materialize
@@ -69,7 +69,9 @@ a model, or write a harness target. A local overlay is `private`.
 
 Owner apply uses the next minor of the same `stable_id`. Historical versions
 stay immutable. This is not a new HTTP, provider, scaffold, or standard-family
-generation. The native transform is the recast table at revision `1.3`.
+generation. It shares the native transform and revision rules owned by
+[setup recast](SPEC-062-setup-recast.md#compatibility-and-migration), including
+refusal of MCP conversions that would drop native controls.
 
 ## Acceptance criteria
 

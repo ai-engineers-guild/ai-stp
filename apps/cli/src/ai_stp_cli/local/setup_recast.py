@@ -46,7 +46,7 @@ from ai_stp_passports.versions import ComponentAdaptation, ScopeAdaptation, Targ
 
 PLAN_DOMAIN: Final[str] = "ai-stp:plan:v1"
 TRANSFORM_ID: Final[str] = "harness-native-rewrite"
-TRANSFORM_VERSION: Final[str] = "1.3"
+TRANSFORM_VERSION: Final[str] = "1.4"
 _NON_DERIVABLE: Final[frozenset[str]] = frozenset({"setting", "cli"})
 Disposition = Literal["reuse", "derive", "blocked"]
 

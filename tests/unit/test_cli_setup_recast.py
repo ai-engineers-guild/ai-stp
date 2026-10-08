@@ -8,6 +8,8 @@ from contextlib import closing
 from pathlib import Path
 from typing import cast
 
+import pytest
+
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import (
     cache,
@@ -684,23 +686,58 @@ def test_recast_rewrites_a_claude_agent_as_codex_toml() -> None:
         assert "description = " in text
 
 
-def test_a_remote_only_mcp_server_cannot_derive_to_a_stdio_host() -> None:
+@pytest.mark.parametrize(
+    "harness,payload,path,key",
+    [
+        (
+            "cursor",
+            b'{"mcpServers":{"docs":{"url":"https://example.invalid/mcp"}}}\n',
+            "mcp.json",
+            "",
+        ),
+        ("codex", CODEX_MCP + b"enabled = false\n", "config.toml", "mcp_servers"),
+        ("codex", CODEX_MCP + b'disabled_tools = ["delete"]\n', "config.toml", "mcp_servers"),
+    ],
+)
+def test_mcp_recast_blocks_transport_or_control_loss_without_writes(
+    harness: str,
+    payload: bytes,
+    path: str,
+    key: str,
+) -> None:
     with closing(open_registry(configured_path(), create=True)) as connection:
         member = _release_component(
             connection,
             component_type="mcp",
-            harness_id="cursor",
-            payload=b'{"mcpServers":{"docs":{"url":"https://example.invalid/mcp"}}}\n',
-            managed_path="mcp.json",
+            harness_id=harness,
+            payload=payload,
+            managed_path=path,
+            declared_key=key,
         )
-        source_id, _digest = _record_setup(connection, harness_id="cursor", member=member)
+        source_id, _digest = _record_setup(connection, harness_id=harness, member=member)
+        before = _registry_fingerprint(connection)
+        setup_id = new_id("setup")
         preview = setup_recast.plan(
             connection,
             source_id=source_id,
             source_version="1.0",
-            target_harness="codex",
-            setup_id=new_id("setup"),
+            target_harness="opencode",
+            setup_id=setup_id,
             created_at=CREATED,
         )
         assert not preview.complete
         assert preview.members[0].disposition == "blocked"
+        with pytest.raises(CliFailure) as caught:
+            setup_recast.apply(
+                connection,
+                source_id=source_id,
+                source_version="1.0",
+                target_harness="opencode",
+                setup_id=setup_id,
+                created_at=CREATED,
+                expected_plan_digest=preview.plan_digest,
+                device_id=DEVICE,
+                owner_id=OWNER,
+            )
+        assert caught.value.code == "AI_STP_CONFLICT"
+        assert _registry_fingerprint(connection) == before
