@@ -74,6 +74,26 @@ calls themselves are not cancellable. Exhausted or unreadable scopes report
 incomplete evidence. Preview indexing excludes all symlinks, including internal
 aliases that the Python reader accepted, to avoid raced credential aliases.
 
+Public catalog reads use HTTPS (literal loopback HTTP is allowed for local
+services), bounded timeouts and an 8 MiB response limit. Requests are anonymous,
+with no redirects, ambient proxies or automatic retries. Search pages are live
+only. Object and exact-version reads may use an explicitly supplied cache;
+transient failures can fall back to a validated entry, while not-found,
+authorization, transport-policy and invalid-body refusals remain refusals.
+Cached answers retain their original `checked_at` and report `source: cache`.
+
+The cache owns only its marked `ai-stp-v2-catalog` child below an existing
+explicit directory, with an exclusive bounded lock, atomic replacements and
+limits of 64 entries and 64 MiB. It does not import the production cache.
+Entries bind the full endpoint URL, response digest and observation time;
+passports additionally bind their published digest and requested coordinates.
+Historical omitted fields with explicit schema defaults remain omitted, and
+unknown passport fields and original strings are preserved. Revision hashes
+are verified for local registry records; public snapshots instead retain the
+published wire passport identity. Adaptations retain their complete-model
+identity, ownership and case-folded path checks. Description validation uses
+the closed CommonMark profile without rendering or extensions.
+
 ## Modules and proof
 
 | Owner | Responsibility |
@@ -84,7 +104,8 @@ aliases that the Python reader accepted, to avoid raced credential aliases.
 | `canonical.rs`, `digest.rs` | Strict NFC + RFC 8785 data and closed digest domains |
 | `config.rs`, `files.rs` | Explicit bounded configuration reads and path rendering |
 | `snapshot.rs`, `objects.rs` | Explicit backup inspection and verified local reads |
-| `passport.rs` | Embedded schema validation, passport identities and revision digests |
+| `wire.rs`, `passport.rs`, `passport/` | Offline wire validation, immutable passport rules and content identities |
+| `http.rs`, `catalog/` | Bounded anonymous catalog reads and explicit public cache |
 | `projects/` | Bounded project discovery and content-free file evidence |
 | `provenance.rs` | Offline PEP 740 cryptographic verification and publisher policy |
 
@@ -97,14 +118,17 @@ Trust-root refresh, acquisition and installation are not exposed as commands.
 The example's embedded production trust root is for this fixed evidence run;
 an online provider lifecycle needs authenticated TUF refresh before C4.
 
-Three Rust tests cover the existing canonical corpus, executable refusals and
+Rust tests cover the existing canonical corpus, executable refusals and
 a real PyPI attestation with adversarial mutations. Public fixture source URLs,
 the artifact digest and publisher are in `tests/fixtures/provider.json`; no
 wheel or secret is stored in the repository. `scripts/verify.py` is a development
 oracle: it checks existing Python envelope/help consumers, independently
 recomputes the registry digest and creates a real schema-53 backup with a live
 WAL. Native children run with an empty PATH and home. CI runs the proof on
-Linux, Windows and macOS.
+Linux, Windows and macOS. The same oracle drives project reads through real
+files and catalog reads through TCP using the shared contract corpus, including
+safe-Markdown vectors, historical bytes, privacy/digest refusals, offline
+provenance, cache corruption, contention and eviction.
 
 For an independently downloaded artifact and its provenance, the explicit
 evidence runner hashes the actual file before verification:

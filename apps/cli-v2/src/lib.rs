@@ -1,16 +1,19 @@
 //! Headless native services. The executable only renders their result.
 
 pub mod canonical;
+pub mod catalog;
 pub mod config;
 pub mod digest;
 pub mod error;
 mod files;
+mod http;
 pub mod objects;
 pub mod passport;
 pub mod projects;
 pub mod provenance;
 pub mod registry;
 pub mod snapshot;
+mod wire;
 
 use std::ffi::OsString;
 
@@ -42,7 +45,7 @@ impl Invocation {
                 envelope["warnings"] = json!([]);
             }
             Err(failure) => {
-                envelope["error"] = json!({"code": failure.kind.code(), "message": failure.message, "retryable": false, "details": {}})
+                envelope["error"] = json!({"code": failure.kind.code(), "message": failure.message, "retryable": matches!(failure.kind, error::ErrorKind::Unavailable), "details": {}})
             }
         }
         envelope

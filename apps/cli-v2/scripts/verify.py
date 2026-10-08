@@ -19,6 +19,7 @@ from contextlib import closing
 from pathlib import Path
 from typing import Any
 
+import verify_catalog
 import verify_projects
 
 from ai_stp_cli.local import revisions, versions
@@ -50,7 +51,11 @@ def run(binary: Path, home: Path, args: list[str], expected: int = 0) -> dict[st
         timeout=15,
         env=environment,
     )
-    assert result.returncode == expected, result.stderr.decode(errors="replace")
+    assert result.returncode == expected, (
+        args,
+        result.stdout.decode(errors="replace"),
+        result.stderr.decode(errors="replace"),
+    )
     assert not result.stderr, result.stderr
     model = SuccessEnvelope if expected == 0 else ErrorEnvelope
     envelope = model.model_validate_json(result.stdout)
@@ -80,6 +85,7 @@ def prove(binary: Path, root: Path) -> None:
     prove_config(binary, home, root)
     prove_objects(binary, home, root)
     verify_projects.prove(binary, home, root, run)
+    verify_catalog.prove(binary, home, root, run)
 
     live = root / "live.sqlite"
     backup = root / "backup.sqlite"

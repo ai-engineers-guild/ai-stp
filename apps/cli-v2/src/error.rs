@@ -14,15 +14,17 @@ pub enum ErrorKind {
     NotFound,
     Precondition,
     Conflict,
+    Unavailable,
     Internal,
 }
 
 impl ErrorKind {
-    pub const ALL: [Self; 5] = [
+    pub const ALL: [Self; 6] = [
         Self::Input,
         Self::NotFound,
         Self::Precondition,
         Self::Conflict,
+        Self::Unavailable,
         Self::Internal,
     ];
 
@@ -32,6 +34,7 @@ impl ErrorKind {
             Self::NotFound => "AI_STP_NOT_FOUND",
             Self::Precondition => "AI_STP_PRECONDITION_FAILED",
             Self::Conflict => "AI_STP_CONFLICT",
+            Self::Unavailable => "AI_STP_DEPENDENCY_UNAVAILABLE",
             Self::Internal => "AI_STP_INTERNAL",
         }
     }
@@ -40,6 +43,7 @@ impl ErrorKind {
         match self {
             Self::Input | Self::NotFound => 2,
             Self::Precondition | Self::Conflict => 4,
+            Self::Unavailable => 5,
             Self::Internal => 70,
         }
     }
@@ -56,6 +60,10 @@ impl ErrorKind {
                 "The input does not satisfy the operation's preconditions.",
             ),
             Self::Internal => ("report_bug", "An unexpected internal failure occurred."),
+            Self::Unavailable => (
+                "retry_if_retryable",
+                "The requested remote service is temporarily unavailable.",
+            ),
         };
         json!({"code": self.code(), "exit_class": self.exit_code(), "handling": handling, "description": description})
     }

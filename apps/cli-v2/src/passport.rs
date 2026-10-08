@@ -1,15 +1,19 @@
 //! Passport shape, identity and content addressing at the native boundary.
 
-use std::sync::OnceLock;
+mod markdown;
+pub mod versions;
 
 use serde_json::{Value, json};
 
 use crate::{
     digest,
-    error::{ErrorKind, Failure, Result},
+    error::{Failure, Result},
+    wire::Schema,
 };
 
-static ENVELOPE: OnceLock<std::result::Result<jsonschema::Validator, String>> = OnceLock::new();
+static ENVELOPE: Schema = Schema::new(include_str!(
+    "../../../schemas/v1/passport-envelope.schema.json"
+));
 
 pub fn stable_id(value: &str, kind: &str) -> bool {
     value
@@ -22,6 +26,16 @@ pub fn stable_id(value: &str, kind: &str) -> bool {
                     .all(|c| b"0123456789ABCDEFGHJKMNPQRSTVWXYZ".contains(&c))
                 && suffix.parse::<ulid::Ulid>().is_ok()
         })
+}
+
+pub fn version_number(text: &str) -> bool {
+    text.split_once('.').is_some_and(|(major, minor)| {
+        [major, minor].iter().all(|part| {
+            !part.is_empty()
+                && part.bytes().all(|b| b.is_ascii_digit())
+                && (part.len() == 1 || !part.starts_with('0'))
+        })
+    })
 }
 
 pub fn timestamp(value: &str) -> bool {
@@ -45,26 +59,20 @@ fn invalid() -> Failure {
 }
 
 pub fn validate(document: &Value) -> Result<()> {
-    let validator = ENVELOPE
-        .get_or_init(|| {
-            let schema: Value = serde_json::from_str(include_str!(
-                "../../../schemas/v1/passport-envelope.schema.json"
-            ))
-            .map_err(|_| "embedded passport schema is invalid".to_owned())?;
-            jsonschema::options()
-                .offline()
-                .build(&schema)
-                .map_err(|_| "embedded passport schema cannot be compiled".to_owned())
-        })
-        .as_ref()
-        .map_err(|message| Failure::new(ErrorKind::Internal, message.clone()))?;
-    if !validator.is_valid(document) {
+    ENVELOPE.validate(document)?;
+    validate_identity(document)?;
+    if document["revision_id"] != revision_id(document)? {
         return Err(invalid());
     }
+    Ok(())
+}
+
+/// Identity and facts after the caller validated the appropriate wire schema.
+/// Historical public snapshots are addressed by their published passport digest.
+pub fn validate_identity(document: &Value) -> Result<()> {
     let kind = document["kind"].as_str().ok_or_else(invalid)?;
     if !stable_id(document["stable_id"].as_str().ok_or_else(invalid)?, kind)
         || !timestamp(document["created_at"].as_str().ok_or_else(invalid)?)
-        || document["revision_id"] != revision_id(document)?
     {
         return Err(invalid());
     }
