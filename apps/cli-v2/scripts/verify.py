@@ -19,6 +19,8 @@ from contextlib import closing
 from pathlib import Path
 from typing import Any
 
+import verify_projects
+
 from ai_stp_cli.local import revisions, versions
 from ai_stp_cli.local.database import open_registry
 from ai_stp_contracts.cli.components import PassportView, VersionLine
@@ -77,6 +79,7 @@ def prove(binary: Path, root: Path) -> None:
     run(binary, home, ["unknown"], 2)
     prove_config(binary, home, root)
     prove_objects(binary, home, root)
+    verify_projects.prove(binary, home, root, run)
 
     live = root / "live.sqlite"
     backup = root / "backup.sqlite"

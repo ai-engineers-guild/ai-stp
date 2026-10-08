@@ -7,6 +7,7 @@ pub mod error;
 mod files;
 pub mod objects;
 pub mod passport;
+pub mod projects;
 pub mod provenance;
 pub mod registry;
 pub mod snapshot;

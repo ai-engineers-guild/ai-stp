@@ -6,7 +6,7 @@ use serde_json::{Value, json};
 use crate::{
     config, digest,
     error::{ErrorKind, Failure, Result},
-    snapshot,
+    projects, snapshot,
 };
 
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -20,6 +20,8 @@ enum Handler {
     Config,
     Passport(&'static str),
     Versions,
+    ProjectIndex,
+    ProjectDiscover,
 }
 
 #[derive(Clone, Copy)]
@@ -98,6 +100,13 @@ const ID: Parameter = Parameter {
     required: true,
 };
 
+const ROOT: Parameter = Parameter {
+    name: "root",
+    summary: "Explicit project directory; home and filesystem roots are refused.",
+    kind: ParameterType::Path,
+    required: true,
+};
+
 const COMMANDS: &[Declaration] = &[
     Declaration {
         path: &["capabilities"],
@@ -173,6 +182,18 @@ const COMMANDS: &[Declaration] = &[
         summary: "Read the verified device passport without refreshing observations.",
         parameters: &[SNAPSHOT, SHA256],
         handler: Handler::Passport("device"),
+    },
+    Declaration {
+        path: &["project", "discover"],
+        summary: "Find projects and nested repositories with bounded traversal and no writes.",
+        parameters: &[ROOT],
+        handler: Handler::ProjectDiscover,
+    },
+    Declaration {
+        path: &["project", "index"],
+        summary: "Describe and hash bounded project files without following symlinks or reading credentials.",
+        parameters: &[ROOT],
+        handler: Handler::ProjectIndex,
     },
     Declaration {
         path: &["snapshot", "inspect"],
@@ -320,6 +341,16 @@ pub fn dispatch(matches: &ArgMatches) -> Result<Value> {
                 .map(|values| values.cloned().collect::<Vec<_>>())
                 .unwrap_or_default(),
         ),
+        Handler::ProjectIndex | Handler::ProjectDiscover => {
+            let root = leaf
+                .get_one::<std::path::PathBuf>("root")
+                .ok_or_else(|| Failure::input("root is required"))?;
+            if matches!(declaration.handler, Handler::ProjectIndex) {
+                projects::index(root)
+            } else {
+                projects::discover(root)
+            }
+        }
         Handler::Snapshot | Handler::Passport(_) | Handler::Versions => {
             let path = leaf
                 .get_one::<std::path::PathBuf>("snapshot")

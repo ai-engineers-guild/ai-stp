@@ -64,6 +64,16 @@ The envelope schema is compiled into the binary from the generated repository
 contract, with external schema retrieval disabled. No schema files or Python
 installation are needed at runtime.
 
+Project discovery and indexing require an explicit directory and never scan a
+home or filesystem root. Reads use held directory handles and refuse symlinks,
+special files and credential names. Indexes preserve the existing file classes,
+SHA-256 and line counts; oversized files carry metadata only. Traversal is
+bounded to 2,000 entries per directory, 20,000 observed entries, depth 12 and a
+20-second work budget checked between filesystem operations. Slow filesystem
+calls themselves are not cancellable. Exhausted or unreadable scopes report
+incomplete evidence. Preview indexing excludes all symlinks, including internal
+aliases that the Python reader accepted, to avoid raced credential aliases.
+
 ## Modules and proof
 
 | Owner | Responsibility |
@@ -75,6 +85,7 @@ installation are needed at runtime.
 | `config.rs`, `files.rs` | Explicit bounded configuration reads and path rendering |
 | `snapshot.rs`, `objects.rs` | Explicit backup inspection and verified local reads |
 | `passport.rs` | Embedded schema validation, passport identities and revision digests |
+| `projects/` | Bounded project discovery and content-free file evidence |
 | `provenance.rs` | Offline PEP 740 cryptographic verification and publisher policy |
 
 The provenance service accepts a caller-owned trusted root and an artifact

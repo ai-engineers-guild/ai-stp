@@ -13,6 +13,8 @@ path = "src/main.rs"
 
 [dependencies]
 base64 = "=0.22.1"
+cap-std = "=4.0.3"
+cap-fs-ext = "=4.0.3"
 clap = { version = "=4.6.7", default-features = false, features = ["std", "help", "usage", "error-context"] }
 jiff = { version = "=0.2.38", default-features = false, features = ["std"] }
 jsonschema = { version = "=0.58.6", default-features = false }
