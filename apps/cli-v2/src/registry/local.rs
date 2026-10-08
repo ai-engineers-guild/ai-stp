@@ -8,7 +8,8 @@ use std::path::{Path, PathBuf};
 use super::{Declaration, ID, KIND, Parameter, ParameterType, ROOT, STATE_DIR};
 use crate::{
     authoring::{
-        adoption, discovery, forks, passports, project_binding, releases, runtime, setups,
+        adoption, discovery, forks, native_edit, passports, project_binding, releases, runtime,
+        setups,
     },
     canonical,
     error::{Failure, Result},
@@ -23,6 +24,7 @@ pub(super) enum Handler {
     Adopt,
     Discover,
     Update,
+    NativeEdit,
     Release,
     Fork,
     Compose,
@@ -44,7 +46,7 @@ impl Handler {
 
 const HARNESS: Parameter = Parameter {
     name: "harness",
-    summary: "Concrete native harness.",
+    summary: "Native layout harness, or undefined for shared user skill sources.",
     kind: ParameterType::Choice(&[
         "claude-code",
         "codex",
@@ -53,6 +55,7 @@ const HARNESS: Parameter = Parameter {
         "grok-build",
         "cursor",
         "antigravity",
+        "undefined",
     ]),
     required: true,
 };
@@ -94,6 +97,28 @@ const PROVIDERS: Parameter = Parameter {
 };
 
 pub(super) const COMMANDS: &[Declaration] = &[
+    Declaration {
+        path: &["component", "adaptation", "edit", "plan"],
+        summary: "Plan a complete native adaptation replacement in an owned draft, preserving every existing scope and other harness.",
+        parameters: &[
+            STATE_DIR,
+            ID,
+            REVISION,
+            Parameter {
+                name: "sources",
+                summary: "JSON array of {scope, source: {root: {display, utf8_base64}, harness_id, scope, root_kind, candidate_id}}; at most three entries and 256 KiB. Root uses the exact absolute UTF-8 path and its NFC display.",
+                kind: ParameterType::Path,
+                required: true,
+            },
+            Parameter {
+                name: "provider-info",
+                summary: "Exact v3 provider declaration JSON for this harness, at most 1 MiB; not executable trust.",
+                kind: ParameterType::Path,
+                required: true,
+            },
+        ],
+        handler: super::Handler::Local(Handler::NativeEdit),
+    },
     Declaration {
         path: &["component", "source", "bind", "plan"],
         summary: "Plan an atomic binding and adaptation refresh from one exact portable source snapshot.",
@@ -272,6 +297,24 @@ fn providers(args: &ArgMatches) -> Result<Vec<Info>> {
 
 pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
     match handler {
+        Handler::NativeEdit => {
+            let sources: Vec<native_edit::Source> = serde_json::from_value(canonical::parse(
+                &files::read(path(args, "sources")?, 256 * 1024)?,
+            )?)
+            .map_err(|_| Failure::input("invalid native adaptation source selections"))?;
+            let provider = Info::parse(&files::read(path(args, "provider-info")?, 1024 * 1024)?)?;
+            runtime::plan(path(args, "state-dir")?, |store, identity, at| {
+                native_edit::plan(
+                    store,
+                    text(args, "id")?,
+                    text(args, "expected-revision")?,
+                    sources,
+                    &provider,
+                    identity,
+                    at,
+                )
+            })
+        }
         Handler::Apply => runtime::apply(path(args, "plan")?, text(args, "plan-digest")?),
         Handler::Show | Handler::Version => runtime::inspect(
             path(args, "state-dir")?,

@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import base64
 import json
 import os
 import sqlite3
+import unicodedata
 from collections.abc import Callable
 from contextlib import closing
 from pathlib import Path
@@ -248,6 +250,91 @@ def prove(binary: Path, home: Path, temporary: Path, run: Runner) -> None:
     )
     forked = apply(fork, "fork")
     assert forked["owner_id"] == owner and forked["stable_id"] != component_id
+    native_home = root / "native-home"
+    native_skill = native_home / ".agents/skills/native-review/SKILL.md"
+    native_skill.parent.mkdir(parents=True)
+    native_body = (
+        "---\nname: native-review\ndescription: Review native code.\n---\nKeep native bytes.\n"
+    )
+    native_skill.write_text(native_body, encoding="utf-8")
+    candidates = invoke(
+        [
+            "component",
+            "discover",
+            "--root",
+            str(native_home),
+            "--harness",
+            "undefined",
+            "--scope",
+            "global",
+            "--root-kind",
+            "home",
+        ]
+    )
+    native_candidate = next(c for c in candidates["components"] if c["component_type"] == "skill")
+    sources = root / "native-sources.json"
+    sources.write_text(
+        json.dumps(
+            [
+                {
+                    "scope": "user_root",
+                    "source": {
+                        "root": {
+                            "display": unicodedata.normalize("NFC", str(native_home)),
+                            "utf8_base64": base64.b64encode(
+                                str(native_home).encode("utf-8")
+                            ).decode("ascii"),
+                        },
+                        "harness_id": "undefined",
+                        "scope": "global",
+                        "root_kind": "home",
+                        "candidate_id": native_candidate["candidate_id"],
+                    },
+                }
+            ]
+        ),
+        encoding="utf-8",
+    )
+    edit = invoke(
+        [
+            "component",
+            "adaptation",
+            "edit",
+            "plan",
+            "--state-dir",
+            str(state),
+            "--id",
+            forked["stable_id"],
+            "--expected-revision",
+            forked["revision_id"],
+            "--sources",
+            str(sources),
+            "--provider-info",
+            str(info),
+        ]
+    )
+    native_draft = apply(edit, "native-edit")
+    assert native_draft["adaptations"][0]["implementation_mode"] == "native"
+    assert native_skill.read_text(encoding="utf-8") == native_body
+    native_release = invoke(
+        [
+            "component",
+            "version",
+            "release",
+            "plan",
+            "--state-dir",
+            str(state),
+            "--id",
+            forked["stable_id"],
+            "--expected-revision",
+            native_draft["revision_id"],
+            "--increment",
+            "minor",
+        ]
+    )
+    native_version = apply(native_release, "native-release")
+    ComponentVersionPassport.model_validate(native_version)
+    assert native_version["adaptations"] == native_draft["adaptations"]
     request = root / "setup.json"
     request.write_text(
         json.dumps(

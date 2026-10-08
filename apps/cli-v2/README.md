@@ -151,6 +151,28 @@ version inspection use one read transaction and never open credentials. Provider
 declaration files describe packaging only; executable trust and installation
 remain separate pending boundaries.
 
+`component adaptation edit plan` replaces one complete native adaptation in an
+owned complete draft. `--sources` reads an array of up to three `{scope, source}`
+entries; each `source` selects a discovery candidate by `root`, `harness_id`,
+`scope`, `root_kind` and `candidate_id`. `root` uses the plan path shape
+`{display, utf8_base64}`: the NFC display and base64 of the exact absolute UTF-8
+path must agree, so JSON normalization cannot select a different directory.
+The outer scope is the explicit provider
+destination; it never silently falls back to another scope. Shared user skills
+are discovered with `harness_id: undefined`, then explicitly assigned to the
+concrete provider harness. One provider declaration covers the entire replacement.
+
+Replacement must include every existing scope of that harness. Other adaptations,
+metadata and immutable versions remain intact. Existing scope permissions,
+platform/version restrictions, semantic losses and unsupported decisions survive;
+changed bytes do not retain a supported assessment. Native frontmatter and file
+contents are preserved, with no portable conversion or transform claim. Projection
+CAS, the new draft revision and its receipt commit atomically. An unchanged
+replacement retains the revision; replay verifies retained artifacts even after
+the source disappears. Bound portable refresh refuses independently authored
+native adaptations. Flat adopted drafts still use their adoption/release flow;
+this operation accepts complete source-bound or exact-forked drafts.
+
 Scaffold planning writes nothing and binds the resolved parent directory's physical
 identity and lossless output path. Applying requires the exact plan digest,
 regenerates the planned files and rechecks that identity. It uses a locked,
@@ -492,6 +514,7 @@ no async runtime or tracing feature is enabled for it.
 | `identity/` | Explicit offline identity initialization, private key storage and public signing identity |
 | `authoring/source_project.rs` | One bounded source snapshot, metadata separation and structural readiness |
 | `authoring/adaptations.rs` | Explicit portable-to-native projections preserving source bodies and modes |
+| `authoring/native_edit.rs` | Exact native adaptation replacement with complete scope preservation |
 | `authoring/project_binding.rs` | Atomic portable project identity and complete adaptation refresh |
 | `authoring/runtime.rs` | Identity-bound local plans, closed operation dispatch and private registry reads |
 | `authoring/bindings.rs` | Shared local source addresses, relocation and binding replacement |

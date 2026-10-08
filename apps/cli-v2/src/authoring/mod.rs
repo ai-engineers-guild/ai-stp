@@ -7,6 +7,7 @@ pub mod contribution;
 pub mod discovery;
 pub mod forks;
 mod freezing;
+pub mod native_edit;
 pub mod passports;
 pub mod project_binding;
 pub mod releases;

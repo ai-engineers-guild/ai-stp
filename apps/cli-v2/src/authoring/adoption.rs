@@ -78,13 +78,13 @@ fn stale() -> Failure {
     )
 }
 
-struct Prepared {
+pub(super) struct Prepared {
     candidate: Candidate,
-    content: source::Captured,
+    pub(super) content: source::Captured,
     address: Address,
 }
 
-fn prepare(request: &Source) -> Result<Prepared> {
+pub(super) fn prepare(request: &Source) -> Result<Prepared> {
     let report = discovery::at(
         &request.root,
         &request.harness_id,
@@ -132,13 +132,7 @@ fn prepare(request: &Source) -> Result<Prepared> {
     })
 }
 
-fn document(
-    source: &Prepared,
-    identity: &Identity,
-    stable_id: &str,
-    head: Option<&Value>,
-    at: &str,
-) -> Result<Value> {
+pub(super) fn source_values(source: &Prepared) -> Result<Value> {
     let candidate = &source.candidate;
     let scope = match candidate.scope {
         Scope::Global => projection::Scope::Global,
@@ -187,6 +181,17 @@ fn document(
     ] {
         values[format!("source_{field}")] = candidate.provenance[field].clone();
     }
+    Ok(values)
+}
+
+fn document(
+    source: &Prepared,
+    identity: &Identity,
+    stable_id: &str,
+    head: Option<&Value>,
+    at: &str,
+) -> Result<Value> {
+    let values = source_values(source)?;
     let mut facts = head
         .map(|head| head["facts"].clone())
         .unwrap_or_else(|| json!({}));
