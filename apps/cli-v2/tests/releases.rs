@@ -2,7 +2,7 @@ use std::{error::Error, fs, path::Path};
 
 use ai_stp_cli_v2::{
     authoring::{
-        Identity, adoption, discovery,
+        Identity, adoption, discovery, forks,
         passports::{self, Patch},
         releases,
     },
@@ -13,7 +13,7 @@ use ai_stp_cli_v2::{
     store::{
         Store,
         revisions::{self, Write},
-        versions::Increment,
+        versions::{self, Increment},
     },
 };
 use serde_json::{Value, json};
@@ -224,10 +224,12 @@ fn native_release_preserves_owned_bytes_graphs_and_atomic_history() -> Result<()
         released.push(version);
     }
 
-    // A fork-like complete head retains both harnesses through a metadata edit.
+    // An exact fork retains both harnesses through a metadata edit.
     let mut complete = released[0].clone();
     let id = "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z";
     complete["stable_id"] = id.into();
+    complete["owner_id"] = "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z".into();
+    complete["visibility"] = "public".into();
     complete["adaptations"]
         .as_array_mut()
         .ok_or("adaptations missing")?
@@ -243,6 +245,41 @@ fn native_release_preserves_owned_bytes_graphs_and_atomic_history() -> Result<()
             },
         )
     })?;
+    store.transaction(|t| versions::record(t, &complete, &identity.device_id, None, AT))?;
+    let before = counts(&mut store)?;
+    let fork = forks::plan(
+        &mut store,
+        forks::Source {
+            stable_id: id.into(),
+            version: "1.0".into(),
+            passport_digest: digest::canonical("ai-stp:passport:v1", &complete)?,
+        },
+        identity.clone(),
+        AT,
+    )?;
+    assert_eq!(counts(&mut store)?, before);
+    assert!(
+        forks::apply(
+            &mut store,
+            &fork,
+            &digest::sha256(b"wrong"),
+            &identity,
+            LATER
+        )
+        .is_err()
+    );
+    store.transaction(|t| t.execute_batch("CREATE TEMP TRIGGER fail_fork BEFORE INSERT ON fork_origin BEGIN SELECT RAISE(ABORT,'interrupted'); END;").map_err(|_| Failure::precondition("proof injection failed")))?;
+    assert!(forks::apply(&mut store, &fork, &fork.digest()?, &identity, LATER).is_err());
+    assert_eq!(counts(&mut store)?, before);
+    store.transaction(|t| {
+        t.execute_batch("DROP TRIGGER fail_fork")
+            .map_err(|_| Failure::precondition("proof cleanup failed"))
+    })?;
+    let complete = forks::apply(&mut store, &fork, &fork.digest()?, &identity, LATER)?;
+    assert_eq!(complete["visibility"], "private");
+    assert_eq!(complete["owner_id"], identity.account_id);
+    assert_ne!(complete["stable_id"], fork.source.stable_id);
+    let id = field(&complete, "stable_id")?;
     let stale = releases::plan(
         &mut store,
         id,
@@ -376,6 +413,16 @@ fn native_release_preserves_owned_bytes_graphs_and_atomic_history() -> Result<()
     );
     drop(store);
     let mut store = Store::open(temporary.path(), false)?;
+    assert_eq!(
+        forks::apply(
+            &mut store,
+            &fork,
+            &fork.digest()?,
+            &identity,
+            "2026-10-09T00:00:00.000Z"
+        )?,
+        complete
+    );
     let old = first_plan.ok_or("release plan missing")?;
     assert_eq!(
         releases::apply(
@@ -404,5 +451,6 @@ fn native_release_preserves_owned_bytes_graphs_and_atomic_history() -> Result<()
         Ok(())
     })?;
     assert!(releases::apply(&mut store, &old, &old.digest()?, &identity, LATER).is_err());
+    assert!(forks::apply(&mut store, &fork, &fork.digest()?, &identity, LATER).is_err());
     Ok(())
 }

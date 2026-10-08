@@ -149,6 +149,12 @@ Unsupported routes and incomplete facts refuse release; local compilation stays
 experimental and makes no support or installation claim. Imported source artifact
 formats and adaptation authoring remain separate unfinished services.
 
+Component forks bind an exact source version and passport digest to a new private
+draft owned by the local authoring identity. The full adaptation graph and bytes
+are verified before copying. Draft, lineage and receipt commit together; the
+source stays intact. Replay verifies the original copy and lineage while retaining
+later edits. A fork creates no immutable number or publication approval.
+
 Component artifacts use the canonical uncompressed ZIP profile. The encoder
 preserves existing bytes, including fixed timestamps, Unicode flags and Unix
 file modes. The bounded decoder refuses unsafe or colliding paths, extra members,
@@ -261,6 +267,7 @@ no async runtime or tracing feature is enabled for it.
 | `authoring/passports.rs`, `store/journal.rs` | Closed confirmed edits, exact head plans and bound atomic receipts |
 | `store/versions.rs` | Verified immutable coordinates, explicit major advancement and replay without draft movement |
 | `authoring/releases.rs`, `authoring/freezing.rs` | Planned component releases and deterministic native projection compilation |
+| `authoring/forks.rs` | Exact private component copies with atomic lineage and replay |
 | `provenance.rs` | Offline PEP 740 cryptographic verification and publisher policy |
 
 The provenance service accepts a caller-owned trusted root and an artifact

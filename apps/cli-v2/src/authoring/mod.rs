@@ -3,6 +3,7 @@
 pub mod adoption;
 pub mod contribution;
 pub mod discovery;
+pub mod forks;
 mod freezing;
 pub mod passports;
 pub mod releases;
