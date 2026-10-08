@@ -171,6 +171,7 @@ pub(super) fn current(
             "the authoring identity does not own this component",
         ));
     }
+    Objects { connection }.require_active(id)?;
     Ok(document)
 }
 

@@ -46,6 +46,22 @@ impl Snapshot {
 }
 
 impl Objects<'_> {
+    pub fn require_active(&self, id: &str) -> Result<()> {
+        let forgotten: bool = self
+            .connection
+            .query_row(
+                "SELECT EXISTS(SELECT 1 FROM tombstone WHERE stable_id=?)",
+                [id],
+                |row| row.get(0),
+            )
+            .map_err(database)?;
+        if forgotten {
+            return Err(Failure::precondition("the local object was forgotten")
+                .with_details([("constraint".into(), "object_forgotten".into())]));
+        }
+        Ok(())
+    }
+
     pub fn exact_version(&self, id: &str, version: &str, expected: Option<&str>) -> Result<Value> {
         if (!passport::stable_id(id, "component") && !passport::stable_id(id, "setup"))
             || !passport::version_number(version)

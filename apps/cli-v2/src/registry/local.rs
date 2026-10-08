@@ -8,8 +8,8 @@ use std::path::{Path, PathBuf};
 use super::{Declaration, ID, KIND, Parameter, ParameterType, ROOT, STATE_DIR};
 use crate::{
     authoring::{
-        adoption, discovery, forks, native_edit, passports, project_binding, releases, runtime,
-        scaffold, setups,
+        adoption, discovery, forks, lifecycle, native_edit, passports, project_binding, releases,
+        runtime, scaffold, setups,
     },
     canonical,
     error::{Failure, Result},
@@ -27,6 +27,7 @@ pub(super) enum Handler {
     NativeEdit,
     Release,
     Fork,
+    Forget,
     Compose,
     SetupFork,
     SetupRecast,
@@ -118,6 +119,12 @@ const PROVIDERS: Parameter = Parameter {
 };
 
 pub(super) const COMMANDS: &[Declaration] = &[
+    Declaration {
+        path: &["component", "forget", "plan"],
+        summary: "Plan an owned local component tombstone, retaining its source, immutable versions and history.",
+        parameters: &[STATE_DIR, ID, REVISION],
+        handler: super::Handler::Local(Handler::Forget),
+    },
     Declaration {
         path: &["setup", "scaffold", "plan"],
         summary: "Plan one editable setup-request.json for exact composition, without nested components or generated documentation.",
@@ -415,6 +422,15 @@ fn providers(args: &ArgMatches) -> Result<Vec<Info>> {
 
 pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
     match handler {
+        Handler::Forget => runtime::plan(path(args, "state-dir")?, |store, identity, at| {
+            lifecycle::plan(
+                store,
+                text(args, "id")?,
+                text(args, "expected-revision")?,
+                identity,
+                at,
+            )
+        }),
         Handler::SetupScaffoldPlan => {
             let plan = scaffold::setup::plan(
                 path(args, "output")?,

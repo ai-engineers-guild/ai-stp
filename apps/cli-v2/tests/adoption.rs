@@ -994,6 +994,37 @@ fn adoption_is_planned_atomic_replayable_and_preserves_authored_facts() -> Resul
             )
             .map_err(|_| Failure::precondition("proof journal failed"))
     })?;
+    let pending_adoption =
+        adoption::plan(&mut store, source(&exact_root)?, identity.clone(), later)?;
+    let forget = ai_stp_cli_v2::authoring::lifecycle::plan(
+        &mut store,
+        &exact.binding.stable_id,
+        exact.passport["revision_id"].as_str().ok_or("revision")?,
+        identity.clone(),
+        later,
+    )?;
+    ai_stp_cli_v2::authoring::lifecycle::apply(
+        &mut store,
+        &forget,
+        &forget.digest()?,
+        &identity,
+        later,
+    )?;
+    assert!(adoption::plan(&mut store, source(&exact_root)?, identity.clone(), later).is_err());
+    assert!(
+        adoption::apply(
+            &mut store,
+            &pending_adoption,
+            &pending_adoption.digest()?,
+            &identity,
+            later
+        )
+        .is_err()
+    );
+    assert_eq!(
+        adoption::apply(&mut store, &decoded, &exact_digest, &identity, later)?,
+        exact.passport
+    );
     store.transaction(|transaction| {
         transaction
             .execute("UPDATE content SET bytes=X'00'", [])

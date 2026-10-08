@@ -303,6 +303,10 @@ fn build(
     } else if previous_binding.is_some() {
         return Err(invalid());
     }
+    Objects {
+        connection: transaction,
+    }
+    .require_active(id)?;
     let passport = document(prepared, id, identity, head.as_ref(), at)?;
     let binding = Binding {
         source_key: prepared.address.source_key.clone(),

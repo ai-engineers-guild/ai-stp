@@ -4,7 +4,9 @@ use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use serde_json::{Value, json};
 use std::path::{Path, PathBuf};
 
-use super::{Identity, adoption, forks, native_edit, passports, project_binding, releases, setups};
+use super::{
+    Identity, adoption, forks, lifecycle, native_edit, passports, project_binding, releases, setups,
+};
 use crate::{
     canonical, digest,
     error::{ErrorKind, Failure, Result},
@@ -124,6 +126,7 @@ pub fn apply(path: &Path, expected_digest: &str) -> Result<Value> {
         "component.adaptation.edit" => execute(plan, native_edit::apply),
         "component.version.release" => execute(plan, releases::apply),
         "component.fork" => execute(plan, forks::apply),
+        "component.forget" => execute(plan, lifecycle::apply),
         "setup.compose" => execute(plan, setups::apply),
         "setup.fork" | "setup.recast" => execute(plan, setups::copies::apply),
         _ => Err(Failure::input(

@@ -292,6 +292,10 @@ fn build(
     } else if previous_binding.is_some() {
         return Err(invalid());
     }
+    Objects {
+        connection: transaction,
+    }
+    .require_active(id)?;
     let passport = document(prepared, identity, id, head.as_ref(), at)?;
     Ok(Plan {
         binding: Binding {

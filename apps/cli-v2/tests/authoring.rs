@@ -2,7 +2,7 @@ use std::{error::Error, fs};
 
 use ai_stp_cli_v2::{
     authoring::{
-        Identity,
+        Identity, lifecycle,
         passports::{self, Patch},
     },
     canonical, digest,
@@ -128,7 +128,18 @@ fn confirmed_edit_is_closed_causal_atomic_and_replayable() -> Result<(), Box<dyn
         identity.clone(),
         later,
     )?;
+    let outdated_forget = lifecycle::plan(&mut store, id, revision, identity.clone(), later)?;
     let newest = passports::apply(&mut store, &next, &next.digest()?, &identity, later)?;
+    assert!(
+        lifecycle::apply(
+            &mut store,
+            &outdated_forget,
+            &outdated_forget.digest()?,
+            &identity,
+            later
+        )
+        .is_err()
+    );
     drop(store);
     let mut store = Store::open(root.path(), false)?;
     assert_eq!(
@@ -168,5 +179,121 @@ fn confirmed_edit_is_closed_causal_atomic_and_replayable() -> Result<(), Box<dyn
         std::os::unix::fs::symlink(&path, &link)?;
         assert!(Patch::read(&link).is_err());
     }
+    let revision = newest["revision_id"].as_str().ok_or("revision missing")?;
+    let forget = lifecycle::plan(&mut store, id, revision, identity.clone(), later)?;
+    let stale_edit = passports::plan(
+        &mut store,
+        id,
+        revision,
+        Patch::parse(br#"{"name":"Edit after forgetting"}"#)?,
+        identity.clone(),
+        later,
+    )?;
+    assert!(
+        lifecycle::apply(
+            &mut store,
+            &forget,
+            &digest::sha256(b"wrong"),
+            &identity,
+            later
+        )
+        .is_err()
+    );
+    assert!(
+        lifecycle::apply(
+            &mut store,
+            &forget,
+            &forget.digest()?,
+            &identity,
+            "2026-10-09T00:00:00.000Z"
+        )
+        .is_err()
+    );
+    let before = forget_counts(&mut store)?;
+    store.transaction(|t| t.execute_batch("CREATE TEMP TRIGGER fail_forget AFTER INSERT ON tombstone BEGIN SELECT RAISE(ABORT,'interrupted'); END;")
+        .map_err(|_| Failure::precondition("proof injection failed")))?;
+    assert!(lifecycle::apply(&mut store, &forget, &forget.digest()?, &identity, later).is_err());
+    assert_eq!(forget_counts(&mut store)?, before);
+    store.transaction(|t| {
+        t.execute_batch("DROP TRIGGER fail_forget")
+            .map_err(|_| Failure::precondition("proof cleanup failed"))
+    })?;
+    let forgotten = lifecycle::apply(&mut store, &forget, &forget.digest()?, &identity, later)?;
+    assert_eq!(forgotten["state"], "forgotten");
+    assert_eq!(forgotten["revision_id"], revision);
+    assert!(
+        passports::apply(
+            &mut store,
+            &stale_edit,
+            &stale_edit.digest()?,
+            &identity,
+            later
+        )
+        .is_err()
+    );
+    assert!(
+        passports::plan(
+            &mut store,
+            id,
+            revision,
+            Patch::parse(br#"{"name":"New edit"}"#)?,
+            identity.clone(),
+            later
+        )
+        .is_err()
+    );
+    assert!(lifecycle::plan(&mut store, id, revision, identity.clone(), later).is_err());
+    assert!(
+        store
+            .transaction(|t| revisions::commit(
+                t,
+                &stale_edit.passport,
+                &identity.device_id,
+                None,
+                Write::Advance {
+                    expected_heads: &[revision.into()]
+                }
+            ))
+            .is_err()
+    );
+    let after = forget_counts(&mut store)?;
+    assert_eq!(
+        after,
+        (before.0, before.1, before.2, before.3 + 1, before.4 + 1)
+    );
+    drop(store);
+    let mut store = Store::open(root.path(), false)?;
+    assert_eq!(
+        lifecycle::apply(
+            &mut store,
+            &forget,
+            &forget.digest()?,
+            &identity,
+            "2026-10-09T00:00:00.000Z"
+        )?,
+        forgotten
+    );
+    assert_eq!(forget_counts(&mut store)?, after);
+    assert_eq!(
+        passports::apply(&mut store, &next, &next.digest()?, &identity, later)?,
+        newest
+    );
+    store.transaction(|t| {
+        assert_eq!(revisions::heads(t, id)?, [revision]);
+        t.execute(
+            "UPDATE tombstone SET reason='substituted' WHERE stable_id=?",
+            [id],
+        )
+        .map_err(|_| Failure::precondition("proof substitution failed"))?;
+        Ok(())
+    })?;
+    assert!(lifecycle::apply(&mut store, &forget, &forget.digest()?, &identity, later).is_err());
     Ok(())
+}
+
+fn forget_counts(store: &mut Store) -> Result<(i64, i64, i64, i64, i64), Failure> {
+    store.transaction(|t| t.query_row(
+        "SELECT (SELECT count(*) FROM revision),(SELECT count(*) FROM content),(SELECT count(*) FROM object_version),(SELECT count(*) FROM operation),(SELECT count(*) FROM tombstone)",
+        [], |row| Ok((row.get(0)?,row.get(1)?,row.get(2)?,row.get(3)?,row.get(4)?)),
+    ).map_err(|_| Failure::precondition("proof counts failed")))
 }

@@ -140,6 +140,10 @@ pub fn commit(
         }
         return Ok(held);
     }
+    Objects {
+        connection: transaction,
+    }
+    .require_active(id)?;
     let parents: Vec<_> = document["parent_revision_ids"]
         .as_array()
         .into_iter()

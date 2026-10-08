@@ -523,3 +523,57 @@ def prove(binary: Path, home: Path, temporary: Path, run: Runner) -> None:
     assert adopted["owner_id"] == owner
     assert adopted["facts"]["native_ids"]["value"] == ["example"], "MCP IDs must identify servers"
     assert (native / "config.toml").read_text(encoding="utf-8") == config
+
+    before_forget = invoke(show)
+    with closing(sqlite3.connect(database)) as connection:
+        retained = {
+            table: connection.execute(f"SELECT count(*) FROM {table}").fetchone()[0]
+            for table in ("revision", "content", "object_version", "component_source_binding")
+        }
+    forget = invoke(
+        [
+            "component",
+            "forget",
+            "plan",
+            "--state-dir",
+            str(state),
+            "--id",
+            component_id,
+            "--expected-revision",
+            before_forget["revision_id"],
+        ]
+    )
+    forgotten = apply(forget, "forget")
+    assert forgotten == {
+        "schema_version": 1,
+        "stable_id": component_id,
+        "revision_id": before_forget["revision_id"],
+        "state": "forgotten",
+    }
+    assert invoke(show) == before_forget
+    assert (
+        invoke(
+            [
+                "local",
+                "version",
+                "show",
+                "--state-dir",
+                str(state),
+                "--kind",
+                "component",
+                "--id",
+                component_id,
+                "--version",
+                "1.0",
+            ]
+        )
+        == released
+    )
+    invoke(bind, 4)
+    invoke(["setup", "compose", "plan", "--state-dir", str(state), "--request", str(request)], 4)
+    with closing(sqlite3.connect(database)) as connection:
+        assert all(
+            connection.execute(f"SELECT count(*) FROM {table}").fetchone()[0] == count
+            for table, count in retained.items()
+        )
+    assert skill.read_text(encoding="utf-8") == content
