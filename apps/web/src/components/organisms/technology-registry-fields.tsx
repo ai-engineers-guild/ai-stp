@@ -17,6 +17,7 @@ export function AreaField({
   initial: CategoryView | undefined;
 }) {
   const t = useTranslations("technology");
+  const areaT = useTranslations("technology.areas");
   return (
     <div className="space-y-2">
       <Label htmlFor={`${prefix}-area`}>{t("areas.field")}</Label>
@@ -26,7 +27,7 @@ export function AreaField({
         defaultValue={initial?.area_id ?? ""}
         className="border-input bg-background text-foreground focus-visible:ring-ring h-11 w-full rounded-sm border px-3 text-sm focus-visible:ring-2"
       >
-        <option value="">{t("areas.unassigned")}</option>
+        <option value="">{areaT("unassigned")}</option>
         {areas.map((area) => (
           <option key={area.area_id} value={area.area_id}>
             {area.name}
@@ -39,6 +40,7 @@ export function AreaField({
 
 export function CategoryStateField({ prefix }: { prefix: string }) {
   const t = useTranslations("technology");
+  const areaT = useTranslations("technology.areas");
   return (
     <div className="space-y-2">
       <Label htmlFor={`${prefix}-state`}>{t("categoryState")}</Label>
@@ -65,6 +67,7 @@ export function TechnologyFields({
   initial: TechnologyView | undefined;
 }) {
   const t = useTranslations("technology");
+  const areaT = useTranslations("technology.areas");
   return (
     <>
       {categories === null ? (
