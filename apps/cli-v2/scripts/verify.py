@@ -19,8 +19,15 @@ from contextlib import closing
 from pathlib import Path
 from typing import Any
 
+import verify_catalog
+import verify_environment
+import verify_projects
+
+from ai_stp_cli.local import revisions, versions
 from ai_stp_cli.local.database import open_registry
+from ai_stp_contracts.cli.components import PassportView, VersionLine
 from ai_stp_contracts.cli.registry import MachineHelp
+from ai_stp_contracts.cli.runtime import ConfigReport
 from ai_stp_foundation.canonical import JsonValue
 from ai_stp_foundation.digests import digest_canonical
 from ai_stp_foundation.envelope import ErrorEnvelope, SuccessEnvelope
@@ -28,7 +35,11 @@ from ai_stp_foundation.envelope import ErrorEnvelope, SuccessEnvelope
 
 def run(binary: Path, home: Path, args: list[str], expected: int = 0) -> dict[str, Any]:
     environment = {
-        name: value for name, value in os.environ.items() if name in {"SystemRoot", "WINDIR"}
+        # Python normalizes Windows environment keys to uppercase. Winsock needs
+        # SYSTEMROOT even when the child needs neither PATH nor user state.
+        name: value
+        for name, value in os.environ.items()
+        if name.upper() in {"SYSTEMROOT", "WINDIR"}
     }
     environment.update(
         PATH="",
@@ -45,7 +56,11 @@ def run(binary: Path, home: Path, args: list[str], expected: int = 0) -> dict[st
         timeout=15,
         env=environment,
     )
-    assert result.returncode == expected, result.stderr.decode(errors="replace")
+    assert result.returncode == expected, (
+        args,
+        result.stdout.decode(errors="replace"),
+        result.stderr.decode(errors="replace"),
+    )
     assert not result.stderr, result.stderr
     model = SuccessEnvelope if expected == 0 else ErrorEnvelope
     envelope = model.model_validate_json(result.stdout)
@@ -72,6 +87,11 @@ def prove(binary: Path, root: Path) -> None:
     assert capabilities["task_intents"] == capabilities["supported_harnesses"] == []
     assert run(binary, home, ["version"])["data"]["runtime"] == "rust"
     run(binary, home, ["unknown"], 2)
+    prove_config(binary, home, root)
+    prove_objects(binary, home, root)
+    verify_projects.prove(binary, home, root, run)
+    verify_catalog.prove(binary, home, root, run)
+    verify_environment.prove(binary, home, root, run)
 
     live = root / "live.sqlite"
     backup = root / "backup.sqlite"
@@ -158,6 +178,154 @@ def prove(binary: Path, root: Path) -> None:
             }
         )
     )
+
+
+def prove_config(binary: Path, home: Path, root: Path) -> None:
+    defaults = ConfigReport.model_validate(run(binary, home, ["config", "show"])["data"])
+    assert defaults.config_path is None
+    assert len(defaults.values) == 19
+    assert all(item.source == "default" for item in defaults.values)
+    config = root / "preview.yaml"
+    content = (
+        "schema_version: 1\ncatalog:\n  enabled: false\nsearch:\n  result_limit: 7\n"
+        "provider:\n  paths.codex: ''\nprojects:\n  discovery_roots: []\n"
+    )
+    config.write_text(content, encoding="utf-8")
+    shown = ConfigReport.model_validate(
+        run(
+            binary,
+            home,
+            ["config", "show", "--config", str(config), "--set", "search.result_limit=9"],
+        )["data"]
+    )
+    values = {item.path: item for item in shown.values}
+    assert values["catalog.enabled"].value is False
+    assert values["catalog.enabled"].source == "config_file"
+    assert values["search.result_limit"].value == 9
+    assert values["search.result_limit"].source == "command_argument"
+    assert config.read_text(encoding="utf-8") == content
+    ConfigReport.model_validate(
+        run(binary, home, ["config", "validate", "--config", str(config)])["data"]
+    )
+    for malformed in (
+        "schema_version: 2\n",
+        "catalog:\n  enabled: definitely-not-a-boolean\n",
+        "catalog:\n  enabled: true\n  enabled: false\n",
+        "password: must-not-be-echoed\n",
+        "provider:\n  paths:\n    codex: /tmp/provider\n",
+        "---\n{}\n---\n{}\n",
+        "catalog: !include secrets.yaml\n",
+        "update:\n  check_ttl_hours: 0\n",
+    ):
+        config.write_text(malformed, encoding="utf-8")
+        answer = run(binary, home, ["config", "validate", "--config", str(config)], 2)
+        assert "must-not-be-echoed" not in json.dumps(answer)
+    config.unlink()
+    run(binary, home, ["config", "show", "--config", str(config)], 2)
+
+
+def prove_objects(binary: Path, home: Path, root: Path) -> None:
+    state = root / "objects.sqlite"
+    backup = root / "objects-backup.sqlite"
+    device = "device_01ARZ3NDEKTSV4RRFFQ69G5FAV"
+    owner = "account_01ARZ3NDEKTSV4RRFFQ69G5FAV"
+    component = "component_01ARZ3NDEKTSV4RRFFQ69G5FAV"
+    at = "2026-10-08T00:00:00.000Z"
+    with closing(open_registry(state)) as connection:
+        for kind in ("developer", "device", "component"):
+            content: dict[str, JsonValue] = {
+                "schema_version": 1,
+                "kind": kind,
+                "stable_id": f"{kind}_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+                "owner_id": owner,
+                "created_at": at,
+                "facts": {},
+            }
+            if kind == "component":
+                content["version"] = "1.0"
+            stored = revisions.commit(connection, content, device_id=device)
+            if kind == "component":
+                versions.record(
+                    connection,
+                    stable_id=component,
+                    version="1.0",
+                    passport_digest=digest_canonical(
+                        "ai-stp:passport:v1", stored.envelope.model_dump(mode="json")
+                    ),
+                    revision_id=stored.revision_id,
+                    at=at,
+                )
+        with closing(sqlite3.connect(backup)) as destination:
+            connection.backup(destination)
+            destination.execute("PRAGMA journal_mode=DELETE")
+        before = {
+            path.name: hashlib.sha256(path.read_bytes()).hexdigest()
+            for path in root.iterdir()
+            if path.is_file()
+        }
+        options = ["--snapshot", str(backup), "--sha256", "sha256:" + before[backup.name]]
+        for command, kind in (
+            (["passport", "developer", "show"], "developer"),
+            (["passport", "device", "show"], "device"),
+            (["component", "passport", "show", "--id", component], "component"),
+        ):
+            data = run(binary, home, command + options)["data"]
+            PassportView.model_validate(data)
+            expected = revisions.head(connection, f"{kind}_01ARZ3NDEKTSV4RRFFQ69G5FAV")
+            assert expected is not None
+            assert data["revision_id"] == expected.revision_id
+            assert data["facts"] == expected.envelope.model_dump(mode="json")["facts"]
+        command = ["component", "version", "list", "--id", component]
+        line = VersionLine.model_validate(run(binary, home, command + options)["data"])
+        assert line.next_minor == "1.1" and len(line.versions) == 1
+        assert line.versions[0].revision_id == stored.revision_id
+        after = {
+            path.name: hashlib.sha256(path.read_bytes()).hexdigest()
+            for path in root.iterdir()
+            if path.is_file()
+        }
+        assert before == after, "object reads changed snapshot or live state"
+    original = backup.read_bytes()
+    # The file digest is deliberately updated: the record itself must be verified.
+    for sql, parameters, command, code in (
+        (
+            "UPDATE revision SET content = replace(content, ?, ?) WHERE stable_id = ?",
+            ("private", "public", component),
+            ["component", "passport", "show", "--id", component],
+            "AI_STP_PRECONDITION_FAILED",
+        ),
+        (
+            "UPDATE object_version SET passport_digest = ?",
+            ("sha256:" + "0" * 64,),
+            ["component", "version", "list", "--id", component],
+            "AI_STP_PRECONDITION_FAILED",
+        ),
+        (
+            "UPDATE object_version SET created_at = ?",
+            ("invalid",),
+            ["component", "version", "list", "--id", component],
+            "AI_STP_PRECONDITION_FAILED",
+        ),
+        (
+            "INSERT INTO head (stable_id, revision_id) "
+            "SELECT ?, revision_id FROM revision WHERE stable_id = ?",
+            (component, device),
+            ["component", "passport", "show", "--id", component],
+            "AI_STP_CONFLICT",
+        ),
+    ):
+        backup.write_bytes(original)
+        with closing(sqlite3.connect(backup)) as corrupt:
+            corrupt.execute(sql, parameters)
+            corrupt.commit()
+        options = [
+            "--snapshot",
+            str(backup),
+            "--sha256",
+            "sha256:" + hashlib.sha256(backup.read_bytes()).hexdigest(),
+        ]
+        answer = run(binary, home, command + options, 4)
+        assert answer["error"]["code"] == code
 
 
 def benchmark(binary: Path, root: Path) -> None:
