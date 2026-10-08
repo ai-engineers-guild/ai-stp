@@ -54,8 +54,9 @@ one source, a closed draft passport, `.gitignore` and a `component-scaffold/7`
 descriptor. It creates no boilerplate README, evaluation report, duplicate
 projection or Git repository. Every program has one runnable entry point and
 exits unsuccessfully with an explicit draft message until implemented. Descriptions
-carry the existing draft marker, so the tree cannot masquerade as a released
-product. Harness-specific scaffolds and hook/MCP/plugin generation remain pending;
+carry the existing draft marker, so an unedited scaffold cannot be released.
+Removing that description marker does not prove source readiness; identifying
+unchanged generated stubs in authoring-project checks remains pending. Harness-specific scaffolds and hook/MCP/plugin generation remain pending;
 the preview does not advertise the old generators' unsupported semantics.
 
 Planning writes nothing and binds the resolved parent directory's physical
@@ -160,7 +161,9 @@ migrations. Unknown schemas are refused before writes; SQLite uses foreign keys,
 defensive mode, an untrusted schema and FULL-synchronous WAL. Revision changes
 check all expected heads inside `BEGIN IMMEDIATE`; content and revisions commit
 or roll back together. Replaying a known revision preserves the current head.
-Immutable snapshots never move draft heads. This service does not yet expose
+Immutable snapshots never move draft heads. A setup requires one concrete
+harness at creation; every later draft and immutable version must preserve it,
+including agreement between the logical field and its fact when both are present. This service does not yet expose
 authoring commands or import a production registry.
 
 The immutable coordinate writer validates complete passports before recording
@@ -192,6 +195,28 @@ draft owned by the local authoring identity. The full adaptation graph and bytes
 are verified before copying. Draft, lineage and receipt commit together; the
 source stays intact. Replay verifies the original copy and lineage while retaining
 later edits. A fork creates no immutable number or publication approval.
+
+The headless setup composer freezes exact component references and their complete
+bounded dependency closure into a new private `1.0` setup. Planning writes no
+records. Every member must have an explicit adaptation for the chosen harness;
+missing, substituted, deleted, conflicted or draft members refuse composition.
+Apply rechecks the graph and commits the canonical definition artifact, passport,
+head, immutable coordinate and bound receipt together. Replay verifies the
+original artifacts and members without changing a later draft. Declared-empty
+setups are valid compositions.
+
+One aggregate preserves every declared environment purpose, unions permissions
+(including all scopes of the selected adaptation), endpoints and runtime
+requirements, and keeps the strongest authorization and any credential
+requirement. Input order cannot weaken these summaries. Multiple license
+declarations are individually parenthesized before conjunction; the existing
+free-form license field is not an SPDX parser or a compatibility verdict.
+Redistribution is the conjunction of member declarations. The exact passports
+remain authoritative for scope, platform, version and capability constraints;
+composition is not mechanical installation eligibility or a provider approval.
+Request metadata is bounded to 256 KiB and the resulting passport to 1 MiB.
+Project binding, later setup versions, recasting, import/export and CLI exposure
+remain pending.
 
 Component artifacts use the canonical uncompressed ZIP profile. The encoder
 preserves existing bytes, including fixed timestamps, Unicode flags and Unix
@@ -307,6 +332,7 @@ no async runtime or tracing feature is enabled for it.
 | `authoring/releases.rs`, `authoring/freezing.rs` | Planned component releases and deterministic native projection compilation |
 | `authoring/forks.rs` | Exact private component copies with atomic lineage and replay |
 | `authoring/templates.rs` | Bounded portable template rendering with literal CommonMark code blocks |
+| `authoring/setups/` | Exact private setup composition, conservative requirement aggregation and atomic immutable registration |
 | `authoring/scaffold/` | Minimal exact source plans and recoverable non-overwriting directory creation |
 | `provenance.rs` | Offline PEP 740 cryptographic verification and publisher policy |
 

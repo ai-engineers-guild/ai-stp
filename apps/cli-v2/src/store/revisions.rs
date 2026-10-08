@@ -86,6 +86,9 @@ pub fn commit(
     let revision = text("revision_id")?;
     let kind = text("kind")?;
     let created = text("created_at")?;
+    if kind == "setup" {
+        setup_harness(&document)?;
+    }
     let existing: Option<String> = transaction
         .query_row("SELECT kind FROM entity WHERE stable_id = ?", [id], |row| {
             row.get(0)
@@ -104,6 +107,11 @@ pub fn commit(
                 connection: transaction,
             }
             .revision(head)?;
+            if kind == "setup" && setup_harness(&held)? != setup_harness(&document)? {
+                return Err(Failure::precondition(
+                    "a setup cannot change its harness after creation",
+                ));
+            }
             if held["stable_id"] != id || held["owner_id"] != document["owner_id"] {
                 return Err(Failure::precondition(
                     "a revision cannot change its entity owner",
@@ -236,4 +244,23 @@ pub fn read_content(connection: &Connection, address: &str) -> Result<Vec<u8>> {
         ));
     }
     Ok(bytes)
+}
+
+fn setup_harness(document: &Value) -> Result<&str> {
+    let top = document.get("harness_id");
+    let fact = document["facts"]
+        .get("harness_id")
+        .map(|fact| &fact["value"]);
+    if top.is_some() && fact.is_some() && top != fact {
+        return Err(Failure::precondition("setup harness declarations disagree"));
+    }
+    let harness = top
+        .or(fact)
+        .and_then(Value::as_str)
+        .ok_or_else(|| Failure::precondition("a setup requires its harness at creation"))?;
+    if harness == "undefined" {
+        return Err(Failure::input("a setup requires a concrete harness"));
+    }
+    crate::harnesses::definition(harness)?;
+    Ok(harness)
 }

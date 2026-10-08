@@ -2,11 +2,12 @@
 
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
-use rusqlite::OptionalExtension;
+use rusqlite::{Connection, OptionalExtension};
 use serde_json::{Value, json};
 
 use crate::{
     error::{ErrorKind, Failure, Result},
+    objects::Objects,
     passport,
     snapshot::Snapshot,
     wire,
@@ -163,10 +164,23 @@ pub fn read(snapshot: &Snapshot, members: &[String], proposal: Option<&str>) -> 
             });
         }
     }
-    resolve(snapshot, roots)
+    resolve(&snapshot.connection, roots)
 }
 
-fn resolve(snapshot: &Snapshot, mut roots: Vec<Reference>) -> Result<Value> {
+pub(crate) fn exact(connection: &Connection, members: &[Value]) -> Result<Value> {
+    if members.len() > MAX_NODES {
+        return Err(Failure::input("too many dependency roots"));
+    }
+    resolve(
+        connection,
+        members
+            .iter()
+            .map(|value| Reference::from_value(value, ""))
+            .collect(),
+    )
+}
+
+fn resolve(connection: &Connection, mut roots: Vec<Reference>) -> Result<Value> {
     roots.sort();
     let mut edges = roots.len();
     let mut frontier: VecDeque<_> = roots.into_iter().map(|root| (root, 0)).collect();
@@ -213,7 +227,7 @@ fn resolve(snapshot: &Snapshot, mut roots: Vec<Reference>) -> Result<Value> {
             );
             continue;
         }
-        let document = match snapshot.exact_version(
+        let document = match (Objects { connection }).exact_version(
             &reference.stable_id,
             &reference.version,
             Some(&reference.passport_digest),
@@ -241,8 +255,7 @@ fn resolve(snapshot: &Snapshot, mut roots: Vec<Reference>) -> Result<Value> {
                 continue;
             }
         };
-        let deleted: bool = snapshot
-            .connection
+        let deleted: bool = connection
             .query_row(
                 "SELECT EXISTS(SELECT 1 FROM tombstone WHERE stable_id = ?)",
                 [&reference.stable_id],
