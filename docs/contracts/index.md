@@ -57,7 +57,7 @@ last_verified: "2026-08-03"
 | [report-case.md](report-case.md) | Private report case: allowed content, preview, states, and auditable moderator actions. | 2026-09-04 |
 | [runtime-usage-events.md](runtime-usage-events.md) | Runtime usage event ingestion, scoped reports, drill-down, and export routes for corporate telemetry. | 2026-09-25 |
 | [selection-impact.md](selection-impact.md) | Machine contract for the local context budget, capability delta, and blast radius. | 2026-08-15 |
-| [selection-proposal.md](selection-proposal.md) | Ephemeral composition proposal, its confirmation, and atomic persistence of a SetupVersion. | 2026-08-25 |
+| [selection-proposal.md](selection-proposal.md) | Ephemeral composition proposal, its confirmation, and atomic persistence of a SetupVersion. | 2026-10-08 |
 | [seo-publication-projection.md](seo-publication-projection.md) | Machine boundary for server-side SEO revisions, discovery documents, and model enrichment. | 2026-08-29 |
 | [setup-evaluation.md](setup-evaluation.md) | Machine contract for the profile, plan, and result of local evaluation of an exact SetupVersion. | 2026-09-06 |
 | [setup-graph.md](setup-graph.md) | Exact setup dependency closure: node, deterministic order, closed failure list, and resource limits. | 2026-08-08 |

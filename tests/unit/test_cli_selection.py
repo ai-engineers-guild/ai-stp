@@ -1,5 +1,6 @@
 """The recommendation session: showing creates nothing, confirming creates once."""
 
+import json
 import sqlite3
 import threading
 from collections.abc import Generator, Iterator
@@ -437,13 +438,24 @@ def test_setup_passport_aggregates_complete_component_metadata(
 
 
 # REQ-624: a repeat is a success that returns the same version.
+@pytest.mark.parametrize("new_draft", [False, True])
 def test_confirming_twice_returns_one_version_and_makes_no_second_object(
     registry: sqlite3.Connection,
+    new_draft: bool,
 ) -> None:
     member = _member(_component(registry, "N"), registry)
     proposal = selection.propose(
         registry, context=_context(registry), members=(member,), at=AT, expires_at=SOON
     )
+    if new_draft:
+        previous = revisions.head(registry, member.stable_id)
+        assert previous is not None
+        draft = cast(dict[str, JsonValue], previous.envelope.model_dump(mode="json"))
+        draft.pop("revision_id", None)
+        draft.update(parent_revision_ids=[previous.revision_id], lifecycle_state="draft")
+        revised = revisions.commit(registry, draft, device_id=DEVICE)
+        assert revised.revision_id != previous.revision_id
+        assert _member(member.stable_id, registry) == member
 
     first = selection.confirm(
         registry,
@@ -651,7 +663,8 @@ def test_a_member_deleted_after_proposing_is_its_own_refusal(
     assert raised.value.code == "AI_STP_PRECONDITION_FAILED"
 
 
-def test_a_member_whose_version_is_gone_is_refused(registry: sqlite3.Connection) -> None:
+@pytest.mark.parametrize("damage", ["missing_version", "changed_revision"])
+def test_an_invalid_exact_member_is_refused(registry: sqlite3.Connection, damage: str) -> None:
     stable_id = _component(registry, "6")
     proposal = selection.propose(
         registry,
@@ -660,7 +673,18 @@ def test_a_member_whose_version_is_gone_is_refused(registry: sqlite3.Connection)
         at=AT,
         expires_at=SOON,
     )
-    registry.execute("DELETE FROM object_version WHERE stable_id = ?", (stable_id,))
+    if damage == "missing_version":
+        registry.execute("DELETE FROM object_version WHERE stable_id = ?", (stable_id,))
+    else:
+        stored = revisions.head(registry, stable_id)
+        assert stored is not None
+        substituted = stored.envelope.model_dump(mode="json")
+        substituted["visibility"] = "public"
+        registry.execute(
+            "UPDATE revision SET content = ? WHERE revision_id = ?",
+            (json.dumps(substituted), stored.revision_id),
+        )
+    before = _counts(registry)
     with pytest.raises(CliFailure) as raised:
         selection.confirm(
             registry,
@@ -671,6 +695,7 @@ def test_a_member_whose_version_is_gone_is_refused(registry: sqlite3.Connection)
             at=AT,
         )
     assert raised.value.code == "AI_STP_PRECONDITION_FAILED"
+    assert _counts(registry) == before
 
 
 def test_a_member_changed_between_preflight_and_write_lock_is_refused_atomically(

@@ -387,6 +387,35 @@ fn exact_setup_closure_constraints_atomicity_and_replay() -> Result<(), Box<dyn 
         "requires_components":[serde_json::to_value(reference(&first)?)?],
         "license":{"spdx_id":"BSD-3-Clause","redistribution_allowed":false}}),
     )?;
+    // The released dependency stays usable after its author advances a draft.
+    store.transaction(|t| {
+        let id = first["stable_id"]
+            .as_str()
+            .ok_or_else(|| Failure::input("proof id missing"))?;
+        let heads = revisions::heads(t, id)?;
+        assert_eq!(heads.len(), 1);
+        let bytes: String = t
+            .query_row(
+                "SELECT content FROM revision WHERE revision_id=?",
+                [&heads[0]],
+                |row| row.get(0),
+            )
+            .map_err(|_| Failure::precondition("proof revision missing"))?;
+        let mut draft = ai_stp_cli_v2::canonical::parse(bytes.as_bytes())?;
+        draft["parent_revision_ids"] = json!(heads);
+        draft["lifecycle_state"] = "draft".into();
+        let revised = revisions::commit(
+            t,
+            &draft,
+            &identity.device_id,
+            None,
+            Write::Advance {
+                expected_heads: &heads,
+            },
+        )?;
+        assert_ne!(revised["revision_id"], heads[0]);
+        Ok(())
+    })?;
     let request = Request {
         harness_id: "claude-code".into(),
         name: "Exact setup".into(),

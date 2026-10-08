@@ -580,11 +580,18 @@ def _members_still_valid(connection: sqlite3.Connection, proposal: Proposal) -> 
                 details={"stable_id": member.stable_id, "version": member.version},
                 next_actions=["select propose --harness <id> --json"],
             )
-        stored = revisions.head(connection, member.stable_id)
-        if stored is None or not lifecycle.registrable(connection, stored):
+        # Draft heads evolve independently of immutable X.Y snapshots. Recheck
+        # the revision the proposal pinned, while deletion remains entity-wide.
+        stored = revisions.get(connection, recorded.revision_id)
+        if (
+            stored is None
+            or stored.stable_id != member.stable_id
+            or cache.digest_of(stored.envelope.model_dump(mode="json")) != member.passport_digest
+            or not lifecycle.registrable(connection, stored)
+        ):
             raise CliFailure(
                 "AI_STP_PRECONDITION_FAILED",
-                "a member of this proposal is a draft or has been deleted",
+                "an exact member revision is missing, invalid or no longer registrable",
                 details={"stable_id": member.stable_id},
                 next_actions=["select propose --harness <id> --json"],
             )

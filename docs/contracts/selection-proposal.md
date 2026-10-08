@@ -1,6 +1,6 @@
 ---
 description: "Ephemeral composition proposal, its confirmation, and atomic persistence of a SetupVersion."
-last_verified: "2026-08-25"
+last_verified: "2026-10-08"
 ---
 
 # Composition proposal and confirmation
@@ -88,6 +88,10 @@ Exact versions, participant eligibility, and the sole heads of developer,
 device, and project passports are checked before opening the transaction and
 again under `BEGIN IMMEDIATE`. Their removal or change between the first check
 and the write lock rejects confirmation and leaves no partial SetupVersion.
+Member checks read the immutable revision behind the pinned `X.Y`, verify its
+passport digest, and retain entity-wide tombstone refusal. Editing a later draft
+does not change that released version or invalidate its proposal. Mutable context
+passports still require their exact current sole heads.
 
 Repeated confirmation of the same proposal is idempotent: it returns the
 already created version and does not create a second object.
