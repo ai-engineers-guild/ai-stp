@@ -1,6 +1,6 @@
 ---
 description: "Current ai_stp status and the ordered plan for remaining work."
-last_verified: "2026-10-07"
+last_verified: "2026-10-08"
 ---
 
 # Current status and plan
@@ -20,7 +20,7 @@ The owner's October 8 instruction activates
 earlier rewrite deferral. The objective is a complete native CLI with explicit
 business scope, a small risk-based proof set and a controlled production switch.
 Python CLI 0.0.43 remains the shipped engine. C0 froze migration evidence;
-C1 adds the isolated native preview under `apps/cli-v2`, without transferring
+C1 establishes the isolated native preview under `apps/cli-v2`, without transferring
 production state ownership. Its code-adjacent README owns the preview contract;
 command details come from the executable registry, not copied specifications.
 
@@ -35,12 +35,21 @@ remain implemented; the following rows describe their Rust replacement.
 |---|---|---|---|
 | C0 — scope and decisions | Complete command-to-business ledger, current behavior versus intended changes, architecture boundary and ordered migration plan | Verify every descriptor/handler/classification against the baseline revision; documentation gate, existing status contracts and final diff review | Recorded by [#717](https://github.com/ai-engineers-guild/ai-stp/issues/717); exact-SHA integration results belong to the issue/PR |
 | C1 — native boundary proof | One Rust package with offline metadata, explicit schema-53 snapshot inspection, strict canonical data and native PEP 740 verification | Existing vectors and envelope/help consumers; all 51 tables from a real live-WAL backup; exact digest and newer-schema refusals; real PyPI artifact and eight negative mutations; three-OS CI and release-build measurements | Implemented; final integration and dated evidence tracked by [#718](https://github.com/ai-engineers-guild/ai-stp/issues/718) |
-| C2 — useful read path | Rust environment/configuration inspection, local object/project evidence and catalog reads with bounded online/offline caching | Same observable outcomes against seeded state and the actual API; no accidental production writes, credential migration or metadata housekeeping; release-build measurements with comparable work | Planned |
+| C2 — useful read path | Explicit configuration and verified local passport/version reads, bounded project discovery/indexing, public catalog reads/cache and exact declared environment prerequisites | Shared consumer/canonical/Markdown vectors, real schema-53 snapshots/files/TCP, historical wire identity, refusal and cache bounds; actual API readback, three-OS CI and comparable release-build measurements | Implemented; integration and dated evidence tracked by [#734](https://github.com/ai-engineers-guild/ai-stp/issues/734) |
 | C3 — authoring and selection | Rust adoption/scaffolding, immutable revisions/import/export, graph validation, mechanical eligibility and deterministic bundle compilation | Author → exact-version selection → bundle journey; canonical/descriptor/schema parity; refusal of invalid graphs, escaping paths, secrets and stale evidence | Planned |
-| C4 — provider execution and recovery | Rust trusted provider/software lifecycle, single- and multi-root installation, preserve/restore/switch and durable task flows for completed services | First one real provider on temporary targets, then all seven declared profiles; bounded process execution, interrupted apply, idempotent retry, rollback and active-environment handoff. Advertise only completed task intents | Planned |
+| C4 — provider execution and recovery | Observed environment inspection, Rust trusted provider/software lifecycle, single- and multi-root installation, preserve/restore/switch and durable task flows for completed services | First one real provider on temporary targets, then all seven declared profiles; bounded process execution, interrupted apply, idempotent retry, rollback and active-environment handoff. Advertise only completed task intents | Planned |
 | C5 — connected capabilities | Rust account/device/grants, private sync and conflict handling, publication/readback, technology mappings, assurance/reporting and existing governed-operation adapters | Real CLI↔API journeys, revocation/retry/restart, explicit visibility decisions, exact provenance and terminal readback; bounded heartbeat/usage delivery with current consent policy | Planned |
 | C6 — native distribution and consumers | Owner-aware native install/update/recovery, attested artifacts/SBOM and a packaged Rust desktop sidecar | Exact-artifact Linux x86_64, Windows x86_64 and macOS arm64 execution; filtered desktop child environment, correct sidecar selection, installer coexistence, interruption/rollback and current-state recovery | Planned |
 | C7 — controlled cutover and retirement | Transfer production writer ownership, switch the default executable, retire superseded Python CLI code/tests and reconcile all docs/memories | Every ledger row has a verified disposition; no unsupported pending task/state; tested quiescence/backup/ownership transfer; rollback after v2 mutations uses current compatible state or proved conversion; local/GitHub/deployed identities agree | Planned |
+
+C2 separates declared requirements from executable environment observations:
+`environment requirements` reads exact snapshot identities and variable names;
+production `environment inspect` also invokes harness status and toolchain
+preparation, so its observed-program completion is explicitly owned by C4.
+C2 is a preview read path, not disposition of every production inspection leaf.
+Project indexing intentionally refuses all symlinks, including internal aliases,
+and catalog cache access requires an explicit isolated directory. Historical
+public passports retain their original omitted fields and published digest.
 
 ### Checkpoint execution rules
 

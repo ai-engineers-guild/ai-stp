@@ -4,9 +4,9 @@ use clap::{Arg, ArgAction, ArgMatches, Command, builder::ValueParser};
 use serde_json::{Value, json};
 
 use crate::{
-    digest,
+    catalog, config, digest, environment,
     error::{ErrorKind, Failure, Result},
-    snapshot,
+    projects, snapshot,
 };
 
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -17,6 +17,15 @@ enum Handler {
     Help,
     Capabilities,
     Snapshot,
+    Config,
+    Passport(&'static str),
+    Versions,
+    ProjectIndex,
+    ProjectDiscover,
+    CatalogSearch,
+    CatalogShow,
+    CatalogVersion,
+    EnvironmentRequirements,
 }
 
 #[derive(Clone, Copy)]
@@ -24,6 +33,8 @@ enum ParameterType {
     String,
     Boolean,
     Path,
+    Strings,
+    Choice(&'static [&'static str]),
 }
 
 struct Parameter {
@@ -42,6 +53,10 @@ impl Parameter {
         match self.kind {
             ParameterType::Boolean => argument.action(ArgAction::SetTrue),
             ParameterType::String => argument.action(ArgAction::Set),
+            ParameterType::Strings => argument.action(ArgAction::Append),
+            ParameterType::Choice(values) => argument.value_parser(
+                clap::builder::PossibleValuesParser::new(values.iter().copied()),
+            ),
             ParameterType::Path => argument.value_parser(ValueParser::path_buf()),
         }
     }
@@ -49,7 +64,8 @@ impl Parameter {
     fn descriptor(&self) -> Value {
         json!({"name": self.name, "kind": "option",
             "value_type": if matches!(self.kind, ParameterType::Boolean) { "boolean" } else { "string" },
-            "required": self.required, "repeatable": false, "summary": self.summary, "choices": []})
+            "required": self.required, "repeatable": matches!(self.kind, ParameterType::Strings), "summary": self.summary,
+            "choices": match self.kind {ParameterType::Choice(values) => values, _ => &[]}})
     }
 }
 
@@ -67,12 +83,123 @@ const JSON: Parameter = Parameter {
     required: false,
 };
 
+const CONFIG: Parameter = Parameter {
+    name: "config",
+    summary: "Explicit YAML configuration file; omission uses preview defaults.",
+    kind: ParameterType::Path,
+    required: false,
+};
+
+const SNAPSHOT: Parameter = Parameter {
+    name: "snapshot",
+    summary: "Standalone schema-53 SQLite backup in DELETE journal mode (at most 128 MiB).",
+    kind: ParameterType::Path,
+    required: true,
+};
+const SHA256: Parameter = Parameter {
+    name: "sha256",
+    summary: "Expected sha256:<hex> digest of the exact backup bytes.",
+    kind: ParameterType::String,
+    required: true,
+};
+const ID: Parameter = Parameter {
+    name: "id",
+    summary: "Exact stable object identifier.",
+    kind: ParameterType::String,
+    required: true,
+};
+
+const ROOT: Parameter = Parameter {
+    name: "root",
+    summary: "Explicit project directory; home and filesystem roots are refused.",
+    kind: ParameterType::Path,
+    required: true,
+};
+
+const KIND: Parameter = Parameter {
+    name: "kind",
+    summary: "Public catalog object kind.",
+    kind: ParameterType::Choice(&["component", "setup"]),
+    required: true,
+};
+const CACHE: Parameter = Parameter {
+    name: "cache-dir",
+    summary: "Existing parent directory for an isolated, bounded public catalog cache.",
+    kind: ParameterType::Path,
+    required: false,
+};
+const OFFLINE: Parameter = Parameter {
+    name: "offline",
+    summary: "Read only the explicit cache without opening a network connection.",
+    kind: ParameterType::Boolean,
+    required: false,
+};
+
 const COMMANDS: &[Declaration] = &[
     Declaration {
         path: &["capabilities"],
         summary: "List the capabilities implemented by this native preview.",
         parameters: &[],
         handler: Handler::Capabilities,
+    },
+    Declaration {
+        path: &["component", "passport", "show"],
+        summary: "Read and verify the current component passport from an explicit snapshot.",
+        parameters: &[SNAPSHOT, SHA256, ID],
+        handler: Handler::Passport("component"),
+    },
+    Declaration {
+        path: &["component", "version", "list"],
+        summary: "Verify immutable version history and its next minor coordinate.",
+        parameters: &[SNAPSHOT, SHA256, ID],
+        handler: Handler::Versions,
+    },
+    Declaration {
+        path: &["config", "show"],
+        summary: "Read explicit configuration with invocation-only overrides and value sources.",
+        parameters: &[
+            CONFIG,
+            Parameter {
+                name: "set",
+                summary: "Override a declared path=value for this invocation only.",
+                kind: ParameterType::Strings,
+                required: false,
+            },
+        ],
+        handler: Handler::Config,
+    },
+    Declaration {
+        path: &["config", "validate"],
+        summary: "Validate explicit configuration without creating or updating any state.",
+        parameters: &[CONFIG],
+        handler: Handler::Config,
+    },
+    Declaration {
+        path: &["environment", "requirements"],
+        summary: "Verify exact setup prerequisites and variable presence without executing preparation.",
+        parameters: &[
+            SNAPSHOT,
+            SHA256,
+            Parameter {
+                name: "project",
+                summary: "Project identity already bound to the target in the snapshot.",
+                kind: ParameterType::String,
+                required: true,
+            },
+            Parameter {
+                name: "target",
+                summary: "Absolute project target; a moved marker may reclaim only an absent root.",
+                kind: ParameterType::Path,
+                required: true,
+            },
+            Parameter {
+                name: "setup",
+                summary: "Exact setup id@X.Y; repeat for multiple setups.",
+                kind: ParameterType::Strings,
+                required: true,
+            },
+        ],
+        handler: Handler::EnvironmentRequirements,
     },
     Declaration {
         path: &["help"],
@@ -100,22 +227,90 @@ const COMMANDS: &[Declaration] = &[
         handler: Handler::Help,
     },
     Declaration {
-        path: &["snapshot", "inspect"],
-        summary: "Inspect an explicit schema-53 SQLite backup without opening live state.",
+        path: &["passport", "developer", "show"],
+        summary: "Read the verified developer passport without creating an identity.",
+        parameters: &[SNAPSHOT, SHA256],
+        handler: Handler::Passport("developer"),
+    },
+    Declaration {
+        path: &["passport", "device", "show"],
+        summary: "Read the verified device passport without refreshing observations.",
+        parameters: &[SNAPSHOT, SHA256],
+        handler: Handler::Passport("device"),
+    },
+    Declaration {
+        path: &["project", "discover"],
+        summary: "Find projects and nested repositories with bounded traversal and no writes.",
+        parameters: &[ROOT],
+        handler: Handler::ProjectDiscover,
+    },
+    Declaration {
+        path: &["project", "index"],
+        summary: "Describe and hash bounded project files without following symlinks or reading credentials.",
+        parameters: &[ROOT],
+        handler: Handler::ProjectIndex,
+    },
+    Declaration {
+        path: &["registry", "search"],
+        summary: "Read one live public catalog page with separate trust lanes and no account.",
         parameters: &[
+            CONFIG,
+            KIND,
             Parameter {
-                name: "snapshot",
-                summary: "Standalone SQLite backup in DELETE journal mode (at most 128 MiB).",
-                kind: ParameterType::Path,
-                required: true,
+                name: "query",
+                summary: "Search text, from 1 to 200 characters.",
+                kind: ParameterType::String,
+                required: false,
             },
             Parameter {
-                name: "sha256",
-                summary: "Expected sha256:<hex> digest of the exact backup bytes.",
+                name: "cursor",
+                summary: "Opaque next-page cursor returned by the catalog.",
+                kind: ParameterType::String,
+                required: false,
+            },
+            Parameter {
+                name: "limit",
+                summary: "Page size from 1 to 100; defaults to 20.",
+                kind: ParameterType::String,
+                required: false,
+            },
+            Parameter {
+                name: "include-experimental",
+                summary: "Include experimental results in their separate lane.",
+                kind: ParameterType::Boolean,
+                required: false,
+            },
+        ],
+        handler: Handler::CatalogSearch,
+    },
+    Declaration {
+        path: &["registry", "show"],
+        summary: "Read one public object, falling back to an explicit cache only on unavailability.",
+        parameters: &[CONFIG, KIND, ID, CACHE, OFFLINE],
+        handler: Handler::CatalogShow,
+    },
+    Declaration {
+        path: &["registry", "version"],
+        summary: "Read and verify an exact public version and preserve its cache observation time.",
+        parameters: &[
+            CONFIG,
+            KIND,
+            ID,
+            CACHE,
+            OFFLINE,
+            Parameter {
+                name: "version",
+                summary: "Exact immutable X.Y version.",
                 kind: ParameterType::String,
                 required: true,
             },
         ],
+        handler: Handler::CatalogVersion,
+    },
+    Declaration {
+        path: &["snapshot", "inspect"],
+        summary: "Inspect an explicit schema-53 SQLite backup without opening live state.",
+        parameters: &[SNAPSHOT, SHA256],
         handler: Handler::Snapshot,
     },
     Declaration {
@@ -242,20 +437,107 @@ pub fn dispatch(matches: &ArgMatches) -> Result<Value> {
         Handler::Capabilities => Ok(json!({"schema_version": 1, "cli_version": VERSION,
             "wire_schema_version": 1, "registry_digest": digest()?, "release_channel": "preview",
             "command_paths": COMMANDS.iter().map(|item| item.path.join(" ")).collect::<Vec<_>>(),
-            "task_intents": [], "supported_harnesses": [], "catalog_enabled": false, "sync_enabled": false,
-            "state_access": "explicit_snapshot_read_only", "readable_local_schema_versions": [snapshot::SCHEMA_VERSION]})),
+            "task_intents": [], "supported_harnesses": [], "catalog_enabled": true, "sync_enabled": false,
+            "state_access": "explicit_snapshot_read_only", "cache_access": "explicit_public_catalog_cache", "readable_local_schema_versions": [snapshot::SCHEMA_VERSION]})),
         Handler::Help => help(
             leaf.get_one::<String>("path").map_or("", String::as_str),
             leaf.get_one::<String>("find").map_or("", String::as_str),
         ),
-        Handler::Snapshot => {
+        Handler::Config => config::show(
+            leaf.get_one::<std::path::PathBuf>("config")
+                .map(|p| p.as_path()),
+            &leaf
+                .try_get_many::<String>("set")
+                .ok()
+                .flatten()
+                .map(|values| values.cloned().collect::<Vec<_>>())
+                .unwrap_or_default(),
+        ),
+        Handler::ProjectIndex | Handler::ProjectDiscover => {
+            let root = leaf
+                .get_one::<std::path::PathBuf>("root")
+                .ok_or_else(|| Failure::input("root is required"))?;
+            if matches!(declaration.handler, Handler::ProjectIndex) {
+                projects::index(root)
+            } else {
+                projects::discover(root)
+            }
+        }
+        Handler::CatalogSearch | Handler::CatalogShow | Handler::CatalogVersion => {
+            let reader = catalog::Reader::new(
+                leaf.get_one::<std::path::PathBuf>("config")
+                    .map(|p| p.as_path()),
+                leaf.try_get_one::<std::path::PathBuf>("cache-dir")
+                    .ok()
+                    .flatten()
+                    .map(|p| p.as_path()),
+                leaf.try_get_one::<bool>("offline")
+                    .ok()
+                    .flatten()
+                    .copied()
+                    .unwrap_or(false),
+            )?;
+            let kind = catalog::Kind::parse(
+                leaf.get_one::<String>("kind")
+                    .ok_or_else(|| Failure::input("kind is required"))?,
+            )?;
+            if matches!(declaration.handler, Handler::CatalogSearch) {
+                reader.search(
+                    kind,
+                    leaf.get_one::<String>("query").map(String::as_str),
+                    leaf.get_one::<String>("cursor").map(String::as_str),
+                    leaf.get_one::<String>("limit").map(String::as_str),
+                    leaf.get_flag("include-experimental"),
+                )
+            } else {
+                reader.show(
+                    kind,
+                    leaf.get_one::<String>("id")
+                        .ok_or_else(|| Failure::input("id is required"))?,
+                    leaf.try_get_one::<String>("version")
+                        .ok()
+                        .flatten()
+                        .map(String::as_str),
+                )
+            }
+        }
+        Handler::Snapshot
+        | Handler::Passport(_)
+        | Handler::Versions
+        | Handler::EnvironmentRequirements => {
             let path = leaf
                 .get_one::<std::path::PathBuf>("snapshot")
                 .ok_or_else(|| Failure::input("snapshot is required"))?;
             let digest = leaf
                 .get_one::<String>("sha256")
                 .ok_or_else(|| Failure::input("sha256 is required"))?;
-            snapshot::inspect(path, digest)
+            let state = snapshot::Snapshot::open(path, digest)?;
+            match declaration.handler {
+                Handler::EnvironmentRequirements => environment::requirements(
+                    &state,
+                    leaf.get_one::<String>("project")
+                        .ok_or_else(|| Failure::input("project is required"))?,
+                    leaf.get_one::<std::path::PathBuf>("target")
+                        .ok_or_else(|| Failure::input("target is required"))?,
+                    &leaf
+                        .get_many::<String>("setup")
+                        .ok_or_else(|| Failure::input("setup is required"))?
+                        .cloned()
+                        .collect::<Vec<_>>(),
+                ),
+                Handler::Passport(kind) => state.passport(
+                    kind,
+                    leaf.try_get_one::<String>("id")
+                        .ok()
+                        .flatten()
+                        .map(String::as_str),
+                ),
+                Handler::Versions => state.versions(
+                    leaf.get_one::<String>("id")
+                        .ok_or_else(|| Failure::input("id is required"))?,
+                ),
+                _ => Ok(state.report()),
+            }
         }
     }
 }
