@@ -316,13 +316,13 @@ fn seed(
         let address = revisions::content(t,&bytes,AT)?;
         let mut values = json!({"name":name,"description":"Inspect project conventions.","tags":["development"],
             "harness_id":"claude-code","component_type":"skill","projection_kind":"native_files","scope":"global",
-            "content_digest":address,"content_format":artifacts::TREE_FORMAT,"native_ids":[name],"managed_paths":[format!("skills/{name}")],
+            "content_digest":address,"byte_length":bytes.len(),"content_format":artifacts::TREE_FORMAT,"native_ids":[name],"managed_paths":[format!("skills/{name}")],
             "license":{"spdx_id":"MIT","redistribution_allowed":true}});
         values.as_object_mut().ok_or_else(|| Failure::input("facts missing"))?.extend(extra.as_object().ok_or_else(|| Failure::input("extra missing"))?.clone());
         values["adaptation_contents"] = json!([
-            {"harness_id":"claude-code","scope":"global","projection_kind":"native_files","content_digest":address,
+            {"harness_id":"claude-code","scope":"global","projection_kind":"native_files","content_digest":address,"byte_length":bytes.len(),
              "content_format":artifacts::TREE_FORMAT,"native_ids":[name],"managed_paths":[format!("skills/{name}")]},
-            {"harness_id":"codex","scope":"user_root","projection_kind":"native_files","content_digest":address,
+            {"harness_id":"codex","scope":"user_root","projection_kind":"native_files","content_digest":address,"byte_length":bytes.len(),
              "content_format":artifacts::TREE_FORMAT,"native_ids":[name],"managed_paths":[format!("skills/{name}")]}
         ]);
         let facts: serde_json::Map<String,Value> = values.as_object().ok_or_else(|| Failure::input("facts missing"))?.iter()

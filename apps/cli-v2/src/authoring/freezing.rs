@@ -231,6 +231,9 @@ fn freeze(
     store_at: Option<&str>,
 ) -> Result<Value> {
     let payload = revisions::read_content(transaction, text(source, "content_digest")?)?;
+    if source["byte_length"].as_u64() != Some(payload.len() as u64) {
+        return Err(invalid().with_details([("constraint".into(), "source_size_mismatch".into())]));
+    }
     let (adaptation, bytes) = project(values, source, payload, providers)?;
     if let Some(at) = store_at {
         revisions::content(transaction, &bytes, at)?;

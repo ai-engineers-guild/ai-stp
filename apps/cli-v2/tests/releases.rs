@@ -513,6 +513,61 @@ fn native_release_preserves_owned_bytes_graphs_and_atomic_history() -> Result<()
             ))
         })
         .collect::<Result<_, _>>()?;
+    // The source fact must agree with retained CAS, even when another explicit
+    // adaptation is otherwise valid. A digest alone does not validate its size.
+    for length in [
+        json!(null),
+        json!("9"),
+        json!(-1),
+        json!(1.5),
+        json!(0),
+        json!(u32::MAX),
+    ] {
+        for explicit in [false, true] {
+            let mut facts = released[0]["facts"].clone();
+            if explicit {
+                let mut entries = sources.clone();
+                entries[1]["byte_length"] = length.clone();
+                facts["adaptation_contents"] =
+                    json!({"value":entries,"origin":"declared","confirmation":"none"});
+            } else {
+                facts["byte_length"]["value"] = length.clone();
+            }
+            let seed = json!({"kind":"component","stable_id":format!("component_{}",ulid::Ulid::generate()),
+                "owner_id":identity.account_id,"created_at":AT,"facts":facts});
+            let head = store.transaction(|t| {
+                revisions::commit(
+                    t,
+                    &seed,
+                    &identity.device_id,
+                    None,
+                    Write::Advance {
+                        expected_heads: &[],
+                    },
+                )
+            })?;
+            let before = counts(&mut store)?;
+            let validation = review::validate(&mut store, field(&head, "stable_id")?, &providers)?;
+            assert_eq!(validation["ready"], false);
+            assert_eq!(
+                validation["blocking_checks"][0]["details"]["constraint"],
+                "source_size_mismatch"
+            );
+            let error = releases::plan(
+                &mut store,
+                field(&head, "stable_id")?,
+                field(&head, "revision_id")?,
+                Increment::Minor,
+                &providers,
+                identity.clone(),
+                AT,
+            )
+            .err()
+            .ok_or("inconsistent source size was accepted")?;
+            assert_eq!(error.details["constraint"], "source_size_mismatch");
+            assert_eq!(counts(&mut store)?, before);
+        }
+    }
     for count in [1, 2] {
         let mut facts = released[0]["facts"].clone();
         facts["adaptation_contents"] = json!({"value":sources[..count],"origin":"declared","confirmation":"user_confirmed","confirmed_at":AT});
