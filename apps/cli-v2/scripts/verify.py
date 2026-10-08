@@ -21,6 +21,7 @@ from typing import Any
 
 from ai_stp_cli.local.database import open_registry
 from ai_stp_contracts.cli.registry import MachineHelp
+from ai_stp_contracts.cli.runtime import ConfigReport
 from ai_stp_foundation.canonical import JsonValue
 from ai_stp_foundation.digests import digest_canonical
 from ai_stp_foundation.envelope import ErrorEnvelope, SuccessEnvelope
@@ -72,6 +73,7 @@ def prove(binary: Path, root: Path) -> None:
     assert capabilities["task_intents"] == capabilities["supported_harnesses"] == []
     assert run(binary, home, ["version"])["data"]["runtime"] == "rust"
     run(binary, home, ["unknown"], 2)
+    prove_config(binary, home, root)
 
     live = root / "live.sqlite"
     backup = root / "backup.sqlite"
@@ -158,6 +160,50 @@ def prove(binary: Path, root: Path) -> None:
             }
         )
     )
+
+
+def prove_config(binary: Path, home: Path, root: Path) -> None:
+    defaults = ConfigReport.model_validate(run(binary, home, ["config", "show"])["data"])
+    assert defaults.config_path is None
+    assert len(defaults.values) == 19
+    assert all(item.source == "default" for item in defaults.values)
+    config = root / "preview.yaml"
+    content = (
+        "schema_version: 1\ncatalog:\n  enabled: false\nsearch:\n  result_limit: 7\n"
+        "provider:\n  paths.codex: ''\nprojects:\n  discovery_roots: []\n"
+    )
+    config.write_text(content, encoding="utf-8")
+    shown = ConfigReport.model_validate(
+        run(
+            binary,
+            home,
+            ["config", "show", "--config", str(config), "--set", "search.result_limit=9"],
+        )["data"]
+    )
+    values = {item.path: item for item in shown.values}
+    assert values["catalog.enabled"].value is False
+    assert values["catalog.enabled"].source == "config_file"
+    assert values["search.result_limit"].value == 9
+    assert values["search.result_limit"].source == "command_argument"
+    assert config.read_text(encoding="utf-8") == content
+    ConfigReport.model_validate(
+        run(binary, home, ["config", "validate", "--config", str(config)])["data"]
+    )
+    for malformed in (
+        "schema_version: 2\n",
+        "catalog:\n  enabled: definitely-not-a-boolean\n",
+        "catalog:\n  enabled: true\n  enabled: false\n",
+        "password: must-not-be-echoed\n",
+        "provider:\n  paths:\n    codex: /tmp/provider\n",
+        "---\n{}\n---\n{}\n",
+        "catalog: !include secrets.yaml\n",
+        "update:\n  check_ttl_hours: 0\n",
+    ):
+        config.write_text(malformed, encoding="utf-8")
+        answer = run(binary, home, ["config", "validate", "--config", str(config)], 2)
+        assert "must-not-be-echoed" not in json.dumps(answer)
+    config.unlink()
+    run(binary, home, ["config", "show", "--config", str(config)], 2)
 
 
 def benchmark(binary: Path, root: Path) -> None:

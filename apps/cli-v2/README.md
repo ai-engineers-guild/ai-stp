@@ -34,9 +34,18 @@ Envelope and machine-help consumers are checked against the existing models;
 preview payloads have no production result-schema URN. Default cutover still
 requires a consumer-compatible version/capability contract.
 
-All four commands are offline. They do not discover home state, initialize a
+The implemented metadata, configuration and snapshot commands are offline.
+They do not discover production state, initialize a
 device, open credentials, launch providers, refresh tokens or send housekeeping
 requests. There is no Python or subprocess fallback in the native library.
+
+Configuration reads use defaults unless an explicit YAML file is supplied.
+They preserve the existing closed fields and report each value's source;
+invocation overrides never write the file. The default registry location is
+under `ai-stp-v2`, and no registry is opened by configuration commands. Unknown
+keys, duplicate YAML keys, invalid types and unsupported schemas are refused
+without echoing rejected values. Parsing is bounded to 1 MiB, eight levels and
+10,000 events; file inclusion and environment interpolation are disabled.
 
 `snapshot inspect` requires an explicit backup path and its `sha256:<hex>`.
 Prepare it with SQLite's backup API and close the destination in DELETE journal
@@ -55,6 +64,7 @@ origin is the caller's responsibility; a digest proves bytes, not who made them.
 | `lib.rs`, `error.rs` | Invocation and envelope/error boundary |
 | `registry.rs` | Executable command definitions and dispatch |
 | `canonical.rs`, `digest.rs` | Strict NFC + RFC 8785 data and closed digest domains |
+| `config.rs`, `files.rs` | Explicit bounded configuration reads and path rendering |
 | `snapshot.rs` | Explicit backup inspection |
 | `provenance.rs` | Offline PEP 740 cryptographic verification and publisher policy |
 

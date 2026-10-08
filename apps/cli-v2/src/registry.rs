@@ -4,7 +4,7 @@ use clap::{Arg, ArgAction, ArgMatches, Command, builder::ValueParser};
 use serde_json::{Value, json};
 
 use crate::{
-    digest,
+    config, digest,
     error::{ErrorKind, Failure, Result},
     snapshot,
 };
@@ -17,6 +17,7 @@ enum Handler {
     Help,
     Capabilities,
     Snapshot,
+    Config,
 }
 
 #[derive(Clone, Copy)]
@@ -24,6 +25,7 @@ enum ParameterType {
     String,
     Boolean,
     Path,
+    Strings,
 }
 
 struct Parameter {
@@ -42,6 +44,7 @@ impl Parameter {
         match self.kind {
             ParameterType::Boolean => argument.action(ArgAction::SetTrue),
             ParameterType::String => argument.action(ArgAction::Set),
+            ParameterType::Strings => argument.action(ArgAction::Append),
             ParameterType::Path => argument.value_parser(ValueParser::path_buf()),
         }
     }
@@ -49,7 +52,7 @@ impl Parameter {
     fn descriptor(&self) -> Value {
         json!({"name": self.name, "kind": "option",
             "value_type": if matches!(self.kind, ParameterType::Boolean) { "boolean" } else { "string" },
-            "required": self.required, "repeatable": false, "summary": self.summary, "choices": []})
+            "required": self.required, "repeatable": matches!(self.kind, ParameterType::Strings), "summary": self.summary, "choices": []})
     }
 }
 
@@ -67,12 +70,39 @@ const JSON: Parameter = Parameter {
     required: false,
 };
 
+const CONFIG: Parameter = Parameter {
+    name: "config",
+    summary: "Explicit YAML configuration file; omission uses preview defaults.",
+    kind: ParameterType::Path,
+    required: false,
+};
+
 const COMMANDS: &[Declaration] = &[
     Declaration {
         path: &["capabilities"],
         summary: "List the capabilities implemented by this native preview.",
         parameters: &[],
         handler: Handler::Capabilities,
+    },
+    Declaration {
+        path: &["config", "show"],
+        summary: "Read explicit configuration with invocation-only overrides and value sources.",
+        parameters: &[
+            CONFIG,
+            Parameter {
+                name: "set",
+                summary: "Override a declared path=value for this invocation only.",
+                kind: ParameterType::Strings,
+                required: false,
+            },
+        ],
+        handler: Handler::Config,
+    },
+    Declaration {
+        path: &["config", "validate"],
+        summary: "Validate explicit configuration without creating or updating any state.",
+        parameters: &[CONFIG],
+        handler: Handler::Config,
     },
     Declaration {
         path: &["help"],
@@ -247,6 +277,16 @@ pub fn dispatch(matches: &ArgMatches) -> Result<Value> {
         Handler::Help => help(
             leaf.get_one::<String>("path").map_or("", String::as_str),
             leaf.get_one::<String>("find").map_or("", String::as_str),
+        ),
+        Handler::Config => config::show(
+            leaf.get_one::<std::path::PathBuf>("config")
+                .map(|p| p.as_path()),
+            &leaf
+                .try_get_many::<String>("set")
+                .ok()
+                .flatten()
+                .map(|values| values.cloned().collect::<Vec<_>>())
+                .unwrap_or_default(),
         ),
         Handler::Snapshot => {
             let path = leaf

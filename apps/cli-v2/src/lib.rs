@@ -1,8 +1,10 @@
 //! Headless native services. The executable only renders their result.
 
 pub mod canonical;
+pub mod config;
 pub mod digest;
 pub mod error;
+mod files;
 pub mod provenance;
 pub mod registry;
 pub mod snapshot;
