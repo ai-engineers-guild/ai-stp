@@ -513,6 +513,38 @@ calls themselves are not cancellable. Exhausted or unreadable scopes report
 incomplete evidence. Preview indexing excludes all symlinks, including internal
 aliases that the Python reader accepted, to avoid raced credential aliases.
 
+`project passport plan --state-dir <parent> --root <project>` observes one
+explicit project for `local apply`. It binds the exact root directory identity,
+current revision, index/configuration digests and a 15-minute start interval.
+The private passport stores digest/count/language facts, never source contents
+or credential values. Files above the index byte limit remain metadata-only;
+`metadata_only_count` makes that coverage explicit. An incomplete scan refuses.
+Unchanged observations retain their fact timestamps and revision. Project
+toolchain installation, account links and remote synchronization are not inferred
+from source files.
+
+The preview owns `.ai-stp-v2-project/{owner,lock,project-id}` and excludes that
+directory from indexing. It neither reads nor replaces the production
+`.ai-stp/project-id`. A registered root retains its identity. A known marker can
+reclaim its identity after its previous root disappears; if that root still
+exists, an explicitly planned copy receives a new identity and marker. Unknown
+markers, foreign owners, conflicting heads, links, unreadable previous paths and
+changed preconditions refuse. Paths retain exact UTF-8 bytes in plans and local
+bindings; passport display paths redact the current home.
+
+Apply first durably records the exact accepted plan as `prepared`, then writes
+the marker, then commits the passport, root binding and `verified` receipt in one
+SQLite transaction. No project entity is exposed before that final commit. A
+repeated plan returns a pending operation for recovery, even after its start
+interval expires. Recovery finishes the already accepted observation; a later
+scan records later source changes. Completed replay returns its original receipt
+without rewriting markers or revision heads. Registry and marker locks coordinate
+cooperating writers, with bounded waits and no-follow reads. Owned atomic-write
+prefixes can be recovered; unknown marker entries refuse. Initial directory
+ownership resumes only an exact owner prefix with no application data present;
+read-only planning never repairs it. Unix flushes the marker
+and parent directories; Windows makes no power-loss directory-durability claim.
+
 Public catalog reads use HTTPS (literal loopback HTTP is allowed for local
 services), bounded timeouts and an 8 MiB response limit. Requests are anonymous,
 with no redirects, ambient proxies or automatic retries. Search pages are live
@@ -782,6 +814,7 @@ no async runtime or tracing feature is enabled for it.
 | `projects/` | Bounded project discovery and content-free file evidence |
 | `environment.rs` | Exact setup prerequisites, project binding and variable-name presence |
 | `selection/` | Verified exact graphs, deterministic ordering and graph-wide mechanical eligibility |
+| `projects/passports/` | Private project observations, copy/move identity and durable marker registration |
 | `provider.rs`, `bundle/` | Exact provider declarations, composition constraints and deterministic v2 packages |
 | `store/`, `files/owned.rs` | Explicit owned state, atomic revision writes and shared private-file primitives |
 | `archive.rs`, `artifacts.rs`, `projection/artifact.rs` | Shared canonical ZIP transport and closed component/scope archives |

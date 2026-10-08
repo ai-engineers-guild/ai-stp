@@ -44,7 +44,28 @@ fn durable_revision_history_replay_conflict_and_atomic_rollback() -> Result<(), 
     );
     drop(planning);
     assert_eq!(fs::read_dir(root.path())?.count(), 0);
+    // A crash during initial ownership must be resumable only as the exact
+    // public prefix in an otherwise empty namespace. Planning never repairs it.
+    let namespace = root.path().join("ai-stp-v2-state");
+    fs::create_dir(&namespace)?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        fs::set_permissions(&namespace, fs::Permissions::from_mode(0o700))?;
+    }
+    fs::write(namespace.join("lock"), b"")?;
+    fs::write(namespace.join("owner"), b"ai-stp-cli-v2 local")?;
+    drop(Store::planning(root.path())?);
+    assert_eq!(fs::read(namespace.join("owner"))?, b"ai-stp-cli-v2 local");
+    fs::write(namespace.join("unowned.txt"), b"do not claim")?;
+    assert!(Store::open(root.path(), true).is_err());
+    assert_eq!(fs::read(namespace.join("unowned.txt"))?, b"do not claim");
+    fs::remove_file(namespace.join("unowned.txt"))?;
     let mut store = Store::open(root.path(), true)?;
+    assert_eq!(
+        fs::read(namespace.join("owner"))?,
+        b"ai-stp-cli-v2 local registry v1\n"
+    );
     let first = store.transaction(|transaction| {
         revisions::commit(
             transaction,

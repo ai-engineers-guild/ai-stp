@@ -577,3 +577,44 @@ def prove(binary: Path, home: Path, temporary: Path, run: Runner) -> None:
             for table, count in retained.items()
         )
     assert skill.read_text(encoding="utf-8") == content
+
+    project_root = root / "registered-project"
+    project_root.mkdir()
+    (project_root / "main.rs").write_text("fn main() {}\n", encoding="utf-8")
+    (project_root / ".env").write_text("TOKEN=synthetic-project-secret", encoding="utf-8")
+    # The Python marker remains unrelated to the isolated preview identity.
+    production_marker = project_root / ".ai-stp" / "project-id"
+    production_marker.parent.mkdir()
+    production_marker.write_text("project_01ARZ3NDEKTSV4RRFFQ69G5FAV\n", encoding="ascii")
+    project_args = ["project", "passport", "plan", "--state-dir", str(state), "--root"]
+    project_plan = invoke([*project_args, str(project_root)])
+    assert not (project_root / ".ai-stp-v2-project").exists()
+    assert "synthetic-project-secret" not in str(project_plan)
+    project = apply(project_plan, "project")
+    PassportView.model_validate(project)
+    assert project["stable_id"] != production_marker.read_text(encoding="ascii").strip()
+    assert project["facts"]["languages"]["value"] == ["rust"]
+    project_show = [
+        "local",
+        "passport",
+        "show",
+        "--state-dir",
+        str(state),
+        "--kind",
+        "project",
+        "--id",
+        project["stable_id"],
+    ]
+    assert invoke(project_show) == project
+    assert apply(invoke([*project_args, str(project_root)]), "project-unchanged") == project
+    moved_root = root / "moved-project"
+    project_root.rename(moved_root)
+    moved = apply(invoke([*project_args, str(moved_root)]), "project-moved")
+    assert moved["stable_id"] == project["stable_id"]
+    assert moved["parent_revision_ids"] == [project["revision_id"]]
+    assert apply(project_plan, "project-replay") == project
+    assert invoke(project_show) == moved
+    assert (moved_root / ".ai-stp" / "project-id").read_text(encoding="ascii") == (
+        "project_01ARZ3NDEKTSV4RRFFQ69G5FAV\n"
+    )
+    assert (moved_root / "main.rs").read_text(encoding="utf-8") == "fn main() {}\n"

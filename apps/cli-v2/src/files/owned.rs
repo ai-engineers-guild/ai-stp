@@ -4,7 +4,7 @@ use crate::{
     error::{Failure, Result},
     files,
 };
-use cap_fs_ext::{DirExt, FollowSymlinks, OpenOptionsFollowExt, OpenOptionsSyncExt};
+use cap_fs_ext::{DirExt, FollowSymlinks, MetadataExt, OpenOptionsFollowExt, OpenOptionsSyncExt};
 use cap_std::fs::{Dir, DirBuilder, OpenOptions};
 use std::{
     io::{Read, Write},
@@ -81,10 +81,16 @@ impl OwnedDirectory {
         }
         let mut lock_options = private_options();
         lock_options.read(true).create(create);
-        let lock = directory
-            .open_with("lock", &lock_options)
-            .map_err(|_| invalid())?
-            .into_std();
+        let lock = match directory.open_with("lock", &lock_options) {
+            Ok(lock) => lock.into_std(),
+            Err(error) if !create && error.kind() == std::io::ErrorKind::NotFound => {
+                if directory.entries().map_err(|_| invalid())?.next().is_none() {
+                    return Ok(None);
+                }
+                return Err(invalid());
+            }
+            Err(_) => return Err(invalid()),
+        };
         if !lock.metadata().map_err(|_| invalid())?.is_file() {
             return Err(invalid());
         }
@@ -107,18 +113,65 @@ impl OwnedDirectory {
         let expected_owner = owner;
         match owned.read_file("owner", 256)? {
             Some(owner) if owner == expected_owner => {}
-            None if create => {
+            held if expected_owner.starts_with(held.as_deref().unwrap_or_default()) => {
                 if owned
                     .directory
                     .entries()
                     .map_err(|_| invalid())?
-                    .any(|entry| entry.map_or(true, |entry| entry.file_name() != "lock"))
+                    .any(|entry| {
+                        entry.map_or(true, |entry| {
+                            !matches!(entry.file_name().to_str(), Some("lock" | "owner"))
+                        })
+                    })
                 {
                     return Err(invalid());
                 }
-                owned.atomic("owner", expected_owner)?;
+                if !create {
+                    return Ok(None);
+                }
+                // The initial owner is immutable. Complete only its exact
+                // prefix under the lock, while no application data exists.
+                // A temporary-file rename here could strand an unowned stage
+                // after interruption before the first owner was published.
+                let mut file = owned
+                    .directory
+                    .open_with("owner", private_options().read(true).create(true))
+                    .map_err(|_| invalid())?;
+                let metadata = file.metadata().map_err(|_| invalid())?;
+                if !metadata.is_file() || metadata.nlink() != 1 {
+                    return Err(invalid());
+                }
+                let mut prefix = Vec::new();
+                Read::by_ref(&mut file)
+                    .take(257)
+                    .read_to_end(&mut prefix)
+                    .map_err(|_| invalid())?;
+                if !expected_owner.starts_with(&prefix) {
+                    return Err(invalid());
+                }
+                file.write_all(&expected_owner[prefix.len()..])
+                    .and_then(|_| file.sync_all())
+                    .map_err(|_| invalid())?;
             }
             _ => return Err(invalid()),
+        }
+        if create {
+            // Reflush on retry as well: a previous call may have written all
+            // owner bytes but failed before acknowledging durable ownership.
+            let file = owned
+                .directory
+                .open_with("owner", &private_options())
+                .map_err(|_| invalid())?;
+            if file.metadata().map_err(|_| invalid())?.nlink() != 1 {
+                return Err(invalid());
+            }
+            file.sync_all().map_err(|_| invalid())?;
+            owned.sync()?;
+            #[cfg(unix)]
+            parent
+                .open(".")
+                .and_then(|file| file.sync_all())
+                .map_err(|_| invalid())?;
         }
         Ok(Some(owned))
     }

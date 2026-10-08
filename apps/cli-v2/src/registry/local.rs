@@ -13,13 +13,14 @@ use crate::{
     },
     canonical,
     error::{Failure, Result},
-    files,
+    files, projects,
     provider::Info,
     store::versions::Increment,
 };
 
 #[derive(Clone, Copy)]
 pub(super) enum Handler {
+    ProjectPassport,
     Bind,
     Adopt,
     Discover,
@@ -119,6 +120,12 @@ const PROVIDERS: Parameter = Parameter {
 };
 
 pub(super) const COMMANDS: &[Declaration] = &[
+    Declaration {
+        path: &["project", "passport", "plan"],
+        summary: "Plan or recover one private project observation and preview marker without importing production identity.",
+        parameters: &[STATE_DIR, ROOT],
+        handler: super::Handler::Local(Handler::ProjectPassport),
+    },
     Declaration {
         path: &["component", "forget", "plan"],
         summary: "Plan an owned local component tombstone, retaining its source, immutable versions and history.",
@@ -371,8 +378,16 @@ pub(super) const COMMANDS: &[Declaration] = &[
     },
     Declaration {
         path: &["local", "passport", "show"],
-        summary: "Read the verified current component or setup passport from explicit preview state without credentials.",
-        parameters: &[STATE_DIR, KIND, ID],
+        summary: "Read the verified current component, setup or project passport from explicit preview state without credentials.",
+        parameters: &[
+            STATE_DIR,
+            Parameter {
+                kind: ParameterType::Choice(&["component", "setup", "project"]),
+                summary: "Local object kind.",
+                ..KIND
+            },
+            ID,
+        ],
         handler: super::Handler::Local(Handler::Show),
     },
     Declaration {
@@ -422,6 +437,11 @@ fn providers(args: &ArgMatches) -> Result<Vec<Info>> {
 
 pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
     match handler {
+        Handler::ProjectPassport => {
+            runtime::plan(path(args, "state-dir")?, |store, identity, at| {
+                projects::passports::plan(store, path(args, "root")?, identity, at)
+            })
+        }
         Handler::Forget => runtime::plan(path(args, "state-dir")?, |store, identity, at| {
             lifecycle::plan(
                 store,
