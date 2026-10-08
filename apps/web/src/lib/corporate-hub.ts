@@ -21,6 +21,7 @@ export function canViewCorporateSection(key: string, capabilities: readonly stri
     technologies: "technology.list",
     categories: "category.list",
     mappings: "technology.list",
+    scans: "landscape.read",
     reports: "telemetry.read",
   }[key];
   return permission !== undefined && capabilities.includes(permission);

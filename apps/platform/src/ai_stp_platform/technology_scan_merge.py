@@ -82,6 +82,7 @@ async def merge_scan_facts(
     digest: str,
     resolve_technology: ResolveTechnology,
     authorize_pair: AuthorizePair | None = None,
+    provenance: dict[str, str | None] | None = None,
 ) -> tuple[TechnologyScanResult, dict[str, Any]]:
     """Merge one handoff into the project's usage facts and store the scan.
 
@@ -227,12 +228,17 @@ async def merge_scan_facts(
         ],
         created_relation_ids=created_relation_ids,
     )
+    provenance = provenance or {}
     db.add(
         TechnologyScan(
             organization_id=organization_id,
             id=handoff.scan_id,
             project_id=project_id,
             fingerprint=digest,
+            source=provenance.get("source"),
+            repository=provenance.get("repository"),
+            branch=provenance.get("branch"),
+            commit=provenance.get("commit"),
             handoff={
                 "handoff": handoff.model_dump(mode="json"),
                 "result": response.model_dump(mode="json"),

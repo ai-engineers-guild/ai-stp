@@ -1,6 +1,6 @@
 ---
 description: "Runbook: operator-managed official GitHub and package upstream component snapshots."
-last_verified: "2026-10-05"
+last_verified: "2026-10-07"
 ---
 
 # Official upstream components
@@ -83,6 +83,55 @@ change a source by editing and reviewing that JSON file, then deploy and run
 manifest reconciliation. Do not hand-edit or production-upsert a source row;
 undeclared rows fail reconciliation and transferred/removed rows stay fenced.
 
+### Reviewed scheduling disposition — October 7
+
+All 52 identities remain in the manifest. Seventeen sources are enabled and
+35 are paused (`enabled: false`, `update_policy: disabled`). Reconciliation
+preserves published versions and catalog identities; pausing only stops new
+daily fetches. It does not grant verification or remove a published object.
+
+The October 6 and 7 production runs reached terminal results for all 52
+sources: 16 successful, 31 refused archives and five validation refusals.
+The earlier rate-limit dead letters did not recur after the reset-aware retry
+fix. A read-only reproduction of every source confirmed the archive refusals.
+The source manifest digest records the exact scheduling configuration.
+
+| Paused source IDs | Observed boundary | Condition for re-enabling |
+|---|---|---|
+| `anthropics-skills`, `browser-mcp`, `codeburn`, `dart-mcp`, `firecrawl-mcp`, `github-mcp`, `grep-mcp`, `notion-mcp`, `openai-docs-mcp`, `ponytail`, `ralph`, `semble`, `spec-kit`, `superpowers`, `vercel-agent-skills` | Selected tree contains binary files | A complete native component root accepted by the existing text-only adapter, or a separately designed and tested binary-artifact contract |
+| `bmad-method`, `gstack`, `sentry-mcp`, `stripe-mcp`, `supabase-mcp`, `ui-ux-pro-max` | Selected tree contains links or special files | A complete source snapshot without unsupported archive members |
+| `chrome-devtools-mcp`, `gitlab-mcp`, `playwright-mcp`, `shadcn-mcp`, `understand-anything` | Selected tree contains secret-like material | A reviewed native component root without the rejected content; examples are not exempted by guesswork |
+| `ecc`, `gsd`, `openmontage` | Extracted tree exceeds the adapter limit | A bounded, complete native component root; no arbitrary truncation |
+| `impeccable` | Repository root exceeds the limit; the native skill root resolves, but its network-intent validation refuses non-public or plain-HTTP references | Corrected `.claude/skills/impeccable` snapshot passes the ordinary validation pipeline |
+| `addyosmani-agent-skills`, `find-skills` | Floating dependencies in agentic behavior checks | Exact dependency references that pass validation |
+| `anthropic-cybersecurity-skills` | Dangerous behavior patterns, secret detectors, Opengrep findings and scanner timeout | A complete snapshot accepted by all required checks |
+| `last30days` | Network-intent and Opengrep findings, scanner timeout | A complete snapshot accepted by all required checks |
+| `slack-mcp` | Network-intent and secret detector findings | A complete snapshot accepted by all required checks |
+
+`agent-browser` now selects `skills/agent-browser`, the upstream's complete
+native skill, instead of its binary-containing repository root. Local archive
+extraction and content, agentic, network and secret checks accept that root;
+the normal worker still determines publication and verification. The other
+16 enabled sources keep their existing coordinates. A local archive probe is
+not a substitute for the publication pipeline.
+
+Production reconciliation on October 7 at release SHA `e7964854` reports the
+same 17/35 scheduling split and manifest digest
+`sha256:92ce68c3db017e2b996f6d9141eeba5b50afdde6135191798add414e4f318187`.
+One audited manual Agent Browser job, `33882` (attempt `1613`), completed at
+19:04:19 UTC and published `1.0` from upstream commit
+`98e8c79e2a1a8a8e7a88f22e4dbe89bfac232eba`. All 16 required checks passed.
+The [public version readback](https://ai-stp.aiguild.space/v1/catalog/components/component_01M1MEBR369ZWN0ERB08GN78ZA/versions/1.0)
+reports artifact digest
+`sha256:79a4da99d293c8b6ae5fc93784177f8781c762e221d021442818b59caeb2989c`,
+`author_verified: true`, `component_verified: false`, and the experimental trust
+line. Passed pipeline checks do not grant independent component verification.
+
+Re-enabling is a reviewed manifest change followed by reconciliation and a
+new worker attempt. Record its exact resolved revision and final evidence.
+Do not widen archive limits, suppress a detector, or select an arbitrary
+member of a multi-skill collection to make an existing identity pass.
+
 ### Public source links
 
 The table below is the complete current inventory. Links point to the
@@ -93,7 +142,7 @@ Vercel MCP placeholder are intentionally absent.
 | Name | Type | Full official source link |
 |---|---|---|
 | Addy Osmani Agent Skills | skill | [https://github.com/addyosmani/agent-skills/tree/main/skills](https://github.com/addyosmani/agent-skills/tree/main/skills) |
-| Agent Browser | skill | [https://github.com/vercel-labs/agent-browser](https://github.com/vercel-labs/agent-browser) |
+| Agent Browser | skill | [https://github.com/vercel-labs/agent-browser/tree/main/skills/agent-browser](https://github.com/vercel-labs/agent-browser/tree/main/skills/agent-browser) |
 | AI STP Skill | skill | [https://github.com/ai-engineers-guild/ai-stp/tree/main/apps/cli/src/ai_stp_cli/skills/canonical](https://github.com/ai-engineers-guild/ai-stp/tree/main/apps/cli/src/ai_stp_cli/skills/canonical) |
 | ai-repo-safety | skill | [https://github.com/letya999/ai-repo-safety-skill](https://github.com/letya999/ai-repo-safety-skill) |
 | andrej-karpathy-skills | skill | [https://github.com/multica-ai/andrej-karpathy-skills/tree/main/skills/karpathy-guidelines](https://github.com/multica-ai/andrej-karpathy-skills/tree/main/skills/karpathy-guidelines) |
@@ -120,7 +169,7 @@ Vercel MCP placeholder are intentionally absent.
 | grilling | skill | [https://github.com/mattpocock/skills/tree/main/skills/productivity/grilling](https://github.com/mattpocock/skills/tree/main/skills/productivity/grilling) |
 | GSD | plugin | [https://github.com/open-gsd/gsd-core](https://github.com/open-gsd/gsd-core) |
 | gstack | plugin | [https://github.com/garrytan/gstack](https://github.com/garrytan/gstack) |
-| Impeccable | skill | [https://github.com/pbakaus/impeccable](https://github.com/pbakaus/impeccable) |
+| Impeccable | skill | [https://github.com/pbakaus/impeccable/tree/main/.claude/skills/impeccable](https://github.com/pbakaus/impeccable/tree/main/.claude/skills/impeccable) |
 | Keenable | mcp | [https://github.com/keenableai/keenable-mcp/blob/main/server.json](https://github.com/keenableai/keenable-mcp/blob/main/server.json) |
 | last30days | skill | [https://github.com/mvanhorn/last30days-skill/tree/main/skills/last30days](https://github.com/mvanhorn/last30days-skill/tree/main/skills/last30days) |
 | Next Move Theory | plugin | [https://github.com/zamesin/Next-Move-Theory-Canon-and-Skills](https://github.com/zamesin/Next-Move-Theory-Canon-and-Skills) |

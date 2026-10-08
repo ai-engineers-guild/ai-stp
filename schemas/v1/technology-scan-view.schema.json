@@ -360,12 +360,39 @@
       "additionalProperties": false,
       "description": "A coordinate the applied mapping did not resolve — the registry's review queue.\n\nUnmapped coordinates are observations, not identities: the platform retains\nthem so an organization can see what its mapping does not yet name and grow\nthe registry from evidence instead of guesswork.",
       "properties": {
+        "context": {
+          "anyOf": [
+            {
+              "enum": [
+                "production",
+                "development",
+                "testing",
+                "browser_support"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Context"
+        },
         "coordinate": {
           "maxLength": 512,
           "minLength": 1,
           "pattern": "^[A-Za-z0-9._:/@+*-]+$",
           "title": "Coordinate",
           "type": "string"
+        },
+        "evidence": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/TechnologyEvidence"
+          },
+          "maxItems": 64,
+          "title": "Evidence",
+          "type": "array"
         },
         "kind": {
           "enum": [
@@ -377,6 +404,19 @@
           ],
           "title": "Kind",
           "type": "string"
+        },
+        "version": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Version"
         }
       },
       "required": [

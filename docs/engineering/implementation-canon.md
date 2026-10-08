@@ -1,6 +1,6 @@
 ---
 description: "Classification of specs, docs, and tests against implemented non-corporate code."
-last_verified: "2026-09-20"
+last_verified: "2026-10-07"
 ---
 
 # Implementation canon
@@ -40,12 +40,14 @@ Test tags used in later rows: **keep** (real I/O against live modules), **replac
 | Surface | Code | Notes |
 | --- | --- | --- |
 | CLI task engine | `apps/cli/src/ai_stp_cli/application/`, SPEC-080 | Nine drained intents on `main` (incl. `technology`); code-backed |
-| CLI expert registry | `apps/cli/src/ai_stp_cli/commands/`, `registry.py` | ~35 command modules; leaf audit in P3 |
-| Local registry / passports | `apps/cli/src/ai_stp_cli/local/` (~70 modules), `packages/passports` | code-backed |
+| CLI expert registry | `apps/cli/src/ai_stp_cli/commands/`, `registry.py` | Lazy command-family loading; machine help defines the registered leaves |
+| Rust CLI v2 | ADR-0227; `docs/engineering/cli-v2-scope.md` and its frozen command ledger | Authorized migration design only; no Rust CLI implementation at C0. Python remains the shipped code owner; ordered work belongs only to the roadmap |
+| Local registry / passports | `apps/cli/src/ai_stp_cli/local/`, `packages/passports` | code-backed |
 | Providers / install | `apps/cli/src/ai_stp_cli/provider/`, `provider-kit/v3` | kit `0.2.15`; code-backed |
-| API `/v1` | `apps/api/src/ai_stp_api/slices/` (24 slices), `packages/contracts`, `schemas/v1` | code-backed |
+| API `/v1` | `apps/api/src/ai_stp_api/slices/`, `packages/contracts`, `schemas/v1` | code-backed |
 | Platform | `apps/platform/src/ai_stp_platform/` (content, legal, official_upstream, queue, safety, seo, storage) | code-backed |
 | Web | `apps/web/` | code-backed |
+| Desktop | `apps/desktop/core`, `apps/desktop/src-tauri`, `apps/desktop/src` | CLI contract consumer under ADR-0222 |
 | Deploy / CI | `deploy/`, `.github/workflows/`, `justfile` | ops docs synced 2026-09-20; code-backed |
 | Auth / devices / grants | slices `auth`, `devices`, `grants`, `ownership` + CLI `device`, `cloud/grants` | code-backed |
 | Catalog / publication / sync | slices `catalog`, `publish`, `sync` + CLI `local/sync_*` | code-backed |
@@ -55,12 +57,12 @@ Test tags used in later rows: **keep** (real I/O against live modules), **replac
 ## Specs
 
 Labels record whether implementing code exists, not REQ-level conformance;
-the rewrite in phase 3 drops REQs the code does not enforce. Reasons name the
-owning code.
+requirements are reviewed against their implementation when the surface
+changes. Reasons name the owning code.
 
 | Spec | Label | Reason |
 | --- | --- | --- |
-| SPEC-001 | code-backed | Umbrella MVP scope; the tree ships it. P3 folds toward README/product |
+| SPEC-001 | code-backed | Umbrella MVP scope; the tree ships it |
 | SPEC-002 | code-backed | `slices/auth`, `slices/devices`, `slices/grants`, `slices/ownership`; CLI `commands/device.py`, `cloud/grants.py` |
 | SPEC-003 | code-backed | `packages/passports`, `commands/passport.py` |
 | SPEC-004 | code-backed | `local/project_index.py`, `local/project_passport.py`, `commands/project.py` |
@@ -157,7 +159,7 @@ owning code.
 
 ## Docs
 
-Cluster-level labels; per-file refinement happens in phase 2.
+Cluster-level labels; a file-level move requires evidence against current code.
 
 | Cluster | Label | Reason |
 | --- | --- | --- |
@@ -166,11 +168,12 @@ Cluster-level labels; per-file refinement happens in phase 2.
 | `docs/adr/` | code-backed | Append-only log; `binding.md` defaults accepted to binding |
 | `docs/engineering/` working rules — `coding-rules`, `dependency-policy`, `failure-catalog`, `git-workflow`, `quality-gates`, `repository-structure`, `schema-evolution`, `tech-debt-rules`, `tech-stack`, `testing`, `web-quality`, `github-connector-operations`, `release-evidence` | code-backed | Rules the gate or the team enforces today |
 | `docs/archive/*-implementation-plan.md` — `article-publication`, `artifact-storage-private-delivery`, `github-connector`, `official-registry-identity-and-requests`, `seo-publication` | historical | Plans whose code ships; archived 2026-09-20 |
-| `docs/engineering/agent-ux-implementation-plan.md` | unclassified | Live contract of open epic #261; not shipped, not dead |
+| `docs/archive/agent-ux-implementation-plan.md` | historical | Epic #261–#275 closed September 26; implementation is owned by SPEC-080 and CLI code, while qualification measurements remain dated evidence |
 | `docs/engineering/` working evidence — `implementation-roadmap`, `catalog-search-benchmark`, `cli-performance`, `real-provider-evidence`, `first-party-corpus`, `federated-source-threat-model` | code-backed | Live procedure/plan/threat-model docs read 2026-09-20 |
+| `docs/engineering/cli-v2-scope.md`, `cli-v2-baseline.json` | code-backed baseline; planned replacement explicitly separated | October 8 extraction of the Python command registry and migration risks; the proposed Rust implementation is not classified as shipped or code-backed |
 | `docs/archive/audit-remediation-status.md`, `docs/archive/runner-separation-readiness.md` | historical | A retained audit disposition and a dated readiness snapshot; archived 2026-09-20. The contract test retargeted to the archive path now guards its immutability |
 | `docs/engineering/corporate-*` | colleague | frozen |
-| `docs/contracts/` (60 files) | code-backed | Read 2026-09-20: semantic contracts (closed lists, state machines, privacy, idempotency, authority pointers) that generated schemas do not express; per-file schema-duplicate review folds into P3 |
+| `docs/contracts/` | code-backed | Read 2026-09-20: semantic contracts (closed lists, state machines, privacy, idempotency, authority pointers) that generated schemas do not express; generated schemas own field shapes |
 | `docs/product/`, `docs/architecture/`, `docs/agent/` | code-backed | Current-zone docs describing the shipped product, architecture, and agent surface |
 | `docs/references/` | code-backed | Citation list and prototypes; pruned with use, not archived wholesale |
 | `docs/archive/` | code-backed | The zone itself is the destination |
@@ -208,4 +211,4 @@ Cluster-level labels; per-file refinement happens in phase 2.
 | `tests/contract/test_protocol_vocabulary_owner.py`, `test_harness_support_tiers.py`, `test_failure_catalog_owners.py` | meta-oracle | Lock ownership tables in docs |
 | `tests/contract/test_offline_closure.py`, `test_publish_pypi_workflow.py`, `test_deploy_contract.py`, `test_git_identity_policy.py`, `test_config_contract.py`, `test_environment_contract.py` | keep | Real invariants over workflows, imports, and deploy paths; not prose-freezers |
 | `tests/unit/test_corporate_*.py`, `tests/api/platform/test_corporate_*.py` | colleague | frozen |
-| All other `tests/` files | keep | Default: they ran green against real code on 2026-09-20; P4 re-tags per surface when a replacement lands |
+| All other `tests/` files | keep | Retained tests exercise implemented boundaries; their passing status belongs to an exact checkout and run, not this classification |

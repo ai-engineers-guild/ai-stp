@@ -105,24 +105,24 @@ Release bundles carry the CLI inside: `scripts/build-cli-sidecar.sh`
 builds the `ai-stp-cli` wheel, installs it into a fresh environment with the
 hash-checked, locked closure of the dependencies it declares — what
 `pip install ai-stp-cli` gets, nothing from the server or dev groups — and
-freezes that with PyInstaller into
-`src-tauri/sidecar/ai-stp-desktop-cli-<triple>`, and Tauri
-`bundle.externalBin` installs that binary next to the app executable —
-where the resolver's bundled-path tier finds it first, so no separate
-install is required. The `ai-stp-desktop-cli` name is deliberate: a bare
-`ai-stp` sidecar would land at `/usr/bin/ai-stp` in Linux packages and
-collide with a separately installed CLI. For development, resolution
+freezes that with PyInstaller `--onedir` into
+`src-tauri/sidecar/cli/`. Tauri `bundle.resources` installs the complete
+executable and `_internal` tree under the platform resource directory's
+`cli/` folder. The shell uses Tauri's resource resolver for Linux packages,
+AppImage, macOS and Windows. No extraction is needed on each CLI call and
+no separate CLI install is required. The executable remains named
+`ai-stp-desktop-cli`; it does not occupy `/usr/bin/ai-stp`.
+For development, resolution
 falls back to a configured path and then PATH
 (`uv tool install ai-stp-cli`); a pinned path that is missing is an
 error, not a silent fallback.
 
-## Not yet done
+## Deliberate boundaries
 
 - Signed/notarized bundles — needs signing certificates and notarization
   credentials; `SHA256SUMS` in each release covers integrity until then.
-- Native Rust HTTP catalog reads against `/v1` (the CLI proxies catalog
-  traffic today, which also covers private acquisitions on its own
-  credentials — deliberate, not a gap).
+- Catalog traffic stays in the CLI, including private acquisitions and
+  credentials, as required by ADR-0222.
 - Per-target mutation parallelism — mutations serialize on one mutex
   because the CLI journal is global state; targeted parallelism would
   not make journal writes any safer.

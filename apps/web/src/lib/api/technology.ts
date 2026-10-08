@@ -7,6 +7,7 @@ import {
 } from "./corporate";
 
 import type {
+  AreaList,
   CapabilityProjection,
   CategoryList,
   CategoryView,
@@ -105,11 +106,12 @@ export async function readTechnologyDirectory(
 export async function readCategoryDirectory(sessionToken: string, organizationId: string) {
   const permissions = await readTechnologyCapabilities(sessionToken, organizationId);
   if (!permissions.capabilities.includes("category.list")) return null;
-  const categories = await privateApiRequest<CategoryList>(
-    `/v1/corporate/organizations/${organizationId}/technology-categories`,
-    { sessionToken },
-  );
-  return { permissions, categories };
+  const path = `/v1/corporate/organizations/${organizationId}`;
+  const [categories, areas] = await Promise.all([
+    privateApiRequest<CategoryList>(`${path}/technology-categories`, { sessionToken }),
+    privateApiRequest<AreaList>(`${path}/technology-areas`, { sessionToken }).catch(() => null),
+  ]);
+  return { permissions, categories, areas };
 }
 
 export async function readCategoryDetail(
@@ -120,15 +122,16 @@ export async function readCategoryDetail(
   const permissions = await readTechnologyCapabilities(sessionToken, organizationId);
   if (!permissions.capabilities.includes("category.read")) return null;
   const path = `/v1/corporate/organizations/${organizationId}`;
-  const [category, technologies] = await Promise.all([
+  const [category, technologies, areas] = await Promise.all([
     privateApiRequest<CategoryView>(`${path}/technology-categories/${categoryId}`, {
       sessionToken,
     }),
     permissions.capabilities.includes("technology.list")
       ? readCategoryTechnologies(sessionToken, path, categoryId)
       : null,
+    privateApiRequest<AreaList>(`${path}/technology-areas`, { sessionToken }).catch(() => null),
   ]);
-  return { permissions, category, technologies };
+  return { permissions, category, technologies, areas };
 }
 
 async function readCategoryTechnologies(
@@ -329,13 +332,21 @@ export async function readTeamProjects(
   return { relations, projects, permissions };
 }
 
-export async function readTechnologyMappingReview(sessionToken: string, organizationId: string) {
+export async function readTechnologyMappingReview(
+  sessionToken: string,
+  organizationId: string,
+  filters?: { project_id?: string; scan_id?: string },
+) {
   const permissions = await readTechnologyCapabilities(sessionToken, organizationId);
   if (!permissions.capabilities.includes("technology.list")) return null;
   const path = `/v1/corporate/organizations/${organizationId}`;
   const [unmapped, mappings, technologies, categories] = await Promise.all([
     privateApiRequest<TechnologyUnmappedView>(`${path}/technology-unmapped-coordinates`, {
       sessionToken,
+      query: {
+        ...(filters?.project_id ? { project_id: filters.project_id } : {}),
+        ...(filters?.scan_id ? { scan_id: filters.scan_id } : {}),
+      },
     }),
     privateApiRequest<TechnologyMappingList>(`${path}/technology-mappings`, { sessionToken }),
     privateApiRequest<TechnologyList>(`${path}/technologies`, {
@@ -379,6 +390,7 @@ export const LANDSCAPE_FILTER_KEYS = [
   "category_id",
   "technology_id",
   "project_id",
+  "project_ids",
   "team_id",
   "lifecycle",
   "project_lifecycle",
@@ -397,18 +409,31 @@ export const LANDSCAPE_FILTER_KEYS = [
 ] as const;
 
 export function landscapeFilters(params: Record<string, string | string[] | undefined>) {
-  return Object.fromEntries(
-    LANDSCAPE_FILTER_KEYS.flatMap((key) => {
-      const value = params[key];
-      return typeof value === "string" && value ? [[key, value]] : [];
-    }),
+  const filters: Record<string, string | string[]> = {};
+  for (const key of LANDSCAPE_FILTER_KEYS) {
+    const value = params[key];
+    if (key === "project_ids") {
+      const ids = (Array.isArray(value) ? value : value ? [value] : []).filter(Boolean);
+      if (ids.length) filters[key] = ids;
+      continue;
+    }
+    if (typeof value === "string" && value) filters[key] = value;
+  }
+  return filters;
+}
+
+export function landscapeSearchParams(
+  filters: Record<string, string | string[]>,
+): [string, string][] {
+  return Object.entries(filters).flatMap(([key, value]) =>
+    (Array.isArray(value) ? value : [value]).map((item) => [key, item] as [string, string]),
   );
 }
 
 export async function readTechnologyLandscape(
   sessionToken: string,
   organizationId: string,
-  filters: Record<string, string>,
+  filters: Record<string, string | string[]>,
 ): Promise<TechnologyLandscapeView> {
   return privateApiRequest<TechnologyLandscapeView>(
     `/v1/corporate/organizations/${organizationId}/technology-landscape`,

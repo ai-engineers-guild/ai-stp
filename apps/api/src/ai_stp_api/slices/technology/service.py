@@ -20,6 +20,10 @@ from ai_stp_api.slices.corporate.service import (
     store_mutation_receipt,
 )
 from ai_stp_contracts.technology import (
+    AreaLifecycleRequest,
+    AreaList,
+    AreaView,
+    AreaWriteRequest,
     CategoryLifecycleRequest,
     CategoryList,
     CategoryView,
@@ -75,6 +79,7 @@ from ai_stp_platform.technology_models import (
     ProjectTechnologyRelation,
     Technology,
     TechnologyAlias,
+    TechnologyArea,
     TechnologyCategory,
     TechnologyClassification,
     TechnologyCoordinateMapping,
@@ -508,6 +513,11 @@ async def read_landscape(
                 )
             ).all()
         )
+    selected_projects = (
+        {filters.project_id, *filters.project_ids}
+        if filters.project_ids
+        else ({filters.project_id} if filters.project_id else None)
+    )
     relations = list(
         (
             await db.scalars(
@@ -562,7 +572,7 @@ async def read_landscape(
             if relation.technology_id != technology.id:
                 continue
             project = projects.get(relation.project_id)
-            if project is None or (filters.project_id and project.id != filters.project_id):
+            if project is None or (selected_projects and project.id not in selected_projects):
                 continue
             if team_projects is not None and project.id not in team_projects:
                 continue
@@ -1447,6 +1457,7 @@ async def list_categories(
         items=[
             CategoryView(
                 category_id=row.id,
+                area_id=row.area_id,
                 name=row.name,
                 description=row.description,
                 revision=row.revision,
@@ -1481,6 +1492,7 @@ async def read_category(
     )
     return CategoryView(
         category_id=row.id,
+        area_id=row.area_id,
         name=row.name,
         description=row.description,
         revision=row.revision,
@@ -1712,8 +1724,17 @@ async def write_category(
     )
     if collision is not None:
         raise ApiError(ErrorCategory.CONFLICT, "category name already exists")
+    if payload.area_id is not None:
+        area = await db.get(TechnologyArea, (organization_id, payload.area_id))
+        if area is None or area.state == "archived":
+            raise ApiError(ErrorCategory.VALIDATION, "technology area is unavailable")
     before = (
-        {"name": row.name, "description": row.description, "revision": row.revision}
+        {
+            "name": row.name,
+            "description": row.description,
+            "area_id": row.area_id,
+            "revision": row.revision,
+        }
         if row
         else None
     )
@@ -1721,6 +1742,7 @@ async def write_category(
         row = TechnologyCategory(
             organization_id=organization_id,
             id=category_id,
+            area_id=payload.area_id,
             name=payload.metadata.name,
             normalized_name=normalized,
             provenance="manual",
@@ -1736,10 +1758,13 @@ async def write_category(
         row.revision += 1
     row.name, row.normalized_name = payload.metadata.name, normalized
     row.description = payload.metadata.description
+    if "area_id" in payload.model_fields_set:
+        row.area_id = payload.area_id
     organization.policy_revision += 1
     await db.flush()
     response = CategoryView(
         category_id=row.id,
+        area_id=row.area_id,
         name=row.name,
         description=row.description,
         revision=row.revision,
@@ -1794,6 +1819,7 @@ async def change_category_lifecycle(
         raise ApiError(ErrorCategory.CONFLICT, "category state is unchanged")
     before = CategoryView(
         category_id=row.id,
+        area_id=row.area_id,
         name=row.name,
         description=row.description,
         revision=row.revision,
@@ -1806,6 +1832,7 @@ async def change_category_lifecycle(
     await db.flush()
     response = CategoryView(
         category_id=row.id,
+        area_id=row.area_id,
         name=row.name,
         description=row.description,
         revision=row.revision,
@@ -2210,6 +2237,220 @@ async def read_project_technology(
         action="project.technology.read",
         target_table="project_technology_relation",
         target_id=row.id,
+        request_id=request_id,
+    )
+    return response
+
+
+def _area_view(row: TechnologyArea) -> AreaView:
+    return AreaView(
+        organization_id=row.organization_id,
+        area_id=row.id,
+        name=row.name,
+        description=row.description,
+        revision=row.revision,
+        provenance=row.provenance,
+        state=cast(Literal["draft", "active", "archived"], row.state),
+    )
+
+
+async def list_areas(
+    db: AsyncSession,
+    *,
+    ctx: AuthContext,
+    organization_id: str,
+    request_id: str | None,
+) -> AreaList:
+    await authorize(db, ctx=ctx, organization_id=organization_id, permission="category.list")
+    await authorize(db, ctx=ctx, organization_id=organization_id, permission="category.read")
+    rows = list(
+        (
+            await db.scalars(
+                select(TechnologyArea)
+                .where(TechnologyArea.organization_id == organization_id)
+                .order_by(TechnologyArea.normalized_name, TechnologyArea.id)
+            )
+        ).all()
+    )
+    await emit_audit(
+        db,
+        actor_account_id=ctx.account_id,
+        organization_id=organization_id,
+        action="technology_area.list",
+        target_table="technology_area",
+        target_id=organization_id,
+        request_id=request_id,
+    )
+    return AreaList(items=[_area_view(row) for row in rows])
+
+
+async def read_area(
+    db: AsyncSession,
+    *,
+    ctx: AuthContext,
+    organization_id: str,
+    area_id: str,
+    request_id: str | None,
+) -> AreaView:
+    await authorize(db, ctx=ctx, organization_id=organization_id, permission="category.read")
+    row = await db.get(TechnologyArea, (organization_id, area_id))
+    if row is None:
+        raise ApiError(ErrorCategory.PERMISSION, "technology area is unavailable")
+    await emit_audit(
+        db,
+        actor_account_id=ctx.account_id,
+        organization_id=organization_id,
+        action="technology_area.read",
+        target_table="technology_area",
+        target_id=area_id,
+        request_id=request_id,
+    )
+    return _area_view(row)
+
+
+async def write_area(
+    db: AsyncSession,
+    *,
+    ctx: AuthContext,
+    organization_id: str,
+    area_id: str | None,
+    payload: AreaWriteRequest,
+    request_id: str | None,
+) -> AreaView:
+    target = area_id or "create"
+    if area_id is None and payload.expected_revision != 0:
+        raise ApiError(ErrorCategory.VALIDATION, "creation requires expected revision zero")
+    operation = (
+        "technology_area.create" if payload.expected_revision == 0 else "technology_area.update"
+    )
+    permission = "category.create" if payload.expected_revision == 0 else "category.update"
+    organization, receipt = await authorize_idempotent(
+        db,
+        ctx=ctx,
+        organization_id=organization_id,
+        permission=permission,
+        authorization_revision=payload.authorization_revision,
+        idempotency_key=payload.idempotency_key,
+        operation=operation,
+        fingerprint=mutation_effect(payload, target),
+        request_id=request_id,
+    )
+    if receipt is not None:
+        return AreaView.model_validate(receipt.response_body)
+    area_id = area_id or new_id("area")
+    row = await db.get(TechnologyArea, (organization_id, area_id))
+    if (row.revision if row else 0) != payload.expected_revision:
+        raise ApiError(ErrorCategory.CONFLICT, "technology area revision changed")
+    normalized = normalize_technology_name(payload.metadata.name)
+    collision = await db.scalar(
+        select(TechnologyArea.id).where(
+            TechnologyArea.organization_id == organization_id,
+            TechnologyArea.normalized_name == normalized,
+            TechnologyArea.id != area_id,
+        )
+    )
+    if collision is not None:
+        raise ApiError(ErrorCategory.CONFLICT, "technology area name already exists")
+    before = (
+        {"name": row.name, "description": row.description, "revision": row.revision}
+        if row
+        else None
+    )
+    if row is None:
+        row = TechnologyArea(
+            organization_id=organization_id,
+            id=area_id,
+            name=payload.metadata.name,
+            normalized_name=normalized,
+            provenance="manual",
+            revision=1,
+            state=payload.state or "active",
+        )
+        db.add(row)
+    else:
+        if payload.state is not None and payload.state != row.state:
+            raise ApiError(
+                ErrorCategory.VALIDATION, "area state changes use the lifecycle endpoint"
+            )
+        row.revision += 1
+    row.name, row.normalized_name = payload.metadata.name, normalized
+    row.description = payload.metadata.description
+    organization.policy_revision += 1
+    await db.flush()
+    response = _area_view(row)
+    await finish_mutation(
+        db,
+        ctx=ctx,
+        organization_id=organization_id,
+        payload=payload,
+        operation=operation,
+        target=target,
+        audit_target=area_id,
+        target_table="technology_area",
+        response=response,
+        before=before,
+        request_id=request_id,
+    )
+    return response
+
+
+async def change_area_lifecycle(
+    db: AsyncSession,
+    *,
+    ctx: AuthContext,
+    organization_id: str,
+    area_id: str,
+    payload: AreaLifecycleRequest,
+    request_id: str | None,
+) -> AreaView:
+    operation = (
+        "technology_area.delete" if payload.target == "archived" else "technology_area.restore"
+    )
+    organization, receipt = await authorize_idempotent(
+        db,
+        ctx=ctx,
+        organization_id=organization_id,
+        permission="category.delete" if payload.target == "archived" else "category.update",
+        authorization_revision=payload.authorization_revision,
+        idempotency_key=payload.idempotency_key,
+        operation=operation,
+        fingerprint=mutation_effect(payload, area_id),
+        request_id=request_id,
+    )
+    if receipt is not None:
+        return AreaView.model_validate(receipt.response_body)
+    row = await db.get(TechnologyArea, (organization_id, area_id))
+    if row is None:
+        raise ApiError(ErrorCategory.PERMISSION, "technology area is unavailable")
+    if row.revision != payload.expected_revision:
+        raise ApiError(ErrorCategory.CONFLICT, "technology area revision changed")
+    if row.state == payload.target:
+        raise ApiError(ErrorCategory.CONFLICT, "technology area state is unchanged")
+    if payload.target == "archived":
+        bound = await db.scalar(
+            select(TechnologyCategory.id).where(
+                TechnologyCategory.organization_id == organization_id,
+                TechnologyCategory.area_id == area_id,
+            )
+        )
+        if bound is not None:
+            raise ApiError(ErrorCategory.CONFLICT, "technology area still has bound categories")
+    before = _area_view(row).model_dump(mode="json")
+    row.state = payload.target
+    row.revision += 1
+    organization.policy_revision += 1
+    await db.flush()
+    response = _area_view(row)
+    await finish_mutation(
+        db,
+        ctx=ctx,
+        organization_id=organization_id,
+        payload=payload,
+        operation=operation,
+        target=area_id,
+        target_table="technology_area",
+        response=response,
+        before=before,
         request_id=request_id,
     )
     return response

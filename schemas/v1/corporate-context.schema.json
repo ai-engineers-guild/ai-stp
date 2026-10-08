@@ -485,6 +485,15 @@
           "default": null,
           "title": "Observed Revision"
         },
+        "provider": {
+          "default": "gitlab",
+          "enum": [
+            "gitlab",
+            "github"
+          ],
+          "title": "Provider",
+          "type": "string"
+        },
         "provider_project_id": {
           "title": "Provider Project Id",
           "type": "string"
@@ -499,6 +508,7 @@
         "namespace",
         "observed_at",
         "observed_revision",
+        "provider",
         "provider_project_id",
         "repository_url"
       ],

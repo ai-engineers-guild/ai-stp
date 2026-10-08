@@ -123,11 +123,14 @@ runs `bun install --frozen-lockfile`, `tsc --noEmit`, `vitest run` and
 `vite build`. `apps/desktop/core` then runs `cargo fmt --check`,
 `cargo clippy --all-targets -- -D warnings` and `cargo test`. A stub sidecar
 (`apps/desktop/scripts/build-cli-sidecar.sh --stub`) satisfies tauri-build's
-compile-time `externalBin` check so `apps/desktop/src-tauri` runs the same
+compile-time resource check so `apps/desktop/src-tauri` runs the same
 fmt/clippy/test chain, after which the real PyInstaller sidecar is built and
 `apps/desktop/scripts/test-bundled-sidecar.sh` runs the spawn test under the
 app's filtered environment — the same path the installed app takes. The leg
-ends in `tauri build` and uploads the per-OS bundle tree as an artifact.
+runs `tauri build`, then `test-packaged-sidecar.py` extracts the Linux deb,
+uses the macOS app resources or administratively extracts the Windows MSI
+to a temporary directory and repeats the filtered-env probe there. Only then
+does it upload the per-OS bundle tree as an artifact.
 
 `.github/workflows/desktop-release.yml` is dispatch-only. Its `version` input
 is the desktop version, and the run must sit on the `desktop-v<version>` tag —

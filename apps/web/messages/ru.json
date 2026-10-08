@@ -155,7 +155,9 @@
     "peopleAndAccess": "Люди и доступ",
     "referenceData": "Справочники",
     "security": "Безопасность",
-    "audit": "Аудит"
+    "audit": "Аудит",
+    "scans": "Сканы",
+    "technologyAreas": "Технологические области"
   },
   "corporateReports": {
     "title": "Отчёты",
@@ -537,7 +539,77 @@
     "telemetryLegalBasisHint": "Правовое основание сбора телеметрии, заявленное организацией.",
     "telemetryRawRetentionHint": "Как долго хранятся сырые события до удаления.",
     "telemetryAggregateRetentionHint": "Как долго хранятся агрегаты после удаления сырых данных.",
-    "reportTimezoneHint": "Часовой пояс IANA для суточных периодов отчётов."
+    "reportTimezoneHint": "Часовой пояс IANA для суточных периодов отчётов.",
+    "scans": {
+      "title": "Сканы",
+      "description": "Журнал локальных и серверных сканов технологий.",
+      "launch": "Сканировать",
+      "launchTitle": "Сканирование проектов",
+      "launchDescription": "Выберите один или несколько корпоративных проектов, связанных с репозиторием GitHub или GitLab. Для каждого проекта создаётся отдельное фоновое задание.",
+      "launchProjects": "Проекты",
+      "launchNoRepository": "Репозиторий GitHub/GitLab не привязан",
+      "launchStart": "Запустить ({count})",
+      "launchEmpty": "Нет доступных корпоративных проектов.",
+      "launchResults": "Результаты запуска",
+      "launchState": {
+        "queued": "В очереди",
+        "rejected": "Отклонён",
+        "failed": "Ошибка"
+      },
+      "source": {
+        "gitlab": "GitLab",
+        "github": "GitHub",
+        "local": "Local"
+      },
+      "status": {
+        "queued": "В очереди",
+        "running": "Выполняется",
+        "succeeded": "Завершён",
+        "failed": "Ошибка"
+      },
+      "findingState": {
+        "open": "Требует разбора",
+        "candidate": "Кандидат",
+        "resolved": "Разобрано"
+      },
+      "versionKind": {
+        "unknown": "версия неизвестна",
+        "declared_range": "диапазон из манифеста",
+        "observed_version": "наблюдаемая версия"
+      },
+      "columns": {
+        "id": "ID",
+        "project": "Проект",
+        "repository": "Репозиторий",
+        "source": "Источник",
+        "date": "Дата",
+        "status": "Статус",
+        "found": "Найдено",
+        "pending": "Требует разбора",
+        "branch": "Ветка",
+        "commit": "Коммит",
+        "classification": "Область / Категория",
+        "version": "Версия",
+        "evidence": "Источник обнаружения"
+      },
+      "findings": "Находки",
+      "foundCount": "{count, plural, one {# находка} few {# находки} many {# находок} other {# находок}}",
+      "pendingCount": "{count, plural, one {# требует разбора} few {# требуют разбора} many {# требуют разбора} other {# требуют разбора}}",
+      "detectorVersion": "детектор {version}",
+      "mappingVersion": "маппинг {version}",
+      "openInMapping": "Разобрать {count, plural, one {# находку} few {# находки} many {# находок} other {# находок}} в «Маппинге»",
+      "empty": "Сканов пока нет."
+    },
+    "areas": {
+      "title": "Технологические области",
+      "description": "Верхнеуровневая группировка категорий технологий.",
+      "create": "Создать область",
+      "edit": "Изменить область",
+      "field": "Технологическая область",
+      "unassigned": "Без области",
+      "unclassified": "Без классификации",
+      "empty": "Технологических областей пока нет."
+    }
   },
   "githubConnector": {
     "backToAccount": "Назад к аккаунту",

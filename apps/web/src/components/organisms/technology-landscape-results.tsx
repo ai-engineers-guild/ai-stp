@@ -1,8 +1,12 @@
 import { getTranslations } from "next-intl/server";
 
+import { Badge } from "@/components/atoms/badge";
 import { Button } from "@/components/atoms/button";
+import { landscapeSearchParams } from "@/lib/api/technology";
 import { Link } from "@/lib/i18n/navigation";
 import type {
+  AreaView,
+  CategoryView,
   TechnologyLandscapeRow,
   TechnologyLandscapeView,
 } from "@/lib/api/generated/types.gen";
@@ -22,16 +26,30 @@ type Labels = Record<
   | "unknown"
   | "source_availability"
   | "available"
-  | "unavailable",
+  | "unavailable"
+  | "versions"
+  | "unclassified",
   string
 >;
+
+type Filters = Record<string, string | string[]>;
+
+function filterQuery(filters: Filters, extra: Record<string, string>) {
+  const params = new URLSearchParams(landscapeSearchParams(filters));
+  for (const [key, value] of Object.entries(extra)) params.set(key, value);
+  return params;
+}
 
 export async function TechnologyLandscapeResults({
   landscape,
   filters,
+  categories = null,
+  areas = null,
 }: {
   landscape: TechnologyLandscapeView;
-  filters: Record<string, string>;
+  filters: Filters;
+  categories?: CategoryView[] | null;
+  areas?: AreaView[] | null;
 }) {
   const t = await getTranslations("technology");
   const labels: Labels = {
@@ -50,25 +68,48 @@ export async function TechnologyLandscapeResults({
     source_availability: t("source_availability"),
     available: t("values.available"),
     unavailable: t("values.unavailable"),
+    versions: t("scans.columns.version"),
+    unclassified: t("areas.unclassified"),
   };
   if (landscape.filters.view === "grouped") {
-    const categories = [
-      ...new Set(landscape.items.flatMap((row) => row.technology.category_ids)),
-    ].sort();
+    const byId = new Map(categories?.map((item) => [item.category_id, item]) ?? []);
+    const areaById = new Map(areas?.map((item) => [item.area_id, item]) ?? []);
+    const groups = new Map<string, Map<string, TechnologyLandscapeRow[]>>();
+    for (const row of landscape.items) {
+      const ids = row.technology.category_ids.length ? row.technology.category_ids : [""];
+      for (const id of ids) {
+        const category = byId.get(id);
+        const areaId = category?.area_id ?? "";
+        const areaName = areaById.get(areaId)?.name ?? labels.unclassified;
+        const bucket = groups.get(areaName) ?? new Map<string, TechnologyLandscapeRow[]>();
+        const key = category?.name ?? (id || labels.unclassified);
+        bucket.set(key, [...(bucket.get(key) ?? []), row]);
+        groups.set(areaName, bucket);
+      }
+    }
     return (
-      <div className="space-y-6">
+      <div className="space-y-8">
         <p className="text-muted-foreground max-w-prose text-sm">{labels.groupedNote}</p>
-        {categories.map((category) => (
-          <section key={category} className="space-y-3">
-            <h2 className="text-xl font-medium break-all">{category}</h2>
-            <LandscapeTable
-              rows={landscape.items.filter((row) => row.technology.category_ids.includes(category))}
-              filters={filters}
-              landscape={landscape}
-              labels={labels}
-            />
-          </section>
-        ))}
+        {[...groups.entries()]
+          .sort(([a], [b]) => a.localeCompare(b))
+          .map(([area, items]) => (
+            <section key={area} className="space-y-4">
+              <h2 className="text-2xl font-medium">{area}</h2>
+              {[...items.entries()]
+                .sort(([a], [b]) => a.localeCompare(b))
+                .map(([category, rows]) => (
+                  <section key={category} className="space-y-3">
+                    <h3 className="text-xl font-medium break-all">{category}</h3>
+                    <LandscapeTable
+                      rows={rows}
+                      filters={filters}
+                      landscape={landscape}
+                      labels={labels}
+                    />
+                  </section>
+                ))}
+            </section>
+          ))}
       </div>
     );
   }
@@ -130,6 +171,16 @@ function TechnologyLink({ row }: { row: TechnologyLandscapeRow }) {
   );
 }
 
+function rowVersions(row: TechnologyLandscapeRow): string[] {
+  return [
+    ...new Set(
+      row.projects.flatMap((project) =>
+        project.usage.facts.map((fact) => fact.version).filter(Boolean),
+      ),
+    ),
+  ].sort() as string[];
+}
+
 function LandscapeTable({
   rows,
   filters,
@@ -137,7 +188,7 @@ function LandscapeTable({
   labels,
 }: {
   rows: TechnologyLandscapeRow[];
-  filters: Record<string, string>;
+  filters: Filters;
   landscape: TechnologyLandscapeView;
   labels: Labels;
 }) {
@@ -153,6 +204,9 @@ function LandscapeTable({
               {labels.technology}
             </th>
             <th scope="col" className="p-3 font-medium">
+              {labels.versions}
+            </th>
+            <th scope="col" className="p-3 font-medium">
               {labels.projects}
             </th>
             <th scope="col" className="p-3 font-medium">
@@ -166,6 +220,16 @@ function LandscapeTable({
               <th scope="row" className="p-3 font-medium">
                 <TechnologyLink row={row} />
               </th>
+              <td className="p-3">
+                <span className="flex flex-wrap gap-1">
+                  {rowVersions(row).map((version) => (
+                    <Badge key={version} variant="outline">
+                      <code className="font-mono text-xs">{version}</code>
+                    </Badge>
+                  ))}
+                  {!rowVersions(row).length && "—"}
+                </span>
+              </td>
               <td className="p-3">
                 <span className="tabular-nums">{row.project_count}</span>
                 {!row.project_count && !row.proposed_project_count && (
@@ -189,14 +253,14 @@ function ProjectLinks({
   labels,
 }: {
   row: TechnologyLandscapeRow;
-  filters: Record<string, string>;
+  filters: Filters;
   landscape: TechnologyLandscapeView;
   labels: Labels;
 }) {
   const offset = landscape.filters.project_offset ?? 0;
   const limit = landscape.filters.project_limit ?? 128;
   function href(next: number) {
-    return `/corporate/technology-landscape?${new URLSearchParams({ ...filters, technology_id: row.technology.technology_id, offset: "0", project_offset: String(next) })}`;
+    return `/corporate/technology-landscape?${filterQuery(filters, { technology_id: row.technology.technology_id, offset: "0", project_offset: String(next) })}`;
   }
   return (
     <div className="space-y-2">
@@ -205,7 +269,7 @@ function ProjectLinks({
           <li key={project.project_id}>
             <Link
               className="inline-flex min-h-11 items-center underline underline-offset-4"
-              href={`/corporate/projects/${project.project_id}?${new URLSearchParams(filters)}`}
+              href={`/corporate/projects/${project.project_id}?${filterQuery(filters, {})}`}
             >
               {project.name}
             </Link>

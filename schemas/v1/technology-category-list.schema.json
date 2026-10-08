@@ -3,6 +3,19 @@
     "CategoryView": {
       "additionalProperties": true,
       "properties": {
+        "area_id": {
+          "anyOf": [
+            {
+              "pattern": "^area_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Area Id"
+        },
         "category_id": {
           "pattern": "^category_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
           "title": "Category Id",
@@ -48,6 +61,7 @@
         }
       },
       "required": [
+        "area_id",
         "category_id",
         "description",
         "name",

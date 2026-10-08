@@ -86,6 +86,11 @@ export const PAGE_INVENTORY: readonly PageInventoryEntry[] = [
     presenter: "domain",
   },
   {
+    pattern: "corporate/organization/admins/technology-areas",
+    access: "session",
+    presenter: "domain",
+  },
+  {
     pattern: "corporate/organization/admins/employees/:accountId",
     access: "session",
     presenter: "domain",
@@ -116,6 +121,8 @@ export const PAGE_INVENTORY: readonly PageInventoryEntry[] = [
   },
   { pattern: "corporate/technology-landscape", access: "session", presenter: "domain" },
   { pattern: "corporate/technology-mappings", access: "session", presenter: "domain" },
+  { pattern: "corporate/technology-scans", access: "session", presenter: "domain" },
+  { pattern: "corporate/technology-scans/:scanId", access: "session", presenter: "domain" },
   { pattern: "corporate/:resource/:resourceId", access: "session", presenter: "domain" },
   { pattern: "corporate/:resource/:resourceId/edit", access: "session", presenter: "domain" },
   { pattern: "devices", access: "session", presenter: "domain" },

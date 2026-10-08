@@ -14,19 +14,19 @@ last_verified: "2026-08-03"
 | [corporate-bootstrap.md](corporate-bootstrap.md) | Create the one initial corporate organization and superadmin safely. | 2026-09-12 |
 | [corporate-dashboards.md](corporate-dashboards.md) | Operate and troubleshoot Corporate Hub health dashboards. | 2026-09-23 |
 | [database-migration.md](database-migration.md) | Runbook: database migration. | 2026-10-05 |
-| [deploy.md](deploy.md) | Runbook: reproducible deployment with a web tier, backups, and rollback. | 2026-10-04 |
+| [deploy.md](deploy.md) | Runbook: reproducible deployment with a web tier, backups, and rollback. | 2026-10-07 |
 | [external-catalog-requests.md](external-catalog-requests.md) | Review and apply service and country request cases without an HTTP administration API. | 2026-09-04 |
 | [first-party-launch-publication.md](first-party-launch-publication.md) | Runbook: publishing the first-party launch corpus through the standard pipeline. | 2026-08-25 |
 | [github-repository-metrics.md](github-repository-metrics.md) | Runbook: best-effort GitHub stars cache for the public catalog. | 2026-09-03 |
 | [gitlab-discovery.md](gitlab-discovery.md) | Operate per-tenant GitLab discovery and retained provider observations. | 2026-09-22 |
 | [installation-recovery.md](installation-recovery.md) | Runbook: installation recovery. | 2026-08-03 |
 | [local-oidc-sso.md](local-oidc-sso.md) | Runbook: standing up local authentik and Keycloak and verifying corporate OIDC SSO end to end. | 2026-09-29 |
-| [official-upstream-components.md](official-upstream-components.md) | Runbook: operator-managed official GitHub and package upstream component snapshots. | 2026-10-05 |
+| [official-upstream-components.md](official-upstream-components.md) | Runbook: operator-managed official GitHub and package upstream component snapshots. | 2026-10-07 |
 | [platform-evidence.md](platform-evidence.md) | Native platform evidence for the exact CLI candidate without publish or deploy authority. | 2026-09-29 |
 | [provider-lifecycle.md](provider-lifecycle.md) | Discovery, version checking, updating, and reinstalling a setup-system provider. | 2026-09-04 |
 | [provider-update.md](provider-update.md) | Runbook: provider update. | 2026-08-28 |
 | [publish-recovery.md](publish-recovery.md) | Runbook: publish recovery. | 2026-09-24 |
-| [pypi-release.md](pypi-release.md) | Build, verify, publish, yank, and recover a Python release. | 2026-10-05 |
+| [pypi-release.md](pypi-release.md) | Build, verify, publish, yank, and recover a Python release. | 2026-10-07 |
 | [report-triage.md](report-triage.md) | Runbook: report case triage. | 2026-08-04 |
 | [safety-scan.md](safety-scan.md) | Runbook: platform safety scan for publication validation. | 2026-10-04 |
 | [saml-sso.md](saml-sso.md) | Operate SAML 2.0 corporate SSO: configuration, certificate rotation, logout, linking, organization restriction, and failure triage. | 2026-10-06 |

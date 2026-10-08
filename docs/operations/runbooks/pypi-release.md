@@ -1,6 +1,6 @@
 ---
 description: "Build, verify, publish, yank, and recover a Python release."
-last_verified: "2026-10-05"
+last_verified: "2026-10-07"
 ---
 
 # Python package release
@@ -126,29 +126,49 @@ that run and start again with named inputs.
 ### Who confirms
 
 The `pypi*` environments list **`letya999` and `rldyourmnd`**;
-`prevent_self_review` is `false`. Two-person control remains: either person can
-confirm, rather than depending on one person whose absence delayed publication for
-a day on August 25. Approval is performed through the API, so publication needs no
-manual steps.
+`prevent_self_review` is `false`. Either listed reviewer can approve; approval
+from both is not required and self-review is permitted. This avoids depending
+on one person's availability. Approval is performed through the API within the
+owner's release authorization, so publication needs no manual UI steps.
+
+The helper dispatches on protected `main` and retains `workflow_run_id` from
+the [GitHub dispatch response](https://docs.github.com/en/rest/actions/workflows#create-a-workflow-dispatch-event)
+using API version `2026-03-10`. It never selects the latest run from a list:
+another operator may have dispatched in between. A missing or invalid run ID
+stops before approval; inspect that dispatch before retrying. An approval HTTP
+failure is a failure, not permission to continue.
+Before dispatch, the candidate must be a successful `release-candidate.yml`
+`workflow_dispatch` on the exact version tag in this repository, with a
+successful `attest-public-candidate` job in its latest attempt. An ordinary
+green check on the same SHA, or a skipped attestation, is refused.
 
 No upload token exists here, on the host, or in repository or organization secrets—
 Trusted Publishing issues an OIDC identity for the run. There is no credential to
 look for.
 
-Live index on 2026-10-05: `ai-stp-cli==0.0.42` from attested candidate
-`37370223688` and publish run `37374426276`, tag `v0.0.42`, commit
-`980438b4`, GitHub Release
-`https://github.com/ai-engineers-guild/ai-stp/releases/tag/v0.0.42`. The wheel
-`ai_stp_cli-0.0.42-py3-none-any.whl` has digest
-`sha256:2287346a49d68a66d12353650bedb4451712c2aaba1af1070aebefff58eec252` and the
-sdist `sha256:dda9e96791104d38e82751a1d57d4be995ea4eab9612b8530364e9cd9c324278`,
-byte-identical between the PyPI index record and the release's `SHA256SUMS`.
-The candidate's first attempt got no runner during a GitHub Actions incident
-and its rerun passed; a rerun does not change which bytes the run id names.
-A `uv tool` installation on this workstation reached it from 0.0.41 through
-`update plan` and `update apply`; the journal ended `verified` and `doctor`
-reported every check `ready`. Earlier releases are listed on GitHub Releases
-with their own candidate and publish runs.
+Live index on October 7 UTC (October 8 locally): `ai-stp-cli==0.0.43` from
+attested candidate
+[37670007818](https://github.com/ai-engineers-guild/ai-stp/actions/runs/37670007818)
+and publish run
+[37670388765](https://github.com/ai-engineers-guild/ai-stp/actions/runs/37670388765),
+tag `v0.0.43`, commit `e7964854a6ff77200946b1c1462daeb245efb38f`,
+[GitHub Release](https://github.com/ai-engineers-guild/ai-stp/releases/tag/v0.0.43).
+The wheel `ai_stp_cli-0.0.43-py3-none-any.whl` has digest
+`sha256:ed32c7e01b847b1b402253e720d9b224119da28928041d3901f05214c846f6ba`;
+the sdist has digest
+`sha256:5547c79988f0cbed78ef68958e9aeb20ec0fd708e88811a86dd99e91206a8b1a`.
+Candidate files, downloaded GitHub assets, PyPI JSON and Simple Index digests
+agree. `gh attestation verify` succeeds with the exact repository, source ref,
+source SHA and `release-candidate.yml` signer constraints.
+
+The exact candidate installs outside the checkout and uninstalls on Python
+3.12.3 locally and Python 3.14 in the candidate workflow. The workstation's
+`uv tool` installation reached 0.0.43 from 0.0.42 through `update plan` and
+`update apply`; a fresh process reports journal `verified`. All 13 `doctor`
+checks are ready when the existing user session's D-Bus credential store is
+reachable. A shell without that session correctly refuses the missing device
+key instead of resetting identity. Earlier releases keep their own immutable
+GitHub receipts.
 
 **Former internal projects are no longer part of the install.** Keep internal
 Python namespaces inside the single `ai-stp-cli` wheel. Before retiring an old
@@ -158,10 +178,13 @@ digests. Index deletion retires fresh installation of the superseded split alpha
 recovery is a new unified CLI patch release. The current owner actions and measured
 index status belong to [the roadmap](../../engineering/implementation-roadmap.md).
 
-Verified **with PyPI**, not from a green run:
+The current distribution is one project, `ai-stp-cli`, with a wheel and sdist.
+Historical `0.0.16` index cleanup is recorded in the
+[roadmap history](../../archive/implementation-roadmap-history.md).
 
-- one project, `ai-stp-cli`, with a wheel and sdist; historical `0.0.16`
-  index cleanup status is recorded in the roadmap;
+Historical `0.0.5` publication evidence, read back from PyPI independently of CI.
+This is not qualification of the current release:
+
 - attestation of the published wheel succeeds and names its source—workflow
   `release-candidate.yml@refs/tags/v0.0.5`, commit `6514a36b…`. The negative
   control (random bytes) returns 404, so the check distinguishes them;

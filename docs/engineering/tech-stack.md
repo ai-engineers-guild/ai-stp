@@ -24,7 +24,7 @@ last_verified: "2026-10-04"
 | Object storage | RustFS/S3 |
 | HTTP | httpx |
 | Frontend | Next.js App Router (React, RSC + Server Actions) on `ADR-0043`; TypeScript 7 as typecheck + side TS6 for `typescript-eslint`; Tailwind 4 with tokenized theme (light/dark); bilingualism `next-intl`; standard `shadcn/ui` + Radix by atomic design (atoms/molecules/organisms/layouts); typed client from `schemas/v1/openapi.json` via `@hey-api/openapi-ts`; client store `zustand`; forms `react-hook-form` + `zod`; ESLint flat config lint (type-aware, full prohibition `any`); tests Vitest + Testing Library + Playwright + MSW; package manager `bun` with `bun.lock` in separate Node-workspace `apps/web` |
-| Desktop | `apps/desktop` `ai-stp-desktop` (`ADR-0222`): Tauri 2 shell (`tauri`/`tauri-build` 2 in `src-tauri`, `@tauri-apps/cli` 2) over the CLI machine contract; Rust `core` and `src-tauri` crates; React 19 + Vite 8 + TypeScript 7 UI tested by Vitest; package manager `bun` with its own `bun.lock`; the bundled CLI is a PyInstaller onefile sidecar built by `apps/desktop/scripts/build-cli-sidecar.sh` and embedded through `bundle.externalBin` |
+| Desktop | `apps/desktop` `ai-stp-desktop` (`ADR-0222`): Tauri 2 shell (`tauri`/`tauri-build` 2 in `src-tauri`, `@tauri-apps/cli` 2) over the CLI machine contract; Rust `core` and `src-tauri` crates; React 19 + Vite 8 + TypeScript 7 UI tested by Vitest; package manager `bun` with its own `bun.lock`; the bundled CLI is a PyInstaller onedir resource tree built by `apps/desktop/scripts/build-cli-sidecar.sh` and embedded through `bundle.resources` |
 | Email | Resend |
 | Format/lint | Ruff |
 | Types | Pyright strict |

@@ -227,7 +227,7 @@ requires-dist = [
 
 [[package]]
 name = "ai-stp-cli"
-version = "0.0.42"
+version = "0.0.43"
 source = { editable = "apps/cli" }
 dependencies = [
     { name = "click" },
@@ -368,16 +368,22 @@ name = "ai-stp-sources"
 version = "0.0.16"
 source = { editable = "packages/sources" }
 dependencies = [
+    { name = "ai-stp-contracts" },
     { name = "ai-stp-foundation" },
     { name = "ai-stp-passports" },
+    { name = "packaging" },
     { name = "pydantic" },
+    { name = "pyyaml" },
 ]
 
 [package.metadata]
 requires-dist = [
+    { name = "ai-stp-contracts", editable = "packages/contracts" },
     { name = "ai-stp-foundation", editable = "packages/foundation" },
     { name = "ai-stp-passports", editable = "packages/passports" },
+    { name = "packaging", specifier = ">=24" },
     { name = "pydantic", specifier = ">=2.9" },
+    { name = "pyyaml", specifier = ">=6" },
 ]
 
 [[package]]

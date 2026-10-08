@@ -66,12 +66,32 @@ def published(project: str, version: str) -> bool:
     return bool(releases.get(version))
 
 
-def candidate_head(run_id: str) -> str:
+def candidate_head(run_id: str, version: str) -> str:
     run = api(f"repos/{REPO}/actions/runs/{run_id}")
     if not isinstance(run, dict):
         raise SystemExit(f"run {run_id} is unreadable")
     if run.get("conclusion") != "success":
         raise SystemExit(f"run {run_id} did not succeed: {run.get('conclusion')}")
+    repository = run.get("head_repository")
+    if (
+        run.get("path") != ".github/workflows/release-candidate.yml"
+        or run.get("event") != "workflow_dispatch"
+        or run.get("head_branch") != f"v{version}"
+        or not isinstance(repository, dict)
+        or repository.get("full_name") != REPO
+    ):
+        raise SystemExit(f"run {run_id} is not this repository's candidate for v{version}")
+    result = api(
+        f"repos/{REPO}/actions/runs/{run_id}/jobs", "--method", "GET", "-f", "filter=latest"
+    )
+    jobs = result.get("jobs") if isinstance(result, dict) else None
+    if not isinstance(jobs, list) or not any(
+        isinstance(job, dict)
+        and job.get("name") == "attest-public-candidate"
+        and job.get("conclusion") == "success"
+        for job in jobs
+    ):
+        raise SystemExit(f"candidate {run_id} has no successful public attestation job")
     return str(run.get("head_sha", ""))
 
 
@@ -92,13 +112,30 @@ def tag_head(version: str) -> str:
     return str(inner.get("sha", "")) if isinstance(inner, dict) else ""
 
 
-def latest_run_id() -> str:
-    runs = api(
-        f"repos/{REPO}/actions/workflows/publish-pypi.yml/runs",
-        "--jq",
-        ".workflow_runs[0].id",
+def dispatch(version: str, candidate_run_id: str, package: str) -> str:
+    """Retain the created run's identity; a concurrent dispatch is unrelated."""
+    result = api(
+        f"repos/{REPO}/actions/workflows/publish-pypi.yml/dispatches",
+        "--method",
+        "POST",
+        "-H",
+        "X-GitHub-Api-Version: 2026-03-10",
+        "-f",
+        "ref=main",
+        "-f",
+        f"inputs[version]={version}",
+        "-f",
+        f"inputs[run_id]={candidate_run_id}",
+        "-f",
+        f"inputs[package]={package}",
     )
-    return str(runs)
+    run_id = result.get("workflow_run_id") if isinstance(result, dict) else None
+    if type(run_id) is not int or run_id <= 0:
+        raise SystemExit(
+            "dispatch returned no valid run identity; inspect the workflow before retrying; "
+            "no run was approved"
+        )
+    return str(run_id)
 
 
 def approve(run_id: str) -> None:
@@ -134,7 +171,7 @@ def approve(run_id: str) -> None:
                 input=body,
                 capture_output=True,
                 text=True,
-                check=False,
+                check=True,
             )
             return
         run = api(f"repos/{REPO}/actions/runs/{run_id}")
@@ -170,7 +207,7 @@ def main() -> int:
     parser.add_argument("--dry-run", action="store_true", help="check the inputs and stop")
     options = parser.parse_args()
 
-    head = candidate_head(options.run_id)
+    head = candidate_head(options.run_id, options.version)
     tagged = tag_head(options.version)
     if head != tagged:
         raise SystemExit(
@@ -194,21 +231,8 @@ def main() -> int:
             say(f"{project} {options.version} already on PyPI, skipping")
             continue
         say(f"dispatching {project} {options.version}")
-        gh(
-            "workflow",
-            "run",
-            "publish-pypi.yml",
-            "-R",
-            REPO,
-            "-f",
-            f"version={options.version}",
-            "-f",
-            f"run_id={options.run_id}",
-            "-f",
-            f"package={name}",
-        )
-        time.sleep(POLL_SECONDS)
-        run_id = latest_run_id()
+        run_id = dispatch(options.version, options.run_id, name)
+        say(f"created publication run {run_id}")
         approve(run_id)
         conclusion = await_run(run_id)
         if conclusion != "success":

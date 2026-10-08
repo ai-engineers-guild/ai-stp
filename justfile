@@ -727,7 +727,7 @@ desktop-gen:
     cd apps/desktop/src-tauri && cargo fmt
 
 # The frozen lockfile is the contract; `vite build` emits `dist/` and the
-# stub sidecar satisfies the externalBin existence check before the crates
+# stub sidecar satisfies the resource existence check before the crates
 # compile. `run_bash.py` picks Git-for-Windows bash over WSL on Windows —
 # the recipe line stays identical everywhere.
 [doc('Frontend build plus a stub sidecar for compile-time checks')]
@@ -764,6 +764,13 @@ desktop-regress: desktop-build
     {{ uvreq }}
     {{ run }} python release_scripts/run_bash.py apps/desktop/scripts/build-cli-sidecar.sh
     {{ run }} python release_scripts/run_bash.py apps/desktop/scripts/test-bundled-sidecar.sh
+
+# Requires existing OS bundles from `bun x tauri build`; extraction is local
+# and never installs the application on the developer's machine.
+[doc('Extract an existing desktop bundle and probe its CLI resource tree')]
+[group('desktop')]
+desktop-bundle-test:
+    {{ run }} python apps/desktop/scripts/test-packaged-sidecar.py
 
 [doc('The desktop aggregate')]
 [group('desktop')]

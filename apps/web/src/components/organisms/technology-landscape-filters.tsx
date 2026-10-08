@@ -22,47 +22,76 @@ export async function TechnologyLandscapeFilters({
   filters,
   context,
 }: {
-  filters: Record<string, string>;
+  filters: Record<string, string | string[]>;
   context: CorporateContext;
 }) {
   const t = await getTranslations("technology");
+  const selectedProjects = Array.isArray(filters.project_ids)
+    ? filters.project_ids
+    : filters.project_ids
+      ? [filters.project_ids]
+      : filters.project_id
+        ? [filters.project_id]
+        : [];
   return (
     <form className="space-y-4" method="get">
       <h2 className="text-xl font-medium">{t("filters")}</h2>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <div className="space-y-2">
           <Label htmlFor="landscape-query">{t("search")}</Label>
-          <Input id="landscape-query" name="query" maxLength={200} defaultValue={filters.query} />
+          <Input
+            id="landscape-query"
+            name="query"
+            maxLength={200}
+            defaultValue={typeof filters.query === "string" ? filters.query : undefined}
+          />
         </div>
         {Object.entries(dimensions).map(([key, values]) => (
           <FilterSelect
             key={key}
             name={key}
             label={t(key)}
-            value={filters[key]}
+            value={typeof filters[key] === "string" ? filters[key] : undefined}
             all={t("all")}
             options={values.map((value) => ({ value, label: t(`values.${value}`) }))}
           />
         ))}
-        <FilterSelect
-          name="project_id"
-          label={t("project")}
-          value={filters.project_id}
-          all={t("all")}
-          options={context.projects.map((p) => ({ value: p.project_id, label: p.name }))}
-        />
+        <div className="space-y-2">
+          <Label htmlFor="landscape-category">{t("category")}</Label>
+          <Input
+            id="landscape-category"
+            name="category_id"
+            defaultValue={typeof filters.category_id === "string" ? filters.category_id : undefined}
+          />
+        </div>
         <FilterSelect
           name="team_id"
           label={t("team")}
-          value={filters.team_id}
+          value={typeof filters.team_id === "string" ? filters.team_id : undefined}
           all={t("all")}
           options={context.teams.map((p) => ({ value: p.team_id, label: p.name }))}
         />
-        <div className="space-y-2">
-          <Label htmlFor="landscape-category">{t("category")}</Label>
-          <Input id="landscape-category" name="category_id" defaultValue={filters.category_id} />
-        </div>
       </div>
+      <details className="space-y-2">
+        <summary className="min-h-11 cursor-pointer py-3 text-sm underline underline-offset-4">
+          {t("projects")} ({selectedProjects.length || t("all")})
+        </summary>
+        <fieldset className="grid gap-1 sm:grid-cols-2 lg:grid-cols-3">
+          <legend className="sr-only">{t("projects")}</legend>
+          {context.projects.map((project) => (
+            <label key={project.project_id} className="flex min-h-11 items-center gap-3">
+              <input
+                type="checkbox"
+                name="project_ids"
+                value={project.project_id}
+                defaultChecked={selectedProjects.includes(project.project_id)}
+                className="accent-primary h-4 w-4"
+              />
+              {project.name}
+            </label>
+          ))}
+        </fieldset>
+      </details>
       <div className="flex flex-wrap gap-4">
         {["include_history", "include_inactive"].map((key) => (
           <label key={key} className="flex min-h-11 items-center gap-2">
@@ -76,7 +105,7 @@ export async function TechnologyLandscapeFilters({
           </label>
         ))}
       </div>
-      {filters.technology_id && (
+      {typeof filters.technology_id === "string" && filters.technology_id && (
         <input type="hidden" name="technology_id" value={filters.technology_id} />
       )}
       <div className="flex flex-wrap gap-3">

@@ -3125,7 +3125,7 @@ async def read_project(
                     ProjectLink.organization_id == organization_id,
                     ProjectLink.remote_project_id == project_id,
                     ProjectLink.state == "linked",
-                    ProjectIdentity.provider_kind == "gitlab",
+                    ProjectIdentity.provider_kind.in_(["gitlab", "github"]),
                 )
                 .distinct()
                 .order_by(ProjectIdentity.id)
@@ -3138,6 +3138,7 @@ async def read_project(
     repositories = [
         CorporateProjectRepository(
             provider_project_id=identity.id,
+            provider=cast(Literal["gitlab", "github"], identity.provider_kind),
             namespace=identity.observed_name or identity.display_name,
             repository_url=identity.current_url,
             default_branch=identity.provider_default_branch,

@@ -10,6 +10,7 @@ import {
 import { ApiError } from "@/lib/api/errors";
 import {
   landscapeFilters,
+  landscapeSearchParams,
   readTechnologyRegistry,
   readTechnologyDetail,
   readTechnologyLandscape,
@@ -387,13 +388,13 @@ export const TECHNOLOGY_ROUTES: MachineRoute[] = [
           title: t("title"),
           summary: t("description"),
           links,
-          fields: Object.entries(filters),
+          fields: landscapeSearchParams(filters),
           sections: landscape.items.map((row) => ({
             heading: row.technology.name,
             text: `${t("projects")}: ${row.project_count}; ${t("proposed")}: ${row.proposed_project_count}`,
             entries: row.projects.map((project) => ({
               title: project.name,
-              href: `/corporate/projects/${project.project_id}?${new URLSearchParams(filters)}`,
+              href: `/corporate/projects/${project.project_id}?${new URLSearchParams(landscapeSearchParams(filters))}`,
               fields: [
                 [t("activity"), project.activity],
                 [t("source_availability"), project.source_availability ?? "unknown"],
