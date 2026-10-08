@@ -110,7 +110,9 @@ fn build(connection: &Connection, plan: &Plan, original: Value) -> Result<(Value
         &plan.identity,
         &plan.created_at,
     )?;
-    if document["components"] != original["components"] {
+    let mut expected_members = original["components"].clone();
+    passport::versions::normalize_component_refs(&mut expected_members)?;
+    if document["components"] != expected_members {
         return Err(invalid());
     }
     // Source declarations may add requirements, but cannot weaken requirements

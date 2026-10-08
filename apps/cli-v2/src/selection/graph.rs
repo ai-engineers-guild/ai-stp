@@ -23,6 +23,7 @@ struct Reference {
     version: String,
     passport_digest: String,
     required_by: String,
+    has_variant: bool,
 }
 
 impl Reference {
@@ -32,6 +33,7 @@ impl Reference {
             version: value["version"].as_str().unwrap_or("").into(),
             passport_digest: value["passport_digest"].as_str().unwrap_or("").into(),
             required_by: parent.into(),
+            has_variant: !value["variant_id"].is_null(),
         }
     }
 
@@ -161,6 +163,7 @@ pub fn read(snapshot: &Snapshot, members: &[String], proposal: Option<&str>) -> 
                     )
                 })?,
                 required_by: String::new(),
+                has_variant: false,
             });
         }
     }
@@ -190,6 +193,14 @@ fn resolve(connection: &Connection, mut roots: Vec<Reference>) -> Result<Value> 
     while let Some((reference, depth)) = frontier.pop_front() {
         let mut reject =
             |code, summary, details| refusals.push(reference.refusal(code, summary, details));
+        if reference.has_variant {
+            reject(
+                "reference_variant_unsupported",
+                "native selection does not select a component variant",
+                json!({}),
+            );
+            continue;
+        }
         if !reference.exact() {
             reject(
                 "reference_floating",

@@ -112,6 +112,12 @@ pub(super) fn compile(
         {
             return Err(invalid());
         }
+        let references = document
+            .as_object_mut()
+            .ok_or_else(invalid)?
+            .entry("requires_components")
+            .or_insert(json!([]));
+        passport::versions::normalize_component_refs(references)?;
         let document = revisions::seal(&document)?;
         verify(transaction, &document)?;
         return Ok(document);
@@ -216,6 +222,7 @@ pub(super) fn complete(
         object.entry(key).or_insert(json!([]));
     }
     document["conflicts"] = conflicts;
+    passport::versions::normalize_component_refs(&mut document["requires_components"])?;
     let document = revisions::seal(&document)?;
     let mut version = document.clone();
     version["parent_revision_ids"] = json!([]);

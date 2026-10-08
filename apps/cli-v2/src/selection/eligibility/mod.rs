@@ -41,7 +41,7 @@ pub struct Target {
 
 /// Established by the owning runtime, never accepted as an authentication proof.
 /// The exact digest prevents applying one version's evidence to another version.
-#[derive(Clone)]
+#[derive(Clone, Serialize)]
 pub struct Evidence {
     pub passport_digest: String,
     pub registrable: bool,
@@ -100,28 +100,12 @@ pub fn assess(
             "the passport entitlement extension is invalid",
         ));
     }
-    if target.harness_id == "undefined"
-        || (!target.owner_id.is_empty() && !passport::stable_id(&target.owner_id, "account"))
-        || !matches!(target.os.as_str(), "linux" | "darwin" | "windows")
-        || !matches!(target.arch.as_str(), "x86_64" | "arm64")
-        || target.harness_version.len() > 128
-        || target
-            .harness_version
-            .bytes()
-            .any(|byte| !byte.is_ascii_alphanumeric() && !matches!(byte, b'.' | b'-' | b'_' | b'+'))
-        || canonical::bytes(
-            &serde_json::to_value(target)
-                .map_err(|_| Failure::input("invalid eligibility target"))?,
-        )?
-        .len()
-            > 256 * 1024
-        || evidence.passport_digest != digest::canonical("ai-stp:passport:v1", document)?
-    {
+    target.validate()?;
+    if evidence.passport_digest != digest::canonical("ai-stp:passport:v1", document)? {
         return Err(Failure::input(
             "eligibility requires a bounded target and evidence for the exact passport",
         ));
     }
-    harnesses::definition(&target.harness_id)?;
     let own = !target.owner_id.is_empty() && document["owner_id"] == target.owner_id;
     let local = own
         || target
@@ -244,6 +228,33 @@ pub fn assess(
         "refusals":report.refusals,"notes":report.notes});
     ASSESSMENT.validate(&result)?;
     Ok(result)
+}
+
+impl Target {
+    pub(crate) fn validate(&self) -> Result<()> {
+        if self.harness_id == "undefined"
+            || (!self.owner_id.is_empty() && !passport::stable_id(&self.owner_id, "account"))
+            || !matches!(self.os.as_str(), "linux" | "darwin" | "windows")
+            || !matches!(self.arch.as_str(), "x86_64" | "arm64")
+            || self.harness_version.len() > 128
+            || self
+                .harness_version
+                .bytes()
+                .any(|b| !b.is_ascii_alphanumeric() && !matches!(b, b'.' | b'-' | b'_' | b'+'))
+            || canonical::bytes(
+                &serde_json::to_value(self)
+                    .map_err(|_| Failure::input("invalid eligibility target"))?,
+            )?
+            .len()
+                > 256 * 1024
+        {
+            return Err(Failure::input(
+                "eligibility requires a bounded observed target",
+            ));
+        }
+        harnesses::definition(&self.harness_id)?;
+        Ok(())
+    }
 }
 
 /// Every node, including transitive members, must have exact evidence. A root's

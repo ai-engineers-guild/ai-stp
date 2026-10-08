@@ -21,6 +21,7 @@ from ai_stp_contracts.cli.components import (
 )
 from ai_stp_foundation.digests import digest_bytes, digest_canonical
 from ai_stp_passports import ComponentVersionPassport, SetupVersionPassport
+from ai_stp_passports.envelope import verify_revision_id
 
 Runner = Callable[[Path, Path, list[str], int], dict[str, Any]]
 
@@ -247,7 +248,9 @@ def prove(binary: Path, home: Path, temporary: Path, run: Runner) -> None:
         ]
     )
     released = apply(release, "release")
-    ComponentVersionPassport.model_validate(released)
+    released_model = ComponentVersionPassport.model_validate(released)
+    assert released_model.model_dump(mode="json") == released
+    assert verify_revision_id(released_model)
     digest = digest_canonical("ai-stp:passport:v1", released)
     assert (
         invoke(
@@ -390,7 +393,9 @@ def prove(binary: Path, home: Path, temporary: Path, run: Runner) -> None:
         ]
     )
     native_version = apply(native_release, "native-release")
-    ComponentVersionPassport.model_validate(native_version)
+    native_model = ComponentVersionPassport.model_validate(native_version)
+    assert native_model.model_dump(mode="json") == native_version
+    assert verify_revision_id(native_model)
     assert native_version["adaptations"] == native_draft["adaptations"]
     setup_root = root / "setup-authoring"
     starter = invoke(
@@ -439,7 +444,9 @@ def prove(binary: Path, home: Path, temporary: Path, run: Runner) -> None:
         ["setup", "compose", "plan", "--state-dir", str(state), "--request", str(request)]
     )
     setup = apply(compose, "compose")
-    SetupVersionPassport.model_validate(setup)
+    setup_model = SetupVersionPassport.model_validate(setup)
+    assert setup_model.model_dump(mode="json") == setup
+    assert verify_revision_id(setup_model)
     assert setup["owner_id"] == owner and setup["harness_id"] == "codex"
     source = {
         "stable_id": setup["stable_id"],

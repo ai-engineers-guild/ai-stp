@@ -670,6 +670,39 @@ plan/status scope arguments. Provider paths match complete namespace segments.
 Requests and provider declarations are bounded; unknown runtime facts are not
 invented from a static route table.
 
+The headless selection session service plans and persists exact proposals in
+schema 53 without creating an entity, version, artifact or operation. It reads
+the current sole heads of the owned developer, device and project passports;
+an initialized device key alone is insufficient. The complete transitive graph
+is assessed and retained as the existing member array. Empty proposals require
+an explicit choice and a supported provider target. Plans and stored graphs are
+bounded to 1 MiB and 512 members; open proposals and decision plans last fifteen
+minutes. Overlays are not accepted by this service.
+
+The selection snapshot retains the existing canonical domain and context shape.
+Its effective policy digest includes the runtime policy, exact target, provider
+declaration and each graph member's established evidence. Changed rights,
+consent or provider capabilities therefore invalidate an open proposal even if
+the context passport heads have not moved. These runtime inputs have no JSON
+deserializer and are not accepted as command-line authority claims.
+
+Confirmation takes an explicit digest-bound decision, re-reads terminal state
+and rechecks the complete context and graph under the writer transaction. The
+setup definition, immutable `1.0` passport, operation receipt, recommendation
+trace, project selection and proposal outcome commit together. The selected
+pair enters `pending_install`; no provider or harness is mutated. Concurrent
+confirmation creates one version. Replaying it verifies the retained version,
+content, trace, context revisions and receipt, including after expiry or later
+selection, without repinning an older setup. Cancellation retains its terminal
+row and cannot undo confirmation. This service is not yet exposed by a CLI
+command: device observation and trusted runtime assembly remain prerequisites.
+
+New component dependency and setup member references include the wire contract's
+null `variant_id` default before sealing. The Python publisher's complete-model
+serialization therefore preserves their revision and passport digests. This
+does not introduce variant selection: a non-null realization refuses both new
+release and native graph resolution. Historical passport bytes remain unchanged.
+
 The headless bundle compiler takes one exact setup, target evidence and an
 explicit provider declaration. It reassesses the whole graph in one database
 view, verifies selected projection CAS bytes and binds the exact adaptation,
@@ -798,9 +831,9 @@ Redistribution is the conjunction of member declarations. The exact passports
 remain authoritative for scope-specific permissions, platform, version and capability constraints;
 composition is not mechanical installation eligibility or a provider approval.
 Request metadata is bounded to 256 KiB and the resulting passport to 1 MiB.
-Native configuration import, native recast derivation and project-to-setup
-selection binding remain pending. Project identity registration is implemented
-separately from that selection.
+Native configuration import and native recast derivation remain pending.
+Project identity registration and the headless project-to-setup selection
+transaction are implemented; the selection command adapter remains pending.
 
 Component artifacts use the canonical uncompressed ZIP profile. The encoder
 preserves existing bytes, including fixed timestamps, Unicode flags and Unix
@@ -904,6 +937,7 @@ no async runtime or tracing feature is enabled for it.
 | `projects/` | Bounded project discovery and content-free file evidence |
 | `environment.rs` | Exact setup prerequisites, project binding and variable-name presence |
 | `selection/` | Verified exact graphs, deterministic ordering and graph-wide mechanical eligibility |
+| `selection/sessions/` | Exact context evaluation, durable proposals and atomic confirmation history |
 | `projects/passports/` | Private project observations, copy/move identity and durable marker registration |
 | `passport/developer.rs` | Closed private preferences, exact singleton plans and atomic revision receipts |
 | `provider.rs`, `bundle/` | Exact provider declarations, composition constraints and deterministic v2 packages |

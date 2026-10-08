@@ -42,6 +42,20 @@ pub fn validate_document(document: &Value) -> Result<()> {
 fn invalid() -> Failure {
     Failure::precondition("immutable passport has inconsistent adaptations, paths or ownership")
 }
+
+/// New local passports use the complete wire reference before computing their
+/// revision. Historical readers must not add defaults to already hashed bytes.
+pub(crate) fn normalize_component_refs(references: &mut Value) -> Result<()> {
+    for reference in references.as_array_mut().ok_or_else(invalid)? {
+        let object = reference.as_object_mut().ok_or_else(invalid)?;
+        if !object.entry("variant_id").or_insert(Value::Null).is_null() {
+            return Err(Failure::precondition(
+                "native component references do not select a variant",
+            ));
+        }
+    }
+    Ok(())
+}
 fn array(value: &Value) -> Result<&[Value]> {
     value.as_array().map(Vec::as_slice).ok_or_else(invalid)
 }

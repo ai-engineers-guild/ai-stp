@@ -4,7 +4,7 @@ mod aggregate;
 pub mod copies;
 pub mod export;
 
-use rusqlite::{Connection, params};
+use rusqlite::{Connection, Transaction, params};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
@@ -116,7 +116,7 @@ fn member(connection: &Connection, reference: &Value, harness: &str) -> Result<V
     Ok(document)
 }
 
-fn compile(
+pub(crate) fn compile(
     connection: &Connection,
     request: &Request,
     id: &str,
@@ -190,7 +190,8 @@ fn compile(
     finish(document)
 }
 
-fn finish(mut document: Value) -> Result<(Value, Vec<u8>)> {
+pub(crate) fn finish(mut document: Value) -> Result<(Value, Vec<u8>)> {
+    passport::versions::normalize_component_refs(&mut document["components"])?;
     let payload = canonical::bytes(&definition(&document))?;
     document["artifact"] =
         json!({"digest":digest::bytes("ai-stp:artifact:v1", &payload)?,"size_bytes":payload.len()});
@@ -204,7 +205,7 @@ fn finish(mut document: Value) -> Result<(Value, Vec<u8>)> {
     Ok((document, payload))
 }
 
-fn verify(connection: &Connection, document: &Value) -> Result<()> {
+pub(crate) fn verify(connection: &Connection, document: &Value) -> Result<()> {
     passport::versions::validate_document(document)?;
     let payload = revisions::read_content(
         connection,
@@ -291,10 +292,35 @@ pub fn apply(
         if exists { return Err(Failure::new(ErrorKind::Conflict,"the planned setup identity already exists")); }
         let (document,payload) = compile(t,&plan.request,id,identity,&plan.created_at)?;
         if document != plan.passport { return Err(invalid()); }
-        revisions::content(t,&payload,at)?;
         t.execute("INSERT INTO operation(operation_id,kind,state,started_at,finished_at,detail) VALUES (?,?,'verified',?,?,?)",
             params![plan.operation_id,plan.action,at,at,expected_digest]).map_err(database)?;
-        revisions::commit(t,&document,&identity.device_id,Some(&plan.operation_id),Write::Advance {expected_heads:&[]})?;
-        versions::record(t,&document,&identity.device_id,Some(&plan.operation_id),at)
+        persist(t, &document, &payload, identity, &plan.operation_id, at)
     })
+}
+
+pub(crate) fn persist(
+    transaction: &Transaction<'_>,
+    document: &Value,
+    payload: &[u8],
+    identity: &Identity,
+    operation_id: &str,
+    at: &str,
+) -> Result<Value> {
+    revisions::content(transaction, payload, at)?;
+    revisions::commit(
+        transaction,
+        document,
+        &identity.device_id,
+        Some(operation_id),
+        Write::Advance {
+            expected_heads: &[],
+        },
+    )?;
+    versions::record(
+        transaction,
+        document,
+        &identity.device_id,
+        Some(operation_id),
+        at,
+    )
 }

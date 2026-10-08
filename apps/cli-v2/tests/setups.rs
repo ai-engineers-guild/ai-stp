@@ -250,6 +250,16 @@ fn copies_journey(
             json!([{"name":"EXTRA_CONTEXT","purpose":"Preserve a source requirement"}]);
         document["supported_harness_versions"] = json!(["2.*"]);
         document["install_evidence_ref"] = "source-install-evidence".into();
+        // Historical wire references can omit the explicit null default.
+        for member in document["components"]
+            .as_array_mut()
+            .ok_or_else(|| Failure::input("proof members missing"))?
+        {
+            member
+                .as_object_mut()
+                .ok_or_else(|| Failure::input("proof reference missing"))?
+                .remove("variant_id");
+        }
         let original_bytes = revisions::read_content(
             t,
             source["artifact"]["digest"]
@@ -258,6 +268,7 @@ fn copies_journey(
         )?;
         let mut definition = ai_stp_cli_v2::canonical::parse(&original_bytes)?;
         definition["stable_id"] = document["stable_id"].clone();
+        definition["components"] = document["components"].clone();
         let bytes = ai_stp_cli_v2::canonical::bytes(&definition)?;
         document["artifact"] =
             json!({"digest":revisions::content(t,&bytes,AT)?,"size_bytes":bytes.len()});
@@ -290,11 +301,22 @@ fn copies_journey(
     );
     assert_eq!(copied["supported_harness_versions"], json!(["2.*"]));
     assert!(copied["install_evidence_ref"].is_null());
+    assert!(
+        copied["components"]
+            .as_array()
+            .ok_or("members missing")?
+            .iter()
+            .all(|m| m.get("variant_id") == Some(&Value::Null))
+    );
     let recast = copies::plan(store, weak_source, Some("codex"), recipient, AT)?.passport;
     assert_eq!(recast["supported_harness_versions"], json!([]));
     assert_eq!(
         recast["facts"]["source_harness_version_constraints"]["value"]["constraints"],
         json!(["2.*"])
+    );
+    assert_eq!(
+        store.transaction(|t| versions::record(t, &weaker, &identity.device_id, None, AT))?,
+        weaker
     );
     Ok(())
 }
