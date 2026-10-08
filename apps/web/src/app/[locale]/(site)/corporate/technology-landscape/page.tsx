@@ -7,7 +7,14 @@ import { TechnologyLandscapeResults } from "@/components/organisms/technology-la
 import { TechnologyLandscapeFilters } from "@/components/organisms/technology-landscape-filters";
 import { readCorporateContext } from "@/lib/api/corporate";
 import { ApiError } from "@/lib/api/errors";
-import { landscapeFilters, readTechnologyLandscape } from "@/lib/api/technology";
+import { privateApiRequest } from "@/lib/api/http";
+import {
+  landscapeFilters,
+  landscapeSearchParams,
+  readTechnologyCapabilities,
+  readTechnologyLandscape,
+} from "@/lib/api/technology";
+import type { AreaList, CategoryList } from "@/lib/api/generated/types.gen";
 import { requireSession, sessionCookieValue } from "@/lib/auth/require-session";
 import { Link } from "@/lib/i18n/navigation";
 
@@ -25,14 +32,30 @@ export default async function TechnologyLandscapePage({ params, searchParams }: 
   const workspace = await readCorporateContext(session);
   if (!workspace) return <StatePanel kind="empty" title={t("title")} description={t("empty")} />;
   const filters = landscapeFilters(await searchParams);
+  const organizationId = workspace.organization.organization_id;
+  const permissions = await readTechnologyCapabilities(session, organizationId).catch(() => null);
+  const canReadDirectories = Boolean(
+    permissions?.capabilities.includes("category.list") &&
+    permissions.capabilities.includes("category.read"),
+  );
+  const [categories, areas] = await Promise.all([
+    canReadDirectories
+      ? privateApiRequest<CategoryList>(
+          `/v1/corporate/organizations/${organizationId}/technology-categories`,
+          { sessionToken: session },
+        ).catch(() => null)
+      : null,
+    canReadDirectories
+      ? privateApiRequest<AreaList>(
+          `/v1/corporate/organizations/${organizationId}/technology-areas`,
+          { sessionToken: session },
+        ).catch(() => null)
+      : null,
+  ]);
   let landscape;
   let failure: string | null = null;
   try {
-    landscape = await readTechnologyLandscape(
-      session,
-      workspace.organization.organization_id,
-      filters,
-    );
+    landscape = await readTechnologyLandscape(session, organizationId, filters);
   } catch (error) {
     failure =
       error instanceof ApiError && error.code === "AI_STP_FORBIDDEN"
@@ -55,7 +78,12 @@ export default async function TechnologyLandscapePage({ params, searchParams }: 
           {landscape.total === 0 ? (
             <StatePanel kind="empty" title={t("title")} description={t("empty")} />
           ) : (
-            <TechnologyLandscapeResults landscape={landscape} filters={filters} />
+            <TechnologyLandscapeResults
+              landscape={landscape}
+              filters={filters}
+              categories={categories?.items ?? null}
+              areas={areas?.items ?? null}
+            />
           )}
           <nav aria-label={t("title")} className="flex flex-wrap gap-3">
             {offset > 0 && (
@@ -80,11 +108,12 @@ function PageLink({
   offset,
   label,
 }: {
-  filters: Record<string, string>;
+  filters: Record<string, string | string[]>;
   offset: number;
   label: string;
 }) {
-  const query = new URLSearchParams({ ...filters, offset: String(offset) });
+  const query = new URLSearchParams(landscapeSearchParams(filters));
+  query.set("offset", String(offset));
   return (
     <Button asChild variant="outline" size="lg">
       <Link href={`/corporate/technology-landscape?${query}`}>{label}</Link>

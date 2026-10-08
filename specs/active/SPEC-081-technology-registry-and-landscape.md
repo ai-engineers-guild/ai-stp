@@ -27,6 +27,8 @@ filtering without changing these registry and relation semantics.
 - `Technology` — a concrete software language, library, framework, runtime, API,
   standard, product, tool, or infrastructure service.
 - `Category` — a governed classification, never a technology or component kind.
+- `Technology area` — a governed grouping of categories, never a technology or
+  component kind.
 - `Usage fact` — version, context, evidence, review, and freshness metadata on a
   canonical project–technology relation.
 - `Subject reference` — what an object discusses or addresses; never proof of use.
@@ -170,6 +172,23 @@ filtering without changing these registry and relation semantics.
   on linked provider projects through the same merge path as request-driven
   publication and emits the same unmapped coordinates; projects whose
   recorded provider head moved are skipped until discovery re-pins them.
+- `REQ-8219`: A technology area groups categories under one organization with a
+  stable `area` identifier, canonical name, description, `draft`/`active`/
+  `archived` state, revision, and provenance. Categories bind to one area; an
+  archived or unknown area refuses new bindings, an update that omits the field
+  preserves the binding, and an area with bound categories cannot be archived.
+  Areas reuse the category permissions and revision/idempotency machinery.
+- `REQ-8220`: The organization's scan journal unifies worker-queued and
+  published scans in one list with source (`gitlab`, `github`, `local`),
+  status, project, repository, and pending-review counts.
+  `POST /technology-scans` launches one independently authorized and enqueued
+  job per selected project; a rejected item never blocks the others and a
+  project without a linked GitHub/GitLab repository cannot be queued.
+  `GET /technology-scans/{scan_id}` expands one journal row into its findings
+  — resolved observations and unmapped coordinates with their current review
+  state — under the same project-scoped read authority; queued and failed jobs
+  remain readable with empty findings. Launch is one fingerprinted idempotent
+  effect: replay returns the stored items instead of new jobs.
 
 ## States and errors
 
@@ -396,7 +415,8 @@ explicit conflict resolution without silently retrying a different effect.
 
 Category deletion archives the same category identity under `category.delete`;
 it never deletes classifications or allows seed replay to recreate owner-removed
-entries. Categories have active/archived state, independent of technology lifecycle.
+entries. Categories have draft/active/archived state, independent of technology
+lifecycle, and may bind to one technology area via `area_id`.
 Known-ID reads retain archived metadata under current permissions. Dictionary
 management lists include retained entries with explicit state; new classifications
 require active categories. Existing classifications survive archival and metadata
@@ -462,6 +482,8 @@ downgrade requires a verified backup and is not an ordinary rollback.
 | `REQ-8216` | Publication fixtures refuse an unlinked project, a mismatched organization, and a missing fetched snapshot before demanding a session; a wired mock server receives the exact contract-shaped handoff. |
 | `REQ-8217` | Scope isolation tests show one coordinate under two scopes keeps two rows and a rescan clears exactly one; forge-language fixtures land unknown names in the queue; the organization endpoint groups coordinates across projects. |
 | `REQ-8218` | Command tests cover seed-versus-entries exclusivity, JSON/YAML validation, local and remote unmapped listing, and the intent's action and required-field questions; worker tests cover daily enqueue idempotency, stale-head skip, and merge-path equivalence. |
+| `REQ-8219` | Area lifecycle and category-binding tests cover draft/active/archived transitions, preserved bindings on partial updates, archived-area refusal, and blocked archival while categories are bound. |
+| `REQ-8220` | Journal/detail/launch tests cover mixed source and status rows, per-project rejection, queued-job visibility with empty findings, per-project filtering, and idempotent launch replay returning stored items. |
 
 ## Bounded forge language enrichment
 
@@ -475,10 +497,44 @@ an observation to become an accepted project/landscape fact. A retained scan
 replay does not require another forge read. No source archive or code execution
 is involved.
 
-## Deferred: organization-wide backend scan
+## Organization-wide repository scans
 
-Interactive scanning of every linked organization project directly on the
-backend — replaying GitHub/GitLab sources without a local CLI — is a future
-milestone item, not part of this specification. Scans originate locally: one
-project, one bounded root, one explicit publication. Registry growth is
-review-driven, never scheduled background mutation.
+A user can select one or several corporate projects and launch their scanning
+in one operation. `POST /v1/corporate/organizations/{organization_id}/technology-scans`
+validates `technology.scan.publish` organization-wide, then authorizes each
+project independently, resolves its linked provider identity, and enqueues one
+tenant-scoped job per accepted project — `gitlab_technology_scan` or
+`github_technology_scan` by provider kind. Each item returns its own state
+(`queued` or `rejected` with a safe detail); one project's failure never
+blocks the rest. The effect is one fingerprinted receipt, so a replayed
+request returns the stored items instead of new jobs.
+
+The worker re-fetches the linked repository's archive at the recorded head —
+GitLab via the organization connection, GitHub via the queueing principal's
+`source` connector — and runs the same `ai_stp_sources` detector the CLI uses
+over the archive contents: manifests, lock files, Dockerfile/Compose, CI and
+runtime configuration. The archive is processed in memory; repository code is
+never executed and no temporary checkout survives the job. Detections resolve
+through the mapping snapshot pinned at enqueue and merge through
+`merge_scan_facts`, so worker, synchronous, and local publication share one
+writer, one unmapped-coordinate queue, and one disagreement policy. The
+persisted scan retains source, repository display name, branch, and commit
+provenance; a job whose recorded head has moved fails permanently until
+discovery re-pins it.
+
+`GET /v1/corporate/organizations/{organization_id}/technology-scans` returns
+the journal under `landscape.read` — queued, running, succeeded, and failed
+entries with project, repository, source, timestamps, found and pending counts,
+optionally filtered to one project. `GET` on `/technology-scans/{scan_id}`
+expands one entry under `landscape.read` plus independent project and
+canonical-pair read authority: each finding carries kind, coordinate, context,
+version, evidence, and its current state (`open`, `candidate`, `resolved`) so
+review inside a scan reuses the same unmapped-coordinate mechanism as the
+organization queue without rewriting the immutable scan record.
+
+## Deferred: scheduled scans
+
+Periodic or webhook-triggered scanning is a future milestone item, not part of
+this specification. Every scan starts from an explicit local publication or an
+explicit authorized launch. Registry growth is review-driven, never scheduled
+background mutation.

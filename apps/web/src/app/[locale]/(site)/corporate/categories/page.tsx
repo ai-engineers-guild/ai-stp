@@ -75,6 +75,7 @@ export default async function CategoryDirectoryPage({
             authorizationRevision={result.permissions.authorization_revision}
             csrfToken={(await readCsrfToken()) ?? ""}
             categories={null}
+            areas={result.areas?.items ?? null}
           />
         </details>
       )}
@@ -89,6 +90,12 @@ export default async function CategoryDirectoryPage({
                 >
                   {item.name}
                 </Link>
+                {item.area_id && (
+                  <Badge variant="outline">
+                    {result.areas?.items.find((area) => area.area_id === item.area_id)?.name ??
+                      item.area_id}
+                  </Badge>
+                )}
                 {item.state && item.state !== "active" && (
                   <Badge variant={item.state === "draft" ? "warning" : "secondary"}>
                     {t(`values.${item.state}`)}

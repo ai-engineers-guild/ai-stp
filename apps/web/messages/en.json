@@ -155,7 +155,9 @@
     "peopleAndAccess": "People & Access",
     "referenceData": "Reference Data",
     "security": "Security",
-    "audit": "Audit"
+    "audit": "Audit",
+    "scans": "Scans",
+    "technologyAreas": "Technology areas"
   },
   "corporateReports": {
     "title": "Reports",
@@ -537,7 +539,77 @@
     "telemetryLegalBasisHint": "The legal ground your organisation declares for collecting telemetry.",
     "telemetryRawRetentionHint": "How long per-event raw data is kept before deletion.",
     "telemetryAggregateRetentionHint": "How long rolled-up aggregates are kept after raw data is deleted.",
-    "reportTimezoneHint": "IANA time zone used to bucket daily report periods."
+    "reportTimezoneHint": "IANA time zone used to bucket daily report periods.",
+    "scans": {
+      "title": "Scans",
+      "description": "Journal of local and repository technology scans.",
+      "launch": "Scan",
+      "launchTitle": "Scan projects",
+      "launchDescription": "Select one or more corporate projects linked to a GitHub or GitLab repository. A separate background job is queued for each project.",
+      "launchProjects": "Projects",
+      "launchNoRepository": "No linked GitHub/GitLab repository",
+      "launchStart": "Launch {count, plural, one {# scan} other {# scans}}",
+      "launchEmpty": "No corporate projects available.",
+      "launchResults": "Launch results",
+      "launchState": {
+        "queued": "Queued",
+        "rejected": "Rejected",
+        "failed": "Failed"
+      },
+      "source": {
+        "gitlab": "GitLab",
+        "github": "GitHub",
+        "local": "Local"
+      },
+      "status": {
+        "queued": "Queued",
+        "running": "Running",
+        "succeeded": "Succeeded",
+        "failed": "Failed"
+      },
+      "findingState": {
+        "open": "Open",
+        "candidate": "Candidate",
+        "resolved": "Resolved"
+      },
+      "versionKind": {
+        "unknown": "unknown version",
+        "declared_range": "declared range",
+        "observed_version": "observed"
+      },
+      "columns": {
+        "id": "ID",
+        "project": "Project",
+        "repository": "Repository",
+        "source": "Source",
+        "date": "Date",
+        "status": "Status",
+        "found": "Found",
+        "pending": "Needs review",
+        "branch": "Branch",
+        "commit": "Commit",
+        "classification": "Area / Category",
+        "version": "Version",
+        "evidence": "Evidence"
+      },
+      "findings": "Findings",
+      "foundCount": "{count, plural, one {# finding} other {# findings}}",
+      "pendingCount": "{count, plural, one {# to review} other {# to review}}",
+      "detectorVersion": "detector {version}",
+      "mappingVersion": "mapping {version}",
+      "openInMapping": "Review {count, plural, one {# finding} other {# findings}} in Mapping",
+      "empty": "No scans yet."
+    },
+    "areas": {
+      "title": "Technology areas",
+      "description": "Top-level grouping of technology categories.",
+      "create": "Create area",
+      "edit": "Edit area",
+      "field": "Technology area",
+      "unassigned": "No area",
+      "unclassified": "Unclassified",
+      "empty": "No technology areas yet."
+    }
   },
   "githubConnector": {
     "backToAccount": "Back to account",

@@ -21,7 +21,7 @@ import type {
 
 type MappingCoordinate = Pick<TechnologyMappingEntry, "kind" | "coordinate" | "technology_id">;
 
-async function reviewVersion(
+export async function reviewVersion(
   organizationId: string,
   baseVersion: string | null,
   entries: MappingCoordinate[],

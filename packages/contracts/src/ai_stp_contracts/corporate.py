@@ -771,6 +771,7 @@ def _project_wire_object(schema: JsonSchemaValue) -> None:
 class CorporateProjectRepository(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     provider_project_id: str
+    provider: Literal["gitlab", "github"] = "gitlab"
     namespace: str
     repository_url: str
     default_branch: str | None = None

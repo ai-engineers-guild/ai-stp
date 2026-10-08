@@ -23,6 +23,7 @@ import {
 } from "@/mocks/fixtures/catalog-ids";
 import { entityProfileViewSchema } from "@/lib/corporate-detail";
 import type {
+  AreaView,
   CorporateOverview,
   CorporateContext,
   CorporateTeamView,
@@ -51,6 +52,7 @@ import type {
   DashboardView,
   TechnologyMappingEntry,
   TechnologyMappingView,
+  TechnologyScanListEntry,
   TechnologyUnmappedEntry,
 } from "./generated/types.gen";
 import type { WorkspaceMockResult } from "./mock-workspace";
@@ -337,7 +339,7 @@ const teamViews: CorporateTeamView[] = teamNodes.map((item) => ({
   owned_catalog_objects: [],
   maintained_catalog_objects: [],
 }));
-const projectViews: CorporateProjectView[] = projectNodes.map((item) => ({
+const projectViews: CorporateProjectView[] = projectNodes.map((item, index) => ({
   schema_version: 1,
   project_id: item.id,
   organization_id: organization.organization_id,
@@ -347,7 +349,20 @@ const projectViews: CorporateProjectView[] = projectNodes.map((item) => ({
   revision: 1,
   repository_activity_at: null,
   source_availability: "unknown",
-  repositories: [],
+  repositories:
+    index === 0
+      ? [
+          {
+            provider: "github" as const,
+            provider_project_id: "group/offline-service",
+            repository_url: "https://git.example.test/group/offline-service",
+            namespace: "group",
+            default_branch: "main",
+            observed_at: null,
+            observed_revision: null,
+          },
+        ]
+      : [],
   available_actions: [],
 }));
 const member = members[0]!;
@@ -369,6 +384,7 @@ const categoryViews: CategoryView[] = [
       name,
       {
         category_id: `category_01JQZK7B8N4M6P2R9T5V0X3Y${String(index + 1).padStart(2, "0")}`,
+        area_id: null,
         description: `${name} technologies`,
         name,
         provenance: "offline-fixture",
@@ -379,6 +395,18 @@ const categoryViews: CategoryView[] = [
   ).values(),
 ];
 const categoryId = new Map(categoryViews.map((item) => [item.name, item.category_id]));
+const areaViews: AreaView[] = [
+  {
+    area_id: "area_01JQZK7B8N4M6P2R9T5V0X3Y01",
+    organization_id: organization.organization_id,
+    name: "Data platform",
+    description: "Storage, databases and data pipelines.",
+    provenance: "offline-fixture",
+    revision: 1,
+    state: "active",
+  },
+];
+const mockScanEntries: TechnologyScanListEntry[] = [];
 const technologies: TechnologyView[] = technologySpecs.map(([id, name, category]) => ({
   schema_version: 1,
   technology_id: id,
@@ -1380,6 +1408,80 @@ export function corporateHandlers(
     .flatMap(([, items]) => items)
     .find((item) => suffix === `profiles/${item.kind}/${item.id}/media`);
   if (mediaTarget) return corporateMediaUploadHandler(method, body, query, headers, mediaTarget);
+  const areaWriteMatch = suffix.match(/^technology-areas(?:\/([^/]+)(?:\/lifecycle)?)?$/);
+  if (areaWriteMatch && method !== "GET") {
+    const areaId = areaWriteMatch[1];
+    if (!areaId && method === "POST") {
+      const write = body as { metadata?: { name?: string; description?: string }; state?: string };
+      const area: AreaView = {
+        area_id: `area_${String(areaViews.length + 1).padStart(26, "0")}`,
+        organization_id: organization.organization_id,
+        name: write.metadata?.name ?? "",
+        description: write.metadata?.description ?? "",
+        provenance: "offline-fixture",
+        revision: 1,
+        state: (write.state === "draft" ? "draft" : "active") as "draft" | "active",
+      };
+      areaViews.push(area);
+      return ok(area);
+    }
+    const area = areaViews.find((item) => item.area_id === areaId);
+    if (!area) return error(404, "AI_STP_NOT_FOUND");
+    if (suffix.endsWith("/lifecycle") && method === "POST") {
+      const write = body as { target?: "draft" | "active" | "archived" };
+      if (write.target) area.state = write.target;
+      area.revision += 1;
+      return ok(area);
+    }
+    if (method === "PUT") {
+      const write = body as { metadata?: { name?: string; description?: string } };
+      if (write.metadata?.name !== undefined) area.name = write.metadata.name;
+      if (write.metadata?.description !== undefined) area.description = write.metadata.description;
+      area.revision += 1;
+      return ok(area);
+    }
+    if (method === "DELETE") {
+      area.state = "archived";
+      area.revision += 1;
+      return ok(area);
+    }
+    return error(405, "AI_STP_VALIDATION_ERROR");
+  }
+  if (suffix === "technology-scans" && method === "POST") {
+    const launch = body as { project_ids?: string[] };
+    const items = (launch.project_ids ?? []).map((projectId) => {
+      const project = projectViews.find((item) => item.project_id === projectId);
+      const linked = Boolean(project?.repositories?.[0]?.repository_url);
+      const scanId = `scan_${String(mockScanEntries.length + 1).padStart(24, "0")}`;
+      if (linked) {
+        mockScanEntries.push({
+          scan_id: scanId,
+          project_id: projectId,
+          project_name: project?.name ?? projectId,
+          repository: project?.repositories?.[0]?.repository_url ?? null,
+          source: "github",
+          branch: project?.repositories?.[0]?.default_branch ?? null,
+          commit: null,
+          created_at: new Date().toISOString(),
+          status: "queued",
+          found: 0,
+          pending: 0,
+        });
+      }
+      return {
+        project_id: projectId,
+        scan_id: linked ? scanId : null,
+        job_id: linked ? mockScanEntries.length : null,
+        state: (linked ? "queued" : "rejected") as "queued" | "rejected",
+        detail: linked ? null : "no_linked_repository",
+      };
+    });
+    return ok({
+      schema_version: 1,
+      organization_id: organization.organization_id,
+      items,
+    });
+  }
   if (suffix === "technology-unmapped-coordinates" && method === "PATCH") {
     const patch = body as {
       kind?: string;
@@ -1846,6 +1948,36 @@ export function corporateHandlers(
   }
   if (suffix === "job-titles") return ok({ schema_version: 1, items: [] });
   if (suffix === "audit") return ok({ schema_version: 1, items: [] });
+  if (suffix === "technology-areas") return ok({ schema_version: 1, items: areaViews });
+  const areaMatch = suffix.match(/^technology-areas\/([^/]+)$/);
+  if (areaMatch) {
+    const area = areaViews.find((item) => item.area_id === areaMatch[1]);
+    return area ? ok(area) : error(404, "AI_STP_NOT_FOUND");
+  }
+  if (suffix === "technology-scans") {
+    const projectId = query.get("project_id");
+    const items = projectId
+      ? mockScanEntries.filter((item) => item.project_id === projectId)
+      : mockScanEntries;
+    return ok({
+      schema_version: 1,
+      organization_id: organization.organization_id,
+      items,
+      total: items.length,
+    });
+  }
+  const scanMatch = suffix.match(/^technology-scans\/([^/]+)$/);
+  if (scanMatch) {
+    const scan = mockScanEntries.find((item) => item.scan_id === scanMatch[1]);
+    if (!scan) return error(404, "AI_STP_NOT_FOUND");
+    return ok({
+      ...scan,
+      complete: scan.status === "succeeded" || scan.status === "failed",
+      detector_version: "2",
+      mapping_version: null,
+      findings: [],
+    });
+  }
   if (suffix === "technology-categories") return ok({ schema_version: 1, items: categoryViews });
   const categoryMatch = suffix.match(/^technology-categories\/([^/]+)$/);
   if (categoryMatch) {

@@ -36,16 +36,45 @@ class _TenantRow:
     )
 
 
+class TechnologyArea(_TenantRow, Base):
+    """A technology landscape area grouping categories for one organization."""
+
+    __tablename__ = "technology_area"
+    __table_args__ = (
+        UniqueConstraint("organization_id", "normalized_name", name="uq_technology_area_name"),
+        CheckConstraint("revision >= 1", name="ck_technology_area_revision"),
+        CheckConstraint("state IN ('draft','active','archived')", name="ck_technology_area_state"),
+    )
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    normalized_name: Mapped[str] = mapped_column(String(200), nullable=False)
+    description: Mapped[str] = mapped_column(
+        String(2000), nullable=False, default="", server_default=""
+    )
+    revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
+    provenance: Mapped[str] = mapped_column(String(256), nullable=False)
+    state: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="active", server_default="active"
+    )
+
+
 class TechnologyCategory(_TenantRow, Base):
     __tablename__ = "technology_category"
     __table_args__ = (
         UniqueConstraint("organization_id", "normalized_name", name="uq_technology_category_name"),
+        ForeignKeyConstraint(
+            ["organization_id", "area_id"],
+            ["technology_area.organization_id", "technology_area.id"],
+            ondelete="RESTRICT",
+            name="fk_technology_category_area",
+        ),
         CheckConstraint("revision >= 1", name="ck_technology_category_revision"),
         CheckConstraint(
             "state IN ('draft','active','archived')", name="ck_technology_category_state"
         ),
     )
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    area_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     normalized_name: Mapped[str] = mapped_column(String(200), nullable=False)
     description: Mapped[str] = mapped_column(
@@ -327,7 +356,12 @@ class TechnologyScan(_TenantRow, Base):
         String(16), nullable=False, default="remote", server_default="remote"
     )
     fingerprint: Mapped[str] = mapped_column(String(71), nullable=False)
+    source: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    repository: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    branch: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    commit: Mapped[str | None] = mapped_column(String(128), nullable=True)
     handoff: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     __table_args__ = (
         ForeignKeyConstraint(
             ["organization_id", "project_id", "project_namespace"],
@@ -339,6 +373,11 @@ class TechnologyScan(_TenantRow, Base):
             ondelete="RESTRICT",
         ),
         CheckConstraint("project_namespace = 'remote'", name="ck_technology_scan_namespace"),
+        CheckConstraint(
+            "source IS NULL OR source IN ('gitlab','github','local')",
+            name="ck_technology_scan_source",
+        ),
+        Index("ix_technology_scan_project", "organization_id", "project_id"),
     )
 
 

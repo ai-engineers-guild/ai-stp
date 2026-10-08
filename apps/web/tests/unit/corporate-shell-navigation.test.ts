@@ -113,6 +113,7 @@ it.each([
         "roles",
         "auditJournal",
         "employeeAccess",
+        "technologyAreas",
         "jobTitles",
         "settings",
         "security",

@@ -31,6 +31,19 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
   "properties": {
+    "area_id": {
+      "anyOf": [
+        {
+          "pattern": "^area_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Area Id"
+    },
     "authorization_revision": {
       "anyOf": [
         {

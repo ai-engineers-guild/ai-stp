@@ -50,6 +50,7 @@ describe("manual registry creation", () => {
     mutation.mockResolvedValue({ ok: true, data: {} });
     const category = {
       category_id: "category_known",
+      area_id: null,
       name: "Runtime",
       description: "",
       provenance: "manual",
@@ -79,6 +80,7 @@ describe("manual registry creation", () => {
     mutation.mockResolvedValue({ ok: false, message: "revision conflict" });
     const category = {
       category_id: "category_00000000000000000000000001",
+      area_id: null,
       name: "Runtime",
       description: "Governed family",
       revision: 3,

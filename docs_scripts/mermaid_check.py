@@ -12,12 +12,15 @@ import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-MMDC = (
-    ROOT
-    / "docs_scripts"
-    / "node_modules"
-    / ".bin"
-    / ("mmdc.cmd" if sys.platform == "win32" else "mmdc")
+# npm installs a `.cmd` shim on Windows; Bun installs a `.exe` one.
+_MMDC_NAMES = ("mmdc.cmd", "mmdc.exe") if sys.platform == "win32" else ("mmdc",)
+MMDC = next(
+    (
+        ROOT / "docs_scripts" / "node_modules" / ".bin" / name
+        for name in _MMDC_NAMES
+        if (ROOT / "docs_scripts" / "node_modules" / ".bin" / name).is_file()
+    ),
+    ROOT / "docs_scripts" / "node_modules" / ".bin" / _MMDC_NAMES[0],
 )
 BLOCK_RE = re.compile(r"^```mermaid\n(.*?)^```", re.S | re.M)
 

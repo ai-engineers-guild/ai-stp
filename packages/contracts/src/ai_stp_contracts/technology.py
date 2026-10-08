@@ -27,6 +27,7 @@ from ai_stp_foundation.ids import stable_id_pattern
 
 TechnologyId = Annotated[str, Field(pattern=stable_id_pattern("technology"))]
 TechnologyScanId = Annotated[str, Field(pattern=stable_id_pattern("scan"))]
+AreaId = Annotated[str, Field(pattern=stable_id_pattern("area"))]
 CategoryId = Annotated[str, Field(pattern=stable_id_pattern("category"))]
 RelationId = Annotated[str, Field(pattern=stable_id_pattern("relation"))]
 TeamId = Annotated[str, Field(pattern=stable_id_pattern("operation"))]
@@ -230,6 +231,9 @@ class TechnologyUnmappedCoordinate(ContractModel):
     coordinate: Annotated[
         str, Field(min_length=1, max_length=512, pattern=r"^[A-Za-z0-9._:/@+*-]+$")
     ]
+    context: UsageContext | None = None
+    version: Annotated[str | None, Field(max_length=128)] = None
+    evidence: Annotated[list[TechnologyEvidence], Field(max_length=64)] = []
 
     @field_validator("coordinate")
     @classmethod
@@ -390,10 +394,12 @@ class TechnologyUnmappedView(ContractModel):
 
 class TechnologyScanRequest(TechnologyMutation):
     handoff: TechnologyScanHandoff
+    source: Literal["gitlab", "github", "local"] | None = None
 
 
 class CategoryWriteRequest(TechnologyMutation):
     metadata: TechnologyCategoryMetadata
+    area_id: AreaId | None = None
     state: Literal["draft", "active"] | None = None
 
 
@@ -546,6 +552,7 @@ def _category_wire_object(schema: JsonSchemaValue) -> None:
 class CategoryView(TechnologyCategoryMetadata):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=_category_wire_object)
     category_id: CategoryId
+    area_id: AreaId | None = None
     revision: Annotated[int, Field(ge=1)]
     provenance: str
     state: Literal["draft", "active", "archived"] | None = None
@@ -554,6 +561,48 @@ class CategoryView(TechnologyCategoryMetadata):
 class CategoryList(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     items: list[CategoryView]
+
+
+class TechnologyAreaMetadata(ContractModel):
+    model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
+    name: Annotated[str, Field(min_length=1, max_length=200)]
+    description: Annotated[str, Field(max_length=2000)] = ""
+
+    @field_validator("name")
+    @classmethod
+    def governed_name(cls, value: str) -> str:
+        normalized = normalize_technology_name(value)
+        if not normalized or normalized in RESERVED_CATEGORY_NAMES:
+            raise ValueError("area is empty or names a harness/component domain kind")
+        return value
+
+
+class AreaWriteRequest(TechnologyMutation):
+    metadata: TechnologyAreaMetadata
+    state: Literal["draft", "active"] | None = None
+
+
+class AreaLifecycleRequest(TechnologyMutation):
+    target: Literal["draft", "active", "archived"]
+
+
+def _area_wire_object(schema: JsonSchemaValue) -> None:
+    open_wire_object(schema)
+    schema["required"] = [name for name in schema["required"] if name != "state"]
+
+
+class AreaView(TechnologyAreaMetadata):
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=_area_wire_object)
+    organization_id: OrganizationId
+    area_id: AreaId
+    revision: Annotated[int, Field(ge=1)]
+    provenance: str
+    state: Literal["draft", "active", "archived"] | None = None
+
+
+class AreaList(ContractModel):
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+    items: list[AreaView]
 
 
 class TechnologyList(ContractModel):
@@ -609,6 +658,95 @@ class TechnologyScanView(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     handoff: TechnologyScanHandoff
     result: TechnologyScanResult
+
+
+TechnologyScanSource = Literal["gitlab", "github", "local"]
+TechnologyScanStatus = Literal["queued", "running", "succeeded", "failed"]
+
+
+class TechnologyScanListEntry(ContractModel):
+    """One row of the organization's scan journal."""
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+    scan_id: TechnologyScanId
+    project_id: RemoteProjectId
+    project_name: str | None = None
+    repository: str | None = None
+    source: TechnologyScanSource
+    branch: str | None = None
+    commit: str | None = None
+    created_at: Timestamp
+    status: TechnologyScanStatus
+    found: Annotated[int, Field(ge=0)] = 0
+    pending: Annotated[int, Field(ge=0)] = 0
+
+
+class TechnologyScanList(ContractModel):
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+    organization_id: OrganizationId
+    items: list[TechnologyScanListEntry]
+    total: Annotated[int, Field(ge=0)] = 0
+
+
+class TechnologyScanListQuery(ContractModel):
+    model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
+    project_id: RemoteProjectId | None = None
+
+
+class TechnologyUnmappedQuery(ContractModel):
+    model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
+    project_id: RemoteProjectId | None = None
+    scan_id: TechnologyScanId | None = None
+
+
+class TechnologyScanLaunchRequest(TechnologyMutation):
+    expected_revision: Annotated[int, Field(ge=0, le=0)] = 0
+    project_ids: Annotated[list[RemoteProjectId], Field(min_length=1, max_length=64)]
+
+    @field_validator("project_ids")
+    @classmethod
+    def distinct_projects(cls, values: list[str]) -> list[str]:
+        if len(set(values)) != len(values):
+            raise ValueError("project ids must be distinct")
+        return values
+
+
+class TechnologyScanLaunchItem(ContractModel):
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+    project_id: RemoteProjectId
+    scan_id: TechnologyScanId | None = None
+    job_id: Annotated[int, Field(ge=1)] | None = None
+    state: Literal["queued", "rejected", "failed"]
+    detail: str | None = None
+
+
+class TechnologyScanLaunchResult(ContractModel):
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+    organization_id: OrganizationId
+    items: list[TechnologyScanLaunchItem]
+
+
+class TechnologyScanFinding(ContractModel):
+    """One detector finding inside a scan: resolved or still unmapped."""
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+    kind: Literal["package", "image", "executable", "configuration", "alias"]
+    coordinate: str
+    context: UsageContext | None = None
+    technology_id: TechnologyId | None = None
+    version: str | None = None
+    version_kind: Literal["unknown", "declared_range", "observed_version"] = "unknown"
+    evidence: list[TechnologyEvidence] = []
+    state: Literal["resolved", "candidate", "open"]
+    candidate_technology_id: TechnologyId | None = None
+
+
+class TechnologyScanDetail(TechnologyScanListEntry):
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+    detector_version: str | None = None
+    mapping_version: str | None = None
+    complete: bool = True
+    findings: list[TechnologyScanFinding] = []
 
 
 class ProjectTeamView(ContractModel):
@@ -696,6 +834,7 @@ class TechnologyLandscapeQuery(ContractModel):
     query: TechnologySearch | None = None
     technology_id: TechnologyId | None = None
     project_id: RemoteProjectId | None = None
+    project_ids: Annotated[list[RemoteProjectId] | None, Field(max_length=64)] = None
     team_id: TeamId | None = None
     lifecycle: TechnologyLifecycle | None = None
     project_lifecycle: ProjectLifecycle | None = None

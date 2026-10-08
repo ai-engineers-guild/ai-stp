@@ -251,6 +251,99 @@ export const AlignmentState = {
 
 export type AlignmentState = (typeof AlignmentState)[keyof typeof AlignmentState];
 
+/**
+ * AreaLifecycleRequest
+ */
+export type AreaLifecycleRequest = {
+  /**
+   * Authorization Revision
+   */
+  authorization_revision: number | string;
+  /**
+   * Expected Revision
+   */
+  expected_revision: number;
+  idempotency_key: IdempotencyKey;
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
+  /**
+   * Target
+   */
+  target: "draft" | "active" | "archived";
+};
+
+/**
+ * AreaList
+ */
+export type AreaList = {
+  /**
+   * Items
+   */
+  items: Array<AreaView>;
+  [key: string]: unknown;
+};
+
+/**
+ * AreaView
+ */
+export type AreaView = {
+  /**
+   * Area Id
+   */
+  area_id: string;
+  /**
+   * Description
+   */
+  description: string;
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Organization Id
+   */
+  organization_id: string;
+  /**
+   * Provenance
+   */
+  provenance: string;
+  /**
+   * Revision
+   */
+  revision: number;
+  /**
+   * State
+   */
+  state?: "draft" | "active" | "archived" | null;
+  [key: string]: unknown;
+};
+
+/**
+ * AreaWriteRequest
+ */
+export type AreaWriteRequest = {
+  /**
+   * Authorization Revision
+   */
+  authorization_revision: number | string;
+  /**
+   * Expected Revision
+   */
+  expected_revision: number;
+  idempotency_key: IdempotencyKey;
+  metadata: TechnologyAreaMetadata;
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
+  /**
+   * State
+   */
+  state?: "draft" | "active" | null;
+};
+
 export const ArtifactCheckResult = { PASSED: "passed", FAILED: "failed" } as const;
 
 export type ArtifactCheckResult = (typeof ArtifactCheckResult)[keyof typeof ArtifactCheckResult];
@@ -846,6 +939,10 @@ export type CategoryList = {
  */
 export type CategoryView = {
   /**
+   * Area Id
+   */
+  area_id: string | null;
+  /**
    * Category Id
    */
   category_id: string;
@@ -876,6 +973,10 @@ export type CategoryView = {
  * CategoryWriteRequest
  */
 export type CategoryWriteRequest = {
+  /**
+   * Area Id
+   */
+  area_id?: string | null;
   /**
    * Authorization Revision
    */
@@ -5016,6 +5117,10 @@ export type CorporateProjectRepository = {
    * Observed Revision
    */
   observed_revision: string | null;
+  /**
+   * Provider
+   */
+  provider: "gitlab" | "github";
   /**
    * Provider Project Id
    */
@@ -14579,6 +14684,20 @@ export const TechnicalSupport = {
 export type TechnicalSupport = (typeof TechnicalSupport)[keyof typeof TechnicalSupport];
 
 /**
+ * TechnologyAreaMetadata
+ */
+export type TechnologyAreaMetadata = {
+  /**
+   * Description
+   */
+  description?: string;
+  /**
+   * Name
+   */
+  name: string;
+};
+
+/**
  * TechnologyCategoryMetadata
  */
 export type TechnologyCategoryMetadata = {
@@ -14775,6 +14894,10 @@ export type TechnologyLandscapeQuery = {
    * Project Id
    */
   project_id?: string | null;
+  /**
+   * Project Ids
+   */
+  project_ids?: Array<string> | null;
   /**
    * Project Lifecycle
    */
@@ -15238,6 +15361,115 @@ export type TechnologyOwnerRequest = {
 };
 
 /**
+ * TechnologyScanDetail
+ */
+export type TechnologyScanDetail = {
+  /**
+   * Branch
+   */
+  branch: string | null;
+  /**
+   * Commit
+   */
+  commit: string | null;
+  /**
+   * Complete
+   */
+  complete: boolean;
+  created_at: Timestamp;
+  /**
+   * Detector Version
+   */
+  detector_version: string | null;
+  /**
+   * Findings
+   */
+  findings: Array<TechnologyScanFinding>;
+  /**
+   * Found
+   */
+  found: number;
+  /**
+   * Mapping Version
+   */
+  mapping_version: string | null;
+  /**
+   * Pending
+   */
+  pending: number;
+  /**
+   * Project Id
+   */
+  project_id: string;
+  /**
+   * Project Name
+   */
+  project_name: string | null;
+  /**
+   * Repository
+   */
+  repository: string | null;
+  /**
+   * Scan Id
+   */
+  scan_id: string;
+  /**
+   * Source
+   */
+  source: "gitlab" | "github" | "local";
+  /**
+   * Status
+   */
+  status: "queued" | "running" | "succeeded" | "failed";
+  [key: string]: unknown;
+};
+
+/**
+ * TechnologyScanFinding
+ *
+ * One detector finding inside a scan: resolved or still unmapped.
+ */
+export type TechnologyScanFinding = {
+  /**
+   * Candidate Technology Id
+   */
+  candidate_technology_id: string | null;
+  /**
+   * Context
+   */
+  context: "production" | "development" | "testing" | "browser_support" | null;
+  /**
+   * Coordinate
+   */
+  coordinate: string;
+  /**
+   * Evidence
+   */
+  evidence: Array<TechnologyEvidence>;
+  /**
+   * Kind
+   */
+  kind: "package" | "image" | "executable" | "configuration" | "alias";
+  /**
+   * State
+   */
+  state: "resolved" | "candidate" | "open";
+  /**
+   * Technology Id
+   */
+  technology_id: string | null;
+  /**
+   * Version
+   */
+  version: string | null;
+  /**
+   * Version Kind
+   */
+  version_kind: "unknown" | "declared_range" | "observed_version";
+  [key: string]: unknown;
+};
+
+/**
  * TechnologyScanHandoff
  */
 export type TechnologyScanHandoff = {
@@ -15288,6 +15520,150 @@ export type TechnologyScanHandoff = {
 };
 
 /**
+ * TechnologyScanLaunchItem
+ */
+export type TechnologyScanLaunchItem = {
+  /**
+   * Detail
+   */
+  detail: string | null;
+  /**
+   * Job Id
+   */
+  job_id: number | null;
+  /**
+   * Project Id
+   */
+  project_id: string;
+  /**
+   * Scan Id
+   */
+  scan_id: string | null;
+  /**
+   * State
+   */
+  state: "queued" | "rejected" | "failed";
+  [key: string]: unknown;
+};
+
+/**
+ * TechnologyScanLaunchRequest
+ */
+export type TechnologyScanLaunchRequest = {
+  /**
+   * Authorization Revision
+   */
+  authorization_revision: number | string;
+  /**
+   * Expected Revision
+   */
+  expected_revision?: number;
+  idempotency_key: IdempotencyKey;
+  /**
+   * Project Ids
+   */
+  project_ids: Array<string>;
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
+};
+
+/**
+ * TechnologyScanLaunchResult
+ */
+export type TechnologyScanLaunchResult = {
+  /**
+   * Items
+   */
+  items: Array<TechnologyScanLaunchItem>;
+  /**
+   * Organization Id
+   */
+  organization_id: string;
+  [key: string]: unknown;
+};
+
+/**
+ * TechnologyScanList
+ */
+export type TechnologyScanList = {
+  /**
+   * Items
+   */
+  items: Array<TechnologyScanListEntry>;
+  /**
+   * Organization Id
+   */
+  organization_id: string;
+  /**
+   * Total
+   */
+  total: number;
+  [key: string]: unknown;
+};
+
+/**
+ * TechnologyScanListEntry
+ *
+ * One row of the organization's scan journal.
+ */
+export type TechnologyScanListEntry = {
+  /**
+   * Branch
+   */
+  branch: string | null;
+  /**
+   * Commit
+   */
+  commit: string | null;
+  created_at: Timestamp;
+  /**
+   * Found
+   */
+  found: number;
+  /**
+   * Pending
+   */
+  pending: number;
+  /**
+   * Project Id
+   */
+  project_id: string;
+  /**
+   * Project Name
+   */
+  project_name: string | null;
+  /**
+   * Repository
+   */
+  repository: string | null;
+  /**
+   * Scan Id
+   */
+  scan_id: string;
+  /**
+   * Source
+   */
+  source: "gitlab" | "github" | "local";
+  /**
+   * Status
+   */
+  status: "queued" | "running" | "succeeded" | "failed";
+  [key: string]: unknown;
+};
+
+/**
+ * TechnologyScanListQuery
+ */
+export type TechnologyScanListQuery = {
+  /**
+   * Project Id
+   */
+  project_id?: string | null;
+};
+
+/**
  * TechnologyScanRequest
  */
 export type TechnologyScanRequest = {
@@ -15305,6 +15681,10 @@ export type TechnologyScanRequest = {
    * Schema Version
    */
   schema_version?: 1;
+  /**
+   * Source
+   */
+  source?: "gitlab" | "github" | "local" | null;
 };
 
 /**
@@ -15493,13 +15873,25 @@ export type TechnologyTeamWriteRequest = {
  */
 export type TechnologyUnmappedCoordinate = {
   /**
+   * Context
+   */
+  context?: "production" | "development" | "testing" | "browser_support" | null;
+  /**
    * Coordinate
    */
   coordinate: string;
   /**
+   * Evidence
+   */
+  evidence?: Array<TechnologyEvidence>;
+  /**
    * Kind
    */
   kind: "package" | "image" | "executable" | "configuration" | "alias";
+  /**
+   * Version
+   */
+  version?: string | null;
 };
 
 /**
@@ -15533,6 +15925,20 @@ export type TechnologyUnmappedEntry = {
    */
   state: "open" | "resolved";
   [key: string]: unknown;
+};
+
+/**
+ * TechnologyUnmappedQuery
+ */
+export type TechnologyUnmappedQuery = {
+  /**
+   * Project Id
+   */
+  project_id?: string | null;
+  /**
+   * Scan Id
+   */
+  scan_id?: string | null;
 };
 
 /**
@@ -26953,6 +27359,399 @@ export type WriteTechnologyTeamResponses = {
 export type WriteTechnologyTeamResponse =
   WriteTechnologyTeamResponses[keyof WriteTechnologyTeamResponses];
 
+export type ListTechnologyAreasData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/technology-areas";
+};
+
+export type ListTechnologyAreasErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ListTechnologyAreasError = ListTechnologyAreasErrors[keyof ListTechnologyAreasErrors];
+
+export type ListTechnologyAreasResponses = {
+  /**
+   * List the organization's technology areas.
+   */
+  200: AreaList;
+};
+
+export type ListTechnologyAreasResponse =
+  ListTechnologyAreasResponses[keyof ListTechnologyAreasResponses];
+
+export type CreateTechnologyAreaData = {
+  body: AreaWriteRequest;
+  headers: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+    /**
+     * Client-chosen key; a retry must not become a second effect.
+     */
+    "Idempotency-Key": string;
+    /**
+     * Expected ETag. A stale value fails AI_STP_PRECONDITION_FAILED.
+     */
+    "If-Match": string;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/technology-areas";
+};
+
+export type CreateTechnologyAreaErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type CreateTechnologyAreaError =
+  CreateTechnologyAreaErrors[keyof CreateTechnologyAreaErrors];
+
+export type CreateTechnologyAreaResponses = {
+  /**
+   * Create a technology area with a durable server ID.
+   */
+  200: AreaView;
+};
+
+export type CreateTechnologyAreaResponse =
+  CreateTechnologyAreaResponses[keyof CreateTechnologyAreaResponses];
+
+export type ArchiveTechnologyAreaData = {
+  body: TechnologyMutation;
+  headers: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+    /**
+     * Client-chosen key; a retry must not become a second effect.
+     */
+    "Idempotency-Key": string;
+    /**
+     * Expected ETag. A stale value fails AI_STP_PRECONDITION_FAILED.
+     */
+    "If-Match": string;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+    /**
+     * Stable technology area ID.
+     */
+    area_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/technology-areas/{area_id}";
+};
+
+export type ArchiveTechnologyAreaErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ArchiveTechnologyAreaError =
+  ArchiveTechnologyAreaErrors[keyof ArchiveTechnologyAreaErrors];
+
+export type ArchiveTechnologyAreaResponses = {
+  /**
+   * Archive a technology area that has no bound categories.
+   */
+  200: AreaView;
+};
+
+export type ArchiveTechnologyAreaResponse =
+  ArchiveTechnologyAreaResponses[keyof ArchiveTechnologyAreaResponses];
+
+export type ReadTechnologyAreaData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+    /**
+     * Stable technology area ID.
+     */
+    area_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/technology-areas/{area_id}";
+};
+
+export type ReadTechnologyAreaErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ReadTechnologyAreaError = ReadTechnologyAreaErrors[keyof ReadTechnologyAreaErrors];
+
+export type ReadTechnologyAreaResponses = {
+  /**
+   * Read one technology area.
+   */
+  200: AreaView;
+};
+
+export type ReadTechnologyAreaResponse =
+  ReadTechnologyAreaResponses[keyof ReadTechnologyAreaResponses];
+
+export type WriteTechnologyAreaData = {
+  body: AreaWriteRequest;
+  headers: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+    /**
+     * Client-chosen key; a retry must not become a second effect.
+     */
+    "Idempotency-Key": string;
+    /**
+     * Expected ETag. A stale value fails AI_STP_PRECONDITION_FAILED.
+     */
+    "If-Match": string;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+    /**
+     * Stable technology area ID.
+     */
+    area_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/technology-areas/{area_id}";
+};
+
+export type WriteTechnologyAreaErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type WriteTechnologyAreaError = WriteTechnologyAreaErrors[keyof WriteTechnologyAreaErrors];
+
+export type WriteTechnologyAreaResponses = {
+  /**
+   * Create or revise technology area metadata.
+   */
+  200: AreaView;
+};
+
+export type WriteTechnologyAreaResponse =
+  WriteTechnologyAreaResponses[keyof WriteTechnologyAreaResponses];
+
+export type ChangeTechnologyAreaLifecycleData = {
+  body: AreaLifecycleRequest;
+  headers: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+    /**
+     * Client-chosen key; a retry must not become a second effect.
+     */
+    "Idempotency-Key": string;
+    /**
+     * Expected ETag. A stale value fails AI_STP_PRECONDITION_FAILED.
+     */
+    "If-Match": string;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+    /**
+     * Stable technology area ID.
+     */
+    area_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/technology-areas/{area_id}/lifecycle";
+};
+
+export type ChangeTechnologyAreaLifecycleErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ChangeTechnologyAreaLifecycleError =
+  ChangeTechnologyAreaLifecycleErrors[keyof ChangeTechnologyAreaLifecycleErrors];
+
+export type ChangeTechnologyAreaLifecycleResponses = {
+  /**
+   * Move a technology area between draft, active, and archived.
+   */
+  200: AreaView;
+};
+
+export type ChangeTechnologyAreaLifecycleResponse =
+  ChangeTechnologyAreaLifecycleResponses[keyof ChangeTechnologyAreaLifecycleResponses];
+
 export type ListTechnologyCategoriesData = {
   body?: never;
   headers?: {
@@ -27409,6 +28208,10 @@ export type ReadTechnologyLandscapeData = {
      */
     project_id?: string | null;
     /**
+     * Project Ids
+     */
+    project_ids?: Array<string> | null;
+    /**
      * Project Lifecycle
      */
     project_lifecycle?: "active" | "deprecated" | "archived" | "deleted" | null;
@@ -27802,6 +28605,196 @@ export type PublishTechnologyMappingResponses = {
 export type PublishTechnologyMappingResponse =
   PublishTechnologyMappingResponses[keyof PublishTechnologyMappingResponses];
 
+export type ListTechnologyScansData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+  };
+  query?: {
+    /**
+     * Project Id
+     */
+    project_id?: string | null;
+  };
+  url: "/v1/corporate/organizations/{organization_id}/technology-scans";
+};
+
+export type ListTechnologyScansErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ListTechnologyScansError = ListTechnologyScansErrors[keyof ListTechnologyScansErrors];
+
+export type ListTechnologyScansResponses = {
+  /**
+   * List the organization's scan journal.
+   */
+  200: TechnologyScanList;
+};
+
+export type ListTechnologyScansResponse =
+  ListTechnologyScansResponses[keyof ListTechnologyScansResponses];
+
+export type LaunchTechnologyScansData = {
+  body: TechnologyScanLaunchRequest;
+  headers: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+    /**
+     * Client-chosen key; a retry must not become a second effect.
+     */
+    "Idempotency-Key": string;
+    /**
+     * Expected ETag. A stale value fails AI_STP_PRECONDITION_FAILED.
+     */
+    "If-Match": string;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/technology-scans";
+};
+
+export type LaunchTechnologyScansErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type LaunchTechnologyScansError =
+  LaunchTechnologyScansErrors[keyof LaunchTechnologyScansErrors];
+
+export type LaunchTechnologyScansResponses = {
+  /**
+   * Queue one repository scan per selected project.
+   */
+  200: TechnologyScanLaunchResult;
+};
+
+export type LaunchTechnologyScansResponse =
+  LaunchTechnologyScansResponses[keyof LaunchTechnologyScansResponses];
+
+export type ReadTechnologyScanDetailData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+    /**
+     * Immutable scan ID.
+     */
+    scan_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/technology-scans/{scan_id}";
+};
+
+export type ReadTechnologyScanDetailErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ReadTechnologyScanDetailError =
+  ReadTechnologyScanDetailErrors[keyof ReadTechnologyScanDetailErrors];
+
+export type ReadTechnologyScanDetailResponses = {
+  /**
+   * Read one scan's findings, versions, and evidence.
+   */
+  200: TechnologyScanDetail;
+};
+
+export type ReadTechnologyScanDetailResponse =
+  ReadTechnologyScanDetailResponses[keyof ReadTechnologyScanDetailResponses];
+
 export type ImportTechnologySeedData = {
   body: TechnologySeedRequest;
   headers: {
@@ -27882,7 +28875,16 @@ export type ReadTechnologyUnmappedCoordinatesData = {
      */
     organization_id: string;
   };
-  query?: never;
+  query?: {
+    /**
+     * Project Id
+     */
+    project_id?: string | null;
+    /**
+     * Scan Id
+     */
+    scan_id?: string | null;
+  };
   url: "/v1/corporate/organizations/{organization_id}/technology-unmapped-coordinates";
 };
 

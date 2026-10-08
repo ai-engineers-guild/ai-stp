@@ -74,6 +74,7 @@ export default async function CategoryDetailPage({
             kind="category"
             initialCategory={detail.category}
             categories={null}
+            areas={detail.areas?.items ?? null}
             {...mutation}
           />
         </details>
