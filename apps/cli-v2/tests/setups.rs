@@ -2,7 +2,7 @@ use ai_stp_cli_v2::{
     artifacts::{self, Member as File},
     authoring::{
         Identity, releases,
-        setups::{self, Member, Request},
+        setups::{self, Member, Request, copies},
     },
     digest,
     error::Failure,
@@ -32,6 +32,196 @@ fn reference(document: &Value) -> Result<Member, Box<dyn Error>> {
 fn counts(store: &mut Store) -> Result<(i64, i64, i64, i64, i64), Failure> {
     store.transaction(|t| t.query_row("SELECT (SELECT count(*) FROM entity),(SELECT count(*) FROM revision),(SELECT count(*) FROM content),(SELECT count(*) FROM operation),(SELECT count(*) FROM object_version)",[],|r|Ok((r.get(0)?,r.get(1)?,r.get(2)?,r.get(3)?,r.get(4)?))).map_err(|_| Failure::precondition("proof query failed")))
 }
+
+fn copies_journey(
+    store: &mut Store,
+    source: &Value,
+    empty: &Value,
+    identity: &Identity,
+) -> Result<(), Box<dyn Error>> {
+    let reference = copies::Source {
+        stable_id: field(source, "stable_id")?.into(),
+        version: field(source, "version")?.into(),
+        passport_digest: digest::canonical("ai-stp:passport:v1", source)?,
+    };
+    let recipient = Identity {
+        account_id: "account_01ARZ3NDEKTSV4RRFFQ69G5FAW".into(),
+        device_id: "device_01ARZ3NDEKTSV4RRFFQ69G5FAW".into(),
+    };
+    let original_counts = counts(store)?;
+    assert!(
+        copies::plan(
+            store,
+            reference.clone(),
+            Some("claude-code"),
+            recipient.clone(),
+            AT
+        )
+        .is_err()
+    );
+    let blocked = copies::plan(
+        store,
+        reference.clone(),
+        Some("cursor"),
+        recipient.clone(),
+        AT,
+    )
+    .err()
+    .ok_or("missing target was accepted")?;
+    assert!(serde_json::to_string(&blocked.details)?.contains("adaptation_unavailable"));
+    assert_eq!(counts(store)?, original_counts);
+    let plan = copies::plan(
+        store,
+        reference.clone(),
+        Some("codex"),
+        recipient.clone(),
+        AT,
+    )?;
+    assert_eq!(plan.passport["components"], source["components"]);
+    assert_eq!(plan.passport["owner_id"], recipient.account_id);
+    assert_eq!(
+        plan.passport["ported_from"],
+        serde_json::to_value(&reference)?
+    );
+    assert_eq!(plan.passport["license"], source["license"]);
+    assert_eq!(plan.passport["permissions"], source["permissions"]);
+    assert_eq!(plan.passport["harness_id"], "codex");
+    assert_eq!(plan.passport["visibility"], "private");
+    assert!(copies::apply(store, &plan, "wrong-digest", &recipient, AT).is_err());
+    assert!(copies::apply(store, &plan, &plan.digest()?, identity, AT).is_err());
+    assert!(copies::apply(store, &plan, &plan.digest()?, &recipient, LATER).is_err());
+    let mut forged = plan.clone();
+    forged.passport["purpose"] = "Substituted purpose".into();
+    assert!(copies::apply(store, &forged, &forged.digest()?, &recipient, AT).is_err());
+    store.transaction(|t| t.execute_batch("CREATE TEMP TRIGGER fail_setup_lineage BEFORE INSERT ON fork_origin BEGIN SELECT RAISE(ABORT,'proof failure'); END;").map_err(|_| Failure::precondition("proof trigger failed")))?;
+    assert!(copies::apply(store, &plan, &plan.digest()?, &recipient, AT).is_err());
+    assert_eq!(counts(store)?, original_counts);
+    store.transaction(|t| {
+        t.execute_batch("DROP TRIGGER fail_setup_lineage;")
+            .map_err(|_| Failure::precondition("proof trigger failed"))
+    })?;
+    let recast = copies::apply(store, &plan, &plan.digest()?, &recipient, AT)?;
+    let mut later_draft = recast.clone();
+    later_draft["name"] = "Later owned metadata".into();
+    later_draft["parent_revision_ids"] = json!([recast["revision_id"]]);
+    let later_draft = store.transaction(|t| {
+        revisions::commit(
+            t,
+            &later_draft,
+            &recipient.device_id,
+            None,
+            Write::Advance {
+                expected_heads: &[recast["revision_id"]
+                    .as_str()
+                    .ok_or_else(|| Failure::precondition("proof revision absent"))?
+                    .into()],
+            },
+        )
+    })?;
+    assert_eq!(
+        copies::apply(store, &plan, &plan.digest()?, &recipient, LATER)?,
+        recast
+    );
+    store.transaction(|t| {
+        assert_eq!(
+            revisions::heads(
+                t,
+                recast["stable_id"]
+                    .as_str()
+                    .ok_or_else(|| Failure::precondition("proof identity absent"))?
+            )?,
+            [later_draft["revision_id"]
+                .as_str()
+                .ok_or_else(|| Failure::precondition("proof revision absent"))?]
+        );
+        Ok(())
+    })?;
+    let fork = copies::plan(store, reference, None, recipient.clone(), AT)?;
+    let forked = copies::apply(store, &fork, &fork.digest()?, &recipient, AT)?;
+    assert_eq!(forked["harness_id"], "claude-code");
+    assert!(forked["ported_from"].is_null());
+    assert_eq!(forked["related_setup_ids"], json!([source["stable_id"]]));
+    assert_eq!(forked["components"], source["components"]);
+    let empty = copies::plan(
+        store,
+        copies::Source {
+            stable_id: field(empty, "stable_id")?.into(),
+            version: "1.0".into(),
+            passport_digest: digest::canonical("ai-stp:passport:v1", empty)?,
+        },
+        Some("cursor"),
+        recipient.clone(),
+        AT,
+    )?;
+    let empty = copies::apply(store, &empty, &empty.digest()?, &recipient, AT)?;
+    assert_eq!(empty["components"], json!([]));
+    store.transaction(|t| {
+        let encoded: String = t.query_row("SELECT r.content FROM object_version v JOIN revision r ON r.revision_id=v.revision_id WHERE v.stable_id=? AND v.version='1.0'",[source["stable_id"].as_str().ok_or_else(|| Failure::input("proof source missing"))?],|r|r.get(0)).map_err(|_| Failure::precondition("proof source unreadable"))?;
+        assert_eq!(ai_stp_cli_v2::canonical::parse(encoded.as_bytes())?,*source);
+        let component_count:i64 = t.query_row("SELECT count(*) FROM entity WHERE kind='component'",[],|r|r.get(0)).map_err(|_| Failure::precondition("proof counts unreadable"))?;
+        assert_eq!(component_count,2);
+        Ok(())
+    })?;
+    // A valid retained setup can underdeclare member requirements. Rebuilding a
+    // copy must restore those requirements while retaining extra source demands.
+    let weaker = store.transaction(|t| {
+        let mut document = source.clone();
+        document["stable_id"] = format!("setup_{}", ulid::Ulid::generate()).into();
+        document["requires_credentials"] = false.into();
+        document["requires_authorization"] = "none".into();
+        document["permissions"] = json!({"filesystem":[],"network":[],"process":[]});
+        document["required_env"] =
+            json!([{"name":"EXTRA_CONTEXT","purpose":"Preserve a source requirement"}]);
+        document["supported_harness_versions"] = json!(["2.*"]);
+        document["install_evidence_ref"] = "source-install-evidence".into();
+        let original_bytes = revisions::read_content(
+            t,
+            source["artifact"]["digest"]
+                .as_str()
+                .ok_or_else(|| Failure::input("proof definition missing"))?,
+        )?;
+        let mut definition = ai_stp_cli_v2::canonical::parse(&original_bytes)?;
+        definition["stable_id"] = document["stable_id"].clone();
+        let bytes = ai_stp_cli_v2::canonical::bytes(&definition)?;
+        document["artifact"] =
+            json!({"digest":revisions::content(t,&bytes,AT)?,"size_bytes":bytes.len()});
+        let document = revisions::commit(
+            t,
+            &document,
+            &identity.device_id,
+            None,
+            Write::Advance {
+                expected_heads: &[],
+            },
+        )?;
+        versions::record(t, &document, &identity.device_id, None, AT)
+    })?;
+    let weak_source = copies::Source {
+        stable_id: field(&weaker, "stable_id")?.into(),
+        version: "1.0".into(),
+        passport_digest: digest::canonical("ai-stp:passport:v1", &weaker)?,
+    };
+    let copied = copies::plan(store, weak_source.clone(), None, recipient.clone(), AT)?.passport;
+    assert_eq!(copied["requires_credentials"], true);
+    assert_eq!(copied["requires_authorization"], "external_service");
+    assert_eq!(copied["permissions"], source["permissions"]);
+    assert_eq!(
+        copied["required_env"]
+            .as_array()
+            .ok_or("requirements absent")?
+            .len(),
+        2
+    );
+    assert_eq!(copied["supported_harness_versions"], json!(["2.*"]));
+    assert!(copied["install_evidence_ref"].is_null());
+    let recast = copies::plan(store, weak_source, Some("codex"), recipient, AT)?.passport;
+    assert_eq!(recast["supported_harness_versions"], json!([]));
+    assert_eq!(
+        recast["facts"]["source_harness_version_constraints"]["value"]["constraints"],
+        json!(["2.*"])
+    );
+    Ok(())
+}
 fn seed(
     store: &mut Store,
     identity: &Identity,
@@ -50,6 +240,12 @@ fn seed(
             "content_digest":address,"content_format":artifacts::TREE_FORMAT,"managed_paths":[format!("skills/{name}")],
             "license":{"spdx_id":"MIT","redistribution_allowed":true}});
         values.as_object_mut().ok_or_else(|| Failure::input("facts missing"))?.extend(extra.as_object().ok_or_else(|| Failure::input("extra missing"))?.clone());
+        values["adaptation_contents"] = json!([
+            {"harness_id":"claude-code","scope":"global","projection_kind":"native_files","content_digest":address,
+             "content_format":artifacts::TREE_FORMAT,"managed_paths":[format!("skills/{name}")]},
+            {"harness_id":"codex","scope":"user_root","projection_kind":"native_files","content_digest":address,
+             "content_format":artifacts::TREE_FORMAT,"managed_paths":[format!("skills/{name}")]}
+        ]);
         let facts: serde_json::Map<String,Value> = values.as_object().ok_or_else(|| Failure::input("facts missing"))?.iter()
             .map(|(key,value)|(key.clone(),json!({"value":value,"origin":"declared","confirmation":"none"}))).collect();
         revisions::commit(t,&json!({"kind":"component","stable_id":format!("component_{}",ulid::Ulid::generate()),"owner_id":identity.account_id,"created_at":AT,"facts":facts}),&identity.device_id,None,Write::Advance {expected_heads:&[]})
@@ -389,6 +585,7 @@ fn exact_setup_closure_constraints_atomicity_and_replay() -> Result<(), Box<dyn 
     assert_eq!(empty["components"], json!([]));
     assert_eq!(empty["requires_authorization"], "none");
     assert_eq!(empty["member_metadata_complete"], true);
+    copies_journey(&mut store, &setup, &empty, &identity)?;
     drop(store);
     let mut store = Store::open(root.path(), false)?;
     assert_eq!(

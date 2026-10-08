@@ -173,6 +173,22 @@ the source disappears. Bound portable refresh refuses independently authored
 native adaptations. Flat adopted drafts still use their adoption/release flow;
 this operation accepts complete source-bound or exact-forked drafts.
 
+`setup fork plan` and `setup recast plan` read an exact setup ID, `X.Y` and
+passport digest, then create a private owned `1.0` with a new identity. Fork
+retains the harness; recast requires a different concrete harness and records
+the exact `ported_from` reference. Both retain direct lineage in SQLite and
+`related_setup_ids`. Every member coordinate must remain unchanged and already
+provide the target adaptation; missing adaptations are reported together.
+Empty compositions remain valid. Automatic native syntax derivation is pending.
+
+These operations rebuild and verify the full dependency closure and preserve
+content declarations, license declarations and conservative requirements.
+Report, installation and compatibility evidence do not transfer to a new setup.
+Source-harness version constraints remain only on a same-harness fork; a recast
+records any omitted source constraints explicitly as provenance facts. Definition
+bytes, revision, immutable coordinate, lineage and receipt share one transaction.
+Replay verifies retained lineage and member artifacts and preserves newer heads.
+
 Scaffold planning writes nothing and binds the resolved parent directory's physical
 identity and lossless output path. Applying requires the exact plan digest,
 regenerates the planned files and rechecks that identity. It uses a locked,
@@ -515,6 +531,7 @@ no async runtime or tracing feature is enabled for it.
 | `authoring/source_project.rs` | One bounded source snapshot, metadata separation and structural readiness |
 | `authoring/adaptations.rs` | Explicit portable-to-native projections preserving source bodies and modes |
 | `authoring/native_edit.rs` | Exact native adaptation replacement with complete scope preservation |
+| `authoring/setups/copies.rs` | Private exact setup forks and recasts with atomic lineage |
 | `authoring/project_binding.rs` | Atomic portable project identity and complete adaptation refresh |
 | `authoring/runtime.rs` | Identity-bound local plans, closed operation dispatch and private registry reads |
 | `authoring/bindings.rs` | Shared local source addresses, relocation and binding replacement |

@@ -125,6 +125,7 @@ pub fn apply(path: &Path, expected_digest: &str) -> Result<Value> {
         "component.version.release" => execute(plan, releases::apply),
         "component.fork" => execute(plan, forks::apply),
         "setup.compose" => execute(plan, setups::apply),
+        "setup.fork" | "setup.recast" => execute(plan, setups::copies::apply),
         _ => Err(Failure::input(
             "this operation is not implemented by the local authoring runtime",
         )),

@@ -1,6 +1,7 @@
 //! Exact private compositions. A frozen graph is not an installation approval.
 
 mod aggregate;
+pub mod copies;
 
 use rusqlite::{Connection, params};
 use serde::{Deserialize, Serialize};
@@ -161,6 +162,10 @@ fn compile(
         "composition_report_ref":null,"conversion_report_ref":null,"install_evidence_ref":null,"launch_evidence_ref":null,
         "compatibility_evidence_refs":[],"artifact_format":FORMAT,"member_metadata_complete":true});
     aggregate.apply(&mut document);
+    finish(document)
+}
+
+fn finish(mut document: Value) -> Result<(Value, Vec<u8>)> {
     let payload = canonical::bytes(&definition(&document))?;
     document["artifact"] =
         json!({"digest":digest::bytes("ai-stp:artifact:v1", &payload)?,"size_bytes":payload.len()});

@@ -28,6 +28,8 @@ pub(super) enum Handler {
     Release,
     Fork,
     Compose,
+    SetupFork,
+    SetupRecast,
     Apply,
     Show,
     Version,
@@ -86,6 +88,12 @@ const REVISION: Parameter = Parameter {
 const VERSION: Parameter = Parameter {
     name: "version",
     summary: "Exact immutable X.Y coordinate.",
+    kind: ParameterType::String,
+    required: true,
+};
+const PASSPORT_DIGEST: Parameter = Parameter {
+    name: "passport-digest",
+    summary: "Exact canonical passport digest of the source version.",
     kind: ParameterType::String,
     required: true,
 };
@@ -198,18 +206,39 @@ pub(super) const COMMANDS: &[Declaration] = &[
     Declaration {
         path: &["component", "fork", "plan"],
         summary: "Plan a private owned draft from one exact retained component version.",
+        parameters: &[STATE_DIR, ID, VERSION, PASSPORT_DIGEST],
+        handler: super::Handler::Local(Handler::Fork),
+    },
+    Declaration {
+        path: &["setup", "fork", "plan"],
+        summary: "Plan a private owned setup copy from one exact complete version, preserving component coordinates and lineage.",
+        parameters: &[STATE_DIR, ID, VERSION, PASSPORT_DIGEST],
+        handler: super::Handler::Local(Handler::SetupFork),
+    },
+    Declaration {
+        path: &["setup", "recast", "plan"],
+        summary: "Plan a new setup for another harness using every exact member's existing target adaptation; missing adaptations refuse together.",
         parameters: &[
             STATE_DIR,
             ID,
             VERSION,
+            PASSPORT_DIGEST,
             Parameter {
-                name: "passport-digest",
-                summary: "Exact canonical passport digest of the source version.",
-                kind: ParameterType::String,
+                name: "target-harness",
+                summary: "Concrete destination harness, distinct from the source setup.",
+                kind: ParameterType::Choice(&[
+                    "claude-code",
+                    "codex",
+                    "pi",
+                    "opencode",
+                    "grok-build",
+                    "cursor",
+                    "antigravity",
+                ]),
                 required: true,
             },
         ],
-        handler: super::Handler::Local(Handler::Fork),
+        handler: super::Handler::Local(Handler::SetupRecast),
     },
     Declaration {
         path: &["setup", "compose", "plan"],
@@ -413,6 +442,21 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
             };
             runtime::plan(path(args, "state-dir")?, |store, identity, at| {
                 forks::plan(store, source, identity, at)
+            })
+        }
+        Handler::SetupFork | Handler::SetupRecast => {
+            let source = setups::copies::Source {
+                stable_id: text(args, "id")?.into(),
+                version: text(args, "version")?.into(),
+                passport_digest: text(args, "passport-digest")?.into(),
+            };
+            let target = if matches!(handler, Handler::SetupRecast) {
+                Some(text(args, "target-harness")?)
+            } else {
+                None
+            };
+            runtime::plan(path(args, "state-dir")?, |store, identity, at| {
+                setups::copies::plan(store, source, target, identity, at)
             })
         }
         Handler::Compose => {

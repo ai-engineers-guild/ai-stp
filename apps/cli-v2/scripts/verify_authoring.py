@@ -100,6 +100,10 @@ def prove(binary: Path, home: Path, temporary: Path, run: Runner) -> None:
     info.write_text(
         json.dumps(next(d for d in declarations if d["harness_id"] == "codex")), encoding="utf-8"
     )
+    cursor_info = root / "cursor-provider.json"
+    cursor_info.write_text(
+        json.dumps(next(d for d in declarations if d["harness_id"] == "cursor")), encoding="utf-8"
+    )
     bind = [
         "component",
         "source",
@@ -111,8 +115,12 @@ def prove(binary: Path, home: Path, temporary: Path, run: Runner) -> None:
         str(source),
         "--target",
         "codex:user_root",
+        "--target",
+        "cursor:project",
         "--provider-info",
         str(info),
+        "--provider-info",
+        str(cursor_info),
     ]
     invoke(bind, 4)
     assert not list(state.iterdir())
@@ -356,6 +364,31 @@ def prove(binary: Path, home: Path, temporary: Path, run: Runner) -> None:
     setup = apply(compose, "compose")
     SetupVersionPassport.model_validate(setup)
     assert setup["owner_id"] == owner and setup["harness_id"] == "codex"
+    source = {
+        "stable_id": setup["stable_id"],
+        "version": "1.0",
+        "passport_digest": digest_canonical("ai-stp:passport:v1", setup),
+    }
+    setup_source_args = [
+        "--state-dir",
+        str(state),
+        "--id",
+        source["stable_id"],
+        "--version",
+        "1.0",
+        "--passport-digest",
+        source["passport_digest"],
+    ]
+    for action in ["fork", "recast"]:
+        target = ["--target-harness", "cursor"] if action == "recast" else []
+        copy_plan = invoke(["setup", action, "plan", *setup_source_args, *target])
+        copied = apply(copy_plan, f"setup-{action}")
+        SetupVersionPassport.model_validate(copied)
+        assert copied["stable_id"] != setup["stable_id"]
+        assert copied["components"] == setup["components"]
+        assert copied["related_setup_ids"] == [setup["stable_id"]]
+        assert copied["ported_from"] == (source if action == "recast" else None)
+        assert copied["harness_id"] == ("cursor" if action == "recast" else "codex")
     assert (
         invoke(
             [
