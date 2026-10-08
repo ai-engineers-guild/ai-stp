@@ -4,10 +4,29 @@ use serde_json::{Value, json};
 use std::collections::BTreeSet;
 
 use super::markdown;
+use crate::wire::Schema;
 use crate::{
     digest,
     error::{Failure, Result},
 };
+
+static COMPONENT: Schema = Schema::reader(include_str!(
+    "../../../../schemas/v1/component-version-passport.schema.json"
+));
+static SETUP: Schema = Schema::reader(include_str!(
+    "../../../../schemas/v1/setup-version-passport.schema.json"
+));
+
+pub fn validate_document(document: &Value) -> Result<()> {
+    match document["kind"].as_str() {
+        Some("component") => &COMPONENT,
+        Some("setup") => &SETUP,
+        _ => return Err(invalid()),
+    }
+    .validate(document)?;
+    super::validate_identity(document)?;
+    validate(document)
+}
 
 fn invalid() -> Failure {
     Failure::precondition("immutable passport has inconsistent adaptations, paths or ownership")

@@ -4,7 +4,7 @@ use clap::{Arg, ArgAction, ArgMatches, Command, builder::ValueParser};
 use serde_json::{Value, json};
 
 use crate::{
-    catalog, config, digest,
+    catalog, config, digest, environment,
     error::{ErrorKind, Failure, Result},
     projects, snapshot,
 };
@@ -25,6 +25,7 @@ enum Handler {
     CatalogSearch,
     CatalogShow,
     CatalogVersion,
+    EnvironmentRequirements,
 }
 
 #[derive(Clone, Copy)]
@@ -172,6 +173,33 @@ const COMMANDS: &[Declaration] = &[
         summary: "Validate explicit configuration without creating or updating any state.",
         parameters: &[CONFIG],
         handler: Handler::Config,
+    },
+    Declaration {
+        path: &["environment", "requirements"],
+        summary: "Verify exact setup prerequisites and variable presence without executing preparation.",
+        parameters: &[
+            SNAPSHOT,
+            SHA256,
+            Parameter {
+                name: "project",
+                summary: "Project identity already bound to the target in the snapshot.",
+                kind: ParameterType::String,
+                required: true,
+            },
+            Parameter {
+                name: "target",
+                summary: "Absolute project target; a moved marker may reclaim only an absent root.",
+                kind: ParameterType::Path,
+                required: true,
+            },
+            Parameter {
+                name: "setup",
+                summary: "Exact setup id@X.Y; repeat for multiple setups.",
+                kind: ParameterType::Strings,
+                required: true,
+            },
+        ],
+        handler: Handler::EnvironmentRequirements,
     },
     Declaration {
         path: &["help"],
@@ -473,7 +501,10 @@ pub fn dispatch(matches: &ArgMatches) -> Result<Value> {
                 )
             }
         }
-        Handler::Snapshot | Handler::Passport(_) | Handler::Versions => {
+        Handler::Snapshot
+        | Handler::Passport(_)
+        | Handler::Versions
+        | Handler::EnvironmentRequirements => {
             let path = leaf
                 .get_one::<std::path::PathBuf>("snapshot")
                 .ok_or_else(|| Failure::input("snapshot is required"))?;
@@ -482,6 +513,18 @@ pub fn dispatch(matches: &ArgMatches) -> Result<Value> {
                 .ok_or_else(|| Failure::input("sha256 is required"))?;
             let state = snapshot::Snapshot::open(path, digest)?;
             match declaration.handler {
+                Handler::EnvironmentRequirements => environment::requirements(
+                    &state,
+                    leaf.get_one::<String>("project")
+                        .ok_or_else(|| Failure::input("project is required"))?,
+                    leaf.get_one::<std::path::PathBuf>("target")
+                        .ok_or_else(|| Failure::input("target is required"))?,
+                    &leaf
+                        .get_many::<String>("setup")
+                        .ok_or_else(|| Failure::input("setup is required"))?
+                        .cloned()
+                        .collect::<Vec<_>>(),
+                ),
                 Handler::Passport(kind) => state.passport(
                     kind,
                     leaf.try_get_one::<String>("id")

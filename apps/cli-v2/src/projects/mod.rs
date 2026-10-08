@@ -103,7 +103,7 @@ pub fn secret_name(name: &str) -> bool {
         .any(|suffix| name.ends_with(suffix))
 }
 
-fn open_root(path: &Path) -> Result<(PathBuf, Dir)> {
+pub(crate) fn open_root(path: &Path) -> Result<(PathBuf, Dir)> {
     let path = if path.starts_with("~") {
         files::home()
             .ok_or_else(|| Failure::input("home directory is not configured"))?

@@ -94,6 +94,17 @@ published wire passport identity. Adaptations retain their complete-model
 identity, ownership and case-folded path checks. Description validation uses
 the closed CommonMark profile without rendering or extensions.
 
+`environment requirements` joins exact setup/component passports from the
+snapshot with the explicitly bound project target. It refuses a substituted
+dependency, a copied marker whose original root still exists and ambiguous
+project mappings. It reports environment-variable name presence without values;
+authorization, managed harness and shared-program evidence remain
+`not_observed`. Graph reads are bounded to 64 setups, 4,096 component documents
+and 8,192 dependency edges. A moved-root read does not rewrite its old mapping.
+The production `environment inspect` also calls provider/toolchain services;
+that executable observation belongs to the provider slice, not this declaration
+read. This preview result does not claim the production inspection schema.
+
 ## Modules and proof
 
 | Owner | Responsibility |
@@ -107,6 +118,7 @@ the closed CommonMark profile without rendering or extensions.
 | `wire.rs`, `passport.rs`, `passport/` | Offline wire validation, immutable passport rules and content identities |
 | `http.rs`, `catalog/` | Bounded anonymous catalog reads and explicit public cache |
 | `projects/` | Bounded project discovery and content-free file evidence |
+| `environment.rs` | Exact setup prerequisites, project binding and variable-name presence |
 | `provenance.rs` | Offline PEP 740 cryptographic verification and publisher policy |
 
 The provenance service accepts a caller-owned trusted root and an artifact

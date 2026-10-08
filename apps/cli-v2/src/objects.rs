@@ -22,6 +22,34 @@ fn absent() -> Failure {
 }
 
 impl Snapshot {
+    pub fn exact_version(&self, id: &str, version: &str, expected: Option<&str>) -> Result<Value> {
+        if (!passport::stable_id(id, "component") && !passport::stable_id(id, "setup"))
+            || !passport::version_number(version)
+        {
+            return Err(Failure::input(
+                "an exact version requires a component or setup id and X.Y number",
+            ));
+        }
+        let row: Option<(String, String)> = self.connection.query_row(
+            "SELECT revision_id, passport_digest FROM object_version WHERE stable_id = ? AND version = ?",
+            [id, version], |row| Ok((row.get(0)?, row.get(1)?)),
+        ).optional().map_err(database)?;
+        let (revision, held) = row.ok_or_else(absent)?;
+        let document = self.revision(&revision)?;
+        if document["stable_id"] != id
+            || document["version"] != version
+            || digest::canonical("ai-stp:passport:v1", &document)? != held
+            || expected.is_some_and(|expected| expected != held)
+        {
+            return Err(Failure::new(
+                ErrorKind::Conflict,
+                "an exact dependency disagrees with its recorded identity",
+            ));
+        }
+        passport::versions::validate_document(&document)?;
+        Ok(document)
+    }
+
     pub fn passport(&self, kind: &str, id: Option<&str>) -> Result<Value> {
         let id = match id {
             Some(value) => value.to_owned(),

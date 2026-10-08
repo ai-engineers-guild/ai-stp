@@ -4,6 +4,7 @@ pub mod canonical;
 pub mod catalog;
 pub mod config;
 pub mod digest;
+pub mod environment;
 pub mod error;
 mod files;
 mod http;
