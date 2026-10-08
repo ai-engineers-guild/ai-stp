@@ -598,6 +598,60 @@ fn exact_bundles_cover_every_released_profile_and_refuse_unrepresentable_inputs(
     assert_eq!(parsed["mcpServers"]["review"]["command"], "review-tool");
     export("claude-code-contribution", &built)?;
     rejects_fabricated_ids(&mut store, &mcp, &built, &target, &provider, &hosts)?;
+    // A digest-valid catalog entry must not bypass the source credential guard.
+    let reference_mcp = component(
+        &mut store,
+        &provider,
+        Scope::Global,
+        File {
+            path: "settings.json".into(),
+            bytes: br#"{"review":{"command":"review-tool","env":{"API_KEY":"${REVIEW_TOKEN}"}}}"#
+                .to_vec(),
+            mode: 0o644,
+        },
+        Some("mcpServers"),
+    )?;
+    let (reference_setup, reference_evidence) =
+        compose(&mut store, "claude-code", &[reference_mcp])?;
+    let reference_bundle = bundle::compile(
+        &mut store,
+        &reference_setup,
+        &target,
+        &reference_evidence,
+        &provider,
+        &hosts,
+    )?;
+    export("claude-code-references", &reference_bundle)?;
+    let literal_mcp = component(
+        &mut store, &provider, Scope::Global,
+        File {
+            path: "settings.json".into(),
+            bytes: br#"{"review":{"command":"review-tool","env":{"API_KEY":"synthetic-sensitive-value"}}}"#.to_vec(),
+            mode: 0o644,
+        }, Some("mcpServers"),
+    )?;
+    assert!(
+        compose(
+            &mut store,
+            "claude-code",
+            std::slice::from_ref(&literal_mcp)
+        )
+        .is_err()
+    );
+    let (catalog_setup, catalog_evidence) =
+        catalog_repin(&mut store, &reference_bundle, &literal_mcp)?;
+    let refusal = bundle::compile(
+        &mut store,
+        &catalog_setup,
+        &target,
+        &catalog_evidence,
+        &provider,
+        &hosts,
+    )
+    .err()
+    .ok_or("catalog literal credential accepted")?;
+    assert_eq!(refusal.details["constraint"], "literal_credential");
+    assert!(!refusal.message.contains("synthetic-sensitive-value"));
     let agent = component(
         &mut store,
         &provider,

@@ -117,7 +117,6 @@ pub(super) fn prepare(request: &Source) -> Result<Prepared> {
         } else {
             source::capture_scoped(&request.root, &candidate.native_path)?
         };
-    let native_ids = native_identity::read(&candidate, &content)?;
     if !candidate.declared_key.is_empty() {
         content.bytes = contribution::extract(
             Format::for_path(&candidate.native_path)?,
@@ -125,6 +124,7 @@ pub(super) fn prepare(request: &Source) -> Result<Prepared> {
             &candidate.declared_key,
         )?;
     }
+    let native_ids = native_identity::read(&candidate, &content)?;
     let content_digest = digest::bytes("ai-stp:artifact:v1", &content.bytes)?;
     let address = Address::new(
         &candidate.harness_id,

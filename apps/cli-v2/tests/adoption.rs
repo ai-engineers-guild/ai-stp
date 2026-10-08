@@ -196,6 +196,128 @@ fn native_identity_journey(identity: &Identity, at: &str) -> Result<(), Box<dyn 
         assert!(adoption::plan(&mut store, source, identity.clone(), at).is_err());
         assert_eq!(counts(&mut store)?, before);
     }
+    for (harness, name, content) in [
+        (
+            "cursor",
+            "mcp.json",
+            r#"{"mcpServers":{"review":{"command":"server","env":{"GITHUB_TOKEN":"synthetic-sensitive-value"}}}}"#,
+        ),
+        (
+            "codex",
+            "config.toml",
+            "[mcp_servers.review]\ncommand = 'server'\nhttp_headers = { Authorization = 'Bearer synthetic-sensitive-value' }\n",
+        ),
+        (
+            "grok-build",
+            "config.toml",
+            "[mcp_servers.review]\ncommand = 'server'\nenv = { API_KEY = '${TOKEN:-synthetic-sensitive-value}' }\n",
+        ),
+        (
+            "antigravity",
+            "config/mcp_config.json",
+            r#"{"mcpServers":{"review":{"serverUrl":"https://example.invalid/mcp","oauth":{"clientSecret":"synthetic-sensitive-value"}}}}"#,
+        ),
+        (
+            "opencode",
+            "opencode.jsonc",
+            r#"{"mcp":{"review":{"type":"remote","url":"https://example.invalid/mcp","headers":{"X-Api-Key":"synthetic-sensitive-value"}}}}"#,
+        ),
+        (
+            "codex",
+            "config.toml",
+            "[mcp_servers.review]\ncommand = 'server'\n[mcp_servers.review.unknown.env_http_headers]\nAuthorization = 'synthetic-sensitive-value'\n",
+        ),
+        (
+            "cursor",
+            "mcp.json",
+            r#"{"mcpServers":{"review":{"command":"server","auth":{"credentials":[{"value":"synthetic-sensitive-value"}]}}}}"#,
+        ),
+        (
+            "cursor",
+            "mcp.json",
+            r#"{"accessToken":"synthetic-sensitive-value","mcpServers":{"review":{"command":"server"}}}"#,
+        ),
+    ] {
+        let native = root.path().join(format!("credential-{harness}"));
+        let file = native.join(name);
+        fs::create_dir_all(file.parent().ok_or("parent")?)?;
+        fs::write(&file, content)?;
+        let selected = selected(&native, harness, Scope::Global, "mcp")?;
+        let before = counts(&mut store)?;
+        let result = adoption::plan(&mut store, selected, identity.clone(), at);
+        assert!(
+            result.is_err(),
+            "literal MCP credential was accepted for {harness}"
+        );
+        assert!(
+            !result
+                .err()
+                .ok_or("refusal")?
+                .message
+                .contains("synthetic-sensitive-value")
+        );
+        assert_eq!(counts(&mut store)?, before);
+        assert_eq!(fs::read_to_string(file)?, content);
+    }
+    for (harness, name, key, content) in [
+        (
+            "cursor",
+            "mcp.json",
+            "",
+            r#"{"mcpServers":{"review":{"command":"server","envFile":".env","env":{"API_KEY":"${env:my-api-key}","LOG_LEVEL":"info"},"headers":{"Authorization":"Bearer ${env:REVIEW_TOKEN}"}}}}"#,
+        ),
+        (
+            "codex",
+            "config.toml",
+            "mcp_servers",
+            "api_key = 'synthetic-unowned-value'\n[mcp_servers.review]\ncommand = 'server'\nenv_vars = ['GITHUB_TOKEN']\nbearer_token_env_var = 'REVIEW_TOKEN'\nenv_http_headers = { Authorization = 'REVIEW_TOKEN' }\nenv = { LOG_LEVEL = 'info' }\n",
+        ),
+        (
+            "grok-build",
+            "config.toml",
+            "mcp_servers",
+            "[mcp_servers.review]\ncommand = 'server'\nenv = { API_KEY = '${MY_API_KEY}' }\nheaders = { Authorization = 'Bearer ${REVIEW_TOKEN}' }\n",
+        ),
+        (
+            "opencode",
+            "opencode.jsonc",
+            "mcp",
+            r#"{ /* retained references */ "mcp":{"review":{"type":"remote","url":"https://example.invalid/mcp","headers":{"Authorization":"Bearer {env:REVIEW_TOKEN}"},"oauth":{"clientSecret":"{file:~/.secrets/review}"}}}}"#,
+        ),
+    ] {
+        let native = root.path().join(format!("references-{harness}"));
+        let file = native.join(name);
+        fs::create_dir_all(file.parent().ok_or("parent")?)?;
+        fs::write(&file, content)?;
+        let plan = adoption::plan(
+            &mut store,
+            selected(&native, harness, Scope::Global, "mcp")?,
+            identity.clone(),
+            at,
+        )?;
+        let adopted = adoption::apply(&mut store, &plan, &plan.digest()?, identity, at)?;
+        let held = store.transaction(|transaction| {
+            revisions::read_content(
+                transaction,
+                adopted["facts"]["content_digest"]["value"]
+                    .as_str()
+                    .ok_or_else(|| Failure::precondition("content missing"))?,
+            )
+        })?;
+        let expected = if key.is_empty() {
+            content.as_bytes().to_vec()
+        } else {
+            ai_stp_cli_v2::authoring::contribution::extract(
+                ai_stp_cli_v2::authoring::contribution::Format::for_path(name)?,
+                content.as_bytes(),
+                key,
+            )?
+        };
+        assert_eq!(held, expected, "external references changed for {harness}");
+        assert!(!std::str::from_utf8(&held)?.contains("synthetic-unowned-value"));
+        assert_eq!(fs::read_to_string(file)?, content);
+    }
+    let before = counts(&mut store)?;
     let mcp = root.path().join("cursor/mcp.json");
     for content in [
         "{}",

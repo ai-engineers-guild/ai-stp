@@ -36,7 +36,7 @@ fn invalid() -> Failure {
     )
 }
 
-fn text(bytes: &[u8]) -> Result<&str> {
+pub(super) fn text(bytes: &[u8]) -> Result<&str> {
     if bytes.len() > 4 * 1024 * 1024 {
         return Err(invalid());
     }
@@ -98,7 +98,7 @@ fn input(value: ast::Value<'_>, depth: usize, nodes: &mut usize) -> Result<CstIn
     })
 }
 
-fn parse_json(source: &str, format: Format) -> Result<CstInputValue> {
+pub(super) fn parse_json(source: &str, format: Format) -> Result<CstInputValue> {
     let parsed = jsonc_parser::parse_to_ast(source, &Default::default(), &options(format))
         .map_err(|_| invalid())?;
     input(parsed.value.ok_or_else(invalid)?, 0, &mut 0)
@@ -147,22 +147,7 @@ pub fn entry_names(format: Format, host: &[u8], name: &str) -> Result<Vec<String
     checked_names(names)
 }
 
-/// Top-level names of an already-extracted contribution, without a host wrapper.
-pub(super) fn component_names(format: Format, component: &[u8]) -> Result<Vec<String>> {
-    let source = text(component)?;
-    let names = if format == Format::Toml {
-        let document: DocumentMut = source.parse().map_err(|_| invalid())?;
-        document.iter().map(|(name, _)| name.to_owned()).collect()
-    } else {
-        let CstInputValue::Object(properties) = parse_json(source, format)? else {
-            return Err(invalid());
-        };
-        properties.into_iter().map(|(name, _)| name).collect()
-    };
-    checked_names(names)
-}
-
-fn checked_names(mut names: Vec<String>) -> Result<Vec<String>> {
+pub(super) fn checked_names(mut names: Vec<String>) -> Result<Vec<String>> {
     if names.len() > 500
         || names
             .iter()

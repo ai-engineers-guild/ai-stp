@@ -165,9 +165,20 @@ remain separate pending boundaries.
 Native adoption and adaptation editing derive MCP identifiers from the captured
 host's server keys: `mcp_servers` for Codex/Grok, `mcp` for OpenCode, and
 `mcpServers` for Cursor/Antigravity. A contribution's captured key set must still
-match discovery before extraction. Missing, empty or non-object server maps and noncanonical
+match discovery before persistence. Missing, empty or non-object server maps and noncanonical
 identifiers refuse before persistence. Projection compilation independently checks
 these IDs against retained content, so a later metadata edit cannot invent them.
+MCP capture, release and retained-version reuse reject nonempty literals in
+recognized credential fields, including nested OAuth values and credential-named
+environment variables/headers. The guard checks the bytes actually retained:
+owned contributions exclude unowned host values, while complete MCP files also
+check their other fields. Refusals expose no values and do not rewrite sources.
+Documented environment references remain intact (Claude/Grok `${NAME}`, Cursor
+`${env:NAME}`, OpenCode `{env:NAME}` and `{file:path}`). Codex's server-level
+`env_http_headers` contains variable names; placing that field elsewhere does not
+bypass credential checks. Reference defaults containing literal values refuse.
+The data-only readers retain the existing size, depth and node bounds.
+
 This does not validate transport execution
 or grant credential access; named secret files, including `.mcp.json`, remain
 refused before capture.
@@ -197,7 +208,8 @@ also cover skill aliases. Duplicate definitions inside one component refuse too.
 New compilation and retained-version verification use the same member check.
 Other harnesses retain conservative shared-name collision checks until their
 native semantics are verified. Remaining format/identity checks, Pi's executable
-MCP extension adapter and structured credential handling are pending.
+MCP extension adapter and credential handling outside these named MCP fields
+(including URLs, opaque arguments/scripts and other configuration kinds) are pending.
 
 `component adaptation edit plan` replaces one complete native adaptation in an
 owned complete draft. `--sources` reads an array of up to three `{scope, source}`

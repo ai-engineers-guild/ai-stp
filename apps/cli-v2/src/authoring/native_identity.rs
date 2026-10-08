@@ -1,17 +1,14 @@
 //! Native identifiers are observed from captured content, never from display metadata.
 
 mod claude;
+mod mcp;
 
 use std::collections::{BTreeMap, BTreeSet};
 
 use serde_json::Value;
 use unicode_normalization::UnicodeNormalization;
 
-use super::{
-    contribution::{self, Format},
-    discovery::Candidate,
-    source::Captured,
-};
+use super::{discovery::Candidate, source::Captured};
 use crate::{
     artifacts,
     error::{Failure, Result},
@@ -21,27 +18,6 @@ fn invalid() -> Failure {
     Failure::precondition(
         "native identifiers are missing, ambiguous, noncanonical or invalid for this source",
     )
-}
-
-fn mcp_key(harness: &str) -> Result<&'static str> {
-    match harness {
-        "claude-code" | "cursor" | "antigravity" => Ok("mcpServers"),
-        "codex" | "grok-build" => Ok("mcp_servers"),
-        "opencode" => Ok("mcp"),
-        _ => Err(invalid()),
-    }
-}
-
-fn mcp_names(harness: &str, path: &str, key: &str, payload: &[u8]) -> Result<Vec<String>> {
-    let format = Format::for_path(path)?;
-    let expected_key = mcp_key(harness)?;
-    if key.is_empty() {
-        contribution::entry_names(format, payload, expected_key)
-    } else if key == expected_key {
-        contribution::component_names(format, payload)
-    } else {
-        Err(invalid())
-    }
 }
 
 fn valid(names: &[String]) -> Result<()> {
@@ -92,14 +68,15 @@ pub(super) fn read(candidate: &Candidate, content: &Captured) -> Result<Vec<Stri
             if content.format != artifacts::FILE_FORMAT {
                 return Err(invalid());
             }
-            let key = mcp_key(&candidate.harness_id)?;
+            let key = mcp::key(&candidate.harness_id)?;
             if !candidate.declared_key.is_empty() && candidate.declared_key != key {
                 return Err(invalid());
             }
-            let names = contribution::entry_names(
-                Format::for_path(&candidate.native_path)?,
+            let names = mcp::names(
+                &candidate.harness_id,
+                &candidate.native_path,
+                &candidate.declared_key,
                 &content.bytes,
-                key,
             )?;
             if names.is_empty() {
                 return Err(invalid());
@@ -196,7 +173,7 @@ pub(crate) fn verify_files(
                 }
                 _ => return Err(invalid()),
             };
-            mcp_names(harness, &file.path, key, &file.bytes)?
+            mcp::names(harness, &file.path, key, &file.bytes)?
         } else {
             if declaration["ownership"] != "whole" || !file.path.ends_with(".md") {
                 return Err(invalid());
