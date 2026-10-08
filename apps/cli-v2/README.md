@@ -490,6 +490,27 @@ the source disappears. Bound portable refresh refuses independently authored
 native adaptations. Flat adopted drafts still use their adoption/release flow;
 this operation accepts complete source-bound or exact-forked drafts.
 
+`component adaptation derive plan` adds one missing MCP adaptation to an exact
+owned complete draft. Its source must be native Codex, Cursor or OpenCode; the
+target uses an explicit provider declaration for one of those harnesses. Fork
+an exact released component first when the current draft is a flat adoption.
+Every source scope must have the same explicit target scope. The closed grammar
+preserves the command, string arguments and one literal environment map,
+including non-normalized Unicode in native values. Unknown fields, remote/mixed
+transports, interpolation, ambiguous aliases and non-string coercion refuse.
+Unsupported scopes, existing semantic losses and source-harness version
+constraints also refuse; they are never silently removed or transferred.
+
+The new adaptation retains scope permissions and OS/architecture constraints,
+records `literal-stdio/1.0` with an exact transformation digest and a retained
+source-revision/adaptation manifest, and stays experimental pending execution
+assessment. The source adaptation and component requirements remain unchanged.
+Apply revalidates the exact head and retained content in one writer transaction,
+committing projection content, the draft revision and receipt together. Replay
+verifies historical content without rewinding later drafts. Existing targets
+require explicit native editing; derivation does not overwrite them. Releasing
+an immutable version remains a separate operation. No provider process runs.
+
 `setup import plan` captures 1–128 explicitly selected `component discover`
 candidates from one concrete harness, scope and root. Discovery must complete;
 capture shares adoption's native identity, path, credential and source-binding
@@ -852,8 +873,9 @@ Redistribution is the conjunction of member declarations. The exact passports
 remain authoritative for scope-specific permissions, platform, version and capability constraints;
 composition is not mechanical installation eligibility or a provider approval.
 Request metadata is bounded to 256 KiB and the resulting passport to 1 MiB.
-Selected native configuration import is implemented; native recast derivation
-and acquisition of external setup packages remain pending.
+Selected native configuration import and explicit literal-stdio derivation are
+implemented; automatic whole-setup recast derivation and acquisition of external
+setup packages remain pending.
 Project identity registration and the headless project-to-setup selection
 transaction are implemented; the selection command adapter remains pending.
 
@@ -985,6 +1007,7 @@ no async runtime or tracing feature is enabled for it.
 | `authoring/adaptations.rs` | Explicit portable-to-native projections preserving source bodies and modes |
 | `authoring/review.rs` | Read-only publication structure and optional quality hints over every retained adaptation |
 | `authoring/native_edit.rs` | Exact native adaptation replacement with complete scope preservation |
+| `authoring/derivation/` | Closed MCP syntax conversion and atomic owned draft derivation |
 | `authoring/setups/copies.rs` | Private exact setup forks and recasts with atomic lineage |
 | `authoring/setups/export.rs` | Exact review-tree export from query-only retained state |
 | `authoring/native_identity.rs`, `authoring/native_identity/` | Captured/projected native identities, Markdown loaders and assembled entry visibility |

@@ -8,8 +8,8 @@ use std::path::{Path, PathBuf};
 use super::{Declaration, ID, KIND, Parameter, ParameterType, ROOT, STATE_DIR};
 use crate::{
     authoring::{
-        adoption, discovery, forks, importing, lifecycle, native_edit, passports, project_binding,
-        releases, review, runtime, scaffold, setups,
+        adoption, derivation, discovery, forks, importing, lifecycle, native_edit, passports,
+        project_binding, releases, review, runtime, scaffold, setups,
     },
     canonical,
     error::{Failure, Result},
@@ -33,6 +33,7 @@ pub(super) enum Handler {
     Discover,
     Update,
     NativeEdit,
+    Derive,
     Release,
     Fork,
     Forget,
@@ -278,6 +279,28 @@ pub(super) const COMMANDS: &[Declaration] = &[
             },
         ],
         handler: super::Handler::Local(Handler::NativeEdit),
+    },
+    Declaration {
+        path: &["component", "adaptation", "derive", "plan"],
+        summary: "Plan a missing MCP adaptation from an exact owned draft without dropping controls, scopes or constraints.",
+        parameters: &[
+            STATE_DIR,
+            ID,
+            REVISION,
+            Parameter {
+                name: "source-harness",
+                summary: "Existing native adaptation to convert.",
+                kind: ParameterType::Choice(&["codex", "cursor", "opencode"]),
+                required: true,
+            },
+            Parameter {
+                name: "provider-info",
+                summary: "Exact target provider declaration JSON, at most 1 MiB; not executable trust.",
+                kind: ParameterType::Path,
+                required: true,
+            },
+        ],
+        handler: super::Handler::Local(Handler::Derive),
     },
     Declaration {
         path: &["component", "source", "bind", "plan"],
@@ -587,6 +610,20 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
                     text(args, "id")?,
                     text(args, "expected-revision")?,
                     sources,
+                    &provider,
+                    identity,
+                    at,
+                )
+            })
+        }
+        Handler::Derive => {
+            let provider = Info::parse(&files::read(path(args, "provider-info")?, 1024 * 1024)?)?;
+            runtime::plan(path(args, "state-dir")?, |store, identity, at| {
+                derivation::plan(
+                    store,
+                    text(args, "id")?,
+                    text(args, "expected-revision")?,
+                    text(args, "source-harness")?,
                     &provider,
                     identity,
                     at,

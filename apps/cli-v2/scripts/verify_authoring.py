@@ -659,6 +659,124 @@ def prove(binary: Path, home: Path, temporary: Path, run: Runner) -> None:
     }
     assert (native / "config.toml").read_text(encoding="utf-8") == config
 
+    mcp_args = ["--state-dir", str(state), "--id", adopted["stable_id"]]
+    patch.write_text(
+        json.dumps(
+            {
+                "name": "stdio-example",
+                "description": "Run the local example server.",
+                "tags": ["review"],
+                "license": {"spdx_id": "MIT", "redistribution_allowed": True},
+            }
+        ),
+        encoding="utf-8",
+    )
+    mcp_head = invoke(["local", "passport", "show", "--kind", "component", *mcp_args])
+    updated_mcp = apply(
+        invoke(
+            [
+                "component",
+                "passport",
+                "update",
+                "plan",
+                *mcp_args,
+                "--expected-revision",
+                mcp_head["revision_id"],
+                "--patch",
+                str(patch),
+            ]
+        ),
+        "mcp-metadata",
+    )
+    released_mcp = apply(
+        invoke(
+            [
+                "component",
+                "version",
+                "release",
+                "plan",
+                *mcp_args,
+                "--expected-revision",
+                updated_mcp["revision_id"],
+                "--increment",
+                "minor",
+                "--provider-info",
+                str(info),
+            ]
+        ),
+        "mcp-release",
+    )
+    forked_mcp = apply(
+        invoke(
+            [
+                "component",
+                "fork",
+                "plan",
+                *mcp_args,
+                "--version",
+                "1.0",
+                "--passport-digest",
+                digest_canonical("ai-stp:passport:v1", released_mcp),
+            ]
+        ),
+        "mcp-fork",
+    )
+    derived_mcp = apply(
+        invoke(
+            [
+                "component",
+                "adaptation",
+                "derive",
+                "plan",
+                "--state-dir",
+                str(state),
+                "--id",
+                forked_mcp["stable_id"],
+                "--expected-revision",
+                forked_mcp["revision_id"],
+                "--source-harness",
+                "codex",
+                "--provider-info",
+                str(cursor_info),
+            ]
+        ),
+        "mcp-derive",
+    )
+    derived_version = apply(
+        invoke(
+            [
+                "component",
+                "version",
+                "release",
+                "plan",
+                "--state-dir",
+                str(state),
+                "--id",
+                derived_mcp["stable_id"],
+                "--expected-revision",
+                derived_mcp["revision_id"],
+                "--increment",
+                "minor",
+            ]
+        ),
+        "derived-mcp-release",
+    )
+    derived_model = ComponentVersionPassport.model_validate(derived_version)
+    assert derived_model.model_dump(mode="json") == derived_version
+    assert verify_revision_id(derived_model)
+    assert derived_version["adaptations"][0] == released_mcp["adaptations"][0]
+    converted = derived_version["adaptations"][1]
+    assert converted["harness_id"] == "cursor" and converted["implementation_mode"] == "derived"
+    with closing(sqlite3.connect(database)) as connection:
+        connection.row_factory = sqlite3.Row
+        provenance = stored_content.get(connection, converted["source_artifact"]["digest"])
+        assert len(provenance) == converted["source_artifact"]["size_bytes"]
+        assert json.loads(provenance) == {
+            "source_revision_id": forked_mcp["revision_id"],
+            "adaptation": released_mcp["adaptations"][0],
+        }
+    assert (native / "config.toml").read_text(encoding="utf-8") == config
+
     before_forget = invoke(show)
     with closing(sqlite3.connect(database)) as connection:
         retained = {
