@@ -189,7 +189,23 @@ records any omitted source constraints explicitly as provenance facts. Definitio
 bytes, revision, immutable coordinate, lineage and receipt share one transaction.
 Replay verifies retained lineage and member artifacts and preserves newer heads.
 
-Scaffold planning writes nothing and binds the resolved parent directory's physical
+`setup export plan` reads an explicit state directory and an exact setup ID,
+`X.Y` and passport digest without credentials. It verifies the retained definition
+and every member artifact in one read snapshot, then plans three UTF-8 files:
+`setup-passport.json`, `setup-definition.json` and `export-manifest.json`. The
+`ai-stp-setup-export/1` manifest binds both files with artifact digests and itself
+with the existing export digest domain. This is a review tree; component payloads
+and a native harness tree are not included. No generated README is needed.
+
+`setup export apply` accepts the closed plan (at most 8 MiB) and exact digest,
+revalidates the source from query-only state, and recomputes every file before
+publication. It never creates an absent registry or changes a passport/head.
+Existing exact bytes return `already_matches` with zero files written; changed
+bytes refuse. Both export commands require the original retained graph to remain
+available and valid. The result includes the export digest and any staging cleanup
+still pending. The registry owns the executable result contract.
+
+Scaffold and export planning write nothing and bind the resolved parent directory's physical
 identity and lossless output path. Applying requires the exact plan digest,
 regenerates the planned files and rechecks that identity. It uses a locked,
 private sibling stage; only matching prefixes of planned files can be resumed.
@@ -407,8 +423,8 @@ Redistribution is the conjunction of member declarations. The exact passports
 remain authoritative for scope-specific permissions, platform, version and capability constraints;
 composition is not mechanical installation eligibility or a provider approval.
 Request metadata is bounded to 256 KiB and the resulting passport to 1 MiB.
-Project binding, later setup versions, recasting, import/export and CLI exposure
-remain pending.
+Setup scaffolding, native configuration import, native recast derivation and
+project state binding remain pending.
 
 Component artifacts use the canonical uncompressed ZIP profile. The encoder
 preserves existing bytes, including fixed timestamps, Unicode flags and Unix
@@ -526,12 +542,14 @@ no async runtime or tracing feature is enabled for it.
 | `authoring/forks.rs` | Exact private component copies with atomic lineage and replay |
 | `authoring/templates.rs` | Bounded portable template rendering with literal CommonMark code blocks |
 | `authoring/setups/` | Exact private setup composition, conservative requirement aggregation and atomic immutable registration |
-| `authoring/scaffold/` | Minimal exact source plans and recoverable non-overwriting directory creation |
+| `authoring/scaffold/` | Minimal exact portable source plans |
+| `files/tree.rs` | Shared recoverable directory publication with no-replace rename |
 | `identity/` | Explicit offline identity initialization, private key storage and public signing identity |
 | `authoring/source_project.rs` | One bounded source snapshot, metadata separation and structural readiness |
 | `authoring/adaptations.rs` | Explicit portable-to-native projections preserving source bodies and modes |
 | `authoring/native_edit.rs` | Exact native adaptation replacement with complete scope preservation |
 | `authoring/setups/copies.rs` | Private exact setup forks and recasts with atomic lineage |
+| `authoring/setups/export.rs` | Exact review-tree export from query-only retained state |
 | `authoring/project_binding.rs` | Atomic portable project identity and complete adaptation refresh |
 | `authoring/runtime.rs` | Identity-bound local plans, closed operation dispatch and private registry reads |
 | `authoring/bindings.rs` | Shared local source addresses, relocation and binding replacement |

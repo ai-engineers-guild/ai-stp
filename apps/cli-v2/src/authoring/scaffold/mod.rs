@@ -1,7 +1,5 @@
 //! Minimal portable source trees, planned byte-for-byte before creation.
 
-mod tree;
-
 use std::{collections::BTreeMap, path::Path};
 
 use serde::{Deserialize, Serialize};
@@ -11,7 +9,7 @@ use super::passports::Patch;
 use crate::{
     canonical, digest,
     error::{Failure, Result},
-    files,
+    files::{self, tree},
 };
 
 const DRAFT: &str = "TODO(ai-stp-scaffold):";
@@ -100,7 +98,15 @@ pub fn apply(plan: &Plan, expected_digest: &str) -> Result<serde_json::Value> {
     {
         return Err(invalid());
     }
-    let (created, cleanup_pending) = tree::publish(plan, expected_digest)?;
+    let (created, cleanup_pending) = tree::publish(
+        &tree::Tree {
+            output: &plan.output,
+            parent_identity: &plan.parent_identity,
+            files: &plan.files,
+            purpose: tree::Purpose::Scaffold,
+        },
+        expected_digest,
+    )?;
     Ok(json!({"schema_version":1,"plan_digest":expected_digest,
         "output":serde_json::to_value(plan).map_err(|_|invalid())?["output"],
         "files_written":if created { plan.files.len() } else { 0 },

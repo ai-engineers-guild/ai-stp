@@ -1,7 +1,7 @@
-//! Create only a new, fully verified source directory. Existing paths never move.
+//! Publish a fully verified new directory. Existing paths never move.
 
 use std::{
-    collections::BTreeSet,
+    collections::{BTreeMap, BTreeSet},
     io::{Read, Write},
     path::{Path, PathBuf},
 };
@@ -9,15 +9,36 @@ use std::{
 use cap_fs_ext::{DirExt, MetadataExt};
 use cap_std::fs::{Dir, DirBuilder, Metadata};
 
-use super::Plan;
 use crate::{
     error::{Failure, Result},
     files::{self, OwnedDirectory, private_options},
 };
 
+pub(crate) enum Purpose {
+    Scaffold,
+    SetupExport,
+}
+
+impl Purpose {
+    fn label(&self) -> &'static str {
+        match self {
+            Self::Scaffold => "scaffold",
+            Self::SetupExport => "setup-export",
+        }
+    }
+}
+
+/// Domain callers recompute these exact files before publication.
+pub(crate) struct Tree<'a> {
+    pub output: &'a str,
+    pub parent_identity: &'a [String; 2],
+    pub files: &'a BTreeMap<String, String>,
+    pub purpose: Purpose,
+}
+
 fn refused() -> Failure {
     Failure::precondition(
-        "the scaffold destination or staging tree changed, is unsafe or inaccessible",
+        "the output destination or staging tree changed, is unsafe or inaccessible",
     )
 }
 
@@ -25,7 +46,7 @@ fn identity(metadata: &Metadata) -> [String; 2] {
     [metadata.dev().to_string(), metadata.ino().to_string()]
 }
 
-pub(super) fn destination(output: &Path) -> Result<(String, [String; 2])> {
+pub(crate) fn destination(output: &Path) -> Result<(String, [String; 2])> {
     let leaf = output.file_name().ok_or_else(refused)?;
     let parent = output
         .parent()
@@ -100,7 +121,7 @@ fn sync(directory: &Dir) -> Result<()> {
 }
 
 /// Partial recovery accepts only prefixes of planned files in the private stage.
-fn verify(directory: &Dir, plan: &Plan, partial: bool) -> Result<bool> {
+fn verify(directory: &Dir, plan: &Tree<'_>, partial: bool) -> Result<bool> {
     let mut expected_dirs = BTreeSet::new();
     for name in plan.files.keys() {
         let mut path = Path::new(name).parent();
@@ -164,7 +185,7 @@ fn verify(directory: &Dir, plan: &Plan, partial: bool) -> Result<bool> {
     Ok(complete)
 }
 
-fn existing(parent: &Dir, leaf: &Path, plan: &Plan) -> Result<bool> {
+fn existing(parent: &Dir, leaf: &Path, plan: &Tree<'_>) -> Result<bool> {
     match parent.symlink_metadata(leaf) {
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(false),
         Err(_) => Err(refused()),
@@ -176,9 +197,9 @@ fn existing(parent: &Dir, leaf: &Path, plan: &Plan) -> Result<bool> {
     }
 }
 
-fn fill(directory: &Dir, plan: &Plan) -> Result<()> {
+fn fill(directory: &Dir, plan: &Tree<'_>) -> Result<()> {
     verify(directory, plan, true)?;
-    for (name, content) in &plan.files {
+    for (name, content) in plan.files {
         let parts: Vec<_> = name.split('/').collect();
         let (leaf, ancestors) = parts.split_last().ok_or_else(refused)?;
         let mut parents = vec![directory.try_clone().map_err(|_| refused())?];
@@ -245,15 +266,16 @@ fn rename_new(stage: &Dir, parent: &Dir, leaf: &Path) -> Result<()> {
     Ok(())
 }
 
-fn stage_name(digest: &str) -> String {
+fn stage_name(purpose: &Purpose, digest: &str) -> String {
     format!(
-        ".ai-stp-scaffold-{}",
+        ".ai-stp-{}-{}",
+        purpose.label(),
         digest.strip_prefix("sha256:").unwrap_or(digest)
     )
 }
 
-fn owner(digest: &str) -> Vec<u8> {
-    format!("ai-stp-scaffold/1\n{digest}\n").into_bytes()
+fn owner(purpose: &Purpose, digest: &str) -> Vec<u8> {
+    format!("ai-stp-{}/1\n{digest}\n", purpose.label()).into_bytes()
 }
 
 fn clean(parent: &Dir, name: &str, stage: OwnedDirectory) {
@@ -277,27 +299,29 @@ fn outcome(parent: &Dir, name: &str, created: bool) -> (bool, bool) {
     (created, !removed)
 }
 
-pub(super) fn publish(plan: &Plan, digest: &str) -> Result<(bool, bool)> {
-    let output = Path::new(&plan.output);
-    if destination(output)? != (plan.output.clone(), plan.parent_identity.clone()) {
+pub(crate) fn publish(plan: &Tree<'_>, digest: &str) -> Result<(bool, bool)> {
+    let output = Path::new(plan.output);
+    if destination(output)? != (plan.output.to_owned(), plan.parent_identity.clone()) {
         return Err(refused());
     }
     let root = output.parent().ok_or_else(refused)?;
     let leaf = PathBuf::from(output.file_name().ok_or_else(refused)?);
     let parent =
         Dir::open_ambient_dir(root, cap_std::ambient_authority()).map_err(|_| refused())?;
-    if identity(&parent.dir_metadata().map_err(|_| refused())?) != plan.parent_identity {
+    if &identity(&parent.dir_metadata().map_err(|_| refused())?) != plan.parent_identity {
         return Err(refused());
     }
-    let name = stage_name(digest);
+    let name = stage_name(&plan.purpose, digest);
     if existing(&parent, &leaf, plan)? {
-        if let Ok(Some(stage)) = OwnedDirectory::open_at(&parent, &name, &owner(digest), false) {
+        if let Ok(Some(stage)) =
+            OwnedDirectory::open_at(&parent, &name, &owner(&plan.purpose, digest), false)
+        {
             clean(&parent, &name, stage);
         }
         let _ = parent.remove_dir(&name);
         return Ok(outcome(&parent, &name, false));
     }
-    let stage = match OwnedDirectory::open_at(&parent, &name, &owner(digest), true) {
+    let stage = match OwnedDirectory::open_at(&parent, &name, &owner(&plan.purpose, digest), true) {
         Ok(Some(stage)) => stage,
         result => {
             // A concurrent replay can remove its stage while this caller waits
@@ -323,7 +347,7 @@ pub(super) fn publish(plan: &Plan, digest: &str) -> Result<(bool, bool)> {
     drop(directory);
     stage.sync()?;
     sync(&parent)?;
-    if destination(output)? != (plan.output.clone(), plan.parent_identity.clone()) {
+    if destination(output)? != (plan.output.to_owned(), plan.parent_identity.clone()) {
         return Err(refused());
     }
     rename_new(&stage.directory, &parent, &leaf)?;

@@ -4,7 +4,7 @@ use rusqlite::{Connection, OptionalExtension, params};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
-use super::{Member, Request, aggregate::Aggregate, compile, finish, verify};
+use super::{Member, Request, Source, aggregate::Aggregate, compile, exact, finish, verify};
 use crate::{
     authoring::{Identity, expiry},
     digest,
@@ -18,14 +18,6 @@ use crate::{
         versions,
     },
 };
-
-#[derive(Clone, Deserialize, Serialize)]
-#[serde(deny_unknown_fields)]
-pub struct Source {
-    pub stable_id: String,
-    pub version: String,
-    pub passport_digest: String,
-}
 
 #[derive(Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -61,19 +53,6 @@ fn text<'a>(value: &'a Value, key: &str) -> Result<&'a str> {
         .as_str()
         .filter(|s| !s.is_empty())
         .ok_or_else(invalid)
-}
-
-fn source(connection: &Connection, reference: &Source) -> Result<Value> {
-    if !passport::stable_id(&reference.stable_id, "setup") {
-        return Err(invalid());
-    }
-    let document = Objects { connection }.exact_version(
-        &reference.stable_id,
-        &reference.version,
-        Some(&reference.passport_digest),
-    )?;
-    verify(connection, &document)?;
-    Ok(document)
 }
 
 fn build(connection: &Connection, plan: &Plan, original: Value) -> Result<(Value, Vec<u8>)> {
@@ -192,7 +171,7 @@ pub fn plan(
     identity.validate()?;
     let expires_at = expiry(at)?;
     store.transaction(|t| {
-        let original = source(t, &reference)?;
+        let original = exact(t, &reference)?;
         let mut plan = Plan {
             schema_version: 1,
             action: if target.is_some() {
@@ -260,7 +239,7 @@ pub fn apply(
         if at < plan.created_at.as_str() || at > plan.expires_at.as_str() { return Err(invalid()); }
         let exists: bool = t.query_row("SELECT EXISTS(SELECT 1 FROM entity WHERE stable_id=?)",[id],|r|r.get(0)).map_err(database)?;
         if exists { return Err(Failure::new(ErrorKind::Conflict,"the planned setup identity already exists")); }
-        let (document,bytes) = build(t,plan,source(t,&plan.source)?)?;
+        let (document,bytes) = build(t,plan,exact(t,&plan.source)?)?;
         if document != plan.passport { return Err(invalid()); }
         revisions::content(t,&bytes,at)?;
         revisions::commit(t,&document,&identity.device_id,Some(&plan.operation_id),Write::Advance {expected_heads:&[]})?;

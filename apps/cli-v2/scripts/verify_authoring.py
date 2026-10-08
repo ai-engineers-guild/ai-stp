@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from ai_stp_contracts.cli.components import PassportView
-from ai_stp_foundation.digests import digest_canonical
+from ai_stp_foundation.digests import digest_bytes, digest_canonical
 from ai_stp_passports import ComponentVersionPassport, SetupVersionPassport
 
 Runner = Callable[[Path, Path, list[str], int], dict[str, Any]]
@@ -379,6 +379,38 @@ def prove(binary: Path, home: Path, temporary: Path, run: Runner) -> None:
         "--passport-digest",
         source["passport_digest"],
     ]
+    output = root / "setup-export-cafe\u0301"
+    exported = invoke(["setup", "export", "plan", *setup_source_args, "--output", str(output)])
+    assert not output.exists()
+    export_path = plan_file(exported, "setup-export-plan")
+    export_args = [
+        "setup",
+        "export",
+        "apply",
+        "--plan",
+        str(export_path),
+        "--plan-digest",
+        exported["plan_digest"],
+    ]
+    result = invoke(export_args)
+    assert result["outcome"] == "created" and result["files_written"] == 3
+    assert result["physical_target_tree_created"] is False
+    assert sorted(p.name for p in output.iterdir()) == [
+        "export-manifest.json",
+        "setup-definition.json",
+        "setup-passport.json",
+    ]
+    exported_passport = json.loads((output / "setup-passport.json").read_bytes())
+    SetupVersionPassport.model_validate(exported_passport)
+    assert exported_passport == setup
+    manifest = json.loads((output / "export-manifest.json").read_bytes())
+    assert manifest.pop("export_digest") == result["export_digest"]
+    assert digest_canonical("ai-stp:setup-export:v1", manifest) == result["export_digest"]
+    for name, expected in manifest["files"].items():
+        assert digest_bytes("ai-stp:artifact:v1", (output / name).read_bytes()) == expected
+    assert manifest["definition_digest"] == setup["artifact"]["digest"]
+    replay = invoke(export_args)
+    assert replay["outcome"] == "already_matches" and replay["files_written"] == 0
     for action in ["fork", "recast"]:
         target = ["--target-harness", "cursor"] if action == "recast" else []
         copy_plan = invoke(["setup", action, "plan", *setup_source_args, *target])

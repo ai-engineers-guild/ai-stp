@@ -2,6 +2,7 @@
 
 mod aggregate;
 pub mod copies;
+pub mod export;
 
 use rusqlite::{Connection, params};
 use serde::{Deserialize, Serialize};
@@ -23,6 +24,28 @@ use crate::{
 };
 
 const FORMAT: &str = "ai-stp-setup-definition/1";
+
+/// Exact immutable setup coordinate, independently verified before use.
+#[derive(Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct Source {
+    pub stable_id: String,
+    pub version: String,
+    pub passport_digest: String,
+}
+
+fn exact(connection: &Connection, reference: &Source) -> Result<Value> {
+    if !passport::stable_id(&reference.stable_id, "setup") {
+        return Err(invalid());
+    }
+    let document = Objects { connection }.exact_version(
+        &reference.stable_id,
+        &reference.version,
+        Some(&reference.passport_digest),
+    )?;
+    verify(connection, &document)?;
+    Ok(document)
+}
 
 #[derive(Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]

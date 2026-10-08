@@ -2,7 +2,7 @@ use ai_stp_cli_v2::{
     artifacts::{self, Member as File},
     authoring::{
         Identity, releases,
-        setups::{self, Member, Request, copies},
+        setups::{self, Member, Request, copies, export},
     },
     digest,
     error::Failure,
@@ -13,7 +13,7 @@ use ai_stp_cli_v2::{
     },
 };
 use serde_json::{Value, json};
-use std::error::Error;
+use std::{error::Error, fs, path::Path};
 
 const AT: &str = "2026-10-08T00:00:00.000Z";
 const LATER: &str = "2026-10-09T00:00:00.000Z";
@@ -33,13 +33,89 @@ fn counts(store: &mut Store) -> Result<(i64, i64, i64, i64, i64), Failure> {
     store.transaction(|t| t.query_row("SELECT (SELECT count(*) FROM entity),(SELECT count(*) FROM revision),(SELECT count(*) FROM content),(SELECT count(*) FROM operation),(SELECT count(*) FROM object_version)",[],|r|Ok((r.get(0)?,r.get(1)?,r.get(2)?,r.get(3)?,r.get(4)?))).map_err(|_| Failure::precondition("proof query failed")))
 }
 
+fn export_journey(parent: &Path, source: &Value) -> Result<export::Plan, Box<dyn Error>> {
+    let before = counts(&mut Store::planning(parent)?)?;
+    let reference = setups::Source {
+        stable_id: field(source, "stable_id")?.into(),
+        version: field(source, "version")?.into(),
+        passport_digest: digest::canonical("ai-stp:passport:v1", source)?,
+    };
+    let output = parent.join("export-cafe\u{301}");
+    let plan = export::plan(parent, reference.clone(), &output)?;
+    let plan: export::Plan = serde_json::from_value(ai_stp_cli_v2::canonical::parse(
+        &ai_stp_cli_v2::canonical::bytes(&serde_json::to_value(plan)?)?,
+    )?)?;
+    assert_eq!(Path::new(&plan.output).file_name(), output.file_name());
+    assert!(!output.exists());
+    let digest = plan.digest()?;
+    assert!(export::apply(&plan, "wrong-digest").is_err());
+    let mut forged = plan.clone();
+    forged.files.insert("../../escape".into(), "keep".into());
+    assert!(export::apply(&forged, &forged.digest()?).is_err());
+    forged = plan.clone();
+    forged.source.passport_digest = digest::sha256(b"substituted");
+    assert!(export::apply(&forged, &forged.digest()?).is_err());
+    assert!(!output.exists());
+    let result = export::apply(&plan, &digest)?;
+    assert_eq!(result["outcome"], "created");
+    assert_eq!(result["files_written"], 3);
+    assert_eq!(result["staging_cleanup_pending"], false);
+    assert_eq!(fs::read_dir(&output)?.count(), 3);
+    assert_eq!(
+        serde_json::from_slice::<Value>(&fs::read(output.join("setup-passport.json"))?)?,
+        *source
+    );
+    let definition = fs::read(output.join("setup-definition.json"))?;
+    assert_eq!(
+        digest::bytes("ai-stp:artifact:v1", &definition)?,
+        source["artifact"]["digest"]
+    );
+    let mut manifest: Value =
+        serde_json::from_slice(&fs::read(output.join("export-manifest.json"))?)?;
+    assert_eq!(manifest["export_digest"], result["export_digest"]);
+    manifest
+        .as_object_mut()
+        .ok_or("manifest")?
+        .remove("export_digest");
+    assert_eq!(
+        digest::canonical("ai-stp:setup-export:v1", &manifest)?,
+        result["export_digest"]
+    );
+    for (name, content) in &plan.files {
+        assert_eq!(fs::read(output.join(name))?, content.as_bytes());
+        if name != "export-manifest.json" {
+            assert_eq!(
+                manifest["files"][name],
+                digest::bytes("ai-stp:artifact:v1", content.as_bytes())?
+            );
+        }
+    }
+    let replay = export::apply(&plan, &digest)?;
+    assert_eq!(replay["outcome"], "already_matches");
+    assert_eq!(replay["files_written"], 0);
+    assert!(export::plan(parent, reference.clone(), &output).is_err());
+    fs::write(output.join("setup-passport.json"), b"user changes")?;
+    assert!(export::apply(&plan, &digest).is_err());
+    assert_eq!(
+        fs::read(output.join("setup-passport.json"))?,
+        b"user changes"
+    );
+    let pending = export::plan(parent, reference.clone(), &parent.join("pending-export"))?;
+    assert_eq!(counts(&mut Store::planning(parent)?)?, before);
+    let absent = parent.join("absent-state");
+    fs::create_dir(&absent)?;
+    assert!(export::plan(&absent, reference, &parent.join("absent-export")).is_err());
+    assert_eq!(fs::read_dir(absent)?.count(), 0);
+    Ok(pending)
+}
+
 fn copies_journey(
     store: &mut Store,
     source: &Value,
     empty: &Value,
     identity: &Identity,
 ) -> Result<(), Box<dyn Error>> {
-    let reference = copies::Source {
+    let reference = setups::Source {
         stable_id: field(source, "stable_id")?.into(),
         version: field(source, "version")?.into(),
         passport_digest: digest::canonical("ai-stp:passport:v1", source)?,
@@ -144,7 +220,7 @@ fn copies_journey(
     assert_eq!(forked["components"], source["components"]);
     let empty = copies::plan(
         store,
-        copies::Source {
+        setups::Source {
             stable_id: field(empty, "stable_id")?.into(),
             version: "1.0".into(),
             passport_digest: digest::canonical("ai-stp:passport:v1", empty)?,
@@ -196,7 +272,7 @@ fn copies_journey(
         )?;
         versions::record(t, &document, &identity.device_id, None, AT)
     })?;
-    let weak_source = copies::Source {
+    let weak_source = setups::Source {
         stable_id: field(&weaker, "stable_id")?.into(),
         version: "1.0".into(),
         passport_digest: digest::canonical("ai-stp:passport:v1", &weaker)?,
@@ -587,6 +663,7 @@ fn exact_setup_closure_constraints_atomicity_and_replay() -> Result<(), Box<dyn 
     assert_eq!(empty["member_metadata_complete"], true);
     copies_journey(&mut store, &setup, &empty, &identity)?;
     drop(store);
+    let pending_export = export_journey(root.path(), &setup)?;
     let mut store = Store::open(root.path(), false)?;
     assert_eq!(
         setups::apply(&mut store, &plan, &plan.digest()?, &identity, LATER)?,
@@ -604,5 +681,8 @@ fn exact_setup_closure_constraints_atomicity_and_replay() -> Result<(), Box<dyn 
         Ok(())
     })?;
     assert!(setups::apply(&mut store, &plan, &plan.digest()?, &identity, LATER).is_err());
+    drop(store);
+    assert!(export::apply(&pending_export, &pending_export.digest()?).is_err());
+    assert!(!Path::new(&pending_export.output).exists());
     Ok(())
 }

@@ -30,6 +30,8 @@ pub(super) enum Handler {
     Compose,
     SetupFork,
     SetupRecast,
+    ExportPlan,
+    ExportApply,
     Apply,
     Show,
     Version,
@@ -40,7 +42,7 @@ impl Handler {
     pub(super) fn mutability(self) -> &'static str {
         match self {
             Self::Discover | Self::Show | Self::Version | Self::Versions => "read",
-            Self::Apply => "apply",
+            Self::Apply | Self::ExportApply => "apply",
             _ => "plan",
         }
     }
@@ -105,6 +107,42 @@ const PROVIDERS: Parameter = Parameter {
 };
 
 pub(super) const COMMANDS: &[Declaration] = &[
+    Declaration {
+        path: &["setup", "export", "plan"],
+        summary: "Plan three exact setup review files from retained state; requires no credentials and creates no harness tree.",
+        parameters: &[
+            STATE_DIR,
+            ID,
+            VERSION,
+            PASSPORT_DIGEST,
+            Parameter {
+                name: "output",
+                summary: "Unused output directory beneath an existing parent.",
+                kind: ParameterType::Path,
+                required: true,
+            },
+        ],
+        handler: super::Handler::Local(Handler::ExportPlan),
+    },
+    Declaration {
+        path: &["setup", "export", "apply"],
+        summary: "Verify the exact retained setup and safely publish or replay its review directory.",
+        parameters: &[
+            Parameter {
+                name: "plan",
+                summary: "Closed setup export plan JSON, at most 8 MiB.",
+                kind: ParameterType::Path,
+                required: true,
+            },
+            Parameter {
+                name: "plan-digest",
+                summary: "Exact digest returned by setup export plan.",
+                kind: ParameterType::String,
+                required: true,
+            },
+        ],
+        handler: super::Handler::Local(Handler::ExportApply),
+    },
     Declaration {
         path: &["component", "adaptation", "edit", "plan"],
         summary: "Plan a complete native adaptation replacement in an owned draft, preserving every existing scope and other harness.",
@@ -326,6 +364,22 @@ fn providers(args: &ArgMatches) -> Result<Vec<Info>> {
 
 pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
     match handler {
+        Handler::ExportPlan => {
+            let plan = setups::export::plan(
+                path(args, "state-dir")?,
+                setups::Source {
+                    stable_id: text(args, "id")?.into(),
+                    version: text(args, "version")?.into(),
+                    passport_digest: text(args, "passport-digest")?.into(),
+                },
+                path(args, "output")?,
+            )?;
+            Ok(serde_json::json!({"plan_digest":plan.digest()?,"plan":plan}))
+        }
+        Handler::ExportApply => setups::export::apply(
+            &setups::export::read(path(args, "plan")?)?,
+            text(args, "plan-digest")?,
+        ),
         Handler::NativeEdit => {
             let sources: Vec<native_edit::Source> = serde_json::from_value(canonical::parse(
                 &files::read(path(args, "sources")?, 256 * 1024)?,
@@ -445,7 +499,7 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
             })
         }
         Handler::SetupFork | Handler::SetupRecast => {
-            let source = setups::copies::Source {
+            let source = setups::Source {
                 stable_id: text(args, "id")?.into(),
                 version: text(args, "version")?.into(),
                 passport_digest: text(args, "passport-digest")?.into(),
