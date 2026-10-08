@@ -18,13 +18,17 @@ fn representation(bytes: &[u8]) -> String {
 }
 
 pub fn canonical(domain: &str, value: &Value) -> Result<String> {
+    bytes(domain, &canonical::bytes(value)?)
+}
+
+pub fn bytes(domain: &str, payload: &[u8]) -> Result<String> {
     if !DOMAINS.contains(&domain) {
         return Err(Failure::input("unknown digest domain"));
     }
     let mut hash = Sha256::new();
     hash.update(domain.as_bytes());
     hash.update([0]);
-    hash.update(canonical::bytes(value)?);
+    hash.update(payload);
     Ok(representation(&hash.finalize()))
 }
 

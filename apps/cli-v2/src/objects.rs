@@ -21,7 +21,31 @@ fn absent() -> Failure {
     )
 }
 
+pub(crate) struct Objects<'a> {
+    pub connection: &'a rusqlite::Connection,
+}
+
 impl Snapshot {
+    pub fn exact_version(&self, id: &str, version: &str, expected: Option<&str>) -> Result<Value> {
+        self.objects().exact_version(id, version, expected)
+    }
+    pub fn passport(&self, kind: &str, id: Option<&str>) -> Result<Value> {
+        self.objects().passport(kind, id)
+    }
+    pub fn revision(&self, id: &str) -> Result<Value> {
+        self.objects().revision(id)
+    }
+    pub fn versions(&self, id: &str) -> Result<Value> {
+        self.objects().versions(id)
+    }
+    pub(crate) fn objects(&self) -> Objects<'_> {
+        Objects {
+            connection: &self.connection,
+        }
+    }
+}
+
+impl Objects<'_> {
     pub fn exact_version(&self, id: &str, version: &str, expected: Option<&str>) -> Result<Value> {
         if (!passport::stable_id(id, "component") && !passport::stable_id(id, "setup"))
             || !passport::version_number(version)

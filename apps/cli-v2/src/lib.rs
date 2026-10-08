@@ -15,6 +15,7 @@ pub mod provenance;
 pub mod registry;
 pub mod selection;
 pub mod snapshot;
+pub mod store;
 mod wire;
 
 use std::ffi::OsString;

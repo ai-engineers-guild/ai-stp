@@ -115,6 +115,16 @@ install order is returned. Limits are depth 32, 512 nodes and 8,192 edges.
 Proposal inspection creates no session or object. Historical fact-only drafts
 are not accepted as complete immutable version passports.
 
+The headless `store` service owns an explicit `ai-stp-v2-state` directory with
+private permissions, an ownership marker and a bounded process lock. Its clean
+schema-53 bootstrap preserves the complete data format without historical
+migrations. Unknown schemas are refused before writes; SQLite uses foreign keys,
+defensive mode, an untrusted schema and FULL-synchronous WAL. Revision changes
+check all expected heads inside `BEGIN IMMEDIATE`; content and revisions commit
+or roll back together. Replaying a known revision preserves the current head.
+Immutable snapshots never move draft heads. This service does not yet expose
+authoring commands or import a production registry.
+
 ## Modules and proof
 
 | Owner | Responsibility |
@@ -130,6 +140,7 @@ are not accepted as complete immutable version passports.
 | `projects/` | Bounded project discovery and content-free file evidence |
 | `environment.rs` | Exact setup prerequisites, project binding and variable-name presence |
 | `selection/` | Verified exact dependency graphs and deterministic ordering |
+| `store/`, `files/owned.rs` | Explicit owned state, atomic revision writes and shared private-file primitives |
 | `provenance.rs` | Offline PEP 740 cryptographic verification and publisher policy |
 
 The provenance service accepts a caller-owned trusted root and an artifact
@@ -155,6 +166,9 @@ provenance, cache corruption, contention and eviction.
 Graph evidence uses real component/setup versions and saved proposals, checking
 shared dependencies, input-order independence, substitution, deletion, stale
 coordinates and depth/edge exhaustion against the existing graph consumer.
+The native state journey checks persisted history after reopen, stale writes,
+ancestor replay, writer exclusion and rollback before commit. The schema oracle
+compares every table, index and constraint with a real schema-53 registry.
 
 For an independently downloaded artifact and its provenance, the explicit
 evidence runner hashes the actual file before verification:

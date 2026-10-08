@@ -1,5 +1,8 @@
 //! Bounded input and display paths shared by read services.
 
+mod owned;
+pub(crate) use owned::{OwnedDirectory, private_options};
+
 use std::{
     io::Read,
     path::{Path, PathBuf},

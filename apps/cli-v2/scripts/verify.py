@@ -99,6 +99,25 @@ def prove(binary: Path, root: Path) -> None:
     backup = root / "backup.sqlite"
     source = open_registry(live)
     try:
+        # The native clean bootstrap keeps the complete persisted format,
+        # including constraints and indexes, without the migration history.
+        bootstrap = Path(__file__).resolve().parents[1] / "src" / "store" / "schema.sql"
+        with closing(sqlite3.connect(":memory:")) as fresh:
+            fresh.executescript(bootstrap.read_text(encoding="utf-8"))
+            query = (
+                "SELECT type, name, tbl_name, coalesce(sql, '') FROM sqlite_schema "
+                "WHERE name NOT LIKE 'sqlite_%' ORDER BY type, name"
+            )
+            expected_schema = [
+                (kind, name, table, " ".join(sql.split()))
+                for kind, name, table, sql in source.execute(query)
+            ]
+            actual_schema = [
+                (kind, name, table, " ".join(sql.split()))
+                for kind, name, table, sql in fresh.execute(query)
+            ]
+            assert actual_schema == expected_schema, "native state format drifted"
+            assert fresh.execute("PRAGMA user_version").fetchone()[0] == 53
         source.execute("PRAGMA wal_autocheckpoint=0")
         source.execute(
             "INSERT INTO entity(stable_id, kind, created_at) VALUES (?, ?, ?)",
