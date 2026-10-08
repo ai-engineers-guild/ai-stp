@@ -4,7 +4,7 @@ use clap::{Arg, ArgAction, ArgMatches, Command, builder::ValueParser};
 use serde_json::{Value, json};
 
 use crate::{
-    authoring::templates,
+    authoring::{scaffold, templates},
     catalog, config, digest, environment,
     error::{ErrorKind, Failure, Result},
     projects, selection, snapshot,
@@ -29,6 +29,8 @@ enum Handler {
     EnvironmentRequirements,
     DependencyGraph,
     TemplateRender,
+    ScaffoldPlan,
+    ScaffoldApply,
 }
 
 #[derive(Clone, Copy)]
@@ -150,6 +152,56 @@ const COMMANDS: &[Declaration] = &[
         summary: "Read and verify the current component passport from an explicit snapshot.",
         parameters: &[SNAPSHOT, SHA256, ID],
         handler: Handler::Passport("component"),
+    },
+    Declaration {
+        path: &["component", "scaffold", "apply"],
+        summary: "Create exactly the planned portable source tree without replacing any path.",
+        parameters: &[
+            Parameter {
+                name: "plan",
+                summary: "Explicit JSON plan from component scaffold plan.",
+                kind: ParameterType::Path,
+                required: true,
+            },
+            Parameter {
+                name: "plan-digest",
+                summary: "Exact scaffold plan digest returned by planning.",
+                kind: ParameterType::String,
+                required: true,
+            },
+        ],
+        handler: Handler::ScaffoldApply,
+    },
+    Declaration {
+        path: &["component", "scaffold", "plan"],
+        summary: "Preview every byte of a minimal portable component source tree.",
+        parameters: &[
+            Parameter {
+                name: "type",
+                summary: "Implemented portable source kind.",
+                kind: ParameterType::Choice(scaffold::KINDS),
+                required: true,
+            },
+            Parameter {
+                name: "language",
+                summary: "Use none for declarative components and an executable language for cli.",
+                kind: ParameterType::Choice(scaffold::LANGUAGES),
+                required: true,
+            },
+            Parameter {
+                name: "name",
+                summary: "Lowercase component slug, at most 64 ASCII characters.",
+                kind: ParameterType::String,
+                required: true,
+            },
+            Parameter {
+                name: "output",
+                summary: "New authoring directory below an existing parent.",
+                kind: ParameterType::Path,
+                required: true,
+            },
+        ],
+        handler: Handler::ScaffoldPlan,
     },
     Declaration {
         path: &["component", "template", "render"],
@@ -432,7 +484,9 @@ pub fn error_descriptors() -> Vec<Value> {
 
 fn descriptors() -> Vec<Value> {
     COMMANDS.iter().map(|item| json!({
-        "path": item.path, "summary": item.summary, "mutability": "read", "confirmation": "none",
+        "path": item.path, "summary": item.summary,
+        "mutability": match item.handler { Handler::ScaffoldPlan => "plan", Handler::ScaffoldApply => "apply", _ => "read" },
+        "confirmation": if matches!(item.handler,Handler::ScaffoldApply) { "plan_digest" } else { "none" },
         "parameters": item.parameters.iter().map(Parameter::descriptor).collect::<Vec<_>>(),
         "parameter_rules": [], "result_schema": null, "next_actions": []
     })).collect()
@@ -501,7 +555,8 @@ pub fn dispatch(matches: &ArgMatches) -> Result<Value> {
             "wire_schema_version": 1, "registry_digest": digest()?, "release_channel": "preview",
             "command_paths": COMMANDS.iter().map(|item| item.path.join(" ")).collect::<Vec<_>>(),
             "task_intents": [], "supported_harnesses": [], "catalog_enabled": true, "sync_enabled": false,
-            "state_access": "explicit_snapshot_read_only", "cache_access": "explicit_public_catalog_cache", "readable_local_schema_versions": [snapshot::SCHEMA_VERSION]})),
+            "state_access": "explicit_snapshot_read_only", "cache_access": "explicit_public_catalog_cache",
+            "authoring_access": "explicit_new_directory", "readable_local_schema_versions": [snapshot::SCHEMA_VERSION]})),
         Handler::Help => help(
             leaf.get_one::<String>("path").map_or("", String::as_str),
             leaf.get_one::<String>("find").map_or("", String::as_str),
@@ -515,6 +570,31 @@ pub fn dispatch(matches: &ArgMatches) -> Result<Value> {
                 .ok_or_else(|| Failure::input("name is required"))?,
             leaf.get_one::<String>("component-root")
                 .ok_or_else(|| Failure::input("component root is required"))?,
+        ),
+        Handler::ScaffoldPlan => {
+            let text = |name| {
+                leaf.get_one::<String>(name)
+                    .cloned()
+                    .ok_or_else(|| Failure::input("scaffold parameter is required"))
+            };
+            let plan = scaffold::plan(
+                leaf.get_one::<std::path::PathBuf>("output")
+                    .ok_or_else(|| Failure::input("output is required"))?,
+                scaffold::Request {
+                    component_type: text("type")?,
+                    name: text("name")?,
+                    language: text("language")?,
+                },
+            )?;
+            Ok(json!({"plan_digest":plan.digest()?,"plan":plan}))
+        }
+        Handler::ScaffoldApply => scaffold::apply(
+            &scaffold::read(
+                leaf.get_one::<std::path::PathBuf>("plan")
+                    .ok_or_else(|| Failure::input("plan is required"))?,
+            )?,
+            leaf.get_one::<String>("plan-digest")
+                .ok_or_else(|| Failure::input("plan digest is required"))?,
         ),
         Handler::Config => config::show(
             leaf.get_one::<std::path::PathBuf>("config")

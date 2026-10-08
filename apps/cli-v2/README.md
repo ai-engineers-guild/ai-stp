@@ -47,6 +47,36 @@ valid fences continuing to the end of input. This replaces the old three-charact
 fence heuristic. Active malformed/unknown template tags are refused. Reading
 normalizes line endings; rendering creates no state or files.
 
+`component scaffold plan` produces the exact UTF-8 files of a new portable
+instruction, skill, command, agent or CLI component. Declarative types require
+`none`; CLI programs cover the six existing authoring languages. Each tree has
+one source, a closed draft passport, `.gitignore` and a `component-scaffold/7`
+descriptor. It creates no boilerplate README, evaluation report, duplicate
+projection or Git repository. Every program has one runnable entry point and
+exits unsuccessfully with an explicit draft message until implemented. Descriptions
+carry the existing draft marker, so the tree cannot masquerade as a released
+product. Harness-specific scaffolds and hook/MCP/plugin generation remain pending;
+the preview does not advertise the old generators' unsupported semantics.
+
+Planning writes nothing and binds the resolved parent directory's physical
+identity and lossless output path. Applying requires the exact plan digest,
+regenerates the planned files and rechecks that identity. It uses a locked,
+private sibling stage; only matching prefixes of planned files can be resumed.
+Unknown content, links, extra entries and changed directories are refused.
+The complete tree moves into place with an atomic no-replace rename, including
+against an existing empty directory. Replays verify every byte and report
+`already_matches`; they neither overwrite later edits nor claim who created an
+identical tree. Cleanup removes only known staging metadata; a surviving stage
+is reported explicitly and retained for inspection/retry. An unmarked or damaged
+stage is refused instead of guessed to be owned. Unix flushes both files and
+directories; Windows flushes files but makes no power-loss directory-durability
+claim. The private stage and lock coordinate cooperating writers, not hostile
+same-account filesystem mutation. `rustix` owns Linux/macOS no-replace rename.
+On Windows, `winx` resolves held directory handles and `winsafe` calls
+`MoveFileExW` without replacement/copy flags; the standard rename fallback can
+replace an empty directory. These adapters can be removed when the standard
+capability API offers no-replace rename.
+
 Configuration reads use defaults unless an explicit YAML file is supplied.
 They preserve the existing closed fields and report each value's source;
 invocation overrides never write the file. The default registry location is
@@ -277,6 +307,7 @@ no async runtime or tracing feature is enabled for it.
 | `authoring/releases.rs`, `authoring/freezing.rs` | Planned component releases and deterministic native projection compilation |
 | `authoring/forks.rs` | Exact private component copies with atomic lineage and replay |
 | `authoring/templates.rs` | Bounded portable template rendering with literal CommonMark code blocks |
+| `authoring/scaffold/` | Minimal exact source plans and recoverable non-overwriting directory creation |
 | `provenance.rs` | Offline PEP 740 cryptographic verification and publisher policy |
 
 The provenance service accepts a caller-owned trusted root and an artifact

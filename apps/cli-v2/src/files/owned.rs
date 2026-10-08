@@ -40,6 +40,10 @@ impl OwnedDirectory {
     pub fn open(root: &Path, name: &str, owner: &[u8], create: bool) -> Result<Option<Self>> {
         let parent =
             Dir::open_ambient_dir(root, cap_std::ambient_authority()).map_err(|_| invalid())?;
+        Self::open_at(&parent, name, owner, create)
+    }
+
+    pub fn open_at(parent: &Dir, name: &str, owner: &[u8], create: bool) -> Result<Option<Self>> {
         if create {
             let mut builder = DirBuilder::new();
             builder.recursive(false);

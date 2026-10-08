@@ -90,6 +90,7 @@ def prove(binary: Path, root: Path) -> None:
     run(binary, home, ["unknown"], 2)
     prove_config(binary, home, root)
     prove_template(binary, home, root)
+    prove_scaffold(binary, home, root)
     prove_objects(binary, home, root)
     verify_projects.prove(binary, home, root, run)
     verify_catalog.prove(binary, home, root, run)
@@ -244,6 +245,59 @@ def prove_config(binary: Path, home: Path, root: Path) -> None:
         assert "must-not-be-echoed" not in json.dumps(answer)
     config.unlink()
     run(binary, home, ["config", "show", "--config", str(config)], 2)
+
+
+def prove_scaffold(binary: Path, home: Path, root: Path) -> None:
+    from ai_stp_contracts.authoring import ComponentTemplateDescriptor
+    from ai_stp_contracts.component_passport import ComponentPassportPatch
+
+    folder = root / "scaffold"
+    folder.mkdir()
+    pairs = [(kind, "none") for kind in ("instruction", "skill", "command", "agent")]
+    pairs.extend(
+        ("cli", language)
+        for language in ("python", "typescript", "javascript", "rust", "go", "dart-flutter")
+    )
+    for kind, language in pairs:
+        output = folder / f"{kind}-{language}"
+        response = run(
+            binary,
+            home,
+            [
+                "component",
+                "scaffold",
+                "plan",
+                "--type",
+                kind,
+                "--language",
+                language,
+                "--name",
+                "safe-component",
+                "--output",
+                str(output),
+            ],
+        )["data"]
+        plan = response["plan"]
+        expected = response["plan_digest"]
+        assert digest_canonical("ai-stp:scaffold-plan:v1", plan) == expected
+        assert not output.exists()
+        ComponentTemplateDescriptor.model_validate_json(plan["files"][".ai-stp-template.json"])
+        ComponentPassportPatch.model_validate_json(plan["files"]["component-passport.json"])
+        path = folder / f"{kind}-{language}.plan.json"
+        path.write_text(json.dumps(plan), encoding="utf-8")
+        apply = ["component", "scaffold", "apply", "--plan", str(path), "--plan-digest", expected]
+        result = run(binary, home, apply)["data"]
+        assert result["outcome"] == "created" and result["publication_ready"] is False
+        assert result["staging_cleanup_pending"] is False
+        assert result["files_written"] == len(plan["files"]) == 4
+        for name, content in plan["files"].items():
+            assert (output / name).read_bytes() == content.encode()
+        assert run(binary, home, apply)["data"]["outcome"] == "already_matches"
+        assert not any(output.rglob("README.md"))
+        assert not (output / ".git").exists()
+        assert not (output / "eval-profile.json").exists()
+        assert not list(folder.glob(".ai-stp-scaffold-*"))
+    assert not list(home.iterdir())
 
 
 def prove_template(binary: Path, home: Path, root: Path) -> None:

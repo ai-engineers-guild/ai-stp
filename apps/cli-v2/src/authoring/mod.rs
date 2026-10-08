@@ -7,6 +7,7 @@ pub mod forks;
 mod freezing;
 pub mod passports;
 pub mod releases;
+pub mod scaffold;
 pub mod source;
 pub mod templates;
 

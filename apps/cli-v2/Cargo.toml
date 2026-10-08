@@ -38,6 +38,13 @@ url = "=2.5.8"
 zip = { version = "=8.6.0", default-features = false }
 crc32fast = "=1.5.2"
 
+[target.'cfg(any(target_os = "linux", target_os = "macos"))'.dependencies]
+rustix = { version = "=1.1.5", features = ["fs"] }
+
+[target.'cfg(windows)'.dependencies]
+winsafe = { version = "=0.0.29", default-features = false, features = ["kernel"] }
+winx = "=0.36.4"
+
 [dev-dependencies]
 tempfile = "=3.27.0"
 
