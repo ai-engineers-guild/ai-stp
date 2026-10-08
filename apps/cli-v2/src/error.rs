@@ -13,14 +13,16 @@ pub enum ErrorKind {
     Input,
     NotFound,
     Precondition,
+    Conflict,
     Internal,
 }
 
 impl ErrorKind {
-    pub const ALL: [Self; 4] = [
+    pub const ALL: [Self; 5] = [
         Self::Input,
         Self::NotFound,
         Self::Precondition,
+        Self::Conflict,
         Self::Internal,
     ];
 
@@ -29,6 +31,7 @@ impl ErrorKind {
             Self::Input => "AI_STP_VALIDATION_ERROR",
             Self::NotFound => "AI_STP_NOT_FOUND",
             Self::Precondition => "AI_STP_PRECONDITION_FAILED",
+            Self::Conflict => "AI_STP_CONFLICT",
             Self::Internal => "AI_STP_INTERNAL",
         }
     }
@@ -36,7 +39,7 @@ impl ErrorKind {
     pub fn exit_code(self) -> u8 {
         match self {
             Self::Input | Self::NotFound => 2,
-            Self::Precondition => 4,
+            Self::Precondition | Self::Conflict => 4,
             Self::Internal => 70,
         }
     }
@@ -48,7 +51,7 @@ impl ErrorKind {
                 "The invocation or input document is invalid.",
             ),
             Self::NotFound => ("correct_request", "The requested object does not exist."),
-            Self::Precondition => (
+            Self::Precondition | Self::Conflict => (
                 "reconcile_state",
                 "The input does not satisfy the operation's preconditions.",
             ),

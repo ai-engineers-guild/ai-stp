@@ -56,6 +56,14 @@ accepts schema 53 only, bounds the input to 128 MiB and limits SQLite work.
 It never creates sidecars beside the source or applies migrations. Snapshot
 origin is the caller's responsibility; a digest proves bytes, not who made them.
 
+Local passport and version reads use the same explicit snapshot boundary.
+They verify the embedded envelope schema, cross-field fact rules, content-derived
+revision ID, row identity, parent links and immutable version digests. Conflicting
+heads produce a conflict; reads never choose a winner or mint an identity.
+The envelope schema is compiled into the binary from the generated repository
+contract, with external schema retrieval disabled. No schema files or Python
+installation are needed at runtime.
+
 ## Modules and proof
 
 | Owner | Responsibility |
@@ -65,7 +73,8 @@ origin is the caller's responsibility; a digest proves bytes, not who made them.
 | `registry.rs` | Executable command definitions and dispatch |
 | `canonical.rs`, `digest.rs` | Strict NFC + RFC 8785 data and closed digest domains |
 | `config.rs`, `files.rs` | Explicit bounded configuration reads and path rendering |
-| `snapshot.rs` | Explicit backup inspection |
+| `snapshot.rs`, `objects.rs` | Explicit backup inspection and verified local reads |
+| `passport.rs` | Embedded schema validation, passport identities and revision digests |
 | `provenance.rs` | Offline PEP 740 cryptographic verification and publisher policy |
 
 The provenance service accepts a caller-owned trusted root and an artifact

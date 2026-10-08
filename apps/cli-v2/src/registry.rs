@@ -18,6 +18,8 @@ enum Handler {
     Capabilities,
     Snapshot,
     Config,
+    Passport(&'static str),
+    Versions,
 }
 
 #[derive(Clone, Copy)]
@@ -77,12 +79,43 @@ const CONFIG: Parameter = Parameter {
     required: false,
 };
 
+const SNAPSHOT: Parameter = Parameter {
+    name: "snapshot",
+    summary: "Standalone schema-53 SQLite backup in DELETE journal mode (at most 128 MiB).",
+    kind: ParameterType::Path,
+    required: true,
+};
+const SHA256: Parameter = Parameter {
+    name: "sha256",
+    summary: "Expected sha256:<hex> digest of the exact backup bytes.",
+    kind: ParameterType::String,
+    required: true,
+};
+const ID: Parameter = Parameter {
+    name: "id",
+    summary: "Exact stable object identifier.",
+    kind: ParameterType::String,
+    required: true,
+};
+
 const COMMANDS: &[Declaration] = &[
     Declaration {
         path: &["capabilities"],
         summary: "List the capabilities implemented by this native preview.",
         parameters: &[],
         handler: Handler::Capabilities,
+    },
+    Declaration {
+        path: &["component", "passport", "show"],
+        summary: "Read and verify the current component passport from an explicit snapshot.",
+        parameters: &[SNAPSHOT, SHA256, ID],
+        handler: Handler::Passport("component"),
+    },
+    Declaration {
+        path: &["component", "version", "list"],
+        summary: "Verify immutable version history and its next minor coordinate.",
+        parameters: &[SNAPSHOT, SHA256, ID],
+        handler: Handler::Versions,
     },
     Declaration {
         path: &["config", "show"],
@@ -130,22 +163,21 @@ const COMMANDS: &[Declaration] = &[
         handler: Handler::Help,
     },
     Declaration {
+        path: &["passport", "developer", "show"],
+        summary: "Read the verified developer passport without creating an identity.",
+        parameters: &[SNAPSHOT, SHA256],
+        handler: Handler::Passport("developer"),
+    },
+    Declaration {
+        path: &["passport", "device", "show"],
+        summary: "Read the verified device passport without refreshing observations.",
+        parameters: &[SNAPSHOT, SHA256],
+        handler: Handler::Passport("device"),
+    },
+    Declaration {
         path: &["snapshot", "inspect"],
         summary: "Inspect an explicit schema-53 SQLite backup without opening live state.",
-        parameters: &[
-            Parameter {
-                name: "snapshot",
-                summary: "Standalone SQLite backup in DELETE journal mode (at most 128 MiB).",
-                kind: ParameterType::Path,
-                required: true,
-            },
-            Parameter {
-                name: "sha256",
-                summary: "Expected sha256:<hex> digest of the exact backup bytes.",
-                kind: ParameterType::String,
-                required: true,
-            },
-        ],
+        parameters: &[SNAPSHOT, SHA256],
         handler: Handler::Snapshot,
     },
     Declaration {
@@ -288,14 +320,28 @@ pub fn dispatch(matches: &ArgMatches) -> Result<Value> {
                 .map(|values| values.cloned().collect::<Vec<_>>())
                 .unwrap_or_default(),
         ),
-        Handler::Snapshot => {
+        Handler::Snapshot | Handler::Passport(_) | Handler::Versions => {
             let path = leaf
                 .get_one::<std::path::PathBuf>("snapshot")
                 .ok_or_else(|| Failure::input("snapshot is required"))?;
             let digest = leaf
                 .get_one::<String>("sha256")
                 .ok_or_else(|| Failure::input("sha256 is required"))?;
-            snapshot::inspect(path, digest)
+            let state = snapshot::Snapshot::open(path, digest)?;
+            match declaration.handler {
+                Handler::Passport(kind) => state.passport(
+                    kind,
+                    leaf.try_get_one::<String>("id")
+                        .ok()
+                        .flatten()
+                        .map(String::as_str),
+                ),
+                Handler::Versions => state.versions(
+                    leaf.get_one::<String>("id")
+                        .ok_or_else(|| Failure::input("id is required"))?,
+                ),
+                _ => Ok(state.report()),
+            }
         }
     }
 }

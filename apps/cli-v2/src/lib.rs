@@ -5,6 +5,8 @@ pub mod config;
 pub mod digest;
 pub mod error;
 mod files;
+pub mod objects;
+pub mod passport;
 pub mod provenance;
 pub mod registry;
 pub mod snapshot;

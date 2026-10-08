@@ -19,7 +19,9 @@ from contextlib import closing
 from pathlib import Path
 from typing import Any
 
+from ai_stp_cli.local import revisions, versions
 from ai_stp_cli.local.database import open_registry
+from ai_stp_contracts.cli.components import PassportView, VersionLine
 from ai_stp_contracts.cli.registry import MachineHelp
 from ai_stp_contracts.cli.runtime import ConfigReport
 from ai_stp_foundation.canonical import JsonValue
@@ -74,6 +76,7 @@ def prove(binary: Path, root: Path) -> None:
     assert run(binary, home, ["version"])["data"]["runtime"] == "rust"
     run(binary, home, ["unknown"], 2)
     prove_config(binary, home, root)
+    prove_objects(binary, home, root)
 
     live = root / "live.sqlite"
     backup = root / "backup.sqlite"
@@ -204,6 +207,104 @@ def prove_config(binary: Path, home: Path, root: Path) -> None:
         assert "must-not-be-echoed" not in json.dumps(answer)
     config.unlink()
     run(binary, home, ["config", "show", "--config", str(config)], 2)
+
+
+def prove_objects(binary: Path, home: Path, root: Path) -> None:
+    state = root / "objects.sqlite"
+    backup = root / "objects-backup.sqlite"
+    device = "device_01ARZ3NDEKTSV4RRFFQ69G5FAV"
+    owner = "account_01ARZ3NDEKTSV4RRFFQ69G5FAV"
+    component = "component_01ARZ3NDEKTSV4RRFFQ69G5FAV"
+    at = "2026-10-08T00:00:00.000Z"
+    with closing(open_registry(state)) as connection:
+        for kind in ("developer", "device", "component"):
+            content: dict[str, JsonValue] = {
+                "schema_version": 1,
+                "kind": kind,
+                "stable_id": f"{kind}_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+                "owner_id": owner,
+                "created_at": at,
+                "facts": {},
+            }
+            if kind == "component":
+                content["version"] = "1.0"
+            stored = revisions.commit(connection, content, device_id=device)
+            if kind == "component":
+                versions.record(
+                    connection,
+                    stable_id=component,
+                    version="1.0",
+                    passport_digest=digest_canonical(
+                        "ai-stp:passport:v1", stored.envelope.model_dump(mode="json")
+                    ),
+                    revision_id=stored.revision_id,
+                    at=at,
+                )
+        with closing(sqlite3.connect(backup)) as destination:
+            connection.backup(destination)
+            destination.execute("PRAGMA journal_mode=DELETE")
+        before = {
+            path.name: hashlib.sha256(path.read_bytes()).hexdigest()
+            for path in root.iterdir()
+            if path.is_file()
+        }
+        options = ["--snapshot", str(backup), "--sha256", "sha256:" + before[backup.name]]
+        for command, kind in (
+            (["passport", "developer", "show"], "developer"),
+            (["passport", "device", "show"], "device"),
+            (["component", "passport", "show", "--id", component], "component"),
+        ):
+            data = run(binary, home, command + options)["data"]
+            PassportView.model_validate(data)
+            expected = revisions.head(connection, f"{kind}_01ARZ3NDEKTSV4RRFFQ69G5FAV")
+            assert expected is not None
+            assert data["revision_id"] == expected.revision_id
+            assert data["facts"] == expected.envelope.model_dump(mode="json")["facts"]
+        command = ["component", "version", "list", "--id", component]
+        line = VersionLine.model_validate(run(binary, home, command + options)["data"])
+        assert line.next_minor == "1.1" and len(line.versions) == 1
+        assert line.versions[0].revision_id == stored.revision_id
+        after = {
+            path.name: hashlib.sha256(path.read_bytes()).hexdigest()
+            for path in root.iterdir()
+            if path.is_file()
+        }
+        assert before == after, "object reads changed snapshot or live state"
+    original = backup.read_bytes()
+    # The file digest is deliberately updated: the record itself must be verified.
+    for sql, parameters, command, code in (
+        (
+            "UPDATE revision SET content = replace(content, ?, ?) WHERE stable_id = ?",
+            ("private", "public", component),
+            ["component", "passport", "show", "--id", component],
+            "AI_STP_PRECONDITION_FAILED",
+        ),
+        (
+            "UPDATE object_version SET passport_digest = ?",
+            ("sha256:" + "0" * 64,),
+            ["component", "version", "list", "--id", component],
+            "AI_STP_PRECONDITION_FAILED",
+        ),
+        (
+            "INSERT INTO head (stable_id, revision_id) "
+            "SELECT ?, revision_id FROM revision WHERE stable_id = ?",
+            (component, device),
+            ["component", "passport", "show", "--id", component],
+            "AI_STP_CONFLICT",
+        ),
+    ):
+        backup.write_bytes(original)
+        with closing(sqlite3.connect(backup)) as corrupt:
+            corrupt.execute(sql, parameters)
+            corrupt.commit()
+        options = [
+            "--snapshot",
+            str(backup),
+            "--sha256",
+            "sha256:" + hashlib.sha256(backup.read_bytes()).hexdigest(),
+        ]
+        answer = run(binary, home, command + options, 4)
+        assert answer["error"]["code"] == code
 
 
 def benchmark(binary: Path, root: Path) -> None:
