@@ -187,11 +187,33 @@ Local Claude Code agent identifiers come from required `name`/`description`
 frontmatter, not the filename. Invalid local names or absent/ambiguous headers
 refuse; plugin-specific fallback semantics do not apply to ordinary agent files.
 The shared data-only YAML reader keeps the existing 64 KiB header and parsing
-budgets. Payload bytes and unknown metadata remain intact. Exact-version reuse
+budgets. Each caller selects its dialect: portable sources, Codex and Pi use core
+scalar types without implicit merge expansion. Claude applies merges with core
+scalar types; OpenCode and Cursor use js-yaml 3 merge and legacy-octal rules.
+`yes` and `on` remain strings.
+Aliases preserve their native meaning. Payload bytes and unknown metadata remain
+intact. Exact-version reuse
 and bundle compilation independently re-derive these identifiers from verified
 projection member bytes; a valid archive/passport digest alone does not establish
 native identity. MCP contributions must name the harness's actual configuration
 key. Mismatched retained versions refuse without rewriting their immutable data.
+
+The supported YAML subset rejects explicit version directives and non-core tags,
+including binary/timestamp tags, before persistence. Noncanonical Boolean/null
+spellings such as `tRuE` and `nUlL` need quotes. js-yaml 3 headers additionally
+reject unquoted timestamps and base-60 values; quote them when strings are intended.
+These are explicit acceptance restrictions, including for otherwise ignored fields,
+not silent coercion or source rewriting. The shared js-yaml 3 reader owns the direct
+`regex` pin; removing that dialect removes this direct dependency, which already
+existed in the locked dependency closure. Core merge behavior follows the
+[YAML parser defaults](https://eemeli.org/yaml/#schema-options) and the
+[explicit serde_yaml merge API](https://docs.rs/serde_yaml/latest/serde_yaml/enum.Value.html#method.apply_merge),
+and is checked against the pinned upstream parsers.
+
+The Claude 2.1.294 command inventory was checked through its initialization
+handshake in a network-isolated synthetic home, without a model turn. The preview
+requires string names even where Claude coerces numbers or booleans; quoted names
+retain their spelling. Date-shaped core scalars remain strings.
 
 Local Claude skills expose the root `SKILL.md` frontmatter name and directory
 alias; absent `name` falls back to the directory. Reserved local skill folders,
@@ -254,13 +276,7 @@ does not rename it. A nonempty string description is required. The scanner reach
 ten directories below `skills`, continues below a skill entry, and skips hidden,
 `node_modules`, `__pycache__`, `dist` and `build` directories; ignore files do not
 change that traversal. `metadata.surfaces` filters entries for the `cli` surface.
-This preview requires that filter to be a string, array or null. The bounded YAML
-reader distinguishes quoted/block strings from implicit timestamps, base-60 numbers
-and tagged binary descriptions, including aliases and merge-derived values.
-Unknown explicit YAML tags refuse; mixed-case Boolean/null words need quotes.
-The Cursor reader owns the direct `regex` pin
-for the legacy scalar grammar; removing this reader removes that direct dependency.
-The package was already present in the dependency closure.
+This preview requires that filter to be a string, array or null.
 Conditional paths, environments and `disable-model-invocation` remain native
 metadata, not claims that a skill will run in every context.
 

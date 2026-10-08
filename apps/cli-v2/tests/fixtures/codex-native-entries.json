@@ -58,5 +58,37 @@
     "folder": "folder",
     "body": "---\nname: null\ndescription: Review.\n---\nBody.\n",
     "name": "folder"
+  },
+  {
+    "id": "merge-name",
+    "folder": "folder",
+    "body": "---\ndefaults: &defaults\n  name: merged\n<<: *defaults\ndescription: Inspect.\n---\nBody.\n",
+    "name": "folder"
+  },
+  {
+    "id": "alias-name",
+    "folder": "folder",
+    "body": "---\nalias: &alias aliased\nname: *alias\ndescription: Inspect.\n---\nBody.\n",
+    "name": "aliased"
+  },
+  {
+    "id": "binary-name",
+    "folder": "folder",
+    "body": "---\nname: !!binary aGVsbG8=\ndescription: Inspect.\n---\nBody.\n",
+    "name": null,
+    "upstream_name": "aGVsbG8="
+  },
+  {
+    "id": "mixed-null-name",
+    "folder": "folder",
+    "body": "---\nname: nUlL\ndescription: Inspect.\n---\nBody.\n",
+    "name": null,
+    "upstream_name": "nUlL"
+  },
+  {
+    "id": "quoted-mixed-null-name",
+    "folder": "folder",
+    "body": "---\nname: \"nUlL\"\ndescription: Inspect.\n---\nBody.\n",
+    "name": "nUlL"
   }
 ]

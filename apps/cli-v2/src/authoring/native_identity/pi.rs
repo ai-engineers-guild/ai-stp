@@ -93,7 +93,7 @@ impl<'a> Skills<'a> {
 
     fn skill(&self, path: &str, declared: bool) -> Result<Option<String>> {
         let bytes = self.files.get(path).ok_or_else(invalid)?;
-        let header = frontmatter::optional(bytes)?;
+        let header = frontmatter::optional(bytes, frontmatter::Dialect::Core)?;
         if header
             .get("description")
             .and_then(serde_json::Value::as_str)
@@ -186,7 +186,7 @@ pub(super) fn visible<'a>(
                 let Some(name) = path.strip_suffix(".md") else {
                     continue;
                 };
-                frontmatter::optional(bytes)?;
+                frontmatter::optional(bytes, frontmatter::Dialect::Core)?;
                 names.push(name.to_owned());
             }
         }

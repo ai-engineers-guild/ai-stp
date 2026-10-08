@@ -93,5 +93,60 @@
       "inspect"
     ],
     "adoptable": false
+  },
+  {
+    "id": "yaml-boolean-word",
+    "kind": "skill",
+    "files": {
+      "skills/folder/SKILL.md": "---\nname: yes\ndescription: yes\n---\nBody.\n"
+    },
+    "names": [
+      "yes"
+    ],
+    "adoptable": true
+  },
+  {
+    "id": "yaml-merge",
+    "kind": "skill",
+    "files": {
+      "skills/folder/SKILL.md": "---\ndefaults: &defaults\n  name: merged\n<<: *defaults\ndescription: Inspect.\n---\nBody.\n"
+    },
+    "names": [
+      "folder"
+    ],
+    "adoptable": true
+  },
+  {
+    "id": "yaml-alias",
+    "kind": "skill",
+    "files": {
+      "skills/folder/SKILL.md": "---\nalias: &alias aliased\nname: *alias\ndescription: Inspect.\n---\nBody.\n"
+    },
+    "names": [
+      "aliased"
+    ],
+    "adoptable": true
+  },
+  {
+    "id": "yaml-binary",
+    "kind": "skill",
+    "files": {
+      "skills/folder/SKILL.md": "---\nname: !!binary aGVsbG8=\ndescription: Inspect.\n---\nBody.\n"
+    },
+    "names": [
+      "folder"
+    ],
+    "adoptable": false
+  },
+  {
+    "id": "yaml-mixed-null",
+    "kind": "skill",
+    "files": {
+      "skills/folder/SKILL.md": "---\nname: nUlL\ndescription: Inspect.\n---\nBody.\n"
+    },
+    "names": [
+      "nUlL"
+    ],
+    "adoptable": false
   }
 ]

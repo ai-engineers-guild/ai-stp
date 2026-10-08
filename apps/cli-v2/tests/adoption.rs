@@ -172,9 +172,48 @@ fn native_identity_journey(identity: &Identity, at: &str) -> Result<(), Box<dyn 
         );
         assert_eq!(plan.binding.harness_id, harness);
     }
+    {
+        let harness = "opencode";
+        for (header, name) in [
+            ("name: yes\ndescription: yes", Some("yes")),
+            (
+                "defaults: &defaults\n  name: merged\n<<: *defaults\ndescription: Inspect.",
+                Some("merged"),
+            ),
+            ("name: 2026-01-01\ndescription: Inspect.", None),
+            ("name: !!binary aGVsbG8=\ndescription: Inspect.", None),
+        ] {
+            let native = tempfile::tempdir()?;
+            let folder = native.path().join("skills/folder");
+            fs::create_dir_all(&folder)?;
+            let body = format!("---\n{header}\n---\nBody.\n");
+            fs::write(folder.join("SKILL.md"), &body)?;
+            let before = counts(&mut store)?;
+            let planned = adoption::plan(
+                &mut store,
+                selected(native.path(), harness, Scope::Global, "skill")?,
+                identity.clone(),
+                at,
+            );
+            if let Some(name) = name {
+                let plan = planned?;
+                let names = vec![name];
+                assert_eq!(plan.passport["facts"]["native_ids"]["value"], json!(names));
+                adoption::apply(&mut store, &plan, &plan.digest()?, identity, at)?;
+            } else {
+                assert!(planned.is_err(), "{harness}: {header}");
+                assert_eq!(counts(&mut store)?, before);
+            }
+            assert_eq!(fs::read_to_string(folder.join("SKILL.md"))?, body);
+        }
+    }
     // Shared cases are also exercised with the pinned upstream loaders.
     for (harness, fixture) in [
         ("pi", include_str!("fixtures/pi-native-entries.json")),
+        (
+            "claude-code",
+            include_str!("fixtures/claude-native-entries.json"),
+        ),
         (
             "cursor",
             include_str!("fixtures/cursor-native-entries.json"),

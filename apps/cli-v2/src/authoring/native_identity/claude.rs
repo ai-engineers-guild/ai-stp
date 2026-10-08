@@ -6,7 +6,7 @@ use super::invalid;
 use crate::{authoring::frontmatter, error::Result};
 
 pub(super) fn agent_names(bytes: &[u8]) -> Result<Vec<String>> {
-    let header = frontmatter::required(bytes)?;
+    let header = frontmatter::required(bytes, frontmatter::Dialect::CoreMerged)?;
     let name = header["name"].as_str().ok_or_else(invalid)?;
     if name.starts_with('-')
         || name.contains(':')
@@ -44,7 +44,7 @@ fn skill(path: &str, bytes: &[u8]) -> Result<Option<BTreeSet<String>>> {
         return Err(invalid());
     }
     let mut names = BTreeSet::from([folder.to_owned()]);
-    let header = frontmatter::optional(bytes)?;
+    let header = frontmatter::optional(bytes, frontmatter::Dialect::CoreMerged)?;
     if let Some(name) = header.get("name") {
         let name = name.as_str().ok_or_else(invalid)?;
         if name.is_empty()

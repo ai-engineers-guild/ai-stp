@@ -88,7 +88,7 @@ pub(super) fn from_snapshot(
             .iter()
             .find(|file| file.path == "SKILL.md")
             .ok_or_else(|| invalid("a skill source must contain SKILL.md at its root"))?;
-        let metadata = frontmatter::required(&entry.bytes)?;
+        let metadata = frontmatter::required(&entry.bytes, frontmatter::Dialect::Core)?;
         if metadata.as_object().is_none_or(|object| {
             object.keys().any(|key| {
                 ![

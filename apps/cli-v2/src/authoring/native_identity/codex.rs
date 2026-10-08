@@ -95,7 +95,7 @@ pub(super) fn visible<'a>(
             }
             ancestor = ancestor.rsplit_once('/').map_or("", |(parent, _)| parent);
         }
-        let header: Header = frontmatter::decode(bytes)?;
+        let header: Header = frontmatter::decode(bytes, frontmatter::Dialect::Core)?;
         if header
             .description
             .as_deref()

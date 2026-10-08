@@ -36,12 +36,18 @@ pub(super) fn entries<'a>(
             if path.rsplit('/').next() != Some("SKILL.md") {
                 continue;
             }
-            (frontmatter::required(bytes)?, None)
+            (
+                frontmatter::required(bytes, frontmatter::Dialect::JsYaml3)?,
+                None,
+            )
         } else {
             let Some(stem) = path.strip_suffix(".md") else {
                 continue;
             };
-            (frontmatter::optional(bytes)?, Some(stem))
+            (
+                frontmatter::optional(bytes, frontmatter::Dialect::JsYaml3)?,
+                Some(stem),
+            )
         };
         if header
             .get("description")
