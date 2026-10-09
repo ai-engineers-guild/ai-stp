@@ -17,6 +17,7 @@ pub(super) enum Service {
     Github,
     Go,
     Pypi,
+    Npm,
 }
 
 pub(super) struct Client {
@@ -45,6 +46,7 @@ pub(super) fn allowed(service: Service, url: &Url) -> bool {
         Service::Github => &["api.github.com", "codeload.github.com", "github.com"],
         Service::Go => &["proxy.golang.org", "sum.golang.org"],
         Service::Pypi => &["pypi.org", "files.pythonhosted.org"],
+        Service::Npm => &["registry.npmjs.org"],
     };
     url.scheme() == "https"
         && url.host_str().is_some_and(|host| hosts.contains(&host))
@@ -85,7 +87,7 @@ impl Client {
                     "Accept",
                     match self.service {
                         Service::Github => "application/vnd.github+json",
-                        Service::Go | Service::Pypi => "*/*",
+                        Service::Go | Service::Pypi | Service::Npm => "*/*",
                     },
                 )
                 .header("Accept-Encoding", "identity")
@@ -95,7 +97,7 @@ impl Client {
                 );
             let request = match self.service {
                 Service::Github => request.header("X-GitHub-Api-Version", "2026-03-10"),
-                Service::Go | Service::Pypi => request,
+                Service::Go | Service::Pypi | Service::Npm => request,
             };
             let mut response = request
                 .config()
