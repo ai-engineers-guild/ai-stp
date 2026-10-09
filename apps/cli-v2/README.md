@@ -233,6 +233,26 @@ the origin of `requires_dist` and repository observations. PyPI's
 file's metadata; this command neither resolves dependencies nor verifies PEP 740
 attestations. No Python installation, interpreter, credential or state is used.
 
+`component source package fetch --ecosystem npm` requires an exact package
+name (including its scope) and semantic version. Both registry metadata and the
+root `package/package.json` must match that identity. Only the official npm
+registry is contacted; the tarball path is bound to the same name/version and
+canonical SHA-512 integrity is mandatory. Older releases without SHA-512 refuse.
+Lifecycle script strings and declared dependency ranges are observations; no
+scripts run and no dependency graph is resolved. If both root lockfiles exist,
+`npm-shrinkwrap.json` takes precedence, following npm's rule.
+
+The TAR metadata reader accepts one gzip member, limits compressed input to
+20 MiB and expanded TAR bytes to 50 MiB, and inspects at most 20,000 entries.
+It rejects escaping/duplicate paths, links, special files and corrupt streams.
+Only exact root metadata paths are selected; nested fixtures cannot replace them.
+Selected UTF-8 files retain the common 4 MiB-per-file/8 MiB-total bounds and use
+mode `0644`. No archive is unpacked and no package manager or filesystem state
+is used. The source adapter owns pinned `tar` (MIT/Apache-2.0, Rust tar maintainers)
+with default features disabled and a direct edge to the already locked pure Rust
+`flate2` decoder. CLI maintainers own advisory review and archive proofs; removing
+TAR registry observation removes `tar` and this direct `flate2` edge.
+
 The external source adapters own the existing `zip` dependency's
 `deflate-flate2-zlib-rs` feature and its locked `flate2` and `zlib-rs` closure.
 The Rust compression maintainers publish `flate2` under MIT or Apache-2.0;
