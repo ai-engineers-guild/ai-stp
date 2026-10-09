@@ -1,0 +1,417 @@
+[
+  {
+    "id": "declared",
+    "kind": "agent",
+    "files": {
+      "config/agents/folder.md": "---\nname: Inspect_Name\ndescription: Inspect.\n---\nInspect source.\n"
+    },
+    "names": [
+      "Inspect_Name"
+    ],
+    "listed_names": [
+      "Inspect_Name"
+    ],
+    "adoptable": true
+  },
+  {
+    "id": "missing-name",
+    "kind": "agent",
+    "files": {
+      "config/agents/folder.md": "---\ndescription: Inspect.\n---\nInspect source.\n"
+    },
+    "names": [],
+    "listed_names": [],
+    "adoptable": false
+  },
+  {
+    "id": "missing-description",
+    "kind": "agent",
+    "files": {
+      "config/agents/folder.md": "---\nname: inspect\n---\nInspect source.\n"
+    },
+    "names": [],
+    "listed_names": [],
+    "adoptable": false
+  },
+  {
+    "id": "number",
+    "kind": "agent",
+    "files": {
+      "config/agents/folder.md": "---\nname: 42\ndescription: Inspect.\n---\nInspect source.\n"
+    },
+    "names": [
+      "42"
+    ],
+    "listed_names": [
+      "42"
+    ],
+    "adoptable": true
+  },
+  {
+    "id": "boolean",
+    "kind": "agent",
+    "files": {
+      "config/agents/folder.md": "---\nname: true\ndescription: Inspect.\n---\nInspect source.\n"
+    },
+    "names": [
+      "true"
+    ],
+    "listed_names": [
+      "true"
+    ],
+    "adoptable": true
+  },
+  {
+    "id": "mixed-null",
+    "kind": "agent",
+    "files": {
+      "config/agents/folder.md": "---\nname: nUlL\ndescription: Inspect.\n---\nInspect source.\n"
+    },
+    "names": [
+      "nUlL"
+    ],
+    "listed_names": [
+      "nUlL"
+    ],
+    "adoptable": false
+  },
+  {
+    "id": "array",
+    "kind": "agent",
+    "files": {
+      "config/agents/folder.md": "---\nname: [inspect]\ndescription: Inspect.\n---\nInspect source.\n"
+    },
+    "names": [],
+    "listed_names": [],
+    "adoptable": false
+  },
+  {
+    "id": "merge",
+    "kind": "agent",
+    "files": {
+      "config/agents/folder.md": "---\ndefaults: &defaults\n  name: merged\n<<: *defaults\ndescription: Inspect.\n---\nInspect source.\n"
+    },
+    "names": [
+      "merged"
+    ],
+    "listed_names": [
+      "merged"
+    ],
+    "adoptable": true
+  },
+  {
+    "id": "alias",
+    "kind": "agent",
+    "files": {
+      "config/agents/folder.md": "---\nanchor: &anchor aliased\nname: *anchor\ndescription: Inspect.\n---\nInspect source.\n"
+    },
+    "names": [
+      "aliased"
+    ],
+    "listed_names": [
+      "aliased"
+    ],
+    "adoptable": true
+  },
+  {
+    "id": "main-disabled",
+    "kind": "agent",
+    "files": {
+      "config/agents/folder.md": "---\nname: inspect\ndescription: Inspect.\nmainAgent: false\n---\nInspect source.\n"
+    },
+    "names": [
+      "inspect"
+    ],
+    "listed_names": [],
+    "adoptable": true
+  },
+  {
+    "id": "nested",
+    "kind": "agent",
+    "files": {
+      "config/agents/group/agent.md": "---\nname: nested\ndescription: Inspect.\n---\nInspect.\n",
+      "config/agents/group/deep/file.md": "---\nname: deep\ndescription: Inspect.\n---\nInspect.\n"
+    },
+    "names": [
+      "nested"
+    ],
+    "listed_names": [
+      "nested"
+    ],
+    "adoptable": true
+  },
+  {
+    "id": "no-header",
+    "kind": "agent",
+    "files": {
+      "config/agents/folder.md": "Inspect source.\n"
+    },
+    "names": [],
+    "listed_names": [],
+    "adoptable": false
+  },
+  {
+    "id": "hex",
+    "kind": "agent",
+    "files": {
+      "config/agents/folder.md": "---\nname: 0x2A\ndescription: 42\n---\nInspect source.\n"
+    },
+    "names": [
+      "0x2A"
+    ],
+    "listed_names": [
+      "0x2A"
+    ],
+    "adoptable": true
+  },
+  {
+    "id": "date",
+    "kind": "agent",
+    "files": {
+      "config/agents/folder.md": "---\nname: 2026-09-26\ndescription: Inspect.\n---\nInspect source.\n"
+    },
+    "names": [
+      "2026-09-26"
+    ],
+    "listed_names": [
+      "2026-09-26"
+    ],
+    "adoptable": true
+  },
+  {
+    "id": "octal",
+    "kind": "agent",
+    "files": {
+      "config/agents/folder.md": "---\nname: 0123\ndescription: Inspect.\n---\nInspect source.\n"
+    },
+    "names": [
+      "0123"
+    ],
+    "listed_names": [
+      "0123"
+    ],
+    "adoptable": true
+  },
+  {
+    "id": "binary",
+    "kind": "agent",
+    "files": {
+      "config/agents/folder.md": "---\nname: !!binary aGVsbG8=\ndescription: Inspect.\n---\nInspect source.\n"
+    },
+    "names": [
+      "hello"
+    ],
+    "listed_names": [
+      "hello"
+    ],
+    "adoptable": false
+  },
+  {
+    "id": "blank-description",
+    "kind": "agent",
+    "files": {
+      "config/agents/folder.md": "---\nname: inspect\ndescription: \" \"\n---\nInspect source.\n"
+    },
+    "names": [
+      "inspect"
+    ],
+    "listed_names": [
+      "inspect"
+    ],
+    "adoptable": true
+  },
+  {
+    "id": "mixed-boolean",
+    "kind": "agent",
+    "files": {
+      "config/agents/folder.md": "---\nname: tRuE\ndescription: Inspect.\n---\nInspect source.\n"
+    },
+    "names": [
+      "tRuE"
+    ],
+    "listed_names": [
+      "tRuE"
+    ],
+    "adoptable": false
+  },
+  {
+    "id": "hidden",
+    "kind": "agent",
+    "files": {
+      "config/agents/.hidden.md": "---\nname: hidden\ndescription: Inspect.\n---\nInspect.\n"
+    },
+    "names": [
+      "hidden"
+    ],
+    "listed_names": [
+      "hidden"
+    ],
+    "adoptable": true
+  },
+  {
+    "id": "folder-wrong-file",
+    "kind": "agent",
+    "files": {
+      "config/agents/group/other.md": "---\nname: other\ndescription: Inspect.\n---\nInspect.\n"
+    },
+    "names": [],
+    "listed_names": [],
+    "adoptable": false
+  },
+  {
+    "id": "invalid-tools",
+    "kind": "agent",
+    "files": {
+      "config/agents/folder.md": "---\nname: inspect\ndescription: Inspect.\ntools: 42\n---\nInspect.\n"
+    },
+    "names": [],
+    "listed_names": [],
+    "adoptable": false
+  },
+  {
+    "id": "type-model",
+    "kind": "agent",
+    "files": {
+      "config/agents/folder.md": "---\nname: inspect\ndescription: Inspect.\nmodel: 42\n---\nInspect.\n"
+    },
+    "names": [],
+    "listed_names": [],
+    "adoptable": false
+  },
+  {
+    "id": "type-mainAgent",
+    "kind": "agent",
+    "files": {
+      "config/agents/folder.md": "---\nname: inspect\ndescription: Inspect.\nmainAgent: 42\n---\nInspect.\n"
+    },
+    "names": [],
+    "listed_names": [],
+    "adoptable": false
+  },
+  {
+    "id": "type-subagent",
+    "kind": "agent",
+    "files": {
+      "config/agents/folder.md": "---\nname: inspect\ndescription: Inspect.\nsubagent: 42\n---\nInspect.\n"
+    },
+    "names": [],
+    "listed_names": [],
+    "adoptable": false
+  },
+  {
+    "id": "type-skills",
+    "kind": "agent",
+    "files": {
+      "config/agents/folder.md": "---\nname: inspect\ndescription: Inspect.\nskills: 42\n---\nInspect.\n"
+    },
+    "names": [],
+    "listed_names": [],
+    "adoptable": false
+  },
+  {
+    "id": "type-plugins",
+    "kind": "agent",
+    "files": {
+      "config/agents/folder.md": "---\nname: inspect\ndescription: Inspect.\nplugins: 42\n---\nInspect.\n"
+    },
+    "names": [],
+    "listed_names": [],
+    "adoptable": false
+  },
+  {
+    "id": "type-commandExecutionPolicy",
+    "kind": "agent",
+    "files": {
+      "config/agents/folder.md": "---\nname: inspect\ndescription: Inspect.\ncommandExecutionPolicy: 42\n---\nInspect.\n"
+    },
+    "names": [],
+    "listed_names": [],
+    "adoptable": false
+  },
+  {
+    "id": "type-mcpServers",
+    "kind": "agent",
+    "files": {
+      "config/agents/folder.md": "---\nname: inspect\ndescription: Inspect.\nmcpServers: 42\n---\nInspect.\n"
+    },
+    "names": [],
+    "listed_names": [],
+    "adoptable": false
+  },
+  {
+    "id": "json-flat",
+    "kind": "agent",
+    "files": {
+      "config/agents/folder.json": "{\"name\": \"json-agent\", \"description\": \"Inspect.\"}"
+    },
+    "names": [],
+    "listed_names": [],
+    "adoptable": false
+  },
+  {
+    "id": "json-nested",
+    "kind": "agent",
+    "files": {
+      "config/agents/group/agent.json": "{\"name\": \"nested-json\", \"description\": \"Inspect.\"}"
+    },
+    "names": [],
+    "listed_names": [],
+    "adoptable": false
+  },
+  {
+    "id": "direct-agent",
+    "kind": "agent",
+    "files": {
+      "config/agents/agent.md": "---\nname: direct\ndescription: Inspect.\n---\nInspect.\n"
+    },
+    "names": [
+      "direct"
+    ],
+    "listed_names": [
+      "direct"
+    ],
+    "adoptable": true
+  },
+  {
+    "id": "invalid-nested-mcp",
+    "kind": "agent",
+    "files": {
+      "config/agents/folder.md": "---\nname: inspect\ndescription: Inspect.\nmcpServers:\n  - name: nested\n    command: proof\n---\nInspect.\n"
+    },
+    "names": [
+      "inspect"
+    ],
+    "listed_names": [
+      "inspect"
+    ],
+    "adoptable": true
+  },
+  {
+    "id": "embedded-credential",
+    "kind": "agent",
+    "files": {
+      "config/agents/folder.md": "---\nname: inspect\ndescription: Inspect.\nmcpServers:\n  - name: nested\n    command: proof\n    env:\n      API_TOKEN: synthetic-sensitive-value\n---\nInspect.\n"
+    },
+    "names": [
+      "inspect"
+    ],
+    "listed_names": [
+      "inspect"
+    ],
+    "adoptable": false
+  },
+  {
+    "id": "blank-server-name",
+    "kind": "agent",
+    "files": {
+      "config/agents/folder.md": "---\nname: inspect\ndescription: Inspect.\nmcpServers:\n  - name: \" \"\n    command: proof\n---\nInspect.\n"
+    },
+    "names": [
+      "inspect"
+    ],
+    "listed_names": [
+      "inspect"
+    ],
+    "adoptable": false
+  }
+]

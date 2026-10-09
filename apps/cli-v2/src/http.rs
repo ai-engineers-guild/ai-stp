@@ -6,12 +6,13 @@ use crate::{
     wire,
 };
 use serde_json::Value;
-use std::{net::IpAddr, path::Path, time::Duration};
+use std::{cell::RefCell, net::IpAddr, path::Path, time::Duration};
 use url::Url;
 
 pub const MAX_BODY: u64 = 8 * 1024 * 1024;
 pub struct Endpoint {
     pub base: Url,
+    agent: RefCell<ureq::Agent>,
 }
 
 impl Endpoint {
@@ -79,7 +80,18 @@ impl Endpoint {
                 return Err(invalid());
             }
         }
-        Ok(Self { base })
+        let agent = ureq::Agent::config_builder()
+            .http_status_as_error(false)
+            .max_redirects(0)
+            .proxy(None)
+            .timeout_global(Some(Duration::from_secs(30)))
+            .timeout_connect(Some(Duration::from_secs(5)))
+            .build()
+            .into();
+        Ok(Self {
+            base,
+            agent: RefCell::new(agent),
+        })
     }
 
     pub fn route(&self, segments: &[&str], query: &[(&str, &str)]) -> Result<Url> {
@@ -96,25 +108,44 @@ impl Endpoint {
     }
 
     pub fn get(&self, url: &Url) -> Result<Value> {
-        let agent: ureq::Agent = ureq::Agent::config_builder()
-            .http_status_as_error(false)
-            .max_redirects(0)
-            .proxy(None)
-            .timeout_global(Some(Duration::from_secs(30)))
-            .timeout_connect(Some(Duration::from_secs(5)))
-            .build()
-            .into();
-        let mut response = agent
+        wire::parse(&self.read(url, "application/json", MAX_BODY, Duration::from_secs(30))?)
+    }
+
+    pub(crate) fn read(
+        &self,
+        url: &Url,
+        accept: &str,
+        limit: u64,
+        remaining: Duration,
+    ) -> Result<Vec<u8>> {
+        if remaining.is_zero() || url.origin() != self.base.origin() {
+            return Err(Failure::precondition(
+                "catalog request exceeds its origin or time boundary",
+            ));
+        }
+        let mut response = self
+            .agent
+            .borrow()
             .get(url.as_str())
-            .header("Accept", "application/json")
+            .header("Accept", accept)
             .header("Accept-Encoding", "identity")
             .header("X-AI-STP-Schema-Version", "1")
             .header(
                 "User-Agent",
                 concat!("ai-stp-cli-v2/", env!("CARGO_PKG_VERSION")),
             )
+            .config()
+            .timeout_global(Some(remaining.min(Duration::from_secs(30))))
+            .build()
             .call()
             .map_err(transport)?;
+        if response.version() == ureq::http::Version::HTTP_10 {
+            // ureq-proto 0.6.4 may pool a length-delimited HTTP/1.0 response
+            // without keep-alive. Drop that pool before consuming its body;
+            // HTTP/1.1 continues to reuse connections. No request is retried.
+            let config = self.agent.borrow().config().clone();
+            self.agent.replace(config.into());
+        }
         match response.status().as_u16() {
             200 => {}
             404 => {
@@ -139,13 +170,24 @@ impl Endpoint {
                 "catalog response uses an unsupported schema version",
             ));
         }
+        // ureq's reader errors when its byte allowance reaches zero, even at EOF.
+        // Permit one lookahead byte, then enforce our inclusive application bound.
         let bytes = response
             .body_mut()
             .with_config()
-            .limit(MAX_BODY)
+            .limit(
+                limit
+                    .checked_add(1)
+                    .ok_or_else(|| Failure::input("catalog response bound overflow"))?,
+            )
             .read_to_vec()
             .map_err(transport)?;
-        wire::parse(&bytes)
+        if bytes.len() as u64 > limit {
+            return Err(Failure::precondition(
+                "catalog response exceeds its declared byte limit",
+            ));
+        }
+        Ok(bytes)
     }
 }
 

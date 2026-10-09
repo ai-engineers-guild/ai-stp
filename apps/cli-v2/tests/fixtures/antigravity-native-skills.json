@@ -1,0 +1,590 @@
+[
+  {
+    "id": "declared",
+    "kind": "skill",
+    "files": {
+      "config/skills/folder/SKILL.md": "---\nname: inspect-name\ndescription: Inspect.\n---\nInspect source.\n"
+    },
+    "names": [
+      "inspect-name"
+    ],
+    "listed_names": [
+      "inspect-name"
+    ],
+    "adoptable": true
+  },
+  {
+    "id": "missing-name",
+    "kind": "skill",
+    "files": {
+      "config/skills/folder/SKILL.md": "---\ndescription: Inspect.\n---\nInspect source.\n"
+    },
+    "names": [
+      "SKILL"
+    ],
+    "listed_names": [
+      "SKILL"
+    ],
+    "adoptable": true
+  },
+  {
+    "id": "missing-description",
+    "kind": "skill",
+    "files": {
+      "config/skills/folder/SKILL.md": "---\nname: no-description\n---\nInspect source.\n"
+    },
+    "names": [
+      "no-description"
+    ],
+    "listed_names": [
+      "no-description"
+    ],
+    "adoptable": true
+  },
+  {
+    "id": "empty-name",
+    "kind": "skill",
+    "files": {
+      "config/skills/folder/SKILL.md": "---\nname: \"\"\n---\nInspect source.\n"
+    },
+    "names": [
+      "SKILL"
+    ],
+    "listed_names": [
+      "SKILL"
+    ],
+    "adoptable": true
+  },
+  {
+    "id": "null-name",
+    "kind": "skill",
+    "files": {
+      "config/skills/folder/SKILL.md": "---\nname: null\n---\nInspect source.\n"
+    },
+    "names": [
+      "SKILL"
+    ],
+    "listed_names": [
+      "SKILL"
+    ],
+    "adoptable": true
+  },
+  {
+    "id": "empty-description",
+    "kind": "skill",
+    "files": {
+      "config/skills/folder/SKILL.md": "---\nname: inspect\ndescription: \"\"\n---\nInspect source.\n"
+    },
+    "names": [
+      "inspect"
+    ],
+    "listed_names": [
+      "inspect"
+    ],
+    "adoptable": true
+  },
+  {
+    "id": "null-description",
+    "kind": "skill",
+    "files": {
+      "config/skills/folder/SKILL.md": "---\nname: inspect\ndescription: null\n---\nInspect source.\n"
+    },
+    "names": [
+      "inspect"
+    ],
+    "listed_names": [
+      "inspect"
+    ],
+    "adoptable": true
+  },
+  {
+    "id": "number",
+    "kind": "skill",
+    "files": {
+      "config/skills/folder/SKILL.md": "---\nname: 42\n---\nInspect source.\n"
+    },
+    "names": [
+      "42"
+    ],
+    "listed_names": [
+      "42"
+    ],
+    "adoptable": true
+  },
+  {
+    "id": "hex",
+    "kind": "skill",
+    "files": {
+      "config/skills/folder/SKILL.md": "---\nname: 0x2A\n---\nInspect source.\n"
+    },
+    "names": [
+      "0x2A"
+    ],
+    "listed_names": [
+      "0x2A"
+    ],
+    "adoptable": true
+  },
+  {
+    "id": "octal",
+    "kind": "skill",
+    "files": {
+      "config/skills/folder/SKILL.md": "---\nname: 012\n---\nInspect source.\n"
+    },
+    "names": [
+      "012"
+    ],
+    "listed_names": [
+      "012"
+    ],
+    "adoptable": true
+  },
+  {
+    "id": "float",
+    "kind": "skill",
+    "files": {
+      "config/skills/folder/SKILL.md": "---\nname: 1.25\n---\nInspect source.\n"
+    },
+    "names": [
+      "1.25"
+    ],
+    "listed_names": [
+      "1.25"
+    ],
+    "adoptable": true
+  },
+  {
+    "id": "boolean",
+    "kind": "skill",
+    "files": {
+      "config/skills/folder/SKILL.md": "---\nname: true\n---\nInspect source.\n"
+    },
+    "names": [
+      "true"
+    ],
+    "listed_names": [
+      "true"
+    ],
+    "adoptable": true
+  },
+  {
+    "id": "yes",
+    "kind": "skill",
+    "files": {
+      "config/skills/folder/SKILL.md": "---\nname: yes\n---\nInspect source.\n"
+    },
+    "names": [
+      "yes"
+    ],
+    "listed_names": [
+      "yes"
+    ],
+    "adoptable": true
+  },
+  {
+    "id": "date",
+    "kind": "skill",
+    "files": {
+      "config/skills/folder/SKILL.md": "---\nname: 2026-01-02\n---\nInspect source.\n"
+    },
+    "names": [
+      "2026-01-02"
+    ],
+    "listed_names": [
+      "2026-01-02"
+    ],
+    "adoptable": true
+  },
+  {
+    "id": "spaces",
+    "kind": "skill",
+    "files": {
+      "config/skills/folder/SKILL.md": "---\nname: \" white  space \"\n---\nInspect source.\n"
+    },
+    "names": [
+      " white  space "
+    ],
+    "listed_names": [
+      " white  space "
+    ],
+    "adoptable": true
+  },
+  {
+    "id": "number-description",
+    "kind": "skill",
+    "files": {
+      "config/skills/folder/SKILL.md": "---\nname: inspect\ndescription: 42\n---\nInspect source.\n"
+    },
+    "names": [
+      "inspect"
+    ],
+    "listed_names": [
+      "inspect"
+    ],
+    "adoptable": true
+  },
+  {
+    "id": "merge",
+    "kind": "skill",
+    "files": {
+      "config/skills/folder/SKILL.md": "---\nbase: &b {name: merged, description: Inspect.}\n<<: *b\n---\nInspect source.\n"
+    },
+    "names": [
+      "merged"
+    ],
+    "listed_names": [
+      "merged"
+    ],
+    "adoptable": true
+  },
+  {
+    "id": "flags",
+    "kind": "skill",
+    "files": {
+      "config/skills/folder/SKILL.md": "---\nname: inspect\ndisable-model-invocation: true\ndisable-slash-command: true\n---\nInspect source.\n"
+    },
+    "names": [
+      "inspect"
+    ],
+    "listed_names": [
+      "inspect"
+    ],
+    "adoptable": true
+  },
+  {
+    "id": "unknown-metadata",
+    "kind": "skill",
+    "files": {
+      "config/skills/folder/SKILL.md": "---\nname: inspect\nmetadata: {surfaces: excluded}\ntools: {ignored: true}\n---\nInspect source.\n"
+    },
+    "names": [
+      "inspect"
+    ],
+    "listed_names": [
+      "inspect"
+    ],
+    "adoptable": true
+  },
+  {
+    "id": "array-name",
+    "kind": "skill",
+    "files": {
+      "config/skills/folder/SKILL.md": "---\nname: [inspect]\n---\nInspect source.\n"
+    },
+    "names": [],
+    "listed_names": [],
+    "adoptable": false
+  },
+  {
+    "id": "object-name",
+    "kind": "skill",
+    "files": {
+      "config/skills/folder/SKILL.md": "---\nname: {key: value}\n---\nInspect source.\n"
+    },
+    "names": [],
+    "listed_names": [],
+    "adoptable": false
+  },
+  {
+    "id": "array-description",
+    "kind": "skill",
+    "files": {
+      "config/skills/folder/SKILL.md": "---\nname: inspect\ndescription: [invalid]\n---\nInspect source.\n"
+    },
+    "names": [],
+    "listed_names": [],
+    "adoptable": false
+  },
+  {
+    "id": "duplicate",
+    "kind": "skill",
+    "files": {
+      "config/skills/folder/SKILL.md": "---\nname: first\nname: second\n---\nInspect source.\n"
+    },
+    "names": [],
+    "listed_names": [],
+    "adoptable": false
+  },
+  {
+    "id": "invalid-model-flag",
+    "kind": "skill",
+    "files": {
+      "config/skills/folder/SKILL.md": "---\nname: inspect\ndisable-model-invocation: invalid\n---\nInspect source.\n"
+    },
+    "names": [],
+    "listed_names": [],
+    "adoptable": false
+  },
+  {
+    "id": "invalid-slash-flag",
+    "kind": "skill",
+    "files": {
+      "config/skills/folder/SKILL.md": "---\nname: inspect\ndisable-slash-command: invalid\n---\nInspect source.\n"
+    },
+    "names": [],
+    "listed_names": [],
+    "adoptable": false
+  },
+  {
+    "id": "bare",
+    "kind": "skill",
+    "files": {
+      "config/skills/folder/SKILL.md": "Inspect source.\n"
+    },
+    "names": [],
+    "listed_names": [],
+    "adoptable": false
+  },
+  {
+    "id": "empty-header",
+    "kind": "skill",
+    "files": {
+      "config/skills/folder/SKILL.md": "---\n\n---\nInspect source.\n"
+    },
+    "names": [
+      "SKILL"
+    ],
+    "listed_names": [
+      "SKILL"
+    ],
+    "adoptable": true
+  },
+  {
+    "id": "unclosed",
+    "kind": "skill",
+    "files": {
+      "config/skills/folder/SKILL.md": "---\nname: unclosed\nInspect source.\n"
+    },
+    "names": [],
+    "listed_names": [],
+    "adoptable": false
+  },
+  {
+    "id": "bom",
+    "kind": "skill",
+    "files": {
+      "config/skills/folder/SKILL.md": "﻿---\nname: bom\n---\nInspect source.\n"
+    },
+    "names": [
+      "bom"
+    ],
+    "listed_names": [
+      "bom"
+    ],
+    "adoptable": false
+  },
+  {
+    "id": "padded-delimiter",
+    "kind": "skill",
+    "files": {
+      "config/skills/folder/SKILL.md": "--- \nname: padded\n---\nInspect source.\n"
+    },
+    "names": [
+      "padded"
+    ],
+    "listed_names": [
+      "padded"
+    ],
+    "adoptable": false
+  },
+  {
+    "id": "mixed-boolean",
+    "kind": "skill",
+    "files": {
+      "config/skills/folder/SKILL.md": "---\nname: tRuE\n---\nInspect source.\n"
+    },
+    "names": [
+      "tRuE"
+    ],
+    "listed_names": [
+      "tRuE"
+    ],
+    "adoptable": false
+  },
+  {
+    "id": "hidden-directory",
+    "kind": "skill",
+    "files": {
+      "config/skills/.hidden/SKILL.md": "---\nname: hidden\n---\nInspect source.\n"
+    },
+    "names": [
+      "hidden"
+    ],
+    "listed_names": [
+      "hidden"
+    ],
+    "adoptable": true
+  },
+  {
+    "id": "node-modules",
+    "kind": "skill",
+    "files": {
+      "config/skills/node_modules/SKILL.md": "---\nname: package\n---\nInspect source.\n"
+    },
+    "names": [
+      "package"
+    ],
+    "listed_names": [
+      "package"
+    ],
+    "adoptable": true
+  },
+  {
+    "id": "root-entry",
+    "kind": "skill",
+    "files": {
+      "config/skills/SKILL.md": "---\nname: root\n---\nInspect source.\n"
+    },
+    "names": [],
+    "listed_names": [],
+    "adoptable": false
+  },
+  {
+    "id": "deep-only",
+    "kind": "skill",
+    "files": {
+      "config/skills/outer/nested/SKILL.md": "---\nname: deep\n---\nInspect source.\n"
+    },
+    "names": [],
+    "listed_names": [],
+    "adoptable": false
+  },
+  {
+    "id": "auxiliary-entries",
+    "kind": "skill",
+    "files": {
+      "config/skills/folder/SKILL.md": "---\nname: inspect\n---\nInspect source.\n",
+      "config/skills/folder/nested/SKILL.md": "---\nname: nested\n---\nInspect.\n",
+      "config/skills/folder/notes.md": "---\nname: notes\n---\nInspect.\n"
+    },
+    "names": [
+      "inspect"
+    ],
+    "listed_names": [
+      "inspect"
+    ],
+    "adoptable": true
+  },
+  {
+    "id": "lowercase-only",
+    "kind": "skill",
+    "files": {
+      "config/skills/folder/skill.md": "---\nname: lowercase\n---\nInspect.\n"
+    },
+    "names": [
+      "lowercase"
+    ],
+    "listed_names": [
+      "lowercase"
+    ],
+    "adoptable": true
+  },
+  {
+    "id": "project-declared",
+    "scope": "project",
+    "kind": "skill",
+    "files": {
+      ".agents/skills/folder/SKILL.md": "---\nname: project-name\n---\nInspect.\n"
+    },
+    "names": [
+      "project-name"
+    ],
+    "listed_names": [
+      "project-name"
+    ],
+    "adoptable": true
+  },
+  {
+    "id": "project-fallback",
+    "scope": "project",
+    "kind": "skill",
+    "files": {
+      ".agents/skills/folder/SKILL.md": "---\ndescription: Inspect.\n---\nInspect.\n"
+    },
+    "names": [
+      "SKILL"
+    ],
+    "listed_names": [
+      "SKILL"
+    ],
+    "adoptable": true
+  },
+  {
+    "id": "project-alias",
+    "scope": "project",
+    "kind": "skill",
+    "files": {
+      ".agent/skills/folder/SKILL.md": "---\nname: alias\n---\nInspect.\n"
+    },
+    "names": [
+      "alias"
+    ],
+    "listed_names": [
+      "alias"
+    ],
+    "adoptable": false,
+    "discoverable": false
+  },
+  {
+    "id": "filename-skill.md",
+    "kind": "skill",
+    "files": {
+      "config/skills/folder/skill.md": "---\ndescription: Inspect.\n---\nInspect.\n"
+    },
+    "names": [
+      "skill"
+    ],
+    "listed_names": [
+      "skill"
+    ],
+    "adoptable": true
+  },
+  {
+    "id": "filename-Skill.md",
+    "kind": "skill",
+    "files": {
+      "config/skills/folder/Skill.md": "---\ndescription: Inspect.\n---\nInspect.\n"
+    },
+    "names": [
+      "Skill"
+    ],
+    "listed_names": [
+      "Skill"
+    ],
+    "adoptable": true
+  },
+  {
+    "id": "filename-sKiLl.md",
+    "kind": "skill",
+    "files": {
+      "config/skills/folder/sKiLl.md": "---\ndescription: Inspect.\n---\nInspect.\n"
+    },
+    "names": [
+      "sKiLl"
+    ],
+    "listed_names": [
+      "sKiLl"
+    ],
+    "adoptable": true
+  },
+  {
+    "id": "filename-SKILL.MD",
+    "kind": "skill",
+    "files": {
+      "config/skills/folder/SKILL.MD": "---\ndescription: Inspect.\n---\nInspect.\n"
+    },
+    "names": [],
+    "listed_names": [],
+    "adoptable": false
+  },
+  {
+    "id": "filename-skill.MD",
+    "kind": "skill",
+    "files": {
+      "config/skills/folder/skill.MD": "---\ndescription: Inspect.\n---\nInspect.\n"
+    },
+    "names": [],
+    "listed_names": [],
+    "adoptable": false
+  }
+]

@@ -15,6 +15,7 @@ from ai_stp_foundation.refs import ComponentRef
 from ai_stp_passports.envelope import derive_revision_id
 from ai_stp_passports.versions import ComponentType, SetupVersionPassport
 from ai_stp_platform.embedded_validation import (
+    _graph_bindings,  # pyright: ignore[reportPrivateUsage]
     _pin_from_scan,  # pyright: ignore[reportPrivateUsage]
     resolve_embedded_setup,
     setup_trust_lane,
@@ -53,6 +54,26 @@ PACKAGE_ID = "component_01ARZ3NDEKTSV4RRFFQ69G5FAY"
 DIGEST = "sha256:" + "b" * 64
 AT = "2026-09-01T00:00:00.000Z"
 COMMIT = "a" * 40
+
+
+def test_embedded_conflicts_are_independent_of_member_order() -> None:
+    for excluded, expected in [
+        ("skills/right/SKILL.md", "failed"),
+        ("skills/left/SKILL.md", "passed"),
+    ]:
+        members: dict[tuple[str, str], dict[str, object]] = {
+            (CATALOG_ID, "1.0"): {
+                "managed_paths": ["skills/left/SKILL.md"],
+                "conflicts": {"paths": [excluded]},
+            },
+            (EMBEDDED_ID, "1.0"): {"managed_paths": ["skills/right/SKILL.md"]},
+        }
+        forward = _graph_bindings(members=members)
+        backward = _graph_bindings(members=dict(reversed(members.items())))
+        assert forward == backward
+        assert forward[0]["result"] == expected
+        if expected == "failed":
+            assert forward[0]["reason"] == "conflict"
 
 
 def test_exact_registry_snapshot_does_not_rewrite_safety_policy() -> None:

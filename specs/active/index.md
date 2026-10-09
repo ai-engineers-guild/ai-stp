@@ -51,7 +51,7 @@ last_verified: "2026-08-03"
 | [SPEC-040-setup-evaluation-profiles.md](SPEC-040-setup-evaluation-profiles.md) | SPEC-040: Local functional evaluation profiles for an exact setup. | 2026-09-06 |
 | [SPEC-041-component-scaffold-framework.md](SPEC-041-component-scaffold-framework.md) | SPEC-041: Versioned scaffold plans for a component's complete authoring catalog. | 2026-09-05 |
 | [SPEC-042-local-setup-store-ports.md](SPEC-042-local-setup-store-ports.md) | SPEC-042: Local versioned ports for controlled SX and APM import. | 2026-09-20 |
-| [SPEC-043-selection-impact-reports.md](SPEC-043-selection-impact-reports.md) | SPEC-043: Local reports for context budget, capability delta, and blast radius. | 2026-09-20 |
+| [SPEC-043-selection-impact-reports.md](SPEC-043-selection-impact-reports.md) | SPEC-043: Local reports for context budget, capability delta, and blast radius. | 2026-10-09 |
 | [SPEC-044-github-archive-evidence.md](SPEC-044-github-archive-evidence.md) | SPEC-044: GitHub archived state as local evidence of obsolescence. | 2026-09-20 |
 | [SPEC-045-federated-source-boundaries.md](SPEC-045-federated-source-boundaries.md) | SPEC-045: Federated source descriptors and external observation boundaries. | 2026-09-20 |
 | [SPEC-046-web-feature-registry-and-content-hub.md](SPEC-046-web-feature-registry-and-content-hub.md) | SPEC-046: Typed web deploy profiles and a disableable content hub. | 2026-09-20 |
@@ -70,8 +70,8 @@ last_verified: "2026-08-03"
 | [SPEC-059-public-identities-and-catalog-lines.md](SPEC-059-public-identities-and-catalog-lines.md) | SPEC-059: Unique account identities, component names, and owner-fenced catalog lines. | 2026-09-04 |
 | [SPEC-060-standard-family-identity.md](SPEC-060-standard-family-identity.md) | SPEC-060: Coordinated standard-family identity distinct from envelope v1 and protocol v3. | 2026-10-04 |
 | [SPEC-061-estate-release-qualification.md](SPEC-061-estate-release-qualification.md) | SPEC-061: Estate-release complete requires the seven-harness launch matrix. | 2026-09-24 |
-| [SPEC-062-setup-recast.md](SPEC-062-setup-recast.md) | SPEC-062: Recast a complete setup onto another harness with provenance. | 2026-09-06 |
-| [SPEC-063-component-materialize.md](SPEC-063-component-materialize.md) | SPEC-063: Materialize one target-harness adaptation from a pinned component. | 2026-09-06 |
+| [SPEC-062-setup-recast.md](SPEC-062-setup-recast.md) | SPEC-062: Recast a complete setup onto another harness with provenance. | 2026-10-08 |
+| [SPEC-063-component-materialize.md](SPEC-063-component-materialize.md) | SPEC-063: Materialize one target-harness adaptation from a pinned component. | 2026-10-08 |
 | [SPEC-064-component-projections-assurance-and-portability.md](SPEC-064-component-projections-assurance-and-portability.md) | SPEC-064: Complete platform contract for one component with exact harness projections, target-bound assurance, search, and web presentation. | 2026-09-06 |
 | [SPEC-065-setup-families-and-harness-invariant-alignment.md](SPEC-065-setup-families-and-harness-invariant-alignment.md) | SPEC-065: Complete platform contract for harness-specific setup families, invariant alignment, provenance, exact component projection display, and canonical OBT support. | 2026-09-06 |
 | [SPEC-066-adaptation-evidence.md](SPEC-066-adaptation-evidence.md) | SPEC-066: Per-adaptation evaluation evidence for a component version. | 2026-09-06 |

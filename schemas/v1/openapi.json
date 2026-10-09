@@ -2018,6 +2018,27 @@
         "title": "ComponentAdaptation",
         "type": "object"
       },
+      "ComponentArtifactQuery": {
+        "additionalProperties": false,
+        "description": "Optional exact declared projection; omission retains the primary artifact.",
+        "properties": {
+          "digest": {
+            "anyOf": [
+              {
+                "pattern": "^sha256:[0-9a-f]{64}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Digest"
+          }
+        },
+        "title": "ComponentArtifactQuery",
+        "type": "object"
+      },
       "ComponentContextBudget": {
         "additionalProperties": true,
         "description": "Context estimate of one visible exact component (SPEC-049).",
@@ -37766,6 +37787,24 @@
             }
           },
           {
+            "in": "query",
+            "name": "digest",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^sha256:[0-9a-f]{64}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Digest"
+            }
+          },
+          {
             "description": "Wire major the client speaks. An unknown one fails typed.",
             "in": "header",
             "name": "X-AI-STP-Schema-Version",
@@ -37786,7 +37825,7 @@
                 }
               }
             },
-            "description": "Stream the immutable bytes of one exact component version.",
+            "description": "Stream the primary or exact declared projection bytes of one component version.",
             "headers": {
               "X-Request-Id": {
                 "description": "Correlation id, echoed or minted.",
@@ -37894,7 +37933,7 @@
           }
         },
         "security": [],
-        "summary": "Stream the immutable bytes of one exact component version."
+        "summary": "Stream the primary or exact declared projection bytes of one component version."
       }
     },
     "/v1/catalog/components/{stable_id}/versions/{version}/context-budget": {

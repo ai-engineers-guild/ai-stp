@@ -1029,6 +1029,18 @@ export type ComponentAdaptation = unknown & {
 };
 
 /**
+ * ComponentArtifactQuery
+ *
+ * Optional exact declared projection; omission retains the primary artifact.
+ */
+export type ComponentArtifactQuery = {
+  /**
+   * Digest
+   */
+  digest?: string | null;
+};
+
+/**
  * ComponentContextBudget
  *
  * Context estimate of one visible exact component (SPEC-049).
@@ -17469,7 +17481,12 @@ export type ReadComponentArtifactData = {
      */
     version: string;
   };
-  query?: never;
+  query?: {
+    /**
+     * Digest
+     */
+    digest?: string | null;
+  };
   url: "/v1/catalog/components/{stable_id}/versions/{version}/artifact";
 };
 
@@ -17501,7 +17518,7 @@ export type ReadComponentArtifactError =
 
 export type ReadComponentArtifactResponses = {
   /**
-   * Stream the immutable bytes of one exact component version.
+   * Stream the primary or exact declared projection bytes of one component version.
    */
   200: Blob | File;
 };

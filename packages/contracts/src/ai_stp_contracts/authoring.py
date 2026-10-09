@@ -58,9 +58,10 @@ type ComponentTemplateVersion = Literal[
     "component-scaffold/4",
     "component-scaffold/5",
     "component-scaffold/6",
+    "component-scaffold/7",
 ]
 type ComponentGeneratorVersion = Literal[
-    "ai-stp/1", "ai-stp/2", "ai-stp/3", "ai-stp/4", "ai-stp/5", "ai-stp/6"
+    "ai-stp/1", "ai-stp/2", "ai-stp/3", "ai-stp/4", "ai-stp/5", "ai-stp/6", "ai-stp/7"
 ]
 type SetupTemplateVersion = Literal[
     "setup-scaffold/1",

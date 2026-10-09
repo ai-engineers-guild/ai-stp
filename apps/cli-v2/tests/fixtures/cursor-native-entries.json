@@ -1,0 +1,243 @@
+[
+  {
+    "id": "folder-identity",
+    "kind": "skill",
+    "files": {
+      "skills/review/SKILL.md": "---\nname: ignored\ndescription: Inspect.\ndisable-model-invocation: true\n---\nInspect.\n"
+    },
+    "names": [
+      "review"
+    ],
+    "adoptable": true
+  },
+  {
+    "id": "missing-name",
+    "kind": "skill",
+    "files": {
+      "skills/review/SKILL.md": "---\ndescription: Inspect.\n---\nInspect.\n"
+    },
+    "names": [
+      "review"
+    ],
+    "adoptable": true
+  },
+  {
+    "id": "missing-description",
+    "kind": "skill",
+    "files": {
+      "skills/review/SKILL.md": "---\nname: review\n---\nInspect.\n"
+    },
+    "names": [],
+    "adoptable": false
+  },
+  {
+    "id": "numeric-description",
+    "kind": "skill",
+    "files": {
+      "skills/review/SKILL.md": "---\ndescription: 42\n---\nInspect.\n"
+    },
+    "names": [],
+    "adoptable": false
+  },
+  {
+    "id": "space-description",
+    "kind": "skill",
+    "files": {
+      "skills/review/SKILL.md": "---\ndescription: \" \"\n---\nInspect.\n"
+    },
+    "names": [
+      "review"
+    ],
+    "adoptable": true
+  },
+  {
+    "id": "always-applied-rule",
+    "kind": "skill",
+    "files": {
+      "skills/review/SKILL.md": "---\nalwaysApply: true\ndescription: Inspect.\n---\nInspect.\n"
+    },
+    "names": [],
+    "adoptable": false
+  },
+  {
+    "id": "ide-only",
+    "kind": "skill",
+    "files": {
+      "skills/review/SKILL.md": "---\ndescription: Inspect.\nmetadata:\n  surfaces: [ide]\n---\nInspect.\n"
+    },
+    "names": [],
+    "adoptable": false
+  },
+  {
+    "id": "cli-surface",
+    "kind": "skill",
+    "files": {
+      "skills/review/SKILL.md": "---\nname: 42\ndescription: Inspect.\nmetadata:\n  surfaces: ide, cli\n---\nInspect.\n"
+    },
+    "names": [
+      "review"
+    ],
+    "adoptable": true
+  },
+  {
+    "id": "duplicate-folders",
+    "kind": "skill",
+    "files": {
+      "skills/team/first/review/SKILL.md": "---\ndescription: First.\n---\nInspect.\n",
+      "skills/team/second/review/SKILL.md": "---\ndescription: Second.\n---\nInspect.\n"
+    },
+    "names": [
+      "review",
+      "review"
+    ],
+    "adoptable": false
+  },
+  {
+    "id": "recursive-visibility",
+    "kind": "skill",
+    "files": {
+      "skills/team/SKILL.md": "---\nname: ignored\ndescription: Inspect.\n---\nInspect.\n",
+      "skills/team/nested/SKILL.md": "---\nname: ignored\ndescription: Inspect.\n---\nInspect.\n",
+      "skills/team/a/b/c/d/e/f/g/h/i/SKILL.md": "---\nname: ignored\ndescription: Inspect.\n---\nInspect.\n",
+      "skills/team/a/b/c/d/e/f/g/h/i/j/SKILL.md": "---\nname: ignored\ndescription: Inspect.\n---\nInspect.\n",
+      "skills/team/.hidden/SKILL.md": "---\nname: ignored\ndescription: Inspect.\n---\nInspect.\n",
+      "skills/team/node_modules/dep/SKILL.md": "---\nname: ignored\ndescription: Inspect.\n---\nInspect.\n",
+      "skills/team/__pycache__/SKILL.md": "---\nname: ignored\ndescription: Inspect.\n---\nInspect.\n",
+      "skills/team/dist/dep/SKILL.md": "---\nname: ignored\ndescription: Inspect.\n---\nInspect.\n",
+      "skills/team/build/dep/SKILL.md": "---\nname: ignored\ndescription: Inspect.\n---\nInspect.\n",
+      "skills/team/notes.md": "Auxiliary.",
+      "skills/team/.ignore": "nested/\n"
+    },
+    "names": [
+      "i",
+      "nested",
+      "team"
+    ],
+    "adoptable": true
+  },
+  {
+    "id": "plain-date",
+    "kind": "skill",
+    "files": {
+      "skills/review/SKILL.md": "---\ndescription: 2026-01-01\n---\nInspect.\n"
+    },
+    "names": [],
+    "adoptable": false
+  },
+  {
+    "id": "quoted-date",
+    "kind": "skill",
+    "files": {
+      "skills/review/SKILL.md": "---\ndescription: \"2026-01-01\"\n---\nInspect.\n"
+    },
+    "names": [
+      "review"
+    ],
+    "adoptable": true
+  },
+  {
+    "id": "block-date",
+    "kind": "skill",
+    "files": {
+      "skills/review/SKILL.md": "---\ndescription: |\n  2026-01-01\n---\nInspect.\n"
+    },
+    "names": [
+      "review"
+    ],
+    "adoptable": true
+  },
+  {
+    "id": "anchor-date",
+    "kind": "skill",
+    "files": {
+      "skills/review/SKILL.md": "---\nsummary: &summary 2026-01-01\ndescription: *summary\n---\nInspect.\n"
+    },
+    "names": [],
+    "adoptable": false
+  },
+  {
+    "id": "merge-date",
+    "kind": "skill",
+    "files": {
+      "skills/review/SKILL.md": "---\ndefaults: &defaults\n  description: 2026-01-01\n<<: *defaults\n---\nInspect.\n"
+    },
+    "names": [],
+    "adoptable": false
+  },
+  {
+    "id": "tagged-string-date",
+    "kind": "skill",
+    "files": {
+      "skills/review/SKILL.md": "---\ndescription: !!str 2026-01-01\n---\nInspect.\n"
+    },
+    "names": [
+      "review"
+    ],
+    "adoptable": true
+  },
+  {
+    "id": "binary-description",
+    "kind": "skill",
+    "files": {
+      "skills/review/SKILL.md": "---\ndescription: !!binary aGVsbG8=\n---\nInspect.\n"
+    },
+    "names": [],
+    "adoptable": false
+  },
+  {
+    "id": "base60-description",
+    "kind": "skill",
+    "files": {
+      "skills/review/SKILL.md": "---\ndescription: 1:20\n---\nInspect.\n"
+    },
+    "names": [],
+    "adoptable": false
+  },
+  {
+    "id": "base60-float-description",
+    "kind": "skill",
+    "files": {
+      "skills/review/SKILL.md": "---\ndescription: 1:20.\n---\nInspect.\n"
+    },
+    "names": [],
+    "adoptable": false
+  },
+  {
+    "id": "legacy-boolean-word",
+    "kind": "skill",
+    "files": {
+      "skills/review/SKILL.md": "---\ndescription: yes\nalwaysApply: yes\n---\nInspect.\n"
+    },
+    "names": [
+      "review"
+    ],
+    "adoptable": true
+  },
+  {
+    "id": "boolean-rule",
+    "kind": "skill",
+    "files": {
+      "skills/review/SKILL.md": "---\ndescription: Inspect.\nalwaysApply: True\n---\nInspect.\n"
+    },
+    "names": [],
+    "adoptable": false
+  },
+  {
+    "id": "mixed-case-surface-nUlL",
+    "kind": "skill",
+    "files": {
+      "skills/review/SKILL.md": "---\ndescription: Inspect.\nmetadata:\n  surfaces: nUlL\n---\nBody.\n"
+    },
+    "names": [],
+    "adoptable": false
+  },
+  {
+    "id": "mixed-case-surface-tRuE",
+    "kind": "skill",
+    "files": {
+      "skills/review/SKILL.md": "---\ndescription: Inspect.\nmetadata:\n  surfaces: tRuE\n---\nBody.\n"
+    },
+    "names": [],
+    "adoptable": false
+  }
+]

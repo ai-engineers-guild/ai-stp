@@ -32,9 +32,9 @@ MCP-компонент отвечает на вопрос: **какой внеш
     доступом, command, args, headers и env **никогда** не попадают в
     вывод discovery, паспорта, логи или фикстуры.
 
-    Файлы с именем `mcp.json` под Pi — расширения пользователя, не layout
-    харнесса. Машинная таблица сообщает
-    `no_documented_mcp_client_config`.
+    Pi 1.0.0 поддерживает нативный `mcp.json`, но discovery ai_stp и
+    закреплённый профиль provider ещё не поддерживают этот путь. Машинная
+    таблица сообщает `mcp_config_not_integrated`.
 
 ## Соседи
 
@@ -163,10 +163,10 @@ Discovery сообщает только объявленные layout. Точн�
 | --- | --- | --- | --- |
 | Claude Code | да | да | внутренний `.mcp.json` plugin — `mcp_client_config`; discovery его не открывает |
 | Codex | имена в `config.toml` | имена в `config.toml` | файл также является `setting`; ключ `mcp_servers`; существования недостаточно |
-| Pi | нет | нет | пробел `no_documented_mcp_client_config`; файлы `mcp.json` — расширения пользователя |
+| Pi | не интегрировано | не интегрировано | Pi 1.0.0 поддерживает `mcp.json`; ai_stp сообщает `mcp_config_not_integrated` |
 | OpenCode | имена в `opencode.json` / `opencode.jsonc` | те же файлы | файл также является `setting`; ключ `mcp`; существования недостаточно |
 | Grok Build | имена в `config.toml` | имена в `config.toml` | файл также является `setting`; ключ `mcp_servers`; существования недостаточно |
-| Cursor | не выдумывается из соседнего каталога | не выдумывается из соседнего каталога | официальная схема plugin называет `mcpServers`; walker файл не изобретает |
+| Cursor | имена в `mcp.json` | имена в `.cursor/mcp.json` | объявленный ключ `mcpServers`; соседние файлы не учитываются |
 | Antigravity | да | да | |
 | `undefined` | переносимые соглашения | переносимые соглашения | это не харнесс; автоматическая установка не считается безопасной |
 | (пакет сервера) | n/a | n/a | `harness_id=null`; цепочка Python или TypeScript как выше |
@@ -310,8 +310,8 @@ MCP-компонент может быть embedded-членом compose-ман�
 - Обращение с `.mcp.json` plugin так, будто это пакет сервера.
 - Открытие `.mcp.json` или MCP-блока настроек, чтобы «проверить» токены —
   discovery уже отказывается читать эти значения.
-- Файлы `mcp.json` у Pi, выданные за layout харнесса
-  (`no_documented_mcp_client_config`).
+- Установка Pi MCP, заявленная до поддержки нативного `mcp.json` в discovery
+  и публичном профиле provider (`mcp_config_not_integrated`).
 - `config.toml` / `opencode.json` без серверов под ключом, помеченные как
   MCP потому что файл существует.
 - Незакреплённые запускатели `npx` / `uvx` или command/args/URL/headers/env,

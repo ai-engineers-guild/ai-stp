@@ -104,11 +104,13 @@ neither a passport, log, nor fixture. A file that cannot be parsed in its format
 the size limit, or lacks the key produces no findings: guessing its content would be
 the very heuristic this contract prohibits.
 
-Pi has no declared client layout. Files named `mcp.json` occur under its root, but they
-are created by user extensions rather than the harness itself, and observed instances
-disagree on the key. The Pi documentation table of contents contains no MCP page, so the
-machine table reports the verified gap `no_documented_mcp_client_config` rather than an
-invented layout.
+Pi 1.0.0 documents `~/.pi/agent/mcp.json` and `.pi/mcp.json`, with the
+`mcpServers` key. These layouts are not yet integrated into discovery, and the
+pinned `pi/native-files/2` provider profile admits neither `mcp.json` nor the MCP
+kind. The machine table reports `mcp_config_not_integrated`; this is an ai_stp
+integration gap, not an upstream capability gap. See the
+[pinned Pi MCP documentation](https://github.com/earendil-works/pi/blob/a13d35a742c6ef8462812a28fbe1d8c8b7431c32/packages/coding-agent/docs/mcp.md).
+A future route must satisfy the public provider profile before installation.
 
 This is a separate layout, not a renaming of the global cache adapter. The adapter still
 reads the installed ledger, while the pack is a marketplace source tree in which the
