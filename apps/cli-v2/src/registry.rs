@@ -301,20 +301,32 @@ const COMMANDS: &[Declaration] = &[
             Parameter {
                 name: "ecosystem",
                 summary: "Implemented official package registry.",
-                kind: ParameterType::Choice(&["go"]),
+                kind: ParameterType::Choice(&["go", "pypi"]),
                 required: true,
             },
             Parameter {
                 name: "name",
-                summary: "Original case-sensitive module path.",
+                summary: "Go module path or PyPI project name.",
                 kind: ParameterType::String,
                 required: true,
             },
             Parameter {
                 name: "version",
-                summary: "Exact canonical module version, including the v prefix.",
+                summary: "Exact registry version; Go requires the v prefix.",
                 kind: ParameterType::String,
                 required: true,
+            },
+            Parameter {
+                name: "filename",
+                summary: "Exact distribution filename, required only for PyPI.",
+                kind: ParameterType::String,
+                required: false,
+            },
+            Parameter {
+                name: "platform",
+                summary: "Exact wheel platform tag or source for an sdist, required only for PyPI.",
+                kind: ParameterType::String,
+                required: false,
             },
         ],
         handler: Handler::PackageSourceFetch,
@@ -782,10 +794,14 @@ pub fn dispatch(matches: &ArgMatches) -> Result<Value> {
                 .ok_or_else(|| Failure::input("source root is required"))?,
         ),
         Handler::PackageSourceFetch => crate::sources::package::fetch(
+            leaf.get_one::<String>("ecosystem")
+                .ok_or_else(|| Failure::input("ecosystem is required"))?,
             leaf.get_one::<String>("name")
-                .ok_or_else(|| Failure::input("module name is required"))?,
+                .ok_or_else(|| Failure::input("package name is required"))?,
             leaf.get_one::<String>("version")
-                .ok_or_else(|| Failure::input("module version is required"))?,
+                .ok_or_else(|| Failure::input("package version is required"))?,
+            leaf.get_one::<String>("filename").map(String::as_str),
+            leaf.get_one::<String>("platform").map(String::as_str),
         ),
         Handler::SourceFetch => crate::sources::github::fetch(
             leaf.get_one::<String>("source")
