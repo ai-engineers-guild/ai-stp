@@ -2,6 +2,7 @@
 
 mod manifests;
 mod records;
+pub mod retained;
 
 use crate::{
     digest,
@@ -203,6 +204,11 @@ impl Reader {
 
 /// Inspect the defined bounded detection surface. No source or state is written.
 pub fn inspect(root: &Path) -> Result<Value> {
+    let (root, directory) = super::open_root(root)?;
+    inspect_at(&root, &directory)
+}
+
+fn inspect_at(root: &Path, directory: &cap_std::fs::Dir) -> Result<Value> {
     let mapping: Mapping = serde_json::from_str(SOURCE)
         .map_err(|_| Failure::precondition("embedded technology mapping is invalid"))?;
     let mut identities = BTreeMap::new();
@@ -218,7 +224,7 @@ pub fn inspect(root: &Path) -> Result<Value> {
     }
     let mut reader = Reader::default();
     let started = Instant::now();
-    let index = super::index::visit(root, &mut |path, language, bytes| {
+    let index = super::index::visit_at(root, directory, &mut |path, language, bytes| {
         if started.elapsed().as_secs() >= 20 {
             reader.stopped.get_or_insert("detection time budget");
             return;

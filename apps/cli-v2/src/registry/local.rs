@@ -29,6 +29,8 @@ pub(super) enum Handler {
     Quality,
     Suggest,
     ProjectPassport,
+    TechnologyPlan,
+    TechnologyFindings,
     Bind,
     Adopt,
     Import,
@@ -59,6 +61,7 @@ impl Handler {
     pub(super) fn mutability(self) -> &'static str {
         match self {
             Self::Discover
+            | Self::TechnologyFindings
             | Self::Show
             | Self::Version
             | Self::Versions
@@ -210,6 +213,18 @@ pub(super) const COMMANDS: &[Declaration] = &[
         summary: "Read exact retained enrichment declarations without updating or confirming draft facts.",
         parameters: &[STATE_DIR, ID],
         handler: super::Handler::Local(Handler::Suggest),
+    },
+    Declaration {
+        path: &["project", "technology", "plan"],
+        summary: "Plan a repository technology observation for an owned registered local project, preserving review decisions.",
+        parameters: &[STATE_DIR, ROOT],
+        handler: super::Handler::Local(Handler::TechnologyPlan),
+    },
+    Declaration {
+        path: &["project", "technology", "findings"],
+        summary: "Read retained repository technology evidence for an owned local project without reopening its source.",
+        parameters: &[STATE_DIR, ID],
+        handler: super::Handler::Local(Handler::TechnologyFindings),
     },
     Declaration {
         path: &["project", "passport", "plan"],
@@ -614,6 +629,14 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
             runtime::plan(path(args, "state-dir")?, |store, identity, at| {
                 projects::passports::plan(store, path(args, "root")?, identity, at)
             })
+        }
+        Handler::TechnologyPlan => {
+            runtime::plan(path(args, "state-dir")?, |store, identity, at| {
+                projects::technology::retained::plan(store, path(args, "root")?, identity, at)
+            })
+        }
+        Handler::TechnologyFindings => {
+            projects::technology::retained::findings(path(args, "state-dir")?, text(args, "id")?)
         }
         Handler::Forget => runtime::plan(path(args, "state-dir")?, |store, identity, at| {
             lifecycle::plan(
