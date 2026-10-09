@@ -16,9 +16,29 @@ use std::path::PathBuf;
 pub(super) enum Handler {
     Impact,
     Radius,
+    Program,
 }
 
 pub(super) const COMMANDS: &[Declaration] = &[
+    Declaration {
+        path: &["program", "inspect"],
+        summary: "Observe an explicit software prefix and unfinished stages without executing or trusting local records.",
+        parameters: &[
+            Parameter {
+                name: "prefix",
+                summary: "Absolute software prefix; its parent must exist. No state is created.",
+                kind: ParameterType::Path,
+                required: true,
+            },
+            Parameter {
+                name: "entry-point",
+                summary: "Exact relative bin/command name, including any platform suffix.",
+                kind: ParameterType::String,
+                required: true,
+            },
+        ],
+        handler: super::Handler::Report(Handler::Program),
+    },
     Declaration {
         path: &["select", "impact"],
         summary: "Compare verified local setup context and capabilities in one read-only snapshot, without selecting or installing.",
@@ -114,6 +134,11 @@ fn text<'a>(args: &'a ArgMatches, name: &str) -> Result<&'a str> {
 
 pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
     match handler {
+        Handler::Program => crate::program::inspect(
+            args.get_one::<PathBuf>("prefix")
+                .ok_or_else(|| Failure::input("the explicit program prefix is required"))?,
+            text(args, "entry-point")?,
+        ),
         Handler::Impact => {
             let baseline = match (
                 args.get_one::<String>("against-setup-id"),
