@@ -129,6 +129,46 @@ projection placeholders, evaluation files, README or Git repository are generate
 `setup scaffold apply` uses the exact digest in the existing setup-scaffold
 domain and the same closed 64 KiB plan reader and durable publisher as components.
 
+`component source parse` separates published names (`@owner/name@selector`),
+GitHub addresses (`gh:owner/repo@selector`, repository URLs and `tree`/`blob`
+URLs), explicit local paths and collection addresses (`col:owner/handle` or
+`https://askill.sh/c/owner/handle`). Input is bounded to 2 KiB. Local relative
+paths require an explicit absolute `--root`; path bytes, including Unicode and
+unresolved parent segments, are preserved without resolving or opening files.
+
+`component source resolve --commit` pins only a GitHub intent to a full lowercase
+40-character SHA. A conflicting SHA in an already exact address refuses. Parsing
+and pinning always report `provenance: not_observed`, `network_accessed: false`
+and `filesystem_accessed: false`; an exact caller-supplied coordinate is not
+evidence that the repository, revision or content has been verified.
+Credential-bearing URLs, query/fragment data, noncanonical authorities, invalid
+UTF-8/percent escapes and encoded traversal or path separators refuse. Raw URL
+segments are checked before URL normalization can erase them.
+
+The source parser owns the direct `percent-encoding` dependency, already present
+in the locked `url` closure. Its Rust URL maintainers publish it under MIT or
+Apache-2.0; the parser uses its [UTF-8 percent decoder](https://docs.rs/percent-encoding/2.3.2/percent_encoding/fn.percent_decode_str.html)
+on bounded in-memory strings on all supported platforms. No subprocess, I/O
+timeout or new network client is involved. CLI maintainers own updates and advisory
+checks; removing URL source parsing removes this direct dependency.
+
+`component source capture --root --path` observes exactly one relative local file
+or tree under an explicit absolute root. It returns portable source metadata and
+an unpadded base64url canonical component-tree artifact. The shared source digest
+binds ordered paths and original content; the artifact digest also binds modes.
+Absolute local paths are absent from the report. UTF-8 source bytes are preserved
+without Unicode rewriting; binary files, secret-named entries, links, special
+files, escaping paths and empty trees refuse. The snapshot keeps both verification
+axes and `target_write` false and records only `provenance: local_observed`.
+
+Capture uses the existing bounded reader: at most 1,000 files, 4 MiB per file,
+4,000 traversed entries and 32 directory levels; the snapshot additionally limits
+total content to 8 MiB. A Git working tree uses tracked and unignored untracked
+files, with the reader's bounded Git process; no remote commit is inferred from
+working bytes. Selecting a file excludes native hook sibling directories.
+No credential session, local registry or output directory is created. This read
+does not register a component or establish publication/install eligibility.
+
 `component source inspect` captures one explicit `/7` authoring project using the
 bounded Git/regular-file source reader. It validates the generator-owned descriptor
 and closed passport patch, checks up to 64 distinct portable source entry paths,
@@ -1134,6 +1174,8 @@ no async runtime or tracing feature is enabled for it.
 | `authoring/scaffold/` | Minimal exact component sources and consumable setup requests |
 | `files/tree.rs` | Shared recoverable directory publication with no-replace rename |
 | `identity/` | Explicit offline identity initialization, private key storage and public signing identity |
+| `sources.rs` | Pure source-address parsing and explicit GitHub commit pinning without provenance claims |
+| `sources/local.rs` | Bounded local source observations and interoperable content snapshots |
 | `authoring/source_project.rs` | One bounded source snapshot, metadata separation and structural readiness |
 | `authoring/adaptations.rs` | Explicit portable-to-native projections preserving source bodies and modes |
 | `authoring/review.rs` | Read-only publication structure and optional quality hints over every retained adaptation |

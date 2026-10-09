@@ -7,6 +7,7 @@ Every child runs with an empty PATH and an isolated, initially empty home.
 from __future__ import annotations
 
 import argparse
+import base64
 import hashlib
 import json
 import os
@@ -32,8 +33,12 @@ from ai_stp_contracts.cli.components import PassportView, VersionLine
 from ai_stp_contracts.cli.registry import MachineHelp
 from ai_stp_contracts.cli.runtime import ConfigReport
 from ai_stp_foundation.canonical import JsonValue
-from ai_stp_foundation.digests import digest_canonical
+from ai_stp_foundation.digests import digest_bytes, digest_canonical
 from ai_stp_foundation.envelope import ErrorEnvelope, SuccessEnvelope
+from ai_stp_sources.definition import unpack_component_tree
+from ai_stp_sources.files import files_digest
+from ai_stp_sources.models import SourceSnapshot
+from ai_stp_sources.resolve import validate_frozen_snapshot
 
 
 def run(binary: Path, home: Path, args: list[str], expected: int = 0) -> dict[str, Any]:
@@ -93,6 +98,7 @@ def prove(binary: Path, root: Path) -> None:
     prove_config(binary, home, root)
     prove_template(binary, home, root)
     prove_scaffold(binary, home, root)
+    prove_source_capture(binary, home, root)
     verify_identity.prove(binary, home, root, run)
     verify_authoring.prove(binary, home, root, run)
     prove_objects(binary, home, root)
@@ -492,6 +498,32 @@ def prove_objects(binary: Path, home: Path, root: Path) -> None:
         ]
         answer = run(binary, home, command + options, 4)
         assert answer["error"]["code"] == code
+
+
+def prove_source_capture(binary: Path, home: Path, root: Path) -> None:
+    source = root / "external-source"
+    source.mkdir()
+    payload = "Original e\u0301 source bytes.\n".encode()
+    (source / "note.txt").write_bytes(payload)
+    args = ["component", "source", "capture", "--root", str(root), "--path", source.name]
+    result = run(binary, home, args)["data"]
+    assert result == run(binary, home, args)["data"]
+    encoded = result["artifact"]["bytes_b64"]
+    artifact = base64.urlsafe_b64decode(encoded + "=" * (-len(encoded) % 4))
+    assert result["artifact"]["digest"] == digest_bytes("ai-stp:artifact:v1", artifact)
+    assert result["artifact"]["size_bytes"] == len(artifact)
+    files = unpack_component_tree(artifact)
+    assert files == {"note.txt": payload}
+    snapshot = dict(result["snapshot"])
+    assert snapshot.pop("file_paths") == sorted(files)
+    model = SourceSnapshot.model_validate({**snapshot, "files": files})
+    validate_frozen_snapshot(model)
+    assert model.exact_identity == model.component_digest == files_digest(files)
+    assert not model.author_verified and not model.component_verified and not model.target_write
+    assert result["filesystem_accessed"] and not result["network_accessed"]
+    assert str(root) not in json.dumps(result)
+    assert (source / "note.txt").read_bytes() == payload
+    assert list(source.iterdir()) == [source / "note.txt"]
 
 
 def benchmark(binary: Path, root: Path) -> None:
