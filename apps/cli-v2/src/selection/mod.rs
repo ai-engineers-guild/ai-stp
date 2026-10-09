@@ -2,4 +2,5 @@
 
 pub mod eligibility;
 pub mod graph;
+pub mod impact;
 pub mod sessions;

@@ -739,6 +739,32 @@ selection, without repinning an older setup. Cancellation retains its terminal
 row and cannot undo confirmation. This service is not yet exposed by a CLI
 command: device observation and trusted runtime assembly remain prerequisites.
 
+`select impact` reads exact retained setup graphs in one query-only SQLite
+transaction. The explicit baseline wins; otherwise `--project-id` uses one
+unambiguous installed coordinate and then the current selection. Installation
+attribution follows serialized verified configuration mutations per harness
+and physical provider target. Replacement supersedes older attribution; removal
+and an unattributed rollback clear it. Backup and software operations do not
+establish an installed setup. Historical records without a physical target
+conservatively supersede older records for their project/harness pair.
+
+The report verifies immutable coordinates, dependency closure and every scope
+projection for the setup's harness. It measures those projection files, including
+Unicode codepoints rather than graphemes for `ai-stp:unicode-chars-div4/1`.
+`ai-stp:utf8-bytes/1` counts bytes as its own units; neither profile claims to be
+a model tokenizer. Multiple possible installation scopes and invalid UTF-8 are
+explicitly unavailable. An incomplete budget omits context differences and
+prices, while retaining capability differences. Report work is limited to 512
+members per setup, 8,192 dependency edges and 128 MiB of artifact reads across
+candidate and baseline. Native reports require complete immutable passports;
+historical flat adopted drafts are not silently upgraded.
+
+Optional prices come only from an explicit profile of at most 64 KiB, with a
+plain decimal rate of at most 4,096 characters and a credential-free HTTPS
+source. Exact decimal arithmetic rounds half-up to eight places. Expired and
+future-dated profiles return no amount. Reports do not fetch prices, invoke a
+model, initialize identity or change a selected setup.
+
 New component dependency and setup member references include the wire contract's
 null `variant_id` default before sealing. The Python publisher's complete-model
 serialization therefore preserves their revision and passport digests. This
@@ -1001,6 +1027,7 @@ no async runtime or tracing feature is enabled for it.
 | `environment.rs` | Exact setup prerequisites, project binding and variable-name presence |
 | `selection/` | Verified exact graphs, deterministic ordering and graph-wide mechanical eligibility |
 | `selection/sessions/` | Exact context evaluation, durable proposals and atomic confirmation history |
+| `selection/impact.rs`, `selection/impact/` | Exact context/capability reports, current installation attribution and decimal price snapshots |
 | `projects/passports/` | Private project observations, copy/move identity and durable marker registration |
 | `passport/developer.rs` | Closed private preferences, exact singleton plans and atomic revision receipts |
 | `provider.rs`, `bundle/` | Exact provider declarations, composition constraints and deterministic v2 packages |
@@ -1065,6 +1092,9 @@ ancestor replay, writer exclusion and rollback before commit. The schema oracle
 compares every table, index and constraint with a real schema-53 registry.
 The Unix CLI authoring journey covers identity, source binding, metadata updates,
 release, fork, setup composition, adoption and independent Python passport validation.
+Its report oracle compares both estimators, decimal rounding, cross-harness
+projections, scope uncertainty and verified installation history against the
+shared Python models, with unchanged registry contents after every native read.
 Windows has a real native Credential Manager identity/CLI roundtrip with cleanup
 of only its newly generated test entry. Linux Secret Service evidence is run in
 an isolated D-Bus session outside the ordinary cross-platform gate.

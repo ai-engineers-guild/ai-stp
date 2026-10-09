@@ -215,7 +215,19 @@ pub(crate) fn verify(connection: &Connection, document: &Value) -> Result<()> {
             .as_str()
             .ok_or_else(invalid)?,
     )?;
-    let mut retained = canonical::parse(&payload)?;
+    verify_definition(document, &payload)?;
+    for reference in document["components"].as_array().ok_or_else(invalid)? {
+        member(
+            connection,
+            reference,
+            document["harness_id"].as_str().ok_or_else(invalid)?,
+        )?;
+    }
+    Ok(())
+}
+
+pub(crate) fn verify_definition(document: &Value, payload: &[u8]) -> Result<()> {
+    let mut retained = canonical::parse(payload)?;
     if document["artifact_format"] != FORMAT
         || document["artifact"]["size_bytes"] != payload.len()
         || payload != canonical::bytes(&retained)?
@@ -229,13 +241,6 @@ pub(crate) fn verify(connection: &Connection, document: &Value) -> Result<()> {
     passport::versions::normalize_component_refs(&mut expected["components"])?;
     if retained != expected {
         return Err(invalid());
-    }
-    for reference in document["components"].as_array().ok_or_else(invalid)? {
-        member(
-            connection,
-            reference,
-            document["harness_id"].as_str().ok_or_else(invalid)?,
-        )?;
     }
     Ok(())
 }

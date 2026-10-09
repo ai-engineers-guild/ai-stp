@@ -33,6 +33,68 @@ fn counts(store: &mut Store) -> Result<(i64, i64, i64, i64, i64), Failure> {
     store.transaction(|t| t.query_row("SELECT (SELECT count(*) FROM entity),(SELECT count(*) FROM revision),(SELECT count(*) FROM content),(SELECT count(*) FROM operation),(SELECT count(*) FROM object_version)",[],|r|Ok((r.get(0)?,r.get(1)?,r.get(2)?,r.get(3)?,r.get(4)?))).map_err(|_| Failure::precondition("proof query failed")))
 }
 
+fn impact_journey(store: &mut Store, setup: &Value, empty: &Value) -> Result<(), Box<dyn Error>> {
+    use ai_stp_cli_v2::selection::impact;
+
+    let before = counts(store)?;
+    let mut request = impact::Request {
+        setup_id: field(setup, "stable_id")?,
+        setup_version: "1.0",
+        baseline: Some((field(empty, "stable_id")?, "1.0")),
+        project_id: None,
+        estimator_profile: "ai-stp:utf8-bytes/1",
+        price_profile: None,
+    };
+    let result = impact::report(store, &request, AT)?;
+    assert_eq!(result["baseline_source"], "explicit");
+    assert_eq!(result["candidate_context"]["unavailable_components"], 0);
+    let count = result["candidate_context"]["conditional_tokens"]
+        .as_u64()
+        .ok_or("budget")?;
+    assert!(count > 0);
+    assert_eq!(result["context_delta"]["conditional_tokens"], count);
+    assert_eq!(result["token_cost"]["reason"], "price_profile_not_supplied");
+    let price = json!({"profile_id":"fixture-price","tokenizer_profile":request.estimator_profile,
+        "model":"fixture-model","input_per_million":"1000000","source":"https://example.test/price",
+        "fetched_at":"2026-10-01T00:00:00.000Z","expires_at":"2026-10-10T00:00:00.000Z"});
+    request.price_profile = Some(&price);
+    let paid = impact::report(store, &request, AT)?;
+    assert_eq!(paid["token_cost"]["amount"], format!("{count}.00000000"));
+    assert_eq!(paid["candidate_context"], result["candidate_context"]);
+    let mut stale = price.clone();
+    stale["expires_at"] = "2026-10-02T00:00:00.000Z".into();
+    request.price_profile = Some(&stale);
+    assert_eq!(
+        impact::report(store, &request, AT)?["token_cost"]["status"],
+        "stale"
+    );
+    let mut future = price.clone();
+    future["fetched_at"] = LATER.into();
+    request.price_profile = Some(&future);
+    assert_eq!(
+        impact::report(store, &request, AT)?["token_cost"]["reason"],
+        "price_profile_not_yet_valid"
+    );
+    request.estimator_profile = "ai-stp:unicode-chars-div4/1";
+    assert!(impact::report(store, &request, AT).is_err());
+    request.price_profile = None;
+    let estimated = impact::report(store, &request, AT)?;
+    assert_eq!(estimated["estimator"]["accuracy"], "estimated");
+    assert!(
+        estimated["candidate_context"]["conditional_tokens"]
+            .as_u64()
+            .ok_or("budget")?
+            < count
+    );
+    request.baseline = Some((field(setup, "stable_id")?, "1.0"));
+    let same = impact::report(store, &request, AT)?;
+    assert_eq!(same["context_delta"]["conditional_tokens"], 0);
+    request.setup_version = "latest";
+    assert!(impact::report(store, &request, AT).is_err());
+    assert_eq!(counts(store)?, before);
+    Ok(())
+}
+
 fn export_journey(parent: &Path, source: &Value) -> Result<export::Plan, Box<dyn Error>> {
     let before = counts(&mut Store::planning(parent)?)?;
     let reference = setups::Source {
@@ -778,6 +840,7 @@ fn exact_setup_closure_constraints_atomicity_and_replay() -> Result<(), Box<dyn 
     assert_eq!(empty["components"], json!([]));
     assert_eq!(empty["requires_authorization"], "none");
     assert_eq!(empty["member_metadata_complete"], true);
+    impact_journey(&mut store, &setup, &empty)?;
     copies_journey(&mut store, &setup, &empty, &identity)?;
     drop(store);
     let pending_export = export_journey(root.path(), &setup)?;
