@@ -4,6 +4,7 @@
 mod tests;
 
 pub mod bundles;
+pub mod matrix;
 pub mod sessions;
 
 use std::{collections::BTreeMap, path::Path};
@@ -167,7 +168,16 @@ struct Inputs {
 
 /// Derive in the caller's transaction, including the transaction that records
 /// a new proposal or confirmation. These observations are never deserialized.
-fn inputs(connection: &Connection, roots: &[Value], mut target: Target) -> Result<Inputs> {
+fn inputs(connection: &Connection, roots: &[Value], target: Target) -> Result<Inputs> {
+    inputs_with_budget(connection, roots, target, MAX_CONTENT)
+}
+
+fn inputs_with_budget(
+    connection: &Connection,
+    roots: &[Value],
+    mut target: Target,
+    budget: u64,
+) -> Result<Inputs> {
     let closure = graph::exact(connection, roots)?;
     let mut documents = Vec::new();
     let mut total = 0;
@@ -193,6 +203,11 @@ fn inputs(connection: &Connection, roots: &[Value], mut target: Target) -> Resul
             }
             documents.push(document);
         }
+    }
+    if total > budget {
+        return Err(Failure::precondition(
+            "selection artifact verification exceeds its aggregate byte budget; reduce the page limit",
+        ));
     }
     let mut evidence = BTreeMap::new();
     for document in &documents {

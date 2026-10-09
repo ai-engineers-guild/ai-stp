@@ -1288,7 +1288,38 @@ content, trace, context revisions and receipt, including after expiry or later
 selection, without repinning an older setup. Cancellation retains its terminal
 row and cannot undo confirmation.
 
-The CLI exposes this service through five commands:
+`select eligibility-matrix --state-dir --request` discovers local component and
+setup candidates and evaluates each independently across explicit harness
+selectors. The closed request is at most 16 KiB: `targets` contains one to seven
+distinct `harness_id`, `scope`, exact `provider_version` selectors; optional
+`after` is an object identity cursor, `limit` is 1–50 (default 10), and
+`for_redistribution` defaults to false. Targets are sorted by harness identity.
+No caller-supplied rights, evidence, provider declaration or installed version
+is accepted.
+
+Each page lists non-forgotten objects in identity order. For each object it
+uses the highest retained immutable numeric `X.Y`, returns its exact digest,
+and verifies its retained graph and bytes. An object without a release remains
+visible as `unreleased` with `immutable_version_missing`; a mutable draft is
+never an installable substitute for a released coordinate. The report does not
+combine independent candidates into one graph: two setups may legitimately pin
+different versions of the same component. Use `select eligibility` for an older
+exact version or an explicitly combined graph.
+
+The runtime authenticates each requested provider once before locking the
+registry, then rechecks identity and reads the candidate page and all cells in
+one query-only transaction. Payloads are discarded after provider observation;
+seven executables are not retained in memory. Trust expiry is checked before
+returning. Artifact verification is shared across harness cells for each
+candidate and bounded to 64 MiB across the page, counting repeated dependency
+reads. Report data is bounded to 8 MiB; reduce the page limit on refusal. Every
+cell retains the existing mechanical refusals and only declared environment
+names can be observed. An empty or wholly unreleased page needs no provider or
+network and marks provider observations absent. The matrix grants no rights,
+selects nothing and writes no harness. Its `next_after` cursor advances to a
+fresh page observation, not a transaction spanning CLI calls.
+
+The CLI exposes the durable selection service through five commands:
 
 - `select propose plan --state-dir --project-id --request [--empty]` uses the
   eligibility request shape with component roots and `for_redistribution: false`.
