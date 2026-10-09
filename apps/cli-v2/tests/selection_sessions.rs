@@ -4,7 +4,7 @@ use ai_stp_cli_v2::{
     artifacts::{self, Member as File},
     authoring::{Identity, releases, setups},
     digest,
-    error::Failure,
+    error::{ErrorKind, Failure},
     passport::developer,
     projection::Scope,
     provider::Info,
@@ -356,10 +356,37 @@ fn durable_selection_rechecks_context_and_commits_one_complete_effect() -> Resul
             .into_iter()
             .map(|h| {
                 h.join()
-                    .map_err(|_| Failure::precondition("proof writer panicked"))?
+                    .map_err(|_| Failure::precondition("proof writer panicked"))
             })
             .collect::<Result<Vec<_>, Failure>>()
     })?;
+    assert_eq!(
+        outcomes
+            .iter()
+            .filter(|outcome| matches!(outcome, Ok(value) if value.created))
+            .count(),
+        1
+    );
+    let outcomes = outcomes
+        .into_iter()
+        .map(|outcome| match outcome {
+            Ok(value) => Ok(value),
+            Err(error) => {
+                assert!(matches!(error.kind, ErrorKind::Precondition), "{error:?}");
+                assert_eq!(
+                    error.details.get("stage").and_then(Value::as_str),
+                    Some("lock_timeout")
+                );
+                let mut store = Store::open(directory.path(), false)?;
+                let before = counts(&mut store)?;
+                let replay =
+                    sessions::confirm(&mut store, &decision, &decision.digest()?, &runtime, AT)?;
+                assert!(!replay.created);
+                assert_eq!(counts(&mut store)?, before);
+                Ok(replay)
+            }
+        })
+        .collect::<Result<Vec<_>, Failure>>()?;
     assert_eq!(outcomes.iter().filter(|o| o.created).count(), 1);
     assert_eq!(outcomes[0].passport, outcomes[1].passport);
     if let Some(path) = std::env::var_os("AI_STP_SELECTION_PROOF_FILE") {
