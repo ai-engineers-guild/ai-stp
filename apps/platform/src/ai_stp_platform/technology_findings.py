@@ -206,8 +206,9 @@ def export_findings_markdown(
         f"- Detector: {detector_version or '—'}",
         f"- Mapping: {mapping_version or '—'}",
         "",
-        "| Kind | Tier | Coordinate | Technology | Context | Version | State | Review | Evidence |",
-        "| --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+        "| Kind | Tier | Coordinate | Technology | Context | Version "
+        "| Version kind | State | Review | Evidence |",
+        "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
     ]
     for item in findings:
         cells = (
@@ -217,6 +218,7 @@ def export_findings_markdown(
             _export_technology(item),
             item.context or "",
             item.version or "",
+            item.version_kind,
             item.state,
             item.review,
             _export_evidence(item),
