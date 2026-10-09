@@ -1224,6 +1224,11 @@ plan/status scope arguments. Provider paths match complete namespace segments.
 Requests and provider declarations are bounded; unknown runtime facts are not
 invented from a static route table.
 
+Eligibility targets use the same `linux`, `macos`, `windows` and `x86_64`,
+`arm64` vocabulary as passports and provider declarations. Host aliases such as
+`darwin`, `amd64` and `aarch64` are not native domain values; unsupported or
+noncanonical values refuse before mechanical assessment.
+
 The headless selection session service plans and persists exact proposals in
 schema 53 without creating an entity, version, artifact or operation. It reads
 the current sole heads of the owned developer, device and project passports;
