@@ -60,12 +60,12 @@ fn device_observations_are_owned_revalidated_and_do_not_manufacture_history()
         .map(|h| h.join().map_err(|_| "writer panicked"))
         .collect::<Result<Vec<_>, _>>()?;
     assert_eq!(results.iter().filter(|(_, r)| r.is_ok()).count(), 1);
-    assert!(
-        results
-            .iter()
-            .filter_map(|(_, r)| r.as_ref().err())
-            .all(|e| matches!(e.kind, ErrorKind::Conflict))
-    );
+    for error in results
+        .iter()
+        .filter_map(|(_, result)| result.as_ref().err())
+    {
+        assert!(matches!(error.kind, ErrorKind::Conflict), "{error:?}");
+    }
     let (initial, document) = results
         .into_iter()
         .find_map(|(p, r)| r.ok().map(|d| (p, d)))
