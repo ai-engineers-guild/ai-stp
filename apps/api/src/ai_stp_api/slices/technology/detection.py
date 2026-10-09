@@ -1,6 +1,6 @@
 """Immutable detector snapshots refresh facts, never owner decisions or project links."""
 
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from typing import Literal, TypedDict, cast
 
 from sqlalchemy import func, select, update
@@ -821,6 +821,8 @@ async def list_scans(
     ctx: AuthContext,
     organization_id: str,
     project_id: str | None = None,
+    created_from: date | None = None,
+    created_to: date | None = None,
     request_id: str | None,
 ) -> TechnologyScanList:
     """The organization's scan journal: queued jobs and published scans."""
@@ -833,6 +835,14 @@ async def list_scans(
     if project_id is not None:
         scan_filter = scan_filter.where(TechnologyScan.project_id == project_id)
         job_filter = job_filter.where(Job.payload["project_id"].as_string() == project_id)
+    if created_from is not None:
+        start = datetime.combine(created_from, datetime.min.time(), tzinfo=UTC)
+        scan_filter = scan_filter.where(TechnologyScan.created_at >= start)
+        job_filter = job_filter.where(Job.created_at >= start)
+    if created_to is not None:
+        end = datetime.combine(created_to, datetime.max.time(), tzinfo=UTC)
+        scan_filter = scan_filter.where(TechnologyScan.created_at <= end)
+        job_filter = job_filter.where(Job.created_at <= end)
     scans = {row.id: row for row in (await db.scalars(scan_filter)).all()}
     jobs = list((await db.scalars(job_filter)).all())
     project_names = {

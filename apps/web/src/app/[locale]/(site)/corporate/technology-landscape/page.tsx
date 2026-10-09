@@ -58,6 +58,9 @@ export default async function TechnologyLandscapePage({
       const canRead =
         permissions.capabilities.includes("category.list") &&
         permissions.capabilities.includes("category.read");
+      const canReadAreas =
+        permissions.capabilities.includes("area.list") &&
+        permissions.capabilities.includes("area.read");
       [categories, areas, landscape, journal] = await Promise.all([
         canRead
           ? privateApiRequest<CategoryList>(
@@ -65,7 +68,7 @@ export default async function TechnologyLandscapePage({
               { sessionToken: session },
             )
           : null,
-        canRead
+        canReadAreas
           ? privateApiRequest<AreaList>(
               `/v1/corporate/organizations/${organizationId}/technology-areas`,
               { sessionToken: session },

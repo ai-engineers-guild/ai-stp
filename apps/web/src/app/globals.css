@@ -829,25 +829,6 @@ a {
 .technology-search > svg {
   color: hsl(var(--muted-foreground));
 }
-.technology-filter-bar {
-  display: flex;
-  align-items: center;
-  gap: 0.625rem;
-  padding: 0.375rem;
-  border: 1px solid hsl(var(--border));
-  border-radius: var(--radius-sm);
-}
-.technology-filter-bar > * {
-  flex: 1;
-  min-width: 0;
-}
-.technology-filter-bar > .technology-search {
-  flex: 2;
-}
-.technology-filter-bar > button,
-.technology-filter-bar > label {
-  flex: 0 0 auto;
-}
 .technology-metrics {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));

@@ -56,9 +56,9 @@ export default async function TechnologyAreasPage({
     authorizationRevision: directory.permissions.authorization_revision,
     csrfToken: (await readCsrfToken()) ?? "",
   };
-  const canCreate = directory.permissions.capabilities.includes("category.create");
-  const canUpdate = directory.permissions.capabilities.includes("category.update");
-  const canRemove = directory.permissions.capabilities.includes("category.delete");
+  const canCreate = directory.permissions.capabilities.includes("area.create");
+  const canUpdate = directory.permissions.capabilities.includes("area.update");
+  const canRemove = directory.permissions.capabilities.includes("area.delete");
   return (
     <div className="min-w-0 space-y-6">
       <header className="space-y-3">

@@ -19,6 +19,9 @@ export default async function TechnologyReviewPage({
   await requireSession(locale, `/${locale}/corporate/technology-mappings`);
   const session = (await sessionCookieValue()) ?? "",
     t = await getTranslations("technology");
+  const query = await searchParams;
+  const scanFrom = typeof query.scan_from === "string" ? query.scan_from : "";
+  const scanTo = typeof query.scan_to === "string" ? query.scan_to : "";
   let context;
   let data;
   try {
@@ -29,6 +32,10 @@ export default async function TechnologyReviewPage({
         session,
         context.organization.organization_id,
         undefined,
+        {
+          ...(scanFrom ? { createdFrom: scanFrom } : {}),
+          ...(scanTo ? { createdTo: scanTo } : {}),
+        },
       );
   } catch (error) {
     if (!(error instanceof ApiError)) throw error;
@@ -44,7 +51,6 @@ export default async function TechnologyReviewPage({
     return <StatePanel kind="empty" title={t("mappingTitle")} description={t("empty")} />;
   if (!data)
     return <StatePanel kind="empty" title={t("mappingTitle")} description={t("notPermitted")} />;
-  const query = await searchParams;
   return (
     <div className="technology-workspace">
       <TechnologyScanFindings
@@ -58,6 +64,7 @@ export default async function TechnologyReviewPage({
         projects={context.projects}
         mode="mapping"
         initialScan={typeof query.scan_id === "string" ? query.scan_id : ""}
+        initialDate={scanFrom}
         canUpdate={data.permissions.capabilities.includes("technology.update")}
       />
     </div>

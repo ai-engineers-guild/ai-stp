@@ -1,10 +1,6 @@
 "use client";
 import { useTranslations } from "next-intl";
 
-import { Button } from "@/components/atoms/button";
-
-import { Label } from "@/components/atoms/label";
-
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/atoms/dialog";
 
 import { TechnologyRegistryCreate } from "@/components/organisms/technology-registry-create";
@@ -18,16 +14,11 @@ export function TechnologyReviewDialogs({ state }: { state: TechnologyReviewStat
     w,
     active,
     authority,
-    pendingOnly,
     create,
     evidence,
-    advanced,
     patch,
-    setPendingOnly,
-    setPage,
     setCreate,
     setEvidence,
-    setAdvanced,
   } = state;
   const s = useTranslations("technology.scans");
   const k = useTranslations("technology.scans.versionKind");
@@ -106,30 +97,6 @@ export function TechnologyReviewDialogs({ state }: { state: TechnologyReviewStat
               </div>
             ))}
           </dl>
-        </DialogContent>
-      </Dialog>
-      <Dialog open={advanced} onOpenChange={setAdvanced}>
-        <DialogContent>
-          <DialogTitle>{t("filters")}</DialogTitle>
-          <DialogDescription>{w("filterDescription")}</DialogDescription>
-          <Label className="flex min-h-11 items-center gap-2">
-            <input
-              type="checkbox"
-              checked={pendingOnly}
-              onChange={(e) => {
-                setPendingOnly(e.target.checked);
-                setPage(1);
-              }}
-            />
-            {w("pendingOnly")}
-          </Label>
-          <Button
-            onClick={() => {
-              setAdvanced(false);
-            }}
-          >
-            {t("apply")}
-          </Button>
         </DialogContent>
       </Dialog>
     </>

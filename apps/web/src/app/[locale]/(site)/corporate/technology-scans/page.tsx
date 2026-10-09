@@ -64,7 +64,7 @@ export default async function TechnologyScansPage({
             activeProjectIds={journal.scans.items
               .filter((item) => ["queued", "running"].includes(item.status))
               .map((item) => item.project_id)}
-            variant="outline"
+            size="lg"
           />
         )}
       </div>

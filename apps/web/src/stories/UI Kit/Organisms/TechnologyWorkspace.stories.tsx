@@ -2,6 +2,7 @@ import type { Meta, StoryObj } from "@storybook/react";
 import { NextIntlClientProvider } from "next-intl";
 import ru from "../../../../messages/ru.json";
 import { TechnologyScanFindings } from "@/components/organisms/technology-scan-findings";
+import { TechnologyFilterToolbar } from "@/components/organisms/technology-filter-toolbar";
 import { TechnologyLandscapeResults } from "@/components/organisms/technology-landscape-results";
 import { TechnologyScanJournal } from "@/components/organisms/technology-scan-journal";
 import {
@@ -58,4 +59,35 @@ export const Table: Story = {
 };
 export const Journal: Story = {
   render: () => <TechnologyScanJournal items={[scan]} projects={projects} />,
+};
+export const FilterToolbar: Story = {
+  render: () => (
+    <TechnologyFilterToolbar
+      search=""
+      searchPlaceholder="Search findings, files, technologies…"
+      onSearchChange={() => {}}
+      facets={[
+        {
+          kind: "options",
+          key: "project",
+          label: "Project",
+          options: projects.map((p) => ({ value: p.project_id, label: p.name })),
+        },
+        {
+          kind: "options",
+          key: "status",
+          label: "Status",
+          options: [
+            { value: "open", label: "Open" },
+            { value: "resolved", label: "Resolved" },
+          ],
+        },
+        { kind: "date", key: "date", label: "Starting from date" },
+        { kind: "flag", key: "pending", label: "Only findings needing review" },
+      ]}
+      values={{ project: [], status: ["open"], date: "", pending: true }}
+      onApply={() => {}}
+      onReset={() => {}}
+    />
+  ),
 };

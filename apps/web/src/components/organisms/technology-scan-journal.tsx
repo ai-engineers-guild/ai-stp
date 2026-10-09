@@ -4,18 +4,10 @@ import { useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Badge } from "@/components/atoms/badge";
 import { Button } from "@/components/atoms/button";
-import { Input } from "@/components/atoms/input";
-import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
-  DialogDescription,
-  DialogTrigger,
-} from "@/components/atoms/dialog";
-import { Label } from "@/components/atoms/label";
 import { Select } from "@/components/atoms/select";
 import { Table, TBody, Td, THead, Th, Tr } from "@/components/atoms/table";
 import { PagePager } from "@/components/molecules/page-pager";
+import { TechnologyFilterToolbar } from "@/components/organisms/technology-filter-toolbar";
 import { Link, useRouter } from "@/lib/i18n/navigation";
 import { Menu, MenuTrigger, MenuContent, MenuItem } from "@/components/atoms/menu";
 import type { CorporateProjectView, TechnologyScanListEntry } from "@/lib/api/generated/types.gen";
@@ -55,72 +47,61 @@ export function TechnologyScanJournal({
     visible = rows.slice((currentPage - 1) * size, currentPage * size);
   return (
     <section className="space-y-4">
-      <div className="technology-filter-bar">
-        <div className="technology-search">
-          <Icon name="search" size="sm" />
-          <Input
-            aria-label={t("search")}
-            placeholder={w("searchScans")}
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(1);
-            }}
-          />
-        </div>
-        <Select
-          aria-label={w("project")}
-          value={project}
-          onChange={(e) => {
-            setProject(e.target.value);
-            setPage(1);
-          }}
-        >
-          <option value="">{w("allProjects")}</option>
-          {projects.map((p) => (
-            <option key={p.project_id} value={p.project_id}>
-              {p.name}
-            </option>
-          ))}
-        </Select>
-        <Select
-          aria-label={w("source")}
-          value={source}
-          onChange={(e) => {
-            setSource(e.target.value);
-            setPage(1);
-          }}
-        >
-          <option value="">{w("allSources")}</option>
-          {["gitlab", "github", "local"].map((value) => (
-            <option key={value} value={value}>
-              {s(`source.${value}`)}
-            </option>
-          ))}
-        </Select>
-        <Select
-          aria-label={w("status")}
-          value={status}
-          onChange={(e) => {
-            setStatus(e.target.value);
-            setPage(1);
-          }}
-        >
-          <option value="">{w("allStatuses")}</option>
-          {["queued", "running", "succeeded", "failed"].map((value) => (
-            <option key={value} value={value}>
-              {s(`status.${value}`)}
-            </option>
-          ))}
-        </Select>
-        <TechnologyScanDateFilter
-          date={date}
-          onChange={(value) => {
-            setDate(value);
-            setPage(1);
-          }}
-        />
-      </div>
+      <TechnologyFilterToolbar
+        search={search}
+        searchPlaceholder={w("searchScans")}
+        onSearchChange={(value) => {
+          setSearch(value);
+          setPage(1);
+        }}
+        facets={[
+          {
+            kind: "options",
+            key: "project",
+            label: w("project"),
+            options: projects.map((p) => ({ value: p.project_id, label: p.name })),
+          },
+          {
+            kind: "options",
+            key: "source",
+            label: w("source"),
+            options: ["gitlab", "github", "local"].map((value) => ({
+              value,
+              label: s(`source.${value}`),
+            })),
+          },
+          {
+            kind: "options",
+            key: "status",
+            label: w("status"),
+            options: ["queued", "running", "succeeded", "failed"].map((value) => ({
+              value,
+              label: s(`status.${value}`),
+            })),
+          },
+          { kind: "date", key: "date", label: w("dateFrom") },
+        ]}
+        values={{
+          project: project ? [project] : [],
+          source: source ? [source] : [],
+          status: status ? [status] : [],
+          date,
+        }}
+        onApply={(values) => {
+          setProject((values.project as string[])[0] ?? "");
+          setSource((values.source as string[])[0] ?? "");
+          setStatus((values.status as string[])[0] ?? "");
+          setDate(values.date as string);
+          setPage(1);
+        }}
+        onReset={() => {
+          setProject("");
+          setSource("");
+          setStatus("");
+          setDate("");
+          setPage(1);
+        }}
+      />
       <TechnologyScanJournalTable items={visible} projects={projects} />
       {!visible.length && (
         <p role="status" className="text-muted-foreground p-8 text-center text-sm">
@@ -313,47 +294,5 @@ export function TechnologyScanJournalTable({
         </TBody>
       </Table>
     </div>
-  );
-}
-
-function TechnologyScanDateFilter({
-  date,
-  onChange,
-}: {
-  date: string;
-  onChange: (date: string) => void;
-}) {
-  const w = useTranslations("technology.workspace"),
-    t = useTranslations("technology");
-  return (
-    <Dialog>
-      <DialogTrigger asChild>
-        <Button variant="outline" className="justify-start">
-          <Icon name="calendar" size="sm" />
-          {date || w("allTime")}
-        </Button>
-      </DialogTrigger>
-      <DialogContent>
-        <DialogTitle>{w("dateFrom")}</DialogTitle>
-        <DialogDescription>{w("dateDescription")}</DialogDescription>
-        <Label htmlFor="technology-journal-date">{w("dateFrom")}</Label>
-        <Input
-          id="technology-journal-date"
-          type="date"
-          value={date}
-          onChange={(e) => {
-            onChange(e.target.value);
-          }}
-        />
-        <Button
-          variant="outline"
-          onClick={() => {
-            onChange("");
-          }}
-        >
-          {t("reset")}
-        </Button>
-      </DialogContent>
-    </Dialog>
   );
 }

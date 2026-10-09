@@ -31,7 +31,8 @@ const { mutation, refresh, push, download } = vi.hoisted(() => ({
 vi.mock("@/actions/corporate", () => ({ corporateMutationAction: mutation }));
 vi.mock("@/lib/findings-export", () => ({ downloadScanFindings: download }));
 vi.mock("@/lib/i18n/navigation", () => ({
-  useRouter: () => ({ refresh, push }),
+  useRouter: () => ({ refresh, push, replace: vi.fn() }),
+  usePathname: () => "/corporate/technology-mappings",
   Link: ({ children, ...props }: { children: ReactNode; href: string }) => (
     <a {...props}>{children}</a>
   ),
@@ -155,7 +156,10 @@ it("edits categories inline and filters out classified findings", async () => {
   expect(screen.getByRole("heading", { name: "Technologies" })).toBeVisible();
   const dependencies = screen.getByRole("region", { name: "Dependencies" });
   expect(within(dependencies).getByText("left-pad")).toBeVisible();
-  fireEvent.click(screen.getByRole("checkbox", { name: "Only findings needing review" }));
+  const user = userEvent.setup();
+  await user.click(screen.getByRole("button", { name: /Filters/ }));
+  await user.click(screen.getByRole("checkbox", { name: "Only findings needing review" }));
+  await user.click(screen.getByRole("button", { name: "Apply filters" }));
   expect(screen.queryByText("fastapi")).toBeNull();
   const row = screen.getByText("weirdlib").closest("tr");
   if (!row) throw new Error("Missing finding row");
@@ -196,17 +200,20 @@ it("groups versions and contexts while retaining every review identity and sourc
   expect(rows[0]?.evidence).toHaveLength(2);
   expect(rows[0]?.version).toBe("0.115, 0.116, 0.117");
 });
-it("filters scan history by source and search and shows the repository in its project cell", () => {
+it("filters scan history by source and search and shows the repository in its project cell", async () => {
   render(wrap(<TechnologyScanJournal items={[scan]} projects={projects} />));
   expect(screen.getByText(scan.repository)).toBeVisible();
   expect(screen.getByText(/10:00/)).toBeVisible();
-  fireEvent.change(screen.getByRole("combobox", { name: "Source" }), {
-    target: { value: "github" },
-  });
+  const user = userEvent.setup();
+  await user.click(screen.getByRole("button", { name: /Filters/ }));
+  await user.click(screen.getByRole("button", { name: /Source/ }));
+  await user.click(screen.getByRole("checkbox", { name: "GitHub" }));
+  await user.click(screen.getByRole("button", { name: "Apply filters" }));
   expect(screen.queryByRole("link", { name: scan.scan_id })).toBeNull();
-  fireEvent.change(screen.getByRole("combobox", { name: "Source" }), {
-    target: { value: "gitlab" },
-  });
+  await user.click(screen.getByRole("button", { name: /Filters/ }));
+  await user.click(screen.getByRole("button", { name: /Source/ }));
+  await user.click(screen.getByRole("checkbox", { name: "GitLab" }));
+  await user.click(screen.getByRole("button", { name: "Apply filters" }));
   expect(screen.getByRole("link", { name: scan.scan_id })).toBeVisible();
 });
 it("shows empty and read-only states without write actions", () => {

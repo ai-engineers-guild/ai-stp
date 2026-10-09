@@ -663,6 +663,11 @@ const capabilities = [
   "category.read",
   "category.create",
   "category.update",
+  "area.list",
+  "area.read",
+  "area.create",
+  "area.update",
+  "area.delete",
   "technology_decision.read",
   "telemetry.read",
 ];

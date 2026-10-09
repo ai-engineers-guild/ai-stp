@@ -12,7 +12,11 @@ import type {
 
 export async function readTechnologyAreaDirectory(sessionToken: string, organizationId: string) {
   const permissions = await readTechnologyCapabilities(sessionToken, organizationId);
-  if (!permissions.capabilities.includes("category.list")) return null;
+  if (
+    !permissions.capabilities.includes("area.list") ||
+    !permissions.capabilities.includes("area.read")
+  )
+    return null;
   const areas = await privateApiRequest<AreaList>(
     `/v1/corporate/organizations/${organizationId}/technology-areas`,
     { sessionToken },
@@ -23,13 +27,24 @@ export async function readTechnologyAreaDirectory(sessionToken: string, organiza
 export async function readTechnologyScanJournal(
   sessionToken: string,
   organizationId: string,
-  projectId?: string,
+  filters: {
+    projectId?: string | undefined;
+    createdFrom?: string | undefined;
+    createdTo?: string | undefined;
+  } = {},
 ) {
   const permissions = await readTechnologyCapabilities(sessionToken, organizationId);
   if (!permissions.capabilities.includes("landscape.read")) return null;
   const scans = await privateApiRequest<TechnologyScanList>(
     `/v1/corporate/organizations/${organizationId}/technology-scans`,
-    { sessionToken, ...(projectId ? { query: { project_id: projectId } } : {}) },
+    {
+      sessionToken,
+      query: {
+        ...(filters.projectId ? { project_id: filters.projectId } : {}),
+        ...(filters.createdFrom ? { created_from: filters.createdFrom } : {}),
+        ...(filters.createdTo ? { created_to: filters.createdTo } : {}),
+      },
+    },
   );
   return { permissions, scans };
 }
@@ -65,13 +80,20 @@ export async function readTechnologyReviewWorkspace(
   sessionToken: string,
   organizationId: string,
   scanId?: string,
+  scanFilters: { createdFrom?: string; createdTo?: string } = {},
 ) {
-  const journal = await readTechnologyScanJournal(sessionToken, organizationId);
+  const journal = await readTechnologyScanJournal(sessionToken, organizationId, {
+    createdFrom: scanFilters.createdFrom,
+    createdTo: scanFilters.createdTo,
+  });
   if (!journal) return null;
   const path = `/v1/corporate/organizations/${organizationId}`;
   const canReadCategories =
     journal.permissions.capabilities.includes("category.list") &&
     journal.permissions.capabilities.includes("category.read");
+  const canReadAreas =
+    journal.permissions.capabilities.includes("area.list") &&
+    journal.permissions.capabilities.includes("area.read");
   const [technologies, categories, areas, scans] = await Promise.all([
     journal.permissions.capabilities.includes("technology.list")
       ? privateApiRequest<TechnologyList>(`${path}/technologies`, {
@@ -82,9 +104,7 @@ export async function readTechnologyReviewWorkspace(
     canReadCategories
       ? privateApiRequest<CategoryList>(`${path}/technology-categories`, { sessionToken })
       : null,
-    canReadCategories
-      ? privateApiRequest<AreaList>(`${path}/technology-areas`, { sessionToken })
-      : null,
+    canReadAreas ? privateApiRequest<AreaList>(`${path}/technology-areas`, { sessionToken }) : null,
     Promise.all(
       (scanId ? [{ scan_id: scanId }] : journal.scans.items).map((item) =>
         privateApiRequest<TechnologyScanDetail>(`${path}/technology-scans/${item.scan_id}`, {

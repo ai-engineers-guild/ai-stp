@@ -2266,8 +2266,8 @@ async def list_areas(
     organization_id: str,
     request_id: str | None,
 ) -> AreaList:
-    await authorize(db, ctx=ctx, organization_id=organization_id, permission="category.list")
-    await authorize(db, ctx=ctx, organization_id=organization_id, permission="category.read")
+    await authorize(db, ctx=ctx, organization_id=organization_id, permission="area.list")
+    await authorize(db, ctx=ctx, organization_id=organization_id, permission="area.read")
     rows = list(
         (
             await db.scalars(
@@ -2297,7 +2297,7 @@ async def read_area(
     area_id: str,
     request_id: str | None,
 ) -> AreaView:
-    await authorize(db, ctx=ctx, organization_id=organization_id, permission="category.read")
+    await authorize(db, ctx=ctx, organization_id=organization_id, permission="area.read")
     row = await db.get(TechnologyArea, (organization_id, area_id))
     if row is None:
         raise ApiError(ErrorCategory.PERMISSION, "technology area is unavailable")
@@ -2328,7 +2328,7 @@ async def write_area(
     operation = (
         "technology_area.create" if payload.expected_revision == 0 else "technology_area.update"
     )
-    permission = "category.create" if payload.expected_revision == 0 else "category.update"
+    permission = "area.create" if payload.expected_revision == 0 else "area.update"
     organization, receipt = await authorize_idempotent(
         db,
         ctx=ctx,
@@ -2415,7 +2415,7 @@ async def change_area_lifecycle(
         db,
         ctx=ctx,
         organization_id=organization_id,
-        permission="category.delete" if payload.target == "archived" else "category.update",
+        permission="area.delete" if payload.target == "archived" else "area.update",
         authorization_revision=payload.authorization_revision,
         idempotency_key=payload.idempotency_key,
         operation=operation,

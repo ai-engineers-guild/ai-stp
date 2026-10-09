@@ -22,6 +22,7 @@ import type {
   TechnologyScanLaunchResult,
 } from "@/lib/api/generated/types.gen";
 
+// eslint-disable-next-line max-lines-per-function
 export function TechnologyScanLaunch({
   organizationId,
   authorizationRevision,
@@ -29,6 +30,7 @@ export function TechnologyScanLaunch({
   projects,
   activeProjectIds = [],
   variant = "default",
+  size,
   label,
 }: {
   organizationId: string;
@@ -37,6 +39,7 @@ export function TechnologyScanLaunch({
   projects: CorporateProjectView[];
   activeProjectIds?: string[];
   variant?: "default" | "outline";
+  size?: "lg" | undefined;
   label?: string;
 }) {
   const t = useTranslations("technology");
@@ -99,7 +102,7 @@ export function TechnologyScanLaunch({
       }}
     >
       <DialogTrigger asChild>
-        <Button variant={variant}>
+        <Button variant={variant} size={size}>
           <Icon name="play" size="sm" />
           {label ?? scans("launch")}
         </Button>

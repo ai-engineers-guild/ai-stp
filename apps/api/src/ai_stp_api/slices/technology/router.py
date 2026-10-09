@@ -1,5 +1,6 @@
 """Tenant-scoped technology HTTP surface; all mutations are revision guarded."""
 
+from datetime import date
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, Query, Request, Response
@@ -1009,12 +1010,16 @@ async def list_scans(
     db: Db,
     ctx: Auth,
     project_id: RemoteProjectId | None = None,
+    created_from: date | None = None,
+    created_to: date | None = None,
 ) -> TechnologyScanList:
     return await detection.list_scans(
         db,
         ctx=ctx,
         organization_id=organization_id,
         project_id=project_id,
+        created_from=created_from,
+        created_to=created_to,
         request_id=getattr(request.state, "request_id", None),
     )
 

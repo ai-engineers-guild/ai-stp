@@ -36,6 +36,7 @@ export function useTechnologyReview({
   projects = [],
   mode = "scan",
   initialScan = "",
+  initialDate = "",
   ...authority
 }: GovernanceAuthority & {
   scans: TechnologyScanDetail[];
@@ -46,6 +47,7 @@ export function useTechnologyReview({
   projects?: CorporateProjectView[];
   mode?: "scan" | "mapping";
   initialScan?: string;
+  initialDate?: string;
 }) {
   const t = useTranslations("technology"),
     w = useTranslations("technology.workspace"),
@@ -54,9 +56,20 @@ export function useTechnologyReview({
   const localize = useTechnologyTaxonomy();
   const id = useId();
   const mutation = useGovernanceMutation(authority);
-  const filters = useReviewFilters(initialScan);
-  const { search, project, scanFilter, status, kind, pendingOnly, page, size, depPage, depSize } =
-    filters;
+  const filters = useReviewFilters(initialScan, initialDate);
+  const {
+    search,
+    project,
+    scanFilter,
+    status,
+    kind,
+    date,
+    pendingOnly,
+    page,
+    size,
+    depPage,
+    depSize,
+  } = filters;
   const ui = useReviewUi();
   const { activeKey, drafts, selected, setDrafts, setSelected } = ui;
   const names = new Map(technologies.map((item) => [item.technology_id, item]));
@@ -93,6 +106,7 @@ export function useTechnologyReview({
       project,
       status,
       kind,
+      date,
       pendingOnly,
       search,
       names,
@@ -163,12 +177,13 @@ export function useTechnologyReview({
 }
 export type TechnologyReviewState = ReturnType<typeof useTechnologyReview>;
 
-function useReviewFilters(initialScan: string) {
+function useReviewFilters(initialScan: string, initialDate: string) {
   const [search, setSearch] = useState("");
   const [project, setProject] = useState("");
   const [scanFilter, setScanFilter] = useState(initialScan);
   const [status, setStatus] = useState("");
   const [kind, setKind] = useState("");
+  const [date, setDate] = useState(initialDate);
   const [pendingOnly, setPendingOnly] = useState(false);
   const [page, setPage] = useState(1);
   const [size, setSize] = useState(10);
@@ -180,6 +195,7 @@ function useReviewFilters(initialScan: string) {
     scanFilter,
     status,
     kind,
+    date,
     pendingOnly,
     page,
     size,
@@ -190,6 +206,7 @@ function useReviewFilters(initialScan: string) {
     setScanFilter,
     setStatus,
     setKind,
+    setDate,
     setPendingOnly,
     setPage,
     setSize,
@@ -204,20 +221,17 @@ function useReviewUi() {
   const [selected, setSelected] = useState<string[]>([]);
   const [create, setCreate] = useState<"technology" | "category" | "area" | null>(null);
   const [evidence, setEvidence] = useState<Row | null>(null);
-  const [advanced, setAdvanced] = useState(false);
   return {
     activeKey,
     drafts,
     selected,
     create,
     evidence,
-    advanced,
     setActiveKey,
     setDrafts,
     setSelected,
     setCreate,
     setEvidence,
-    setAdvanced,
   };
 }
 
@@ -238,6 +252,7 @@ type RowFilters = {
   project: string;
   status: string;
   kind: string;
+  date: string;
   pendingOnly: boolean;
   search: string;
   names: Map<string, TechnologyView>;
@@ -278,6 +293,7 @@ function rowMatches(row: Row, filters: RowFilters) {
       (filters.mode === "mapping"
         ? findingReason(row, filters.names) === filters.kind
         : row.kind === filters.kind)) &&
+    (!filters.date || row.scan.created_at.slice(0, 10) >= filters.date) &&
     (!filters.pendingOnly || filters.pending(row)) &&
     rowHaystack(row, filters.names).includes(filters.search.toLocaleLowerCase())
   );

@@ -1,13 +1,12 @@
 "use client";
 
 import { Button } from "@/components/atoms/button";
-import { Input } from "@/components/atoms/input";
-import { Label } from "@/components/atoms/label";
 import { Select } from "@/components/atoms/select";
 
 import { Table, TBody, Td, THead, Th, Tr } from "@/components/atoms/table";
 
 import { PagePager } from "@/components/molecules/page-pager";
+import { TechnologyFilterToolbar } from "@/components/organisms/technology-filter-toolbar";
 
 import { Link } from "@/lib/i18n/navigation";
 import { Menu, MenuTrigger, MenuContent, MenuItem } from "@/components/atoms/menu";
@@ -23,7 +22,6 @@ import {
 } from "@/lib/technology-review-state";
 export function TechnologyFindingsTable({ state }: { state: TechnologyReviewState }) {
   const {
-    t,
     w,
     s,
     allRows,
@@ -47,62 +45,57 @@ export function TechnologyFindingsTable({ state }: { state: TechnologyReviewStat
     <>
       <section className="min-w-0">
         {scan && (
-          <div className="technology-filter-bar mb-4">
-            <div className="technology-search">
-              <Icon name="search" size="sm" />
-              <Input
-                aria-label={t("search")}
-                placeholder={w("searchFindings")}
-                value={search}
-                onChange={(e) => {
-                  setSearch(e.target.value);
-                  setPage(1);
-                }}
-              />
-            </div>
-            <Select
-              aria-label={w("status")}
-              value={status}
-              onChange={(e) => {
-                setStatus(e.target.value);
+          <div className="mb-4">
+            <TechnologyFilterToolbar
+              search={search}
+              searchPlaceholder={w("searchFindings")}
+              onSearchChange={(value) => {
+                setSearch(value);
                 setPage(1);
               }}
-            >
-              <option value="">{w("allStatuses")}</option>
-              {["open", "candidate", "confirmation", "category", "resolved", "rejected"].map(
-                (value) => (
-                  <option key={value} value={value}>
-                    {w(`findingState.${value}`)}
-                  </option>
-                ),
-              )}
-            </Select>
-            <Select
-              aria-label={w("type")}
-              value={kind}
-              onChange={(e) => {
-                setKind(e.target.value);
+              facets={[
+                {
+                  kind: "options",
+                  key: "status",
+                  label: w("status"),
+                  options: [
+                    "open",
+                    "candidate",
+                    "confirmation",
+                    "category",
+                    "resolved",
+                    "rejected",
+                  ].map((value) => ({ value, label: w(`findingState.${value}`) })),
+                },
+                {
+                  kind: "options",
+                  key: "type",
+                  label: w("type"),
+                  options: [...new Set(allRows.map((r) => r.kind))].map((value) => ({
+                    value,
+                    label: value,
+                  })),
+                },
+                { kind: "flag", key: "pending", label: w("pendingOnly") },
+              ]}
+              values={{
+                status: status ? [status] : [],
+                type: kind ? [kind] : [],
+                pending: pendingOnly,
+              }}
+              onApply={(values) => {
+                setStatus((values.status as string[])[0] ?? "");
+                setKind((values.type as string[])[0] ?? "");
+                setPendingOnly(Boolean(values.pending));
                 setPage(1);
               }}
-            >
-              <option value="">{w("allTypes")}</option>
-              {[...new Set(allRows.map((r) => r.kind))].map((value) => (
-                <option key={value} value={value}>
-                  {value}
-                </option>
-              ))}
-            </Select>
-            <Label className="flex min-h-11 cursor-pointer items-center gap-2 text-sm whitespace-nowrap">
-              <input
-                type="checkbox"
-                checked={pendingOnly}
-                onChange={(e) => {
-                  setPendingOnly(e.target.checked);
-                  setPage(1);
-                }}
-              />
-              {w("pendingOnly")}
-            </Label>
+              onReset={() => {
+                setStatus("");
+                setKind("");
+                setPendingOnly(false);
+                setPage(1);
+              }}
+            />
           </div>
         )}
         {sectioned && <h3 className="mb-2 text-base font-medium">{w("sectionTechnologies")}</h3>}

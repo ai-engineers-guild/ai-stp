@@ -10,7 +10,15 @@ import { cn } from "@/lib/cn";
  * Owns the popover surface, item and separator styling; consumers compose
  * these wrappers and never style the primitive inline.
  */
-export const Menu = DropdownMenu.Root;
+/**
+ * Menus are non-modal pickers: `modal={false}` keeps the page scrollable while
+ * a menu is open (Radix would otherwise lock `body` overflow and the scrollbar
+ * would visibly disappear). Focus moves into the menu on open and returns on
+ * close either way.
+ */
+export function Menu({ modal = false, ...props }: ComponentProps<typeof DropdownMenu.Root>) {
+  return <DropdownMenu.Root modal={modal} {...props} />;
+}
 export const MenuTrigger = DropdownMenu.Trigger;
 export const MenuPortal = DropdownMenu.Portal;
 

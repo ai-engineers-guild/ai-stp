@@ -4,14 +4,12 @@ import { useTranslations } from "next-intl";
 
 import { Badge } from "@/components/atoms/badge";
 import { Button } from "@/components/atoms/button";
-import { Input } from "@/components/atoms/input";
 import { Menu, MenuContent, MenuItem, MenuTrigger } from "@/components/atoms/menu";
 
-import { Select } from "@/components/atoms/select";
-
+import { TechnologyFilterToolbar } from "@/components/organisms/technology-filter-toolbar";
 import { TechnologyScanLaunch } from "@/components/organisms/technology-scan-launch";
 
-import { Link } from "@/lib/i18n/navigation";
+import { Link, usePathname, useRouter } from "@/lib/i18n/navigation";
 
 import { Icon } from "@/theme";
 
@@ -173,7 +171,6 @@ export function TechnologyScanMetadata({ state }: { state: TechnologyReviewState
 }
 export function TechnologyReviewFilters({ state }: { state: TechnologyReviewState }) {
   const {
-    t,
     w,
     allRows,
     names,
@@ -186,113 +183,104 @@ export function TechnologyReviewFilters({ state }: { state: TechnologyReviewStat
     scanFilter,
     status,
     kind,
+    date,
+    pendingOnly,
     pending,
     setSearch,
     setProject,
     setScanFilter,
     setStatus,
     setKind,
+    setDate,
+    setPendingOnly,
     setPage,
-    setAdvanced,
   } = state;
+  const router = useRouter();
+  const pathname = usePathname();
+  if (mode !== "mapping") return null;
   return (
     <>
-      {mode === "mapping" && (
-        <div className="technology-filter-bar">
-          <div className="technology-search">
-            <Icon name="search" size="sm" />
-            <Input
-              aria-label={t("search")}
-              placeholder={w("searchMapping")}
-              value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
-                setPage(1);
-              }}
-            />
-          </div>
-          <Select
-            aria-label={w("project")}
-            value={project}
-            onChange={(e) => {
-              setProject(e.target.value);
-              setPage(1);
-            }}
-          >
-            <option value="">{w("allProjects")}</option>
-            {projects.map((p) => (
-              <option key={p.project_id} value={p.project_id}>
-                {p.name}
-              </option>
-            ))}
-          </Select>
-          <Select
-            aria-label={w("scan")}
-            value={scanFilter}
-            onChange={(e) => {
-              setScanFilter(e.target.value);
-              setPage(1);
-            }}
-          >
-            <option value="">{w("allCurrentScans")}</option>
-            {scans.map((item) => (
-              <option key={item.scan_id} value={item.scan_id}>
-                {item.scan_id}
-              </option>
-            ))}
-          </Select>
-          <Select
-            aria-label={w("reason")}
-            value={kind}
-            onChange={(e) => {
-              setKind(e.target.value);
-              setPage(1);
-            }}
-          >
-            <option value="">{w("allReasons")}</option>
-            {[...new Set(allRows.map((r) => findingReason(r, names)))].map((value) => (
-              <option key={value} value={value}>
-                {w(`reasonState.${value}`)}
-              </option>
-            ))}
-          </Select>
-          <Select
-            aria-label={w("status")}
-            value={status}
-            onChange={(e) => {
-              setStatus(e.target.value);
-              setPage(1);
-            }}
-          >
-            <option value="">{w("allStatuses")}</option>
-            {["open", "candidate", "confirmation", "category", "resolved", "rejected"].map(
-              (value) => (
-                <option key={value} value={value}>
-                  {w(`findingState.${value}`)}
-                </option>
-              ),
-            )}
-          </Select>
-          <Button
-            variant="outline"
-            onClick={() => {
-              setAdvanced(true);
-            }}
-          >
-            <Icon name="filter" size="sm" />
-            {t("filters")}
-          </Button>
-        </div>
-      )}
-      {mode === "mapping" && (
-        <p className="text-sm">
-          {w("findingSummary", {
-            total: rows.length,
-            pending: rows.filter(pending).length,
-            resolved: rows.filter((r) => r.review === "confirmed").length,
-          })}
-        </p>
-      )}
+      <TechnologyFilterToolbar
+        search={search}
+        searchPlaceholder={w("searchMapping")}
+        onSearchChange={(value) => {
+          setSearch(value);
+          setPage(1);
+        }}
+        facets={[
+          {
+            kind: "options",
+            key: "project",
+            label: w("project"),
+            options: projects.map((p) => ({ value: p.project_id, label: p.name })),
+          },
+          {
+            kind: "options",
+            key: "scan",
+            label: w("scan"),
+            options: scans.map((item) => ({ value: item.scan_id, label: item.scan_id })),
+          },
+          {
+            kind: "options",
+            key: "reason",
+            label: w("reason"),
+            options: [...new Set(allRows.map((r) => findingReason(r, names)))].map((value) => ({
+              value,
+              label: w(`reasonState.${value}`),
+            })),
+          },
+          {
+            kind: "options",
+            key: "status",
+            label: w("status"),
+            options: ["open", "candidate", "confirmation", "category", "resolved", "rejected"].map(
+              (value) => ({ value, label: w(`findingState.${value}`) }),
+            ),
+          },
+          { kind: "date", key: "date", label: w("dateFrom") },
+          { kind: "flag", key: "pending", label: w("pendingOnly") },
+        ]}
+        values={{
+          project: project ? [project] : [],
+          scan: scanFilter ? [scanFilter] : [],
+          reason: kind ? [kind] : [],
+          status: status ? [status] : [],
+          date,
+          pending: pendingOnly,
+        }}
+        onApply={(values) => {
+          setProject((values.project as string[])[0] ?? "");
+          setScanFilter((values.scan as string[])[0] ?? "");
+          setKind((values.reason as string[])[0] ?? "");
+          setStatus((values.status as string[])[0] ?? "");
+          setDate(values.date as string);
+          setPendingOnly(Boolean(values.pending));
+          setPage(1);
+          const nextDate = (values.date as string) || "";
+          const params = new URLSearchParams(window.location.search);
+          if (nextDate) params.set("scan_from", nextDate);
+          else params.delete("scan_from");
+          router.replace(`${pathname}${params.size ? `?${params.toString()}` : ""}`, {
+            scroll: false,
+          });
+        }}
+        onReset={() => {
+          setProject("");
+          setScanFilter("");
+          setKind("");
+          setStatus("");
+          setDate("");
+          setPendingOnly(false);
+          setPage(1);
+        }}
+      />
+      <p className="text-sm">
+        {w("findingSummary", {
+          total: rows.length,
+          pending: rows.filter(pending).length,
+          resolved: rows.filter((r) => r.review === "confirmed").length,
+        })}
+      </p>
     </>
   );
 }

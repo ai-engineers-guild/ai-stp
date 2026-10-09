@@ -132,6 +132,11 @@ from ai_stp_platform.tenant_scope import set_tenant_scope
 
 TECHNOLOGY_PERMISSIONS = frozenset(
     {
+        "area.create",
+        "area.read",
+        "area.update",
+        "area.delete",
+        "area.list",
         "category.create",
         "category.read",
         "category.update",
