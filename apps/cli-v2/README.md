@@ -950,26 +950,39 @@ the source disappears. Bound portable refresh refuses independently authored
 native adaptations. Flat adopted drafts still use their adoption/release flow;
 this operation accepts complete source-bound or exact-forked drafts.
 
-`component adaptation derive plan` adds one missing MCP adaptation to an exact
-owned complete draft. Its source must be native Codex, Cursor or OpenCode; the
-target uses an explicit provider declaration for one of those harnesses. Fork
-an exact released component first when the current draft is a flat adoption.
-Every source scope must have the same explicit target scope. The closed grammar
-preserves the command, string arguments and one literal environment map,
-including non-normalized Unicode in native values. Unknown fields, remote/mixed
-transports, interpolation, ambiguous aliases and non-string coercion refuse.
-Unsupported scopes, existing semantic losses and source-harness version
-constraints also refuse; they are never silently removed or transferred.
+`component adaptation derive plan` adds one missing literal MCP or common skill
+adaptation to an exact owned complete draft, using an explicit target provider
+declaration. Fork an exact release first when the current draft is a flat adoption.
+Every source scope must have the same explicit target scope; no scope fallback,
+existing semantic loss or source-harness version constraint is silently removed.
+
+Literal MCP conversion supports native Codex, Cursor and OpenCode. Its closed
+grammar preserves commands, string arguments and one literal environment map,
+including non-normalized Unicode. Unknown fields, remote/mixed transports,
+interpolation, ambiguous aliases and non-string coercion refuse.
+
+Common skill conversion supports native Claude Code, Codex and OpenCode. It
+preserves the exact `SKILL.md`, captured regular resources and file modes. The
+skill has one lowercase ASCII name matching its directory, a nonempty description
+of at most 1,024 characters, and only the common `license`, `compatibility` and
+string-valued `metadata` headers. All three retained YAML dialects must parse the
+same metadata. Unknown headers (including invocation/tool/model controls), dynamic
+shell or argument substitutions, nested Skills, hidden paths and `agents/openai.yaml`
+refuse. These restrictions apply in both directions: copying a literal token must
+not introduce target preprocessing. The current routes allow Claude Code ↔ OpenCode
+at `global`, and Codex ↔ OpenCode at `user_root`; Claude's global scope is never
+silently changed to Codex's user root. Instruction meaning, arbitrary script
+behavior and harness execution remain unassessed.
 
 The new adaptation retains scope permissions and OS/architecture constraints,
-records `literal-stdio/1.0` with an exact transformation digest and a retained
-source-revision/adaptation manifest, and stays experimental pending execution
-assessment. The source adaptation and component requirements remain unchanged.
-Apply revalidates the exact head and retained content in one writer transaction,
-committing projection content, the draft revision and receipt together. Replay
-verifies historical content without rewinding later drafts. Existing targets
-require explicit native editing; derivation does not overwrite them. Releasing
-an immutable version remains a separate operation. No provider process runs.
+records `literal-stdio/1.0` or `common-skill/1.0` with an exact transformation digest
+and retained source-revision/adaptation manifest, and stays experimental. The
+source adaptation and component requirements remain unchanged. Apply revalidates
+the exact head and retained content in one writer transaction, committing projection
+content, the draft revision and receipt together. Replay verifies historical content
+without rewinding later drafts. Existing targets require explicit native editing;
+derivation does not overwrite them. Releasing an immutable version remains a
+separate operation. No provider process runs.
 
 `setup import plan` captures 1–128 explicitly selected `component discover`
 candidates from one concrete harness, scope and root. Discovery must complete;
@@ -995,8 +1008,8 @@ the exact `ported_from` reference. Both retain direct lineage in SQLite and
 must already provide the target adaptation; missing adaptations are reported
 together. Empty compositions remain valid.
 
-An optional `--provider-info` on recast enables the implemented literal stdio MCP
-transformations between Codex, Cursor and OpenCode. It resolves the entire exact
+An optional `--provider-info` on recast enables the implemented literal MCP and
+common skill transformations described above. It resolves the entire exact
 source dependency graph first, retaining the existing 512-node, 8,192-edge and
 32-depth limits. A missing target adaptation receives a new private component ID
 and version `1.0`; each dependent whose exact pin changes receives its own new
@@ -1633,12 +1646,12 @@ Setup forks and recasts rebuild these minima and combine the source setup's
 additional declarations; an underdeclared source license cannot replace member
 license restrictions or enable redistribution.
 Request metadata is bounded to 256 KiB and the resulting passport to 1 MiB.
-Selected native configuration import and explicit literal-stdio derivation are
-implemented, including atomic whole-graph recast for supported literal MCP
-transformations. Other native transformations and acquisition of external setup
+Selected native configuration import, literal MCP and common skill derivation are
+implemented, including atomic whole-graph recast for these supported transformations.
+Other native transformations and acquisition of external setup
 packages remain pending.
-Project identity registration and the headless project-to-setup selection
-transaction are implemented; the selection command adapter remains pending.
+Project identity registration, durable project-to-setup selection and its native
+proposal/confirmation/report command adapters are implemented as described above.
 
 Component artifacts use the canonical uncompressed ZIP profile. The encoder
 preserves existing bytes, including fixed timestamps, Unicode flags and Unix
@@ -1825,7 +1838,7 @@ breakaway and never infers termination from PID disappearance alone.
 | `authoring/adaptations.rs` | Explicit portable-to-native projections preserving source bodies and modes |
 | `authoring/review.rs` | Read-only publication structure and optional quality hints over every retained adaptation |
 | `authoring/native_edit.rs` | Exact native adaptation replacement with complete scope preservation |
-| `authoring/derivation/` | Closed MCP syntax conversion and atomic owned draft derivation |
+| `authoring/derivation/` | Closed MCP conversion, byte-preserving common Skills and atomic owned draft derivation |
 | `authoring/setups/copies.rs` | Private exact setup forks and recasts with atomic lineage |
 | `authoring/setups/recast.rs` | Read-only graph derivation with owned replacements and remapped exact dependencies |
 | `authoring/setups/drafts.rs`, `authoring/setups/releases.rs` | Owned setup completion and revision, with separate immutable release |

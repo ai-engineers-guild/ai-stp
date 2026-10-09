@@ -8,8 +8,15 @@ use toml_edit::{DocumentMut, Item, TableLike};
 
 use super::{invalid, text};
 use crate::{
-    authoring::contribution::{self, Format},
+    artifacts::{self, Member},
+    authoring::{
+        contribution::{self, Format},
+        freezing,
+    },
     error::Result,
+    harnesses::Shape,
+    projection::{self, Scope},
+    provider::Info,
 };
 
 fn literal(value: &str) -> Result<String> {
@@ -239,4 +246,50 @@ pub(super) fn encode(
         Value::Object(entries)
     })
     .map_err(|_| invalid())
+}
+
+/// The MCP converter owns its exact file/contribution routes.
+pub(super) fn project(
+    before: &Value,
+    scope: &Value,
+    source_harness: &str,
+    provider: &Info,
+    files: &[Member],
+) -> Result<(Value, Vec<u8>)> {
+    let target = text(provider.document(), "harness_id")?;
+    let requested: Scope = serde_json::from_value(scope["scope"].clone()).map_err(|_| invalid())?;
+    let from = projection::route("mcp", source_harness, requested)?
+        .filter(|r| r.target_scope == requested && r.shape == Shape::File)
+        .ok_or_else(invalid)?;
+    let to = projection::route("mcp", target, requested)?
+        .filter(|r| r.target_scope == requested && r.shape == Shape::File)
+        .ok_or_else(invalid)?;
+    let members = scope["members"].as_array().ok_or_else(invalid)?;
+    if files.len() != 1
+        || members.len() != 1
+        || files[0].path != from.relative
+        || (from.declared_key.is_empty() && members[0]["ownership"] != "whole")
+        || (!from.declared_key.is_empty()
+            && (members[0]["ownership"] != "contribution"
+                || members[0]["ownership_key"] != from.declared_key))
+    {
+        return Err(invalid());
+    }
+    let servers = decode(
+        &files[0].bytes,
+        source_harness,
+        Format::for_path(&from.relative)?,
+        from.declared_key.is_empty(),
+    )?;
+    let bytes = encode(
+        &servers,
+        target,
+        Format::for_path(&to.relative)?,
+        to.declared_key.is_empty(),
+    )?;
+    let values = json!({"harness_id":target,"scope":requested,"projection_kind":to.projection_kind,
+            "managed_paths":[to.relative],"declared_key":to.declared_key,"source_locator":format!("{}#{}",to.relative,to.declared_key),
+            "content_format":artifacts::FILE_FORMAT,"source_mode":files[0].mode,"native_ids":members[0]["native_ids"],
+            "permissions":scope["permissions"],"supported_os":scope["supported_os"],"supported_arch":scope["supported_arch"],"supported_harness_versions":[]});
+    freezing::project(before, &values, bytes, std::slice::from_ref(provider))
 }

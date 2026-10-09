@@ -1,6 +1,7 @@
 //! Add a conservative target adaptation to an exact owned complete draft.
 
 mod mcp;
+mod skill;
 
 use std::collections::BTreeMap;
 
@@ -8,14 +9,13 @@ use rusqlite::{Connection, params};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
-use super::{Identity, contribution::Format, expiry, freezing, passports};
+use super::{Identity, expiry, freezing, passports};
 use crate::{
-    artifacts, canonical, digest,
+    canonical, digest,
     error::{Failure, Result},
-    harnesses::Shape,
     objects::Objects,
     passport,
-    projection::{self, Scope, artifact},
+    projection::artifact,
     provider::Info,
     store::{
         Store, database, journal,
@@ -81,10 +81,18 @@ pub(super) fn build(
     verify(connection, &before)?;
     let target = text(provider.document(), "harness_id")?;
     let adaptations = before["adaptations"].as_array().ok_or_else(invalid)?;
-    if before["component_type"] != "mcp"
-        || target == source_harness
-        || adaptations.iter().any(|a| a["harness_id"] == target)
-    {
+    let (transform_id, reason) = match text(&before, "component_type")? {
+        "mcp" => (
+            "literal-stdio",
+            "literal stdio configuration converted for this provider profile; harness execution not assessed",
+        ),
+        "skill" => (
+            "common-skill",
+            "common skill bytes relocated for this provider profile; harness execution and instruction semantics not assessed",
+        ),
+        _ => return Err(invalid()),
+    };
+    if target == source_harness || adaptations.iter().any(|a| a["harness_id"] == target) {
         return Err(invalid());
     }
     let source = adaptations
@@ -111,48 +119,16 @@ pub(super) fn build(
         {
             return Err(invalid());
         }
-        let requested: Scope =
-            serde_json::from_value(scope["scope"].clone()).map_err(|_| invalid())?;
-        let from = projection::route("mcp", source_harness, requested)?
-            .filter(|r| r.target_scope == requested && r.shape == Shape::File)
-            .ok_or_else(invalid)?;
-        let to = projection::route("mcp", target, requested)?
-            .filter(|r| r.target_scope == requested && r.shape == Shape::File)
-            .ok_or_else(invalid)?;
         let payload =
             revisions::read_content(connection, text(&scope["projection_artifact"], "digest")?)?;
         let files = artifact::verify(scope, &payload)?;
-        let members = scope["members"].as_array().ok_or_else(invalid)?;
-        if files.len() != 1
-            || members.len() != 1
-            || files[0].path != from.relative
-            || (from.declared_key.is_empty() && members[0]["ownership"] != "whole")
-            || (!from.declared_key.is_empty()
-                && (members[0]["ownership"] != "contribution"
-                    || members[0]["ownership_key"] != from.declared_key))
-        {
-            return Err(invalid());
-        }
-        let servers = mcp::decode(
-            &files[0].bytes,
-            source_harness,
-            Format::for_path(&from.relative)?,
-            from.declared_key.is_empty(),
-        )?;
-        let bytes = mcp::encode(
-            &servers,
-            target,
-            Format::for_path(&to.relative)?,
-            to.declared_key.is_empty(),
-        )?;
-        let values = json!({"harness_id":target,"scope":requested,"projection_kind":to.projection_kind,
-            "managed_paths":[to.relative],"declared_key":to.declared_key,"source_locator":format!("{}#{}",to.relative,to.declared_key),
-            "content_format":artifacts::FILE_FORMAT,"source_mode":files[0].mode,"native_ids":members[0]["native_ids"],
-            "permissions":scope["permissions"],"supported_os":scope["supported_os"],"supported_arch":scope["supported_arch"],"supported_harness_versions":[]});
-        let (adaptation, bytes) =
-            freezing::project(&before, &values, bytes, std::slice::from_ref(provider))?;
+        let (adaptation, bytes) = match text(&before, "component_type")? {
+            "mcp" => mcp::project(&before, scope, source_harness, provider, &files)?,
+            "skill" => skill::project(&before, scope, source_harness, provider, &files)?,
+            _ => return Err(invalid()),
+        };
         let mut derived = adaptation["scope_adaptations"][0].clone();
-        derived["technical_support_reason"] = "literal stdio configuration converted for this provider profile; harness execution not assessed".into();
+        derived["technical_support_reason"] = reason.into();
         artifacts.insert(
             text(&derived["projection_artifact"], "digest")?.into(),
             bytes,
@@ -160,11 +136,11 @@ pub(super) fn build(
         scopes.push(derived);
     }
     scopes.sort_by(|a, b| a["scope"].as_str().cmp(&b["scope"].as_str()));
-    let transform = json!({"transform_id":"literal-stdio","version":"1.0","source":source_artifact,"target_harness":target,"scopes":scopes});
+    let transform = json!({"transform_id":transform_id,"version":"1.0","source":source_artifact,"target_harness":target,"scopes":scopes});
     let adaptation = passport::versions::seal_adaptation(
         &json!({"harness_id":target,"implementation_mode":"derived",
-        "source_artifact":source_artifact,"transform":{"transform_id":"literal-stdio","version":"1.0","digest":digest::canonical("ai-stp:component-adaptation:v1",&transform)?},
-        "logical_component_type":"mcp","scope_adaptations":scopes}),
+        "source_artifact":source_artifact,"transform":{"transform_id":transform_id,"version":"1.0","digest":digest::canonical("ai-stp:component-adaptation:v1",&transform)?},
+        "logical_component_type":before["component_type"],"scope_adaptations":scopes}),
     )?;
     let mut all = adaptations.clone();
     all.push(adaptation);
