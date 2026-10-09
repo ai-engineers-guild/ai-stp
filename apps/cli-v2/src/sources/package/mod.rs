@@ -5,7 +5,7 @@ mod go;
 mod metadata;
 mod npm;
 mod pubdev;
-mod pypi;
+pub(crate) mod pypi;
 mod tarfiles;
 
 use crate::error::{Failure, Result};
