@@ -12,6 +12,7 @@ name = "ai-stp-v2"
 path = "src/main.rs"
 
 [dependencies]
+csv = "=1.4.0"
 base64 = "=0.22.1"
 cap-std = "=4.0.3"
 cap-fs-ext = "=4.0.3"
@@ -30,6 +31,8 @@ sha2 = "=0.11.0"
 sigstore-verify = { version = "=0.14.0", default-features = false }
 ulid = "=3.0.0"
 toml_edit = { version = "=0.25.16", default-features = false, features = ["parse", "display"] }
+tree-sitter = { version = "=0.27.1", default-features = false, features = ["std"] }
+tree-sitter-python = "=0.25.0"
 unicode-normalization = "=0.1.25"
 unicode-general-category = "=1.1.0"
 unicase = "=2.10.0"
@@ -38,6 +41,8 @@ url = "=2.5.8"
 percent-encoding = "=2.3.2"
 zip = { version = "=8.6.0", default-features = false, features = ["deflate-flate2-zlib-rs"] }
 crc32fast = "=1.5.2"
+flate2 = { version = "=1.1.10", default-features = false, features = ["zlib-rs"] }
+tar = { version = "=0.4.46", default-features = false }
 ed25519-dalek = { version = "=3.0.0", default-features = false, features = ["fast", "zeroize"] }
 getrandom = "=0.4.3"
 zeroize = "=1.9.1"
