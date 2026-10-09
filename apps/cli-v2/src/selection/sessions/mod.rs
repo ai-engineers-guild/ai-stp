@@ -2,6 +2,7 @@
 
 mod context;
 mod records;
+pub mod view;
 
 pub use context::{Context, Member, Runtime};
 use context::{context_history, evaluate, owned_head};
@@ -14,6 +15,7 @@ use crate::{
     passport,
     store::Store,
 };
+use rusqlite::{Connection, Transaction};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -36,6 +38,21 @@ impl Plan {
     pub fn digest(&self) -> Result<String> {
         plan_digest(self)
     }
+
+    pub(crate) fn validate(&self, expected: &str, identity: &Identity, at: &str) -> Result<()> {
+        identity.validate()?;
+        if self.schema_version != 1
+            || self.action != "selection.propose"
+            || self.identity != *identity
+            || !passport::stable_id(&self.proposal_id, "proposal")
+            || !passport::timestamp(at)
+            || self.expires_at != expiry(&self.created_at)?
+            || self.digest()? != expected
+        {
+            return Err(invalid());
+        }
+        Ok(())
+    }
 }
 
 #[derive(Clone, Deserialize, Serialize)]
@@ -55,7 +72,13 @@ impl Decision {
         plan_digest(self)
     }
 
-    fn validate(&self, expected: &str, identity: &Identity, at: &str, action: &str) -> Result<()> {
+    pub(crate) fn validate(
+        &self,
+        expected: &str,
+        identity: &Identity,
+        at: &str,
+        action: &str,
+    ) -> Result<()> {
         identity.validate()?;
         if self.schema_version != 1
             || self.action != action
@@ -157,25 +180,34 @@ pub fn plan(
     runtime: &Runtime<'_>,
     at: &str,
 ) -> Result<Plan> {
+    store.transaction(|t| plan_in(t, project, roots, empty, runtime, at))
+}
+
+pub(crate) fn plan_in(
+    connection: &Connection,
+    project: &str,
+    roots: &[setups::Member],
+    empty: bool,
+    runtime: &Runtime<'_>,
+    at: &str,
+) -> Result<Plan> {
     if roots.is_empty() != empty {
         return Err(invalid());
     }
     let expires_at = expiry(at)?;
-    store.transaction(|t| {
-        let (context, members) = evaluate(t, project, roots, runtime)?;
-        let plan = Plan {
-            schema_version: 1,
-            action: "selection.propose".into(),
-            proposal_id: format!("proposal_{}", ulid::Ulid::generate()),
-            identity: runtime.identity.clone(),
-            context,
-            members,
-            created_at: at.into(),
-            expires_at,
-        };
-        plan.digest()?;
-        Ok(plan)
-    })
+    let (context, members) = evaluate(connection, project, roots, runtime)?;
+    let plan = Plan {
+        schema_version: 1,
+        action: "selection.propose".into(),
+        proposal_id: format!("proposal_{}", ulid::Ulid::generate()),
+        identity: runtime.identity.clone(),
+        context,
+        members,
+        created_at: at.into(),
+        expires_at,
+    };
+    plan.digest()?;
+    Ok(plan)
 }
 
 pub fn read(store: &mut Store, id: &str) -> Result<Proposal> {
@@ -189,47 +221,60 @@ pub fn propose(
     runtime: &Runtime<'_>,
     at: &str,
 ) -> Result<Proposal> {
-    runtime.identity.validate()?;
-    if plan.schema_version != 1
-        || plan.action != "selection.propose"
-        || plan.identity != *runtime.identity
-        || !passport::stable_id(&plan.proposal_id, "proposal")
-        || !passport::timestamp(at)
-        || plan.expires_at != expiry(&plan.created_at)?
-        || plan.digest()? != expected_digest
-    {
-        return Err(invalid());
-    }
+    store.transaction(|t| propose_in(t, plan, expected_digest, runtime, at))
+}
+
+/// Shared by offline replay and the committing transaction. No provider is
+/// needed to verify an already retained proposal and its historical context.
+pub(crate) fn proposed(
+    connection: &Connection,
+    plan: &Plan,
+    expected_digest: &str,
+    identity: &Identity,
+    at: &str,
+) -> Result<Option<Proposal>> {
+    plan.validate(expected_digest, identity, at)?;
     let snapshot = plan.context.snapshot(&plan.members)?;
-    store.transaction(|t| {
-        if let Some(held) = load(t, &plan.proposal_id)? {
-            if held.project_id != plan.context.project_id
-                || held.harness_id != plan.context.harness_id
-                || held.snapshot != snapshot
-                || held.members != plan.members
-                || held.created_at != plan.created_at
-                || held.expires_at != plan.expires_at
-            {
-                return Err(Failure::new(
-                    ErrorKind::Conflict,
-                    "the proposal identity already belongs to another plan",
-                ));
-            }
-            context_history(t, &plan.context, runtime.identity)?;
-            return Ok(held);
-        }
+    let Some(held) = load(connection, &plan.proposal_id)? else {
         within(at, &plan.created_at, &plan.expires_at)?;
-        let roots = plan
-            .members
-            .iter()
-            .map(Member::reference)
-            .collect::<Vec<_>>();
-        let (context, members) = evaluate(t, &plan.context.project_id, &roots, runtime)?;
-        if context != plan.context || members != plan.members {
-            return Err(stale());
-        }
-        records::insert(t, plan, &snapshot)
-    })
+        return Ok(None);
+    };
+    if held.project_id != plan.context.project_id
+        || held.harness_id != plan.context.harness_id
+        || held.snapshot != snapshot
+        || held.members != plan.members
+        || held.created_at != plan.created_at
+        || held.expires_at != plan.expires_at
+    {
+        return Err(Failure::new(
+            ErrorKind::Conflict,
+            "the proposal identity already belongs to another plan",
+        ));
+    }
+    context_history(connection, &plan.context, identity)?;
+    Ok(Some(held))
+}
+
+pub(crate) fn propose_in(
+    connection: &Connection,
+    plan: &Plan,
+    expected_digest: &str,
+    runtime: &Runtime<'_>,
+    at: &str,
+) -> Result<Proposal> {
+    if let Some(held) = proposed(connection, plan, expected_digest, runtime.identity, at)? {
+        return Ok(held);
+    }
+    let roots = plan
+        .members
+        .iter()
+        .map(Member::reference)
+        .collect::<Vec<_>>();
+    let (context, members) = evaluate(connection, &plan.context.project_id, &roots, runtime)?;
+    if context != plan.context || members != plan.members {
+        return Err(stale());
+    }
+    records::insert(connection, plan, &plan.context.snapshot(&plan.members)?)
 }
 
 pub fn decision(
@@ -303,34 +348,63 @@ pub fn confirm(
     runtime: &Runtime<'_>,
     at: &str,
 ) -> Result<Confirmation> {
-    plan.validate(expected_digest, runtime.identity, at, "selection.confirm")?;
-    store.transaction(|t| {
-        let held = require(t, &plan.proposal_id)?;
-        matches(&held, plan)?;
-        // Read terminal state under the same writer as creation. Replay neither
-        // rechecks mutable context nor overwrites a more recently selected pair.
-        if let (Some(id), Some(version)) = (&held.confirmed_stable_id, &held.confirmed_version) {
-            return replay(t, &held, id, version, runtime.identity);
-        }
-        if held.state(at)? != "open" {
-            return Err(Failure::precondition(
-                "the proposal is cancelled or expired",
-            ));
-        }
-        within(at, &held.created_at, &held.expires_at)?;
-        within(at, &plan.created_at, &plan.expires_at)?;
-        let roots = held
-            .members
-            .iter()
-            .map(Member::reference)
-            .collect::<Vec<_>>();
-        let (context, members) = evaluate(t, &held.project_id, &roots, runtime)?;
-        if context.harness_id != held.harness_id
-            || members != held.members
-            || context.snapshot(&members)? != held.snapshot
-        {
-            return Err(stale());
-        }
-        records::freeze(t, &held, context, runtime.identity, expected_digest, at)
-    })
+    store.transaction(|t| confirm_in(t, plan, expected_digest, runtime, at))
+}
+
+/// Terminal replay verifies historical bytes and receipts without requiring
+/// present-day provider availability, mutable context or an unexpired plan.
+pub(crate) fn confirmed(
+    connection: &Connection,
+    plan: &Decision,
+    expected_digest: &str,
+    identity: &Identity,
+    at: &str,
+) -> Result<Option<Confirmation>> {
+    plan.validate(expected_digest, identity, at, "selection.confirm")?;
+    let held = require(connection, &plan.proposal_id)?;
+    matches(&held, plan)?;
+    if let (Some(id), Some(version)) = (&held.confirmed_stable_id, &held.confirmed_version) {
+        return replay(connection, &held, id, version, identity).map(Some);
+    }
+    if held.state(at)? != "open" {
+        return Err(Failure::precondition(
+            "the proposal is cancelled or expired",
+        ));
+    }
+    within(at, &held.created_at, &held.expires_at)?;
+    within(at, &plan.created_at, &plan.expires_at)?;
+    Ok(None)
+}
+
+pub(crate) fn confirm_in(
+    transaction: &Transaction<'_>,
+    plan: &Decision,
+    expected_digest: &str,
+    runtime: &Runtime<'_>,
+    at: &str,
+) -> Result<Confirmation> {
+    if let Some(held) = confirmed(transaction, plan, expected_digest, runtime.identity, at)? {
+        return Ok(held);
+    }
+    let held = require(transaction, &plan.proposal_id)?;
+    let roots = held
+        .members
+        .iter()
+        .map(Member::reference)
+        .collect::<Vec<_>>();
+    let (context, members) = evaluate(transaction, &held.project_id, &roots, runtime)?;
+    if context.harness_id != held.harness_id
+        || members != held.members
+        || context.snapshot(&members)? != held.snapshot
+    {
+        return Err(stale());
+    }
+    records::freeze(
+        transaction,
+        &held,
+        context,
+        runtime.identity,
+        expected_digest,
+        at,
+    )
 }

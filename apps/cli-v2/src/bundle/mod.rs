@@ -1,6 +1,7 @@
 //! Deterministic provider packages from exact local versions and explicit evidence.
 
 mod composition;
+pub(crate) mod hosts;
 mod package;
 
 use std::collections::BTreeMap;
@@ -24,8 +25,9 @@ const MAX_FILE_BYTES: usize = 4 * 1024 * 1024;
 const MAX_BYTES: usize = 64 * 1024 * 1024;
 
 /// Exact observed host bytes, or an explicitly observed absence. Missing keys
-/// mean unknown, never an empty configuration. The runtime must capture these
-/// without credentials and revalidate their identity before provider execution.
+/// mean unknown, never an empty configuration. The compiler checks credentials
+/// in the assembled output. The runtime must revalidate host identity before
+/// provider execution.
 pub type Hosts = BTreeMap<String, Option<Vec<u8>>>;
 
 pub struct Bundle {
@@ -73,7 +75,7 @@ pub fn compile(
     })
 }
 
-fn compile_snapshot(
+pub(crate) fn compile_snapshot(
     connection: &Connection,
     setup: &Value,
     target: &Target,
@@ -223,6 +225,11 @@ fn compile_snapshot(
                     format,
                     host,
                     text(declaration, "ownership_key")?,
+                    &member.bytes,
+                )?;
+                crate::authoring::native_identity::verify_configuration_credentials(
+                    &target.harness_id,
+                    &member.path,
                     &member.bytes,
                 )?;
             }

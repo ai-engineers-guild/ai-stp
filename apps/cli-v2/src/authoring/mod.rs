@@ -7,7 +7,7 @@ pub mod contribution;
 pub mod derivation;
 pub mod discovery;
 pub mod forks;
-mod freezing;
+pub(crate) mod freezing;
 mod frontmatter;
 pub mod importing;
 pub mod lifecycle;

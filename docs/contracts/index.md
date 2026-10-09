@@ -34,7 +34,7 @@ last_verified: "2026-08-03"
 | [corporate-heartbeat.md](corporate-heartbeat.md) | Corporate installation heartbeat HTTP routes, authorization, and the closed health-state set. | 2026-09-24 |
 | [deep-links.md](deep-links.md) | Grammar of canonical URLs and CLI references for component, setup, publisher, and report intent. | 2026-08-15 |
 | [device-passport.md](device-passport.md) | Device passport fields, privacy, and the permitted summary for the server and web. | 2026-08-04 |
-| [eligibility-constraints.md](eligibility-constraints.md) | Mechanical constraints before agent selection: a closed list of rejection reasons, check order, and two independent eligibility axes. | 2026-09-03 |
+| [eligibility-constraints.md](eligibility-constraints.md) | Mechanical constraints before agent selection: a closed list of rejection reasons, check order, and two independent eligibility axes. | 2026-10-09 |
 | [environments.md](environments.md) | Project environment composition, native reservations and prerequisite inspection. | 2026-09-07 |
 | [estate-release.md](estate-release.md) | Immutable estate release record binding one consumer cut to exact provider evidence. | 2026-09-24 |
 | [federated-sources.md](federated-sources.md) | Machine contract for shared descriptors used by local ports and metadata adapters. | 2026-08-16 |

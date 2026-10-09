@@ -234,7 +234,7 @@ impl Target {
     pub(crate) fn validate(&self) -> Result<()> {
         if self.harness_id == "undefined"
             || (!self.owner_id.is_empty() && !passport::stable_id(&self.owner_id, "account"))
-            || !matches!(self.os.as_str(), "linux" | "darwin" | "windows")
+            || !matches!(self.os.as_str(), "linux" | "macos" | "windows")
             || !matches!(self.arch.as_str(), "x86_64" | "arm64")
             || self.harness_version.len() > 128
             || self

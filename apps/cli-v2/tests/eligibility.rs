@@ -161,6 +161,43 @@ fn actual_passport_scopes_and_provider_profiles_control_eligibility() -> Result<
     assert_eq!(report["auto_selectable"], true);
     assert_eq!(report["lane"], "local_owner_or_pinned");
     assert_eq!(report["notes"].as_array().ok_or("notes missing")?.len(), 3);
+    for os in ["linux", "macos", "windows"] {
+        for arch in ["x86_64", "arm64"] {
+            let mut native = target.clone();
+            native.os = os.into();
+            native.arch = arch.into();
+            let mut scoped = document.clone();
+            scoped["adaptations"][0]["scope_adaptations"][0]["supported_os"] = json!([os]);
+            scoped["adaptations"][0]["scope_adaptations"][0]["supported_arch"] = json!([arch]);
+            assert_eq!(
+                reassess(scoped.clone(), &native, &provider)?["admissible"],
+                true
+            );
+            let mut limited = original.clone();
+            limited["supported_os"] = json!([if os == "linux" { "windows" } else { "linux" }]);
+            let limited = Info::parse(&serde_json::to_vec(&limited)?)?;
+            assert!(
+                codes(&reassess(scoped.clone(), &native, &limited)?)
+                    .contains("provider_platform_unsupported")
+            );
+            native.arch = if arch == "arm64" { "x86_64" } else { "arm64" }.into();
+            assert!(codes(&reassess(scoped, &native, &provider)?).contains("arch_unsupported"));
+        }
+    }
+    for (os, arch) in [
+        ("darwin", "arm64"),
+        ("macos", "aarch64"),
+        ("windows", "amd64"),
+        ("freebsd", "x86_64"),
+        ("linux", "riscv64"),
+    ] {
+        let mut invalid = target.clone();
+        invalid.os = os.into();
+        invalid.arch = arch.into();
+        assert!(
+            eligibility::assess(&document, &invalid, &facts(&document)?, Some(&provider)).is_err()
+        );
+    }
     for (field, value, expected) in [
         ("supported_os", json!(["windows"]), "os_unsupported"),
         ("supported_arch", json!(["arm64"]), "arch_unsupported"),
