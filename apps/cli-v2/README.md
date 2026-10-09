@@ -1232,6 +1232,31 @@ Eligibility targets use the same `linux`, `macos`, `windows` and `x86_64`,
 `darwin`, `amd64` and `aarch64` are not native domain values; unsupported or
 noncanonical values refuse before mechanical assessment.
 
+`select eligibility --state-dir --request` connects that assessment to the native
+runtime. The closed request names a concrete `harness_id`, `scope`, exact
+`provider_version`, 1–512 exact `members` and optional `for_redistribution`.
+Each member has only `stable_id`, `version` and `passport_digest`; the request is
+limited to 256 KiB. Identity comes from the isolated credential store, platform
+from the executing CLI, and provider capabilities from authenticated artifact
+acquisition and isolated `provider-info`. Saved provider reports and caller
+claims about rights, trust or harness versions are not accepted.
+
+The command reads every exact graph member and its retained artifact/projection
+bytes in one query-only SQLite transaction, bounded to 64 MiB of artifact
+verification work, including repeated reads of shared content. Missing/conflicting
+coordinates return an inadmissible graph before network access. The registry lock
+is released while acquiring the provider; identity and the whole graph are
+rechecked afterwards. Only declared environment-variable name
+presence is observed; values never enter the report. Owned complete objects may
+use the local-owner trust line. Cloud verification, grants, pins, experimental
+consent, project capabilities and permissions are not supplied by this adapter.
+Their dependent constraints remain refusals; no trust mark is inferred from an
+acquisition receipt. An unobserved harness version refuses exact version
+requirements but does not prevent composition without such a requirement.
+The report names its unobserved inputs and never authorizes installation.
+Only isolated provider trust state may change; no proposal, passport, registry
+record, target, backup or installation journal is created.
+
 The headless selection session service plans and persists exact proposals in
 schema 53 without creating an entity, version, artifact or operation. It reads
 the current sole heads of the owned developer, device and project passports;
@@ -1257,8 +1282,10 @@ confirmation creates one version. Replaying it verifies the retained version,
 content, trace, context revisions and receipt, including after expiry or later
 selection, without repinning an older setup. Cancellation retains its terminal
 row and cannot undo confirmation. This service is not yet exposed by a CLI
-command: installed-harness observation and trusted runtime assembly remain
-prerequisites; the platform-only device context does not substitute for them.
+command. Eligibility now has a native runtime adapter; proposal/decision adapters
+still need to bind its observations to context and recheck them before each
+new effect, while retaining offline terminal replay. The platform-only device
+context does not establish installed-harness evidence.
 
 `select impact` reads exact retained setup graphs in one query-only SQLite
 transaction. The explicit baseline wins; otherwise `--project-id` uses one
