@@ -115,14 +115,19 @@ storage and migrations as such (`SPEC-020`); REST ready surface
   digest is considered, not re-serialization through the current model: fields,
   that appeared later with default values are not included in the historical snapshot
   are substituted. The client checks digest against this object before parsing the model.
-- `REQ-2109`: **Sprint 1:** `#71` public HTTP contract **does not** contain a route
-  issuing artifact bytes (decision / issue `#142`: defer). Clients only receive
-  metadata and passport on six `GET` routes; `REQ-2108` still requires
-  checking `passport_digest` when reading the passport. **After Sprint 1:** bytes
-  artifacts are issued only after checking the object and action - API-mediated
-  by stream or briefly live limited URL on `ADR-0042`; opaque key
-  The object itself does not provide access to bytes (`SPEC-020` `REQ-2004`). Additive
-  the route to `#71` is a separate decision of both contract owners.
+- `REQ-2109`: Exact component and setup artifact routes authorize the published
+  version before reading storage. Public versions are anonymously readable;
+  private versions require ownership or an active grant. Only `active` and
+  `deprecated` versions deliver bytes. Missing, inaccessible, blocked, and hidden
+  versions return the same not-found response. The component route accepts an
+  optional `digest` selecting the primary artifact or a projection declared in
+  that exact component passport; omission retains the primary artifact. A
+  non-primary projection requires a valid passport identity, revision seal, and
+  recorded passport digest, then verified bytes of the declared size in the
+  current owner's storage namespace. An undeclared digest returns not found;
+  missing or corrupt declared bytes return `AI_STP_CATALOG_INTEGRITY` before
+  streaming. Neither an opaque storage key nor knowledge of another stored
+  digest grants access (`SPEC-020` `REQ-2004`).
 - `REQ-2110`: Fixture seeding loader is idempotent and tied to the environment;
   rerunning does not create duplicate metadata lines or artifacts; everyone
   the seeded passport is schema-valid, published, and public. Environment binding
@@ -216,7 +221,7 @@ canonicalization requires a new version under `SPEC-015`.
 | `REQ-2107` | The test confirms the refusal to present a non-public or draft passport on a public route before generating a response. |
 | `REQ-2114` | The test confirms that the default list does not contain `deprecated`, that `include_deprecated` returns them, and that a cursor released with one flag value is not accepted with another. |
 | `REQ-2108` | A negative test confirms the verification of the domain artifact digest and read size, the separateness of the raw SHA-256 cache and the rejection of the conflicting digest for the same `stable_id`/`version`. A separate test confirms that the corrupted reachable record responds with `AI_STP_CATALOG_INTEGRITY` rather than none, leaves the event with a cause and identifiers, and that an unparsed passport gives the same integrity error. The exact version test confirms that the wired `passport` matches the stored document, even when the current model would substitute fields with default values, and that the client checks the digest against this object before parsing the model. |
-| `REQ-2109` | Sprint 1: the test/contract confirms the **absence** of a public route issuing artifact bytes and that the `object_location` key is not an authority. After introducing route, the issuance test is performed only after checking the object and action. |
+| `REQ-2109` | The PostgreSQL artifact journey reads distinct primary and declared projection bytes, refuses undeclared digests and foreign-owner storage, checks private ownership and grant revocation, and rejects blocked versions and corrupt bytes before streaming. Existing lifecycle cases retain deprecated bytes and refuse hidden versions. |
 | `REQ-2110` | The test confirms idempotent reseeding without duplicates, passport validity and public status, and an entirely experimental seeded trust line; a separate test confirms that a named serving environment receives no fixtures, an unnamed environment is treated as development, and the explicit requirement resolves in both directions. |
 | `REQ-2111` | The test confirms that the API does not mark the version verified beyond the stored evidence state. |
 | `REQ-2112` | The `run_conformance` run over the common fixture body completes with no findings for the API implementation. |
