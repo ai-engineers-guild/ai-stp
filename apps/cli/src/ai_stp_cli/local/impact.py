@@ -38,8 +38,9 @@ from ai_stp_foundation.canonical import JsonValue, canonize
 from ai_stp_foundation.digests import digest_bytes
 from ai_stp_passports import (
     ComponentVersionPassport,
+    ProjectionArtifactError,
+    ScopeAdaptation,
     SetupVersionPassport,
-    adaptation_for,
     verify_projection,
     verify_revision_id,
 )
@@ -71,7 +72,6 @@ class _ComponentFacts:
     filesystem: tuple[str, ...]
     network: tuple[str, ...]
     process: tuple[str, ...]
-    artifact_digest: str
     content_format: str
 
 
@@ -79,7 +79,7 @@ class _ComponentFacts:
 class _Graph:
     coordinate: ExactCoordinate
     setup: SetupVersionPassport
-    components: tuple[tuple[ExactCoordinate, _ComponentFacts, bytes], ...]
+    components: tuple[tuple[ExactCoordinate, _ComponentFacts, bytes | None], ...]
 
 
 def selection_report(
@@ -129,12 +129,16 @@ def selection_report(
     delta = None
     capability_delta = None
     if baseline_context is not None and baseline_capabilities is not None:
-        delta = ContextDelta(
-            always_tokens=candidate_context.always_tokens - baseline_context.always_tokens,
-            conditional_tokens=(
-                candidate_context.conditional_tokens - baseline_context.conditional_tokens
-            ),
-        )
+        if (
+            not candidate_context.unavailable_components
+            and not baseline_context.unavailable_components
+        ):
+            delta = ContextDelta(
+                always_tokens=candidate_context.always_tokens - baseline_context.always_tokens,
+                conditional_tokens=(
+                    candidate_context.conditional_tokens - baseline_context.conditional_tokens
+                ),
+            )
         capability_delta = CapabilityDelta(
             added=_difference(candidate_capabilities, baseline_capabilities),
             removed=_difference(baseline_capabilities, candidate_capabilities),
@@ -282,7 +286,7 @@ def _component(
     version: str,
     expected: str | None,
     harness_id: str | None = None,
-) -> tuple[ExactCoordinate, _ComponentFacts, bytes]:
+) -> tuple[ExactCoordinate, _ComponentFacts, bytes | None]:
     recorded = versions.held(connection, stable_id, version)
     if recorded is None or (expected is not None and recorded.passport_digest != expected):
         raise CliFailure("AI_STP_CONFLICT", "an exact setup component is missing or changed")
@@ -310,26 +314,43 @@ def _component(
     # strictly weaker than installing it, with `AI_STP_CONFLICT` for a state
     # that conflicted with nothing (`#66`). The facts are read for what they
     # are, and the one thing a report cannot do without is named when absent.
-    public_scope = None
+    payload: bytes | None = None
     try:
         passport = ComponentVersionPassport.model_validate(document)
-    except ValidationError:
-        facts = _draft_facts(stable_id, version, cast(dict[str, JsonValue], document))
+    except ValidationError as error:
+        if "adaptations" in document:
+            raise CliFailure(
+                "AI_STP_CONFLICT", "the recorded component passport is invalid"
+            ) from error
+        facts, artifact_digest = _draft_facts(
+            stable_id, version, cast(dict[str, JsonValue], document)
+        )
+        payload = content.get(connection, artifact_digest)
     else:
         if not verify_revision_id(passport):
             raise CliFailure("AI_STP_CONFLICT", "a component passport no longer matches its digest")
-        facts = _public_facts(passport, harness_id)
-        selected = (
-            passport.adaptations if harness_id is None else [adaptation_for(passport, harness_id)]  # type: ignore[arg-type]
+        scopes = tuple(
+            scope
+            for adaptation in passport.adaptations
+            if harness_id is None or adaptation.harness_id == harness_id
+            for scope in adaptation.scope_adaptations
         )
-        if len(selected) == 1 and len(selected[0].scope_adaptations) == 1:
-            public_scope = selected[0].scope_adaptations[0]
-    payload = content.get(connection, facts.artifact_digest)
-    if public_scope is not None:
-        verify_projection(public_scope, payload)
+        if not scopes:
+            raise CliFailure("AI_STP_CONFLICT", "the recorded component passport is invalid")
+        facts = _public_facts(passport, scopes)
+        for scope in scopes:
+            projection = content.get(connection, scope.projection_artifact.digest)
+            try:
+                verify_projection(scope, projection)
+            except ProjectionArtifactError as error:
+                raise CliFailure(
+                    "AI_STP_CONFLICT", "the stored component artifact is corrupt"
+                ) from error
+            if len(scopes) == 1:
+                payload = projection
     content_format = facts.content_format or (
         components.COMPONENT_TREE_FORMAT
-        if zipfile.is_zipfile(io.BytesIO(payload))
+        if payload is not None and zipfile.is_zipfile(io.BytesIO(payload))
         else components.COMPONENT_FILE_FORMAT
     )
     return (
@@ -339,16 +360,11 @@ def _component(
     )
 
 
-def _public_facts(passport: ComponentVersionPassport, harness_id: str | None) -> _ComponentFacts:
-    adaptations = (
-        passport.adaptations if harness_id is None else [adaptation_for(passport, harness_id)]  # type: ignore[arg-type]
-    )
+def _public_facts(
+    passport: ComponentVersionPassport, scopes: tuple[ScopeAdaptation, ...]
+) -> _ComponentFacts:
     native_ids = tuple(
-        native_id
-        for adaptation in adaptations
-        for scope in adaptation.scope_adaptations
-        for member in scope.members
-        for native_id in member.native_ids
+        native_id for scope in scopes for member in scope.members for native_id in member.native_ids
     )
     return _ComponentFacts(
         component_type=passport.component_type,
@@ -359,12 +375,13 @@ def _public_facts(passport: ComponentVersionPassport, harness_id: str | None) ->
         filesystem=tuple(passport.permissions.filesystem),
         network=tuple(passport.permissions.network),
         process=tuple(passport.permissions.process),
-        artifact_digest=passport.artifact.digest,
         content_format=components.PROJECTION_FORMAT,
     )
 
 
-def _draft_facts(stable_id: str, version: str, document: dict[str, JsonValue]) -> _ComponentFacts:
+def _draft_facts(
+    stable_id: str, version: str, document: dict[str, JsonValue]
+) -> tuple[_ComponentFacts, str]:
     """Read an adopted draft for the facts the reports use, and nothing more."""
     values = component_passports.declared_values(document)
     component_type = values.get("component_type")
@@ -389,9 +406,8 @@ def _draft_facts(stable_id: str, version: str, document: dict[str, JsonValue]) -
         filesystem=names(granted.get("filesystem")),
         network=names(granted.get("network")),
         process=names(granted.get("process")),
-        artifact_digest=str(artifact_digest),
         content_format=str(values.get("content_format") or ""),
-    )
+    ), str(artifact_digest)
 
 
 def _passport_digest(passport: ComponentVersionPassport | SetupVersionPassport) -> str:
@@ -403,12 +419,18 @@ def _passport_digest(passport: ComponentVersionPassport | SetupVersionPassport) 
 def _budget(graph: _Graph, estimator: TokenEstimator) -> ContextBudget:
     inputs: list[EstimatorInput] = []
     for coordinate, facts, payload in graph.components:
-        files = tuple(item.content for item in _files(payload, facts.content_format))
+        files = (
+            ()
+            if payload is None
+            else tuple(item.content for item in _files(payload, facts.content_format))
+        )
         inputs.append(
             EstimatorInput(
                 coordinate=coordinate,
                 component_type=facts.component_type,  # pyright: ignore[reportArgumentType]
                 files=files,
+                missing=payload is None,
+                missing_reason="adaptation_selection_required",
             )
         )
     return estimate_context(inputs, estimator)
@@ -486,6 +508,16 @@ def _cost(
             source=profile.source,
             fetched_at=profile.fetched_at,
             reason="price_profile_expired",
+        )
+    if budget.unavailable_components:
+        return TokenCost(
+            status="unavailable",
+            amount=None,
+            currency=profile.currency,
+            profile_id=profile.profile_id,
+            source=profile.source,
+            fetched_at=profile.fetched_at,
+            reason="context_budget_unavailable",
         )
     total = budget.always_tokens + budget.conditional_tokens
     amount = (Decimal(total) * Decimal(profile.input_per_million) / Decimal(1_000_000)).quantize(
