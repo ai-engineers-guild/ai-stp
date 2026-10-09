@@ -1644,6 +1644,10 @@ draft owned by the local authoring identity. The full adaptation graph and bytes
 are verified before copying. Draft, lineage and receipt commit together; the
 source stays intact. Replay verifies the original copy and lineage while retaining
 later edits. A fork creates no immutable number or publication approval.
+Every new component identity created by fork, recast or private materialization
+clears source compatibility evidence from both the version field and displayed
+facts. Exact source versions and their evidence remain intact; a copy needs its
+own assessment.
 
 The headless setup composer freezes exact component references and their complete
 bounded dependency closure into a new private `1.0` setup. Planning writes no
