@@ -65,7 +65,7 @@ last_verified: "2026-08-03"
 | [SPEC-054-hybrid-article-publication.md](SPEC-054-hybrid-article-publication.md) | SPEC-054: Unified server-side publication of repository- and staff-authored articles. | 2026-10-05 |
 | [SPEC-055-legal-account-onboarding.md](SPEC-055-legal-account-onboarding.md) | SPEC-055: Versioned legal policies and required account onboarding. | 2026-09-20 |
 | [SPEC-056-official-upstream-components.md](SPEC-056-official-upstream-components.md) | SPEC-056: Curated GitHub component snapshots published by AI STP Official. | 2026-10-05 |
-| [SPEC-057-embedded-component-sources.md](SPEC-057-embedded-component-sources.md) | SPEC-057: Exact external and local components embedded in setup definitions. | 2026-09-04 |
+| [SPEC-057-embedded-component-sources.md](SPEC-057-embedded-component-sources.md) | SPEC-057: Exact external and local components embedded in setup definitions. | 2026-10-09 |
 | [SPEC-058-multi-root-installation-transactions.md](SPEC-058-multi-root-installation-transactions.md) | SPEC-058: Recoverable consumer coordination of one setup across multiple provider roots. | 2026-09-15 |
 | [SPEC-059-public-identities-and-catalog-lines.md](SPEC-059-public-identities-and-catalog-lines.md) | SPEC-059: Unique account identities, component names, and owner-fenced catalog lines. | 2026-09-04 |
 | [SPEC-060-standard-family-identity.md](SPEC-060-standard-family-identity.md) | SPEC-060: Coordinated standard-family identity distinct from envelope v1 and protocol v3. | 2026-10-04 |
