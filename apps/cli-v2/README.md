@@ -427,6 +427,29 @@ The shared TOML policy is embedded at build time; no Python runtime or duplicate
 policy file is introduced. The [PyPI Integrity API](https://docs.pypi.org/api/integrity/)
 supplies evidence, not authorization.
 
+`provider network` measures Linux IPv4 TCP, IPv6 TCP and IPv4 UDP separation.
+An ordinary child must first deliver fresh nonces to three parent-owned loopback
+listeners; the same held CLI image then runs under Bubblewrap and must not reach
+them. The launcher is the fixed root-owned, non-setuid `/usr/bin/bwrap`, with its
+SHA-256 checked on a held executable handle before invocation. User, IPC, UTS, network and PID namespaces,
+disabled nested user namespaces, a fresh session and a minimal filesystem are
+required. Only read-only system runtime paths, private `/proc` and `/dev`, and
+ephemeral home/tmp are visible. No host home, target or D-Bus socket is mounted.
+Unavailable isolation refuses; no alternative launcher is silently selected.
+
+`provider inspect` refreshes trust, fetches the exact artifact and runs only
+`provider-info` through that observed launcher. Authenticated executable bytes
+are supplied through a sealed anonymous file and a read-only executable mount;
+no extracted path can replace them before execution. Each child has a ten-second
+deadline, 1 MiB per output stream and an explicit environment. The response must
+match the authenticated harness, project, version and host platform, and pass the
+existing provider contract. Trust expiry is rechecked after execution. The report
+binds artifact, launcher and exact response digests and records no installation
+or harness write. Serialized reports cannot construct the runtime capability.
+Only isolated TUF state is retained. macOS and Windows currently return an
+unavailable error; complete parent-death containment and writable installation
+remain separate C4 work. See the [Bubblewrap options](https://github.com/containers/bubblewrap/blob/v0.9.0/bwrap.xml).
+
 `provider::wheel::inspect` reads one bounded native-provider wheel in memory.
 It validates every regular member against one complete CSV `RECORD`: unique
 portable names, exact inventory and byte lengths, and SHA-256/384/512 hashes;
@@ -1398,7 +1421,7 @@ rewinds a newer head. Unchanged facts, visibility and passport extensions remain
 intact. These local plans do not publish an object or change its access.
 
 `process` owns one-shot child execution with an absolute executable, explicit
-environment, closed stdin, concurrent bounded output and a deadline. Its Git
+environment, closed stdin (or explicit anonymous provider input), concurrent bounded output and a deadline. Its Git
 caller disables fsmonitor, optional locks and inherited Git overrides.
 `process-wrap` owns Unix process groups and Windows job objects; the adapter
 terminates descendants on exit or refusal. This is lifecycle control, not an
@@ -1468,7 +1491,8 @@ SHA-256. `sigstore-verify` verifies the DSSE signature, certificate chain, SCT,
 Rekor inclusion/checkpoint, signed entry timestamp and artifact binding. The
 service then enforces the signed source repository, workflow and deployment
 environment. It does not treat the unsigned publisher description as evidence.
-Trust-root refresh, provider acquisition and installation are not exposed as commands.
+`provider inspect` uses authenticated trust refresh and artifact acquisition;
+installation remains outside the preview command surface.
 The example's embedded production trust root is for this fixed evidence run;
 online provider acquisition must use authenticated `provider::trust::refresh`.
 

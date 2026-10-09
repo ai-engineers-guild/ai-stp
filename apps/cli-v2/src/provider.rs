@@ -1,6 +1,7 @@
 //! Validated provider declarations; parsing does not attest a provider executable.
 
 pub mod artifact;
+pub mod runtime;
 pub mod trust;
 pub mod wheel;
 

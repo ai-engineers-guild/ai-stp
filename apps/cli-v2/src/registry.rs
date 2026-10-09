@@ -1,6 +1,7 @@
 //! One command definition drives both the parser and its machine description.
 
 mod local;
+mod providers;
 mod reports;
 
 use clap::{Arg, ArgAction, ArgMatches, Command, builder::ValueParser};
@@ -19,6 +20,7 @@ pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 enum Handler {
     Local(local::Handler),
     Report(reports::Handler),
+    Provider(providers::Handler),
     Version,
     Help,
     Capabilities,
@@ -624,6 +626,7 @@ fn declarations() -> impl Iterator<Item = &'static Declaration> {
         .iter()
         .chain(local::COMMANDS)
         .chain(reports::COMMANDS)
+        .chain(providers::COMMANDS)
 }
 
 fn children(parent: Command, prefix: &[&str]) -> Command {
@@ -748,6 +751,7 @@ pub fn dispatch(matches: &ArgMatches) -> Result<Value> {
     match declaration.handler {
         Handler::Local(handler) => local::dispatch(handler, leaf),
         Handler::Report(handler) => reports::dispatch(handler, leaf),
+        Handler::Provider(handler) => providers::dispatch(handler, leaf),
         Handler::Version => Ok(json!({"schema_version": 1, "cli_version": VERSION,
             "wire_schema_version": 1, "runtime": "rust", "release_channel": "preview"})),
         Handler::Capabilities => Ok(json!({"schema_version": 1, "cli_version": VERSION,
