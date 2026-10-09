@@ -1,5 +1,5 @@
 //! Offline PEP 740 verification against caller-owned trust material and policy.
-//! Trust-root refresh and provider installation are separate, unimplemented flows.
+//! Authenticated trust refresh is owned by provider::trust; installation is separate.
 
 use base64::{Engine, engine::general_purpose::STANDARD};
 use serde::Deserialize;

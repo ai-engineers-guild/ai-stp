@@ -27,6 +27,7 @@ enum Handler {
     Passport(&'static str),
     Versions,
     ProjectIndex,
+    ProjectSymbols,
     ProjectDiscover,
     CatalogSearch,
     CatalogShow,
@@ -505,6 +506,12 @@ const COMMANDS: &[Declaration] = &[
         handler: Handler::ProjectIndex,
     },
     Declaration {
+        path: &["project", "symbols"],
+        summary: "Summarize bounded source declarations with explicit syntax-tree or approximate line-scan evidence.",
+        parameters: &[ROOT],
+        handler: Handler::ProjectSymbols,
+    },
+    Declaration {
         path: &["registry", "search"],
         summary: "Read one live public catalog page with separate trust lanes and no account.",
         parameters: &[
@@ -896,14 +903,14 @@ pub fn dispatch(matches: &ArgMatches) -> Result<Value> {
                 .map(|values| values.cloned().collect::<Vec<_>>())
                 .unwrap_or_default(),
         ),
-        Handler::ProjectIndex | Handler::ProjectDiscover => {
+        Handler::ProjectIndex | Handler::ProjectDiscover | Handler::ProjectSymbols => {
             let root = leaf
                 .get_one::<std::path::PathBuf>("root")
                 .ok_or_else(|| Failure::input("root is required"))?;
-            if matches!(declaration.handler, Handler::ProjectIndex) {
-                projects::index(root)
-            } else {
-                projects::discover(root)
+            match declaration.handler {
+                Handler::ProjectIndex => projects::index(root),
+                Handler::ProjectSymbols => projects::symbols(root),
+                _ => projects::discover(root),
             }
         }
         Handler::CatalogSearch | Handler::CatalogShow | Handler::CatalogVersion => {

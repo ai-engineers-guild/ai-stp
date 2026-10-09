@@ -342,6 +342,165 @@ version inspection use one read transaction and never open credentials. Provider
 declaration files describe packaging only; executable trust and installation
 remain separate pending boundaries.
 
+Discovery also reads project-root `nori.json` and project/home
+`.agents/.skill-lock.json` version 3. The bounded ports follow the pinned
+[Nori manifest](https://github.com/tilework-tech/nori-skillsets/blob/475129bbd6098137bdb77f3390b894b2340dbb2a/src/norijson/nori.ts)
+and [askill lock](https://github.com/avibe-bot/askill/blob/b4d968c96781b3996dcdfa4785782efd51860fdd/src/lock.ts)
+formats: root skills, listed skills/subagents/slash commands, and locked skill
+directories. No external package installation or collection download is implied.
+Each manifest is limited to 1 MiB and 500 entries. Duplicate keys, colliding
+names, ambiguous file/directory alternatives, unknown lock versions, missing
+paths, links and over-bound input produce an incomplete discovery diagnostic;
+the failing manifest contributes no package candidates. Generic layout candidates
+remain independent filesystem observations. Nori optional null lists are absent.
+
+Candidates stay harness-neutral; adoption explicitly chooses a destination and
+validates its native identifiers from captured bytes at the destination path.
+Unsupported native formats/layouts refuse; discovery creates no provider route. Neither display names nor manifest statements
+establish native identity, repository, revision, publisher or trust. The lock's
+40/64-character lowercase `skillFolderHash` is retained as
+`source_claimed_folder_hash`, with `source_digest` null: it is an external claim,
+not the computed artifact digest. Weak local lock fingerprints are unsupported.
+`source_manifest_digest` binds exact manifest bytes; normal `content_digest`
+independently binds the captured file/tree. Plan/apply rechecks both.
+
+These imports invoke no Git, script, package manager or network. Capture uses
+bounded no-follow filesystem reads, includes ignored files, refuses secret paths,
+and excludes only `.git` and `nori.json` at the selected directory's root.
+The latter remains metadata evidence outside the payload. Existing atomic draft
+adoption/import, owner checks, idempotent replay and stale-plan refusal apply.
+
+`provider::trust::refresh` fetches only Sigstore's top-level `trusted_root.json`
+through its fixed HTTPS TUF repository. Bootstrap root 15 is embedded from the
+checksum-verified `sigstore-trust-root` 0.14.0 crate (SHA-256
+`73747011d0857ada15479a16c4cae0f3ed03aac698b523b97e1de314ac9d9ca8`).
+New roots require both old and new signature thresholds; every verified rotation
+is saved even if later retrieval fails. The upstream `sigstore-tuf` 0.14.0 core
+verifies signatures and exact metadata pins. TUF signatures use its OLPC canonical
+JSON, never the project's normalized identity encoding. Duplicate/ambiguous JSON
+is refused before the original bytes enter verification.
+
+The explicit parent contains one private leased `sigstore-tuf` state directory.
+Timestamp and snapshot evidence is independently reauthenticated on reopening,
+including expired evidence needed to preserve rollback floors. A newer timestamp
+beside an older snapshot is a valid interrupted state, not a reason to discard
+target-version floors. Timestamp/snapshot key rotation resets those lower-role
+floors; unchanged keys preserve them. Missing initialized state, corrupt metadata
+and every persistence error refuse. Retained evidence names its original verified
+root, so a threshold-only change preserves old floors while new metadata must
+satisfy the current threshold. Equal versions cannot change signed content.
+The best-effort upstream Updater cache is
+not used. Atomic file writes and process locking follow the existing owned-file
+platform guarantees; Windows does not claim power-loss directory durability.
+
+Refresh allows 32 new roots, 256 retained roots, 64 requests and 60 seconds;
+root responses are at most 64 KiB, other metadata/target responses at most 1 MiB,
+and durable state at most 16 MiB. Requests carry no credentials or ambient proxy
+and grant no redirect authority. Only the named top-level target is resolved;
+new delegation layouts refuse. Freshness, complete lengths and supported hashes
+are checked before returning the parsed trust material. Its accessor refuses
+once any role expires. Reports contain public version/digest/freshness evidence.
+This is a headless prerequisite: it does not execute or install a provider.
+`provider::trust` owns the exact TUF dependency and embedded bootstrap data;
+removing refresh removes both. No second HTTP or async runtime is added. See the
+[TUF client workflow](https://theupdateframework.github.io/specification/latest/#detailed-client-workflow).
+
+`provider::artifact` binds exact wheel bytes, PEP 740 provenance and current
+trust to the compiled shared provider policy. Harness IDs remain canonical:
+`claude-code` maps to `claude-setup-system`, and `grok-build` to
+`grok-setup-system`. Version input is canonical `X.Y.Z` with a `u32` major and
+minor/patch below 1,000, avoiding collisions in the policy's release sequence.
+The policy's minimum sequence, protocol 3, repository and unique verified index
+publisher must permit the request; downloaded metadata cannot widen policy.
+
+`fetch` reuses the exact PyPI source adapter with one 30-second deadline for
+release metadata, wheel and provenance. It checks the registry's size/SHA-256,
+refuses yanked distributions and bounds the archive to 20 MiB, release metadata
+to 2 MiB and provenance to 1 MiB. Existing fixed-authority redirects and anonymous
+transport apply. `verify` accepts explicit archives up to the wheel inspector's
+64 MiB limit. Both require a verified source commit and complete wheel integrity.
+The resulting object cannot be deserialized or constructed from a report; access
+to executable bytes rechecks trust expiry. Reports retain policy, trust, archive,
+executable and publisher identities. Neither path writes or executes a package;
+installation and remembered release floors remain separate lifecycle work.
+The shared TOML policy is embedded at build time; no Python runtime or duplicate
+policy file is introduced. The [PyPI Integrity API](https://docs.pypi.org/api/integrity/)
+supplies evidence, not authorization.
+
+`provider::wheel::inspect` reads one bounded native-provider wheel in memory.
+It validates every regular member against one complete CSV `RECORD`: unique
+portable names, exact inventory and byte lengths, and SHA-256/384/512 hashes;
+only RECORD itself has empty digest/size. Unknown algorithms, missing/extra rows,
+aliases, links, special files, encryption and unsafe archive paths refuse. The
+shared external ZIP preflight bounds indexing before decompression. Limits are
+64 MiB compressed, 128 MiB expanded, 1,000 entries and 1 MiB per metadata document.
+
+The narrow provider profile requires one matching dist-info directory, exact
+project/version, declared license, Wheel 1.0, native platform tags and exactly
+one expected bin payload. ELF64, thin Mach-O64 and PE32+ headers must match the
+selected OS/architecture. Header identity is not loader compatibility or runtime
+evidence. Core metadata through 2.6 is accepted; duplicated identity headers
+refuse and description bodies do not contribute fields. CSV quoting and header
+folding are parsed. Wheel signature sidecars with unrecorded bytes are outside
+this profile. Nothing is extracted, installed or executed, and successful
+inspection does not authenticate a publisher. Provider fetch/execution commands
+remain unavailable until trust refresh and durable runtime observations ship.
+
+`provider::wheel` owns pinned `csv` 1.4.0 and its locked parser dependencies;
+removing wheel inspection removes that direct dependency. This reuses the same
+bounded external ZIP reader as GitHub and Go. The profile follows the
+[wheel format](https://packaging.python.org/en/latest/specifications/binary-distribution-format/)
+and [core metadata](https://packaging.python.org/en/latest/specifications/core-metadata/)
+for the fields it consumes, with the native-provider restrictions above.
+
+`project symbols` summarizes public top-level declarations and entry-point files
+from the same held-handle reads as `project index`; it never reopens indexed
+paths or emits source bodies. Python uses pinned Tree-sitter syntax nodes, while
+TypeScript/JavaScript, Rust, Go and Dart retain explicitly labeled approximate
+`line_scan` evidence. Approximate scans can count declaration-like text in strings
+or block comments. Python counts top-level public classes/functions and uppercase
+assignment names, including decorated and async functions; nested declarations
+and docstrings are excluded. Literal equality main guards are recognized in both
+orders. Private Rust/Go `main` functions are entry points without being counted as
+public symbols.
+
+The survey limits parsing to 2,000 files, 512 KiB per source and 10,000 symbols per
+file within a shared 20-second traversal/parse budget. The Python parser has a
+progress cancellation callback. Index truncation, unreadable/invalid/over-bound
+source and incomplete parsing produce `partial`, with an explicit reason; they
+cannot silently look complete. Symbol counts include only successful outlines;
+language summaries label the method and unavailable evidence. The shared reader also refuses
+multiply-linked file handles, so aliases cannot introduce outside content into
+either index or symbol evidence. Symlinks, credentials, generated
+directories and non-regular files follow the existing index exclusions. A syntax
+tree is structural evidence from the pinned grammar, not a Python interpreter's
+acceptance or a type check; unsupported grammar is unavailable.
+
+`projects::symbols` owns exact `tree-sitter` 0.27.1 and `tree-sitter-python` 0.25.0,
+plus locked `tree-sitter-language` and `streaming-iterator`. The in-process parser
+replaces the Python AST runtime dependency for this command. Removing this survey
+removes these four dependencies; no grammar downloader, language server, WASM
+engine, Python runtime or build script from the inspected project is invoked.
+
+`component passport suggest` reads the exact current component head and verifies
+its retained content before inspecting only root `package.json` (`ai-stp.component`)
+and `pyproject.toml` (`tool.ai-stp.component`) declarations. The Python namespace
+follows [PyPA's tool-table contract](https://packaging.python.org/en/latest/specifications/pyproject-toml/#arbitrary-tool-configuration-the-tool-table).
+Each manifest is bounded to 1 MiB; TOML enrichment conversion is bounded to 64
+levels and 20,000 nodes. Every proposed field passes the existing closed passport
+patch contract. Unsupported types, malformed/duplicate metadata, secret fields
+and conflicting declarations refuse with no partial result. Equal declarations
+merge their evidence references in deterministic order. Exact adopted repository,
+commit and subpath also contribute a source suggestion when all are present.
+
+Ordinary package fields and nested manifests do not imply passport facts. Missing
+namespaces produce no enrichment; no script, package manager or network runs.
+Every suggestion requires explicit confirmation and reports its evidence.
+Unresolved publication fields exclude already confirmed facts and offered
+suggestions. Reading suggestions does not create revisions, mutate content,
+confirm facts or change verification/trust. Apply selected fields through the
+existing exact-head passport update plan.
+
 Native adoption and adaptation editing derive MCP identifiers from the captured
 host's server keys: `mcp_servers` for Codex/Grok, `mcp` for OpenCode, and
 `mcpServers` for Cursor/Antigravity. A contribution's captured key set must still
@@ -1266,7 +1425,7 @@ no async runtime or tracing feature is enabled for it.
 | `selection/impact.rs`, `selection/impact/` | Exact context/capability reports, current installation attribution and decimal price snapshots |
 | `projects/passports/` | Private project observations, copy/move identity and durable marker registration |
 | `passport/developer.rs` | Closed private preferences, exact singleton plans and atomic revision receipts |
-| `provider.rs`, `bundle/` | Exact provider declarations, composition constraints and deterministic v2 packages |
+| `provider.rs`, `provider/`, `bundle/` | Exact declarations, authenticated trust/artifact acquisition and deterministic v2 packages |
 | `store/`, `files/owned.rs` | Explicit owned state, atomic revision writes and shared private-file primitives |
 | `archive.rs`, `artifacts.rs`, `projection/artifact.rs` | Shared canonical ZIP transport and closed component/scope archives |
 | `authoring/source.rs`, `process.rs` | Complete bounded source capture and explicit child process lifecycle |
@@ -1311,7 +1470,7 @@ service then enforces the signed source repository, workflow and deployment
 environment. It does not treat the unsigned publisher description as evidence.
 Trust-root refresh, provider acquisition and installation are not exposed as commands.
 The example's embedded production trust root is for this fixed evidence run;
-an online provider lifecycle needs authenticated TUF refresh before C4.
+online provider acquisition must use authenticated `provider::trust::refresh`.
 
 Rust tests cover the existing canonical corpus, executable refusals and
 a real PyPI attestation with adversarial mutations. Public fixture source URLs,
