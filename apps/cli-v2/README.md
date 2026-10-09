@@ -445,7 +445,9 @@ supplies evidence, not authorization.
 An ordinary child must first deliver fresh nonces to three parent-owned loopback
 listeners; the same held CLI image then runs under Bubblewrap and must not reach
 them. The launcher is the fixed root-owned, non-setuid `/usr/bin/bwrap`, with its
-SHA-256 checked on a held executable handle before invocation. User, IPC, UTS, network and PID namespaces,
+SHA-256 checked on a held executable handle before invocation. A transient
+systemd user service owns the launcher and all descendants before they start.
+User, IPC, UTS, network and PID namespaces,
 disabled nested user namespaces, a fresh session and a minimal filesystem are
 required. Only read-only system runtime paths, private `/proc` and `/dev`, and
 ephemeral home/tmp are visible. No host home, target or D-Bus socket is mounted.
@@ -461,8 +463,8 @@ existing provider contract. Trust expiry is rechecked after execution. The repor
 binds artifact, launcher and exact response digests and records no installation
 or harness write. Serialized reports cannot construct the runtime capability.
 Only isolated TUF state is retained. macOS and Windows currently return an
-unavailable error; complete parent-death containment and writable installation
-remain separate C4 work. See the [Bubblewrap options](https://github.com/containers/bubblewrap/blob/v0.9.0/bwrap.xml).
+unavailable error; writable installation remains separate C4 work. See the
+[Bubblewrap options](https://github.com/containers/bubblewrap/blob/v0.9.0/bwrap.xml).
 
 `provider status` adds one explicit existing target and provider scope to that
 authenticated observation. Every path component is opened without following
@@ -1565,6 +1567,31 @@ terminates descendants on exit or refusal. This is lifecycle control, not an
 execution sandbox. Its dependency is removable when child execution is removed;
 no async runtime or tracing feature is enabled for it.
 
+Linux provider invocation additionally requires a reachable local systemd user
+manager (version 250 or later) and cgroup v2. `process/linux` creates a transient
+`Type=exec`, `ExitType=main`, `KillMode=control-group` service through the existing
+`zbus` dependency and verifies its lifetime properties before sending work.
+The service executes a sealed copy of the running CLI, receives exact held
+launcher/input/target/bundle descriptors over a private Unix socket, and forwards
+only the declared environment. Descriptor argument positions are explicit; raw
+OS bytes, numeric arguments and Unicode are not normalized. The launcher is
+reopened in the worker's mount namespace only when its device and inode match
+the received capability, preserving the installed AppArmor executable profile.
+A replaced or inaccessible launcher refuses execution.
+
+The private socket is also the owner lease. EOF or invalid lease traffic exits
+the service main; systemd then terminates its entire cgroup, including stopped
+children and descendants in other sessions. Worker death has the same effect.
+A manager-enforced maximum runtime of the command deadline plus ten seconds
+also bounds a frozen worker, with a one-second stop grace before `SIGKILL`.
+This covers the launcher bootstrap interval before Bubblewrap arms its own
+parent-death handling. There is no persistent unit, privileged manager request,
+external service-runner executable or target write. An unavailable manager or
+unverified boundary refuses provider invocation. The private worker entry is
+absent from the public registry and rejects ordinary direct invocation.
+See systemd's [service lifetime](https://www.freedesktop.org/software/systemd/man/255/systemd.service.html)
+and [cgroup termination](https://www.freedesktop.org/software/systemd/man/255/systemd.kill.html).
+
 Before the first managed Windows spawn, `process/windows` places the calling
 CLI process itself in an anonymous, non-inheritable kill-on-close Job Object.
 The once-only initialization verifies the requested limits and fails closed if
@@ -1613,7 +1640,8 @@ breakaway and never infers termination from PID disappearance alone.
 | `provider.rs`, `provider/`, `bundle/` | Exact declarations, authenticated trust/artifact acquisition and deterministic v2 packages |
 | `store/`, `files/owned.rs` | Explicit owned state, atomic revision writes and shared private-file primitives |
 | `archive.rs`, `artifacts.rs`, `projection/artifact.rs` | Shared canonical ZIP transport and closed component/scope archives |
-| `authoring/source.rs`, `process.rs` | Complete bounded source capture and explicit child process lifecycle |
+| `authoring/source.rs` | Complete bounded source capture |
+| `process.rs`, `process/` | Explicit child execution, Windows jobs and Linux provider service lifetime |
 | `authoring/contribution.rs` | Owned configuration extraction and format-preserving in-memory assembly |
 | `harnesses.rs`, `authoring/discovery.rs` | Shared declarative harness facts and bounded inspection of native layouts |
 | `projection.rs` | Shared exact provider profiles and target-relative ownership routes |
