@@ -138,7 +138,6 @@ fn build(connection: &Connection, plan: &Plan, original: Value) -> Result<(Value
         "supported_tasks",
         "supported_os",
         "supported_arch",
-        "license",
     ] {
         if let Some(value) = original.get(field) {
             document[field] = value.clone();

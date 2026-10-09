@@ -957,6 +957,9 @@ free-form license field is not an SPDX parser or a compatibility verdict.
 Redistribution is the conjunction of member declarations. The exact passports
 remain authoritative for scope-specific permissions, platform, version and capability constraints;
 composition is not mechanical installation eligibility or a provider approval.
+Setup forks and recasts rebuild these minima and combine the source setup's
+additional declarations; an underdeclared source license cannot replace member
+license restrictions or enable redistribution.
 Request metadata is bounded to 256 KiB and the resulting passport to 1 MiB.
 Selected native configuration import and explicit literal-stdio derivation are
 implemented; automatic whole-setup recast derivation and acquisition of external

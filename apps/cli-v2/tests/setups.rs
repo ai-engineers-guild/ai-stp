@@ -333,6 +333,7 @@ fn copies_journey(
         document["stable_id"] = format!("setup_{}", ulid::Ulid::generate()).into();
         document["requires_credentials"] = false.into();
         document["requires_authorization"] = "none".into();
+        document["license"] = json!({"spdx_id":"MIT","redistribution_allowed":true});
         document["permissions"] = json!({"filesystem":[],"network":[],"process":[]});
         document["required_env"] =
             json!([{"name":"EXTRA_CONTEXT","purpose":"Preserve a source requirement"}]);
@@ -378,6 +379,8 @@ fn copies_journey(
     };
     let copied = copies::plan(store, weak_source.clone(), None, recipient.clone(), AT)?.passport;
     assert_eq!(copied["requires_credentials"], true);
+    assert_eq!(copied["license"]["redistribution_allowed"], false);
+    assert!(field(&copied["license"], "spdx_id")?.contains("BSD-3-Clause"));
     assert_eq!(copied["requires_authorization"], "external_service");
     assert_eq!(copied["permissions"], source["permissions"]);
     assert_eq!(
@@ -397,6 +400,7 @@ fn copies_journey(
             .all(|m| m.get("variant_id") == Some(&Value::Null))
     );
     let recast = copies::plan(store, weak_source, Some("codex"), recipient, AT)?.passport;
+    assert_eq!(recast["license"], copied["license"]);
     assert_eq!(recast["supported_harness_versions"], json!([]));
     assert_eq!(
         recast["facts"]["source_harness_version_constraints"]["value"]["constraints"],
