@@ -531,9 +531,28 @@ creates no backup and does not write the source or invoke a provider.
 passport digest, then create a private owned `1.0` with a new identity. Fork
 retains the harness; recast requires a different concrete harness and records
 the exact `ported_from` reference. Both retain direct lineage in SQLite and
-`related_setup_ids`. Every member coordinate must remain unchanged and already
-provide the target adaptation; missing adaptations are reported together.
-Empty compositions remain valid. Automatic native syntax derivation is pending.
+`related_setup_ids`. By default every member coordinate remains unchanged and
+must already provide the target adaptation; missing adaptations are reported
+together. Empty compositions remain valid.
+
+An optional `--provider-info` on recast enables the implemented literal stdio MCP
+transformations between Codex, Cursor and OpenCode. It resolves the entire exact
+source dependency graph first, retaining the existing 512-node, 8,192-edge and
+32-depth limits. A missing target adaptation receives a new private component ID
+and version `1.0`; each dependent whose exact pin changes receives its own new
+identity too, even when its target adaptation already exists. Other components
+retain their exact coordinates. Original version lines and owners are unchanged.
+Unsupported transformations, scopes, native controls and source constraints refuse.
+
+The plan contains each changed source coordinate, resulting passport and target
+provider declaration. Preparation reads retained data without writes or execution.
+Changed component metadata is bounded together with the reused graph at 8 MiB;
+new artifact bytes are deduplicated and bounded at 128 MiB. Component compatibility
+evidence is not transferred to new identities. Apply recomputes all derivations,
+rechecks the complete plan and commits component artifacts, immutable versions,
+lineage and the setup in one transaction. Replays verify the recorded replacements
+without deriving or extending source versions again. Existing plans that omit the
+optional derivation field retain their serialized form.
 
 These operations rebuild and verify the full dependency closure and preserve
 content declarations, license declarations and conservative requirements.
@@ -962,8 +981,9 @@ additional declarations; an underdeclared source license cannot replace member
 license restrictions or enable redistribution.
 Request metadata is bounded to 256 KiB and the resulting passport to 1 MiB.
 Selected native configuration import and explicit literal-stdio derivation are
-implemented; automatic whole-setup recast derivation and acquisition of external
-setup packages remain pending.
+implemented, including atomic whole-graph recast for supported literal MCP
+transformations. Other native transformations and acquisition of external setup
+packages remain pending.
 Project identity registration and the headless project-to-setup selection
 transaction are implemented; the selection command adapter remains pending.
 
@@ -1099,6 +1119,7 @@ no async runtime or tracing feature is enabled for it.
 | `authoring/native_edit.rs` | Exact native adaptation replacement with complete scope preservation |
 | `authoring/derivation/` | Closed MCP syntax conversion and atomic owned draft derivation |
 | `authoring/setups/copies.rs` | Private exact setup forks and recasts with atomic lineage |
+| `authoring/setups/recast.rs` | Read-only graph derivation with owned replacements and remapped exact dependencies |
 | `authoring/setups/drafts.rs`, `authoring/setups/releases.rs` | Owned setup completion and revision, with separate immutable release |
 | `authoring/setups/export.rs` | Exact review-tree export from query-only retained state |
 | `authoring/native_identity.rs`, `authoring/native_identity/` | Captured/projected native identities, Markdown loaders and assembled entry visibility |

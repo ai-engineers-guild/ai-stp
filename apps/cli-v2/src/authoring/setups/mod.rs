@@ -4,6 +4,7 @@ mod aggregate;
 pub mod copies;
 pub mod drafts;
 pub mod export;
+mod recast;
 pub mod releases;
 mod requirements;
 
@@ -123,13 +124,7 @@ fn member(connection: &Connection, reference: &Value, harness: &str) -> Result<V
     Ok(document)
 }
 
-pub(crate) fn compile(
-    connection: &Connection,
-    request: &Request,
-    id: &str,
-    identity: &Identity,
-    at: &str,
-) -> Result<(Value, Vec<u8>)> {
+fn input(request: &Request, id: &str) -> Result<Value> {
     let input = serde_json::to_value(request).map_err(|_| invalid())?;
     if !passport::stable_id(id, "setup")
         || request.harness_id == "undefined"
@@ -151,6 +146,17 @@ pub(crate) fn compile(
     }
     harnesses::definition(&request.harness_id)?;
     passport::markdown::validate(&request.description)?;
+    Ok(input)
+}
+
+pub(crate) fn compile(
+    connection: &Connection,
+    request: &Request,
+    id: &str,
+    identity: &Identity,
+    at: &str,
+) -> Result<(Value, Vec<u8>)> {
+    let input = input(request, id)?;
     let roots = input["members"].as_array().ok_or_else(invalid)?;
     let closure = graph::exact(connection, roots)?;
     if closure["resolved"] != true {
@@ -165,12 +171,32 @@ pub(crate) fn compile(
             "the setup dependency graph was refused: {reasons}"
         )));
     }
-    let mut refs: Vec<Value> = closure["nodes"].as_array().ok_or_else(invalid)?.iter()
-        .map(|node| json!({"stable_id":node["stable_id"],"version":node["version"],"passport_digest":node["passport_digest"]})).collect();
-    refs.sort_by(|a, b| a["stable_id"].as_str().cmp(&b["stable_id"].as_str()));
+    let documents = closure["nodes"]
+        .as_array()
+        .ok_or_else(invalid)?
+        .iter()
+        .map(|reference| member(connection, reference, &request.harness_id))
+        .collect::<Result<Vec<_>>>()?;
+    assemble(request, input, id, identity, at, &documents)
+}
+
+/// Assemble an already verified, bounded, complete dependency graph.
+/// Callers either resolve retained versions or deterministically derive that closure.
+fn assemble(
+    request: &Request,
+    input: Value,
+    id: &str,
+    identity: &Identity,
+    at: &str,
+    documents: &[Value],
+) -> Result<(Value, Vec<u8>)> {
+    let mut refs = Vec::new();
     let mut aggregate = aggregate::Aggregate::default();
-    for reference in &refs {
-        let document = member(connection, reference, &request.harness_id)?;
+    for document in documents {
+        refs.push(
+            json!({"stable_id":document["stable_id"],"version":document["version"],
+            "passport_digest":digest::canonical("ai-stp:passport:v1",document)?}),
+        );
         if document["lifecycle_state"] == "conflict"
             || document["description"]
                 .as_str()
@@ -180,8 +206,9 @@ pub(crate) fn compile(
                 "a setup cannot freeze a conflicted or scaffold draft member",
             ));
         }
-        aggregate.include(&document)?;
+        aggregate.include(document)?;
     }
+    refs.sort_by(|a, b| a["stable_id"].as_str().cmp(&b["stable_id"].as_str()));
     if let Some(declarations) = &request.requirements {
         declarations.include(&mut aggregate)?;
     }

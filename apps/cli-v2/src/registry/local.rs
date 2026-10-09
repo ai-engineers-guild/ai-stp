@@ -421,7 +421,7 @@ pub(super) const COMMANDS: &[Declaration] = &[
     },
     Declaration {
         path: &["setup", "recast", "plan"],
-        summary: "Plan a new setup for another harness using every exact member's existing target adaptation; missing adaptations refuse together.",
+        summary: "Plan an exact setup recast; an explicit provider declaration enables supported derivations with owned dependency replacements.",
         parameters: &[
             STATE_DIR,
             ID,
@@ -432,6 +432,12 @@ pub(super) const COMMANDS: &[Declaration] = &[
                 summary: "Concrete destination harness, distinct from the source setup.",
                 kind: ParameterType::Choice(CONCRETE_HARNESSES),
                 required: true,
+            },
+            Parameter {
+                name: "provider-info",
+                summary: "Optional target v3 provider declaration JSON, at most 1 MiB. Enables supported graph derivation; does not authorize provider execution.",
+                kind: ParameterType::Path,
+                required: false,
             },
         ],
         handler: super::Handler::Local(Handler::SetupRecast),
@@ -765,8 +771,26 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
             } else {
                 None
             };
+            let provider = if target.is_some() {
+                args.get_one::<PathBuf>("provider-info")
+                    .map(|path| Info::parse(&files::read(path, 1024 * 1024)?))
+                    .transpose()?
+            } else {
+                None
+            };
+            if let Some(provider) = &provider
+                && provider.document()["harness_id"].as_str() != target
+            {
+                return Err(Failure::input(
+                    "the provider declaration must name the recast target harness",
+                ));
+            }
             runtime::plan(path(args, "state-dir")?, |store, identity, at| {
-                setups::copies::plan(store, source, target, identity, at)
+                if let Some(provider) = &provider {
+                    setups::copies::plan_with_provider(store, source, provider, identity, at)
+                } else {
+                    setups::copies::plan(store, source, target, identity, at)
+                }
             })
         }
         Handler::SetupRelease => {
