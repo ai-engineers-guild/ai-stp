@@ -3,7 +3,7 @@ use std::{error::Error, fs, sync::Barrier};
 use ai_stp_cli_v2::{
     authoring::{Identity, discovery, importing, passports, releases, setups},
     digest,
-    error::Failure,
+    error::{ErrorKind, Failure},
     harnesses::{Root, Scope},
     store::{
         Store,
@@ -115,8 +115,33 @@ fn selected_graph_import_is_atomic_owned_and_replayable() -> Result<(), Box<dyn 
         })();
         (left, worker.join())
     });
-    let imported = left?;
-    assert_eq!(imported, right.map_err(|_| "import worker panicked")??);
+    let results = [left, right.map_err(|_| "import worker panicked")?];
+    let imported = results
+        .iter()
+        .find_map(|result| result.as_ref().ok())
+        .ok_or("neither import completed")?
+        .clone();
+    for result in results {
+        match result {
+            Ok(receipt) => assert_eq!(receipt, imported),
+            Err(error) => {
+                // A durable import may outlast the bounded directory-lock wait.
+                // Only that busy refusal can retry the same committed operation.
+                assert!(matches!(error.kind, ErrorKind::Precondition), "{error:?}");
+                assert_eq!(
+                    error.details.get("stage").and_then(Value::as_str),
+                    Some("lock_timeout")
+                );
+                let mut store = Store::open(state.path(), false)?;
+                let before = counts(&mut store)?;
+                assert_eq!(
+                    importing::apply(&mut store, &plan, &digest, &identity, AT)?,
+                    imported
+                );
+                assert_eq!(counts(&mut store)?, before);
+            }
+        }
+    }
     let mut store = Store::open(state.path(), false)?;
     assert_eq!(counts(&mut store)?, [3, 3, 2, 2, 1, 0]);
     assert_eq!(
