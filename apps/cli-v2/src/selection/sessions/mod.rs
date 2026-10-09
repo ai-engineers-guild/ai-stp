@@ -2,6 +2,7 @@
 
 mod context;
 mod records;
+pub mod view;
 
 pub use context::{Context, Member, Runtime};
 use context::{context_history, evaluate, owned_head};

@@ -590,10 +590,20 @@ const COMMANDS: &[Declaration] = &[
     },
     Declaration {
         path: &["select", "graph"],
-        summary: "Resolve exact dependencies with bounded deterministic ordering and complete refusals.",
+        summary: "Resolve exact dependencies from isolated native state or an explicit verified snapshot, with deterministic ordering and complete refusals.",
         parameters: &[
-            SNAPSHOT,
-            SHA256,
+            Parameter {
+                required: false,
+                ..STATE_DIR
+            },
+            Parameter {
+                required: false,
+                ..SNAPSHOT
+            },
+            Parameter {
+                required: false,
+                ..SHA256
+            },
             Parameter {
                 name: "member",
                 summary: "Exact component or setup id@X.Y; repeat for multiple roots.",
@@ -961,10 +971,31 @@ pub fn dispatch(matches: &ArgMatches) -> Result<Value> {
                 )
             }
         }
+        Handler::DependencyGraph => {
+            let members = leaf
+                .get_many::<String>("member")
+                .map(|items| items.cloned().collect::<Vec<_>>())
+                .unwrap_or_default();
+            let proposal = leaf.get_one::<String>("proposal").map(String::as_str);
+            match (
+                leaf.get_one::<std::path::PathBuf>("state-dir"),
+                leaf.get_one::<std::path::PathBuf>("snapshot"),
+                leaf.get_one::<String>("sha256"),
+            ) {
+                (Some(parent), None, None) => selection::graph::local(parent, &members, proposal),
+                (None, Some(path), Some(digest)) => selection::graph::read(
+                    &snapshot::Snapshot::open(path, digest)?,
+                    &members,
+                    proposal,
+                ),
+                _ => Err(Failure::input(
+                    "name either state-dir or both snapshot and sha256",
+                )),
+            }
+        }
         Handler::Snapshot
         | Handler::Passport(_)
         | Handler::Versions
-        | Handler::DependencyGraph
         | Handler::EnvironmentRequirements => {
             let path = leaf
                 .get_one::<std::path::PathBuf>("snapshot")
@@ -974,14 +1005,6 @@ pub fn dispatch(matches: &ArgMatches) -> Result<Value> {
                 .ok_or_else(|| Failure::input("sha256 is required"))?;
             let state = snapshot::Snapshot::open(path, digest)?;
             match declaration.handler {
-                Handler::DependencyGraph => selection::graph::read(
-                    &state,
-                    &leaf
-                        .get_many::<String>("member")
-                        .map(|items| items.cloned().collect::<Vec<_>>())
-                        .unwrap_or_default(),
-                    leaf.get_one::<String>("proposal").map(String::as_str),
-                ),
                 Handler::EnvironmentRequirements => environment::requirements(
                     &state,
                     leaf.get_one::<String>("project")

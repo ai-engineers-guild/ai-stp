@@ -167,6 +167,17 @@ pub fn read(parent: &Path, id: &str) -> Result<Value> {
     Ok(json!({"proposal":proposal,"state":proposal.state(&moment())?}))
 }
 
+pub fn view(
+    parent: &Path,
+    project: &str,
+    harness: &str,
+    after: Option<&str>,
+    limit: usize,
+) -> Result<Value> {
+    let mut store = Store::planning(parent)?;
+    sessions::view::read(&mut store, project, harness, after, limit, &moment())
+}
+
 pub fn apply(path: &Path, expected: &str) -> Result<Value> {
     let plan: Plan = serde_json::from_value(canonical::parse(&files::read(path, MAX_PLAN)?)?)
         .map_err(|_| invalid())?;
