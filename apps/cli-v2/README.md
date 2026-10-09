@@ -467,9 +467,14 @@ remain separate C4 work. See the [Bubblewrap options](https://github.com/contain
 `provider status` adds one explicit existing target and provider scope to that
 authenticated observation. Every path component is opened without following
 symlinks; root/runtime mount locations and non-Unicode paths refuse. The held
-directory is mounted read-only at its normalized absolute path. Its device/inode
-identity is revalidated before execution and after the response, so replacing a
-directory cannot turn an old observation into evidence about the replacement.
+directory is mounted read-only at its normalized absolute path. A held CLI image
+then checks that the mounted target has the expected device/inode and a read-only
+mount flag before replacing itself with the provider. This check is necessary
+because Bubblewrap resolves `--ro-bind-fd` back to a pathname during setup.
+An inaccessible source or a different directory in the launcher's mount namespace
+refuses before provider execution. The host directory identity is also revalidated
+before execution and after the response, so replacing a directory cannot turn
+an old observation into evidence about the replacement.
 This requires Bubblewrap's `--ro-bind-fd` support; an unavailable option refuses.
 Before trust refresh, held directory identities must establish that target and
 state parent are disjoint in both ancestry directions (at most 256 parents).
