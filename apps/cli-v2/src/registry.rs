@@ -38,6 +38,7 @@ enum Handler {
     ScaffoldPlan,
     ScaffoldApply,
     SourceInspect,
+    SourceAddress(bool),
     IdentityPlan,
     IdentityApply,
     IdentityShow,
@@ -133,6 +134,20 @@ const ROOT: Parameter = Parameter {
     summary: "Explicit project directory; home and filesystem roots are refused.",
     kind: ParameterType::Path,
     required: true,
+};
+
+const SOURCE: Parameter = Parameter {
+    name: "source",
+    summary: "Published name, GitHub address, explicit local path or collection address; at most 2 KiB.",
+    kind: ParameterType::String,
+    required: true,
+};
+
+const SOURCE_ROOT: Parameter = Parameter {
+    name: "root",
+    summary: "Explicit absolute base for a relative local address; parsing does not access its files.",
+    kind: ParameterType::Path,
+    required: false,
 };
 
 const STATE_DIR: Parameter = Parameter {
@@ -268,6 +283,26 @@ const COMMANDS: &[Declaration] = &[
         summary: "Inspect exact portable source bytes and unresolved scaffold fields without executing code.",
         parameters: &[ROOT],
         handler: Handler::SourceInspect,
+    },
+    Declaration {
+        path: &["component", "source", "parse"],
+        summary: "Parse a bounded source address without filesystem access, network or provenance claims.",
+        parameters: &[SOURCE, SOURCE_ROOT],
+        handler: Handler::SourceAddress(false),
+    },
+    Declaration {
+        path: &["component", "source", "resolve"],
+        summary: "Pin a GitHub intent to a supplied exact commit without claiming remote verification.",
+        parameters: &[
+            SOURCE,
+            Parameter {
+                name: "commit",
+                summary: "Full lowercase 40-character commit SHA; must agree with an already exact address.",
+                kind: ParameterType::String,
+                required: true,
+            },
+        ],
+        handler: Handler::SourceAddress(true),
     },
     Declaration {
         path: &["component", "template", "render"],
@@ -698,6 +733,25 @@ pub fn dispatch(matches: &ArgMatches) -> Result<Value> {
         Handler::SourceInspect => source_project::inspect(
             leaf.get_one::<std::path::PathBuf>("root")
                 .ok_or_else(|| Failure::input("source root is required"))?,
+        ),
+        Handler::SourceAddress(resolve) => crate::sources::inspect(
+            leaf.get_one::<String>("source")
+                .ok_or_else(|| Failure::input("source is required"))?,
+            if resolve {
+                None
+            } else {
+                leaf.get_one::<std::path::PathBuf>("root")
+                    .map(std::path::PathBuf::as_path)
+            },
+            if resolve {
+                Some(
+                    leaf.get_one::<String>("commit")
+                        .ok_or_else(|| Failure::input("commit is required"))?
+                        .as_str(),
+                )
+            } else {
+                None
+            },
         ),
         Handler::CatalogAcquirePlan => crate::authoring::runtime::plan(
             leaf.get_one::<std::path::PathBuf>("state-dir")
