@@ -984,6 +984,58 @@ without rewinding later drafts. Existing targets require explicit native editing
 derivation does not overwrite them. Releasing an immutable version remains a
 separate operation. No provider process runs.
 
+`component materialize plan --state-dir DIR --request FILE` prepares all requested
+adaptations of one exact released component together. The closed request is at
+most 16 KiB:
+
+```json
+{
+  "source": {
+    "stable_id": "component_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+    "version": "1.0",
+    "passport_digest": "sha256:<exact passport digest>"
+  },
+  "source_harness": "codex",
+  "targets": ["codex", "cursor", "opencode"],
+  "output": "owned"
+}
+```
+
+Supply up to seven explicit `--provider-info` declarations. Targets must be
+distinct concrete harnesses. Instead of `targets`, `all_missing: true` selects
+every concrete harness absent from the source, including unsupported conversions.
+The plan reports `reuse`, `derive` or `blocked` for each target. Reuse requires
+every retained scope to fit the exact declared provider profile. Derivation uses
+the literal MCP and common skill rules above, independently from the same source
+for each missing target. Missing declarations and unsupported conversion block the
+whole output; corrupt retained data fails planning. No provider process runs and
+declarations do not establish executable trust or installation eligibility.
+
+`output: "owned"` requires current local ownership. If every target is reusable,
+the result is the exact source version. Otherwise the source must be the latest
+immutable release, and the result is its next minor version. Current draft heads
+are preserved, including drafts newer than the source; the operation does not
+implicitly release or replace them. Apply revalidates version allocation. Competing
+plans cannot assign different content to the same coordinate.
+
+`output: "private"` creates a new owned private component at `1.0`, retaining every
+source adaptation and exact dependency. It records the exact source component,
+fork lineage and generated overlay origin; source compatibility evidence is cleared
+from both version fields and displayed facts. An optional `overlay_id` may name an
+existing private result only when owner, exact origin and complete immutable content
+match. Its original creation time is retained and later drafts/releases are not
+changed. Conflicting identities or content refuse; immutable overlays are never
+overwritten.
+
+Use `local apply` with the returned plan and exact digest. Content, the immutable
+coordinate, private lineage and receipt commit in one writer transaction. A blocked
+target produces no partial result. Repeating a completed plan verifies historical
+bytes and provenance and returns the same version after expiry without rewinding
+heads. Planning is read-only. Source/output metadata is bounded to 1 MiB each,
+artifact verification to 64 MiB per pass including repeated references, combined
+new artifact preparation to 128 MiB and the domain plan to 8 MiB. No migration of
+production state occurs.
+
 `setup import plan` captures 1–128 explicitly selected `component discover`
 candidates from one concrete harness, scope and root. Discovery must complete;
 capture shares adoption's native identity, path, credential and source-binding
@@ -1839,6 +1891,7 @@ breakaway and never infers termination from PID disappearance alone.
 | `authoring/review.rs` | Read-only publication structure and optional quality hints over every retained adaptation |
 | `authoring/native_edit.rs` | Exact native adaptation replacement with complete scope preservation |
 | `authoring/derivation/` | Closed MCP conversion, byte-preserving common Skills and atomic owned draft derivation |
+| `authoring/materialization/` | Atomic exact-version target preparation, owned releases and private immutable outputs with origin |
 | `authoring/setups/copies.rs` | Private exact setup forks and recasts with atomic lineage |
 | `authoring/setups/recast.rs` | Read-only graph derivation with owned replacements and remapped exact dependencies |
 | `authoring/setups/drafts.rs`, `authoring/setups/releases.rs` | Owned setup completion and revision, with separate immutable release |
