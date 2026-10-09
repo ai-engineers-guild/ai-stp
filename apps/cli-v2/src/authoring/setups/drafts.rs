@@ -176,7 +176,11 @@ fn build(
     ] {
         after["facts"][key] = json!({"value":value,"origin":"declared","confirmation":"user_confirmed","confirmed_at":at});
     }
-    let (mut after, payload) = super::finish(after)?;
+    let (mut after, payload) = if before.get("components").is_some() {
+        super::finish_from(connection, &before, after)?
+    } else {
+        super::finish(after)?
+    };
     after["parent_revision_ids"] = json!([before["revision_id"]]);
     Ok((revisions::seal(&after)?, payload))
 }

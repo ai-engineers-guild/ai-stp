@@ -51,6 +51,49 @@ pub(super) fn document(passport: &Value) -> Value {
         "input_digest":passport["facts"]["snapshot"]["value"],"components":passport["components"]})
 }
 
+/// Retain exact embedded records across same-harness copies and revisions.
+/// Removing a member is explicit; changing its embedded coordinate needs a new snapshot.
+pub(super) fn rewrite(before: &Value, payload: &[u8], after: &mut Value) -> Result<Vec<u8>> {
+    verify(before, payload)?;
+    let mut definition = document(after);
+    if before["artifact_format"] == EMBEDDED_FORMAT {
+        if before["harness_id"] != after["harness_id"] {
+            return Err(Failure::precondition(
+                "embedded setup recast requires an explicit replacement snapshot for its target harness",
+            ));
+        }
+        let source = canonical::parse(payload)?;
+        let references = after["components"].as_array().ok_or_else(invalid)?;
+        let mut retained = Vec::new();
+        for record in source["embedded"].as_array().ok_or_else(invalid)? {
+            let mut reference = json!([record["ref"]]);
+            passport::versions::normalize_component_refs(&mut reference)?;
+            if let Some(selected) = references
+                .iter()
+                .find(|item| item["stable_id"] == reference[0]["stable_id"])
+            {
+                if *selected != reference[0] {
+                    return Err(Failure::precondition(
+                        "an embedded component coordinate cannot change without a replacement snapshot",
+                    ));
+                }
+                retained.push(record.clone());
+            }
+        }
+        if !retained.is_empty() {
+            definition["schema_version"] = 2.into();
+            definition["format"] = EMBEDDED_FORMAT.into();
+            definition["embedded"] = retained.into();
+        }
+    }
+    after["artifact_format"] = definition["format"].clone();
+    let bytes = canonical::bytes(&definition)?;
+    if bytes.len() > MAX_BYTES {
+        return Err(invalid());
+    }
+    Ok(bytes)
+}
+
 pub(crate) fn verify(passport: &Value, payload: &[u8]) -> Result<BTreeMap<String, Embedded>> {
     if payload.len() > MAX_BYTES || passport["artifact"]["size_bytes"] != payload.len() {
         return Err(invalid());

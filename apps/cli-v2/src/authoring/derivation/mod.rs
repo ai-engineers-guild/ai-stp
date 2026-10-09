@@ -66,12 +66,12 @@ fn verify(connection: &Connection, document: &Value) -> Result<()> {
     freezing::verify(connection, &revisions::seal(&version)?)
 }
 
-struct Built {
-    document: Value,
-    artifacts: BTreeMap<String, Vec<u8>>,
+pub(super) struct Built {
+    pub document: Value,
+    pub artifacts: BTreeMap<String, Vec<u8>>,
 }
 
-fn build(
+pub(super) fn build(
     connection: &Connection,
     before: Value,
     source_harness: &str,
