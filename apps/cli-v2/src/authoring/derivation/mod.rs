@@ -123,10 +123,13 @@ pub(super) fn build(
             revisions::read_content(connection, text(&scope["projection_artifact"], "digest")?)?;
         let files = artifact::verify(scope, &payload)?;
         let (adaptation, bytes) = match text(&before, "component_type")? {
-            "mcp" => mcp::project(&before, scope, source_harness, provider, &files)?,
-            "skill" => skill::project(&before, scope, source_harness, provider, &files)?,
+            "mcp" => mcp::project(&before, scope, source_harness, provider, &files),
+            "skill" => skill::project(&before, scope, source_harness, provider, &files),
             _ => return Err(invalid()),
-        };
+        }
+        // Only pure conversion failures are unsupported. Retained-byte and
+        // database failures above must still abort a multi-target operation.
+        .map_err(|_| invalid())?;
         let mut derived = adaptation["scope_adaptations"][0].clone();
         derived["technical_support_reason"] = reason.into();
         artifacts.insert(

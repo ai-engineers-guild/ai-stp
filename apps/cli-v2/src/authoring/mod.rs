@@ -11,6 +11,7 @@ pub(crate) mod freezing;
 mod frontmatter;
 pub mod importing;
 pub mod lifecycle;
+pub mod materialization;
 pub mod native_edit;
 pub(crate) mod native_identity;
 pub mod passports;
