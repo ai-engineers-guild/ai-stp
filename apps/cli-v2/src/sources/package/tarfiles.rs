@@ -102,7 +102,16 @@ pub(super) fn fixture(entries: &[(&str, &[u8], tar::EntryType)]) -> std::io::Res
         header.set_mode(0o644);
         header.set_size(content.len() as u64);
         header.set_entry_type(*kind);
-        archive.append_data(&mut header, path, *content)?;
+        // append_data interprets host paths and normalizes backslashes on Windows.
+        // Adversarial archive names must retain their exact wire bytes on every OS.
+        if path.len() >= 100 {
+            return Err(std::io::Error::other(
+                "fixture name exceeds the raw header field",
+            ));
+        }
+        header.as_mut_bytes()[..path.len()].copy_from_slice(path.as_bytes());
+        header.set_cksum();
+        archive.append(&header, *content)?;
     }
     archive.into_inner()?.finish()
 }
@@ -137,8 +146,13 @@ mod tests {
             )],
             vec![("package/package.json", b"bad\0".as_slice(), file)],
             vec![("package/evil\\path", b"bad".as_slice(), file)],
+            vec![("package/../escape", b"bad".as_slice(), file)],
+            vec![("/package/package.json", b"bad".as_slice(), file)],
         ] {
-            assert!(read(&fixture(&entries)?, "package/", &["package.json"]).is_err());
+            assert!(
+                read(&fixture(&entries)?, "package/", &["package.json"]).is_err(),
+                "{entries:?}"
+            );
         }
         let excessive = vec![b'x'; 4 * 1024 * 1024 + 1];
         assert!(
