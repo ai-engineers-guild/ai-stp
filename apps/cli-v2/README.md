@@ -657,8 +657,9 @@ components and their retained projections before release, setup composition or
 bundle creation. Selecting the whole settings file cannot bypass an embedded
 MCP check. Owned contributions are checked in their declared key context; an
 `env` fragment cannot hide credential-named variables by omitting its wrapper.
-The check inspects only owned bytes and never rewrites or persists a refused
-value. Codex model-provider `experimental_bearer_token` is a literal credential;
+Source and projection checks inspect owned bytes; bundle assembly also checks
+the complete merged configuration. Refused values are never rewritten or persisted.
+Codex model-provider `experimental_bearer_token` is a literal credential;
 its exact model-provider `env_http_headers` maps hold environment names, as do
 MCP server maps. Similar fields at unrelated paths gain no exception.
 
@@ -1319,8 +1320,13 @@ Refusals preserve structured constraint details or the failed graph assessment
 without returning a partial package. A configuration contribution
 requires explicit observed host bytes or observed absence; unknown is not empty.
 The compiler preserves unowned configuration and binds host identities into its
-input digest. Provider execution must revalidate those observations. It does not
-read target files, capture credentials or authorize installation. Bundle limits
+input digest. After replacing a contribution's owned key, it applies the shared
+structured credential checks to the complete result, including unowned fields
+and embedded MCP values, regardless of the component's logical kind. A credential
+removed with the replaced key is not part of the result; a recognized credential
+retained elsewhere refuses the complete bundle without returning an archive.
+Native external references stay unresolved. Provider execution must revalidate
+host observations. Compilation does not read target files or authorize installation. Bundle limits
 are 2,000 files, 4 MiB per file and 64 MiB including package metadata; selected
 projection archives together are bounded to 128 MiB. Provider profile limits also
 apply to the complete result, not just each component separately.
