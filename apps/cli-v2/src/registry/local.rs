@@ -337,7 +337,7 @@ pub(super) const COMMANDS: &[Declaration] = &[
     },
     Declaration {
         path: &["component", "discover"],
-        summary: "Inspect declared native layouts without reading credentials or changing the harness.",
+        summary: "Inspect native layouts and bounded local package metadata without changing the harness.",
         parameters: &[NATIVE_ROOT, HARNESS, SCOPE, ROOT_KIND],
         handler: super::Handler::Local(Handler::Discover),
     },
@@ -348,7 +348,7 @@ pub(super) const COMMANDS: &[Declaration] = &[
             STATE_DIR,
             NATIVE_ROOT,
             Parameter {
-                summary: "Concrete destination harness; shared skill candidates keep their observed neutral ownership.",
+                summary: "Concrete destination harness; shared skills and external metadata retain neutral source ownership.",
                 kind: ParameterType::Choice(CONCRETE_HARNESSES),
                 ..HARNESS
             },
