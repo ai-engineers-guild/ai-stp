@@ -678,7 +678,7 @@ transient failures can fall back to a validated entry, while not-found,
 authorization, transport-policy and invalid-body refusals remain refusals.
 Cached answers retain their original `checked_at` and report `source: cache`.
 
-`registry acquire plan` captures an exact public version-1 setup definition,
+`registry acquire plan` captures an exact public version-1 or version-2 setup definition,
 its transitive component graph and every declared projection. It uses the
 configured endpoint and the isolated identity, without modifying the registry.
 `local apply` repeats the bounded capture, refuses changed passports or trust,
@@ -690,8 +690,21 @@ rechecks stored versions, trust records and projection bytes without networking.
 Capture is limited to 512 components, 8,192 references, 8 MiB of metadata,
 64 MiB per artifact, 128 MiB of distinct bytes and projection verification work,
 and thirty seconds per capture. HTTP connections are reused within that capture.
-Private acquisition, embedded version-2 definitions, original authoring source
-archives and initial offline acquisition remain outside this command.
+Version-2 definitions carry at most 500 embedded records in at most 20 MiB.
+The shared definition reader binds each closed record to a setup reference and
+checks its original passport, revision, size/digest pairs, unpadded base64url
+artifact and sole native scope projection. Unknown record fields, duplicate or
+unreferenced embedded identities, substituted bytes and incompatible native
+identities refuse. Historical omitted reference defaults retain their meaning
+without rewriting the addressed document. Export uses the same reader and
+preserves the original definition, including embedded bytes.
+
+Embedded members join the same bounded graph and transaction as catalog members;
+they are never fetched separately or executed. Their trust remains `experimental`
+with both verification axes false, independently of the containing setup's trust.
+Snapshot provenance does not grant verification or target-write authority.
+Private acquisition, original authoring source archives and initial offline
+acquisition remain outside this command.
 
 The cache owns only its marked `ai-stp-v2-catalog` child below an existing
 explicit directory, with an exclusive bounded lock, atomic replacements and

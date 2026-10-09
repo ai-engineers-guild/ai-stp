@@ -176,12 +176,30 @@ impl Capture {
         if bytes.len() as u64 != size || digest::bytes("ai-stp:artifact:v1", &bytes)? != address {
             return Err(invalid());
         }
-        self.bytes += bytes.len();
+        self.retain(address, bytes)
+    }
+
+    fn retain(&mut self, address: &str, bytes: Vec<u8>) -> Result<()> {
+        if let Some(held) = self.payloads.get(address) {
+            return if held == &bytes {
+                Ok(())
+            } else {
+                Err(invalid())
+            };
+        }
+        self.bytes = self
+            .bytes
+            .checked_add(bytes.len())
+            .filter(|size| *size <= MAX_BYTES)
+            .ok_or_else(invalid)?;
         self.payloads.insert(address.into(), bytes);
         Ok(())
     }
 
-    fn content(&mut self, document: &Value) -> Result<()> {
+    fn content(
+        &mut self,
+        document: &Value,
+    ) -> Result<BTreeMap<String, setups::definition::Embedded>> {
         self.artifact(document, &document["artifact"])?;
         if document["kind"] == "component" {
             for adaptation in document["adaptations"].as_array().ok_or_else(invalid)? {
@@ -209,14 +227,14 @@ impl Capture {
                 }
             }
         } else {
-            setups::verify_definition(
+            return setups::definition::verify(
                 document,
                 self.payloads
                     .get(text(&document["artifact"], "digest")?)
                     .ok_or_else(invalid)?,
-            )?;
+            );
         }
-        Ok(())
+        Ok(BTreeMap::new())
     }
 }
 
@@ -245,7 +263,31 @@ fn capture(
 ) -> Result<(Observation, BTreeMap<String, Observation>, Capture)> {
     let mut capture = Capture::new(endpoint);
     let setup = capture.observation(Kind::Setup, id, version)?;
-    capture.content(&setup.passport)?;
+    let records = capture.content(&setup.passport)?;
+    let mut embedded = BTreeMap::new();
+    for (id, record) in records {
+        capture.metadata_bytes = capture
+            .metadata_bytes
+            .checked_add(canonical::bytes(&record.passport)?.len())
+            .filter(|size| *size <= MAX_METADATA)
+            .ok_or_else(invalid)?;
+        capture.verified_bytes = capture
+            .verified_bytes
+            .checked_add(record.artifact.len())
+            .filter(|size| *size <= MAX_BYTES)
+            .ok_or_else(invalid)?;
+        capture.retain(
+            text(&record.passport["artifact"], "digest")?,
+            record.artifact,
+        )?;
+        embedded.insert(id, Observation {
+            passport: record.passport,
+            passport_digest: record.passport_digest,
+            lifecycle: "active".into(),
+            trust: json!({"trust_lane":"experimental","author_verified":false,"component_verified":false}),
+            published_at: setup.published_at.clone(),
+        });
+    }
     let mut pending = VecDeque::from(
         setup.passport["components"]
             .as_array()
@@ -268,8 +310,16 @@ fn capture(
         if found.len() >= MAX_COMPONENTS {
             return Err(invalid());
         }
-        let observed = capture.observation(Kind::Component, &id, &version)?;
-        if observed.passport_digest != address
+        let observed = if let Some(embedded) = embedded.remove(&id) {
+            embedded
+        } else {
+            let observed = capture.observation(Kind::Component, &id, &version)?;
+            capture.content(&observed.passport)?;
+            observed
+        };
+        if observed.passport["stable_id"] != id
+            || observed.passport["version"] != version
+            || observed.passport_digest != address
             || !observed.passport["adaptations"]
                 .as_array()
                 .ok_or_else(invalid)?
@@ -278,12 +328,14 @@ fn capture(
         {
             return Err(invalid());
         }
-        capture.content(&observed.passport)?;
         if let Some(required) = observed.passport["requires_components"].as_array() {
             edges += required.len();
             pending.extend(required.iter().cloned());
         }
         found.insert(id, observed);
+    }
+    if !embedded.is_empty() {
+        return Err(invalid());
     }
     // Resolve a DAG before creating a plan; a cyclic graph is never a successful capture.
     let mut ordered = BTreeSet::new();
