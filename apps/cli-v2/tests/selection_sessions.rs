@@ -294,6 +294,39 @@ fn durable_selection_rechecks_context_and_commits_one_complete_effect() -> Resul
     }
     let stale = sessions::plan(&mut store, PROJECT, &roots, false, &runtime, AT)?;
     sessions::propose(&mut store, &stale, &stale.digest()?, &runtime, AT)?;
+    let page = sessions::view::read(&mut store, PROJECT, "claude-code", None, 1, AT)?;
+    assert_eq!(page["proposals"].as_array().ok_or("page missing")?.len(), 1);
+    assert!(page["selected"].is_null());
+    let cursor = field(&page, "next_after")?;
+    let next = sessions::view::read(&mut store, PROJECT, "claude-code", Some(cursor), 1, AT)?;
+    assert_eq!(next["proposals"].as_array().ok_or("page missing")?.len(), 1);
+    assert!(next["next_after"].is_null());
+    assert_ne!(
+        page["proposals"][0]["proposal_id"],
+        next["proposals"][0]["proposal_id"]
+    );
+    assert_eq!(
+        sessions::view::read(&mut store, PROJECT, "grok-build", None, 20, AT)?["proposals"],
+        json!([])
+    );
+    assert_eq!(
+        sessions::view::read(
+            &mut store,
+            PROJECT,
+            "claude-code",
+            None,
+            20,
+            &held.expires_at
+        )?["proposals"],
+        json!([])
+    );
+    for limit in [0, 101] {
+        assert!(sessions::view::read(&mut store, PROJECT, "claude-code", None, limit, AT).is_err());
+    }
+    assert!(
+        sessions::view::read(&mut store, PROJECT, "claude-code", Some("invalid"), 1, AT).is_err()
+    );
+    assert_eq!(counts(&mut store)?, before);
     let patch = developer::Patch::parse(br#"{"role":"Maintainer"}"#)?;
     let update = developer::plan(
         &mut store,
@@ -341,6 +374,19 @@ fn durable_selection_rechecks_context_and_commits_one_complete_effect() -> Resul
             .map_err(|_| Failure::precondition("proof cleanup failed"))
     })?;
     drop(store);
+    let graph =
+        ai_stp_cli_v2::selection::graph::local(directory.path(), &[], Some(&held.proposal_id))?;
+    assert_eq!(graph["resolved"], true);
+    assert_eq!(graph["nodes"].as_array().ok_or("graph missing")?.len(), 2);
+    let named = [format!("{}@1.0", field(&second, "stable_id")?)];
+    assert_eq!(
+        ai_stp_cli_v2::selection::graph::local(directory.path(), &named, None)?["order"],
+        graph["order"]
+    );
+    assert!(
+        ai_stp_cli_v2::selection::graph::local(directory.path(), &named, Some(&held.proposal_id))
+            .is_err()
+    );
     let barrier = Barrier::new(2);
     let outcomes = std::thread::scope(|scope| {
         let handles: Vec<_> = (0..2)
@@ -436,6 +482,21 @@ fn durable_selection_rechecks_context_and_commits_one_complete_effect() -> Resul
         .map_err(|_| Failure::precondition("proof selection missing"))
     })?;
     assert_eq!(selected, field(&latest.passport, "stable_id")?);
+    let current = sessions::view::read(&mut store, PROJECT, "claude-code", None, 20, AT)?;
+    assert_eq!(
+        current["selected"]["stable_id"],
+        latest.passport["stable_id"]
+    );
+    assert_eq!(current["selected"]["recorded_state"], "pending_install");
+    assert_eq!(current["installation_observed"], false);
+    assert_eq!(current["context_freshness"], "not_evaluated");
+    assert!(
+        current["proposals"]
+            .as_array()
+            .ok_or("page missing")?
+            .iter()
+            .all(|p| p["proposal_id"] != held.proposal_id && p["proposal_id"] != empty.proposal_id)
+    );
     let cancel = sessions::decision(&mut store, &stale.proposal_id, true, &identity, AT)?;
     let before = counts(&mut store)?;
     assert_eq!(

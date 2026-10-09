@@ -19,6 +19,7 @@ pub(super) enum Handler {
     Cancel,
     Apply,
     Show,
+    Session,
     BundlePlan,
     BundleApply,
 }
@@ -27,13 +28,45 @@ impl Handler {
     pub(super) fn mutability(self) -> &'static str {
         match self {
             Self::Apply | Self::BundleApply => "apply",
-            Self::Show => "read",
+            Self::Show | Self::Session => "read",
             _ => "plan",
         }
     }
 }
 
 pub(super) const COMMANDS: &[Declaration] = &[
+    Declaration {
+        path: &["select", "session"],
+        summary: "Read a bounded page of open proposals and the recorded current selection for one project and harness, without network or credentials.",
+        parameters: &[
+            STATE_DIR,
+            Parameter {
+                name: "project-id",
+                summary: "Exact local project passport identifier.",
+                kind: ParameterType::String,
+                required: true,
+            },
+            Parameter {
+                name: "harness",
+                summary: "Concrete harness whose session is read.",
+                kind: ParameterType::String,
+                required: true,
+            },
+            Parameter {
+                name: "after",
+                summary: "Opaque next_after proposal identity from the preceding page; each page is a fresh observation.",
+                kind: ParameterType::String,
+                required: false,
+            },
+            Parameter {
+                name: "limit",
+                summary: "Maximum open proposals, from 1 to 100; defaults to 20. Reduce when the page exceeds 4 MiB.",
+                kind: ParameterType::String,
+                required: false,
+            },
+        ],
+        handler: super::Handler::Selection(Handler::Session),
+    },
     Declaration {
         path: &["select", "bundle", "plan"],
         summary: "Compile and plan one exact provider bundle with authenticated capabilities and observed contribution hosts; publish nothing.",
@@ -201,6 +234,21 @@ fn scope(args: &ArgMatches) -> Result<Scope> {
 
 pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
     match handler {
+        Handler::Session => {
+            let limit = args
+                .get_one::<String>("limit")
+                .map(|s| s.parse::<usize>())
+                .transpose()
+                .map_err(|_| Failure::input("session limit must be an integer from 1 to 100"))?
+                .unwrap_or(20);
+            sessions::view(
+                path(args, "state-dir")?,
+                text(args, "project-id")?,
+                text(args, "harness")?,
+                args.get_one::<String>("after").map(String::as_str),
+                limit,
+            )
+        }
         Handler::BundlePlan => bundles::plan(
             path(args, "state-dir")?,
             crate::authoring::setups::Source {

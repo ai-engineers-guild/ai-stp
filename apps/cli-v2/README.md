@@ -1197,7 +1197,12 @@ The production `environment inspect` also calls provider/toolchain services;
 that executable observation belongs to the provider slice, not this declaration
 read. This preview result does not claim the production inspection schema.
 
-`select graph` reads exact members or a saved proposal from the same snapshot.
+`select graph` reads exact members or a saved proposal from either the same
+verified snapshot (`--snapshot` and `--sha256`) or explicit isolated native state
+(`--state-dir`). These sources are mutually exclusive and one is required. The
+native source uses one query-only transaction for roots and dependency closure;
+it does not require credentials or create a snapshot. Proposal graph JSON is
+limited to 1 MiB before loading it into memory.
 It validates current component/setup version passports and their recorded
 identities, then follows component requirements and setup members. Shared exact
 dependencies expand once, with a deterministic dependency-first order and
@@ -1311,6 +1316,19 @@ and returned before provider/network access; offline replay remains available
 after expiry or later context/selection changes and cannot rewind selection.
 The platform-only device context does not establish installed-harness evidence.
 These commands do not assemble a bundle, install a setup or write a harness.
+
+`select session --state-dir --project-id --harness [--after] [--limit]` discovers
+open proposals and the recorded current selection in one query-only transaction.
+It reads the exact project passport and verifies the selected setup's immutable
+coordinate, digest and harness. No credentials, provider or network are needed.
+Closed and expired proposals remain available by identity through `select show`;
+they do not appear as open choices. The default limit is 20, bounded to 1–100;
+proposal JSON on a page is limited to 4 MiB, with a refusal to reduce the limit
+when exceeded. `next_after` is the last returned proposal identity when more
+remain. Each page observes current state; pagination does not hold a transaction
+across separate CLI calls. The recorded selection state (`pending_install` or
+`installed`) is historical registry data, not a new installation observation.
+Context freshness is explicitly unevaluated; confirmation must still recheck it.
 
 `select impact` reads exact retained setup graphs in one query-only SQLite
 transaction. The explicit baseline wins; otherwise `--project-id` uses one
