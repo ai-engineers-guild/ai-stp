@@ -88,6 +88,8 @@ AMD64 and aarch64 into those values before comparison; other host strings remain
 unknown and do not acquire compatibility through normalization. Native domain
 targets accept only the canonical vocabulary. Platform aliases do not relax an
 object's or provider's declared OS/architecture restrictions.
+If either host observation is empty, the Python command returns
+`AI_STP_PRECONDITION_FAILED` before indexing or assembling an eligibility report.
 
 `capability_unknown` and `capability_missing` are intentionally distinct: the
 former means an invalid passport and is fixed by the author; the latter means a

@@ -2,6 +2,7 @@
 
 import io
 import os
+import platform
 import sqlite3
 import zipfile
 from collections.abc import Iterator
@@ -30,6 +31,7 @@ from ai_stp_cli.local import (
 from ai_stp_cli.local.database import configured_path, open_readonly, open_registry
 from ai_stp_cli.local.passports import owner
 from ai_stp_cli.paths import data_dir
+from ai_stp_cli.toolchain import install
 from ai_stp_contracts.component_passport import ComponentPassportPatch
 from ai_stp_contracts.machine_help import EligibilityMatrix, EligibilityReport
 from ai_stp_foundation.canonical import JsonValue
@@ -157,10 +159,8 @@ def test_native_platform_observations_reach_eligibility_in_canonical_vocabulary(
 ) -> None:
     # Only observation boundaries are substituted; project indexing, runtime
     # target assembly and the actual compatibility/provider decision run here.
-    monkeypatch.setattr(
-        select.harnesses,
-        "detect",
-        lambda detector: harnesses.Found(
+    def unavailable(detector: harnesses.Detector) -> harnesses.Found:
+        return harnesses.Found(
             harness_id=detector.harness_id,
             title="Synthetic harness",
             support="supported",
@@ -168,9 +168,13 @@ def test_native_platform_observations_reach_eligibility_in_canonical_vocabulary(
             installations=(),
             configuration=None,
             reason="No installation is claimed by this platform proof.",
-        ),
-    )
-    monkeypatch.setattr(select.install, "current_target", lambda _: None)
+        )
+
+    def absent(_tool_id: str) -> None:
+        return None
+
+    monkeypatch.setattr(harnesses, "detect", unavailable)
+    monkeypatch.setattr(install, "current_target", absent)
     for system, machine, expected_os, expected_arch, accepted in [
         ("Darwin", "arm64", "macos", "arm64", True),
         ("Darwin", "x86_64", "macos", "x86_64", True),
@@ -180,16 +184,18 @@ def test_native_platform_observations_reach_eligibility_in_canonical_vocabulary(
         ("Windows", "ARM64", "windows", "arm64", True),
         ("Linux", "riscv64", "linux", "riscv64", False),
         ("FreeBSD", "x86_64", "freebsd", "x86_64", False),
-        ("", "", "", "", False),
     ]:
-        monkeypatch.setattr(select.platform, "system", lambda value=system: value)
-        monkeypatch.setattr(select.platform, "machine", lambda value=machine: value)
-        target = select._target(
-            "claude-code", tmp_path, for_redistribution=False, owner_id="account_synthetic"
-        )
-        assert (target.os, target.arch) == (expected_os, expected_arch)
-        target = replace(
-            target,
+        monkeypatch.setattr(platform, "system", lambda value=system: value)
+        monkeypatch.setattr(platform, "machine", lambda value=machine: value)
+        report = _report(tmp_path)
+        assert (report.os, report.arch) == (expected_os, expected_arch)
+        target = eligibility.Target(
+            harness_id=report.harness_id,
+            os=report.os,
+            arch=report.arch,
+            capabilities=frozenset(report.capabilities),
+            owner_id="account_synthetic",
+            provider_harnesses=frozenset({"claude-code"}),
             provider_platforms=frozenset(
                 f"{os_name}/{arch}"
                 for os_name in ("linux", "macos", "windows")
@@ -211,6 +217,13 @@ def test_native_platform_observations_reach_eligibility_in_canonical_vocabulary(
         assert verdict.auto_selectable is accepted
         if not accepted:
             assert "provider_platform_unsupported" in {r.code for r in verdict.refusals}
+
+    for system, machine in [("", "AMD64"), ("Windows", ""), ("", "")]:
+        monkeypatch.setattr(platform, "system", lambda value=system: value)
+        monkeypatch.setattr(platform, "machine", lambda value=machine: value)
+        with pytest.raises(CliFailure) as raised:
+            _report(tmp_path)
+        assert raised.value.code == "AI_STP_PRECONDITION_FAILED"
 
 
 def test_a_local_object_for_this_harness_is_admissible(

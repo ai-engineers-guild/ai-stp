@@ -350,6 +350,13 @@ def _target(
     `language:go` from its capabilities and had Go components refused for a
     capability it has. Reading the index directly is both cheaper and complete.
     """
+    operating_system = _operating_system()
+    architecture = _architecture()
+    if not operating_system or not architecture:
+        raise CliFailure(
+            "AI_STP_PRECONDITION_FAILED",
+            "the operating system and architecture must be observed before selection",
+        )
     resolved = root.resolve()
     # Names, languages and whether `.git` exists — no digest is read below, so
     # none is computed. That was three quarters of the walk (`#453`).
@@ -358,8 +365,8 @@ def _target(
 
     return eligibility.Target(
         harness_id=harness,
-        os=_operating_system(),
-        arch=_architecture(),
+        os=operating_system,
+        arch=architecture,
         harness_version=_version_of(harnesses.detect(detector)),
         capabilities=eligibility.observed_capabilities(
             languages=sorted({item.language for item in index.entries if item.language}),
