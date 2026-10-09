@@ -5,6 +5,7 @@ mod tests;
 
 pub mod bundles;
 pub mod matrix;
+pub mod reports;
 pub mod sessions;
 
 use std::{collections::BTreeMap, path::Path};
@@ -49,9 +50,11 @@ fn invalid() -> Failure {
 
 impl Request {
     fn parse(path: &Path, empty: bool) -> Result<Self> {
-        let request: Self =
-            serde_json::from_value(canonical::parse(&files::read(path, MAX_REQUEST)?)?)
-                .map_err(|_| invalid())?;
+        Self::from_value(canonical::parse(&files::read(path, MAX_REQUEST)?)?, empty)
+    }
+
+    fn from_value(value: Value, empty: bool) -> Result<Self> {
+        let request: Self = serde_json::from_value(value).map_err(|_| invalid())?;
         request.selector().validate()?;
         if request.members.is_empty() != empty
             || request.members.len() > 512

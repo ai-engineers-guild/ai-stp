@@ -1319,6 +1319,33 @@ network and marks provider observations absent. The matrix grants no rights,
 selects nothing and writes no harness. Its `next_after` cursor advances to a
 fresh page observation, not a transaction spanning CLI calls.
 
+`select reports --state-dir --request` reports composition and conversion before
+confirmation or bundle publication. Its closed request, up to 256 KiB, is either
+the exact eligibility request or `proposal_id`, `scope`, `provider_version`.
+For a proposal, the harness and members come from the retained bounded record.
+The report evaluates current evidence; it displays the proposal's current state
+and marks context freshness unevaluated rather than authorizing confirmation.
+Cancelled, expired and confirmed proposals remain inspectable.
+
+The report and bundle compiler share projection verification and native
+namespace, path ownership, exclusion and instruction/hook ordering rules.
+Reporting collects up to 8192 conflict witnesses; compilation still refuses at
+the first conflict. Every available projection retains its named semantic losses;
+missing or unrepresentable surfaces appear as unsupported conversions and
+rejections. An unresolved graph and an explicit empty proposal produce blocked
+reports without provider I/O. Corrupt artifacts, invalid metadata and exceeded
+bounds remain command failures. Current eligibility refusals cannot be overridden.
+
+Provider observation occurs outside the registry lock, followed by identity,
+proposal and graph re-reading in one query-only transaction. The existing 64 MiB
+retained-artifact verification budget applies; report projections are additionally
+bounded to 2000 files and 64 MiB of content, and the complete report to 8 MiB.
+`required_host_paths` names contributions needing actual target observation.
+No host content is read or merged: `host_inputs_observed` and
+`assembled_output_checked` remain false. Successful reports for representable
+projections agree with the bundle's composition/conversion documents, but do not
+establish host safety, installation authority or a published package.
+
 The CLI exposes the durable selection service through five commands:
 
 - `select propose plan --state-dir --project-id --request [--empty]` uses the

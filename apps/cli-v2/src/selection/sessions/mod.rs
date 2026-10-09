@@ -211,7 +211,11 @@ pub(crate) fn plan_in(
 }
 
 pub fn read(store: &mut Store, id: &str) -> Result<Proposal> {
-    store.transaction(|t| require(t, id))
+    store.transaction(|t| read_in(t, id))
+}
+
+pub(crate) fn read_in(connection: &Connection, id: &str) -> Result<Proposal> {
+    require(connection, id)
 }
 
 pub fn propose(
