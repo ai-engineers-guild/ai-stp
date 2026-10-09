@@ -4,7 +4,7 @@ use rusqlite::{Connection, params};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
-use super::Request;
+use super::{Request, Requirements};
 use crate::{
     authoring::{Identity, expiry},
     digest,
@@ -74,7 +74,10 @@ pub(super) fn verify(connection: &Connection, document: &Value) -> Result<()> {
     super::verify(connection, &revisions::seal(&snapshot)?)
 }
 
-fn require_member_summaries(connection: &Connection, before: &Value) -> Result<()> {
+fn require_member_summaries(
+    connection: &Connection,
+    before: &Value,
+) -> Result<Option<Requirements>> {
     let mut aggregate = super::aggregate::Aggregate::default();
     for reference in before["components"].as_array().ok_or_else(invalid)? {
         let member = Objects { connection }.exact_version(
@@ -83,6 +86,14 @@ fn require_member_summaries(connection: &Connection, before: &Value) -> Result<(
             Some(reference["passport_digest"].as_str().ok_or_else(invalid)?),
         )?;
         aggregate.include(&member)?;
+    }
+    let declarations = before["facts"]
+        .get("setup_requirements")
+        .map(|fact| serde_json::from_value::<Requirements>(fact["value"].clone()))
+        .transpose()
+        .map_err(|_| invalid())?;
+    if let Some(declarations) = &declarations {
+        declarations.include(&mut aggregate)?;
     }
     let mut expected = json!({});
     aggregate.apply(&mut expected);
@@ -96,7 +107,7 @@ fn require_member_summaries(connection: &Connection, before: &Value) -> Result<(
             "this setup has additional requirement declarations; composition-only editing cannot replace them",
         ).with_details([("constraint".into(), "setup_requirements_not_derived".into())]));
     }
-    Ok(())
+    Ok(declarations)
 }
 
 fn build(
@@ -115,11 +126,14 @@ fn build(
         ));
     }
     let id = before["stable_id"].as_str().ok_or_else(invalid)?;
+    let mut effective = request.clone();
     if before.get("components").is_some() {
         verify(connection, &before)?;
-        require_member_summaries(connection, &before)?;
+        if effective.requirements.is_none() {
+            effective.requirements = require_member_summaries(connection, &before)?;
+        }
     }
-    let (mut after, _) = super::compile(connection, request, id, identity, at)?;
+    let (mut after, _) = super::compile(connection, &effective, id, identity, at)?;
     // Preserve declarations and lineage, but never carry result/evidence records
     // across a changed composition. Member summaries are rebuilt by compile.
     for key in [
@@ -149,6 +163,11 @@ fn build(
     // Creation-time harness and capture facts keep their original evidence.
     if let Some(fact) = before["facts"].get("harness_id") {
         after["facts"]["harness_id"] = fact.clone();
+    }
+    if request.requirements.is_none()
+        && let Some(fact) = before["facts"].get("setup_requirements")
+    {
+        after["facts"]["setup_requirements"] = fact.clone();
     }
     for (key, value) in [
         ("name", &request.name),

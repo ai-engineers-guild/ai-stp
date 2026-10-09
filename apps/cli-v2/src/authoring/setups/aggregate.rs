@@ -52,6 +52,11 @@ fn extend(target: &mut BTreeSet<String>, value: &Value) -> Result<()> {
 
 impl Aggregate {
     pub(super) fn include(&mut self, document: &Value) -> Result<()> {
+        self.include_requirements(document)?;
+        self.include_license(&document["license"])
+    }
+
+    pub(super) fn include_requirements(&mut self, document: &Value) -> Result<()> {
         if let Some(items) = document["required_env"].as_array() {
             for item in items {
                 self.environment
@@ -75,12 +80,16 @@ impl Aggregate {
         }
         extend(&mut self.endpoints, &document["external_endpoints"])?;
         extend(&mut self.runtimes, &document["runtime_requirements"])?;
-        let license = text(&document["license"], "spdx_id")?;
+        Ok(())
+    }
+
+    pub(super) fn include_license(&mut self, declaration: &Value) -> Result<()> {
+        let license = text(declaration, "spdx_id")?;
         if license.trim().is_empty() {
             return Err(invalid());
         }
         self.licenses.insert(license.into());
-        self.redistributable &= document["license"]["redistribution_allowed"]
+        self.redistributable &= declaration["redistribution_allowed"]
             .as_bool()
             .ok_or_else(invalid)?;
         Ok(())

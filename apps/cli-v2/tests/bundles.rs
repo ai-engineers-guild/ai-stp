@@ -176,6 +176,7 @@ fn compose(
             name: "Bundle proof".into(),
             description: "Inspect project conventions.".into(),
             purpose: "Verify exact native packaging.".into(),
+            requirements: None,
             members: members.iter().map(reference).collect::<Result<_, _>>()?,
         },
         identity(),

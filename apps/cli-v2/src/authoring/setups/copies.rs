@@ -102,6 +102,7 @@ fn build(connection: &Connection, plan: &Plan, original: Value) -> Result<(Value
         description: text(&original, "description")?.into(),
         purpose: text(&original, "purpose")?.into(),
         members,
+        requirements: None,
     };
     let (mut document, _) = compile(
         connection,

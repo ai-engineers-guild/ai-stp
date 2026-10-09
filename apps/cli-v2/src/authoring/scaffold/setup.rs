@@ -28,6 +28,7 @@ fn render(request: &Request) -> Result<BTreeMap<String, String>> {
         description: format!("{DRAFT} describe this complete setup."),
         purpose: format!("{DRAFT} define its purpose and select exact component versions."),
         members: Vec::new(),
+        requirements: None,
     };
     // Keep the starter directly consumable by compose; it is not a passport.
     Ok(BTreeMap::from([(

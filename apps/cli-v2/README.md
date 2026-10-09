@@ -923,10 +923,23 @@ exact current head, retains the setup ID and harness, preserves capture facts,
 lineage and declared setup constraints, and rebuilds member summaries. Previous
 result/evidence references are cleared. The complete draft, definition artifact
 and receipt commit together; the operation allocates no immutable version.
-Composition-only editing refuses existing requirement declarations that differ
-from the exact member summaries, including a separately declared setup license;
-it cannot silently replace them. Explicit editing of those declarations remains
-a separate authoring boundary.
+The composition request accepts optional closed `requirements`: `required_env`,
+`requires_credentials`, `requires_authorization`, `permissions`,
+`external_endpoints`, `runtime_requirements` and an optional `license`.
+These setup declarations augment exact member requirements; they cannot weaken
+member permissions, authorization, environment requirements or redistribution
+restrictions. Omitted fields in an explicit requirements object use empty/false/none
+defaults. Unknown fields, including nested permission or license fields, refuse.
+The request remains bounded to 256 KiB and the completed passport validates every
+resulting value through the shared version contract.
+
+Declarations are retained separately in the setup's facts. Later composition
+edits with omitted `requirements` preserve them and their original confirmation
+time; an explicit empty object removes only the additional setup declarations.
+For imported or copied setups whose extra requirements have no separate record,
+composition-only editing still refuses. Supplying a complete requirements object
+explicitly replaces those extras in the digest-bound plan. Immutable releases and
+previous operation receipts retain their original requirements.
 
 `setup version release plan` freezes that complete draft at the next exact
 minor or major coordinate. The first release is `1.0`. The graph, retained

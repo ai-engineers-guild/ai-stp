@@ -5,6 +5,9 @@ pub mod copies;
 pub mod drafts;
 pub mod export;
 pub mod releases;
+mod requirements;
+
+pub use requirements::Requirements;
 
 use rusqlite::{Connection, Transaction, params};
 use serde::{Deserialize, Serialize};
@@ -65,6 +68,8 @@ pub struct Request {
     pub description: String,
     pub purpose: String,
     pub members: Vec<Member>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub requirements: Option<Requirements>,
 }
 
 #[derive(Clone, Deserialize, Serialize)]
@@ -177,6 +182,9 @@ pub(crate) fn compile(
         }
         aggregate.include(&document)?;
     }
+    if let Some(declarations) = &request.requirements {
+        declarations.include(&mut aggregate)?;
+    }
     let fact = |value: Value| json!({"value":value,"origin":"derived","confirmation":"none","observed_at":at});
     let mut document = json!({"kind":"setup","stable_id":id,"owner_id":identity.account_id,
         "created_at":at,"visibility":"private","parent_revision_ids":[],
@@ -189,6 +197,11 @@ pub(crate) fn compile(
         "composition_report_ref":null,"conversion_report_ref":null,"install_evidence_ref":null,"launch_evidence_ref":null,
         "compatibility_evidence_refs":[],"artifact_format":FORMAT,"member_metadata_complete":true});
     aggregate.apply(&mut document);
+    if let Some(declarations) = &request.requirements {
+        document["facts"]["setup_requirements"] = json!({
+            "value": declarations, "origin":"declared", "confirmation":"user_confirmed", "confirmed_at":at
+        });
+    }
     finish(document)
 }
 

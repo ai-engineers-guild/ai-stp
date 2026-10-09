@@ -202,6 +202,7 @@ pub(super) fn freeze(
         description: "Private setup frozen from an exact local selection.".into(),
         purpose: "Apply the confirmed component composition to the selected harness.".into(),
         members: held.members.iter().map(Member::reference).collect(),
+        requirements: None,
     };
     let id = format!("setup_{}", ulid::Ulid::generate());
     let (mut passport, _) = setups::compile(transaction, &request, &id, identity, at)?;

@@ -135,7 +135,7 @@ const PROVIDERS: Parameter = Parameter {
 };
 const SETUP_REQUEST: Parameter = Parameter {
     name: "request",
-    summary: "Closed composition request JSON (harness_id, name, description, purpose, members), at most 256 KiB.",
+    summary: "Closed composition request JSON (harness_id, name, description, purpose, members, optional requirements), at most 256 KiB.",
     kind: ParameterType::Path,
     required: true,
 };

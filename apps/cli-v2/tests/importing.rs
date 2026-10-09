@@ -258,6 +258,7 @@ fn complete_import(
         description: "Inspect project conventions.".into(),
         purpose: "Review changes".into(),
         members,
+        requirements: None,
     };
     let before = counts(store)?;
     let mut foreign = identity.clone();
@@ -409,7 +410,7 @@ fn complete_import(
         store,
         id,
         field(&custom, "revision_id")?,
-        empty,
+        empty.clone(),
         identity.clone(),
         AT,
     )
@@ -430,5 +431,77 @@ fn complete_import(
         AT,
     )?;
     assert_eq!(preserved.passport["requires_credentials"], true);
+    empty.requirements = Some(serde_json::from_value(json!({
+        "required_env":[{"name":"SETUP_PROFILE","purpose":"Select the review policy."}],
+        "requires_credentials":true,"requires_authorization":"user_account",
+        "permissions":{"process":["review-tool"]},
+        "runtime_requirements":["node >=24"],
+        "external_endpoints":["https://example.com/review"],
+        "license":{"spdx_id":"MIT","redistribution_allowed":false}
+    }))?);
+    let declared = setups::drafts::plan(
+        store,
+        id,
+        field(&custom, "revision_id")?,
+        empty.clone(),
+        identity.clone(),
+        AT,
+    )?;
+    assert_eq!(declared.passport["requires_credentials"], true);
+    assert_eq!(
+        declared.passport["runtime_requirements"],
+        json!(["node >=24"])
+    );
+    assert_eq!(
+        declared.passport["license"]["redistribution_allowed"],
+        false
+    );
+    let declared_document =
+        setups::drafts::apply(store, &declared, &declared.digest()?, identity, AT)?;
+    empty.requirements = None;
+    empty.description = "Review an explicitly constrained empty setup.".into();
+    let inherited = setups::drafts::plan(
+        store,
+        id,
+        field(&declared_document, "revision_id")?,
+        empty.clone(),
+        identity.clone(),
+        LATER,
+    )?;
+    for key in [
+        "required_env",
+        "requires_credentials",
+        "requires_authorization",
+        "permissions",
+        "runtime_requirements",
+        "external_endpoints",
+        "license",
+    ] {
+        assert_eq!(inherited.passport[key], declared_document[key]);
+    }
+    assert_eq!(
+        inherited.passport["facts"]["setup_requirements"],
+        declared_document["facts"]["setup_requirements"]
+    );
+    let inherited =
+        setups::drafts::apply(store, &inherited, &inherited.digest()?, identity, LATER)?;
+    empty.requirements = Some(setups::Requirements::default());
+    let cleared = setups::drafts::plan(
+        store,
+        id,
+        field(&inherited, "revision_id")?,
+        empty,
+        identity.clone(),
+        LATER,
+    )?;
+    assert_eq!(cleared.passport["requires_credentials"], false);
+    assert_eq!(cleared.passport["required_env"], json!([]));
+    assert_eq!(cleared.passport["runtime_requirements"], json!([]));
+    let cleared = setups::drafts::apply(store, &cleared, &cleared.digest()?, identity, LATER)?;
+    assert_eq!(
+        setups::drafts::apply(store, &declared, &declared.digest()?, identity, LATER)?,
+        declared_document
+    );
+    assert_eq!(head(store, id)?, cleared);
     Ok(release)
 }

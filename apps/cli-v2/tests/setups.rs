@@ -581,6 +581,7 @@ fn exact_setup_closure_constraints_atomicity_and_replay() -> Result<(), Box<dyn 
         description: "Inspect the chosen project.".into(),
         purpose: "Check project conventions.".into(),
         members: vec![reference(&second)?],
+        requirements: None,
     };
     // Scope-specific privileges must not become unconditional setup permissions.
     let mut scoped = first.clone();
@@ -640,6 +641,39 @@ fn exact_setup_closure_constraints_atomicity_and_replay() -> Result<(), Box<dyn 
     assert_eq!(
         plan.passport["license"],
         json!({"spdx_id":"(BSD-3-Clause) AND (MIT OR Apache-2.0)","redistribution_allowed":false})
+    );
+    let mut declared = request.clone();
+    declared.requirements = Some(serde_json::from_value(json!({
+        "requires_credentials":false,"requires_authorization":"none",
+        "permissions":{},"required_env":[],
+        "runtime_requirements":["rust >=1.99"],
+        "license":{"spdx_id":"MIT","redistribution_allowed":true}
+    }))?);
+    let augmented = setups::plan(&mut store, declared, identity.clone(), AT)?;
+    for key in [
+        "required_env",
+        "requires_credentials",
+        "requires_authorization",
+        "permissions",
+    ] {
+        assert_eq!(
+            augmented.passport[key], plan.passport[key],
+            "declaration weakened {key}"
+        );
+    }
+    assert_eq!(
+        augmented.passport["license"]["redistribution_allowed"],
+        false
+    );
+    assert_eq!(
+        augmented.passport["runtime_requirements"],
+        json!(["node >=24", "python >=3.13", "rust >=1.99"])
+    );
+    assert!(
+        serde_json::from_value::<setups::Requirements>(json!({
+            "permissions":{"allow_all":true}
+        }))
+        .is_err()
     );
     let plan: setups::Plan = serde_json::from_slice(&ai_stp_cli_v2::canonical::bytes(
         &serde_json::to_value(plan)?,
@@ -859,7 +893,7 @@ fn exact_setup_closure_constraints_atomicity_and_replay() -> Result<(), Box<dyn 
             .transaction(|t| versions::record(t, &invalid, &identity.device_id, None, AT))
             .is_err()
     );
-    let mut empty = request;
+    let mut empty = request.clone();
     empty.members.clear();
     let empty = setups::plan(&mut store, empty, identity.clone(), AT)?;
     let empty = setups::apply(&mut store, &empty, &empty.digest()?, &identity, AT)?;
@@ -875,6 +909,36 @@ fn exact_setup_closure_constraints_atomicity_and_replay() -> Result<(), Box<dyn 
         setups::apply(&mut store, &plan, &plan.digest()?, &identity, LATER)?,
         setup
     );
+    let augmented_document =
+        setups::apply(&mut store, &augmented, &augmented.digest()?, &identity, AT)?;
+    let mut removed_members = request;
+    removed_members.members.clear();
+    let recomposed = setups::drafts::plan(
+        &mut store,
+        field(&augmented_document, "stable_id")?,
+        field(&augmented_document, "revision_id")?,
+        removed_members,
+        identity.clone(),
+        LATER,
+    )?;
+    assert_eq!(recomposed.passport["components"], json!([]));
+    assert_eq!(
+        recomposed.passport["runtime_requirements"],
+        json!(["rust >=1.99"])
+    );
+    assert_eq!(recomposed.passport["required_env"], json!([]));
+    assert_eq!(recomposed.passport["requires_credentials"], false);
+    assert_eq!(
+        recomposed.passport["license"],
+        json!({"spdx_id":"MIT","redistribution_allowed":true})
+    );
+    setups::drafts::apply(
+        &mut store,
+        &recomposed,
+        &recomposed.digest()?,
+        &identity,
+        LATER,
+    )?;
     store.transaction(|t| {
         assert_eq!(revisions::heads(t, id)?, [current]);
         t.execute(
