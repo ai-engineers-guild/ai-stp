@@ -9,8 +9,9 @@ mod planning;
 #[cfg(target_os = "linux")]
 pub mod probe;
 #[cfg(target_os = "linux")]
-mod target;
+pub(crate) mod target;
 
+use super::Info;
 use super::artifact::Artifact;
 use crate::{
     error::{ErrorKind, Failure, Result},
@@ -20,7 +21,6 @@ use serde_json::Value;
 use std::path::Path;
 #[cfg(target_os = "linux")]
 use {
-    super::Info,
     crate::{digest, wire},
     serde_json::json,
 };
@@ -85,12 +85,18 @@ impl Runtime {
 
     /// The report is evidence of this observation, not a serializable installation permit.
     pub fn inspect(&self, artifact: &Artifact<'_>) -> Result<Value> {
+        self.declaration(artifact).map(|(_, report)| report)
+    }
+
+    /// Internal callers receive the declaration from the authenticated invocation,
+    /// never by deserializing a previously saved observation report.
+    pub(crate) fn declaration(&self, artifact: &Artifact<'_>) -> Result<(Info, Value)> {
         if artifact.report()["platform"] != platform()? {
             return Err(unavailable());
         }
         #[cfg(target_os = "linux")]
         {
-            self.information(artifact).map(|(_, report)| report)
+            self.information(artifact)
         }
         #[cfg(not(target_os = "linux"))]
         {

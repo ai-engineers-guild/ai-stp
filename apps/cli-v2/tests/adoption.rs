@@ -710,6 +710,53 @@ fn native_identity_journey(identity: &Identity, at: &str) -> Result<(), Box<dyn 
                 .contains("synthetic-sensitive-value")
         );
         assert_eq!(counts(&mut store)?, before);
+        if matches!(harness, "codex" | "grok-build" | "opencode") {
+            let source = self::selected(&native, harness, scope, "setting")?;
+            assert!(
+                adoption::plan(&mut store, source, identity.clone(), at).is_err(),
+                "whole settings bypassed the MCP guard for {harness}"
+            );
+            assert_eq!(counts(&mut store)?, before);
+        }
+        assert_eq!(fs::read_to_string(file)?, content);
+    }
+    for (index, (harness, name, content, accepted)) in [
+        ("claude-code", "settings.json", r#"{"env":{"ANTHROPIC_API_KEY":"synthetic-sensitive-value"}}"#, false),
+        ("claude-code", "settings.json", r#"{"env":{"ANTHROPIC_API_KEY":"${REVIEW_KEY}"}}"#, false),
+        ("claude-code", "settings.json", r#"{"env":{"MAX_OUTPUT_TOKENS":"1024"},"apiKeyHelper":"external-key-helper"}"#, true),
+        ("codex", "config.toml", "[model_providers.review]\nexperimental_bearer_token = 'synthetic-sensitive-value'\n", false),
+        ("codex", "config.toml", "[model_providers.review]\nenv_key = 'REVIEW_KEY'\n[mcp_servers.review]\ncommand = 'server'\nenv_http_headers = { Authorization = 'REVIEW_TOKEN' }\n", true),
+        ("codex", "config.toml", "[model_providers.review.env_http_headers]\nAuthorization = 'REVIEW_TOKEN'\n", true),
+        ("codex", "config.toml", "[model_providers.review.unknown.env_http_headers]\nAuthorization = 'synthetic-sensitive-value'\n", false),
+        ("grok-build", "config.toml", "[mcp_servers.review]\nurl = 'https://example.invalid/mcp'\nheaders = { Authorization = 'Bearer ${REVIEW_TOKEN}' }\n", true),
+        ("grok-build", "config.toml", "[model.review]\nextra_headers = { Authorization = 'synthetic-sensitive-value' }\n", false),
+        ("grok-build", "config.toml", "[model.review]\nextra_headers = { X-API-Key = 'synthetic-sensitive-value' }\n", false),
+        ("pi", "models.json", r#"{"providers":{"review":{"apiKey":"synthetic-sensitive-value"}}}"#, false),
+        ("pi", "models.json", r#"{"providers":{"review":{"apiKey":"${REVIEW_KEY}","headers":{"Authorization":"Bearer $REVIEW_TOKEN"}}}}"#, true),
+        ("pi", "models.json", r#"{"providers":{"review":{"apiKey":"!external-key-helper"}}}"#, false),
+        ("pi", "models.json", r#"{"providers":{"review":{"apiKey":"${REVIEW_KEY:-synthetic-sensitive-value}"}}}"#, false),
+        ("pi", "settings.json", r#"{"apiKey":"$REVIEW_KEY"}"#, false),
+        ("opencode", "opencode.jsonc", r#"{/* retained */"provider":{"review":{"options":{"apiKey":"{env:REVIEW_KEY}"}}},"mcp":{"review":{"type":"remote","url":"https://example.invalid/mcp","headers":{"Authorization":"Bearer {file:~/.keys/review}"}}}}"#, true),
+        ("opencode", "opencode.json", r#"{"provider":{"review":{"options":{"apiKey":"synthetic-sensitive-value"}}}}"#, false),
+        ("opencode", "opencode.json", r#"{"provider":{"review":{"options":{"baseURL":"https://example.invalid/?access_token=synthetic-sensitive-value"}}}}"#, false),
+        ("cursor", "cli-config.json", r#"{"authentication":{"apiKey":"synthetic-sensitive-value"}}"#, false),
+        ("cursor", "cli-config.json", r#"{"permissions":{"allow":[],"deny":[]}}"#, true),
+        ("antigravity", "antigravity-cli/settings.json", r#"{"security":{"auth":{"apiKey":"synthetic-sensitive-value"}}}"#, false),
+        ("antigravity", "antigravity-cli/keybindings.json", r#"[{"key":"ctrl+k","command":"review"}]"#, true),
+    ].into_iter().enumerate() {
+        let native = root.path().join(format!("setting-{index}"));
+        let file = native.join(name);
+        fs::create_dir_all(file.parent().ok_or("parent")?)?;
+        fs::write(&file, content)?;
+        let source = selected_root(&native, harness, Scope::Global,
+            if harness == "cursor" { Root::CursorConfig } else { Root::Config }, "setting")?;
+        let before = counts(&mut store)?;
+        let result = adoption::plan(&mut store, source, identity.clone(), at);
+        assert_eq!(result.is_ok(), accepted, "{harness} {name} case {index}: {}", result.as_ref().err().map(ToString::to_string).unwrap_or_default());
+        if let Err(error) = result {
+            assert!(!error.message.contains("synthetic-sensitive-value"));
+        }
+        assert_eq!(counts(&mut store)?, before);
         assert_eq!(fs::read_to_string(file)?, content);
     }
     for (harness, name, key, content) in [
