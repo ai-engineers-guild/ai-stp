@@ -198,6 +198,12 @@ fn private_probe_reaches_real_listeners_and_rejects_invalid_inputs() -> Result<(
         vec!["--ai-stp-target-entry"],
         vec!["--ai-stp-target-entry", "secret", "0", "/tmp", "status"],
         vec!["--ai-stp-target-entry", "0", "0", "/", "status"],
+        vec!["--ai-stp-provider-worker"],
+        vec![
+            "--ai-stp-provider-worker",
+            "ai-stp-provider-01ARZ3NDEKTSV4RRFFQ69G5FAV.service",
+        ],
+        vec!["--ai-stp-provider-worker", "secret-argument", "extra"],
     ] {
         let output = Command::new(env!("CARGO_BIN_EXE_ai-stp-v2"))
             .args(args)

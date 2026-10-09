@@ -213,6 +213,16 @@ fn matches(names: BTreeSet<&str>, expected: &[String]) -> Result<()> {
     Ok(())
 }
 
+/// Recheck recognized credential fields in a complete assembled configuration.
+/// An owned fragment's declaration must not be applied to the merged document.
+pub(crate) fn verify_configuration_credentials(
+    harness: &str,
+    path: &str,
+    bytes: &[u8],
+) -> Result<()> {
+    credentials::settings(harness, path, "", bytes)
+}
+
 /// Retained or catalog projections get the same byte-derived check as new sources.
 /// Inputs come from freshly compiled files or an archive verified against its declarations.
 pub(crate) fn verify_files(

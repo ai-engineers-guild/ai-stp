@@ -13,7 +13,7 @@ use crate::{
     error::{ErrorKind, Failure, Result},
     files, identity,
     objects::Objects,
-    passport::{self, developer},
+    passport::{self, developer, device},
     projects,
     store::Store,
 };
@@ -132,6 +132,7 @@ pub fn apply(path: &Path, expected_digest: &str) -> Result<Value> {
         "component.forget" => execute(plan, lifecycle::apply),
         "project.passport.record" => execute(plan, projects::passports::apply),
         "passport.developer.record" => execute(plan, developer::apply),
+        "passport.device.record" => execute(plan, device::apply),
         "setup.compose" => execute(plan, setups::apply),
         "setup.passport.update" => execute(plan, setups::drafts::apply),
         "setup.version.release" => execute(plan, setups::releases::apply),

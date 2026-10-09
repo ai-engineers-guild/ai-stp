@@ -96,6 +96,23 @@ fn database(_: rusqlite::Error) -> Failure {
 }
 
 pub fn read(snapshot: &Snapshot, members: &[String], proposal: Option<&str>) -> Result<Value> {
+    read_connection(&snapshot.connection, members, proposal)
+}
+
+pub fn local(
+    parent: &std::path::Path,
+    members: &[String],
+    proposal: Option<&str>,
+) -> Result<Value> {
+    let mut store = crate::store::Store::planning(parent)?;
+    store.transaction(|connection| read_connection(connection, members, proposal))
+}
+
+fn read_connection(
+    connection: &Connection,
+    members: &[String],
+    proposal: Option<&str>,
+) -> Result<Value> {
     if members.is_empty() == proposal.is_none() {
         return Err(Failure::input(
             "name either a proposal or one or more exact members",
@@ -106,10 +123,9 @@ pub fn read(snapshot: &Snapshot, members: &[String], proposal: Option<&str>) -> 
         if !passport::stable_id(id, "proposal") {
             return Err(Failure::input("proposal identifier is invalid"));
         }
-        let graph: Option<String> = snapshot
-            .connection
+        let graph: Option<Option<String>> = connection
             .query_row(
-                "SELECT graph FROM proposal WHERE proposal_id = ?",
+                "SELECT CASE WHEN length(CAST(graph AS BLOB))<=1048576 THEN graph ELSE NULL END FROM proposal WHERE proposal_id = ?",
                 [id],
                 |row| row.get(0),
             )
@@ -120,9 +136,10 @@ pub fn read(snapshot: &Snapshot, members: &[String], proposal: Option<&str>) -> 
                 .ok_or_else(|| {
                     Failure::new(
                         ErrorKind::NotFound,
-                        "the proposal does not exist in this snapshot",
+                        "the proposal does not exist in the selected registry",
                     )
                 })?
+                .ok_or_else(|| Failure::precondition("proposal graph exceeds 1 MiB"))?
                 .as_bytes(),
         )?;
         let graph = graph
@@ -149,7 +166,7 @@ pub fn read(snapshot: &Snapshot, members: &[String], proposal: Option<&str>) -> 
                     "a member must name an exact component or setup version",
                 ));
             }
-            let held: Option<String> = snapshot.connection.query_row(
+            let held: Option<String> = connection.query_row(
                 "SELECT passport_digest FROM object_version WHERE stable_id = ? AND version = ?",
                 [id, version], |row| row.get(0),
             ).optional().map_err(database)?;
@@ -159,7 +176,7 @@ pub fn read(snapshot: &Snapshot, members: &[String], proposal: Option<&str>) -> 
                 passport_digest: held.ok_or_else(|| {
                     Failure::new(
                         ErrorKind::NotFound,
-                        "an exact root version does not exist in this snapshot",
+                        "an exact root version does not exist in the selected registry",
                     )
                 })?,
                 required_by: String::new(),
@@ -167,7 +184,7 @@ pub fn read(snapshot: &Snapshot, members: &[String], proposal: Option<&str>) -> 
             });
         }
     }
-    resolve(&snapshot.connection, roots)
+    resolve(connection, roots)
 }
 
 pub(crate) fn exact(connection: &Connection, members: &[Value]) -> Result<Value> {
