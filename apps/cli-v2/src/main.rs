@@ -16,6 +16,18 @@ fn main() -> ExitCode {
         }
         if arguments
             .first()
+            .is_some_and(|value| value == ai_stp_cli_v2::process::linux::FLAG)
+        {
+            return if arguments.len() == 2
+                && ai_stp_cli_v2::process::linux::worker(&arguments[1]).is_ok()
+            {
+                ExitCode::SUCCESS
+            } else {
+                ExitCode::from(70)
+            };
+        }
+        if arguments
+            .first()
             .is_some_and(|value| value == ai_stp_cli_v2::provider::runtime::probe::FLAG)
         {
             return match ai_stp_cli_v2::provider::runtime::probe::run(&arguments[1..]) {
