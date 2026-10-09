@@ -60,7 +60,12 @@ of provenance (`#139`).
   (`projection_kind=package`) never derives.
 - `REQ-6205`: Derived adaptations are `implementation_mode=derived`, keep the
   logical component type, and land on the target rule's path and scope. The
-  new component version is the next minor of the same `stable_id`.
+  new component version is the next minor of the same `stable_id`. Apply
+  verifies the component owner inside the writer transaction before deriving
+  content. Another owner must first create an owned fork with the required
+  adaptation. Reuse of an existing exact adaptation does not require ownership
+  of that component. Plan completeness describes mechanical derivability,
+  not the caller's authority to extend a member's version line.
 - `REQ-6206`: Composition, conversion, and install select the adaptation that
   matches the setup's `harness_id`. A component version with two adaptations
   is not a conflict.
@@ -96,6 +101,8 @@ target harness. `AI_STP_NOT_FOUND` — source setup or member is absent.
 `AI_STP_PLAN_STALE` — apply digest mismatch. `AI_STP_CONFLICT` — incomplete
 plan or the new setup version already exists. `adaptation_unavailable` remains
 the install-time code when a pinned version has no target adaptation.
+`AI_STP_PRECONDITION_FAILED` — another owner would extend a component's version
+line; the entire recast transaction is rolled back.
 
 ## Security and privacy
 
@@ -122,7 +129,7 @@ stale and are replanned automatically within the existing task authority.
 | `REQ-6202` | Apply writes `ported_from` and `related_setup_ids`; source version digest is unchanged. |
 | `REQ-6203` | A setting-only setup is incomplete; an unmappable or missing recorded projection is blocked during planning without registry writes; changing the transform revision changes the plan digest. |
 | `REQ-6204` | A component that already has a Codex adaptation is `reuse`; a setting is `blocked`; a Cursor MCP file recast onto Codex is `derive` as `config.toml#mcp_servers`; a Pi MCP recast is `blocked`. |
-| `REQ-6205` | Derived Codex instruction lands on `AGENTS.md` and is a new minor of the same id. |
+| `REQ-6205` | The owner's derived Codex instruction lands on `AGENTS.md` as a new minor of the same id. A foreign owner can reuse an exact adaptation; derivation is refused with an unchanged registry dump. |
 | `REQ-6206` | A two-adaptation component produces a composition surface for the requested harness. |
 | `REQ-6207` | Nested same-basename siblings survive a directory rename; out-of-surface and case-colliding paths are refused; a skill tree keeps recorded modes through plan, apply, and the sealed projection ZIP. |
 | `REQ-6208` | A two-scope source with project first still maps the global scope onto a target that has no project surface; derived members keep recorded native ids and OS constraints. |

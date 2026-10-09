@@ -37,7 +37,10 @@ catalog presentation, server persistence, mutating a published version in place.
   and version, provider profile digest, target harness, produced projection
   identity, declared losses, and whether the result is a local overlay.
 - `REQ-6303`: Owner apply records the next minor of the same `stable_id` when
-  bytes change. Source and unrelated adaptations are preserved. Retry of the
+  bytes change. Apply verifies the component owner inside the writer transaction
+  before deriving content. Another owner must create a private overlay or fork;
+  reuse of an existing exact target adaptation does not extend the version line.
+  Source and unrelated adaptations are preserved. Retry of the
   same plan is idempotent only when the occupied coordinate already contains
   the intended adaptations. An occupied next minor with different content is a
   conflict, not an idempotent success, and does not silently choose another
@@ -45,7 +48,8 @@ catalog presentation, server persistence, mutating a published version in place.
 - `REQ-6304`: A local overlay forks a new private `stable_id` and never mutates
   the source version. Reusing an overlay identifier requires the same exact
   source coordinate and digest, an existing overlay lifecycle record, and the
-  identical intended adaptations. Public publication still requires an exact
+  identical intended adaptations. Reused overlays must also belong to the
+  current owner and remain private. Public publication still requires an exact
   published adaptation of the public object. A public setup composition and
   setup publication refuse an overlay or other private member. A private local
   setup may include the overlay. The source's own identifier is not a new
@@ -58,7 +62,9 @@ catalog presentation, server persistence, mutating a published version in place.
 `AI_STP_VALIDATION_ERROR` — missing identity, unknown harness, or same-harness
 target. `AI_STP_NOT_FOUND` — the pinned version is absent. `AI_STP_PLAN_STALE`
 — apply digest mismatch. `AI_STP_CONFLICT` — incomplete plan or a version
-already stands for different content.
+already stands for different content or an overlay has another owner or is not
+private. `AI_STP_PRECONDITION_FAILED` — another owner would extend the source
+component's version line.
 
 ## Security and privacy
 
@@ -79,6 +85,6 @@ refusal of MCP conversions that would drop native controls.
 |---|---|
 | `REQ-6301` | Claude instruction onto Codex is `derive`; same harness is refused. `--all-missing` on that instruction is incomplete because Cursor and Antigravity stay `blocked`; the four derivable targets in one apply produce `1.1`. |
 | `REQ-6302` | Identical inputs share a plan digest; a stale digest is `AI_STP_PLAN_STALE`. |
-| `REQ-6303` | Apply creates `1.1`; a second apply of the same digest returns `created=false`. A second target that would occupy the same next minor is `AI_STP_CONFLICT` and leaves the registry dump unchanged. |
-| `REQ-6304` | Portability apply leaves source 1.0 without the target adaptation; the overlay is `private` and recorded in `overlay_origin`. Reusing its overlay ID for another source or target conflicts. Using the source's ID as a new overlay conflicts. |
+| `REQ-6303` | Apply creates `1.1`; a second apply of the same digest returns `created=false`. A second target that would occupy the same next minor conflicts. A foreign owner cannot derive a new version but can reuse an exact adaptation; refused operations leave the registry dump unchanged. |
+| `REQ-6304` | Portability apply leaves source 1.0 without the target adaptation; the overlay is private, belongs to its creator and is recorded in `overlay_origin`. Reusing its ID for another owner, source or target conflicts. Using the source's ID as a new overlay conflicts. |
 | `REQ-6305` | A setting cannot materialize across harnesses. |

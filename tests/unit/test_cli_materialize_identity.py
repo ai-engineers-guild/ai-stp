@@ -52,7 +52,7 @@ def _plan(
 
 
 def _apply(
-    connection: sqlite3.Connection, preview: ComponentMaterializePlan
+    connection: sqlite3.Connection, preview: ComponentMaterializePlan, *, owner_id: str = OWNER
 ) -> ComponentMaterializeResult:
     return component_materialize.apply(
         connection,
@@ -65,8 +65,49 @@ def _apply(
         local_only=preview.local_only,
         expected_plan_digest=preview.plan_digest,
         device_id=DEVICE,
-        owner_id=OWNER,
+        owner_id=owner_id,
     )
+
+
+def test_foreign_derivation_requires_an_owned_private_overlay() -> None:
+    actor = "account_01ARZ3NDEKTSV4RRFFQ69G5FAW"
+    with closing(open_registry(configured_path(), create=True)) as connection:
+        stable_id = _source(connection)
+        preview = _plan(connection, stable_id, "codex")
+        before = tuple(connection.iterdump())
+        with pytest.raises(CliFailure) as raised:
+            _apply(connection, preview, owner_id=actor)
+        assert raised.value.code == "AI_STP_PRECONDITION_FAILED"
+        assert raised.value.details["constraint"] == "component_owner_required"
+        assert tuple(connection.iterdump()) == before
+
+        overlay = _plan(connection, stable_id, "codex", overlay_id=new_id("component"))
+        created = _apply(connection, overlay, owner_id=actor)
+        held = component_passports.version_passport(connection, created.stable_id, created.version)
+        assert held.owner_id == actor and held.visibility == "private"
+        before = tuple(connection.iterdump())
+        assert not _apply(connection, overlay, owner_id=actor).created
+        with pytest.raises(CliFailure) as raised:
+            _apply(connection, overlay)
+        assert raised.value.code == "AI_STP_CONFLICT"
+        assert raised.value.details["constraint"] == "overlay_owner_required"
+        assert tuple(connection.iterdump()) == before
+
+        owned = _apply(connection, preview)
+        reuse = component_materialize.plan(
+            connection,
+            stable_id=stable_id,
+            version=owned.version,
+            source_harness="claude-code",
+            target_harness="codex",
+            overlay_id=stable_id,
+            created_at=CREATED,
+            local_only=False,
+        )
+        before = tuple(connection.iterdump())
+        assert reuse.disposition == "reuse"
+        assert not _apply(connection, reuse, owner_id=actor).created
+        assert tuple(connection.iterdump()) == before
 
 
 def test_another_target_cannot_reuse_the_occupied_next_minor() -> None:

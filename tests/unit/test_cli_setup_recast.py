@@ -209,6 +209,22 @@ def test_recast_derives_an_instruction_and_records_provenance() -> None:
         )
         assert preview.complete
         assert preview.members[0].disposition == "derive"
+        before = tuple(connection.iterdump())
+        with pytest.raises(CliFailure) as caught:
+            setup_recast.apply(
+                connection,
+                source_id=source_id,
+                source_version="1.0",
+                target_harness="codex",
+                setup_id=setup_id,
+                created_at=CREATED,
+                expected_plan_digest=preview.plan_digest,
+                device_id=DEVICE,
+                owner_id="account_01ARZ3NDEKTSV4RRFFQ69G5FAW",
+            )
+        assert caught.value.code == "AI_STP_PRECONDITION_FAILED"
+        assert caught.value.details["constraint"] == "component_owner_required"
+        assert tuple(connection.iterdump()) == before
         result = setup_recast.apply(
             connection,
             source_id=source_id,
@@ -340,6 +356,19 @@ def test_an_existing_target_adaptation_is_reused() -> None:
         assert preview.complete
         assert preview.members[0].disposition == "reuse"
         assert preview.members[0].target_version == "1.0"
+        result = setup_recast.apply(
+            connection,
+            source_id=source_id,
+            source_version="1.0",
+            target_harness="codex",
+            setup_id=preview.setup_id,
+            created_at=CREATED,
+            expected_plan_digest=preview.plan_digest,
+            device_id=DEVICE,
+            owner_id="account_01ARZ3NDEKTSV4RRFFQ69G5FAW",
+        )
+        assert result.created
+        assert versions.held(connection, member[0], "1.1") is None
 
 
 def test_recast_derives_a_codex_mcp_setting_contribution() -> None:

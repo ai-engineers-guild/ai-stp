@@ -129,6 +129,7 @@ def apply(
                     member=item,
                     classified=classified,
                     device_id=device_id,
+                    owner_id=owner_id,
                     at=created_at,
                 )
             )
@@ -304,6 +305,16 @@ def _blocked_reason(
     return None
 
 
+def require_derivation_owner(passport: ComponentVersionPassport, owner_id: str) -> None:
+    """Only the current owner may extend a component's immutable version line."""
+    if passport.owner_id != owner_id:
+        raise CliFailure(
+            "AI_STP_PRECONDITION_FAILED",
+            "only the component owner can derive a new version; create a private overlay or fork",
+            details={"stable_id": passport.stable_id, "constraint": "component_owner_required"},
+        )
+
+
 def _materialize_member(
     connection: sqlite3.Connection,
     *,
@@ -312,11 +323,13 @@ def _materialize_member(
     member: tuple[str, str, str],
     classified: SetupRecastMember,
     device_id: str,
+    owner_id: str,
     at: str,
 ) -> setup_versions.MemberRef:
     passport = _component_passport(connection, member)
     if classified.disposition == "reuse":
         return setup_versions.MemberRef(member[0], member[1], member[2])
+    require_derivation_owner(passport, owner_id)
     derived = _derive_adaptation(connection, passport, source_harness, target, at=at)
     if derived is None:
         raise CliFailure(

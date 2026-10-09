@@ -242,6 +242,7 @@ def apply(
                 preview=preview,
                 created_at=created_at,
                 device_id=device_id,
+                owner_id=owner_id,
             )
     harnesses: list[HarnessId] = [item.target_harness_id for item in preview.targets]
     return ComponentMaterializeResult(
@@ -267,10 +268,12 @@ def _apply_owned(
     preview: ComponentMaterializePlan,
     created_at: str,
     device_id: str,
+    owner_id: str,
 ) -> tuple[str, str, str, bool]:
     if all(item.disposition == "reuse" for item in preview.targets):
         return recorded.stable_id, recorded.version, recorded.passport_digest, False
     passport, _current = _held(connection, recorded.stable_id, recorded.version)
+    setup_recast.require_derivation_owner(passport, owner_id)
     added = _derived_adaptations(connection, passport, source, preview, created_at)
     replaced = {item.harness_id for item in added}
     adaptations = (
@@ -306,6 +309,14 @@ def _apply_local(
 ) -> tuple[str, str, str, bool]:
     overlay_id = preview.overlay_id
     existing = versions.held(connection, overlay_id, versions.FIRST_VERSION)
+    if existing is not None:
+        held, _recorded = _held(connection, overlay_id, existing.version)
+        if held.owner_id != owner_id or held.visibility != "private":
+            raise CliFailure(
+                "AI_STP_CONFLICT",
+                "the overlay identity belongs to another owner or is not private",
+                details={"stable_id": overlay_id, "constraint": "overlay_owner_required"},
+            )
     added = _derived_adaptations(connection, passport, source, preview, created_at)
     replaced = {item.harness_id for item in added}
     adaptations = (
