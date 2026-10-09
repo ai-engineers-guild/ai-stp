@@ -78,6 +78,16 @@ impl Drop for Child {
 /// The caller selects an absolute executable and the complete child environment.
 /// No shell, inherited stdin or diagnostic output enters the machine envelope.
 pub fn run(request: Request<'_>) -> Result<Output> {
+    execute(request, Stdio::null())
+}
+
+/// Explicit anonymous input for the Linux provider boundary; never inherited stdin.
+#[cfg(target_os = "linux")]
+pub(crate) fn with_input(request: Request<'_>, input: std::fs::File) -> Result<Output> {
+    execute(request, Stdio::from(input))
+}
+
+fn execute(request: Request<'_>, input: Stdio) -> Result<Output> {
     if !request.executable.is_absolute()
         || !request.directory.is_absolute()
         || request.timeout.is_zero()
@@ -104,7 +114,7 @@ pub fn run(request: Request<'_>) -> Result<Output> {
         .current_dir(request.directory)
         .env_clear()
         .envs(request.environment.iter().cloned())
-        .stdin(Stdio::null())
+        .stdin(input)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
     let mut command = CommandWrap::from(command);
