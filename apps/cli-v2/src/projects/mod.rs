@@ -4,6 +4,7 @@ mod discovery;
 mod index;
 pub mod passports;
 mod symbols;
+pub mod technology;
 
 pub use discovery::discover;
 pub use index::index;

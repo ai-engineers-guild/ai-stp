@@ -508,6 +508,7 @@ back-gen:
     {{ run }} python -m ai_stp_contracts.schemas schemas/v1
     {{ run }} python -m ai_stp_contracts.inventory_record
     {{ run }} python -m ai_stp_contracts.web_projections
+    {{ run }} python -m ai_stp_contracts.technology_seed
     {{ run }} python release_scripts/provider_kit.py provider-kit/v3
     {{ run }} python release_scripts/verifier_requirements.py
     {{ run }} python release_scripts/first_party_corpus_digests.py
@@ -522,6 +523,7 @@ back-static:
     {{ run }} python -m ai_stp_contracts.schemas --check schemas/v1
     {{ run }} python -m ai_stp_contracts.inventory_record --check
     {{ run }} python -m ai_stp_contracts.web_projections --check
+    {{ run }} python -m ai_stp_contracts.technology_seed --check
     {{ run }} python release_scripts/provider_kit.py --check provider-kit/v3
     {{ run }} python release_scripts/verifier_requirements.py --check
     {{ run }} python release_scripts/first_party_corpus_digests.py --check

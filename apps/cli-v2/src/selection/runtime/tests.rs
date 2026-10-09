@@ -126,6 +126,104 @@ fn local_runtime_reads_real_artifacts_without_inventing_rights()
             "{case}: {observed}"
         );
     }
+    // Candidate graphs are independent: the two setups deliberately require
+    // different immutable versions of the same component.
+    let mut setup_ids = Vec::new();
+    for version in ["1.0", "1.4"] {
+        let component = store.transaction(|t| {
+            Objects { connection: t }.exact_version(text(&original, "stable_id")?, version, None)
+        })?;
+        let request = setups::Request {
+            harness_id: "claude-code".into(),
+            name: format!("review-{version}"),
+            description: "Review the exact component version.".into(),
+            purpose: "Preserve independent candidate graphs.".into(),
+            members: vec![serde_json::from_value(reference(&component)?)?],
+            requirements: None,
+        };
+        let plan = setups::plan(&mut store, request, identity.clone(), AT)?;
+        let setup = setups::apply(&mut store, &plan, &plan.digest()?, &identity, AT)?;
+        setup_ids.push(text(&setup, "stable_id")?.to_owned());
+    }
+    let unreleased_id = format!("component_{}", ulid::Ulid::generate());
+    store.transaction(|t|revisions::commit(t,&json!({"kind":"component","stable_id":unreleased_id,"owner_id":identity.account_id,"created_at":AT}),
+        &identity.device_id,None,Write::Advance {expected_heads:&[]}))?;
+    let matrix_path = directory.path().join("matrix.json");
+    let mut matrix_request = json!({"targets":[
+        {"harness_id":"codex","scope":"global","provider_version":"0.0.88"},
+        {"harness_id":"claude-code","scope":"global","provider_version":"0.0.88"}]});
+    std::fs::write(&matrix_path, serde_json::to_vec(&matrix_request)?)?;
+    let request = matrix::Request::parse(&matrix_path)?;
+    let providers = ["claude-code", "codex"]
+        .iter()
+        .map(|harness| {
+            let value = declarations
+                .iter()
+                .find(|d| d["harness_id"] == *harness)
+                .ok_or_else(invalid)?;
+            Ok((Info::parse(&canonical::bytes(value)?)?, Value::Null))
+        })
+        .collect::<Result<Vec<_>>>()?;
+    let report =
+        store.transaction(|t| matrix::assess_snapshot(t, &request, &identity, &providers))?;
+    assert_eq!(
+        report["targets"][0]["selector"]["harness_id"],
+        "claude-code"
+    );
+    let candidates = report["candidates"].as_array().ok_or("candidates")?;
+    assert_eq!(candidates.len(), 4);
+    for id in &setup_ids {
+        let row = candidates
+            .iter()
+            .find(|r| r["stable_id"] == *id)
+            .ok_or("setup row")?;
+        assert_eq!(row["graph"]["resolved"], true);
+        assert_eq!(row["cells"][0]["assessment"]["admissible"], true);
+        assert_eq!(row["cells"][1]["assessment"]["admissible"], false);
+    }
+    let row = candidates
+        .iter()
+        .find(|r| r["stable_id"] == original["stable_id"])
+        .ok_or("component row")?;
+    assert_eq!(row["coordinate"]["version"], "1.4");
+    let row = candidates
+        .iter()
+        .find(|r| r["stable_id"] == unreleased_id)
+        .ok_or("draft row")?;
+    assert_eq!(row["state"], "unreleased");
+    assert_eq!(row["eligible_somewhere"], false);
+    assert_eq!(row["refusals"][0]["code"], "immutable_version_missing");
+    matrix_request["limit"] = 1.into();
+    let mut found = Vec::new();
+    loop {
+        std::fs::write(&matrix_path, serde_json::to_vec(&matrix_request)?)?;
+        let request = matrix::Request::parse(&matrix_path)?;
+        let report =
+            store.transaction(|t| matrix::assess_snapshot(t, &request, &identity, &providers))?;
+        found.push(report["candidates"][0]["stable_id"].clone());
+        if report["next_after"].is_null() {
+            break;
+        }
+        matrix_request["after"] = report["next_after"].clone();
+    }
+    assert_eq!(
+        found,
+        candidates
+            .iter()
+            .map(|r| r["stable_id"].clone())
+            .collect::<Vec<_>>()
+    );
+    assert!(
+        store
+            .transaction(|t| inputs_with_budget(t, &roots, target.clone(), 0))
+            .is_err()
+    );
+    for field in ["owner_id", "permissions", "grants", "provider_info"] {
+        let mut claimed = matrix_request.clone();
+        claimed["targets"][0][field] = "claim-must-not-be-echoed".into();
+        std::fs::write(&matrix_path, serde_json::to_vec(&claimed)?)?;
+        assert!(matrix::Request::parse(&matrix_path).is_err(), "{field}");
+    }
     // A correctly addressed passport cannot stand in for missing/corrupt bytes.
     store.transaction(|t| {
         t.execute(
@@ -152,7 +250,7 @@ fn local_runtime_reads_real_artifacts_without_inventing_rights()
         request[field] = "claim-must-not-be-echoed".into();
         let path = directory.path().join("request.json");
         std::fs::write(&path, serde_json::to_vec(&request)?)?;
-        assert!(Request::parse(&path).is_err(), "{field}");
+        assert!(Request::parse(&path, false).is_err(), "{field}");
     }
     Ok(())
 }

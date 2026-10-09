@@ -213,7 +213,9 @@ def prove_reads(binary: Path, home: Path, root: Path, run: Runner, server: Catal
 
         with (cache / "ai-stp-v2-catalog" / "lock").open("rb+") as lock:
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-            run(binary, home, [*args, "--offline"], 4)
+            blocked = run(binary, home, [*args, "--offline"], 5)
+            assert blocked["error"]["retryable"] is True
+            assert blocked["error"]["details"]["stage"] == "lock_timeout"
         entry.unlink()
         entry.symlink_to(config)
         run(binary, home, [*args, "--offline"], 4)

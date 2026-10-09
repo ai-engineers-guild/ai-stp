@@ -5,8 +5,8 @@ use serde_json::{Value, json};
 use std::path::{Path, PathBuf};
 
 use super::{
-    Identity, adoption, derivation, forks, importing, lifecycle, native_edit, passports,
-    project_binding, releases, setups,
+    Identity, adoption, derivation, forks, importing, lifecycle, materialization, native_edit,
+    passports, project_binding, releases, setups,
 };
 use crate::{
     canonical, digest,
@@ -127,10 +127,12 @@ pub fn apply(path: &Path, expected_digest: &str) -> Result<Value> {
         "component.passport.update" => execute(plan, passports::apply),
         "component.adaptation.edit" => execute(plan, native_edit::apply),
         "component.adaptation.derive" => execute(plan, derivation::apply),
+        "component.materialize" => execute(plan, materialization::apply),
         "component.version.release" => execute(plan, releases::apply),
         "component.fork" => execute(plan, forks::apply),
         "component.forget" => execute(plan, lifecycle::apply),
         "project.passport.record" => execute(plan, projects::passports::apply),
+        "project.technology.record" => execute(plan, projects::technology::retained::apply),
         "passport.developer.record" => execute(plan, developer::apply),
         "passport.device.record" => execute(plan, device::apply),
         "setup.compose" => execute(plan, setups::apply),
