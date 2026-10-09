@@ -15,6 +15,11 @@ use ai_stp_cli_v2::{
 };
 use serde_json::{Value, json};
 
+#[path = "derivation/materialization.rs"]
+mod materialization;
+#[path = "derivation/skills.rs"]
+mod skills;
+
 const AT: &str = "2026-10-08T00:00:00.000Z";
 const LATER: &str = "2026-10-09T00:00:00.000Z";
 
@@ -32,8 +37,8 @@ fn stored(store: &mut Store, id: &str, version: Option<&str>) -> Result<Value, F
     })
 }
 
-fn counts(store: &mut Store) -> Result<[i64; 5], Failure> {
-    store.transaction(|t| t.query_row("SELECT (SELECT count(*) FROM revision),(SELECT count(*) FROM content),(SELECT count(*) FROM operation),(SELECT count(*) FROM object_version),(SELECT count(*) FROM fork_origin)",[],|r| Ok([r.get(0)?,r.get(1)?,r.get(2)?,r.get(3)?,r.get(4)?])).map_err(|_|Failure::input("proof query failed")))
+fn counts(store: &mut Store) -> Result<[i64; 6], Failure> {
+    store.transaction(|t| t.query_row("SELECT (SELECT count(*) FROM revision),(SELECT count(*) FROM content),(SELECT count(*) FROM operation),(SELECT count(*) FROM object_version),(SELECT count(*) FROM fork_origin),(SELECT count(*) FROM overlay_origin)",[],|r| Ok([r.get(0)?,r.get(1)?,r.get(2)?,r.get(3)?,r.get(4)?,r.get(5)?])).map_err(|_|Failure::input("proof query failed")))
 }
 
 fn release(
@@ -284,8 +289,8 @@ fn graph_recast(
 }
 
 #[test]
-fn exact_stdio_derivation_preserves_literals_and_atomic_owned_history() -> Result<(), Box<dyn Error>>
-{
+fn exact_native_derivation_preserves_literals_and_atomic_owned_history()
+-> Result<(), Box<dyn Error>> {
     let temporary = tempfile::tempdir()?;
     let mut store = Store::open(temporary.path(), true)?;
     let identity = Identity {
@@ -302,6 +307,14 @@ fn exact_stdio_derivation_preserves_literals_and_atomic_owned_history() -> Resul
             Info::parse(&serde_json::to_vec(v).map_err(|_| Failure::input("proof JSON failed"))?)
         })
         .collect::<Result<Vec<_>, _>>()?;
+    materialization::journey(
+        &mut store,
+        temporary.path(),
+        &providers,
+        &identity,
+        &foreign,
+    )?;
+    skills::journey(&mut store, temporary.path(), &providers, &identity)?;
     let config = "[mcp_servers.docs]\ncommand = 'review-server'\nargs = ['cafe\u{301}', '\"quoted\"', 'C:\\work\\a']\n[mcp_servers.docs.env]\nMODE = 'cafe\u{301}'\n";
     let configs = [
         ("codex", config.as_bytes().to_vec()),
