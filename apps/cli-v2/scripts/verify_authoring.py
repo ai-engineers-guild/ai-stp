@@ -19,6 +19,7 @@ from verify_impact import prove as prove_impact
 from ai_stp_cli.local import content as stored_content
 from ai_stp_cli.local import revisions, setup_versions, versions
 from ai_stp_contracts.cli.components import (
+    ComponentPassportSuggestions,
     ComponentPassportValidation,
     ComponentQualityReport,
     PassportView,
@@ -300,6 +301,9 @@ def prove(binary: Path, home: Path, temporary: Path, run: Runner) -> None:
         "---\nname: native-review\ndescription: Review native code.\n---\nKeep native bytes.\n"
     )
     native_skill.write_text(native_body, encoding="utf-8")
+    (native_skill.parent / "package.json").write_text(
+        json.dumps({"ai-stp": {"component": {"tags": ["native-review"]}}}), encoding="utf-8"
+    )
     # This existing journey also proves metadata import with empty PATH: Git,
     # package managers and scripts cannot supply the implementation.
     (native_home / ".git").mkdir()
@@ -361,6 +365,43 @@ def prove(binary: Path, home: Path, temporary: Path, run: Runner) -> None:
     assert shared["facts"]["source_manifest_digest"]["value"] == digest_bytes(
         "ai-stp:artifact:v1", skill_lock.read_bytes()
     )
+    suggestions_args = [
+        "component",
+        "passport",
+        "suggest",
+        "--state-dir",
+        str(state),
+        "--id",
+        shared["stable_id"],
+    ]
+    suggested = invoke(suggestions_args)
+    ComponentPassportSuggestions.model_validate(suggested)
+    assert suggested["revision_id"] == shared["revision_id"]
+    assert suggested["suggestions"] == [
+        {
+            "schema_version": 1,
+            "field": "tags",
+            "value": ["native-review"],
+            "source_refs": ["artifact:package.json"],
+            "requires_confirmation": True,
+        }
+    ]
+    assert invoke(suggestions_args) == suggested
+    unchanged = invoke(
+        [
+            "local",
+            "passport",
+            "show",
+            "--state-dir",
+            str(state),
+            "--kind",
+            "component",
+            "--id",
+            shared["stable_id"],
+        ]
+    )
+    assert unchanged["revision_id"] == shared["revision_id"]
+    assert "tags" not in unchanged["facts"]
     sources = root / "native-sources.json"
     sources.write_text(
         json.dumps(

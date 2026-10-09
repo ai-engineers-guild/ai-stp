@@ -370,6 +370,25 @@ and excludes only `.git` and `nori.json` at the selected directory's root.
 The latter remains metadata evidence outside the payload. Existing atomic draft
 adoption/import, owner checks, idempotent replay and stale-plan refusal apply.
 
+`component passport suggest` reads the exact current component head and verifies
+its retained content before inspecting only root `package.json` (`ai-stp.component`)
+and `pyproject.toml` (`tool.ai-stp.component`) declarations. The Python namespace
+follows [PyPA's tool-table contract](https://packaging.python.org/en/latest/specifications/pyproject-toml/#arbitrary-tool-configuration-the-tool-table).
+Each manifest is bounded to 1 MiB; TOML enrichment conversion is bounded to 64
+levels and 20,000 nodes. Every proposed field passes the existing closed passport
+patch contract. Unsupported types, malformed/duplicate metadata, secret fields
+and conflicting declarations refuse with no partial result. Equal declarations
+merge their evidence references in deterministic order. Exact adopted repository,
+commit and subpath also contribute a source suggestion when all are present.
+
+Ordinary package fields and nested manifests do not imply passport facts. Missing
+namespaces produce no enrichment; no script, package manager or network runs.
+Every suggestion requires explicit confirmation and reports its evidence.
+Unresolved publication fields exclude already confirmed facts and offered
+suggestions. Reading suggestions does not create revisions, mutate content,
+confirm facts or change verification/trust. Apply selected fields through the
+existing exact-head passport update plan.
+
 Native adoption and adaptation editing derive MCP identifiers from the captured
 host's server keys: `mcp_servers` for Codex/Grok, `mcp` for OpenCode, and
 `mcpServers` for Cursor/Antigravity. A contribution's captured key set must still
