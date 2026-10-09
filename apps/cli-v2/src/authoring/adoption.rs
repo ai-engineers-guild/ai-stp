@@ -17,7 +17,7 @@ use crate::{
     digest,
     error::{ErrorKind, Failure, Result},
     files,
-    harnesses::{Root, Scope},
+    harnesses::{self, Root, Scope, Shape},
     objects::Objects,
     passport, projection,
     store::{
@@ -127,7 +127,10 @@ pub(super) fn prepare_candidate(
     harness: &str,
     candidate: Candidate,
 ) -> Result<Prepared> {
-    if candidate.harness_id == "undefined" && candidate.component_type != "skill" {
+    if candidate.harness_id == "undefined"
+        && candidate.component_type != "skill"
+        && !candidate.metadata_port
+    {
         return Err(Failure::input(
             "only shared skills can select a destination harness",
         ));
@@ -144,7 +147,9 @@ pub(super) fn prepare_candidate(
         ));
     }
     native_identity::check_source_context(harness, &candidate, &request.root)?;
-    let mut content = if project_mcp {
+    let mut content = if candidate.metadata_port {
+        source::capture_interop(&request.root, &candidate.native_path)?
+    } else if project_mcp {
         source::capture_claude_mcp(&request.root)?
     } else if native_identity::has_markdown_entries(harness, &candidate.component_type) {
         source::capture_native_entries(&request.root, &candidate.native_path)?
@@ -159,7 +164,39 @@ pub(super) fn prepare_candidate(
         )?;
     }
     native_identity::check_source_context(harness, &candidate, &request.root)?;
-    let native_ids = native_identity::read(harness, &candidate, &content)?;
+    let native_ids = if candidate.metadata_port {
+        // External layout names do not establish harness ownership. Validate the
+        // captured bytes where the explicitly selected harness would receive them.
+        let mut destination = candidate.clone();
+        let name = candidate
+            .absolute
+            .file_name()
+            .and_then(|name| name.to_str())
+            .ok_or_else(invalid)?;
+        let own = harnesses::definition(harness)?;
+        let shared = harnesses::definition("undefined")?;
+        let layout = own
+            .layouts
+            .iter()
+            .chain(
+                shared
+                    .layouts
+                    .iter()
+                    .filter(|layout| layout.component_type == "skill"),
+            )
+            .find(|layout| {
+                layout.component_type == candidate.component_type
+                    && layout.scope == candidate.scope
+                    && layout.shape == Shape::Directory
+            })
+            .ok_or_else(|| {
+                Failure::precondition("the metadata component has no declared destination layout")
+            })?;
+        destination.native_path = format!("{}/{name}", layout.relative);
+        native_identity::read(harness, &destination, &content)?
+    } else {
+        native_identity::read(harness, &candidate, &content)?
+    };
     let content_digest = digest::bytes("ai-stp:artifact:v1", &content.bytes)?;
     let address = Address::new(
         harness,
@@ -218,6 +255,8 @@ pub(super) fn source_values(source: &Prepared) -> Result<Value> {
         "package_name",
         "package_version",
         "digest",
+        "manifest_digest",
+        "claimed_folder_hash",
     ] {
         values[format!("source_{field}")] = candidate.provenance[field].clone();
     }
@@ -237,12 +276,15 @@ fn document(
         .unwrap_or_else(|| json!({}));
     let mut changed = head.is_none();
     for (key, value) in values.as_object().ok_or_else(invalid)? {
-        if facts.get(key).is_none_or(|fact| fact["value"] != *value) {
-            let origin = if key == "harness_id" && source.candidate.harness_id == "undefined" {
-                "declared"
-            } else {
-                "observed"
-            };
+        let origin = if key == "harness_id" && source.candidate.harness_id == "undefined" {
+            "declared"
+        } else {
+            "observed"
+        };
+        if facts
+            .get(key)
+            .is_none_or(|fact| fact["value"] != *value || fact["origin"] != origin)
+        {
             facts[key] =
                 json!({"value":value,"origin":origin,"confirmation":"none","observed_at":at});
             changed = true;
