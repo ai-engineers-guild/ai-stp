@@ -163,20 +163,14 @@ def _current_baseline(
     connection: sqlite3.Connection, project_id: str, harness_id: str
 ) -> tuple[str, str, Literal["installed", "selected"]] | None:
     target_id = installation.target_identity(project_id, harness_id)
-    row = connection.execute(
-        """
-        SELECT p.setup_stable_id, p.setup_version
-        FROM operation_plan AS p
-        JOIN operation AS o ON o.operation_id = p.operation_id
-        JOIN operation_event AS e
-          ON e.operation_id = p.operation_id AND e.state_after = 'verified'
-        WHERE p.target_id = ? AND o.state = 'verified'
-        ORDER BY e.global_sequence DESC LIMIT 1
-        """,
-        (target_id,),
-    ).fetchone()
-    if row is not None and row["setup_stable_id"] and row["setup_version"]:
-        return str(row["setup_stable_id"]), str(row["setup_version"]), "installed"
+    installed = {
+        (str(row["setup_stable_id"]), str(row["setup_version"]))
+        for row in _installed_setups(connection)
+        if row["target_id"] == target_id
+    }
+    if len(installed) == 1:
+        stable_id, version = next(iter(installed))
+        return stable_id, version, "installed"
     row = connection.execute(
         """
         SELECT stable_id, version FROM selected_version
@@ -187,6 +181,47 @@ def _current_baseline(
     if row is None:
         return None
     return str(row["stable_id"]), str(row["version"]), "selected"
+
+
+def _installed_setups(connection: sqlite3.Connection) -> tuple[sqlite3.Row, ...]:
+    """Last verified mutations, without treating a restore request as provenance."""
+    rows = connection.execute(
+        """
+        SELECT p.target_id, p.provider_target, p.action, p.setup_stable_id, p.setup_version
+        FROM operation_plan AS p JOIN operation AS o ON o.operation_id = p.operation_id
+        JOIN operation_event AS e
+          ON e.operation_id = p.operation_id AND e.state_after = 'verified'
+        WHERE o.state = 'verified' AND p.action IN ('install', 'update', 'remove', 'rollback')
+        ORDER BY e.global_sequence DESC
+        """
+    ).fetchall()
+    seen: set[tuple[str, str, str]] = set()
+    seen_pairs: set[str] = set()
+    unnamed_pairs: set[str] = set()
+    installed: list[sqlite3.Row] = []
+    for row in rows:
+        target_id = str(row["target_id"])
+        root = str(row["provider_target"] or "")
+        _, harness = installation.target_pair(target_id)
+        key = (harness, root, "" if root else target_id)
+        superseded = (
+            key in seen or target_id in unnamed_pairs or (not root and target_id in seen_pairs)
+        )
+        seen.add(key)
+        seen_pairs.add(target_id)
+        if not root:
+            # A legacy mutation with no root cannot distinguish this pair's
+            # older physical targets. It supersedes them without guessing.
+            unnamed_pairs.add(target_id)
+        if superseded:
+            continue
+        if (
+            row["action"] in {"install", "update"}
+            and row["setup_stable_id"]
+            and row["setup_version"]
+        ):
+            installed.append(row)
+    return tuple(installed)
 
 
 def blast_radius(
@@ -226,13 +261,7 @@ def blast_radius(
     installed_targets = sorted(
         {
             str(row["target_id"])
-            for row in connection.execute(
-                """
-                SELECT DISTINCT p.target_id, p.setup_stable_id, p.setup_version
-                FROM operation_plan AS p JOIN operation AS o ON o.operation_id = p.operation_id
-                WHERE o.state = 'verified'
-                """
-            ).fetchall()
+            for row in _installed_setups(connection)
             if (str(row["setup_stable_id"]), str(row["setup_version"])) in pairs
         }
     )

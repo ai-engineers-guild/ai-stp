@@ -251,6 +251,7 @@ def impact_report(parameters: Mapping[str, object]) -> Answer[SelectionImpactRep
         )
     raw_price = str(parameters.get("price-profile") or "")
     with closing(open_readonly(registry)) as connection:
+        connection.execute("BEGIN")
         return Answer(
             impact.selection_report(
                 connection,
@@ -285,6 +286,7 @@ def blast_radius(parameters: Mapping[str, object]) -> Answer[BlastRadiusReport]:
             ],
         )
     with closing(open_readonly(registry)) as connection:
+        connection.execute("BEGIN")
         return Answer(
             impact.blast_radius(
                 connection,

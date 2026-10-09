@@ -11,7 +11,7 @@ import pytest
 from ai_stp_cli.commands import select
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import content, impact, revisions, versions
-from ai_stp_cli.local.database import configured_path, open_registry, transaction
+from ai_stp_cli.local.database import configured_path, open_readonly, open_registry, transaction
 from ai_stp_contracts.first_party import FirstPartyVersion
 from ai_stp_contracts.first_party import versions as corpus_versions
 from ai_stp_contracts.impact import ComponentTokenMeasurement, ExactCoordinate
@@ -174,7 +174,17 @@ def test_explicit_stale_price_is_labelled_and_never_used(tmp_path: Path) -> None
     assert report.token_cost.source == "https://example.test/pricing"
 
 
-def test_project_baseline_uses_the_current_local_selection() -> None:
+def test_project_baseline_uses_current_selection_and_latest_verified_mutations(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from collections.abc import Callable
+
+    from tests.unit.test_cli_targets import _finish_verified  # pyright: ignore[reportPrivateUsage]
+
+    from ai_stp_cli.application import select as application_select
+    from ai_stp_cli.local import installation
+    from ai_stp_foundation.ids import new_id
+
     _component, baseline, candidate = _shared_corpus()
     _materialize(baseline, candidate)
     project_id = "project_01ARZ3NDEKTSV4RRFFQ69G5FAV"
@@ -211,6 +221,132 @@ def test_project_baseline_uses_the_current_local_selection() -> None:
     assert report.baseline_setup is not None
     assert report.baseline_setup.stable_id == baseline.passport.stable_id
     assert report.context_delta is not None
+
+    assert isinstance(candidate.passport, SetupVersionPassport)
+    exclusive = candidate.passport.components[-1]
+    harness = candidate.passport.harness_id
+    target = installation.target_identity(project_id, harness)
+    root = str(tmp_path / "native-root")
+    second_root = str(tmp_path / "second-root")
+    other_project = "project_01ARZ3NDEKTSV4RRFFQ69G5FAW"
+    with closing(open_registry(configured_path())) as connection:
+
+        def settle(
+            action: str,
+            setup: FirstPartyVersion,
+            *,
+            project: str = project_id,
+            location: str = root,
+            complete: bool = True,
+        ) -> None:
+            # Journal-only fixture: no provider, target files or backups exist.
+            plan = installation.propose(
+                connection,
+                action=action,
+                author="account_fixture",
+                target_id=installation.target_identity(project, harness),
+                expected_target_digest="sha256:" + "0" * 64,
+                provider_version="1.0.0",
+                provider_target=location,
+                effects=("fixture journal transition",),
+                recovery_action="restore",
+                idempotency_key=new_id("operation"),
+                at=AT,
+                expires_at="2099-01-01T00:00:00.000Z",
+                setup_stable_id=setup.passport.stable_id,
+                setup_version=setup.passport.version,
+            )
+            if complete:
+                _finish_verified(connection, plan, digest="sha256:" + "1" * 64, at=AT)
+
+        def check(source: str, setup: FirstPartyVersion, affected: list[str]) -> None:
+            before = tuple(connection.iterdump())
+            current = select.impact_report(
+                {
+                    "setup-id": candidate.passport.stable_id,
+                    "setup-version": candidate.passport.version,
+                    "project-id": project_id,
+                }
+            ).payload
+            assert current.baseline_source == source
+            assert current.baseline_setup is not None
+            assert current.baseline_setup.stable_id == setup.passport.stable_id
+            radius = select.blast_radius(
+                {"component-id": exclusive.stable_id, "component-version": str(exclusive.version)}
+            ).payload
+            assert radius.installed_targets == affected
+            assert tuple(connection.iterdump()) == before
+
+        settle("install", candidate)
+        check("installed", candidate, [target])
+        settle("update", baseline)
+        check("installed", baseline, [])
+        settle("backup", candidate)
+        settle("install", candidate, complete=False)
+        check("installed", baseline, [])
+        settle("remove", baseline)
+        check("selected", baseline, [])
+        settle("install", candidate)
+        settle("rollback", candidate)
+        check("selected", baseline, [])
+        settle("install", candidate, location=second_root)
+        check("installed", candidate, [target])
+        settle("install", baseline)
+        check("selected", baseline, [target])
+        settle("remove", candidate, location=second_root)
+        check("installed", baseline, [])
+        settle("install", candidate, project=other_project)
+        check("selected", baseline, [installation.target_identity(other_project, harness)])
+        settle("remove", candidate, project=other_project, location="")
+        check("selected", baseline, [])
+
+        # A real second SQLite connection commits after the reader's first
+        # graph read. Both CLI commands must retain their original snapshot.
+        def during_read(transition: Callable[[], None]) -> Callable[[Path], sqlite3.Connection]:
+            def opening(path: Path) -> sqlite3.Connection:
+                reader = open_readonly(path)
+                changed = False
+
+                def trace(statement: str) -> None:
+                    nonlocal changed
+                    if not changed and "FROM operation_plan AS p" in statement:
+                        changed = True
+                        transition()
+
+                reader.set_trace_callback(trace)
+                return reader
+
+            return opening
+
+        settle("install", baseline)
+        with monkeypatch.context() as patch:
+            patch.setattr(
+                application_select,
+                "open_readonly",
+                during_read(lambda: settle("update", candidate)),
+            )
+            current = select.impact_report(
+                {
+                    "setup-id": candidate.passport.stable_id,
+                    "setup-version": candidate.passport.version,
+                    "project-id": project_id,
+                }
+            ).payload
+        assert current.baseline_source == "installed"
+        assert current.baseline_setup is not None
+        assert current.baseline_setup.stable_id == baseline.passport.stable_id
+        check("installed", candidate, [target])
+        with monkeypatch.context() as patch:
+            patch.setattr(
+                application_select,
+                "open_readonly",
+                during_read(lambda: settle("remove", candidate)),
+            )
+            radius = select.blast_radius(
+                {"component-id": exclusive.stable_id, "component-version": str(exclusive.version)}
+            ).payload
+        assert radius.installed_targets == [target]
+        check("selected", baseline, [])
 
 
 def test_blast_radius_returns_every_shared_local_setup_without_effects() -> None:
