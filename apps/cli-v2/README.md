@@ -405,6 +405,28 @@ This is a headless prerequisite: it does not execute or install a provider.
 removing refresh removes both. No second HTTP or async runtime is added. See the
 [TUF client workflow](https://theupdateframework.github.io/specification/latest/#detailed-client-workflow).
 
+`provider::artifact` binds exact wheel bytes, PEP 740 provenance and current
+trust to the compiled shared provider policy. Harness IDs remain canonical:
+`claude-code` maps to `claude-setup-system`, and `grok-build` to
+`grok-setup-system`. Version input is canonical `X.Y.Z` with a `u32` major and
+minor/patch below 1,000, avoiding collisions in the policy's release sequence.
+The policy's minimum sequence, protocol 3, repository and unique verified index
+publisher must permit the request; downloaded metadata cannot widen policy.
+
+`fetch` reuses the exact PyPI source adapter with one 30-second deadline for
+release metadata, wheel and provenance. It checks the registry's size/SHA-256,
+refuses yanked distributions and bounds the archive to 20 MiB, release metadata
+to 2 MiB and provenance to 1 MiB. Existing fixed-authority redirects and anonymous
+transport apply. `verify` accepts explicit archives up to the wheel inspector's
+64 MiB limit. Both require a verified source commit and complete wheel integrity.
+The resulting object cannot be deserialized or constructed from a report; access
+to executable bytes rechecks trust expiry. Reports retain policy, trust, archive,
+executable and publisher identities. Neither path writes or executes a package;
+installation and remembered release floors remain separate lifecycle work.
+The shared TOML policy is embedded at build time; no Python runtime or duplicate
+policy file is introduced. The [PyPI Integrity API](https://docs.pypi.org/api/integrity/)
+supplies evidence, not authorization.
+
 `provider::wheel::inspect` reads one bounded native-provider wheel in memory.
 It validates every regular member against one complete CSV `RECORD`: unique
 portable names, exact inventory and byte lengths, and SHA-256/384/512 hashes;
@@ -1403,7 +1425,7 @@ no async runtime or tracing feature is enabled for it.
 | `selection/impact.rs`, `selection/impact/` | Exact context/capability reports, current installation attribution and decimal price snapshots |
 | `projects/passports/` | Private project observations, copy/move identity and durable marker registration |
 | `passport/developer.rs` | Closed private preferences, exact singleton plans and atomic revision receipts |
-| `provider.rs`, `provider/`, `bundle/` | Exact declarations, authenticated trust refresh, wheel inspection and deterministic v2 packages |
+| `provider.rs`, `provider/`, `bundle/` | Exact declarations, authenticated trust/artifact acquisition and deterministic v2 packages |
 | `store/`, `files/owned.rs` | Explicit owned state, atomic revision writes and shared private-file primitives |
 | `archive.rs`, `artifacts.rs`, `projection/artifact.rs` | Shared canonical ZIP transport and closed component/scope archives |
 | `authoring/source.rs`, `process.rs` | Complete bounded source capture and explicit child process lifecycle |

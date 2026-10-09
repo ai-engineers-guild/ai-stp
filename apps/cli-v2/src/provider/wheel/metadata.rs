@@ -5,7 +5,7 @@ use std::collections::BTreeMap;
 use super::{MAX_METADATA, invalid};
 use crate::error::Result;
 
-pub(super) fn platform_tag(platform: &str) -> Result<&'static str> {
+pub(crate) fn platform_tag(platform: &str) -> Result<&'static str> {
     match platform {
         "linux/x86_64" => Ok("manylinux_2_34_x86_64"),
         "linux/arm64" => Ok("manylinux_2_34_aarch64"),

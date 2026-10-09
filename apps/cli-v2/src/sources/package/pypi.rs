@@ -210,15 +210,60 @@ fn report(
     Ok(value)
 }
 
-pub(super) fn fetch(name: &str, version: &str, filename: &str, platform: &str) -> Result<Value> {
+pub(crate) struct Acquired {
+    pub bytes: Vec<u8>,
+    pub observation: Value,
+}
+
+fn acquire(
+    client: &Client,
+    name: &str,
+    version: &str,
+    filename: &str,
+    platform: &str,
+    refuse_yanked: bool,
+) -> Result<Acquired> {
     let name = request(name, version, filename, platform)?;
-    let client = Client::new(Service::Pypi);
     let endpoint = Url::parse(&format!("https://pypi.org/pypi/{name}/{version}/json"))
         .map_err(|_| invalid())?;
     let metadata = wire::parse(&client.get(endpoint, 2 * 1024 * 1024)?)?;
     let selected = select(&metadata, &name, version, filename, platform)?;
+    if refuse_yanked && selected.yanked {
+        return Err(invalid());
+    }
     let bytes = client.get(selected.url.clone(), selected.size)?;
-    report(&name, version, filename, selected, &bytes)
+    let observation = report(&name, version, filename, selected, &bytes)?;
+    Ok(Acquired { bytes, observation })
+}
+
+pub(super) fn fetch(name: &str, version: &str, filename: &str, platform: &str) -> Result<Value> {
+    Ok(acquire(
+        &Client::new(Service::Pypi),
+        name,
+        version,
+        filename,
+        platform,
+        false,
+    )?
+    .observation)
+}
+
+/// Only the provider layer may turn these unsigned registry observations into
+/// authority, after verifying PEP 740 with current trust and pinned policy.
+pub(crate) fn attested_file(
+    name: &str,
+    version: &str,
+    filename: &str,
+    platform: &str,
+) -> Result<(Acquired, Vec<u8>)> {
+    let client = Client::new(Service::Pypi);
+    let acquired = acquire(&client, name, version, filename, platform, true)?;
+    let endpoint = Url::parse(&format!(
+        "https://pypi.org/integrity/{name}/{version}/{filename}/provenance"
+    ))
+    .map_err(|_| invalid())?;
+    let provenance = client.get(endpoint, 1024 * 1024)?;
+    Ok((acquired, provenance))
 }
 
 #[cfg(test)]
