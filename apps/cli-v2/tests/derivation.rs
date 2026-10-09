@@ -165,6 +165,25 @@ fn graph_recast(
         AT,
     )?;
     let dependent = derivation::apply(store, &derived, &derived.digest()?, identity, AT)?;
+    let mut observed = dependent.clone();
+    observed["parent_revision_ids"] = json!([dependent["revision_id"]]);
+    observed["compatibility_evidence_refs"] = json!(["source-only-execution-receipt"]);
+    observed["facts"]["compatibility_evidence_refs"] = json!({"value":["source-only-execution-receipt"],
+        "origin":"observed","confirmation":"none","observed_at":AT});
+    let dependent = store.transaction(|t| {
+        revisions::commit(
+            t,
+            &observed,
+            &identity.device_id,
+            None,
+            revisions::Write::Advance {
+                expected_heads: &[dependent["revision_id"]
+                    .as_str()
+                    .ok_or_else(|| Failure::input("proof revision"))?
+                    .into()],
+            },
+        )
+    })?;
     let release = releases::plan(
         store,
         field(&dependent, "stable_id")?,
@@ -226,6 +245,15 @@ fn graph_recast(
         assert_eq!(replacement.passport["owner_id"], recipient.account_id);
         assert_eq!(replacement.passport["version"], "1.0");
         assert_eq!(replacement.passport["visibility"], "private");
+        assert_eq!(
+            replacement.passport["compatibility_evidence_refs"],
+            json!([])
+        );
+        assert!(
+            replacement.passport["facts"]
+                .get("compatibility_evidence_refs")
+                .is_none()
+        );
     }
     assert_eq!(
         parent.passport["requires_components"][0]["stable_id"],

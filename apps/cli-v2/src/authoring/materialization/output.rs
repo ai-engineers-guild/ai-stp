@@ -6,6 +6,7 @@ use serde_json::{Value, json};
 
 use super::{Identity, Mode, Plan, Request, exact, invalid, text, verify};
 use crate::{
+    authoring::forks,
     error::{Failure, Result},
     objects::Objects,
     passport,
@@ -119,13 +120,7 @@ pub(super) fn prepare(
     document["version"] = "1.0".into();
     document["created_at"] = created.into();
     document["parent_revision_ids"] = json!([]);
-    document["compatibility_evidence_refs"] = json!([]);
-    // Facts are also presented by passport readers; source evidence cannot be
-    // presented as evidence for a new component identity through either surface.
-    document["facts"]
-        .as_object_mut()
-        .ok_or_else(invalid)?
-        .remove("compatibility_evidence_refs");
+    forks::clear_source_evidence(&mut document)?;
     document["facts"]["source_component"] = json!({"value":request.source,
         "origin":"derived","confirmation":"none","observed_at":created});
     let document = revisions::seal(&document)?;
