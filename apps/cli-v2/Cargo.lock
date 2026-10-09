@@ -34,6 +34,7 @@ dependencies = [
  "cap-fs-ext",
  "cap-std",
  "clap",
+ "command-fds",
  "crc32fast",
  "csv",
  "ed25519-dalek",
@@ -55,7 +56,8 @@ dependencies = [
  "serde-saphyr",
  "serde_json",
  "serde_json_canonicalizer",
- "sha2",
+ "sha2 0.11.0",
+ "sigstore-tuf",
  "sigstore-verify",
  "tar",
  "tempfile",
@@ -68,6 +70,7 @@ dependencies = [
  "unicode-normalization",
  "ureq",
  "url",
+ "win-custody",
  "windows-native-keyring-store",
  "winsafe",
  "winx",
@@ -529,6 +532,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "command-fds"
+version = "0.3.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1b60b5124979fccd9addd89d8b97a1d6eebb4950694520c75ddd722535ea443f"
+dependencies = [
+ "nix",
+ "thiserror",
+]
+
+[[package]]
 name = "concurrent-queue"
 version = "2.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -806,7 +819,7 @@ checksum = "6ebaa1a2bf1290ab3bfe5a7b771d050ebffab2711c19a81691c683a5144a25de"
 dependencies = [
  "curve25519-dalek",
  "ed25519",
- "sha2",
+ "sha2 0.11.0",
  "subtle",
  "zeroize",
 ]
@@ -1114,6 +1127,12 @@ dependencies = [
  "r-efi 6.0.0",
  "rand_core 0.10.1",
 ]
+
+[[package]]
+name = "glob"
+version = "0.3.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e4eba85ea1d0a966a983acd07deee566e67395d2d96b6fb39e62b5a833f1eb0b"
 
 [[package]]
 name = "globset"
@@ -2280,6 +2299,17 @@ dependencies = [
 
 [[package]]
 name = "sha2"
+version = "0.10.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a7507d819769d01a365ab707794a4084392c824f54a7a6a7862f8c3d0892b283"
+dependencies = [
+ "cfg-if",
+ "cpufeatures 0.2.17",
+ "digest 0.10.7",
+]
+
+[[package]]
+name = "sha2"
 version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "446ba717509524cb3f22f17ecc096f10f4822d76ab5c0b9822c5f9c284e825f4"
@@ -2412,6 +2442,25 @@ dependencies = [
  "thiserror",
  "tracing",
  "x509-cert",
+]
+
+[[package]]
+name = "sigstore-tuf"
+version = "0.14.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f9da0d2e44d8c02a84fb15473329015fd2983a62c26cdc226b4138a9ec9fc1c6"
+dependencies = [
+ "glob",
+ "hex",
+ "jiff",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "sigstore-crypto",
+ "sigstore-types",
+ "tempfile",
+ "thiserror",
+ "tracing",
 ]
 
 [[package]]
@@ -3003,6 +3052,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7dcd9d09a39985f5344844e66b0c530a33843579125f23e21e9f0f220850f22a"
 dependencies = [
  "rustls-pki-types",
+]
+
+[[package]]
+name = "win-custody"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e9f78c23db90914be58d60cb31a9f4c608cc344f55fc7aa8879937ba308eada3"
+dependencies = [
+ "windows-sys 0.61.2",
 ]
 
 [[package]]

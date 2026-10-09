@@ -4,6 +4,25 @@ use std::{
 };
 
 fn main() -> ExitCode {
+    #[cfg(target_os = "linux")]
+    {
+        let arguments: Vec<_> = std::env::args_os().skip(1).collect();
+        if arguments
+            .first()
+            .is_some_and(|value| value == ai_stp_cli_v2::provider::runtime::probe::FLAG)
+        {
+            return match ai_stp_cli_v2::provider::runtime::probe::run(&arguments[1..]) {
+                Ok(report) => {
+                    if writeln!(io::stdout().lock(), "{report}").is_ok() {
+                        ExitCode::SUCCESS
+                    } else {
+                        ExitCode::from(70)
+                    }
+                }
+                Err(_) => ExitCode::from(2),
+            };
+        }
+    }
     let invocation = ai_stp_cli_v2::invoke(std::env::args_os());
     let code = invocation.exit_code();
     let write = if invocation.machine {

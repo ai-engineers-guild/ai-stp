@@ -3,6 +3,8 @@
 mod metadata;
 mod native;
 
+pub(crate) use metadata::platform_tag;
+
 use std::{
     collections::{BTreeMap, BTreeSet},
     io::Read,
