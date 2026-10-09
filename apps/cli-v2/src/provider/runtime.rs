@@ -1,6 +1,8 @@
 //! Read-only provider observations from authenticated bytes and proved network denial.
 
 #[cfg(target_os = "linux")]
+pub mod entry;
+#[cfg(target_os = "linux")]
 mod linux;
 #[cfg(target_os = "linux")]
 mod planning;
