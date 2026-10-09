@@ -1,7 +1,6 @@
 //! Exact public GitHub source observation; authenticated publication is separate.
 
 mod archive;
-mod transport;
 
 use serde_json::{Value, json};
 use url::Url;
@@ -9,7 +8,7 @@ use url::Url;
 use crate::{
     canonical, digest,
     error::{Failure, Result},
-    sources::{Source, snapshot},
+    sources::{Source, snapshot, transport},
     wire,
 };
 
@@ -42,7 +41,7 @@ pub fn fetch(value: &str) -> Result<Value> {
     let (owner, name) = coordinate.split_once('/').ok_or_else(invalid)?;
     let api = Url::parse(&format!("https://api.github.com/repos/{coordinate}/"))
         .map_err(|_| invalid())?;
-    let client = transport::Client::new();
+    let client = transport::Client::new(transport::Service::Github);
     let metadata = wire::parse(&client.get(
         Url::parse(&format!("https://api.github.com/repos/{coordinate}")).map_err(|_| invalid())?,
         2 * 1024 * 1024,

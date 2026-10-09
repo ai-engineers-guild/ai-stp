@@ -26,6 +26,7 @@ pub(super) enum Handler {
     DeveloperUpdate,
     Validate,
     Quality,
+    Suggest,
     ProjectPassport,
     Bind,
     Adopt,
@@ -60,7 +61,8 @@ impl Handler {
             | Self::Version
             | Self::Versions
             | Self::Validate
-            | Self::Quality => "read",
+            | Self::Quality
+            | Self::Suggest => "read",
             Self::Apply | Self::ExportApply | Self::SetupScaffoldApply => "apply",
             _ => "plan",
         }
@@ -179,6 +181,12 @@ pub(super) const COMMANDS: &[Declaration] = &[
         summary: "Read deterministic authoring hints across every adaptation without changing trust or publication decisions.",
         parameters: &[STATE_DIR, ID, PROVIDERS],
         handler: super::Handler::Local(Handler::Quality),
+    },
+    Declaration {
+        path: &["component", "passport", "suggest"],
+        summary: "Read exact retained enrichment declarations without updating or confirming draft facts.",
+        parameters: &[STATE_DIR, ID],
+        handler: super::Handler::Local(Handler::Suggest),
     },
     Declaration {
         path: &["project", "passport", "plan"],
@@ -337,7 +345,7 @@ pub(super) const COMMANDS: &[Declaration] = &[
     },
     Declaration {
         path: &["component", "discover"],
-        summary: "Inspect declared native layouts without reading credentials or changing the harness.",
+        summary: "Inspect native layouts and bounded local package metadata without changing the harness.",
         parameters: &[NATIVE_ROOT, HARNESS, SCOPE, ROOT_KIND],
         handler: super::Handler::Local(Handler::Discover),
     },
@@ -348,7 +356,7 @@ pub(super) const COMMANDS: &[Declaration] = &[
             STATE_DIR,
             NATIVE_ROOT,
             Parameter {
-                summary: "Concrete destination harness; shared skill candidates keep their observed neutral ownership.",
+                summary: "Concrete destination harness; shared skills and external metadata retain neutral source ownership.",
                 kind: ParameterType::Choice(CONCRETE_HARNESSES),
                 ..HARNESS
             },
@@ -557,6 +565,10 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
             runtime::plan(path(args, "state-dir")?, |store, identity, at| {
                 developer::plan(store, expected, patch, identity, at)
             })
+        }
+        Handler::Suggest => {
+            let mut store = Store::planning(path(args, "state-dir")?)?;
+            review::suggest(&mut store, text(args, "id")?)
         }
         Handler::Validate | Handler::Quality => {
             let providers = providers(args)?;

@@ -188,7 +188,88 @@ attestation. Both verification axes and `target_write` remain false. A missing
 or unsuitable subtree refuses; no registry, credentials or component is created.
 Rate-limit refusals report a bounded retry delay and perform no automatic retry.
 
-The GitHub adapter owns the existing `zip` dependency's
+`component source package fetch --ecosystem go --name <module> --version <version>`
+observes an exact Go module using only `proxy.golang.org` and `sum.golang.org`.
+The original module name and canonical `vX.Y.Z[-prerelease][+incompatible]` version
+are bounded to 256 bytes each. Both URL elements use Go's case encoding; the
+returned version must exactly match the original pin. The shared anonymous
+transport retains the 30-second budget, two-redirect limit and 2 MiB metadata
+bound; redirects outside those two HTTPS authorities refuse.
+
+The ZIP is limited to 20 MiB, 20,000 entries and 50 MiB of expanded content. All
+original member names and contents participate in upstream
+[`HashZip(Hash1)`](https://pkg.go.dev/golang.org/x/mod/sumdb/dirhash#HashZip),
+independent of ZIP order/compression. Original UTF-8 names, exact module/version
+prefixes and declared/actual lengths must agree. Duplicate entries, traversal,
+links, special files, encryption and unsupported ZIP structures refuse. The
+computed checksum must match one unambiguous exact module/version line from the
+checksum endpoint. This is an HTTPS registry observation; it does not verify the
+checksum database's signed transparency log and grants no verification axis.
+
+Only root `go.mod` and `go.sum` become portable snapshot files; nested test data
+does not become module metadata. Their canonical artifact uses mode `0644` and
+the common UTF-8/4 MiB-per-file/8 MiB-total source limits. A historical module
+without either file returns empty `file_paths`, `artifact: null` and its archive
+digest as the component digest, matching the shared empty-metadata snapshot
+contract. No synthetic metadata, dependency execution, local Go toolchain,
+credential access, registry mutation or target write is involved.
+
+`component source package fetch --ecosystem pypi` additionally requires an exact
+`--filename` and `--platform`. Project names use PyPA normalization; the returned
+release version must match the supplied registry spelling. A wheel's platform
+must match one complete filename platform tag, not a substring. Source archives
+use `source` and must be `.tar.gz` or `.zip` distributions. The selected file must
+be unique in the release, use the matching filename under the official
+`files.pythonhosted.org/packages/` authority, and match both its declared size
+and SHA-256. Metadata is limited to 2 MiB/1,000 file entries and files to 20 MiB;
+the shared transport permits only `pypi.org` and `files.pythonhosted.org`.
+
+The PyPI result retains the shared package snapshot's empty file list and null
+artifact; downloaded distribution bytes are hashed, never extracted or executed.
+`distribution_yanked` reports the selected file's current registry flag without
+turning this read into installation approval. `metadata_scope: release` identifies
+the origin of `requires_dist` and repository observations. PyPI's
+[release metadata](https://docs.pypi.org/api/json/) can differ from the selected
+file's metadata; this command neither resolves dependencies nor verifies PEP 740
+attestations. No Python installation, interpreter, credential or state is used.
+
+`component source package fetch --ecosystem npm` requires an exact package
+name (including its scope) and semantic version. Both registry metadata and the
+root `package/package.json` must match that identity. Only the official npm
+registry is contacted; the tarball path is bound to the same name/version and
+canonical SHA-512 integrity is mandatory. Older releases without SHA-512 refuse.
+Lifecycle script strings and declared dependency ranges are observations; no
+scripts run and no dependency graph is resolved. If both root lockfiles exist,
+`npm-shrinkwrap.json` takes precedence, following npm's rule.
+
+The TAR metadata reader accepts one gzip member, limits compressed input to
+20 MiB and expanded TAR bytes to 50 MiB, and inspects at most 20,000 entries.
+It rejects escaping/duplicate paths, links, special files and corrupt streams.
+Only exact root metadata paths are selected; nested fixtures cannot replace them.
+Selected UTF-8 files retain the common 4 MiB-per-file/8 MiB-total bounds and use
+mode `0644`. No archive is unpacked and no package manager or filesystem state
+is used. The source adapter owns pinned `tar` (MIT/Apache-2.0, Rust tar maintainers)
+with default features disabled and a direct edge to the already locked pure Rust
+`flate2` decoder. CLI maintainers own advisory review and archive proofs; removing
+TAR registry observation removes `tar` and this direct `flate2` edge.
+
+`component source package fetch` also supports `crates.io` and `pub.dev`.
+Both require an exact semantic version and matching registry and archived
+manifest identities. Crates use the exact official version endpoint, declared
+archive size and SHA-256, then read only `<name>-<version>/Cargo.toml` and
+`Cargo.lock`. Pub uses the v2 API media type, SHA-256 and only root `pubspec.yaml`
+and `pubspec.lock`; official storage redirects must stay within the Pub package
+bucket. Pub YAML has a 32-level/20,000-event bound and disallows aliases.
+These readers share the bounded TAR and canonical snapshot implementation.
+
+`distribution_yanked` (crates) and `distribution_retracted` (Pub) describe the
+observed registry state. The shared evidence field `resolved_graph` remains
+empty and `dependency_resolution_performed: false` is explicit: declared ranges
+and a present lockfile are not evidence of a resolver run. Exact manifest and
+lockfile bytes remain in the artifact. No Cargo/Dart process, dependency fetch,
+credential access, installation approval or filesystem write occurs.
+
+The external source adapters own the existing `zip` dependency's
 `deflate-flate2-zlib-rs` feature and its locked `flate2` and `zlib-rs` closure.
 The Rust compression maintainers publish `flate2` under MIT or Apache-2.0;
 Trifecta Tech publishes `zlib-rs` under Zlib. This pure Rust DEFLATE reader needs
@@ -260,6 +341,53 @@ Existing WAL housekeeping remains SQLite's responsibility. Local passport and
 version inspection use one read transaction and never open credentials. Provider
 declaration files describe packaging only; executable trust and installation
 remain separate pending boundaries.
+
+Discovery also reads project-root `nori.json` and project/home
+`.agents/.skill-lock.json` version 3. The bounded ports follow the pinned
+[Nori manifest](https://github.com/tilework-tech/nori-skillsets/blob/475129bbd6098137bdb77f3390b894b2340dbb2a/src/norijson/nori.ts)
+and [askill lock](https://github.com/avibe-bot/askill/blob/b4d968c96781b3996dcdfa4785782efd51860fdd/src/lock.ts)
+formats: root skills, listed skills/subagents/slash commands, and locked skill
+directories. No external package installation or collection download is implied.
+Each manifest is limited to 1 MiB and 500 entries. Duplicate keys, colliding
+names, ambiguous file/directory alternatives, unknown lock versions, missing
+paths, links and over-bound input produce an incomplete discovery diagnostic;
+the failing manifest contributes no package candidates. Generic layout candidates
+remain independent filesystem observations. Nori optional null lists are absent.
+
+Candidates stay harness-neutral; adoption explicitly chooses a destination and
+validates its native identifiers from captured bytes at the destination path.
+Unsupported native formats/layouts refuse; discovery creates no provider route. Neither display names nor manifest statements
+establish native identity, repository, revision, publisher or trust. The lock's
+40/64-character lowercase `skillFolderHash` is retained as
+`source_claimed_folder_hash`, with `source_digest` null: it is an external claim,
+not the computed artifact digest. Weak local lock fingerprints are unsupported.
+`source_manifest_digest` binds exact manifest bytes; normal `content_digest`
+independently binds the captured file/tree. Plan/apply rechecks both.
+
+These imports invoke no Git, script, package manager or network. Capture uses
+bounded no-follow filesystem reads, includes ignored files, refuses secret paths,
+and excludes only `.git` and `nori.json` at the selected directory's root.
+The latter remains metadata evidence outside the payload. Existing atomic draft
+adoption/import, owner checks, idempotent replay and stale-plan refusal apply.
+
+`component passport suggest` reads the exact current component head and verifies
+its retained content before inspecting only root `package.json` (`ai-stp.component`)
+and `pyproject.toml` (`tool.ai-stp.component`) declarations. The Python namespace
+follows [PyPA's tool-table contract](https://packaging.python.org/en/latest/specifications/pyproject-toml/#arbitrary-tool-configuration-the-tool-table).
+Each manifest is bounded to 1 MiB; TOML enrichment conversion is bounded to 64
+levels and 20,000 nodes. Every proposed field passes the existing closed passport
+patch contract. Unsupported types, malformed/duplicate metadata, secret fields
+and conflicting declarations refuse with no partial result. Equal declarations
+merge their evidence references in deterministic order. Exact adopted repository,
+commit and subpath also contribute a source suggestion when all are present.
+
+Ordinary package fields and nested manifests do not imply passport facts. Missing
+namespaces produce no enrichment; no script, package manager or network runs.
+Every suggestion requires explicit confirmation and reports its evidence.
+Unresolved publication fields exclude already confirmed facts and offered
+suggestions. Reading suggestions does not create revisions, mutate content,
+confirm facts or change verification/trust. Apply selected fields through the
+existing exact-head passport update plan.
 
 Native adoption and adaptation editing derive MCP identifiers from the captured
 host's server keys: `mcp_servers` for Codex/Grok, `mcp` for OpenCode, and
@@ -1088,7 +1216,7 @@ also be an ancestor of another member, including through a case alias.
 Shared directory prefixes must keep one spelling across the archive.
 `zip` owns archive decoding; `crc32fast` supplies the wire checksum. This
 canonical decoder explicitly refuses compression and encryption. DEFLATE support
-is enabled only for the separate external GitHub source reader.
+is enabled only for the separate external source readers.
 
 Scope projection archives use the same ZIP transport and retain their own
 8,192-member and 64 MiB limits. They preserve explicit empty directories and
