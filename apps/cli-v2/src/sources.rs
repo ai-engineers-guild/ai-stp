@@ -1,6 +1,8 @@
 //! Bounded source intent parsing. An exact coordinate is not observed provenance.
 
+pub mod github;
 pub mod local;
+mod snapshot;
 
 use std::path::{Path, PathBuf};
 
