@@ -18,9 +18,24 @@ pub(super) enum Handler {
     Radius,
     Program,
     Eligibility,
+    Matrix,
 }
 
 pub(super) const COMMANDS: &[Declaration] = &[
+    Declaration {
+        path: &["select", "eligibility-matrix"],
+        summary: "Discover a bounded page of local candidates and assess each independently across explicit authenticated harness targets.",
+        parameters: &[
+            STATE_DIR,
+            Parameter {
+                name: "request",
+                summary: "Closed JSON up to 16 KiB: targets (one to seven distinct harness_id/scope/provider_version selectors), optional after, limit (1–50, default 10) and for_redistribution. No claimed authority fields.",
+                kind: ParameterType::Path,
+                required: true,
+            },
+        ],
+        handler: super::Handler::Report(Handler::Matrix),
+    },
     Declaration {
         path: &["select", "eligibility"],
         summary: "Assess an exact local graph using the current identity, platform, stored bytes and authenticated provider; no claimed rights are accepted.",
@@ -149,6 +164,12 @@ fn text<'a>(args: &'a ArgMatches, name: &str) -> Result<&'a str> {
 
 pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
     match handler {
+        Handler::Matrix => crate::selection::runtime::matrix::assess(
+            args.get_one::<PathBuf>("state-dir")
+                .ok_or_else(|| Failure::input("the explicit state parent is required"))?,
+            args.get_one::<PathBuf>("request")
+                .ok_or_else(|| Failure::input("the explicit matrix request is required"))?,
+        ),
         Handler::Eligibility => crate::selection::runtime::assess(
             args.get_one::<PathBuf>("state-dir")
                 .ok_or_else(|| Failure::input("the explicit state parent is required"))?,
