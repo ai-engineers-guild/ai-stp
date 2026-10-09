@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { Badge } from "@/components/atoms/badge";
 import { Button } from "@/components/atoms/button";
 import { Input } from "@/components/atoms/input";
+import { Menu, MenuContent, MenuItem, MenuTrigger } from "@/components/atoms/menu";
 
 import { Select } from "@/components/atoms/select";
 
@@ -14,6 +15,7 @@ import { Link } from "@/lib/i18n/navigation";
 
 import { Icon } from "@/theme";
 
+import { downloadScanFindings } from "@/lib/findings-export";
 import { findingReason, type TechnologyReviewState } from "@/lib/technology-review-state";
 export function TechnologyReviewHeader({ state }: { state: TechnologyReviewState }) {
   const {
@@ -72,6 +74,39 @@ export function TechnologyReviewHeader({ state }: { state: TechnologyReviewState
               {selected.length ? ` (${selected.length})` : ""}
             </Button>
           )}
+          {scan && (
+            <Menu>
+              <MenuTrigger asChild>
+                <Button variant="outline" aria-label={w("downloadFindings")}>
+                  <Icon name="download" size="sm" />
+                  {w("downloadFindings")}
+                </Button>
+              </MenuTrigger>
+              <MenuContent>
+                <MenuItem
+                  onSelect={() => {
+                    downloadScanFindings(scan, "json");
+                  }}
+                >
+                  {w("downloadJson")}
+                </MenuItem>
+                <MenuItem
+                  onSelect={() => {
+                    downloadScanFindings(scan, "csv");
+                  }}
+                >
+                  {w("downloadCsv")}
+                </MenuItem>
+                <MenuItem
+                  onSelect={() => {
+                    downloadScanFindings(scan, "md");
+                  }}
+                >
+                  {w("downloadMarkdown")}
+                </MenuItem>
+              </MenuContent>
+            </Menu>
+          )}
         </div>
       </div>
       <header className="space-y-2">
@@ -118,8 +153,8 @@ export function TechnologyScanMetadata({ state }: { state: TechnologyReviewState
               w("duration"),
               scan.duration_seconds == null ? "—" : w("seconds", { count: scan.duration_seconds }),
             ],
-            [w("found"), scan.found],
-            [w("pending"), scan.pending],
+            [w("found"), state.allRows.length],
+            [w("pending"), state.allRows.filter(state.pending).length],
           ].map(([label, value], index) => (
             <div key={index}>
               <dt>{label}</dt>

@@ -1347,3 +1347,28 @@ class ProjectLinkProposal(Base):
     evidence: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False, default=dict)
     state: Mapped[str] = mapped_column(String(16), nullable=False, default="proposed")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class CorporateRepositoryBinding(Base):
+    """Account-authorized repository source, independent of a local CLI checkout."""
+
+    __tablename__ = "corporate_repository_binding"
+    __table_args__ = (
+        PrimaryKeyConstraint("organization_id", "remote_project_id"),
+        ForeignKeyConstraint(
+            ["organization_id", "remote_project_id"],
+            ["corporate_project.organization_id", "corporate_project.id"],
+            ondelete="RESTRICT",
+        ),
+    )
+
+    organization_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    remote_project_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    provider_project_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("project_identity.id", ondelete="RESTRICT"), nullable=False
+    )
+    actor_account_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("account.id", ondelete="RESTRICT"), nullable=False
+    )
+    plan_digest: Mapped[str] = mapped_column(String(71), nullable=False)
+    state: Mapped[str] = mapped_column(String(16), nullable=False, default="linked")

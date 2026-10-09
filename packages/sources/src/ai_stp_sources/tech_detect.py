@@ -49,7 +49,7 @@ from ai_stp_sources.errors import UNSAFE_ARCHIVE, SourceError
 
 #: Bumped when the rule set changes in a way that makes two scans incomparable.
 #: Evidence carries it, so a finding always says which detector saw it.
-DETECTOR_VERSION: Final[str] = "2"
+DETECTOR_VERSION: Final[str] = "3"
 
 #: The version of the bundled coordinate→identity table. Organization snapshots
 #: fetched from the platform carry their own version; this one ships with the
@@ -1157,11 +1157,89 @@ def detect(index: project_index.Index) -> DetectedScan:
                 confidence=0.8,
             )
 
+    _reconcile_package_contexts(builder.found)
     return DetectedScan(
         complete=index.state == "complete" and stopped_by is None and not reader.incomplete,
         stopped_by=stopped_by or ("unreadable manifest" if reader.incomplete else None),
         detections=builder.detections(),
     )
+
+
+#: Lock files whose package rows this detector content-parses into `observed`
+#: claims. The set answers "did this row come from resolution output" — a
+#: presence-only signature (`bun.lock` is name-matched, never opened) is not
+#: in it because nothing inside was read.
+_PACKAGE_LOCKS: Final[frozenset[str]] = frozenset(
+    {
+        "uv.lock",
+        "poetry.lock",
+        "Cargo.lock",
+        "package-lock.json",
+        "pubspec.lock",
+        "go.sum",
+        "pnpm-lock.yaml",
+        "yarn.lock",
+    }
+)
+
+
+def _reconcile_package_contexts(
+    found: dict[tuple[str, str, str, str | None, str], list[Trace]],
+) -> None:
+    """Lock and redundant dev rows restate declared dependencies in place.
+
+    A lock file records what the resolver produced for a declared manifest, so
+    a package whose only lock rows sit next to its declarations belongs to the
+    declared context — reporting `pytest` as a production finding because a
+    lock pinned it is how dev tooling leaks into the runtime landscape. And a
+    package declared both runtime and optional/dev in the same manifest is one
+    production dependency listed twice, not two findings.
+    """
+    declared_dirs: dict[str, dict[str, set[str]]] = {}
+    for (kind, coordinate, context, _version, _version_kind), traces in found.items():
+        if kind != "package":
+            continue
+        for trace in traces:
+            if trace.source == "declared" and trace.path:
+                declared_dirs.setdefault(coordinate, {}).setdefault(
+                    str(PurePosixPath(trace.path).parent), set()
+                ).add(context)
+
+    moves: list[tuple[tuple[str, str, str, str | None, str], str]] = []
+    for key, traces in found.items():
+        kind, coordinate, context, _version, _version_kind = key
+        if kind != "package":
+            continue
+        directories = declared_dirs.get(coordinate)
+        if not directories:
+            continue
+        paths = {str(PurePosixPath(t.path).parent) for t in traces if t.path}
+        if traces and all(
+            trace.source == "observed"
+            and trace.path
+            and PurePosixPath(trace.path).name in _PACKAGE_LOCKS
+            for trace in traces
+        ):
+            local: set[str] = {
+                declared
+                for directory in paths & directories.keys()
+                for declared in directories[directory]
+            }
+            choices = local or {
+                declared for contexts in directories.values() for declared in contexts
+            }
+            if context not in choices:
+                moves.append((key, "production" if "production" in choices else sorted(choices)[0]))
+        elif context in {"development", "testing"} and any(
+            "production" in directories.get(str(PurePosixPath(t.path).parent), ())
+            for t in traces
+            if t.source == "declared" and t.path
+        ):
+            moves.append((key, "production"))
+    for key, context in moves:
+        kind, coordinate, _old, version, version_kind = key
+        merged = found.setdefault((kind, coordinate, context, version, version_kind), [])
+        merged.extend(trace for trace in found.pop(key) if trace not in merged)
 
 
 #: Basenames with a content rule below. Files outside this set — and not
@@ -1424,18 +1502,22 @@ def archive_files(
     archive_bytes: bytes,
     *,
     max_archive_bytes: int = MAX_GIT_ARCHIVE_BYTES,
-) -> tuple[dict[str, bytes], bool]:
+) -> tuple[dict[str, bytes], list[tuple[str, int]], bool]:
     """Bounded tar extraction for repository scanning.
 
     Unsafe members — traversal, links, special files, ``.git`` payloads —
     abort the scan. Binary and secret-looking files are skipped the way the
     index would skip them, because one vendored image must not void the
-    whole repository. Bounds produce a truncated file set, and the caller
-    marks the scan partial rather than silent.
+    whole repository. Members too large to keep come back in the second
+    return value so their existence still indexes: a lock file that was not
+    read is incomplete evidence, not an absent file. Bounds produce a
+    truncated file set, and the caller marks the scan partial rather than
+    silent.
     """
     if len(archive_bytes) > max_archive_bytes:
         raise SourceError(UNSAFE_ARCHIVE, "archive exceeds the accepted size")
     files: dict[str, bytes] = {}
+    oversized: list[tuple[str, int]] = []
     extracted = 0
     complete = True
     try:
@@ -1453,6 +1535,7 @@ def archive_files(
                     continue
                 payload = stream.read(project_index.MAX_FILE_BYTES + 1)
                 if len(payload) > project_index.MAX_FILE_BYTES:
+                    oversized.append((relative, member.size))
                     continue
                 if project_index.is_binary(payload[: project_index.BINARY_PROBE_BYTES]):
                     continue
@@ -1465,7 +1548,7 @@ def archive_files(
                 files[relative] = payload
     except tarfile.TarError as exc:
         raise SourceError(UNSAFE_ARCHIVE, "archive is not a readable tar") from exc
-    return files, complete
+    return files, oversized, complete
 
 
 def detect_archive(archive_bytes: bytes, *, stopped_by: str | None = None) -> DetectedScan:
@@ -1475,14 +1558,39 @@ def detect_archive(archive_bytes: bytes, *, stopped_by: str | None = None) -> De
     before returning, so the detector works on the same bounded index it
     uses locally and no repository bytes outlive the call.
     """
-    files, archive_complete = archive_files(archive_bytes)
+    files, oversized, archive_complete = archive_files(archive_bytes)
     with tempfile.TemporaryDirectory(prefix="ai-stp-scan-") as temporary:
         root = Path(temporary)
         for relative, payload in sorted(files.items()):
             target = root / relative
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_bytes(payload)
-        detected = detect(project_index.build(root))
+        index = project_index.build(root)
+        if oversized:
+            # A member too large to keep is still an observed file: index it
+            # without a digest so presence signatures fire and content rules
+            # mark the scan incomplete, exactly like a local oversized file.
+            entries = index.entries + tuple(
+                project_index.Entry(
+                    path=relative,
+                    kind=project_index.classify(PurePosixPath(relative))[0],
+                    language=project_index.classify(PurePosixPath(relative))[1],
+                    size_bytes=size,
+                    digest=None,
+                    lines=None,
+                )
+                for relative, size in sorted(set(oversized))
+                if relative not in files
+            )
+            index = project_index.Index(
+                root=index.root,
+                state=index.state,
+                entries=entries,
+                excluded=index.excluded,
+                stopped_by=index.stopped_by,
+                digested=index.digested,
+            )
+        detected = detect(index)
     return DetectedScan(
         complete=detected.complete and archive_complete,
         stopped_by=detected.stopped_by

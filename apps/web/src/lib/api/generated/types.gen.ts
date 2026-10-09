@@ -5212,6 +5212,106 @@ export type CorporateProjectView = {
 };
 
 /**
+ * CorporateRepositoryBindRequest
+ */
+export type CorporateRepositoryBindRequest = {
+  /**
+   * Authorization Revision
+   */
+  authorization_revision: number | string;
+  idempotency_key: IdempotencyKey;
+  /**
+   * Plan Digest
+   */
+  plan_digest: string;
+  plan_key: IdempotencyKey;
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
+};
+
+/**
+ * CorporateRepositoryPlan
+ */
+export type CorporateRepositoryPlan = {
+  /**
+   * Authorization Revision
+   */
+  authorization_revision: number | string;
+  /**
+   * Default Branch
+   */
+  default_branch: string;
+  /**
+   * Expected Revision
+   */
+  expected_revision: number;
+  expires_at: Timestamp;
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Namespace Id
+   */
+  namespace_id: string;
+  /**
+   * Observed Revision
+   */
+  observed_revision: string;
+  /**
+   * Plan Digest
+   */
+  plan_digest: string;
+  /**
+   * Plan Key
+   */
+  plan_key: string;
+  /**
+   * Project Id
+   */
+  project_id: string;
+  /**
+   * Provider
+   */
+  provider: "github" | "gitlab";
+  /**
+   * Repository Id
+   */
+  repository_id: string;
+  /**
+   * Repository Url
+   */
+  repository_url: string;
+};
+
+/**
+ * CorporateRepositoryPlanRequest
+ *
+ * Resolve a repository URL before an explicit source binding.
+ */
+export type CorporateRepositoryPlanRequest = {
+  /**
+   * Authorization Revision
+   */
+  authorization_revision: number | string;
+  /**
+   * Expected Revision
+   */
+  expected_revision: number;
+  idempotency_key: IdempotencyKey;
+  /**
+   * Repository Url
+   */
+  repository_url: string;
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
+};
+
+/**
  * CorporateRoleCreateRequest
  */
 export type CorporateRoleCreateRequest = {
@@ -15406,7 +15506,7 @@ export type TechnologyMetadata = {
   /**
    * Category Ids
    */
-  category_ids: Array<string>;
+  category_ids?: Array<string>;
   /**
    * Description
    */
@@ -15569,6 +15669,10 @@ export type TechnologyScanFinding = {
    */
   candidate_technology_id: string | null;
   /**
+   * Category Id
+   */
+  category_id: string | null;
+  /**
    * Comment
    */
   comment: string;
@@ -15605,6 +15709,14 @@ export type TechnologyScanFinding = {
    */
   technology_id: string | null;
   /**
+   * Technology Key
+   */
+  technology_key: string | null;
+  /**
+   * Technology Name
+   */
+  technology_name: string | null;
+  /**
    * Version
    */
   version: string | null;
@@ -15612,6 +15724,60 @@ export type TechnologyScanFinding = {
    * Version Kind
    */
   version_kind: "unknown" | "declared_range" | "observed_version";
+  [key: string]: unknown;
+};
+
+/**
+ * TechnologyScanFindingList
+ *
+ * One scan's curated findings as a standalone resource for export.
+ */
+export type TechnologyScanFindingList = {
+  /**
+   * Branch
+   */
+  branch: string | null;
+  /**
+   * Commit
+   */
+  commit: string | null;
+  /**
+   * Complete
+   */
+  complete: boolean;
+  created_at: Timestamp;
+  /**
+   * Detector Version
+   */
+  detector_version: string | null;
+  /**
+   * Findings
+   */
+  findings: Array<TechnologyScanFinding>;
+  /**
+   * Mapping Version
+   */
+  mapping_version: string | null;
+  /**
+   * Organization Id
+   */
+  organization_id: string;
+  /**
+   * Project Id
+   */
+  project_id: string;
+  /**
+   * Project Name
+   */
+  project_name: string | null;
+  /**
+   * Repository
+   */
+  repository: string | null;
+  /**
+   * Scan Id
+   */
+  scan_id: string;
   [key: string]: unknown;
 };
 
@@ -24920,6 +25086,146 @@ export type ListCorporateProjectMembersResponses = {
 export type ListCorporateProjectMembersResponse =
   ListCorporateProjectMembersResponses[keyof ListCorporateProjectMembersResponses];
 
+export type BindCorporateProjectRepositoryData = {
+  body: CorporateRepositoryBindRequest;
+  headers: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+    /**
+     * Client-chosen key; a retry must not become a second effect.
+     */
+    "Idempotency-Key": string;
+    /**
+     * Expected ETag. A stale value fails AI_STP_PRECONDITION_FAILED.
+     */
+    "If-Match": string;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+    /**
+     * Typed corporate project identifier.
+     */
+    project_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/projects/{project_id}/repository";
+};
+
+export type BindCorporateProjectRepositoryErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type BindCorporateProjectRepositoryError =
+  BindCorporateProjectRepositoryErrors[keyof BindCorporateProjectRepositoryErrors];
+
+export type BindCorporateProjectRepositoryResponses = {
+  /**
+   * Confirm a checked repository source without launching a scan.
+   */
+  200: CorporateProjectView;
+};
+
+export type BindCorporateProjectRepositoryResponse =
+  BindCorporateProjectRepositoryResponses[keyof BindCorporateProjectRepositoryResponses];
+
+export type PlanCorporateProjectRepositoryData = {
+  body: CorporateRepositoryPlanRequest;
+  headers: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+    /**
+     * Client-chosen key; a retry must not become a second effect.
+     */
+    "Idempotency-Key": string;
+    /**
+     * Expected ETag. A stale value fails AI_STP_PRECONDITION_FAILED.
+     */
+    "If-Match": string;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+    /**
+     * Typed corporate project identifier.
+     */
+    project_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/projects/{project_id}/repository-plan";
+};
+
+export type PlanCorporateProjectRepositoryErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type PlanCorporateProjectRepositoryError =
+  PlanCorporateProjectRepositoryErrors[keyof PlanCorporateProjectRepositoryErrors];
+
+export type PlanCorporateProjectRepositoryResponses = {
+  /**
+   * Check a repository before explicitly linking it to a project.
+   */
+  200: CorporateRepositoryPlan;
+};
+
+export type PlanCorporateProjectRepositoryResponse =
+  PlanCorporateProjectRepositoryResponses[keyof PlanCorporateProjectRepositoryResponses];
+
 export type ListProjectTeamsData = {
   body?: never;
   headers?: {
@@ -29030,6 +29336,192 @@ export type ReadTechnologyScanDetailResponses = {
 
 export type ReadTechnologyScanDetailResponse =
   ReadTechnologyScanDetailResponses[keyof ReadTechnologyScanDetailResponses];
+
+export type ReadTechnologyScanFindingsData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+    /**
+     * Immutable scan ID.
+     */
+    scan_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/technology-scans/{scan_id}/findings";
+};
+
+export type ReadTechnologyScanFindingsErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ReadTechnologyScanFindingsError =
+  ReadTechnologyScanFindingsErrors[keyof ReadTechnologyScanFindingsErrors];
+
+export type ReadTechnologyScanFindingsResponses = {
+  /**
+   * Read one scan's curated findings as a standalone resource.
+   */
+  200: TechnologyScanFindingList;
+};
+
+export type ReadTechnologyScanFindingsResponse =
+  ReadTechnologyScanFindingsResponses[keyof ReadTechnologyScanFindingsResponses];
+
+export type ExportTechnologyScanFindingsCsvData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+    /**
+     * Immutable scan ID.
+     */
+    scan_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/technology-scans/{scan_id}/findings.csv";
+};
+
+export type ExportTechnologyScanFindingsCsvErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ExportTechnologyScanFindingsCsvError =
+  ExportTechnologyScanFindingsCsvErrors[keyof ExportTechnologyScanFindingsCsvErrors];
+
+export type ExportTechnologyScanFindingsCsvResponses = {
+  /**
+   * Download one scan's findings as CSV.
+   */
+  200: Blob | File;
+};
+
+export type ExportTechnologyScanFindingsCsvResponse =
+  ExportTechnologyScanFindingsCsvResponses[keyof ExportTechnologyScanFindingsCsvResponses];
+
+export type ExportTechnologyScanFindingsMarkdownData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+    /**
+     * Immutable scan ID.
+     */
+    scan_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/technology-scans/{scan_id}/findings.md";
+};
+
+export type ExportTechnologyScanFindingsMarkdownErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ExportTechnologyScanFindingsMarkdownError =
+  ExportTechnologyScanFindingsMarkdownErrors[keyof ExportTechnologyScanFindingsMarkdownErrors];
+
+export type ExportTechnologyScanFindingsMarkdownResponses = {
+  /**
+   * Download one scan's findings as Markdown.
+   */
+  200: Blob | File;
+};
+
+export type ExportTechnologyScanFindingsMarkdownResponse =
+  ExportTechnologyScanFindingsMarkdownResponses[keyof ExportTechnologyScanFindingsMarkdownResponses];
 
 export type ImportTechnologySeedData = {
   body: TechnologySeedRequest;

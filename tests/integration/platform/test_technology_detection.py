@@ -8,6 +8,7 @@ from ai_stp_api.errors import ApiError
 from ai_stp_api.session import AuthContext
 from ai_stp_api.slices.corporate.service import bootstrap, create_project
 from ai_stp_api.slices.technology.detection import (
+    export_scan_findings,
     launch_scans,
     list_mappings,
     list_scans,
@@ -16,6 +17,7 @@ from ai_stp_api.slices.technology.detection import (
     read_mapping,
     read_scan,
     read_scan_detail,
+    read_scan_findings,
     read_unmapped,
     review_unmapped,
 )
@@ -900,7 +902,7 @@ async def test_scan_journal_launch_and_detail(
     assert entry.source == "local"
     assert entry.status == "succeeded"
     assert entry.found == 2
-    assert entry.pending == 2
+    assert entry.pending == 1
 
     filtered = await list_scans(
         db_session,
@@ -922,7 +924,7 @@ async def test_scan_journal_launch_and_detail(
     assert detail.source == "local"
     assert detail.status == "succeeded"
     assert detail.found == 2
-    assert detail.pending == 2
+    assert detail.pending == 1
     assert detail.detector_version == "v1"
     assert detail.mapping_version == SEED_COORDINATES_VERSION
     assert detail.complete is True
@@ -1106,6 +1108,24 @@ async def test_scan_journal_launch_and_detail(
         request_id="journal-test",
     )
     assert replay == launch
+    duplicate = await launch_scans(
+        db_session,
+        ctx=ctx,
+        organization_id=org,
+        payload=TechnologyScanLaunchRequest.model_validate(
+            {
+                "authorization_revision": 8,
+                "idempotency_key": "journal-launch-0002",
+                "project_ids": [second.project_id, third.project_id],
+            }
+        ),
+        request_id="duplicate-launch",
+    )
+    assert all(item.state == "rejected" for item in duplicate.items)
+    assert all("already queued or running" in (item.detail or "") for item in duplicate.items)
+    assert (
+        await list_scans(db_session, ctx=ctx, organization_id=org, request_id="after-duplicate")
+    ).total == 3
 
 
 async def test_technology_area_lifecycle_and_category_binding(
@@ -1284,3 +1304,164 @@ async def test_technology_area_lifecycle_and_category_binding(
             await list_areas(db_session, ctx=ctx, organization_id=org, request_id="area-test")
         ).items
     }
+
+
+async def test_scan_findings_resource_and_exports(
+    db_session: AsyncSession,
+) -> None:
+    """The findings resource serves the same curated rows the review page does."""
+    account_id = new_id("account")
+    db_session.add(Account(id=account_id, status="active"))
+    await db_session.flush()
+    ctx = AuthContext(account_id, "findings-test", None, "active", False, False)
+    org = (
+        await bootstrap(
+            db_session,
+            payload=CorporateBootstrapRequest(
+                organization_name="Findings acceptance",
+                superadmin_account_id=account_id,
+                idempotency_key="findings-bootstrap-0001",
+            ),
+            request_id="findings-test",
+        )
+    ).organization_id
+    await import_seed(
+        db_session,
+        ctx=ctx,
+        organization_id=org,
+        payload=TechnologySeedRequest(
+            authorization_revision=1, idempotency_key="findings-seed-0001"
+        ),
+        request_id="findings-test",
+    )
+    project = await create_project(
+        db_session,
+        ctx=ctx,
+        organization_id=org,
+        payload=CorporateProjectCreateRequest(
+            name="Findings project",
+            authorization_revision=2,
+            idempotency_key="findings-project-0001",
+        ),
+        request_id="findings-test",
+    )
+    evidence = {
+        "source": "observed",
+        "path": "uv.lock",
+        "observed_at": "2026-09-12T00:00:00.000Z",
+        "detector_version": "v3",
+        "mapping_version": SEED_COORDINATES_VERSION,
+    }
+    published = await publish_scan(
+        db_session,
+        ctx=ctx,
+        organization_id=org,
+        project_id=project.project_id,
+        payload=TechnologyScanRequest.model_validate(
+            {
+                "authorization_revision": 3,
+                "expected_revision": 1,
+                "idempotency_key": "findings-scan-0001",
+                "source": "local",
+                "handoff": {
+                    "organization_id": org,
+                    "project_id": project.project_id,
+                    "scan_id": new_id("scan"),
+                    "scope": "dependencies",
+                    "complete": True,
+                    "detector_version": "v3",
+                    "mapping_version": SEED_COORDINATES_VERSION,
+                    "observations": [],
+                    "coordinates": [
+                        {
+                            "kind": "package",
+                            "coordinate": "fastapi",
+                            "context": "production",
+                            "version": ">=0.100",
+                            "version_kind": "declared_range",
+                            "evidence": [
+                                {**evidence, "source": "declared", "path": "pyproject.toml"},
+                                evidence,
+                            ],
+                        },
+                        {
+                            "kind": "package",
+                            "coordinate": "resolver-only-dep",
+                            "context": "production",
+                            "version": "1.0.0",
+                            "version_kind": "observed_version",
+                            "evidence": [evidence],
+                        },
+                        {
+                            "kind": "configuration",
+                            "coordinate": "conftest.py",
+                            "context": "testing",
+                            "evidence": [
+                                {**evidence, "source": "configured", "path": "conftest.py"}
+                            ],
+                        },
+                    ],
+                },
+            }
+        ),
+        request_id="findings-test",
+    )
+
+    detail = await read_scan_detail(
+        db_session,
+        ctx=ctx,
+        organization_id=org,
+        scan_id=published.scan_id,
+        request_id="findings-test",
+    )
+    listing = await read_scan_findings(
+        db_session,
+        ctx=ctx,
+        organization_id=org,
+        scan_id=published.scan_id,
+        request_id="findings-test",
+    )
+    assert listing.scan_id == published.scan_id
+    assert listing.project_id == project.project_id
+    assert listing.organization_id == org
+    assert listing.findings == detail.findings
+    coordinates = {finding.coordinate for finding in listing.findings}
+    assert "fastapi" in coordinates
+    assert "conftest.py" in coordinates
+    # Resolver output the project never declared is not a review finding.
+    assert "resolver-only-dep" not in coordinates
+
+    csv_body, csv_media = await export_scan_findings(
+        db_session,
+        ctx=ctx,
+        organization_id=org,
+        scan_id=published.scan_id,
+        format="csv",
+        request_id="findings-test",
+    )
+    assert csv_media == "text/csv"
+    assert "fastapi" in csv_body
+    assert "conftest.py" in csv_body
+    assert "resolver-only-dep" not in csv_body
+
+    md_body, md_media = await export_scan_findings(
+        db_session,
+        ctx=ctx,
+        organization_id=org,
+        scan_id=published.scan_id,
+        format="md",
+        request_id="findings-test",
+    )
+    assert md_media == "text/markdown"
+    assert md_body.startswith(f"# Technology scan `{published.scan_id}`")
+    assert "| package | fastapi |" in md_body
+
+    # Findings of a scan that does not exist are unavailable, not empty.
+    with pytest.raises(ApiError, match="unavailable"):
+        await read_scan_findings(
+            db_session,
+            ctx=ctx,
+            organization_id=org,
+            scan_id=new_id("scan"),
+            request_id="findings-test",
+        )

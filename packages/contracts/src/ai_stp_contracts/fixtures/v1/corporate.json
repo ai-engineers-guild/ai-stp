@@ -1998,6 +1998,81 @@
         "state": "revoked",
         "revision": 2
       }
+    },
+    {
+      "case_id": "planCorporateProjectRepository.corporate",
+      "operation_id": "planCorporateProjectRepository",
+      "kind": "positive",
+      "why": "A checked repository returns a digested plan the bind call must replay.",
+      "request": {
+        "path_params": {
+          "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "project_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        },
+        "body": {
+          "schema_version": 1,
+          "repository_url": "https://github.com/example/platform-api",
+          "authorization_revision": 1,
+          "expected_revision": 1,
+          "idempotency_key": "fixture-plan-repository-0001"
+        }
+      },
+      "status": 200,
+      "body": {
+        "project_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "repository_url": "https://github.com/example/platform-api",
+        "provider": "github",
+        "repository_id": "provider_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "namespace_id": "provider_namespace_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "name": "platform-api",
+        "default_branch": "main",
+        "observed_revision": "a7b1c9e2f4d6a8b0c2e4f6a8b0c2e4f6a8b0c2e4",
+        "expected_revision": 1,
+        "authorization_revision": 1,
+        "plan_key": "fixture-plan-repository-0001",
+        "plan_digest": "sha256:00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff",
+        "expires_at": "2026-10-08T10:15:00.000Z"
+      }
+    },
+    {
+      "case_id": "bindCorporateProjectRepository.corporate",
+      "operation_id": "bindCorporateProjectRepository",
+      "kind": "positive",
+      "why": "Binding replays the plan digest and returns the project with its repository.",
+      "request": {
+        "path_params": {
+          "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "project_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        },
+        "body": {
+          "schema_version": 1,
+          "plan_key": "fixture-plan-repository-0001",
+          "plan_digest": "sha256:00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff",
+          "authorization_revision": 1,
+          "idempotency_key": "fixture-bind-repository-0001"
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "project_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "name": "core",
+        "state": "active",
+        "revision": 2,
+        "repositories": [
+          {
+            "provider_project_id": "provider_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+            "provider": "github",
+            "namespace": "example",
+            "repository_url": "https://github.com/example/platform-api",
+            "default_branch": "main",
+            "observed_revision": "a7b1c9e2f4d6a8b0c2e4f6a8b0c2e4f6a8b0c2e4",
+            "observed_at": "2026-10-08T10:15:00.000Z"
+          }
+        ],
+        "available_actions": []
+      }
     }
   ]
 }

@@ -339,16 +339,12 @@ describe("manual registry creation", () => {
     expect(refresh).not.toHaveBeenCalled();
   });
 
-  it("allows known category IDs without dictionary discovery and creates no scan prerequisite", async () => {
+  it("creates with a name only and allows known category IDs on edit without dictionary discovery", async () => {
     mutation.mockResolvedValue({ ok: true, data: {} });
-    const { container } = render(<TechnologyRegistryCreate kind="technology" {...props} />);
+    const { container, unmount } = render(
+      <TechnologyRegistryCreate kind="technology" {...props} />,
+    );
     fireEvent.change(screen.getByLabelText("name"), { target: { value: "React" } });
-    fireEvent.change(screen.getByLabelText("knownCategories"), {
-      target: { value: "category_known" },
-    });
-    fireEvent.change(screen.getByLabelText("aliases"), {
-      target: { value: "React.js\n ReactJS " },
-    });
     const form = container.querySelector("form");
     if (!form) throw new Error("creation form is missing");
     fireEvent.submit(form);
@@ -357,6 +353,48 @@ describe("manual registry creation", () => {
       method: "POST",
       path: `/v1/corporate/organizations/${props.organizationId}/technologies`,
       body: {
+        metadata: { name: "React", category_ids: [], aliases: [] },
+      },
+    });
+    unmount();
+
+    const technology: TechnologyView = {
+      technology_id: "technology_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+      organization_id: props.organizationId,
+      owner_account_id: null,
+      schema_version: 1,
+      name: "React",
+      description: "",
+      category_ids: [],
+      aliases: [],
+      icon_url: null,
+      official_urls: [],
+      lifecycle: "draft",
+      restore_lifecycle: "active",
+      provenance: "manual",
+      redirect_id: null,
+      available_actions: [],
+      revision: 1,
+    };
+    const edit = render(
+      <TechnologyRegistryCreate kind="technology" {...props} initial={technology} />,
+    );
+    fireEvent.change(screen.getByLabelText("knownCategories"), {
+      target: { value: "category_known" },
+    });
+    fireEvent.change(screen.getByLabelText("aliases"), {
+      target: { value: "React.js\n ReactJS " },
+    });
+    const editForm = edit.container.querySelector("form");
+    if (!editForm) throw new Error("edit form is missing");
+    fireEvent.submit(editForm);
+    await waitFor(() => {
+      expect(mutation).toHaveBeenCalledTimes(2);
+    });
+    expect(mutation.mock.calls[1]?.[0]).toMatchObject({
+      method: "PUT",
+      path: `/v1/corporate/organizations/${props.organizationId}/technologies/${technology.technology_id}`,
+      body: {
         metadata: {
           name: "React",
           category_ids: ["category_known"],
@@ -364,6 +402,6 @@ describe("manual registry creation", () => {
         },
       },
     });
-    expect(refresh).toHaveBeenCalledTimes(1);
+    expect(refresh).toHaveBeenCalledTimes(2);
   });
 });

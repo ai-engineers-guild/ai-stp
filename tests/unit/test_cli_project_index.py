@@ -6,6 +6,7 @@ import pytest
 
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import project_index
+from ai_stp_sources import project_index as source_index
 
 
 def _tree(root: Path) -> Path:
@@ -143,7 +144,7 @@ def test_a_symlink_pointing_back_inside_is_kept(tmp_path: Path) -> None:
 def test_a_file_too_large_to_read_is_inventoried_not_read(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(project_index, "MAX_FILE_BYTES", 16)
+    monkeypatch.setattr(source_index, "MAX_FILE_BYTES", 16)
     root = _tree(tmp_path / "project")
     (root / "big.txt").write_text("x" * 100, encoding="utf-8")
 
@@ -159,7 +160,7 @@ def test_a_file_too_large_to_read_is_inventoried_not_read(
 def test_reaching_the_entry_budget_produces_a_partial_state(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(project_index, "MAX_ENTRIES", 2)
+    monkeypatch.setattr(source_index, "MAX_ENTRIES", 2)
     built = project_index.build(_tree(tmp_path / "project"))
     assert built.state == "partial"
     assert built.stopped_by == "entry budget"
@@ -169,7 +170,7 @@ def test_reaching_the_entry_budget_produces_a_partial_state(
 def test_reaching_the_time_budget_produces_a_partial_state(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(project_index, "MAX_SECONDS", -1.0)
+    monkeypatch.setattr(source_index, "MAX_SECONDS", -1.0)
     built = project_index.build(_tree(tmp_path / "project"))
     assert built.state == "partial"
     assert built.stopped_by == "time budget"
@@ -178,7 +179,7 @@ def test_reaching_the_time_budget_produces_a_partial_state(
 def test_reaching_the_depth_budget_stops_descending(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(project_index, "MAX_DEPTH", 2)
+    monkeypatch.setattr(source_index, "MAX_DEPTH", 2)
     root = _tree(tmp_path / "project")
     deep = root / "one" / "two" / "three"
     deep.mkdir(parents=True)

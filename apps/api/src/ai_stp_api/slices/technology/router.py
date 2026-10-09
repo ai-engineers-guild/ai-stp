@@ -1,8 +1,8 @@
 """Tenant-scoped technology HTTP surface; all mutations are revision guarded."""
 
-from typing import Annotated
+from typing import Annotated, Literal
 
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, Query, Request, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ai_stp_api.deps import get_db, require_auth
@@ -55,6 +55,7 @@ from ai_stp_contracts.technology import (
     TechnologyMergeResult,
     TechnologyMutation,
     TechnologyScanDetail,
+    TechnologyScanFindingList,
     TechnologyScanId,
     TechnologyScanLaunchRequest,
     TechnologyScanLaunchResult,
@@ -1050,3 +1051,69 @@ async def read_scan_detail(
         scan_id=scan_id,
         request_id=getattr(request.state, "request_id", None),
     )
+
+
+@router.get("/technology-scans/{scan_id}/findings", response_model=TechnologyScanFindingList)
+async def read_scan_findings(
+    organization_id: OrganizationId,
+    scan_id: TechnologyScanId,
+    request: Request,
+    db: Db,
+    ctx: Auth,
+) -> TechnologyScanFindingList:
+    return await detection.read_scan_findings(
+        db,
+        ctx=ctx,
+        organization_id=organization_id,
+        scan_id=scan_id,
+        request_id=getattr(request.state, "request_id", None),
+    )
+
+
+async def _findings_export_response(
+    organization_id: str,
+    scan_id: str,
+    export_format: Literal["csv", "md"],
+    request: Request,
+    db: AsyncSession,
+    ctx: AuthContext,
+) -> Response:
+    body, media_type = await detection.export_scan_findings(
+        db,
+        ctx=ctx,
+        organization_id=organization_id,
+        scan_id=scan_id,
+        format=export_format,
+        request_id=getattr(request.state, "request_id", None),
+    )
+    return Response(
+        content=body,
+        media_type=media_type,
+        headers={
+            "Content-Disposition": (
+                f'attachment; filename="technology-findings-{scan_id}.{export_format}"'
+            )
+        },
+    )
+
+
+@router.get("/technology-scans/{scan_id}/findings.csv", response_model=None)
+async def export_scan_findings_csv(
+    organization_id: OrganizationId,
+    scan_id: TechnologyScanId,
+    request: Request,
+    db: Db,
+    ctx: Auth,
+) -> Response:
+    return await _findings_export_response(organization_id, scan_id, "csv", request, db, ctx)
+
+
+@router.get("/technology-scans/{scan_id}/findings.md", response_model=None)
+async def export_scan_findings_md(
+    organization_id: OrganizationId,
+    scan_id: TechnologyScanId,
+    request: Request,
+    db: Db,
+    ctx: Auth,
+) -> Response:
+    return await _findings_export_response(organization_id, scan_id, "md", request, db, ctx)

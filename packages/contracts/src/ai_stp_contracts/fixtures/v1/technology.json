@@ -2186,6 +2186,66 @@
         "state": "active"
       },
       "error_code": null
+    },
+    {
+      "case_id": "readTechnologyScanFindings.technology",
+      "operation_id": "readTechnologyScanFindings",
+      "kind": "positive",
+      "why": "The findings resource carries the curated rows and scan metadata exports share.",
+      "request": {
+        "path_params": {
+          "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "scan_id": "scan_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        },
+        "query": {},
+        "body": null,
+        "headers": {}
+      },
+      "status": 200,
+      "body": {
+        "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "scan_id": "scan_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "project_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "project_name": "Platform API",
+        "repository": "https://gitlab.example/platform/api",
+        "branch": "main",
+        "commit": "a7b1c9e",
+        "created_at": "2026-10-08T10:00:00.000Z",
+        "complete": true,
+        "detector_version": "repository-content-v3",
+        "mapping_version": "fixture-v1",
+        "findings": [
+          {
+            "kind": "package",
+            "coordinate": "fastapi",
+            "context": "production",
+            "technology_id": null,
+            "version": ">=0.100",
+            "version_kind": "declared_range",
+            "evidence": [
+              {
+                "source": "declared",
+                "path": "pyproject.toml",
+                "reference": null,
+                "observed_at": "2026-10-08T10:00:00.000Z",
+                "source_revision": "a7b1c9e",
+                "confidence": null,
+                "detector_version": "repository-content-v3",
+                "mapping_version": "fixture-v1"
+              }
+            ],
+            "state": "open",
+            "candidate_technology_id": null,
+            "review": "proposed",
+            "category_id": null,
+            "technology_key": "33",
+            "technology_name": "FastAPI",
+            "review_revision": 0,
+            "comment": ""
+          }
+        ]
+      },
+      "error_code": null
     }
   ]
 }

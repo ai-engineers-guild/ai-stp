@@ -16,6 +16,7 @@ from ai_stp_contracts.technology import (
     TechnologyUnmappedCoordinate,
     TechnologyUsageFact,
 )
+from ai_stp_platform.technology_findings import declared_package_dirs, lock_only_transitive
 from ai_stp_platform.technology_models import TechnologyCoordinateMapping
 from ai_stp_sources import tech_detect
 
@@ -147,7 +148,17 @@ async def detection_handoff(
     detector = f"repository-content-v{tech_detect.DETECTOR_VERSION}"
     grouped: dict[tuple[str, tech_detect.UsageContext], _Slot] = {}
     unmapped: dict[tuple[str, str], tech_detect.Detection] = {}
+    # A lock row restating nothing declared is resolver output: it belongs in
+    # the raw inventory (`coordinates`) but not in the org's review queue,
+    # where it would ask a human to map a transitive dependency.
+    declared = declared_package_dirs(
+        (item.kind, item.coordinate, item.traces) for item in detections
+    )
     for detection in detections:
+        if detection.kind == "package" and lock_only_transitive(
+            detection.coordinate, detection.traces, declared
+        ):
+            continue
         technology_id = snapshot.resolve(detection.kind, detection.coordinate)
         if technology_id is None:
             if _COORDINATE.fullmatch(detection.coordinate):

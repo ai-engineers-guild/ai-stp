@@ -78,9 +78,9 @@ The five supplied references define the technology map/table, journal, mapping
 and scan-detail compositions. The existing `TechnologyLandscapeResults`,
 `TechnologyLandscapeFilters`, `TechnologyScanFindings`, `TechnologyScanLaunch`
 and `TechnologyRegistryCreate` remain the feature entry points. The kit had no
-scan journal with repository/date/duration filtering or persistent master/detail
+scan journal with repository/date/duration filtering or inline category
 finding editor. `TechnologyScanJournal`, `TechnologyReviewHeader`,
-`TechnologyFindingsTable`, `TechnologyFindingPanel` and `TechnologyReviewDialogs`
+`TechnologyFindingsTable` and `TechnologyReviewDialogs`
 compose existing Table, PagePager, Select, SearchableMultiSelect, Dialog and
 registry forms; they do not introduce primitives. Shared draft/review state lives
 in `src/lib/technology-review-state.ts`. The old standalone mapping editor is
@@ -90,5 +90,18 @@ removed to keep recognized and unknown findings on one mutation path.
 empty, read-only and dark states. `technology-workspace.test.tsx` exercises their
 functional compositions. Scoped technology CSS uses existing theme tokens and
 Plex typography, five area columns and five metrics on desktop, a persistent
-inline editor, and stacked contained tables on narrow screens. Production
+category table with derived areas, and contained tables on narrow screens. Production
 counts and rows always come from the authorized contract client.
+Repeated technology findings share one row with merged versions and evidence.
+Warning-tinted rows and the review filter expose outstanding classification;
+journal row navigation and per-row action menus remain independent.
+
+## Corporate project repository source
+
+`CorporateProjectRepository` fills the source slot in `CorporateEntityDetail`'s
+existing identity rail. `ExactSourceLink`, Button, Input, Label and Badge already
+cover display and controls; no primitive was added. No existing organism owns
+project source authorization, URL preview and explicit binding, so the organism
+composes those kits. Linking never starts a scan. Public GitHub and the configured
+organization GitLab are supported. A saved source displays provider, repository
+link, URL and branch, including for read-only viewers.

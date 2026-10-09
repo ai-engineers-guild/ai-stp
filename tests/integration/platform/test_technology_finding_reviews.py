@@ -183,6 +183,15 @@ async def test_review_updates_usage_preserves_history_and_survives_rescan(
     )
     assert result.updated == 1
     assert (
+        await read_scan_detail(
+            db_session,
+            ctx=ctx,
+            organization_id=org,
+            scan_id=scan_id,
+            request_id="category-retained",
+        )
+    ).findings[0].category_id == category
+    assert (
         set(
             await db_session.scalars(
                 select(TechnologyClassification.category_id).where(
@@ -247,3 +256,155 @@ async def test_review_updates_usage_preserves_history_and_survives_rescan(
     )
     assert detail.findings[0].state == "rejected"
     assert saved_scan.handoff == original
+
+
+async def test_category_only_review_creates_technology(db_session: AsyncSession) -> None:
+    account = new_id("account")
+    db_session.add(Account(id=account, status="active"))
+    await db_session.flush()
+    ctx = AuthContext(account, "finding-review-test", None, "active", False, False)
+    org = (
+        await bootstrap(
+            db_session,
+            payload=CorporateBootstrapRequest(
+                organization_name="Finding review acceptance",
+                superadmin_account_id=account,
+                idempotency_key="finding-review-bootstrap",
+            ),
+            request_id="finding-review-test",
+        )
+    ).organization_id
+    await import_seed(
+        db_session,
+        ctx=ctx,
+        organization_id=org,
+        payload=TechnologySeedRequest(
+            authorization_revision=1,
+            idempotency_key="finding-review-seed",
+        ),
+        request_id="finding-review-test",
+    )
+    project = await create_project(
+        db_session,
+        ctx=ctx,
+        organization_id=org,
+        payload=CorporateProjectCreateRequest(
+            name="Repository", authorization_revision=2, idempotency_key="finding-review-project"
+        ),
+        request_id="finding-review-test",
+    )
+    technology = SEED_TECHNOLOGIES[0][0]
+    categories = set(
+        await db_session.scalars(
+            select(TechnologyClassification.category_id).where(
+                TechnologyClassification.organization_id == org,
+                TechnologyClassification.technology_id == technology,
+            )
+        )
+    )
+    category = next(row[0] for row in SEED_CATEGORIES if row[0] not in categories)
+    db_session.add(
+        TechnologyClassification(
+            organization_id=org, technology_id=technology, category_id=category
+        )
+    )
+    categories.add(category)
+    await db_session.flush()
+    scan_id = new_id("scan")
+
+    def request(
+        scan: str, mapping: str, version: str, revision: int, authorization: int, mapped: bool
+    ) -> TechnologyScanRequest:
+        evidence = [
+            {
+                "source": "declared",
+                "path": "package.json",
+                "reference": "dependencies.strange-package",
+                "observed_at": "2026-10-08T00:00:00.000Z",
+                "detector_version": "acceptance-v1",
+                "mapping_version": mapping,
+            }
+        ]
+        coordinate = {
+            "kind": "package",
+            "coordinate": "strange-package",
+            "context": "production",
+            "version": version,
+            "version_kind": "declared_range",
+            "evidence": evidence,
+            "technology_id": technology if mapped else None,
+        }
+        return TechnologyScanRequest.model_validate(
+            {
+                "source": "local",
+                "expected_revision": revision,
+                "authorization_revision": authorization,
+                "idempotency_key": f"publish-{scan}",
+                "handoff": {
+                    "organization_id": org,
+                    "project_id": project.project_id,
+                    "scan_id": scan,
+                    "scope": "dependencies",
+                    "complete": True,
+                    "detector_version": "acceptance-v1",
+                    "mapping_version": mapping,
+                    "coordinates": [coordinate],
+                    "observations": [
+                        {
+                            "technology_id": technology,
+                            "fact": {
+                                "context": "production",
+                                "version": version,
+                                "version_kind": "declared_range",
+                                "evidence": evidence,
+                            },
+                        }
+                    ]
+                    if mapped
+                    else [],
+                    "unmapped_coordinates": []
+                    if mapped
+                    else [
+                        {key: value for key, value in coordinate.items() if key != "technology_id"}
+                    ],
+                },
+            }
+        )
+
+    await publish_scan(
+        db_session,
+        ctx=ctx,
+        organization_id=org,
+        project_id=project.project_id,
+        payload=request(scan_id, SEED_COORDINATES_VERSION, "^1.0", 1, 3, False),
+        request_id="test",
+    )
+    result = await review_findings(
+        db_session,
+        ctx=ctx,
+        organization_id=org,
+        payload=TechnologyFindingReviewRequest.model_validate(
+            {
+                "authorization_revision": 4,
+                "idempotency_key": "category-only-review",
+                "items": [
+                    {
+                        "scan_id": scan_id,
+                        "kind": "package",
+                        "coordinate": "strange-package",
+                        "context": "production",
+                        "category_id": category,
+                        "review": "confirmed",
+                    }
+                ],
+            }
+        ),
+        request_id="category-only-test",
+    )
+    assert result.updated == 1
+    detail = await read_scan_detail(
+        db_session, ctx=ctx, organization_id=org, scan_id=scan_id, request_id="category-only-read"
+    )
+    assert detail.findings[0].technology_id is not None
+    assert detail.findings[0].category_id == category
+    assert detail.findings[0].review == "confirmed"

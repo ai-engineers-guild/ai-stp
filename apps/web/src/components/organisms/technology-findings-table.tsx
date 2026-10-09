@@ -1,6 +1,5 @@
 "use client";
 
-import { Badge } from "@/components/atoms/badge";
 import { Button } from "@/components/atoms/button";
 import { Input } from "@/components/atoms/input";
 import { Label } from "@/components/atoms/label";
@@ -11,6 +10,8 @@ import { Table, TBody, Td, THead, Th, Tr } from "@/components/atoms/table";
 import { PagePager } from "@/components/molecules/page-pager";
 
 import { Link } from "@/lib/i18n/navigation";
+import { Menu, MenuTrigger, MenuContent, MenuItem } from "@/components/atoms/menu";
+import { SearchableMultiSelect } from "@/components/molecules/searchable-multi-select";
 
 import { Icon } from "@/theme";
 
@@ -29,7 +30,6 @@ export function TechnologyFindingsTable({ state }: { state: TechnologyReviewStat
     visible,
     scan,
     mode,
-    selected,
     search,
     status,
     kind,
@@ -39,7 +39,6 @@ export function TechnologyFindingsTable({ state }: { state: TechnologyReviewStat
     setKind,
     setPendingOnly,
     setPage,
-    setSelected,
   } = state;
   return (
     <>
@@ -90,7 +89,7 @@ export function TechnologyFindingsTable({ state }: { state: TechnologyReviewStat
                 </option>
               ))}
             </Select>
-            <Label className="flex items-center gap-2 text-xs whitespace-nowrap">
+            <Label className="flex min-h-11 cursor-pointer items-center gap-2 text-sm whitespace-nowrap">
               <input
                 type="checkbox"
                 checked={pendingOnly}
@@ -118,31 +117,13 @@ export function TechnologyFindingsTable({ state }: { state: TechnologyReviewStat
             <THead>
               <Tr>
                 <Th>{w("found")}</Th>
-                <Th>{w("suggested")}</Th>
-                <Th>{w("classification")}</Th>
-                {mode === "mapping" && (
-                  <>
-                    <Th>{w("project")}</Th>
-                    <Th>{w("scan")}</Th>
-                  </>
-                )}
-                {scan && <Th>{w("file")}</Th>}
-                <Th>{w("status")}</Th>
+                <Th>{w("category")}</Th>
+                <Th>{w("area")}</Th>
+                <Th>{w("versions")}</Th>
+                <Th>{w("evidence")}</Th>
+                {mode === "mapping" && <Th>{w("project")}</Th>}
                 <Th>
-                  <input
-                    type="checkbox"
-                    aria-label={w("selectAll")}
-                    checked={
-                      visible.length > 0 && visible.every((r) => selected.includes(rowKey(r)))
-                    }
-                    onChange={(e) => {
-                      setSelected(
-                        e.target.checked
-                          ? [...new Set([...selected, ...visible.map(rowKey)])]
-                          : selected.filter((key) => !visible.some((r) => rowKey(r) === key)),
-                      );
-                    }}
-                  />
+                  <span className="sr-only">{w("actions")}</span>
                 </Th>
               </Tr>
             </THead>
@@ -173,91 +154,137 @@ export function TechnologyFindingTableRow({
 }) {
   const {
     w,
-    names,
-    active,
-    scan,
+    t,
     mode,
-    selected,
-    classification,
+    canUpdate,
+    mutation,
+    drafts,
+    draft,
+    patch,
+    areaNames,
+    categoryNames,
     setActiveKey,
-    setSelected,
+    setCreate,
     setEvidence,
+    apply,
   } = state;
+  const value = draft(row);
+  const category = categoryNames.get(value.category);
+  const needsReview = state.pending(row);
+  const openCreate = (kind: "technology" | "category") => {
+    setActiveKey(rowKey(row));
+    setCreate(kind);
+  };
   return (
-    <Tr
-      key={rowKey(row)}
-      className={active && rowKey(active) === rowKey(row) ? "technology-selected-row" : ""}
-    >
+    <Tr className={needsReview ? "bg-warning/10" : ""}>
+      <Td>
+        <span className="font-medium">{row.technology_name ?? row.coordinate}</span>
+        {needsReview && (
+          <span className="text-muted-foreground mt-1 block text-sm">
+            {w(`findingState.${findingStatus(row, state.names)}`)}
+          </span>
+        )}
+      </Td>
+      <Td>
+        <fieldset disabled={!canUpdate || mutation.busy}>
+          {category?.state === "archived" ? (
+            <span className="text-sm">{category.name}</span>
+          ) : (
+            <SearchableMultiSelect
+              name={`category-${rowKey(row)}`}
+              label={`${w("category")}: ${row.technology_name ?? row.coordinate}`}
+              searchLabel={w("chooseCategory")}
+              options={(state.categories ?? [])
+                .filter((item) => item.state === "active")
+                .map((item) => ({ value: item.category_id, label: item.name }))}
+              selected={value.category ? [value.category] : []}
+              multiple={false}
+              emptyHint={w("chooseCategory")}
+              closeLabel={t("close")}
+              onChange={(values) => {
+                patch(row, { category: values[0] ?? "", review: "confirmed" });
+              }}
+            />
+          )}
+        </fieldset>
+      </Td>
+      <Td>{areaNames.get(category?.area_id ?? "") ?? "—"}</Td>
+      <Td className="text-muted-foreground">{row.version ?? "—"}</Td>
       <Td>
         <Button
           variant="ghost"
-          className="h-auto min-h-11 p-0 text-left"
+          className="min-h-11 p-0 text-left"
           onClick={() => {
-            setActiveKey(rowKey(row));
+            setEvidence(row);
           }}
         >
-          {row.coordinate}
+          {w("evidenceCount", { count: row.evidence.length })}
         </Button>
-        {row.version && <span className="text-muted-foreground block text-xs">{row.version}</span>}
       </Td>
-      <Td>{names.get(row.technology_id ?? row.candidate_technology_id ?? "")?.name ?? "—"}</Td>
-      <Td className="max-w-64">{classification(row)}</Td>
       {mode === "mapping" && (
-        <>
-          <Td>{row.scan.project_name ?? row.scan.project_id}</Td>
-          <Td>
-            <Link
-              className="block truncate text-xs"
-              title={row.scan.scan_id}
-              href={`/corporate/technology-scans/${row.scan.scan_id}`}
-            >
-              {row.scan.scan_id}
-            </Link>
-          </Td>
-        </>
-      )}
-      {scan && (
         <Td>
-          <Button
-            variant="ghost"
-            className="h-auto min-h-11 p-0 text-left text-xs break-all"
-            onClick={() => {
-              setEvidence(row);
-            }}
-          >
-            {row.evidence[0]?.path ?? row.evidence[0]?.reference ?? "—"}
-          </Button>
+          <Link href={`/corporate/projects/${row.scan.project_id}`}>
+            {row.scan.project_name ?? row.scan.project_id}
+          </Link>
         </Td>
       )}
       <Td>
-        <Badge variant="secondary" className="whitespace-nowrap">
-          {w(`findingState.${findingStatus(row, state.names)}`)}
-        </Badge>
-      </Td>
-      <Td>
         <div className="flex items-center gap-1">
-          <input
-            type="checkbox"
-            aria-label={w("selectFinding", { name: row.coordinate })}
-            checked={selected.includes(rowKey(row))}
-            onChange={(e) => {
-              setSelected(
-                e.target.checked
-                  ? [...selected, rowKey(row)]
-                  : selected.filter((key) => key !== rowKey(row)),
-              );
-            }}
-          />
-          <Button
-            size="icon"
-            variant="ghost"
-            aria-label={w("inspectFinding", { name: row.coordinate })}
-            onClick={() => {
-              setActiveKey(rowKey(row));
-            }}
-          >
-            <Icon name="more" size="sm" />
-          </Button>
+          {canUpdate && drafts[rowKey(row)] && (
+            <Button
+              size="icon"
+              variant="outline"
+              disabled={mutation.busy || !value.category}
+              aria-label={w("confirmApply")}
+              onClick={() => {
+                apply([row]);
+              }}
+            >
+              <Icon name="check" size="sm" />
+            </Button>
+          )}
+          <Menu>
+            <MenuTrigger asChild>
+              <Button size="icon" variant="ghost" aria-label={w("actions")}>
+                <Icon name="more" size="sm" />
+              </Button>
+            </MenuTrigger>
+            <MenuContent>
+              <MenuItem
+                onSelect={() => {
+                  setEvidence(row);
+                }}
+              >
+                {w("evidence")}
+              </MenuItem>
+              {canUpdate && (
+                <>
+                  <MenuItem
+                    onSelect={() => {
+                      openCreate("category");
+                    }}
+                  >
+                    {t("createCategory")}
+                  </MenuItem>
+                  <MenuItem
+                    onSelect={() => {
+                      openCreate("technology");
+                    }}
+                  >
+                    {w("createTechnology")}
+                  </MenuItem>
+                  <MenuItem
+                    disabled={mutation.busy}
+                    onSelect={() => {
+                      apply([row], true);
+                    }}
+                  >
+                    {w("excludeFinding")}
+                  </MenuItem>
+                </>
+              )}
+            </MenuContent>
+          </Menu>
         </div>
       </Td>
     </Tr>

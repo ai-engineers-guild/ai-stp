@@ -110,7 +110,6 @@ from ai_stp_platform.organization_models import (
     Organization,
     OrganizationMembership,
     ProjectIdentity,
-    ProjectLink,
 )
 from ai_stp_platform.organization_models import (
     CorporateCatalogAssignment as CorporateCatalogAssignmentRow,
@@ -121,6 +120,7 @@ from ai_stp_platform.organization_models import (
 from ai_stp_platform.organization_models import (
     CorporateRole as CorporateRoleRow,
 )
+from ai_stp_platform.repository_bindings import repository_links
 from ai_stp_platform.technology_models import (
     ProjectTeamRelation,
     ProjectTechnologyRelation,
@@ -3114,19 +3114,20 @@ async def read_project(
         subject_kind="project",
         subject_id=project_id,
     )
+    source_links = repository_links()
     linked = list(
         (
             await db.scalars(
                 select(ProjectIdentity)
                 .join(
-                    ProjectLink,
-                    (ProjectLink.organization_id == ProjectIdentity.organization_id)
-                    & (ProjectLink.provider_project_id == ProjectIdentity.id),
+                    source_links,
+                    (source_links.c.organization_id == ProjectIdentity.organization_id)
+                    & (source_links.c.provider_project_id == ProjectIdentity.id),
                 )
                 .where(
-                    ProjectLink.organization_id == organization_id,
-                    ProjectLink.remote_project_id == project_id,
-                    ProjectLink.state == "linked",
+                    source_links.c.organization_id == organization_id,
+                    source_links.c.remote_project_id == project_id,
+                    source_links.c.state == "linked",
                     ProjectIdentity.provider_kind.in_(["gitlab", "github"]),
                 )
                 .distinct()
@@ -4384,18 +4385,19 @@ async def read_context(
         )
     ][:256]
     repositories: dict[str, list[CorporateProjectRepository]] = {}
+    source_links = repository_links()
     linked = (
         await db.execute(
-            select(ProjectLink.remote_project_id, ProjectIdentity)
+            select(source_links.c.remote_project_id, ProjectIdentity)
             .join(
                 ProjectIdentity,
-                (ProjectLink.organization_id == ProjectIdentity.organization_id)
-                & (ProjectLink.provider_project_id == ProjectIdentity.id),
+                (source_links.c.organization_id == ProjectIdentity.organization_id)
+                & (source_links.c.provider_project_id == ProjectIdentity.id),
             )
             .where(
-                ProjectLink.organization_id == organization_id,
-                ProjectLink.remote_project_id.in_([row.id for row in project_rows]),
-                ProjectLink.state == "linked",
+                source_links.c.organization_id == organization_id,
+                source_links.c.remote_project_id.in_([row.id for row in project_rows]),
+                source_links.c.state == "linked",
                 ProjectIdentity.provider_kind.in_(["gitlab", "github"]),
             )
             .distinct()

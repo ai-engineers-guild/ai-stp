@@ -27,6 +27,7 @@ export function TechnologyScanLaunch({
   authorizationRevision,
   csrfToken,
   projects,
+  activeProjectIds = [],
   variant = "default",
   label,
 }: {
@@ -34,6 +35,7 @@ export function TechnologyScanLaunch({
   authorizationRevision: string | number;
   csrfToken: string;
   projects: CorporateProjectView[];
+  activeProjectIds?: string[];
   variant?: "default" | "outline";
   label?: string;
 }) {
@@ -41,6 +43,7 @@ export function TechnologyScanLaunch({
   const scans = useTranslations("technology.scans");
   const router = useRouter();
   const retry = useRef<{ effect: string; key: string } | null>(null);
+  const [launched, setLaunched] = useState<string[]>([]);
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState<string[]>([]);
   const [result, setResult] = useState<TechnologyScanLaunchResult | null>(null);
@@ -72,7 +75,13 @@ export function TechnologyScanLaunch({
         return;
       }
       retry.current = null;
-      setResult(response.data as TechnologyScanLaunchResult);
+      const launchResult = response.data as TechnologyScanLaunchResult;
+      setResult(launchResult);
+      const queued = launchResult.items
+        .filter((item) => item.state === "queued")
+        .map((item) => item.project_id);
+      setLaunched((current) => [...current, ...queued]);
+      setSelected([]);
       router.refresh();
     });
   }
@@ -105,7 +114,10 @@ export function TechnologyScanLaunch({
           {projects.map((project) => {
             const repository = project.repositories?.[0];
             const repositoryUrl = repository?.repository_url;
-            const linked = Boolean(repositoryUrl);
+            const active =
+              activeProjectIds.includes(project.project_id) ||
+              launched.includes(project.project_id);
+            const linked = Boolean(repositoryUrl) && !active;
             return (
               <div key={project.project_id} className="flex min-h-11 items-start gap-3 py-1">
                 <input
@@ -129,6 +141,9 @@ export function TechnologyScanLaunch({
                       ? `${repositoryUrl}${repository.default_branch ? ` · ${repository.default_branch}` : ""}`
                       : scans("launchNoRepository")}
                   </span>
+                  {active && (
+                    <span className="text-warning block text-sm">{scans("launchActive")}</span>
+                  )}
                 </Label>
               </div>
             );
@@ -138,7 +153,7 @@ export function TechnologyScanLaunch({
           )}
         </fieldset>
         <div className="flex flex-wrap gap-3">
-          <Button size="lg" disabled={busy || !selected.length} onClick={launch}>
+          <Button size="lg" disabled={busy || Boolean(result) || !selected.length} onClick={launch}>
             {busy ? t("saving") : scans("launchStart", { count: selected.length })}
           </Button>
         </div>

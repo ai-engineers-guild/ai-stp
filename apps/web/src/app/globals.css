@@ -1369,3 +1369,30 @@ body:has(.technology-workspace) .projection-dock {
     margin-bottom: 0.0625rem;
   }
 }
+
+.technology-workspace .technology-scan-table,
+.technology-workspace .technology-mapping-table {
+  min-width: 62rem;
+}
+.technology-workspace .technology-scan-table th:nth-child(1),
+.technology-workspace .technology-mapping-table th:nth-child(1) {
+  width: 18%;
+}
+.technology-workspace .technology-scan-table th:nth-child(2),
+.technology-workspace .technology-mapping-table th:nth-child(2) {
+  width: 26%;
+}
+.technology-workspace .technology-scan-table th:nth-child(3),
+.technology-workspace .technology-mapping-table th:nth-child(3) {
+  width: 20%;
+}
+.technology-workspace .technology-scan-table th:nth-child(4) {
+  width: 14%;
+}
+.technology-workspace .technology-scan-table th:nth-child(5) {
+  width: 12%;
+}
+.technology-workspace .technology-scan-table th:last-child,
+.technology-workspace .technology-mapping-table th:last-child {
+  width: 6rem;
+}

@@ -1147,3 +1147,40 @@ class CorporateMembershipPolicyRequest(ContractModel):
     ] = Field(default_factory=list)
     authorization_revision: Annotated[int, Field(ge=1)]
     idempotency_key: IdempotencyKey
+
+
+class CorporateRepositoryPlanRequest(ContractModel):
+    """Resolve a repository URL before an explicit source binding."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
+    schema_version: Literal[1] = 1
+    repository_url: Annotated[str, Field(min_length=1, max_length=512)]
+    authorization_revision: int | str
+    expected_revision: Annotated[int, Field(ge=1)]
+    idempotency_key: IdempotencyKey
+
+
+class CorporateRepositoryPlan(ContractModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+    project_id: str
+    repository_url: str
+    provider: Literal["github", "gitlab"]
+    repository_id: str
+    namespace_id: str
+    name: str
+    default_branch: str
+    observed_revision: str
+    expected_revision: int
+    authorization_revision: int | str
+    plan_key: str
+    plan_digest: str
+    expires_at: Timestamp
+
+
+class CorporateRepositoryBindRequest(ContractModel):
+    model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
+    schema_version: Literal[1] = 1
+    plan_key: IdempotencyKey
+    plan_digest: Annotated[str, Field(min_length=71, max_length=71)]
+    authorization_revision: int | str
+    idempotency_key: IdempotencyKey

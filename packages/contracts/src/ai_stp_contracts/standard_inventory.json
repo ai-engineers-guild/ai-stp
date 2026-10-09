@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "standard_family": "ai-stp-standard/1",
-  "contract_digest": "sha256:d359d166b5ca8874369e5e4e087b169ef39c2cd9c5d411ec240eb6c0ec3edc2b",
+  "contract_digest": "sha256:1c43123590d17352af031b40c773c05f352a495891db7b83858545814456681e",
   "axes": [
     {
       "name": "standard_family",
@@ -1202,6 +1202,18 @@
     },
     {
       "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-repository-bind-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-repository-plan"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-repository-plan-request"
+    },
+    {
+      "axis": "http_schema",
       "identity": "urn:ai-stp:schema:v1:corporate-role-create-request"
     },
     {
@@ -2127,6 +2139,10 @@
     {
       "axis": "http_schema",
       "identity": "urn:ai-stp:schema:v1:technology-scan-detail"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:technology-scan-finding-list"
     },
     {
       "axis": "http_schema",

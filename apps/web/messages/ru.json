@@ -548,14 +548,14 @@
         "pending": "Требует разбора",
         "branch": "Ветка",
         "commit": "Коммит",
-        "classification": "Область / Категория",
         "version": "Версия",
         "evidence": "Источник обнаружения"
       },
       "findings": "Находки",
       "detectorVersion": "детектор {version}",
       "mappingVersion": "маппинг {version}",
-      "empty": "Сканов пока нет."
+      "empty": "Сканов пока нет.",
+      "launchActive": "Скан уже в очереди или выполняется"
     },
     "areas": {
       "title": "Технологические области",
@@ -625,12 +625,7 @@
       "type": "Тип",
       "allTypes": "Все типы",
       "pendingOnly": "Только требующие разбора",
-      "suggested": "Предлагается",
-      "classification": "Область / Категория",
       "file": "Файл",
-      "selectAll": "Выбрать все находки на странице",
-      "selectFinding": "Выбрать находку {name}",
-      "inspectFinding": "Разобрать находку {name}",
       "perPage": "{count} на странице",
       "noFindings": "Нет находок по выбранным фильтрам.",
       "findingDetails": "Разбор находки",
@@ -679,6 +674,10 @@
       },
       "resetFinding": "Сбросить",
       "rerunScan": "Перезапустить скан",
+      "downloadFindings": "Скачать находки",
+      "downloadJson": "Скачать JSON",
+      "downloadCsv": "Скачать CSV",
+      "downloadMarkdown": "Скачать Markdown",
       "reasonState": {
         "unrecognized": "Не распознано",
         "candidate": "Требует проверки",
@@ -696,7 +695,8 @@
         "configs": "Конфиги",
         "languages": "Языки"
       },
-      "emptyArea": "Нет найденных технологий"
+      "emptyArea": "Нет найденных технологий",
+      "evidenceCount": "Файлов: {count}"
     },
     "close": "Закрыть",
     "taxonomy": {
@@ -3060,5 +3060,19 @@
     "warning_repository_access": "Получатель получит доступ к проекту в GitLab.",
     "warning_repository_access_revoked": "Участник потеряет доступ к проекту в GitLab.",
     "warning_repository_created": "В GitLab будет создан новый репозиторий от вашего имени."
+  },
+  "projectRepository": {
+    "title": "Репозиторий",
+    "empty": "Репозиторий GitHub или GitLab не привязан.",
+    "link": "Связать GitHub / GitLab",
+    "url": "Ссылка на репозиторий",
+    "hint": "Публичный репозиторий GitHub или репозиторий в настроенном GitLab организации.",
+    "branch": "Ветка",
+    "check": "Проверить репозиторий",
+    "confirm": "Связать репозиторий",
+    "confirmHint": "Свяжите этот репозиторий с проектом. Сканирование запускается отдельно.",
+    "working": "Проверка…",
+    "cancel": "Отмена",
+    "placeholder": "https://github.com/owner/repository"
   }
 }

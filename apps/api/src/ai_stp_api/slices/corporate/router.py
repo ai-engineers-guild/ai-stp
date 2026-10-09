@@ -27,6 +27,7 @@ from ai_stp_api.slices.corporate import (
     overview,
     permissions,
     profiles,
+    repositories,
     service,
     telemetry_policy,
     telemetry_rights,
@@ -113,6 +114,7 @@ router.include_router(installation_inventory.router)
 router.include_router(dashboard.router)
 router.include_router(gitlab.router)
 router.include_router(github_languages.router)
+router.include_router(repositories.router)
 router.include_router(usage_events.router)
 router.include_router(usage_reports.router)
 router.include_router(invitations.router)

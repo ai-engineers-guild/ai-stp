@@ -127,6 +127,19 @@
           "default": null,
           "title": "Candidate Technology Id"
         },
+        "category_id": {
+          "anyOf": [
+            {
+              "pattern": "^category_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Category Id"
+        },
         "comment": {
           "default": "",
           "maxLength": 500,
@@ -213,6 +226,30 @@
           "default": null,
           "title": "Technology Id"
         },
+        "technology_key": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Technology Key"
+        },
+        "technology_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Technology Name"
+        },
         "version": {
           "anyOf": [
             {
@@ -238,6 +275,7 @@
       },
       "required": [
         "candidate_technology_id",
+        "category_id",
         "comment",
         "context",
         "coordinate",
@@ -247,6 +285,8 @@
         "review_revision",
         "state",
         "technology_id",
+        "technology_key",
+        "technology_name",
         "version",
         "version_kind"
       ],

@@ -16,6 +16,7 @@ from ai_stp_contracts.technology import (
 )
 from ai_stp_foundation.digests import digest_canonical
 from ai_stp_foundation.ids import new_id
+from ai_stp_platform.technology_findings import curate_findings
 from ai_stp_platform.technology_models import (
     ProjectTechnologyRelation,
     TechnologyCoordinateMapping,
@@ -200,9 +201,37 @@ async def interpreted_findings(
                 else "proposed",
                 review_revision=exact[key].revision if key in exact else 0,
                 comment=review.comment if review else "",
+                category_id=review.category_id if review else None,
             )
         )
-    return result
+    return curate_findings(merge_findings(result))
+
+
+def merge_findings(findings: list[TechnologyScanFinding]) -> list[TechnologyScanFinding]:
+    """One review identity, all versions and source evidence; never rewrite the scan."""
+    grouped: dict[tuple[str, str, str | None], TechnologyScanFinding] = {}
+    for finding in findings:
+        key = (finding.kind, finding.coordinate, finding.context)
+        previous = grouped.get(key)
+        if previous is None:
+            grouped[key] = finding
+            continue
+        versions = sorted(
+            set(filter(None, [*(previous.version or "").split(", "), finding.version]))
+        )
+        evidence = {
+            entry.model_dump_json(): entry for entry in [*previous.evidence, *finding.evidence]
+        }
+        grouped[key] = previous.model_copy(
+            update={
+                "version": ", ".join(versions) or None,
+                "evidence": list(evidence.values()),
+                "version_kind": previous.version_kind
+                if previous.version_kind == finding.version_kind
+                else "unknown",
+            }
+        )
+    return list(grouped.values())
 
 
 async def reproject_current_scans(

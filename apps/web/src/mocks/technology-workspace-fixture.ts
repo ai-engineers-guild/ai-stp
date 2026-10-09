@@ -106,6 +106,9 @@ export const scan: TechnologyScanDetail & {
       technology_id: technologies[0].technology_id,
       candidate_technology_id: null,
       review: "confirmed",
+      technology_name: null,
+      technology_key: null,
+      category_id: null,
       review_revision: 1,
       comment: "",
       evidence: [
@@ -129,6 +132,9 @@ export const scan: TechnologyScanDetail & {
       technology_id: null,
       candidate_technology_id: null,
       review: "proposed",
+      technology_name: null,
+      technology_key: null,
+      category_id: null,
       review_revision: 0,
       comment: "",
       evidence: [

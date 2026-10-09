@@ -61,6 +61,9 @@ export default async function TechnologyScansPage({
             authorizationRevision={journal.permissions.authorization_revision}
             csrfToken={(await readCsrfToken()) ?? ""}
             projects={context.projects}
+            activeProjectIds={journal.scans.items
+              .filter((item) => ["queued", "running"].includes(item.status))
+              .map((item) => item.project_id)}
             variant="outline"
           />
         )}

@@ -419,6 +419,11 @@ class TechnologyFindingReview(_TenantRow, Base):
             ["technology.organization_id", "technology.id"],
             ondelete="RESTRICT",
         ),
+        ForeignKeyConstraint(
+            ["organization_id", "category_id"],
+            ["technology_category.organization_id", "technology_category.id"],
+            ondelete="RESTRICT",
+        ),
         CheckConstraint("review IN ('confirmed','rejected')", name="ck_finding_review"),
         CheckConstraint("revision >= 1", name="ck_finding_review_revision"),
     )
@@ -428,6 +433,7 @@ class TechnologyFindingReview(_TenantRow, Base):
     coordinate: Mapped[str] = mapped_column(String(512), nullable=False)
     context: Mapped[str | None] = mapped_column(String(32), nullable=True)
     technology_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    category_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
     review: Mapped[str] = mapped_column(String(16), nullable=False)
     comment: Mapped[str] = mapped_column(String(500), nullable=False, default="", server_default="")
     revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")

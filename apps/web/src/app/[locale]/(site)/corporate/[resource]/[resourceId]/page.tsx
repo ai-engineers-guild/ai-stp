@@ -1,3 +1,4 @@
+import { CorporateProjectRepository } from "@/components/organisms/corporate-project-repository";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { notFound, permanentRedirect } from "next/navigation";
 
@@ -309,6 +310,17 @@ export default async function CorporateResourcePage({ params, searchParams }: Pa
     <article className="mx-auto max-w-7xl space-y-8">
       <HistoryBackButton label={backLabel} fallback={parentHref} />
       <CorporateEntityDetail
+        rail={
+          project ? (
+            <CorporateProjectRepository
+              project={project}
+              organizationId={workspace.organization.organization_id}
+              authorizationRevision={workspace.context.organization.authorization_revision}
+              csrfToken={csrfToken}
+              canManage={actionSet.includes("project.update")}
+            />
+          ) : undefined
+        }
         presentation={presentation}
         description={displayDescription}
         resource={resource === "roles" ? "teams" : resource}

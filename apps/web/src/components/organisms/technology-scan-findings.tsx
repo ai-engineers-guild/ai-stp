@@ -7,7 +7,6 @@ import {
   TechnologyReviewFilters,
 } from "./technology-review-header";
 import { TechnologyFindingsTable } from "./technology-findings-table";
-import { TechnologyFindingPanel } from "./technology-finding-panel";
 import { TechnologyReviewDialogs } from "./technology-review-dialogs";
 
 export function TechnologyScanFindings(props: Parameters<typeof useTechnologyReview>[0]) {
@@ -22,10 +21,7 @@ export function TechnologyScanFindings(props: Parameters<typeof useTechnologyRev
           {state.mutation.message}
         </p>
       )}
-      <div className="technology-findings-grid">
-        <TechnologyFindingsTable state={state} />
-        <TechnologyFindingPanel state={state} />
-      </div>
+      <TechnologyFindingsTable state={state} />
       <TechnologyReviewDialogs state={state} />
     </div>
   );

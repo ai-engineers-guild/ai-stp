@@ -14,7 +14,7 @@ import type {
   TechnologyScanFinding,
   TechnologyView,
 } from "@/lib/api/generated/types.gen";
-export type Row = TechnologyScanFinding & { scan: TechnologyScanDetail };
+export type Row = TechnologyScanFinding & { scan: TechnologyScanDetail; members?: Row[] };
 export type Draft = {
   technology: string;
   category: string;
@@ -73,9 +73,7 @@ export function useTechnologyReview({
     categories?.map((item) => [item.category_id, localize(item)]) ?? [],
   );
   const areaNames = new Map(areas?.map((item) => [item.area_id, localize(item).name]) ?? []);
-  const allRows: Row[] = scans.flatMap((scan) =>
-    scan.findings.map((finding) => ({ ...finding, scan })),
-  );
+  const allRows = groupFindingRows(scans);
   function draft(row: Row) {
     return drafts[rowKey(row)] ?? defaultDraft(row, names);
   }
@@ -83,7 +81,7 @@ export function useTechnologyReview({
     setDrafts((current) => ({ ...current, [rowKey(row)]: { ...draft(row), ...value } }));
   }
   function pending(row: Row) {
-    return row.state !== "rejected" && row.review !== "confirmed";
+    return !["resolved", "rejected"].includes(findingStatus(row, names));
   }
   const latest = latestScanIds(scans);
   const rows = allRows.filter(
@@ -95,7 +93,7 @@ export function useTechnologyReview({
       (!status || findingStatus(row, names) === status) &&
       (!kind || (mode === "mapping" ? findingReason(row, names) === kind : row.kind === kind)) &&
       (!pendingOnly || pending(row)) &&
-      `${row.coordinate} ${names.get(row.technology_id ?? row.candidate_technology_id ?? "")?.name ?? ""} ${row.scan.project_name ?? ""} ${row.evidence.map((e) => e.path ?? e.reference).join(" ")}`
+      `${row.technology_name ?? ""} ${row.coordinate} ${names.get(row.technology_id ?? row.candidate_technology_id ?? "")?.name ?? ""} ${row.scan.project_name ?? ""} ${row.evidence.map((e) => e.path ?? e.reference).join(" ")}`
         .toLocaleLowerCase()
         .includes(search.toLocaleLowerCase()),
   );
@@ -107,10 +105,12 @@ export function useTechnologyReview({
   const category = chosen ? categoryNames.get(chosen.category) : undefined;
   const bulkRows = selected.length
     ? rows.filter((row) => selected.includes(rowKey(row)))
-    : rows.filter((row) => drafts[rowKey(row)] || pending(row));
+    : rows.filter((row) => drafts[rowKey(row)]);
   const applicable = bulkRows.filter((row) => canApplyFinding(draft(row), names));
   function apply(items: Row[], reject = false) {
-    const decisions = items.map((row) => findingDecision(row, draft(row), reject));
+    const decisions = items.flatMap((row) =>
+      (row.members ?? [row]).map((member) => findingDecision(member, draft(row), reject)),
+    );
     mutation.save(
       `/v1/corporate/organizations/${authority.organizationId}/technology-findings/review`,
       { expected_revision: 0, items: decisions },
@@ -193,7 +193,7 @@ function defaultDraft(row: Row, names: Map<string, TechnologyView>): Draft {
   const record = names.get(technology);
   return {
     technology,
-    category: record ? (displayCategoryIds(record)[0] ?? "") : "",
+    category: row.category_id ?? (record ? (displayCategoryIds(record)[0] ?? "") : ""),
     comment: row.comment,
     review:
       row.state === "rejected" ? "rejected" : row.review === "confirmed" ? "confirmed" : "open",
@@ -202,7 +202,7 @@ function defaultDraft(row: Row, names: Map<string, TechnologyView>): Draft {
 function canApplyFinding(draft: Draft, names: Map<string, TechnologyView>) {
   return (
     draft.review === "rejected" ||
-    (draft.technology && names.get(draft.technology)?.lifecycle !== "archived")
+    ((draft.technology || draft.category) && names.get(draft.technology)?.lifecycle !== "archived")
   );
 }
 function latestScanIds(scans: TechnologyScanDetail[]) {
@@ -256,12 +256,47 @@ export function findingReason(row: Row, names: Map<string, TechnologyView>) {
   if (row.state === "open") return "unrecognized";
   if (row.state === "candidate") return "candidate";
   if (!names.get(row.technology_id ?? "")?.category_ids.length) return "category";
-  return "confirmation";
+  return "confirmed";
 }
 
 export function findingStatus(row: Row, names: Map<string, TechnologyView>) {
   const reason = findingReason(row, names);
   if (reason === "confirmed") return "resolved";
   if (reason === "excluded") return "rejected";
-  return reason === "confirmation" || reason === "category" ? reason : row.state;
+  return reason === "category" ? reason : row.state;
+}
+
+export function groupFindingRows(scans: TechnologyScanDetail[]): Row[] {
+  const grouped = new Map<string, Row>();
+  for (const scan of scans)
+    for (const finding of scan.findings) {
+      const member = { ...finding, scan };
+      const key = JSON.stringify([
+        scan.scan_id,
+        finding.technology_id ??
+          finding.candidate_technology_id ??
+          finding.technology_key ?? [finding.kind, finding.coordinate],
+      ]);
+      const previous = grouped.get(key);
+      if (!previous) {
+        grouped.set(key, { ...member, members: [member] });
+        continue;
+      }
+      const members = [...(previous.members ?? [previous])];
+      const existing = members.find((item) => rowKey(item) === rowKey(member));
+      if (!existing) members.push(member);
+      const versions = [
+        ...new Set([...(previous.version ?? "").split(", "), finding.version].filter(Boolean)),
+      ];
+      const evidence = [
+        ...new Map(
+          [...previous.evidence, ...finding.evidence].map((entry) => [
+            JSON.stringify(entry),
+            entry,
+          ]),
+        ).values(),
+      ];
+      grouped.set(key, { ...previous, members, evidence, version: versions.join(", ") || null });
+    }
+  return [...grouped.values()];
 }

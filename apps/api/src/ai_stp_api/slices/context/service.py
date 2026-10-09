@@ -63,6 +63,7 @@ from ai_stp_platform.organization_models import (
 from ai_stp_platform.organization_models import (
     ProjectRevisionReceipt as ProjectRevisionReceiptRow,
 )
+from ai_stp_platform.repository_bindings import repository_links
 from ai_stp_platform.technology_models import Technology
 
 CAPABILITY_TTL_SECONDS = 60
@@ -826,13 +827,14 @@ async def _validate_link_targets(
         )
         if provider is None:
             raise ApiError(ErrorCategory.NOT_FOUND, "provider project not found")
+        source_links = repository_links().c
         other = await db.scalar(
-            select(ProjectLink).where(
-                ProjectLink.organization_id == organization_id,
-                ProjectLink.remote_project_id == payload.remote_project_id,
-                ProjectLink.state == "linked",
-                ProjectLink.provider_project_id.is_not(None),
-                ProjectLink.provider_project_id != payload.provider_project_id,
+            select(source_links.provider_project_id).where(
+                source_links.organization_id == organization_id,
+                source_links.remote_project_id == payload.remote_project_id,
+                source_links.state == "linked",
+                source_links.provider_project_id.is_not(None),
+                source_links.provider_project_id != payload.provider_project_id,
             )
         )
         if other is not None:

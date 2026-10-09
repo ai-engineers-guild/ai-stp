@@ -16,7 +16,8 @@ import { Label } from "@/components/atoms/label";
 import { Select } from "@/components/atoms/select";
 import { Table, TBody, Td, THead, Th, Tr } from "@/components/atoms/table";
 import { PagePager } from "@/components/molecules/page-pager";
-import { Link } from "@/lib/i18n/navigation";
+import { Link, useRouter } from "@/lib/i18n/navigation";
+import { Menu, MenuTrigger, MenuContent, MenuItem } from "@/components/atoms/menu";
 import type { CorporateProjectView, TechnologyScanListEntry } from "@/lib/api/generated/types.gen";
 import { Icon } from "@/theme";
 
@@ -171,6 +172,7 @@ export function TechnologyScanJournalTable({
   const w = useTranslations("technology.workspace"),
     s = useTranslations("technology.scans"),
     locale = useLocale();
+  const router = useRouter();
   const scanType = useTranslations("technology.workspace.scanTypes");
   const scanTypes = {
     dependencies: scanType("dependencies"),
@@ -209,7 +211,24 @@ export function TechnologyScanJournalTable({
         </THead>
         <TBody>
           {items.map((scan) => (
-            <Tr key={scan.scan_id}>
+            <Tr
+              key={scan.scan_id}
+              className="hover:bg-muted/50 cursor-pointer"
+              tabIndex={0}
+              onClick={(event) => {
+                if (!(event.target as HTMLElement).closest("a,button,[role=menuitem]"))
+                  router.push(`/corporate/technology-scans/${scan.scan_id}`);
+              }}
+              onKeyDown={(event) => {
+                if (
+                  event.target === event.currentTarget &&
+                  (event.key === "Enter" || event.key === " ")
+                ) {
+                  event.preventDefault();
+                  router.push(`/corporate/technology-scans/${scan.scan_id}`);
+                }
+              }}
+            >
               <Td>
                 <Link
                   className="inline-flex min-h-11 items-center text-xs"
@@ -271,14 +290,23 @@ export function TechnologyScanJournalTable({
               <Td>{scan.status === "failed" ? "—" : scan.found}</Td>
               <Td>{scan.status === "failed" ? "—" : scan.pending}</Td>
               <Td>
-                <Button asChild size="icon" variant="ghost">
-                  <Link
-                    href={`/corporate/technology-scans/${scan.scan_id}`}
-                    aria-label={w("openScan", { id: scan.scan_id })}
-                  >
-                    <Icon name="more" size="sm" />
-                  </Link>
-                </Button>
+                <Menu>
+                  <MenuTrigger asChild>
+                    <Button size="icon" variant="ghost" aria-label={w("actions")}>
+                      <Icon name="more" size="sm" />
+                    </Button>
+                  </MenuTrigger>
+                  <MenuContent>
+                    <MenuItem asChild>
+                      <Link href={`/corporate/technology-scans/${scan.scan_id}`}>
+                        {w("openScan", { id: scan.scan_id })}
+                      </Link>
+                    </MenuItem>
+                    <MenuItem asChild>
+                      <Link href={`/corporate/projects/${scan.project_id}`}>{w("project")}</Link>
+                    </MenuItem>
+                  </MenuContent>
+                </Menu>
               </Td>
             </Tr>
           ))}

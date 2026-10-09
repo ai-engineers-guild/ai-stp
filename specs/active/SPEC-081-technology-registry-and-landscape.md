@@ -200,8 +200,24 @@ filtering without changing these registry and relation semantics.
   `GET /technology-scans/{scan_id}` expands one journal row into its findings
   — resolved observations and unmapped coordinates with their current review
   state — under the same project-scoped read authority; queued and failed jobs
-  remain readable with empty findings. Launch is one fingerprinted idempotent
+  remain readable with empty findings.
+  `GET /technology-scans/{scan_id}/findings` returns the same curated finding
+  set as a standalone resource carrying the scan's repository, branch, commit,
+  completeness and detector/mapping versions.
+  `GET /technology-scans/{scan_id}/findings.csv` and
+  `GET /technology-scans/{scan_id}/findings.md` render the identical curated
+  rows as a CSV spreadsheet (formula-defused cells, UTF-8 BOM) and a Markdown
+  document; the review page offers all three downloads. Reads and exports are
+  audited. Launch is one fingerprinted idempotent
   effect: replay returns the stored items instead of new jobs.
+
+  The curated set a scan detail, its findings resource, its exports and the
+  review queue all share is not the raw detector output. A package whose every
+  trace is a lock row with no same-directory declaration is resolver output:
+  it stays in the scan's raw `coordinates` inventory but never becomes an
+  observation, an unmapped-queue entry, or a review finding — unless an owner
+  already reviewed it. Configuration and image signatures without a resolved
+  or candidate identity are likewise noise unless reviewed.
 
 ## States and errors
 
@@ -313,7 +329,7 @@ reads remain available for retained archived/deleted project identities.
 
 ### Local detection, review and publication
 
-Detector version `2` recognizes Python dependency groups and inline setup.cfg
+Detector version `3` recognizes Python dependency groups and inline setup.cfg
 requirements, Cargo workspace/target dependencies and renamed packages, scoped
 pnpm coordinates across lockfile generations, Go require blocks and checksum
 versions, and Dockerfile/Compose variants. Cargo editions are not compiler
@@ -321,8 +337,17 @@ versions; Go exclude/replace directives are not dependency declarations; Docker
 build stages are not external images. Multiple checksum versions remain separate
 claims. Dependency URLs and local paths are not version strings.
 
+A lock file records the resolver's output for a declared manifest, so a lock
+row restates the declared dependency's context rather than claiming
+`production`: a dev-group package pinned by `uv.lock` stays a testing or
+development detection. A package declared both runtime and optional in the same
+manifest is one production dependency listed twice, not two findings.
+
 An unverified, changed, oversized, undecodable or malformed supported manifest
-makes detection incomplete while retaining findings from other inputs. Detection
+makes detection incomplete while retaining findings from other inputs. An
+archive member too large to read still indexes — digest-less, like a local
+oversized file — so presence signatures such as `uv.lock` → `uv` fire while the
+scan reports `unreadable manifest`. Detection
 also checks its time budget between files. These scans cannot mark prior findings
 absent. Publication retains the stored scan's detector version after a CLI upgrade.
 
@@ -496,7 +521,7 @@ downgrade requires a verified backup and is not an ordinary rollback.
 | `REQ-8217` | Scope isolation tests show one coordinate under two scopes keeps two rows and a rescan clears exactly one; forge-language fixtures land unknown names in the queue; the organization endpoint groups coordinates across projects. |
 | `REQ-8218` | Command tests cover seed-versus-entries exclusivity, JSON/YAML validation, local and remote unmapped listing, and the intent's action and required-field questions; worker tests cover daily enqueue idempotency, stale-head skip, and merge-path equivalence. |
 | `REQ-8219` | Area lifecycle and category-binding tests cover draft/active/archived transitions, preserved bindings on partial updates, archived-area refusal, and blocked archival while categories are bound. |
-| `REQ-8220` | Journal/detail/launch tests cover mixed source and status rows, per-project rejection, queued-job visibility with empty findings, per-project filtering, and idempotent launch replay returning stored items. |
+| `REQ-8220` | Journal/detail/launch tests cover mixed source and status rows, per-project rejection, queued-job visibility with empty findings, per-project filtering, and idempotent launch replay returning stored items. Findings-resource tests cover the curated JSON rows with metadata and evidence, identical CSV/Markdown renders, and export audits; curation tests cover the lock-only-transitive and unresolved-signature exclusions. |
 
 ## Bounded forge language enrichment
 
@@ -558,7 +583,7 @@ background mutation.
 accepts one to 512 unique scan/kind/coordinate/context decisions. Each decision
 carries its expected review revision, optional technology and category, a
 confirmed/rejected decision, and a comment of at most 500 characters. Confirmation
-requires a canonical technology. The operation checks organization authorization,
+requires a canonical technology or a category. Category-only confirmation reuses a normalized alias or creates a technology named after the coordinate, with ordinary create authorization. Names longer than 200 characters require explicit technology creation first. The selected category is retained on the finding review independently of the technology's other classifications. The operation checks organization authorization,
 project pair authority, technology authority, the retained scan's coordinate
 membership, and every revision before committing the atomic mutation. Replays
 return the original receipt. A rejection does not reclassify a technology.
@@ -579,11 +604,7 @@ areas, categories, distinct project counts and versions from authorized API data
 Technology chips and summary actions open versions, related projects and evidence.
 The journal shows repository provenance, duration, job state and found/pending
 counts. Global mapping and scan detail compose the same table, draft state,
-inline review panel and creation dialogs. Both permit correction of already
-recognized findings, category assignment, hierarchy creation, bulk confirmation,
-comment/reset/exclusion, and retained-history review. Desktop follows the five
-provided references; narrow viewports stack the editor below the table and
-contain horizontal table scrolling. Fixtures appear only in Storybook and tests.
+inline category cells, a separate derived area cell, evidence dialogs and creation dialogs. Findings are grouped by canonical technology (or original kind/coordinate), preserving all versions, contexts and evidence. A save fans out to the original review identities. Unknown, candidate and unclassified findings are highlighted and the review-only filter excludes classified and rejected rows. Creation requires only a name; category and description can be supplied later. The status and comment editor is omitted. Narrow viewports contain horizontal table scrolling. Fixtures appear only in Storybook and tests.
 Archived technologies and categories remain available for historical name lookup,
 but are excluded from new selections. A saved confirmation or rejection keeps its
 persisted status when a referenced registry record is archived.
@@ -591,9 +612,22 @@ persisted status when a referenced registry record is archived.
 Acceptance evidence: `test_technology_finding_reviews.py` exercises idempotent
 review, current usage, retained original documents, rescan inheritance and
 rejection. `technology-workspace.test.tsx` exercises map drill-down, summary
-columns, resolved finding edits, reset/exclusion, source filtering and read-only
+columns, inline category assignment, review filtering, grouping, source filtering and read-only
 states. Playwright acceptance inspects the deployed local Docker workspace.
 
 Scan journal and detail expose `scan_types` derived from retained finding kinds: dependencies, configurations, and languages. An empty or queued scan has no invented scan type. Confirming a selected category preserves the technology's other category bindings.
 
 Multi-project repository launches share a batch identity. After a scan changes the policy revision, queued siblings whose authority matched the immediately preceding revision are reauthorized at the current revision under the organization lock. Denied or already stale jobs remain rejected; unrelated batches are unchanged (`ADR-0228`).
+
+## Corporate repository selection
+
+Project editors can check and explicitly confirm a public GitHub repository URL or
+a repository on the configured organization GitLab. The project detail shows the
+saved provider, URL and default branch. Read-only viewers see the same source.
+Preview and confirmation require current project/authorization revisions, exact
+actor-bound digest, expiry and independent idempotency keys. Linking never queues
+a scan. CLI checkout synchronization remains device-bound (ADR-0229).
+
+The journal row body navigates to details by pointer or keyboard; its three-dot menu opens independent actions. Repository scan launch rejects any project with a queued, running or retry-scheduled scan under the organization lock, including requests with different idempotency keys. The journal disables selection of active projects, and a successful launch cannot be resubmitted from the same dialog.
+
+Journal and scan-detail found/pending counts use the same technology-or-coordinate display grouping as the review table; immutable evidence and original review identities remain available in findings.

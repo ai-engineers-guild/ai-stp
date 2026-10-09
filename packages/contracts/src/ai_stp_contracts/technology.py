@@ -117,7 +117,7 @@ class TechnologyCategoryMetadata(ContractModel):
 class TechnologyMetadata(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
     name: Annotated[str, Field(min_length=1, max_length=200)]
-    category_ids: Annotated[list[CategoryId], Field(min_length=1, max_length=32)]
+    category_ids: Annotated[list[CategoryId], Field(max_length=32)] = []
     aliases: Annotated[
         list[Annotated[str, Field(min_length=1, max_length=200)]], Field(max_length=64)
     ] = []
@@ -750,6 +750,9 @@ class TechnologyScanFinding(ContractModel):
     state: Literal["resolved", "candidate", "open", "rejected"]
     candidate_technology_id: TechnologyId | None = None
     review: Literal["proposed", "confirmed", "rejected"] = "proposed"
+    category_id: CategoryId | None = None
+    technology_key: str | None = None
+    technology_name: str | None = None
     review_revision: Annotated[int, Field(ge=0)] = 0
     comment: Annotated[str, Field(max_length=500)] = ""
 
@@ -776,8 +779,11 @@ class TechnologyFindingReviewRequest(TechnologyMutation):
         keys = [(item.scan_id, item.kind, item.coordinate, item.context) for item in self.items]
         if len(keys) != len(set(keys)):
             raise ValueError("finding decisions must be distinct")
-        if any(item.review == "confirmed" and item.technology_id is None for item in self.items):
-            raise ValueError("confirmation requires a technology")
+        if any(
+            item.review == "confirmed" and item.technology_id is None and item.category_id is None
+            for item in self.items
+        ):
+            raise ValueError("confirmation requires a technology or category")
         return self
 
 
@@ -792,6 +798,24 @@ class TechnologyScanDetail(TechnologyScanListEntry):
     detector_version: str | None = None
     mapping_version: str | None = None
     complete: bool = True
+    findings: list[TechnologyScanFinding] = []
+
+
+class TechnologyScanFindingList(ContractModel):
+    """One scan's curated findings as a standalone resource for export."""
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+    organization_id: OrganizationId
+    scan_id: TechnologyScanId
+    project_id: RemoteProjectId
+    project_name: str | None = None
+    repository: str | None = None
+    branch: str | None = None
+    commit: str | None = None
+    created_at: Timestamp
+    complete: bool = True
+    detector_version: str | None = None
+    mapping_version: str | None = None
     findings: list[TechnologyScanFinding] = []
 
 
@@ -927,3 +951,8 @@ class TechnologyLandscapeView(ContractModel):
     filters: TechnologyLandscapeQuery
     items: list[TechnologyLandscapeRow]
     total: Annotated[int, Field(ge=0)]
+
+
+class TechnologyFindingsExportQuery(ContractModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+    format: Literal["md", "json", "csv"] = "json"

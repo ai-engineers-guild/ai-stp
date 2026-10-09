@@ -29,6 +29,7 @@ from ai_stp_foundation.timestamps import format_timestamp
 from ai_stp_platform.corporate_authorization import has_corporate_permission
 from ai_stp_platform.organization_models import (
     CorporateProject,
+    CorporateRepositoryBinding,
     Organization,
     ProjectIdentity,
     ProjectLink,
@@ -142,6 +143,10 @@ async def scan_linked_repository(
             ProjectLink.state == "linked",
         )
     )
+    if link is None:
+        link = await db.get(CorporateRepositoryBinding, (organization_id, project_id))
+        if link is not None and link.provider_project_id != provider_project_id:
+            link = None
     project = await db.scalar(
         select(CorporateProject).where(
             CorporateProject.organization_id == organization_id,
@@ -244,6 +249,16 @@ async def scan_linked_repository(
         )
         .with_for_update()
     )
+    if locked_link is None:
+        locked_link = await db.scalar(
+            select(CorporateRepositoryBinding)
+            .where(
+                CorporateRepositoryBinding.organization_id == organization_id,
+                CorporateRepositoryBinding.remote_project_id == project_id,
+                CorporateRepositoryBinding.provider_project_id == provider_project_id,
+            )
+            .with_for_update()
+        )
     await db.refresh(identity)
     if (
         organization is None

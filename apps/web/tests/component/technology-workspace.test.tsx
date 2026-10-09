@@ -1,3 +1,5 @@
+import userEvent from "@testing-library/user-event";
+import { TechnologyRegistryCreate } from "@/components/organisms/technology-registry-create";
 import { NextIntlClientProvider } from "next-intl";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
@@ -9,7 +11,7 @@ import { TechnologyScanFindings } from "@/components/organisms/technology-scan-f
 import { TechnologyLandscapeResults } from "@/components/organisms/technology-landscape-results";
 import { TechnologyScanJournal } from "@/components/organisms/technology-scan-journal";
 import { TechnologyFields } from "@/components/organisms/technology-registry-fields";
-import { findingStatus } from "@/lib/technology-review-state";
+import { findingStatus, groupFindingRows } from "@/lib/technology-review-state";
 import { displayCategoryIds } from "@/lib/technology-taxonomy";
 import {
   authority,
@@ -20,13 +22,16 @@ import {
   areas,
   landscape,
 } from "@/mocks/technology-workspace-fixture";
-const { mutation, refresh } = vi.hoisted(() => ({
+const { mutation, refresh, push, download } = vi.hoisted(() => ({
   mutation: vi.fn<typeof corporateMutationAction>(),
   refresh: vi.fn(),
+  push: vi.fn(),
+  download: vi.fn(),
 }));
 vi.mock("@/actions/corporate", () => ({ corporateMutationAction: mutation }));
+vi.mock("@/lib/findings-export", () => ({ downloadScanFindings: download }));
 vi.mock("@/lib/i18n/navigation", () => ({
-  useRouter: () => ({ refresh, push: vi.fn() }),
+  useRouter: () => ({ refresh, push }),
   Link: ({ children, ...props }: { children: ReactNode; href: string }) => (
     <a {...props}>{children}</a>
   ),
@@ -52,6 +57,8 @@ beforeEach(() => {
   mutation.mockReset();
   mutation.mockResolvedValue({ ok: true, data: { updated: 1 } });
   refresh.mockReset();
+  push.mockReset();
+  download.mockReset();
 });
 it("renders the area map and opens real versions and project evidence", () => {
   render(
@@ -140,54 +147,48 @@ it("searches the category directory and submits selected IDs through the ordinar
   const form = screen.getByRole<HTMLFormElement>("form", { name: "Registry" });
   expect(new FormData(form).getAll("category_ids")).toEqual([categories[0].category_id]);
 });
-it("keeps the finding editor beside the table and edits resolved findings", async () => {
+it("edits categories inline and filters out classified findings", async () => {
   render(wrap(<TechnologyScanFindings {...props} />));
-  expect(screen.getByRole("complementary", { name: "Finding review" })).toBeVisible();
-  fireEvent.change(screen.getByRole("textbox", { name: "Comment" }), {
-    target: { value: "Reviewed from manifest" },
-  });
-  fireEvent.click(screen.getByRole("button", { name: "Confirm and apply" }));
+  expect(screen.queryByRole("complementary")).toBeNull();
+  expect(screen.queryByRole("textbox", { name: "Comment" })).toBeNull();
+  fireEvent.click(screen.getByRole("checkbox", { name: "Only findings needing review" }));
+  expect(screen.queryByText("fastapi")).toBeNull();
+  const row = screen.getByText("weirdlib").closest("tr");
+  if (!row) throw new Error("Missing finding row");
+  fireEvent.click(within(row).getByText("Choose a category", { selector: "summary span" }));
+  fireEvent.click(within(row).getByRole("checkbox", { name: "API frameworks" }));
+  expect(row).toHaveTextContent("Server applications");
+  fireEvent.click(within(row).getByRole("button", { name: "Confirm and apply" }));
   await waitFor(() => {
     expect(mutation).toHaveBeenCalledTimes(1);
-  });
-  const input = mutation.mock.calls[0]?.[0];
-  expect(input?.method).toBe("PUT");
-  expect(input?.path).toContain("technology-findings/review");
-  expect(input?.body).toMatchObject({
-    items: [
-      {
-        scan_id: scan.scan_id,
-        coordinate: "fastapi",
-        technology_id: technologies[0].technology_id,
-        expected_revision: 1,
-        comment: "Reviewed from manifest",
-        review: "confirmed",
-      },
-    ],
-  });
-});
-it("excludes an unrecognized finding with its original coordinate and resets local edits", async () => {
-  render(wrap(<TechnologyScanFindings {...props} mode="mapping" />));
-  fireEvent.click(screen.getByRole("button", { name: "weirdlib" }));
-  fireEvent.change(screen.getByRole("textbox", { name: "Comment" }), {
-    target: { value: "Temporary edit" },
-  });
-  fireEvent.click(screen.getByRole("button", { name: "Reset" }));
-  expect(screen.getByRole("textbox", { name: "Comment" })).toHaveValue("");
-  fireEvent.click(screen.getByRole("button", { name: "Exclude finding" }));
-  await waitFor(() => {
-    expect(mutation).toHaveBeenCalled();
   });
   expect(mutation.mock.calls[0]?.[0].body).toMatchObject({
     items: [
       {
         coordinate: "weirdlib",
+        category_id: categories[0].category_id,
         technology_id: null,
-        review: "rejected",
-        expected_revision: 0,
+        review: "confirmed",
       },
     ],
   });
+});
+it("groups versions and contexts while retaining every review identity and source", () => {
+  const first = scan.findings[0];
+  const rows = groupFindingRows([
+    {
+      ...scan,
+      findings: [
+        first,
+        { ...first, version: "0.116", context: "development", evidence: scan.findings[1].evidence },
+        { ...first, version: "0.117" },
+      ],
+    },
+  ]);
+  expect(rows).toHaveLength(1);
+  expect(rows[0]?.members).toHaveLength(2);
+  expect(rows[0]?.evidence).toHaveLength(2);
+  expect(rows[0]?.version).toBe("0.115, 0.116, 0.117");
 });
 it("filters scan history by source and search and shows the repository in its project cell", () => {
   render(wrap(<TechnologyScanJournal items={[scan]} projects={projects} />));
@@ -204,7 +205,7 @@ it("filters scan history by source and search and shows the repository in its pr
 });
 it("shows empty and read-only states without write actions", () => {
   render(wrap(<TechnologyScanFindings {...props} canUpdate={false} scans={[]} />));
-  expect(screen.getByText("Select a finding to review.")).toBeVisible();
+  expect(screen.getByRole("status")).toBeVisible();
   expect(screen.queryByRole("button", { name: "Confirm and apply" })).toBeNull();
 });
 
@@ -222,14 +223,55 @@ it("retains confirmed history and archived names without offering archived recor
       />,
     ),
   );
-  const row = screen.getByRole("button", { name: "fastapi" }).closest("tr");
-  expect(row).toHaveTextContent("FastAPI");
+  const row = screen.getByText("fastapi").closest("tr");
+  expect(row).toBeVisible();
   expect(row).toHaveTextContent("API frameworks");
-  expect(row).toHaveTextContent("Confirmed");
-  expect(screen.getByRole("button", { name: "Confirm and apply" })).toBeDisabled();
-  expect(screen.getByRole("option", { name: "API frameworks" })).toBeDisabled();
-  fireEvent.click(screen.getByRole("button", { name: "Technology: FastAPI" }));
-  expect(screen.queryByRole("checkbox", { name: "FastAPI" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Confirm and apply" })).toBeNull();
   expect(findingStatus({ ...finding, scan }, new Map())).toBe("resolved");
   expect(findingStatus({ ...finding, review: "rejected", scan }, new Map())).toBe("rejected");
+});
+
+it("offers findings downloads in JSON, CSV and Markdown", async () => {
+  render(wrap(<TechnologyScanFindings {...props} />));
+  const user = userEvent.setup();
+  await user.click(screen.getByRole("button", { name: "Download findings" }));
+  for (const format of ["JSON", "CSV", "Markdown"]) {
+    expect(screen.getByRole("menuitem", { name: `Download ${format}` })).toBeVisible();
+  }
+  await user.click(screen.getByRole("menuitem", { name: "Download CSV" }));
+  expect(download).toHaveBeenCalledWith(expect.objectContaining({ scan_id: scan.scan_id }), "csv");
+});
+it("opens journal actions without navigating, and navigates from the row body", async () => {
+  render(wrap(<TechnologyScanJournal items={[scan]} projects={projects} />));
+  const user = userEvent.setup();
+  await user.click(screen.getByRole("button", { name: "Actions" }));
+  expect(screen.getByRole("menu")).toBeVisible();
+  expect(push).not.toHaveBeenCalled();
+  await user.keyboard("{Escape}");
+  fireEvent.click(screen.getByText("312 sec"));
+  expect(push).toHaveBeenCalledWith(`/corporate/technology-scans/${scan.scan_id}`);
+});
+it("creates a technology with only a name", async () => {
+  render(
+    wrap(
+      <TechnologyRegistryCreate
+        kind="technology"
+        {...authority}
+        authorizationRevision={String(authority.authorizationRevision)}
+        categories={categories}
+        areas={areas}
+      />,
+    ),
+  );
+  expect(screen.getAllByRole("textbox")).toHaveLength(1);
+  fireEvent.change(screen.getByRole("textbox", { name: "Name" }), {
+    target: { value: "New library" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Create technology draft" }));
+  await waitFor(() => {
+    expect(mutation).toHaveBeenCalledTimes(1);
+  });
+  expect(mutation.mock.calls[0]?.[0].body).toMatchObject({
+    metadata: { name: "New library", category_ids: [], description: "" },
+  });
 });

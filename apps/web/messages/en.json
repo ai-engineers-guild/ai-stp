@@ -548,14 +548,14 @@
         "pending": "Needs review",
         "branch": "Branch",
         "commit": "Commit",
-        "classification": "Area / Category",
         "version": "Version",
         "evidence": "Evidence"
       },
       "findings": "Findings",
       "detectorVersion": "detector {version}",
       "mappingVersion": "mapping {version}",
-      "empty": "No scans yet."
+      "empty": "No scans yet.",
+      "launchActive": "A scan is already queued or running"
     },
     "areas": {
       "title": "Technology areas",
@@ -625,12 +625,7 @@
       "type": "Type",
       "allTypes": "All types",
       "pendingOnly": "Only findings needing review",
-      "suggested": "Suggested",
-      "classification": "Area / Category",
       "file": "File",
-      "selectAll": "Select all findings on this page",
-      "selectFinding": "Select finding {name}",
-      "inspectFinding": "Review finding {name}",
       "perPage": "{count} per page",
       "noFindings": "No findings match these filters.",
       "findingDetails": "Finding review",
@@ -679,6 +674,10 @@
       },
       "resetFinding": "Reset",
       "rerunScan": "Rerun scan",
+      "downloadFindings": "Download findings",
+      "downloadJson": "Download JSON",
+      "downloadCsv": "Download CSV",
+      "downloadMarkdown": "Download Markdown",
       "reasonState": {
         "unrecognized": "Unrecognized",
         "candidate": "Requires review",
@@ -696,7 +695,8 @@
         "configs": "Configurations",
         "languages": "Languages"
       },
-      "emptyArea": "No technologies found"
+      "emptyArea": "No technologies found",
+      "evidenceCount": "{count} files"
     },
     "close": "Close",
     "taxonomy": {
@@ -3060,5 +3060,19 @@
     "warning_repository_access": "The recipient gains project access on GitLab.",
     "warning_repository_access_revoked": "The member loses project access on GitLab.",
     "warning_repository_created": "A new repository is created on GitLab under your account."
+  },
+  "projectRepository": {
+    "title": "Repository",
+    "empty": "No GitHub or GitLab repository linked.",
+    "link": "Link GitHub / GitLab",
+    "url": "Repository URL",
+    "hint": "Public GitHub repository or a repository on your organization’s configured GitLab.",
+    "branch": "Branch",
+    "check": "Check repository",
+    "confirm": "Link repository",
+    "confirmHint": "Link this repository to the project. Scanning is launched separately.",
+    "working": "Checking…",
+    "cancel": "Cancel",
+    "placeholder": "https://github.com/owner/repository"
   }
 }

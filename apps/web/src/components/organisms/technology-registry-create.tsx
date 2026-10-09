@@ -7,11 +7,7 @@ import { corporateMutationAction } from "@/actions/corporate";
 import { Button } from "@/components/atoms/button";
 import { Input } from "@/components/atoms/input";
 import { Label } from "@/components/atoms/label";
-import {
-  AreaField,
-  CategoryStateField,
-  TechnologyFields,
-} from "@/components/organisms/technology-registry-fields";
+import { AreaField, TechnologyFields } from "@/components/organisms/technology-registry-fields";
 import { useRouter } from "@/lib/i18n/navigation";
 import type {
   AreaView,
@@ -222,8 +218,10 @@ export function TechnologyRegistryCreate({
       }
       retry.current = null;
       if (record) recordRevision.current += 1;
-      if (!record) form.reset();
-      if (!record) onCreated?.(result.data as TechnologyView | CategoryView | AreaView);
+      if (!record) {
+        form.reset();
+        onCreated?.(result.data as TechnologyView | CategoryView | AreaView);
+      }
       setMessage(t("saved"));
       router.refresh();
     });
@@ -252,26 +250,27 @@ export function TechnologyRegistryCreate({
             defaultValue={record?.name}
           />
         </div>
-        <div className="space-y-2">
-          <Label htmlFor={`${prefix}-description`}>{t("details")}</Label>
-          <Input
-            id={`${prefix}-description`}
-            name="description"
-            maxLength={kind === "category" ? 2000 : 4000}
-            defaultValue={record?.description}
-          />
-        </div>
+        {record && (
+          <div className="space-y-2">
+            <Label htmlFor={`${prefix}-description`}>{t("details")}</Label>
+            <Input
+              id={`${prefix}-description`}
+              name="description"
+              maxLength={kind === "category" ? 2000 : 4000}
+              defaultValue={record.description}
+            />
+          </div>
+        )}
         {kind === "category" && areas != null && (
           <AreaField prefix={prefix} areas={areas} initial={initialCategory} />
         )}
-        {kind !== "technology" && !record && <CategoryStateField prefix={prefix} />}
-        {kind === "technology" && (
+        {kind === "technology" && record && (
           <TechnologyFields prefix={prefix} categories={categories} initial={initial} />
         )}
         <Button
           type="submit"
           size="lg"
-          disabled={kind === "technology" && categories?.length === 0}
+          disabled={Boolean(record) && kind === "technology" && categories?.length === 0}
         >
           {t(busy ? "saving" : record ? "saveChanges" : REGISTRY_TITLE_KEYS.create[kind])}
         </Button>

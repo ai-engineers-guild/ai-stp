@@ -253,12 +253,14 @@ def test_replay_changes_nothing_on_a_database_that_ran_the_chain(
     isolated_database_url: str,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    from alembic.script import ScriptDirectory
+
     monkeypatch.setenv("AI_STP_DB_URL", isolated_database_url)
     config = Config("alembic.ini")
     command.upgrade(config, "0111_corporate_access_provenance")
     before = _catalog(isolated_database_url)
     command.upgrade(config, "head")
-    assert _version(isolated_database_url) == "0115_saml_sso_request"
+    assert _version(isolated_database_url) == ScriptDirectory.from_config(config).get_current_head()
     assert _rows(before) <= _rows(_catalog(isolated_database_url))
 
 

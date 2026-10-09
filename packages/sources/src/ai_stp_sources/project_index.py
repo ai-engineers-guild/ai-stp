@@ -26,7 +26,7 @@ import hashlib
 import stat
 import time
 from dataclasses import dataclass, field
-from pathlib import Path
+from pathlib import Path, PurePath
 from typing import Final
 
 from ai_stp_sources.errors import INVALID_SOURCE, SourceError
@@ -282,7 +282,7 @@ def is_binary(head: bytes) -> bool:
     return b"\0" in head[:BINARY_PROBE_BYTES]
 
 
-def classify(path: Path) -> tuple[str, str | None]:
+def classify(path: PurePath) -> tuple[str, str | None]:
     """What kind of file this is, and which language if any."""
     name = path.name
     if name in AGENT_SURFACE_NAMES:
