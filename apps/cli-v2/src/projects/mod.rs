@@ -3,9 +3,11 @@
 mod discovery;
 mod index;
 pub mod passports;
+mod symbols;
 
 pub use discovery::discover;
 pub use index::index;
+pub use symbols::survey as symbols;
 
 use std::{
     path::{Path, PathBuf},
