@@ -1,6 +1,6 @@
 ---
 description: "SPEC-057: Exact external and local components embedded in setup definitions."
-last_verified: "2026-09-04"
+last_verified: "2026-10-09"
 ---
 
 # SPEC-057: Embedded component sources
@@ -54,8 +54,12 @@ the architecture and extends ADR-0051 without changing `ComponentRef`.
   lifecycle scripts, repository metadata, and dependency lock. PyPI snapshots
   require an explicit distribution filename and supported platform when a
   release has more than one file. crates.io records archive checksum and
-  `Cargo.lock` or resolved graph; Go records module version, zip hash, and
-  checksum evidence; pub.dev records archive checksum and `pubspec.lock` or
+  `Cargo.lock` or resolved graph; Go records module version, the upstream
+  `dirhash.HashZip(Hash1)` checksum over sorted original file names and their
+  contents, and matching checksum-endpoint evidence. ZIP order, compression and
+  metadata do not affect this checksum; the separate archive digest binds the
+  downloaded bytes. This observation does not attest the checksum database's
+  signed transparency log. pub.dev records archive checksum and `pubspec.lock` or
   resolved graph.
 - `REQ-5705`: Setup authoring may mix catalog, Git, package, and local-path
   entries. Freeze resolves every non-catalog input, creates or reuses a local
@@ -69,7 +73,7 @@ the architecture and extends ADR-0051 without changing `ComponentRef`.
   records. Passport and artifact digests and sizes are independently verified;
   a catalog identity collision, duplicate ref with different bytes, unknown
   field, unbounded payload, or incomplete passport blocks freeze.
-- `REQ-5707`: An embedded passport retains the eight existing component kinds,
+- `REQ-5707`: An embedded passport uses the existing closed component kinds,
   exact dependency refs, permissions, required environment, conflicts, source,
   license, and artifact digest. Its owner is the setup publisher as snapshot
   publisher, while upstream project, source, and maintainers remain separate
