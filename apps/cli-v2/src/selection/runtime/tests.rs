@@ -152,7 +152,7 @@ fn local_runtime_reads_real_artifacts_without_inventing_rights()
         request[field] = "claim-must-not-be-echoed".into();
         let path = directory.path().join("request.json");
         std::fs::write(&path, serde_json::to_vec(&request)?)?;
-        assert!(Request::parse(&path).is_err(), "{field}");
+        assert!(Request::parse(&path, false).is_err(), "{field}");
     }
     Ok(())
 }

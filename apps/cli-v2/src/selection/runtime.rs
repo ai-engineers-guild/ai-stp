@@ -3,10 +3,12 @@
 #[cfg(test)]
 mod tests;
 
+pub mod sessions;
+
 use std::{collections::BTreeMap, path::Path};
 
 use rusqlite::Connection;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
 use super::{
@@ -44,21 +46,12 @@ fn invalid() -> Failure {
 }
 
 impl Request {
-    fn parse(path: &Path) -> Result<Self> {
+    fn parse(path: &Path, empty: bool) -> Result<Self> {
         let request: Self =
             serde_json::from_value(canonical::parse(&files::read(path, MAX_REQUEST)?)?)
                 .map_err(|_| invalid())?;
-        harnesses::definition(&request.harness_id)?;
-        let version = &request.provider_version;
-        if request.harness_id == "undefined"
-            || version.len() > 64
-            || version.split('.').count() != 3
-            || version.split('.').any(|part| {
-                part.parse::<u64>().is_err()
-                    || !part.bytes().all(|b| b.is_ascii_digit())
-                    || part.len() > 1 && part.starts_with('0')
-            })
-            || request.members.is_empty()
+        request.selector().validate()?;
+        if request.members.is_empty() != empty
             || request.members.len() > 512
             || request.members.iter().any(|member| {
                 (!passport::stable_id(&member.stable_id, "component")
@@ -79,7 +72,49 @@ impl Request {
         Ok(request)
     }
 
+    fn selector(&self) -> Selector {
+        Selector {
+            harness_id: self.harness_id.clone(),
+            scope: self.scope,
+            provider_version: self.provider_version.clone(),
+        }
+    }
+
     fn target(&self, identity: &Identity) -> Result<Target> {
+        let mut target = self.selector().target(identity)?;
+        target.for_redistribution = self.for_redistribution;
+        Ok(target)
+    }
+}
+
+#[derive(Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+struct Selector {
+    harness_id: String,
+    scope: Scope,
+    provider_version: String,
+}
+
+impl Selector {
+    fn validate(&self) -> Result<()> {
+        harnesses::definition(&self.harness_id)?;
+        let version = &self.provider_version;
+        if self.harness_id == "undefined"
+            || version.len() > 64
+            || version.split('.').count() != 3
+            || version.split('.').any(|part| {
+                part.parse::<u64>().is_err()
+                    || !part.bytes().all(|b| b.is_ascii_digit())
+                    || part.len() > 1 && part.starts_with('0')
+            })
+        {
+            return Err(invalid());
+        }
+        Ok(())
+    }
+
+    fn target(&self, identity: &Identity) -> Result<Target> {
+        self.validate()?;
         let (os, arch) = runtime::platform()?.split_once('/').ok_or_else(invalid)?;
         let target = Target {
             harness_id: self.harness_id.clone(),
@@ -94,7 +129,7 @@ impl Request {
             env_present: Default::default(),
             grants: Default::default(),
             pinned_passport_digests: Default::default(),
-            for_redistribution: self.for_redistribution,
+            for_redistribution: false,
         };
         target.validate()?;
         Ok(target)
@@ -123,13 +158,15 @@ fn report(target: Target, assessment: Value, bytes: u64) -> Value {
         "permission_policy":"none_granted","installation_authorized":false,"harness_written":false})
 }
 
-/// All exact bytes and assessments are read in the same SQLite transaction.
-fn assess_snapshot(
-    connection: &Connection,
-    roots: &[Value],
-    mut target: Target,
-    provider: &Info,
-) -> Result<Value> {
+struct Inputs {
+    target: Target,
+    evidence: BTreeMap<String, Evidence>,
+    bytes: u64,
+}
+
+/// Derive in the caller's transaction, including the transaction that records
+/// a new proposal or confirmation. These observations are never deserialized.
+fn inputs(connection: &Connection, roots: &[Value], mut target: Target) -> Result<Inputs> {
     let closure = graph::exact(connection, roots)?;
     let mut documents = Vec::new();
     let mut total = 0;
@@ -185,22 +222,69 @@ fn assess_snapshot(
             },
         );
     }
-    let assessment =
-        eligibility::assess_connection(connection, roots, &target, &evidence, Some(provider))?;
-    Ok(report(target, assessment, total))
+    Ok(Inputs {
+        target,
+        evidence,
+        bytes: total,
+    })
+}
+
+fn assess_snapshot(
+    connection: &Connection,
+    roots: &[Value],
+    target: Target,
+    provider: &Info,
+) -> Result<Value> {
+    let observed = inputs(connection, roots, target)?;
+    let assessment = eligibility::assess_connection(
+        connection,
+        roots,
+        &observed.target,
+        &observed.evidence,
+        Some(provider),
+    )?;
+    Ok(report(observed.target, assessment, observed.bytes))
+}
+
+fn owner(parent: &Path) -> Result<Identity> {
+    Ok(identity::current(parent)?
+        .ok_or_else(|| {
+            Failure::precondition(
+                "initialize the isolated native identity before selecting owned objects",
+            )
+        })?
+        .context())
+}
+
+fn with_provider<T>(
+    parent: &Path,
+    selector: &Selector,
+    identity: &Identity,
+    effect: impl FnOnce(&Info, &artifact::Artifact<'_>, Value) -> Result<T>,
+) -> Result<T> {
+    selector.validate()?;
+    let runtime = runtime::Runtime::observe()?;
+    let trust = trust::refresh(parent)?;
+    let artifact = artifact::fetch(
+        &selector.harness_id,
+        &selector.provider_version,
+        runtime::platform()?,
+        &trust,
+    )?;
+    let (provider, report) = runtime.declaration(&artifact)?;
+    if owner(parent)? != *identity {
+        return Err(Failure::precondition(
+            "the isolated identity changed during provider observation",
+        ));
+    }
+    effect(&provider, &artifact, report)
 }
 
 /// Network access authenticates the provider only; local owner authority comes
 /// from the isolated identity. Public trust, grants and consent remain absent.
 pub fn assess(parent: &Path, path: &Path) -> Result<Value> {
-    let request = Request::parse(path)?;
-    let identity = identity::current(parent)?
-        .ok_or_else(|| {
-            Failure::precondition(
-                "initialize the isolated native identity before assessing owned objects",
-            )
-        })?
-        .context();
+    let request = Request::parse(path, false)?;
+    let identity = owner(parent)?;
     let target = request.target(&identity)?;
     let roots = serde_json::to_value(&request.members)
         .map_err(|_| invalid())?
@@ -219,26 +303,18 @@ pub fn assess(parent: &Path, path: &Path) -> Result<Value> {
             0,
         ));
     }
-    let runtime = runtime::Runtime::observe()?;
-    let trust = trust::refresh(parent)?;
-    let artifact = artifact::fetch(
-        &request.harness_id,
-        &request.provider_version,
-        runtime::platform()?,
-        &trust,
-    )?;
-    let (provider, report) = runtime.declaration(&artifact)?;
-    if identity::current(parent)?.map(|current| current.context()) != Some(identity) {
-        return Err(Failure::precondition(
-            "the isolated identity changed during provider observation",
-        ));
-    }
-    // Release the registry lock during external I/O, then read the entire graph
-    // again. A changed local object cannot inherit the preflight's verdict.
-    let mut store = Store::planning(parent)?;
-    let mut result = store.transaction(|t| assess_snapshot(t, &roots, target, &provider))?;
-    artifact.executable()?;
-    result["provider"] = report;
-    result["provider_observed"] = true.into();
-    Ok(result)
+    with_provider(
+        parent,
+        &request.selector(),
+        &identity,
+        |provider, artifact, report| {
+            // Re-read the graph after external I/O; preflight is never a permit.
+            let mut store = Store::planning(parent)?;
+            let mut result = store.transaction(|t| assess_snapshot(t, &roots, target, provider))?;
+            artifact.executable()?;
+            result["provider"] = report;
+            result["provider_observed"] = true.into();
+            Ok(result)
+        },
+    )
 }
