@@ -287,6 +287,7 @@ impl Launcher {
         }
         let output = process::with_input(
             request(&launcher.executable, &isolated, &environment),
+            &launcher.image,
             image,
         )?;
         if !output.status.success() {
@@ -387,7 +388,7 @@ impl Launcher {
                 handle.as_raw_fd().to_string().into(),
                 target.path().as_os_str().into(),
             ]);
-            handles.push(handle);
+            handles.push((arguments.len() - 2, handle));
             let source = File::open("/proc/self/exe").map_err(|_| unavailable())?;
             let image =
                 File::from(rustix::io::fcntl_dupfd_cloexec(&source, 3).map_err(|_| unavailable())?);
@@ -402,7 +403,7 @@ impl Launcher {
                 image.as_raw_fd().to_string().into(),
                 "/run/target-entry".into(),
             ]);
-            handles.push(image.into());
+            handles.push((arguments.len() - 2, OwnedFd::from(image)));
         }
         if let Some(bundle) = bundle {
             let handle = OwnedFd::from(sealed(bundle)?);
@@ -413,7 +414,7 @@ impl Launcher {
                 handle.as_raw_fd().to_string().into(),
                 "/run/bundle".into(),
             ]);
-            handles.push(handle);
+            handles.push((arguments.len() - 2, handle));
         }
         arguments.extend(
             [
@@ -442,6 +443,7 @@ impl Launcher {
         self.revalidate()?;
         let output = process::with_files(
             request(&self.executable, &arguments, &environment()),
+            &self.image,
             input,
             handles,
         )?;
@@ -478,6 +480,7 @@ mod tests {
         fs::write(temporary.path().join("private"), "outside\n")?;
         let target = Target::open(&path)?;
         target.revalidate()?;
+        // A same-inode writable directory is not a read-only provider mount.
         assert!(target.verify_mount(target.identity()?).is_err());
         symlink(&path, temporary.path().join("alias"))?;
         symlink(temporary.path(), temporary.path().join("parent-alias"))?;

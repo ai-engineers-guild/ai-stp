@@ -3,6 +3,7 @@
 mod local;
 mod providers;
 mod reports;
+mod selections;
 
 use clap::{Arg, ArgAction, ArgMatches, Command, builder::ValueParser};
 use serde_json::{Value, json};
@@ -21,6 +22,7 @@ enum Handler {
     Local(local::Handler),
     Report(reports::Handler),
     Provider(providers::Handler),
+    Selection(selections::Handler),
     Version,
     Help,
     Capabilities,
@@ -588,10 +590,20 @@ const COMMANDS: &[Declaration] = &[
     },
     Declaration {
         path: &["select", "graph"],
-        summary: "Resolve exact dependencies with bounded deterministic ordering and complete refusals.",
+        summary: "Resolve exact dependencies from isolated native state or an explicit verified snapshot, with deterministic ordering and complete refusals.",
         parameters: &[
-            SNAPSHOT,
-            SHA256,
+            Parameter {
+                required: false,
+                ..STATE_DIR
+            },
+            Parameter {
+                required: false,
+                ..SNAPSHOT
+            },
+            Parameter {
+                required: false,
+                ..SHA256
+            },
             Parameter {
                 name: "member",
                 summary: "Exact component or setup id@X.Y; repeat for multiple roots.",
@@ -627,6 +639,7 @@ fn declarations() -> impl Iterator<Item = &'static Declaration> {
         .chain(local::COMMANDS)
         .chain(reports::COMMANDS)
         .chain(providers::COMMANDS)
+        .chain(selections::COMMANDS)
 }
 
 fn children(parent: Command, prefix: &[&str]) -> Command {
@@ -690,6 +703,7 @@ fn mutability(handler: Handler) -> &'static str {
         Handler::ScaffoldPlan | Handler::IdentityPlan | Handler::CatalogAcquirePlan => "plan",
         Handler::ScaffoldApply | Handler::IdentityApply => "apply",
         Handler::Local(handler) => handler.mutability(),
+        Handler::Selection(handler) => handler.mutability(),
         Handler::Provider(providers::Handler::Plan) => "plan",
         _ => "read",
     }
@@ -753,6 +767,7 @@ pub fn dispatch(matches: &ArgMatches) -> Result<Value> {
         Handler::Local(handler) => local::dispatch(handler, leaf),
         Handler::Report(handler) => reports::dispatch(handler, leaf),
         Handler::Provider(handler) => providers::dispatch(handler, leaf),
+        Handler::Selection(handler) => selections::dispatch(handler, leaf),
         Handler::Version => Ok(json!({"schema_version": 1, "cli_version": VERSION,
             "wire_schema_version": 1, "runtime": "rust", "release_channel": "preview"})),
         Handler::Capabilities => Ok(json!({"schema_version": 1, "cli_version": VERSION,
@@ -956,10 +971,31 @@ pub fn dispatch(matches: &ArgMatches) -> Result<Value> {
                 )
             }
         }
+        Handler::DependencyGraph => {
+            let members = leaf
+                .get_many::<String>("member")
+                .map(|items| items.cloned().collect::<Vec<_>>())
+                .unwrap_or_default();
+            let proposal = leaf.get_one::<String>("proposal").map(String::as_str);
+            match (
+                leaf.get_one::<std::path::PathBuf>("state-dir"),
+                leaf.get_one::<std::path::PathBuf>("snapshot"),
+                leaf.get_one::<String>("sha256"),
+            ) {
+                (Some(parent), None, None) => selection::graph::local(parent, &members, proposal),
+                (None, Some(path), Some(digest)) => selection::graph::read(
+                    &snapshot::Snapshot::open(path, digest)?,
+                    &members,
+                    proposal,
+                ),
+                _ => Err(Failure::input(
+                    "name either state-dir or both snapshot and sha256",
+                )),
+            }
+        }
         Handler::Snapshot
         | Handler::Passport(_)
         | Handler::Versions
-        | Handler::DependencyGraph
         | Handler::EnvironmentRequirements => {
             let path = leaf
                 .get_one::<std::path::PathBuf>("snapshot")
@@ -969,14 +1005,6 @@ pub fn dispatch(matches: &ArgMatches) -> Result<Value> {
                 .ok_or_else(|| Failure::input("sha256 is required"))?;
             let state = snapshot::Snapshot::open(path, digest)?;
             match declaration.handler {
-                Handler::DependencyGraph => selection::graph::read(
-                    &state,
-                    &leaf
-                        .get_many::<String>("member")
-                        .map(|items| items.cloned().collect::<Vec<_>>())
-                        .unwrap_or_default(),
-                    leaf.get_one::<String>("proposal").map(String::as_str),
-                ),
                 Handler::EnvironmentRequirements => environment::requirements(
                     &state,
                     leaf.get_one::<String>("project")
