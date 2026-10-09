@@ -16,6 +16,7 @@ use crate::{
 pub(super) enum Service {
     Github,
     Go,
+    Pypi,
 }
 
 pub(super) struct Client {
@@ -43,6 +44,7 @@ pub(super) fn allowed(service: Service, url: &Url) -> bool {
     let hosts: &[&str] = match service {
         Service::Github => &["api.github.com", "codeload.github.com", "github.com"],
         Service::Go => &["proxy.golang.org", "sum.golang.org"],
+        Service::Pypi => &["pypi.org", "files.pythonhosted.org"],
     };
     url.scheme() == "https"
         && url.host_str().is_some_and(|host| hosts.contains(&host))
@@ -83,7 +85,7 @@ impl Client {
                     "Accept",
                     match self.service {
                         Service::Github => "application/vnd.github+json",
-                        Service::Go => "*/*",
+                        Service::Go | Service::Pypi => "*/*",
                     },
                 )
                 .header("Accept-Encoding", "identity")
@@ -93,7 +95,7 @@ impl Client {
                 );
             let request = match self.service {
                 Service::Github => request.header("X-GitHub-Api-Version", "2026-03-10"),
-                Service::Go => request,
+                Service::Go | Service::Pypi => request,
             };
             let mut response = request
                 .config()

@@ -214,6 +214,25 @@ digest as the component digest, matching the shared empty-metadata snapshot
 contract. No synthetic metadata, dependency execution, local Go toolchain,
 credential access, registry mutation or target write is involved.
 
+`component source package fetch --ecosystem pypi` additionally requires an exact
+`--filename` and `--platform`. Project names use PyPA normalization; the returned
+release version must match the supplied registry spelling. A wheel's platform
+must match one complete filename platform tag, not a substring. Source archives
+use `source` and must be `.tar.gz` or `.zip` distributions. The selected file must
+be unique in the release, use the matching filename under the official
+`files.pythonhosted.org/packages/` authority, and match both its declared size
+and SHA-256. Metadata is limited to 2 MiB/1,000 file entries and files to 20 MiB;
+the shared transport permits only `pypi.org` and `files.pythonhosted.org`.
+
+The PyPI result retains the shared package snapshot's empty file list and null
+artifact; downloaded distribution bytes are hashed, never extracted or executed.
+`distribution_yanked` reports the selected file's current registry flag without
+turning this read into installation approval. `metadata_scope: release` identifies
+the origin of `requires_dist` and repository observations. PyPI's
+[release metadata](https://docs.pypi.org/api/json/) can differ from the selected
+file's metadata; this command neither resolves dependencies nor verifies PEP 740
+attestations. No Python installation, interpreter, credential or state is used.
+
 The external source adapters own the existing `zip` dependency's
 `deflate-flate2-zlib-rs` feature and its locked `flate2` and `zlib-rs` closure.
 The Rust compression maintainers publish `flate2` under MIT or Apache-2.0;
