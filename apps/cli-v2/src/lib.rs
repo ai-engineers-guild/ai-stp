@@ -24,6 +24,7 @@ pub mod provider;
 pub mod registry;
 pub mod selection;
 pub mod snapshot;
+pub mod sources;
 pub mod store;
 mod wire;
 

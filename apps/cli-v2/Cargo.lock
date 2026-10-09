@@ -42,6 +42,7 @@ dependencies = [
  "jsonc-parser",
  "jsonschema",
  "keyring-core",
+ "percent-encoding",
  "process-wrap",
  "pulldown-cmark",
  "regex",

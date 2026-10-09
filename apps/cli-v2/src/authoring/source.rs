@@ -354,7 +354,7 @@ pub fn capture(path: &Path) -> Result<Captured> {
         .ok_or_else(invalid)?;
     let directory =
         Dir::open_ambient_dir(parent, cap_std::ambient_authority()).map_err(|_| invalid())?;
-    capture_open(&directory, name, &absolute, true)
+    capture_open(&directory, name, &absolute, true, true)
 }
 
 /// Authoring projects own metadata above source/, so no native manifest is implied.
@@ -376,7 +376,12 @@ pub(super) fn project(root: &Path) -> Result<Vec<Member>> {
 
 /// Capture a catalog-selected source without following any layout ancestor link.
 pub fn capture_scoped(root: &Path, relative: &str) -> Result<Captured> {
-    capture_scoped_with(root, relative, true)
+    capture_scoped_with(root, relative, true, true)
+}
+
+/// External snapshots select exactly one file or tree, without native siblings.
+pub(crate) fn capture_external(root: &Path, relative: &str) -> Result<Captured> {
+    capture_scoped_with(root, relative, false, false)
 }
 
 /// A discovered project MCP file is read only for subsequent data-only validation.
@@ -400,7 +405,7 @@ pub(super) fn capture_claude_mcp(root: &Path) -> Result<Captured> {
 /// A declared native Markdown directory is defined by its executable entries.
 /// The caller must validate those names before storing the bounded capture.
 pub(super) fn capture_native_entries(root: &Path, relative: &str) -> Result<Captured> {
-    capture_scoped_with(root, relative, false)
+    capture_scoped_with(root, relative, false, true)
 }
 
 /// Namespace manifests above the selected component are context, not payload.
@@ -440,7 +445,12 @@ pub(super) fn reject_plugin_ancestors(root: &Path, relative: &str, markers: &[&s
     Ok(())
 }
 
-fn capture_scoped_with(root: &Path, relative: &str, require_manifest: bool) -> Result<Captured> {
+fn capture_scoped_with(
+    root: &Path,
+    relative: &str,
+    require_manifest: bool,
+    include_hook_siblings: bool,
+) -> Result<Captured> {
     check_name(relative)?;
     let root_metadata = root.symlink_metadata().map_err(|_| invalid())?;
     if !root_metadata.is_dir() || root_metadata.file_type().is_symlink() {
@@ -451,7 +461,13 @@ fn capture_scoped_with(root: &Path, relative: &str, require_manifest: bool) -> R
     let mut parts = relative.split('/').peekable();
     while let Some(part) = parts.next() {
         if parts.peek().is_none() {
-            return capture_open(&directory, part, &root.join(relative), require_manifest);
+            return capture_open(
+                &directory,
+                part,
+                &root.join(relative),
+                require_manifest,
+                include_hook_siblings,
+            );
         }
         directory = directory.open_dir_nofollow(part).map_err(|_| invalid())?;
     }
@@ -463,6 +479,7 @@ fn capture_open(
     name: &str,
     absolute: &Path,
     require_manifest: bool,
+    include_hook_siblings: bool,
 ) -> Result<Captured> {
     check_name(name)?;
     let metadata = directory.symlink_metadata(name).map_err(|_| invalid())?;
@@ -488,7 +505,7 @@ fn capture_open(
         return Err(invalid());
     }
     let member = file_member(directory, name, absolute)?;
-    if name == "hooks.json" {
+    if include_hook_siblings && name == "hooks.json" {
         match directory.symlink_metadata("hooks") {
             Ok(metadata) if metadata.is_dir() && !metadata.file_type().is_symlink() => {
                 let child = directory
