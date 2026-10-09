@@ -2,7 +2,9 @@
 
 mod aggregate;
 pub mod copies;
+pub mod drafts;
 pub mod export;
+pub mod releases;
 
 use rusqlite::{Connection, Transaction, params};
 use serde::{Deserialize, Serialize};
@@ -238,9 +240,7 @@ pub(crate) fn verify(connection: &Connection, document: &Value) -> Result<()> {
     Ok(())
 }
 
-pub fn plan(store: &mut Store, mut request: Request, identity: Identity, at: &str) -> Result<Plan> {
-    identity.validate()?;
-    let expires_at = expiry(at)?;
+fn normalize(request: &mut Request) {
     // Input ordering must not change the composition snapshot or its aggregate.
     request.members.sort_by(|a, b| {
         (&a.stable_id, &a.version, &a.passport_digest).cmp(&(
@@ -254,6 +254,12 @@ pub fn plan(store: &mut Store, mut request: Request, identity: Identity, at: &st
             && a.version == b.version
             && a.passport_digest == b.passport_digest
     });
+}
+
+pub fn plan(store: &mut Store, mut request: Request, identity: Identity, at: &str) -> Result<Plan> {
+    identity.validate()?;
+    let expires_at = expiry(at)?;
+    normalize(&mut request);
     let id = format!("setup_{}", ulid::Ulid::generate());
     let passport = store
         .transaction(|t| compile(t, &request, &id, &identity, at).map(|(document, _)| document))?;

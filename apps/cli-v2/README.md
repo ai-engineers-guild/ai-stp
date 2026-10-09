@@ -864,6 +864,25 @@ head, immutable coordinate and bound receipt together. Replay verifies the
 original artifacts and members without changing a later draft. Declared-empty
 setups are valid compositions.
 
+`setup passport update plan` completes an imported setup or revises an existing
+owned private setup using the same closed composition request. It binds the
+exact current head, retains the setup ID and harness, preserves capture facts,
+lineage and declared setup constraints, and rebuilds member summaries. Previous
+result/evidence references are cleared. The complete draft, definition artifact
+and receipt commit together; the operation allocates no immutable version.
+Composition-only editing refuses existing requirement declarations that differ
+from the exact member summaries, including a separately declared setup license;
+it cannot silently replace them. Explicit editing of those declarations remains
+a separate authoring boundary.
+
+`setup version release plan` freezes that complete draft at the next exact
+minor or major coordinate. The first release is `1.0`. The graph, retained
+artifacts, owner, head and next number are rechecked inside the writer. Release
+never advances the draft head. Unfinished imports refuse release until their
+selected members have explicit versions and the setup draft is completed.
+Historical update/release receipts verify their original artifacts and members
+after expiry without rewinding later drafts or depending on source directories.
+
 One aggregate preserves every declared environment purpose, unions logical permissions, endpoints and runtime
 requirements, and keeps the strongest authorization and any credential
 requirement. Input order cannot weaken these summaries. Multiple license
@@ -1009,6 +1028,7 @@ no async runtime or tracing feature is enabled for it.
 | `authoring/native_edit.rs` | Exact native adaptation replacement with complete scope preservation |
 | `authoring/derivation/` | Closed MCP syntax conversion and atomic owned draft derivation |
 | `authoring/setups/copies.rs` | Private exact setup forks and recasts with atomic lineage |
+| `authoring/setups/drafts.rs`, `authoring/setups/releases.rs` | Owned setup completion and revision, with separate immutable release |
 | `authoring/setups/export.rs` | Exact review-tree export from query-only retained state |
 | `authoring/native_identity.rs`, `authoring/native_identity/` | Captured/projected native identities, Markdown loaders and assembled entry visibility |
 | `authoring/frontmatter.rs` | Shared bounded YAML header parsing without source execution |

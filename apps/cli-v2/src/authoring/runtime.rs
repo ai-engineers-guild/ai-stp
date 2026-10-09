@@ -133,6 +133,8 @@ pub fn apply(path: &Path, expected_digest: &str) -> Result<Value> {
         "project.passport.record" => execute(plan, projects::passports::apply),
         "passport.developer.record" => execute(plan, developer::apply),
         "setup.compose" => execute(plan, setups::apply),
+        "setup.passport.update" => execute(plan, setups::drafts::apply),
+        "setup.version.release" => execute(plan, setups::releases::apply),
         "setup.import" => execute(plan, importing::apply),
         "setup.fork" | "setup.recast" => execute(plan, setups::copies::apply),
         _ => Err(Failure::input(

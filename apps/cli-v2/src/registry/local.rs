@@ -38,6 +38,8 @@ pub(super) enum Handler {
     Fork,
     Forget,
     Compose,
+    SetupUpdate,
+    SetupRelease,
     SetupFork,
     SetupRecast,
     ExportPlan,
@@ -130,6 +132,18 @@ const PROVIDERS: Parameter = Parameter {
     summary: "Explicit v3 provider declaration JSON, at most seven files of 1 MiB each. Describes packaging; does not establish executable trust.",
     kind: ParameterType::Paths,
     required: false,
+};
+const SETUP_REQUEST: Parameter = Parameter {
+    name: "request",
+    summary: "Closed composition request JSON (harness_id, name, description, purpose, members), at most 256 KiB.",
+    kind: ParameterType::Path,
+    required: true,
+};
+const INCREMENT: Parameter = Parameter {
+    name: "increment",
+    summary: "Requested version increment; a first release is always 1.0.",
+    kind: ParameterType::Choice(&["minor", "major"]),
+    required: true,
 };
 
 pub(super) const COMMANDS: &[Declaration] = &[
@@ -390,18 +404,7 @@ pub(super) const COMMANDS: &[Declaration] = &[
     Declaration {
         path: &["component", "version", "release", "plan"],
         summary: "Plan a private immutable release from the exact owned draft and retained source graph.",
-        parameters: &[
-            STATE_DIR,
-            ID,
-            REVISION,
-            PROVIDERS,
-            Parameter {
-                name: "increment",
-                summary: "Requested version increment; a first release is always 1.0.",
-                kind: ParameterType::Choice(&["minor", "major"]),
-                required: true,
-            },
-        ],
+        parameters: &[STATE_DIR, ID, REVISION, PROVIDERS, INCREMENT],
         handler: super::Handler::Local(Handler::Release),
     },
     Declaration {
@@ -434,17 +437,21 @@ pub(super) const COMMANDS: &[Declaration] = &[
         handler: super::Handler::Local(Handler::SetupRecast),
     },
     Declaration {
+        path: &["setup", "passport", "update", "plan"],
+        summary: "Plan an owned private setup draft from exact members while retaining its identity, harness and capture history.",
+        parameters: &[STATE_DIR, ID, REVISION, SETUP_REQUEST],
+        handler: super::Handler::Local(Handler::SetupUpdate),
+    },
+    Declaration {
+        path: &["setup", "version", "release", "plan"],
+        summary: "Plan an immutable version of the exact complete setup draft without moving its head.",
+        parameters: &[STATE_DIR, ID, REVISION, INCREMENT],
+        handler: super::Handler::Local(Handler::SetupRelease),
+    },
+    Declaration {
         path: &["setup", "compose", "plan"],
         summary: "Plan a private immutable setup from a complete exact component graph.",
-        parameters: &[
-            STATE_DIR,
-            Parameter {
-                name: "request",
-                summary: "Closed composition request JSON (harness_id, name, description, purpose, members), at most 256 KiB.",
-                kind: ParameterType::Path,
-                required: true,
-            },
-        ],
+        parameters: &[STATE_DIR, SETUP_REQUEST],
         handler: super::Handler::Local(Handler::Compose),
     },
     Declaration {
@@ -762,15 +769,41 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
                 setups::copies::plan(store, source, target, identity, at)
             })
         }
-        Handler::Compose => {
+        Handler::SetupRelease => {
+            let increment: Increment = choice(args, "increment")?;
+            runtime::plan(path(args, "state-dir")?, |store, identity, at| {
+                setups::releases::plan(
+                    store,
+                    text(args, "id")?,
+                    text(args, "expected-revision")?,
+                    increment,
+                    identity,
+                    at,
+                )
+            })
+        }
+        Handler::Compose | Handler::SetupUpdate => {
             let request: setups::Request = serde_json::from_value(canonical::parse(&files::read(
                 path(args, "request")?,
                 256 * 1024,
             )?)?)
             .map_err(|_| Failure::input("invalid setup composition request"))?;
-            runtime::plan(path(args, "state-dir")?, |store, identity, at| {
-                setups::plan(store, request, identity, at)
-            })
+            if matches!(handler, Handler::SetupUpdate) {
+                runtime::plan(path(args, "state-dir")?, |store, identity, at| {
+                    setups::drafts::plan(
+                        store,
+                        text(args, "id")?,
+                        text(args, "expected-revision")?,
+                        request,
+                        identity,
+                        at,
+                    )
+                })
+            } else {
+                runtime::plan(path(args, "state-dir")?, |store, identity, at| {
+                    setups::plan(store, request, identity, at)
+                })
+            }
         }
     }
 }

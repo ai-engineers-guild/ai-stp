@@ -1,15 +1,17 @@
 use std::{error::Error, fs, sync::Barrier};
 
 use ai_stp_cli_v2::{
-    authoring::{Identity, discovery, importing},
+    authoring::{Identity, discovery, importing, passports, releases, setups},
+    digest,
     error::Failure,
     harnesses::{Root, Scope},
     store::{
         Store,
         revisions::{self, Write},
+        versions::Increment,
     },
 };
-use serde_json::json;
+use serde_json::{Value, json};
 
 const AT: &str = "2026-10-08T00:00:00.000Z";
 const LATER: &str = "2026-10-09T00:00:00.000Z";
@@ -160,12 +162,17 @@ fn selected_graph_import_is_atomic_owned_and_replayable() -> Result<(), Box<dyn 
     );
     assert_eq!(counts(&mut store)?, [4, 5, 2, 2, 2, 0]);
     // A stored receipt cannot mask damage to an immutable member's content.
+    let released = complete_import(&mut store, &imported, &identity)?;
     store.transaction(|t| {
         t.execute("UPDATE content SET byte_length=byte_length+1", [])
             .map(|_| ())
             .map_err(|_| Failure::input("proof corruption failed"))
     })?;
     assert!(importing::apply(&mut store, &plan, &digest, &identity, LATER).is_err());
+    assert!(
+        setups::releases::apply(&mut store, &released, &released.digest()?, &identity, LATER)
+            .is_err()
+    );
     let encoded = serde_json::to_value(&imported)?;
     assert!(
         encoded["facts"]["components"]["value"]
@@ -173,4 +180,255 @@ fn selected_graph_import_is_atomic_owned_and_replayable() -> Result<(), Box<dyn 
             .is_some_and(|v| v.len() == 2)
     );
     Ok(())
+}
+
+fn field<'a>(value: &'a Value, name: &str) -> Result<&'a str, Box<dyn Error>> {
+    value[name]
+        .as_str()
+        .ok_or_else(|| format!("missing {name}").into())
+}
+
+fn head(store: &mut Store, id: &str) -> Result<Value, Failure> {
+    store.transaction(|t| {
+        let content: String = t.query_row("SELECT r.content FROM revision r JOIN head h USING(revision_id) WHERE h.stable_id=?",[id],|r|r.get(0)).map_err(|_|Failure::input("proof head missing"))?;
+        ai_stp_cli_v2::canonical::parse(content.as_bytes())
+    })
+}
+
+fn complete_import(
+    store: &mut Store,
+    imported: &Value,
+    identity: &Identity,
+) -> Result<setups::releases::Plan, Box<dyn Error>> {
+    let id = field(imported, "stable_id")?;
+    let revision = field(imported, "revision_id")?;
+    let before = counts(store)?;
+    assert!(
+        setups::releases::plan(store, id, revision, Increment::Minor, identity.clone(), AT)
+            .is_err()
+    );
+    assert_eq!(counts(store)?, before);
+    let declarations: Vec<Value> =
+        serde_json::from_str(include_str!("fixtures/provider-declarations.json"))?;
+    let providers = declarations
+        .iter()
+        .map(|v| ai_stp_cli_v2::provider::Info::parse(&serde_json::to_vec(v).unwrap_or_default()))
+        .collect::<Result<Vec<_>, _>>()?;
+    let mut members = Vec::new();
+    for (index, captured) in imported["facts"]["components"]["value"]
+        .as_array()
+        .ok_or("missing imported members")?
+        .iter()
+        .enumerate()
+    {
+        let component_id = field(captured, "stable_id")?;
+        let current = head(store, component_id)?;
+        let patch = passports::Patch::try_from(
+            json!({"name":format!("imported-{index}"),"description":"Inspect project conventions.",
+            "tags":["development"],"license":{"spdx_id":"MIT","redistribution_allowed":true}}),
+        )?;
+        let updated = passports::plan(
+            store,
+            component_id,
+            field(&current, "revision_id")?,
+            patch,
+            identity.clone(),
+            AT,
+        )?;
+        let updated = passports::apply(store, &updated, &updated.digest()?, identity, AT)?;
+        let release = releases::plan(
+            store,
+            component_id,
+            field(&updated, "revision_id")?,
+            Increment::Minor,
+            &providers,
+            identity.clone(),
+            AT,
+        )?;
+        let release = releases::apply(store, &release, &release.digest()?, identity, AT)?;
+        members.push(setups::Member {
+            stable_id: component_id.into(),
+            version: field(&release, "version")?.into(),
+            passport_digest: digest::canonical("ai-stp:passport:v1", &release)?,
+        });
+    }
+    let request = setups::Request {
+        harness_id: "codex".into(),
+        name: "Imported review".into(),
+        description: "Inspect project conventions.".into(),
+        purpose: "Review changes".into(),
+        members,
+    };
+    let before = counts(store)?;
+    let mut foreign = identity.clone();
+    foreign.account_id = "account_01ARZ3NDEKTSV4RRFFQ69G5FAW".into();
+    assert!(
+        setups::drafts::plan(store, id, revision, request.clone(), foreign.clone(), AT).is_err()
+    );
+    let mut wrong = request.clone();
+    wrong.harness_id = "cursor".into();
+    assert!(setups::drafts::plan(store, id, revision, wrong, identity.clone(), AT).is_err());
+    wrong = request.clone();
+    wrong.members[0].passport_digest = digest::sha256(b"substituted");
+    assert!(setups::drafts::plan(store, id, revision, wrong, identity.clone(), AT).is_err());
+    let update = setups::drafts::plan(store, id, revision, request.clone(), identity.clone(), AT)?;
+    let update: setups::drafts::Plan = serde_json::from_slice(&serde_json::to_vec(&update)?)?;
+    let mut stale = update.clone();
+    stale.operation_id = format!("operation_{}", ulid::Ulid::generate());
+    assert_eq!(counts(store)?, before);
+    assert!(setups::drafts::apply(store, &update, "wrong-digest", identity, AT).is_err());
+    assert!(setups::drafts::apply(store, &update, &update.digest()?, identity, LATER).is_err());
+    assert!(setups::drafts::apply(store, &update, &update.digest()?, &foreign, AT).is_err());
+    let mut forged = update.clone();
+    forged.passport["purpose"] = "Forged result".into();
+    assert!(setups::drafts::apply(store, &forged, &forged.digest()?, identity, AT).is_err());
+    store.transaction(|t|t.execute_batch("CREATE TEMP TRIGGER fail_setup BEFORE INSERT ON operation WHEN NEW.kind='setup.passport.update' BEGIN SELECT RAISE(ABORT,'proof failure'); END;").map_err(|_|Failure::input("proof trigger failed")))?;
+    assert!(setups::drafts::apply(store, &update, &update.digest()?, identity, AT).is_err());
+    assert_eq!(counts(store)?, before);
+    assert_eq!(head(store, id)?, *imported);
+    store.transaction(|t| {
+        t.execute_batch("DROP TRIGGER fail_setup")
+            .map_err(|_| Failure::input("proof trigger failed"))
+    })?;
+    let completed = setups::drafts::apply(store, &update, &update.digest()?, identity, AT)?;
+    assert_eq!(completed["stable_id"], imported["stable_id"]);
+    assert_eq!(
+        completed["facts"]["components"],
+        imported["facts"]["components"]
+    );
+    assert_eq!(completed["facts"]["origin"], imported["facts"]["origin"]);
+    assert_eq!(
+        completed["parent_revision_ids"],
+        json!([imported["revision_id"]])
+    );
+    assert_eq!(
+        completed["components"]
+            .as_array()
+            .ok_or("missing members")?
+            .len(),
+        2
+    );
+    assert!(setups::drafts::apply(store, &stale, &stale.digest()?, identity, AT).is_err());
+    let release = setups::releases::plan(
+        store,
+        id,
+        field(&completed, "revision_id")?,
+        Increment::Minor,
+        identity.clone(),
+        AT,
+    )?;
+    assert_eq!(release.passport["version"], "1.0");
+    let mut competing = release.clone();
+    competing.operation_id = format!("operation_{}", ulid::Ulid::generate());
+    let before = counts(store)?;
+    assert!(setups::releases::apply(store, &release, "wrong-digest", identity, AT).is_err());
+    assert!(setups::releases::apply(store, &release, &release.digest()?, identity, LATER).is_err());
+    assert!(setups::releases::apply(store, &release, &release.digest()?, &foreign, AT).is_err());
+    let mut forged = release.clone();
+    forged.passport["version"] = "5.0".into();
+    assert!(setups::releases::apply(store, &forged, &forged.digest()?, identity, AT).is_err());
+    store.transaction(|t|t.execute_batch("CREATE TEMP TRIGGER fail_release BEFORE INSERT ON operation WHEN NEW.kind='setup.version.release' BEGIN SELECT RAISE(ABORT,'proof failure'); END;").map_err(|_|Failure::input("proof trigger failed")))?;
+    assert!(setups::releases::apply(store, &release, &release.digest()?, identity, AT).is_err());
+    assert_eq!(counts(store)?, before);
+    store.transaction(|t| {
+        t.execute_batch("DROP TRIGGER fail_release")
+            .map_err(|_| Failure::input("proof trigger failed"))
+    })?;
+    let frozen = setups::releases::apply(store, &release, &release.digest()?, identity, AT)?;
+    assert_eq!(head(store, id)?, completed);
+    assert_eq!(frozen["parent_revision_ids"], json!([]));
+    assert!(
+        setups::releases::apply(store, &competing, &competing.digest()?, identity, AT).is_err()
+    );
+    // A later complete draft can intentionally remove every member. Historical
+    // release and update receipts verify without reinstalling the old graph.
+    let pending = setups::releases::plan(
+        store,
+        id,
+        field(&completed, "revision_id")?,
+        Increment::Minor,
+        identity.clone(),
+        AT,
+    )?;
+    let mut empty = request;
+    empty.name = "Empty review".into();
+    empty.members.clear();
+    let changed = setups::drafts::plan(
+        store,
+        id,
+        field(&completed, "revision_id")?,
+        empty.clone(),
+        identity.clone(),
+        AT,
+    )?;
+    let changed = setups::drafts::apply(store, &changed, &changed.digest()?, identity, AT)?;
+    assert!(setups::releases::apply(store, &pending, &pending.digest()?, identity, AT).is_err());
+    let next = setups::releases::plan(
+        store,
+        id,
+        field(&changed, "revision_id")?,
+        Increment::Major,
+        identity.clone(),
+        AT,
+    )?;
+    assert_eq!(next.passport["version"], "2.0");
+    let next = setups::releases::apply(store, &next, &next.digest()?, identity, AT)?;
+    assert_eq!(next["components"], json!([]));
+    let before = counts(store)?;
+    assert_eq!(
+        setups::drafts::apply(store, &update, &update.digest()?, identity, LATER)?,
+        completed
+    );
+    assert_eq!(
+        setups::releases::apply(store, &release, &release.digest()?, identity, LATER)?,
+        frozen
+    );
+    assert_eq!(head(store, id)?, changed);
+    assert_eq!(counts(store)?, before);
+    // Imported or copied setups can declare requirements beyond their members.
+    // A composition-only request has no authority to erase those declarations.
+    let mut custom = changed.clone();
+    custom["requires_credentials"] = true.into();
+    custom["parent_revision_ids"] = json!([changed["revision_id"]]);
+    let custom = store.transaction(|t| {
+        revisions::commit(
+            t,
+            &custom,
+            &identity.device_id,
+            None,
+            Write::Advance {
+                expected_heads: &[changed["revision_id"]
+                    .as_str()
+                    .ok_or_else(|| Failure::input("proof revision missing"))?
+                    .into()],
+            },
+        )
+    })?;
+    let before = counts(store)?;
+    let failure = setups::drafts::plan(
+        store,
+        id,
+        field(&custom, "revision_id")?,
+        empty,
+        identity.clone(),
+        AT,
+    )
+    .err()
+    .ok_or("additional setup requirements were lost")?;
+    assert_eq!(
+        failure.details["constraint"],
+        "setup_requirements_not_derived"
+    );
+    assert_eq!(counts(store)?, before);
+    assert_eq!(head(store, id)?, custom);
+    let preserved = setups::releases::plan(
+        store,
+        id,
+        field(&custom, "revision_id")?,
+        Increment::Minor,
+        identity.clone(),
+        AT,
+    )?;
+    assert_eq!(preserved.passport["requires_credentials"], true);
+    Ok(release)
 }

@@ -777,6 +777,124 @@ def prove(binary: Path, home: Path, temporary: Path, run: Runner) -> None:
         }
     assert (native / "config.toml").read_text(encoding="utf-8") == config
 
+    setup_members: list[dict[str, str]] = []
+    for captured in imported["facts"]["components"]["value"]:
+        if captured["stable_id"] == released_mcp["stable_id"]:
+            member = released_mcp
+        else:
+            member_args = ["--state-dir", str(state), "--id", captured["stable_id"]]
+            current = invoke(["local", "passport", "show", "--kind", "component", *member_args])
+            patch.write_text(
+                json.dumps(
+                    {
+                        "name": "imported-review-instruction",
+                        "description": "Review changes.",
+                        "tags": ["review"],
+                        "license": {"spdx_id": "MIT", "redistribution_allowed": True},
+                    }
+                ),
+                encoding="utf-8",
+            )
+            updated = apply(
+                invoke(
+                    [
+                        "component",
+                        "passport",
+                        "update",
+                        "plan",
+                        *member_args,
+                        "--expected-revision",
+                        current["revision_id"],
+                        "--patch",
+                        str(patch),
+                    ]
+                ),
+                "imported-instruction-metadata",
+            )
+            member = apply(
+                invoke(
+                    [
+                        "component",
+                        "version",
+                        "release",
+                        "plan",
+                        *member_args,
+                        "--expected-revision",
+                        updated["revision_id"],
+                        "--increment",
+                        "minor",
+                        "--provider-info",
+                        str(info),
+                    ]
+                ),
+                "imported-instruction-release",
+            )
+        member_model = ComponentVersionPassport.model_validate(member)
+        assert member_model.model_dump(mode="json") == member
+        setup_members.append(
+            {
+                "stable_id": member["stable_id"],
+                "version": member["version"],
+                "passport_digest": digest_canonical("ai-stp:passport:v1", member),
+            }
+        )
+    request_path = root / "imported-setup-request.json"
+    request_path.write_text(
+        json.dumps(
+            {
+                "harness_id": "codex",
+                "name": "Imported review",
+                "description": "Review changes.",
+                "purpose": "Review changes",
+                "members": setup_members,
+            }
+        ),
+        encoding="utf-8",
+    )
+    setup_args = ["--state-dir", str(state), "--id", imported["stable_id"]]
+    update_setup_plan = invoke(
+        [
+            "setup",
+            "passport",
+            "update",
+            "plan",
+            *setup_args,
+            "--expected-revision",
+            imported["revision_id"],
+            "--request",
+            str(request_path),
+        ]
+    )
+    updated_setup = apply(update_setup_plan, "imported-setup-update")
+    assert updated_setup["stable_id"] == imported["stable_id"]
+    assert updated_setup["facts"]["components"] == imported["facts"]["components"]
+    release_setup_plan = invoke(
+        [
+            "setup",
+            "version",
+            "release",
+            "plan",
+            *setup_args,
+            "--expected-revision",
+            updated_setup["revision_id"],
+            "--increment",
+            "minor",
+        ]
+    )
+    released_setup = apply(release_setup_plan, "imported-setup-release")
+    setup_model = SetupVersionPassport.model_validate(released_setup)
+    assert setup_model.model_dump(mode="json") == released_setup
+    assert verify_revision_id(setup_model) and released_setup["version"] == "1.0"
+    assert (
+        invoke(["local", "passport", "show", "--kind", "setup", *setup_args])["revision_id"]
+        == updated_setup["revision_id"]
+    )
+    with closing(sqlite3.connect(database)) as connection:
+        connection.row_factory = sqlite3.Row
+        definition = stored_content.get(connection, released_setup["artifact"]["digest"])
+        assert len(definition) == released_setup["artifact"]["size_bytes"]
+        assert json.loads(definition)["components"] == released_setup["components"]
+
     before_forget = invoke(show)
     with closing(sqlite3.connect(database)) as connection:
         retained = {
