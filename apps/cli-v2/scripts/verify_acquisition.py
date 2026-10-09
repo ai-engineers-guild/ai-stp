@@ -23,7 +23,11 @@ from ai_stp_contracts.first_party import family
 from ai_stp_contracts.fixtures import load_cases
 from ai_stp_foundation.canonical import canonize
 from ai_stp_foundation.digests import digest_bytes, digest_canonical
+from ai_stp_foundation.ids import new_id
+from ai_stp_foundation.refs import ComponentRef
 from ai_stp_passports.envelope import derive_revision_id
+from ai_stp_sources.definition import EmbeddedDraft, freeze_setup_definition
+from ai_stp_sources.models import SourceSnapshot
 
 Runner = Callable[[Path, Path, list[str], int], dict[str, Any]]
 
@@ -153,8 +157,48 @@ def fixture(root: Path) -> tuple[dict[str, bytes], dict[str, Any], dict[str, Any
         return responses, setup, component
 
 
+def embedded_setup(setup: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
+    document = copy.deepcopy(setup)
+    document["stable_id"] = new_id("setup")
+    payload = b'model_reasoning_effort = "high"\n'
+    frozen = freeze_setup_definition(
+        setup_id=document["stable_id"],
+        version=document["version"],
+        harness_id="codex",
+        input_digest=document["facts"]["snapshot"]["value"],
+        publisher_id=document["owner_id"],
+        created_at=AT,
+        catalog_members=tuple(ComponentRef.model_validate(ref) for ref in setup["components"]),
+        embedded_members=(
+            EmbeddedDraft(
+                snapshot=SourceSnapshot(
+                    kind="path",
+                    canonical_coordinate="path:embedded-setting",
+                    exact_identity="embedded-setting",
+                    component_digest=digest_bytes("ai-stp:artifact:v1", payload),
+                    files={"config.toml": payload},
+                ),
+                component_type="setting",
+                name="embedded-setting",
+                description="Explicit native setting for acquisition proof.",
+                license_spdx="MIT",
+                harness_id="codex",
+                target_scope="global",
+                stable_id=new_id("component"),
+                managed_paths=("config.toml",),
+            ),
+        ),
+        catalog_ids=frozenset(ref["stable_id"] for ref in setup["components"]),
+    )
+    document["components"] = frozen.document["components"]
+    document["facts"]["members"]["value"] = frozen.document["components"]
+    document["artifact_format"] = frozen.format
+    return document, dict(frozen.document)
+
+
 def prove(binary: Path, home: Path, state: Path, root: Path, run: Runner) -> None:
     responses, setup, component = fixture(root)
+    initial_responses = dict(responses)
     database = state / "ai-stp-v2-state" / "registry.sqlite3"
     plan_path = root / "acquisition-plan.json"
     config = root / "acquisition.yaml"
@@ -316,6 +360,95 @@ def prove(binary: Path, home: Path, state: Path, root: Path, run: Runner) -> Non
                     "data"
                 ]
                 assert corpus_result["stable_id"] == corpus_setup["stable_id"]
+                responses.update(initial_responses)
+                mixed, definition = embedded_setup(setup)
+                path = f"/v1/catalog/setups/{mixed['stable_id']}/versions/{mixed['version']}"
+                template = json.loads(
+                    initial_responses[
+                        f"/v1/catalog/setups/{setup['stable_id']}/versions/{setup['version']}"
+                    ]
+                )
+
+                def serve_definition(value: dict[str, Any]) -> None:
+                    payload = canonize(value)
+                    mixed["artifact"] = {
+                        "digest": digest_bytes("ai-stp:artifact:v1", payload),
+                        "size_bytes": len(payload),
+                    }
+                    mixed["revision_id"] = derive_revision_id(mixed)
+                    template.update(
+                        passport=mixed,
+                        passport_digest=digest_canonical("ai-stp:passport:v1", mixed),
+                        trust={
+                            "trust_lane": "authoritative",
+                            "author_verified": True,
+                            "component_verified": True,
+                        },
+                    )
+                    responses[path] = json.dumps(template).encode()
+                    responses[path + "/artifact"] = payload
+
+                mixed_args = [*args[:-4], "--id", mixed["stable_id"], "--version", "1.0"]
+                before = tuple(db.iterdump())
+                corrupt = copy.deepcopy(definition)
+                corrupt["embedded"][0]["artifact_b64"] = "Y29ycnVwdA"
+                serve_definition(corrupt)
+                run(binary, home, mixed_args, 4)
+                excessive = copy.deepcopy(definition)
+                excessive["embedded"] *= 501
+                serve_definition(excessive)
+                run(binary, home, mixed_args, 4)
+                assert tuple(db.iterdump()) == before
+                serve_definition(definition)
+                mixed_plan = run(binary, home, mixed_args, 0)["data"]
+                assert tuple(db.iterdump()) == before
+                plan_path.write_text(json.dumps(mixed_plan["plan"]), encoding="utf-8")
+                mixed_apply = [*apply[:-1], mixed_plan["plan_digest"]]
+                db.execute(
+                    "CREATE TRIGGER fail_embedded BEFORE INSERT ON object_version "
+                    "BEGIN SELECT RAISE(ABORT,'interrupted'); END"
+                )
+                db.commit()
+                interrupted = tuple(db.iterdump())
+                run(binary, home, mixed_apply, 4)
+                assert tuple(db.iterdump()) == interrupted
+                db.execute("DROP TRIGGER fail_embedded")
+                db.commit()
+                mixed_result = run(binary, home, mixed_apply, 0)["data"]
+                assert len(mixed_result["components"]) == 2
+                embedded_id = definition["embedded"][0]["ref"]["stable_id"]
+                assert not any(embedded_id in request for request in server.requests)
+                assert db.execute(
+                    "SELECT trust_lane,author_verified,component_verified "
+                    "FROM acquired_trust WHERE stable_id=?",
+                    (embedded_id,),
+                ).fetchone() == ("experimental", 0, 0)
+                after = tuple(db.iterdump())
+                calls = len(server.requests)
+                responses.clear()
+                assert run(binary, home, mixed_apply, 0)["data"] == mixed_result
+                assert len(server.requests) == calls and tuple(db.iterdump()) == after
+                exported = run(
+                    binary,
+                    home,
+                    [
+                        "setup",
+                        "export",
+                        "plan",
+                        "--state-dir",
+                        str(state),
+                        "--id",
+                        mixed["stable_id"],
+                        "--version",
+                        "1.0",
+                        "--passport-digest",
+                        mixed_result["passport_digest"],
+                        "--output",
+                        str(root / "embedded-export"),
+                    ],
+                    0,
+                )["data"]
+                assert json.loads(exported["plan"]["files"]["setup-definition.json"]) == definition
         finally:
             server.shutdown()
             thread.join(timeout=5)
