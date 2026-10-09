@@ -533,6 +533,37 @@ remain visible; this preview does not consent to them. Installation still needs
 engine-owned eligibility, relevant input observations beyond the owned-byte
 digest, durable intent, revalidation and verified execution/recovery.
 
+`provider software plan` uses the same explicit provider, target and scope plus
+an existing absolute `--prefix` and a closed request of at most 8 KiB. Fields are
+`operation` (`software_install`, `software_update` or `software_remove`),
+`operation_id`, `expires_at` with the same short UTC expiry, and optional
+`software_version`. An explicit version must match exactly; omission selects the
+pin compiled into the authenticated exact provider build. It never selects a
+floating registry version.
+
+Target, prefix and trust state must be disjoint by held directory ancestry.
+Both product directories are read-only mounts, with device/inode and mount-mode
+checks before any provider instruction runs. Each must be resolvable in the
+service's mount namespace; private container temporary paths can refuse even
+when visible to the caller. No alternate writable path or launcher is selected.
+The provider plan is observed twice and both closed responses must agree; target
+status before/after, directory identities and trust/request expiry are checked.
+The report binds the exact provider/version/build/release, target digest,
+scope/profile, program prefix, software version, ordered artifacts, effects and
+RFC 8785 plan digest. Downloads have exactly platform, HTTPS URL without user
+credentials/query/fragment/custom port, SHA-256, positive byte length and a
+single `bin/name` entry point. At most sixteen distinct records, 1 GiB each and
+2 GiB total are accepted. Removal carries no downloads. Undeclared operations,
+unknown fields, backup capture, changed echoes and unsafe artifact metadata refuse.
+
+This observes provider effects about the prefix layout; it does not hash or
+attest installed payloads and is not a snapshot or apply precondition. The report
+sets `installed_software_verified`, `software_downloaded`,
+`installation_performed` and `execution_authorized` to false. Only isolated trust
+state can change. Software apply, acquisition, receipt/recovery and installed-byte
+verification remain separate work; published provider software operations do not
+capture configuration backups.
+
 `program inspect --prefix --entry-point` reads the public providers' software
 layout at an explicit absolute prefix with an existing parent. The entry point
 is an exact `bin/command` name, including `.cmd`, `.exe` or `.bat` where needed.

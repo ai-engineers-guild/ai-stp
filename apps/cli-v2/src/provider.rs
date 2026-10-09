@@ -3,6 +3,7 @@
 pub mod artifact;
 pub mod plan;
 pub mod runtime;
+pub mod software;
 pub mod trust;
 pub mod wheel;
 

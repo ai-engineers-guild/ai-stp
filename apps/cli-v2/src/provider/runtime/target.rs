@@ -93,14 +93,20 @@ impl Target {
     pub(crate) fn state_parent(&self, path: &Path) -> Result<Dir> {
         let parent =
             Dir::open_ambient_dir(path, cap_std::ambient_authority()).map_err(|_| invalid())?;
+        self.disjoint(&parent)?;
+        Ok(parent)
+    }
+
+    /// Check ancestry using held directories, including aliases and bind mounts.
+    pub(super) fn disjoint(&self, other: &Dir) -> Result<()> {
         let target = Dir::from_std_file(self.directory.try_clone().map_err(|_| invalid())?);
         self.revalidate()?;
-        if contains(&parent, &target)? || contains(&target, &parent)? {
+        if contains(other, &target)? || contains(&target, other)? {
             return Err(Failure::precondition(
-                "the provider target and trust state parent must be disjoint directories",
+                "the provider target, program prefix and trust state must be disjoint directories",
             ));
         }
-        Ok(parent)
+        Ok(())
     }
 
     pub(crate) fn revalidate(&self) -> Result<()> {
