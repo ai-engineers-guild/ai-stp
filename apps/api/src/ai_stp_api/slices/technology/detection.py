@@ -863,7 +863,10 @@ async def list_scans(
             scan_id=scan_id,
             project_id=project,
             project_name=project_names.get(project),
-            found=len({_display_identity(item) for item in findings}),
+            found=len({_display_identity(item) for item in findings if item.tier == "technology"}),
+            dependencies=len(
+                {_display_identity(item) for item in findings if item.tier == "dependency"}
+            ),
             scan_types=_finding_scan_types(findings),
             pending=await _pending_count(db, organization_id, findings),
             **await _scan_metadata(db, organization_id, scan, job),
@@ -895,7 +898,8 @@ async def _pending_count(
         {
             _display_identity(item)
             for item in findings
-            if item.state != "rejected"
+            if item.tier == "technology"
+            and item.state != "rejected"
             and item.review not in {"confirmed", "rejected"}
             and (item.state != "resolved" or item.technology_id not in classified)
         }
@@ -1140,7 +1144,10 @@ async def read_scan_detail(
         scan_id=scan_id,
         project_id=view["project_id"],
         project_name=view["project_name"],
-        found=len({_display_identity(item) for item in findings}),
+        found=len({_display_identity(item) for item in findings if item.tier == "technology"}),
+        dependencies=len(
+            {_display_identity(item) for item in findings if item.tier == "dependency"}
+        ),
         scan_types=_finding_scan_types(findings),
         pending=pending,
         **await _scan_metadata(db, organization_id, view["scan"], view["job"]),
@@ -1296,7 +1303,7 @@ async def review_findings(
                 None,
             )
             if raw is not None:
-                finding = TechnologyScanFinding(**raw.model_dump(), state="open")
+                finding = TechnologyScanFinding(**raw.model_dump(), tier="dependency", state="open")
         if finding is None:
             raise ApiError(ErrorCategory.VALIDATION, "finding is not part of this scan")
         row = await db.get(TechnologyFindingReview, (organization_id, item.scan_id, key))

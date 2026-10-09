@@ -250,6 +250,14 @@
           "default": null,
           "title": "Technology Name"
         },
+        "tier": {
+          "enum": [
+            "technology",
+            "dependency"
+          ],
+          "title": "Tier",
+          "type": "string"
+        },
         "version": {
           "anyOf": [
             {
@@ -287,6 +295,7 @@
         "technology_id",
         "technology_key",
         "technology_name",
+        "tier",
         "version",
         "version_kind"
       ],

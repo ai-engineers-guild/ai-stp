@@ -183,6 +183,9 @@ async def interpreted_findings(
                 **item.model_dump(exclude={"technology_id"}),
                 technology_id=technology_id,
                 candidate_technology_id=candidates.get((item.kind, item.coordinate)),
+                tier="technology"
+                if technology_id or candidates.get((item.kind, item.coordinate))
+                else "dependency",
                 state="rejected"
                 if review and review.review == "rejected"
                 else "resolved"

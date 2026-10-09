@@ -31,6 +31,12 @@
         "created_at": {
           "$ref": "#/$defs/Timestamp"
         },
+        "dependencies": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Dependencies",
+          "type": "integer"
+        },
         "duration_seconds": {
           "anyOf": [
             {
@@ -151,6 +157,7 @@
         "branch",
         "commit",
         "created_at",
+        "dependencies",
         "duration_seconds",
         "error",
         "found",

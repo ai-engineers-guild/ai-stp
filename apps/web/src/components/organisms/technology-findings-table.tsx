@@ -28,6 +28,8 @@ export function TechnologyFindingsTable({ state }: { state: TechnologyReviewStat
     s,
     allRows,
     visible,
+    depVisible,
+    depRows,
     scan,
     mode,
     search,
@@ -40,6 +42,7 @@ export function TechnologyFindingsTable({ state }: { state: TechnologyReviewStat
     setPendingOnly,
     setPage,
   } = state;
+  const sectioned = mode === "scan" && depRows.length > 0;
   return (
     <>
       <section className="min-w-0">
@@ -102,6 +105,7 @@ export function TechnologyFindingsTable({ state }: { state: TechnologyReviewStat
             </Label>
           </div>
         )}
+        {sectioned && <h3 className="mb-2 text-base font-medium">{w("sectionTechnologies")}</h3>}
         <div
           className="technology-table-frame"
           role="region"
@@ -140,6 +144,40 @@ export function TechnologyFindingsTable({ state }: { state: TechnologyReviewStat
           </p>
         )}
         <TechnologyFindingsPager state={state} />
+        {sectioned && (
+          <section className="mt-6">
+            <h3 className="mb-2 text-base font-medium">{w("sectionDependencies")}</h3>
+            <div
+              className="technology-table-frame"
+              role="region"
+              aria-label={w("sectionDependencies")}
+              // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
+              tabIndex={0}
+            >
+              <Table className="technology-scan-table">
+                <caption className="sr-only">{w("sectionDependencies")}</caption>
+                <THead>
+                  <Tr>
+                    <Th>{w("found")}</Th>
+                    <Th>{w("category")}</Th>
+                    <Th>{w("area")}</Th>
+                    <Th>{w("versions")}</Th>
+                    <Th>{w("evidence")}</Th>
+                    <Th>
+                      <span className="sr-only">{w("actions")}</span>
+                    </Th>
+                  </Tr>
+                </THead>
+                <TBody>
+                  {depVisible.map((row) => (
+                    <TechnologyFindingTableRow key={rowKey(row)} state={state} row={row} />
+                  ))}
+                </TBody>
+              </Table>
+            </div>
+            <TechnologyDependenciesPager state={state} />
+          </section>
+        )}
       </section>
     </>
   );
@@ -292,13 +330,82 @@ export function TechnologyFindingTableRow({
 }
 
 function TechnologyFindingsPager({ state }: { state: TechnologyReviewState }) {
-  const { t, w, currentPage, totalPages, setPage, visible, rows, size, setSize } = state;
+  const { t, w, currentPage, totalPages, setPage, visible, techRows, size, setSize } = state;
   return (
-    <PagePager
-      label={w("pagination")}
+    <FindingPager
+      t={t}
+      w={w}
       page={currentPage}
       totalPages={totalPages}
       onPage={setPage}
+      shown={visible.length}
+      total={techRows.length}
+      size={size}
+      onSize={(value) => {
+        setSize(value);
+        setPage(1);
+      }}
+    />
+  );
+}
+
+function TechnologyDependenciesPager({ state }: { state: TechnologyReviewState }) {
+  const {
+    t,
+    w,
+    depCurrentPage,
+    depTotalPages,
+    setDepPage,
+    depVisible,
+    depRows,
+    depSize,
+    setDepSize,
+  } = state;
+  return (
+    <FindingPager
+      t={t}
+      w={w}
+      page={depCurrentPage}
+      totalPages={depTotalPages}
+      onPage={setDepPage}
+      shown={depVisible.length}
+      total={depRows.length}
+      size={depSize}
+      onSize={(value) => {
+        setDepSize(value);
+        setDepPage(1);
+      }}
+    />
+  );
+}
+
+function FindingPager({
+  t,
+  w,
+  page,
+  totalPages,
+  onPage,
+  shown,
+  total,
+  size,
+  onSize,
+}: {
+  t: TechnologyReviewState["t"];
+  w: TechnologyReviewState["w"];
+  page: number;
+  totalPages: number;
+  onPage: (page: number) => void;
+  shown: number;
+  total: number;
+  size: number;
+  onSize: (size: number) => void;
+}) {
+  return (
+    <PagePager
+      label={w("pagination")}
+      page={page}
+      totalPages={totalPages}
+      onPage={onPage}
       controls={{
         previous: t("previous"),
         next: t("next"),
@@ -306,14 +413,13 @@ function TechnologyFindingsPager({ state }: { state: TechnologyReviewState }) {
       }}
       summary={
         <div className="flex flex-wrap items-center gap-3 text-xs">
-          <span>{w("shown", { count: visible.length, total: rows.length })}</span>
+          <span>{w("shown", { count: shown, total })}</span>
           <Select
             aria-label={w("pageSize")}
             className="w-32"
             value={size}
             onChange={(e) => {
-              setSize(Number(e.target.value));
-              setPage(1);
+              onSize(Number(e.target.value));
             }}
           >
             {[10, 20, 50].map((value) => (

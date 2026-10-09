@@ -1,4 +1,4 @@
-"""Curated findings keep decisions people made, not resolver output."""
+"""Curated findings name technologies; unrecognized declarations are dependencies."""
 
 import csv
 import io
@@ -29,11 +29,12 @@ def _finding(
     evidence: list[tuple[str, str]],
     **updates: object,
 ) -> TechnologyScanFinding:
+    updates.setdefault("tier", "technology")
+    updates.setdefault("state", "open")
     return TechnologyScanFinding(
         kind=kind,  # type: ignore[arg-type]
         coordinate=coordinate,
         context=context,  # type: ignore[arg-type]
-        state="open",
         evidence=[_evidence(source, path) for source, path in evidence],
         **updates,  # type: ignore[arg-type]
     )
@@ -69,11 +70,16 @@ def test_lock_only_transitive_needs_every_trace_to_be_lock_output() -> None:
     assert lock_only_transitive("dep", [_evidence("observed", "tools/uv.lock")], declared)
 
 
-def test_declared_but_unrecognized_waits_in_the_unmapped_queue() -> None:
-    """A declared package is still not a technology until someone recognizes it."""
+def test_declared_but_unrecognized_is_a_dependency_not_a_technology() -> None:
+    """A declared package nobody recognizes stays listed, as a dependency."""
     findings = [
         _finding("fastapi", evidence=[("declared", "pyproject.toml")]),
         _finding("acme-internal-stdlib", evidence=[("declared", "pyproject.toml")]),
+        _finding(
+            "registry.internal/acme-image:v1",
+            kind="image",
+            evidence=[("declared", "compose.yaml")],
+        ),
         _finding(
             "acme-candidate-lib",
             evidence=[("declared", "pyproject.toml")],
@@ -85,13 +91,22 @@ def test_declared_but_unrecognized_waits_in_the_unmapped_queue() -> None:
             review="confirmed",
             technology_id=new_id("technology"),
         ),
+        _finding(
+            "acme-rejected-lib",
+            evidence=[("declared", "pyproject.toml")],
+            review="rejected",
+            state="rejected",
+        ),
     ]
-    result = curate_findings(findings)
-    assert [item.coordinate for item in result] == [
-        "fastapi",
-        "acme-candidate-lib",
-        "acme-vendored-lib",
-    ]
+    result = {item.coordinate: item.tier for item in curate_findings(findings)}
+    assert result == {
+        "fastapi": "technology",
+        "acme-internal-stdlib": "dependency",
+        "registry.internal/acme-image:v1": "dependency",
+        "acme-candidate-lib": "technology",
+        "acme-vendored-lib": "technology",
+        "acme-rejected-lib": "dependency",
+    }
 
 
 def test_configuration_signature_needs_an_identity() -> None:
@@ -128,10 +143,11 @@ def test_export_findings_csv_is_spreadsheet_safe() -> None:
         ),
     ]
     document = export_findings_csv(rows)
-    assert document.startswith("\ufeffkind,coordinate,")
+    assert document.startswith("\ufeffkind,tier,coordinate,")
     parsed = list(csv.reader(io.StringIO(document.lstrip("\ufeff"))))
     assert parsed[0] == [
         "kind",
+        "tier",
         "coordinate",
         "technology",
         "context",
@@ -141,10 +157,10 @@ def test_export_findings_csv_is_spreadsheet_safe() -> None:
         "review",
         "evidence",
     ]
-    assert parsed[1][:5] == ["package", "fastapi", "FastAPI", "production", ">=0.100"]
+    assert parsed[1][:5] == ["package", "technology", "fastapi", "FastAPI", "production"]
     # A formula-looking coordinate is quoted harmless, not executable.
-    assert parsed[2][1].startswith("'")
-    assert "pyproject.toml" in parsed[1][8]
+    assert parsed[2][2].startswith("'")
+    assert "pyproject.toml" in parsed[1][9]
 
 
 def test_export_findings_markdown_carries_scan_metadata() -> None:
@@ -172,6 +188,6 @@ def test_export_findings_markdown_carries_scan_metadata() -> None:
     assert document.startswith("# Technology scan `scan_01`")
     assert "- Repository: https://github.com/acme/service" in document
     assert "- Complete: no" in document
-    assert "| package | fastapi | FastAPI | production | >=0.100 |" in document
+    assert "| package | technology | fastapi | FastAPI | production | >=0.100 |" in document
     # A pipe inside a coordinate cannot break the table shape.
     assert "cell \\| breaker" in document

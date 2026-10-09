@@ -213,16 +213,17 @@ filtering without changing these registry and relation semantics.
   effect: replay returns the stored items instead of new jobs.
 
   The curated set a scan detail, its findings resource, its exports and the
-  review queue all share is not the raw detector output. A package whose every
-  trace is a lock row with no same-directory declaration is resolver output:
-  it stays in the scan's raw `coordinates` inventory but never becomes an
-  observation, an unmapped-queue entry, or a review finding — unless an owner
-  already reviewed it. A finding the registry cannot recognize — no seed
-  identity, no mapped technology — is a dependency, not a technology: it
-  waits in `unmapped_coordinates` until a review proposes a candidate or a
-  mapping, at which point it returns to findings as a candidate or resolved
-  row. Only recognized signatures, resolved technologies and reviewed
-  decisions stand as findings.
+  review queue all share is not the raw detector output. Every finding carries
+  a `tier`: `technology` when something names it — a seed identity, a mapped
+  or candidate technology, or an owner's decision — and `dependency` when a
+  package or image the project declared is not recognized. A dependency is
+  listed and reviewable like any finding, and the unmapped queue still
+  collects it for registry growth, but it is not a technology. A package
+  whose every trace is a lock row with no same-directory declaration is
+  resolver output: it stays in the scan's raw `coordinates` inventory but
+  never becomes an observation, an unmapped-queue entry, or a review finding
+  — unless an owner already reviewed it. Unrecognized configuration and
+  executable signatures are likewise excluded unless someone decides.
 
 ## States and errors
 
@@ -635,4 +636,4 @@ a scan. CLI checkout synchronization remains device-bound (ADR-0229).
 
 The journal row body navigates to details by pointer or keyboard; its three-dot menu opens independent actions. Repository scan launch rejects any project with a queued, running or retry-scheduled scan under the organization lock, including requests with different idempotency keys. The journal disables selection of active projects, and a successful launch cannot be resubmitted from the same dialog.
 
-Journal and scan-detail found/pending counts use the same technology-or-coordinate display grouping as the review table; immutable evidence and original review identities remain available in findings.
+Journal and scan-detail found/pending counts cover technology-tier findings only, grouped by the same technology-or-coordinate display identity as the review table; the `dependencies` count covers the dependency tier separately, and immutable evidence and original review identities remain available in findings. The review page lists technologies above dependencies as two sections.

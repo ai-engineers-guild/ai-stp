@@ -903,6 +903,7 @@ async def test_scan_journal_launch_and_detail(
     assert entry.status == "succeeded"
     assert entry.found == 1
     assert entry.pending == 0
+    assert entry.dependencies == 1
 
     filtered = await list_scans(
         db_session,
@@ -925,6 +926,7 @@ async def test_scan_journal_launch_and_detail(
     assert detail.status == "succeeded"
     assert detail.found == 1
     assert detail.pending == 0
+    assert detail.dependencies == 1
     assert detail.detector_version == "v1"
     assert detail.mapping_version == SEED_COORDINATES_VERSION
     assert detail.complete is True
@@ -937,9 +939,14 @@ async def test_scan_journal_launch_and_detail(
     assert resolved.version == "1.2.3"
     assert resolved.version_kind == "observed_version"
     assert resolved.evidence[0].path == "requirements.lock"
-    # A declared-but-unrecognized dependency is not a finding: it waits in the
-    # unmapped queue until a review or a mapping gives it an identity.
-    assert "pip:unknown-widget" not in states
+    # A declared-but-unrecognized package lists as a dependency, not a
+    # technology — it also sits in the unmapped queue until a review or a
+    # mapping gives it an identity.
+    opened = states["pip:unknown-widget"]
+    assert opened.tier == "dependency"
+    assert opened.state == "open"
+    assert opened.technology_id is None
+    assert opened.evidence[0].path == "requirements.txt"
     unmapped = await read_unmapped(
         db_session,
         ctx=ctx,
@@ -975,6 +982,7 @@ async def test_scan_journal_launch_and_detail(
     )
     opened = {finding.coordinate: finding for finding in detail.findings}["pip:unknown-widget"]
     assert opened.state == "candidate"
+    assert opened.tier == "technology"
     assert opened.candidate_technology_id == technology_id
 
     # A linked GitLab project queues a scan job; an unlinked one is rejected.
@@ -1462,14 +1470,14 @@ async def test_scan_findings_resource_and_exports(
     assert listing.project_id == project.project_id
     assert listing.organization_id == org
     assert listing.findings == detail.findings
-    coordinates = {finding.coordinate for finding in listing.findings}
+    coordinates = {finding.coordinate: finding for finding in listing.findings}
     assert "fastapi" in coordinates
     assert "conftest.py" in coordinates
     # Resolver output the project never declared is not a review finding.
     assert "resolver-only-dep" not in coordinates
-    # A declared dependency nobody recognizes waits in the unmapped queue,
-    # not in the technology findings.
-    assert "acme-internal-stdlib" not in coordinates
+    # A declared dependency nobody recognizes lists as a dependency — it also
+    # sits in the unmapped queue until a review or a mapping gives it an identity.
+    assert coordinates["acme-internal-stdlib"].tier == "dependency"
     queue = await read_unmapped(
         db_session,
         ctx=ctx,
@@ -1491,7 +1499,7 @@ async def test_scan_findings_resource_and_exports(
     assert "fastapi" in csv_body
     assert "conftest.py" in csv_body
     assert "resolver-only-dep" not in csv_body
-    assert "acme-internal-stdlib" not in csv_body
+    assert "package,dependency,acme-internal-stdlib" in csv_body
 
     md_body, md_media = await export_scan_findings(
         db_session,
@@ -1503,7 +1511,7 @@ async def test_scan_findings_resource_and_exports(
     )
     assert md_media == "text/markdown"
     assert md_body.startswith(f"# Technology scan `{published.scan_id}`")
-    assert "| package | fastapi |" in md_body
+    assert "| package | technology | fastapi |" in md_body
 
     # Findings of a scan that does not exist are unavailable, not empty.
     with pytest.raises(ApiError, match="unavailable"):

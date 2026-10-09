@@ -54,20 +54,11 @@ export function useTechnologyReview({
   const localize = useTechnologyTaxonomy();
   const id = useId();
   const mutation = useGovernanceMutation(authority);
-  const [search, setSearch] = useState("");
-  const [project, setProject] = useState("");
-  const [scanFilter, setScanFilter] = useState(initialScan);
-  const [status, setStatus] = useState("");
-  const [kind, setKind] = useState("");
-  const [pendingOnly, setPendingOnly] = useState(false);
-  const [page, setPage] = useState(1);
-  const [size, setSize] = useState(10);
-  const [activeKey, setActiveKey] = useState<string | null>(null);
-  const [drafts, setDrafts] = useState<Record<string, Draft>>({});
-  const [selected, setSelected] = useState<string[]>([]);
-  const [create, setCreate] = useState<"technology" | "category" | "area" | null>(null);
-  const [evidence, setEvidence] = useState<Row | null>(null);
-  const [advanced, setAdvanced] = useState(false);
+  const filters = useReviewFilters(initialScan);
+  const { search, project, scanFilter, status, kind, pendingOnly, page, size, depPage, depSize } =
+    filters;
+  const ui = useReviewUi();
+  const { activeKey, drafts, selected, setDrafts, setSelected } = ui;
   const names = new Map(technologies.map((item) => [item.technology_id, item]));
   const categoryNames = new Map(
     categories?.map((item) => [item.category_id, localize(item)]) ?? [],
@@ -83,23 +74,35 @@ export function useTechnologyReview({
   function pending(row: Row) {
     return !["resolved", "rejected"].includes(findingStatus(row, names));
   }
-  const latest = latestScanIds(scans);
-  const rows = allRows.filter(
-    (row) =>
-      (!scanFilter
-        ? mode === "scan" || latest.has(row.scan.scan_id)
-        : row.scan.scan_id === scanFilter) &&
-      (!project || row.scan.project_id === project) &&
-      (!status || findingStatus(row, names) === status) &&
-      (!kind || (mode === "mapping" ? findingReason(row, names) === kind : row.kind === kind)) &&
-      (!pendingOnly || pending(row)) &&
-      `${row.technology_name ?? ""} ${row.coordinate} ${names.get(row.technology_id ?? row.candidate_technology_id ?? "")?.name ?? ""} ${row.scan.project_name ?? ""} ${row.evidence.map((e) => e.path ?? e.reference).join(" ")}`
-        .toLocaleLowerCase()
-        .includes(search.toLocaleLowerCase()),
+  const {
+    rows,
+    techRows,
+    depRows,
+    totalPages,
+    currentPage,
+    visible,
+    depTotalPages,
+    depCurrentPage,
+    depVisible,
+  } = partitionRows(
+    allRows,
+    {
+      mode,
+      scanFilter,
+      latest: latestScanIds(scans),
+      project,
+      status,
+      kind,
+      pendingOnly,
+      search,
+      names,
+      pending,
+    },
+    page,
+    size,
+    depPage,
+    depSize,
   );
-  const totalPages = Math.max(1, Math.ceil(rows.length / size));
-  const currentPage = Math.min(page, totalPages);
-  const visible = rows.slice((currentPage - 1) * size, currentPage * size);
   const active = rows.find((row) => rowKey(row) === activeKey) ?? visible[0] ?? null;
   const chosen = active ? draft(active) : null;
   const category = chosen ? categoryNames.get(chosen.category) : undefined;
@@ -108,18 +111,10 @@ export function useTechnologyReview({
     : rows.filter((row) => drafts[rowKey(row)]);
   const applicable = bulkRows.filter((row) => canApplyFinding(draft(row), names));
   function apply(items: Row[], reject = false) {
-    const decisions = items.flatMap((row) =>
-      (row.members ?? [row]).map((member) => findingDecision(member, draft(row), reject)),
-    );
-    mutation.save(
-      `/v1/corporate/organizations/${authority.organizationId}/technology-findings/review`,
-      { expected_revision: 0, items: decisions },
-      "PUT",
-      () => {
-        setDrafts({});
-        setSelected([]);
-      },
-    );
+    applyFindings(mutation, authority, items, draft, reject, () => {
+      setDrafts({});
+      setSelected([]);
+    });
   }
   const classification = (row: Row) =>
     findingClassification(row, names, categoryNames, areaNames, a("unclassified"));
@@ -138,7 +133,10 @@ export function useTechnologyReview({
     areaNames,
     allRows,
     rows,
+    techRows,
+    depRows,
     visible,
+    depVisible,
     active,
     chosen,
     category,
@@ -149,7 +147,34 @@ export function useTechnologyReview({
     projects,
     scans,
     mode,
-    selected,
+    totalPages,
+    currentPage,
+    depTotalPages,
+    depCurrentPage,
+    classification,
+    sourceIcon,
+    draft,
+    patch,
+    apply,
+    pending,
+    ...filters,
+    ...ui,
+  };
+}
+export type TechnologyReviewState = ReturnType<typeof useTechnologyReview>;
+
+function useReviewFilters(initialScan: string) {
+  const [search, setSearch] = useState("");
+  const [project, setProject] = useState("");
+  const [scanFilter, setScanFilter] = useState(initialScan);
+  const [status, setStatus] = useState("");
+  const [kind, setKind] = useState("");
+  const [pendingOnly, setPendingOnly] = useState(false);
+  const [page, setPage] = useState(1);
+  const [size, setSize] = useState(10);
+  const [depPage, setDepPage] = useState(1);
+  const [depSize, setDepSize] = useState(10);
+  return {
     search,
     project,
     scanFilter,
@@ -158,18 +183,8 @@ export function useTechnologyReview({
     pendingOnly,
     page,
     size,
-    totalPages,
-    currentPage,
-    drafts,
-    create,
-    evidence,
-    advanced,
-    classification,
-    sourceIcon,
-    draft,
-    patch,
-    apply,
-    pending,
+    depPage,
+    depSize,
     setSearch,
     setProject,
     setScanFilter,
@@ -178,6 +193,25 @@ export function useTechnologyReview({
     setPendingOnly,
     setPage,
     setSize,
+    setDepPage,
+    setDepSize,
+  };
+}
+
+function useReviewUi() {
+  const [activeKey, setActiveKey] = useState<string | null>(null);
+  const [drafts, setDrafts] = useState<Record<string, Draft>>({});
+  const [selected, setSelected] = useState<string[]>([]);
+  const [create, setCreate] = useState<"technology" | "category" | "area" | null>(null);
+  const [evidence, setEvidence] = useState<Row | null>(null);
+  const [advanced, setAdvanced] = useState(false);
+  return {
+    activeKey,
+    drafts,
+    selected,
+    create,
+    evidence,
+    advanced,
     setActiveKey,
     setDrafts,
     setSelected,
@@ -186,7 +220,91 @@ export function useTechnologyReview({
     setAdvanced,
   };
 }
-export type TechnologyReviewState = ReturnType<typeof useTechnologyReview>;
+
+function pageSlice<T>(rows: T[], page: number, size: number) {
+  const totalPages = Math.max(1, Math.ceil(rows.length / size));
+  const current = Math.min(page, totalPages);
+  return {
+    totalPages,
+    currentPage: current,
+    visible: rows.slice((current - 1) * size, current * size),
+  };
+}
+
+type RowFilters = {
+  mode: "scan" | "mapping";
+  scanFilter: string;
+  latest: Set<string>;
+  project: string;
+  status: string;
+  kind: string;
+  pendingOnly: boolean;
+  search: string;
+  names: Map<string, TechnologyView>;
+  pending: (row: Row) => boolean;
+};
+
+function partitionRows(
+  allRows: Row[],
+  filters: RowFilters,
+  page: number,
+  size: number,
+  depPage: number,
+  depSize: number,
+) {
+  const rows = allRows.filter((row) => rowMatches(row, filters));
+  const techRows = rows.filter((row) => row.tier !== "dependency");
+  const depRows = rows.filter((row) => row.tier === "dependency");
+  const dep = pageSlice(depRows, depPage, depSize);
+  return {
+    rows,
+    techRows,
+    depRows,
+    ...pageSlice(techRows, page, size),
+    depTotalPages: dep.totalPages,
+    depCurrentPage: dep.currentPage,
+    depVisible: dep.visible,
+  };
+}
+
+function rowMatches(row: Row, filters: RowFilters) {
+  return (
+    (!filters.scanFilter
+      ? filters.mode === "scan" || filters.latest.has(row.scan.scan_id)
+      : row.scan.scan_id === filters.scanFilter) &&
+    (!filters.project || row.scan.project_id === filters.project) &&
+    (!filters.status || findingStatus(row, filters.names) === filters.status) &&
+    (!filters.kind ||
+      (filters.mode === "mapping"
+        ? findingReason(row, filters.names) === filters.kind
+        : row.kind === filters.kind)) &&
+    (!filters.pendingOnly || filters.pending(row)) &&
+    rowHaystack(row, filters.names).includes(filters.search.toLocaleLowerCase())
+  );
+}
+
+function rowHaystack(row: Row, names: Map<string, TechnologyView>) {
+  return `${row.technology_name ?? ""} ${row.coordinate} ${names.get(row.technology_id ?? row.candidate_technology_id ?? "")?.name ?? ""} ${row.scan.project_name ?? ""} ${row.evidence.map((e) => e.path ?? e.reference).join(" ")}`.toLocaleLowerCase();
+}
+
+function applyFindings(
+  mutation: ReturnType<typeof useGovernanceMutation>,
+  authority: GovernanceAuthority,
+  items: Row[],
+  decide: (row: Row) => Draft,
+  reject: boolean,
+  onSaved: () => void,
+) {
+  const decisions = items.flatMap((row) =>
+    (row.members ?? [row]).map((member) => findingDecision(member, decide(row), reject)),
+  );
+  mutation.save(
+    `/v1/corporate/organizations/${authority.organizationId}/technology-findings/review`,
+    { expected_revision: 0, items: decisions },
+    "PUT",
+    onSaved,
+  );
+}
 
 function defaultDraft(row: Row, names: Map<string, TechnologyView>): Draft {
   const technology = row.technology_id ?? row.candidate_technology_id ?? "";

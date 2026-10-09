@@ -40,6 +40,7 @@ const findingEvidence = (row: TechnologyScanFinding) =>
 const findingCells = (row: TechnologyScanFinding) =>
   [
     row.kind,
+    row.tier,
     row.coordinate,
     findingTechnology(row),
     row.context ?? "",
@@ -85,7 +86,7 @@ export function exportScanFindings(
         filename,
         mime,
         content: [
-          "kind,coordinate,technology,context,version,version_kind,state,review,evidence",
+          "kind,tier,coordinate,technology,context,version,version_kind,state,review,evidence",
           ...scan.findings.map((row) => findingCells(row).map(csvCell).join(",")),
         ].join("\r\n"),
       };
@@ -103,8 +104,8 @@ export function exportScanFindings(
           `- Detector: ${scan.detector_version ?? "—"}`,
           `- Mapping: ${scan.mapping_version ?? "—"}`,
           "",
-          "| Kind | Coordinate | Technology | Context | Version | State | Review | Evidence |",
-          "| --- | --- | --- | --- | --- | --- | --- | --- |",
+          "| Kind | Tier | Coordinate | Technology | Context | Version | State | Review | Evidence |",
+          "| --- | --- | --- | --- | --- | --- | --- | --- | --- |",
           ...scan.findings.map((row) => `| ${findingCells(row).map(mdCell).join(" | ")} |`),
         ].join("\n"),
       };

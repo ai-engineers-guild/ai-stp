@@ -250,6 +250,14 @@
           "default": null,
           "title": "Technology Name"
         },
+        "tier": {
+          "enum": [
+            "technology",
+            "dependency"
+          ],
+          "title": "Tier",
+          "type": "string"
+        },
         "version": {
           "anyOf": [
             {
@@ -287,6 +295,7 @@
         "technology_id",
         "technology_key",
         "technology_name",
+        "tier",
         "version",
         "version_kind"
       ],
@@ -333,6 +342,12 @@
     },
     "created_at": {
       "$ref": "#/$defs/Timestamp"
+    },
+    "dependencies": {
+      "default": 0,
+      "minimum": 0,
+      "title": "Dependencies",
+      "type": "integer"
     },
     "detector_version": {
       "anyOf": [
@@ -487,6 +502,7 @@
     "commit",
     "complete",
     "created_at",
+    "dependencies",
     "detector_version",
     "duration_seconds",
     "error",

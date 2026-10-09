@@ -15596,6 +15596,10 @@ export type TechnologyScanDetail = {
   complete: boolean;
   created_at: Timestamp;
   /**
+   * Dependencies
+   */
+  dependencies: number;
+  /**
    * Detector Version
    */
   detector_version: string | null;
@@ -15716,6 +15720,10 @@ export type TechnologyScanFinding = {
    * Technology Name
    */
   technology_name: string | null;
+  /**
+   * Tier
+   */
+  tier: "technology" | "dependency";
   /**
    * Version
    */
@@ -15934,6 +15942,10 @@ export type TechnologyScanListEntry = {
    */
   commit: string | null;
   created_at: Timestamp;
+  /**
+   * Dependencies
+   */
+  dependencies: number;
   /**
    * Duration Seconds
    */

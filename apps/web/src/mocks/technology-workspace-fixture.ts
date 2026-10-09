@@ -74,7 +74,11 @@ export const projects: [CorporateProjectView] = [
   },
 ];
 export const scan: TechnologyScanDetail & {
-  findings: [TechnologyScanDetail["findings"][number], TechnologyScanDetail["findings"][number]];
+  findings: [
+    TechnologyScanDetail["findings"][number],
+    TechnologyScanDetail["findings"][number],
+    TechnologyScanDetail["findings"][number],
+  ];
   repository: string;
 } = {
   scan_id: "scan_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
@@ -88,6 +92,7 @@ export const scan: TechnologyScanDetail & {
   status: "succeeded",
   found: 2,
   pending: 1,
+  dependencies: 1,
   duration_seconds: 312,
   error: null,
   scope: "dependencies",
@@ -103,6 +108,7 @@ export const scan: TechnologyScanDetail & {
       version: "0.115",
       version_kind: "declared_range",
       state: "resolved",
+      tier: "technology",
       technology_id: technologies[0].technology_id,
       candidate_technology_id: null,
       review: "confirmed",
@@ -129,6 +135,7 @@ export const scan: TechnologyScanDetail & {
       version: "^2.0",
       version_kind: "declared_range",
       state: "open",
+      tier: "technology",
       technology_id: null,
       candidate_technology_id: null,
       review: "proposed",
@@ -142,6 +149,33 @@ export const scan: TechnologyScanDetail & {
           source: "declared",
           path: "package.json",
           reference: "dependencies.weirdlib",
+          observed_at: "2026-10-08T10:00:00Z",
+          detector_version: "repository-content-v1",
+          mapping_version: "storybook-v1",
+        },
+      ],
+    },
+    {
+      kind: "package",
+      coordinate: "left-pad",
+      context: "production",
+      version: "^1.3.0",
+      version_kind: "declared_range",
+      state: "open",
+      tier: "dependency",
+      technology_id: null,
+      candidate_technology_id: null,
+      review: "proposed",
+      technology_name: "left-pad",
+      technology_key: null,
+      category_id: null,
+      review_revision: 0,
+      comment: "",
+      evidence: [
+        {
+          source: "declared",
+          path: "package.json",
+          reference: "dependencies.left-pad",
           observed_at: "2026-10-08T10:00:00Z",
           detector_version: "repository-content-v1",
           mapping_version: "storybook-v1",

@@ -16,6 +16,7 @@ def test_duplicate_versions_share_one_review_identity() -> None:
         coordinate="python",
         context="production",
         state="resolved",
+        tier="technology",
         version="3.12",
         evidence=[evidence],
     )

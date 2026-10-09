@@ -73,28 +73,33 @@ def technology_identity(kind: str, coordinate: str) -> tuple[str, str] | None:
 
 
 def curate_findings(findings: list[TechnologyScanFinding]) -> list[TechnologyScanFinding]:
-    """Keep recognized technologies and decisions people made.
+    """Keep technologies and declared dependencies; drop resolver output.
 
-    A dependency the registry does not recognize is a dependency, not a
-    technology: it waits in `unmapped_coordinates` until a review gives it
-    a candidate or a mapping. Resolver output never enters either list —
-    it stays raw evidence in `coordinates`.
+    A finding is a `technology` when something names it — a seed identity,
+    a mapped or candidate technology, or an owner's decision. A declared
+    package or image nobody recognizes is a `dependency`: visible and
+    reviewable, but not counted as a technology. Lock-only resolver output
+    and unrecognized signatures stay raw evidence in `coordinates`.
     """
     direct = declared_package_dirs((item.kind, item.coordinate, item.evidence) for item in findings)
     result: list[TechnologyScanFinding] = []
     for item in findings:
         identity = technology_identity(item.kind, item.coordinate)
-        owned = item.candidate_technology_id or item.review == "confirmed"
+        owned = item.candidate_technology_id or item.review in {"confirmed", "rejected"}
+        recognized = identity is not None or item.technology_id is not None
         if not owned:
             if item.kind == "package" and lock_only_transitive(
                 item.coordinate, item.evidence, direct
             ):
                 continue
-            if identity is None and item.technology_id is None:
+            if not recognized and item.kind not in {"package", "image"}:
                 continue
         result.append(
             item.model_copy(
                 update={
+                    "tier": "technology"
+                    if recognized or item.candidate_technology_id
+                    else "dependency",
                     "technology_key": identity[0] if identity else None,
                     "technology_name": identity[1] if identity else item.coordinate,
                 }
@@ -118,6 +123,7 @@ def display_identity(item: TechnologyScanFinding) -> str | tuple[str, str]:
 
 _EXPORT_COLUMNS = (
     "kind",
+    "tier",
     "coordinate",
     "technology",
     "context",
@@ -159,6 +165,7 @@ def export_findings_csv(findings: Iterable[TechnologyScanFinding]) -> str:
                 _csv_cell(value)
                 for value in (
                     item.kind,
+                    item.tier,
                     item.coordinate,
                     _export_technology(item),
                     item.context or "",
@@ -199,12 +206,13 @@ def export_findings_markdown(
         f"- Detector: {detector_version or '—'}",
         f"- Mapping: {mapping_version or '—'}",
         "",
-        "| Kind | Coordinate | Technology | Context | Version | State | Review | Evidence |",
-        "| --- | --- | --- | --- | --- | --- | --- | --- |",
+        "| Kind | Tier | Coordinate | Technology | Context | Version | State | Review | Evidence |",
+        "| --- | --- | --- | --- | --- | --- | --- | --- | --- |",
     ]
     for item in findings:
         cells = (
             item.kind,
+            item.tier,
             item.coordinate,
             _export_technology(item),
             item.context or "",

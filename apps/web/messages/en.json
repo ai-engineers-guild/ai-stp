@@ -628,6 +628,8 @@
       "file": "File",
       "perPage": "{count} per page",
       "noFindings": "No findings match these filters.",
+      "sectionTechnologies": "Technologies",
+      "sectionDependencies": "Dependencies",
       "findingDetails": "Finding review",
       "evidence": "Evidence",
       "basicInfo": "Basic information",

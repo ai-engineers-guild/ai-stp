@@ -1470,6 +1470,7 @@ export function corporateHandlers(
           scan_types: [],
           found: 0,
           pending: 0,
+          dependencies: 0,
         });
       }
       return {

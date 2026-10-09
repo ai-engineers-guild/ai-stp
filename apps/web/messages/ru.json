@@ -628,6 +628,8 @@
       "file": "Файл",
       "perPage": "{count} на странице",
       "noFindings": "Нет находок по выбранным фильтрам.",
+      "sectionTechnologies": "Технологии",
+      "sectionDependencies": "Зависимости",
       "findingDetails": "Разбор находки",
       "evidence": "Доказательства",
       "basicInfo": "Основная информация",

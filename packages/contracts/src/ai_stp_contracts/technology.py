@@ -685,6 +685,7 @@ class TechnologyScanListEntry(ContractModel):
     status: TechnologyScanStatus
     found: Annotated[int, Field(ge=0)] = 0
     pending: Annotated[int, Field(ge=0)] = 0
+    dependencies: Annotated[int, Field(ge=0)] = 0
     duration_seconds: Annotated[int | None, Field(ge=0)] = None
     error: str | None = None
     scope: str | None = None
@@ -748,6 +749,7 @@ class TechnologyScanFinding(ContractModel):
     version_kind: Literal["unknown", "declared_range", "observed_version"] = "unknown"
     evidence: list[TechnologyEvidence] = []
     state: Literal["resolved", "candidate", "open", "rejected"]
+    tier: Literal["technology", "dependency"]
     candidate_technology_id: TechnologyId | None = None
     review: Literal["proposed", "confirmed", "rejected"] = "proposed"
     category_id: CategoryId | None = None

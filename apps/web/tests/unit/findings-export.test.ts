@@ -33,7 +33,11 @@ describe("exportScanFindings", () => {
     };
     expect(parsed.scan_id).toBe(scan.scan_id);
     expect(parsed.repository).toBe(scan.repository);
-    expect(parsed.findings.map((row) => row.coordinate)).toEqual(["fastapi", "weirdlib"]);
+    expect(parsed.findings.map((row) => row.coordinate)).toEqual([
+      "fastapi",
+      "weirdlib",
+      "left-pad",
+    ]);
   });
 
   it("renders CSV with the shared column set and quoting", () => {
@@ -60,7 +64,7 @@ describe("exportScanFindings", () => {
     expect(mime).toBe("text/csv");
     const lines = content.split("\r\n");
     expect(lines[0]).toBe(
-      "kind,coordinate,technology,context,version,version_kind,state,review,evidence",
+      "kind,tier,coordinate,technology,context,version,version_kind,state,review,evidence",
     );
     expect(lines[1]).toContain('"lib,""x"""');
     expect(lines[1]).toContain("package.json");
@@ -71,7 +75,8 @@ describe("exportScanFindings", () => {
     expect(mime).toBe("text/markdown");
     expect(content).toContain(`# Technology scan \`${scan.scan_id}\``);
     expect(content).toContain(`- Repository: ${scan.repository}`);
-    expect(content).toContain("| package | fastapi |");
+    expect(content).toContain("| package | technology | fastapi |");
+    expect(content).toContain("| package | dependency | left-pad |");
     expect(content).toContain("requirements.txt");
   });
 

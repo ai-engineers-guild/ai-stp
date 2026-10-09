@@ -151,6 +151,10 @@ it("edits categories inline and filters out classified findings", async () => {
   render(wrap(<TechnologyScanFindings {...props} />));
   expect(screen.queryByRole("complementary")).toBeNull();
   expect(screen.queryByRole("textbox", { name: "Comment" })).toBeNull();
+  // Technologies and declared-but-unrecognized dependencies list separately.
+  expect(screen.getByRole("heading", { name: "Technologies" })).toBeVisible();
+  const dependencies = screen.getByRole("region", { name: "Dependencies" });
+  expect(within(dependencies).getByText("left-pad")).toBeVisible();
   fireEvent.click(screen.getByRole("checkbox", { name: "Only findings needing review" }));
   expect(screen.queryByText("fastapi")).toBeNull();
   const row = screen.getByText("weirdlib").closest("tr");

@@ -2077,6 +2077,7 @@
             "status": "succeeded",
             "found": 0,
             "pending": 0,
+            "dependencies": 0,
             "duration_seconds": 2,
             "error": null,
             "scope": "dependencies",
@@ -2140,6 +2141,7 @@
         "status": "succeeded",
         "found": 0,
         "pending": 0,
+        "dependencies": 0,
         "duration_seconds": 2,
         "error": null,
         "scope": "dependencies",
@@ -2235,6 +2237,7 @@
               }
             ],
             "state": "open",
+            "tier": "technology",
             "candidate_technology_id": null,
             "review": "proposed",
             "category_id": null,

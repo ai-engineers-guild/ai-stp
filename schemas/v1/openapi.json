@@ -31378,6 +31378,12 @@
           "created_at": {
             "$ref": "#/components/schemas/Timestamp"
           },
+          "dependencies": {
+            "default": 0,
+            "minimum": 0,
+            "title": "Dependencies",
+            "type": "integer"
+          },
           "detector_version": {
             "anyOf": [
               {
@@ -31531,6 +31537,7 @@
           "commit",
           "complete",
           "created_at",
+          "dependencies",
           "detector_version",
           "duration_seconds",
           "error",
@@ -31690,6 +31697,14 @@
             "default": null,
             "title": "Technology Name"
           },
+          "tier": {
+            "enum": [
+              "technology",
+              "dependency"
+            ],
+            "title": "Tier",
+            "type": "string"
+          },
           "version": {
             "anyOf": [
               {
@@ -31727,6 +31742,7 @@
           "technology_id",
           "technology_key",
           "technology_name",
+          "tier",
           "version",
           "version_kind"
         ],
@@ -32177,6 +32193,12 @@
           "created_at": {
             "$ref": "#/components/schemas/Timestamp"
           },
+          "dependencies": {
+            "default": 0,
+            "minimum": 0,
+            "title": "Dependencies",
+            "type": "integer"
+          },
           "duration_seconds": {
             "anyOf": [
               {
@@ -32297,6 +32319,7 @@
           "branch",
           "commit",
           "created_at",
+          "dependencies",
           "duration_seconds",
           "error",
           "found",
@@ -78256,6 +78279,7 @@
                           "branch": "main",
                           "commit": "a7b1c9e",
                           "created_at": "2026-10-08T10:00:00.000Z",
+                          "dependencies": 0,
                           "duration_seconds": 2,
                           "error": null,
                           "found": 0,
@@ -78700,6 +78724,7 @@
                       "commit": "a7b1c9e",
                       "complete": true,
                       "created_at": "2026-10-08T10:00:00.000Z",
+                      "dependencies": 0,
                       "detector_version": "repository-content-v1",
                       "duration_seconds": 2,
                       "error": null,
@@ -78931,6 +78956,7 @@
                           "technology_id": null,
                           "technology_key": "33",
                           "technology_name": "FastAPI",
+                          "tier": "technology",
                           "version": ">=0.100",
                           "version_kind": "declared_range"
                         }
