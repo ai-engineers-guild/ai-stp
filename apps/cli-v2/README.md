@@ -188,7 +188,52 @@ attestation. Both verification axes and `target_write` remain false. A missing
 or unsuitable subtree refuses; no registry, credentials or component is created.
 Rate-limit refusals report a bounded retry delay and perform no automatic retry.
 
-The GitHub adapter owns the existing `zip` dependency's
+`component source package fetch --ecosystem go --name <module> --version <version>`
+observes an exact Go module using only `proxy.golang.org` and `sum.golang.org`.
+The original module name and canonical `vX.Y.Z[-prerelease][+incompatible]` version
+are bounded to 256 bytes each. Both URL elements use Go's case encoding; the
+returned version must exactly match the original pin. The shared anonymous
+transport retains the 30-second budget, two-redirect limit and 2 MiB metadata
+bound; redirects outside those two HTTPS authorities refuse.
+
+The ZIP is limited to 20 MiB, 20,000 entries and 50 MiB of expanded content. All
+original member names and contents participate in upstream
+[`HashZip(Hash1)`](https://pkg.go.dev/golang.org/x/mod/sumdb/dirhash#HashZip),
+independent of ZIP order/compression. Original UTF-8 names, exact module/version
+prefixes and declared/actual lengths must agree. Duplicate entries, traversal,
+links, special files, encryption and unsupported ZIP structures refuse. The
+computed checksum must match one unambiguous exact module/version line from the
+checksum endpoint. This is an HTTPS registry observation; it does not verify the
+checksum database's signed transparency log and grants no verification axis.
+
+Only root `go.mod` and `go.sum` become portable snapshot files; nested test data
+does not become module metadata. Their canonical artifact uses mode `0644` and
+the common UTF-8/4 MiB-per-file/8 MiB-total source limits. A historical module
+without either file returns empty `file_paths`, `artifact: null` and its archive
+digest as the component digest, matching the shared empty-metadata snapshot
+contract. No synthetic metadata, dependency execution, local Go toolchain,
+credential access, registry mutation or target write is involved.
+
+`component source package fetch --ecosystem pypi` additionally requires an exact
+`--filename` and `--platform`. Project names use PyPA normalization; the returned
+release version must match the supplied registry spelling. A wheel's platform
+must match one complete filename platform tag, not a substring. Source archives
+use `source` and must be `.tar.gz` or `.zip` distributions. The selected file must
+be unique in the release, use the matching filename under the official
+`files.pythonhosted.org/packages/` authority, and match both its declared size
+and SHA-256. Metadata is limited to 2 MiB/1,000 file entries and files to 20 MiB;
+the shared transport permits only `pypi.org` and `files.pythonhosted.org`.
+
+The PyPI result retains the shared package snapshot's empty file list and null
+artifact; downloaded distribution bytes are hashed, never extracted or executed.
+`distribution_yanked` reports the selected file's current registry flag without
+turning this read into installation approval. `metadata_scope: release` identifies
+the origin of `requires_dist` and repository observations. PyPI's
+[release metadata](https://docs.pypi.org/api/json/) can differ from the selected
+file's metadata; this command neither resolves dependencies nor verifies PEP 740
+attestations. No Python installation, interpreter, credential or state is used.
+
+The external source adapters own the existing `zip` dependency's
 `deflate-flate2-zlib-rs` feature and its locked `flate2` and `zlib-rs` closure.
 The Rust compression maintainers publish `flate2` under MIT or Apache-2.0;
 Trifecta Tech publishes `zlib-rs` under Zlib. This pure Rust DEFLATE reader needs
@@ -1088,7 +1133,7 @@ also be an ancestor of another member, including through a case alias.
 Shared directory prefixes must keep one spelling across the archive.
 `zip` owns archive decoding; `crc32fast` supplies the wire checksum. This
 canonical decoder explicitly refuses compression and encryption. DEFLATE support
-is enabled only for the separate external GitHub source reader.
+is enabled only for the separate external source readers.
 
 Scope projection archives use the same ZIP transport and retain their own
 8,192-member and 64 MiB limits. They preserve explicit empty directories and
