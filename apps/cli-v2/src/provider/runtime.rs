@@ -9,7 +9,7 @@ mod planning;
 #[cfg(target_os = "linux")]
 pub mod probe;
 #[cfg(target_os = "linux")]
-mod target;
+pub(crate) mod target;
 
 use super::Info;
 use super::artifact::Artifact;

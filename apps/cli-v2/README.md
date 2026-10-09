@@ -1393,6 +1393,39 @@ invents a synthetic component to evade those restrictions. A real SQLite journey
 covers all 16 released profiles; the author/release/setup journey also compiles
 a transitive graph and proves byte stability after a later draft edit.
 
+`select bundle plan --state-dir --id --version --passport-digest --scope
+--provider-version --output [--target]` connects that compiler to authenticated
+native provider observations and one exact retained setup. The scope and provider
+version are explicit. The output is an unused directory beneath an existing
+parent; successful apply places only `bundle.zip` there. Planning publishes
+nothing and returns the manifest, assessment and provider observation for review.
+
+Configuration contributions require `--target`, an existing absolute directory
+with no symbolic path components. The runtime reads only contribution paths
+declared by the exact graph; a missing file is observed absence, while a symbolic
+link, hard link, non-file or changed directory refuses. Each host observation is
+bounded to 2,000 files, 4 MiB per file and 64 MiB total. The host files are read
+again after compilation and must match. The target must be disjoint from trust
+state, and generated output cannot be inside it. No target file is written.
+This adapter currently requires the verified Linux provider runtime.
+
+`select bundle apply --plan --plan-digest` accepts a closed plan up to 16 KiB.
+Its schema/action, identity, state parent, exact source, provider selector,
+optional physical host binding, output/parent identity, input digest, logical
+bundle digest and literal archive digest/size are all bound by the plan digest.
+Local path serialization preserves original UTF-8 bytes, including NFD names.
+Apply reauthenticates the provider and recompiles in one query-only registry
+transaction, retaining that view through publication. All planned identities and
+bytes must still match. This also applies to repeated calls; existing artifact
+bytes alone are not treated as current provider or eligibility evidence.
+
+Publication uses the same private, resumable staging and non-replacing rename as
+scaffolding and setup export, with binary file support. A matching completed tree
+returns `already_matches`; unexpected files or different bytes refuse. A partial
+stage must be a prefix of the exact planned archive before it can resume.
+The result reports pending stage cleanup when relevant. Producing a bundle
+creates no registry record, installation journal, backup or installation permit.
+
 The headless `store` service owns an explicit `ai-stp-v2-state` directory with
 private permissions, an ownership marker and a bounded process lock. Its clean
 schema-53 bootstrap preserves the complete data format without historical
