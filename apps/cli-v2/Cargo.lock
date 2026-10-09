@@ -34,6 +34,7 @@ dependencies = [
  "cap-fs-ext",
  "cap-std",
  "clap",
+ "command-fds",
  "crc32fast",
  "csv",
  "ed25519-dalek",
@@ -69,6 +70,7 @@ dependencies = [
  "unicode-normalization",
  "ureq",
  "url",
+ "win-custody",
  "windows-native-keyring-store",
  "winsafe",
  "winx",
@@ -527,6 +529,16 @@ dependencies = [
  "der",
  "spki",
  "x509-cert",
+]
+
+[[package]]
+name = "command-fds"
+version = "0.3.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1b60b5124979fccd9addd89d8b97a1d6eebb4950694520c75ddd722535ea443f"
+dependencies = [
+ "nix",
+ "thiserror",
 ]
 
 [[package]]
@@ -3040,6 +3052,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7dcd9d09a39985f5344844e66b0c530a33843579125f23e21e9f0f220850f22a"
 dependencies = [
  "rustls-pki-types",
+]
+
+[[package]]
+name = "win-custody"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e9f78c23db90914be58d60cb31a9f4c608cc344f55fc7aa8879937ba308eada3"
+dependencies = [
+ "windows-sys 0.61.2",
 ]
 
 [[package]]

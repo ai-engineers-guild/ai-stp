@@ -17,6 +17,7 @@ pub mod identity;
 pub mod objects;
 pub mod passport;
 pub mod process;
+pub mod program;
 pub mod projection;
 pub mod projects;
 pub mod provenance;
