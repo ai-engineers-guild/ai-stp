@@ -64,9 +64,11 @@ fn developer_context_is_private_causal_singleton_and_replayable() -> Result<(), 
             let identity = identity.clone();
             thread::spawn(move || {
                 barrier.wait();
-                let mut store = Store::open(&root, true)?;
-                developer::apply(&mut store, &plan, &plan.digest()?, &identity, LATER)
-                    .map(|document| (plan, document))
+                let result = (|| {
+                    let mut store = Store::open(&root, true)?;
+                    developer::apply(&mut store, &plan, &plan.digest()?, &identity, LATER)
+                })();
+                (plan, result)
             })
         })
         .collect();
@@ -74,15 +76,47 @@ fn developer_context_is_private_causal_singleton_and_replayable() -> Result<(), 
         .into_iter()
         .map(|h| h.join().map_err(|_| "writer panicked"))
         .collect::<Result<Vec<_>, _>>()?;
-    assert_eq!(results.iter().filter(|r| r.is_ok()).count(), 1);
-    for error in results.iter().filter_map(|r| r.as_ref().err()) {
-        assert!(matches!(error.kind, ErrorKind::Conflict), "{error:?}");
+    assert_eq!(
+        results.iter().filter(|(_, result)| result.is_ok()).count(),
+        1
+    );
+    for (plan, result) in &results {
+        if let Err(error) = result {
+            // Opening eight durable stores can exceed the bounded lock wait.
+            // Every refused contender must reconcile to the one winning profile.
+            assert!(
+                matches!(error.kind, ErrorKind::Conflict)
+                    || matches!(error.kind, ErrorKind::Precondition)
+                        && error.details.get("stage").and_then(Value::as_str)
+                            == Some("lock_timeout"),
+                "{error:?}"
+            );
+            let mut store = Store::open(root.path(), false)?;
+            let before = counts(&mut store)?;
+            let retried = developer::apply(&mut store, plan, &plan.digest()?, &identity, LATER)
+                .err()
+                .ok_or("a losing initialization created a second profile")?;
+            assert!(matches!(retried.kind, ErrorKind::Conflict), "{retried:?}");
+            assert_eq!(counts(&mut store)?, before);
+        }
     }
     let (initialize, initial) = results
         .into_iter()
-        .find_map(Result::ok)
+        .find_map(|(plan, result)| result.ok().map(|document| (plan, document)))
         .ok_or("no initialization won")?;
     let mut store = Store::open(root.path(), false)?;
+    assert_eq!(counts(&mut store)?, [1, 1, 1]);
+    // Force the real busy path even when a fast runner did not exhaust it above.
+    let locked_root = root.path().to_path_buf();
+    let blocked = thread::spawn(move || Store::open(&locked_root, false).err())
+        .join()
+        .map_err(|_| "blocked opener panicked")?
+        .ok_or("a second opener bypassed the exclusive directory lock")?;
+    assert!(matches!(blocked.kind, ErrorKind::Precondition));
+    assert_eq!(
+        blocked.details.get("stage").and_then(Value::as_str),
+        Some("lock_timeout")
+    );
     assert_eq!(counts(&mut store)?, [1, 1, 1]);
     assert_eq!(initial["visibility"], "private");
     assert_eq!(initial["facts"], json!({}));
