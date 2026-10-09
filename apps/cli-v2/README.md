@@ -517,6 +517,27 @@ remain visible; this preview does not consent to them. Installation still needs
 engine-owned eligibility, relevant input observations beyond the owned-byte
 digest, durable intent, revalidation and verified execution/recovery.
 
+`program inspect --prefix --entry-point` reads the public providers' software
+layout at an explicit absolute prefix with an existing parent. The entry point
+is an exact `bin/command` name, including `.cmd`, `.exe` or `.bat` where needed.
+The parent is resolved once; the final prefix and traversed directories refuse
+aliases. A missing prefix is reported without creating it. Read failures refuse
+instead of becoming an empty installation. Directory version labels, the exact
+version-marker digest, marker/directory agreement, resolved entry-point kind and
+unfinished `.incoming-`/`.replaced-` directories or marker/manifest stages are
+separate observations. A copied or hardlinked entry has no inferred version.
+
+The reader bounds the prefix to 1,024 entries, labels to 128 bytes, the marker
+to 1 KiB and link resolution to sixteen leaf observations and 32 directory
+components. Final entry links may point inside the prefix; intermediate aliases,
+escaping paths, link loops, non-Unicode targets and ambiguous `name/..` spellings
+refuse. Missing and dangling entries remain distinct. Two reads must agree and
+the held prefix/parent identities are rechecked. This is a layout observation,
+not an atomic tree snapshot or an execution precondition. Payloads are neither
+hashed nor executed, and local records cannot establish publisher trust:
+`installation_verified` and `execution_authorized` remain false. No identity,
+network, SQLite state, provider process or installation is opened or created.
+
 `provider::wheel::inspect` reads one bounded native-provider wheel in memory.
 It validates every regular member against one complete CSV `RECORD`: unique
 portable names, exact inventory and byte lengths, and SHA-256/384/512 hashes;
