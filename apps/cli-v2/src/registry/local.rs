@@ -8,8 +8,8 @@ use std::path::{Path, PathBuf};
 use super::{Declaration, ID, KIND, Parameter, ParameterType, ROOT, STATE_DIR};
 use crate::{
     authoring::{
-        adoption, derivation, discovery, forks, importing, lifecycle, native_edit, passports,
-        project_binding, releases, review, runtime, scaffold, setups,
+        adoption, derivation, discovery, forks, importing, lifecycle, materialization, native_edit,
+        passports, project_binding, releases, review, runtime, scaffold, setups,
     },
     canonical,
     error::{Failure, Result},
@@ -29,6 +29,8 @@ pub(super) enum Handler {
     Quality,
     Suggest,
     ProjectPassport,
+    TechnologyPlan,
+    TechnologyFindings,
     Bind,
     Adopt,
     Import,
@@ -36,6 +38,7 @@ pub(super) enum Handler {
     Update,
     NativeEdit,
     Derive,
+    Materialize,
     Release,
     Fork,
     Forget,
@@ -58,6 +61,7 @@ impl Handler {
     pub(super) fn mutability(self) -> &'static str {
         match self {
             Self::Discover
+            | Self::TechnologyFindings
             | Self::Show
             | Self::Version
             | Self::Versions
@@ -151,6 +155,21 @@ const INCREMENT: Parameter = Parameter {
 
 pub(super) const COMMANDS: &[Declaration] = &[
     Declaration {
+        path: &["component", "materialize", "plan"],
+        summary: "Plan all exact target adaptations together as an owned immutable version or a private component with retained origin.",
+        parameters: &[
+            STATE_DIR,
+            Parameter {
+                name: "request",
+                summary: "Closed JSON up to 16 KiB: exact source, source_harness, targets or all_missing, output owned/private, optional private overlay_id.",
+                kind: ParameterType::Path,
+                required: true,
+            },
+            PROVIDERS,
+        ],
+        handler: super::Handler::Local(Handler::Materialize),
+    },
+    Declaration {
         path: &["passport", "device", "refresh", "plan"],
         summary: "Plan private runtime platform and CLI-version observations; unobserved harness inventory stays absent.",
         parameters: &[STATE_DIR],
@@ -194,6 +213,18 @@ pub(super) const COMMANDS: &[Declaration] = &[
         summary: "Read exact retained enrichment declarations without updating or confirming draft facts.",
         parameters: &[STATE_DIR, ID],
         handler: super::Handler::Local(Handler::Suggest),
+    },
+    Declaration {
+        path: &["project", "technology", "plan"],
+        summary: "Plan a repository technology observation for an owned registered local project, preserving review decisions.",
+        parameters: &[STATE_DIR, ROOT],
+        handler: super::Handler::Local(Handler::TechnologyPlan),
+    },
+    Declaration {
+        path: &["project", "technology", "findings"],
+        summary: "Read retained repository technology evidence for an owned local project without reopening its source.",
+        parameters: &[STATE_DIR, ID],
+        handler: super::Handler::Local(Handler::TechnologyFindings),
     },
     Declaration {
         path: &["project", "passport", "plan"],
@@ -311,7 +342,7 @@ pub(super) const COMMANDS: &[Declaration] = &[
     },
     Declaration {
         path: &["component", "adaptation", "derive", "plan"],
-        summary: "Plan a missing MCP adaptation from an exact owned draft without dropping controls, scopes or constraints.",
+        summary: "Plan a missing literal MCP or common skill adaptation from an exact owned draft without dropping controls, scopes or constraints.",
         parameters: &[
             STATE_DIR,
             ID,
@@ -319,7 +350,7 @@ pub(super) const COMMANDS: &[Declaration] = &[
             Parameter {
                 name: "source-harness",
                 summary: "Existing native adaptation to convert.",
-                kind: ParameterType::Choice(&["codex", "cursor", "opencode"]),
+                kind: ParameterType::Choice(&["claude-code", "codex", "cursor", "opencode"]),
                 required: true,
             },
             Parameter {
@@ -561,6 +592,13 @@ fn providers(args: &ArgMatches) -> Result<Vec<Info>> {
 
 pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
     match handler {
+        Handler::Materialize => {
+            let request = materialization::Request::read(path(args, "request")?)?;
+            let providers = providers(args)?;
+            runtime::plan(path(args, "state-dir")?, |store, identity, at| {
+                materialization::plan(store, request, &providers, identity, at)
+            })
+        }
         Handler::DeviceRefresh => runtime::plan(path(args, "state-dir")?, device::plan),
         Handler::DeveloperInitialize | Handler::DeveloperUpdate => {
             let update = matches!(handler, Handler::DeveloperUpdate);
@@ -591,6 +629,14 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
             runtime::plan(path(args, "state-dir")?, |store, identity, at| {
                 projects::passports::plan(store, path(args, "root")?, identity, at)
             })
+        }
+        Handler::TechnologyPlan => {
+            runtime::plan(path(args, "state-dir")?, |store, identity, at| {
+                projects::technology::retained::plan(store, path(args, "root")?, identity, at)
+            })
+        }
+        Handler::TechnologyFindings => {
+            projects::technology::retained::findings(path(args, "state-dir")?, text(args, "id")?)
         }
         Handler::Forget => runtime::plan(path(args, "state-dir")?, |store, identity, at| {
             lifecycle::plan(

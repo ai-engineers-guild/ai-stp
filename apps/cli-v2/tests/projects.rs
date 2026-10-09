@@ -1,3 +1,8 @@
+#[path = "projects/retained.rs"]
+mod retained;
+#[path = "projects/technology.rs"]
+mod technology;
+
 use std::{error::Error, fs};
 
 use ai_stp_cli_v2::{
@@ -11,6 +16,8 @@ use serde_json::json;
 
 #[test]
 fn project_identity_observation_and_interrupted_registration() -> Result<(), Box<dyn Error>> {
+    technology::prove()?;
+    retained::prove()?;
     let temporary = tempfile::tempdir()?;
     let state = temporary.path().join("state");
     let root = temporary.path().join("project-cafe\u{301}");

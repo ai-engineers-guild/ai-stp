@@ -154,5 +154,142 @@ fn exact_provider_plans_refuse_rehashed_foreign_inputs_and_inconsistent_echoes()
             .check_bundle(&payload[..payload.len() - 1], now)
             .is_err()
     );
+    software_plans(&response, &observed, now)?;
+    Ok(())
+}
+
+fn software_plans(
+    bundle: &Value,
+    observed: &Observed<'_>,
+    now: jiff::Timestamp,
+) -> Result<(), Box<dyn Error>> {
+    use ai_stp_cli_v2::provider::software;
+    let prefix = observed.target.with_file_name("program cafe\u{301}");
+    let platform = ai_stp_cli_v2::provider::runtime::platform()?;
+    let file = json!({"platform":platform,"url":"https://downloads.example.org/program.tar.gz",
+        "sha256":digest::sha256(b"pinned bytes"),"byte_length":12,"entry_point":"bin/program"});
+    for operation in ["software_install", "software_update", "software_remove"] {
+        let request = json!({"operation":operation,"operation_id":bundle["plan"]["operation_id"],
+            "expires_at":bundle["plan"]["expires_at"],"software_version":"1.2.3"});
+        let parsed = software::Request::parse(&serde_json::to_vec(&request)?, now)?;
+        let mut plan = bundle["plan"].clone();
+        plan["operation"] = operation.into();
+        plan["bundle"] = Value::Null;
+        plan["software_prefix"] = json!(prefix);
+        plan["software_version"] = "1.2.3".into();
+        plan["effects"] = json!(["Exact software operation"]);
+        if operation != "software_remove" {
+            plan["software_artifacts"] = json!([file]);
+        }
+        let response = json!({"state":"planned","expected_target_digest":plan["expected_target_digest"],
+            "effects":plan["effects"],"plan_digest":digest_plan(&plan)?,"plan":plan});
+        parsed.planned(&serde_json::to_vec(&response)?, observed, &prefix, now)?;
+        let mut pinned = request.clone();
+        pinned
+            .as_object_mut()
+            .ok_or("request")?
+            .remove("software_version");
+        software::Request::parse(&serde_json::to_vec(&pinned)?, now)?.planned(
+            &serde_json::to_vec(&response)?,
+            observed,
+            &prefix,
+            now,
+        )?;
+        for key in plan
+            .as_object()
+            .ok_or("plan")?
+            .keys()
+            .filter(|k| !matches!(k.as_str(), "effects" | "software_artifacts"))
+        {
+            let mut changed = response.clone();
+            changed["plan"][key] = "foreign".into();
+            changed["plan_digest"] = digest_plan(&changed["plan"])?.into();
+            assert!(
+                parsed
+                    .planned(&serde_json::to_vec(&changed)?, observed, &prefix, now)
+                    .is_err(),
+                "{operation} {key}"
+            );
+        }
+        for key in response.as_object().ok_or("response")?.keys() {
+            let mut changed = response.clone();
+            changed.as_object_mut().ok_or("response")?.remove(key);
+            assert!(
+                parsed
+                    .planned(&serde_json::to_vec(&changed)?, observed, &prefix, now)
+                    .is_err(),
+                "{operation} {key}"
+            );
+        }
+        for (key, value) in [
+            ("unknown", json!(true)),
+            ("operation", json!("backup")),
+            ("software_version", json!("../latest")),
+            ("software_version", json!("")),
+            ("expires_at", json!("2030-01-01T00:15:00.001Z")),
+        ] {
+            let mut changed = request.clone();
+            changed[key] = value;
+            assert!(software::Request::parse(&serde_json::to_vec(&changed)?, now).is_err());
+        }
+        assert!(
+            parsed
+                .check_time(now.checked_add(Duration::from_secs(900))?)
+                .is_err()
+        );
+        let mut unexpected = response.clone();
+        unexpected["plan"]["backup_ref"] = "backup".into();
+        unexpected["plan_digest"] = digest_plan(&unexpected["plan"])?.into();
+        assert!(
+            parsed
+                .planned(&serde_json::to_vec(&unexpected)?, observed, &prefix, now)
+                .is_err()
+        );
+        if operation == "software_remove" {
+            let mut changed = response.clone();
+            changed["plan"]["software_artifacts"] = json!([file]);
+            changed["plan_digest"] = digest_plan(&changed["plan"])?.into();
+            assert!(
+                parsed
+                    .planned(&serde_json::to_vec(&changed)?, observed, &prefix, now)
+                    .is_err()
+            );
+            continue;
+        }
+        for (key, value) in [
+            ("platform", json!("foreign")),
+            ("url", json!("http://example.org/program")),
+            ("url", json!("\nhttps://example.org/program")),
+            ("url", json!("https://user:secret@example.org/program")),
+            ("url", json!("https://example.org/program?token=secret")),
+            ("url", json!("https://example.org/program#other")),
+            ("sha256", json!("foreign")),
+            ("byte_length", json!(0)),
+            ("byte_length", json!(1073741825u64)),
+            ("entry_point", json!("bin/../program")),
+            ("entry_point", json!("bin/a/b")),
+            ("unknown", json!(true)),
+        ] {
+            let mut changed = response.clone();
+            changed["plan"]["software_artifacts"][0][key] = value;
+            changed["plan_digest"] = digest_plan(&changed["plan"])?.into();
+            assert!(
+                parsed
+                    .planned(&serde_json::to_vec(&changed)?, observed, &prefix, now)
+                    .is_err(),
+                "{key}"
+            );
+        }
+        for files in [json!([]), json!([file, file])] {
+            let mut changed = response.clone();
+            changed["plan"]["software_artifacts"] = files;
+            changed["plan_digest"] = digest_plan(&changed["plan"])?.into();
+            assert!(
+                parsed
+                    .planned(&serde_json::to_vec(&changed)?, observed, &prefix, now)
+                    .is_err()
+            );
+        }
+    }
     Ok(())
 }

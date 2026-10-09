@@ -378,6 +378,9 @@ fn native_release_preserves_owned_bytes_graphs_and_atomic_history() -> Result<()
     complete["stable_id"] = id.into();
     complete["owner_id"] = "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z".into();
     complete["visibility"] = "public".into();
+    complete["compatibility_evidence_refs"] = json!(["source-only-execution-receipt"]);
+    complete["facts"]["compatibility_evidence_refs"] = json!({"value":["source-only-execution-receipt"],
+        "origin":"observed","confirmation":"none","observed_at":AT});
     complete["source"] = json!({"repository":"https://gitlab.com/example/native","commit":"1111111111111111111111111111111111111111","path":"components/example"});
     complete["adaptations"]
         .as_array_mut()
@@ -425,6 +428,25 @@ fn native_release_preserves_owned_bytes_graphs_and_atomic_history() -> Result<()
             .map_err(|_| Failure::precondition("proof cleanup failed"))
     })?;
     let complete = forks::apply(&mut store, &fork, &fork.digest()?, &identity, LATER)?;
+    assert_eq!(complete["compatibility_evidence_refs"], json!([]));
+    assert!(
+        complete["facts"]
+            .get("compatibility_evidence_refs")
+            .is_none()
+    );
+    let source: Value = store.transaction(|t| {
+        let content: String = t.query_row("SELECT r.content FROM revision r JOIN object_version v ON v.revision_id=r.revision_id WHERE v.stable_id=? AND v.version='1.0'",[&fork.source.stable_id],|r|r.get(0))
+            .map_err(|_| Failure::input("proof source read failed"))?;
+        canonical::parse(content.as_bytes())
+    })?;
+    assert_eq!(
+        source["compatibility_evidence_refs"],
+        json!(["source-only-execution-receipt"])
+    );
+    assert_eq!(
+        source["facts"]["compatibility_evidence_refs"]["value"],
+        source["compatibility_evidence_refs"]
+    );
     assert_eq!(complete["visibility"], "private");
     assert_eq!(complete["owner_id"], identity.account_id);
     assert_ne!(complete["stable_id"], fork.source.stable_id);

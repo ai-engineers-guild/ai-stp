@@ -533,6 +533,37 @@ remain visible; this preview does not consent to them. Installation still needs
 engine-owned eligibility, relevant input observations beyond the owned-byte
 digest, durable intent, revalidation and verified execution/recovery.
 
+`provider software plan` uses the same explicit provider, target and scope plus
+an existing absolute `--prefix` and a closed request of at most 8 KiB. Fields are
+`operation` (`software_install`, `software_update` or `software_remove`),
+`operation_id`, `expires_at` with the same short UTC expiry, and optional
+`software_version`. An explicit version must match exactly; omission selects the
+pin compiled into the authenticated exact provider build. It never selects a
+floating registry version.
+
+Target, prefix and trust state must be disjoint by held directory ancestry.
+Both product directories are read-only mounts, with device/inode and mount-mode
+checks before any provider instruction runs. Each must be resolvable in the
+service's mount namespace; private container temporary paths can refuse even
+when visible to the caller. No alternate writable path or launcher is selected.
+The provider plan is observed twice and both closed responses must agree; target
+status before/after, directory identities and trust/request expiry are checked.
+The report binds the exact provider/version/build/release, target digest,
+scope/profile, program prefix, software version, ordered artifacts, effects and
+RFC 8785 plan digest. Downloads have exactly platform, HTTPS URL without user
+credentials/query/fragment/custom port, SHA-256, positive byte length and a
+single `bin/name` entry point. At most sixteen distinct records, 1 GiB each and
+2 GiB total are accepted. Removal carries no downloads. Undeclared operations,
+unknown fields, backup capture, changed echoes and unsafe artifact metadata refuse.
+
+This observes provider effects about the prefix layout; it does not hash or
+attest installed payloads and is not a snapshot or apply precondition. The report
+sets `installed_software_verified`, `software_downloaded`,
+`installation_performed` and `execution_authorized` to false. Only isolated trust
+state can change. Software apply, acquisition, receipt/recovery and installed-byte
+verification remain separate work; published provider software operations do not
+capture configuration backups.
+
 `program inspect --prefix --entry-point` reads the public providers' software
 layout at an explicit absolute prefix with an existing parent. The entry point
 is an exact `bin/command` name, including `.cmd`, `.exe` or `.bat` where needed.
@@ -580,6 +611,60 @@ bounded external ZIP reader as GitHub and Go. The profile follows the
 [wheel format](https://packaging.python.org/en/latest/specifications/binary-distribution-format/)
 and [core metadata](https://packaging.python.org/en/latest/specifications/core-metadata/)
 for the fields it consumes, with the native-provider restrictions above.
+
+`project technology inspect --root` reports local technology evidence from the
+same held-handle byte stream as the index. It does not execute project commands,
+resolve dependency graphs, install packages, write identity/state or publish.
+The report carries exact file hashes and the SHA-256 of the RFC 8785 index bytes;
+paths remain byte-preserving, including decomposed Unicode. Declarations,
+configuration, source presence, lock records and checksum records remain distinct.
+`declared_range`, `locked_version`, `recorded_version` and `unknown` never assert
+an installed version. `go.sum` is checksum history; lock membership, workspace
+catalog entries and source presence use `unspecified` context rather than claiming
+production use. Conditional dependencies and groups are observed without evaluating
+markers, features or workspace inheritance.
+
+The native adapters read Python manifests/requirements/groups, Node manifests,
+Cargo declarations, Dart manifests, Pipfile/Conda declarations, structured
+Cargo/uv/Poetry/npm 2–3/pnpm/Yarn Berry/Dart lock records, Go declarations/checksums,
+Docker FROM and Compose/GitLab image declarations, and explicit runtime files.
+Canonical IDs come only from the generated `technology_seed` coordinate projection;
+`just back-gen`, `just back-static` and CI keep it aligned with the single owner.
+Unknown coordinates remain unmapped. Matching a filename is configuration evidence,
+not proof that its tool ran. Source bodies, dependency URLs, scripts and image
+credentials never enter findings. The inspected project is never a mapping authority.
+
+Parsing uses the index's 1 MiB file, depth/entry and shared 20-second limits,
+with at most 2,000 parsed manifests, 4,096 distinct claims, sixteen representative
+traces per claim and 4 MiB of trace metadata. YAML has one document, depth 64,
+50,000 events, no aliases or merge keys, and rejects duplicate keys and unsupported tags.
+Invalid/unavailable/oversized or excluded supported manifests, exhausted budgets,
+external requirement includes, dynamic image references, unresolved external CI or
+Compose includes, npm v1 and Yarn classic lockfiles produce `partial`. `complete`
+means the defined detection surface was traversed, not that every language, manifest
+format or runtime was verified. Unsupported files remain outside that surface.
+
+`project technology plan --state-dir --root` observes an existing owned private
+project registered by the native preview. Its single `repository` scope covers
+the index surface above. The plan binds the exact root identity, project head,
+observation bytes, prior findings and latest scan. `local apply` observes again
+and refuses changed preconditions. A single SQLite transaction records the scan,
+findings and immutable receipt; failure commits none of them. Planning does not
+create a marker, modify sources or persist findings.
+
+Seen findings become `current`. Missing findings become `absent` only after a
+complete pass of the same detector profile. A partial pass changes missing
+`current` findings to `stale`, preserving already `absent` findings. Existing
+review decisions, overrides and first-seen scan identities survive every scan.
+Completed plan replay returns the original observation before accessing source
+files or checking expiry; it never rewinds later scans or decisions.
+
+`project technology findings --state-dir --id` reads retained evidence and its
+state digest without reopening the source. Findings retain exact UTF-8 evidence
+paths. The union of historical and new findings is bounded to 8,192 rows and
+less than 16 MiB before writing; oversize or unsupported prior rows refuse.
+The bundled mapping is used only for local unlinked projects. Connected mapping
+snapshots, review mutation and publication remain separate pending operations.
 
 `project symbols` summarizes public top-level declarations and entry-point files
 from the same held-handle reads as `project index`; it never reopens indexed
@@ -950,26 +1035,91 @@ the source disappears. Bound portable refresh refuses independently authored
 native adaptations. Flat adopted drafts still use their adoption/release flow;
 this operation accepts complete source-bound or exact-forked drafts.
 
-`component adaptation derive plan` adds one missing MCP adaptation to an exact
-owned complete draft. Its source must be native Codex, Cursor or OpenCode; the
-target uses an explicit provider declaration for one of those harnesses. Fork
-an exact released component first when the current draft is a flat adoption.
-Every source scope must have the same explicit target scope. The closed grammar
-preserves the command, string arguments and one literal environment map,
-including non-normalized Unicode in native values. Unknown fields, remote/mixed
-transports, interpolation, ambiguous aliases and non-string coercion refuse.
-Unsupported scopes, existing semantic losses and source-harness version
-constraints also refuse; they are never silently removed or transferred.
+`component adaptation derive plan` adds one missing literal MCP or common skill
+adaptation to an exact owned complete draft, using an explicit target provider
+declaration. Fork an exact release first when the current draft is a flat adoption.
+Every source scope must have the same explicit target scope; no scope fallback,
+existing semantic loss or source-harness version constraint is silently removed.
+
+Literal MCP conversion supports native Codex, Cursor and OpenCode. Its closed
+grammar preserves commands, string arguments and one literal environment map,
+including non-normalized Unicode. Unknown fields, remote/mixed transports,
+interpolation, ambiguous aliases and non-string coercion refuse.
+
+Common skill conversion supports native Claude Code, Codex and OpenCode. It
+preserves the exact `SKILL.md`, captured regular resources and file modes. The
+skill has one lowercase ASCII name matching its directory, a nonempty description
+of at most 1,024 characters, and only the common `license`, `compatibility` and
+string-valued `metadata` headers. All three retained YAML dialects must parse the
+same metadata. Unknown headers (including invocation/tool/model controls), dynamic
+shell or argument substitutions, nested Skills, hidden paths and `agents/openai.yaml`
+refuse. These restrictions apply in both directions: copying a literal token must
+not introduce target preprocessing. The current routes allow Claude Code ↔ OpenCode
+at `global`, and Codex ↔ OpenCode at `user_root`; Claude's global scope is never
+silently changed to Codex's user root. Instruction meaning, arbitrary script
+behavior and harness execution remain unassessed.
 
 The new adaptation retains scope permissions and OS/architecture constraints,
-records `literal-stdio/1.0` with an exact transformation digest and a retained
-source-revision/adaptation manifest, and stays experimental pending execution
-assessment. The source adaptation and component requirements remain unchanged.
-Apply revalidates the exact head and retained content in one writer transaction,
-committing projection content, the draft revision and receipt together. Replay
-verifies historical content without rewinding later drafts. Existing targets
-require explicit native editing; derivation does not overwrite them. Releasing
-an immutable version remains a separate operation. No provider process runs.
+records `literal-stdio/1.0` or `common-skill/1.0` with an exact transformation digest
+and retained source-revision/adaptation manifest, and stays experimental. The
+source adaptation and component requirements remain unchanged. Apply revalidates
+the exact head and retained content in one writer transaction, committing projection
+content, the draft revision and receipt together. Replay verifies historical content
+without rewinding later drafts. Existing targets require explicit native editing;
+derivation does not overwrite them. Releasing an immutable version remains a
+separate operation. No provider process runs.
+
+`component materialize plan --state-dir DIR --request FILE` prepares all requested
+adaptations of one exact released component together. The closed request is at
+most 16 KiB:
+
+```json
+{
+  "source": {
+    "stable_id": "component_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+    "version": "1.0",
+    "passport_digest": "sha256:<exact passport digest>"
+  },
+  "source_harness": "codex",
+  "targets": ["codex", "cursor", "opencode"],
+  "output": "owned"
+}
+```
+
+Supply up to seven explicit `--provider-info` declarations. Targets must be
+distinct concrete harnesses. Instead of `targets`, `all_missing: true` selects
+every concrete harness absent from the source, including unsupported conversions.
+The plan reports `reuse`, `derive` or `blocked` for each target. Reuse requires
+every retained scope to fit the exact declared provider profile. Derivation uses
+the literal MCP and common skill rules above, independently from the same source
+for each missing target. Missing declarations and unsupported conversion block the
+whole output; corrupt retained data fails planning. No provider process runs and
+declarations do not establish executable trust or installation eligibility.
+
+`output: "owned"` requires current local ownership. If every target is reusable,
+the result is the exact source version. Otherwise the source must be the latest
+immutable release, and the result is its next minor version. Current draft heads
+are preserved, including drafts newer than the source; the operation does not
+implicitly release or replace them. Apply revalidates version allocation. Competing
+plans cannot assign different content to the same coordinate.
+
+`output: "private"` creates a new owned private component at `1.0`, retaining every
+source adaptation and exact dependency. It records the exact source component,
+fork lineage and generated overlay origin; source compatibility evidence is cleared
+from both version fields and displayed facts. An optional `overlay_id` may name an
+existing private result only when owner, exact origin and complete immutable content
+match. Its original creation time is retained and later drafts/releases are not
+changed. Conflicting identities or content refuse; immutable overlays are never
+overwritten.
+
+Use `local apply` with the returned plan and exact digest. Content, the immutable
+coordinate, private lineage and receipt commit in one writer transaction. A blocked
+target produces no partial result. Repeating a completed plan verifies historical
+bytes and provenance and returns the same version after expiry without rewinding
+heads. Planning is read-only. Source/output metadata is bounded to 1 MiB each,
+artifact verification to 64 MiB per pass including repeated references, combined
+new artifact preparation to 128 MiB and the domain plan to 8 MiB. No migration of
+production state occurs.
 
 `setup import plan` captures 1–128 explicitly selected `component discover`
 candidates from one concrete harness, scope and root. Discovery must complete;
@@ -995,8 +1145,8 @@ the exact `ported_from` reference. Both retain direct lineage in SQLite and
 must already provide the target adaptation; missing adaptations are reported
 together. Empty compositions remain valid.
 
-An optional `--provider-info` on recast enables the implemented literal stdio MCP
-transformations between Codex, Cursor and OpenCode. It resolves the entire exact
+An optional `--provider-info` on recast enables the implemented literal MCP and
+common skill transformations described above. It resolves the entire exact
 source dependency graph first, retaining the existing 512-node, 8,192-edge and
 32-depth limits. A missing target adaptation receives a new private component ID
 and version `1.0`; each dependent whose exact pin changes receives its own new
@@ -1197,7 +1347,12 @@ The production `environment inspect` also calls provider/toolchain services;
 that executable observation belongs to the provider slice, not this declaration
 read. This preview result does not claim the production inspection schema.
 
-`select graph` reads exact members or a saved proposal from the same snapshot.
+`select graph` reads exact members or a saved proposal from either the same
+verified snapshot (`--snapshot` and `--sha256`) or explicit isolated native state
+(`--state-dir`). These sources are mutually exclusive and one is required. The
+native source uses one query-only transaction for roots and dependency closure;
+it does not require credentials or create a snapshot. Proposal graph JSON is
+limited to 1 MiB before loading it into memory.
 It validates current component/setup version passports and their recorded
 identities, then follows component requirements and setup members. Shared exact
 dependencies expand once, with a deterministic dependency-first order and
@@ -1232,6 +1387,31 @@ Eligibility targets use the same `linux`, `macos`, `windows` and `x86_64`,
 `darwin`, `amd64` and `aarch64` are not native domain values; unsupported or
 noncanonical values refuse before mechanical assessment.
 
+`select eligibility --state-dir --request` connects that assessment to the native
+runtime. The closed request names a concrete `harness_id`, `scope`, exact
+`provider_version`, 1–512 exact `members` and optional `for_redistribution`.
+Each member has only `stable_id`, `version` and `passport_digest`; the request is
+limited to 256 KiB. Identity comes from the isolated credential store, platform
+from the executing CLI, and provider capabilities from authenticated artifact
+acquisition and isolated `provider-info`. Saved provider reports and caller
+claims about rights, trust or harness versions are not accepted.
+
+The command reads every exact graph member and its retained artifact/projection
+bytes in one query-only SQLite transaction, bounded to 64 MiB of artifact
+verification work, including repeated reads of shared content. Missing/conflicting
+coordinates return an inadmissible graph before network access. The registry lock
+is released while acquiring the provider; identity and the whole graph are
+rechecked afterwards. Only declared environment-variable name
+presence is observed; values never enter the report. Owned complete objects may
+use the local-owner trust line. Cloud verification, grants, pins, experimental
+consent, project capabilities and permissions are not supplied by this adapter.
+Their dependent constraints remain refusals; no trust mark is inferred from an
+acquisition receipt. An unobserved harness version refuses exact version
+requirements but does not prevent composition without such a requirement.
+The report names its unobserved inputs and never authorizes installation.
+Only isolated provider trust state may change; no proposal, passport, registry
+record, target, backup or installation journal is created.
+
 The headless selection session service plans and persists exact proposals in
 schema 53 without creating an entity, version, artifact or operation. It reads
 the current sole heads of the owned developer, device and project passports;
@@ -1256,9 +1436,107 @@ pair enters `pending_install`; no provider or harness is mutated. Concurrent
 confirmation creates one version. Replaying it verifies the retained version,
 content, trace, context revisions and receipt, including after expiry or later
 selection, without repinning an older setup. Cancellation retains its terminal
-row and cannot undo confirmation. This service is not yet exposed by a CLI
-command: installed-harness observation and trusted runtime assembly remain
-prerequisites; the platform-only device context does not substitute for them.
+row and cannot undo confirmation.
+
+`select eligibility-matrix --state-dir --request` discovers local component and
+setup candidates and evaluates each independently across explicit harness
+selectors. The closed request is at most 16 KiB: `targets` contains one to seven
+distinct `harness_id`, `scope`, exact `provider_version` selectors; optional
+`after` is an object identity cursor, `limit` is 1–50 (default 10), and
+`for_redistribution` defaults to false. Targets are sorted by harness identity.
+No caller-supplied rights, evidence, provider declaration or installed version
+is accepted.
+
+Each page lists non-forgotten objects in identity order. For each object it
+uses the highest retained immutable numeric `X.Y`, returns its exact digest,
+and verifies its retained graph and bytes. An object without a release remains
+visible as `unreleased` with `immutable_version_missing`; a mutable draft is
+never an installable substitute for a released coordinate. The report does not
+combine independent candidates into one graph: two setups may legitimately pin
+different versions of the same component. Use `select eligibility` for an older
+exact version or an explicitly combined graph.
+
+The runtime authenticates each requested provider once before locking the
+registry, then rechecks identity and reads the candidate page and all cells in
+one query-only transaction. Payloads are discarded after provider observation;
+seven executables are not retained in memory. Trust expiry is checked before
+returning. Artifact verification is shared across harness cells for each
+candidate and bounded to 64 MiB across the page, counting repeated dependency
+reads. Report data is bounded to 8 MiB; reduce the page limit on refusal. Every
+cell retains the existing mechanical refusals and only declared environment
+names can be observed. An empty or wholly unreleased page needs no provider or
+network and marks provider observations absent. The matrix grants no rights,
+selects nothing and writes no harness. Its `next_after` cursor advances to a
+fresh page observation, not a transaction spanning CLI calls.
+
+`select reports --state-dir --request` reports composition and conversion before
+confirmation or bundle publication. Its closed request, up to 256 KiB, is either
+the exact eligibility request or `proposal_id`, `scope`, `provider_version`.
+For a proposal, the harness and members come from the retained bounded record.
+The report evaluates current evidence; it displays the proposal's current state
+and marks context freshness unevaluated rather than authorizing confirmation.
+Cancelled, expired and confirmed proposals remain inspectable.
+
+The report and bundle compiler share projection verification and native
+namespace, path ownership, exclusion and instruction/hook ordering rules.
+Reporting collects up to 8192 conflict witnesses; compilation still refuses at
+the first conflict. Every available projection retains its named semantic losses;
+missing or unrepresentable surfaces appear as unsupported conversions and
+rejections. An unresolved graph and an explicit empty proposal produce blocked
+reports without provider I/O. Corrupt artifacts, invalid metadata and exceeded
+bounds remain command failures. Current eligibility refusals cannot be overridden.
+
+Provider observation occurs outside the registry lock, followed by identity,
+proposal and graph re-reading in one query-only transaction. The existing 64 MiB
+retained-artifact verification budget applies; report projections are additionally
+bounded to 2000 files and 64 MiB of content, and the complete report to 8 MiB.
+`required_host_paths` names contributions needing actual target observation.
+No host content is read or merged: `host_inputs_observed` and
+`assembled_output_checked` remain false. Successful reports for representable
+projections agree with the bundle's composition/conversion documents, but do not
+establish host safety, installation authority or a published package.
+
+The CLI exposes the durable selection service through five commands:
+
+- `select propose plan --state-dir --project-id --request [--empty]` uses the
+  eligibility request shape with component roots and `for_redistribution: false`.
+  It authenticates the provider and derives local evidence with the same limits
+  and absent rights as eligibility. An empty member list requires `--empty`;
+  setting that flag with nonempty members refuses. Planning writes no proposal.
+- `select confirm plan --state-dir --id --scope --provider-version` records a
+  decision intent for the retained proposal. Use its original scope and exact
+  provider version; new confirmation checks the recorded policy snapshot again.
+- `select cancel plan --state-dir --id` records cancellation intent without a
+  provider observation.
+- `select apply --plan --plan-digest` executes the exact proposal or decision.
+  The closed outer plan is bounded to 2 MiB and binds schema version, absolute
+  `state_parent`, `selector` (`harness_id`, `scope`, `provider_version`, or null
+  for cancellation) and the closed domain `operation`.
+- `select show --state-dir --id` reads the retained proposal and its current
+  `open`, `expired`, `cancelled` or `confirmed` state.
+
+Before a new proposal or confirmation, apply authenticates the provider outside
+the registry lock, then derives verified graph evidence and checks the exact
+context in the same transaction that records the effect. Provider trust is
+checked again before commit. A concurrent completed outcome is replayed under
+that transaction. Already retained proposals and confirmed setups are verified
+and returned before provider/network access; offline replay remains available
+after expiry or later context/selection changes and cannot rewind selection.
+The platform-only device context does not establish installed-harness evidence.
+These commands do not assemble a bundle, install a setup or write a harness.
+
+`select session --state-dir --project-id --harness [--after] [--limit]` discovers
+open proposals and the recorded current selection in one query-only transaction.
+It reads the exact project passport and verifies the selected setup's immutable
+coordinate, digest and harness. No credentials, provider or network are needed.
+Closed and expired proposals remain available by identity through `select show`;
+they do not appear as open choices. The default limit is 20, bounded to 1–100;
+proposal JSON on a page is limited to 4 MiB, with a refusal to reduce the limit
+when exceeded. `next_after` is the last returned proposal identity when more
+remain. Each page observes current state; pagination does not hold a transaction
+across separate CLI calls. The recorded selection state (`pending_install` or
+`installed`) is historical registry data, not a new installation observation.
+Context freshness is explicitly unevaluated; confirmation must still recheck it.
 
 `select impact` reads exact retained setup graphs in one query-only SQLite
 transaction. The explicit baseline wins; otherwise `--project-id` uses one
@@ -1341,6 +1619,39 @@ invents a synthetic component to evade those restrictions. A real SQLite journey
 covers all 16 released profiles; the author/release/setup journey also compiles
 a transitive graph and proves byte stability after a later draft edit.
 
+`select bundle plan --state-dir --id --version --passport-digest --scope
+--provider-version --output [--target]` connects that compiler to authenticated
+native provider observations and one exact retained setup. The scope and provider
+version are explicit. The output is an unused directory beneath an existing
+parent; successful apply places only `bundle.zip` there. Planning publishes
+nothing and returns the manifest, assessment and provider observation for review.
+
+Configuration contributions require `--target`, an existing absolute directory
+with no symbolic path components. The runtime reads only contribution paths
+declared by the exact graph; a missing file is observed absence, while a symbolic
+link, hard link, non-file or changed directory refuses. Each host observation is
+bounded to 2,000 files, 4 MiB per file and 64 MiB total. The host files are read
+again after compilation and must match. The target must be disjoint from trust
+state, and generated output cannot be inside it. No target file is written.
+This adapter currently requires the verified Linux provider runtime.
+
+`select bundle apply --plan --plan-digest` accepts a closed plan up to 16 KiB.
+Its schema/action, identity, state parent, exact source, provider selector,
+optional physical host binding, output/parent identity, input digest, logical
+bundle digest and literal archive digest/size are all bound by the plan digest.
+Local path serialization preserves original UTF-8 bytes, including NFD names.
+Apply reauthenticates the provider and recompiles in one query-only registry
+transaction, retaining that view through publication. All planned identities and
+bytes must still match. This also applies to repeated calls; existing artifact
+bytes alone are not treated as current provider or eligibility evidence.
+
+Publication uses the same private, resumable staging and non-replacing rename as
+scaffolding and setup export, with binary file support. A matching completed tree
+returns `already_matches`; unexpected files or different bytes refuse. A partial
+stage must be a prefix of the exact planned archive before it can resume.
+The result reports pending stage cleanup when relevant. Producing a bundle
+creates no registry record, installation journal, backup or installation permit.
+
 The headless `store` service owns an explicit `ai-stp-v2-state` directory with
 private permissions, an ownership marker and a bounded process lock. Its clean
 schema-53 bootstrap preserves the complete data format without historical
@@ -1418,6 +1729,10 @@ draft owned by the local authoring identity. The full adaptation graph and bytes
 are verified before copying. Draft, lineage and receipt commit together; the
 source stays intact. Replay verifies the original copy and lineage while retaining
 later edits. A fork creates no immutable number or publication approval.
+Every new component identity created by fork, recast or private materialization
+clears source compatibility evidence from both the version field and displayed
+facts. Exact source versions and their evidence remain intact; a copy needs its
+own assessment.
 
 The headless setup composer freezes exact component references and their complete
 bounded dependency closure into a new private `1.0` setup. Planning writes no
@@ -1472,12 +1787,12 @@ Setup forks and recasts rebuild these minima and combine the source setup's
 additional declarations; an underdeclared source license cannot replace member
 license restrictions or enable redistribution.
 Request metadata is bounded to 256 KiB and the resulting passport to 1 MiB.
-Selected native configuration import and explicit literal-stdio derivation are
-implemented, including atomic whole-graph recast for supported literal MCP
-transformations. Other native transformations and acquisition of external setup
+Selected native configuration import, literal MCP and common skill derivation are
+implemented, including atomic whole-graph recast for these supported transformations.
+Other native transformations and acquisition of external setup
 packages remain pending.
-Project identity registration and the headless project-to-setup selection
-transaction are implemented; the selection command adapter remains pending.
+Project identity registration, durable project-to-setup selection and its native
+proposal/confirmation/report command adapters are implemented as described above.
 
 Component artifacts use the canonical uncompressed ZIP profile. The encoder
 preserves existing bytes, including fixed timestamps, Unicode flags and Unix
@@ -1664,7 +1979,8 @@ breakaway and never infers termination from PID disappearance alone.
 | `authoring/adaptations.rs` | Explicit portable-to-native projections preserving source bodies and modes |
 | `authoring/review.rs` | Read-only publication structure and optional quality hints over every retained adaptation |
 | `authoring/native_edit.rs` | Exact native adaptation replacement with complete scope preservation |
-| `authoring/derivation/` | Closed MCP syntax conversion and atomic owned draft derivation |
+| `authoring/derivation/` | Closed MCP conversion, byte-preserving common Skills and atomic owned draft derivation |
+| `authoring/materialization/` | Atomic exact-version target preparation, owned releases and private immutable outputs with origin |
 | `authoring/setups/copies.rs` | Private exact setup forks and recasts with atomic lineage |
 | `authoring/setups/recast.rs` | Read-only graph derivation with owned replacements and remapped exact dependencies |
 | `authoring/setups/drafts.rs`, `authoring/setups/releases.rs` | Owned setup completion and revision, with separate immutable release |

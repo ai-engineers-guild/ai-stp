@@ -194,6 +194,35 @@ fn previous(connection: &Connection, id: &str, identity: &Identity) -> Result<Va
     Ok(document)
 }
 
+pub(crate) struct Registered {
+    pub path: PathBuf,
+    pub directory: Dir,
+    pub identity: [String; 2],
+    pub project: Value,
+}
+
+/// Reuse the existing private marker and binding without repairing or creating it.
+pub(crate) fn registered(
+    connection: &Connection,
+    path: &Path,
+    identity: &Identity,
+) -> Result<Registered> {
+    let (path, directory) = root(path)?;
+    let held = marker::open(&directory, false)?;
+    let id = marker::read(held.as_ref())?.ok_or_else(invalid)?;
+    if bound(connection, &path)?.as_ref() != Some(&id)
+        || location(connection, &id)?.as_ref() != Some(&path)
+    {
+        return Err(invalid());
+    }
+    Ok(Registered {
+        path,
+        identity: marker::identity(&directory)?,
+        directory,
+        project: previous(connection, &id, identity)?,
+    })
+}
+
 fn observation(path: &Path, directory: &Dir) -> Result<Value> {
     let observed = super::index(path)?;
     if observed["state"] != "complete"

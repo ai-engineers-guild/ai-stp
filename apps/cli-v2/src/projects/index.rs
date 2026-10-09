@@ -62,7 +62,7 @@ fn classification(path: &Path) -> (&'static str, Option<&'static str>) {
     }
 }
 
-type SourceObserver<'a> = dyn FnMut(&str, &str, Option<&[u8]>) + 'a;
+type SourceObserver<'a> = dyn FnMut(&str, Option<&str>, Option<&[u8]>) + 'a;
 
 struct Index<'a> {
     budget: Budget,
@@ -182,13 +182,11 @@ impl Index<'_> {
                         + usize::from(!content.is_empty() && !content.ends_with(b"\n")),
                 );
             }
-            if let Some(language) = language {
-                (self.observe)(
-                    &relative(&child),
-                    language,
-                    hash.as_ref().map(|_| content.as_slice()),
-                );
-            }
+            (self.observe)(
+                &relative(&child),
+                language,
+                hash.as_ref().map(|_| content.as_slice()),
+            );
             self.files.push(
                 json!({"schema_version": 1, "path": relative(&child), "kind": kind,
                 "language": language, "size_bytes": size, "digest": hash, "lines": lines}),
@@ -204,6 +202,14 @@ pub fn index(path: &Path) -> Result<Value> {
 /// Source observers receive the exact bytes already read and hashed by the index.
 pub(super) fn visit(path: &Path, observe: &mut SourceObserver<'_>) -> Result<Value> {
     let (root, directory) = open_root(path)?;
+    visit_at(&root, &directory, observe)
+}
+
+pub(super) fn visit_at(
+    root: &Path,
+    directory: &Dir,
+    observe: &mut SourceObserver<'_>,
+) -> Result<Value> {
     let mut index = Index {
         budget: Budget::new(),
         files: Vec::new(),
@@ -211,12 +217,12 @@ pub(super) fn visit(path: &Path, observe: &mut SourceObserver<'_>) -> Result<Val
         stopped: None,
         observe,
     };
-    index.walk(&directory, Path::new("."), 0);
+    index.walk(directory, Path::new("."), 0);
     for entries in [&mut index.files, &mut index.excluded] {
         entries.sort_by(|a, b| a["path"].as_str().cmp(&b["path"].as_str()));
     }
     Ok(
-        json!({"schema_version": 1, "root": files::display(&root), "state": if index.stopped.is_some() {"partial"} else {"complete"},
+        json!({"schema_version": 1, "root": files::display(root), "state": if index.stopped.is_some() {"partial"} else {"complete"},
         "stopped_by": index.stopped, "files": index.files, "excluded": index.excluded}),
     )
 }
