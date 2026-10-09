@@ -1281,11 +1281,36 @@ pair enters `pending_install`; no provider or harness is mutated. Concurrent
 confirmation creates one version. Replaying it verifies the retained version,
 content, trace, context revisions and receipt, including after expiry or later
 selection, without repinning an older setup. Cancellation retains its terminal
-row and cannot undo confirmation. This service is not yet exposed by a CLI
-command. Eligibility now has a native runtime adapter; proposal/decision adapters
-still need to bind its observations to context and recheck them before each
-new effect, while retaining offline terminal replay. The platform-only device
-context does not establish installed-harness evidence.
+row and cannot undo confirmation.
+
+The CLI exposes this service through five commands:
+
+- `select propose plan --state-dir --project-id --request [--empty]` uses the
+  eligibility request shape with component roots and `for_redistribution: false`.
+  It authenticates the provider and derives local evidence with the same limits
+  and absent rights as eligibility. An empty member list requires `--empty`;
+  setting that flag with nonempty members refuses. Planning writes no proposal.
+- `select confirm plan --state-dir --id --scope --provider-version` records a
+  decision intent for the retained proposal. Use its original scope and exact
+  provider version; new confirmation checks the recorded policy snapshot again.
+- `select cancel plan --state-dir --id` records cancellation intent without a
+  provider observation.
+- `select apply --plan --plan-digest` executes the exact proposal or decision.
+  The closed outer plan is bounded to 2 MiB and binds schema version, absolute
+  `state_parent`, `selector` (`harness_id`, `scope`, `provider_version`, or null
+  for cancellation) and the closed domain `operation`.
+- `select show --state-dir --id` reads the retained proposal and its current
+  `open`, `expired`, `cancelled` or `confirmed` state.
+
+Before a new proposal or confirmation, apply authenticates the provider outside
+the registry lock, then derives verified graph evidence and checks the exact
+context in the same transaction that records the effect. Provider trust is
+checked again before commit. A concurrent completed outcome is replayed under
+that transaction. Already retained proposals and confirmed setups are verified
+and returned before provider/network access; offline replay remains available
+after expiry or later context/selection changes and cannot rewind selection.
+The platform-only device context does not establish installed-harness evidence.
+These commands do not assemble a bundle, install a setup or write a harness.
 
 `select impact` reads exact retained setup graphs in one query-only SQLite
 transaction. The explicit baseline wins; otherwise `--project-id` uses one
