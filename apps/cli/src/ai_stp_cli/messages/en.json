@@ -803,6 +803,7 @@
   "the recorded cli passport is invalid": "the recorded cli passport is invalid",
   "the recorded cli revision is missing": "the recorded cli revision is missing",
   "the recorded component is not an immutable version passport": "the recorded component is not an immutable version passport",
+  "the recorded component passport is invalid": "the recorded component passport is invalid",
   "the recorded component revision is missing": "the recorded component revision is missing",
   "the recorded setup is not an immutable version passport": "the recorded setup is not an immutable version passport",
   "the recorded setup passport is invalid": "the recorded setup passport is invalid",

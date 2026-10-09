@@ -463,3 +463,174 @@ def test_a_draft_without_its_kind_names_the_missing_fact(tmp_path: Path) -> None
     assert raised.value.code == "AI_STP_PRECONDITION_FAILED"
     assert raised.value.details["field"] == "component_type"
     assert raised.value.next_actions == [f"component passport show --id {stable_id} --json"]
+
+
+def test_impact_reads_the_target_projection_and_preserves_scope_uncertainty(tmp_path: Path) -> None:
+    from tests.unit.test_cli_setup_recast import (
+        DEVICE,
+        _record_setup,  # pyright: ignore[reportPrivateUsage]
+        _release_component,  # pyright: ignore[reportPrivateUsage]
+    )
+
+    from ai_stp_cli.local import cache
+    from ai_stp_passports import ComponentVersionPassport, adaptation_for, seal_adaptation
+
+    source_bytes = b"# Source instruction\n"
+    target_bytes = "# Target instruction\nReview the Unicode boundary: café.\n".encode()
+    price = tmp_path / "price.json"
+    price.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "profile_id": "test-price-1",
+                "tokenizer_profile": "ai-stp:utf8-bytes/1",
+                "model": "test-model",
+                "currency": "USD",
+                "input_per_million": "2.50",
+                "source": "https://example.test/pricing",
+                "fetched_at": "2026-01-01T00:00:00.000Z",
+                "expires_at": "2027-01-01T00:00:00.000Z",
+            }
+        ),
+        encoding="utf-8",
+    )
+    with closing(open_registry(configured_path(), create=True)) as connection:
+        target = content.put(connection, target_bytes, at=AT)
+
+        def extra(scope: str) -> dict[str, JsonValue]:
+            return {
+                "harness_id": "codex",
+                "content_digest": target.digest,
+                "content_format": "ai-stp-component-file/1",
+                "managed_paths": ["AGENTS.md"],
+                "scope": scope,
+                "projection_kind": "native_files",
+                "declared_key": "",
+                "source_locator": "",
+                "native_ids": [],
+            }
+
+        member = _release_component(
+            connection,
+            component_type="instruction",
+            harness_id="claude-code",
+            payload=source_bytes,
+            managed_path="CLAUDE.md",
+            extra_adaptations=[extra("global")],
+        )
+        setup_id, _ = _record_setup(connection, harness_id="codex", member=member)
+
+        def report(selected_id: str):
+            before = tuple(connection.iterdump())
+            result = impact.selection_report(
+                connection,
+                setup_id=selected_id,
+                setup_version="1.0",
+                baseline_id=setup_id,
+                baseline_version="1.0",
+                project_id="",
+                estimator_profile="ai-stp:utf8-bytes/1",
+                price_profile_path=price,
+                at=AT,
+            )
+            assert tuple(connection.iterdump()) == before
+            return result
+
+        measured = report(setup_id)
+        assert measured.candidate_context.always_tokens == len(target_bytes)
+        assert measured.candidate_context.unavailable_components == 0
+        assert measured.context_delta is not None
+        assert measured.context_delta.always_tokens == 0
+        assert measured.token_cost.status == "available"
+
+        held = versions.held(connection, member[0], member[1])
+        assert held is not None
+        stored = revisions.get(connection, held.revision_id)
+        assert stored is not None
+        passport = ComponentVersionPassport.model_validate(stored.envelope.model_dump(mode="json"))
+        adaptation = adaptation_for(passport, "codex")
+        adaptation.scope_adaptations.append(
+            adaptation.scope_adaptations[0].model_copy(update={"scope": "project"})
+        )
+        adaptation_index = passport.adaptations.index(adaptation)
+
+        def record(version: str) -> str:
+            passport.adaptations[adaptation_index] = seal_adaptation(
+                adaptation.model_dump(mode="json")
+            )
+            document = passport.model_dump(mode="json")
+            document.pop("revision_id")
+            document["version"] = version
+            released = revisions.commit(connection, document, device_id=DEVICE)
+            ComponentVersionPassport.model_validate(released.envelope.model_dump(mode="json"))
+            released_digest = cache.digest_of(released.envelope.model_dump(mode="json"))
+            versions.record(
+                connection,
+                stable_id=member[0],
+                version=version,
+                passport_digest=released_digest,
+                revision_id=released.revision_id,
+                at=AT,
+            )
+            return _record_setup(
+                connection, harness_id="codex", member=(member[0], version, released_digest)
+            )[0]
+
+        ambiguous_setup = record("1.1")
+        uncertain = report(ambiguous_setup)
+        assert uncertain.candidate_context.unavailable_components == 1
+        measurement = uncertain.candidate_context.components[0]
+        assert measurement.status == "unavailable"
+        assert measurement.tokens is None
+        assert measurement.reason == "adaptation_selection_required"
+        assert uncertain.context_delta is None
+        assert uncertain.capability_delta is not None
+        assert uncertain.token_cost.status == "unavailable"
+        assert uncertain.token_cost.amount is None
+        assert uncertain.token_cost.reason == "context_budget_unavailable"
+
+        # A valid passport with a false projection declaration must become a
+        # typed conflict, including when scope selection is still ambiguous.
+        scope = adaptation.scope_adaptations[-1]
+        adaptation.scope_adaptations[-1] = scope.model_copy(
+            update={
+                "projection_artifact": scope.projection_artifact.model_copy(
+                    update={"size_bytes": scope.projection_artifact.size_bytes + 1}
+                )
+            }
+        )
+        damaged_setup = record("1.2")
+        before = tuple(connection.iterdump())
+        with pytest.raises(CliFailure) as refused:
+            report(damaged_setup)
+        assert refused.value.code == "AI_STP_CONFLICT"
+        assert refused.value.message == "the stored component artifact is corrupt"
+        assert tuple(connection.iterdump()) == before
+
+        document = passport.model_dump(mode="json")
+        document.pop("revision_id")
+        document["version"] = "1.3"
+        document["adaptations"][adaptation_index]["adaptation_id"] = passport.adaptations[
+            0
+        ].adaptation_id
+        malformed = revisions.commit(connection, document, device_id=DEVICE)
+        versions.record(
+            connection,
+            stable_id=member[0],
+            version="1.3",
+            passport_digest=cache.digest_of(malformed.envelope.model_dump(mode="json")),
+            revision_id=malformed.revision_id,
+            at=AT,
+        )
+        before = tuple(connection.iterdump())
+        with pytest.raises(CliFailure) as refused:
+            impact.blast_radius(
+                connection,
+                component_id=member[0],
+                component_version="1.3",
+                scenario="update",
+                at=AT,
+            )
+        assert refused.value.code == "AI_STP_CONFLICT"
+        assert refused.value.message == "the recorded component passport is invalid"
+        assert tuple(connection.iterdump()) == before

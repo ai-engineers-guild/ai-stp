@@ -803,6 +803,7 @@
   "the recorded cli passport is invalid": "записанный паспорт cli недопустим",
   "the recorded cli revision is missing": "записанная ревизия cli отсутствует",
   "the recorded component is not an immutable version passport": "записанный компонент не является неизменяемым паспортом версии",
+  "the recorded component passport is invalid": "записанный паспорт компонента недействителен",
   "the recorded component revision is missing": "записанная ревизия компонента отсутствует",
   "the recorded setup is not an immutable version passport": "записанный сетап не является неизменяемым паспортом версии",
   "the recorded setup passport is invalid": "записанный паспорт сетапа недействителен",
