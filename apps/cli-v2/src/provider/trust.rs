@@ -8,6 +8,7 @@ mod transport;
 
 use std::path::Path;
 
+use cap_std::fs::Dir;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256, Sha512};
@@ -81,7 +82,13 @@ trait Repository {
 
 /// The supplied parent must already exist. Only its private trust state is written.
 pub fn refresh(parent: &Path) -> Result<Material> {
-    run(
+    let parent =
+        Dir::open_ambient_dir(parent, cap_std::ambient_authority()).map_err(|_| invalid())?;
+    refresh_at(&parent)
+}
+
+pub(crate) fn refresh_at(parent: &Dir) -> Result<Material> {
+    run_at(
         parent,
         BOOTSTRAP,
         &mut transport::Http::new(),
@@ -95,8 +102,20 @@ fn required(repo: &mut impl Repository, name: &str, target: bool, limit: usize) 
         .ok_or_else(invalid)
 }
 
+#[cfg(test)]
 fn run(
     parent: &Path,
+    bootstrap: &[u8],
+    repo: &mut impl Repository,
+    now: jiff::Timestamp,
+) -> Result<Material> {
+    let parent =
+        Dir::open_ambient_dir(parent, cap_std::ambient_authority()).map_err(|_| invalid())?;
+    run_at(&parent, bootstrap, repo, now)
+}
+
+fn run_at(
+    parent: &Dir,
     bootstrap: &[u8],
     repo: &mut impl Repository,
     now: jiff::Timestamp,

@@ -450,6 +450,36 @@ Only isolated TUF state is retained. macOS and Windows currently return an
 unavailable error; complete parent-death containment and writable installation
 remain separate C4 work. See the [Bubblewrap options](https://github.com/containers/bubblewrap/blob/v0.9.0/bwrap.xml).
 
+`provider status` adds one explicit existing target and provider scope to that
+authenticated observation. Every path component is opened without following
+symlinks; root/runtime mount locations and non-Unicode paths refuse. The held
+directory is mounted read-only at its normalized absolute path. Its device/inode
+identity is revalidated before execution and after the response, so replacing a
+directory cannot turn an old observation into evidence about the replacement.
+This requires Bubblewrap's `--ro-bind-fd` support; an unavailable option refuses.
+Before trust refresh, held directory identities must establish that target and
+state parent are disjoint in both ancestry directions (at most 256 parents).
+The held state parent is used for every trust write; substituting its pathname
+cannot redirect refresh into the target. This check also resolves state aliases.
+The observed provider must advertise the exact scope and request fields. The
+response uses the shared generated v3 status schema and must name that canonical
+target, harness and provider. Retained provider versions and drift remain
+observations, not assertions that a current setup is installed or ready.
+The provider's `target_digest` covers owned bytes: an unmanaged nonempty target
+can carry the same digest as an empty target. It is not a whole-directory hash.
+The report retains the exact response digest and observation time. It creates
+no target, backup, journal or installation receipt; only isolated TUF state
+can be updated. Status is not an installation permit or a consistent snapshot
+of a concurrently modified tree; an eventual plan must observe its inputs again.
+
+Linux target invocation owns `command-fds` 0.3.3 from Google's Apache-2.0
+[descriptor-transfer library](https://github.com/google/command-fds). It preserves
+only explicitly owned directory descriptors across launcher exec; Bubblewrap
+consumes and closes them before the provider starts. Existing `nix`/`thiserror`
+versions supply its locked closure; no async runtime is enabled. The command's
+deadline/output bounds also cover this path. CLI maintainers own updates and
+advisory checks; removing target handle transfer removes this dependency.
+
 `provider::wheel::inspect` reads one bounded native-provider wheel in memory.
 It validates every regular member against one complete CSV `RECORD`: unique
 portable names, exact inventory and byte lengths, and SHA-256/384/512 hashes;
@@ -466,8 +496,9 @@ evidence. Core metadata through 2.6 is accepted; duplicated identity headers
 refuse and description bodies do not contribute fields. CSV quoting and header
 folding are parsed. Wheel signature sidecars with unrecorded bytes are outside
 this profile. Nothing is extracted, installed or executed, and successful
-inspection does not authenticate a publisher. Provider fetch/execution commands
-remain unavailable until trust refresh and durable runtime observations ship.
+inspection does not authenticate a publisher. The authenticated artifact and
+read-only runtime paths above add those separate checks; writable installation
+remains outside this inspector.
 
 `provider::wheel` owns pinned `csv` 1.4.0 and its locked parser dependencies;
 removing wheel inspection removes that direct dependency. This reuses the same
