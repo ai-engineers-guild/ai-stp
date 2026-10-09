@@ -359,7 +359,7 @@ def _target(
     return eligibility.Target(
         harness_id=harness,
         os=_operating_system(),
-        arch=platform.machine().lower(),
+        arch=_architecture(),
         harness_version=_version_of(harnesses.detect(detector)),
         capabilities=eligibility.observed_capabilities(
             languages=sorted({item.language for item in index.entries if item.language}),
@@ -382,7 +382,12 @@ def _target(
 
 def _operating_system() -> str:
     system = platform.system().lower()
-    return {"darwin": "darwin", "linux": "linux", "windows": "windows"}.get(system, system)
+    return "macos" if system == "darwin" else system
+
+
+def _architecture() -> str:
+    machine = platform.machine().lower()
+    return {"amd64": "x86_64", "aarch64": "arm64"}.get(machine, machine)
 
 
 def _version_of(found: harnesses.Found) -> str:

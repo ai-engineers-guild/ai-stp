@@ -1,6 +1,6 @@
 ---
 description: "Mechanical constraints before agent selection: a closed list of rejection reasons, check order, and two independent eligibility axes."
-last_verified: "2026-09-03"
+last_verified: "2026-10-09"
 ---
 
 # Mechanical constraints and rejection reasons
@@ -81,6 +81,13 @@ kind receives. A setup always names exactly one harness.
 | `capability_malformed` | a required capability fails normalization under `capability-vocabulary.md` |
 | `capability_unknown` | a required capability is outside the vocabulary |
 | `capability_missing` | a known required capability is absent from the target |
+
+Runtime target values use the passport/provider vocabulary: `linux`, `macos`,
+`windows`, and `x86_64` or `arm64`. The Python observation adapter maps Darwin,
+AMD64 and aarch64 into those values before comparison; other host strings remain
+unknown and do not acquire compatibility through normalization. Native domain
+targets accept only the canonical vocabulary. Platform aliases do not relax an
+object's or provider's declared OS/architecture restrictions.
 
 `capability_unknown` and `capability_missing` are intentionally distinct: the
 former means an invalid passport and is fixed by the author; the latter means a

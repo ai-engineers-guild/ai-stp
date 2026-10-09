@@ -20,6 +20,8 @@ from ai_stp_cli.local import (
     component_passports,
     consent,
     content,
+    eligibility,
+    harnesses,
     passports,
     project_passport,
     revisions,
@@ -148,6 +150,67 @@ def test_a_project_fact_reaches_the_target_as_a_capability(tmp_path: Path) -> No
     (tmp_path / "AGENTS.md").write_text("# rules\n", encoding="utf-8")
     held = set(_report(tmp_path).capabilities)
     assert {"project.language.python", "project.surface.agents_md"} <= held
+
+
+def test_native_platform_observations_reach_eligibility_in_canonical_vocabulary(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Only observation boundaries are substituted; project indexing, runtime
+    # target assembly and the actual compatibility/provider decision run here.
+    monkeypatch.setattr(
+        select.harnesses,
+        "detect",
+        lambda detector: harnesses.Found(
+            harness_id=detector.harness_id,
+            title="Synthetic harness",
+            support="supported",
+            state="available",
+            installations=(),
+            configuration=None,
+            reason="No installation is claimed by this platform proof.",
+        ),
+    )
+    monkeypatch.setattr(select.install, "current_target", lambda _: None)
+    for system, machine, expected_os, expected_arch, accepted in [
+        ("Darwin", "arm64", "macos", "arm64", True),
+        ("Darwin", "x86_64", "macos", "x86_64", True),
+        ("Linux", "x86_64", "linux", "x86_64", True),
+        ("Linux", "aarch64", "linux", "arm64", True),
+        ("Windows", "AMD64", "windows", "x86_64", True),
+        ("Windows", "ARM64", "windows", "arm64", True),
+        ("Linux", "riscv64", "linux", "riscv64", False),
+        ("FreeBSD", "x86_64", "freebsd", "x86_64", False),
+        ("", "", "", "", False),
+    ]:
+        monkeypatch.setattr(select.platform, "system", lambda value=system: value)
+        monkeypatch.setattr(select.platform, "machine", lambda value=machine: value)
+        target = select._target(
+            "claude-code", tmp_path, for_redistribution=False, owner_id="account_synthetic"
+        )
+        assert (target.os, target.arch) == (expected_os, expected_arch)
+        target = replace(
+            target,
+            provider_platforms=frozenset(
+                f"{os_name}/{arch}"
+                for os_name in ("linux", "macos", "windows")
+                for arch in ("x86_64", "arm64")
+            ),
+        )
+        candidate = eligibility.CandidateFacts(
+            stable_id="component_synthetic",
+            revision_id="revision_synthetic",
+            version="1.0",
+            harness_id="claude-code",
+            owner_id="account_synthetic",
+            owned_or_pinned=True,
+            supported_os=frozenset({"linux", "macos", "windows"}),
+            supported_arch=frozenset({"x86_64", "arm64"}),
+        )
+        verdict = eligibility.assess(candidate, target)
+        assert verdict.admissible is accepted
+        assert verdict.auto_selectable is accepted
+        if not accepted:
+            assert "provider_platform_unsupported" in {r.code for r in verdict.refusals}
 
 
 def test_a_local_object_for_this_harness_is_admissible(
