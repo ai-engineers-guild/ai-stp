@@ -1,5 +1,10 @@
 //! One-shot child processes with explicit authority and bounded capture.
 
+#[cfg(target_os = "linux")]
+pub mod linux;
+#[cfg(windows)]
+mod windows;
+
 use std::{
     ffi::OsString,
     io::Read,
@@ -83,8 +88,12 @@ pub fn run(request: Request<'_>) -> Result<Output> {
 
 /// Explicit anonymous input for the Linux provider boundary; never inherited stdin.
 #[cfg(target_os = "linux")]
-pub(crate) fn with_input(request: Request<'_>, input: std::fs::File) -> Result<Output> {
-    execute(request, Stdio::from(input))
+pub(crate) fn with_input(
+    request: Request<'_>,
+    executable: &std::fs::File,
+    input: std::fs::File,
+) -> Result<Output> {
+    linux::invoke(request, executable, input, Vec::new())
 }
 
 fn execute(request: Request<'_>, input: Stdio) -> Result<Output> {
@@ -95,20 +104,14 @@ fn execute(request: Request<'_>, input: Stdio) -> Result<Output> {
 #[cfg(target_os = "linux")]
 pub(crate) fn with_files(
     request: Request<'_>,
+    executable: &std::fs::File,
     input: std::fs::File,
-    files: Vec<std::os::fd::OwnedFd>,
+    files: Vec<(usize, std::os::fd::OwnedFd)>,
 ) -> Result<Output> {
-    use command_fds::CommandFdExt;
-    execute_command(request, Stdio::from(input), |command| {
-        command.preserved_fds(files);
-    })
+    linux::invoke(request, executable, input, files)
 }
 
-fn execute_command(
-    request: Request<'_>,
-    input: Stdio,
-    configure: impl FnOnce(&mut Command),
-) -> Result<Output> {
+fn validate(request: &Request<'_>) -> Result<()> {
     if !request.executable.is_absolute()
         || !request.directory.is_absolute()
         || request.timeout.is_zero()
@@ -129,6 +132,17 @@ fn execute_command(
             "Windows children must be native executables",
         ));
     }
+    Ok(())
+}
+
+fn execute_command(
+    request: Request<'_>,
+    input: Stdio,
+    configure: impl FnOnce(&mut Command),
+) -> Result<Output> {
+    validate(&request)?;
+    #[cfg(windows)]
+    windows::own_lifetime()?;
     let mut command = Command::new(request.executable);
     command
         .args(request.arguments)

@@ -6,6 +6,7 @@ use crate::{
     error::Result,
     process::{self, Request},
     projection::Scope,
+    provider::plan,
     wire,
 };
 use serde_json::{Value, json};
@@ -14,7 +15,10 @@ use std::{
     fs::File,
     io::{Read, Seek, Write},
     net::{TcpListener, UdpSocket},
-    os::{fd::AsRawFd, unix::fs::MetadataExt},
+    os::{
+        fd::{AsRawFd, OwnedFd},
+        unix::fs::MetadataExt,
+    },
     path::{Path, PathBuf},
     time::Duration,
 };
@@ -55,6 +59,44 @@ fn environment() -> Vec<(OsString, OsString)> {
     ]
     .map(|(a, b)| (a.into(), b.into()))
     .into()
+}
+
+fn sealed(bytes: &[u8]) -> Result<File> {
+    let original = rustix::fs::memfd_create(
+        "ai-stp-provider-input",
+        rustix::fs::MemfdFlags::CLOEXEC | rustix::fs::MemfdFlags::ALLOW_SEALING,
+    )
+    .map_err(|_| unavailable())?;
+    let mut file =
+        File::from(rustix::io::fcntl_dupfd_cloexec(&original, 3).map_err(|_| unavailable())?);
+    drop(original);
+    file.write_all(bytes)
+        .and_then(|_| file.rewind())
+        .map_err(|_| unavailable())?;
+    rustix::fs::fcntl_add_seals(
+        &file,
+        rustix::fs::SealFlags::SEAL
+            | rustix::fs::SealFlags::SHRINK
+            | rustix::fs::SealFlags::GROW
+            | rustix::fs::SealFlags::WRITE,
+    )
+    .map_err(|_| unavailable())?;
+    Ok(file)
+}
+
+fn bundle_arguments(request: &plan::Request) -> Vec<OsString> {
+    vec![
+        "--bundle".into(),
+        "/run/bundle".into(),
+        "--bundle-format".into(),
+        request.bundle.bundle_format.clone().into(),
+        "--bundle-digest".into(),
+        request.bundle.bundle_digest.clone().into(),
+        "--artifact-digest".into(),
+        request.bundle.artifact_digest.clone().into(),
+        "--bundle-size".into(),
+        request.bundle.bundle_size.to_string().into(),
+    ]
 }
 
 fn base() -> Vec<OsString> {
@@ -245,6 +287,7 @@ impl Launcher {
         }
         let output = process::with_input(
             request(&launcher.executable, &isolated, &environment),
+            &launcher.image,
             image,
         )?;
         if !output.status.success() {
@@ -269,7 +312,7 @@ impl Launcher {
         json!({"enforcement":"enforced","launcher":"bubblewrap","launcher_digest":self.digest,"positive_control":["ipv4_tcp","ipv6_tcp","ipv4_udp"],"isolated":"denied","filesystem":"declared_runtime_only"})
     }
     pub(super) fn inspect(&self, bytes: &[u8]) -> Result<Vec<u8>> {
-        self.invoke(bytes, &["provider-info".into()], None)
+        self.invoke(bytes, &["provider-info".into()], None, None)
     }
     pub(super) fn status(&self, bytes: &[u8], target: &Target, scope: Scope) -> Result<Vec<u8>> {
         let mut arguments = vec![
@@ -281,33 +324,61 @@ impl Launcher {
         if scope != Scope::Global {
             arguments.extend(["--target-scope".into(), scope.as_str().into()]);
         }
-        self.invoke(bytes, &arguments, Some(target))
+        self.invoke(bytes, &arguments, Some(target), None)
+    }
+    pub(super) fn validate(
+        &self,
+        bytes: &[u8],
+        target: &Target,
+        request: &plan::Request,
+        bundle: &[u8],
+    ) -> Result<Vec<u8>> {
+        // v3 requires the target argument even though validation never reads it.
+        let mut arguments = vec![
+            "validate-bundle".into(),
+            "--json".into(),
+            "--target".into(),
+            target.path().as_os_str().into(),
+        ];
+        arguments.extend(bundle_arguments(request));
+        self.invoke(bytes, &arguments, None, Some(bundle))
+    }
+    pub(super) fn plan(
+        &self,
+        bytes: &[u8],
+        target: &Target,
+        scope: Scope,
+        request: &plan::Request,
+        bundle: &[u8],
+    ) -> Result<Vec<u8>> {
+        let mut arguments = vec![
+            "plan-operation".into(),
+            "--json".into(),
+            "--target".into(),
+            target.path().as_os_str().into(),
+            "--operation".into(),
+            request.operation.clone().into(),
+            "--operation-id".into(),
+            request.operation_id.clone().into(),
+            "--expires-at".into(),
+            request.expires_at.clone().into(),
+            "--provider-release-digest".into(),
+            digest::sha256(bytes).into(),
+        ];
+        if scope != Scope::Global {
+            arguments.extend(["--target-scope".into(), scope.as_str().into()]);
+        }
+        arguments.extend(bundle_arguments(request));
+        self.invoke(bytes, &arguments, Some(target), Some(bundle))
     }
     fn invoke(
         &self,
         bytes: &[u8],
         command: &[OsString],
         target: Option<&Target>,
+        bundle: Option<&[u8]>,
     ) -> Result<Vec<u8>> {
-        let mut input = File::from(
-            rustix::fs::memfd_create(
-                "ai-stp-provider",
-                rustix::fs::MemfdFlags::CLOEXEC | rustix::fs::MemfdFlags::ALLOW_SEALING,
-            )
-            .map_err(|_| unavailable())?,
-        );
-        input
-            .write_all(bytes)
-            .and_then(|_| input.rewind())
-            .map_err(|_| unavailable())?;
-        rustix::fs::fcntl_add_seals(
-            &input,
-            rustix::fs::SealFlags::SEAL
-                | rustix::fs::SealFlags::SHRINK
-                | rustix::fs::SealFlags::GROW
-                | rustix::fs::SealFlags::WRITE,
-        )
-        .map_err(|_| unavailable())?;
+        let input = sealed(bytes)?;
         let mut arguments = base();
         let mut handles = Vec::new();
         if let Some(target) = target {
@@ -317,7 +388,7 @@ impl Launcher {
                 handle.as_raw_fd().to_string().into(),
                 target.path().as_os_str().into(),
             ]);
-            handles.push(handle);
+            handles.push((arguments.len() - 2, handle));
             let source = File::open("/proc/self/exe").map_err(|_| unavailable())?;
             let image =
                 File::from(rustix::io::fcntl_dupfd_cloexec(&source, 3).map_err(|_| unavailable())?);
@@ -332,7 +403,18 @@ impl Launcher {
                 image.as_raw_fd().to_string().into(),
                 "/run/target-entry".into(),
             ]);
-            handles.push(image.into());
+            handles.push((arguments.len() - 2, OwnedFd::from(image)));
+        }
+        if let Some(bundle) = bundle {
+            let handle = OwnedFd::from(sealed(bundle)?);
+            arguments.extend([
+                "--perms".into(),
+                "0400".into(),
+                "--ro-bind-data".into(),
+                handle.as_raw_fd().to_string().into(),
+                "/run/bundle".into(),
+            ]);
+            handles.push((arguments.len() - 2, handle));
         }
         arguments.extend(
             [
@@ -361,6 +443,7 @@ impl Launcher {
         self.revalidate()?;
         let output = process::with_files(
             request(&self.executable, &arguments, &environment()),
+            &self.image,
             input,
             handles,
         )?;
@@ -369,7 +452,13 @@ impl Launcher {
                 crate::error::ErrorKind::Unavailable,
                 "the isolated provider command did not complete",
             )
-            .with_details([("exit_code".into(), output.status.code().into())]));
+            .with_details([
+                ("exit_code".into(), output.status.code().into()),
+                (
+                    "command".into(),
+                    command.first().and_then(|item| item.to_str()).into(),
+                ),
+            ]));
         }
         Ok(output.stdout)
     }
@@ -391,6 +480,7 @@ mod tests {
         fs::write(temporary.path().join("private"), "outside\n")?;
         let target = Target::open(&path)?;
         target.revalidate()?;
+        // A same-inode writable directory is not a read-only provider mount.
         assert!(target.verify_mount(target.identity()?).is_err());
         symlink(&path, temporary.path().join("alias"))?;
         symlink(temporary.path(), temporary.path().join("parent-alias"))?;

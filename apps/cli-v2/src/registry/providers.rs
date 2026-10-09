@@ -3,10 +3,11 @@
 use super::{Declaration, Parameter, ParameterType, STATE_DIR};
 use crate::{
     error::{Failure, Result},
+    files,
     projection::Scope,
     provider::{
-        artifact,
-        runtime::{self, Runtime},
+        artifact, plan,
+        runtime::{self, Runtime, TargetRequest},
         trust,
     },
 };
@@ -19,6 +20,7 @@ pub(super) enum Handler {
     Network,
     Inspect,
     Status,
+    Plan,
 }
 
 const HARNESS: Parameter = Parameter {
@@ -41,6 +43,18 @@ const VERSION: Parameter = Parameter {
     kind: ParameterType::String,
     required: true,
 };
+const TARGET: Parameter = Parameter {
+    name: "target",
+    summary: "Explicit existing absolute target directory; symbolic path components are refused.",
+    kind: ParameterType::Path,
+    required: true,
+};
+const SCOPE: Parameter = Parameter {
+    name: "scope",
+    summary: "Exact provider target scope; no scope is inferred.",
+    kind: ParameterType::Choice(&["global", "user_root", "project"]),
+    required: true,
+};
 
 pub(super) const COMMANDS: &[Declaration] = &[
     Declaration {
@@ -58,24 +72,32 @@ pub(super) const COMMANDS: &[Declaration] = &[
     Declaration {
         path: &["provider", "status"],
         summary: "Observe an explicit target with an authenticated provider and a read-only isolated mount.",
+        parameters: &[STATE_DIR, HARNESS, VERSION, TARGET, SCOPE],
+        handler: super::Handler::Provider(Handler::Status),
+    },
+    Declaration {
+        path: &["provider", "plan"],
+        summary: "Validate exact bundle bytes and observe a digest-bound provider plan without authorizing or applying it.",
         parameters: &[
             STATE_DIR,
             HARNESS,
             VERSION,
+            TARGET,
+            SCOPE,
             Parameter {
-                name: "target",
-                summary: "Explicit existing absolute target directory; symbolic path components are refused.",
+                name: "bundle",
+                summary: "Exact ai-stp-bundle/2 ZIP bytes, at most 64 MiB; no extraction or target writes.",
                 kind: ParameterType::Path,
                 required: true,
             },
             Parameter {
-                name: "scope",
-                summary: "Exact provider target scope; no scope is inferred.",
-                kind: ParameterType::Choice(&["global", "user_root", "project"]),
+                name: "request",
+                summary: "Closed plan request JSON up to 8 KiB: operation, operation_id, expires_at and exact bundle binding.",
+                kind: ParameterType::Path,
                 required: true,
             },
         ],
-        handler: super::Handler::Provider(Handler::Status),
+        handler: super::Handler::Provider(Handler::Plan),
     },
 ];
 
@@ -83,7 +105,7 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
     let runtime = Runtime::observe()?;
     match handler {
         Handler::Network => Ok(runtime.report()),
-        Handler::Inspect | Handler::Status => {
+        Handler::Inspect | Handler::Status | Handler::Plan => {
             let parent = args
                 .get_one::<PathBuf>("state-dir")
                 .ok_or_else(|| Failure::input("the explicit state parent is required"))?;
@@ -99,7 +121,7 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
                     let artifact = artifact::fetch(harness, version, runtime::platform()?, &trust)?;
                     runtime.inspect(&artifact)
                 }
-                Handler::Status => {
+                Handler::Status | Handler::Plan => {
                     let target = args
                         .get_one::<PathBuf>("target")
                         .ok_or_else(|| Failure::input("the explicit target is required"))?;
@@ -109,7 +131,33 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
                         Some("project") => Scope::Project,
                         _ => return Err(Failure::input("the target scope is required")),
                     };
-                    runtime.status(parent, harness, version, target, scope)
+                    let context = TargetRequest {
+                        state_parent: parent,
+                        harness,
+                        version,
+                        path: target,
+                        scope,
+                    };
+                    if matches!(handler, Handler::Status) {
+                        runtime.status(&context)
+                    } else {
+                        let request = plan::Request::parse(
+                            &files::read(
+                                args.get_one::<PathBuf>("request").ok_or_else(|| {
+                                    Failure::input("the exact plan request is required")
+                                })?,
+                                8192,
+                            )?,
+                            jiff::Timestamp::now(),
+                        )?;
+                        let bundle = files::read(
+                            args.get_one::<PathBuf>("bundle").ok_or_else(|| {
+                                Failure::input("the exact bundle path is required")
+                            })?,
+                            plan::MAX_BUNDLE_BYTES as u64,
+                        )?;
+                        runtime.plan(&context, &request, &bundle)
+                    }
                 }
                 Handler::Network => Err(Failure::input("the provider command is invalid")),
             }

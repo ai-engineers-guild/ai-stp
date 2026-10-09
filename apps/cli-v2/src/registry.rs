@@ -3,6 +3,7 @@
 mod local;
 mod providers;
 mod reports;
+mod selections;
 
 use clap::{Arg, ArgAction, ArgMatches, Command, builder::ValueParser};
 use serde_json::{Value, json};
@@ -21,6 +22,7 @@ enum Handler {
     Local(local::Handler),
     Report(reports::Handler),
     Provider(providers::Handler),
+    Selection(selections::Handler),
     Version,
     Help,
     Capabilities,
@@ -627,6 +629,7 @@ fn declarations() -> impl Iterator<Item = &'static Declaration> {
         .chain(local::COMMANDS)
         .chain(reports::COMMANDS)
         .chain(providers::COMMANDS)
+        .chain(selections::COMMANDS)
 }
 
 fn children(parent: Command, prefix: &[&str]) -> Command {
@@ -690,6 +693,8 @@ fn mutability(handler: Handler) -> &'static str {
         Handler::ScaffoldPlan | Handler::IdentityPlan | Handler::CatalogAcquirePlan => "plan",
         Handler::ScaffoldApply | Handler::IdentityApply => "apply",
         Handler::Local(handler) => handler.mutability(),
+        Handler::Selection(handler) => handler.mutability(),
+        Handler::Provider(providers::Handler::Plan) => "plan",
         _ => "read",
     }
 }
@@ -752,6 +757,7 @@ pub fn dispatch(matches: &ArgMatches) -> Result<Value> {
         Handler::Local(handler) => local::dispatch(handler, leaf),
         Handler::Report(handler) => reports::dispatch(handler, leaf),
         Handler::Provider(handler) => providers::dispatch(handler, leaf),
+        Handler::Selection(handler) => selections::dispatch(handler, leaf),
         Handler::Version => Ok(json!({"schema_version": 1, "cli_version": VERSION,
             "wire_schema_version": 1, "runtime": "rust", "release_channel": "preview"})),
         Handler::Capabilities => Ok(json!({"schema_version": 1, "cli_version": VERSION,

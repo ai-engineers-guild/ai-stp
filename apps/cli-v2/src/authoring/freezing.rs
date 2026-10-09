@@ -61,7 +61,7 @@ fn permissions(value: &Value) -> Result<Value> {
     Ok(value)
 }
 
-pub(super) fn verify(connection: &Connection, document: &Value) -> Result<()> {
+pub(crate) fn verify(connection: &Connection, document: &Value) -> Result<()> {
     passport::versions::validate_document(document)?;
     let payload = revisions::read_content(connection, text(&document["artifact"], "digest")?)?;
     if document["artifact"]["size_bytes"] != payload.len() {
