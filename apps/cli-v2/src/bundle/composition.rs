@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use serde_json::{Value, json};
 
 use super::{invalid, text};
-use crate::error::Result;
+use crate::error::{Failure, Result};
 
 fn declared<'a>(document: &'a Value, field: &str) -> Result<&'a Value> {
     let fact = &document["facts"][field]["value"];
@@ -27,6 +27,7 @@ pub(super) struct Composition {
     hooks: BTreeMap<(String, i64), String>,
     chosen: Vec<Value>,
     converted: Vec<Value>,
+    conflicts: Option<Vec<Failure>>,
 }
 
 struct Exclusion {
@@ -62,6 +63,27 @@ impl Composition {
         }
     }
 
+    pub fn for_report(harness: &str) -> Self {
+        Self {
+            conflicts: Some(Vec::new()),
+            ..Self::new(harness)
+        }
+    }
+
+    /// Reporting collects bounded conflict witnesses; compilation still stops
+    /// at the first conflict and can never publish a partial package.
+    fn reject(&mut self, failure: Failure) -> Result<()> {
+        if let Some(conflicts) = &mut self.conflicts {
+            if conflicts.len() >= 8192 {
+                return Err(invalid("composition exceeds 8192 conflict witnesses"));
+            }
+            conflicts.push(failure);
+            Ok(())
+        } else {
+            Err(failure)
+        }
+    }
+
     fn namespace<'a>(&self, kind: &'a str) -> &'a str {
         match (self.harness.as_str(), kind) {
             ("claude-code" | "opencode" | "grok-build", "skill" | "command") => "invocation",
@@ -81,7 +103,7 @@ impl Composition {
         }
         let folded = unicase::UniCase::new(path).to_folded_case();
         if let Some(held) = overlap_owner(&self.paths, &folded, "") {
-            return Err(invalid(
+            self.reject(invalid(
                 "managed_path_owned_twice: bundle v2 cannot assign a file to multiple components",
             )
             .with_details([
@@ -89,9 +111,9 @@ impl Composition {
                 ("stable_id".into(), owner.into()),
                 ("also".into(), held.into()),
                 ("path".into(), path.into()),
-            ]));
+            ]))?;
         }
-        self.paths.insert(folded, owner.into());
+        self.paths.entry(folded).or_insert_with(|| owner.into());
         Ok(())
     }
 
@@ -134,16 +156,23 @@ impl Composition {
                 let native = native
                     .as_str()
                     .ok_or_else(|| invalid("a native identifier is invalid"))?;
-                if self
+                let held = self
                     .native_ids
                     .entry(namespace.clone())
                     .or_default()
-                    .insert(native.into(), id.into())
-                    .is_some_and(|held| held != id)
-                {
-                    return Err(invalid(
+                    .entry(native.into())
+                    .or_insert_with(|| id.into())
+                    .clone();
+                if held != id {
+                    self.reject(invalid(
                         "native_id_collision: multiple components declare the same native identifier",
-                    ));
+                    ).with_details([
+                        ("constraint".into(), "native_id_collision".into()),
+                        ("stable_id".into(), id.into()),
+                        ("also".into(), held.into()),
+                        ("namespace".into(), namespace.clone().into()),
+                        ("native_id".into(), native.into()),
+                    ]))?;
                 }
             }
         }
@@ -152,10 +181,15 @@ impl Composition {
             let level = precedence
                 .as_i64()
                 .ok_or_else(|| invalid("instruction precedence is invalid"))?;
-            if self.precedence.insert(level, id.into()).is_some() {
-                return Err(invalid(
+            if let Some(held) = self.precedence.insert(level, id.into()) {
+                self.reject(invalid(
                     "instruction_precedence_conflict: multiple instructions declare the same precedence",
-                ));
+                ).with_details([
+                    ("constraint".into(), "instruction_precedence_conflict".into()),
+                    ("stable_id".into(), id.into()),
+                    ("also".into(), held.into()),
+                    ("precedence".into(), level.into()),
+                ]))?;
             }
         }
         let order = declared(document, "hook_order")?;
@@ -171,14 +205,17 @@ impl Composition {
                     .as_str()
                     .ok_or_else(|| invalid("hook event is invalid"))?
             };
-            if self
-                .hooks
-                .insert((event.into(), order), id.into())
-                .is_some()
-            {
-                return Err(invalid(
-                    "hook_order_conflict: multiple hooks declare the same event and order",
-                ));
+            if let Some(held) = self.hooks.insert((event.into(), order), id.into()) {
+                self.reject(
+                    invalid("hook_order_conflict: multiple hooks declare the same event and order")
+                        .with_details([
+                            ("constraint".into(), "hook_order_conflict".into()),
+                            ("stable_id".into(), id.into()),
+                            ("also".into(), held.into()),
+                            ("event".into(), event.into()),
+                            ("order".into(), order.into()),
+                        ]),
+                )?;
             }
         }
         let report = assessment["assessments"]
@@ -221,7 +258,7 @@ impl Composition {
 
     /// Check after collecting every selected component, so neither graph order
     /// nor the side that declares an exclusion can hide a contradiction.
-    pub fn validate(&self, files: &[super::File]) -> Result<()> {
+    pub fn validate(&mut self, files: &[super::File]) -> Result<()> {
         let kinds: &[&str] = match self.harness.as_str() {
             "codex" => &["skill"],
             "antigravity" | "cursor" => &["agent", "skill"],
@@ -235,7 +272,21 @@ impl Composition {
                 files
                     .iter()
                     .map(|file| (file.member.path.as_str(), file.member.bytes.as_slice())),
-            )?;
+            );
+            let visible = match visible {
+                Ok(visible) => visible,
+                Err(_) if self.conflicts.is_some() => {
+                    self.reject(
+                        invalid("the combined projections have conflicting native entries")
+                            .with_details([
+                                ("constraint".into(), "native_visibility_mismatch".into()),
+                                ("component_type".into(), (*kind).into()),
+                            ]),
+                    )?;
+                    continue;
+                }
+                Err(failure) => return Err(failure),
+            };
             let declared: Vec<_> = self
                 .native_ids
                 .get(self.namespace(kind))
@@ -245,13 +296,14 @@ impl Composition {
                 .map(|(name, _)| name.as_str())
                 .collect();
             if visible.iter().map(String::as_str).collect::<Vec<_>>() != declared {
-                return Err(
+                self.reject(
                     invalid("the assembled files change the visible native entries")
                         .with_details([("constraint".into(), "native_visibility_mismatch".into())]),
-                );
+                )?;
             }
         }
-        for exclusion in &self.exclusions {
+        for index in 0..self.exclusions.len() {
+            let exclusion = &self.exclusions[index];
             let other = if exclusion.family == "paths" {
                 overlap_owner(
                     &self.paths,
@@ -278,7 +330,7 @@ impl Composition {
                     .map(String::as_str)
             };
             if let Some(other) = other {
-                return Err(
+                self.reject(
                     invalid("a component explicitly excludes a selected native surface")
                         .with_details([
                             ("constraint".into(), "declared_conflict".into()),
@@ -287,7 +339,7 @@ impl Composition {
                             ("family".into(), exclusion.family.into()),
                             ("value".into(), exclusion.value.clone().into()),
                         ]),
-                );
+                )?;
             }
         }
         Ok(())
@@ -302,8 +354,17 @@ impl Composition {
             .converted
             .iter()
             .all(|entry| entry["state"] == "complete");
+        let conflicts: Vec<_> = self
+            .conflicts
+            .into_iter()
+            .flatten()
+            .map(|failure| {
+                json!({"schema_version":1,"code":failure.details["constraint"],
+                "summary":failure.message,"details":failure.details})
+            })
+            .collect();
         (
-            json!({"schema_version":1,"chosen":self.chosen,"rejected":[],"conflicts":[],"blocked":false,
+            json!({"schema_version":1,"chosen":self.chosen,"rejected":[],"blocked":!conflicts.is_empty(),"conflicts":conflicts,
             "operations":["canonical_ordering","exact_reference_deduplication","dependency_closure","disjoint_managed_path_union","deterministic_report_generation"]}),
             json!({"schema_version":1,"entries":self.converted,"complete":complete}),
         )

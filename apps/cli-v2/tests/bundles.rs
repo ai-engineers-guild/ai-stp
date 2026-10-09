@@ -831,6 +831,17 @@ fn mcp_contributions(store: &mut Store, declarations: &[Value]) -> Result<(), Bo
     assert!(bundle::compile(store, &setup, &target, &evidence, &provider, &Hosts::new()).is_err());
     let hosts: Hosts = [("mcp.json".into(), Some(br#"{"theme":"night"}"#.to_vec()))].into();
     let built = bundle::compile(store, &setup, &target, &evidence, &provider, &hosts)?;
+    let reports = bundle::reports::inspect(
+        store,
+        std::slice::from_ref(&setup),
+        &target,
+        &evidence,
+        Some(&provider),
+    )?;
+    assert_eq!(reports["composition"], built.manifest["composition_report"]);
+    assert_eq!(reports["conversion"], built.manifest["conversion_report"]);
+    assert_eq!(reports["required_host_paths"], json!(["mcp.json"]));
+    assert_eq!(reports["host_inputs_observed"], false);
     let mut archive = zip::ZipArchive::new(std::io::Cursor::new(&built.archive))?;
     let mut bytes = Vec::new();
     std::io::Read::read_to_end(&mut archive.by_name("files/mcp.json")?, &mut bytes)?;
@@ -995,6 +1006,20 @@ fn exact_bundles_cover_every_released_profile_and_refuse_unrepresentable_inputs(
                 &provider,
                 &Hosts::new(),
             )?;
+            let reports = bundle::reports::inspect(
+                &mut store,
+                std::slice::from_ref(&setup),
+                &target,
+                &evidence,
+                Some(&provider),
+            )?;
+            assert_eq!(
+                reports["composition"],
+                bundle.manifest["composition_report"]
+            );
+            assert_eq!(reports["conversion"], bundle.manifest["conversion_report"]);
+            assert_eq!(reports["host_inputs_observed"], false);
+            assert_eq!(reports["assembled_output_checked"], false);
             assert_eq!(
                 bundle.manifest["files"]
                     .as_array()
@@ -1088,6 +1113,27 @@ fn exact_bundles_cover_every_released_profile_and_refuse_unrepresentable_inputs(
         },
         None,
     )?;
+    let mut lossy = first.clone();
+    lossy["version"] = "7.0".into();
+    lossy["adaptations"][0]["scope_adaptations"][0]["semantic_losses"] =
+        json!(["The target omits the declared ordering hint."]);
+    lossy["adaptations"][0] = passport::versions::seal_adaptation(&lossy["adaptations"][0])?;
+    let lossy =
+        store.transaction(|t| versions::record(t, &lossy, &identity().device_id, None, AT))?;
+    let (lossy_setup, lossy_evidence) = compose(&mut store, "claude-code", &[lossy])?;
+    let reports = bundle::reports::inspect(
+        &mut store,
+        std::slice::from_ref(&lossy_setup),
+        &target,
+        &lossy_evidence,
+        Some(&provider),
+    )?;
+    assert_eq!(reports["conversion"]["complete"], false);
+    assert_eq!(reports["conversion"]["entries"][0]["state"], "partial");
+    assert_eq!(
+        reports["conversion"]["entries"][0]["losses"],
+        json!(["The target omits the declared ordering hint."])
+    );
     // Directory declarations are preserved in CAS; the file-only bundle format
     // must refuse them instead of silently losing their presence or permissions.
     let mut with_directory = first.clone();
@@ -1120,6 +1166,19 @@ fn exact_bundles_cover_every_released_profile_and_refuse_unrepresentable_inputs(
         versions::record(t, &with_directory, &identity().device_id, None, AT)
     })?;
     let (setup, evidence) = compose(&mut store, "claude-code", &[with_directory])?;
+    let reports = bundle::reports::inspect(
+        &mut store,
+        std::slice::from_ref(&setup),
+        &target,
+        &evidence,
+        Some(&provider),
+    )?;
+    assert_eq!(reports["composition"]["blocked"], true);
+    assert_eq!(reports["conversion"]["entries"][0]["state"], "unsupported");
+    assert_eq!(
+        reports["composition"]["rejected"][0]["refusals"][0]["code"],
+        "bundle_surface_unsupported"
+    );
     assert!(
         bundle::compile(
             &mut store,
@@ -1179,7 +1238,41 @@ fn exact_bundles_cover_every_released_profile_and_refuse_unrepresentable_inputs(
     .err()
     .ok_or("native collision accepted")?;
     assert!(refusal.message.contains("native_id_collision"));
+    let reports = bundle::reports::inspect(
+        &mut store,
+        std::slice::from_ref(&setup),
+        &target,
+        &evidence,
+        Some(&provider),
+    )?;
+    assert_eq!(reports["composition"]["blocked"], true);
+    let codes: std::collections::BTreeSet<_> = reports["composition"]["conflicts"]
+        .as_array()
+        .ok_or("conflicts missing")?
+        .iter()
+        .filter_map(|entry| entry["code"].as_str())
+        .collect();
+    assert!(codes.contains("native_id_collision") && codes.contains("managed_path_owned_twice"));
+    assert_eq!(
+        reports["conversion"]["entries"]
+            .as_array()
+            .ok_or("conversion missing")?
+            .len(),
+        2
+    );
     let (empty, evidence) = compose(&mut store, "claude-code", &[])?;
+    let reports = bundle::reports::inspect(
+        &mut store,
+        std::slice::from_ref(&empty),
+        &target,
+        &evidence,
+        Some(&provider),
+    )?;
+    assert_eq!(
+        reports["composition"]["conflicts"][0]["code"],
+        "empty_bundle_unsupported"
+    );
+    assert_eq!(reports["composition"]["blocked"], true);
     assert!(
         bundle::compile(
             &mut store,
@@ -1205,6 +1298,19 @@ fn exact_bundles_cover_every_released_profile_and_refuse_unrepresentable_inputs(
         .get_mut(text(&first, "stable_id")?)
         .ok_or("evidence missing")?
         .blocked = true;
+    let reports = bundle::reports::inspect(
+        &mut store,
+        std::slice::from_ref(&setup),
+        &target,
+        &evidence,
+        Some(&provider),
+    )?;
+    assert_eq!(reports["composition"]["blocked"], true);
+    assert_eq!(reports["composition"]["chosen"], json!([]));
+    assert_eq!(
+        reports["composition"]["rejected"][0]["stable_id"],
+        first["stable_id"]
+    );
     assert!(
         bundle::compile(
             &mut store,
@@ -1403,6 +1509,79 @@ fn declared_exclusions_are_symmetric_and_do_not_conflict_with_their_owner()
         .ok_or("Claude missing")?;
     let provider = Info::parse(&serde_json::to_vec(declaration)?)?;
     let target = target("claude-code", Scope::Global);
+    for (kind, field, code) in [
+        (
+            "instruction",
+            "precedence",
+            "instruction_precedence_conflict",
+        ),
+        ("hook", "hook_order", "hook_order_conflict"),
+    ] {
+        let mut members = Vec::new();
+        for _ in 0..2 {
+            let mut document = component(
+                &mut store,
+                &provider,
+                Scope::Global,
+                File {
+                    path: if kind == "hook" {
+                        "settings.json"
+                    } else {
+                        "CLAUDE.md"
+                    }
+                    .into(),
+                    bytes: if kind == "hook" {
+                        br#"{"PreToolUse":[{"hooks":[{"type":"command","command":"example"}]}]}"#
+                            .to_vec()
+                    } else {
+                        b"Inspect source conventions.\n".to_vec()
+                    },
+                    mode: 0o644,
+                },
+                (kind == "hook").then_some("hooks"),
+            )?;
+            document["component_type"] = kind.into();
+            document["version"] = "2.0".into();
+            document[field] = 1.into();
+            if kind == "hook" {
+                document["hook_event"] = "PreToolUse".into();
+            }
+            document["adaptations"][0]["logical_component_type"] = kind.into();
+            document["adaptations"][0] =
+                passport::versions::seal_adaptation(&document["adaptations"][0])?;
+            members.push(store.transaction(|t| {
+                versions::record(t, &document, &identity().device_id, None, AT)
+            })?);
+        }
+        let (setup, evidence) = compose(&mut store, "claude-code", &members)?;
+        let reports = bundle::reports::inspect(
+            &mut store,
+            std::slice::from_ref(&setup),
+            &target,
+            &evidence,
+            Some(&provider),
+        )?;
+        assert_eq!(reports["composition"]["blocked"], true);
+        assert!(
+            reports["composition"]["conflicts"]
+                .as_array()
+                .ok_or("conflicts missing")?
+                .iter()
+                .any(|entry| entry["code"] == code)
+        );
+        let hosts = if kind == "hook" {
+            [("settings.json".into(), None)].into()
+        } else {
+            Hosts::new()
+        };
+        assert!(
+            bundle::compile(&mut store, &setup, &target, &evidence, &provider, &hosts)
+                .err()
+                .ok_or("ordering accepted")?
+                .message
+                .contains(code)
+        );
+    }
     for scenario in ["paths", "commands", "skill-invocations"] {
         let family = if scenario == "skill-invocations" {
             "commands"
@@ -1490,6 +1669,24 @@ fn declared_exclusions_are_symmetric_and_do_not_conflict_with_their_owner()
                 &provider,
                 &Hosts::new(),
             );
+            let reports = bundle::reports::inspect(
+                &mut store,
+                std::slice::from_ref(&setup),
+                &target,
+                &evidence,
+                Some(&provider),
+            )?;
+            assert_eq!(reports["composition"]["blocked"], case < 2);
+            if case < 2 {
+                assert_eq!(
+                    reports["composition"]["conflicts"][0]["code"],
+                    "declared_conflict"
+                );
+                assert_eq!(
+                    reports["composition"]["conflicts"][0]["details"]["stable_id"],
+                    members[declarer]["stable_id"]
+                );
+            }
             if case < 2 {
                 let refusal = result
                     .err()

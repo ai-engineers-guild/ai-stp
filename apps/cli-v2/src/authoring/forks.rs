@@ -50,6 +50,17 @@ impl Plan {
     }
 }
 
+/// Compatibility observations belong to the source identity. Clear both the
+/// immutable field and the facts exposed by draft readers for every new copy.
+pub(super) fn clear_source_evidence(document: &mut Value) -> Result<()> {
+    document["compatibility_evidence_refs"] = json!([]);
+    document["facts"]
+        .as_object_mut()
+        .ok_or_else(|| Failure::precondition("a component copy requires complete fact metadata"))?
+        .remove("compatibility_evidence_refs");
+    Ok(())
+}
+
 fn seed(
     connection: &Connection,
     source: &Source,
@@ -74,6 +85,7 @@ fn seed(
     document["created_at"] = at.into();
     document["visibility"] = "private".into();
     document["parent_revision_ids"] = json!([]);
+    clear_source_evidence(&mut document)?;
     revisions::seal(&document)
 }
 

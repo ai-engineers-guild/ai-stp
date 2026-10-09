@@ -17,6 +17,7 @@ use crate::{
 pub(crate) enum Purpose {
     Scaffold,
     SetupExport,
+    ProviderBundle,
 }
 
 impl Purpose {
@@ -24,15 +25,16 @@ impl Purpose {
         match self {
             Self::Scaffold => "scaffold",
             Self::SetupExport => "setup-export",
+            Self::ProviderBundle => "provider-bundle",
         }
     }
 }
 
 /// Domain callers recompute these exact files before publication.
-pub(crate) struct Tree<'a> {
+pub(crate) struct Tree<'a, T: AsRef<[u8]> = String> {
     pub output: &'a str,
     pub parent_identity: &'a [String; 2],
-    pub files: &'a BTreeMap<String, String>,
+    pub files: &'a BTreeMap<String, T>,
     pub purpose: Purpose,
 }
 
@@ -121,7 +123,7 @@ fn sync(directory: &Dir) -> Result<()> {
 }
 
 /// Partial recovery accepts only prefixes of planned files in the private stage.
-fn verify(directory: &Dir, plan: &Tree<'_>, partial: bool) -> Result<bool> {
+fn verify<T: AsRef<[u8]>>(directory: &Dir, plan: &Tree<'_, T>, partial: bool) -> Result<bool> {
     let mut expected_dirs = BTreeSet::new();
     for name in plan.files.keys() {
         let mut path = Path::new(name).parent();
@@ -158,7 +160,7 @@ fn verify(directory: &Dir, plan: &Tree<'_>, partial: bool) -> Result<bool> {
                     current.open_dir_nofollow(&leaf).map_err(|_| refused())?,
                 ));
             } else {
-                let expected = plan.files.get(&name).ok_or_else(refused)?.as_bytes();
+                let expected = plan.files.get(&name).ok_or_else(refused)?.as_ref();
                 if !plain(&metadata, false) {
                     return Err(refused());
                 }
@@ -185,7 +187,7 @@ fn verify(directory: &Dir, plan: &Tree<'_>, partial: bool) -> Result<bool> {
     Ok(complete)
 }
 
-fn existing(parent: &Dir, leaf: &Path, plan: &Tree<'_>) -> Result<bool> {
+fn existing<T: AsRef<[u8]>>(parent: &Dir, leaf: &Path, plan: &Tree<'_, T>) -> Result<bool> {
     match parent.symlink_metadata(leaf) {
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(false),
         Err(_) => Err(refused()),
@@ -197,9 +199,10 @@ fn existing(parent: &Dir, leaf: &Path, plan: &Tree<'_>) -> Result<bool> {
     }
 }
 
-fn fill(directory: &Dir, plan: &Tree<'_>) -> Result<()> {
+fn fill<T: AsRef<[u8]>>(directory: &Dir, plan: &Tree<'_, T>) -> Result<()> {
     verify(directory, plan, true)?;
     for (name, content) in plan.files {
+        let content = content.as_ref();
         let parts: Vec<_> = name.split('/').collect();
         let (leaf, ancestors) = parts.split_last().ok_or_else(refused)?;
         let mut parents = vec![directory.try_clone().map_err(|_| refused())?];
@@ -218,10 +221,10 @@ fn fill(directory: &Dir, plan: &Tree<'_>) -> Result<()> {
             .take(content.len() as u64 + 1)
             .read_to_end(&mut prefix)
             .map_err(|_| refused())?;
-        if !content.as_bytes().starts_with(&prefix) {
+        if !content.starts_with(&prefix) {
             return Err(refused());
         }
-        file.write_all(&content.as_bytes()[prefix.len()..])
+        file.write_all(&content[prefix.len()..])
             .and_then(|_| file.sync_all())
             .map_err(|_| refused())?;
         for parent in parents.iter().rev() {
@@ -299,7 +302,7 @@ fn outcome(parent: &Dir, name: &str, created: bool) -> (bool, bool) {
     (created, !removed)
 }
 
-pub(crate) fn publish(plan: &Tree<'_>, digest: &str) -> Result<(bool, bool)> {
+pub(crate) fn publish<T: AsRef<[u8]>>(plan: &Tree<'_, T>, digest: &str) -> Result<(bool, bool)> {
     let output = Path::new(plan.output);
     if destination(output)? != (plan.output.to_owned(), plan.parent_identity.clone()) {
         return Err(refused());

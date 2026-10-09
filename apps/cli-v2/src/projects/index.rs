@@ -62,7 +62,7 @@ fn classification(path: &Path) -> (&'static str, Option<&'static str>) {
     }
 }
 
-type SourceObserver<'a> = dyn FnMut(&str, &str, Option<&[u8]>) + 'a;
+type SourceObserver<'a> = dyn FnMut(&str, Option<&str>, Option<&[u8]>) + 'a;
 
 struct Index<'a> {
     budget: Budget,
@@ -182,13 +182,11 @@ impl Index<'_> {
                         + usize::from(!content.is_empty() && !content.ends_with(b"\n")),
                 );
             }
-            if let Some(language) = language {
-                (self.observe)(
-                    &relative(&child),
-                    language,
-                    hash.as_ref().map(|_| content.as_slice()),
-                );
-            }
+            (self.observe)(
+                &relative(&child),
+                language,
+                hash.as_ref().map(|_| content.as_slice()),
+            );
             self.files.push(
                 json!({"schema_version": 1, "path": relative(&child), "kind": kind,
                 "language": language, "size_bytes": size, "digest": hash, "lines": lines}),

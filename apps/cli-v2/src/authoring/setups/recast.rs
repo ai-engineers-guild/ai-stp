@@ -8,7 +8,7 @@ use serde_json::{Value, json};
 
 use super::Member;
 use crate::{
-    authoring::{Identity, derivation, freezing},
+    authoring::{Identity, derivation, forks, freezing},
     canonical, digest,
     error::{Failure, Result},
     objects::Objects,
@@ -185,7 +185,7 @@ pub(super) fn build(
             document["visibility"] = "private".into();
             document["created_at"] = at.into();
             document["parent_revision_ids"] = json!([]);
-            document["compatibility_evidence_refs"] = json!([]);
+            forks::clear_source_evidence(&mut document)?;
             if document.get("requires_components").is_none() {
                 document["requires_components"] = json!([]);
             }
