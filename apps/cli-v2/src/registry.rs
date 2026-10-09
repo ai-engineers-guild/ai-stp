@@ -39,6 +39,8 @@ enum Handler {
     ScaffoldApply,
     SourceInspect,
     SourceCapture,
+    SourceFetch,
+    PackageSourceFetch,
     SourceAddress(bool),
     IdentityPlan,
     IdentityApply,
@@ -291,6 +293,37 @@ const COMMANDS: &[Declaration] = &[
         summary: "Inspect exact portable source bytes and unresolved scaffold fields without executing code.",
         parameters: &[ROOT],
         handler: Handler::SourceInspect,
+    },
+    Declaration {
+        path: &["component", "source", "package", "fetch"],
+        summary: "Observe exact official package metadata and checksum evidence without execution or trust grants.",
+        parameters: &[
+            Parameter {
+                name: "ecosystem",
+                summary: "Implemented official package registry.",
+                kind: ParameterType::Choice(&["go"]),
+                required: true,
+            },
+            Parameter {
+                name: "name",
+                summary: "Original case-sensitive module path.",
+                kind: ParameterType::String,
+                required: true,
+            },
+            Parameter {
+                name: "version",
+                summary: "Exact canonical module version, including the v prefix.",
+                kind: ParameterType::String,
+                required: true,
+            },
+        ],
+        handler: Handler::PackageSourceFetch,
+    },
+    Declaration {
+        path: &["component", "source", "fetch"],
+        summary: "Observe a public GitHub source pinned to a full commit; bounded download without credentials or target writes.",
+        parameters: &[SOURCE],
+        handler: Handler::SourceFetch,
     },
     Declaration {
         path: &["component", "source", "capture"],
@@ -747,6 +780,16 @@ pub fn dispatch(matches: &ArgMatches) -> Result<Value> {
         Handler::SourceInspect => source_project::inspect(
             leaf.get_one::<std::path::PathBuf>("root")
                 .ok_or_else(|| Failure::input("source root is required"))?,
+        ),
+        Handler::PackageSourceFetch => crate::sources::package::fetch(
+            leaf.get_one::<String>("name")
+                .ok_or_else(|| Failure::input("module name is required"))?,
+            leaf.get_one::<String>("version")
+                .ok_or_else(|| Failure::input("module version is required"))?,
+        ),
+        Handler::SourceFetch => crate::sources::github::fetch(
+            leaf.get_one::<String>("source")
+                .ok_or_else(|| Failure::input("source is required"))?,
         ),
         Handler::SourceCapture => crate::sources::local::capture(
             leaf.get_one::<std::path::PathBuf>("root")

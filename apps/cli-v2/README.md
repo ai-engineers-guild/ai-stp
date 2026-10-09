@@ -169,6 +169,61 @@ working bytes. Selecting a file excludes native hook sibling directories.
 No credential session, local registry or output directory is created. This read
 does not register a component or establish publication/install eligibility.
 
+`component source fetch` observes a public GitHub repository only at an explicit
+full commit SHA. It checks the repository identity/public visibility and the exact
+commit through the [GitHub REST API](https://docs.github.com/en/rest/repos/contents?apiVersion=2026-03-10#download-a-repository-archive-zip),
+then reads the selected file or subtree from its archive into memory. Requests
+are anonymous, sequential and proxy-free; only HTTPS on `api.github.com`,
+`github.com` and `codeload.github.com` is allowed, with at most two redirects per
+request and one 30-second HTTP budget. Metadata responses are limited to 2 MiB,
+the downloaded ZIP to 100 MiB and its index to 20,000 entries. ZIP64, encryption
+and multi-volume archives refuse. Selected content retains the local snapshot's
+1,000-file, 4 MiB/file, 8 MiB total and 32-directory limits, portable names,
+UTF-8 bytes and normalized executable modes. No archive is extracted to disk.
+
+The result adds the exact commit, observed repository ID, original archive digest
+and observation time to the same canonical source artifact. `observed_license`
+comes from current repository metadata and is not a commit-specific license
+attestation. Both verification axes and `target_write` remain false. A missing
+or unsuitable subtree refuses; no registry, credentials or component is created.
+Rate-limit refusals report a bounded retry delay and perform no automatic retry.
+
+`component source package fetch --ecosystem go --name <module> --version <version>`
+observes an exact Go module using only `proxy.golang.org` and `sum.golang.org`.
+The original module name and canonical `vX.Y.Z[-prerelease][+incompatible]` version
+are bounded to 256 bytes each. Both URL elements use Go's case encoding; the
+returned version must exactly match the original pin. The shared anonymous
+transport retains the 30-second budget, two-redirect limit and 2 MiB metadata
+bound; redirects outside those two HTTPS authorities refuse.
+
+The ZIP is limited to 20 MiB, 20,000 entries and 50 MiB of expanded content. All
+original member names and contents participate in upstream
+[`HashZip(Hash1)`](https://pkg.go.dev/golang.org/x/mod/sumdb/dirhash#HashZip),
+independent of ZIP order/compression. Original UTF-8 names, exact module/version
+prefixes and declared/actual lengths must agree. Duplicate entries, traversal,
+links, special files, encryption and unsupported ZIP structures refuse. The
+computed checksum must match one unambiguous exact module/version line from the
+checksum endpoint. This is an HTTPS registry observation; it does not verify the
+checksum database's signed transparency log and grants no verification axis.
+
+Only root `go.mod` and `go.sum` become portable snapshot files; nested test data
+does not become module metadata. Their canonical artifact uses mode `0644` and
+the common UTF-8/4 MiB-per-file/8 MiB-total source limits. A historical module
+without either file returns empty `file_paths`, `artifact: null` and its archive
+digest as the component digest, matching the shared empty-metadata snapshot
+contract. No synthetic metadata, dependency execution, local Go toolchain,
+credential access, registry mutation or target write is involved.
+
+The external source adapters own the existing `zip` dependency's
+`deflate-flate2-zlib-rs` feature and its locked `flate2` and `zlib-rs` closure.
+The Rust compression maintainers publish `flate2` under MIT or Apache-2.0;
+Trifecta Tech publishes `zlib-rs` under Zlib. This pure Rust DEFLATE reader needs
+no platform library or executable and runs on Linux, macOS and Windows.
+Declared and actual expanded lengths are bounded before and during reading;
+invalid streams refuse without retained state. CLI maintainers own coordinated
+lockfile updates, advisory review and archive proofs. Removing compressed remote
+source ingestion removes this feature and both transitive dependencies.
+
 `component source inspect` captures one explicit `/7` authoring project using the
 bounded Git/regular-file source reader. It validates the generator-owned descriptor
 and closed passport patch, checks up to 64 distinct portable source entry paths,
@@ -1057,8 +1112,9 @@ disagreeing ZIP headers, extra metadata and alternate ordering are refused.
 Portable names exclude Windows devices and reserved characters; a file cannot
 also be an ancestor of another member, including through a case alias.
 Shared directory prefixes must keep one spelling across the archive.
-`zip` owns archive decoding; `crc32fast` supplies the wire checksum. Compression
-and encryption features are disabled because this format admits neither.
+`zip` owns archive decoding; `crc32fast` supplies the wire checksum. This
+canonical decoder explicitly refuses compression and encryption. DEFLATE support
+is enabled only for the separate external source readers.
 
 Scope projection archives use the same ZIP transport and retain their own
 8,192-member and 64 MiB limits. They preserve explicit empty directories and
@@ -1175,7 +1231,8 @@ no async runtime or tracing feature is enabled for it.
 | `files/tree.rs` | Shared recoverable directory publication with no-replace rename |
 | `identity/` | Explicit offline identity initialization, private key storage and public signing identity |
 | `sources.rs` | Pure source-address parsing and explicit GitHub commit pinning without provenance claims |
-| `sources/local.rs` | Bounded local source observations and interoperable content snapshots |
+| `sources/local.rs`, `sources/snapshot.rs` | Bounded local observations and shared interoperable source encoding |
+| `sources/github/` | Exact public repository observations, fixed-authority HTTP and bounded in-memory ZIP selection |
 | `authoring/source_project.rs` | One bounded source snapshot, metadata separation and structural readiness |
 | `authoring/adaptations.rs` | Explicit portable-to-native projections preserving source bodies and modes |
 | `authoring/review.rs` | Read-only publication structure and optional quality hints over every retained adaptation |

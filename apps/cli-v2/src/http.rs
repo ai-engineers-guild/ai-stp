@@ -80,14 +80,7 @@ impl Endpoint {
                 return Err(invalid());
             }
         }
-        let agent = ureq::Agent::config_builder()
-            .http_status_as_error(false)
-            .max_redirects(0)
-            .proxy(None)
-            .timeout_global(Some(Duration::from_secs(30)))
-            .timeout_connect(Some(Duration::from_secs(5)))
-            .build()
-            .into();
+        let agent = anonymous_agent();
         Ok(Self {
             base,
             agent: RefCell::new(agent),
@@ -139,13 +132,7 @@ impl Endpoint {
             .build()
             .call()
             .map_err(transport)?;
-        if response.version() == ureq::http::Version::HTTP_10 {
-            // ureq-proto 0.6.4 may pool a length-delimited HTTP/1.0 response
-            // without keep-alive. Drop that pool before consuming its body;
-            // HTTP/1.1 continues to reuse connections. No request is retried.
-            let config = self.agent.borrow().config().clone();
-            self.agent.replace(config.into());
-        }
+        discard_closed_pool(&self.agent, response.version());
         match response.status().as_u16() {
             200 => {}
             404 => {
@@ -199,12 +186,41 @@ pub fn unavailable() -> Failure {
 }
 
 fn transport(error: ureq::Error) -> Failure {
-    match error {
+    if is_transient(&error) {
+        unavailable()
+    } else {
+        Failure::precondition("catalog transport, TLS or response bounds were rejected")
+    }
+}
+
+pub(crate) fn is_transient(error: &ureq::Error) -> bool {
+    matches!(
+        error,
         ureq::Error::Io(_)
-        | ureq::Error::Timeout(_)
-        | ureq::Error::HostNotFound
-        | ureq::Error::ConnectionFailed
-        | ureq::Error::BodyStalled => unavailable(),
-        _ => Failure::precondition("catalog transport, TLS or response bounds were rejected"),
+            | ureq::Error::Timeout(_)
+            | ureq::Error::HostNotFound
+            | ureq::Error::ConnectionFailed
+            | ureq::Error::BodyStalled
+    )
+}
+
+/// Anonymous transport defaults shared by catalog and public source acquisition.
+pub(crate) fn anonymous_agent() -> ureq::Agent {
+    ureq::Agent::config_builder()
+        .http_status_as_error(false)
+        .max_redirects(0)
+        .proxy(None)
+        .timeout_global(Some(Duration::from_secs(30)))
+        .timeout_connect(Some(Duration::from_secs(5)))
+        .build()
+        .into()
+}
+
+pub(crate) fn discard_closed_pool(agent: &RefCell<ureq::Agent>, version: ureq::http::Version) {
+    if version == ureq::http::Version::HTTP_10 {
+        // ureq-proto 0.6.4 may pool HTTP/1.0 without keep-alive. Drop the pool
+        // before consuming its body; HTTP/1.1 continues to reuse connections.
+        let config = agent.borrow().config().clone();
+        agent.replace(config.into());
     }
 }
