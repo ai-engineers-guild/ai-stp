@@ -354,29 +354,39 @@ async def test_crates_checksum_mismatch_fails_closed() -> None:
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("compression", [zipfile.ZIP_STORED, zipfile.ZIP_DEFLATED])
-async def test_go_records_module_zip_hash_and_sumdb_evidence(compression: int) -> None:
+@pytest.mark.parametrize(
+    ("version", "escaped_version", "zip_hash"),
+    [
+        ("v1.2.3", "v1.2.3", "h1:fiBHkuZvtmSvjRNZhE5mIC23iwt/yZCPpSvQE/ZV85Q="),
+        ("v1.2.3-RC1", "v1.2.3-!r!c1", "h1:exP8QAcop2iu9+POF17z1MHLGAP4XzJ3xdEdvKWyxYc="),
+    ],
+)
+async def test_go_records_module_zip_hash_and_sumdb_evidence(
+    compression: int, version: str, escaped_version: str, zip_hash: str
+) -> None:
     files = {
-        "github.com/Azure/mod@v1.2.3/go.mod": "module github.com/Azure/mod\n",
-        "github.com/Azure/mod@v1.2.3/README.md": "Module source proof.\n",
+        f"github.com/Azure/mod@{version}/go.mod": "module github.com/Azure/mod\n",
+        f"github.com/Azure/mod@{version}/README.md": "Module source proof.\n",
     }
     if compression == zipfile.ZIP_DEFLATED:
         files = dict(reversed(tuple(files.items())))
     archive = _zip(files, compression=compression)
-    # Observed with golang.org/x/mod v0.28.0 dirhash.HashZip(Hash1).
-    # The fixed result includes README bytes and ignores ZIP order/compression.
-    zip_hash = "h1:fiBHkuZvtmSvjRNZhE5mIC23iwt/yZCPpSvQE/ZV85Q="
+    # Goldens observed with golang.org/x/mod v0.28.0 HashZip and EscapeVersion.
+    # Hashes include README bytes and original names, ignoring ZIP encoding.
     registry = Registry()
     registry.add(
-        "https://proxy.golang.org/github.com/!azure/mod/@v/v1.2.3.info",
-        {"Version": "v1.2.3", "Time": "2026-01-01T00:00:00Z"},
+        f"https://proxy.golang.org/github.com/!azure/mod/@v/{escaped_version}.info",
+        {"Version": version, "Time": "2026-01-01T00:00:00Z"},
     )
-    registry.add("https://proxy.golang.org/github.com/!azure/mod/@v/v1.2.3.zip", archive)
     registry.add(
-        "https://sum.golang.org/lookup/github.com/!azure/mod@v1.2.3",
-        f"111\ngithub.com/Azure/mod v1.2.3 {zip_hash}\n",
+        f"https://proxy.golang.org/github.com/!azure/mod/@v/{escaped_version}.zip", archive
+    )
+    registry.add(
+        f"https://sum.golang.org/lookup/github.com/!azure/mod@{escaped_version}",
+        f"111\ngithub.com/Azure/mod {version} {zip_hash}\n",
     )
     snapshot = await resolve_source(
-        PackageIntent(ecosystem="go", name="github.com/Azure/mod", version="v1.2.3"),
+        PackageIntent(ecosystem="go", name="github.com/Azure/mod", version=version),
         fetch=registry.fetch,
     )
     evidence = snapshot.package_evidence
@@ -384,6 +394,7 @@ async def test_go_records_module_zip_hash_and_sumdb_evidence(compression: int) -
     assert evidence.module == "github.com/Azure/mod"
     assert evidence.zip_hash == zip_hash
     assert evidence.sumdb_hash == zip_hash
+    assert snapshot.exact_identity == version
     assert snapshot.files["go.mod"].startswith(b"module ")
     assert registry.hosts() == {"proxy.golang.org", "sum.golang.org"}
     _assert_observation(snapshot)

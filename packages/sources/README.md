@@ -11,6 +11,8 @@ bounds all module content, rejects ambiguous/escaping entries and compares the
 result with the official checksum endpoint. This is an HTTPS observation, not
 verification of the checksum database's signed transparency log. The separate
 archive digest continues to bind the exact downloaded bytes.
+Proxy and checksum lookup URLs case-encode both module and version; snapshot
+identities and archive member names retain their original case.
 
 Source and specifications live in the
 [ai_stp repository](https://github.com/ai-engineers-guild/ai-stp).

@@ -418,16 +418,16 @@ async def _resolve_crates(
     return _snapshot(intent, archive=archive, files=files, evidence=evidence, now=now)
 
 
-def _go_module_path(module: str) -> str:
-    encoded = "".join(f"!{char.lower()}" if char.isupper() else char for char in module)
-    return quote(encoded, safe="/@!")
+def _go_proxy_path(value: str, *, safe: str) -> str:
+    encoded = "".join(f"!{char.lower()}" if char.isupper() else char for char in value)
+    return quote(encoded, safe=safe)
 
 
 async def _resolve_go(
     intent: PackageIntent, *, fetch: FetchFn, now: datetime | None
 ) -> SourceSnapshot:
-    module = _go_module_path(intent.name)
-    version = quote(intent.version, safe="")
+    module = _go_proxy_path(intent.name, safe="/@!")
+    version = _go_proxy_path(intent.version, safe="!")
     info = await bounded_get(
         f"https://proxy.golang.org/{module}/@v/{version}.info",
         fetch=fetch,

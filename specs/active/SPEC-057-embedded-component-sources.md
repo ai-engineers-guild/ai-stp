@@ -59,7 +59,9 @@ the architecture and extends ADR-0051 without changing `ComponentRef`.
   contents, and matching checksum-endpoint evidence. ZIP order, compression and
   metadata do not affect this checksum; the separate archive digest binds the
   downloaded bytes. This observation does not attest the checksum database's
-  signed transparency log. pub.dev records archive checksum and `pubspec.lock` or
+  signed transparency log. Proxy and checksum lookup URLs case-encode both module
+  and version without changing the recorded identity or archive member names.
+  pub.dev records archive checksum and `pubspec.lock` or
   resolved graph.
 - `REQ-5705`: Setup authoring may mix catalog, Git, package, and local-path
   entries. Freeze resolves every non-catalog input, creates or reuses a local
