@@ -4,7 +4,7 @@ use ai_stp_cli_v2::{
     authoring::{
         Identity, adoption, derivation, discovery, forks,
         passports::{self, Patch},
-        releases,
+        releases, setups,
     },
     canonical, digest,
     error::Failure,
@@ -32,8 +32,8 @@ fn stored(store: &mut Store, id: &str, version: Option<&str>) -> Result<Value, F
     })
 }
 
-fn counts(store: &mut Store) -> Result<[i64; 4], Failure> {
-    store.transaction(|t| t.query_row("SELECT (SELECT count(*) FROM revision),(SELECT count(*) FROM content),(SELECT count(*) FROM operation),(SELECT count(*) FROM object_version)",[],|r| Ok([r.get(0)?,r.get(1)?,r.get(2)?,r.get(3)?])).map_err(|_|Failure::input("proof query failed")))
+fn counts(store: &mut Store) -> Result<[i64; 5], Failure> {
+    store.transaction(|t| t.query_row("SELECT (SELECT count(*) FROM revision),(SELECT count(*) FROM content),(SELECT count(*) FROM operation),(SELECT count(*) FROM object_version),(SELECT count(*) FROM fork_origin)",[],|r| Ok([r.get(0)?,r.get(1)?,r.get(2)?,r.get(3)?,r.get(4)?])).map_err(|_|Failure::input("proof query failed")))
 }
 
 fn release(
@@ -114,6 +114,175 @@ fn release(
     Ok(draft)
 }
 
+fn graph_recast(
+    store: &mut Store,
+    root: &Path,
+    source: &Value,
+    providers: &[Info],
+    identity: &Identity,
+    recipient: &Identity,
+) -> Result<(), Box<dyn Error>> {
+    let provider = providers
+        .iter()
+        .find(|p| p.document()["harness_id"] == "cursor")
+        .ok_or("provider")?;
+    let member = |document: &Value| -> Result<setups::Member, Box<dyn Error>> {
+        Ok(setups::Member {
+            stable_id: field(document, "stable_id")?.into(),
+            version: field(document, "version")?.into(),
+            passport_digest: digest::canonical("ai-stp:passport:v1", document)?,
+        })
+    };
+    let dependent = release(
+        store,
+        &root.join("graph-dependent"),
+        "codex",
+        b"[mcp_servers.audit]\ncommand = 'audit-server'\n",
+        providers,
+        identity,
+    )?;
+    let patch = passports::plan(
+        store,
+        field(&dependent, "stable_id")?,
+        field(&dependent, "revision_id")?,
+        Patch::try_from(json!({"requires_components":[member(source)?]}))?,
+        identity.clone(),
+        AT,
+    )?;
+    let dependent = passports::apply(store, &patch, &patch.digest()?, identity, AT)?;
+    let derived = derivation::plan(
+        store,
+        field(&dependent, "stable_id")?,
+        field(&dependent, "revision_id")?,
+        "codex",
+        provider,
+        identity.clone(),
+        AT,
+    )?;
+    let dependent = derivation::apply(store, &derived, &derived.digest()?, identity, AT)?;
+    let release = releases::plan(
+        store,
+        field(&dependent, "stable_id")?,
+        field(&dependent, "revision_id")?,
+        Increment::Minor,
+        &[],
+        identity.clone(),
+        AT,
+    )?;
+    let dependent = releases::apply(store, &release, &release.digest()?, identity, AT)?;
+    let compose = setups::plan(
+        store,
+        setups::Request {
+            harness_id: "codex".into(),
+            name: "Exact dependency recast".into(),
+            description: "Derive one member and retain the dependent's existing adaptation.".into(),
+            purpose: "Review code.".into(),
+            members: vec![member(&dependent)?],
+            requirements: None,
+        },
+        identity.clone(),
+        AT,
+    )?;
+    let original = setups::apply(store, &compose, &compose.digest()?, identity, AT)?;
+    let reference = setups::Source {
+        stable_id: field(&original, "stable_id")?.into(),
+        version: field(&original, "version")?.into(),
+        passport_digest: digest::canonical("ai-stp:passport:v1", &original)?,
+    };
+    let before = counts(store)?;
+    assert!(
+        setups::copies::plan(
+            store,
+            reference.clone(),
+            Some("cursor"),
+            recipient.clone(),
+            AT
+        )
+        .is_err()
+    );
+    let plan =
+        setups::copies::plan_with_provider(store, reference, provider, recipient.clone(), AT)?;
+    assert_eq!(counts(store)?, before);
+    let replacements = &plan.derivation.as_ref().ok_or("derived members")?.members;
+    assert_eq!(replacements.len(), 2);
+    let child = replacements
+        .iter()
+        .find(|m| m.source.stable_id == source["stable_id"])
+        .ok_or("child")?;
+    let parent = replacements
+        .iter()
+        .find(|m| m.source.stable_id == dependent["stable_id"])
+        .ok_or("parent")?;
+    for replacement in replacements {
+        assert_ne!(
+            replacement.passport["stable_id"],
+            replacement.source.stable_id
+        );
+        assert_eq!(replacement.passport["owner_id"], recipient.account_id);
+        assert_eq!(replacement.passport["version"], "1.0");
+        assert_eq!(replacement.passport["visibility"], "private");
+    }
+    assert_eq!(
+        parent.passport["requires_components"][0]["stable_id"],
+        child.passport["stable_id"]
+    );
+    assert_eq!(
+        parent.passport["requires_components"][0]["passport_digest"],
+        digest::canonical("ai-stp:passport:v1", &child.passport)?
+    );
+    assert_eq!(parent.passport["adaptations"], dependent["adaptations"]);
+    let mut tampered = plan.clone();
+    tampered
+        .derivation
+        .as_mut()
+        .ok_or("derived members")?
+        .members[0]
+        .passport["description"] = "Changed after planning".into();
+    assert!(setups::copies::apply(store, &tampered, &tampered.digest()?, recipient, AT).is_err());
+    store.transaction(|t| t.execute_batch("CREATE TEMP TRIGGER refuse_recast_setup BEFORE INSERT ON object_version WHEN NEW.stable_id LIKE 'setup_%' BEGIN SELECT RAISE(ABORT,'interrupted after components'); END;").map_err(|_|Failure::input("proof trigger failed")))?;
+    assert!(setups::copies::apply(store, &plan, &plan.digest()?, recipient, AT).is_err());
+    assert_eq!(counts(store)?, before);
+    store.transaction(|t| {
+        t.execute_batch("DROP TRIGGER refuse_recast_setup")
+            .map_err(|_| Failure::input("proof trigger failed"))
+    })?;
+    let result = setups::copies::apply(store, &plan, &plan.digest()?, recipient, AT)?;
+    assert_eq!(result, plan.passport);
+    assert_eq!(
+        stored(
+            store,
+            field(source, "stable_id")?,
+            Some(field(source, "version")?)
+        )?,
+        *source
+    );
+    assert_eq!(
+        stored(
+            store,
+            field(&dependent, "stable_id")?,
+            Some(field(&dependent, "version")?)
+        )?,
+        dependent
+    );
+    let after = counts(store)?;
+    assert_eq!(
+        setups::copies::apply(store, &plan, &plan.digest()?, recipient, LATER)?,
+        result
+    );
+    assert_eq!(counts(store)?, after);
+    for replacement in replacements {
+        assert_eq!(
+            stored(
+                store,
+                field(&replacement.passport, "stable_id")?,
+                Some("1.0")
+            )?,
+            replacement.passport
+        );
+    }
+    Ok(())
+}
+
 #[test]
 fn exact_stdio_derivation_preserves_literals_and_atomic_owned_history() -> Result<(), Box<dyn Error>>
 {
@@ -159,6 +328,16 @@ fn exact_stdio_derivation_preserves_literals_and_atomic_owned_history() -> Resul
             let id = field(&before, "stable_id")?;
             let expected = field(&before, "revision_id")?;
             let retained = stored(&mut store, id, Some("1.0"))?;
+            if *source == "codex" && target == "cursor" {
+                graph_recast(
+                    &mut store,
+                    temporary.path(),
+                    &retained,
+                    &providers,
+                    &identity,
+                    &foreign,
+                )?;
+            }
             let provider = providers
                 .iter()
                 .find(|p| p.document()["harness_id"] == target)

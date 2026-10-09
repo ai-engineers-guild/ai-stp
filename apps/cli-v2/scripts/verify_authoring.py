@@ -781,6 +781,71 @@ def prove(binary: Path, home: Path, temporary: Path, run: Runner) -> None:
         }
     assert (native / "config.toml").read_text(encoding="utf-8") == config
 
+    recast_request = root / "recast-request.json"
+    recast_request.write_text(
+        json.dumps(
+            {
+                "harness_id": "codex",
+                "name": "MCP review",
+                "description": "Run the review server.",
+                "purpose": "code-review",
+                "members": [
+                    {
+                        "stable_id": released_mcp["stable_id"],
+                        "version": "1.0",
+                        "passport_digest": digest_canonical("ai-stp:passport:v1", released_mcp),
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    recast_source = apply(
+        invoke(
+            [
+                "setup",
+                "compose",
+                "plan",
+                "--state-dir",
+                str(state),
+                "--request",
+                str(recast_request),
+            ]
+        ),
+        "recast-source",
+    )
+    recast_args = [
+        "setup",
+        "recast",
+        "plan",
+        "--state-dir",
+        str(state),
+        "--id",
+        recast_source["stable_id"],
+        "--version",
+        "1.0",
+        "--passport-digest",
+        digest_canonical("ai-stp:passport:v1", recast_source),
+        "--target-harness",
+        "cursor",
+    ]
+    invoke(recast_args, 4)
+    invoke([*recast_args, "--provider-info", str(info)], 2)
+    with closing(sqlite3.connect(database)) as connection:
+        before_recast = tuple(connection.iterdump())
+        recast_plan = invoke([*recast_args, "--provider-info", str(cursor_info)])
+        assert tuple(connection.iterdump()) == before_recast
+    recast_result = apply(recast_plan, "recast-derived")
+    assert recast_result["harness_id"] == "cursor"
+    replacement = recast_plan["plan"]["operation"]["derivation"]["members"][0]["passport"]
+    replacement_model = ComponentVersionPassport.model_validate(replacement)
+    assert replacement_model.model_dump(mode="json") == replacement
+    assert verify_revision_id(replacement_model)
+    assert replacement["stable_id"] != released_mcp["stable_id"]
+    assert replacement["owner_id"] == owner and replacement["visibility"] == "private"
+    assert recast_result["components"][0]["stable_id"] == replacement["stable_id"]
+    assert (native / "config.toml").read_text(encoding="utf-8") == config
+
     setup_members: list[dict[str, str]] = []
     for captured in imported["facts"]["components"]["value"]:
         if captured["stable_id"] == released_mcp["stable_id"]:
