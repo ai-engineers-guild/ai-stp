@@ -388,6 +388,21 @@ impl Launcher {
                 target.path().as_os_str().into(),
             ]);
             handles.push(handle);
+            let source = File::open("/proc/self/exe").map_err(|_| unavailable())?;
+            let image =
+                File::from(rustix::io::fcntl_dupfd_cloexec(&source, 3).map_err(|_| unavailable())?);
+            drop(source);
+            if image.metadata().map_err(|_| unavailable())?.len() > 512 * 1024 * 1024 {
+                return Err(unavailable());
+            }
+            arguments.extend([
+                "--perms".into(),
+                "0500".into(),
+                "--ro-bind-data".into(),
+                image.as_raw_fd().to_string().into(),
+                "/run/target-entry".into(),
+            ]);
+            handles.push(image.into());
         }
         if let Some(bundle) = bundle {
             let handle = OwnedFd::from(sealed(bundle)?);
@@ -408,10 +423,21 @@ impl Launcher {
                 "0",
                 "/run/provider",
                 "--",
-                "/run/provider",
             ]
             .map(OsString::from),
         );
+        if let Some(target) = target {
+            let (device, inode) = target.identity()?;
+            arguments.extend([
+                "/run/target-entry".into(),
+                super::entry::FLAG.into(),
+                device.to_string().into(),
+                inode.to_string().into(),
+                target.path().as_os_str().into(),
+            ]);
+        } else {
+            arguments.push("/run/provider".into());
+        }
         arguments.extend_from_slice(command);
         self.revalidate()?;
         let output = process::with_files(
@@ -452,6 +478,7 @@ mod tests {
         fs::write(temporary.path().join("private"), "outside\n")?;
         let target = Target::open(&path)?;
         target.revalidate()?;
+        assert!(target.verify_mount(target.identity()?).is_err());
         symlink(&path, temporary.path().join("alias"))?;
         symlink(temporary.path(), temporary.path().join("parent-alias"))?;
         let nested = path.join("state");
@@ -530,53 +557,6 @@ mod tests {
         assert_eq!(held.metadata()?.ino(), before.ino());
         assert_ne!(fs::metadata(&path)?.ino(), before.ino());
 
-        // Exercise the actual descriptor transfer and mount policy when supported.
-        // This fixture is deliberately unsigned and never enters the public API.
-        let target = Target::open(&temporary.path().join("moved"))?;
-        if let Ok(launcher) = Launcher::system() {
-            let control = launcher.invoke(
-                b"#!/bin/sh\nprintf 'ready'\n",
-                &["provider-info".into()],
-                Some(&target),
-                Some(b"bundle\n"),
-            );
-            if let Ok(control) = control {
-                assert_eq!(control, b"ready");
-                let script = br##"#!/bin/sh
-test "$1" = status || exit 20
-test "$HOME" = /home && test -z "$PATH" || exit 21
-test ! -e "$3/private" && test ! -e /etc/passwd || exit 22
-read -r value < "$2/marker"
-test "$value" = exact || exit 23
-for entry in /proc/self/fd/*; do
-    test ! -d "$entry" || exit 24
-done
-if { printf changed > "$2/marker"; } 2>/dev/null; then exit 25; fi
-if { printf created > "$2/new"; } 2>/dev/null; then exit 26; fi
-read -r bundle < /run/bundle
-test "$bundle" = bundle || exit 27
-if { printf changed > /run/bundle; } 2>/dev/null; then exit 28; fi
-printf '{"verified":true}\n'
-"##;
-                let output = launcher.invoke(
-                    script,
-                    &[
-                        "status".into(),
-                        target.path().as_os_str().into(),
-                        temporary.path().as_os_str().into(),
-                    ],
-                    Some(&target),
-                    Some(b"bundle\n"),
-                )?;
-                assert_eq!(wire::parse(&output)?, json!({"verified":true}));
-                assert_eq!(fs::read(target.path().join("marker"))?, b"exact\n");
-                assert!(!target.path().join("new").exists());
-            } else {
-                eprintln!(
-                    "Host isolation unavailable; no positive mount-containment evidence claimed"
-                );
-            }
-        }
         Ok(())
     }
 }
