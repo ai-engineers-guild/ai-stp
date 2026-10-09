@@ -148,16 +148,19 @@ describe("exportScanFindings", () => {
     });
     const revoke = vi.fn();
     vi.stubGlobal("URL", { ...URL, createObjectURL: create, revokeObjectURL: revoke });
+    vi.useFakeTimers();
     const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
     try {
       downloadScanFindings(scan, "csv");
       expect(create).toHaveBeenCalledTimes(1);
       expect(captured?.type).toBe("text/csv;charset=utf-8");
       expect(click).toHaveBeenCalledTimes(1);
+      vi.advanceTimersByTime(1000);
       expect(revoke).toHaveBeenCalledWith("blob:fixture");
     } finally {
       vi.unstubAllGlobals();
       click.mockRestore();
+      vi.useRealTimers();
     }
   });
 });

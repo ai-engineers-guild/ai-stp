@@ -230,6 +230,7 @@ export function TechnologyFindingTableRow({
           ) : (
             <SearchableMultiSelect
               name={`category-${rowKey(row)}`}
+              modal
               label={`${w("category")}: ${row.technology_name ?? row.coordinate}`}
               searchLabel={w("chooseCategory")}
               options={(state.categories ?? [])

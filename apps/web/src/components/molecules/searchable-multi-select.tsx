@@ -104,6 +104,7 @@ export function SearchableMultiSelect({
         : [];
     setChecked(updated);
     onChange?.(updated);
+    if (!multiple && next) closeDialog();
   }
 
   function closeDialog() {

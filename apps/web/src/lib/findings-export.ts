@@ -104,8 +104,8 @@ export function exportScanFindings(
           `- Detector: ${scan.detector_version ?? "—"}`,
           `- Mapping: ${scan.mapping_version ?? "—"}`,
           "",
-          "| Kind | Tier | Coordinate | Technology | Context | Version | State | Review | Evidence |",
-          "| --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+          "| Kind | Tier | Coordinate | Technology | Context | Version | Version kind | State | Review | Evidence |",
+          "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
           ...scan.findings.map((row) => `| ${findingCells(row).map(mdCell).join(" | ")} |`),
         ].join("\n"),
       };
@@ -125,6 +125,10 @@ export function downloadScanFindings(
   const anchor = document.createElement("a");
   anchor.href = url;
   anchor.download = filename;
+  document.body.append(anchor);
   anchor.click();
-  URL.revokeObjectURL(url);
+  anchor.remove();
+  setTimeout(() => {
+    URL.revokeObjectURL(url);
+  }, 1000);
 }

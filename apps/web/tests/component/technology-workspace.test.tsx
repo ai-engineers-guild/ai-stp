@@ -159,7 +159,9 @@ it("edits categories inline and filters out classified findings", async () => {
   expect(screen.queryByText("fastapi")).toBeNull();
   const row = screen.getByText("weirdlib").closest("tr");
   if (!row) throw new Error("Missing finding row");
-  fireEvent.click(within(row).getByText("Choose a category", { selector: "summary span" }));
+  fireEvent.click(
+    within(row).getByRole("button", { name: "Category: weirdlib: Choose a category" }),
+  );
   fireEvent.click(within(row).getByRole("checkbox", { name: "API frameworks" }));
   expect(row).toHaveTextContent("Server applications");
   fireEvent.click(within(row).getByRole("button", { name: "Confirm and apply" }));
