@@ -19,7 +19,7 @@ pub(super) fn selected(bytes: &[u8], subpath: Option<&str>) -> Result<Vec<Member
     if subpath.is_some_and(|path| !artifacts::safe_path(path)) {
         return Err(invalid());
     }
-    let mut archive = crate::sources::archive::open(bytes, MAX_ARCHIVE)?;
+    let mut archive = crate::archive::external::open(bytes, MAX_ARCHIVE)?;
     let mut root = None;
     let mut names = BTreeSet::new();
     let mut files = Vec::new();
@@ -147,7 +147,7 @@ mod tests {
         let end = excessive_count.len() - 22;
         excessive_count[end + 8..end + 12].copy_from_slice(&[255, 255, 255, 255]);
         assert!(selected(&excessive_count, Some("skills/demo")).is_err());
-        let (count, start) = crate::sources::archive::directory(&archive, MAX_ARCHIVE)?;
+        let (count, start) = crate::archive::external::directory(&archive, MAX_ARCHIVE)?;
         let field = |at| {
             usize::from(u16::from_le_bytes([
                 archive[start + at],

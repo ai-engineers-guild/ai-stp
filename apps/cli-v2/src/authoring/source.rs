@@ -226,6 +226,7 @@ fn walk(
     names: &mut Vec<String>,
     entries: &mut usize,
     started: Instant,
+    excluded: &[&str],
 ) -> Result<()> {
     if base.split('/').count() > 32 || started.elapsed() > Duration::from_secs(10) {
         return Err(invalid());
@@ -237,6 +238,9 @@ fn walk(
         }
         let entry = entry.map_err(|_| invalid())?;
         let name = entry.file_name().into_string().map_err(|_| invalid())?;
+        if base.is_empty() && excluded.contains(&name.as_str()) {
+            continue;
+        }
         let path = if base.is_empty() {
             name.clone()
         } else {
@@ -251,6 +255,7 @@ fn walk(
                 names,
                 entries,
                 started,
+                excluded,
             )?;
         } else if metadata.is_file() && !metadata.file_type().is_symlink() {
             names.push(path);
@@ -290,7 +295,7 @@ fn tree(root: &Path, directory: &Dir, require_manifest: bool) -> Result<Vec<Memb
         Some(names) => names,
         None => {
             let mut names = Vec::new();
-            walk(directory, "", &mut names, &mut 0, Instant::now())?;
+            walk(directory, "", &mut names, &mut 0, Instant::now(), &[])?;
             names.into_iter().map(|name| (name, None)).collect()
         }
     };
@@ -384,6 +389,77 @@ pub(crate) fn capture_external(root: &Path, relative: &str) -> Result<Captured> 
     capture_scoped_with(root, relative, false, false)
 }
 
+/// Metadata ports capture local bytes without invoking Git or interpreting ignore files.
+/// The selected directory's Git state and nori.json remain context, not payload.
+pub(super) fn capture_interop(root: &Path, relative: &str) -> Result<Captured> {
+    if relative != "." {
+        check_name(relative)?;
+    }
+    let metadata = root.symlink_metadata().map_err(|_| invalid())?;
+    if !metadata.is_dir() || metadata.file_type().is_symlink() {
+        return Err(invalid());
+    }
+    let root = root.canonicalize().map_err(|_| invalid())?;
+    let mut directory = open_directory(&root)?;
+    let absolute = if relative == "." {
+        root.clone()
+    } else {
+        root.join(relative)
+    };
+    if relative != "." {
+        let mut parts = relative.split('/').peekable();
+        while let Some(part) = parts.next() {
+            let metadata = directory.symlink_metadata(part).map_err(|_| invalid())?;
+            if parts.peek().is_none() && metadata.is_file() && !metadata.file_type().is_symlink() {
+                let member = read(&directory, part)?;
+                return Ok(Captured {
+                    format: artifacts::FILE_FORMAT,
+                    bytes: member.bytes,
+                    file_mode: Some(member.mode),
+                });
+            }
+            directory = directory.open_dir_nofollow(part).map_err(|_| invalid())?;
+        }
+    }
+    if absolute.parent().is_none()
+        || files::home()
+            .and_then(|home| home.canonicalize().ok())
+            .is_some_and(|home| home == absolute)
+    {
+        return Err(invalid());
+    }
+    let started = Instant::now();
+    same_directory(&absolute, &directory)?;
+    let mut names = Vec::new();
+    walk(
+        &directory,
+        "",
+        &mut names,
+        &mut 0,
+        started,
+        &[".git", "nori.json"],
+    )?;
+    let mut total = 0;
+    let mut members = Vec::new();
+    for name in names {
+        if started.elapsed() > Duration::from_secs(10) {
+            return Err(invalid());
+        }
+        let member = read(&directory, &name)?;
+        total += member.bytes.len();
+        if total > artifacts::MAX_TREE_BYTES {
+            return Err(invalid());
+        }
+        members.push(member);
+    }
+    same_directory(&absolute, &directory)?;
+    Ok(Captured {
+        format: artifacts::TREE_FORMAT,
+        bytes: artifacts::encode_tree(&members)?,
+        file_mode: None,
+    })
+}
+
 /// A discovered project MCP file is read only for subsequent data-only validation.
 /// This exception never applies to generic file/tree capture or another filename.
 pub(super) fn capture_claude_mcp(root: &Path) -> Result<Captured> {
@@ -411,9 +487,11 @@ pub(super) fn capture_native_entries(root: &Path, relative: &str) -> Result<Capt
 /// Namespace manifests above the selected component are context, not payload.
 /// Inspect only their presence within the explicit root, without following links.
 pub(super) fn reject_plugin_ancestors(root: &Path, relative: &str, markers: &[&str]) -> Result<()> {
-    check_name(relative)?;
+    if relative != "." {
+        check_name(relative)?;
+    }
     let mut directory = open_directory(root)?;
-    let mut parts = relative.split('/');
+    let mut parts = relative.split('/').filter(|part| *part != ".");
     loop {
         for marker in markers {
             match directory.symlink_metadata(marker) {

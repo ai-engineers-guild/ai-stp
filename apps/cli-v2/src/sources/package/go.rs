@@ -7,7 +7,8 @@ use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use url::Url;
 
-use crate::sources::{archive, snapshot, transport};
+use crate::archive::external as archive;
+use crate::sources::{snapshot, transport};
 use crate::{
     artifacts::{self, Member},
     canonical, digest,

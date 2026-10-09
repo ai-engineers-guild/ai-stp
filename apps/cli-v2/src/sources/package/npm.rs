@@ -5,14 +5,13 @@ use serde_json::{Map, Value, json};
 use sha2::{Digest, Sha512};
 use url::Url;
 
-use super::tarfiles;
+use super::{
+    metadata::{exact_version, tar_snapshot},
+    tarfiles,
+};
 use crate::{
-    canonical, digest,
     error::{Failure, Result},
-    sources::{
-        snapshot,
-        transport::{Client, Service, allowed},
-    },
+    sources::transport::{Client, Service, allowed},
     wire,
 };
 
@@ -52,8 +51,7 @@ fn coordinate(name: &str, version: &str) -> Result<()> {
     } else {
         part(name)
     };
-    let valid_version = version.len() <= 256 && regex::Regex::new(r"^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?(\+[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$")
-        .map_err(|_| invalid())?.is_match(version);
+    let valid_version = exact_version(version);
     if name.len() > 214 || !name_ok || !valid_version {
         return Err(Failure::input(
             "npm requires a bounded package name and exact semantic version",
@@ -177,17 +175,15 @@ fn report(
                 && url.fragment().is_none()
         })
         .map(|url| url.to_string());
-    let snapshot = snapshot::encode(files)?;
-    let value = json!({"schema_version":1,"snapshot":{
-        "kind":"package","canonical_coordinate":format!("package:npm:{name}@{version}"),
-        "exact_identity":version,"archive_digest":digest::bytes("ai-stp:artifact:v1",archive)?,
-        "component_digest":snapshot.digest,"file_paths":snapshot.paths,
-        "package_evidence":{"ecosystem":"npm","integrity":integrity,"entry_point":entry,
-            "lifecycle_scripts":scripts,"repository":repository,"lockfile_name":lock,"declared_dependencies":dependencies},
-        "fetched_at":format!("{:.3}",jiff::Timestamp::now()),"author_verified":false,"component_verified":false,"target_write":false},
-        "artifact":snapshot.artifact,"provenance":"package_registry_observed","network_accessed":true,"filesystem_accessed":false});
-    canonical::bytes(&value)?;
-    Ok(value)
+    tar_snapshot(
+        "npm",
+        name,
+        version,
+        archive,
+        files,
+        json!({"ecosystem":"npm","integrity":integrity,"entry_point":entry,
+            "lifecycle_scripts":scripts,"repository":repository,"lockfile_name":lock,"declared_dependencies":dependencies}),
+    )
 }
 
 pub(super) fn fetch(name: &str, version: &str) -> Result<Value> {
