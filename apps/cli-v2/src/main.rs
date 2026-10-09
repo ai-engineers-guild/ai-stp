@@ -9,6 +9,13 @@ fn main() -> ExitCode {
         let arguments: Vec<_> = std::env::args_os().skip(1).collect();
         if arguments
             .first()
+            .is_some_and(|value| value == ai_stp_cli_v2::provider::runtime::entry::FLAG)
+        {
+            let _ = ai_stp_cli_v2::provider::runtime::entry::run(&arguments[1..]);
+            return ExitCode::from(70);
+        }
+        if arguments
+            .first()
             .is_some_and(|value| value == ai_stp_cli_v2::provider::runtime::probe::FLAG)
         {
             return match ai_stp_cli_v2::provider::runtime::probe::run(&arguments[1..]) {
