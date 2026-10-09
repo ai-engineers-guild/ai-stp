@@ -23,13 +23,13 @@ fn invalid() -> Failure {
     Failure::precondition("the provider target is invalid, aliased or changed during observation")
 }
 
-pub(super) struct Target {
+pub(crate) struct Target {
     directory: File,
     path: PathBuf,
 }
 
 impl Target {
-    pub(super) fn open(path: &Path) -> Result<Self> {
+    pub(crate) fn open(path: &Path) -> Result<Self> {
         if !path.is_absolute() || path.as_os_str().len() > 4096 || path.to_str().is_none() {
             return Err(invalid());
         }
@@ -64,7 +64,7 @@ impl Target {
         })
     }
 
-    pub(super) fn path(&self) -> &Path {
+    pub(crate) fn path(&self) -> &Path {
         &self.path
     }
 
@@ -72,7 +72,7 @@ impl Target {
         rustix::io::fcntl_dupfd_cloexec(&self.directory, 3).map_err(|_| invalid())
     }
 
-    pub(super) fn identity(&self) -> Result<(u64, u64)> {
+    pub(crate) fn identity(&self) -> Result<(u64, u64)> {
         let metadata = self.directory.metadata().map_err(|_| invalid())?;
         Ok((metadata.dev(), metadata.ino()))
     }
@@ -90,25 +90,51 @@ impl Target {
     }
 
     /// Hold the state parent before any write and reject either ancestry direction.
-    pub(super) fn state_parent(&self, path: &Path) -> Result<Dir> {
+    pub(crate) fn state_parent(&self, path: &Path) -> Result<Dir> {
         let parent =
             Dir::open_ambient_dir(path, cap_std::ambient_authority()).map_err(|_| invalid())?;
-        let target = Dir::from_std_file(self.directory.try_clone().map_err(|_| invalid())?);
-        self.revalidate()?;
-        if contains(&parent, &target)? || contains(&target, &parent)? {
-            return Err(Failure::precondition(
-                "the provider target and trust state parent must be disjoint directories",
-            ));
-        }
+        self.disjoint(&parent)?;
         Ok(parent)
     }
 
-    pub(super) fn revalidate(&self) -> Result<()> {
+    /// Check ancestry using held directories, including aliases and bind mounts.
+    pub(super) fn disjoint(&self, other: &Dir) -> Result<()> {
+        let target = Dir::from_std_file(self.directory.try_clone().map_err(|_| invalid())?);
+        self.revalidate()?;
+        if contains(other, &target)? || contains(&target, other)? {
+            return Err(Failure::precondition(
+                "the provider target, program prefix and trust state must be disjoint directories",
+            ));
+        }
+        Ok(())
+    }
+
+    pub(crate) fn revalidate(&self) -> Result<()> {
         let current = Self::open(&self.path)?;
         let before = self.directory.metadata().map_err(|_| invalid())?;
         let after = current.directory.metadata().map_err(|_| invalid())?;
         if before.dev() != after.dev() || before.ino() != after.ino() {
             return Err(invalid());
+        }
+        Ok(())
+    }
+
+    pub(crate) fn directory(&self) -> Result<Dir> {
+        self.revalidate()?;
+        Ok(Dir::from_std_file(
+            self.directory.try_clone().map_err(|_| invalid())?,
+        ))
+    }
+
+    /// Generated artifacts may be siblings of a target, but never written
+    /// inside it. The final target remains exclusively the provider's surface.
+    pub(crate) fn outside(&self, parent: &Path) -> Result<()> {
+        let parent =
+            Dir::open_ambient_dir(parent, cap_std::ambient_authority()).map_err(|_| invalid())?;
+        if contains(&self.directory()?, &parent)? {
+            return Err(Failure::precondition(
+                "bundle output must be outside the provider target",
+            ));
         }
         Ok(())
     }

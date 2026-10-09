@@ -10,6 +10,9 @@ fn mounted_target_is_verified_before_provider_execution() -> Result<(), Box<dyn 
     let target = root.path().join("target");
     fs::create_dir(&target)?;
     fs::write(target.join("marker"), b"exact\n")?;
+    let prefix = root.path().join("prefix");
+    fs::create_dir(&prefix)?;
+    fs::write(prefix.join("program"), b"retained\n")?;
     let provider = root.path().join("provider");
     fs::write(
         &provider,
@@ -24,13 +27,21 @@ for entry in /proc/self/fd/*; do
 done
 if { printf changed > /target/marker; } 2>/dev/null; then exit 25; fi
 if { printf created > /target/new; } 2>/dev/null; then exit 26; fi
+if { printf changed > /prefix/program; } 2>/dev/null; then exit 27; fi
 printf provider-ran
 "##,
     )?;
     fs::set_permissions(&provider, fs::Permissions::from_mode(0o500))?;
     let metadata = target.metadata()?;
-    let run = |read_only: bool, device: u64, inode: u64| {
-        Command::new("/usr/bin/bwrap")
+    let prefix_metadata = prefix.metadata()?;
+    let run = |read_only: bool,
+               device: u64,
+               inode: u64,
+               prefix_read_only: bool,
+               prefix_inode: u64,
+               count: u64| {
+        let mut command = Command::new("/usr/bin/bwrap");
+        command
             .args([
                 "--unshare-all",
                 "--die-with-parent",
@@ -66,16 +77,39 @@ printf provider-ran
             ])
             .arg(if read_only { "--ro-bind" } else { "--bind" })
             .arg(&target)
-            .args(["/target", "--", "/run/entry", "--ai-stp-target-entry"])
+            .arg("/target")
+            .arg(if prefix_read_only {
+                "--ro-bind"
+            } else {
+                "--bind"
+            })
+            .arg(&prefix)
+            .args(["/prefix", "--", "/run/entry", "--ai-stp-target-entry"])
+            .arg(count.to_string())
             .arg(device.to_string())
             .arg(inode.to_string())
-            .args(["/target", "status"])
+            .arg("/target");
+        if count == 2 {
+            command
+                .arg(prefix_metadata.dev().to_string())
+                .arg(prefix_inode.to_string())
+                .arg("/prefix");
+        }
+        command
+            .arg("status")
             .env_clear()
             .env("HOME", "/home")
             .env("PATH", "")
             .output()
     };
-    let control = run(true, metadata.dev(), metadata.ino());
+    let control = run(
+        true,
+        metadata.dev(),
+        metadata.ino(),
+        true,
+        prefix_metadata.ino(),
+        2,
+    );
     let Ok(control) = control else {
         eprintln!("Host launcher unavailable; no positive target-mount evidence claimed");
         return Ok(());
@@ -93,10 +127,29 @@ printf provider-ran
         (true, metadata.dev() ^ 1, metadata.ino()),
         (false, metadata.dev(), metadata.ino()),
     ] {
-        let output = run(read_only, device, inode)?;
+        let output = run(read_only, device, inode, true, prefix_metadata.ino(), 2)?;
         assert_eq!(output.status.code(), Some(70));
         assert!(output.stdout.is_empty() && output.stderr.is_empty());
     }
+    let single = run(
+        true,
+        metadata.dev(),
+        metadata.ino(),
+        true,
+        prefix_metadata.ino(),
+        1,
+    )?;
+    assert!(single.status.success());
+    assert_eq!(single.stdout, b"provider-ran");
+    for (read_only, inode) in [
+        (false, prefix_metadata.ino()),
+        (true, prefix_metadata.ino() ^ 1),
+    ] {
+        let output = run(true, metadata.dev(), metadata.ino(), read_only, inode, 2)?;
+        assert_eq!(output.status.code(), Some(70));
+        assert!(output.stdout.is_empty() && output.stderr.is_empty());
+    }
+    assert_eq!(fs::read(prefix.join("program"))?, b"retained\n");
     assert_eq!(fs::read_dir(&target)?.count(), 1);
     assert_eq!(fs::read(target.join("marker"))?, b"exact\n");
     Ok(())
@@ -198,6 +251,12 @@ fn private_probe_reaches_real_listeners_and_rejects_invalid_inputs() -> Result<(
         vec!["--ai-stp-target-entry"],
         vec!["--ai-stp-target-entry", "secret", "0", "/tmp", "status"],
         vec!["--ai-stp-target-entry", "0", "0", "/", "status"],
+        vec!["--ai-stp-provider-worker"],
+        vec![
+            "--ai-stp-provider-worker",
+            "ai-stp-provider-01ARZ3NDEKTSV4RRFFQ69G5FAV.service",
+        ],
+        vec!["--ai-stp-provider-worker", "secret-argument", "extra"],
     ] {
         let output = Command::new(env!("CARGO_BIN_EXE_ai-stp-v2"))
             .args(args)

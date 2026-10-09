@@ -6,7 +6,7 @@ use crate::{
     error::Result,
     process::{self, Request},
     projection::Scope,
-    provider::plan,
+    provider::{plan, software},
     wire,
 };
 use serde_json::{Value, json};
@@ -287,6 +287,7 @@ impl Launcher {
         }
         let output = process::with_input(
             request(&launcher.executable, &isolated, &environment),
+            &launcher.image,
             image,
         )?;
         if !output.status.success() {
@@ -311,7 +312,7 @@ impl Launcher {
         json!({"enforcement":"enforced","launcher":"bubblewrap","launcher_digest":self.digest,"positive_control":["ipv4_tcp","ipv6_tcp","ipv4_udp"],"isolated":"denied","filesystem":"declared_runtime_only"})
     }
     pub(super) fn inspect(&self, bytes: &[u8]) -> Result<Vec<u8>> {
-        self.invoke(bytes, &["provider-info".into()], None, None)
+        self.invoke(bytes, &["provider-info".into()], &[], None)
     }
     pub(super) fn status(&self, bytes: &[u8], target: &Target, scope: Scope) -> Result<Vec<u8>> {
         let mut arguments = vec![
@@ -323,7 +324,7 @@ impl Launcher {
         if scope != Scope::Global {
             arguments.extend(["--target-scope".into(), scope.as_str().into()]);
         }
-        self.invoke(bytes, &arguments, Some(target), None)
+        self.invoke(bytes, &arguments, &[target], None)
     }
     pub(super) fn validate(
         &self,
@@ -340,7 +341,7 @@ impl Launcher {
             target.path().as_os_str().into(),
         ];
         arguments.extend(bundle_arguments(request));
-        self.invoke(bytes, &arguments, None, Some(bundle))
+        self.invoke(bytes, &arguments, &[], Some(bundle))
     }
     pub(super) fn plan(
         &self,
@@ -368,26 +369,64 @@ impl Launcher {
             arguments.extend(["--target-scope".into(), scope.as_str().into()]);
         }
         arguments.extend(bundle_arguments(request));
-        self.invoke(bytes, &arguments, Some(target), Some(bundle))
+        self.invoke(bytes, &arguments, &[target], Some(bundle))
+    }
+    pub(super) fn software_plan(
+        &self,
+        bytes: &[u8],
+        target: &Target,
+        prefix: &Target,
+        scope: Scope,
+        request: &software::Request,
+    ) -> Result<Vec<u8>> {
+        let mut arguments = vec![
+            "plan-operation".into(),
+            "--json".into(),
+            "--target".into(),
+            target.path().as_os_str().into(),
+            "--prefix".into(),
+            prefix.path().as_os_str().into(),
+            "--operation".into(),
+            request.operation.clone().into(),
+            "--operation-id".into(),
+            request.operation_id.clone().into(),
+            "--expires-at".into(),
+            request.expires_at.clone().into(),
+            "--provider-release-digest".into(),
+            digest::sha256(bytes).into(),
+        ];
+        if let Some(version) = &request.software_version {
+            arguments.extend(["--software-version".into(), version.into()]);
+        }
+        if scope != Scope::Global {
+            arguments.extend(["--target-scope".into(), scope.as_str().into()]);
+        }
+        self.invoke(bytes, &arguments, &[target, prefix], None)
     }
     fn invoke(
         &self,
         bytes: &[u8],
         command: &[OsString],
-        target: Option<&Target>,
+        targets: &[&Target],
         bundle: Option<&[u8]>,
     ) -> Result<Vec<u8>> {
         let input = sealed(bytes)?;
         let mut arguments = base();
         let mut handles = Vec::new();
-        if let Some(target) = target {
+        if targets.len() > 2 {
+            return Err(unavailable());
+        }
+        for target in targets {
+            target.revalidate()?;
             let handle = target.handle()?;
             arguments.extend([
                 "--ro-bind-fd".into(),
                 handle.as_raw_fd().to_string().into(),
                 target.path().as_os_str().into(),
             ]);
-            handles.push(handle);
+            handles.push((arguments.len() - 2, handle));
+        }
+        if !targets.is_empty() {
             let source = File::open("/proc/self/exe").map_err(|_| unavailable())?;
             let image =
                 File::from(rustix::io::fcntl_dupfd_cloexec(&source, 3).map_err(|_| unavailable())?);
@@ -402,7 +441,7 @@ impl Launcher {
                 image.as_raw_fd().to_string().into(),
                 "/run/target-entry".into(),
             ]);
-            handles.push(image.into());
+            handles.push((arguments.len() - 2, OwnedFd::from(image)));
         }
         if let Some(bundle) = bundle {
             let handle = OwnedFd::from(sealed(bundle)?);
@@ -413,7 +452,7 @@ impl Launcher {
                 handle.as_raw_fd().to_string().into(),
                 "/run/bundle".into(),
             ]);
-            handles.push(handle);
+            handles.push((arguments.len() - 2, handle));
         }
         arguments.extend(
             [
@@ -426,15 +465,20 @@ impl Launcher {
             ]
             .map(OsString::from),
         );
-        if let Some(target) = target {
-            let (device, inode) = target.identity()?;
+        if !targets.is_empty() {
             arguments.extend([
                 "/run/target-entry".into(),
                 super::entry::FLAG.into(),
-                device.to_string().into(),
-                inode.to_string().into(),
-                target.path().as_os_str().into(),
+                targets.len().to_string().into(),
             ]);
+            for target in targets {
+                let (device, inode) = target.identity()?;
+                arguments.extend([
+                    device.to_string().into(),
+                    inode.to_string().into(),
+                    target.path().as_os_str().into(),
+                ]);
+            }
         } else {
             arguments.push("/run/provider".into());
         }
@@ -442,6 +486,7 @@ impl Launcher {
         self.revalidate()?;
         let output = process::with_files(
             request(&self.executable, &arguments, &environment()),
+            &self.image,
             input,
             handles,
         )?;
@@ -478,6 +523,7 @@ mod tests {
         fs::write(temporary.path().join("private"), "outside\n")?;
         let target = Target::open(&path)?;
         target.revalidate()?;
+        // A same-inode writable directory is not a read-only provider mount.
         assert!(target.verify_mount(target.identity()?).is_err());
         symlink(&path, temporary.path().join("alias"))?;
         symlink(temporary.path(), temporary.path().join("parent-alias"))?;
