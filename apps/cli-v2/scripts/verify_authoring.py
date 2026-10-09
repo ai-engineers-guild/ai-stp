@@ -304,6 +304,25 @@ def prove(binary: Path, home: Path, temporary: Path, run: Runner) -> None:
     (native_skill.parent / "package.json").write_text(
         json.dumps({"ai-stp": {"component": {"tags": ["native-review"]}}}), encoding="utf-8"
     )
+    # This existing journey also proves metadata import with empty PATH: Git,
+    # package managers and scripts cannot supply the implementation.
+    (native_home / ".git").mkdir()
+    (native_home / ".git/config").write_text("invalid git configuration", encoding="utf-8")
+    skill_lock = native_home / ".agents/.skill-lock.json"
+    skill_lock.write_text(
+        json.dumps(
+            {
+                "version": 3,
+                "skills": {
+                    "native-review": {
+                        "source": "example/skills",
+                        "skillFolderHash": "a" * 40,
+                    }
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
     candidates = invoke(
         [
             "component",
@@ -341,6 +360,11 @@ def prove(binary: Path, home: Path, temporary: Path, run: Runner) -> None:
     assert shared["facts"]["harness_id"]["value"] == "codex"
     assert shared["facts"]["harness_id"]["origin"] == "declared"
     assert shared["facts"]["observed_harness_id"]["value"] is None
+    assert shared["facts"]["source_digest"]["value"] is None
+    assert shared["facts"]["source_claimed_folder_hash"]["value"] == "a" * 40
+    assert shared["facts"]["source_manifest_digest"]["value"] == digest_bytes(
+        "ai-stp:artifact:v1", skill_lock.read_bytes()
+    )
     suggestions_args = [
         "component",
         "passport",

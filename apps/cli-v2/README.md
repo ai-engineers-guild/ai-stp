@@ -342,6 +342,34 @@ version inspection use one read transaction and never open credentials. Provider
 declaration files describe packaging only; executable trust and installation
 remain separate pending boundaries.
 
+Discovery also reads project-root `nori.json` and project/home
+`.agents/.skill-lock.json` version 3. The bounded ports follow the pinned
+[Nori manifest](https://github.com/tilework-tech/nori-skillsets/blob/475129bbd6098137bdb77f3390b894b2340dbb2a/src/norijson/nori.ts)
+and [askill lock](https://github.com/avibe-bot/askill/blob/b4d968c96781b3996dcdfa4785782efd51860fdd/src/lock.ts)
+formats: root skills, listed skills/subagents/slash commands, and locked skill
+directories. No external package installation or collection download is implied.
+Each manifest is limited to 1 MiB and 500 entries. Duplicate keys, colliding
+names, ambiguous file/directory alternatives, unknown lock versions, missing
+paths, links and over-bound input produce an incomplete discovery diagnostic;
+the failing manifest contributes no package candidates. Generic layout candidates
+remain independent filesystem observations. Nori optional null lists are absent.
+
+Candidates stay harness-neutral; adoption explicitly chooses a destination and
+validates its native identifiers from captured bytes at the destination path.
+Unsupported native formats/layouts refuse; discovery creates no provider route. Neither display names nor manifest statements
+establish native identity, repository, revision, publisher or trust. The lock's
+40/64-character lowercase `skillFolderHash` is retained as
+`source_claimed_folder_hash`, with `source_digest` null: it is an external claim,
+not the computed artifact digest. Weak local lock fingerprints are unsupported.
+`source_manifest_digest` binds exact manifest bytes; normal `content_digest`
+independently binds the captured file/tree. Plan/apply rechecks both.
+
+These imports invoke no Git, script, package manager or network. Capture uses
+bounded no-follow filesystem reads, includes ignored files, refuses secret paths,
+and excludes only `.git` and `nori.json` at the selected directory's root.
+The latter remains metadata evidence outside the payload. Existing atomic draft
+adoption/import, owner checks, idempotent replay and stale-plan refusal apply.
+
 `component passport suggest` reads the exact current component head and verifies
 its retained content before inspecting only root `package.json` (`ai-stp.component`)
 and `pyproject.toml` (`tool.ai-stp.component`) declarations. The Python namespace

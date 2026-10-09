@@ -1,5 +1,7 @@
 //! Bounded inspection of declared native layouts at one explicit scope root.
 
+mod interop;
+
 use std::{
     collections::BTreeSet,
     io::Read,
@@ -21,7 +23,7 @@ use crate::{
     projects,
 };
 
-#[derive(Serialize)]
+#[derive(Clone, Serialize)]
 pub struct Candidate {
     pub component_type: String,
     pub projection_kind: String,
@@ -42,6 +44,8 @@ pub struct Candidate {
     pub declared_key: String,
     #[serde(skip)]
     pub absolute: PathBuf,
+    #[serde(skip)]
+    pub(super) metadata_port: bool,
 }
 
 #[derive(Serialize)]
@@ -184,6 +188,15 @@ impl Scanner {
         if layout.declared_key.is_empty() {
             return Ok(Vec::new());
         }
+        contribution::entry_names(
+            Format::for_path(name)?,
+            &self.read(directory, name)?,
+            &layout.declared_key,
+        )
+    }
+
+    fn read(&self, directory: &Dir, name: &str) -> Result<Vec<u8>> {
+        self.check()?;
         if projects::secret_name(name) {
             return Err(refused());
         }
@@ -206,7 +219,8 @@ impl Scanner {
         {
             return Err(refused());
         }
-        contribution::entry_names(Format::for_path(name)?, &bytes, &layout.declared_key)
+        self.check()?;
+        Ok(bytes)
     }
 
     fn layout(
@@ -324,11 +338,11 @@ fn describe(
         evidence_refs,
         declared_key: layout.declared_key.clone(),
         absolute,
+        metadata_port: false,
     })
 }
 
-/// Completeness refers only to matching catalog layouts at this explicit root.
-/// Package provenance, portable recursion and installed-plugin adapters are separate sources.
+/// Completeness covers matching layouts and the two bounded local metadata ports.
 pub fn at(root: &Path, harness: &str, scope: Scope, root_kind: Root) -> Result<Discovery> {
     let definition = harnesses::definition(harness)?;
     let mut layouts: Vec<_> = definition
@@ -393,6 +407,11 @@ pub fn at(root: &Path, harness: &str, scope: Scope, root_kind: Root) -> Result<D
                 result.diagnostics.push(Diagnostic { code:"incomplete_layout", source:layout.relative.clone(), reason:"layout contains unsafe or unreadable entries, invalid configuration, or exceeds its budget" });
             }
         }
+    }
+    if (scope == Scope::Project && root_kind == Root::Config)
+        || (scope == Scope::Global && root_kind == Root::Home)
+    {
+        interop::merge(&scanner, &directory, &root, scope, &mut result);
     }
     result.components.sort_by(|a, b| {
         (&a.harness_id, &a.component_type, &a.native_path).cmp(&(
