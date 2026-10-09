@@ -2,6 +2,7 @@
 
 mod aggregate;
 pub mod copies;
+pub(crate) mod definition;
 pub mod drafts;
 pub mod export;
 pub mod releases;
@@ -28,7 +29,7 @@ use crate::{
     },
 };
 
-const FORMAT: &str = "ai-stp-setup-definition/1";
+use definition::FORMAT;
 
 /// Exact immutable setup coordinate, independently verified before use.
 #[derive(Clone, Deserialize, Serialize)]
@@ -96,12 +97,6 @@ impl Plan {
             &serde_json::to_value(self).map_err(|_| invalid())?,
         )
     }
-}
-
-fn definition(document: &Value) -> Value {
-    json!({"schema_version":1,"format":FORMAT,"stable_id":document["stable_id"],
-        "version":document["version"],"harness_id":document["harness_id"],
-        "input_digest":document["facts"]["snapshot"]["value"],"components":document["components"]})
 }
 
 fn member(connection: &Connection, reference: &Value, harness: &str) -> Result<Value> {
@@ -207,7 +202,7 @@ pub(crate) fn compile(
 
 pub(crate) fn finish(mut document: Value) -> Result<(Value, Vec<u8>)> {
     passport::versions::normalize_component_refs(&mut document["components"])?;
-    let payload = canonical::bytes(&definition(&document))?;
+    let payload = canonical::bytes(&definition::document(&document))?;
     document["artifact"] =
         json!({"digest":digest::bytes("ai-stp:artifact:v1", &payload)?,"size_bytes":payload.len()});
     let document = revisions::seal(&document)?;
@@ -240,36 +235,7 @@ pub(crate) fn verify(connection: &Connection, document: &Value) -> Result<()> {
 }
 
 pub(crate) fn verify_definition(document: &Value, payload: &[u8]) -> Result<()> {
-    let mut retained = canonical::parse(payload)?;
-    if document["artifact_format"] != FORMAT
-        || document["artifact"]["size_bytes"] != payload.len()
-        || payload != canonical::bytes(&retained)?
-    {
-        return Err(invalid());
-    }
-    // The production builder omits optional reference defaults in the artifact.
-    // Compare their meaning without changing either immutable representation.
-    let mut expected = definition(document);
-    // Catalog builders may retain input provenance only in the addressed artifact.
-    // When the passport also carries it, both representations must agree.
-    if expected["input_digest"].is_null() {
-        let address = retained["input_digest"].as_str().ok_or_else(invalid)?;
-        if address.len() != 71
-            || !address.starts_with("sha256:")
-            || !address[7..]
-                .bytes()
-                .all(|b| b.is_ascii_hexdigit() && !b.is_ascii_uppercase())
-        {
-            return Err(invalid());
-        }
-        expected["input_digest"] = retained["input_digest"].clone();
-    }
-    passport::versions::normalize_component_refs(&mut retained["components"])?;
-    passport::versions::normalize_component_refs(&mut expected["components"])?;
-    if retained != expected {
-        return Err(invalid());
-    }
-    Ok(())
+    definition::verify(document, payload).map(|_| ())
 }
 
 fn normalize(request: &mut Request) {
