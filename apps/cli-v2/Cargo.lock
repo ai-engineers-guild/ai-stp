@@ -70,6 +70,7 @@ dependencies = [
  "unicode-normalization",
  "ureq",
  "url",
+ "win-custody",
  "windows-native-keyring-store",
  "winsafe",
  "winx",
@@ -3051,6 +3052,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7dcd9d09a39985f5344844e66b0c530a33843579125f23e21e9f0f220850f22a"
 dependencies = [
  "rustls-pki-types",
+]
+
+[[package]]
+name = "win-custody"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e9f78c23db90914be58d60cb31a9f4c608cc344f55fc7aa8879937ba308eada3"
+dependencies = [
+ "windows-sys 0.61.2",
 ]
 
 [[package]]

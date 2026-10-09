@@ -1,5 +1,8 @@
 //! One-shot child processes with explicit authority and bounded capture.
 
+#[cfg(windows)]
+mod windows;
+
 use std::{
     ffi::OsString,
     io::Read,
@@ -129,6 +132,8 @@ fn execute_command(
             "Windows children must be native executables",
         ));
     }
+    #[cfg(windows)]
+    windows::own_lifetime()?;
     let mut command = Command::new(request.executable);
     command
         .args(request.arguments)

@@ -1491,6 +1491,30 @@ terminates descendants on exit or refusal. This is lifecycle control, not an
 execution sandbox. Its dependency is removable when child execution is removed;
 no async runtime or tracing feature is enabled for it.
 
+Before the first managed Windows spawn, `process/windows` places the calling
+CLI process itself in an anonymous, non-inheritable kill-on-close Job Object.
+The once-only initialization verifies the requested limits and fails closed if
+the enclosing environment refuses assignment. The handle remains owned by the
+CLI until process exit; no breakaway flag is enabled. Windows therefore assigns
+new children to this lifetime job during creation, including the interval before
+`process-wrap` assigns its separate per-command job. Per-command cancellation
+still stops only that command's descendants. CLI termination closes the outer
+handle and terminates its descendants, including nested jobs. This relies on
+Windows 8 or later job nesting; it does not constrain broker-created processes,
+filesystem access or networking. Embedding this engine also encloses its calling
+process and future children after the first managed spawn.
+
+The Windows-only `win-custody` dependency supplies the safe Job API over the
+already locked `windows-sys`; no additional Windows binding version is added.
+Only job creation, limit readback and current-process assignment are used. Its
+launch/token/session APIs are unused, and its suspended-then-assigned spawn
+method does not establish atomic ownership. CLI maintainers own its pin and
+advisory review; removing Windows lifetime ownership removes the dependency.
+The Windows proof kills a separate owner with a deliberately suspended,
+unassigned child, then repeats through the real process adapter with a live
+child and grandchild. It waits on retained process handles, checks denied
+breakaway and never infers termination from PID disappearance alone.
+
 ## Modules and proof
 
 | Owner | Responsibility |
