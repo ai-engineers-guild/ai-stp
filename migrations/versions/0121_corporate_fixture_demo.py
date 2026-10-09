@@ -30,35 +30,41 @@ down_revision = "0120_finding_review_category"
 branch_labels = None
 depends_on = None
 
+
+def _sid(tag: str) -> str:
+    # Canonical ULID suffix for fixture ids: 26 Crockford chars, first in [0-7].
+    return f"{tag:0>26}"
+
+
 # ck_organization_id: 'organization_' prefix + 26 chars = 39 total.
-ORG = "organization_fixture0000000000000000000"
+ORG = f"organization_{_sid('F1XTRC0RP')}"
 
 TEAMS = [
-    ("team_fixture_core", "Core Platform"),
-    ("team_fixture_web", "Product Web"),
-    ("team_fixture_data", "Data Services"),
-    ("team_fixture_ops", "Infrastructure"),
+    (f"operation_{_sid('TEAM01')}", "Core Platform"),
+    (f"operation_{_sid('TEAM02')}", "Product Web"),
+    (f"operation_{_sid('TEAM03')}", "Data Services"),
+    (f"operation_{_sid('TEAM04')}", "Infrastructure"),
 ]
 # (account_id, display_name, team_index, is_lead)
 EMPLOYEES = [
-    ("account_fixture_emp01", "Anna Smirnova", 0, True),
-    ("account_fixture_emp02", "Ivan Petrov", 0, False),
-    ("account_fixture_emp03", "Maria Kuznetsova", 0, False),
-    ("account_fixture_emp04", "Dmitry Volkov", 1, True),
-    ("account_fixture_emp05", "Elena Sokolova", 1, False),
-    ("account_fixture_emp06", "Sergey Morozov", 1, False),
-    ("account_fixture_emp07", "Olga Novikova", 2, True),
-    ("account_fixture_emp08", "Pavel Fedorov", 2, False),
-    ("account_fixture_emp09", "Tatiana Orlova", 2, False),
-    ("account_fixture_emp10", "Andrey Zaitsev", 3, True),
-    ("account_fixture_emp11", "Natalia Romanova", 3, False),
-    ("account_fixture_emp12", "Viktor Lebedev", 3, False),
+    (f"account_{_sid('EMP01')}", "Anna Smirnova", 0, True),
+    (f"account_{_sid('EMP02')}", "Ivan Petrov", 0, False),
+    (f"account_{_sid('EMP03')}", "Maria Kuznetsova", 0, False),
+    (f"account_{_sid('EMP04')}", "Dmitry Volkov", 1, True),
+    (f"account_{_sid('EMP05')}", "Elena Sokolova", 1, False),
+    (f"account_{_sid('EMP06')}", "Sergey Morozov", 1, False),
+    (f"account_{_sid('EMP07')}", "Olga Novikova", 2, True),
+    (f"account_{_sid('EMP08')}", "Pavel Fedorov", 2, False),
+    (f"account_{_sid('EMP09')}", "Tatiana Orlova", 2, False),
+    (f"account_{_sid('EMP10')}", "Andrey Zaitsev", 3, True),
+    (f"account_{_sid('EMP11')}", "Natalia Romanova", 3, False),
+    (f"account_{_sid('EMP12')}", "Viktor Lebedev", 3, False),
 ]
 PROJECTS = [
-    ("project_fixture_devtools", "Dev Tools"),
-    ("project_fixture_portal", "Customer Portal"),
-    ("project_fixture_analytics", "Analytics API"),
-    ("project_fixture_deploy", "Deploy Automation"),
+    (f"remote_project_{_sid('PRJ01')}", "Dev Tools"),
+    (f"remote_project_{_sid('PRJ02')}", "Customer Portal"),
+    (f"remote_project_{_sid('PRJ03')}", "Analytics API"),
+    (f"remote_project_{_sid('PRJ04')}", "Deploy Automation"),
 ]
 # Twenty seed identities, two per functional taxonomy category.
 TECH_SUFFIXES = {
@@ -169,7 +175,7 @@ def upgrade() -> None:
         binding_seq += 1
         connection.execute(
             insert(bindings).values(
-                id=f"operation_fixture_{binding_seq:03d}",
+                id=f"operation_{_sid(f'BND{binding_seq:03d}')}",
                 organization_id=ORG,
                 account_id=account_id,
                 role=role,
@@ -220,7 +226,7 @@ def upgrade() -> None:
                 id=project_id,
                 organization_id=ORG,
                 namespace="remote",
-                external_key=f"fixture/{project_id.removeprefix('project_fixture_')}",
+                external_key=f"corporate:{project_id}",
                 display_name=name,
                 state="active",
             )
@@ -313,4 +319,5 @@ def downgrade() -> None:
             sa.text(f"DELETE FROM {table} WHERE organization_id = :org"), {"org": ORG}
         )
     connection.execute(sa.text("DELETE FROM organization WHERE id = :org"), {"org": ORG})
-    connection.execute(sa.text("DELETE FROM account WHERE id LIKE 'account\\_fixture\\_%'"))
+    for account_id, _display_name, _team, _lead in EMPLOYEES:
+        connection.execute(sa.text("DELETE FROM account WHERE id = :id"), {"id": account_id})
