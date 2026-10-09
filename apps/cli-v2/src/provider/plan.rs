@@ -22,7 +22,7 @@ fn invalid() -> Failure {
     Failure::precondition("the provider plan does not match its exact request and observations")
 }
 
-fn hash(value: &str) -> bool {
+pub(super) fn hash(value: &str) -> bool {
     value.strip_prefix("sha256:").is_some_and(|value| {
         value.len() == 64
             && value
@@ -170,7 +170,7 @@ impl Request {
     }
 }
 
-fn response(bytes: &[u8]) -> Result<Value> {
+pub(super) fn response(bytes: &[u8]) -> Result<Value> {
     if bytes.len() > 1024 * 1024 {
         return Err(invalid());
     }
