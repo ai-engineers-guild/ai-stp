@@ -1,7 +1,9 @@
 //! Deterministic provider packages from exact local versions and explicit evidence.
 
 mod composition;
+pub(crate) mod hosts;
 mod package;
+pub mod reports;
 
 use std::collections::BTreeMap;
 
@@ -24,8 +26,9 @@ const MAX_FILE_BYTES: usize = 4 * 1024 * 1024;
 const MAX_BYTES: usize = 64 * 1024 * 1024;
 
 /// Exact observed host bytes, or an explicitly observed absence. Missing keys
-/// mean unknown, never an empty configuration. The runtime must capture these
-/// without credentials and revalidate their identity before provider execution.
+/// mean unknown, never an empty configuration. The compiler checks credentials
+/// in the assembled output. The runtime must revalidate host identity before
+/// provider execution.
 pub type Hosts = BTreeMap<String, Option<Vec<u8>>>;
 
 pub struct Bundle {
@@ -73,7 +76,7 @@ pub fn compile(
     })
 }
 
-fn compile_snapshot(
+pub(crate) fn compile_snapshot(
     connection: &Connection,
     setup: &Value,
     target: &Target,
@@ -145,44 +148,16 @@ fn compile_snapshot(
         let (adaptation, scope) =
             projection::adaptation(&component, &target.harness_id, target.scope)
                 .ok_or_else(|| invalid("an exact scope adaptation disappeared"))?;
-        if scope["required_surface"]["bundle_format"] != "ai-stp-bundle/2" {
-            return Err(invalid(
-                "native bundle compilation requires adaptation-bound format v2",
-            ));
-        }
-        // Bound aggregate allocation before loading any selected projection.
-        projection_bytes = projection_bytes
-            .checked_add(
-                scope["projection_artifact"]["size_bytes"]
-                    .as_u64()
-                    .ok_or_else(|| invalid("projection size missing"))?,
-            )
-            .ok_or_else(|| invalid("projection inputs exceed their bounds"))?;
-        if projection_bytes > (2 * MAX_BYTES) as u64 {
-            return Err(invalid("the selected projection archives exceed 128 MiB"));
-        }
-        let payload =
-            revisions::read_content(connection, text(&scope["projection_artifact"], "digest")?)?;
-        let members = projection::artifact::verify(scope, &payload)?;
-        drop(payload);
+        let members = projected(
+            connection,
+            &component,
+            scope,
+            &target.harness_id,
+            &mut projection_bytes,
+        )?;
         let declared = scope["members"]
             .as_array()
             .ok_or_else(|| invalid("projection members are missing"))?;
-        if members.is_empty()
-            || declared
-                .iter()
-                .any(|member| member["object_type"] != "file")
-        {
-            return Err(invalid(
-                "bundle v2 requires a file for every component and cannot preserve explicit directory members",
-            ));
-        }
-        crate::authoring::native_identity::verify_files(
-            text(&component, "component_type")?,
-            &target.harness_id,
-            declared,
-            &members,
-        )?;
         composition.include(&component, scope, &assessment)?;
         let declared: BTreeMap<_, _> = declared
             .iter()
@@ -194,14 +169,6 @@ fn compile_snapshot(
                 .get(member.path.as_str())
                 .ok_or_else(|| invalid("a projection file has no declaration"))?;
             composition.claim(id, &member.path)?;
-            if secret(&member.path)
-                || member.bytes.len() > MAX_FILE_BYTES
-                || !matches!(member.mode, 0o644 | 0o755)
-            {
-                return Err(invalid(
-                    "a bundle file violates its credential, size or mode boundary",
-                ));
-            }
             if declaration["ownership"] == "contribution" {
                 let host = remaining_hosts.remove(member.path.as_str()).ok_or_else(|| {
                     invalid(
@@ -223,6 +190,11 @@ fn compile_snapshot(
                     format,
                     host,
                     text(declaration, "ownership_key")?,
+                    &member.bytes,
+                )?;
+                crate::authoring::native_identity::verify_configuration_credentials(
+                    &target.harness_id,
+                    &member.path,
                     &member.bytes,
                 )?;
             }
@@ -288,6 +260,71 @@ fn compile_snapshot(
         archive,
         assessment,
     })
+}
+
+/// A valid retained projection can still be unrepresentable in bundle v2.
+fn surface_refusal(scope: &Value) -> Result<Option<&'static str>> {
+    if scope["required_surface"]["bundle_format"] != "ai-stp-bundle/2" {
+        return Ok(Some(
+            "Native bundle compilation requires adaptation-bound format v2.",
+        ));
+    }
+    let members = scope["members"]
+        .as_array()
+        .ok_or_else(|| invalid("projection members are missing"))?;
+    if members.is_empty() || members.iter().any(|member| member["object_type"] != "file") {
+        return Ok(Some(
+            "Bundle v2 requires a file for every component and cannot preserve explicit directory members.",
+        ));
+    }
+    Ok(None)
+}
+
+/// Shared projection verification for reports and emitted packages.
+fn projected(
+    connection: &Connection,
+    component: &Value,
+    scope: &Value,
+    harness: &str,
+    projection_bytes: &mut u64,
+) -> Result<Vec<Member>> {
+    if let Some(reason) = surface_refusal(scope)? {
+        return Err(invalid(reason));
+    }
+    // Bound aggregate allocation before loading any selected projection.
+    *projection_bytes = projection_bytes
+        .checked_add(
+            scope["projection_artifact"]["size_bytes"]
+                .as_u64()
+                .ok_or_else(|| invalid("projection size missing"))?,
+        )
+        .ok_or_else(|| invalid("projection inputs exceed their bounds"))?;
+    if *projection_bytes > (2 * MAX_BYTES) as u64 {
+        return Err(invalid("the selected projection archives exceed 128 MiB"));
+    }
+    let payload =
+        revisions::read_content(connection, text(&scope["projection_artifact"], "digest")?)?;
+    let members = projection::artifact::verify(scope, &payload)?;
+    drop(payload);
+    let declared = scope["members"]
+        .as_array()
+        .ok_or_else(|| invalid("projection members are missing"))?;
+    crate::authoring::native_identity::verify_files(
+        text(component, "component_type")?,
+        harness,
+        declared,
+        &members,
+    )?;
+    if members.iter().any(|member| {
+        secret(&member.path)
+            || member.bytes.len() > MAX_FILE_BYTES
+            || !matches!(member.mode, 0o644 | 0o755)
+    }) {
+        return Err(invalid(
+            "a bundle file violates its credential, size or mode boundary",
+        ));
+    }
+    Ok(members)
 }
 
 /// The public provider's credential filename boundary; no content inspection.
