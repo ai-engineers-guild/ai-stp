@@ -38,6 +38,7 @@ enum Handler {
     ScaffoldPlan,
     ScaffoldApply,
     SourceInspect,
+    SourceCapture,
     SourceAddress(bool),
     IdentityPlan,
     IdentityApply,
@@ -148,6 +149,13 @@ const SOURCE_ROOT: Parameter = Parameter {
     summary: "Explicit absolute base for a relative local address; parsing does not access its files.",
     kind: ParameterType::Path,
     required: false,
+};
+
+const SOURCE_PATH: Parameter = Parameter {
+    name: "path",
+    summary: "Portable relative file or directory under the explicit root; at most 512 bytes.",
+    kind: ParameterType::String,
+    required: true,
 };
 
 const STATE_DIR: Parameter = Parameter {
@@ -283,6 +291,12 @@ const COMMANDS: &[Declaration] = &[
         summary: "Inspect exact portable source bytes and unresolved scaffold fields without executing code.",
         parameters: &[ROOT],
         handler: Handler::SourceInspect,
+    },
+    Declaration {
+        path: &["component", "source", "capture"],
+        summary: "Capture an exact bounded local source snapshot without writing state or granting trust.",
+        parameters: &[ROOT, SOURCE_PATH],
+        handler: Handler::SourceCapture,
     },
     Declaration {
         path: &["component", "source", "parse"],
@@ -733,6 +747,12 @@ pub fn dispatch(matches: &ArgMatches) -> Result<Value> {
         Handler::SourceInspect => source_project::inspect(
             leaf.get_one::<std::path::PathBuf>("root")
                 .ok_or_else(|| Failure::input("source root is required"))?,
+        ),
+        Handler::SourceCapture => crate::sources::local::capture(
+            leaf.get_one::<std::path::PathBuf>("root")
+                .ok_or_else(|| Failure::input("source root is required"))?,
+            leaf.get_one::<String>("path")
+                .ok_or_else(|| Failure::input("relative source path is required"))?,
         ),
         Handler::SourceAddress(resolve) => crate::sources::inspect(
             leaf.get_one::<String>("source")

@@ -152,6 +152,23 @@ on bounded in-memory strings on all supported platforms. No subprocess, I/O
 timeout or new network client is involved. CLI maintainers own updates and advisory
 checks; removing URL source parsing removes this direct dependency.
 
+`component source capture --root --path` observes exactly one relative local file
+or tree under an explicit absolute root. It returns portable source metadata and
+an unpadded base64url canonical component-tree artifact. The shared source digest
+binds ordered paths and original content; the artifact digest also binds modes.
+Absolute local paths are absent from the report. UTF-8 source bytes are preserved
+without Unicode rewriting; binary files, secret-named entries, links, special
+files, escaping paths and empty trees refuse. The snapshot keeps both verification
+axes and `target_write` false and records only `provenance: local_observed`.
+
+Capture uses the existing bounded reader: at most 1,000 files, 4 MiB per file,
+4,000 traversed entries and 32 directory levels; the snapshot additionally limits
+total content to 8 MiB. A Git working tree uses tracked and unignored untracked
+files, with the reader's bounded Git process; no remote commit is inferred from
+working bytes. Selecting a file excludes native hook sibling directories.
+No credential session, local registry or output directory is created. This read
+does not register a component or establish publication/install eligibility.
+
 `component source inspect` captures one explicit `/7` authoring project using the
 bounded Git/regular-file source reader. It validates the generator-owned descriptor
 and closed passport patch, checks up to 64 distinct portable source entry paths,
@@ -1130,6 +1147,7 @@ no async runtime or tracing feature is enabled for it.
 | `files/tree.rs` | Shared recoverable directory publication with no-replace rename |
 | `identity/` | Explicit offline identity initialization, private key storage and public signing identity |
 | `sources.rs` | Pure source-address parsing and explicit GitHub commit pinning without provenance claims |
+| `sources/local.rs` | Bounded local source observations and interoperable content snapshots |
 | `authoring/source_project.rs` | One bounded source snapshot, metadata separation and structural readiness |
 | `authoring/adaptations.rs` | Explicit portable-to-native projections preserving source bodies and modes |
 | `authoring/review.rs` | Read-only publication structure and optional quality hints over every retained adaptation |

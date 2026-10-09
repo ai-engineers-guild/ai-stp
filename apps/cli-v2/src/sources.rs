@@ -1,5 +1,7 @@
 //! Bounded source intent parsing. An exact coordinate is not observed provenance.
 
+pub mod local;
+
 use std::path::{Path, PathBuf};
 
 use percent_encoding::percent_decode_str;
