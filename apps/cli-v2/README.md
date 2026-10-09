@@ -253,6 +253,22 @@ with default features disabled and a direct edge to the already locked pure Rust
 `flate2` decoder. CLI maintainers own advisory review and archive proofs; removing
 TAR registry observation removes `tar` and this direct `flate2` edge.
 
+`component source package fetch` also supports `crates.io` and `pub.dev`.
+Both require an exact semantic version and matching registry and archived
+manifest identities. Crates use the exact official version endpoint, declared
+archive size and SHA-256, then read only `<name>-<version>/Cargo.toml` and
+`Cargo.lock`. Pub uses the v2 API media type, SHA-256 and only root `pubspec.yaml`
+and `pubspec.lock`; official storage redirects must stay within the Pub package
+bucket. Pub YAML has a 32-level/20,000-event bound and disallows aliases.
+These readers share the bounded TAR and canonical snapshot implementation.
+
+`distribution_yanked` (crates) and `distribution_retracted` (Pub) describe the
+observed registry state. The shared evidence field `resolved_graph` remains
+empty and `dependency_resolution_performed: false` is explicit: declared ranges
+and a present lockfile are not evidence of a resolver run. Exact manifest and
+lockfile bytes remain in the artifact. No Cargo/Dart process, dependency fetch,
+credential access, installation approval or filesystem write occurs.
+
 The external source adapters own the existing `zip` dependency's
 `deflate-flate2-zlib-rs` feature and its locked `flate2` and `zlib-rs` closure.
 The Rust compression maintainers publish `flate2` under MIT or Apache-2.0;

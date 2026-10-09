@@ -301,12 +301,12 @@ const COMMANDS: &[Declaration] = &[
             Parameter {
                 name: "ecosystem",
                 summary: "Implemented official package registry.",
-                kind: ParameterType::Choice(&["go", "pypi", "npm"]),
+                kind: ParameterType::Choice(&["go", "pypi", "npm", "crates.io", "pub.dev"]),
                 required: true,
             },
             Parameter {
                 name: "name",
-                summary: "Go module path, PyPI project or npm package name.",
+                summary: "Exact registry package name or Go module path.",
                 kind: ParameterType::String,
                 required: true,
             },
