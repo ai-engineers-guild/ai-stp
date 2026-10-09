@@ -14,7 +14,7 @@ use crate::{
     canonical,
     error::{Failure, Result},
     files,
-    passport::developer,
+    passport::{developer, device},
     projects,
     provider::Info,
     store::{Store, versions::Increment},
@@ -24,6 +24,7 @@ use crate::{
 pub(super) enum Handler {
     DeveloperInitialize,
     DeveloperUpdate,
+    DeviceRefresh,
     Validate,
     Quality,
     Suggest,
@@ -149,6 +150,12 @@ const INCREMENT: Parameter = Parameter {
 };
 
 pub(super) const COMMANDS: &[Declaration] = &[
+    Declaration {
+        path: &["passport", "device", "refresh", "plan"],
+        summary: "Plan private runtime platform and CLI-version observations; unobserved harness inventory stays absent.",
+        parameters: &[STATE_DIR],
+        handler: super::Handler::Local(Handler::DeviceRefresh),
+    },
     Declaration {
         path: &["passport", "developer", "initialize", "plan"],
         summary: "Plan a private developer context or retain its exact current revision without inferring preferences.",
@@ -554,6 +561,7 @@ fn providers(args: &ArgMatches) -> Result<Vec<Info>> {
 
 pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
     match handler {
+        Handler::DeviceRefresh => runtime::plan(path(args, "state-dir")?, device::plan),
         Handler::DeveloperInitialize | Handler::DeveloperUpdate => {
             let update = matches!(handler, Handler::DeveloperUpdate);
             let patch = update

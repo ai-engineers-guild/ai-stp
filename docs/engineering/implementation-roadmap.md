@@ -55,6 +55,10 @@ in that baseline. C3 migrates its concrete Nori/skill-lock metadata ports rather
 than inventing a remote collection protocol. C3 owns local project
 registration and durable project-to-setup selection; C4 supplies real device
 and provider observations to its eligibility engine before command exposure.
+Native device refresh records only runtime platform and CLI version with exact
+head revalidation and unchanged-observation retention. Harness inventory remains
+unobserved until C4 supplies it; an offline device key or platform passport does
+not establish an installed harness or executable authority.
 Project indexing intentionally refuses all symlinks, including internal aliases,
 and catalog cache access requires an explicit isolated directory. Historical
 public passports retain their original omitted fields and published digest.
