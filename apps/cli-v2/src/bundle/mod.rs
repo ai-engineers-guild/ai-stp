@@ -1,6 +1,7 @@
 //! Deterministic provider packages from exact local versions and explicit evidence.
 
 mod composition;
+pub(crate) mod hosts;
 mod package;
 
 use std::collections::BTreeMap;
@@ -74,7 +75,7 @@ pub fn compile(
     })
 }
 
-fn compile_snapshot(
+pub(crate) fn compile_snapshot(
     connection: &Connection,
     setup: &Value,
     target: &Target,

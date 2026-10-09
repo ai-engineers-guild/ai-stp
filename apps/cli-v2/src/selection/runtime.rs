@@ -3,6 +3,7 @@
 #[cfg(test)]
 mod tests;
 
+pub mod bundles;
 pub mod sessions;
 
 use std::{collections::BTreeMap, path::Path};
