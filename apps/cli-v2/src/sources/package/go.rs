@@ -7,7 +7,7 @@ use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use url::Url;
 
-use super::{archive, snapshot, transport};
+use crate::sources::{archive, snapshot, transport};
 use crate::{
     artifacts::{self, Member},
     canonical, digest,
@@ -193,7 +193,7 @@ fn checksum(bytes: &[u8], name: &str, version: &str) -> Result<String> {
     found.ok_or_else(invalid)
 }
 
-pub fn fetch(name: &str, selected: &str) -> Result<Value> {
+pub(super) fn fetch(name: &str, selected: &str) -> Result<Value> {
     let (module, escaped) = coordinate(name, selected)?;
     let client = transport::Client::new(transport::Service::Go);
     let url = |suffix: &str| {
