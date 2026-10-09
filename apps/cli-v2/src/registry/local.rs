@@ -8,8 +8,8 @@ use std::path::{Path, PathBuf};
 use super::{Declaration, ID, KIND, Parameter, ParameterType, ROOT, STATE_DIR};
 use crate::{
     authoring::{
-        adoption, derivation, discovery, forks, importing, lifecycle, native_edit, passports,
-        project_binding, releases, review, runtime, scaffold, setups,
+        adoption, derivation, discovery, forks, importing, lifecycle, materialization, native_edit,
+        passports, project_binding, releases, review, runtime, scaffold, setups,
     },
     canonical,
     error::{Failure, Result},
@@ -36,6 +36,7 @@ pub(super) enum Handler {
     Update,
     NativeEdit,
     Derive,
+    Materialize,
     Release,
     Fork,
     Forget,
@@ -150,6 +151,21 @@ const INCREMENT: Parameter = Parameter {
 };
 
 pub(super) const COMMANDS: &[Declaration] = &[
+    Declaration {
+        path: &["component", "materialize", "plan"],
+        summary: "Plan all exact target adaptations together as an owned immutable version or a private component with retained origin.",
+        parameters: &[
+            STATE_DIR,
+            Parameter {
+                name: "request",
+                summary: "Closed JSON up to 16 KiB: exact source, source_harness, targets or all_missing, output owned/private, optional private overlay_id.",
+                kind: ParameterType::Path,
+                required: true,
+            },
+            PROVIDERS,
+        ],
+        handler: super::Handler::Local(Handler::Materialize),
+    },
     Declaration {
         path: &["passport", "device", "refresh", "plan"],
         summary: "Plan private runtime platform and CLI-version observations; unobserved harness inventory stays absent.",
@@ -311,7 +327,7 @@ pub(super) const COMMANDS: &[Declaration] = &[
     },
     Declaration {
         path: &["component", "adaptation", "derive", "plan"],
-        summary: "Plan a missing MCP adaptation from an exact owned draft without dropping controls, scopes or constraints.",
+        summary: "Plan a missing literal MCP or common skill adaptation from an exact owned draft without dropping controls, scopes or constraints.",
         parameters: &[
             STATE_DIR,
             ID,
@@ -319,7 +335,7 @@ pub(super) const COMMANDS: &[Declaration] = &[
             Parameter {
                 name: "source-harness",
                 summary: "Existing native adaptation to convert.",
-                kind: ParameterType::Choice(&["codex", "cursor", "opencode"]),
+                kind: ParameterType::Choice(&["claude-code", "codex", "cursor", "opencode"]),
                 required: true,
             },
             Parameter {
@@ -561,6 +577,13 @@ fn providers(args: &ArgMatches) -> Result<Vec<Info>> {
 
 pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
     match handler {
+        Handler::Materialize => {
+            let request = materialization::Request::read(path(args, "request")?)?;
+            let providers = providers(args)?;
+            runtime::plan(path(args, "state-dir")?, |store, identity, at| {
+                materialization::plan(store, request, &providers, identity, at)
+            })
+        }
         Handler::DeviceRefresh => runtime::plan(path(args, "state-dir")?, device::plan),
         Handler::DeveloperInitialize | Handler::DeveloperUpdate => {
             let update = matches!(handler, Handler::DeveloperUpdate);
