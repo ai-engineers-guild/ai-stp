@@ -690,6 +690,7 @@ fn mutability(handler: Handler) -> &'static str {
         Handler::ScaffoldPlan | Handler::IdentityPlan | Handler::CatalogAcquirePlan => "plan",
         Handler::ScaffoldApply | Handler::IdentityApply => "apply",
         Handler::Local(handler) => handler.mutability(),
+        Handler::Provider(providers::Handler::Plan) => "plan",
         _ => "read",
     }
 }

@@ -1,0 +1,49 @@
+{
+  "state": "planned",
+  "plan_digest": "sha256:de20a588478afbeed83bf611aba42c6777f1ee61fbf320dd3fa42a44d4df1b73",
+  "effects": [
+    "capture the current target into a new backup slot",
+    "only the files this provider recorded writing go; anything else under the same root is left alone",
+    "write the 1 declared files over the entries this provider owns",
+    "write AGENTS.md"
+  ],
+  "expected_target_digest": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "bundle_format": "ai-stp-bundle/2",
+  "bundle_digest": "sha256:ce8bbe3a9f6a3e6b811e29aaabc4361a13778b217e92910408bb2e2b07858746",
+  "artifact_digest": "sha256:ce4278319dca190743dee10cdc45c132173c925789d0d29f5eb6ea9ca1aa215b",
+  "bundle_size": 6607,
+  "valid": true,
+  "plan": {
+    "format": "ai-stp-provider-plan/3",
+    "protocol_version": 3,
+    "provider_id": "codex-setup-system",
+    "provider_version": "0.0.88",
+    "provider_build_digest": "sha256:58599e87b2e4141afb5c69dc9ae1172a4971af9ac15f9f6d5777b5be6bfe34c0",
+    "provider_release_digest": "sha256:25b2190c300edd9d115fc859e1431f3c4925329e11dd77610d15a2a00c5255ea",
+    "operation_id": "operation_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+    "operation": "install",
+    "canonical_target": "/tmp/ai-stp-provider-plan",
+    "expected_target_digest": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "projection_profile_digest": "sha256:0b51b0ddd434f62c11b504102dafb62a28a59a6436104882355632e6d86f2585",
+    "bundle": {
+      "bundle_format": "ai-stp-bundle/2",
+      "bundle_digest": "sha256:ce8bbe3a9f6a3e6b811e29aaabc4361a13778b217e92910408bb2e2b07858746",
+      "artifact_digest": "sha256:ce4278319dca190743dee10cdc45c132173c925789d0d29f5eb6ea9ca1aa215b",
+      "bundle_size": 6607
+    },
+    "backup_ref": null,
+    "restore_target_digest": null,
+    "permission_profile": null,
+    "platform": {
+      "os": "linux",
+      "arch": "x86_64"
+    },
+    "expires_at": "2030-01-01T00:15:00.000Z",
+    "effects": [
+      "capture the current target into a new backup slot",
+      "only the files this provider recorded writing go; anything else under the same root is left alone",
+      "write the 1 declared files over the entries this provider owns",
+      "write AGENTS.md"
+    ]
+  }
+}
