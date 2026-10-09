@@ -18,7 +18,8 @@ from datetime import UTC, datetime, time, timedelta
 from typing import Final, Literal, cast
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import distinct, func, inspect, select, text, tuple_
+from sqlalchemy import Date, Integer, distinct, func, inspect, select, text, tuple_
+from sqlalchemy import cast as sa_cast
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.elements import ColumnElement
@@ -1013,9 +1014,6 @@ async def aggregate_report(
     object_assigned: dict[tuple[str, str, str, str | None, str | None], set[str]] = {}
     object_installed: dict[tuple[str, str, str, str | None, str | None], set[str]] = {}
     setup_required: dict[tuple[str, str, str], set[tuple[str, str]]] = {}
-    object_events: dict[
-        tuple[str, str, str, str | None, str | None], list[tuple[str, str, datetime]]
-    ] = {}
     for employee_id, links in assigned_components.items():
         installed = installed_by_employee.get(employee_id, set())
         for component_id, component_version, setup_id, setup_version in links:
@@ -1042,50 +1040,171 @@ async def aggregate_report(
     days: Counter[str] = Counter()
     hours: Counter[tuple[int, int]] = Counter()
     columns = _GROUP_COLUMNS[query.group_by]
-    active_days: dict[tuple[object, ...], set[str]] = {}
-    employee_days: dict[str, set[str]] = {}
+    active_days: dict[tuple[object, ...], int] = {}
+    employee_days: dict[str, int] = {}
     employee_used: dict[str, set[tuple[str, str]]] = {}
     employee_uses: Counter[str] = Counter()
     employee_last_used: dict[str, datetime] = {}
-    # ponytail: stream event timestamps until report volume warrants database-specific bucketing.
-    for event_record in await session.execute(
-        select(
-            *columns,
-            EventRow.invoked_at,
-            EventRow.employee_account_id,
-            EventRow.component_stable_id,
-            EventRow.component_version,
-            EventRow.setup_stable_id,
-            EventRow.setup_version,
-        ).where(*clauses)
-    ):
-        invoked_at = event_record[-6]
-        employee_id = event_record[-5]
-        component_id = event_record[-4]
-        component_version = event_record[-3]
-        setup_id = event_record[-2]
-        setup_version = event_record[-1]
-        local = (
-            invoked_at.replace(tzinfo=UTC).astimezone(zone)
-            if invoked_at.tzinfo is None
-            else invoked_at.astimezone(zone)
+    # (used_by, uses, active_days, last_used_at) per object key.
+    object_stats: dict[
+        tuple[str, str, str, str | None, str | None], tuple[int, int, int, datetime]
+    ] = {}
+    if session.get_bind().dialect.name == "postgresql":
+        # Bucketing happens in the database: local-day, weekday/hour and the
+        # per-object and per-employee aggregates all come back grouped, so no
+        # event stream is materialized. `timezone(tz, ts)` is `ts AT TIME
+        # ZONE tz`; extract('dow') is Sunday-based, weekday() Monday-based.
+        local_ts = func.timezone(report_timezone, EventRow.invoked_at)
+        day_expr = sa_cast(local_ts, Date)
+        weekday_expr = func.mod(sa_cast(func.extract("dow", local_ts), Integer) + 6, 7)
+        hour_expr = sa_cast(func.extract("hour", local_ts), Integer)
+        for day, count in await session.execute(
+            select(day_expr, func.count()).where(*clauses).group_by(day_expr)
+        ):
+            days[day.isoformat()] = count
+        for weekday, hour, count in await session.execute(
+            select(weekday_expr, hour_expr, func.count())
+            .where(*clauses)
+            .group_by(weekday_expr, hour_expr)
+        ):
+            hours[(int(weekday), int(hour))] = count
+        object_count = (
+            func.count(distinct(EventRow.employee_account_id)),
+            func.count(),
+            func.count(distinct(day_expr)),
+            func.max(EventRow.invoked_at),
         )
-        day = local.date().isoformat()
-        days[day] += 1
-        hours[(local.weekday(), local.hour)] += 1
-        active_days.setdefault(tuple(event_record[: len(columns)]), set()).add(day)
-        employee_days.setdefault(employee_id, set()).add(day)
-        employee_used.setdefault(employee_id, set()).add((component_id, component_version))
-        object_events.setdefault(
-            ("component", component_id, component_version, setup_id, setup_version), []
-        ).append((employee_id, day, invoked_at))
-        if setup_id is not None and setup_version is not None:
-            object_events.setdefault(("setup", setup_id, setup_version, None, None), []).append(
-                (employee_id, day, invoked_at)
+        for record in await session.execute(
+            select(
+                EventRow.component_stable_id,
+                EventRow.component_version,
+                EventRow.setup_stable_id,
+                EventRow.setup_version,
+                *object_count,
             )
-        employee_uses[employee_id] += 1
-        if employee_id not in employee_last_used or invoked_at > employee_last_used[employee_id]:
-            employee_last_used[employee_id] = invoked_at
+            .where(*clauses)
+            .group_by(
+                EventRow.component_stable_id,
+                EventRow.component_version,
+                EventRow.setup_stable_id,
+                EventRow.setup_version,
+            )
+        ):
+            object_stats[("component", record[0], record[1], record[2], record[3])] = (
+                record[4],
+                record[5],
+                record[6],
+                record[7],
+            )
+        for record in await session.execute(
+            select(EventRow.setup_stable_id, EventRow.setup_version, *object_count)
+            .where(
+                *clauses,
+                EventRow.setup_stable_id.is_not(None),
+                EventRow.setup_version.is_not(None),
+            )
+            .group_by(EventRow.setup_stable_id, EventRow.setup_version)
+        ):
+            object_stats[("setup", record[0], record[1], None, None)] = (
+                record[2],
+                record[3],
+                record[4],
+                record[5],
+            )
+        for employee_id, uses, day_count, last_used in await session.execute(
+            select(
+                EventRow.employee_account_id,
+                func.count(),
+                func.count(distinct(day_expr)),
+                func.max(EventRow.invoked_at),
+            )
+            .where(*clauses)
+            .group_by(EventRow.employee_account_id)
+        ):
+            employee_uses[employee_id] = uses
+            employee_days[employee_id] = day_count
+            if last_used is not None:
+                employee_last_used[employee_id] = last_used
+        for employee_id, component_id, component_version in await session.execute(
+            select(
+                EventRow.employee_account_id,
+                EventRow.component_stable_id,
+                EventRow.component_version,
+            )
+            .where(*clauses)
+            .distinct()
+        ):
+            employee_used.setdefault(employee_id, set()).add((component_id, component_version))
+    else:
+        # Portable fallback (SQLite unit tests): the same aggregates computed
+        # by streaming bounded retention-window rows in Python.
+        group_day_sets: dict[tuple[object, ...], set[str]] = {}
+        employee_day_sets: dict[str, set[str]] = {}
+        object_employees: dict[tuple[str, str, str, str | None, str | None], set[str]] = {}
+        object_day_sets: dict[tuple[str, str, str, str | None, str | None], set[str]] = {}
+        object_use_counts: Counter[tuple[str, str, str, str | None, str | None]] = Counter()
+        object_last_used: dict[tuple[str, str, str, str | None, str | None], datetime] = {}
+        for event_record in await session.execute(
+            select(
+                *columns,
+                EventRow.invoked_at,
+                EventRow.employee_account_id,
+                EventRow.component_stable_id,
+                EventRow.component_version,
+                EventRow.setup_stable_id,
+                EventRow.setup_version,
+            ).where(*clauses)
+        ):
+            invoked_at = event_record[-6]
+            employee_id = event_record[-5]
+            component_id = event_record[-4]
+            component_version = event_record[-3]
+            setup_id = event_record[-2]
+            setup_version = event_record[-1]
+            local = (
+                invoked_at.replace(tzinfo=UTC).astimezone(zone)
+                if invoked_at.tzinfo is None
+                else invoked_at.astimezone(zone)
+            )
+            day = local.date().isoformat()
+            days[day] += 1
+            hours[(local.weekday(), local.hour)] += 1
+            group_day_sets.setdefault(tuple(event_record[: len(columns)]), set()).add(day)
+            employee_day_sets.setdefault(employee_id, set()).add(day)
+            employee_used.setdefault(employee_id, set()).add((component_id, component_version))
+            object_keys_row = [
+                ("component", component_id, component_version, setup_id, setup_version)
+            ]
+            if setup_id is not None and setup_version is not None:
+                object_keys_row.append(("setup", setup_id, setup_version, None, None))
+            for object_key in object_keys_row:
+                object_employees.setdefault(object_key, set()).add(employee_id)
+                object_day_sets.setdefault(object_key, set()).add(day)
+                object_use_counts[object_key] += 1
+                if object_key not in object_last_used or invoked_at > object_last_used[object_key]:
+                    object_last_used[object_key] = invoked_at
+            employee_uses[employee_id] += 1
+            if (
+                employee_id not in employee_last_used
+                or invoked_at > employee_last_used[employee_id]
+            ):
+                employee_last_used[employee_id] = invoked_at
+        active_days = {key: len(value) for key, value in group_day_sets.items()}
+        employee_days = {key: len(value) for key, value in employee_day_sets.items()}
+        object_stats = {
+            key: (
+                len(object_employees[key]),
+                object_use_counts[key],
+                len(object_day_sets[key]),
+                object_last_used[key],
+            )
+            for key in object_use_counts
+        }
+    active_days_expr = (
+        func.count(distinct(sa_cast(func.timezone(report_timezone, EventRow.invoked_at), Date)))
+        if session.get_bind().dialect.name == "postgresql"
+        else None
+    )
     statement = (
         select(
             *columns,
@@ -1097,6 +1216,7 @@ async def aggregate_report(
             func.count(distinct(EventRow.device_id)).label("devices"),
             func.min(EventRow.invoked_at).label("first_invoked_at"),
             func.max(EventRow.invoked_at).label("last_invoked_at"),
+            *([active_days_expr.label("active_days")] if active_days_expr is not None else []),
         )
         .where(*clauses)
         .group_by(*columns)
@@ -1121,7 +1241,11 @@ async def aggregate_report(
                 cancelled=record.cancelled,
                 employees=record.employees,
                 devices=record.devices,
-                active_days=len(active_days.get(tuple(values), set())),
+                active_days=(
+                    record.active_days
+                    if active_days_expr is not None
+                    else active_days.get(tuple(values), 0)
+                ),
                 first_invoked_at=_stamp(record.first_invoked_at),
                 last_invoked_at=_stamp(record.last_invoked_at),
             )
@@ -1166,7 +1290,7 @@ async def aggregate_report(
                     }
                 ),
                 uses=employee_uses[account_id],
-                active_days=len(employee_days.get(account_id, set())),
+                active_days=employee_days.get(account_id, 0),
                 last_used_at=(
                     _stamp(employee_last_used[account_id])
                     if account_id in employee_last_used
@@ -1175,7 +1299,7 @@ async def aggregate_report(
             )
         )
     object_rows: list[RuntimeUsageObjectRow] = []
-    object_keys = set(object_assigned) | set(object_events)
+    object_keys = set(object_assigned) | set(object_stats)
     catalog_names: dict[tuple[str, str, str], str] = {}
     if object_keys:
         for metadata in await session.scalars(
@@ -1221,7 +1345,7 @@ async def aggregate_report(
         object_keys,
         key=lambda value: tuple(part or "" for part in value),
     ):
-        events = object_events.get(key, [])
+        stats = object_stats.get(key)
         object_rows.append(
             RuntimeUsageObjectRow(
                 object_kind=cast("Literal['setup', 'component']", key[0]),
@@ -1234,10 +1358,10 @@ async def aggregate_report(
                 installed_for=len(object_installed.get(key, set())),
                 installation_state=installation_state(key),  # pyright: ignore[reportArgumentType]
                 last_checked_at=(selected_inventory.last_scan_at if selected_inventory else None),
-                used_by=len({employee_id for employee_id, _, _ in events}),
-                uses=len(events),
-                active_days=len({day for _, day, _ in events}),
-                last_used_at=_stamp(max(when for _, _, when in events)) if events else None,
+                used_by=stats[0] if stats else 0,
+                uses=stats[1] if stats else 0,
+                active_days=stats[2] if stats else 0,
+                last_used_at=_stamp(stats[3]) if stats else None,
             )
         )
     assigned_keys = {
@@ -1350,27 +1474,48 @@ async def list_events(
             clauses.append(EventRow.employee_account_id.not_in(sorted(revoked_accounts)))
         if revoked_devices:
             clauses.append(EventRow.device_id.not_in(sorted(revoked_devices)))
+    sql_local_filter = (
+        query.local_weekday is not None or query.local_hour is not None
+    ) and session.get_bind().dialect.name == "postgresql"
+    if sql_local_filter:
+        # PostgreSQL evaluates the report-timezone conversion and the
+        # weekday/hour predicates inside the query: `AT TIME ZONE` for the
+        # wall clock, extract('dow') Sunday-based -> weekday() Monday-based.
+        assert zone is not None
+        local_ts = func.timezone(zone.key, EventRow.invoked_at)
+        if query.local_weekday is not None:
+            clauses.append(
+                func.mod(sa_cast(func.extract("dow", local_ts), Integer) + 6, 7)
+                == query.local_weekday
+            )
+        if query.local_hour is not None:
+            clauses.append(sa_cast(func.extract("hour", local_ts), Integer) == query.local_hour)
     statement = (
         select(EventRow).where(*clauses).order_by(EventRow.invoked_at.desc(), EventRow.event_id)
     )
     rows: list[EventRow]
     if query.local_weekday is not None or query.local_hour is not None:
-        assert zone is not None
-        # ponytail: scan tenant-window rows for portable local-hour filtering; move to a
-        # database-specific expression when event volume makes this report slow.
-        matching: list[EventRow] = []
-        for row in (await session.scalars(statement)).all():
-            local = (
-                row.invoked_at.replace(tzinfo=UTC)
-                if row.invoked_at.tzinfo is None
-                else row.invoked_at
-            ).astimezone(zone)
-            if query.local_weekday is not None and local.weekday() != query.local_weekday:
-                continue
-            if query.local_hour is not None and local.hour != query.local_hour:
-                continue
-            matching.append(row)
-        rows = matching[query.offset : query.offset + query.limit]
+        if sql_local_filter:
+            rows = list(
+                (await session.scalars(statement.offset(query.offset).limit(query.limit))).all()
+            )
+        else:
+            # Portable fallback (SQLite unit tests): scan tenant-window rows
+            # for local-hour filtering in Python.
+            assert zone is not None
+            matching: list[EventRow] = []
+            for row in (await session.scalars(statement)).all():
+                local = (
+                    row.invoked_at.replace(tzinfo=UTC)
+                    if row.invoked_at.tzinfo is None
+                    else row.invoked_at
+                ).astimezone(zone)
+                if query.local_weekday is not None and local.weekday() != query.local_weekday:
+                    continue
+                if query.local_hour is not None and local.hour != query.local_hour:
+                    continue
+                matching.append(row)
+            rows = matching[query.offset : query.offset + query.limit]
     else:
         rows = list(
             (await session.scalars(statement.offset(query.offset).limit(query.limit))).all()

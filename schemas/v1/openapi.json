@@ -12550,6 +12550,46 @@
         "pattern": "^device_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
         "type": "string"
       },
+      "DeviceListQuery": {
+        "additionalProperties": false,
+        "description": "GET /v1/devices query.",
+        "properties": {
+          "account_id": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AccountId"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "cursor": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Cursor"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "page_size": {
+            "$ref": "#/components/schemas/PageSize",
+            "default": 100
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          }
+        },
+        "title": "DeviceListQuery",
+        "type": "object"
+      },
       "DeviceListResponse": {
         "additionalProperties": true,
         "description": "Every device of the current account, newest activity first.",
@@ -20906,6 +20946,35 @@
         "title": "ReportCaseCreateRequest",
         "type": "object"
       },
+      "ReportCaseListQuery": {
+        "additionalProperties": false,
+        "description": "GET /v1/reports and /v1/requests query.",
+        "properties": {
+          "cursor": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Cursor"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "page_size": {
+            "$ref": "#/components/schemas/PageSize",
+            "default": 100
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          }
+        },
+        "title": "ReportCaseListQuery",
+        "type": "object"
+      },
       "ReportCaseListResponse": {
         "additionalProperties": true,
         "description": "Reporter's own cases.",
@@ -20917,6 +20986,9 @@
             "title": "Items",
             "type": "array"
           },
+          "page": {
+            "$ref": "#/components/schemas/PageInfo"
+          },
           "schema_version": {
             "const": 1,
             "default": 1,
@@ -20926,6 +20998,7 @@
         },
         "required": [
           "items",
+          "page",
           "schema_version"
         ],
         "title": "ReportCaseListResponse",
@@ -74170,6 +74243,47 @@
         "operationId": "listDevices",
         "parameters": [
           {
+            "in": "query",
+            "name": "account_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/AccountId"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/Cursor"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            }
+          },
+          {
+            "in": "query",
+            "name": "page_size",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/PageSize",
+              "default": 100
+            }
+          },
+          {
             "description": "Wire major the client speaks. An unknown one fails typed.",
             "in": "header",
             "name": "X-AI-STP-Schema-Version",
@@ -84997,6 +85111,31 @@
         "operationId": "listReportCases",
         "parameters": [
           {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/Cursor"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            }
+          },
+          {
+            "in": "query",
+            "name": "page_size",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/PageSize",
+              "default": 100
+            }
+          },
+          {
             "description": "Wire major the client speaks. An unknown one fails typed.",
             "in": "header",
             "name": "X-AI-STP-Schema-Version",
@@ -85029,6 +85168,11 @@
                           "vulnerability": false
                         }
                       ],
+                      "page": {
+                        "next_cursor": null,
+                        "page_size": 100,
+                        "schema_version": 1
+                      },
                       "schema_version": 1
                     }
                   }
@@ -85398,6 +85542,31 @@
         "operationId": "listRequestCases",
         "parameters": [
           {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/Cursor"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            }
+          },
+          {
+            "in": "query",
+            "name": "page_size",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/PageSize",
+              "default": 100
+            }
+          },
+          {
             "description": "Wire major the client speaks. An unknown one fails typed.",
             "in": "header",
             "name": "X-AI-STP-Schema-Version",
@@ -85417,6 +85586,11 @@
                     "summary": "A reporter can list their own request cases.",
                     "value": {
                       "items": [],
+                      "page": {
+                        "next_cursor": null,
+                        "page_size": 100,
+                        "schema_version": 1
+                      },
                       "schema_version": 1
                     }
                   }

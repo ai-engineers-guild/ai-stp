@@ -1,6 +1,6 @@
 """Directory discovery filters every named anchor before facets and pagination."""
 
-from collections.abc import Sequence
+from collections.abc import Collection, Sequence
 from typing import cast
 
 from sqlalchemy import select
@@ -15,7 +15,10 @@ from ai_stp_contracts.corporate_directory import (
     CorporateDirectoryReference,
     CorporateDirectoryView,
 )
-from ai_stp_platform.corporate_authorization import has_corporate_permission
+from ai_stp_platform.corporate_authorization import (
+    bulk_effective_permissions,
+    corporate_effective_permissions,
+)
 from ai_stp_platform.organization_models import (
     CorporateJobTitle,
     CorporateProject,
@@ -98,21 +101,39 @@ async def read_directory(
         node.id: CorporateDirectoryReference(kind=node.kind, id=node.id, name=node.name)
         for node in graph.nodes
     }
-    permission_cache: dict[tuple[str, str, str], bool] = {}
+    grants: dict[tuple[str, str], frozenset[str]] = {}
 
-    async def permitted(permission: str, kind: str, identity: str) -> bool:
-        key = (permission, kind, identity)
-        if key not in permission_cache:
-            permission_cache[key] = await has_corporate_permission(
+    async def scope_grants(kind: str, identity: str) -> frozenset[str]:
+        key = (kind, identity)
+        if key not in grants:
+            effective = await corporate_effective_permissions(
                 db,
                 organization_id=organization_id,
                 principal_type="user",
                 principal_id=ctx.account_id,
-                permission=permission,
                 scope_kind=kind,
                 scope_id=identity,
             )
-        return permission_cache[key]
+            grants[key] = frozenset() if effective is None else frozenset(effective)
+        return grants[key]
+
+    async def preload(kind: str, identities: Collection[str]) -> None:
+        missing = {identity for identity in identities if (kind, identity) not in grants}
+        if not missing:
+            return
+        bulk = await bulk_effective_permissions(
+            db,
+            organization_id=organization_id,
+            principal_type="user",
+            principal_id=ctx.account_id,
+            scope_kind=kind,
+            scope_ids=missing,
+        )
+        for identity in missing:
+            grants[(kind, identity)] = frozenset() if bulk is None else bulk[identity]
+
+    async def permitted(permission: str, kind: str, identity: str) -> bool:
+        return permission in await scope_grants(kind, identity)
 
     async def available_actions(
         kind: str, identity: str, *, scope_kind: str | None = None
@@ -140,6 +161,7 @@ async def read_directory(
             )
         )
     ).all()
+    await preload("technology", {row.id for row in technologies})
     for technology in technologies:
         if await permitted("technology.read", "technology", technology.id):
             nodes[technology.id] = CorporateDirectoryReference(
@@ -153,6 +175,7 @@ async def read_directory(
             )
         )
     ).all()
+    await preload("project", {usage.project_id for usage in usages})
     project_technologies: dict[str, set[str]] = {}
     for usage in usages:
         if (
@@ -412,7 +435,7 @@ async def read_directory(
         ).all()
     items: list[CorporateDirectoryItem] = []
     kind = "project" if query.resource == "projects" else "team"
-    # ponytail: request-local permission cache; batch evaluation if directory latency warrants it.
+    await preload(kind, {row.id for row in rows})
     for row in rows:
         if not query.include_archived and row.state == "archived":
             continue

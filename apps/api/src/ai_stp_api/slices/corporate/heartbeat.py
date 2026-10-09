@@ -12,6 +12,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, Request
+from sqlalchemy import and_, func, or_, select, true
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ai_stp_api.audit import emit_audit
@@ -32,8 +33,14 @@ from ai_stp_contracts.heartbeat import (
 )
 from ai_stp_foundation.timestamps import format_timestamp, parse_timestamp
 from ai_stp_platform import heartbeat_service
+from ai_stp_platform.corporate_authorization import (
+    bulk_effective_permissions,
+    corporate_effective_permissions,
+)
+from ai_stp_platform.heartbeat_models import InstallationHeartbeat as HeartbeatRow
 from ai_stp_platform.models import Device
 from ai_stp_platform.telemetry_privacy_service import record_privileged_access
+from ai_stp_platform.tenant_scope import set_tenant_scope
 
 router = APIRouter(tags=["corporate"])
 
@@ -138,20 +145,58 @@ async def list_heartbeats(
 ) -> InstallationHeartbeatList:
     """Installation health visible to the caller's role, health-filtered."""
     await service.organization_and_membership(db, ctx=ctx, organization_id=organization_id)
-    rows = await heartbeat_service.list_heartbeats(db, organization_id=organization_id)
+    await set_tenant_scope(db, organization_id)
     now = heartbeat_service.utcnow()
     policy = await heartbeat_service.organization_policy(db, organization_id=organization_id)
     stale_after = timedelta(seconds=policy.stale_after_seconds)
-    views: list[InstallationHeartbeat] = []
-    foreign = 0
-    for row in rows:
-        if row.account_id == ctx.account_id or await _telemetry_read_allowed(
-            db, ctx=ctx, organization_id=organization_id, member_account_id=row.account_id
-        ):
-            views.append(heartbeat_service.to_view(row, now=now, stale_after=stale_after))
-            foreign += int(row.account_id != ctx.account_id)
-    if health_state is not None:
-        views = [view for view in views if view.health_state == health_state]
+    account_ids = set(
+        (
+            await db.scalars(
+                select(HeartbeatRow.account_id)
+                .where(HeartbeatRow.organization_id == organization_id)
+                .distinct()
+            )
+        ).all()
+    )
+    allowed_ids = await _visible_heartbeat_accounts(
+        db,
+        ctx=ctx,
+        organization_id=organization_id,
+        account_ids=account_ids - {ctx.account_id},
+    )
+    visible = and_(
+        HeartbeatRow.organization_id == organization_id,
+        or_(
+            HeartbeatRow.account_id == ctx.account_id,
+            HeartbeatRow.account_id.in_(sorted(allowed_ids)),
+        ),
+    )
+    health = (
+        heartbeat_service.health_clause(health_state, now=now, stale_after=stale_after)
+        if health_state is not None
+        else true()
+    )
+    # `returned` is the health-filtered visible count; `foreign` deliberately
+    # ignores the health filter, as it did when rows were scanned in Python.
+    total, foreign = (
+        await db.execute(
+            select(
+                func.count().filter(health),
+                func.count().filter(HeartbeatRow.account_id != ctx.account_id),
+            ).where(visible)
+        )
+    ).one()
+    views = [
+        heartbeat_service.to_view(row, now=now, stale_after=stale_after)
+        for row in (
+            await db.scalars(
+                select(HeartbeatRow)
+                .where(visible, health)
+                .order_by(HeartbeatRow.account_id, HeartbeatRow.device_id)
+                .limit(256)
+            )
+        ).all()
+    ]
     if foreign:
         # Reading other members' telemetry is a privileged operation: it takes
         # the same platform + governance audit pair as the telemetry list.
@@ -179,28 +224,43 @@ async def list_heartbeats(
         organization_id=organization_id,
         evaluated_at=format_timestamp(now),
         stale_after_seconds=int(stale_after.total_seconds()),
-        total=len(views),
-        items=views[:256],
+        total=total,
+        items=views,
     )
 
 
-async def _telemetry_read_allowed(
-    db: AsyncSession, *, ctx: AuthContext, organization_id: str, member_account_id: str
-) -> bool:
-    """`telemetry.read` at member scope; org-scoped roles fall back inside."""
-    try:
-        await service.authorize(
-            db,
-            ctx=ctx,
-            organization_id=organization_id,
-            permission=_TELEMETRY_READ,
-            scope_kind="member",
-            scope_id=member_account_id,
-        )
-    except ApiError as denied:
-        # A backend failure must not masquerade as "not allowed" — only a real
-        # permission verdict narrows the listing.
-        if denied.category is not ErrorCategory.PERMISSION:
-            raise
-        return False
-    return True
+async def _visible_heartbeat_accounts(
+    db: AsyncSession, *, ctx: AuthContext, organization_id: str, account_ids: set[str]
+) -> set[str]:
+    """Member accounts whose heartbeats the caller may read, in one pass.
+
+    `telemetry.read` at organization scope opens every member; otherwise the
+    member-scope grants decide per account — the same verdict `_telemetry_read_allowed`
+    used to reach one `service.authorize` call per row."""
+    if not account_ids:
+        return set()
+    org_wide = await corporate_effective_permissions(
+        db,
+        organization_id=organization_id,
+        principal_type="user",
+        principal_id=ctx.account_id,
+        scope_kind="organization",
+        scope_id=organization_id,
+    )
+    if org_wide is not None and _TELEMETRY_READ in org_wide:
+        return set(account_ids)
+    member_grants = await bulk_effective_permissions(
+        db,
+        organization_id=organization_id,
+        principal_type="user",
+        principal_id=ctx.account_id,
+        scope_kind="member",
+        scope_ids=account_ids,
+    )
+    if member_grants is None:
+        return set()
+    return {
+        account_id
+        for account_id in account_ids
+        if _TELEMETRY_READ in member_grants.get(account_id, frozenset())
+    }

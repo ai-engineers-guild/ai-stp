@@ -273,6 +273,7 @@ from ai_stp_contracts.identity import (
     AccountIdentityUpdate,
     AccountPrivacyUpdate,
     AccountProfile,
+    DeviceListQuery,
     DeviceListResponse,
     DeviceRegisterResponse,
     DeviceRevokeRequest,
@@ -327,6 +328,7 @@ from ai_stp_contracts.publication import (
 )
 from ai_stp_contracts.reports import (
     ReportCaseCreateRequest,
+    ReportCaseListQuery,
     ReportCaseListResponse,
     ReportCaseResponse,
     StaffActionResponse,
@@ -2431,6 +2433,7 @@ OPERATIONS: Final[tuple[Operation, ...]] = (
         operation_id="listDevices",
         summary="List the devices of the current account.",
         response=DeviceListResponse,
+        query=DeviceListQuery,
         authenticated=True,
     ),
     Operation(
@@ -2740,6 +2743,7 @@ OPERATIONS: Final[tuple[Operation, ...]] = (
         operation_id="listReportCases",
         summary="List the caller's own report cases.",
         response=ReportCaseListResponse,
+        query=ReportCaseListQuery,
         authenticated=True,
     ),
     Operation(
@@ -2760,6 +2764,7 @@ OPERATIONS: Final[tuple[Operation, ...]] = (
         operation_id="listRequestCases",
         summary="List the caller's own request cases.",
         response=ReportCaseListResponse,
+        query=ReportCaseListQuery,
         authenticated=True,
     ),
     Operation(
