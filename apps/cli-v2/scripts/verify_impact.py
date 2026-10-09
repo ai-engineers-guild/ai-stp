@@ -4,14 +4,15 @@ from __future__ import annotations
 
 import json
 import sqlite3
-import sys
 from collections.abc import Callable
 from contextlib import closing
 from pathlib import Path
 from typing import Any
 
+from verify_impact_sources import DEVICE, record_setup, release_instruction
+
 from ai_stp_cli.local import cache, content, impact, installation, revisions, versions
-from ai_stp_contracts.impact import SelectionImpactReport
+from ai_stp_contracts.impact import BlastRadiusReport, SelectionImpactReport
 from ai_stp_foundation.ids import new_id
 from ai_stp_passports import ComponentVersionPassport, adaptation_for, seal_adaptation
 
@@ -21,16 +22,6 @@ Runner = Callable[[Path, Path, list[str], int], dict[str, Any]]
 def prove(
     binary: Path, home: Path, state: Path, root: Path, setup: dict[str, Any], run: Runner
 ) -> None:
-    # A file entrypoint puts scripts/ on sys.path. Resolve the shared oracle
-    # fixtures from this checkout, independently of the caller's working directory.
-    sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
-    from tests.unit.test_cli_setup_recast import (
-        DEVICE,
-        _record_setup,  # pyright: ignore[reportPrivateUsage]
-        _release_component,  # pyright: ignore[reportPrivateUsage]
-    )
-    from tests.unit.test_cli_targets import _finish_verified  # pyright: ignore[reportPrivateUsage]
-
     database = state / "ai-stp-v2-state" / "registry.sqlite3"
     price_file = root / "impact-price.json"
     with closing(sqlite3.connect(database)) as connection:
@@ -84,6 +75,42 @@ def prove(
             assert model == reference
             return result["data"]
 
+        def radius(
+            component_id: str, version: str, scenario: str = "update", expected: int = 0
+        ) -> dict[str, Any]:
+            before = tuple(connection.iterdump())
+            result = run(
+                binary,
+                home,
+                [
+                    "select",
+                    "blast-radius",
+                    "--state-dir",
+                    str(state),
+                    "--component-id",
+                    component_id,
+                    "--component-version",
+                    version,
+                    "--scenario",
+                    scenario,
+                ],
+                expected,
+            )
+            assert tuple(connection.iterdump()) == before
+            if expected:
+                return result
+            model = BlastRadiusReport.model_validate(result["data"])
+            assert model.model_dump(mode="json") == result["data"]
+            reference = impact.blast_radius(
+                connection,
+                component_id=component_id,
+                component_version=version,
+                scenario=scenario,
+                at=model.generated_at,
+            )
+            assert model == reference
+            return result["data"]
+
         exact = "ai-stp:utf8-bytes/1"
         estimated = "ai-stp:unicode-chars-div4/1"
         for estimator in [exact, estimated]:
@@ -122,9 +149,8 @@ def prove(
         at = "2026-10-08T00:00:00.000Z"
         target_bytes = "# Codex instruction\nUnicode: café and 👋.\n".encode()
         target = content.put(connection, target_bytes, at=at)
-        member = _release_component(
+        member = release_instruction(
             connection,
-            component_type="instruction",
             harness_id="claude-code",
             payload=b"# Claude instruction\n",
             managed_path="CLAUDE.md",
@@ -142,8 +168,13 @@ def prove(
                 }
             ],
         )
-        target_setup, _ = _record_setup(connection, harness_id="codex", member=member)
+        target_setup, _ = record_setup(connection, harness_id="codex", member=member)
         connection.commit()
+        for scenario in ["update", "deprecation", "blocked", "expired_evidence", "advisory"]:
+            affected = radius(member[0], "1.0", scenario)
+            assert [item["stable_id"] for item in affected["setup_versions"]] == [target_setup]
+        radius(member[0], "9.0", expected=2)
+        radius(member[0], "1.0", "invalid", 2)
         measured = read(target_setup, exact)
         assert measured["candidate_context"]["always_tokens"] == len(target_bytes)
         measured = read(target_setup, estimated)
@@ -176,7 +207,7 @@ def prove(
             revision_id=stored.revision_id,
             at=at,
         )
-        ambiguous, _ = _record_setup(
+        ambiguous, _ = record_setup(
             connection, harness_id="codex", member=(member[0], "1.1", recorded_digest)
         )
         connection.commit()
@@ -191,20 +222,34 @@ def prove(
         assert unavailable["token_cost"]["reason"] == "context_budget_unavailable"
         assert unavailable["token_cost"]["amount"] is None
 
-        opaque_member = _release_component(
+        opaque_member = release_instruction(
             connection,
-            component_type="instruction",
             harness_id="codex",
             payload=b"# Instruction\n\xff",
             managed_path="AGENTS.md",
         )
-        opaque_setup, _ = _record_setup(connection, harness_id="codex", member=opaque_member)
+        opaque_setup, _ = record_setup(connection, harness_id="codex", member=opaque_member)
         connection.commit()
         opaque = read(opaque_setup, exact)
         assert opaque["candidate_context"]["components"][0]["reason"] == "content_is_not_utf8"
 
         project_id = new_id("project")
         other_project = new_id("project")
+        if connection.execute("SELECT 1 FROM entity WHERE kind='device'").fetchone() is None:
+            revisions.commit(
+                connection,
+                {
+                    "schema_version": 1,
+                    "kind": "device",
+                    "stable_id": new_id("device"),
+                    "owner_id": setup["owner_id"],
+                    "created_at": at,
+                    "visibility": "private",
+                    "parent_revision_ids": [],
+                    "facts": {},
+                },
+                device_id=DEVICE,
+            )
         connection.execute(
             "INSERT INTO entity (stable_id,kind,created_at) VALUES (?,'project',?)",
             (project_id, at),
@@ -243,12 +288,29 @@ def prove(
                 setup_version="1.0",
             )
             if complete:
-                _finish_verified(connection, plan, digest="sha256:" + "1" * 64, at=at)
+                installation.approve(connection, plan.operation_id, plan_digest=plan.digest, at=at)
+                installation.begin(
+                    connection,
+                    plan.operation_id,
+                    observed_target_digest="sha256:" + "0" * 64,
+                    at=at,
+                )
+                installation.applied(connection, plan.operation_id, at=at)
+                installation.verify(
+                    connection,
+                    plan.operation_id,
+                    postconditions_met=True,
+                    observed_target_digest="sha256:" + "1" * 64,
+                    at=at,
+                )
 
         def current(source: str, setup_id: str) -> None:
             report = read(target_setup, exact, project_id=project_id)
             assert report["baseline_source"] == source
             assert report["baseline_setup"]["stable_id"] == setup_id
+            for version in ["1.0", "1.1"]:
+                affected = radius(member[0], version)
+                assert bool(affected["devices"]) == bool(affected["installed_targets"])
 
         current("selected", target_setup)
         settle("install", ambiguous)
@@ -281,6 +343,7 @@ def prove(
         )
         connection.commit()
         read(ambiguous, exact, expected=4)
+        radius(member[0], "1.1", expected=4)
         connection.execute(
             "UPDATE content SET byte_length=length(bytes) WHERE digest=?",
             (scope.projection_artifact.digest,),

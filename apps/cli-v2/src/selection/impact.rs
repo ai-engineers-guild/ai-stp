@@ -2,6 +2,7 @@
 
 mod history;
 mod price;
+pub mod radius;
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -49,7 +50,9 @@ fn invalid() -> Failure {
     )
 }
 
+#[derive(Clone)]
 struct Graph {
+    members: BTreeMap<String, Value>,
     coordinate: Value,
     harness: String,
     budget: Value,
@@ -266,6 +269,7 @@ fn graph(
         }
     }
     Ok(Graph {
+        members: held,
         coordinate: coordinate(&setup)?,
         harness: harness.into(),
         budget: json!({"always_tokens":always,"conditional_tokens":conditional,"unavailable_components":unavailable,"components":measured}),
@@ -326,7 +330,13 @@ pub fn report(store: &mut Store, request: &Request<'_>, at: &str) -> Result<Valu
         };
         let source = baseline.as_ref().map_or("none", |(_, _, source)| *source);
         let baseline = baseline
-            .map(|(id, version, _)| graph(connection, &id, &version, exact, &mut remaining))
+            .map(|(id, version, _)| {
+                if candidate.coordinate["stable_id"] == id && candidate.coordinate["version"] == version {
+                    Ok(candidate.clone())
+                } else {
+                    graph(connection, &id, &version, exact, &mut remaining)
+                }
+            })
             .transpose()?;
         if baseline.as_ref().is_some_and(|other| other.harness != candidate.harness) {
             return Err(Failure::input("candidate and baseline belong to different harnesses"));

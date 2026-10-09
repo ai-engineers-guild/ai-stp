@@ -1,6 +1,7 @@
 //! One command definition drives both the parser and its machine description.
 
 mod local;
+mod reports;
 
 use clap::{Arg, ArgAction, ArgMatches, Command, builder::ValueParser};
 use serde_json::{Value, json};
@@ -17,6 +18,7 @@ pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 #[derive(Clone, Copy)]
 enum Handler {
     Local(local::Handler),
+    Report(reports::Handler),
     Version,
     Help,
     Capabilities,
@@ -500,7 +502,10 @@ const COMMANDS: &[Declaration] = &[
 ];
 
 fn declarations() -> impl Iterator<Item = &'static Declaration> {
-    COMMANDS.iter().chain(local::COMMANDS)
+    COMMANDS
+        .iter()
+        .chain(local::COMMANDS)
+        .chain(reports::COMMANDS)
 }
 
 fn children(parent: Command, prefix: &[&str]) -> Command {
@@ -624,6 +629,7 @@ pub fn dispatch(matches: &ArgMatches) -> Result<Value> {
         .ok_or_else(|| Failure::new(ErrorKind::Internal, "parsed command has no handler"))?;
     match declaration.handler {
         Handler::Local(handler) => local::dispatch(handler, leaf),
+        Handler::Report(handler) => reports::dispatch(handler, leaf),
         Handler::Version => Ok(json!({"schema_version": 1, "cli_version": VERSION,
             "wire_schema_version": 1, "runtime": "rust", "release_channel": "preview"})),
         Handler::Capabilities => Ok(json!({"schema_version": 1, "cli_version": VERSION,

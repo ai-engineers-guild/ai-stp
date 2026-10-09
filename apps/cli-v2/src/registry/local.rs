@@ -17,7 +17,6 @@ use crate::{
     passport::developer,
     projects,
     provider::Info,
-    selection::impact,
     store::{Store, versions::Increment},
 };
 
@@ -27,7 +26,6 @@ pub(super) enum Handler {
     DeveloperUpdate,
     Validate,
     Quality,
-    Impact,
     ProjectPassport,
     Bind,
     Adopt,
@@ -62,7 +60,6 @@ impl Handler {
             | Self::Version
             | Self::Versions
             | Self::Validate
-            | Self::Impact
             | Self::Quality => "read",
             Self::Apply | Self::ExportApply | Self::SetupScaffoldApply => "apply",
             _ => "plan",
@@ -150,59 +147,6 @@ const INCREMENT: Parameter = Parameter {
 };
 
 pub(super) const COMMANDS: &[Declaration] = &[
-    Declaration {
-        path: &["select", "impact"],
-        summary: "Compare verified local setup context and capabilities in one read-only snapshot, without selecting or installing.",
-        parameters: &[
-            STATE_DIR,
-            Parameter {
-                name: "setup-id",
-                summary: "Exact candidate setup identifier.",
-                kind: ParameterType::String,
-                required: true,
-            },
-            Parameter {
-                name: "setup-version",
-                summary: "Exact candidate X.Y version.",
-                kind: ParameterType::String,
-                required: true,
-            },
-            Parameter {
-                name: "against-setup-id",
-                summary: "Optional explicit baseline setup identifier; requires its version.",
-                kind: ParameterType::String,
-                required: false,
-            },
-            Parameter {
-                name: "against-setup-version",
-                summary: "Exact baseline X.Y version; requires its identifier.",
-                kind: ParameterType::String,
-                required: false,
-            },
-            Parameter {
-                name: "project-id",
-                summary: "Optional local project for unambiguous installed or selected baseline attribution.",
-                kind: ParameterType::String,
-                required: false,
-            },
-            Parameter {
-                name: "tokenizer-profile",
-                summary: "Local measurement profile; defaults to Unicode codepoints divided by four, not a model tokenizer.",
-                kind: ParameterType::Choice(&[
-                    "ai-stp:utf8-bytes/1",
-                    "ai-stp:unicode-chars-div4/1",
-                ]),
-                required: false,
-            },
-            Parameter {
-                name: "price-profile",
-                summary: "Optional explicit price snapshot JSON, at most 64 KiB; no rates are fetched.",
-                kind: ParameterType::Path,
-                required: false,
-            },
-        ],
-        handler: super::Handler::Local(Handler::Impact),
-    },
     Declaration {
         path: &["passport", "developer", "initialize", "plan"],
         summary: "Plan a private developer context or retain its exact current revision without inferring preferences.",
@@ -596,39 +540,6 @@ fn providers(args: &ArgMatches) -> Result<Vec<Info>> {
 
 pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
     match handler {
-        Handler::Impact => {
-            let baseline = match (
-                args.get_one::<String>("against-setup-id"),
-                args.get_one::<String>("against-setup-version"),
-            ) {
-                (Some(id), Some(version)) => Some((id.as_str(), version.as_str())),
-                (None, None) => None,
-                _ => {
-                    return Err(Failure::input(
-                        "baseline id and version must be supplied together",
-                    ));
-                }
-            };
-            let price = args
-                .get_one::<PathBuf>("price-profile")
-                .map(|path| canonical::parse(&files::read(path, 64 * 1024)?))
-                .transpose()?;
-            let request = impact::Request {
-                setup_id: text(args, "setup-id")?,
-                setup_version: text(args, "setup-version")?,
-                baseline,
-                project_id: args.get_one::<String>("project-id").map(String::as_str),
-                estimator_profile: args
-                    .get_one::<String>("tokenizer-profile")
-                    .map_or("ai-stp:unicode-chars-div4/1", String::as_str),
-                price_profile: price.as_ref(),
-            };
-            impact::report(
-                &mut Store::planning(path(args, "state-dir")?)?,
-                &request,
-                &format!("{:.3}", jiff::Timestamp::now()),
-            )
-        }
         Handler::DeveloperInitialize | Handler::DeveloperUpdate => {
             let update = matches!(handler, Handler::DeveloperUpdate);
             let patch = update

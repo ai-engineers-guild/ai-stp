@@ -4,7 +4,12 @@ use std::collections::BTreeSet;
 
 use rusqlite::{Connection, OptionalExtension};
 
-use crate::{error::Result, store::database};
+use crate::{
+    error::{Failure, Result},
+    store::database,
+};
+
+pub(super) const MAX_ROWS: usize = 100_000;
 
 pub(super) struct Installed {
     pub target: String,
@@ -20,7 +25,7 @@ pub(super) fn installed(connection: &Connection) -> Result<Vec<Installed>> {
          FROM operation_plan p JOIN operation o ON o.operation_id=p.operation_id \
          JOIN operation_event e ON e.operation_id=p.operation_id AND e.state_after='verified' \
          WHERE o.state='verified' AND p.action IN ('install','update','remove','rollback') \
-         ORDER BY e.global_sequence DESC",
+         ORDER BY e.global_sequence DESC LIMIT ?",
         )
         .map_err(database)?;
     let mut seen = BTreeSet::new();
@@ -28,7 +33,7 @@ pub(super) fn installed(connection: &Connection) -> Result<Vec<Installed>> {
     let mut unnamed = BTreeSet::new();
     let mut found = Vec::new();
     let rows = query
-        .query_map([], |row| {
+        .query_map([(MAX_ROWS + 1) as i64], |row| {
             Ok((
                 row.get::<_, String>(0)?,
                 row.get::<_, String>(1)?,
@@ -38,7 +43,12 @@ pub(super) fn installed(connection: &Connection) -> Result<Vec<Installed>> {
             ))
         })
         .map_err(database)?;
-    for row in rows {
+    for (index, row) in rows.enumerate() {
+        if index == MAX_ROWS {
+            return Err(Failure::precondition(
+                "the report exceeds 100000 verified configuration mutations",
+            ));
+        }
         let (target, root, action, setup_id, version) = row.map_err(database)?;
         let harness = target.split_once(':').map_or("", |(_, harness)| harness);
         let key = (

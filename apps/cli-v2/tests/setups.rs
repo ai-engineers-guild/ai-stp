@@ -91,6 +91,32 @@ fn impact_journey(store: &mut Store, setup: &Value, empty: &Value) -> Result<(),
     assert_eq!(same["context_delta"]["conditional_tokens"], 0);
     request.setup_version = "latest";
     assert!(impact::report(store, &request, AT).is_err());
+    let component = &setup["components"][0];
+    for scenario in [
+        "update",
+        "deprecation",
+        "blocked",
+        "expired_evidence",
+        "advisory",
+    ] {
+        let radius = impact::radius::report(
+            store,
+            field(component, "stable_id")?,
+            field(component, "version")?,
+            scenario,
+            AT,
+        )?;
+        assert_eq!(radius["action"], "none");
+        assert_eq!(radius["authority_boundary"], "local_registry");
+        assert_eq!(radius["scenario"], scenario);
+        assert!(
+            radius["setup_versions"]
+                .as_array()
+                .ok_or("affected setups")?
+                .iter()
+                .any(|coordinate| coordinate["stable_id"] == setup["stable_id"])
+        );
+    }
     assert_eq!(counts(store)?, before);
     Ok(())
 }

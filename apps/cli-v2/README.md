@@ -765,6 +765,18 @@ source. Exact decimal arithmetic rounds half-up to eight places. Expired and
 future-dated profiles return no amount. Reports do not fetch prices, invoke a
 model, initialize identity or change a selected setup.
 
+`select blast-radius` resolves one exact component and verifies retained setup
+graphs before returning their reverse references, selected projects and current
+installed targets. A device is included only when there is an installed match
+and one verified local device identity. All five scenarios preserve
+`authority_boundary=local_registry`, `freshness=local_snapshot` and `action=none`;
+they do not infer account-wide use or inspect live targets. Corrupt graphs close
+the whole report. Work is bounded to 4,096 setup versions, 8,192 member visits,
+100,000 project selections and the shared 128 MiB artifact budget. Both reports
+refuse histories exceeding 100,000 verified configuration mutations instead of
+returning partial attribution. Identical candidate/baseline coordinates reuse
+their verified graph within the same snapshot.
+
 New component dependency and setup member references include the wire contract's
 null `variant_id` default before sealing. The Python publisher's complete-model
 serialization therefore preserves their revision and passport digests. This
@@ -1018,6 +1030,7 @@ no async runtime or tracing feature is enabled for it.
 | `main.rs` | Process I/O and exit status |
 | `lib.rs`, `error.rs` | Invocation and envelope/error boundary |
 | `registry.rs`, `registry/` | Executable command declarations, parsing and argument conversion |
+| `registry/reports.rs` | Read-only impact and reverse-reference command adapters |
 | `canonical.rs`, `digest.rs` | Strict NFC + RFC 8785 data and closed digest domains |
 | `config.rs`, `files.rs` | Explicit bounded configuration reads and path rendering |
 | `snapshot.rs`, `objects.rs` | Explicit backup inspection and verified local reads |
@@ -1095,6 +1108,8 @@ release, fork, setup composition, adoption and independent Python passport valid
 Its report oracle compares both estimators, decimal rounding, cross-harness
 projections, scope uncertainty and verified installation history against the
 shared Python models, with unchanged registry contents after every native read.
+Exact reverse references cover all five scenarios, both component versions,
+selected projects, installed targets and local device attribution.
 Windows has a real native Credential Manager identity/CLI roundtrip with cleanup
 of only its newly generated test entry. Linux Secret Service evidence is run in
 an isolated D-Bus session outside the ordinary cross-platform gate.
