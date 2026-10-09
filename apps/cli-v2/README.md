@@ -370,6 +370,41 @@ and excludes only `.git` and `nori.json` at the selected directory's root.
 The latter remains metadata evidence outside the payload. Existing atomic draft
 adoption/import, owner checks, idempotent replay and stale-plan refusal apply.
 
+`provider::trust::refresh` fetches only Sigstore's top-level `trusted_root.json`
+through its fixed HTTPS TUF repository. Bootstrap root 15 is embedded from the
+checksum-verified `sigstore-trust-root` 0.14.0 crate (SHA-256
+`73747011d0857ada15479a16c4cae0f3ed03aac698b523b97e1de314ac9d9ca8`).
+New roots require both old and new signature thresholds; every verified rotation
+is saved even if later retrieval fails. The upstream `sigstore-tuf` 0.14.0 core
+verifies signatures and exact metadata pins. TUF signatures use its OLPC canonical
+JSON, never the project's normalized identity encoding. Duplicate/ambiguous JSON
+is refused before the original bytes enter verification.
+
+The explicit parent contains one private leased `sigstore-tuf` state directory.
+Timestamp and snapshot evidence is independently reauthenticated on reopening,
+including expired evidence needed to preserve rollback floors. A newer timestamp
+beside an older snapshot is a valid interrupted state, not a reason to discard
+target-version floors. Timestamp/snapshot key rotation resets those lower-role
+floors; unchanged keys preserve them. Missing initialized state, corrupt metadata
+and every persistence error refuse. Retained evidence names its original verified
+root, so a threshold-only change preserves old floors while new metadata must
+satisfy the current threshold. Equal versions cannot change signed content.
+The best-effort upstream Updater cache is
+not used. Atomic file writes and process locking follow the existing owned-file
+platform guarantees; Windows does not claim power-loss directory durability.
+
+Refresh allows 32 new roots, 256 retained roots, 64 requests and 60 seconds;
+root responses are at most 64 KiB, other metadata/target responses at most 1 MiB,
+and durable state at most 16 MiB. Requests carry no credentials or ambient proxy
+and grant no redirect authority. Only the named top-level target is resolved;
+new delegation layouts refuse. Freshness, complete lengths and supported hashes
+are checked before returning the parsed trust material. Its accessor refuses
+once any role expires. Reports contain public version/digest/freshness evidence.
+This is a headless prerequisite: it does not execute or install a provider.
+`provider::trust` owns the exact TUF dependency and embedded bootstrap data;
+removing refresh removes both. No second HTTP or async runtime is added. See the
+[TUF client workflow](https://theupdateframework.github.io/specification/latest/#detailed-client-workflow).
+
 `provider::wheel::inspect` reads one bounded native-provider wheel in memory.
 It validates every regular member against one complete CSV `RECORD`: unique
 portable names, exact inventory and byte lengths, and SHA-256/384/512 hashes;
@@ -1368,7 +1403,7 @@ no async runtime or tracing feature is enabled for it.
 | `selection/impact.rs`, `selection/impact/` | Exact context/capability reports, current installation attribution and decimal price snapshots |
 | `projects/passports/` | Private project observations, copy/move identity and durable marker registration |
 | `passport/developer.rs` | Closed private preferences, exact singleton plans and atomic revision receipts |
-| `provider.rs`, `bundle/` | Exact provider declarations, composition constraints and deterministic v2 packages |
+| `provider.rs`, `provider/`, `bundle/` | Exact declarations, authenticated trust refresh, wheel inspection and deterministic v2 packages |
 | `store/`, `files/owned.rs` | Explicit owned state, atomic revision writes and shared private-file primitives |
 | `archive.rs`, `artifacts.rs`, `projection/artifact.rs` | Shared canonical ZIP transport and closed component/scope archives |
 | `authoring/source.rs`, `process.rs` | Complete bounded source capture and explicit child process lifecycle |
@@ -1413,7 +1448,7 @@ service then enforces the signed source repository, workflow and deployment
 environment. It does not treat the unsigned publisher description as evidence.
 Trust-root refresh, provider acquisition and installation are not exposed as commands.
 The example's embedded production trust root is for this fixed evidence run;
-an online provider lifecycle needs authenticated TUF refresh before C4.
+online provider acquisition must use authenticated `provider::trust::refresh`.
 
 Rust tests cover the existing canonical corpus, executable refusals and
 a real PyPI attestation with adversarial mutations. Public fixture source URLs,
