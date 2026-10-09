@@ -3,6 +3,7 @@
 use super::{Declaration, Parameter, ParameterType, STATE_DIR};
 use crate::{
     error::{Failure, Result},
+    projection::Scope,
     provider::{
         artifact,
         runtime::{self, Runtime},
@@ -17,7 +18,29 @@ use std::path::PathBuf;
 pub(super) enum Handler {
     Network,
     Inspect,
+    Status,
 }
+
+const HARNESS: Parameter = Parameter {
+    name: "harness",
+    summary: "Canonical harness identifier.",
+    kind: ParameterType::Choice(&[
+        "claude-code",
+        "codex",
+        "pi",
+        "opencode",
+        "grok-build",
+        "cursor",
+        "antigravity",
+    ]),
+    required: true,
+};
+const VERSION: Parameter = Parameter {
+    name: "version",
+    summary: "Exact canonical provider X.Y.Z version; no floating selector.",
+    kind: ParameterType::String,
+    required: true,
+};
 
 pub(super) const COMMANDS: &[Declaration] = &[
     Declaration {
@@ -29,30 +52,30 @@ pub(super) const COMMANDS: &[Declaration] = &[
     Declaration {
         path: &["provider", "inspect"],
         summary: "Authenticate an exact provider artifact and observe provider-info under verified Linux isolation.",
+        parameters: &[STATE_DIR, HARNESS, VERSION],
+        handler: super::Handler::Provider(Handler::Inspect),
+    },
+    Declaration {
+        path: &["provider", "status"],
+        summary: "Observe an explicit target with an authenticated provider and a read-only isolated mount.",
         parameters: &[
             STATE_DIR,
+            HARNESS,
+            VERSION,
             Parameter {
-                name: "harness",
-                summary: "Canonical harness identifier.",
-                kind: ParameterType::Choice(&[
-                    "claude-code",
-                    "codex",
-                    "pi",
-                    "opencode",
-                    "grok-build",
-                    "cursor",
-                    "antigravity",
-                ]),
+                name: "target",
+                summary: "Explicit existing absolute target directory; symbolic path components are refused.",
+                kind: ParameterType::Path,
                 required: true,
             },
             Parameter {
-                name: "version",
-                summary: "Exact canonical provider X.Y.Z version; no floating selector.",
-                kind: ParameterType::String,
+                name: "scope",
+                summary: "Exact provider target scope; no scope is inferred.",
+                kind: ParameterType::Choice(&["global", "user_root", "project"]),
                 required: true,
             },
         ],
-        handler: super::Handler::Provider(Handler::Inspect),
+        handler: super::Handler::Provider(Handler::Status),
     },
 ];
 
@@ -60,7 +83,7 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
     let runtime = Runtime::observe()?;
     match handler {
         Handler::Network => Ok(runtime.report()),
-        Handler::Inspect => {
+        Handler::Inspect | Handler::Status => {
             let parent = args
                 .get_one::<PathBuf>("state-dir")
                 .ok_or_else(|| Failure::input("the explicit state parent is required"))?;
@@ -70,9 +93,26 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
             let version = args
                 .get_one::<String>("version")
                 .ok_or_else(|| Failure::input("the exact version is required"))?;
-            let trust = trust::refresh(parent)?;
-            let artifact = artifact::fetch(harness, version, runtime::platform()?, &trust)?;
-            runtime.inspect(&artifact)
+            match handler {
+                Handler::Inspect => {
+                    let trust = trust::refresh(parent)?;
+                    let artifact = artifact::fetch(harness, version, runtime::platform()?, &trust)?;
+                    runtime.inspect(&artifact)
+                }
+                Handler::Status => {
+                    let target = args
+                        .get_one::<PathBuf>("target")
+                        .ok_or_else(|| Failure::input("the explicit target is required"))?;
+                    let scope = match args.get_one::<String>("scope").map(String::as_str) {
+                        Some("global") => Scope::Global,
+                        Some("user_root") => Scope::UserRoot,
+                        Some("project") => Scope::Project,
+                        _ => return Err(Failure::input("the target scope is required")),
+                    };
+                    runtime.status(parent, harness, version, target, scope)
+                }
+                Handler::Network => Err(Failure::input("the provider command is invalid")),
+            }
         }
     }
 }

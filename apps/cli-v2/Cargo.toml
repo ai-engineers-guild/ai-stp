@@ -51,6 +51,7 @@ ignore = "=0.4.33"
 regex = { version = "=1.13.1", default-features = false, features = ["std"] }
 
 [target.'cfg(target_os = "linux")'.dependencies]
+command-fds = "=0.3.3"
 zbus = { version = "=5.19.0", default-features = false, features = ["async-io", "blocking-api"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]

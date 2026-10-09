@@ -34,6 +34,7 @@ dependencies = [
  "cap-fs-ext",
  "cap-std",
  "clap",
+ "command-fds",
  "crc32fast",
  "csv",
  "ed25519-dalek",
@@ -527,6 +528,16 @@ dependencies = [
  "der",
  "spki",
  "x509-cert",
+]
+
+[[package]]
+name = "command-fds"
+version = "0.3.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1b60b5124979fccd9addd89d8b97a1d6eebb4950694520c75ddd722535ea443f"
+dependencies = [
+ "nix",
+ "thiserror",
 ]
 
 [[package]]

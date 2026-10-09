@@ -88,6 +88,27 @@ pub(crate) fn with_input(request: Request<'_>, input: std::fs::File) -> Result<O
 }
 
 fn execute(request: Request<'_>, input: Stdio) -> Result<Output> {
+    execute_command(request, input, |_| {})
+}
+
+/// Transfer only these held Linux directory capabilities to the sandbox launcher.
+#[cfg(target_os = "linux")]
+pub(crate) fn with_files(
+    request: Request<'_>,
+    input: std::fs::File,
+    files: Vec<std::os::fd::OwnedFd>,
+) -> Result<Output> {
+    use command_fds::CommandFdExt;
+    execute_command(request, Stdio::from(input), |command| {
+        command.preserved_fds(files);
+    })
+}
+
+fn execute_command(
+    request: Request<'_>,
+    input: Stdio,
+    configure: impl FnOnce(&mut Command),
+) -> Result<Output> {
     if !request.executable.is_absolute()
         || !request.directory.is_absolute()
         || request.timeout.is_zero()
@@ -117,6 +138,7 @@ fn execute(request: Request<'_>, input: Stdio) -> Result<Output> {
         .stdin(input)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
+    configure(&mut command);
     let mut command = CommandWrap::from(command);
     #[cfg(unix)]
     command.wrap(process_wrap::std::ProcessGroup::leader());
