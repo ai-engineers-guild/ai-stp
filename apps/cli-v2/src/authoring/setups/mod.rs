@@ -237,6 +237,20 @@ pub(crate) fn verify_definition(document: &Value, payload: &[u8]) -> Result<()> 
     // The production builder omits optional reference defaults in the artifact.
     // Compare their meaning without changing either immutable representation.
     let mut expected = definition(document);
+    // Catalog builders may retain input provenance only in the addressed artifact.
+    // When the passport also carries it, both representations must agree.
+    if expected["input_digest"].is_null() {
+        let address = retained["input_digest"].as_str().ok_or_else(invalid)?;
+        if address.len() != 71
+            || !address.starts_with("sha256:")
+            || !address[7..]
+                .bytes()
+                .all(|b| b.is_ascii_hexdigit() && !b.is_ascii_uppercase())
+        {
+            return Err(invalid());
+        }
+        expected["input_digest"] = retained["input_digest"].clone();
+    }
     passport::versions::normalize_component_refs(&mut retained["components"])?;
     passport::versions::normalize_component_refs(&mut expected["components"])?;
     if retained != expected {

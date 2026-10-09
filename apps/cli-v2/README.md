@@ -659,6 +659,21 @@ transient failures can fall back to a validated entry, while not-found,
 authorization, transport-policy and invalid-body refusals remain refusals.
 Cached answers retain their original `checked_at` and report `source: cache`.
 
+`registry acquire plan` captures an exact public version-1 setup definition,
+its transitive component graph and every declared projection. It uses the
+configured endpoint and the isolated identity, without modifying the registry.
+`local apply` repeats the bounded capture, refuses changed passports or trust,
+and commits original immutable passports, primary/projection content, catalog
+trust observations and one receipt in a single transaction. Acquiring a version
+does not advance an existing draft head or grant installation authority. The
+receipt retains the original online observation and timestamp; a completed retry
+rechecks stored versions, trust records and projection bytes without networking.
+Capture is limited to 512 components, 8,192 references, 8 MiB of metadata,
+64 MiB per artifact, 128 MiB of distinct bytes and projection verification work,
+and thirty seconds per capture. HTTP connections are reused within that capture.
+Private acquisition, embedded version-2 definitions, original authoring source
+archives and initial offline acquisition remain outside this command.
+
 The cache owns only its marked `ai-stp-v2-catalog` child below an existing
 explicit directory, with an exclusive bounded lock, atomic replacements and
 limits of 64 entries and 64 MiB. It does not import the production cache.
@@ -1035,7 +1050,7 @@ no async runtime or tracing feature is enabled for it.
 | `config.rs`, `files.rs` | Explicit bounded configuration reads and path rendering |
 | `snapshot.rs`, `objects.rs` | Explicit backup inspection and verified local reads |
 | `wire.rs`, `passport.rs`, `passport/` | Offline wire validation, immutable passport rules and content identities |
-| `http.rs`, `catalog/` | Bounded anonymous catalog reads and explicit public cache |
+| `http.rs`, `catalog/` | Bounded public reads/cache and planned atomic exact graph acquisition |
 | `projects/` | Bounded project discovery and content-free file evidence |
 | `environment.rs` | Exact setup prerequisites, project binding and variable-name presence |
 | `selection/` | Verified exact graphs, deterministic ordering and graph-wide mechanical eligibility |
@@ -1082,7 +1097,7 @@ SHA-256. `sigstore-verify` verifies the DSSE signature, certificate chain, SCT,
 Rekor inclusion/checkpoint, signed entry timestamp and artifact binding. The
 service then enforces the signed source repository, workflow and deployment
 environment. It does not treat the unsigned publisher description as evidence.
-Trust-root refresh, acquisition and installation are not exposed as commands.
+Trust-root refresh, provider acquisition and installation are not exposed as commands.
 The example's embedded production trust root is for this fixed evidence run;
 an online provider lifecycle needs authenticated TUF refresh before C4.
 

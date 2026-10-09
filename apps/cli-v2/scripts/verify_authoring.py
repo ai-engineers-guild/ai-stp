@@ -12,6 +12,7 @@ from contextlib import closing
 from pathlib import Path
 from typing import Any
 
+from verify_acquisition import prove as prove_acquisition
 from verify_context import prove as prove_context
 from verify_impact import prove as prove_impact
 
@@ -453,6 +454,7 @@ def prove(binary: Path, home: Path, temporary: Path, run: Runner) -> None:
     assert verify_revision_id(setup_model)
     assert setup["owner_id"] == owner and setup["harness_id"] == "codex"
     prove_impact(binary, home, state, root, setup, run)
+    prove_acquisition(binary, home, state, root, run)
     source = {
         "stable_id": setup["stable_id"],
         "version": "1.0",

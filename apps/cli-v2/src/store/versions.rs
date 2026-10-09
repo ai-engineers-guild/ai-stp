@@ -68,12 +68,45 @@ pub fn record(
     operation_id: Option<&str>,
     at: &str,
 ) -> Result<Value> {
+    record_version(transaction, document, device_id, operation_id, at, false)
+}
+
+/// Retain the exact published passport without inserting current model defaults.
+pub fn acquire(
+    transaction: &Transaction<'_>,
+    document: &Value,
+    device_id: &str,
+    operation_id: &str,
+    at: &str,
+) -> Result<Value> {
+    record_version(
+        transaction,
+        document,
+        device_id,
+        Some(operation_id),
+        at,
+        true,
+    )
+}
+
+fn record_version(
+    transaction: &Transaction<'_>,
+    document: &Value,
+    device_id: &str,
+    operation_id: Option<&str>,
+    at: &str,
+    acquired: bool,
+) -> Result<Value> {
     if !passport::timestamp(at) || !passport::stable_id(device_id, "device") {
         return Err(Failure::input(
             "the version observation time or device identity is invalid",
         ));
     }
-    let document = revisions::seal(document)?;
+    let document = if acquired {
+        document.clone()
+    } else {
+        revisions::seal(document)?
+    };
     passport::versions::validate_document(&document)?;
     let id = document["stable_id"]
         .as_str()
@@ -114,7 +147,11 @@ pub fn record(
         &document,
         device_id,
         operation_id,
-        Write::Immutable,
+        if acquired {
+            Write::Acquired
+        } else {
+            Write::Immutable
+        },
     )?;
     transaction.execute("INSERT INTO object_version(stable_id,version,major,minor,passport_digest,revision_id,created_at) VALUES (?,?,?,?,?,?,?)",
         params![id,version,major,minor,address,stored["revision_id"].as_str(),at]).map_err(database)?;

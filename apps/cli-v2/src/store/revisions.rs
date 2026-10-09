@@ -12,8 +12,12 @@ use crate::{
 };
 
 pub enum Write<'a> {
-    Advance { expected_heads: &'a [String] },
+    Advance {
+        expected_heads: &'a [String],
+    },
     Immutable,
+    /// An externally sealed version; retain its bytes and initialize only a missing head.
+    Acquired,
 }
 
 pub fn seal(document: &Value) -> Result<Value> {
@@ -73,8 +77,13 @@ pub fn commit(
     if !passport::stable_id(device_id, "device") {
         return Err(Failure::input("a revision requires a device identity"));
     }
-    let document = seal(document)?;
-    if matches!(write, Write::Immutable) {
+    let document = if matches!(write, Write::Acquired) {
+        passport::validate(document)?;
+        document.clone()
+    } else {
+        seal(document)?
+    };
+    if matches!(write, Write::Immutable | Write::Acquired) {
         passport::versions::validate_document(&document)?;
     }
     let text = |field| {
@@ -171,6 +180,13 @@ pub fn commit(
                 ));
             }
         }
+        Write::Acquired => {
+            if !parents.is_empty() {
+                return Err(Failure::precondition(
+                    "an acquired immutable version cannot have draft parents",
+                ));
+            }
+        }
     }
     for parent in &parents {
         let held = Objects {
@@ -196,7 +212,9 @@ pub fn commit(
             )
             .map_err(database)?;
     }
-    if matches!(write, Write::Advance { .. }) {
+    if matches!(write, Write::Advance { .. })
+        || (matches!(write, Write::Acquired) && existing.is_none())
+    {
         transaction
             .execute("DELETE FROM head WHERE stable_id = ?", [id])
             .map_err(database)?;

@@ -136,6 +136,7 @@ pub fn apply(path: &Path, expected_digest: &str) -> Result<Value> {
         "setup.passport.update" => execute(plan, setups::drafts::apply),
         "setup.version.release" => execute(plan, setups::releases::apply),
         "setup.import" => execute(plan, importing::apply),
+        "catalog.setup.acquire" => execute(plan, crate::catalog::acquisition::apply),
         "setup.fork" | "setup.recast" => execute(plan, setups::copies::apply),
         _ => Err(Failure::input(
             "this operation is not implemented by the local authoring runtime",

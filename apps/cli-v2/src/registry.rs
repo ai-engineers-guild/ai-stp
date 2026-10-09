@@ -31,6 +31,7 @@ enum Handler {
     CatalogSearch,
     CatalogShow,
     CatalogVersion,
+    CatalogAcquirePlan,
     EnvironmentRequirements,
     DependencyGraph,
     TemplateRender,
@@ -467,6 +468,22 @@ const COMMANDS: &[Declaration] = &[
         handler: Handler::CatalogVersion,
     },
     Declaration {
+        path: &["registry", "acquire", "plan"],
+        summary: "Capture an exact public setup graph and all declared projections for atomic local acquisition.",
+        parameters: &[
+            STATE_DIR,
+            CONFIG,
+            ID,
+            Parameter {
+                name: "version",
+                summary: "Exact immutable setup X.Y version.",
+                kind: ParameterType::String,
+                required: true,
+            },
+        ],
+        handler: Handler::CatalogAcquirePlan,
+    },
+    Declaration {
         path: &["select", "graph"],
         summary: "Resolve exact dependencies with bounded deterministic ordering and complete refusals.",
         parameters: &[
@@ -566,7 +583,7 @@ fn descriptors() -> Vec<Value> {
 
 fn mutability(handler: Handler) -> &'static str {
     match handler {
-        Handler::ScaffoldPlan | Handler::IdentityPlan => "plan",
+        Handler::ScaffoldPlan | Handler::IdentityPlan | Handler::CatalogAcquirePlan => "plan",
         Handler::ScaffoldApply | Handler::IdentityApply => "apply",
         Handler::Local(handler) => handler.mutability(),
         _ => "read",
@@ -681,6 +698,22 @@ pub fn dispatch(matches: &ArgMatches) -> Result<Value> {
         Handler::SourceInspect => source_project::inspect(
             leaf.get_one::<std::path::PathBuf>("root")
                 .ok_or_else(|| Failure::input("source root is required"))?,
+        ),
+        Handler::CatalogAcquirePlan => crate::authoring::runtime::plan(
+            leaf.get_one::<std::path::PathBuf>("state-dir")
+                .ok_or_else(|| Failure::input("state directory is required"))?,
+            |_, identity, at| {
+                catalog::acquisition::plan(
+                    leaf.get_one::<std::path::PathBuf>("config")
+                        .map(std::path::PathBuf::as_path),
+                    leaf.get_one::<String>("id")
+                        .ok_or_else(|| Failure::input("setup id is required"))?,
+                    leaf.get_one::<String>("version")
+                        .ok_or_else(|| Failure::input("setup version is required"))?,
+                    identity,
+                    at,
+                )
+            },
         ),
         Handler::IdentityPlan => {
             let storage = match leaf

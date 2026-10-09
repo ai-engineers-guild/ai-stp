@@ -1,5 +1,6 @@
 //! Public catalog observation, with explicit offline provenance and no account access.
 
+pub mod acquisition;
 mod cache;
 use crate::{
     digest,
