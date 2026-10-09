@@ -370,6 +370,32 @@ and excludes only `.git` and `nori.json` at the selected directory's root.
 The latter remains metadata evidence outside the payload. Existing atomic draft
 adoption/import, owner checks, idempotent replay and stale-plan refusal apply.
 
+`provider::wheel::inspect` reads one bounded native-provider wheel in memory.
+It validates every regular member against one complete CSV `RECORD`: unique
+portable names, exact inventory and byte lengths, and SHA-256/384/512 hashes;
+only RECORD itself has empty digest/size. Unknown algorithms, missing/extra rows,
+aliases, links, special files, encryption and unsafe archive paths refuse. The
+shared external ZIP preflight bounds indexing before decompression. Limits are
+64 MiB compressed, 128 MiB expanded, 1,000 entries and 1 MiB per metadata document.
+
+The narrow provider profile requires one matching dist-info directory, exact
+project/version, declared license, Wheel 1.0, native platform tags and exactly
+one expected bin payload. ELF64, thin Mach-O64 and PE32+ headers must match the
+selected OS/architecture. Header identity is not loader compatibility or runtime
+evidence. Core metadata through 2.6 is accepted; duplicated identity headers
+refuse and description bodies do not contribute fields. CSV quoting and header
+folding are parsed. Wheel signature sidecars with unrecorded bytes are outside
+this profile. Nothing is extracted, installed or executed, and successful
+inspection does not authenticate a publisher. Provider fetch/execution commands
+remain unavailable until trust refresh and durable runtime observations ship.
+
+`provider::wheel` owns pinned `csv` 1.4.0 and its locked parser dependencies;
+removing wheel inspection removes that direct dependency. This reuses the same
+bounded external ZIP reader as GitHub and Go. The profile follows the
+[wheel format](https://packaging.python.org/en/latest/specifications/binary-distribution-format/)
+and [core metadata](https://packaging.python.org/en/latest/specifications/core-metadata/)
+for the fields it consumes, with the native-provider restrictions above.
+
 `project symbols` summarizes public top-level declarations and entry-point files
 from the same held-handle reads as `project index`; it never reopens indexed
 paths or emits source bodies. Python uses pinned Tree-sitter syntax nodes, while

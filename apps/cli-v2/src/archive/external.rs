@@ -8,7 +8,7 @@ fn invalid() -> Failure {
 }
 
 // Bound central-directory allocation before asking the ZIP parser to build its index.
-pub(super) fn directory(bytes: &[u8], limit: usize) -> Result<(usize, usize)> {
+pub(crate) fn directory(bytes: &[u8], limit: usize) -> Result<(usize, usize)> {
     if bytes.len() < 22 || bytes.len() > limit {
         return Err(invalid());
     }
@@ -37,7 +37,7 @@ pub(super) fn directory(bytes: &[u8], limit: usize) -> Result<(usize, usize)> {
     Ok((usize::from(count), start))
 }
 
-pub(super) fn open(bytes: &[u8], limit: usize) -> Result<zip::ZipArchive<Cursor<&[u8]>>> {
+pub(crate) fn open(bytes: &[u8], limit: usize) -> Result<zip::ZipArchive<Cursor<&[u8]>>> {
     let (count, start) = directory(bytes, limit)?;
     let archive = zip::ZipArchive::new(Cursor::new(bytes)).map_err(|_| invalid())?;
     // The ZIP library indexes by name and silently replaces duplicate records.
