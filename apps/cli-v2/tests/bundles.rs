@@ -68,8 +68,13 @@ fn component(
         .ok_or("fixture missing")?["body"]["passport"]
         .clone();
     let profile = provider.profile(scope).ok_or("profile missing")?;
-    let kind = if contribution.is_some() {
+    let kind = if matches!(contribution, Some("mcp" | "mcpServers" | "mcp_servers")) {
         "mcp"
+    } else if matches!(
+        file.path.as_str(),
+        "settings.json" | "config.toml" | "opencode.json"
+    ) {
+        "setting"
     } else if file.path.starts_with("commands/") || file.path.starts_with("prompts/") {
         "command"
     } else if file.path.starts_with("agents/")
@@ -605,6 +610,96 @@ fn opencode_namespaces(store: &mut Store, declarations: &[Value]) -> Result<(), 
         .err()
         .ok_or("duplicate OpenCode agent accepted")?;
     assert!(refused.message.contains("native_id_collision"));
+    Ok(())
+}
+
+fn retained_settings(store: &mut Store, declarations: &[Value]) -> Result<(), Box<dyn Error>> {
+    for (harness, path, accepted, rejected, contribution) in [
+        (
+            "claude-code",
+            "settings.json",
+            r#"{"env":{"LOG_LEVEL":"info"}}"#,
+            r#"{"env":{"ANTHROPIC_API_KEY":"synthetic-sensitive-value"}}"#,
+            None,
+        ),
+        (
+            "codex",
+            "config.toml",
+            "[mcp_servers.review]\ncommand = 'server'\nenv_http_headers = { Authorization = 'REVIEW_TOKEN' }\n",
+            "[mcp_servers.review]\ncommand = 'server'\nenv = { API_KEY = 'synthetic-sensitive-value' }\n",
+            None,
+        ),
+        (
+            "opencode",
+            "opencode.json",
+            r#"{"provider":{"review":{"options":{"apiKey":"{env:REVIEW_KEY}"}}}}"#,
+            r#"{"provider":{"review":{"options":{"apiKey":"synthetic-sensitive-value"}}}}"#,
+            None,
+        ),
+        (
+            "claude-code",
+            "settings.json",
+            r#"{"LOG_LEVEL":"info"}"#,
+            r#"{"REVIEW_TOKEN":"synthetic-sensitive-value"}"#,
+            Some("env"),
+        ),
+        (
+            "codex",
+            "config.toml",
+            "LOG_LEVEL = 'info'\n",
+            "REVIEW_TOKEN = 'synthetic-sensitive-value'\n",
+            Some("env"),
+        ),
+    ] {
+        let provider = Info::parse(&serde_json::to_vec(
+            declarations
+                .iter()
+                .find(|v| v["harness_id"] == harness)
+                .ok_or("provider missing")?,
+        )?)?;
+        let target = target(harness, Scope::Global);
+        let hosts = if contribution.is_some() {
+            [(path.into(), None)].into()
+        } else {
+            Hosts::new()
+        };
+        let good = component(
+            store,
+            &provider,
+            Scope::Global,
+            File {
+                path: path.into(),
+                bytes: accepted.as_bytes().to_vec(),
+                mode: 0o644,
+            },
+            contribution,
+        )?;
+        let (setup, evidence) = compose(store, harness, &[good])?;
+        let built = bundle::compile(store, &setup, &target, &evidence, &provider, &hosts)?;
+        let bad = component(
+            store,
+            &provider,
+            Scope::Global,
+            File {
+                path: path.into(),
+                bytes: rejected.as_bytes().to_vec(),
+                mode: 0o644,
+            },
+            contribution,
+        )?;
+        let refused = compose(store, harness, std::slice::from_ref(&bad))
+            .err()
+            .ok_or("setting credential composed")?;
+        assert!(refused.to_string().contains("credential"));
+        // The forged catalog graph is correctly hashed at every layer. The
+        // semantic check must run again when retained bytes enter a bundle.
+        let (setup, evidence) = catalog_repin(store, &built, &bad)?;
+        let refused = bundle::compile(store, &setup, &target, &evidence, &provider, &hosts)
+            .err()
+            .ok_or("retained setting credential bundled")?;
+        assert_eq!(refused.details["constraint"], "literal_credential");
+        assert!(!refused.message.contains("synthetic-sensitive-value"));
+    }
     Ok(())
 }
 
@@ -1186,6 +1281,7 @@ fn exact_bundles_cover_every_released_profile_and_refuse_unrepresentable_inputs(
         }
     }
     mcp_contributions(&mut store, &declarations)?;
+    retained_settings(&mut store, &declarations)?;
     Ok(())
 }
 

@@ -638,6 +638,28 @@ and [HTTP userinfo rules](https://www.rfc-editor.org/rfc/rfc9110.html#section-4.
 No URL is fetched and no environment reference is resolved.
 The data-only readers retain the existing size, depth and node bounds.
 
+The same credential traversal applies to captured JSON/JSONC/TOML `setting`
+components and their retained projections before release, setup composition or
+bundle creation. Selecting the whole settings file cannot bypass an embedded
+MCP check. Owned contributions are checked in their declared key context; an
+`env` fragment cannot hide credential-named variables by omitting its wrapper.
+The check inspects only owned bytes and never rewrites or persists a refused
+value. Codex model-provider `experimental_bearer_token` is a literal credential;
+its exact model-provider `env_http_headers` maps hold environment names, as do
+MCP server maps. Similar fields at unrelated paths gain no exception.
+
+Setting references have separate native semantics: [OpenCode configuration](https://opencode.ai/docs/config/#variables)
+accepts complete `{env:NAME}`/`{file:path}` references; [Pi models.json](https://pi.dev/docs/latest/models)
+accepts complete `$NAME`/`${NAME}` references in credential fields, optionally
+preceded by `Bearer` and one space. Embedded MCP retains its existing harness-specific syntax.
+Other setting credential fields must be absent, null or empty. Literal defaults,
+placeholder keys, executable credential expressions and unknown reference syntax
+refuse. Static headers, extra headers, query parameters and credential-bearing
+URLs use the same checks. No helper is run, variable read or referenced file
+opened. This checks recognized structured fields, not arbitrary secrets encoded
+in scripts, free text, unrecognized names or comments; it is not complete native
+settings-schema validation or authentication evidence.
+
 This does not validate transport execution
 or grant credential access. Generic file/tree capture still refuses credential-named
 files. Explicit Claude project MCP adoption alone can read the discovered
