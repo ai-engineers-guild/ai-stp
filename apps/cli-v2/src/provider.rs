@@ -1,5 +1,7 @@
 //! Validated provider declarations; parsing does not attest a provider executable.
 
+pub mod wheel;
+
 use crate::{
     artifacts, digest,
     error::{Failure, Result},
