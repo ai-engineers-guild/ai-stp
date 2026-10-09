@@ -26,7 +26,11 @@ from ai_stp_foundation.digests import digest_bytes, digest_canonical
 from ai_stp_foundation.ids import new_id
 from ai_stp_foundation.refs import ComponentRef
 from ai_stp_passports.envelope import derive_revision_id
-from ai_stp_sources.definition import EmbeddedDraft, freeze_setup_definition
+from ai_stp_sources.definition import (
+    EmbeddedDraft,
+    freeze_setup_definition,
+    validate_setup_definition,
+)
 from ai_stp_sources.models import SourceSnapshot
 
 Runner = Callable[[Path, Path, list[str], int], dict[str, Any]]
@@ -449,6 +453,109 @@ def prove(binary: Path, home: Path, state: Path, root: Path, run: Runner) -> Non
                     0,
                 )["data"]
                 assert json.loads(exported["plan"]["files"]["setup-definition.json"]) == definition
+
+                # The same embedded bytes must survive ordinary owned authoring.
+                # A fork must not silently turn private embedded refs into catalog refs.
+                def owned_apply(arguments: list[str]) -> dict[str, Any]:
+                    before_plan = tuple(db.iterdump())
+                    planned = run(binary, home, arguments, 0)["data"]
+                    assert tuple(db.iterdump()) == before_plan
+                    plan_path.write_text(json.dumps(planned["plan"]), encoding="utf-8")
+                    invocation = [*apply[:-1], planned["plan_digest"]]
+                    result = run(binary, home, invocation, 0)["data"]
+                    retained = tuple(db.iterdump())
+                    assert run(binary, home, invocation, 0)["data"] == result
+                    assert tuple(db.iterdump()) == retained
+                    return result
+
+                def stored_definition(document: dict[str, Any]) -> dict[str, Any]:
+                    payload = db.execute(
+                        "SELECT bytes FROM content WHERE digest=?",
+                        (document["artifact"]["digest"],),
+                    ).fetchone()[0]
+                    assert (
+                        digest_bytes("ai-stp:artifact:v1", payload)
+                        == document["artifact"]["digest"]
+                    )
+                    return validate_setup_definition(payload)
+
+                fork = owned_apply(
+                    [
+                        "setup",
+                        "fork",
+                        "plan",
+                        "--state-dir",
+                        str(state),
+                        "--id",
+                        mixed["stable_id"],
+                        "--version",
+                        "1.0",
+                        "--passport-digest",
+                        mixed_result["passport_digest"],
+                    ]
+                )
+                assert fork["artifact_format"] == "ai-stp-setup-definition/2"
+                assert stored_definition(fork)["embedded"] == definition["embedded"]
+                request_path = root / "embedded-draft.json"
+                request: dict[str, Any] = {
+                    "harness_id": "codex",
+                    "name": "Revised embedded setup",
+                    "description": "Keep exact embedded bytes across authoring.",
+                    "purpose": "Review changes",
+                    "requirements": {},
+                    "members": [
+                        {key: ref[key] for key in ("stable_id", "version", "passport_digest")}
+                        for ref in fork["components"]
+                    ],
+                }
+                request_path.write_text(json.dumps(request), encoding="utf-8")
+                update_args = [
+                    "setup",
+                    "passport",
+                    "update",
+                    "plan",
+                    "--state-dir",
+                    str(state),
+                    "--id",
+                    fork["stable_id"],
+                    "--expected-revision",
+                    fork["revision_id"],
+                    "--request",
+                    str(request_path),
+                ]
+                revised = owned_apply(update_args)
+                assert stored_definition(revised)["embedded"] == definition["embedded"]
+                released = owned_apply(
+                    [
+                        "setup",
+                        "version",
+                        "release",
+                        "plan",
+                        "--state-dir",
+                        str(state),
+                        "--id",
+                        fork["stable_id"],
+                        "--expected-revision",
+                        revised["revision_id"],
+                        "--increment",
+                        "minor",
+                    ]
+                )
+                retained_definition = stored_definition(released)
+                assert released["version"] == "1.1"
+                assert retained_definition["version"] == "1.1"
+                assert retained_definition["embedded"] == definition["embedded"]
+                # An explicit removal has a real format transition, while the old
+                # immutable version and its embedded index remain available.
+                request["members"] = [
+                    ref for ref in request["members"] if ref["stable_id"] != embedded_id
+                ]
+                request_path.write_text(json.dumps(request), encoding="utf-8")
+                update_args[update_args.index("--expected-revision") + 1] = revised["revision_id"]
+                removed = owned_apply(update_args)
+                assert removed["artifact_format"] == "ai-stp-setup-definition/1"
+                assert "embedded" not in stored_definition(removed)
+                assert stored_definition(released) == retained_definition
         finally:
             server.shutdown()
             thread.join(timeout=5)

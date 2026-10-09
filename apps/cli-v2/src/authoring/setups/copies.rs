@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
 use super::{
-    Member, Request, Source, aggregate::Aggregate, compile, exact, finish, recast, verify,
+    Member, Request, Source, aggregate::Aggregate, compile, exact, finish_from, recast, verify,
 };
 
 pub use super::recast::{Derivation, DerivedMember};
@@ -195,7 +195,7 @@ fn copy(
             "harness_id":original["harness_id"],"constraints":original["supported_harness_versions"],"transferred":false},
             "origin":"derived","confirmation":"none","observed_at":plan.created_at});
     }
-    let (passport, bytes) = finish(document)?;
+    let (passport, bytes) = finish_from(connection, &original, document)?;
     Ok(Built {
         passport,
         bytes,

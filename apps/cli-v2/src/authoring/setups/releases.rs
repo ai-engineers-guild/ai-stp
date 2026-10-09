@@ -61,9 +61,10 @@ fn build(connection: &Connection, mut draft: Value, version: &str) -> Result<(Va
             "the setup's complete exact graph is no longer eligible for release",
         ));
     }
+    let before = draft.clone();
     draft["version"] = version.into();
     draft["parent_revision_ids"] = json!([]);
-    super::finish(draft)
+    super::finish_from(connection, &before, draft)
 }
 
 pub fn plan(

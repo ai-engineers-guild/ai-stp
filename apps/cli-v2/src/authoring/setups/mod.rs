@@ -228,8 +228,29 @@ fn assemble(
 }
 
 pub(crate) fn finish(mut document: Value) -> Result<(Value, Vec<u8>)> {
+    if document["artifact_format"] != FORMAT {
+        return Err(invalid());
+    }
     passport::versions::normalize_component_refs(&mut document["components"])?;
     let payload = canonical::bytes(&definition::document(&document))?;
+    seal(document, payload)
+}
+
+fn finish_from(
+    connection: &Connection,
+    before: &Value,
+    mut document: Value,
+) -> Result<(Value, Vec<u8>)> {
+    passport::versions::normalize_component_refs(&mut document["components"])?;
+    let payload = revisions::read_content(
+        connection,
+        before["artifact"]["digest"].as_str().ok_or_else(invalid)?,
+    )?;
+    let payload = definition::rewrite(before, &payload, &mut document)?;
+    seal(document, payload)
+}
+
+fn seal(mut document: Value, payload: Vec<u8>) -> Result<(Value, Vec<u8>)> {
     document["artifact"] =
         json!({"digest":digest::bytes("ai-stp:artifact:v1", &payload)?,"size_bytes":payload.len()});
     let document = revisions::seal(&document)?;

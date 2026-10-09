@@ -554,6 +554,14 @@ lineage and the setup in one transaction. Replays verify the recorded replacemen
 without deriving or extending source versions again. Existing plans that omit the
 optional derivation field retain their serialized form.
 
+Same-harness forks, setup draft edits and immutable releases retain the exact
+embedded records from version-2 definitions. An explicit member removal drops
+only that record; removing the last embedded member produces version 1. Existing
+immutable versions remain unchanged. Changing an embedded coordinate requires a
+replacement snapshot and currently refuses, as does recasting an embedded setup
+to another harness. Neither operation may silently convert embedded members into
+catalog references or discard their source provenance.
+
 These operations rebuild and verify the full dependency closure and preserve
 content declarations, license declarations and conservative requirements.
 Report, installation and compatibility evidence do not transfer to a new setup.
