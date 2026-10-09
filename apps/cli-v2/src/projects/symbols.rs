@@ -53,6 +53,7 @@ pub fn survey(path: &Path) -> Result<Value> {
     let mut visited = 0;
     let mut stopped = None;
     let index = super::index::visit(path, &mut |path, language, bytes| {
+        let Some(language) = language else { return };
         if visited >= MAX_FILES {
             stopped.get_or_insert("file budget");
             return;
