@@ -4,6 +4,7 @@ import csv
 import io
 
 from ai_stp_contracts.technology import TechnologyEvidence, TechnologyScanFinding
+from ai_stp_foundation.ids import new_id
 from ai_stp_platform.technology_findings import (
     curate_findings,
     export_findings_csv,
@@ -66,6 +67,31 @@ def test_lock_only_transitive_needs_every_trace_to_be_lock_output() -> None:
     )
     # A declaration in another directory does not rescue this directory's row.
     assert lock_only_transitive("dep", [_evidence("observed", "tools/uv.lock")], declared)
+
+
+def test_declared_but_unrecognized_waits_in_the_unmapped_queue() -> None:
+    """A declared package is still not a technology until someone recognizes it."""
+    findings = [
+        _finding("fastapi", evidence=[("declared", "pyproject.toml")]),
+        _finding("acme-internal-stdlib", evidence=[("declared", "pyproject.toml")]),
+        _finding(
+            "acme-candidate-lib",
+            evidence=[("declared", "pyproject.toml")],
+            candidate_technology_id=new_id("technology"),
+        ),
+        _finding(
+            "acme-vendored-lib",
+            evidence=[("declared", "requirements.txt")],
+            review="confirmed",
+            technology_id=new_id("technology"),
+        ),
+    ]
+    result = curate_findings(findings)
+    assert [item.coordinate for item in result] == [
+        "fastapi",
+        "acme-candidate-lib",
+        "acme-vendored-lib",
+    ]
 
 
 def test_configuration_signature_needs_an_identity() -> None:

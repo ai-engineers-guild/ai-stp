@@ -901,8 +901,8 @@ async def test_scan_journal_launch_and_detail(
     assert entry.project_name == "Scanned project"
     assert entry.source == "local"
     assert entry.status == "succeeded"
-    assert entry.found == 2
-    assert entry.pending == 1
+    assert entry.found == 1
+    assert entry.pending == 0
 
     filtered = await list_scans(
         db_session,
@@ -923,8 +923,8 @@ async def test_scan_journal_launch_and_detail(
     assert detail.project_id == first.project_id
     assert detail.source == "local"
     assert detail.status == "succeeded"
-    assert detail.found == 2
-    assert detail.pending == 1
+    assert detail.found == 1
+    assert detail.pending == 0
     assert detail.detector_version == "v1"
     assert detail.mapping_version == SEED_COORDINATES_VERSION
     assert detail.complete is True
@@ -937,11 +937,18 @@ async def test_scan_journal_launch_and_detail(
     assert resolved.version == "1.2.3"
     assert resolved.version_kind == "observed_version"
     assert resolved.evidence[0].path == "requirements.lock"
-    opened = states["pip:unknown-widget"]
-    assert opened.state == "open"
-    assert opened.kind == "package"
-    assert opened.technology_id is None
-    assert opened.evidence[0].path == "requirements.txt"
+    # A declared-but-unrecognized dependency is not a finding: it waits in the
+    # unmapped queue until a review or a mapping gives it an identity.
+    assert "pip:unknown-widget" not in states
+    unmapped = await read_unmapped(
+        db_session,
+        ctx=ctx,
+        organization_id=org,
+        scan_id=published.scan_id,
+        request_id="journal-test",
+    )
+    queued = {entry.coordinate for entry in unmapped.coordinates}
+    assert queued == {"pip:unknown-widget"}
 
     # A candidate review shows up in the scan detail without changing history.
     await review_unmapped(
@@ -1393,6 +1400,20 @@ async def test_scan_findings_resource_and_exports(
                             "evidence": [evidence],
                         },
                         {
+                            "kind": "package",
+                            "coordinate": "acme-internal-stdlib",
+                            "context": "production",
+                            "version": "2.1.0",
+                            "version_kind": "declared_range",
+                            "evidence": [
+                                {
+                                    **evidence,
+                                    "source": "declared",
+                                    "path": "requirements.txt",
+                                }
+                            ],
+                        },
+                        {
                             "kind": "configuration",
                             "coordinate": "conftest.py",
                             "context": "testing",
@@ -1400,6 +1421,22 @@ async def test_scan_findings_resource_and_exports(
                                 {**evidence, "source": "configured", "path": "conftest.py"}
                             ],
                         },
+                    ],
+                    "unmapped_coordinates": [
+                        {
+                            "kind": "package",
+                            "coordinate": "acme-internal-stdlib",
+                            "context": "production",
+                            "version": "2.1.0",
+                            "version_kind": "declared_range",
+                            "evidence": [
+                                {
+                                    **evidence,
+                                    "source": "declared",
+                                    "path": "requirements.txt",
+                                }
+                            ],
+                        }
                     ],
                 },
             }
@@ -1430,6 +1467,17 @@ async def test_scan_findings_resource_and_exports(
     assert "conftest.py" in coordinates
     # Resolver output the project never declared is not a review finding.
     assert "resolver-only-dep" not in coordinates
+    # A declared dependency nobody recognizes waits in the unmapped queue,
+    # not in the technology findings.
+    assert "acme-internal-stdlib" not in coordinates
+    queue = await read_unmapped(
+        db_session,
+        ctx=ctx,
+        organization_id=org,
+        scan_id=published.scan_id,
+        request_id="findings-test",
+    )
+    assert {entry.coordinate for entry in queue.coordinates} == {"acme-internal-stdlib"}
 
     csv_body, csv_media = await export_scan_findings(
         db_session,
@@ -1443,6 +1491,7 @@ async def test_scan_findings_resource_and_exports(
     assert "fastapi" in csv_body
     assert "conftest.py" in csv_body
     assert "resolver-only-dep" not in csv_body
+    assert "acme-internal-stdlib" not in csv_body
 
     md_body, md_media = await export_scan_findings(
         db_session,

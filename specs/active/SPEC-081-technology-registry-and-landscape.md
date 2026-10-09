@@ -198,9 +198,10 @@ filtering without changing these registry and relation semantics.
   job per selected project; a rejected item never blocks the others and a
   project without a linked GitHub/GitLab repository cannot be queued.
   `GET /technology-scans/{scan_id}` expands one journal row into its findings
-  — resolved observations and unmapped coordinates with their current review
-  state — under the same project-scoped read authority; queued and failed jobs
-  remain readable with empty findings.
+  — resolved observations, recognized signatures and coordinates already under
+  review — under the same project-scoped read authority; queued and failed
+  jobs remain readable with empty findings, and dependencies nobody
+  recognizes wait in the unmapped-coordinate queue instead.
   `GET /technology-scans/{scan_id}/findings` returns the same curated finding
   set as a standalone resource carrying the scan's repository, branch, commit,
   completeness and detector/mapping versions.
@@ -216,8 +217,12 @@ filtering without changing these registry and relation semantics.
   trace is a lock row with no same-directory declaration is resolver output:
   it stays in the scan's raw `coordinates` inventory but never becomes an
   observation, an unmapped-queue entry, or a review finding — unless an owner
-  already reviewed it. Configuration and image signatures without a resolved
-  or candidate identity are likewise noise unless reviewed.
+  already reviewed it. A finding the registry cannot recognize — no seed
+  identity, no mapped technology — is a dependency, not a technology: it
+  waits in `unmapped_coordinates` until a review proposes a candidate or a
+  mapping, at which point it returns to findings as a candidate or resolved
+  row. Only recognized signatures, resolved technologies and reviewed
+  decisions stand as findings.
 
 ## States and errors
 

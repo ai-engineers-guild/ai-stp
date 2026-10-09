@@ -1281,6 +1281,23 @@ async def review_findings(
             None,
         )
         if finding is None:
+            # Curation hides dependencies nobody recognized; the raw coordinate
+            # is still part of the scan and an owner's decision stands on it.
+            raw = next(
+                (
+                    row
+                    for row in await scan_coordinates(
+                        db,
+                        organization_id,
+                        TechnologyScanHandoff.model_validate(scan.handoff["handoff"]),
+                    )
+                    if finding_key(row.kind, row.coordinate, row.context) == key
+                ),
+                None,
+            )
+            if raw is not None:
+                finding = TechnologyScanFinding(**raw.model_dump(), state="open")
+        if finding is None:
             raise ApiError(ErrorCategory.VALIDATION, "finding is not part of this scan")
         row = await db.get(TechnologyFindingReview, (organization_id, item.scan_id, key))
         if (row.revision if row else 0) != item.expected_revision:

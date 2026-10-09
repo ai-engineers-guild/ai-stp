@@ -73,20 +73,24 @@ def technology_identity(kind: str, coordinate: str) -> tuple[str, str] | None:
 
 
 def curate_findings(findings: list[TechnologyScanFinding]) -> list[TechnologyScanFinding]:
-    """Keep direct declarations and technology signatures, not transitive lock rows."""
+    """Keep recognized technologies and decisions people made.
+
+    A dependency the registry does not recognize is a dependency, not a
+    technology: it waits in `unmapped_coordinates` until a review gives it
+    a candidate or a mapping. Resolver output never enters either list —
+    it stays raw evidence in `coordinates`.
+    """
     direct = declared_package_dirs((item.kind, item.coordinate, item.evidence) for item in findings)
     result: list[TechnologyScanFinding] = []
     for item in findings:
         identity = technology_identity(item.kind, item.coordinate)
         owned = item.candidate_technology_id or item.review == "confirmed"
         if not owned:
-            if item.kind == "configuration" and identity is None and item.technology_id is None:
-                continue
-            if item.kind == "image" and identity is None and item.technology_id is None:
-                continue
             if item.kind == "package" and lock_only_transitive(
                 item.coordinate, item.evidence, direct
             ):
+                continue
+            if identity is None and item.technology_id is None:
                 continue
         result.append(
             item.model_copy(
