@@ -68,8 +68,13 @@ fn component(
         .ok_or("fixture missing")?["body"]["passport"]
         .clone();
     let profile = provider.profile(scope).ok_or("profile missing")?;
-    let kind = if contribution.is_some() {
+    let kind = if matches!(contribution, Some("mcp" | "mcpServers" | "mcp_servers")) {
         "mcp"
+    } else if matches!(
+        file.path.as_str(),
+        "settings.json" | "config.toml" | "opencode.json"
+    ) {
+        "setting"
     } else if file.path.starts_with("commands/") || file.path.starts_with("prompts/") {
         "command"
     } else if file.path.starts_with("agents/")
@@ -608,6 +613,189 @@ fn opencode_namespaces(store: &mut Store, declarations: &[Value]) -> Result<(), 
     Ok(())
 }
 
+fn assembled_credentials(
+    store: &mut Store,
+    provider: &Info,
+    setup: &Value,
+    evidence: &BTreeMap<String, Evidence>,
+    path: &str,
+    key: &str,
+) -> Result<Vec<String>, Box<dyn Error>> {
+    let harness = text(provider.document(), "harness_id")?;
+    let target = target(harness, Scope::Global);
+    let toml = path.ends_with(".toml");
+    // The replaced key's old credential is not part of the resulting package.
+    // Harmless unowned fields, Unicode spelling and native references survive.
+    let clean = if toml {
+        format!(
+            "theme = 'cafe\u{301}'\n[model_providers.review]\nenv_http_headers = {{ Authorization = 'REVIEW_TOKEN' }}\n[{key}]\nAPI_KEY = 'synthetic-sensitive-value'\n"
+        )
+        .into_bytes()
+    } else {
+        let mut value = json!({"theme":"cafe\u{301}",key:{"API_KEY":"synthetic-sensitive-value"}});
+        if harness == "opencode" {
+            value["mcp"] = json!({"external":{"type":"remote","url":"https://example.test/mcp","headers":{"Authorization":"Bearer {env:REVIEW_TOKEN}"}}});
+        }
+        serde_json::to_vec(&value)?
+    };
+    let hosts: Hosts = [(path.into(), Some(clean))].into();
+    let inputs = hosts.clone();
+    let changes = store.transaction(|t| Ok(t.total_changes()))?;
+    let built = bundle::compile(store, setup, &target, evidence, provider, &hosts)?;
+    let mut archive = zip::ZipArchive::new(std::io::Cursor::new(&built.archive))?;
+    let mut bytes = String::new();
+    std::io::Read::read_to_string(&mut archive.by_name(&format!("files/{path}"))?, &mut bytes)?;
+    assert!(!bytes.contains("synthetic-sensitive-value"));
+    assert!(bytes.contains("cafe\u{301}"));
+    if toml || harness == "opencode" {
+        assert!(bytes.contains("REVIEW_TOKEN"));
+    }
+    assert_eq!(hosts, inputs);
+    let mut leaked = Vec::new();
+    for (name, value, constraint) in [
+        ("apiKey", "synthetic-sensitive-value", "literal_credential"),
+        (
+            "endpoint",
+            "https://example.test/?token=synthetic-sensitive-value",
+            "credential_url",
+        ),
+    ] {
+        let source = if toml {
+            format!("{name} = '{value}'\n").into_bytes()
+        } else {
+            serde_json::to_vec(&json!({name:value}))?
+        };
+        let hosts: Hosts = [(path.into(), Some(source))].into();
+        let inputs = hosts.clone();
+        match bundle::compile(store, setup, &target, evidence, provider, &hosts) {
+            Ok(built) => {
+                let mut archive = zip::ZipArchive::new(std::io::Cursor::new(&built.archive))?;
+                let mut bytes = String::new();
+                std::io::Read::read_to_string(
+                    &mut archive.by_name(&format!("files/{path}"))?,
+                    &mut bytes,
+                )?;
+                assert!(bytes.contains("synthetic-sensitive-value"));
+                leaked.push(format!("{harness}/{path}/{key}/{constraint}"));
+            }
+            Err(refused) => {
+                assert_eq!(refused.details["constraint"], constraint);
+                assert!(!format!("{refused:?}").contains("synthetic-sensitive-value"));
+            }
+        }
+        assert_eq!(hosts, inputs);
+    }
+    assert_eq!(store.transaction(|t| Ok(t.total_changes()))?, changes);
+    Ok(leaked)
+}
+
+fn retained_settings(store: &mut Store, declarations: &[Value]) -> Result<(), Box<dyn Error>> {
+    let mut leaked = Vec::new();
+    for (harness, path, accepted, rejected, contribution) in [
+        (
+            "claude-code",
+            "settings.json",
+            r#"{"env":{"LOG_LEVEL":"info"}}"#,
+            r#"{"env":{"ANTHROPIC_API_KEY":"synthetic-sensitive-value"}}"#,
+            None,
+        ),
+        (
+            "codex",
+            "config.toml",
+            "[mcp_servers.review]\ncommand = 'server'\nenv_http_headers = { Authorization = 'REVIEW_TOKEN' }\n",
+            "[mcp_servers.review]\ncommand = 'server'\nenv = { API_KEY = 'synthetic-sensitive-value' }\n",
+            None,
+        ),
+        (
+            "opencode",
+            "opencode.json",
+            r#"{"provider":{"review":{"options":{"apiKey":"{env:REVIEW_KEY}"}}}}"#,
+            r#"{"provider":{"review":{"options":{"apiKey":"synthetic-sensitive-value"}}}}"#,
+            None,
+        ),
+        (
+            "claude-code",
+            "settings.json",
+            r#"{"LOG_LEVEL":"info"}"#,
+            r#"{"REVIEW_TOKEN":"synthetic-sensitive-value"}"#,
+            Some("env"),
+        ),
+        (
+            "opencode",
+            "opencode.json",
+            r#"{"review":{"options":{"apiKey":"{env:REVIEW_KEY}"}}}"#,
+            r#"{"review":{"options":{"apiKey":"synthetic-sensitive-value"}}}"#,
+            Some("provider"),
+        ),
+        (
+            "codex",
+            "config.toml",
+            "LOG_LEVEL = 'info'\n",
+            "REVIEW_TOKEN = 'synthetic-sensitive-value'\n",
+            Some("env"),
+        ),
+    ] {
+        let provider = Info::parse(&serde_json::to_vec(
+            declarations
+                .iter()
+                .find(|v| v["harness_id"] == harness)
+                .ok_or("provider missing")?,
+        )?)?;
+        let target = target(harness, Scope::Global);
+        let hosts = if contribution.is_some() {
+            [(path.into(), None)].into()
+        } else {
+            Hosts::new()
+        };
+        let good = component(
+            store,
+            &provider,
+            Scope::Global,
+            File {
+                path: path.into(),
+                bytes: accepted.as_bytes().to_vec(),
+                mode: 0o644,
+            },
+            contribution,
+        )?;
+        let (setup, evidence) = compose(store, harness, &[good])?;
+        let built = bundle::compile(store, &setup, &target, &evidence, &provider, &hosts)?;
+        if let Some(key) = contribution {
+            leaked.extend(assembled_credentials(
+                store, &provider, &setup, &evidence, path, key,
+            )?);
+        }
+        let bad = component(
+            store,
+            &provider,
+            Scope::Global,
+            File {
+                path: path.into(),
+                bytes: rejected.as_bytes().to_vec(),
+                mode: 0o644,
+            },
+            contribution,
+        )?;
+        let refused = compose(store, harness, std::slice::from_ref(&bad))
+            .err()
+            .ok_or("setting credential composed")?;
+        assert!(refused.to_string().contains("credential"));
+        // The forged catalog graph is correctly hashed at every layer. The
+        // semantic check must run again when retained bytes enter a bundle.
+        let (setup, evidence) = catalog_repin(store, &built, &bad)?;
+        let refused = bundle::compile(store, &setup, &target, &evidence, &provider, &hosts)
+            .err()
+            .ok_or("retained setting credential bundled")?;
+        assert_eq!(refused.details["constraint"], "literal_credential");
+        assert!(!refused.message.contains("synthetic-sensitive-value"));
+    }
+    assert!(
+        leaked.is_empty(),
+        "host credentials entered bundles: {leaked:?}"
+    );
+    Ok(())
+}
+
 fn mcp_contributions(store: &mut Store, declarations: &[Value]) -> Result<(), Box<dyn Error>> {
     let declaration = declarations
         .iter()
@@ -628,6 +816,18 @@ fn mcp_contributions(store: &mut Store, declarations: &[Value]) -> Result<(), Bo
         Some("mcpServers"),
     )?;
     let (setup, evidence) = compose(store, "cursor", std::slice::from_ref(&mcp))?;
+    let leaked = assembled_credentials(
+        store,
+        &provider,
+        &setup,
+        &evidence,
+        "mcp.json",
+        "mcpServers",
+    )?;
+    assert!(
+        leaked.is_empty(),
+        "host credentials entered MCP bundle: {leaked:?}"
+    );
     assert!(bundle::compile(store, &setup, &target, &evidence, &provider, &Hosts::new()).is_err());
     let hosts: Hosts = [("mcp.json".into(), Some(br#"{"theme":"night"}"#.to_vec()))].into();
     let built = bundle::compile(store, &setup, &target, &evidence, &provider, &hosts)?;
@@ -1186,6 +1386,7 @@ fn exact_bundles_cover_every_released_profile_and_refuse_unrepresentable_inputs(
         }
     }
     mcp_contributions(&mut store, &declarations)?;
+    retained_settings(&mut store, &declarations)?;
     Ok(())
 }
 

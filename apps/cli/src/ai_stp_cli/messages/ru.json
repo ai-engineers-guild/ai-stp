@@ -685,6 +685,7 @@
   "the named harness has no pinned index publisher": "у названного харнесса нет закреплённого издателя индекса",
   "the native configuration changed after the import plan was reviewed": "нативная конфигурация изменилась после просмотра плана импорта",
   "the object is larger than the local store accepts": "объект больше, чем принимает локальное хранилище",
+  "the operating system and architecture must be observed before selection": "перед выбором необходимо определить операционную систему и архитектуру",
   "the operating system credential store could not be used": "хранилище учётных данных операционной системы недоступно",
   "the operating system heartbeat scheduler is unavailable": "системный планировщик heartbeat недоступен",
   "the operation already preserved a different native setup": "Эта операция уже сохранила другой нативный сетап.",
