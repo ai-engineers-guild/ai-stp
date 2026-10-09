@@ -405,6 +405,134 @@ This is a headless prerequisite: it does not execute or install a provider.
 removing refresh removes both. No second HTTP or async runtime is added. See the
 [TUF client workflow](https://theupdateframework.github.io/specification/latest/#detailed-client-workflow).
 
+`provider::artifact` binds exact wheel bytes, PEP 740 provenance and current
+trust to the compiled shared provider policy. Harness IDs remain canonical:
+`claude-code` maps to `claude-setup-system`, and `grok-build` to
+`grok-setup-system`. Version input is canonical `X.Y.Z` with a `u32` major and
+minor/patch below 1,000, avoiding collisions in the policy's release sequence.
+The policy's minimum sequence, protocol 3, repository and unique verified index
+publisher must permit the request; downloaded metadata cannot widen policy.
+
+`fetch` reuses the exact PyPI source adapter with one 30-second deadline for
+release metadata, wheel and provenance. It checks the registry's size/SHA-256,
+refuses yanked distributions and bounds the archive to 20 MiB, release metadata
+to 2 MiB and provenance to 1 MiB. Existing fixed-authority redirects and anonymous
+transport apply. `verify` accepts explicit archives up to the wheel inspector's
+64 MiB limit. Both require a verified source commit and complete wheel integrity.
+The resulting object cannot be deserialized or constructed from a report; access
+to executable bytes rechecks trust expiry. Reports retain policy, trust, archive,
+executable and publisher identities. Neither path writes or executes a package;
+installation and remembered release floors remain separate lifecycle work.
+The shared TOML policy is embedded at build time; no Python runtime or duplicate
+policy file is introduced. The [PyPI Integrity API](https://docs.pypi.org/api/integrity/)
+supplies evidence, not authorization.
+
+`provider network` measures Linux IPv4 TCP, IPv6 TCP and IPv4 UDP separation.
+An ordinary child must first deliver fresh nonces to three parent-owned loopback
+listeners; the same held CLI image then runs under Bubblewrap and must not reach
+them. The launcher is the fixed root-owned, non-setuid `/usr/bin/bwrap`, with its
+SHA-256 checked on a held executable handle before invocation. User, IPC, UTS, network and PID namespaces,
+disabled nested user namespaces, a fresh session and a minimal filesystem are
+required. Only read-only system runtime paths, private `/proc` and `/dev`, and
+ephemeral home/tmp are visible. No host home, target or D-Bus socket is mounted.
+Unavailable isolation refuses; no alternative launcher is silently selected.
+
+`provider inspect` refreshes trust, fetches the exact artifact and runs only
+`provider-info` through that observed launcher. Authenticated executable bytes
+are supplied through a sealed anonymous file and a read-only executable mount;
+no extracted path can replace them before execution. Each child has a ten-second
+deadline, 1 MiB per output stream and an explicit environment. The response must
+match the authenticated harness, project, version and host platform, and pass the
+existing provider contract. Trust expiry is rechecked after execution. The report
+binds artifact, launcher and exact response digests and records no installation
+or harness write. Serialized reports cannot construct the runtime capability.
+Only isolated TUF state is retained. macOS and Windows currently return an
+unavailable error; complete parent-death containment and writable installation
+remain separate C4 work. See the [Bubblewrap options](https://github.com/containers/bubblewrap/blob/v0.9.0/bwrap.xml).
+
+`provider status` adds one explicit existing target and provider scope to that
+authenticated observation. Every path component is opened without following
+symlinks; root/runtime mount locations and non-Unicode paths refuse. The held
+directory is mounted read-only at its normalized absolute path. Its device/inode
+identity is revalidated before execution and after the response, so replacing a
+directory cannot turn an old observation into evidence about the replacement.
+This requires Bubblewrap's `--ro-bind-fd` support; an unavailable option refuses.
+Before trust refresh, held directory identities must establish that target and
+state parent are disjoint in both ancestry directions (at most 256 parents).
+The held state parent is used for every trust write; substituting its pathname
+cannot redirect refresh into the target. This check also resolves state aliases.
+The observed provider must advertise the exact scope and request fields. The
+response uses the shared generated v3 status schema and must name that canonical
+target, harness and provider. Retained provider versions and drift remain
+observations, not assertions that a current setup is installed or ready.
+The provider's `target_digest` covers owned bytes: an unmanaged nonempty target
+can carry the same digest as an empty target. It is not a whole-directory hash.
+The report retains the exact response digest and observation time. It creates
+no target, backup, journal or installation receipt; only isolated TUF state
+can be updated. Status is not an installation permit or a consistent snapshot
+of a concurrently modified tree; an eventual plan must observe its inputs again.
+
+Linux target invocation owns `command-fds` 0.3.3 from Google's Apache-2.0
+[descriptor-transfer library](https://github.com/google/command-fds). It preserves
+only explicitly owned directory descriptors across launcher exec; Bubblewrap
+consumes and closes them before the provider starts. Existing `nix`/`thiserror`
+versions supply its locked closure; no async runtime is enabled. The command's
+deadline/output bounds also cover this path. CLI maintainers own updates and
+advisory checks; removing target handle transfer removes this dependency.
+
+`provider plan` takes the same explicit target/provider coordinates plus a bundle
+file and a closed request JSON of at most 8 KiB. The request fields are
+`operation` (`install` or `replace`), `operation_id` (an `operation_` ULID),
+`expires_at` (UTC with milliseconds, strictly future and at most fifteen minutes
+away), and `bundle`. That binding contains exactly `bundle_format`
+(`ai-stp-bundle/2`), `bundle_digest`, `artifact_digest` and numeric `bundle_size`.
+The literal archive is bounded to 64 MiB and must match the requested size and
+SHA-256 before trust refresh. It stays in memory and a sealed read-only sandbox
+mount; the provider never receives a host bundle pathname.
+
+Planning acquires authenticated provider-info, reads status, invokes
+`validate-bundle`, invokes `plan-operation`, and reads status again. Both target
+and bundle mounts are read-only; bundle validation receives no target mount.
+The full status documents must agree, and directory identity, request expiry and
+trust expiry are rechecked. Every bundle echo and the entire closed plan must
+match the observed provider/version/build/release, target, owned-byte digest,
+scope/profile, operation ID, expiry and platform. Unknown plan fields, implicit
+native capture, changed echoes or a forged digest refuse. Effects must be
+nonempty bounded strings and agree between artifact and response. Stable
+provider refusals retain only their bounded reason code, excluding raw detail.
+
+The external plan digest uses [RFC 8785](https://www.rfc-editor.org/rfc/rfc8785)
+over the original wire strings in domain `ai-stp:provider-plan:v3`. It preserves
+Unicode filesystem spelling; the project's additional NFC normalization would
+change the identity of an NFD target. Response digests independently bind exact
+stdout bytes. The report retains validation, plan, before/after status digests
+and observation time with `execution_authorized=false`. No operation, journal,
+backup or installation is stored. The provider's declared future backup effects
+remain visible; this preview does not consent to them. Installation still needs
+engine-owned eligibility, relevant input observations beyond the owned-byte
+digest, durable intent, revalidation and verified execution/recovery.
+
+`program inspect --prefix --entry-point` reads the public providers' software
+layout at an explicit absolute prefix with an existing parent. The entry point
+is an exact `bin/command` name, including `.cmd`, `.exe` or `.bat` where needed.
+The parent is resolved once; the final prefix and traversed directories refuse
+aliases. A missing prefix is reported without creating it. Read failures refuse
+instead of becoming an empty installation. Directory version labels, the exact
+version-marker digest, marker/directory agreement, resolved entry-point kind and
+unfinished `.incoming-`/`.replaced-` directories or marker/manifest stages are
+separate observations. A copied or hardlinked entry has no inferred version.
+
+The reader bounds the prefix to 1,024 entries, labels to 128 bytes, the marker
+to 1 KiB and link resolution to sixteen leaf observations and 32 directory
+components. Final entry links may point inside the prefix; intermediate aliases,
+escaping paths, link loops, non-Unicode targets and ambiguous `name/..` spellings
+refuse. Missing and dangling entries remain distinct. Two reads must agree and
+the held prefix/parent identities are rechecked. This is a layout observation,
+not an atomic tree snapshot or an execution precondition. Payloads are neither
+hashed nor executed, and local records cannot establish publisher trust:
+`installation_verified` and `execution_authorized` remain false. No identity,
+network, SQLite state, provider process or installation is opened or created.
+
 `provider::wheel::inspect` reads one bounded native-provider wheel in memory.
 It validates every regular member against one complete CSV `RECORD`: unique
 portable names, exact inventory and byte lengths, and SHA-256/384/512 hashes;
@@ -421,8 +549,9 @@ evidence. Core metadata through 2.6 is accepted; duplicated identity headers
 refuse and description bodies do not contribute fields. CSV quoting and header
 folding are parsed. Wheel signature sidecars with unrecorded bytes are outside
 this profile. Nothing is extracted, installed or executed, and successful
-inspection does not authenticate a publisher. Provider fetch/execution commands
-remain unavailable until trust refresh and durable runtime observations ship.
+inspection does not authenticate a publisher. The authenticated artifact and
+read-only runtime paths above add those separate checks; writable installation
+remains outside this inspector.
 
 `provider::wheel` owns pinned `csv` 1.4.0 and its locked parser dependencies;
 removing wheel inspection removes that direct dependency. This reuses the same
@@ -503,6 +632,28 @@ remain intact. This follows [MCP token transport](https://modelcontextprotocol.i
 and [HTTP userinfo rules](https://www.rfc-editor.org/rfc/rfc9110.html#section-4.2.4).
 No URL is fetched and no environment reference is resolved.
 The data-only readers retain the existing size, depth and node bounds.
+
+The same credential traversal applies to captured JSON/JSONC/TOML `setting`
+components and their retained projections before release, setup composition or
+bundle creation. Selecting the whole settings file cannot bypass an embedded
+MCP check. Owned contributions are checked in their declared key context; an
+`env` fragment cannot hide credential-named variables by omitting its wrapper.
+The check inspects only owned bytes and never rewrites or persists a refused
+value. Codex model-provider `experimental_bearer_token` is a literal credential;
+its exact model-provider `env_http_headers` maps hold environment names, as do
+MCP server maps. Similar fields at unrelated paths gain no exception.
+
+Setting references have separate native semantics: [OpenCode configuration](https://opencode.ai/docs/config/#variables)
+accepts complete `{env:NAME}`/`{file:path}` references; [Pi models.json](https://pi.dev/docs/latest/models)
+accepts complete `$NAME`/`${NAME}` references in credential fields, optionally
+preceded by `Bearer` and one space. Embedded MCP retains its existing harness-specific syntax.
+Other setting credential fields must be absent, null or empty. Literal defaults,
+placeholder keys, executable credential expressions and unknown reference syntax
+refuse. Static headers, extra headers, query parameters and credential-bearing
+URLs use the same checks. No helper is run, variable read or referenced file
+opened. This checks recognized structured fields, not arbitrary secrets encoded
+in scripts, free text, unrecognized names or comments; it is not complete native
+settings-schema validation or authentication evidence.
 
 This does not validate transport execution
 or grant credential access. Generic file/tree capture still refuses credential-named
@@ -1376,12 +1527,36 @@ rewinds a newer head. Unchanged facts, visibility and passport extensions remain
 intact. These local plans do not publish an object or change its access.
 
 `process` owns one-shot child execution with an absolute executable, explicit
-environment, closed stdin, concurrent bounded output and a deadline. Its Git
+environment, closed stdin (or explicit anonymous provider input), concurrent bounded output and a deadline. Its Git
 caller disables fsmonitor, optional locks and inherited Git overrides.
 `process-wrap` owns Unix process groups and Windows job objects; the adapter
 terminates descendants on exit or refusal. This is lifecycle control, not an
 execution sandbox. Its dependency is removable when child execution is removed;
 no async runtime or tracing feature is enabled for it.
+
+Before the first managed Windows spawn, `process/windows` places the calling
+CLI process itself in an anonymous, non-inheritable kill-on-close Job Object.
+The once-only initialization verifies the requested limits and fails closed if
+the enclosing environment refuses assignment. The handle remains owned by the
+CLI until process exit; no breakaway flag is enabled. Windows therefore assigns
+new children to this lifetime job during creation, including the interval before
+`process-wrap` assigns its separate per-command job. Per-command cancellation
+still stops only that command's descendants. CLI termination closes the outer
+handle and terminates its descendants, including nested jobs. This relies on
+Windows 8 or later job nesting; it does not constrain broker-created processes,
+filesystem access or networking. Embedding this engine also encloses its calling
+process and future children after the first managed spawn.
+
+The Windows-only `win-custody` dependency supplies the safe Job API over the
+already locked `windows-sys`; no additional Windows binding version is added.
+Only job creation, limit readback and current-process assignment are used. Its
+launch/token/session APIs are unused, and its suspended-then-assigned spawn
+method does not establish atomic ownership. CLI maintainers own its pin and
+advisory review; removing Windows lifetime ownership removes the dependency.
+The Windows proof kills a separate owner with a deliberately suspended,
+unassigned child, then repeats through the real process adapter with a live
+child and grandchild. It waits on retained process handles, checks denied
+breakaway and never infers termination from PID disappearance alone.
 
 ## Modules and proof
 
@@ -1403,7 +1578,7 @@ no async runtime or tracing feature is enabled for it.
 | `selection/impact.rs`, `selection/impact/` | Exact context/capability reports, current installation attribution and decimal price snapshots |
 | `projects/passports/` | Private project observations, copy/move identity and durable marker registration |
 | `passport/developer.rs` | Closed private preferences, exact singleton plans and atomic revision receipts |
-| `provider.rs`, `provider/`, `bundle/` | Exact declarations, authenticated trust refresh, wheel inspection and deterministic v2 packages |
+| `provider.rs`, `provider/`, `bundle/` | Exact declarations, authenticated trust/artifact acquisition and deterministic v2 packages |
 | `store/`, `files/owned.rs` | Explicit owned state, atomic revision writes and shared private-file primitives |
 | `archive.rs`, `artifacts.rs`, `projection/artifact.rs` | Shared canonical ZIP transport and closed component/scope archives |
 | `authoring/source.rs`, `process.rs` | Complete bounded source capture and explicit child process lifecycle |
@@ -1446,7 +1621,8 @@ SHA-256. `sigstore-verify` verifies the DSSE signature, certificate chain, SCT,
 Rekor inclusion/checkpoint, signed entry timestamp and artifact binding. The
 service then enforces the signed source repository, workflow and deployment
 environment. It does not treat the unsigned publisher description as evidence.
-Trust-root refresh, provider acquisition and installation are not exposed as commands.
+`provider inspect` uses authenticated trust refresh and artifact acquisition;
+installation remains outside the preview command surface.
 The example's embedded production trust root is for this fixed evidence run;
 online provider acquisition must use authenticated `provider::trust::refresh`.
 

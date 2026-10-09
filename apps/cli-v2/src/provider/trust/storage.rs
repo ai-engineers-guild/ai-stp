@@ -1,6 +1,6 @@
 //! One leased canonical state file; every authenticated step is durably acknowledged.
 
-use std::path::Path;
+use cap_std::fs::Dir;
 
 use super::{State, invalid};
 use crate::{error::Result, files::OwnedDirectory, wire};
@@ -11,9 +11,9 @@ const OWNER: &[u8] = b"ai-stp-cli-v2:sigstore-tuf/v1\n";
 pub(super) struct Storage(OwnedDirectory);
 
 impl Storage {
-    pub(super) fn open(parent: &Path) -> Result<(Self, State)> {
+    pub(super) fn open(parent: &Dir) -> Result<(Self, State)> {
         let owned =
-            OwnedDirectory::open(parent, "sigstore-tuf", OWNER, true)?.ok_or_else(invalid)?;
+            OwnedDirectory::open_at(parent, "sigstore-tuf", OWNER, true)?.ok_or_else(invalid)?;
         let initialized = owned.read_file("initialized", 2)?;
         if initialized.as_deref().is_some_and(|value| value != b"1\n") {
             return Err(invalid());
