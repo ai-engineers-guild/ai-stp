@@ -153,11 +153,14 @@ storage and migrations as such (`SPEC-020`); REST ready surface
   CLI; "mock conforms" and "API conform" mean the same thing.
 - `REQ-2113`: CLI receives published `SetupVersion` only full exact
   closure: checks the passport and artifact of the setup, each exact reference to the component,
-  passport, harness and artifact of each component, and then one local
+  passport, harness, primary artifact and every declared scope projection of
+  each component, and then one local
   transaction materializes an immutable graph. The revision seal and `passport_digest`
   are checked against the published document, and not against a re-serialization of the current
   models. Offline retry does not open the network, rechecks the cache and either
-  returns the same graph, or type-fails without a partial record.
+  returns the same graph, or type-fails without a partial record. Projection
+  downloads address the declared digest on the component artifact route;
+  every archive must match its complete member manifest before any graph write.
 - `REQ-2115`: Each first-party `(harness, posture)` has one catalog identity
   derived from `ai_stp_contracts.first_party` passports: `setup_id`,
   `setup_version`, `setup_passport_digest`, and per-component `stable_id`,

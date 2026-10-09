@@ -1,8 +1,12 @@
 """Exact catalogue setup acquisition into the local compiler (REQ-2113)."""
 
+import copy
+import json
 from contextlib import closing
 from pathlib import Path
+from typing import Any
 
+import httpx
 import pytest
 from release_scripts import build_first_party_corpus as builder
 from release_scripts.build_first_party_corpus import REPOSITORIES
@@ -13,13 +17,17 @@ from ai_stp_cli.cloud.client import Endpoint
 from ai_stp_cli.commands.select import compile_setup_version_bundle
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import cache as local_cache
+from ai_stp_cli.local import content
 from ai_stp_cli.local import versions as local_versions
 from ai_stp_cli.local.database import configured_path, open_readonly
 from ai_stp_contracts.catalog import CatalogTrust
 from ai_stp_contracts.first_party import FirstPartyVersion
 from ai_stp_contracts.first_party import family as corpus_family
 from ai_stp_contracts.first_party import versions as corpus_versions
+from ai_stp_contracts.fixtures import load_cases
 from ai_stp_contracts.machine_help import AnswerSource, CatalogVersionView
+from ai_stp_foundation.canonical import canonize
+from ai_stp_foundation.digests import digest_bytes, digest_canonical
 from ai_stp_passports.envelope import derive_revision_id, verify_revision_id
 from ai_stp_passports.versions import ComponentVersionPassport, SetupVersionPassport
 
@@ -121,6 +129,122 @@ def test_exact_setup_graph_is_idempotently_acquired_and_compiled_offline(
             "(SELECT count(*) FROM revision), (SELECT count(*) FROM content)"
         ).fetchone()
         assert tuple(counts) == ((len(components) + 1,) * 3)
+
+
+def test_acquisition_retains_every_projection_and_refuses_partial_or_corrupt_graphs(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def instruction(harness: str) -> FirstPartyVersion:
+        return next(
+            item
+            for item in corpus_family(harness, "nddev-builder")
+            if isinstance(item.passport, ComponentVersionPassport)
+            and item.passport.component_type == "instruction"
+        )
+
+    primary, target = instruction("claude-code"), instruction("codex")
+    assert primary.artifact != target.artifact
+    component: dict[str, Any] = primary.passport.model_dump(mode="json")
+    assert isinstance(target.passport, ComponentVersionPassport)
+    component["adaptations"].extend(
+        adaptation.model_dump(mode="json") for adaptation in target.passport.adaptations
+    )
+    component["revision_id"] = derive_revision_id(component)
+    component_digest = digest_canonical("ai-stp:passport:v1", component)
+    source_setup = next(
+        item for item in corpus_family("codex", "nddev-builder") if item.kind == "setup"
+    )
+    setup: dict[str, Any] = source_setup.passport.model_dump(mode="json")
+    setup["components"] = [
+        {
+            "stable_id": component["stable_id"],
+            "version": component["version"],
+            "passport_digest": component_digest,
+            "variant_id": None,
+        }
+    ]
+    definition = json.loads(source_setup.artifact)
+    definition["components"] = setup["components"]
+    setup_bytes = canonize(definition)
+    setup["artifact"] = {
+        "digest": digest_bytes("ai-stp:artifact:v1", setup_bytes),
+        "size_bytes": len(setup_bytes),
+    }
+    setup["revision_id"] = derive_revision_id(setup)
+    responses: dict[str, dict[str, Any]] = {}
+    for document, case_id in [
+        (component, "readComponentVersion.published"),
+        (setup, "readSetupVersion.published"),
+    ]:
+        template = copy.deepcopy(
+            dict(next(c.body or {} for c in load_cases() if c.case_id == case_id))
+        )
+        template.update(
+            passport=document,
+            passport_digest=digest_canonical("ai-stp:passport:v1", document),
+            distribution_visibility="public",
+        )
+        path = (
+            f"/v1/catalog/{document['kind']}s/{document['stable_id']}"
+            f"/versions/{document['version']}"
+        )
+        responses[path] = template
+    payloads = {
+        component["artifact"]["digest"]: primary.artifact,
+        target.passport.artifact.digest: target.artifact,
+        setup["artifact"]["digest"]: setup_bytes,
+    }
+    corrupt = True
+    requests: list[str] = []
+
+    def answer(request: httpx.Request) -> httpx.Response:
+        requests.append(str(request.url))
+        path = request.url.path
+        if path in responses:
+            return httpx.Response(200, json=responses[path])
+        document = responses[path.removesuffix("/artifact")]["passport"]
+        address = request.url.params.get("digest", document["artifact"]["digest"])
+        payload = payloads[address]
+        if corrupt and address == target.passport.artifact.digest:
+            payload = b"corrupt"
+        return httpx.Response(200, content=payload)
+
+    endpoint = Endpoint("https://ai-stp.example", transport=httpx.MockTransport(answer))
+    monkeypatch.setattr(registry_commands, "endpoint", lambda: endpoint)
+    parameters = {"id": setup["stable_id"], "version": setup["version"]}
+    with pytest.raises(CliFailure) as corrupt_download:
+        registry_commands.acquire(parameters)
+    assert corrupt_download.value.code == "AI_STP_PRECONDITION_FAILED"
+    assert not configured_path().exists(), "failed capture materialized a partial graph"
+
+    corrupt = False
+    result = registry_commands.acquire(parameters).payload
+    assert result.source == "online"
+    assert any("?digest=" in url for url in requests)
+    with closing(open_readonly(configured_path())) as connection:
+        assert content.get(connection, target.passport.artifact.digest) == target.artifact
+        compiled = compile_setup_version_bundle(
+            connection, setup["stable_id"], setup["version"], expected_harness="codex"
+        )
+        assert {member.path for member in compiled.files} == {"AGENTS.md"}
+        assert compiled.archive
+
+    monkeypatch.setattr(
+        registry_commands,
+        "endpoint",
+        lambda: (_ for _ in ()).throw(AssertionError("offline acquisition opened the network")),
+    )
+    replay = registry_commands.acquire({**parameters, "offline": True}).payload
+    assert replay.source == "cache" and replay.passport_digest == result.passport_digest
+    with closing(open_readonly(configured_path())) as connection:
+        before_corruption = tuple(connection.iterdump())
+        assert connection.execute("SELECT count(*) FROM object_version").fetchone()[0] == 2
+    local_cache.version_artifact_path(target.passport.artifact.digest).write_bytes(b"corrupt")
+    with pytest.raises(CliFailure) as corrupt_cache:
+        registry_commands.acquire({**parameters, "offline": True})
+    assert corrupt_cache.value.code == "AI_STP_DEPENDENCY_UNAVAILABLE"
+    with closing(open_readonly(configured_path())) as connection:
+        assert tuple(connection.iterdump()) == before_corruption
 
 
 def test_every_published_posture_graph_is_acquired_and_compiled_for_its_harness(

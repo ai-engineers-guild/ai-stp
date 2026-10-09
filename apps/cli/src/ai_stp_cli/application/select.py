@@ -2077,11 +2077,6 @@ def _bundle_sources(
         content_format = str(
             document.get("artifact_format") or _value(facts.get("content_format")) or ""
         )
-        payload = content.get(connection, digest)
-        expanded = components.expand(
-            payload,
-            content_format or components.COMPONENT_FILE_FORMAT,
-        )
         if content_format == components.PROJECTION_FORMAT:
             passport = ComponentVersionPassport.model_validate(document)
             try:
@@ -2096,7 +2091,16 @@ def _bundle_sources(
                     "the component has no adaptation for the requested harness scope",
                     details={"stable_id": item.stable_id, "scope": target.scope},
                 ) from error
-            verify_projection(scope, payload)
+            payload = content.get(connection, scope.projection_artifact.digest)
+            try:
+                verify_projection(scope, payload)
+            except ValueError as error:
+                raise CliFailure(
+                    "AI_STP_PRECONDITION_FAILED",
+                    "the selected component projection differs from its declared manifest",
+                    details={"stable_id": item.stable_id, "scope": target.scope},
+                ) from error
+            expanded = components.expand(payload, scope.projection_format)
             expanded_by_path = {member.path: member for member in expanded}
             for declared in scope.members:
                 if declared.object_type != "file":
@@ -2119,6 +2123,11 @@ def _bundle_sources(
                     )
                 )
             continue
+        payload = content.get(connection, digest)
+        expanded = components.expand(
+            payload,
+            content_format or components.COMPONENT_FILE_FORMAT,
+        )
         if rule.declared_key:
             # `ADR-0129`: this component's landing is a key inside a file the
             # provider already owns, so it compiles into a contribution to that
