@@ -86,7 +86,7 @@ fn developer_context_is_private_causal_singleton_and_replayable() -> Result<(), 
             // Every refused contender must reconcile to the one winning profile.
             assert!(
                 matches!(error.kind, ErrorKind::Conflict)
-                    || matches!(error.kind, ErrorKind::Precondition)
+                    || matches!(error.kind, ErrorKind::Unavailable)
                         && error.details.get("stage").and_then(Value::as_str)
                             == Some("lock_timeout"),
                 "{error:?}"
@@ -112,7 +112,10 @@ fn developer_context_is_private_causal_singleton_and_replayable() -> Result<(), 
         .join()
         .map_err(|_| "blocked opener panicked")?
         .ok_or("a second opener bypassed the exclusive directory lock")?;
-    assert!(matches!(blocked.kind, ErrorKind::Precondition));
+    assert!(
+        matches!(blocked.kind, ErrorKind::Unavailable),
+        "{blocked:?}"
+    );
     assert_eq!(
         blocked.details.get("stage").and_then(Value::as_str),
         Some("lock_timeout")

@@ -26,6 +26,12 @@ Exit classes and request IDs retain the existing wire contract. Human parser
 help uses `--help`; in machine mode it returns the complete registry. A missing
 command returns help. Error messages do not echo rejected argument values.
 
+Private-directory locks wait for at most two seconds before reporting transient
+contention: `AI_STP_DEPENDENCY_UNAVAILABLE`, exit 5, `retryable: true`, with
+`details.stage: lock_timeout`. Retry the same request after the holder releases
+the lock; apply still revalidates the plan or returns its completed receipt.
+Ownership, permission and state-precondition failures remain distinct refusals.
+
 Preview `version` reports `runtime: rust` and `release_channel: preview`.
 Preview `capabilities` reports explicit snapshot reads, isolated planned authoring
 and readable schema versions. They deliberately do not claim the Python-only version payload
