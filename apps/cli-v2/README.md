@@ -485,6 +485,38 @@ versions supply its locked closure; no async runtime is enabled. The command's
 deadline/output bounds also cover this path. CLI maintainers own updates and
 advisory checks; removing target handle transfer removes this dependency.
 
+`provider plan` takes the same explicit target/provider coordinates plus a bundle
+file and a closed request JSON of at most 8 KiB. The request fields are
+`operation` (`install` or `replace`), `operation_id` (an `operation_` ULID),
+`expires_at` (UTC with milliseconds, strictly future and at most fifteen minutes
+away), and `bundle`. That binding contains exactly `bundle_format`
+(`ai-stp-bundle/2`), `bundle_digest`, `artifact_digest` and numeric `bundle_size`.
+The literal archive is bounded to 64 MiB and must match the requested size and
+SHA-256 before trust refresh. It stays in memory and a sealed read-only sandbox
+mount; the provider never receives a host bundle pathname.
+
+Planning acquires authenticated provider-info, reads status, invokes
+`validate-bundle`, invokes `plan-operation`, and reads status again. Both target
+and bundle mounts are read-only; bundle validation receives no target mount.
+The full status documents must agree, and directory identity, request expiry and
+trust expiry are rechecked. Every bundle echo and the entire closed plan must
+match the observed provider/version/build/release, target, owned-byte digest,
+scope/profile, operation ID, expiry and platform. Unknown plan fields, implicit
+native capture, changed echoes or a forged digest refuse. Effects must be
+nonempty bounded strings and agree between artifact and response. Stable
+provider refusals retain only their bounded reason code, excluding raw detail.
+
+The external plan digest uses [RFC 8785](https://www.rfc-editor.org/rfc/rfc8785)
+over the original wire strings in domain `ai-stp:provider-plan:v3`. It preserves
+Unicode filesystem spelling; the project's additional NFC normalization would
+change the identity of an NFD target. Response digests independently bind exact
+stdout bytes. The report retains validation, plan, before/after status digests
+and observation time with `execution_authorized=false`. No operation, journal,
+backup or installation is stored. The provider's declared future backup effects
+remain visible; this preview does not consent to them. Installation still needs
+engine-owned eligibility, relevant input observations beyond the owned-byte
+digest, durable intent, revalidation and verified execution/recovery.
+
 `provider::wheel::inspect` reads one bounded native-provider wheel in memory.
 It validates every regular member against one complete CSV `RECORD`: unique
 portable names, exact inventory and byte lengths, and SHA-256/384/512 hashes;

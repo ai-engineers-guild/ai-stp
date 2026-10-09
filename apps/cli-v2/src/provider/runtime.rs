@@ -5,6 +5,8 @@ pub mod entry;
 #[cfg(target_os = "linux")]
 mod linux;
 #[cfg(target_os = "linux")]
+mod planning;
+#[cfg(target_os = "linux")]
 pub mod probe;
 #[cfg(target_os = "linux")]
 mod target;
@@ -45,6 +47,15 @@ pub fn platform() -> Result<&'static str> {
 pub struct Runtime {
     #[cfg(target_os = "linux")]
     launcher: linux::Launcher,
+}
+
+/// Explicit coordinates; observations are acquired from held files and processes.
+pub struct TargetRequest<'a> {
+    pub state_parent: &'a Path,
+    pub harness: &'a str,
+    pub version: &'a str,
+    pub path: &'a Path,
+    pub scope: Scope,
 }
 
 impl Runtime {
@@ -118,22 +129,16 @@ impl Runtime {
     }
 
     /// Observe one explicit existing target without mounting any writable host path.
-    pub fn status(
-        &self,
-        parent: &Path,
-        harness: &str,
-        version: &str,
-        path: &Path,
-        scope: Scope,
-    ) -> Result<Value> {
+    pub fn status(&self, context: &TargetRequest<'_>) -> Result<Value> {
         #[cfg(target_os = "linux")]
         {
-            let target = target::Target::open(path)?;
-            let state = target.state_parent(parent)?;
+            let target = target::Target::open(context.path)?;
+            let state = target.state_parent(context.state_parent)?;
             let trust = super::trust::refresh_at(&state)?;
-            let artifact = super::artifact::fetch(harness, version, platform()?, &trust)?;
+            let artifact =
+                super::artifact::fetch(context.harness, context.version, platform()?, &trust)?;
             let (info, mut report) = self.information(&artifact)?;
-            if !info.supports_target(scope) {
+            if !info.supports_target(context.scope) {
                 return Err(Failure::precondition(
                     "the observed provider does not support this target scope",
                 ));
@@ -141,7 +146,7 @@ impl Runtime {
             target.revalidate()?;
             let bytes = self
                 .launcher
-                .status(artifact.executable()?, &target, scope)?;
+                .status(artifact.executable()?, &target, context.scope)?;
             let status = target.response(&bytes, &info)?;
             artifact.executable()?;
             report
@@ -151,7 +156,7 @@ impl Runtime {
             report["installation_performed"] = false.into();
             report["network"]["filesystem"] = "declared_runtime_and_readonly_target".into();
             report["target"] =
-                json!({"path":target.path(),"scope":scope.as_str(),"access":"read_only"});
+                json!({"path":target.path(),"scope":context.scope.as_str(),"access":"read_only"});
             report["status"] = status;
             report["status_digest"] = digest::sha256(&bytes).into();
             report["status_observed_at"] = jiff::Timestamp::now().to_string().into();
@@ -159,7 +164,25 @@ impl Runtime {
         }
         #[cfg(not(target_os = "linux"))]
         {
-            let _ = (parent, harness, version, path, scope);
+            let _ = context;
+            Err(unavailable())
+        }
+    }
+
+    /// Return a verified read-only preview, without storing or authorizing an operation.
+    pub fn plan(
+        &self,
+        context: &TargetRequest<'_>,
+        request: &super::plan::Request,
+        bundle: &[u8],
+    ) -> Result<Value> {
+        #[cfg(target_os = "linux")]
+        {
+            planning::observe(self, context, request, bundle)
+        }
+        #[cfg(not(target_os = "linux"))]
+        {
+            let _ = (context, request, bundle);
             Err(unavailable())
         }
     }
