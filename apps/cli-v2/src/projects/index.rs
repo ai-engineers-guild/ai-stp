@@ -1,6 +1,6 @@
 use std::io::Read;
 
-use cap_fs_ext::DirExt;
+use cap_fs_ext::{DirExt, MetadataExt};
 use serde_json::{Value, json};
 
 use super::*;
@@ -62,14 +62,17 @@ fn classification(path: &Path) -> (&'static str, Option<&'static str>) {
     }
 }
 
-struct Index {
+type SourceObserver<'a> = dyn FnMut(&str, &str, Option<&[u8]>) + 'a;
+
+struct Index<'a> {
     budget: Budget,
     files: Vec<Value>,
     excluded: Vec<Value>,
     stopped: Option<&'static str>,
+    observe: &'a mut SourceObserver<'a>,
 }
 
-impl Index {
+impl Index<'_> {
     fn exclude(&mut self, path: &Path, reason: &'static str) {
         self.excluded
             .push(json!({"schema_version": 1, "path": relative(path), "reason": reason}));
@@ -146,8 +149,8 @@ impl Index {
             let size = metadata.len();
             let mut hash = None;
             let mut lines = None;
+            let mut content = Vec::new();
             if size <= MAX_FILE_BYTES {
-                let mut content = Vec::new();
                 let result = (|| -> std::io::Result<()> {
                     let mut file = files::open_regular(directory, Path::new(&name))?;
                     let before = file.metadata()?;
@@ -156,6 +159,8 @@ impl Index {
                         .read_to_end(&mut content)?;
                     let after = file.metadata()?;
                     if content.len() as u64 != size
+                        || before.nlink() != 1
+                        || after.nlink() != 1
                         || before.len() != after.len()
                         || before.modified()? != after.modified()?
                     {
@@ -177,6 +182,13 @@ impl Index {
                         + usize::from(!content.is_empty() && !content.ends_with(b"\n")),
                 );
             }
+            if let Some(language) = language {
+                (self.observe)(
+                    &relative(&child),
+                    language,
+                    hash.as_ref().map(|_| content.as_slice()),
+                );
+            }
             self.files.push(
                 json!({"schema_version": 1, "path": relative(&child), "kind": kind,
                 "language": language, "size_bytes": size, "digest": hash, "lines": lines}),
@@ -186,12 +198,18 @@ impl Index {
 }
 
 pub fn index(path: &Path) -> Result<Value> {
+    visit(path, &mut |_, _, _| {})
+}
+
+/// Source observers receive the exact bytes already read and hashed by the index.
+pub(super) fn visit(path: &Path, observe: &mut SourceObserver<'_>) -> Result<Value> {
     let (root, directory) = open_root(path)?;
     let mut index = Index {
         budget: Budget::new(),
         files: Vec::new(),
         excluded: Vec::new(),
         stopped: None,
+        observe,
     };
     index.walk(&directory, Path::new("."), 0);
     for entries in [&mut index.files, &mut index.excluded] {

@@ -370,6 +370,35 @@ and excludes only `.git` and `nori.json` at the selected directory's root.
 The latter remains metadata evidence outside the payload. Existing atomic draft
 adoption/import, owner checks, idempotent replay and stale-plan refusal apply.
 
+`project symbols` summarizes public top-level declarations and entry-point files
+from the same held-handle reads as `project index`; it never reopens indexed
+paths or emits source bodies. Python uses pinned Tree-sitter syntax nodes, while
+TypeScript/JavaScript, Rust, Go and Dart retain explicitly labeled approximate
+`line_scan` evidence. Approximate scans can count declaration-like text in strings
+or block comments. Python counts top-level public classes/functions and uppercase
+assignment names, including decorated and async functions; nested declarations
+and docstrings are excluded. Literal equality main guards are recognized in both
+orders. Private Rust/Go `main` functions are entry points without being counted as
+public symbols.
+
+The survey limits parsing to 2,000 files, 512 KiB per source and 10,000 symbols per
+file within a shared 20-second traversal/parse budget. The Python parser has a
+progress cancellation callback. Index truncation, unreadable/invalid/over-bound
+source and incomplete parsing produce `partial`, with an explicit reason; they
+cannot silently look complete. Symbol counts include only successful outlines;
+language summaries label the method and unavailable evidence. The shared reader also refuses
+multiply-linked file handles, so aliases cannot introduce outside content into
+either index or symbol evidence. Symlinks, credentials, generated
+directories and non-regular files follow the existing index exclusions. A syntax
+tree is structural evidence from the pinned grammar, not a Python interpreter's
+acceptance or a type check; unsupported grammar is unavailable.
+
+`projects::symbols` owns exact `tree-sitter` 0.27.1 and `tree-sitter-python` 0.25.0,
+plus locked `tree-sitter-language` and `streaming-iterator`. The in-process parser
+replaces the Python AST runtime dependency for this command. Removing this survey
+removes these four dependencies; no grammar downloader, language server, WASM
+engine, Python runtime or build script from the inspected project is invoked.
+
 `component passport suggest` reads the exact current component head and verifies
 its retained content before inspecting only root `package.json` (`ai-stp.component`)
 and `pyproject.toml` (`tool.ai-stp.component`) declarations. The Python namespace
