@@ -1,5 +1,9 @@
 //! Headless native services. The executable only renders their result.
 
+mod archive;
+pub mod artifacts;
+pub mod authoring;
+pub mod bundle;
 pub mod canonical;
 pub mod catalog;
 pub mod config;
@@ -7,13 +11,21 @@ pub mod digest;
 pub mod environment;
 pub mod error;
 mod files;
+pub mod harnesses;
 mod http;
+pub mod identity;
 pub mod objects;
 pub mod passport;
+pub mod process;
+pub mod projection;
 pub mod projects;
 pub mod provenance;
+pub mod provider;
 pub mod registry;
+pub mod selection;
 pub mod snapshot;
+pub mod sources;
+pub mod store;
 mod wire;
 
 use std::ffi::OsString;
@@ -46,14 +58,14 @@ impl Invocation {
                 envelope["warnings"] = json!([]);
             }
             Err(failure) => {
-                envelope["error"] = json!({"code": failure.kind.code(), "message": failure.message, "retryable": matches!(failure.kind, error::ErrorKind::Unavailable), "details": {}})
+                envelope["error"] = json!({"code": failure.kind.code(), "message": failure.message, "retryable": matches!(failure.kind, error::ErrorKind::Unavailable), "details": failure.details})
             }
         }
         envelope
     }
 }
 
-/// Arguments include argv[0]. No state, credentials or network initialization.
+/// Arguments include argv[0]. Only the selected handler opens its explicit resources.
 pub fn invoke(arguments: impl IntoIterator<Item = OsString>) -> Invocation {
     let arguments: Vec<_> = arguments.into_iter().collect();
     let machine = arguments

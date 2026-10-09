@@ -654,13 +654,14 @@ def test_impact_loads_a_released_draft_shaped_passport_instead_of_refusing_it(
     # are `selection_report` and `blast_radius`, and both need a whole setup
     # graph to say anything about one component's passport. Suppressed the way
     # the rest of the suite does it.
-    coordinate, facts, _payload = impact._component(  # pyright: ignore[reportPrivateUsage]
+    coordinate, facts, payload = impact._component(  # pyright: ignore[reportPrivateUsage]
         registry, original.stable_id, "1.0", None
     )
 
     assert coordinate.version == "1.0"
     assert facts.component_type == "skill"
-    assert facts.artifact_digest.startswith("sha256:")
+    assert payload is not None
+    assert digest_bytes("ai-stp:artifact:v1", payload) == passport.artifact.digest
 
 
 def test_a_publication_passport_is_built_from_the_exact_released_revision(

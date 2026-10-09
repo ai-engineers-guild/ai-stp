@@ -34,7 +34,11 @@ from ai_stp_foundation.digests import digest_bytes
 from ai_stp_foundation.timestamps import format_timestamp
 from ai_stp_passports.envelope import derive_revision_id
 from ai_stp_passports.projections import PROJECTION_FORMAT, verify_projection
-from ai_stp_passports.versions import ComponentVersionPassport, SetupVersionPassport
+from ai_stp_passports.versions import (
+    ComponentVersionPassport,
+    NonEmptyArtifactRef,
+    SetupVersionPassport,
+)
 from ai_stp_platform.catalog_projection import component_passport
 from ai_stp_platform.catalog_read import CatalogIntegrityError, ObjectKind, get_visible_metadata
 from ai_stp_platform.models import CatalogMetadata, ObjectLocation
@@ -300,7 +304,6 @@ async def _component_node(
     if harness_id and not any(item.harness_id == harness_id for item in passport.adaptations):
         raise SelectionInvalid("a setup component has no matching harness adaptation")
     if passport.component_type in TOKENIZED_TYPES:
-        payload, reason = await _artifact_payload(session, row, passport, store)
         if "adaptations" in row.passport_document:
             selected = [
                 item
@@ -309,12 +312,19 @@ async def _component_node(
             ]
             if len(selected) != 1 or len(selected[0].scope_adaptations) != 1:
                 payload, reason = None, "adaptation_selection_required"
-            elif payload is not None:
-                try:
-                    verify_projection(selected[0].scope_adaptations[0], payload)
-                    content_format = PROJECTION_FORMAT
-                except ValueError:
-                    payload, reason = None, "artifact_invalid"
+            else:
+                scope = selected[0].scope_adaptations[0]
+                payload, reason = await _artifact_payload(
+                    session, row, passport, store, projection=scope.projection_artifact
+                )
+                if payload is not None:
+                    try:
+                        verify_projection(scope, payload)
+                        content_format = PROJECTION_FORMAT
+                    except ValueError:
+                        payload, reason = None, "artifact_invalid"
+        else:
+            payload, reason = await _artifact_payload(session, row, passport, store)
     return _ComponentNode(
         ExactCoordinate(stable_id=stable_id, version=version, passport_digest=digest),
         passport,
@@ -329,28 +339,43 @@ async def _artifact_payload(
     row: CatalogMetadata,
     passport: ComponentVersionPassport | SetupVersionPassport,
     store: ImmutableObjectStore | None,
+    *,
+    projection: NonEmptyArtifactRef | None = None,
 ) -> tuple[bytes | None, str | None]:
     if store is None:
         raise SelectionDependency("artifact storage is unavailable")
-    location = await session.scalar(
-        select(ObjectLocation).where(
-            ObjectLocation.catalog_metadata_id == row.id,
-            ObjectLocation.purpose == "artifact",
-        )
-    )
-    if location is None:
-        return None, "artifact_unavailable"
-    if (
-        location.digest != passport.artifact.digest
-        or location.size_bytes != passport.artifact.size_bytes
-    ):
-        return None, "artifact_corrupt"
+    expected = projection or passport.artifact
     try:
-        payload = await store.read_verified(
-            object_key=location.object_key,
-            expected_digest=location.digest,
-            expected_size=location.size_bytes,
-        )
+        if expected.digest != passport.artifact.digest:
+            payload = await store.read_by_digest(
+                expected.digest,
+                expected_size=expected.size_bytes,
+                owner_account_id=row.owner_account_id,
+            )
+        else:
+            location = await session.scalar(
+                select(ObjectLocation).where(
+                    ObjectLocation.catalog_metadata_id == row.id,
+                    ObjectLocation.purpose == "artifact",
+                )
+            )
+            if location is None:
+                return None, "artifact_unavailable"
+            if location.digest != expected.digest or location.size_bytes != expected.size_bytes:
+                return None, "artifact_corrupt"
+            if location.owner_account_id is not None and (
+                location.owner_account_id != row.owner_account_id
+                or location.bucket != store.bucket
+                or location.object_key
+                != store.key_for_digest(expected.digest, owner_account_id=row.owner_account_id)
+            ):
+                return None, "artifact_corrupt"
+            payload = await store.read_verified(
+                object_key=location.object_key,
+                expected_digest=expected.digest,
+                expected_size=expected.size_bytes,
+                bucket=location.bucket or store.bucket,
+            )
     except ObjectIntegrityError:
         return None, "artifact_corrupt"
     except Exception as exc:

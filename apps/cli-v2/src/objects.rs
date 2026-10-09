@@ -1,4 +1,4 @@
-//! Verified local object evidence from an explicit immutable snapshot.
+//! Verified local object records, shared by snapshot reads and native authoring.
 
 use rusqlite::OptionalExtension;
 use serde_json::{Value, json};
@@ -21,7 +21,47 @@ fn absent() -> Failure {
     )
 }
 
+pub(crate) struct Objects<'a> {
+    pub connection: &'a rusqlite::Connection,
+}
+
 impl Snapshot {
+    pub fn exact_version(&self, id: &str, version: &str, expected: Option<&str>) -> Result<Value> {
+        self.objects().exact_version(id, version, expected)
+    }
+    pub fn passport(&self, kind: &str, id: Option<&str>) -> Result<Value> {
+        self.objects().passport(kind, id)
+    }
+    pub fn revision(&self, id: &str) -> Result<Value> {
+        self.objects().revision(id)
+    }
+    pub fn versions(&self, id: &str) -> Result<Value> {
+        self.objects().versions(id)
+    }
+    pub(crate) fn objects(&self) -> Objects<'_> {
+        Objects {
+            connection: &self.connection,
+        }
+    }
+}
+
+impl Objects<'_> {
+    pub fn require_active(&self, id: &str) -> Result<()> {
+        let forgotten: bool = self
+            .connection
+            .query_row(
+                "SELECT EXISTS(SELECT 1 FROM tombstone WHERE stable_id=?)",
+                [id],
+                |row| row.get(0),
+            )
+            .map_err(database)?;
+        if forgotten {
+            return Err(Failure::precondition("the local object was forgotten")
+                .with_details([("constraint".into(), "object_forgotten".into())]));
+        }
+        Ok(())
+    }
+
     pub fn exact_version(&self, id: &str, version: &str, expected: Option<&str>) -> Result<Value> {
         if (!passport::stable_id(id, "component") && !passport::stable_id(id, "setup"))
             || !passport::version_number(version)
@@ -77,7 +117,11 @@ impl Snapshot {
                 ids.first().ok_or_else(absent)?.clone()
             }
         };
-        if !passport::stable_id(&id, kind) {
+        Ok(passport::view(&self.head(kind, &id)?))
+    }
+
+    pub fn head(&self, kind: &str, id: &str) -> Result<Value> {
+        if !passport::stable_id(id, kind) {
             return Err(Failure::input(
                 "passport identifier must match the requested kind",
             ));
@@ -103,7 +147,7 @@ impl Snapshot {
                 "snapshot head points to another object",
             ));
         }
-        Ok(passport::view(&document))
+        Ok(document)
     }
 
     pub fn revision(&self, id: &str) -> Result<Value> {

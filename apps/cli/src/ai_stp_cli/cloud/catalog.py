@@ -357,6 +357,8 @@ def fetch_artifact(
         f"{API_BASE_PATH}/catalog/{'components' if kind == 'component' else 'setups'}/{stable_id}"
     )
     path = f"{path}/versions/{version_number}/artifact"
+    if kind == "component":
+        path = str(httpx.URL(path).copy_add_param("digest", expected.digest))
     try:
         return _download_artifact(
             endpoint, path, expected, transport=transport, access_token=access_token

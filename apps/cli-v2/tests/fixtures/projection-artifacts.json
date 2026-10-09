@@ -1,0 +1,213 @@
+[
+  {
+    "name": "directories-modes-unicode",
+    "scope": {
+      "scope": "global",
+      "projection_format": "ai-stp-adaptation-projection/1",
+      "projection_artifact": {
+        "digest": "sha256:20f59a9eaf5565cd8d526d05838af10c937ec3f7e6c19ced35a4292f85879c69",
+        "size_bytes": 547
+      },
+      "provider_component_kind": "skill",
+      "projection_kind": "native_files",
+      "required_surface": {
+        "profile_id": "claude-code/fixture/1",
+        "profile_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        "bundle_format": "ai-stp-bundle/1"
+      },
+      "permissions": {
+        "filesystem": [],
+        "network": [],
+        "process": []
+      },
+      "members": [
+        {
+          "path": "skills/example/SKILL.md",
+          "object_type": "file",
+          "mode": 384,
+          "content_artifact": {
+            "digest": "sha256:c4d559897d57583a61118b448b2f70f05d7fb594a864a577468f29d50ca0efe2",
+            "size_bytes": 10
+          },
+          "native_ids": [],
+          "content_format": "application/octet-stream",
+          "parser_id": null,
+          "ownership": "whole",
+          "ownership_key": null,
+          "write_semantics": "replace",
+          "withdrawal_semantics": "remove_path"
+        },
+        {
+          "path": "skills/example/tools/run.sh",
+          "object_type": "file",
+          "mode": 493,
+          "content_artifact": {
+            "digest": "sha256:3b54525d04df1de3c4d835f433a3b693a670ff173efec4b7b95d7fc2a1ac9b78",
+            "size_bytes": 17
+          },
+          "native_ids": [],
+          "content_format": "application/octet-stream",
+          "parser_id": null,
+          "ownership": "whole",
+          "ownership_key": null,
+          "write_semantics": "replace",
+          "withdrawal_semantics": "remove_path"
+        },
+        {
+          "path": "skills/example/café.md",
+          "object_type": "file",
+          "mode": 416,
+          "content_artifact": {
+            "digest": "sha256:c54945cc02037dd456441d4a958b16ac53fdf925b2b81560b95f8cb0aa322034",
+            "size_bytes": 6
+          },
+          "native_ids": [],
+          "content_format": "application/octet-stream",
+          "parser_id": null,
+          "ownership": "whole",
+          "ownership_key": null,
+          "write_semantics": "replace",
+          "withdrawal_semantics": "remove_path"
+        },
+        {
+          "path": "skills/example/empty",
+          "object_type": "directory",
+          "mode": 448,
+          "content_artifact": null,
+          "native_ids": [],
+          "content_format": "application/octet-stream",
+          "parser_id": null,
+          "ownership": "whole",
+          "ownership_key": null,
+          "write_semantics": "replace",
+          "withdrawal_semantics": "remove_path"
+        }
+      ],
+      "supported_harness_versions": [],
+      "supported_os": [],
+      "supported_arch": [],
+      "technical_support": "experimental",
+      "technical_support_reason": "synthetic catalog seed",
+      "semantic_losses": []
+    },
+    "files": [
+      {
+        "path": "skills/example/SKILL.md",
+        "content_base64": "IyBFeGFtcGxlCg==",
+        "mode": 384
+      },
+      {
+        "path": "skills/example/tools/run.sh",
+        "content_base64": "IyEvYmluL3NoCmV4aXQgMAo=",
+        "mode": 493
+      },
+      {
+        "path": "skills/example/café.md",
+        "content_base64": "Q2Fmw6kK",
+        "mode": 416
+      }
+    ],
+    "artifact_base64": "UEsDBBQAAAAAAAAAIQDki0wLCgAAAAoAAAAXAAAAc2tpbGxzL2V4YW1wbGUvU0tJTEwubWQjIEV4YW1wbGUKUEsDBBQAAAgAAAAAIQDk6eiOBgAAAAYAAAAXAAAAc2tpbGxzL2V4YW1wbGUvY2Fmw6kubWRDYWbDqQpQSwMEFAAAAAAAAAAhAAAAAAAAAAAAAAAAABUAAABza2lsbHMvZXhhbXBsZS9lbXB0eS9QSwMEFAAAAAAAAAAhAOKGRcMRAAAAEQAAABsAAABza2lsbHMvZXhhbXBsZS90b29scy9ydW4uc2gjIS9iaW4vc2gKZXhpdCAwClBLAQIUAxQAAAAAAAAAIQDki0wLCgAAAAoAAAAXAAAAAAAAAAAAAACAgQAAAABza2lsbHMvZXhhbXBsZS9TS0lMTC5tZFBLAQIUAxQAAAgAAAAAIQDk6eiOBgAAAAYAAAAXAAAAAAAAAAAAAACggT8AAABza2lsbHMvZXhhbXBsZS9jYWbDqS5tZFBLAQIUAxQAAAAAAAAAIQAAAAAAAAAAAAAAAAAVAAAAAAAAAAAAAADAQXoAAABza2lsbHMvZXhhbXBsZS9lbXB0eS9QSwECFAMUAAAAAAAAACEA4oZFwxEAAAARAAAAGwAAAAAAAAAAAAAA7YGtAAAAc2tpbGxzL2V4YW1wbGUvdG9vbHMvcnVuLnNoUEsFBgAAAAAEAAQAFgEAAPcAAAAAAA=="
+  },
+  {
+    "name": "empty-directory",
+    "scope": {
+      "scope": "global",
+      "projection_format": "ai-stp-adaptation-projection/1",
+      "projection_artifact": {
+        "digest": "sha256:2ad25ff2345a2aa731c47a759657c7d65078bd818e4511ec234f5c8ac43c16f4",
+        "size_bytes": 110
+      },
+      "provider_component_kind": "skill",
+      "projection_kind": "native_files",
+      "required_surface": {
+        "profile_id": "claude-code/fixture/1",
+        "profile_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        "bundle_format": "ai-stp-bundle/1"
+      },
+      "permissions": {
+        "filesystem": [],
+        "network": [],
+        "process": []
+      },
+      "members": [
+        {
+          "path": "empty",
+          "object_type": "directory",
+          "mode": 493,
+          "content_artifact": null,
+          "native_ids": [],
+          "content_format": "application/octet-stream",
+          "parser_id": null,
+          "ownership": "whole",
+          "ownership_key": null,
+          "write_semantics": "replace",
+          "withdrawal_semantics": "remove_path"
+        }
+      ],
+      "supported_harness_versions": [],
+      "supported_os": [],
+      "supported_arch": [],
+      "technical_support": "experimental",
+      "technical_support_reason": "synthetic catalog seed",
+      "semantic_losses": []
+    },
+    "files": [],
+    "artifact_base64": "UEsDBBQAAAAAAAAAIQAAAAAAAAAAAAAAAAAGAAAAZW1wdHkvUEsBAhQDFAAAAAAAAAAhAAAAAAAAAAAAAAAAAAYAAAAAAAAAAAAAAO1BAAAAAGVtcHR5L1BLBQYAAAAAAQABADQAAAAkAAAAAAA="
+  },
+  {
+    "name": "json-contribution",
+    "scope": {
+      "scope": "global",
+      "projection_format": "ai-stp-adaptation-projection/1",
+      "projection_artifact": {
+        "digest": "sha256:5479e2f4edf744dea30314662bd0419fbefe0802c9e702a6bd9afe213e76423c",
+        "size_bytes": 139
+      },
+      "provider_component_kind": "skill",
+      "projection_kind": "native_files",
+      "required_surface": {
+        "profile_id": "claude-code/fixture/1",
+        "profile_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        "bundle_format": "ai-stp-bundle/1"
+      },
+      "permissions": {
+        "filesystem": [],
+        "network": [],
+        "process": []
+      },
+      "members": [
+        {
+          "path": "settings.json",
+          "object_type": "file",
+          "mode": 420,
+          "content_artifact": {
+            "digest": "sha256:ec5666de0dde64be3165020b916c7594e8ae9ea44772cd109e78ab807e79b68c",
+            "size_bytes": 15
+          },
+          "native_ids": [],
+          "content_format": "application/octet-stream",
+          "parser_id": "json/1",
+          "ownership": "contribution",
+          "ownership_key": "hooks",
+          "write_semantics": "merge",
+          "withdrawal_semantics": "preserve_unowned"
+        }
+      ],
+      "supported_harness_versions": [],
+      "supported_os": [],
+      "supported_arch": [],
+      "technical_support": "experimental",
+      "technical_support_reason": "synthetic catalog seed",
+      "semantic_losses": []
+    },
+    "files": [
+      {
+        "path": "settings.json",
+        "content_base64": "eyJFeGFtcGxlIjpbXX0K",
+        "mode": 420
+      }
+    ],
+    "artifact_base64": "UEsDBBQAAAAAAAAAIQDWGmYZDwAAAA8AAAANAAAAc2V0dGluZ3MuanNvbnsiRXhhbXBsZSI6W119ClBLAQIUAxQAAAAAAAAAIQDWGmYZDwAAAA8AAAANAAAAAAAAAAAAAACkgQAAAABzZXR0aW5ncy5qc29uUEsFBgAAAAABAAEAOwAAADoAAAAAAA=="
+  }
+]

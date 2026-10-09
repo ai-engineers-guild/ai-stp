@@ -1,6 +1,7 @@
 //! Passport shape, identity and content addressing at the native boundary.
 
-mod markdown;
+pub mod developer;
+pub(crate) mod markdown;
 pub mod versions;
 
 use serde_json::{Value, json};

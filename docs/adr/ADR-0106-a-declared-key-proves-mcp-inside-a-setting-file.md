@@ -1,6 +1,6 @@
 ---
 description: "Decision to prove client MCPs inside a setting file by a declared key and read only server names."
-last_verified: "2026-08-20"
+last_verified: "2026-10-08"
 ---
 
 # ADR-0106: A declared key proves client MCPs inside a setting
@@ -53,11 +53,12 @@ The key is declared by `codex` and `grok-build` (`mcp_servers` in
 `opencode.jsonc`). Claude Code remains keyless: its `.mcp.json` proves itself by
 name, and discovery does not open it.
 
-Pi has no declared layout. Files named `mcp.json` do occur beneath its root,
-but they are created by a user extension rather than the harness itself, and
-observed instances disagree on the key. The Pi documentation table of contents
-has no MCP page, so the verified gap `no_documented_mcp_client_config` is
-declared instead of a layout.
+The Pi example has changed since this decision: Pi 1.0.0 now documents
+`mcp.json` with `mcpServers`. ai_stp has not integrated that layout, and the
+pinned provider profile does not admit the path or MCP kind. The current gap is
+`mcp_config_not_integrated`; the declared-key rule is unchanged. Current behavior
+and upstream evidence belong to
+[native component discovery](../contracts/native-component-discovery.md).
 
 ## Consequences
 

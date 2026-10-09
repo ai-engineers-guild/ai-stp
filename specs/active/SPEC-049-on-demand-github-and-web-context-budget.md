@@ -192,7 +192,12 @@ only where they are not explicitly superseded by this specification.
 | `REQ-4913` | API tests cover a textual component, a runtime-derived MCP state, and an embedded setup component resolved from setup-definition bytes; Web shows the component estimate or the explicit reason. |
 | `REQ-4914` | Web component tests cover the two-value context panel and catalog-like setup composition; pagination tests cover the setup-to-component boundary and one combined navigator. |
 
-Context reads use the persisted exact-version artifact location after visibility
-checks. A historical object under another storage prefix remains readable;
-missing or conflicting locations cannot produce a numeric estimate. Embedded
-setup-definition integrity failures return the existing typed validation error.
+Context reads authorize the exact version before accessing storage. Primary
+artifacts use their persisted location; legacy locations without an owner binding
+may retain a historical prefix. Owner-bound locations must match the current
+owner and exact storage key. Setup reports select the setup's harness adaptation
+before fetching bytes. Its non-primary projection is read by declared digest and
+size in that owner's namespace. Ambiguous adaptation/scope selection reads no
+artifact and reports `adaptation_selection_required`. Missing or corrupt selected
+bytes cannot become a numeric component estimate or fall back to another harness.
+Embedded setup-definition integrity failures return the existing typed validation error.

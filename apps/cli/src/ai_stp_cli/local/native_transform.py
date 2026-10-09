@@ -120,58 +120,66 @@ def logical_mcp_servers(document: JsonValue) -> dict[str, JsonValue] | None:
 def _mcp_server_for_target(
     raw: dict[str, JsonValue], target: Rule
 ) -> tuple[dict[str, JsonValue], tuple[str, ...]] | None:
-    command, args, env, url, dropped = _canonical_mcp(raw)
-    losses = list(dropped)
-    wants_opencode = target.declared_key == "mcp"
-    if wants_opencode:
-        if command is None:
-            return None
-        body: dict[str, JsonValue] = {
-            "type": "local",
-            "command": [command, *args],
-        }
+    parsed = _canonical_mcp(raw)
+    if parsed is None:
+        return None
+    command, args, env = parsed
+    if target.declared_key == "mcp":
+        body: dict[str, JsonValue] = {"type": "local", "command": [command, *args]}
         if env:
             body["environment"] = cast(JsonValue, env)
-        if url is not None:
-            losses.append("remote MCP url is omitted on an OpenCode local server")
-        return body, tuple(dict.fromkeys(losses))
-    if command is None:
-        return None
-    body = {"command": command, "args": list(args)}
-    if env:
-        body["env"] = cast(JsonValue, env)
-    if url is not None:
-        losses.append("remote MCP url is omitted on a stdio MCP host")
-    return body, tuple(dict.fromkeys(losses))
+    else:
+        body = {"command": command, "args": list(args)}
+        if env:
+            body["env"] = cast(JsonValue, env)
+    return body, ()
 
 
 def _canonical_mcp(
     raw: dict[str, JsonValue],
-) -> tuple[str | None, list[str], dict[str, str], str | None, tuple[str, ...]]:
-    losses: list[str] = []
-    url = raw.get("url") if isinstance(raw.get("url"), str) else None
-    env_raw = raw.get("environment") if "environment" in raw else raw.get("env")
-    env: dict[str, str] = {}
-    if isinstance(env_raw, dict):
-        env = {str(key): str(value) for key, value in env_raw.items()}
+) -> tuple[str, list[str], dict[str, str]] | None:
+    # Controls such as enabled, tool filters, cwd and timeouts cannot disappear
+    # merely because another host uses a different configuration vocabulary.
+    if raw.keys() - {"command", "args", "env", "environment", "type"}:
+        return None
+    if raw.get("type", "stdio") not in ("stdio", "local"):
+        return None
+    if "env" in raw and "environment" in raw:
+        return None
+    environment = raw.get("env", raw.get("environment", {}))
+    if not isinstance(environment, dict) or any(
+        not isinstance(value, str) for value in environment.values()
+    ):
+        return None
+    env = cast(dict[str, str], environment)
     command_raw = raw.get("command")
-    args_raw = raw.get("args")
-    args: list[str] = [str(item) for item in args_raw] if isinstance(args_raw, list) else []
-    command: str | None
-    if isinstance(command_raw, list) and command_raw:
-        command = str(command_raw[0])
-        rest = [str(item) for item in command_raw[1:]]
-        if args and rest and args != rest:
-            losses.append("MCP command array and args disagreed; the array won")
-        args = rest or args
-    elif isinstance(command_raw, str) and command_raw:
-        command = command_raw
+    if isinstance(command_raw, list):
+        if (
+            "args" in raw
+            or not command_raw
+            or any(not isinstance(value, str) for value in command_raw)
+        ):
+            return None
+        parts = cast(list[str], command_raw)
+        command, args = parts[0], parts[1:]
+    elif isinstance(command_raw, str):
+        args_raw = raw.get("args", [])
+        if not isinstance(args_raw, list) or any(not isinstance(value, str) for value in args_raw):
+            return None
+        command, args = command_raw, cast(list[str], args_raw)
     else:
-        command = None
-    kind = raw.get("type")
-    if isinstance(kind, str) and kind not in {"local", "stdio"} and command is None:
-        losses.append(f"MCP type {kind} has no local command")
-    return command, args, env, url if isinstance(url, str) else None, tuple(losses)
+        return None
+    if not command.strip():
+        return None
+    # Environment/file expansion belongs to the source harness. Copying those
+    # expressions into another dialect is not a literal-preserving conversion.
+    if any(
+        marker in value
+        for value in (command, *args, *env.values())
+        for marker in ("${", "{env:", "{file:")
+    ):
+        return None
+    return command, args, env
 
 
 def _agents(

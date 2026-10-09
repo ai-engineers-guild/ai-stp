@@ -1268,7 +1268,7 @@ export const readComponentVersion = <ThrowOnError extends boolean = false>(
   >({ url: "/v1/catalog/components/{stable_id}/versions/{version}", ...options });
 
 /**
- * Stream the immutable bytes of one exact component version.
+ * Stream the primary or exact declared projection bytes of one component version.
  */
 export const readComponentArtifact = <ThrowOnError extends boolean = false>(
   options: Options<ReadComponentArtifactData, ThrowOnError>,

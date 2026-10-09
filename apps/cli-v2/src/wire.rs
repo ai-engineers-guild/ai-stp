@@ -9,6 +9,7 @@ use crate::error::{ErrorKind, Failure, Result};
 pub struct Schema {
     source: &'static str,
     reader_defaults: bool,
+    definition: Option<&'static str>,
     compiled: OnceLock<std::result::Result<jsonschema::Validator, String>>,
 }
 
@@ -17,6 +18,7 @@ impl Schema {
         Self {
             source,
             reader_defaults: false,
+            definition: None,
             compiled: OnceLock::new(),
         }
     }
@@ -27,6 +29,16 @@ impl Schema {
         Self {
             source,
             reader_defaults: true,
+            definition: None,
+            compiled: OnceLock::new(),
+        }
+    }
+
+    pub const fn definition(source: &'static str, definition: &'static str) -> Self {
+        Self {
+            source,
+            reader_defaults: false,
+            definition: Some(definition),
             compiled: OnceLock::new(),
         }
     }
@@ -39,6 +51,9 @@ impl Schema {
                     .map_err(|_| "embedded schema is invalid".to_owned())?;
                 if self.reader_defaults {
                     allow_explicit_defaults(&mut schema);
+                }
+                if let Some(definition) = self.definition {
+                    schema = serde_json::json!({"$defs":schema["$defs"],"$ref":format!("#/$defs/{definition}")});
                 }
                 jsonschema::options()
                     .offline()
