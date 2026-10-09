@@ -15,6 +15,9 @@ use ai_stp_cli_v2::{
 };
 use serde_json::{Value, json};
 
+#[path = "derivation/skills.rs"]
+mod skills;
+
 const AT: &str = "2026-10-08T00:00:00.000Z";
 const LATER: &str = "2026-10-09T00:00:00.000Z";
 
@@ -284,8 +287,8 @@ fn graph_recast(
 }
 
 #[test]
-fn exact_stdio_derivation_preserves_literals_and_atomic_owned_history() -> Result<(), Box<dyn Error>>
-{
+fn exact_native_derivation_preserves_literals_and_atomic_owned_history()
+-> Result<(), Box<dyn Error>> {
     let temporary = tempfile::tempdir()?;
     let mut store = Store::open(temporary.path(), true)?;
     let identity = Identity {
@@ -302,6 +305,7 @@ fn exact_stdio_derivation_preserves_literals_and_atomic_owned_history() -> Resul
             Info::parse(&serde_json::to_vec(v).map_err(|_| Failure::input("proof JSON failed"))?)
         })
         .collect::<Result<Vec<_>, _>>()?;
+    skills::journey(&mut store, temporary.path(), &providers, &identity)?;
     let config = "[mcp_servers.docs]\ncommand = 'review-server'\nargs = ['cafe\u{301}', '\"quoted\"', 'C:\\work\\a']\n[mcp_servers.docs.env]\nMODE = 'cafe\u{301}'\n";
     let configs = [
         ("codex", config.as_bytes().to_vec()),
