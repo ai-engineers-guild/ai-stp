@@ -2,7 +2,7 @@
 
 use std::{
     cell::RefCell,
-    io::{Read, Write},
+    io::{Read, Seek, Write},
     path::Path,
     time::{Duration, Instant},
 };
@@ -22,6 +22,66 @@ use crate::{
 
 const BUDGET: Duration = Duration::from_secs(600);
 const OWNER: &[u8] = b"ai-stp-cli-v2:software-artifacts/v1\n";
+
+/// An opened immutable cache member; component invocation never receives its
+/// parent directory or a writable handle.
+pub(crate) struct HeldArtifact {
+    pub file: std::fs::File,
+    pub entry_point: String,
+    digest: String,
+    bytes: u64,
+}
+
+impl HeldArtifact {
+    pub fn verify(&mut self) -> Result<()> {
+        self.file.rewind().map_err(|_| invalid())?;
+        let mut hash = Sha256::new();
+        let mut length = 0u64;
+        let mut buffer = [0; 64 * 1024];
+        let started = Instant::now();
+        loop {
+            remaining(started)?;
+            let read = self.file.read(&mut buffer).map_err(|_| invalid())?;
+            if read == 0 {
+                break;
+            }
+            length += read as u64;
+            if length > self.bytes {
+                return Err(invalid());
+            }
+            hash.update(&buffer[..read]);
+        }
+        if length != self.bytes || crate::digest::representation(&hash.finalize()) != self.digest {
+            return Err(invalid());
+        }
+        self.file.rewind().map_err(|_| invalid())?;
+        Ok(())
+    }
+}
+
+pub(crate) fn hold(parent: &Dir, planned: &Value) -> Result<HeldArtifact> {
+    let records = planned["plan"]["software_artifacts"]
+        .as_array()
+        .ok_or_else(invalid)?;
+    // The seven managed components each consume one vendor artifact. Refuse a
+    // future multipart format until its independent verifier is implemented.
+    if records.len() != 1 {
+        return Err(invalid());
+    }
+    let record: Download = serde_json::from_value(records[0].clone()).map_err(|_| invalid())?;
+    record.check(crate::provider::runtime::platform()?)?;
+    let owned =
+        OwnedDirectory::open_at(parent, "software-artifacts", OWNER, false)?.ok_or_else(invalid)?;
+    let name = record.sha256.strip_prefix("sha256:").ok_or_else(invalid)?;
+    let file =
+        verified_file(&owned.directory, name, &record, Instant::now())?.ok_or_else(invalid)?;
+    Ok(HeldArtifact {
+        file: file.into_std(),
+        entry_point: record.entry_point,
+        digest: record.sha256,
+        bytes: record.byte_length,
+    })
+}
 
 fn invalid() -> Failure {
     Failure::precondition(
@@ -95,9 +155,19 @@ fn metadata(file: &File, directory: &Dir, name: &str, limit: u64) -> Result<Meta
 }
 
 fn verified(directory: &Dir, name: &str, record: &Download, started: Instant) -> Result<bool> {
+    Ok(verified_file(directory, name, record, started)?.is_some())
+}
+
+/// Keep the same opened file through verification and component handoff.
+fn verified_file(
+    directory: &Dir,
+    name: &str,
+    record: &Download,
+    started: Instant,
+) -> Result<Option<File>> {
     let mut file = match files::open_regular(directory, Path::new(name)) {
         Ok(file) => file,
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(false),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
         Err(_) => return Err(invalid()),
     };
     let before = metadata(&file, directory, name, record.byte_length)?;
@@ -127,7 +197,8 @@ fn verified(directory: &Dir, name: &str, record: &Download, started: Instant) ->
     {
         return Err(invalid());
     }
-    Ok(true)
+    file.rewind().map_err(|_| invalid())?;
+    Ok(Some(file))
 }
 
 /// A retained prefix is compared with the new response before any suffix is
@@ -350,6 +421,30 @@ mod tests {
         receive(&owned, &record, &bytes[..], Instant::now())?;
         assert!(verified(&owned.directory, key, &record, Instant::now())?);
         assert!(owned.read_file(&partial, 100)?.is_none());
+        let mut held =
+            verified_file(&owned.directory, key, &record, Instant::now())?.ok_or_else(invalid)?;
+        owned
+            .directory
+            .rename(key, &owned.directory, "held")
+            .map_err(|_| invalid())?;
+        let mut replacement = owned
+            .directory
+            .open_with(key, files::private_options().create_new(true))
+            .map_err(|_| invalid())?;
+        replacement
+            .write_all(b"other artifact bytes")
+            .map_err(|_| invalid())?;
+        drop(replacement);
+        let mut retained = Vec::new();
+        held.read_to_end(&mut retained).map_err(|_| invalid())?;
+        assert_eq!(retained, bytes);
+        assert!(verified_file(&owned.directory, key, &record, Instant::now()).is_err());
+        drop(held);
+        owned.directory.remove_file(key).map_err(|_| invalid())?;
+        owned
+            .directory
+            .rename("held", &owned.directory, key)
+            .map_err(|_| invalid())?;
         owned
             .directory
             .rename(key, &owned.directory, &partial)

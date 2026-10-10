@@ -108,6 +108,29 @@ impl Store {
                     "the explicit preview registry does not exist",
                 )
             })?;
+        if let Err(error) = directory.directory.symlink_metadata("registry.sqlite3") {
+            if error.kind() != std::io::ErrorKind::NotFound
+                || directory
+                    .directory
+                    .entries()
+                    .map_err(|_| Failure::precondition("the registry cannot be inspected"))?
+                    .any(|entry| {
+                        entry.map_or(true, |entry| {
+                            !matches!(entry.file_name().to_str(), Some("owner" | "lock"))
+                        })
+                    })
+            {
+                return Err(Failure::precondition(
+                    "the missing registry has unexpected companion files",
+                ));
+            }
+            if !create {
+                return Err(Failure::new(
+                    ErrorKind::NotFound,
+                    "the owned registry initialization is incomplete",
+                ));
+            }
+        }
         if create {
             match directory
                 .directory
@@ -179,7 +202,13 @@ impl Store {
         let version: u32 = connection
             .query_row("PRAGMA user_version", [], |row| row.get(0))
             .map_err(database)?;
-        if version == 0 && create && schema(&connection)?.is_empty() {
+        if version == 0 && schema(&connection)?.is_empty() {
+            if !create {
+                return Err(Failure::new(
+                    ErrorKind::NotFound,
+                    "the owned registry initialization is incomplete",
+                ));
+            }
             let transaction = connection
                 .transaction_with_behavior(TransactionBehavior::Immediate)
                 .map_err(database)?;
@@ -209,7 +238,9 @@ impl Store {
                 |row| row.get(0),
             )
             .map_err(database)?;
-        if mode != "wal" {
+        // A complete bootstrap can survive before WAL activation. Query-only
+        // planning may read it; the next writer finishes activation in place.
+        if mode != "wal" && !(planning && mode == "delete") {
             return Err(Failure::precondition(
                 "the local registry requires write-ahead logging",
             ));

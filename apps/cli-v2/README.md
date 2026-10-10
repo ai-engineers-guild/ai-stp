@@ -2,7 +2,8 @@
 
 Native preview of the ai-stp CLI. One Cargo package contains a headless library
 and the `ai-stp-v2` executable. The supported production executable is still
-`ai-stp`; this preview does not acquire production state or install harnesses.
+`ai-stp`; the preview uses explicit isolated state. On Linux it can install a
+harness program into a new directory through an authenticated setup component.
 
 ```sh
 just cli-v2-check
@@ -30,9 +31,10 @@ an operation. Acquisition still verifies the complete publisher policy and bytes
 The pin is a choice, not authentication or installation eligibility.
 
 The existing `provider` command group is the expert interface inside this CLI.
-No separate setup-system command is required for the implemented read/prepare
-journeys. Writable installation, coordinated component release/update and the
-production switch remain C4/C6/C7 work; the preview does not claim them.
+No separate setup-system command is required for implemented read, preparation
+or fresh-program installation journeys. Configuration installation, existing
+program updates/removal, other-OS isolation, native distribution and the
+production switch remain C4/C6/C7 work.
 
 ## Contract
 
@@ -378,12 +380,16 @@ expiry and idempotency checks; successful replay does not rewind newer work.
 
 Planning uses query-only SQLite with deferred read transactions. A missing
 registry is represented by an in-memory bootstrap and creates no directory.
+The same read-only view covers interrupted initialization before database
+creation or the schema transaction. A complete schema left in DELETE mode may
+be read without switching journal mode; the next writer resumes WAL activation.
+Missing databases with unexpected companion files and unknown schemas refuse.
 Apply initializes the explicit registry if absent; a later source/precondition
 refusal may leave that empty registry, but commits no domain records or artifacts.
 Existing WAL housekeeping remains SQLite's responsibility. Local passport and
 version inspection use one read transaction and never open credentials. Provider
-declaration files describe packaging only; executable trust and installation
-remain separate pending boundaries.
+declaration files describe packaging only; component execution and installation
+use the authenticated runtime and the explicit program operation contract.
 
 Discovery also reads project-root `nori.json` and project/home
 `.agents/.skill-lock.json` version 3. The bounded ports follow the pinned
@@ -652,6 +658,9 @@ release; omission uses the managed release. `--software-version` selects an
 exact program version; omission uses that component's compiled pin. This command
 currently uses the proved Linux runtime. The final prefix must be absent under
 an existing plain parent and physically disjoint from target and state.
+Planning requires component 0.0.89 or newer and rejects older explicit versions
+before publisher refresh or acquisition. Read-only `provider software plan`
+retains its independent observation contract.
 
 The native plan binds two distinct preconditions: absence of the host
 destination and an empty private directory for the component. The component
@@ -668,8 +677,64 @@ archive/executable/info digests and the complete component plan. Its
 their exact Unicode spelling. Plans are bounded to 64 KiB. `observation` retains
 the authenticated measurements and distinguishes `host_state: missing` from
 `provider_view: empty_private_stage`. `installation_performed` and
-`execution_authorized` stay false. Execution and recovery remain separate work;
-there is no `program install apply` command yet.
+`execution_authorized` stay false.
+
+`program install apply --state-dir --plan --plan-digest` consumes that original
+plan and digest on Linux. It requires component 0.0.89 or newer, whose software
+kernel retains exact caller admission and terminal history. This version floor
+does not authenticate an artifact or change the managed pin. Every execution
+reauthenticates the recorded component and compares its archive, executable and
+declaration digests; an unpublished build or an old plan never receives an
+implicit upgrade. The original target, parent, state and component plan are
+revalidated before admission. One vendor artifact is supported; multipart plans
+refuse until an independent verifier exists.
+
+Downloads finish before the first durable operation admission. The existing
+schema-53 `operation` and `operation_event` tables retain the complete original
+plan and transition evidence in short transactions. A private operation lock
+serializes retries without retaining the registry lock during network or
+component work. Phases are `prepared`, `staged`, `publishing` and terminal
+`verified`; the stored phase is separate from the original plan's deadline.
+Expiry still controls the component's first admission. A previously admitted
+component operation may resume its exact original plan after expiry.
+
+The component receives a writable private stage at the planned final path, a
+read-only target, plan and vendor archive, a synthetic read-only parent and
+measured network denial. Its entry process verifies physical mount identities
+and modes before execution and sets a deterministic `0022` payload umask.
+The real host parent is never mounted. Component execution is bounded to five
+minutes; timeout preserves transaction state for retry or explicit cancellation.
+The vendor archive is hashed through the same held descriptor mounted read-only
+for the component; replacing its cache path cannot select a second file.
+
+Before publication the CLI independently compares every vendor payload file,
+length, digest and executable mode, directory membership, exact version marker,
+launch manifest and absolute final-path entry link. It reads bounded raw or
+gzip-tar artifacts without extracting them itself. Symlinks/hardlinks in the
+version payload, surplus files/directories, altered metadata and escaping launch
+links refuse. Inventory limits are 65,536 entries, 8 GiB, depth 64 and 8,192-byte
+relative paths; its checksum is plain SHA-256 over RFC 8785 inventory bytes.
+The result separates regular `files` from `archive_entries`: the component's
+legacy `files` counter includes explicit directory entries and is compared with
+that archive count, not with inferred parent directories or regular files alone.
+This proves installed content, not vendor execution or runtime dependencies.
+
+The durable publication record precedes an atomic no-replace directory move.
+Recovery recognizes the same physical root after that move, flushes directory
+changes and removes the private parent before committing completion. A foreign
+destination is preserved. Terminal receipts are historical outcomes and return
+before component/network/target lookup, including after later removal; they do
+not recreate files or attest the current installation. Stored phases, physical
+identities and closed result fields are validated against the original plan
+before returning history or resuming effects; altered or surplus fields refuse.
+
+`program install cancel --state-dir --plan --plan-digest` cancels an unstarted
+or unpublished operation. It records `cancelling` before discarding only its
+bound generated stage, then commits terminal `cancelled`. Repeating cancel or
+apply resumes interrupted cancellation. A moved/published root cannot be
+cancelled; its original apply must finish publication. Cancellation never removes
+the final program directory. Configuration replacement, program update/removal,
+active-agent handoff, other-OS isolation and production cutover remain separate.
 
 `program inspect --prefix --entry-point` reads the public providers' software
 layout at an explicit absolute prefix with an existing parent. The entry point
@@ -2074,6 +2139,7 @@ breakaway and never infers termination from PID disappearance alone.
 | `passport/developer.rs` | Closed private preferences, exact singleton plans and atomic revision receipts |
 | `passport/device.rs` | Runtime platform observations, exact private device heads and idempotent refresh |
 | `provider.rs`, `provider/`, `bundle/` | Exact declarations, authenticated trust/artifact acquisition and deterministic v2 packages |
+| `provider/runtime/install/`, `provider/runtime/execution.rs` | Original-plan admission, isolated program staging, independent payload verification, atomic activation and cancellation |
 | `store/`, `files/owned.rs` | Explicit owned state, atomic revision writes and shared private-file primitives |
 | `archive.rs`, `artifacts.rs`, `projection/artifact.rs` | Shared canonical ZIP transport and closed component/scope archives |
 | `authoring/source.rs` | Complete bounded source capture |
@@ -2119,7 +2185,7 @@ Rekor inclusion/checkpoint, signed entry timestamp and artifact binding. The
 service then enforces the signed source repository, workflow and deployment
 environment. It does not treat the unsigned publisher description as evidence.
 `provider inspect` uses authenticated trust refresh and artifact acquisition;
-installation remains outside the preview command surface.
+`program install` binds its isolated execution to the same authenticated artifacts.
 The example's embedded production trust root is for this fixed evidence run;
 online provider acquisition must use authenticated `provider::trust::refresh`.
 
