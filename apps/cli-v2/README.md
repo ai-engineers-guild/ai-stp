@@ -562,6 +562,15 @@ single `bin/name` entry point. At most sixteen distinct records, 1 GiB each and
 2 GiB total are accepted. Removal carries no downloads. Undeclared operations,
 unknown fields, backup capture, changed echoes and unsafe artifact metadata refuse.
 
+The software plan artifact may additionally carry `expected_software_digest`,
+the authenticated provider's prefix observation. When present, it must be
+`sha256:` followed by exactly 64 lowercase hexadecimal digits and is retained
+in the complete RFC 8785 plan digest. Null and malformed values refuse. This
+field is not accepted in the caller's request, configuration plans or the
+response envelope. Older provider plans may omit it; no value is synthesized.
+The two provider observations must agree on its presence and value. Reading
+the field does not independently verify the prefix or authorize execution.
+
 This observes provider effects about the prefix layout; it does not hash or
 attest installed payloads and is not a snapshot or apply precondition. The report
 sets `installed_software_verified`, `software_downloaded`,

@@ -83,6 +83,7 @@ fn exact_provider_plans_refuse_rehashed_foreign_inputs_and_inconsistent_echoes()
     for (key, value) in [
         ("native_capture", json!({})),
         ("target_scope", json!("project")),
+        ("expected_software_digest", json!(digest::sha256(b"prefix"))),
         ("unknown", json!(true)),
     ] {
         let mut foreign = response.clone();
@@ -184,6 +185,68 @@ fn software_plans(
         let response = json!({"state":"planned","expected_target_digest":plan["expected_target_digest"],
             "effects":plan["effects"],"plan_digest":digest_plan(&plan)?,"plan":plan});
         parsed.planned(&serde_json::to_vec(&response)?, observed, &prefix, now)?;
+        let mut guarded = response.clone();
+        guarded["plan"]["expected_software_digest"] = digest::sha256(b"prefix observation").into();
+        guarded["plan_digest"] = digest_plan(&guarded["plan"])?.into();
+        assert_eq!(
+            parsed.planned(&serde_json::to_vec(&guarded)?, observed, &prefix, now)?,
+            guarded
+        );
+        for value in [
+            Value::Null,
+            json!(true),
+            json!([]),
+            json!({}),
+            json!(""),
+            json!("sha256:1234"),
+            json!(format!("SHA256:{}", "a".repeat(64))),
+            json!(format!("sha256:{}", "A".repeat(64))),
+            json!(format!("sha256:{}", "g".repeat(64))),
+            json!(format!("sha256:{} ", "a".repeat(64))),
+        ] {
+            let mut changed = guarded.clone();
+            changed["plan"]["expected_software_digest"] = value;
+            changed["plan_digest"] = digest_plan(&changed["plan"])?.into();
+            assert!(
+                parsed
+                    .planned(&serde_json::to_vec(&changed)?, observed, &prefix, now)
+                    .is_err()
+            );
+        }
+        for remove in [false, true] {
+            let mut changed = guarded.clone();
+            if remove {
+                changed["plan"]
+                    .as_object_mut()
+                    .ok_or("plan")?
+                    .remove("expected_software_digest");
+            } else {
+                changed["plan"]["expected_software_digest"] =
+                    digest::sha256(b"changed prefix").into();
+            }
+            assert!(
+                parsed
+                    .planned(&serde_json::to_vec(&changed)?, observed, &prefix, now)
+                    .is_err()
+            );
+        }
+        for key in ["expected_software_digest", "unknown"] {
+            let mut changed = guarded.clone();
+            changed[key] = digest::sha256(b"prefix observation").into();
+            assert!(
+                parsed
+                    .planned(&serde_json::to_vec(&changed)?, observed, &prefix, now)
+                    .is_err()
+            );
+        }
+        let mut changed = guarded.clone();
+        changed["plan"]["unknown"] = true.into();
+        changed["plan_digest"] = digest_plan(&changed["plan"])?.into();
+        assert!(
+            parsed
+                .planned(&serde_json::to_vec(&changed)?, observed, &prefix, now)
+                .is_err()
+        );
         let mut pinned = request.clone();
         pinned
             .as_object_mut()
@@ -223,6 +286,7 @@ fn software_plans(
         }
         for (key, value) in [
             ("unknown", json!(true)),
+            ("expected_software_digest", json!(digest::sha256(b"prefix"))),
             ("operation", json!("backup")),
             ("software_version", json!("../latest")),
             ("software_version", json!("")),
