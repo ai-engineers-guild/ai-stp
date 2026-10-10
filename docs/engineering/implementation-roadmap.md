@@ -101,7 +101,10 @@ Execute the remaining integration in this order:
    Preserve component-only content writes, physical bindings and the explicit
    no-backup policy throughout these operations.
 4. Deliver connected services (C5), coordinated attested component distribution,
-   native self-update and desktop consumption (C6). Generate component repository
+   automated native installation, self-update and desktop consumption (C6).
+   Native preview archives have a tag-bound build, isolated extracted-binary
+   proof and separate provenance job; final publication evidence belongs to #57.
+   Generate component repository
    entry documentation from its source renderer; keep compatibility commands
    until their callers have verified replacements.
 5. Transfer production ownership once, retire superseded CLI paths, reconcile
