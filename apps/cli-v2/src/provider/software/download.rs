@@ -2,7 +2,7 @@
 
 use std::{
     cell::RefCell,
-    io::{Read, Write},
+    io::{Read, Seek, Write},
     path::Path,
     time::{Duration, Instant},
 };
@@ -28,13 +28,12 @@ const OWNER: &[u8] = b"ai-stp-cli-v2:software-artifacts/v1\n";
 pub(crate) struct HeldArtifact {
     pub file: std::fs::File,
     pub entry_point: String,
-    pub digest: String,
-    pub bytes: u64,
+    digest: String,
+    bytes: u64,
 }
 
 impl HeldArtifact {
     pub fn verify(&mut self) -> Result<()> {
-        use std::io::Seek;
         self.file.rewind().map_err(|_| invalid())?;
         let mut hash = Sha256::new();
         let mut length = 0u64;
@@ -74,11 +73,8 @@ pub(crate) fn hold(parent: &Dir, planned: &Value) -> Result<HeldArtifact> {
     let owned =
         OwnedDirectory::open_at(parent, "software-artifacts", OWNER, false)?.ok_or_else(invalid)?;
     let name = record.sha256.strip_prefix("sha256:").ok_or_else(invalid)?;
-    if !verified(&owned.directory, name, &record, Instant::now())? {
-        return Err(invalid());
-    }
-    let file = files::open_regular(&owned.directory, Path::new(name)).map_err(|_| invalid())?;
-    metadata(&file, &owned.directory, name, record.byte_length)?;
+    let file =
+        verified_file(&owned.directory, name, &record, Instant::now())?.ok_or_else(invalid)?;
     Ok(HeldArtifact {
         file: file.into_std(),
         entry_point: record.entry_point,
@@ -159,9 +155,19 @@ fn metadata(file: &File, directory: &Dir, name: &str, limit: u64) -> Result<Meta
 }
 
 fn verified(directory: &Dir, name: &str, record: &Download, started: Instant) -> Result<bool> {
+    Ok(verified_file(directory, name, record, started)?.is_some())
+}
+
+/// Keep the same opened file through verification and component handoff.
+fn verified_file(
+    directory: &Dir,
+    name: &str,
+    record: &Download,
+    started: Instant,
+) -> Result<Option<File>> {
     let mut file = match files::open_regular(directory, Path::new(name)) {
         Ok(file) => file,
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(false),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
         Err(_) => return Err(invalid()),
     };
     let before = metadata(&file, directory, name, record.byte_length)?;
@@ -191,7 +197,8 @@ fn verified(directory: &Dir, name: &str, record: &Download, started: Instant) ->
     {
         return Err(invalid());
     }
-    Ok(true)
+    file.rewind().map_err(|_| invalid())?;
+    Ok(Some(file))
 }
 
 /// A retained prefix is compared with the new response before any suffix is
@@ -414,6 +421,30 @@ mod tests {
         receive(&owned, &record, &bytes[..], Instant::now())?;
         assert!(verified(&owned.directory, key, &record, Instant::now())?);
         assert!(owned.read_file(&partial, 100)?.is_none());
+        let mut held =
+            verified_file(&owned.directory, key, &record, Instant::now())?.ok_or_else(invalid)?;
+        owned
+            .directory
+            .rename(key, &owned.directory, "held")
+            .map_err(|_| invalid())?;
+        let mut replacement = owned
+            .directory
+            .open_with(key, files::private_options().create_new(true))
+            .map_err(|_| invalid())?;
+        replacement
+            .write_all(b"other artifact bytes")
+            .map_err(|_| invalid())?;
+        drop(replacement);
+        let mut retained = Vec::new();
+        held.read_to_end(&mut retained).map_err(|_| invalid())?;
+        assert_eq!(retained, bytes);
+        assert!(verified_file(&owned.directory, key, &record, Instant::now()).is_err());
+        drop(held);
+        owned.directory.remove_file(key).map_err(|_| invalid())?;
+        owned
+            .directory
+            .rename("held", &owned.directory, key)
+            .map_err(|_| invalid())?;
         owned
             .directory
             .rename(key, &owned.directory, &partial)

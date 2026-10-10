@@ -699,6 +699,8 @@ measured network denial. Its entry process verifies physical mount identities
 and modes before execution and sets a deterministic `0022` payload umask.
 The real host parent is never mounted. Component execution is bounded to five
 minutes; timeout preserves transaction state for retry or explicit cancellation.
+The vendor archive is hashed through the same held descriptor mounted read-only
+for the component; replacing its cache path cannot select a second file.
 
 Before publication the CLI independently compares every vendor payload file,
 length, digest and executable mode, directory membership, exact version marker,
