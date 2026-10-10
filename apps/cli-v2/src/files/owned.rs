@@ -18,6 +18,14 @@ pub(crate) struct OwnedDirectory {
     _lock: std::fs::File,
 }
 
+impl Drop for OwnedDirectory {
+    fn drop(&mut self) {
+        // A spawned process may temporarily retain this open file description.
+        // Its lifetime must not extend this directory owner's authority.
+        let _ = self._lock.unlock();
+    }
+}
+
 fn invalid(stage: &'static str) -> Failure {
     Failure::precondition("explicit private directory is invalid or inaccessible")
         .with_details([("stage".into(), stage.into())])
@@ -266,6 +274,32 @@ impl OwnedDirectory {
             .map_err(|error| io_failure("directory_flush_open", error))?
             .sync_all()
             .map_err(|error| io_failure("directory_flush", error))?;
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::OwnedDirectory;
+
+    #[test]
+    fn a_retained_descriptor_does_not_extend_directory_lock_authority()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let root = tempfile::tempdir()?;
+        let owner = b"generated lock fixture\n";
+        let held = OwnedDirectory::open(root.path(), "private", owner, true)?
+            .ok_or("missing generated directory")?;
+        // A process being spawned can retain the same open file description.
+        let retained = held._lock.try_clone()?;
+        drop(held);
+        let reopened = OwnedDirectory::open(root.path(), "private", owner, false)?
+            .ok_or("missing generated directory")?;
+        assert_eq!(
+            reopened.read_file("owner", 256)?.as_deref(),
+            Some(owner.as_slice())
+        );
+        drop(reopened);
+        drop(retained);
         Ok(())
     }
 }
