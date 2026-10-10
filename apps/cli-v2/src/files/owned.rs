@@ -51,6 +51,26 @@ pub(crate) fn private_options() -> OpenOptions {
 }
 
 impl OwnedDirectory {
+    pub(crate) fn validate_lock(&self) -> Result<()> {
+        let named = self
+            .directory
+            .symlink_metadata("lock")
+            .map_err(|error| io_failure("lock_binding", error))?;
+        let held = cap_std::fs::Metadata::from_file(&self._lock)
+            .map_err(|error| io_failure("lock_binding", error))?;
+        if !named.is_file()
+            || named.is_symlink()
+            || named.nlink() != 1
+            || named.dev() != held.dev()
+            || named.ino() != held.ino()
+            || named.len() != 0
+            || held.len() != 0
+        {
+            return Err(invalid("lock_binding"));
+        }
+        Ok(())
+    }
+
     pub fn open(root: &Path, name: &str, owner: &[u8], create: bool) -> Result<Option<Self>> {
         let parent = Dir::open_ambient_dir(root, cap_std::ambient_authority())
             .map_err(|error| io_failure("parent_open", error))?;

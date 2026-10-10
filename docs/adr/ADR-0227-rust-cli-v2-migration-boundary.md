@@ -1,6 +1,6 @@
 ---
 description: "Develop the Rust CLI against explicit business and compatibility boundaries, with isolated previews and one verified default-runtime cutover."
-last_verified: "2026-10-08"
+last_verified: "2026-10-10"
 ---
 
 # ADR-0227: Rust CLI v2 migration boundary
@@ -60,6 +60,18 @@ active specifications ahead of code (ADR-0194).
 - Public providers remain the sole native harness writers. Desktop remains a
   process-contract consumer under ADR-0222, even though both programs use Rust;
   it does not link the new domain library as a second engine.
+
+### Local state access
+
+Native registry SQLite I/O must remain relative to its held owned-directory
+capability. Validating an ambient pathname and then passing it to SQLite leaves
+a namespace substitution window; checking the pathname afterward cannot undo a
+foreign write. The safe Rust VFS bridge retains the checked main-file handle and
+confines journal/WAL access to that same directory. The connection retains both
+native ownership and standard SQLite-compatible exclusive locks until close.
+SQLite's exclusive WAL mode keeps the index in memory; no mmap, shared-memory
+adapter, disk temporary database or second native state writer is introduced.
+Schema 53 and ordinary SQLite file/recovery compatibility remain mandatory.
 
 ### Compatibility and native dependencies
 

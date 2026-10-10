@@ -721,17 +721,17 @@ cli-v2-gen:
 [group('cli-v2')]
 cli-v2-static:
     cd apps/cli-v2 && cargo fmt --check
-    cd apps/cli-v2 && cargo clippy --locked --all-targets -- -D warnings
+    cd apps/cli-v2 && python3 scripts/with_libclang.py cargo clippy --locked --all-targets -- -D warnings
 
 # Canonical vectors, real binary behavior and adversarial signed provenance
 [group('cli-v2')]
 cli-v2-test:
-    cd apps/cli-v2 && cargo test --locked
+    cd apps/cli-v2 && python3 scripts/with_libclang.py cargo test --locked
 
 # Optimized native executable and explicit provider evidence runner
 [group('cli-v2')]
 cli-v2-build:
-    cd apps/cli-v2 && cargo build --locked --release --bins --examples
+    cd apps/cli-v2 && python3 scripts/with_libclang.py cargo build --locked --release --bins --examples
 
 # Existing envelope consumer, registry digest and live-WAL backup compatibility
 [group('cli-v2')]

@@ -5,7 +5,7 @@ use serde_json::Value;
 
 /// Updating this pin requires all seven authenticated component journeys.
 /// It is a selection default, never publisher authority or an apply-time upgrade.
-pub const RELEASE: &str = "0.0.88";
+pub const RELEASE: &str = "0.0.89";
 
 pub fn version(explicit: Option<&str>) -> Result<&str> {
     let version = explicit.unwrap_or(RELEASE);
