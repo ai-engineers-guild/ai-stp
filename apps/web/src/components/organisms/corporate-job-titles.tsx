@@ -24,7 +24,7 @@ import {
   peopleCellClass,
   peopleHeadClass,
   usePeopleFilters,
-} from "@/components/organisms/corporate-people-ui";
+} from "@/components/molecules/people-ui";
 import type { CorporateJobTitleView, CorporateMember } from "@/lib/api/generated/types.gen";
 import { Link } from "@/lib/i18n/navigation";
 import { Icon } from "@/theme";

@@ -11,7 +11,7 @@ import {
   PersonIdentity,
   peopleCellClass,
   peopleHeadClass,
-} from "@/components/organisms/corporate-people-ui";
+} from "@/components/molecules/people-ui";
 import type { CorporateMember, CorporateContext } from "@/lib/api/generated/types.gen";
 import { Link } from "@/lib/i18n/navigation";
 import { Icon } from "@/theme";
@@ -134,7 +134,7 @@ function MemberRow({
               ? [
                   {
                     label: t("manageAccess"),
-                    href: `/corporate/admins/employee-access?employee=${encodeURIComponent(member.account_id)}`,
+                    href: `/corporate/admin/employee-access?employee=${encodeURIComponent(member.account_id)}`,
                     icon: "access" as const,
                   },
                 ]

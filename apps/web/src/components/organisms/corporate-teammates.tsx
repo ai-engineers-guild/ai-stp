@@ -5,7 +5,12 @@ import { Badge } from "@/components/atoms/badge";
 import { Icon } from "@/theme";
 import type { CorporateTeammate } from "@/lib/api/generated/types.gen";
 
-const PROJECT_ROLES = new Set(["owner", "lead", "contributor", "staff"]);
+const PROJECT_ROLE_KEYS = {
+  owner: "projectRoleOwner",
+  lead: "projectRoleLead",
+  contributor: "projectRoleContributor",
+  staff: "projectRoleStaff",
+} as const;
 
 /** Scoped people projection — co-members of the caller's teams and projects.
  * Deliberately carries no email, job title, or organization role (ADR-0230). */
@@ -13,8 +18,8 @@ export function CorporateTeammatesList({ items }: { items: CorporateTeammate[] }
   const h = useTranslations("hub");
   const roleLabel = (kind: string, role: string) =>
     kind === "project"
-      ? PROJECT_ROLES.has(role)
-        ? h(`projectRole${role.slice(0, 1).toUpperCase()}${role.slice(1)}`)
+      ? role in PROJECT_ROLE_KEYS
+        ? h(PROJECT_ROLE_KEYS[role as keyof typeof PROJECT_ROLE_KEYS])
         : null
       : role === "lead" || role === "staff"
         ? h(role)

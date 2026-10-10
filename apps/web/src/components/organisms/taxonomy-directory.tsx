@@ -28,9 +28,7 @@ type TaxonomyEntry = CategoryView | AreaView;
 type TaxonomyKind = "area" | "category";
 
 function entryId(kind: TaxonomyKind, entry: TaxonomyEntry) {
-  return kind === "area"
-    ? (entry as AreaView).area_id
-    : (entry as CategoryView).category_id;
+  return kind === "area" ? (entry as AreaView).area_id : (entry as CategoryView).category_id;
 }
 
 function areaOf(kind: TaxonomyKind, entry: TaxonomyEntry) {
@@ -48,10 +46,7 @@ function groupCategoriesByArea(
   const grouped = new Map<string, CategoryView[]>();
   for (const category of categories) {
     if (!category.area_id) continue;
-    grouped.set(category.area_id, [
-      ...(grouped.get(category.area_id) ?? []),
-      localize(category),
-    ]);
+    grouped.set(category.area_id, [...(grouped.get(category.area_id) ?? []), localize(category)]);
   }
   return grouped;
 }
@@ -159,9 +154,7 @@ export function TaxonomyDirectory({
               item={item}
               area={areaById.get(areaOf(kind, item) ?? "")}
               areaCategories={
-                kind === "area"
-                  ? (categoriesByArea.get(entryId(kind, item)) ?? [])
-                  : []
+                kind === "area" ? (categoriesByArea.get(entryId(kind, item)) ?? []) : []
               }
               authority={authority}
               canUpdate={canUpdate}
@@ -251,10 +244,7 @@ function TaxonomyCard({
       <article className="border-border bg-card relative min-w-0 overflow-hidden rounded-lg border p-4">
         <div className="flex min-w-0 items-start gap-3 pr-11">
           <span className="bg-muted border-border text-foreground inline-flex size-10 shrink-0 items-center justify-center rounded-md border">
-            <Icon
-              name={kind === "area" ? technologyAreaIcon(id) : "filter"}
-              size="sm"
-            />
+            <Icon name={kind === "area" ? technologyAreaIcon(id) : "filter"} size="sm" />
           </span>
           <div className="min-w-0 flex-1">
             <div className="flex min-w-0 flex-wrap items-center gap-2">
@@ -353,12 +343,7 @@ function TaxonomyEntryActions({
             <MenuItem
               disabled={mutation.busy}
               onSelect={() => {
-                mutation.save(
-                  path,
-                  { expected_revision: item.revision },
-                  "DELETE",
-                  () => {},
-                );
+                mutation.save(path, { expected_revision: item.revision }, "DELETE", () => {});
               }}
             >
               {c("delete")}
@@ -407,9 +392,7 @@ function TaxonomyEditorDialog({
             authorizationRevision={String(authority.authorizationRevision)}
             categories={null}
             areas={kind === "category" ? [...areas] : null}
-            {...(entry && kind === "category"
-              ? { initialCategory: entry as CategoryView }
-              : {})}
+            {...(entry && kind === "category" ? { initialCategory: entry as CategoryView } : {})}
             {...(entry && kind === "area" ? { initialArea: entry as AreaView } : {})}
             onCreated={() => {
               onOpenChange(false);

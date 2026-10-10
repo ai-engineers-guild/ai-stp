@@ -41,6 +41,7 @@ function category(id: string, name: string, revision = 1): CategoryView {
   return {
     schema_version: 1,
     category_id: id,
+    area_id: null,
     name,
     description: `${name} description`,
     icon: null,

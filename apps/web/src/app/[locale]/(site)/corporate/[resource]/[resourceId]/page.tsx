@@ -203,7 +203,7 @@ export default async function CorporateResourcePage({ params, searchParams }: Pa
 
   const parentHref =
     resource === "roles"
-      ? "/corporate/admins/members"
+      ? "/corporate/admin/members"
       : `/corporate/${resource === "members" ? "employees" : resource}${directoryQuery ? `?${directoryQuery}` : ""}`;
   const backLabel =
     resource === "roles"

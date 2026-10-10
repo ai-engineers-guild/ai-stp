@@ -19,16 +19,18 @@ function matchesPath(pathname: string, href: string): boolean {
 
 /** Named administration pages that replaced the `admins` catch-all (ADR-0219). */
 const ADMINISTRATION_PATHS = [
-  "/corporate/admins/members",
-  "/corporate/admins/invitations",
-  "/corporate/admins/access-model",
-  "/corporate/admins/roles",
-  "/corporate/admins/audit",
-  "/corporate/admins/employee-access",
-  "/corporate/admins/job-titles",
-  "/corporate/admins/tech-categories",
-  "/corporate/admins/telemetry",
-  "/corporate/admins/security",
+  "/corporate/admin/members",
+  "/corporate/admin/invitations",
+  "/corporate/admin/access-model",
+  "/corporate/admin/roles",
+  "/corporate/admin/audit",
+  "/corporate/admin/employee-access",
+  "/corporate/admin/job-titles",
+  "/corporate/admin/tech-categories",
+  "/corporate/admin/technology-areas",
+  "/corporate/admin/settings",
+  "/corporate/admin/telemetry",
+  "/corporate/admin/security",
 ] as const;
 
 /** Returns the active top-level destination for the human navigation shell. */
@@ -55,6 +57,7 @@ export function isPrimaryNavigationActive(item: NavItem, pathname: string): bool
       return [
         "/corporate/catalog",
         "/corporate/technology-landscape",
+        "/corporate/categories",
         "/corporate/technology-mappings",
       ].some((base) => matchesPath(pathname, base));
     case UI.navigation.dashboard:
@@ -111,7 +114,7 @@ export function siteNavigation({
                 {
                   ui: UI.navigation.admins,
                   labelKey: "admins",
-                  href: "/corporate/admins/members",
+                  href: "/corporate/admin/members",
                 },
               ]
             : []),

@@ -6,7 +6,7 @@ import messages from "../../messages/en.json";
 import { CorporateProjectRepository } from "@/components/organisms/corporate-project-repository";
 import type { CorporateProjectView } from "@/lib/api/generated/types.gen";
 const { mutation } = vi.hoisted(() => ({ mutation: vi.fn() }));
-vi.mock("@/actions/corporate", () => ({ corporateMutationAction: mutation }));
+vi.mock("@/lib/api/corporate-mutation", () => ({ corporateMutation: mutation }));
 vi.mock("@/lib/i18n/navigation", () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
 afterEach(() => {
   cleanup();

@@ -11,7 +11,7 @@ import {
   PeopleSelect,
   usePeopleFilters,
   CorporateDetailDrawer,
-} from "@/components/organisms/corporate-people-ui";
+} from "@/components/molecules/people-ui";
 import { CorporateGrantAccessDialog } from "@/components/organisms/corporate-grant-access-dialog";
 import {
   BulkMembersDialog,

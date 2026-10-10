@@ -3,7 +3,7 @@ import type { Meta, StoryObj } from "@storybook/react";
 
 import { Badge } from "@/components/atoms/badge";
 import { Button } from "@/components/atoms/button";
-import { CorporateDetailDrawer } from "@/components/organisms/corporate-people-ui";
+import { CorporateDetailDrawer } from "@/components/molecules/people-ui";
 
 import { withAppChrome } from "../../decorators";
 

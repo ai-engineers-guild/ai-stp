@@ -6,12 +6,12 @@ import { readCorporateWorkspace } from "@/lib/api/corporate";
 import { ApiError } from "@/lib/api/errors";
 import { requireSession, sessionCookieValue } from "@/lib/auth/require-session";
 import { readCsrfToken } from "@/lib/auth/session";
-import { PeopleHeader } from "@/app/[locale]/(site)/corporate/admins/people-shared";
+import { PeopleHeader } from "@/app/[locale]/(site)/corporate/admin/people-shared";
 
 export default async function JobTitlesPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
   setRequestLocale(locale);
-  await requireSession(locale, `/${locale}/corporate/admins/job-titles`);
+  await requireSession(locale, `/${locale}/corporate/admin/job-titles`);
   const t = await getTranslations("corporate");
   const people = await getTranslations("people");
   const common = await getTranslations("common");

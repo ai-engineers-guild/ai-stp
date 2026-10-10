@@ -37,12 +37,12 @@ source records, corporate-owned private `AccessGrant` context). `NA-04` shipped
 behind `AI_STP_CORPORATE_CONTEXT_NAV` (default off): one manifest drives the
 sticky rail, the narrow-screen dialog, and `/api/corporate/navigation`. This
 corporate-only gate has been superseded by the shared shell repair above. `NA-05`
-shipped: `/corporate/organization/admins` is now URL-backed Members &
-Invitations tabs; `/corporate/organization/admins/access` is the searchable
+shipped: `/corporate/admin` is now URL-backed Members &
+Invitations tabs; `/corporate/admin/access` is the searchable
 Access model (entities and role-matrix tabs plus effective decisions);
-`/corporate/organization/admins/roles` lists system/custom roles with
+`/corporate/admin/roles` lists system/custom roles with
 inherited permissions and scoped assignments;
-`/corporate/organization/admins/employees/{accountId}` explains one member's
+`/corporate/admin/employees/{accountId}` explains one member's
 effective decisions, bindings, direct grants, and private catalog grants at a
 selected scope. Service principals moved to Security; domain policy is removed from Invitations. `NA-07` (spec rewrite)
 and `NA-06` (`#544` migration) remain open.
@@ -60,8 +60,8 @@ role policy, routes, or security behavior.
 Before implementation, the in-app browser alone opened the SaaS profile and redirected a corporate
 admin URL to login. A signed-in Chrome profile on the same `:3000` build then
 provided the actual Corporate Hub baseline. The `:3001` listener is no longer
-needed. This audit inspected the catalog, `/corporate/organization/admins`,
-`/corporate/organization/admins/access`, and `/corporate/roles/lead` at a
+needed. This audit inspected the catalog, `/corporate/admin`,
+`/corporate/admin/access`, and `/corporate/roles/lead` at a
 desktop viewport, including the admin page's lower sections and an expanded
 permission group. Mobile, light theme, and mutation submissions were not
 tested. The observed layout and incumbent source together show:

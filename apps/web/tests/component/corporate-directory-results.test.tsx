@@ -185,11 +185,7 @@ describe("corporate directory filters", () => {
   });
 
   it("clears every facet param atomically on Reset all + Apply", async () => {
-    window.history.replaceState(
-      null,
-      "",
-      "/en/corporate/technologies?area_ids=area_1&page=2",
-    );
+    window.history.replaceState(null, "", "/en/corporate/technologies?area_ids=area_1&page=2");
     render(
       <CorporateDirectoryResults
         resource="technologies"

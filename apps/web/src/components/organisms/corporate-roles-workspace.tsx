@@ -14,7 +14,7 @@ import {
   PeopleSelect,
   peopleSelectClass,
   usePeopleFilters,
-} from "@/components/organisms/corporate-people-ui";
+} from "@/components/molecules/people-ui";
 import { CorporatePermissionTable } from "@/components/organisms/corporate-permission-table";
 import { CorporateRolePanel } from "@/components/organisms/corporate-role-panel";
 import { corporateMutation } from "@/lib/api/corporate-mutation";
@@ -73,7 +73,7 @@ function RoleAssignments({ rows }: { rows: readonly RoleAssignmentRow[] }) {
               <td className="p-3">
                 {row.accountId ? (
                   <Link
-                    href={`/corporate/admins/employee-access?employee=${encodeURIComponent(row.accountId)}`}
+                    href={`/corporate/admin/employee-access?employee=${encodeURIComponent(row.accountId)}`}
                     className="hover:underline"
                   >
                     {row.name}

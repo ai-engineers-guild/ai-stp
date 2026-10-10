@@ -10,7 +10,7 @@ import { ApiError } from "@/lib/api/errors";
 import { canViewCorporateAdministration } from "@/lib/corporate-hub";
 import { requireSession, sessionCookieValue } from "@/lib/auth/require-session";
 import { readCsrfToken } from "@/lib/auth/session";
-import { PeopleHeader } from "@/app/[locale]/(site)/corporate/admins/people-shared";
+import { PeopleHeader } from "@/app/[locale]/(site)/corporate/admin/people-shared";
 
 export default async function TechCategoriesPage({
   params,
@@ -19,7 +19,7 @@ export default async function TechCategoriesPage({
 }) {
   const { locale } = await params;
   setRequestLocale(locale);
-  await requireSession(locale, `/${locale}/corporate/admins/tech-categories`);
+  await requireSession(locale, `/${locale}/corporate/admin/tech-categories`);
   const t = await getTranslations("technologyCategories");
   const people = await getTranslations("people");
   const common = await getTranslations("common");

@@ -81,7 +81,7 @@ export const CORPORATE_ROUTES: MachineRoute[] = [
     },
   })),
   {
-    pattern: "corporate/admins/telemetry",
+    pattern: "corporate/admin/telemetry",
     resolve: async () => {
       const t = await getTranslations("technology");
       const hub = await getTranslations("hub");
@@ -120,17 +120,17 @@ export const CORPORATE_ROUTES: MachineRoute[] = [
       ["corporate/technology-scans/:scanId", "/corporate/technology-scans"],
       ["corporate/categories", "/corporate/technology-landscape"],
       ["corporate/technology-mappings", "/corporate/technology-landscape"],
-      ["corporate/admins/invitations", "/corporate/admins/members"],
-      ["corporate/admins/access-model", "/corporate/admins/members"],
-      ["corporate/admins/audit", "/corporate/admins/members"],
-      ["corporate/admins/job-titles", "/corporate/admins/members"],
-      ["corporate/admins/tech-categories", "/corporate/admins/members"],
-      ["corporate/admins/technology-areas", "/corporate/admins/members"],
-      ["corporate/admins/settings", "/corporate/admins/members"],
-      ["corporate/admins/security", "/corporate/admins/members"],
-      ["corporate/admins/telemetry", "/corporate/admins/members"],
-      ["corporate/admins/employee-access", "/corporate/admins/members"],
-      ["corporate/admins/employee-access/:accountId", "/corporate/admins/members"],
+      ["corporate/admin/invitations", "/corporate/admin/members"],
+      ["corporate/admin/access-model", "/corporate/admin/members"],
+      ["corporate/admin/audit", "/corporate/admin/members"],
+      ["corporate/admin/job-titles", "/corporate/admin/members"],
+      ["corporate/admin/tech-categories", "/corporate/admin/members"],
+      ["corporate/admin/technology-areas", "/corporate/admin/members"],
+      ["corporate/admin/settings", "/corporate/admin/members"],
+      ["corporate/admin/security", "/corporate/admin/members"],
+      ["corporate/admin/telemetry", "/corporate/admin/members"],
+      ["corporate/admin/employee-access", "/corporate/admin/members"],
+      ["corporate/admin/employee-access/:accountId", "/corporate/admin/members"],
     ] as const
   ).map(([pattern, back]): MachineRoute => {
     const page = corporateNavPage(`/${pattern.replace(/\/:.*$/, "")}`);

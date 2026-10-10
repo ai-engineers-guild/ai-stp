@@ -217,6 +217,62 @@ describe("SearchableMultiSelect", () => {
     expect(trigger).toHaveAttribute("aria-expanded", "false");
   });
 
+  it("selects and clears a single option in a modal, closing on pick", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    const { rerender } = render(
+      <SearchableMultiSelect
+        name="assignee"
+        label="Assignee"
+        searchLabel="Search people"
+        options={[
+          { value: "account_a", label: "Ada Lovelace" },
+          { value: "account_b", label: "Bea Byte" },
+        ]}
+        selected={[]}
+        onChange={onChange}
+        multiple={false}
+        modal
+        closeLabel="Close"
+        emptyHint="Pick someone"
+      />,
+    );
+
+    const trigger = screen.getByRole("button", { name: "Assignee: Pick someone" });
+    await user.click(trigger);
+    const dialog = screen.getByRole("dialog", { name: "Assignee" });
+    await user.click(within(dialog).getByRole("checkbox", { name: "Ada Lovelace" }));
+    expect(onChange).toHaveBeenCalledWith(["account_a"]);
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
+    expect(trigger).toHaveFocus();
+
+    rerender(
+      <SearchableMultiSelect
+        name="assignee"
+        label="Assignee"
+        searchLabel="Search people"
+        options={[
+          { value: "account_a", label: "Ada Lovelace" },
+          { value: "account_b", label: "Bea Byte" },
+        ]}
+        selected={["account_a"]}
+        onChange={onChange}
+        multiple={false}
+        modal
+        closeLabel="Close"
+        emptyHint="Pick someone"
+      />,
+    );
+    expect(screen.getByRole("button", { name: "Assignee: Ada Lovelace" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Assignee: Ada Lovelace" }));
+    await user.click(
+      within(screen.getByRole("dialog", { name: "Assignee" })).getByRole("checkbox", {
+        name: "Ada Lovelace",
+      }),
+    );
+    expect(onChange).toHaveBeenLastCalledWith([]);
+  });
+
   it("closes a modal on cancel and close events", async () => {
     const user = userEvent.setup();
     render(

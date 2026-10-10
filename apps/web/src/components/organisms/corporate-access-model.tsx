@@ -11,7 +11,7 @@ import {
   CorporateDetailDrawer,
   PeopleSearch,
   PeopleSelect,
-} from "@/components/organisms/corporate-people-ui";
+} from "@/components/molecules/people-ui";
 import type {
   CorporateEffectivePermission,
   CorporatePermissionDefinition,
@@ -111,13 +111,13 @@ export function CorporateAccessModel({
           {
             key: "entities",
             label: t("entitiesAndActions"),
-            href: "/corporate/admins/access-model",
+            href: "/corporate/admin/access-model",
             active: view === "entities",
           },
           {
             key: "sections",
             label: t("sectionsTab"),
-            href: "/corporate/admins/access-model?view=matrix",
+            href: "/corporate/admin/access-model?view=matrix",
             active: view === "sections",
           },
         ]}
@@ -453,7 +453,7 @@ export function CorporateAccessModel({
                         .map((role) => (
                           <Link
                             key={role.name}
-                            href={`/corporate/admins/roles?role=${encodeURIComponent(role.name)}`}
+                            href={`/corporate/admin/roles?role=${encodeURIComponent(role.name)}`}
                           >
                             <Badge variant="secondary" className="font-sans">
                               {roleTitle(role.name, t)}

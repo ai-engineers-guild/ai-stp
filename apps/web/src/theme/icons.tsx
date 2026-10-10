@@ -55,7 +55,6 @@ import {
   SortAsc,
   Sparkles,
   Star,
-  Trash2,
   Pencil,
   Play,
   Plus,
@@ -159,14 +158,12 @@ export type IconName =
   | "setup"
   | "code"
   | "activity"
-  | "info"
-  | "trash";
+  | "info";
 
 export type IconSize = keyof typeof iconSizes;
 
 const REGISTRY: Record<IconName, LucideIcon> = {
   refresh: RotateCw,
-  trash: Trash2,
   folder: Folder,
   network: Network,
   shield: ShieldCheck,

@@ -11,7 +11,7 @@ import { readCorporateContext } from "@/lib/api/corporate";
 import type { CorporateTelemetryPolicyView } from "@/lib/api/generated/types.gen";
 import { requireSession, sessionCookieValue } from "@/lib/auth/require-session";
 import { readCsrfToken } from "@/lib/auth/session";
-import { PeopleHeader } from "@/app/[locale]/(site)/corporate/admins/people-shared";
+import { PeopleHeader } from "@/app/[locale]/(site)/corporate/admin/people-shared";
 
 const TELEMETRY_TABS: readonly TelemetryPolicyTab[] = ["heartbeat", "usage", "retention"];
 
@@ -24,7 +24,7 @@ export default async function CorporateTelemetryPage({
 }) {
   const { locale } = await params;
   setRequestLocale(locale);
-  await requireSession(locale, `/${locale}/corporate/admins/telemetry`);
+  await requireSession(locale, `/${locale}/corporate/admin/telemetry`);
   const session = (await sessionCookieValue()) ?? "";
   const t = await getTranslations("technology");
   const hub = await getTranslations("hub");

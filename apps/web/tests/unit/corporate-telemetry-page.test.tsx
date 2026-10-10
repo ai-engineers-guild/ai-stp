@@ -37,11 +37,11 @@ vi.mock("@/components/organisms/corporate-telemetry-policy-controls", () => ({
     />
   ),
 }));
-vi.mock("@/app/[locale]/(site)/corporate/admins/people-shared", () => ({
+vi.mock("@/app/[locale]/(site)/corporate/admin/people-shared", () => ({
   PeopleHeader: () => null,
 }));
 
-import CorporateTelemetryPage from "@/app/[locale]/(site)/corporate/admins/telemetry/page";
+import CorporateTelemetryPage from "@/app/[locale]/(site)/corporate/admin/telemetry/page";
 
 const params = Promise.resolve({ locale: "en" });
 const search = (tab?: string) => Promise.resolve(tab ? { tab } : {});

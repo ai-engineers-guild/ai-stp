@@ -146,7 +146,7 @@ function TechnologyTechnicalDetails({
               return category ? (
                 <Link
                   key={id}
-                  href={`/corporate/organization/admins/technology-categories/${id}`}
+                  href={`/corporate/admin/technology-categories/${id}`}
                   className="mr-3 underline underline-offset-4"
                 >
                   {category.name}

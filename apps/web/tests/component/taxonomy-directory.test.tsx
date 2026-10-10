@@ -42,7 +42,7 @@ it("searches cards, filters by area and pages results", () => {
         canCreate
         canUpdate
         canRemove
-        detailBase="/corporate/organization/admins/technology-categories"
+        detailBase="/corporate/admin/technology-categories"
       />,
     ),
   );
@@ -78,7 +78,5 @@ it("opens the create and edit dialogs and links to the detail page", async () =>
   await user.click(screen.getByRole("button", { name: "More actions" }));
   await user.click(await screen.findByRole("menuitem", { name: "Edit area" }));
   dialog = screen.getByRole("dialog");
-  expect(within(dialog).getByRole("textbox", { name: /Name/ })).toHaveValue(
-    "Server applications",
-  );
+  expect(within(dialog).getByRole("textbox", { name: /Name/ })).toHaveValue("Server applications");
 });

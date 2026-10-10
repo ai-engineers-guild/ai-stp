@@ -178,7 +178,7 @@ export function CorporateEmployeeAccessDrawer({
         {canAudit ? (
           <Button asChild variant="outline">
             <Link
-              href={`/corporate/admins/audit?actor_account_id=${encodeURIComponent(member.account_id)}`}
+              href={`/corporate/admin/audit?actor_account_id=${encodeURIComponent(member.account_id)}`}
             >
               {h("auditJournal")}
             </Link>

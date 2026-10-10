@@ -22,7 +22,7 @@ export default async function CorporateSettingsPage({
 }) {
   const { locale } = await params;
   setRequestLocale(locale);
-  await requireSession(locale, `/${locale}/corporate/admins/settings`);
+  await requireSession(locale, `/${locale}/corporate/admin/settings`);
   const session = (await sessionCookieValue()) ?? "";
   const t = await getTranslations("technology");
   const corporate = await getTranslations("corporate");
@@ -82,10 +82,7 @@ export default async function CorporateSettingsPage({
           <Badge variant="secondary">{context.member.role}</Badge>
         </div>
       </header>
-      <HistoryBackButton
-        label={corporate("backToWorkspace")}
-        fallback="/corporate/admins/members"
-      />
+      <HistoryBackButton label={corporate("backToWorkspace")} fallback="/corporate/admin/members" />
 
       {canManageTelemetry &&
         (telemetryUnavailable ? (
@@ -152,7 +149,7 @@ function GitManagementSection({ capabilities }: { capabilities: readonly string[
       </ul>
       <p className="text-muted-foreground text-xs">
         {t("gitGrantsHint")}{" "}
-        <Link href="/corporate/admins/roles" className="underline underline-offset-4">
+        <Link href="/corporate/admin/roles" className="underline underline-offset-4">
           {t("gitGrantsLink")}
         </Link>
       </p>

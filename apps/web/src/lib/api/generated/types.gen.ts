@@ -4774,7 +4774,7 @@ export type CorporateMembershipAssignmentRequest = {
  * CorporateMembershipPolicy
  *
  * Email-domain allowlist for joining the organization, plus the people
- * visibility policy (ADR-0223).
+ * visibility policy (ADR-0230).
  */
 export type CorporateMembershipPolicy = {
   /**

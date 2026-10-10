@@ -9,7 +9,7 @@ import { readCorporateContext, readCorporateWorkspace } from "@/lib/api/corporat
 import { requireSession, sessionCookieValue } from "@/lib/auth/require-session";
 import { getEnv } from "@/lib/env";
 import { readCsrfToken } from "@/lib/auth/session";
-import { PeopleHeader } from "@/app/[locale]/(site)/corporate/admins/people-shared";
+import { PeopleHeader } from "@/app/[locale]/(site)/corporate/admin/people-shared";
 
 export default async function CorporateSecurityPage({
   params,
@@ -18,7 +18,7 @@ export default async function CorporateSecurityPage({
 }) {
   const { locale } = await params;
   setRequestLocale(locale);
-  await requireSession(locale, `/${locale}/corporate/admins/security`);
+  await requireSession(locale, `/${locale}/corporate/admin/security`);
   const session = (await sessionCookieValue()) ?? "";
   const hub = await getTranslations("hub");
   const technology = await getTranslations("technology");

@@ -1,10 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react";
 
-import {
-  PeopleTable,
-  peopleCellClass,
-  peopleHeadClass,
-} from "@/components/organisms/corporate-people-ui";
+import { PeopleTable, peopleCellClass, peopleHeadClass } from "@/components/molecules/people-ui";
 
 import { withAppChrome } from "../../decorators";
 

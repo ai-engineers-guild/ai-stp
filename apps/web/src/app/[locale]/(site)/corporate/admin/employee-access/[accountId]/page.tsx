@@ -13,5 +13,5 @@ export default async function EmployeeAccessRedirect({
   const query = new URLSearchParams();
   query.set("employee", accountId);
   if (typeof filters.scope === "string") query.set("scope", filters.scope);
-  redirect(`/${locale}/corporate/admins/employee-access?${query.toString()}`);
+  redirect(`/${locale}/corporate/admin/employee-access?${query.toString()}`);
 }

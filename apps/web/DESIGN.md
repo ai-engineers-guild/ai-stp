@@ -143,7 +143,7 @@ label as `section`.
 
 ## Policy & journal surfaces
 
-Administration policy pages (`/corporate/admins/*`) share three molecules the
+Administration policy pages (`/corporate/admin/*`) share three molecules the
 kit previously lacked; each exists because no existing component covered the
 pattern:
 
@@ -155,10 +155,10 @@ pattern:
 - `FieldHint` — promoted from `organisms/` to `molecules/`; the organism file
   re-exports it for existing imports.
 
-`/corporate/admins/telemetry` is a `NavigationTabs` page (heartbeat / usage /
+`/corporate/admin/telemetry` is a `NavigationTabs` page (heartbeat / usage /
 retention); each tab's submit merges its fields over the known policy into the
 single `PUT telemetry/policy` mutation — tabs never clobber each other's
-fields. `/corporate/admins/audit` composes `PeopleTable`, `PeoplePager`,
+fields. `/corporate/admin/audit` composes `PeopleTable`, `PeoplePager`,
 `PeopleSelect`, `PersonIdentity` and `CorporateDetailDrawer` over URL-driven
 server filters (actor/action/target_table/outcome/date/q) with offset
 pagination and a bounded CSV/JSON export gated on `audit.export`. Security

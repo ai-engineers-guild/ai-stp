@@ -43,19 +43,19 @@ describe("corporateNavPage", () => {
       ["/corporate/technology-scans", "scans"],
       ["/corporate/technology-scans/scan_1", "scans"],
       ["/corporate/categories/cat_1", "categories"],
-      ["/corporate/organization/admins/technology-categories", "categories"],
-      ["/corporate/organization/admins/technology-categories/cat_1", "categories"],
+      ["/corporate/admin/tech-categories", "technologyCategories"],
+      ["/corporate/admin/tech-categories/cat_1", "technologyCategories"],
       ["/corporate/technology-mappings", "mappings"],
-      ["/corporate/admins/members", "administration"],
-      ["/corporate/admins/invitations", "invitations"],
-      ["/corporate/admins/access-model", "accessMatrix"],
-      ["/corporate/admins/audit", "auditJournal"],
-      ["/corporate/admins/employee-access/account_1", "employeeAccess"],
-      ["/corporate/admins/job-titles", "jobTitles"],
-      ["/corporate/admins/settings", "settings"],
-      ["/corporate/admins/technology-areas", "technologyAreas"],
-      ["/corporate/admins/security", "security"],
-      ["/corporate/admins/telemetry", "telemetry"],
+      ["/corporate/admin/members", "administration"],
+      ["/corporate/admin/invitations", "invitations"],
+      ["/corporate/admin/access-model", "accessMatrix"],
+      ["/corporate/admin/audit", "auditJournal"],
+      ["/corporate/admin/employee-access/account_1", "employeeAccess"],
+      ["/corporate/admin/job-titles", "jobTitles"],
+      ["/corporate/admin/settings", "settings"],
+      ["/corporate/admin/technology-areas", "technologyAreas"],
+      ["/corporate/admin/security", "security"],
+      ["/corporate/admin/telemetry", "telemetry"],
       ["/corporate/roles/role_1", "roleDetail"],
       ["/corporate/dashboard", "dashboard"],
       ["/corporate/account", null],
@@ -67,8 +67,8 @@ describe("corporateNavPage", () => {
   });
 
   it("keeps administration pages out of the organization index prefix", () => {
-    // /corporate/admins/members must not be claimed by the organization page.
-    expect(corporateNavPage("/corporate/admins/members")?.context).toBe("administration");
+    // /corporate/admin/members must not be claimed by the organization page.
+    expect(corporateNavPage("/corporate/admin/members")?.context).toBe("administration");
   });
 });
 
@@ -95,7 +95,7 @@ describe("resolveCorporateNav", () => {
   });
 
   it("enters the administration context and lights the index on nested pages", () => {
-    const nav = resolveCorporateNav("/corporate/admins/access-model", ADMIN);
+    const nav = resolveCorporateNav("/corporate/admin/access-model", ADMIN);
     expect(nav.context).toBe("administration");
     expect(nav.back).toBeNull();
     expect(nav.items.map((item) => item.id)).toEqual([
@@ -104,32 +104,32 @@ describe("resolveCorporateNav", () => {
       "accessMatrix",
       "roles",
       "employeeAccess",
-      "technologyAreas",
-      "categories",
       "jobTitles",
       "technologyCategories",
+      "technologyAreas",
+      "settings",
     ]);
     expect(nav.items.find((item) => item.active)?.id).toBe("accessMatrix");
   });
 
   it("gates each administration page on its own capability family", () => {
     const caps = [...ADMIN, "audit.list", "service_principal.list", "telemetry.read"];
-    const nav = resolveCorporateNav("/corporate/admins/telemetry", caps);
+    const nav = resolveCorporateNav("/corporate/admin/telemetry", caps);
     expect(nav.items.map((item) => item.id)).toContain("telemetry");
     expect(nav.items.map((item) => item.id)).toContain("auditJournal");
     expect(nav.items.map((item) => item.id)).toContain("security");
-    expect(nav.items.map((item) => item.id)).not.toContain("settings");
+    expect(nav.items.map((item) => item.id)).toContain("settings");
     expect(nav.items.find((item) => item.active)?.id).toBe("telemetry");
     // Managing telemetry alone does not expose the audit journal.
     expect(
-      resolveCorporateNav("/corporate/admins/audit", [...ADMIN, "telemetry.manage"]).items.map(
+      resolveCorporateNav("/corporate/admin/audit", [...ADMIN, "telemetry.manage"]).items.map(
         (item) => item.id,
       ),
     ).not.toContain("auditJournal");
   });
 
   it("lights the administration index for the employee-access route", () => {
-    const nav = resolveCorporateNav("/corporate/admins/employee-access/account_1", ADMIN);
+    const nav = resolveCorporateNav("/corporate/admin/employee-access/account_1", ADMIN);
     expect(nav.items.find((item) => item.active)?.id).toBe("employeeAccess");
   });
 
@@ -142,12 +142,12 @@ describe("resolveCorporateNav", () => {
     const nav = resolveCorporateNav("/corporate", MEMBER);
     expect(nav.items.map((item) => item.id)).not.toContain("administration");
     // Being on an admin URL without the capability lights nothing.
-    const denied = resolveCorporateNav("/corporate/admins/access-model", MEMBER);
+    const denied = resolveCorporateNav("/corporate/admin/access-model", MEMBER);
     expect(denied.items.every((item) => !item.active)).toBe(true);
   });
 
   it("fails closed on unknown capability values", () => {
-    const nav = resolveCorporateNav("/corporate/admins/members", ["nonsense.value"]);
+    const nav = resolveCorporateNav("/corporate/admin/members", ["nonsense.value"]);
     expect(nav.items).toHaveLength(0);
   });
 
@@ -179,14 +179,14 @@ describe("corporateNavPageIds", () => {
     expect(corporateNavPageIds(full)).toEqual(
       expect.arrayContaining(["auditJournal", "telemetry"]),
     );
-    expect(corporateNavPageIds(full)).not.toContain("settings");
+    expect(corporateNavPageIds(full)).toContain("settings");
   });
 });
 
 it.each([
-  "/en/corporate/admins/members",
-  "/ru/corporate/admins/access-model",
-  "/corporate/admins/employee-access/account_1",
+  "/en/corporate/admin/members",
+  "/ru/corporate/admin/access-model",
+  "/corporate/admin/employee-access/account_1",
   "/corporate/roles/role_1",
 ])("keeps authorized root navigation on a denied administration route: %s", (pathname) => {
   const allowed = ["overview", "catalog", "organization", "reports"];

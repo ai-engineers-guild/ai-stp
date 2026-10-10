@@ -11,7 +11,7 @@ import {
   PersonIdentity,
   peopleCellClass,
   peopleHeadClass,
-} from "@/components/organisms/corporate-people-ui";
+} from "@/components/molecules/people-ui";
 import type { CorporateAuditFilterValues } from "@/lib/api/corporate-audit";
 import { auditActionLabel } from "@/lib/audit-labels";
 import { Icon } from "@/theme";

@@ -11,7 +11,7 @@ import {
   PeopleHeader,
   PeopleStats,
   type AdminData,
-} from "@/app/[locale]/(site)/corporate/admins/people-shared";
+} from "@/app/[locale]/(site)/corporate/admin/people-shared";
 
 type PageProps = {
   params: Promise<{ locale: string }>;
@@ -20,7 +20,7 @@ type PageProps = {
 export default async function CorporateInvitationsPage({ params }: PageProps) {
   const { locale } = await params;
   setRequestLocale(locale);
-  await requireSession(locale, `/${locale}/corporate/admins/invitations`);
+  await requireSession(locale, `/${locale}/corporate/admin/invitations`);
   const t = await getTranslations("people");
   const h = await getTranslations("hub");
   const common = await getTranslations("common");

@@ -69,7 +69,7 @@ export const Taxonomy: Story = {
       canCreate
       canUpdate
       canRemove
-      detailBase="/corporate/organization/admins/technology-categories"
+      detailBase="/corporate/admin/technology-categories"
     />
   ),
 };

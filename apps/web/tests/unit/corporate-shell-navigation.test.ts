@@ -73,16 +73,20 @@ it("highlights the corporate destination that owns the current route", async () 
     true,
   );
   expect(landscape && isPrimaryNavigationActive(landscape, "/corporate/categories")).toBe(true);
-  expect(organization && isPrimaryNavigationActive(organization, "/corporate/admins/members")).toBe(
+  expect(organization && isPrimaryNavigationActive(organization, "/corporate/admin/members")).toBe(
     false,
   );
-  expect(admins && isPrimaryNavigationActive(admins, "/corporate/admins/members")).toBe(true);
-  expect(
-    landscape && isPrimaryNavigationActive(landscape, "/corporate/technology-mappings"),
-  ).toBe(true);
-  expect(admins && isPrimaryNavigationActive(admins, "/corporate/admins/tech-categories")).toBe(
+  expect(admins && isPrimaryNavigationActive(admins, "/corporate/admin/members")).toBe(true);
+  expect(landscape && isPrimaryNavigationActive(landscape, "/corporate/technology-mappings")).toBe(
     true,
   );
+  expect(admins && isPrimaryNavigationActive(admins, "/corporate/admin/tech-categories")).toBe(
+    true,
+  );
+  expect(admins && isPrimaryNavigationActive(admins, "/corporate/admin/technology-areas")).toBe(
+    true,
+  );
+  expect(admins && isPrimaryNavigationActive(admins, "/corporate/admin/settings")).toBe(true);
 });
 
 it("does not load corporate data for an unauthenticated visitor", async () => {
@@ -118,12 +122,12 @@ it.each([
         "invitations",
         "accessMatrix",
         "roles",
-        "auditJournal",
         "employeeAccess",
-        "technologyAreas",
-        "categories",
         "jobTitles",
         "technologyCategories",
+        "technologyAreas",
+        "settings",
+        "auditJournal",
       ],
     },
   ],

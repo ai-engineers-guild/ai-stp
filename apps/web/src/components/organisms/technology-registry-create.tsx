@@ -293,7 +293,7 @@ export function TechnologyRegistryCreate({
         {kind === "category" && areas != null && (
           <AreaField prefix={prefix} areas={areas} initial={initialCategory} />
         )}
-        {kind === "technology" && record && (
+        {kind === "technology" && (
           <TechnologyFields
             prefix={prefix}
             categories={categories}
@@ -301,11 +301,7 @@ export function TechnologyRegistryCreate({
             essential={essential}
           />
         )}
-        <Button
-          type="submit"
-          size="lg"
-          disabled={registrySubmitDisabled(kind, record, categories)}
-        >
+        <Button type="submit" size="lg" disabled={registrySubmitDisabled(kind, record, categories)}>
           {registrySubmitLabel(t, kind, record, busy)}
         </Button>
       </fieldset>

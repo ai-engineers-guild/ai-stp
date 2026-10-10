@@ -56,7 +56,7 @@ it("reuses the table independently, linking roles and teams and keeping row menu
   );
   expect(screen.getByRole("link", { name: member.role })).toHaveAttribute(
     "href",
-    `/corporate/admins/roles?role=${member.role}`,
+    `/corporate/admin/roles?role=${member.role}`,
   );
   expect(screen.getByRole("link", { name: team.name })).toHaveAttribute(
     "href",

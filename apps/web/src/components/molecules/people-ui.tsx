@@ -352,7 +352,7 @@ export function PeoplePager({
 export function PeopleRole({ role }: { role: string }) {
   return (
     <Link
-      href={`/corporate/admins/roles?role=${encodeURIComponent(role)}`}
+      href={`/corporate/admin/roles?role=${encodeURIComponent(role)}`}
       className="focus-visible:ring-ring inline-block rounded-sm hover:underline focus-visible:ring-2 focus-visible:outline-none"
     >
       <Badge variant="secondary" className="font-sans font-normal tracking-normal">

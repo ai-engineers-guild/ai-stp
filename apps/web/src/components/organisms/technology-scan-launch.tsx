@@ -3,7 +3,7 @@
 import { useRef, useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
 
-import { corporateMutationAction } from "@/actions/corporate";
+import { corporateMutation } from "@/lib/api/corporate-mutation";
 import { Badge } from "@/components/atoms/badge";
 import { Button } from "@/components/atoms/button";
 import { Label } from "@/components/atoms/label";
@@ -66,7 +66,7 @@ export function TechnologyScanLaunch({
     };
     setMessage(null);
     startTransition(async () => {
-      const response = await corporateMutationAction({
+      const response = await corporateMutation({
         csrfToken,
         organizationId,
         path: `/v1/corporate/organizations/${organizationId}/technology-scans`,

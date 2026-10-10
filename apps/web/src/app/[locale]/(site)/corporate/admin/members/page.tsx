@@ -12,7 +12,7 @@ import {
   PeopleHeader,
   PeopleStats,
   type AdminData,
-} from "@/app/[locale]/(site)/corporate/admins/people-shared";
+} from "@/app/[locale]/(site)/corporate/admin/people-shared";
 
 type PageProps = {
   params: Promise<{ locale: string }>;
@@ -30,10 +30,10 @@ export default async function CorporateMembersPage({ params, searchParams }: Pag
       for (const item of Array.isArray(value) ? value : [value]) rest.append(key, item);
     }
     const suffix = rest.size ? `?${rest.toString()}` : "";
-    redirect(`/${locale}/corporate/admins/invitations${suffix}`);
+    redirect(`/${locale}/corporate/admin/invitations${suffix}`);
   }
   setRequestLocale(locale);
-  await requireSession(locale, `/${locale}/corporate/admins/members`);
+  await requireSession(locale, `/${locale}/corporate/admin/members`);
   const t = await getTranslations("people");
   const h = await getTranslations("hub");
   const common = await getTranslations("common");

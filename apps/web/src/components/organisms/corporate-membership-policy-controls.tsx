@@ -9,7 +9,7 @@ import { Label } from "@/components/atoms/label";
 import { InfoNote } from "@/components/molecules/info-note";
 import { SettingsSection } from "@/components/molecules/settings-section";
 import { SwitchRow } from "@/components/molecules/switch-row";
-import { peopleSelectClass } from "@/components/organisms/corporate-people-ui";
+import { peopleSelectClass } from "@/components/molecules/people-ui";
 import { Icon } from "@/theme";
 
 let nextDomainKey = 0;

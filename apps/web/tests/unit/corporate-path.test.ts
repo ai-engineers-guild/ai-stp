@@ -37,7 +37,7 @@ it("prefixes shared corporate links once and preserves query strings", async () 
   expect(corporateSharedPath("/en/corporate/catalog/components/component_01")).toBe(
     "/en/catalog/components/component_01",
   );
-  expect(corporateSharedPath("/en/corporate/admins/members")).toBeNull();
+  expect(corporateSharedPath("/en/corporate/admin/members")).toBeNull();
   expect(corporateSharedPath("/en/corporate/technology-landscape")).toBeNull();
   expect(corporateSharedPath("/en/corporate/reports")).toBeNull();
   expect(corporateSharedPath("/en/corporate/reports/heartbeat")).toBeNull();
@@ -82,30 +82,28 @@ it("rewrites corporate shared pages and retains private session gates", async ()
   );
   expect(legacyEmployee.status).toBe(308);
   expect(legacyEmployee.headers.get("location")).toBe(
-    "http://localhost/en/corporate/admins/employee-access?tab=access&employee=account_01",
+    "http://localhost/en/corporate/admin/employee-access?tab=access&employee=account_01",
   );
   const legacyInvitations = proxy(
     request("/en/corporate/organization/admins?tab=invitations&role=admin"),
   );
   expect(legacyInvitations.status).toBe(308);
   expect(legacyInvitations.headers.get("location")).toBe(
-    "http://localhost/en/corporate/admins/invitations?role=admin",
+    "http://localhost/en/corporate/admin/invitations?role=admin",
   );
   const legacyOrgRoles = proxy(request("/en/corporate/organization/roles?role=lead"));
   expect(legacyOrgRoles.status).toBe(308);
   expect(legacyOrgRoles.headers.get("location")).toBe(
-    "http://localhost/en/corporate/admins/roles?role=lead",
+    "http://localhost/en/corporate/admin/roles?role=lead",
   );
-  const legacyOrgEmployee = proxy(
-    request("/en/corporate/organization/employee-access/account_02"),
-  );
+  const legacyOrgEmployee = proxy(request("/en/corporate/organization/employee-access/account_02"));
   expect(legacyOrgEmployee.status).toBe(308);
   expect(legacyOrgEmployee.headers.get("location")).toBe(
-    "http://localhost/en/corporate/admins/employee-access?employee=account_02",
+    "http://localhost/en/corporate/admin/employee-access?employee=account_02",
   );
-  const adminsIndex = proxy(request("/en/corporate/admins"));
+  const adminsIndex = proxy(request("/en/corporate/admin"));
   expect(adminsIndex.status).toBe(308);
-  expect(adminsIndex.headers.get("location")).toBe("http://localhost/en/corporate/admins/members");
+  expect(adminsIndex.headers.get("location")).toBe("http://localhost/en/corporate/admin/members");
   const legacyPublisher = proxy(request("/en/corporate/publishers/account_01?tab=objects"));
   expect(legacyPublisher.status).toBe(308);
   expect(legacyPublisher.headers.get("location")).toBe(

@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 
-import { corporateMutationAction } from "@/actions/corporate";
+import { corporateMutation } from "@/lib/api/corporate-mutation";
 import { Badge } from "@/components/atoms/badge";
 import { Button } from "@/components/atoms/button";
 import { Input } from "@/components/atoms/input";
@@ -20,7 +20,12 @@ import type { CorporateJobTitleView } from "@/lib/api/generated/types.gen";
 const PAGE_SIZE = 12;
 
 type JobTitleDraft = { name: string; description: string; state: "current" | "retired" };
-type MutationSave = (path: string, method: "POST" | "PATCH", body: object, done: () => void) => void;
+type MutationSave = (
+  path: string,
+  method: "POST" | "PATCH",
+  body: object,
+  done: () => void,
+) => void;
 
 export function JobTitleDirectory({
   csrfToken,
@@ -57,7 +62,7 @@ export function JobTitleDirectory({
   function save(path: string, method: "POST" | "PATCH", body: object, done: () => void) {
     setMessage(null);
     startTransition(async () => {
-      const result = await corporateMutationAction({
+      const result = await corporateMutation({
         csrfToken,
         organizationId,
         path,

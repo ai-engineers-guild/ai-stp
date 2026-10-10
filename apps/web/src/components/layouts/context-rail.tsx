@@ -143,12 +143,11 @@ export function ContextRail({
       }
     : null;
   if (
-    (corporate &&
-      ((!serverAuthorized && !(hydrated && signedIn)) ||
-        (hydrated && !signedIn && availability !== null) ||
-        !items.length ||
-        /\/(?:login|signup)(?:\/|$)/.test(pathname))) ||
-    pathname === "/"
+    corporate &&
+    ((!serverAuthorized && !(hydrated && signedIn)) ||
+      (hydrated && !signedIn && availability !== null) ||
+      !items.length ||
+      /\/(?:login|signup)(?:\/|$)/.test(pathname))
   )
     return null;
   return (

@@ -1,21 +1,16 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type {
-  corporateTechnologyMergePlanAction,
-  corporateProjectUsageAction,
-} from "@/actions/corporate";
+import type { corporateProjectUsageAction } from "@/actions/corporate";
 import type { corporateMutation } from "@/lib/api/corporate-mutation";
 import type { TechnologyView } from "@/lib/api/generated/types.gen";
 
-const { mutation, refresh, previewMerge, push, loadUsage } = vi.hoisted(() => ({
+const { mutation, refresh, push, loadUsage } = vi.hoisted(() => ({
   mutation: vi.fn<typeof corporateMutation>(),
   refresh: vi.fn(),
   push: vi.fn(),
-  previewMerge: vi.fn<typeof corporateTechnologyMergePlanAction>(),
   loadUsage: vi.fn<typeof corporateProjectUsageAction>(),
 }));
 vi.mock("@/actions/corporate", () => ({
-  corporateTechnologyMergePlanAction: previewMerge,
   corporateProjectUsageAction: loadUsage,
 }));
 vi.mock("@/lib/api/corporate-mutation", () => ({ corporateMutation: mutation }));
@@ -27,7 +22,6 @@ import {
   TechnologyRegistrySeed,
   TechnologyLifecycleControls,
 } from "@/components/organisms/technology-registry-create";
-import { TechnologyMergeControls } from "@/components/organisms/technology-merge-controls";
 import {
   CategoryLifecycleControls,
   ProjectActivityEditor,
@@ -49,6 +43,7 @@ describe("manual registry creation", () => {
     mutation.mockResolvedValue({ ok: true, data: {} });
     const category = {
       category_id: "category_known",
+      area_id: null,
       name: "Runtime",
       description: "",
       icon: null,
@@ -79,6 +74,7 @@ describe("manual registry creation", () => {
     mutation.mockResolvedValue({ ok: false, message: "revision conflict" });
     const category = {
       category_id: "category_00000000000000000000000001",
+      area_id: null,
       name: "Runtime",
       description: "Governed family",
       icon: null,
@@ -104,81 +100,6 @@ describe("manual registry creation", () => {
       expected_revision: 3,
       metadata: { name: "Execution runtime" },
     });
-  });
-
-  it("previews a merge without writing and retries only the same exact reviewed plan", async () => {
-    const source: TechnologyView = {
-      schema_version: 1,
-      organization_id: props.organizationId,
-      technology_id: "technology_00000000000000000000000001",
-      owner_account_id: null,
-      name: "Source",
-      category_ids: ["category_00000000000000000000000001"],
-      aliases: [],
-      description: "",
-      icon_url: null,
-      official_urls: [],
-      lifecycle: "active",
-      restore_lifecycle: "draft",
-      revision: 3,
-      provenance: "manual",
-      redirect_id: null,
-      available_actions: [],
-    };
-    const target: TechnologyView = {
-      ...source,
-      technology_id: "technology_00000000000000000000000002",
-      name: "Target",
-      revision: 2,
-    };
-    const digest = "sha256:" + "a".repeat(64);
-    previewMerge.mockResolvedValue({
-      ok: true,
-      data: {
-        source,
-        target,
-        digest,
-        organization_id: props.organizationId,
-        affected_project_count: 2,
-        affected_team_count: 1,
-      },
-    });
-    mutation.mockResolvedValue({ ok: false, message: "revision conflict" });
-    const { container, rerender } = render(
-      <TechnologyMergeControls {...props} technology={source} />,
-    );
-    expect(previewMerge).not.toHaveBeenCalled();
-    fireEvent.change(screen.getByLabelText("mergeTarget"), {
-      target: { value: target.technology_id },
-    });
-    const form = container.querySelector("form");
-    if (!form) throw new Error("merge preview form is missing");
-    fireEvent.submit(form);
-    await screen.findByRole("button", { name: "mergeApply" });
-    expect(mutation).not.toHaveBeenCalled();
-    await waitFor(() => {
-      expect(screen.getByRole("button", { name: "mergeApply" })).toBeEnabled();
-    });
-    fireEvent.click(screen.getByRole("button", { name: "mergeApply" }));
-    await screen.findByText("revision conflict");
-    const first = mutation.mock.calls[0]?.[0].body;
-    expect(first).toMatchObject({
-      target_id: target.technology_id,
-      expected_revision: 3,
-      target_expected_revision: 2,
-      plan_digest: digest,
-    });
-    rerender(<TechnologyMergeControls {...props} technology={{ ...source, revision: 4 }} />);
-    fireEvent.click(screen.getByRole("button", { name: "mergeApply" }));
-    await waitFor(() => {
-      expect(mutation).toHaveBeenCalledTimes(2);
-    });
-    expect(mutation.mock.calls[1]?.[0].body).toEqual(first);
-    expect(push).not.toHaveBeenCalled();
-    fireEvent.change(screen.getByLabelText("mergeTarget"), {
-      target: { value: source.technology_id },
-    });
-    expect(screen.queryByRole("button", { name: "mergeApply" })).toBeNull();
   });
 
   it("retries the exact activity override without inventing activity or rebasing a draft", async () => {

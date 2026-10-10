@@ -9,7 +9,7 @@ import type { CorporatePermissionMatrix } from "@/lib/api/generated/types.gen";
 import { canViewCorporateAdministration } from "@/lib/corporate-hub";
 import { requireSession, sessionCookieValue } from "@/lib/auth/require-session";
 import { readCsrfToken } from "@/lib/auth/session";
-import { PeopleHeader } from "@/app/[locale]/(site)/corporate/admins/people-shared";
+import { PeopleHeader } from "@/app/[locale]/(site)/corporate/admin/people-shared";
 
 export default async function CorporateRolesPage({
   params,
@@ -18,7 +18,7 @@ export default async function CorporateRolesPage({
 }) {
   const { locale } = await params;
   setRequestLocale(locale);
-  await requireSession(locale, `/${locale}/corporate/admins/roles`);
+  await requireSession(locale, `/${locale}/corporate/admin/roles`);
   const h = await getTranslations("hub");
   const t = await getTranslations("accessUi");
   const common = await getTranslations("common");

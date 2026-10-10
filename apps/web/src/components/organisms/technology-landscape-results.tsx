@@ -92,12 +92,7 @@ function LandscapeAreaCard({
         <h3>{group.name}</h3>
         <Menu>
           <MenuTrigger asChild>
-            <Button
-              size="icon"
-              variant="ghost"
-              className="size-7"
-              aria-label={w("areaActions")}
-            >
+            <Button size="icon" variant="ghost" className="size-7" aria-label={w("areaActions")}>
               <Icon name="more" size="sm" />
             </Button>
           </MenuTrigger>

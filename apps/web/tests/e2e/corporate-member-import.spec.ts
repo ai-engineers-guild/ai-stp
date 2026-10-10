@@ -12,7 +12,7 @@ test("file picker, drop, preview validation, localized help and main navigation"
   test.setTimeout(180_000);
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
-  const root = "/en/corporate/admins/members";
+  const root = "/en/corporate/admin/members";
   await page.goto(`/en/login?returnTo=${encodeURIComponent(root)}`);
   await page.getByRole("button", { name: /Continue with GitHub/ }).click();
   await page.waitForURL(`**${root}`);
@@ -28,7 +28,7 @@ test("file picker, drop, preview validation, localized help and main navigation"
   await page.mouse.wheel(0, 350);
   await expect.poll(() => page.evaluate(() => scrollY)).toBeGreaterThan(before);
   await page.keyboard.press("Escape");
-  await page.goto("/en/corporate/admins/invitations");
+  await page.goto("/en/corporate/admin/invitations");
   await main.getByRole("button", { name: "Invite member", exact: true }).click();
   await page.getByRole("dialog").getByRole("button", { name: "File import help" }).click();
   const help = page.getByRole("dialog", { name: "File import help" });
@@ -85,7 +85,7 @@ test("file picker, drop, preview validation, localized help and main navigation"
   });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.keyboard.press("Escape");
-  await page.goto("/ru/corporate/admins/invitations");
+  await page.goto("/ru/corporate/admin/invitations");
   await main.getByRole("button", { name: "Пригласить участника", exact: true }).click();
   await page.getByRole("dialog").getByRole("button", { name: "Справка по импорту" }).click();
   await expect(page.getByRole("dialog", { name: "Справка по импорту" })).toContainText(
@@ -93,7 +93,7 @@ test("file picker, drop, preview validation, localized help and main navigation"
   );
   await page.keyboard.press("Escape");
   await page.keyboard.press("Escape");
-  await page.goto("/en/corporate/admins/employee-access");
+  await page.goto("/en/corporate/admin/employee-access");
   if (info.project.name.includes("mobile"))
     await page.getByRole("button", { name: "Open menu", exact: true }).click();
   const nav = info.project.name.includes("mobile")

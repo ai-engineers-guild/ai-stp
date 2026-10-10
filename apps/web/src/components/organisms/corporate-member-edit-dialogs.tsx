@@ -16,7 +16,7 @@ import {
   readRevision,
   saveTeams,
 } from "@/lib/api/corporate-member-mutations";
-import { peopleSelectClass } from "@/components/organisms/corporate-people-ui";
+import { peopleSelectClass } from "@/components/molecules/people-ui";
 import type {
   CorporateContext,
   CorporateJobTitleView,

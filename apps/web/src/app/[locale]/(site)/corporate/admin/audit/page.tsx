@@ -4,7 +4,7 @@ import { StatePanel } from "@/components/molecules/state-panel";
 import { CorporateAuditPanel } from "@/components/organisms/corporate-audit-panel";
 import { corporateAuditFilterValues, readCorporateAudit } from "@/lib/api/corporate-audit";
 import { requireSession, sessionCookieValue } from "@/lib/auth/require-session";
-import { PeopleHeader } from "@/app/[locale]/(site)/corporate/admins/people-shared";
+import { PeopleHeader } from "@/app/[locale]/(site)/corporate/admin/people-shared";
 
 export default async function CorporateAuditPage({
   params,
@@ -15,7 +15,7 @@ export default async function CorporateAuditPage({
 }) {
   const { locale } = await params;
   setRequestLocale(locale);
-  await requireSession(locale, `/${locale}/corporate/admins/audit`);
+  await requireSession(locale, `/${locale}/corporate/admin/audit`);
   const t = await getTranslations("corporate");
   const hub = await getTranslations("hub");
   const common = await getTranslations("common");

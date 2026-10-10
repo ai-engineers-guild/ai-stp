@@ -15,7 +15,7 @@ import {
   type ExportRange,
 } from "@/components/organisms/corporate-audit-ui";
 import { AuditDrawer } from "@/components/organisms/corporate-audit-drawer";
-import { PeoplePager } from "@/components/organisms/corporate-people-ui";
+import { PeoplePager } from "@/components/molecules/people-ui";
 import type { CorporateAuditFilterValues } from "@/lib/api/corporate-audit";
 import { AUDIT_PAGE_SIZES } from "@/lib/page-window";
 import { usePathname, useRouter } from "@/lib/i18n/navigation";

@@ -4,7 +4,7 @@ import { NextIntlClientProvider } from "next-intl";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import type { ReactNode } from "react";
-import type { corporateMutationAction } from "@/actions/corporate";
+import type { corporateMutation } from "@/lib/api/corporate-mutation";
 import messages from "../../messages/en.json";
 import russianMessages from "../../messages/ru.json";
 import { TechnologyScanFindings } from "@/components/organisms/technology-scan-findings";
@@ -23,12 +23,12 @@ import {
   landscape,
 } from "@/mocks/technology-workspace-fixture";
 const { mutation, refresh, push, download } = vi.hoisted(() => ({
-  mutation: vi.fn<typeof corporateMutationAction>(),
+  mutation: vi.fn<typeof corporateMutation>(),
   refresh: vi.fn(),
   push: vi.fn(),
   download: vi.fn(),
 }));
-vi.mock("@/actions/corporate", () => ({ corporateMutationAction: mutation }));
+vi.mock("@/lib/api/corporate-mutation", () => ({ corporateMutation: mutation }));
 vi.mock("@/lib/findings-export", () => ({ downloadScanFindings: download }));
 vi.mock("@/lib/i18n/navigation", () => ({
   useRouter: () => ({ refresh, push, replace: vi.fn() }),
@@ -291,7 +291,6 @@ it("creates a technology with only a name", async () => {
       />,
     ),
   );
-  expect(screen.getAllByRole("textbox")).toHaveLength(1);
   fireEvent.change(screen.getByRole("textbox", { name: "Name" }), {
     target: { value: "New library" },
   });

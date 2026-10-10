@@ -33,6 +33,7 @@ export const categories: [CategoryView] = [
     area_id: areas[0].area_id,
     name: "API frameworks",
     description: "",
+    icon: null,
     revision: 1,
     provenance: "storybook",
     state: "active",

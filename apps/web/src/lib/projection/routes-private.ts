@@ -213,7 +213,7 @@ const ACCOUNT_ROUTES: MachineRoute[] = [
     resolve: async () => presentPage({ title: (await getTranslations("hub"))("dashboard") }),
   },
   {
-    pattern: "corporate/admins/members",
+    pattern: "corporate/admin/members",
     resolve: async () => {
       const t = await getTranslations("hub");
       const workspace = await readCorporateWorkspace((await sessionCookieValue()) ?? "");
@@ -326,7 +326,7 @@ const ACCOUNT_ROUTES: MachineRoute[] = [
         return presentPage({
           title: workspace.role.name,
           fields: [[t("permissions"), workspace.role.permissions.join(", ")]],
-          links: [[backLabel, "/corporate/admins/members"]],
+          links: [[backLabel, "/corporate/admin/members"]],
         });
       return null;
     },

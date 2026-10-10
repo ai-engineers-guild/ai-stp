@@ -2168,6 +2168,8 @@ export function corporateHandlers(
       total,
       next_before_id: hasMore && last ? last.audit_id : null,
       next_before_created_at: hasMore && last ? last.created_at : null,
+    });
+  }
   if (suffix === "technology-areas") return ok({ schema_version: 1, items: areaViews });
   const areaMatch = suffix.match(/^technology-areas\/([^/]+)$/);
   if (areaMatch) {

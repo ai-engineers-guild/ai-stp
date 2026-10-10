@@ -102,7 +102,7 @@ function legacyAdminRedirect(request: NextRequest, pathname: string) {
     return null;
   const url = requestOriginUrl(request);
   const invitations = url.searchParams.get("tab") === "invitations";
-  url.pathname = `${prefix}/corporate/admins/${invitations ? "invitations" : target}`;
+  url.pathname = `${prefix}/corporate/admin/${invitations ? "invitations" : target}`;
   if (invitations) url.searchParams.delete("tab");
   if (tail !== undefined) url.searchParams.set("employee", tail);
   return NextResponse.redirect(url, 308);
@@ -122,7 +122,7 @@ const LEGACY_ORG_ADMIN_PAGES = new Set([
 
 /**
  * The administration pages lived one generation under
- * `/corporate/organization/{page}` before moving to `/corporate/admins/{page}`.
+ * `/corporate/organization/{page}` before moving to `/corporate/admin/{page}`.
  * Employee tails resolve to the directory drawer in one hop.
  */
 function legacyOrgAdminRedirect(request: NextRequest, pathname: string) {
@@ -136,8 +136,8 @@ function legacyOrgAdminRedirect(request: NextRequest, pathname: string) {
   const url = requestOriginUrl(request);
   const invitations = segment === "members" && url.searchParams.get("tab") === "invitations";
   url.pathname = invitations
-    ? `${prefix}/corporate/admins/invitations`
-    : `${prefix}/corporate/admins/${segment}`;
+    ? `${prefix}/corporate/admin/invitations`
+    : `${prefix}/corporate/admin/${segment}`;
   if (invitations) url.searchParams.delete("tab");
   if (tail !== undefined) url.searchParams.set("employee", tail);
   return NextResponse.redirect(url, 308);
@@ -149,10 +149,10 @@ function corporateLegacyRedirect(request: NextRequest, pathname: string) {
   if (legacyAdmin) return legacyAdmin;
   const legacyOrgAdmin = legacyOrgAdminRedirect(request, pathname);
   if (legacyOrgAdmin) return legacyOrgAdmin;
-  const adminsIndex = pathname.match(/^(\/(?:en|ru)(?:\/ai)?)\/corporate\/admins\/?$/);
+  const adminsIndex = pathname.match(/^(\/(?:en|ru)(?:\/ai)?)\/corporate\/admins?\/?$/);
   if (adminsIndex) {
     const url = requestOriginUrl(request);
-    url.pathname = `${adminsIndex[1]}/corporate/admins/members`;
+    url.pathname = `${adminsIndex[1]}/corporate/admin/members`;
     return NextResponse.redirect(url, 308);
   }
   const legacyCorporatePublisher = pathname.match(

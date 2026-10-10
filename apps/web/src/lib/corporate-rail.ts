@@ -98,7 +98,10 @@ export function resolveCorporateRail(
           entry.context !== "administration"
             ? allowed
                 .filter(
-                  (child) => child.context === entry.context && child.rail && child.id !== entry.id,
+                  (child) =>
+                    child.context === entry.context &&
+                    child.rail &&
+                    (child.id !== entry.id || entry.id === "landscape"),
                 )
                 .map(item)
             : [];
@@ -118,6 +121,9 @@ export function resolveCorporateRail(
   return {
     context,
     entries,
-    back: detail ? { href: page.href, label: page.label } : null,
+    back:
+      detail && page.href !== "/corporate/technology-scans"
+        ? { href: page.href, label: page.label }
+        : null,
   };
 }

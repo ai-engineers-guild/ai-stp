@@ -165,7 +165,7 @@ downgrade is a separate explicit operation.
 This is the code-backed administration view over the existing authorized member
 and invitation lists, separate from the resource directories in REQ-8603.
 
-- `REQ-8615`: `/corporate/organization/admins` renders breadcrumbs, four summary
+- `REQ-8615`: `/corporate/admin` renders breadcrumbs, four summary
   counts, and URL-backed Members/Invitations tabs. Each administration table has
   name/email search, role/team/status filters, ten rows per page, selected-row CSV
   export and keyboard-accessible row actions. Query changes reset the page. The

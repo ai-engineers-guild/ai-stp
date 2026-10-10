@@ -16,7 +16,7 @@ export default async function TechnologyAreasPage({
 }) {
   const { locale } = await params;
   setRequestLocale(locale);
-  await requireSession(locale, `/${locale}/corporate/organization/admins/technology-areas`);
+  await requireSession(locale, `/${locale}/corporate/admin/technology-areas`);
   const session = (await sessionCookieValue()) ?? "";
   const t = await getTranslations("technology");
   const h = await getTranslations("hub");
@@ -53,7 +53,7 @@ export default async function TechnologyAreasPage({
   return (
     <div className="min-w-0 space-y-6">
       <header className="space-y-3">
-        <HistoryBackButton label={h("referenceData")} fallback="/corporate/organization/admins" />
+        <HistoryBackButton label={h("referenceData")} fallback="/corporate/admin" />
         <h1 className="text-3xl font-medium tracking-tight sm:text-4xl">{t("areas.title")}</h1>
         <p className="text-muted-foreground max-w-prose">{t("areas.description")}</p>
       </header>

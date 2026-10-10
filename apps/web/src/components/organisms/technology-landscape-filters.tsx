@@ -162,10 +162,11 @@ function LandscapeFilterSurface({
   const [projects, setProjects] = useState<string[]>(
     [filters.project_ids ?? filters.project_id ?? []].flat().filter(Boolean),
   );
-  const [singles, setSingles] = useState<Record<SingleFilter, string>>(() =>
-    Object.fromEntries(
-      SINGLE_FILTERS.map((key) => [key, typeof filters[key] === "string" ? filters[key] : ""]),
-    ) as Record<SingleFilter, string>,
+  const [singles, setSingles] = useState<Record<SingleFilter, string>>(
+    () =>
+      Object.fromEntries(
+        SINGLE_FILTERS.map((key) => [key, typeof filters[key] === "string" ? filters[key] : ""]),
+      ) as Record<SingleFilter, string>,
   );
   const singleOptions: Record<SingleFilter, { value: string; label: string }[]> = {
     category_id: categories.map((c) => ({ value: c.category_id, label: localize(c).name })),

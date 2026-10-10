@@ -107,7 +107,7 @@ export const Collapsed: Story = {
 };
 function AdministrationStory() {
   const [mainNavigation, setMainNavigation] = useState(false);
-  const pathname = "/corporate/admins/roles";
+  const pathname = "/corporate/admin/roles";
   return (
     <ContextSidebar
       corporate
@@ -127,9 +127,9 @@ function AdministrationStory() {
 export const Administration: Story = {
   render: () => <AdministrationStory />,
   args: {
-    pathname: "/corporate/admins/roles",
+    pathname: "/corporate/admin/roles",
     scope: "administration",
-    items: items("/corporate/admins/roles"),
+    items: items("/corporate/admin/roles"),
     back: null,
   },
 };
@@ -156,9 +156,9 @@ export const Restricted: Story = {
 };
 export const DeniedAdministration: Story = {
   args: {
-    pathname: "/corporate/admins/members",
+    pathname: "/corporate/admin/members",
     scope: "root",
-    items: items("/corporate/admins/members", false, [
+    items: items("/corporate/admin/members", false, [
       "overview",
       "catalog",
       "organization",

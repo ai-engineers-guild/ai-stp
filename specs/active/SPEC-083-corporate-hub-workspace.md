@@ -272,7 +272,7 @@ The explicit development-only Twinby fixture loader preserves existing accounts,
 memberships and assignments, adds canonical project/team relationships, classified
 technologies and experimental catalog examples, and refuses changed target revisions.
 
-The audit journal has a dedicated `/corporate/organization/admins/audit` page.
+The audit journal has a dedicated `/corporate/admin/audit` page.
 It requires `audit.list`; actor names are resolved only from an authorized member
 directory under `member.list`. Display localized actions, outcomes, dates, and
 named employee links, not target table names, raw identifiers, or arbitrary audit

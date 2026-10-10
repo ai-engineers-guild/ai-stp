@@ -30,7 +30,7 @@ import {
   peopleCellClass,
   peopleHeadClass,
   usePeopleFilters,
-} from "@/components/organisms/corporate-people-ui";
+} from "@/components/molecules/people-ui";
 import type { CategoryView, TechnologyView } from "@/lib/api/generated/types.gen";
 import { downloadPeopleCsv } from "@/lib/member-export";
 import {

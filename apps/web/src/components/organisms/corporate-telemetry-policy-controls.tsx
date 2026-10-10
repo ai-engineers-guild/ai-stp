@@ -351,7 +351,7 @@ export function CorporateTelemetryPolicyControls({
         ariaLabel={t("telemetryPolicy")}
         items={tabs.map((key) => ({
           key,
-          href: `/corporate/admins/telemetry?tab=${key}`,
+          href: `/corporate/admin/telemetry?tab=${key}`,
           label: t(`telemetryTab.${key}`),
           active: key === tab,
         }))}

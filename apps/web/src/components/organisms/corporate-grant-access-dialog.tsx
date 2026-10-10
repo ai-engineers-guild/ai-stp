@@ -8,7 +8,7 @@ import { Button } from "@/components/atoms/button";
 import { Label } from "@/components/atoms/label";
 import { FormDialog } from "@/components/molecules/form-dialog";
 import { SearchableMultiSelect } from "@/components/molecules/searchable-multi-select";
-import { ScopeField } from "@/components/organisms/corporate-people-ui";
+import { ScopeField } from "@/components/molecules/people-ui";
 import { corporateMutation } from "@/lib/api/corporate-mutation";
 import { permissionEntity, permissionLabel, roleTitle } from "@/lib/corporate-permission-ui";
 import type {

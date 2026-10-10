@@ -12,7 +12,7 @@ import { expect, test, type Page, type TestInfo } from "@playwright/test";
 const mode = process.env["AI_STP_CORPORATE_E2E"];
 const state = process.env["AI_STP_CORPORATE_STORAGE_STATE"];
 const main = (page: Page) => page.locator("#main-content");
-const organizationBase = "/en/corporate/admins";
+const organizationBase = "/en/corporate/admin";
 const membersRoute = `${organizationBase}/members`;
 const peopleAccessRoutes = [
   membersRoute,
@@ -137,7 +137,7 @@ test.describe("People & Access administration", () => {
     await expect(main(page).getByRole("row")).toHaveCount(2);
     await search.clear();
     await expect(main(page).getByRole("row")).toHaveCount(11);
-    await page.goto("/en/corporate/admins/invitations");
+    await page.goto("/en/corporate/admin/invitations");
     await expect(page).toHaveURL(/admins\/invitations/, { timeout: urlTimeout });
     await expect(main(page).getByRole("heading", { level: 1, name: "Invitations" })).toBeVisible();
     await main(page).getByRole("button", { name: "Invite member", exact: true }).click();
@@ -151,7 +151,7 @@ test.describe("People & Access administration", () => {
     page.setDefaultTimeout(30_000);
     test.skip(mode !== "offline", "Invitation mutation uses the offline fixture");
     await authenticate(page);
-    await page.goto("/en/corporate/admins/invitations");
+    await page.goto("/en/corporate/admin/invitations");
     const email = `e2e-${Date.now()}@example.com`;
     await main(page).getByRole("button", { name: "Invite member", exact: true }).click();
     const dialog = page.getByRole("dialog", { name: "Invite member", exact: true });

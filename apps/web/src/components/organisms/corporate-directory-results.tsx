@@ -273,15 +273,18 @@ function useDirectoryResultControls({
   }
 
   function persist(name: string, values: string[]) {
-    mutateParams((params) => {
-      params.delete("status");
-      params.delete("state");
-      params.delete(name);
-      values.forEach((value) => {
-        params.append(name, value);
-      });
-      if (serverPaginated && name !== "view") params.set("page", "1");
-    }, serverPaginated && name !== "view");
+    mutateParams(
+      (params) => {
+        params.delete("status");
+        params.delete("state");
+        params.delete(name);
+        values.forEach((value) => {
+          params.append(name, value);
+        });
+        if (serverPaginated && name !== "view") params.set("page", "1");
+      },
+      serverPaginated && name !== "view",
+    );
   }
 
   function changeQuery(value: string) {

@@ -4,7 +4,7 @@ import { useFormatter, useTranslations } from "next-intl";
 
 import { Badge } from "@/components/atoms/badge";
 import { ClipboardIconButton } from "@/components/molecules/clipboard-icon-button";
-import { CorporateDetailDrawer, PersonIdentity } from "@/components/organisms/corporate-people-ui";
+import { CorporateDetailDrawer, PersonIdentity } from "@/components/molecules/people-ui";
 import {
   outcomeVariant,
   targetLabel,

@@ -20,7 +20,7 @@ vi.mock("@/components/atoms/sheet", () => ({
 }));
 vi.mock("@/lib/i18n/navigation", () => ({
   Link: ({ children, ...props }: React.ComponentProps<"a">) => <a {...props}>{children}</a>,
-  usePathname: () => "/corporate/admins/audit",
+  usePathname: () => "/corporate/admin/audit",
   useRouter: () => ({ replace }),
 }));
 vi.mock("next-intl", () => ({
@@ -86,7 +86,7 @@ afterEach(() => {
 });
 
 it("renders the toolbar, count, table and numbered pager", () => {
-  window.history.replaceState(null, "", "/corporate/admins/audit?page=1");
+  window.history.replaceState(null, "", "/corporate/admin/audit?page=1");
   render(
     <CorporateAuditPanel
       organizationId="organization_fixture"
@@ -114,7 +114,7 @@ it("renders the toolbar, count, table and numbered pager", () => {
 });
 
 it("pushes filter selects into the URL and resets the page", () => {
-  window.history.replaceState(null, "", "/corporate/admins/audit?page=3&outcome=failed");
+  window.history.replaceState(null, "", "/corporate/admin/audit?page=3&outcome=failed");
   render(
     <CorporateAuditPanel
       organizationId="organization_fixture"
@@ -131,11 +131,11 @@ it("pushes filter selects into the URL and resets the page", () => {
   });
   expect(replace.mock.calls.at(-1)?.[0]).not.toContain("page=");
   fireEvent.click(screen.getByRole("button", { name: "reset" }));
-  expect(replace).toHaveBeenLastCalledWith("/corporate/admins/audit", { scroll: false });
+  expect(replace).toHaveBeenLastCalledWith("/corporate/admin/audit", { scroll: false });
 });
 
 it("opens the detail drawer with request id, target and payload", () => {
-  window.history.replaceState(null, "", "/corporate/admins/audit");
+  window.history.replaceState(null, "", "/corporate/admin/audit");
   render(
     <CorporateAuditPanel
       organizationId="organization_fixture"
@@ -159,7 +159,7 @@ it("opens the detail drawer with request id, target and payload", () => {
 });
 
 it("shows export transport errors and permits retry without losing the journal", async () => {
-  window.history.replaceState(null, "", "/corporate/admins/audit");
+  window.history.replaceState(null, "", "/corporate/admin/audit");
   exportAudit.mockRejectedValueOnce(new Error("Connection lost"));
   exportAudit.mockResolvedValueOnce({ ok: false, message: "Try again later" });
   render(
@@ -175,7 +175,7 @@ it("shows export transport errors and permits retry without losing the journal",
 });
 
 it("does not offer export when the server projection withholds the capability", () => {
-  window.history.replaceState(null, "", "/corporate/admins/audit");
+  window.history.replaceState(null, "", "/corporate/admin/audit");
   render(
     <CorporateAuditPanel
       organizationId="organization_fixture"
@@ -208,7 +208,7 @@ it("creates a quoted CSV without exposing extra audit fields in the UI", () => {
 });
 
 it("exports the selected range and keeps the object URL alive through the click", async () => {
-  window.history.replaceState(null, "", "/corporate/admins/audit");
+  window.history.replaceState(null, "", "/corporate/admin/audit");
   exportAudit.mockResolvedValue({
     ok: true,
     data: {
