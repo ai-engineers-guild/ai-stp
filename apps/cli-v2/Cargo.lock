@@ -30,7 +30,7 @@ name = "ai-stp-cli-v2"
 version = "0.1.0-preview.1"
 dependencies = [
  "apple-native-keyring-store",
- "base64 0.22.1",
+ "base64 0.23.1",
  "cap-fs-ext",
  "cap-std",
  "clap",
